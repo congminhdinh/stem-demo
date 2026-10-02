@@ -35,6 +35,54 @@ body {
   color: #627d98;
 }
 
+.run-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  font-size: 13px;
+}
+
+.run-toolbar button {
+  padding: 4px 14px;
+  font: inherit;
+  border: 1px solid #9aa5b1;
+  border-radius: 4px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.run-toolbar button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.run-status {
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #e4e7eb;
+  color: #3e4c59;
+}
+
+.run-status-running,
+.run-status-finished {
+  background: #e3f9e5;
+  color: #207227;
+}
+
+.run-status-error {
+  background: #ffe3e3;
+  color: #a61b1b;
+}
+
+.run-messages {
+  flex-basis: 100%;
+  margin: 0;
+  padding-left: 18px;
+  color: #a61b1b;
+}
+
 /* Canvas and program are visible at the same time (plan §3.4). */
 .workspace {
   display: grid;

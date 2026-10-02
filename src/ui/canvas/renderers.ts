@@ -10,7 +10,7 @@ import { LedRenderer } from './LedRenderer';
  */
 export type DeviceRendererProps = {
   definition: DeviceDefinition;
-  /** Runtime state from the run snapshot; nothing provides it before POC-08. */
+  /** This component's state in the run snapshot; absent while idle. */
   runtimeState?: { lit?: boolean };
 };
 

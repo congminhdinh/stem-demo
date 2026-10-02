@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
+import { openProject, samples } from './helpers';
 
 test('renders the led-on sample on the canvas from the document', async ({ page }) => {
-  await page.goto('/');
+  await openProject(page, samples.ledOn);
 
   await expect(page.getByTestId('circuit-canvas').locator('canvas').first()).toBeVisible();
   await expect(page.getByTestId('program-region')).toBeVisible();

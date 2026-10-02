@@ -14,4 +14,17 @@ describe('projectStore', () => {
     expect(store.getState().document).toEqual({ ...initial, program: { blocks } });
     expect(initial.program.blocks).toEqual(ledOnSample.program.blocks);
   });
+
+  it('bumps the load revision on every load, even of the same id, but not on edits', () => {
+    const initial = projectDocumentSchema.parse(ledOnSample);
+    const store = createProjectStore(initial);
+    expect(store.getState().loadRevision).toBe(0);
+
+    store.getState().setProgramBlocks({});
+    expect(store.getState().loadRevision).toBe(0);
+
+    const reloaded = { ...initial, program: { blocks: {} } };
+    store.getState().loadProject(reloaded);
+    expect(store.getState()).toMatchObject({ document: reloaded, loadRevision: 1 });
+  });
 });

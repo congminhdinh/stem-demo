@@ -4,16 +4,23 @@ import type { Circuit, ComponentInstance, Wire } from '../../core/circuit/docume
 import { portRefPosition, portWorldPosition } from '../../core/circuit/geometry';
 import type { DeviceDefinition, PortDefinition } from '../../core/devices/device-definition';
 import type { DeviceRegistry } from '../../core/devices/registry';
-import { rendererFor } from './renderers';
+import type { SimulationResult } from '../../core/simulation/simulate-circuit';
+import { rendererFor, type DeviceRendererProps } from './renderers';
 import { useElementSize } from './use-element-size';
 
-// Renders the design state only. The document is the source of truth; Konva
-// nodes are derived from it on every render and never stored. The viewport is
-// fixed (world = stage coordinates) until pan/zoom exists.
+// Renders the design state plus, while running, the simulation snapshot. The
+// document is the source of truth; Konva nodes are derived from it on every
+// render and never stored. The viewport is fixed (world = stage coordinates)
+// until pan/zoom exists.
 
-type CircuitCanvasProps = { circuit: Circuit; registry: DeviceRegistry };
+type CircuitCanvasProps = {
+  circuit: Circuit;
+  registry: DeviceRegistry;
+  /** The run snapshot's simulation; null while idle (design state only). */
+  simulation: SimulationResult | null;
+};
 
-export function CircuitCanvas({ circuit, registry }: CircuitCanvasProps) {
+export function CircuitCanvas({ circuit, registry, simulation }: CircuitCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useElementSize(containerRef);
 
@@ -27,6 +34,7 @@ export function CircuitCanvas({ circuit, registry }: CircuitCanvasProps) {
                 key={component.id}
                 component={component}
                 definition={registry.get(component.deviceType)}
+                runtimeState={runtimeStateOf(simulation, component.id)}
               />
             ))}
             {circuit.wires.map((wire) => (
@@ -48,7 +56,18 @@ export function CircuitCanvas({ circuit, registry }: CircuitCanvasProps) {
 
 type ComponentProps = { component: ComponentInstance; definition: DeviceDefinition };
 
-function ComponentBody({ component, definition }: ComponentProps) {
+/** Component ids are data, so they must not resolve to Object.prototype members. */
+function runtimeStateOf(simulation: SimulationResult | null, componentId: string) {
+  return simulation && Object.hasOwn(simulation.components, componentId)
+    ? simulation.components[componentId]
+    : undefined;
+}
+
+function ComponentBody({
+  component,
+  definition,
+  runtimeState,
+}: ComponentProps & Pick<DeviceRendererProps, 'runtimeState'>) {
   const Renderer = rendererFor(definition);
   return (
     <Group
@@ -58,7 +77,7 @@ function ComponentBody({ component, definition }: ComponentProps) {
       x={component.position.x}
       y={component.position.y}
     >
-      <Renderer definition={definition} />
+      <Renderer definition={definition} runtimeState={runtimeState} />
     </Group>
   );
 }

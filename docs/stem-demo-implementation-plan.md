@@ -12,7 +12,7 @@
 |---|---|
 | **PoC chứng minh gì** | Kiến trúc đã chọn đủ tốt để xây một STEM editor thực tế. Kiến trúc đó gồm: document độc lập renderer, simulation là hàm thuần, Blockly chỉ là view và program được compile sang IR, runtime chỉ chạm phần cứng ảo qua `HardwareIO`, canvas chỉ render document và snapshot (§2) |
 | **Vertical slice** | **Checkpoint MP** (bằng chứng đầu tiên): Board + LED, block "on start: digital write D13 HIGH", bấm Run thì LED sáng trên canvas. **VS-1:** mở rộng MP thành mạch Board + Resistor + LED chạy program blink (`forever` + `wait`), Stop hoạt động đúng. **VS-2:** người dùng tự dựng mạch bằng chuột rồi chạy (§3) |
-| **Task tiếp theo** | `POC-08` Run in the UI · VS-1 (§9.2). `POC-01`…`POC-07` đã xong |
+| **Task tiếp theo** | `POC-09` Place, move & delete components (§9.2). `POC-01`…`POC-08` đã xong (M1 đóng) |
 | **Critical path** | `01 → 02 → 03 → 05 → 08 → 11`. Hai nhánh `02 → 06 → 07 → 08` và `03 → 09 → 10 → 11` dài bằng nhau (§10) |
 | **PoC xong khi** | M1 và M2 (P0) đạt exit criteria, Learning log trả lời được L1–L4 (§8, §17). M3 và M4 (P1) làm PoC thuyết phục hơn |
 | **Ràng buộc cứng** | Boundary B1–B8 (§5.1) và acceptance criteria của task. Mọi thứ còn lại (tên file, API helper, cấu trúc nội bộ, type chi tiết) là gợi ý |
@@ -919,7 +919,7 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
   - Block được đăng ký một lần.
   - Inject với zelos, toolbox từ core, `sounds: false`, `maxInstances` (một `on start`, một `forever`) và `disableOrphans`.
 - **Đồng bộ với document:**
-  - Workspace được tạo lại **chỉ khi `document.id` đổi**, sau đó load `program.blocks`.
+  - Workspace được tạo lại **chỉ khi `document.id` đổi**, sau đó load `program.blocks`. *(POC-08: đổi thành mỗi lần `loadProject`, xem trạng thái POC-08.)*
   - Mỗi change event không phải UI được debounce 250 ms rồi `serialization.workspaces.save`.
   - Panel chỉ ghi vào store khi JSON thật sự khác, qua **action đầu tiên của `projectStore`**: `setProgramBlocks`. Không thêm `apply` tổng quát: autosave sau này chỉ cần subscribe store, còn undo là việc của circuit và đang nằm trong backlog.
   - Khi unmount thì flush lần save đang chờ, có kiểm tra `document.id` để không ghi program cũ vào project mới.
@@ -1054,13 +1054,37 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 **Out of scope.** Console, tô màu dây, device input.
 
 **Acceptance**
-- [ ] *(MP — checkpoint, làm trước)* E2E-1a xanh: mạch `led-on` → Run → poll cho tới khi **LED đã render** ở trạng thái sáng → Stop → LED tắt, status Idle.
-- [ ] *(Sau MP)* E2E-1b xanh: mạch `blink` → Run → thấy LED đổi trạng thái → Stop khi đang `wait` → LED tắt → dùng UI Blockly đổi `LEVEL` (hoặc thời gian) → Run → hành vi đổi theo.
-- [ ] Đã đo Run → LED sáng (program led-on) ≤ 300 ms và ghi kết quả.
-- [ ] Build production không chứa test hook.
-- [ ] Learning log M1 đã điền: verdict cho L3/L4, những chỗ boundary gây khó, các số đo.
+- [x] *(MP — checkpoint, làm trước)* E2E-1a xanh: mạch `led-on` → Run → poll cho tới khi **LED đã render** ở trạng thái sáng → Stop → LED tắt, status Idle.
+- [x] *(Sau MP)* E2E-1b xanh: mạch `blink` → Run → thấy LED đổi trạng thái → Stop khi đang `wait` → LED tắt → dùng UI Blockly đổi `LEVEL` (hoặc thời gian) → Run → hành vi đổi theo.
+- [x] Đã đo Run → LED sáng (program led-on) ≤ 300 ms và ghi kết quả.
+- [x] Build production không chứa test hook.
+- [x] Learning log M1 đã điền: verdict cho L3/L4, những chỗ boundary gây khó, các số đo.
 
 **Notes.** "Rendered state" phải đọc từ node Konva (attribute do renderer đặt), không đọc từ store. Như vậy E2E mới kiểm tra được đúng boundary render.
+
+**Trạng thái: xong (2026-10-03). M1 đóng.**
+- **`runStore`** (`src/ui/state/run-store.ts`): store Zustand bọc `RunSession`, tạo ở composition root.
+  - Mọi snapshot mà session phát ra trong cùng một frame được gộp lại; React chỉ nhận snapshot mới nhất, tối đa một lần mỗi animation frame.
+  - `startFailure` giữ lý do của lần Run không bắt đầu được, vì khi đó session vẫn `idle` (§6.4).
+  - `selectIsRunning` là cờ "đang chạy" cho các task editor: `true` từ lúc Run tới lúc Stop, kể cả khi program đã xong (board vẫn được cấp nguồn).
+- **Toolbar** (`RunToolbar.tsx`): Run, Stop (disabled khi idle), status `Idle` / `Running` / `Program finished — board powered` / `Error`, và diagnostics dạng text. Run khi đang chạy thì chạy lại (session thay lần chạy cũ).
+- **Snapshot → canvas:** `App` truyền `snapshot.simulation` xuống `CircuitCanvas`. Canvas đưa `components[id]` cho renderer qua `runtimeState`, có kiểm tra own property vì id là data. `LedRenderer` đặt attribute `lit` lên node Konva `led-light`, và test hook đọc lại từ node đó.
+- **Run ngay sau khi sửa block:** việc lưu program bị trễ hai lần: Blockly phát change event sau `requestAnimationFrame` + `setTimeout(0)`, rồi panel debounce thêm 250 ms. Vì vậy một lần Run trong vòng khoảng 270 ms sau khi sửa sẽ compile program cũ.
+  - `BlocklyPanel` expose `saveNow()` qua `ref` (React 19). Hàm này serialize **chính workspace** vào document, không chờ event.
+  - Nút Run gọi `saveNow()` trước khi `start(document)`. Compiler vẫn chỉ đọc document (B4).
+  - Có E2E bảo vệ: tắt `saveNow` thì 2 test fail vì program cũ (HIGH) được chạy.
+- **Sample mặc định của app giờ là `blink`** (sau MP, theo POC-03/POC-05). `led-on` được mở qua hook mới `loadProject(doc)`, kèm action `loadProject` của `projectStore`. Hook này cũng là lần đầu đường "đổi project → Blockly load lại" được E2E đi qua. `canvas.spec` và `program.spec` mở `led-on` qua hook.
+- **Load project lại với cùng id** (lỗi do review tìm ra): workspace từng chỉ reload khi `document.id` đổi, và save chỉ kiểm tra id. Vì vậy load một document cùng id thì Blockly vẫn giữ program cũ, và Run (`saveNow`) hoặc một save còn chờ sẽ ghi program cũ đè lên document vừa load. Cách sửa:
+  - `projectStore` có `loadRevision`: tăng ở mỗi `loadProject`, không đổi khi sửa program.
+  - `BlocklyPanel` reload theo `loadRevision`, nên autosave không làm reload.
+  - Mỗi workspace chỉ được save khi revision của store còn bằng revision lúc nó được load. Nhờ vậy save đang debounce, flush khi cleanup hay `saveNow` của workspace cũ đều không ghi được vào project mới.
+  - Có 3 E2E trong `program.spec.ts` bảo vệ trường hợp này.
+- **E2E:**
+  - `mp-led-on.spec.ts` (E2E-1a): Run → LED render sáng → `Program finished — board powered` → Stop → tắt. Thêm test sửa `HIGH` → `LOW` rồi Run ngay.
+  - `vs1-blink.spec.ts` (E2E-1b): Run → sáng/tắt/sáng → Stop khi đang `wait` → đổi chỗ `LEVEL` của hai lệnh ghi qua Blockly → Run ngay → LED tắt ở nửa đầu chu kỳ và sáng ở nửa sau.
+  - Toàn bộ 11 E2E test xanh khi chạy `--repeat-each=3` (33/33).
+- **Số đo và build:** xem Learning log M1. Build production không chứa `__stem`, `getCanvasState` hay `getProgramBlocks`.
+- **Không làm:** chấm báo chân (tuỳ chọn), console, tô màu dây, khoá editor (chưa có thao tác sửa mạch; POC-09/10 dùng `selectIsRunning`), `getRunSnapshot` và các hook khác ở §11.4 chưa có spec cần.
 
 ---
 
@@ -1321,6 +1345,13 @@ flowchart LR
 
 Hook không phải contract có version. Thêm hoặc bớt theo nhu cầu của spec.
 
+*(Sau POC-08)* Hook hiện có:
+- `getCanvasState()`: component, dây, port, và `lit` đọc từ node Konva; đóng vai trò của `getRenderedState`;
+- `getProgramBlocks()`;
+- `loadProject(doc)`.
+
+Status Run đọc thẳng từ DOM, nên chưa cần `getRunSnapshot`.
+
 ### 11.5 Phần bỏ đi so với v1 (overkill cho PoC)
 
 - Contract suite cho các adapter repository; differential test IR ↔ Python; golden Python.
@@ -1477,10 +1508,28 @@ Chỉ cần quay lại research khi làm hạng mục backlog: track Python (spe
 
 | Milestone | Ngày | Câu hỏi | Evidence | Verdict | Thay đổi plan |
 |---|---|---|---|---|---|
-| M1 | — | L2 (mạch mẫu), L3, L4 | *(điền ở POC-08)* | ✅ / ⚠️ / ❌ | |
+| M1 | 2026-10-03 | L2 (mạch mẫu), L3, L4 | Xem "M1 — chi tiết" bên dưới | L2 ✅ (mạch mẫu; mạch tự dựng ở M2) · L3 ✅ · L4 ✅ | `digitalRead`, `contacts` để tới lúc có consumer; sample mặc định là `blink`; Run gọi `saveNow` của Blockly |
 | M2 | — | L1, L2, L8 + go/no-go | *(điền ở POC-11)* | | |
 | M3 | — | L3 (built-in), L5, L6 | *(điền ở POC-13)* | | |
 | M4 | — | L7 | *(điền ở POC-14)* | | |
+
+**M1 — chi tiết (POC-08).**
+- **L2:** netlist union-find cộng cặp dẫn điện của resistor đủ cho `led-on` và `blink`: 16 scenario test ở POC-06, cộng E2E-1 thấy LED render từ snapshot. Mạch do người dùng tự nối còn chờ M2.
+- **L3:**
+  - Compiler chạy trên Node, chỉ đọc JSON. Chỉ `src/ui/blockly` import Blockly.
+  - JSON do Blockly UI save khớp hoàn toàn với fixture viết tay; **không phải sửa fixture nào**.
+  - Điểm cần chú ý khi tích hợp: lưu program bị trễ (Blockly phát event chậm một frame, cộng debounce 250 ms). Boundary "Blockly là view, compile từ document" vì vậy cần **một điểm đồng bộ khi Run** (`saveNow`). Đây là thay đổi nhỏ, không phải dấu hiệu kiến trúc sai.
+- **L4:**
+  - Interpreter chỉ đi qua `HardwareIO`, `RunSession` là nơi duy nhất nối program với simulation.
+  - Stop khi đang `wait`: không còn timer hay lệnh ghi nào (unit test và E2E).
+  - Review POC-07 tìm ra một race khi listener gọi `start` lồng bên trong; đã sửa bằng quy tắc "chốt ownership rồi mới publish" (§6.4).
+- **Số đo** (dev server, Chromium, máy dev):
+  - **Run → LED render sáng:** median ~9 ms, max 22 ms trên 10 lần (mục tiêu ≤ 300 ms).
+  - **Stop khi đang `wait` → LED render tắt:** 15–26 ms (mục tiêu ≤ 100 ms).
+  - **Blink 1 s:** mốc đổi trạng thái đã render là 13 / 1020 / 2036 / 3054 / 4053 / 5070 / 6087 ms. Chu kỳ đo được 2017–2034 ms so với 2010 ms lý thuyết (gồm pause 10 ms của E3), tức sai lệch dưới ±50 ms.
+  - **Cập nhật React:** tối đa một lần mỗi frame theo thiết kế (`runStore` gộp theo `requestAnimationFrame`, có unit test). Chưa đo số commit/giây bằng React Profiler.
+- **Boundary:** 0 `eslint-disable` cho B1. Renderer chỉ đọc `runtimeState.lit` từ snapshot. Document không đổi sau khi chạy (test B2).
+- **E2E chập chờn:** 0 lần (11 test × 3 lần lặp).
 
 ### 17.1 Số liệu nên ghi
 

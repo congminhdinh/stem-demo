@@ -7,7 +7,10 @@ export function LedRenderer({ definition, runtimeState }: DeviceRendererProps) {
   const domeHeight = height * 0.7;
   return (
     <>
+      {/* `lit` is set on the node so tests read what was rendered (plan §11.4). */}
       <Rect
+        name="led-light"
+        lit={lit}
         x={-width / 2}
         y={-height / 2}
         width={width}

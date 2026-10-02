@@ -5,6 +5,13 @@ import type { ProjectDocument } from '../../core/circuit/document';
 // panel. Actions only replace parts of the document; they hold no logic.
 export type ProjectState = {
   document: ProjectDocument;
+  /**
+   * Bumped by every load, never by edits. Views that keep their own copy of
+   * the document (the Blockly workspace) reload on it, whatever the project id.
+   */
+  loadRevision: number;
+  /** Opens a project, replacing the current one even if it has the same id. */
+  loadProject(document: ProjectDocument): void;
   /** Stores the serialized Blockly workspace (plan §5.1 B4). */
   setProgramBlocks(blocks: unknown): void;
 };
@@ -12,6 +19,8 @@ export type ProjectState = {
 export function createProjectStore(document: ProjectDocument) {
   return createStore<ProjectState>()((set) => ({
     document,
+    loadRevision: 0,
+    loadProject: (next) => set((state) => ({ document: next, loadRevision: state.loadRevision + 1 })),
     setProgramBlocks: (blocks) => set((state) => ({ document: { ...state.document, program: { blocks } } })),
   }));
 }
