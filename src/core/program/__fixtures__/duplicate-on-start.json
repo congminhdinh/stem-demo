@@ -1,0 +1,19 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "stem_on_start",
+        "id": "first-on-start",
+        "x": 40,
+        "y": 40
+      },
+      {
+        "type": "stem_on_start",
+        "id": "second-on-start",
+        "x": 40,
+        "y": 200
+      }
+    ]
+  }
+}

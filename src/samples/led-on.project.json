@@ -20,5 +20,28 @@
       }
     ]
   },
-  "program": { "blocks": {} }
+  "program": {
+    "blocks": {
+      "blocks": {
+        "languageVersion": 0,
+        "blocks": [
+          {
+            "type": "stem_on_start",
+            "id": "on-start",
+            "x": 40,
+            "y": 40,
+            "inputs": {
+              "DO": {
+                "block": {
+                  "type": "stem_digital_write",
+                  "id": "write-d13-high",
+                  "fields": { "PIN": "D13", "LEVEL": "HIGH" }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
 }

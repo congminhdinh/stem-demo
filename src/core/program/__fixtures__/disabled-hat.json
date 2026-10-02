@@ -1,0 +1,38 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "stem_on_start",
+        "id": "disabled-on-start",
+        "x": 40,
+        "y": 40,
+        "disabledReasons": ["MANUALLY_DISABLED"],
+        "inputs": {
+          "DO": {
+            "block": {
+              "type": "stem_digital_write",
+              "id": "write-under-disabled-hat",
+              "fields": { "PIN": "D13", "LEVEL": "HIGH" }
+            }
+          }
+        }
+      },
+      {
+        "type": "stem_forever",
+        "id": "forever",
+        "x": 40,
+        "y": 200,
+        "inputs": {
+          "DO": {
+            "block": {
+              "type": "stem_wait",
+              "id": "wait-in-forever",
+              "fields": { "SECONDS": 1 }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

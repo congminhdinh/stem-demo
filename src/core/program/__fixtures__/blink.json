@@ -1,0 +1,43 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "stem_forever",
+        "id": "forever",
+        "x": 40,
+        "y": 40,
+        "inputs": {
+          "DO": {
+            "block": {
+              "type": "stem_digital_write",
+              "id": "write-high",
+              "fields": { "PIN": "D13", "LEVEL": "HIGH" },
+              "next": {
+                "block": {
+                  "type": "stem_wait",
+                  "id": "wait-on",
+                  "fields": { "SECONDS": 1 },
+                  "next": {
+                    "block": {
+                      "type": "stem_digital_write",
+                      "id": "write-low",
+                      "fields": { "PIN": "D13", "LEVEL": "LOW" },
+                      "next": {
+                        "block": {
+                          "type": "stem_wait",
+                          "id": "wait-off",
+                          "fields": { "SECONDS": 1 }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

@@ -12,7 +12,7 @@
 |---|---|
 | **PoC chứng minh gì** | Kiến trúc đã chọn đủ tốt để xây một STEM editor thực tế. Kiến trúc đó gồm: document độc lập renderer, simulation là hàm thuần, Blockly chỉ là view và program được compile sang IR, runtime chỉ chạm phần cứng ảo qua `HardwareIO`, canvas chỉ render document và snapshot (§2) |
 | **Vertical slice** | **Checkpoint MP** (bằng chứng đầu tiên): Board + LED, block "on start: digital write D13 HIGH", bấm Run thì LED sáng trên canvas. **VS-1:** mở rộng MP thành mạch Board + Resistor + LED chạy program blink (`forever` + `wait`), Stop hoạt động đúng. **VS-2:** người dùng tự dựng mạch bằng chuột rồi chạy (§3) |
-| **Task tiếp theo** | `POC-04` Blocks, IR & compiler (§9.2). `POC-01`…`POC-03` đã xong |
+| **Task tiếp theo** | `POC-05` Blockly panel (§9.2). `POC-01`…`POC-04` đã xong |
 | **Critical path** | `01 → 02 → 03 → 05 → 08 → 11`. Hai nhánh `02 → 06 → 07 → 08` và `03 → 09 → 10 → 11` dài bằng nhau (§10) |
 | **PoC xong khi** | M1 và M2 (P0) đạt exit criteria, Learning log trả lời được L1–L4 (§8, §17). M3 và M4 (P1) làm PoC thuyết phục hơn |
 | **Ràng buộc cứng** | Boundary B1–B8 (§5.1) và acceptance criteria của task. Mọi thứ còn lại (tên file, API helper, cấu trúc nội bộ, type chi tiết) là gợi ý |
@@ -470,9 +470,15 @@ type Expression =    // M3
 - **C1.** Input là Blockly serialization JSON (`blocks.blocks[]`, `next.block`, `fields`, `inputs.X.block`/`shadow`, `extraState`) cùng danh sách tên chân của board.
 - **C2.** Block top-level `stem_on_start` (tối đa 1) và `stem_forever` (tối đa 1) tạo ra hai section. Các block top-level khác bị bỏ qua kèm warning (Blockly cũng làm mờ chúng qua `disableOrphans`).
 - **C3.** Lỗi: block type lạ, chân không có trên board, hat bị trùng. Lỗi luôn kèm `blockId`.
-- **C4.** **Không bao giờ throw.** JSON sai cấu trúc sinh diagnostic lỗi.
+- **C4.** **Không bao giờ throw.** JSON sai cấu trúc sinh diagnostic lỗi. Cần phân biệt hai trường hợp:
+  - phần **vắng mặt hợp lệ**: statement input không có, hay `next` không có, được hiểu là body rỗng hoặc hết chuỗi;
+  - phần **có mặt nhưng sai shape**: input không phải object, hoặc field mà block bắt buộc phải có (`PIN`, `LEVEL`, `SECONDS`) bị thiếu hay sai kiểu. Trường hợp này là `malformed-program` trên block đó, không được âm thầm bỏ qua.
 - **C5.** Mọi node IR mang `blockId`, để sau này highlight được block lỗi hoặc block đang chạy.
 - **C6.** `wait` với giá trị âm hoặc không hữu hạn được coi là 0.
+- **C7.** **Block disabled** (Blockly lưu là `disabledReasons` có ít nhất một reason; không cần phân biệt từng reason) là trạng thái hợp lệ, **không** sinh error hay warning:
+  - statement disabled không sinh IR, nhưng chuỗi vẫn tiếp tục sang `next`;
+  - hat disabled (`on start` / `forever`) bỏ cả stack bên dưới;
+  - block rời rạc bị disabled (ví dụ do `disableOrphans`) được bỏ qua mà không có warning.
 
 **Fixture:** compiler test phải dùng JSON có **đúng format Blockly thật**. Xem POC-04 và rủi ro R2.
 
@@ -830,13 +836,31 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 **Out of scope.** Blockly UI, block M3, printer Python.
 
 **Acceptance**
-- [ ] *(MP)* Fixture led-on cho ra `onStart: [write D13 1]`, `forever: null`. Mọi node mang `blockId`.
-- [ ] *(Sau MP)* Fixture blink cho ra `forever: [write D13 1, wait 1000, write D13 0, wait 1000]` hoặc tương đương.
-- [ ] Block type lạ → error kèm `blockId`. Chân không có trên board → error. Block mồ côi → bị bỏ qua (kèm warning). Hai `on start` → error.
-- [ ] Ít nhất 5 input sai cấu trúc (null, thiếu `type`, `inputs` sai kiểu…) đều cho diagnostic và không throw.
-- [ ] Định nghĩa block là JSON thuần (JSON round-trip cho ra deep-equal). Nếu đã làm conformance test headless: Blockly load được mọi fixture và serialize lại cho cùng kết quả.
+- [x] *(MP)* Fixture led-on cho ra `onStart: [write D13 1]`, `forever: null`. Mọi node mang `blockId`.
+- [x] *(Sau MP)* Fixture blink cho ra `forever: [write D13 1, wait 1000, write D13 0, wait 1000]` hoặc tương đương.
+- [x] Block type lạ → error kèm `blockId`. Chân không có trên board → error. Block mồ côi → bị bỏ qua (kèm warning). Hai `on start` → error.
+- [x] Ít nhất 5 input sai cấu trúc (null, thiếu `type`, `inputs` sai kiểu…) đều cho diagnostic và không throw.
+- [x] Định nghĩa block là JSON thuần (JSON round-trip cho ra deep-equal). Nếu đã làm conformance test headless: Blockly load được mọi fixture và serialize lại cho cùng kết quả.
 
 **Notes.** Format cần biết: `blocks.blocks[]`, `next.block`, `fields`, `inputs.X.block`/`shadow`, `extraState`. Không dùng generator của Blockly.
+
+**Trạng thái: xong (2026-10-02).**
+- **Core** (`src/core/program/`, không import Blockly):
+  - `ir.ts`: IR v0 đúng như phác thảo ở §6.3, gồm `digitalWrite` và `wait`;
+  - `blocks.ts`: `buildBlockDefinitions(boardPins)`, `toolbox` và hằng `blockTypes`;
+  - `compile-program.ts`: compiler theo C1–C7, với diagnostic code `malformed-program`, `unknown-block`, `unknown-pin`, `duplicate-hat`, `ignored-block`.
+- **Đường MP:** `led-on.project.json` giờ chứa program "on start: digital write D13 HIGH", compile ra `onStart: [digitalWrite D13 1]`.
+- **`forever` và `wait` đã có ở mức compile**, vì đây là code thuần, rất nhỏ và không thể chặn MP. Phần rủi ro thật của "sau MP" (async sleep, Stop khi đang sleep) vẫn nằm ở phần sau MP của POC-07.
+- **Fixture Blockly thật:**
+  - `tests/blockly-conformance.test.ts` (ngoài core) chạy Blockly 13 headless trên jsdom: đăng ký block definition của core, rồi load và save lại 4 program (led-on, blink, orphan-block, duplicate-on-start). Kết quả phải giống hệt fixture.
+  - Fixture viết tay đều khớp ngay với output thật của Blockly. Thử sửa một fixture thành giá trị sai thì test fail.
+  - Hai trường hợp `unknown-block` và `unknown-pin` được tạo bằng cách sửa JSON hợp lệ trong test. Blockly không thể load block type lạ hay giá trị dropdown sai, nên những trường hợp này chỉ xuất hiện từ dữ liệu lưu hoặc import.
+- **Dependency mới:**
+  - `blockly@13.3.0` (dependency, POC-05 sẽ dùng ở runtime). Hiện chưa có module nào trong `src` import nó, nên chưa nằm trong bundle.
+  - `jsdom@29.1.1` (devDependency, peer của Blockly khi chạy trên Node).
+- **Chuyển task:**
+  - `createDefaultProgram` chuyển sang POC-11, vì chưa có consumer trước hành động "New".
+  - Program blink hiện là fixture `src/core/program/__fixtures__/blink.json`. Mạch mẫu `blink` (có Resistor) được ghép ở POC-06 và dùng lại program này.
 
 ---
 
@@ -879,7 +903,7 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 - Tra model theo `simulation.model`:
   - **MP** — `board`: rail `power` drive HIGH, `ground` drive LOW khi có nguồn; GPIO drive theo giá trị đã ghi;
   - **MP** — `led`: quy tắc `lit`;
-  - **sau MP** — `resistor`: dẫn `a`–`b`. Thêm `resistor.json` và mạch mẫu `blink` (chuyển từ POC-02), kèm test netlist ba net của mạch `blink`.
+  - **sau MP** — `resistor`: dẫn `a`–`b`. Thêm `resistor.json` và mạch mẫu `blink` (chuyển từ POC-02; program lấy từ fixture `src/core/program/__fixtures__/blink.json` của POC-04), kèm test netlist ba net của mạch `blink`.
 - Thuật toán §6.5. Model lạ thì device inert.
 - Shape của input đã tính trước `contacts` (dùng ở POC-12).
 - Scenario test.
@@ -1029,7 +1053,7 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 **Validates.** L1, L2, L8.
 
 **Scope**
-- Hành động "New": circuit trống kèm program mặc định.
+- Hành động "New": circuit trống kèm program mặc định (`createDefaultProgram` với hat `on start` và `forever`, chuyển từ POC-04; dùng `blockTypes` của core và thêm vào conformance test).
 - Khi đang chạy, palette, kéo, nối dây và xoá đều bị khoá.
 - E2E-2 (§11.3).
 - Demo script ngắn cho người chạy thử (đặt trong PR hoặc `docs/`), kèm nhận xét theo L8.
