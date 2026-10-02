@@ -1,0 +1,11 @@
+{
+  "id": "led",
+  "name": "LED",
+  "body": { "width": 40, "height": 70 },
+  "ports": [
+    { "id": "anode", "label": "Anode (+)", "x": -10, "y": 30, "kind": "passive" },
+    { "id": "cathode", "label": "Cathode (−)", "x": 10, "y": 30, "kind": "passive" }
+  ],
+  "renderer": "led",
+  "simulation": { "model": "led" }
+}

@@ -12,7 +12,7 @@
 |---|---|
 | **PoC chứng minh gì** | Kiến trúc đã chọn đủ tốt để xây một STEM editor thực tế. Kiến trúc đó gồm: document độc lập renderer, simulation là hàm thuần, Blockly chỉ là view và program được compile sang IR, runtime chỉ chạm phần cứng ảo qua `HardwareIO`, canvas chỉ render document và snapshot (§2) |
 | **Vertical slice** | **Checkpoint MP** (bằng chứng đầu tiên): Board + LED, block "on start: digital write D13 HIGH", bấm Run thì LED sáng trên canvas. **VS-1:** mở rộng MP thành mạch Board + Resistor + LED chạy program blink (`forever` + `wait`), Stop hoạt động đúng. **VS-2:** người dùng tự dựng mạch bằng chuột rồi chạy (§3) |
-| **Task tiếp theo** | `POC-02` Circuit model & device catalog (§9.2). `POC-01` Bootstrap đã xong |
+| **Task tiếp theo** | `POC-03` App shell & canvas rendering (§9.2). `POC-01` và `POC-02` đã xong |
 | **Critical path** | `01 → 02 → 03 → 05 → 08 → 11`. Hai nhánh `02 → 06 → 07 → 08` và `03 → 09 → 10 → 11` dài bằng nhau (§10) |
 | **PoC xong khi** | M1 và M2 (P0) đạt exit criteria, Learning log trả lời được L1–L4 (§8, §17). M3 và M4 (P1) làm PoC thuyết phục hơn |
 | **Ràng buộc cứng** | Boundary B1–B8 (§5.1) và acceptance criteria của task. Mọi thứ còn lại (tên file, API helper, cấu trúc nội bộ, type chi tiết) là gợi ý |
@@ -429,6 +429,7 @@ Ví dụ `led.json`:
 - Definition là file JSON, được parse bằng Zod schema khi tạo registry. Definition sai thì fail rõ ràng lúc khởi động hoặc trong test; không cần cơ chế báo lỗi cầu kỳ.
 - Quy ước khi viết definition (không cần code kiểm tra riêng): `id` của port không trùng trong một device; offset port là bội số của 10, để khi component nằm trên lưới thì port cũng nằm trên lưới; `board.pins[*].name` không trùng và trỏ tới port `gpio`.
 - `board.pins` là **board profile** của PoC. Nó dùng cho dropdown trong Blockly, cho việc compiler kiểm tra tên chân, và cho tên chân trong `HardwareIO`.
+- *(Evidence POC-02)* `internalConnections` và `simulation.config` **chưa được implement** vì chưa device nào trong PoC cần (board chỉ có một GND, nút nhấn có 2 chân). Thêm vào schema và netlist khi có consumer, ví dụ breadboard, nút 4 chân, board nhiều GND, hoặc model cần config.
 
 ### 6.3 Program: block, IR, compiler
 
@@ -732,20 +733,34 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
   - Zod schema của device definition, cùng `createDeviceRegistry(rawDefinitions)` trả về registry tra cứu được và board profile; definition sai thì throw lỗi của Zod;
   - `board.json` và `led.json` theo §3.2 và §6.2;
   - hàm tính vị trí world của port (B7);
-  - `buildNetlist(circuit, registry, extraConnections?)`: union-find trên `componentId/portId`, gộp theo dây, `internalConnections` (nếu có) và `extraConnections` (simulation dùng cho các model dẫn điện). Giả định document hợp lệ, vì operation và sample đã bảo đảm điều đó;
+  - `buildNetlist(circuit, registry, extraConnections?)`: union-find trên `componentId/portId`, gộp theo dây và `extraConnections` (simulation dùng cho các model dẫn điện). Giả định document hợp lệ, vì operation và sample đã bảo đảm điều đó;
+  - `connectWire(circuit, registry, wire)`: operation thuần thêm dây, trả về lỗi `duplicate-wire-id` / `unknown-component` / `unknown-port` / `same-port` / `duplicate-wire` (I1, I2, I3). Phần này được chuyển từ POC-10 sang theo yêu cầu "core validate dây" của task; POC-10 dùng lại nó;
   - mạch mẫu `led-on` (JSON, dùng chung cho app và test): Board + LED nối D13 → LED.anode, LED.cathode → GND. Phần program được thêm ở POC-04.
 - **Sau MP** (có thể làm cùng PR nếu rẻ, hoặc làm ở phần sau MP của POC-06): `resistor.json`, và mạch mẫu `blink` gồm Board + R + LED (D13 → R.a, R.b → LED.anode, LED.cathode → GND).
 
 **Out of scope.** Edit operation (POC-09/10), simulation (POC-06), render. Các hạng mục robustness chỉ phục vụ production đều hoãn: id net ổn định khi đổi thứ tự input, báo lỗi registry chi tiết, từ chối function trong definition (definition đã là file JSON), xử lý dây treo hay device lạ trong netlist.
 
 **Acceptance**
-- [ ] Registry tạo được từ các definition local. Một definition thiếu field bắt buộc làm việc tạo registry throw.
-- [ ] Vị trí port = position + offset. Ví dụ LED đặt tại (100, 100) có anode ở (90, 130).
-- [ ] Netlist: port không có dây tạo thành net riêng; chuỗi dây được gộp; `extraConnections` gộp net.
-- [ ] Mạch `led-on`: `{D13, LED.anode}` và `{LED.cathode, GND}` là hai net riêng.
-- [ ] *(Sau MP)* Mạch `blink`: `{D13, R.a}`, `{R.b, LED.anode}` và `{LED.cathode, GND}` là ba net riêng. Resistor không bị gộp ở mức netlist, vì việc dẫn điện là trách nhiệm của simulation.
+- [x] Registry tạo được từ các definition local. Một definition thiếu field bắt buộc làm việc tạo registry throw.
+- [x] Vị trí port = position + offset. Ví dụ LED đặt tại (100, 100) có anode ở (90, 130).
+- [x] Netlist: port không có dây tạo thành net riêng; chuỗi dây được gộp; `extraConnections` gộp net.
+- [x] Mạch `led-on`: `{D13, LED.anode}` và `{LED.cathode, GND}` là hai net riêng.
+- [x] `connectWire` thêm được dây hợp lệ mà không mutate input, và từ chối 5 trường hợp lỗi (gồm cả id dây bị trùng, I1).
+- [ ] *(Sau MP, chuyển sang POC-06)* Mạch `blink`: `{D13, R.a}`, `{R.b, LED.anode}` và `{LED.cathode, GND}` là ba net riêng. Resistor không bị gộp ở mức netlist, vì việc dẫn điện là trách nhiệm của simulation.
 
 **Notes.** Definition để dạng file JSON. Chỉ bootstrap import catalog local; các hàm core nhận registry qua tham số (seam cho API/CMS).
+
+**Trạng thái: phần MP xong (2026-10-02).**
+- **Device:** `src/core/devices/`: Zod schema cùng `findPort`, `createDeviceRegistry` (chỉ có `get`, throw khi device type lạ), và `board.json` / `led.json`. Board có `3v3` ở cạnh trái; `gnd` cùng `d13`…`d2` ở cạnh phải (GND đặt cạnh D13 như board thật, để dây của MP ngắn).
+- **Board profile:** chính là `definition.board`; không cần API riêng.
+- **Circuit:** `src/core/circuit/`:
+  - Zod schema của document (bản tuỳ chọn ở task này; POC-14 dùng lại);
+  - `portWorldPosition`;
+  - `buildNetlist`, trả về `nets` và `netOf`;
+  - `connectWire`.
+- **Mạch mẫu:** `src/samples/led-on.project.json`, với `program.blocks = {}` cho tới POC-04.
+- **Phần sau MP chuyển sang POC-06** (plan cho phép): `resistor.json` và mạch mẫu `blink`. Như vậy Resistor ra đời cùng model dẫn điện và program blink, không phải tồn tại ở dạng data chưa dùng.
+- **Chủ động chưa tạo:** `internalConnections`, `simulation.config`, `list()` của registry, barrel `index.ts`, id generator, kiểu `Result` dùng chung. Lý do chung: chưa có consumer.
 
 ---
 
@@ -853,7 +868,7 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 - Tra model theo `simulation.model`:
   - **MP** — `board`: rail `power` drive HIGH, `ground` drive LOW khi có nguồn; GPIO drive theo giá trị đã ghi;
   - **MP** — `led`: quy tắc `lit`;
-  - **sau MP** — `resistor`: dẫn `a`–`b`.
+  - **sau MP** — `resistor`: dẫn `a`–`b`. Thêm `resistor.json` và mạch mẫu `blink` (chuyển từ POC-02), kèm test netlist ba net của mạch `blink`.
 - Thuật toán §6.5. Model lạ thì device inert.
 - Shape của input đã tính trước `contacts` (dùng ở POC-12).
 - Scenario test.
@@ -972,7 +987,7 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 **Validates.** L1, L2 (kết nối do người dùng tạo đi thẳng vào netlist).
 
 **Scope**
-- Operation core `connectWire(from, to)`: port phải tồn tại, không nối port với chính nó, không trùng dây (kể cả đảo chiều). Thêm `deleteWire`. Có unit test.
+- Dùng lại `connectWire` đã có từ POC-02 (port phải tồn tại, không nối port với chính nó, không trùng dây kể cả đảo chiều). Thêm `deleteWire`, có unit test.
 - Tương tác:
   - **bắt đầu:** bấm vào port, hoặc trong khoảng ~12 px màn hình quanh port (chọn port gần nhất);
   - **trong lúc nối:** đường preview đi theo chuột;
