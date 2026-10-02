@@ -1,0 +1,313 @@
+{
+  "_note": "Model diffs observed after real UI gestures. VERIFIED BY UI+RUNTIME.",
+  "steps": [
+    {
+      "action": "place-led",
+      "gesture": "click on empty canvas",
+      "addedComponents": [
+        {
+          "id": "led_muqjc1r5_4",
+          "type": "led",
+          "x": 860,
+          "y": 160,
+          "rotation": 0,
+          "params": {
+            "forwardVoltage": 2,
+            "color": "#ff3333"
+          }
+        }
+      ],
+      "removedComponents": [],
+      "changedComponents": [],
+      "addedWires": [],
+      "changedWires": [],
+      "undoLabelsTail": [
+        "vr_circuit.hist_add_component"
+      ]
+    },
+    {
+      "action": "wire-complete",
+      "gesture": "click resistor.a port",
+      "addedComponents": [],
+      "removedComponents": [],
+      "changedComponents": [],
+      "addedWires": [
+        {
+          "id": "wire_muqjc65x_6",
+          "from": {
+            "componentId": "battery_muqjbsvd_1",
+            "portId": "pos"
+          },
+          "to": {
+            "componentId": "resistor_muqjbsvf_2",
+            "portId": "a"
+          },
+          "breakpoints": [],
+          "color": "#27ae60"
+        }
+      ],
+      "changedWires": [],
+      "undoLabelsTail": [
+        "vr_circuit.hist_connect_wire"
+      ]
+    },
+    {
+      "action": "wire-with-bend-complete",
+      "gesture": "click led.anode port",
+      "addedComponents": [],
+      "removedComponents": [],
+      "changedComponents": [],
+      "addedWires": [
+        {
+          "id": "wire_muqjc7mb_7",
+          "from": {
+            "componentId": "resistor_muqjbsvf_2",
+            "portId": "b"
+          },
+          "to": {
+            "componentId": "led_muqjbsvq_3",
+            "portId": "anode"
+          },
+          "breakpoints": [
+            {
+              "x": 610,
+              "y": 200
+            }
+          ],
+          "color": "#27ae60"
+        }
+      ],
+      "changedWires": [],
+      "undoLabelsTail": [
+        "vr_circuit.hist_connect_wire"
+      ]
+    },
+    {
+      "action": "wire-double-click-bend",
+      "gesture": "double click on selected wire",
+      "addedComponents": [],
+      "removedComponents": [],
+      "changedComponents": [],
+      "addedWires": [],
+      "changedWires": [
+        {
+          "id": "wire_muqjc65x_6",
+          "before": {
+            "id": "wire_muqjc65x_6",
+            "from": {
+              "componentId": "battery_muqjbsvd_1",
+              "portId": "pos"
+            },
+            "to": {
+              "componentId": "resistor_muqjbsvf_2",
+              "portId": "a"
+            },
+            "breakpoints": [],
+            "color": "#27ae60"
+          },
+          "after": {
+            "id": "wire_muqjc65x_6",
+            "from": {
+              "componentId": "battery_muqjbsvd_1",
+              "portId": "pos"
+            },
+            "to": {
+              "componentId": "resistor_muqjbsvf_2",
+              "portId": "a"
+            },
+            "breakpoints": [
+              {
+                "x": 310,
+                "y": 200
+              }
+            ],
+            "color": "#27ae60"
+          }
+        }
+      ],
+      "undoLabelsTail": [
+        "vr_circuit.hist_add_bendpoint"
+      ]
+    },
+    {
+      "action": "change-property",
+      "gesture": "select resistor, set resistance=1000 in inspector",
+      "addedComponents": [],
+      "removedComponents": [],
+      "changedComponents": [
+        {
+          "id": "resistor_muqjbsvf_2",
+          "before": {
+            "id": "resistor_muqjbsvf_2",
+            "type": "resistor",
+            "x": 440,
+            "y": 200,
+            "rotation": 0,
+            "params": {
+              "resistance": 220
+            }
+          },
+          "after": {
+            "id": "resistor_muqjbsvf_2",
+            "type": "resistor",
+            "x": 440,
+            "y": 200,
+            "rotation": 0,
+            "params": {
+              "resistance": 1000
+            }
+          }
+        }
+      ],
+      "addedWires": [],
+      "changedWires": [],
+      "undoLabelsTail": [
+        "vr_circuit.hist_change_props"
+      ]
+    },
+    {
+      "action": "duplicate",
+      "gesture": "Ctrl+D on selection",
+      "addedComponents": [
+        {
+          "id": "battery_muqjce4m_9",
+          "type": "battery",
+          "x": 240,
+          "y": 300,
+          "rotation": 0,
+          "params": {
+            "voltage": 9,
+            "cellCount": 1,
+            "hasSwitch": false,
+            "isOn": true
+          }
+        },
+        {
+          "id": "resistor_muqjce4m_a",
+          "type": "resistor",
+          "x": 460,
+          "y": 220,
+          "rotation": 0,
+          "params": {
+            "resistance": 1000
+          }
+        },
+        {
+          "id": "led_muqjce4n_b",
+          "type": "led",
+          "x": 640,
+          "y": 300,
+          "rotation": 0,
+          "params": {
+            "forwardVoltage": 2,
+            "color": "#ff3333",
+            "_broken": true
+          }
+        }
+      ],
+      "removedComponents": [],
+      "changedComponents": [],
+      "addedWires": [
+        {
+          "id": "wire_muqjce4n_c",
+          "from": {
+            "componentId": "battery_muqjce4m_9",
+            "portId": "pos"
+          },
+          "to": {
+            "componentId": "resistor_muqjce4m_a",
+            "portId": "a"
+          },
+          "breakpoints": [
+            {
+              "x": 330,
+              "y": 220
+            }
+          ],
+          "color": "#27ae60"
+        },
+        {
+          "id": "wire_muqjce4n_d",
+          "from": {
+            "componentId": "resistor_muqjce4m_a",
+            "portId": "b"
+          },
+          "to": {
+            "componentId": "led_muqjce4n_b",
+            "portId": "anode"
+          },
+          "breakpoints": [
+            {
+              "x": 630,
+              "y": 220
+            }
+          ],
+          "color": "#27ae60"
+        },
+        {
+          "id": "wire_muqjce4n_e",
+          "from": {
+            "componentId": "led_muqjce4n_b",
+            "portId": "cathode"
+          },
+          "to": {
+            "componentId": "battery_muqjce4m_9",
+            "portId": "neg"
+          },
+          "breakpoints": [],
+          "color": "#27ae60"
+        }
+      ],
+      "changedWires": [],
+      "undoLabelsTail": [
+        "vr_circuit.hist_duplicate_components"
+      ]
+    },
+    {
+      "action": "move+rotate+flip (supplemental run)",
+      "move": {
+        "before": {
+          "id": "resistor_muqk41ek_2",
+          "type": "resistor",
+          "x": 440,
+          "y": 200,
+          "rotation": 0,
+          "params": {
+            "resistance": 220
+          }
+        },
+        "after": {
+          "id": "resistor_muqk41ek_2",
+          "type": "resistor",
+          "x": 560,
+          "y": 240,
+          "rotation": 0,
+          "params": {
+            "resistance": 220
+          }
+        },
+        "undo": [
+          "vr_circuit.hist_move_component"
+        ]
+      },
+      "rotation": {
+        "afterCW": 1.5707963267948966,
+        "afterCCW": 0,
+        "afterCCW2": -1.5707963267948966,
+        "flip": true
+      },
+      "pan": {
+        "before": {
+          "x": 0,
+          "y": 0,
+          "scale": 1
+        },
+        "after": {
+          "x": 150,
+          "y": -80,
+          "scale": 1
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "_note": "In-memory state of IoT panel editor after dropping 3 widgets (button, slider, gauge). Persisted by dashboardService.updateOrCreate → localStorage[\"iot-panels\"] (store.js).",
+  "inMemoryDashboard": {
+    "dashboard": {
+      "id": "",
+      "name": "",
+      "botName": "",
+      "widgets": [
+        {
+          "type": "button",
+          "channel": "V1",
+          "code": {
+            "pressed": {
+              "text": ""
+            },
+            "released": {
+              "text": ""
+            }
+          },
+          "label": "Nút nhấn",
+          "grid": {
+            "x": 21,
+            "y": 7,
+            "w": 8,
+            "h": 6
+          },
+          "id": 1790922695543
+        },
+        {
+          "type": "slider",
+          "label": "Thanh trượt",
+          "channel": "V1",
+          "min": 0,
+          "max": 100,
+          "code": {
+            "changed": {
+              "text": ""
+            }
+          },
+          "grid": {
+            "x": 36,
+            "y": 7,
+            "w": 18,
+            "h": 5
+          },
+          "id": 1790922698910
+        },
+        {
+          "type": "gauge",
+          "channel": "V1",
+          "label": "Đồng hồ đo",
+          "format": "",
+          "min": 0,
+          "max": 100,
+          "value": 0,
+          "grid": {
+            "x": 21,
+            "y": 18,
+            "w": 12,
+            "h": 8
+          },
+          "id": 1790922702260
+        }
+      ]
+    },
+    "mode": "design",
+    "rowHeight": 24,
+    "cols": 60,
+    "newWidget": {
+      "type": "gauge",
+      "channel": "V1",
+      "label": "Đồng hồ đo",
+      "format": "",
+      "min": 0,
+      "max": 100,
+      "value": 0,
+      "grid": {
+        "w": 12,
+        "h": 8
+      },
+      "id": 1790922702260
+    }
+  },
+  "widgetMenu": [
+    "Tên\nKênh thông tin\nV1\nV2\nV3\nV4\nV5\nV6\nV7\nV8\nV9\nV10\nV11\nV12\nV13\nV14\nV15\nV16\nV17\nV18\nV19\nV20\narrow_down_to_line\narrow_up_to_line\n\nXÓA\nOK"
+  ]
+}

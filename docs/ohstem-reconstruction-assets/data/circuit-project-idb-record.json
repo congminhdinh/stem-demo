@@ -1,0 +1,96 @@
+{
+  "_note": "CircuitProjectDB / store \"circuits\" (keyPath id) after clicking 💾. VERIFIED BY UI+RUNTIME.",
+  "id": "circ_muqjcliu_sfw2er",
+  "name": "Mạch điện mới",
+  "circuit": {
+    "components": [
+      {
+        "id": "battery_muqjbsvd_1",
+        "type": "battery",
+        "x": 220,
+        "y": 280,
+        "rotation": 0,
+        "params": {
+          "voltage": 9,
+          "cellCount": 1,
+          "hasSwitch": false,
+          "isOn": true
+        }
+      },
+      {
+        "id": "resistor_muqjbsvf_2",
+        "type": "resistor",
+        "x": 440,
+        "y": 200,
+        "rotation": 0,
+        "params": {
+          "resistance": 1000
+        }
+      },
+      {
+        "id": "led_muqjbsvq_3",
+        "type": "led",
+        "x": 620,
+        "y": 280,
+        "rotation": 0,
+        "params": {
+          "forwardVoltage": 2,
+          "color": "#ff3333"
+        }
+      }
+    ],
+    "wires": [
+      {
+        "id": "wire_muqjc65x_6",
+        "from": {
+          "componentId": "battery_muqjbsvd_1",
+          "portId": "pos"
+        },
+        "to": {
+          "componentId": "resistor_muqjbsvf_2",
+          "portId": "a"
+        },
+        "breakpoints": [
+          {
+            "x": 310,
+            "y": 200
+          }
+        ],
+        "color": "#27ae60"
+      },
+      {
+        "id": "wire_muqjc7mb_7",
+        "from": {
+          "componentId": "resistor_muqjbsvf_2",
+          "portId": "b"
+        },
+        "to": {
+          "componentId": "led_muqjbsvq_3",
+          "portId": "anode"
+        },
+        "breakpoints": [
+          {
+            "x": 610,
+            "y": 200
+          }
+        ],
+        "color": "#27ae60"
+      },
+      {
+        "id": "wire_muqjc89w_8",
+        "from": {
+          "componentId": "led_muqjbsvq_3",
+          "portId": "cathode"
+        },
+        "to": {
+          "componentId": "battery_muqjbsvd_1",
+          "portId": "neg"
+        },
+        "breakpoints": [],
+        "color": "#27ae60"
+      }
+    ]
+  },
+  "scripts": {},
+  "updatedAt": 1790919701271
+}

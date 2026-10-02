@@ -1,0 +1,4 @@
+interface:
+  display_name: "QA Expert"
+  short_description: "Plan and assess software quality"
+  default_prompt: "Use $qa-expert to assess testing gaps and define a focused QA plan."

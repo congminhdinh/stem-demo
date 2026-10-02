@@ -1,0 +1,327 @@
+{
+  "_note": "Read from live workspace toolbox. VERIFIED BY RUNTIME.",
+  "blocklyVersion": "8.0.1",
+  "renderer": "geras",
+  "theme": "classic",
+  "workspaceOptions": {
+    "grid": {
+      "spacing": 25,
+      "colour": "#ccc",
+      "length": 3,
+      "snap": true
+    },
+    "zoom": {
+      "controls": false,
+      "wheel": true,
+      "startScale": 1,
+      "maxScale": 3,
+      "minScale": 0.3,
+      "scaleSpeed": 1.1,
+      "pinch": true
+    },
+    "hasTrashcan": false,
+    "hasSounds": true,
+    "pathToMedia": "static/blocks/blockly/media/",
+    "horizontalLayout": false,
+    "toolboxPosition": 2,
+    "moveOptions": {
+      "scrollbars": true,
+      "wheel": false,
+      "drag": true
+    },
+    "readOnly": false,
+    "maxBlocks": null,
+    "comments": true,
+    "collapse": true,
+    "disable": true,
+    "hasCategories": true,
+    "RTL": false
+  },
+  "defaultWorkspaceXml": "<xml xmlns=\"https://developers.google.com/blockly/xml\"><block type=\"uno_event_start\" id=\"QyrE%Kf*s5jZ@DH-^xLS\" x=\"-162\" y=\"-112\"></block></xml>",
+  "categories": [
+    {
+      "name": "CƠ BẢN",
+      "depth": 0,
+      "colour": "#1e90ff",
+      "custom": null,
+      "blocks": [
+        "uno_event_start",
+        "uno_event_forever",
+        "uno_event_timer",
+        "uno_basic_onboard_rgb_led",
+        "uno_event_sleep",
+        "uno_event_wait_until"
+      ]
+    },
+    {
+      "name": "HIỂN THỊ",
+      "depth": 0,
+      "colour": "#5d2c91",
+      "custom": null,
+      "blocks": [
+        "uno_display_led",
+        "uno_display_rgb_led",
+        "uno_display_lcd1602_clear",
+        "uno_display_lcd1602_display",
+        "uno_display_lcd1602_icon",
+        "uno_display_lcd1602_set_address"
+      ]
+    },
+    {
+      "name": "CẢM BIẾN",
+      "depth": 0,
+      "colour": "#d400d4",
+      "custom": null,
+      "blocks": [
+        "uno_sensor_on_button_pressed",
+        "uno_sensor_button_is_pressed",
+        "uno_sensor_dht20_temp",
+        "uno_sensor_dht20_humid",
+        "uno_sensor_ultrasonic_checkdistance",
+        "uno_sensor_ultrasonic_read",
+        "uno_sensor_light",
+        "uno_sensor_soil",
+        "uno_sensor_pir",
+        "uno_sensor_sound",
+        "uno_sensor_rain",
+        "uno_sensor_fire"
+      ]
+    },
+    {
+      "name": "TRUYỀN ĐỘNG",
+      "depth": 0,
+      "colour": "#e63022",
+      "custom": null,
+      "blocks": [
+        "uno_output_pump",
+        "uno_output_minifan",
+        "uno_output_usb_switch",
+        "uno_output_buzzer",
+        "uno_output_relay",
+        "uno_output_servo",
+        "uno_output_servo360"
+      ]
+    },
+    {
+      "name": "LẬP LỊCH",
+      "depth": 0,
+      "colour": "#2eb7ed",
+      "custom": null,
+      "blocks": [
+        "uno_scheduler_on_event",
+        "uno_scheduler_broadcast_msg",
+        "uno_scheduler_on_receive_message",
+        "uno_scheduler_set_time",
+        "uno_scheduler_get_time",
+        "uno_scheduler_on_scheduled_time"
+      ]
+    },
+    {
+      "name": "VÒNG LẶP",
+      "depth": 0,
+      "colour": "#42bf42",
+      "custom": null,
+      "blocks": [
+        "controls_repeat_ext",
+        "controls_whileUntil",
+        "controls_for",
+        "controls_forEach",
+        "controls_flow_statements"
+      ]
+    },
+    {
+      "name": "LOGIC",
+      "depth": 0,
+      "colour": "#4281bf",
+      "custom": null,
+      "blocks": [
+        "controls_if",
+        "controls_if",
+        "controls_if",
+        "controls_if",
+        "logic_compare",
+        "logic_operation",
+        "logic_negate",
+        "logic_boolean"
+      ]
+    },
+    {
+      "name": "BIẾN",
+      "depth": 0,
+      "colour": "#ffa500",
+      "custom": "VARIABLE",
+      "blocks": []
+    },
+    {
+      "name": "TÍNH TOÁN",
+      "depth": 0,
+      "colour": "#4257bf",
+      "custom": null,
+      "blocks": [
+        "math_number",
+        "math_tonum",
+        "math_arithmetic",
+        "math_single",
+        "math_trig",
+        "math_constant",
+        "math_number_property",
+        "math_round",
+        "math_on_list",
+        "math_modulo",
+        "math_constrain",
+        "math_random_int",
+        "math_random_float",
+        "yolobit_math_map"
+      ]
+    },
+    {
+      "name": "?",
+      "depth": 0,
+      "colour": null,
+      "custom": null,
+      "blocks": []
+    },
+    {
+      "name": "NÂNG CAO",
+      "depth": 0,
+      "colour": "#675ba5",
+      "custom": null,
+      "blocks": []
+    },
+    {
+      "name": "IoT",
+      "depth": 1,
+      "colour": "#e65722",
+      "custom": null,
+      "blocks": [
+        "uno_mqtt_connect_default_servers",
+        "uno_mqtt_publish",
+        "uno_mqtt_on_receive_message",
+        "uno_mqtt_compare_message",
+        "uno_mqtt_get_message",
+        "uno_mqtt_get_topic",
+        "uno_mqtt_connect_custom_servers",
+        "uno_mqtt_publish_custom",
+        "uno_mqtt_on_receive_custom_message"
+      ]
+    },
+    {
+      "name": "WIFI",
+      "depth": 1,
+      "colour": "#4257bf",
+      "custom": null,
+      "blocks": [
+        "uno_wifi_connect",
+        "uno_wifi_disconnect",
+        "uno_wifi_check_status",
+        "uno_wifi_get_config"
+      ]
+    },
+    {
+      "name": "BLUETOOTH",
+      "depth": 1,
+      "colour": "#e3008c",
+      "custom": null,
+      "blocks": [
+        "ble_connect",
+        "ble_connect_nearby",
+        "ble_is_connected",
+        "ble_send_number",
+        "ble_send_string",
+        "ble_send_name_value",
+        "uno_ble_on_receive_number",
+        "uno_ble_on_receive_string",
+        "uno_ble_on_receive_name_value",
+        "uno_ble_get_value",
+        "uno_ble_get_name",
+        "uno_ble_on_connected",
+        "uno_ble_on_disconnected",
+        "uno_ble_gamepad_app_message",
+        "uno_ble_disconnect",
+        "uno_ble_off"
+      ]
+    },
+    {
+      "name": "SERIAL",
+      "depth": 1,
+      "colour": "#002050",
+      "custom": null,
+      "blocks": [
+        "xbot_serial_write_line",
+        "xbot_serial_write_string",
+        "xbot_serial_write_number",
+        "xbot_serial_write_value",
+        "uno_serial_write_timer",
+        "xbot_serial_write_chart",
+        "uno_serial_read"
+      ]
+    },
+    {
+      "name": "HÀM",
+      "depth": 1,
+      "colour": "#aa42bf",
+      "custom": "PROCEDURE",
+      "blocks": []
+    },
+    {
+      "name": "DANH SÁCH",
+      "depth": 1,
+      "colour": "#6c42bf",
+      "custom": null,
+      "blocks": [
+        "lists_create_with",
+        "lists_create_with",
+        "lists_repeat",
+        "lists_length",
+        "lists_isEmpty",
+        "lists_indexOf",
+        "lists_getIndex",
+        "lists_setIndex",
+        "lists_getSublist",
+        "lists_split",
+        "lists_sort"
+      ]
+    },
+    {
+      "name": "CHỮ VIẾT",
+      "depth": 1,
+      "colour": "#42bf95",
+      "custom": null,
+      "blocks": [
+        "text",
+        "text_join",
+        "text_append",
+        "text_length",
+        "text_isEmpty",
+        "text_indexOf",
+        "text_charAt",
+        "text_getSubstring",
+        "text_changeCase",
+        "text_trim",
+        "text_print"
+      ]
+    },
+    {
+      "name": "CHÂN CẮM",
+      "depth": 1,
+      "colour": "#b22222",
+      "custom": null,
+      "blocks": [
+        "uno_pin_read_analog",
+        "uno_pin_write_analog",
+        "uno_pin_read_digital",
+        "uno_pin_read_digital_comprare",
+        "uno_pin_write_digital",
+        "uno_pin_set_pull",
+        "uno_pin_pulse_in"
+      ]
+    },
+    {
+      "name": "MỞ RỘNG",
+      "depth": 0,
+      "colour": "#717171",
+      "custom": null,
+      "blocks": []
+    }
+  ]
+}

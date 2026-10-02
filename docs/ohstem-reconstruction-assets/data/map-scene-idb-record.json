@@ -1,0 +1,435 @@
+{
+  "_note": "SceneMapDB/saved_scenes after 💾 Lưu on empty map + world option editor schema.",
+  "record": {
+    "id": "scene_1790921773222",
+    "name": "Untitled",
+    "updatedAt": 1790921773222,
+    "world": {
+      "imageURL": "textures/maps/map_background.png",
+      "groundType": "box",
+      "length": 100,
+      "width": 100,
+      "groundLength": 180,
+      "groundWidth": 120,
+      "groundThickness": 10,
+      "uScale": 1,
+      "vScale": 1,
+      "imageScale": 1,
+      "timer": "none",
+      "timerDuration": 60,
+      "timerEnd": "continue",
+      "autoPhase": false,
+      "autoPhaseDuration": 30,
+      "timeBonusPerSec": 0,
+      "scoringEnabled": false,
+      "initialScore": 0,
+      "endCondition": "auto",
+      "allowEarlySubmit": false,
+      "robotMaxWidth": 0,
+      "robotMaxDepth": 0,
+      "robotMaxHeight": 0,
+      "robotStartMaxWidth": 0,
+      "robotStartMaxDepth": 0,
+      "robotStartMaxHeight": 0,
+      "wall": true,
+      "wallHeight": 5,
+      "wallThickness": 2,
+      "wallColor": "#1A1A1A",
+      "wallImageURL": "",
+      "wallUScale": 1,
+      "wallVScale": 1,
+      "groundFriction": 1,
+      "wallFriction": 0.1,
+      "groundRestitution": 0,
+      "wallRestitution": 0.1,
+      "restartAnimationOnRun": false,
+      "objects": [],
+      "v2Parts": [],
+      "startPos": "center",
+      "startPosXYZStr": "",
+      "startRotStr": "",
+      "startPosXYZ": [
+        0,
+        0,
+        0
+      ],
+      "startRot": 0,
+      "arenaStartPosXYZ": null,
+      "arenaStartRot": null,
+      "showStartMarker": true,
+      "showEndMarker": true,
+      "showStartEndMarkers": true,
+      "startMarkerWidth": 25,
+      "startMarkerLength": 25,
+      "endPosXYZ": null,
+      "endRot": null,
+      "endMarkerWidth": null,
+      "endMarkerLength": null
+    },
+    "design": {
+      "components": []
+    },
+    "simWorldOptions": {
+      "imageURL": "textures/maps/map_background.png",
+      "groundType": "box",
+      "length": 100,
+      "width": 100,
+      "groundLength": 180,
+      "groundWidth": 120,
+      "groundThickness": 10,
+      "uScale": 1,
+      "vScale": 1,
+      "imageScale": 1,
+      "timer": "none",
+      "timerDuration": 60,
+      "timerEnd": "continue",
+      "autoPhase": false,
+      "autoPhaseDuration": 30,
+      "timeBonusPerSec": 0,
+      "scoringEnabled": false,
+      "initialScore": 0,
+      "endCondition": "auto",
+      "allowEarlySubmit": false,
+      "robotMaxWidth": 0,
+      "robotMaxDepth": 0,
+      "robotMaxHeight": 0,
+      "robotStartMaxWidth": 0,
+      "robotStartMaxDepth": 0,
+      "robotStartMaxHeight": 0,
+      "wall": true,
+      "wallHeight": 5,
+      "wallThickness": 2,
+      "wallColor": "#1A1A1A",
+      "wallImageURL": "",
+      "wallUScale": 1,
+      "wallVScale": 1,
+      "groundFriction": 1,
+      "wallFriction": 0.1,
+      "groundRestitution": 0,
+      "wallRestitution": 0.1,
+      "restartAnimationOnRun": false,
+      "objects": [],
+      "v2Parts": [],
+      "startPos": "center",
+      "startPosXYZStr": "",
+      "startRotStr": "",
+      "startPosXYZ": [
+        0,
+        0,
+        0
+      ],
+      "startRot": 0,
+      "arenaStartPosXYZ": null,
+      "arenaStartRot": null,
+      "showStartMarker": true,
+      "showEndMarker": true,
+      "showStartEndMarkers": true,
+      "startMarkerWidth": 25,
+      "startMarkerLength": 25,
+      "endPosXYZ": null,
+      "endRot": null,
+      "endMarkerWidth": null,
+      "endMarkerLength": null
+    },
+    "maxPossibleScore": 0
+  },
+  "mapOptionsTemplate": [
+    {
+      "option": "_section_ground",
+      "type": "label",
+      "label": "— NỀN SÂN —"
+    },
+    {
+      "option": "groundType",
+      "type": "select",
+      "label": "Loại nền",
+      "options": [
+        [
+          "Hình hộp",
+          "box"
+        ],
+        [
+          "Hình trụ",
+          "cylinder"
+        ],
+        [
+          "Không nền",
+          "none"
+        ]
+      ]
+    },
+    {
+      "option": "imageURL",
+      "type": "uploadImage",
+      "label": "Hình nền"
+    },
+    {
+      "option": "imageScale",
+      "type": "slider",
+      "label": "Tỉ lệ hình",
+      "min": "0.1",
+      "max": "10"
+    },
+    {
+      "option": "groundLength",
+      "type": "floatText",
+      "label": "Chiều dài (cm)"
+    },
+    {
+      "option": "groundWidth",
+      "type": "floatText",
+      "label": "Chiều rộng (cm)"
+    },
+    {
+      "option": "groundFriction",
+      "type": "slider",
+      "label": "Ma sát nền",
+      "min": "0",
+      "max": "10"
+    },
+    {
+      "option": "groundRestitution",
+      "type": "slider",
+      "label": "Độ nảy nền",
+      "min": "0",
+      "max": "10"
+    },
+    {
+      "option": "_section_wall",
+      "type": "label",
+      "label": "— TƯỜNG BAO —"
+    },
+    {
+      "option": "wall",
+      "type": "boolean",
+      "label": "Có tường bao"
+    },
+    {
+      "option": "wallHeight",
+      "type": "slider",
+      "label": "Độ cao (cm)",
+      "min": "1",
+      "max": "30"
+    },
+    {
+      "option": "wallThickness",
+      "type": "slider",
+      "label": "Độ dày (cm)",
+      "min": "1",
+      "max": "30"
+    },
+    {
+      "option": "wallColor",
+      "type": "color",
+      "label": "Màu tường"
+    },
+    {
+      "option": "_section_timer",
+      "type": "label",
+      "label": "— ĐẾM THỜI GIAN —"
+    },
+    {
+      "option": "timer",
+      "type": "select",
+      "label": "Chế độ",
+      "options": [
+        [
+          "Tắt",
+          "none"
+        ],
+        [
+          "Đếm tiến",
+          "up"
+        ],
+        [
+          "Đếm ngược",
+          "down"
+        ]
+      ]
+    },
+    {
+      "option": "timerDuration",
+      "type": "slider",
+      "label": "Thời lượng (giây)",
+      "min": "1",
+      "max": "300"
+    },
+    {
+      "option": "timerEnd",
+      "type": "select",
+      "label": "Khi hết giờ",
+      "options": [
+        [
+          "Tiếp tục chạy",
+          "continue"
+        ],
+        [
+          "Dừng đồng hồ",
+          "stopTimer"
+        ],
+        [
+          "Dừng robot",
+          "stopRobot"
+        ]
+      ]
+    },
+    {
+      "option": "autoPhase",
+      "type": "boolean",
+      "label": "Chia 2 giai đoạn (tự động → điều khiển)"
+    },
+    {
+      "option": "autoPhaseDuration",
+      "type": "slider",
+      "label": "Thời gian tự động (giây)",
+      "min": "1",
+      "max": "300"
+    },
+    {
+      "option": "_section_scoring",
+      "type": "label",
+      "label": "— CHẤM ĐIỂM —"
+    },
+    {
+      "option": "scoringEnabled",
+      "type": "boolean",
+      "label": "Bật chấm điểm"
+    },
+    {
+      "option": "initialScore",
+      "type": "floatText",
+      "label": "Điểm khởi đầu"
+    },
+    {
+      "option": "endCondition",
+      "type": "select",
+      "label": "Điều kiện kết thúc",
+      "options": [
+        [
+          "Tự động (đích / hết giờ)",
+          "auto"
+        ],
+        [
+          "Qua vạch đích",
+          "finish"
+        ],
+        [
+          "Đủ tất cả trạm",
+          "checkpoints"
+        ],
+        [
+          "Chỉ hết giờ",
+          "time"
+        ]
+      ]
+    },
+    {
+      "option": "timeBonusPerSec",
+      "type": "floatText",
+      "label": "Thưởng/giây còn lại (về đích)"
+    },
+    {
+      "option": "allowEarlySubmit",
+      "type": "boolean",
+      "label": "Cho phép dừng bài sớm"
+    },
+    {
+      "option": "_section_robot_limits",
+      "type": "label",
+      "label": "— RÀNG BUỘC ROBOT (THI ĐẤU) —"
+    },
+    {
+      "option": "robotMaxWidth",
+      "type": "floatText",
+      "label": "Rộng tối đa (cm, 0 = ∞)"
+    },
+    {
+      "option": "robotMaxDepth",
+      "type": "floatText",
+      "label": "Sâu tối đa (cm, 0 = ∞)"
+    },
+    {
+      "option": "robotMaxHeight",
+      "type": "floatText",
+      "label": "Cao tối đa (cm, 0 = ∞)"
+    },
+    {
+      "option": "_section_start_limits",
+      "type": "label",
+      "label": "— KÍCH THƯỚC TẠI Ô XUẤT PHÁT (THI ĐẤU) —"
+    },
+    {
+      "option": "robotStartMaxWidth",
+      "type": "floatText",
+      "label": "Rộng tối đa lúc xuất phát (cm, 0 = ∞)"
+    },
+    {
+      "option": "robotStartMaxDepth",
+      "type": "floatText",
+      "label": "Sâu tối đa lúc xuất phát (cm, 0 = ∞)"
+    },
+    {
+      "option": "robotStartMaxHeight",
+      "type": "floatText",
+      "label": "Cao tối đa lúc xuất phát (cm, 0 = ∞)"
+    }
+  ],
+  "partPacks": [
+    {
+      "id": "electronics",
+      "vi": "Điện tử",
+      "builder": null,
+      "parts": 56,
+      "groups": 3
+    },
+    {
+      "id": "structures",
+      "vi": "Kết cấu",
+      "builder": null,
+      "parts": 23,
+      "groups": 0
+    },
+    {
+      "id": "motion",
+      "vi": "Truyền động",
+      "builder": null,
+      "parts": 17,
+      "groups": 0
+    },
+    {
+      "id": "BasicShapes",
+      "vi": "Hình dạng cơ bản",
+      "builder": null,
+      "parts": 23,
+      "groups": 0
+    },
+    {
+      "id": "line_tiles",
+      "vi": "Ô dò line",
+      "builder": "map_builder",
+      "parts": 32,
+      "groups": 0
+    },
+    {
+      "id": "dynamic_obstacles",
+      "vi": "Vật cản động",
+      "builder": null,
+      "parts": 3,
+      "groups": 0
+    },
+    {
+      "id": "scoring_zones",
+      "vi": "Vùng chấm điểm",
+      "builder": "map_builder",
+      "parts": 5,
+      "groups": 0
+    },
+    {
+      "id": "traffic",
+      "vi": "Giao thông",
+      "builder": "map_builder",
+      "parts": 5,
+      "groups": 0
+    }
+  ]
+}

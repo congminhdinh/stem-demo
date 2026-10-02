@@ -1,0 +1,339 @@
+{
+  "_note": "Read from live workspace toolbox. VERIFIED BY RUNTIME.",
+  "blocklyVersion": "8.0.1",
+  "renderer": "geras",
+  "theme": "classic",
+  "workspaceOptions": {
+    "grid": {
+      "spacing": 25,
+      "colour": "#ccc",
+      "length": 3,
+      "snap": true
+    },
+    "zoom": {
+      "controls": false,
+      "wheel": true,
+      "startScale": 1,
+      "maxScale": 3,
+      "minScale": 0.3,
+      "scaleSpeed": 1.1,
+      "pinch": true
+    },
+    "hasTrashcan": false,
+    "hasSounds": true,
+    "pathToMedia": "static/blocks/blockly/media/",
+    "horizontalLayout": false,
+    "toolboxPosition": 2,
+    "moveOptions": {
+      "scrollbars": true,
+      "wheel": false,
+      "drag": true
+    },
+    "readOnly": false,
+    "maxBlocks": null,
+    "comments": true,
+    "collapse": true,
+    "disable": true,
+    "hasCategories": true,
+    "RTL": false
+  },
+  "defaultWorkspaceXml": "<xml xmlns=\"https://developers.google.com/blockly/xml\"><block type=\"yolobit_basic_forever\" id=\"w5Bl*-!,Ihc8X2tI)wP*\" x=\"87\" y=\"37\"></block></xml>",
+  "categories": [
+    {
+      "name": "CƠ BẢN",
+      "depth": 0,
+      "colour": "#1e90ff",
+      "custom": null,
+      "blocks": [
+        "yolobit_basic_scroll_number",
+        "yolobit_basic_scroll_text",
+        "yolobit_basic_show_image",
+        "yolobit_basic_show_image",
+        "yolobit_basic_sleep",
+        "yolobit_basic_clear_display",
+        "yolobit_basic_message",
+        "yolobit_basic_forever"
+      ]
+    },
+    {
+      "name": "NGÕ VÀO",
+      "depth": 0,
+      "colour": "#d400d4",
+      "custom": null,
+      "blocks": [
+        "yolobit_input_button_is_pressed",
+        "yolobit_input_button_get_presses",
+        "yolobit_input_pin_touched",
+        "yolobit_input_gesture_detected",
+        "yolobit_input_gesture_shaked",
+        "yolobit_input_running_time",
+        "yolobit_input_timer_reset",
+        "yolobit_input_timer_get",
+        "yolobit_input_get_temperature",
+        "yolobit_input_get_light_level",
+        "yolobit_input_accelerometer_get_value",
+        "yolobit_input_on_button_pressed"
+      ]
+    },
+    {
+      "name": "ÂM NHẠC",
+      "depth": 0,
+      "colour": "#e63022",
+      "custom": null,
+      "blocks": [
+        "yolobit_music_play_built_in",
+        "yolobit_music_play_built_in_until_done",
+        "yolobit_music_note",
+        "yolobit_music_play_note",
+        "yolobit_music_rest",
+        "yolobit_music_stop",
+        "yolobit_music_pitch",
+        "yolobit_music_set_tempo",
+        "yolobit_music_reset",
+        "yolobit_music_get_tempo"
+      ]
+    },
+    {
+      "name": "LED",
+      "depth": 0,
+      "colour": "#5d2c91",
+      "custom": null,
+      "blocks": [
+        "yolobit_led_set_xy",
+        "yolobit_led_clear_xy",
+        "yolobit_led_set_all",
+        "yolobit_led_show_graph",
+        "yolobit_led_set_brightness",
+        "yolobit_led_colour_rgb"
+      ]
+    },
+    {
+      "name": "BLUETOOTH",
+      "depth": 0,
+      "colour": "#e3008c",
+      "custom": null,
+      "blocks": [
+        "ble_connect",
+        "ble_connect_nearby",
+        "ble_is_connected",
+        "ble_send_number",
+        "ble_send_string",
+        "ble_send_name_value",
+        "ble_on_receive_number",
+        "ble_on_receive_string",
+        "ble_on_receive_name_value",
+        "ble_on_connected",
+        "ble_on_disconnected",
+        "ble_gamepad_app_message",
+        "ble_disconnect"
+      ]
+    },
+    {
+      "name": "VÒNG LẶP",
+      "depth": 0,
+      "colour": "#42bf42",
+      "custom": null,
+      "blocks": [
+        "block_wait_until",
+        "controls_repeat_ext",
+        "controls_whileUntil",
+        "controls_for",
+        "controls_forEach",
+        "controls_flow_statements"
+      ]
+    },
+    {
+      "name": "LÔGIC",
+      "depth": 0,
+      "colour": "#4281bf",
+      "custom": null,
+      "blocks": [
+        "controls_if",
+        "controls_if",
+        "controls_if",
+        "controls_if",
+        "logic_compare",
+        "logic_operation",
+        "logic_negate",
+        "logic_boolean"
+      ]
+    },
+    {
+      "name": "BIẾN",
+      "depth": 0,
+      "colour": "#ffa500",
+      "custom": "VARIABLE",
+      "blocks": []
+    },
+    {
+      "name": "TÍNH TOÁN",
+      "depth": 0,
+      "colour": "#4257bf",
+      "custom": null,
+      "blocks": [
+        "math_number",
+        "math_tonum",
+        "math_arithmetic",
+        "math_single",
+        "math_trig",
+        "math_constant",
+        "math_number_property",
+        "math_round",
+        "math_on_list",
+        "math_modulo",
+        "math_constrain",
+        "math_random_int",
+        "math_random_float",
+        "yolobit_math_map"
+      ]
+    },
+    {
+      "name": "CHỮ VIẾT",
+      "depth": 0,
+      "colour": "#42bf95",
+      "custom": null,
+      "blocks": [
+        "text",
+        "text_join",
+        "text_append",
+        "text_length",
+        "text_isEmpty",
+        "text_indexOf",
+        "text_charAt",
+        "text_getSubstring",
+        "text_changeCase",
+        "text_trim",
+        "text_print"
+      ]
+    },
+    {
+      "name": "?",
+      "depth": 0,
+      "colour": null,
+      "custom": null,
+      "blocks": []
+    },
+    {
+      "name": "NÂNG CAO",
+      "depth": 0,
+      "colour": "#675ba5",
+      "custom": null,
+      "blocks": []
+    },
+    {
+      "name": "HÀM",
+      "depth": 1,
+      "colour": "#aa42bf",
+      "custom": "PROCEDURE",
+      "blocks": []
+    },
+    {
+      "name": "SERIAL",
+      "depth": 1,
+      "colour": "#002050",
+      "custom": null,
+      "blocks": [
+        "xbot_serial_write_string",
+        "xbot_serial_write_number",
+        "xbot_serial_write_value",
+        "xbot_serial_write_line",
+        "xbot_serial_write_timer",
+        "xbot_serial_write_chart"
+      ]
+    },
+    {
+      "name": "DANH SÁCH",
+      "depth": 1,
+      "colour": "#6c42bf",
+      "custom": null,
+      "blocks": [
+        "lists_create_with",
+        "lists_create_with",
+        "lists_repeat",
+        "lists_length",
+        "lists_isEmpty",
+        "lists_indexOf",
+        "lists_getIndex",
+        "lists_setIndex",
+        "lists_getSublist",
+        "lists_split",
+        "lists_sort"
+      ]
+    },
+    {
+      "name": "GAME",
+      "depth": 1,
+      "colour": "#007a4b",
+      "custom": null,
+      "blocks": [
+        "variables_set",
+        "xbot_game_create_sprite",
+        "xbot_game_sprite_set_color",
+        "xbot_game_delete_sprite",
+        "xbot_game_is_deleted_sprite",
+        "xbot_game_sprite_move_by",
+        "xbot_game_sprite_turn",
+        "xbot_game_sprite_set_dir",
+        "xbot_game_sprite_add_prop",
+        "xbot_game_sprite_set_prop",
+        "xbot_game_sprite_get_prop",
+        "xbot_game_sprite_is_touching_type",
+        "xbot_game_sprite_is_touching_edge",
+        "xbot_game_sprite_bounce_if_on_edge",
+        "xbot_game_sprite_stay_in_screen",
+        "xbot_game_add_prop",
+        "xbot_game_set_prop",
+        "xbot_game_get_prop",
+        "xbot_game_start_countdown",
+        "xbot_game_do_action",
+        "xbot_game_check_status",
+        "xbot_game_direction",
+        "xbot_game_sprite_is_in_screen",
+        "xbot_game_sprite_revert_direction",
+        "xbot_game_sprite_bounce_if_on_sprite",
+        "xbot_game_sprite_bounce_if_on_stop_sprite",
+        "xbot_game_sprite_reflect_direction"
+      ]
+    },
+    {
+      "name": "CHÂN CẮM",
+      "depth": 1,
+      "colour": "#b22222",
+      "custom": null,
+      "blocks": [
+        "yolobit_pin_touched",
+        "yolobit_pin_read_analog",
+        "yolobit_pin_write_analog",
+        "yolobit_pin_read_digital",
+        "yolobit_pin_pulse_in",
+        "yolobit_pin_write_digital",
+        "yolobit_pin_servo_write_angle",
+        "yolobit_pin_servo270_write_angle",
+        "yolobit_pin_servo360_write",
+        "yolobit_pin_servo_release",
+        "yolobit_pin_set_pull",
+        "yolobit_pin_onoff_value"
+      ]
+    },
+    {
+      "name": "THIẾT BỊ",
+      "depth": 1,
+      "colour": "#393939",
+      "custom": null,
+      "blocks": [
+        "yolobit_device_name",
+        "yolobit_device_serial",
+        "yolobit_device_read_terminal",
+        "yolobit_run_on_background",
+        "yolobit_reset"
+      ]
+    },
+    {
+      "name": "MỞ RỘNG",
+      "depth": 0,
+      "colour": "#717171",
+      "custom": null,
+      "blocks": []
+    }
+  ]
+}

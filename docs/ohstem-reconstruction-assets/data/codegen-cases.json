@@ -1,0 +1,94 @@
+{
+  "_note": "Real outputs from app editor (/codes/<device>). definitions_ captured by wrapping Blockly.Python.finish.",
+  "cases": [
+    {
+      "id": "case1-led-on",
+      "device": "yolouno",
+      "blocklyXml": "<xml xmlns=\"https://developers.google.com/blockly/xml\"><block type=\"uno_event_start\" x=\"20\" y=\"20\"><statement name=\"ONSTART\"><block type=\"uno_display_led\"><field name=\"state\">1</field><field name=\"PIN\">D13</field></block></statement></block></xml>",
+      "definitions_": {
+        "import_pins": "from pins import *",
+        "init_led_D13": "led_D13 = Pins(D13_PIN)",
+        "import_yolo_uno": "from yolo_uno import *",
+        "setup_uno_start": "  led_D13.write_digital(1)\n"
+      },
+      "bodyBeforeFinish": "",
+      "finalPython": "from pins import *\nfrom yolo_uno import *\n\nled_D13 = Pins(D13_PIN)\n\nasync def setup():\n\n  print('App started')\n  led_D13.write_digital(1)\n\nasync def main():\n  await setup()\n  while True:\n    await asleep_ms(100)\n\nrun_loop(main())\n",
+      "uiPythonEqualsDirect": true
+    },
+    {
+      "id": "case2-led-blink",
+      "device": "yolouno",
+      "blocklyXml": "<xml xmlns=\"https://developers.google.com/blockly/xml\"><block type=\"uno_event_start\" id=\"QyrE%Kf*s5jZ@DH-^xLS\" x=\"-437\" y=\"-362\"></block><block type=\"uno_event_forever\" id=\"Y9DN=8vY}iD*+{-Atonj\" x=\"-437\" y=\"-262\"><statement name=\"FOREVER\"><block type=\"uno_display_led\" id=\"JOL_nJEVO4TZVGMZ{wQU\"><field name=\"state\">1</field><field name=\"PIN\">D13</field><next><block type=\"uno_event_sleep\" id=\"h$yp/(QH)?*t_H1~-wus\"><value name=\"duration\"><shadow type=\"math_number\" id=\"tl0%RhAF6ZZ5S5yz${T9\"><field name=\"NUM\">1</field></shadow></value><next><block type=\"uno_display_led\" id=\"S1$`]q1smH|z/M4^#5mZ\"><field name=\"state\">0</field><field name=\"PIN\">D13</field><next><block type=\"uno_event_sleep\" id=\"M{f8JB)jKdqrh{9|PQ7u\"><value name=\"duration\"><shadow type=\"math_number\" id=\"+|GCC2Bg-pl,%Vi!],P(\"><field name=\"NUM\">1</field></shadow></value></block></next></block></next></block></next></block></statement></block></xml>",
+      "definitions_": {
+        "import_yolo_uno": "from yolo_uno import *",
+        "setup_uno_start": "",
+        "import_pins": "from pins import *",
+        "init_led_D13": "led_D13 = Pins(D13_PIN)",
+        "task_forever": "async def task_forever():\n  while True:\n    await asleep_ms(50)\n    led_D13.write_digital(1)\n    await asleep_ms(1000)\n    led_D13.write_digital(0)\n    await asleep_ms(1000)",
+        "add_task_forever": "create_task(task_forever())"
+      },
+      "bodyBeforeFinish": "",
+      "finalPython": "from yolo_uno import *\nfrom pins import *\n\nled_D13 = Pins(D13_PIN)\n\nasync def task_forever():\n  while True:\n    await asleep_ms(50)\n    led_D13.write_digital(1)\n    await asleep_ms(1000)\n    led_D13.write_digital(0)\n    await asleep_ms(1000)\n\nasync def setup():\n\n  print('App started')\n\n  create_task(task_forever())\n\nasync def main():\n  await setup()\n  while True:\n    await asleep_ms(100)\n\nrun_loop(main())\n",
+      "uiPythonEqualsDirect": true
+    },
+    {
+      "id": "case3-sensor-condition",
+      "device": "yolouno",
+      "blocklyXml": "<xml xmlns=\"https://developers.google.com/blockly/xml\"><block type=\"uno_event_start\" id=\"^zVP:)*GP8X)yAuv|#~=\" x=\"-612\" y=\"-487\"></block><block type=\"uno_event_forever\" id=\"P2/6MTN+X?6MD}``Bok8\" x=\"-613\" y=\"-362\"><statement name=\"FOREVER\"><block type=\"controls_if\" id=\"@,(}=`=d:V,x9VwG]tPc\"><mutation else=\"1\"></mutation><value name=\"IF0\"><block type=\"logic_compare\" id=\"i3RWSdd]@k7r0!g!N}sB\"><field name=\"OP\">LTE</field><value name=\"A\"><block type=\"uno_sensor_light\" id=\"yZ-U]o$i}5gqGc_0YaOf\"><field name=\"PIN\">A1</field></block></value><value name=\"B\"><block type=\"math_number\" id=\"$J+RlKBLZwCrg;)(=ALc\"><field name=\"NUM\">50</field></block></value></block></value><statement name=\"DO0\"><block type=\"uno_display_rgb_led\" id=\"j2Eb+4u*M0!G@*ONnMDF\"><field name=\"port\">D3</field><field name=\"index\">0</field><value name=\"COLOR\"><shadow type=\"colour_picker\" id=\"^b-YOSvFA,CyiT@u|p%/\"><field name=\"COLOUR\">#ffffff</field></shadow></value></block></statement><statement name=\"ELSE\"><block type=\"uno_display_rgb_led\" id=\"7*:1hH_C,I4cpf,jyMDt\"><field name=\"port\">D3</field><field name=\"index\">0</field><value name=\"COLOR\"><shadow type=\"colour_picker\" id=\";@f$|2P06$t?xJb4,MEV\"><field name=\"COLOUR\">#000000</field></shadow></value></block></statement><next><block type=\"uno_event_sleep\" id=\"~oy#]I:LYPU=wlzAX~Gg\"><value name=\"duration\"><shadow type=\"math_number\" id=\"eWlfRG$ZesRF%UyH|c(3\"><field name=\"NUM\">0.5</field></shadow></value></block></next></block></statement></block></xml>",
+      "definitions_": {
+        "import_yolo_uno": "from yolo_uno import *",
+        "setup_uno_start": "",
+        "import_pins": "from pins import *",
+        "init_light_A1": "light_A1 = Pins(A1_PIN)",
+        "init_rgb_led_D3": "rgb_led_D3 = RGBLed(D3_PIN, 4)",
+        "task_forever": "async def task_forever():\n  while True:\n    await asleep_ms(50)\n    if (light_A1.read_analog_percent()) <= 50:\n      rgb_led_D3.show(0, hex_to_rgb('#ffffff'))\n    else:\n      rgb_led_D3.show(0, hex_to_rgb('#000000'))\n    await asleep_ms(500)",
+        "add_task_forever": "create_task(task_forever())"
+      },
+      "bodyBeforeFinish": "",
+      "finalPython": "from yolo_uno import *\nfrom pins import *\n\nlight_A1 = Pins(A1_PIN)\nrgb_led_D3 = RGBLed(D3_PIN, 4)\n\nasync def task_forever():\n  while True:\n    await asleep_ms(50)\n    if (light_A1.read_analog_percent()) <= 50:\n      rgb_led_D3.show(0, hex_to_rgb('#ffffff'))\n    else:\n      rgb_led_D3.show(0, hex_to_rgb('#000000'))\n    await asleep_ms(500)\n\nasync def setup():\n\n  print('App started')\n\n  create_task(task_forever())\n\nasync def main():\n  await setup()\n  while True:\n    await asleep_ms(100)\n\nrun_loop(main())\n",
+      "uiPythonEqualsDirect": true
+    },
+    {
+      "id": "case4-servo",
+      "device": "yolouno",
+      "blocklyXml": "<xml xmlns=\"https://developers.google.com/blockly/xml\"><block type=\"uno_event_start\" id=\"QyrE%Kf*s5jZ@DH-^xLS\" x=\"-288\" y=\"-237\"><statement name=\"ONSTART\"><block type=\"uno_output_servo\" id=\"@Dl3/6(jhr+2iC9D+^bJ\"><field name=\"PIN\">D2</field><value name=\"angle\"><shadow type=\"math_number\" id=\"6UIqxBB.o7xUW6kNIt)m\"><field name=\"NUM\">0</field></shadow></value></block></statement></block><block type=\"uno_sensor_on_button_pressed\" id=\"~jw-uQwe85?vCFn%ahhL\" x=\"-288\" y=\"-138\"><field name=\"PIN\">BOOT</field><field name=\"ACTION\">pressed</field><statement name=\"STATEMENT\"><block type=\"uno_output_servo\" id=\"j^)GFM%-)eTcM|0unMFT\"><field name=\"PIN\">D2</field><value name=\"angle\"><shadow type=\"math_number\" id=\"(?+BWa2mZ.8gf-e5x7K~\"><field name=\"NUM\">180</field></shadow></value><next><block type=\"uno_event_sleep\" id=\"`4M!lXBj]TcD,~r~]##~\"><value name=\"duration\"><shadow type=\"math_number\" id=\"lf0k.dq+:pcO~kbQO$n5\"><field name=\"NUM\">2</field></shadow></value><next><block type=\"uno_output_servo\" id=\"nbZEwV=54B:oI3Lf,3w3\"><field name=\"PIN\">D2</field><value name=\"angle\"><shadow type=\"math_number\" id=\"G.*rvL3AIuiBnIPq#qsT\"><field name=\"NUM\">0</field></shadow></value></block></next></block></next></block></statement></block></xml>",
+      "definitions_": {
+        "import_pins": "from pins import *",
+        "init_servo_D2": "servo_D2 = Pins(D2_PIN)",
+        "import_yolo_uno": "from yolo_uno import *",
+        "setup_uno_start": "  servo_D2.servo_write(0)\n",
+        "import_abutton": "from abutton import *",
+        "init_abutton_BOOT": "btn_BOOT= aButton(BOOT_PIN)",
+        "on_abutton_BOOT_pressed": "async def on_abutton_BOOT_pressed():\n  servo_D2.servo_write(180)\n  await asleep_ms(2000)\n  servo_D2.servo_write(0)",
+        "setup_abutton_BOOT_pressed": "btn_BOOT.pressed(on_abutton_BOOT_pressed)",
+        "deinit_abutton_BOOT": "btn_BOOT.deinit()"
+      },
+      "bodyBeforeFinish": "",
+      "finalPython": "from pins import *\nfrom yolo_uno import *\nfrom abutton import *\n\nasync def on_abutton_BOOT_pressed():\n  servo_D2.servo_write(180)\n  await asleep_ms(2000)\n  servo_D2.servo_write(0)\n\nservo_D2 = Pins(D2_PIN)\nbtn_BOOT= aButton(BOOT_PIN)\n\ndef deinit():\n  btn_BOOT.deinit()\n\nimport yolo_uno\nyolo_uno.deinit = deinit\n\nasync def setup():\n\n  print('App started')\n  servo_D2.servo_write(0)\n\n  btn_BOOT.pressed(on_abutton_BOOT_pressed)\nasync def main():\n  await setup()\n  while True:\n    await asleep_ms(100)\n\nrun_loop(main())\n",
+      "uiPythonEqualsDirect": true
+    },
+    {
+      "id": "case5-robot-move-xbot",
+      "device": "xbot",
+      "blocklyXml": "<xml xmlns=\"https://developers.google.com/blockly/xml\"><block type=\"xbot_move_move_delay\" x=\"20\" y=\"20\"><value name=\"speed\"><shadow type=\"math_number\"><field name=\"NUM\">50</field></shadow></value><value name=\"time\"><shadow type=\"math_number\"><field name=\"NUM\">1</field></shadow></value><next><block type=\"xbot_move_turn_angle\"><value name=\"angle\"><shadow type=\"math_number\"><field name=\"NUM\">90</field></shadow></value><next><block type=\"xbot_move_stop\"></block></next></block></next></block></xml>",
+      "definitions_": {},
+      "bodyBeforeFinish": "robot.forward(50, 1, True)\nrobot.turn_left_angle(90)\nrobot.stop()\n",
+      "finalPython": "robot.forward(50, 1, True)\nrobot.turn_left_angle(90)\nrobot.stop()\n",
+      "uiPythonEqualsDirect": true
+    },
+    {
+      "id": "case6-led-blink-yolobit",
+      "device": "yolobit",
+      "blocklyXml": "<xml xmlns=\"https://developers.google.com/blockly/xml\"><block type=\"yolobit_basic_forever\" x=\"20\" y=\"20\"><statement name=\"FOREVER\"><block type=\"yolobit_pin_write_digital\"><next><block type=\"yolobit_basic_sleep\"><value name=\"duration\"><shadow type=\"math_number\"><field name=\"NUM\">1000</field></shadow></value></block></next></block></statement></block></xml>",
+      "definitions_": {
+        "import_time": "import time",
+        "import_yolobit": "from yolobit import *",
+        "on_start": "",
+        "forever": "while True:\n  pin0.write_digital()\n  time.sleep_ms(1000)\n  time.sleep_ms(10)\n"
+      },
+      "bodyBeforeFinish": "",
+      "finalPython": "import time\nfrom yolobit import *\nbutton_a.on_pressed = None\nbutton_b.on_pressed = None\nbutton_a.on_pressed_ab = button_b.on_pressed_ab = -1\n\nwhile True:\n  pin0.write_digital()\n  time.sleep_ms(1000)\n  time.sleep_ms(10)\n",
+      "uiPythonEqualsDirect": true
+    }
+  ]
+}

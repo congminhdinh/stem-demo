@@ -1,0 +1,4 @@
+interface:
+  display_name: "UI Designer"
+  short_description: "Design polished app interfaces"
+  default_prompt: "Use $ui-designer to refine a user-facing interface for this project."

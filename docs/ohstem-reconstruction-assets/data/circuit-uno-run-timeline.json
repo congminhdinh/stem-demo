@@ -1,0 +1,281 @@
+{
+  "_note": "Sampled every 300–400 ms while running. VERIFIED BY RUNTIME.",
+  "blocksRun": {
+    "generatedPython": "from yolo_uno import *\nfrom pins import *\n\nled_D13 = Pins(D13_PIN)\n\nasync def task_forever():\n  while True:\n    await asleep_ms(50)\n    led_D13.write_digital(1)\n    await asleep_ms(1000)\n    led_D13.write_digital(0)\n    await asleep_ms(1000)\n\nasync def setup():\n\n  print('App started')\n\n  create_task(task_forever())\n\nasync def main():\n  await setup()\n  while True:\n    await asleep_ms(100)\n\nrun_loop(main())\n",
+    "changes": [
+      {
+        "t": 480,
+        "running": true,
+        "pinStates": "{}",
+        "d13": 0,
+        "led": {
+          "v": 0,
+          "i": 0
+        }
+      },
+      {
+        "t": 3770,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":1}}",
+        "d13": 3.216,
+        "led": {
+          "v": 1.898,
+          "i": 0.002803
+        }
+      },
+      {
+        "t": 4590,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":0}}",
+        "d13": 0,
+        "led": {
+          "v": 0,
+          "i": 0
+        }
+      },
+      {
+        "t": 5824,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":1}}",
+        "d13": 3.216,
+        "led": {
+          "v": 1.898,
+          "i": 0.002803
+        }
+      },
+      {
+        "t": 6634,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":0}}",
+        "d13": 0,
+        "led": {
+          "v": 0,
+          "i": 0
+        }
+      },
+      {
+        "t": 7887,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":1}}",
+        "d13": 3.216,
+        "led": {
+          "v": 1.898,
+          "i": 0.002803
+        }
+      },
+      {
+        "t": 8708,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":0}}",
+        "d13": 0,
+        "led": {
+          "v": 0,
+          "i": 0
+        }
+      },
+      {
+        "t": 9929,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":1}}",
+        "d13": 3.216,
+        "led": {
+          "v": 1.898,
+          "i": 0.002803
+        }
+      },
+      {
+        "t": 10756,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":0}}",
+        "d13": 0,
+        "led": {
+          "v": 0,
+          "i": 0
+        }
+      },
+      {
+        "t": 11980,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":1}}",
+        "d13": 3.216,
+        "led": {
+          "v": 1.898,
+          "i": 0.002803
+        }
+      },
+      {
+        "t": 12794,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":0}}",
+        "d13": 0,
+        "led": {
+          "v": 0,
+          "i": 0
+        }
+      },
+      {
+        "t": 14088,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":1}}",
+        "d13": 3.216,
+        "led": {
+          "v": 1.898,
+          "i": 0.002803
+        }
+      },
+      {
+        "t": 14975,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":0}}",
+        "d13": 0,
+        "led": {
+          "v": 0,
+          "i": 0
+        }
+      },
+      {
+        "t": 15785,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":1}}",
+        "d13": 3.216,
+        "led": {
+          "v": 1.898,
+          "i": 0.002803
+        }
+      },
+      {
+        "t": 17036,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":0}}",
+        "d13": 0,
+        "led": {
+          "v": 0,
+          "i": 0
+        }
+      },
+      {
+        "t": 17859,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":1}}",
+        "d13": 3.216,
+        "led": {
+          "v": 1.898,
+          "i": 0.002803
+        }
+      },
+      {
+        "t": 19090,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":0}}",
+        "d13": 0,
+        "led": {
+          "v": 0,
+          "i": 0
+        }
+      },
+      {
+        "t": 19905,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":1}}",
+        "d13": 3.216,
+        "led": {
+          "v": 1.898,
+          "i": 0.002803
+        }
+      },
+      {
+        "t": 21139,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":0}}",
+        "d13": 0,
+        "led": {
+          "v": 0,
+          "i": 0
+        }
+      },
+      {
+        "t": 21963,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":1}}",
+        "d13": 3.216,
+        "led": {
+          "v": 1.898,
+          "i": 0.002803
+        }
+      },
+      {
+        "t": 23188,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":0}}",
+        "d13": 0,
+        "led": {
+          "v": 0,
+          "i": 0
+        }
+      },
+      {
+        "t": 24019,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":1}}",
+        "d13": 3.216,
+        "led": {
+          "v": 1.898,
+          "i": 0.002803
+        }
+      }
+    ]
+  },
+  "pythonRun": {
+    "code": "from machine import Pin\nimport time\nled = Pin(48, Pin.OUT)\nfor i in range(6):\n    led.value(i % 2)\n    print(\"d13 =\", i % 2)\n    time.sleep(0.5)\n",
+    "changes": [
+      {
+        "t": 348,
+        "running": true,
+        "pinStates": "{}",
+        "ledI": 0
+      },
+      {
+        "t": 3467,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":0}}",
+        "ledI": 0
+      },
+      {
+        "t": 4091,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":1}}",
+        "ledI": 0.002803
+      },
+      {
+        "t": 4408,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":0}}",
+        "ledI": 0
+      },
+      {
+        "t": 5017,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":1}}",
+        "ledI": 0.002803
+      },
+      {
+        "t": 5634,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":0}}",
+        "ledI": 0
+      },
+      {
+        "t": 5954,
+        "running": true,
+        "pinStates": "{\"d13\":{\"mode\":\"digital_out\",\"value\":1}}",
+        "ledI": 0.002803
+      },
+      {
+        "t": 6582,
+        "running": false,
+        "pinStates": "{}",
+        "ledI": 0
+      }
+    ]
+  }
+}

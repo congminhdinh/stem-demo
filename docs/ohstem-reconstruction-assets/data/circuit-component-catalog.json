@@ -1,0 +1,2427 @@
+{
+  "_note": "VERIFIED BY SOURCE/RUNTIME. Functions shown as \"[fn name]\".",
+  "source": "app.ohstem.vn runtime: webpack module 61882 export ne (read via in-browser require)",
+  "palette": {
+    "basic": [
+      "resistor",
+      "led",
+      "pushbutton",
+      "switch",
+      "potentiometer",
+      "buzzer",
+      "battery9V",
+      "coinCell3V",
+      "battery",
+      "motor",
+      "servo",
+      "rgbLed",
+      "breadboard",
+      "ldr",
+      "tmp36",
+      "ntcThermistor",
+      "npnTransistor",
+      "pnpTransistor",
+      "lightbulb",
+      "relay",
+      "diode",
+      "capacitor",
+      "electrolyticCapacitor",
+      "multimeter",
+      "yoloUno"
+    ],
+    "sources": [
+      "powerSupply",
+      "pwmSource",
+      "solarCell",
+      "potatoBattery",
+      "lemonBattery",
+      "mains220V"
+    ],
+    "actuators": [
+      "yellowMotor"
+    ],
+    "materials": [
+      "pencil",
+      "pencilThin",
+      "banknote",
+      "paperclip",
+      "coin",
+      "eraser"
+    ],
+    "notInPalette": [
+      "ammeter",
+      "voltmeter",
+      "ground"
+    ]
+  },
+  "parts": {
+    "resistor": {
+      "labelKey": "circuit_parts.part_resistor",
+      "solverType": "resistor",
+      "width": 80,
+      "height": 30,
+      "ports": [
+        {
+          "id": "a",
+          "dx": -40,
+          "dy": 0
+        },
+        {
+          "id": "b",
+          "dx": 40,
+          "dy": 0
+        }
+      ],
+      "portOrder": [
+        "a",
+        "b"
+      ],
+      "defaultParams": {
+        "resistance": 470
+      },
+      "paramSpec": [
+        {
+          "key": "resistance",
+          "labelKey": "circuit_parts.param_resistance",
+          "min": 0.1,
+          "step": 1
+        }
+      ]
+    },
+    "battery": {
+      "labelKey": "circuit_parts.part_battery_aa",
+      "solverType": "voltageSource",
+      "width": 260,
+      "height": 200,
+      "dynamicWidth": "[fn dynamicWidth]",
+      "ports": [
+        {
+          "id": "pos",
+          "dx": -20,
+          "dy": -70,
+          "labelKey": "circuit_parts.port_pos"
+        },
+        {
+          "id": "neg",
+          "dx": 20,
+          "dy": -70,
+          "labelKey": "circuit_parts.port_neg"
+        }
+      ],
+      "portOrder": [
+        "pos",
+        "neg"
+      ],
+      "defaultParams": {
+        "voltage": 1.5,
+        "cellCount": 1,
+        "hasSwitch": false,
+        "isOn": true
+      },
+      "paramSpec": [
+        {
+          "key": "cellCount",
+          "labelKey": "circuit_parts.param_cell_count",
+          "type": "toggleButtons",
+          "options": [
+            {
+              "value": 1,
+              "label": "1"
+            },
+            {
+              "value": 2,
+              "label": "2"
+            },
+            {
+              "value": 3,
+              "label": "3"
+            },
+            {
+              "value": 4,
+              "label": "4"
+            }
+          ]
+        },
+        {
+          "key": "hasSwitch",
+          "labelKey": "circuit_parts.param_has_switch",
+          "type": "boolean"
+        }
+      ]
+    },
+    "switch": {
+      "labelKey": "circuit_parts.part_switch",
+      "solverType": "switch",
+      "width": 80,
+      "height": 30,
+      "ports": [
+        {
+          "id": "a",
+          "dx": -40,
+          "dy": 0
+        },
+        {
+          "id": "b",
+          "dx": 40,
+          "dy": 0
+        }
+      ],
+      "portOrder": [
+        "a",
+        "b"
+      ],
+      "defaultParams": {
+        "closed": false
+      },
+      "paramSpec": [
+        {
+          "key": "closed",
+          "labelKey": "circuit_parts.param_closed",
+          "type": "boolean"
+        }
+      ]
+    },
+    "ammeter": {
+      "labelKey": "circuit_parts.part_ammeter",
+      "solverType": "ammeter",
+      "width": 60,
+      "height": 60,
+      "ports": [
+        {
+          "id": "a",
+          "dx": -30,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_pos_red"
+        },
+        {
+          "id": "b",
+          "dx": 30,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_neg_black"
+        }
+      ],
+      "portOrder": [
+        "a",
+        "b"
+      ],
+      "defaultParams": {},
+      "paramSpec": []
+    },
+    "led": {
+      "label": "LED",
+      "solverType": "led",
+      "width": 40,
+      "height": 70,
+      "ports": [
+        {
+          "id": "anode",
+          "dx": -10,
+          "dy": 30,
+          "label": "Anode (+)"
+        },
+        {
+          "id": "cathode",
+          "dx": 10,
+          "dy": 30,
+          "label": "Cathode (−)"
+        }
+      ],
+      "portOrder": [
+        "anode",
+        "cathode"
+      ],
+      "defaultParams": {
+        "forwardVoltage": 2,
+        "color": "#ff3333"
+      },
+      "paramSpec": [
+        {
+          "key": "forwardVoltage",
+          "label": "Vf (V)",
+          "min": 1.5,
+          "max": 3.5,
+          "step": 0.1
+        },
+        {
+          "key": "color",
+          "labelKey": "circuit_parts.param_led_color",
+          "type": "colorChoice",
+          "options": [
+            {
+              "value": "#ff3333",
+              "labelKey": "circuit_parts.opt_red"
+            },
+            {
+              "value": "#3498db",
+              "labelKey": "circuit_parts.opt_blue"
+            },
+            {
+              "value": "#27ae60",
+              "labelKey": "circuit_parts.opt_green"
+            },
+            {
+              "value": "#f1c40f",
+              "labelKey": "circuit_parts.opt_yellow"
+            }
+          ]
+        }
+      ]
+    },
+    "lightbulb": {
+      "labelKey": "circuit_parts.part_lightbulb",
+      "solverType": "lightbulb",
+      "width": 60,
+      "height": 70,
+      "ports": [
+        {
+          "id": "a",
+          "dx": -30,
+          "dy": 20,
+          "labelKey": "circuit_parts.port_pos"
+        },
+        {
+          "id": "b",
+          "dx": 30,
+          "dy": 20,
+          "labelKey": "circuit_parts.port_neg"
+        }
+      ],
+      "portOrder": [
+        "a",
+        "b"
+      ],
+      "defaultParams": {
+        "ratedVoltage": 6,
+        "ratedPower": 0.5
+      },
+      "paramSpec": [
+        {
+          "key": "ratedVoltage",
+          "labelKey": "circuit_parts.param_rated_voltage",
+          "min": 1,
+          "max": 24,
+          "step": 0.5
+        },
+        {
+          "key": "ratedPower",
+          "labelKey": "circuit_parts.param_rated_power",
+          "min": 0.05,
+          "max": 10,
+          "step": 0.05
+        }
+      ]
+    },
+    "buzzer": {
+      "labelKey": "circuit_parts.part_buzzer",
+      "solverType": "buzzer",
+      "width": 60,
+      "height": 60,
+      "ports": [
+        {
+          "id": "a",
+          "dx": -30,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_pos"
+        },
+        {
+          "id": "b",
+          "dx": 30,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_neg"
+        }
+      ],
+      "portOrder": [
+        "a",
+        "b"
+      ],
+      "defaultParams": {
+        "resistance": 100,
+        "frequency": 2000
+      },
+      "paramSpec": [
+        {
+          "key": "frequency",
+          "labelKey": "circuit_parts.param_frequency",
+          "min": 200,
+          "max": 5000,
+          "step": 100
+        }
+      ]
+    },
+    "voltmeter": {
+      "labelKey": "circuit_parts.part_voltmeter",
+      "solverType": "voltmeter",
+      "width": 60,
+      "height": 60,
+      "ports": [
+        {
+          "id": "red",
+          "dx": -30,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_pos_red"
+        },
+        {
+          "id": "black",
+          "dx": 30,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_neg_black"
+        }
+      ],
+      "portOrder": [
+        "red",
+        "black"
+      ],
+      "defaultParams": {},
+      "paramSpec": []
+    },
+    "motor": {
+      "labelKey": "circuit_parts.part_motor",
+      "solverType": "motor",
+      "width": 70,
+      "height": 70,
+      "ports": [
+        {
+          "id": "a",
+          "dx": -30,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_pos"
+        },
+        {
+          "id": "b",
+          "dx": 30,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_neg"
+        }
+      ],
+      "portOrder": [
+        "a",
+        "b"
+      ],
+      "defaultParams": {
+        "resistance": 5,
+        "kRpmPerVolt": 600,
+        "noLoadRpm": 6000
+      },
+      "paramSpec": [
+        {
+          "key": "resistance",
+          "labelKey": "circuit_parts.param_resistance",
+          "min": 0.5,
+          "max": 50,
+          "step": 0.5
+        }
+      ]
+    },
+    "pwmSource": {
+      "label": "PWM",
+      "solverType": "pwmSource",
+      "width": 60,
+      "height": 60,
+      "ports": [
+        {
+          "id": "pos",
+          "dx": 0,
+          "dy": -30,
+          "labelKey": "circuit_parts.port_pos_out"
+        },
+        {
+          "id": "neg",
+          "dx": 0,
+          "dy": 30,
+          "labelKey": "circuit_parts.port_neg_gnd"
+        }
+      ],
+      "portOrder": [
+        "pos",
+        "neg"
+      ],
+      "defaultParams": {
+        "voltage": 5,
+        "dutyCycle": 0.5
+      },
+      "paramSpec": [
+        {
+          "key": "voltage",
+          "labelKey": "circuit_parts.param_peak_voltage",
+          "min": 0,
+          "max": 24,
+          "step": 0.5
+        },
+        {
+          "key": "dutyCycle",
+          "labelKey": "circuit_parts.param_duty_cycle",
+          "min": 0,
+          "max": 1,
+          "step": 0.05
+        }
+      ]
+    },
+    "potentiometer": {
+      "labelKey": "circuit_parts.part_potentiometer",
+      "solverType": "potentiometer",
+      "width": 80,
+      "height": 90,
+      "ports": [
+        {
+          "id": "a",
+          "dx": -10,
+          "dy": 30,
+          "labelKey": "circuit_parts.port_lead_a"
+        },
+        {
+          "id": "wiper",
+          "dx": 0,
+          "dy": 30,
+          "labelKey": "circuit_parts.port_wiper"
+        },
+        {
+          "id": "b",
+          "dx": 10,
+          "dy": 30,
+          "labelKey": "circuit_parts.port_lead_b"
+        }
+      ],
+      "portOrder": [
+        "a",
+        "wiper",
+        "b"
+      ],
+      "defaultParams": {
+        "resistance": 10000,
+        "wiperPosition": 0.5
+      },
+      "paramSpec": [
+        {
+          "key": "resistance",
+          "labelKey": "circuit_parts.param_total_resistance",
+          "min": 100,
+          "max": 1000000,
+          "step": 100
+        },
+        {
+          "key": "wiperPosition",
+          "labelKey": "circuit_parts.param_wiper_position",
+          "min": 0,
+          "max": 1,
+          "step": 0.01
+        }
+      ]
+    },
+    "capacitor": {
+      "labelKey": "circuit_parts.part_capacitor",
+      "solverType": "capacitor",
+      "width": 60,
+      "height": 60,
+      "ports": [
+        {
+          "id": "a",
+          "dx": -30,
+          "dy": 0
+        },
+        {
+          "id": "b",
+          "dx": 30,
+          "dy": 0
+        }
+      ],
+      "portOrder": [
+        "a",
+        "b"
+      ],
+      "defaultParams": {
+        "capacitance": 0.0001,
+        "ratedVoltage": 25
+      },
+      "paramSpec": [
+        {
+          "key": "capacitance",
+          "labelKey": "circuit_parts.param_capacitance",
+          "min": 1e-12,
+          "max": 1,
+          "step": 1e-06
+        },
+        {
+          "key": "ratedVoltage",
+          "label": "Vmax (V)",
+          "min": 1,
+          "max": 100,
+          "step": 1
+        }
+      ]
+    },
+    "pushbutton": {
+      "labelKey": "circuit_parts.part_pushbutton",
+      "solverType": "switch",
+      "width": 60,
+      "height": 60,
+      "ports": [
+        {
+          "id": "a1",
+          "dx": -20,
+          "dy": -20,
+          "labelKey": "circuit_parts.port_pin_a_left"
+        },
+        {
+          "id": "a2",
+          "dx": -20,
+          "dy": 20,
+          "labelKey": "circuit_parts.port_pin_a_left"
+        },
+        {
+          "id": "b1",
+          "dx": 20,
+          "dy": -20,
+          "labelKey": "circuit_parts.port_pin_b_right"
+        },
+        {
+          "id": "b2",
+          "dx": 20,
+          "dy": 20,
+          "labelKey": "circuit_parts.port_pin_b_right"
+        }
+      ],
+      "portOrder": [
+        "a1",
+        "b1"
+      ],
+      "internalConnections": [
+        [
+          "a1",
+          "a2"
+        ],
+        [
+          "b1",
+          "b2"
+        ]
+      ],
+      "defaultParams": {
+        "closed": false
+      },
+      "paramSpec": [
+        {
+          "key": "closed",
+          "labelKey": "circuit_parts.param_pressed",
+          "type": "boolean"
+        }
+      ]
+    },
+    "battery9V": {
+      "labelKey": "circuit_parts.part_battery_9v",
+      "solverType": "voltageSource",
+      "width": 120,
+      "height": 160,
+      "ports": [
+        {
+          "id": "pos",
+          "dx": -30,
+          "dy": -80,
+          "labelKey": "circuit_parts.port_pos"
+        },
+        {
+          "id": "neg",
+          "dx": 30,
+          "dy": -80,
+          "labelKey": "circuit_parts.port_neg"
+        }
+      ],
+      "portOrder": [
+        "pos",
+        "neg"
+      ],
+      "defaultParams": {
+        "voltage": 9
+      },
+      "paramSpec": [
+        {
+          "key": "voltage",
+          "labelKey": "circuit_parts.param_voltage",
+          "min": 0,
+          "max": 12,
+          "step": 0.1
+        }
+      ]
+    },
+    "coinCell3V": {
+      "labelKey": "circuit_parts.part_coin_cell",
+      "solverType": "voltageSource",
+      "width": 70,
+      "height": 70,
+      "ports": [
+        {
+          "id": "pos",
+          "dx": 0,
+          "dy": -30,
+          "labelKey": "circuit_parts.port_pos"
+        },
+        {
+          "id": "neg",
+          "dx": 0,
+          "dy": 30,
+          "labelKey": "circuit_parts.port_neg"
+        }
+      ],
+      "portOrder": [
+        "pos",
+        "neg"
+      ],
+      "defaultParams": {
+        "voltage": 3
+      },
+      "paramSpec": [
+        {
+          "key": "voltage",
+          "labelKey": "circuit_parts.param_voltage",
+          "min": 0,
+          "max": 5,
+          "step": 0.1
+        }
+      ]
+    },
+    "diode": {
+      "label": "Diode",
+      "solverType": "diode",
+      "width": 60,
+      "height": 40,
+      "ports": [
+        {
+          "id": "anode",
+          "dx": -30,
+          "dy": 0,
+          "label": "Anode (+)"
+        },
+        {
+          "id": "cathode",
+          "dx": 30,
+          "dy": 0,
+          "label": "Cathode (−)"
+        }
+      ],
+      "portOrder": [
+        "anode",
+        "cathode"
+      ],
+      "defaultParams": {
+        "forwardVoltage": 0.7
+      },
+      "paramSpec": [
+        {
+          "key": "forwardVoltage",
+          "label": "Vf (V)",
+          "min": 0.2,
+          "max": 1.5,
+          "step": 0.05
+        }
+      ]
+    },
+    "npnTransistor": {
+      "label": "NPN Transistor",
+      "solverType": "npnTransistor",
+      "width": 50,
+      "height": 80,
+      "ports": [
+        {
+          "id": "collector",
+          "dx": -13,
+          "dy": 40,
+          "label": "C — Collector"
+        },
+        {
+          "id": "base",
+          "dx": 0,
+          "dy": 40,
+          "label": "B — Base"
+        },
+        {
+          "id": "emitter",
+          "dx": 13,
+          "dy": 40,
+          "label": "E — Emitter"
+        }
+      ],
+      "portOrder": [
+        "collector",
+        "base",
+        "emitter"
+      ],
+      "defaultParams": {
+        "beta": 100
+      },
+      "paramSpec": [
+        {
+          "key": "beta",
+          "labelKey": "circuit_parts.param_beta",
+          "min": 20,
+          "max": 500,
+          "step": 10
+        }
+      ]
+    },
+    "rgbLed": {
+      "label": "LED RGB",
+      "solverType": "rgbLed",
+      "width": 70,
+      "height": 70,
+      "ports": [
+        {
+          "id": "red",
+          "dx": -30,
+          "dy": 30,
+          "labelKey": "circuit_parts.port_rgb_r"
+        },
+        {
+          "id": "green",
+          "dx": -10,
+          "dy": 30,
+          "labelKey": "circuit_parts.port_rgb_g"
+        },
+        {
+          "id": "blue",
+          "dx": 10,
+          "dy": 30,
+          "labelKey": "circuit_parts.port_rgb_b"
+        },
+        {
+          "id": "cathode",
+          "dx": 30,
+          "dy": 30,
+          "labelKey": "circuit_parts.port_common_cathode"
+        }
+      ],
+      "portOrder": [
+        "red",
+        "green",
+        "blue",
+        "cathode"
+      ],
+      "defaultParams": {
+        "vfRed": 2,
+        "vfGreen": 2.2,
+        "vfBlue": 3.2
+      },
+      "paramSpec": []
+    },
+    "breadboard": {
+      "label": "Breadboard",
+      "solverType": null,
+      "width": 380,
+      "height": 200,
+      "ports": [
+        {
+          "id": "tp1",
+          "dx": -174,
+          "dy": -90
+        },
+        {
+          "id": "tn1",
+          "dx": -174,
+          "dy": -78
+        },
+        {
+          "id": "tp2",
+          "dx": -162,
+          "dy": -90
+        },
+        {
+          "id": "tn2",
+          "dx": -162,
+          "dy": -78
+        },
+        {
+          "id": "tp3",
+          "dx": -150,
+          "dy": -90
+        },
+        {
+          "id": "tn3",
+          "dx": -150,
+          "dy": -78
+        },
+        "... 420 ports total"
+      ],
+      "internalConnections": [
+        [
+          "tp1",
+          "tp2",
+          "tp3",
+          "tp4",
+          "...(30)"
+        ],
+        [
+          "tn1",
+          "tn2",
+          "tn3",
+          "tn4",
+          "...(30)"
+        ],
+        [
+          "bp1",
+          "bp2",
+          "bp3",
+          "bp4",
+          "...(30)"
+        ],
+        [
+          "bn1",
+          "bn2",
+          "bn3",
+          "bn4",
+          "...(30)"
+        ],
+        [
+          "f1",
+          "g1",
+          "h1",
+          "i1",
+          "...(5)"
+        ],
+        [
+          "a1",
+          "b1",
+          "c1",
+          "d1",
+          "...(5)"
+        ],
+        "... 64 groups total"
+      ],
+      "portOrder": [
+        "tp1",
+        "tn1",
+        "tp2",
+        "tn2",
+        "tp3",
+        "tn3",
+        "tp4",
+        "tn4",
+        "tp5",
+        "tn5",
+        "tp6",
+        "tn6",
+        "tp7",
+        "tn7",
+        "tp8",
+        "tn8",
+        "tp9",
+        "tn9",
+        "tp10",
+        "tn10",
+        "tp11",
+        "tn11",
+        "tp12",
+        "tn12",
+        "tp13",
+        "tn13",
+        "tp14",
+        "tn14",
+        "tp15",
+        "tn15",
+        "tp16",
+        "tn16",
+        "tp17",
+        "tn17",
+        "tp18",
+        "tn18",
+        "tp19",
+        "tn19",
+        "tp20",
+        "tn20",
+        "tp21",
+        "tn21",
+        "tp22",
+        "tn22",
+        "tp23",
+        "tn23",
+        "tp24",
+        "tn24",
+        "tp25",
+        "tn25",
+        "tp26",
+        "tn26",
+        "tp27",
+        "tn27",
+        "tp28",
+        "tn28",
+        "tp29",
+        "tn29",
+        "tp30",
+        "tn30",
+        "f1",
+        "f2",
+        "f3",
+        "f4",
+        "f5",
+        "f6",
+        "f7",
+        "f8",
+        "f9",
+        "f10",
+        "f11",
+        "f12",
+        "f13",
+        "f14",
+        "f15",
+        "f16",
+        "f17",
+        "f18",
+        "f19",
+        "f20",
+        "f21",
+        "f22",
+        "f23",
+        "f24",
+        "f25",
+        "f26",
+        "f27",
+        "f28",
+        "f29",
+        "f30",
+        "g1",
+        "g2",
+        "g3",
+        "g4",
+        "g5",
+        "g6",
+        "g7",
+        "g8",
+        "g9",
+        "g10",
+        "g11",
+        "g12",
+        "g13",
+        "g14",
+        "g15",
+        "g16",
+        "g17",
+        "g18",
+        "g19",
+        "g20",
+        "g21",
+        "g22",
+        "g23",
+        "g24",
+        "g25",
+        "g26",
+        "g27",
+        "g28",
+        "g29",
+        "g30",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "h7",
+        "h8",
+        "h9",
+        "h10",
+        "h11",
+        "h12",
+        "h13",
+        "h14",
+        "h15",
+        "h16",
+        "h17",
+        "h18",
+        "h19",
+        "h20",
+        "h21",
+        "h22",
+        "h23",
+        "h24",
+        "h25",
+        "h26",
+        "h27",
+        "h28",
+        "h29",
+        "h30",
+        "i1",
+        "i2",
+        "i3",
+        "i4",
+        "i5",
+        "i6",
+        "i7",
+        "i8",
+        "i9",
+        "i10",
+        "i11",
+        "i12",
+        "i13",
+        "i14",
+        "i15",
+        "i16",
+        "i17",
+        "i18",
+        "i19",
+        "i20",
+        "i21",
+        "i22",
+        "i23",
+        "i24",
+        "i25",
+        "i26",
+        "i27",
+        "i28",
+        "i29",
+        "i30",
+        "j1",
+        "j2",
+        "j3",
+        "j4",
+        "j5",
+        "j6",
+        "j7",
+        "j8",
+        "j9",
+        "j10",
+        "j11",
+        "j12",
+        "j13",
+        "j14",
+        "j15",
+        "j16",
+        "j17",
+        "j18",
+        "j19",
+        "j20",
+        "j21",
+        "j22",
+        "j23",
+        "j24",
+        "j25",
+        "j26",
+        "j27",
+        "j28",
+        "j29",
+        "j30",
+        "a1",
+        "a2",
+        "a3",
+        "a4",
+        "a5",
+        "a6",
+        "a7",
+        "a8",
+        "a9",
+        "a10",
+        "a11",
+        "a12",
+        "a13",
+        "a14",
+        "a15",
+        "a16",
+        "a17",
+        "a18",
+        "a19",
+        "a20",
+        "a21",
+        "a22",
+        "a23",
+        "a24",
+        "a25",
+        "a26",
+        "a27",
+        "a28",
+        "a29",
+        "a30",
+        "b1",
+        "b2",
+        "b3",
+        "b4",
+        "b5",
+        "b6",
+        "b7",
+        "b8",
+        "b9",
+        "b10",
+        "b11",
+        "b12",
+        "b13",
+        "b14",
+        "b15",
+        "b16",
+        "b17",
+        "b18",
+        "b19",
+        "b20",
+        "b21",
+        "b22",
+        "b23",
+        "b24",
+        "b25",
+        "b26",
+        "b27",
+        "b28",
+        "b29",
+        "b30",
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "c5",
+        "c6",
+        "c7",
+        "c8",
+        "c9",
+        "c10",
+        "c11",
+        "c12",
+        "c13",
+        "c14",
+        "c15",
+        "c16",
+        "c17",
+        "c18",
+        "c19",
+        "c20",
+        "c21",
+        "c22",
+        "c23",
+        "c24",
+        "c25",
+        "c26",
+        "c27",
+        "c28",
+        "c29",
+        "c30",
+        "d1",
+        "d2",
+        "d3",
+        "d4",
+        "d5",
+        "d6",
+        "d7",
+        "d8",
+        "d9",
+        "d10",
+        "d11",
+        "d12",
+        "d13",
+        "d14",
+        "d15",
+        "d16",
+        "d17",
+        "d18",
+        "d19",
+        "d20",
+        "d21",
+        "d22",
+        "d23",
+        "d24",
+        "d25",
+        "d26",
+        "d27",
+        "d28",
+        "d29",
+        "d30",
+        "e1",
+        "e2",
+        "e3",
+        "e4",
+        "e5",
+        "e6",
+        "e7",
+        "e8",
+        "e9",
+        "e10",
+        "e11",
+        "e12",
+        "e13",
+        "e14",
+        "e15",
+        "e16",
+        "e17",
+        "e18",
+        "e19",
+        "e20",
+        "e21",
+        "e22",
+        "e23",
+        "e24",
+        "e25",
+        "e26",
+        "e27",
+        "e28",
+        "e29",
+        "e30",
+        "bp1",
+        "bn1",
+        "bp2",
+        "bn2",
+        "bp3",
+        "bn3",
+        "bp4",
+        "bn4",
+        "bp5",
+        "bn5",
+        "bp6",
+        "bn6",
+        "bp7",
+        "bn7",
+        "bp8",
+        "bn8",
+        "bp9",
+        "bn9",
+        "bp10",
+        "bn10",
+        "bp11",
+        "bn11",
+        "bp12",
+        "bn12",
+        "bp13",
+        "bn13",
+        "bp14",
+        "bn14",
+        "bp15",
+        "bn15",
+        "bp16",
+        "bn16",
+        "bp17",
+        "bn17",
+        "bp18",
+        "bn18",
+        "bp19",
+        "bn19",
+        "bp20",
+        "bn20",
+        "bp21",
+        "bn21",
+        "bp22",
+        "bn22",
+        "bp23",
+        "bn23",
+        "bp24",
+        "bn24",
+        "bp25",
+        "bn25",
+        "bp26",
+        "bn26",
+        "bp27",
+        "bn27",
+        "bp28",
+        "bn28",
+        "bp29",
+        "bn29",
+        "bp30",
+        "bn30"
+      ],
+      "defaultParams": {},
+      "paramSpec": []
+    },
+    "multimeter": {
+      "labelKey": "circuit_parts.part_multimeter",
+      "solverType": "multimeter",
+      "width": 120,
+      "height": 60,
+      "ports": [
+        {
+          "id": "red",
+          "dx": -20,
+          "dy": 30,
+          "labelKey": "circuit_parts.port_pos_red"
+        },
+        {
+          "id": "black",
+          "dx": 20,
+          "dy": 30,
+          "labelKey": "circuit_parts.port_neg_black"
+        }
+      ],
+      "portOrder": [
+        "red",
+        "black"
+      ],
+      "defaultParams": {
+        "mode": "voltage"
+      },
+      "paramSpec": [
+        {
+          "key": "mode",
+          "labelKey": "circuit_parts.param_meter_mode",
+          "type": "toggleButtons",
+          "options": [
+            {
+              "value": "voltage",
+              "label": "V",
+              "titleKey": "circuit_parts.part_voltmeter"
+            },
+            {
+              "value": "current",
+              "label": "A",
+              "titleKey": "circuit_parts.part_ammeter"
+            },
+            {
+              "value": "resistance",
+              "label": "Ω",
+              "titleKey": "circuit_parts.opt_ohmmeter"
+            }
+          ]
+        }
+      ]
+    },
+    "solarCell": {
+      "labelKey": "circuit_parts.part_solar_cell",
+      "solverType": "solarCell",
+      "width": 100,
+      "height": 110,
+      "ports": [
+        {
+          "id": "pos",
+          "dx": -20,
+          "dy": -50,
+          "labelKey": "circuit_parts.port_pos"
+        },
+        {
+          "id": "neg",
+          "dx": 20,
+          "dy": -50,
+          "labelKey": "circuit_parts.port_neg"
+        }
+      ],
+      "portOrder": [
+        "pos",
+        "neg"
+      ],
+      "defaultParams": {
+        "voltage": 6,
+        "brightness": 1,
+        "internalResistance": 10
+      },
+      "paramSpec": [
+        {
+          "key": "voltage",
+          "labelKey": "circuit_parts.param_max_voltage",
+          "min": 1,
+          "max": 24,
+          "step": 0.5
+        },
+        {
+          "key": "brightness",
+          "labelKey": "circuit_parts.param_brightness",
+          "type": "slider",
+          "min": 0,
+          "max": 1,
+          "step": 0.01,
+          "format": "[fn format]"
+        }
+      ],
+      "runInteractiveSlider": {
+        "param": "brightness",
+        "min": 0,
+        "max": 1,
+        "cx": 0,
+        "cy": 72,
+        "length": 70
+      }
+    },
+    "potatoBattery": {
+      "labelKey": "circuit_parts.part_potato_battery",
+      "solverType": "voltageSource",
+      "width": 80,
+      "height": 70,
+      "ports": [
+        {
+          "id": "pos",
+          "dx": -20,
+          "dy": -30,
+          "labelKey": "circuit_parts.port_pos_zinc"
+        },
+        {
+          "id": "neg",
+          "dx": 20,
+          "dy": -30,
+          "labelKey": "circuit_parts.port_neg_copper"
+        }
+      ],
+      "portOrder": [
+        "pos",
+        "neg"
+      ],
+      "defaultParams": {
+        "voltage": 0.9,
+        "internalResistance": 500
+      },
+      "paramSpec": [
+        {
+          "key": "voltage",
+          "labelKey": "circuit_parts.param_voltage",
+          "min": 0.1,
+          "max": 2,
+          "step": 0.05
+        },
+        {
+          "key": "internalResistance",
+          "labelKey": "circuit_parts.param_internal_resistance",
+          "min": 10,
+          "max": 10000,
+          "step": 50
+        }
+      ]
+    },
+    "lemonBattery": {
+      "labelKey": "circuit_parts.part_lemon_battery",
+      "solverType": "voltageSource",
+      "width": 80,
+      "height": 70,
+      "ports": [
+        {
+          "id": "pos",
+          "dx": -20,
+          "dy": -30,
+          "labelKey": "circuit_parts.port_pos_zinc"
+        },
+        {
+          "id": "neg",
+          "dx": 20,
+          "dy": -30,
+          "labelKey": "circuit_parts.port_neg_copper"
+        }
+      ],
+      "portOrder": [
+        "pos",
+        "neg"
+      ],
+      "defaultParams": {
+        "voltage": 0.9,
+        "internalResistance": 300
+      },
+      "paramSpec": [
+        {
+          "key": "voltage",
+          "labelKey": "circuit_parts.param_voltage",
+          "min": 0.1,
+          "max": 2,
+          "step": 0.05
+        },
+        {
+          "key": "internalResistance",
+          "labelKey": "circuit_parts.param_internal_resistance",
+          "min": 10,
+          "max": 10000,
+          "step": 50
+        }
+      ]
+    },
+    "powerSupply": {
+      "labelKey": "circuit_parts.part_power_supply",
+      "solverType": "powerSupply",
+      "width": 240,
+      "height": 200,
+      "ports": [
+        {
+          "id": "pos",
+          "dx": -20,
+          "dy": 80,
+          "labelKey": "circuit_parts.port_pos_red"
+        },
+        {
+          "id": "neg",
+          "dx": 20,
+          "dy": 80,
+          "labelKey": "circuit_parts.port_neg_black"
+        }
+      ],
+      "portOrder": [
+        "pos",
+        "neg"
+      ],
+      "defaultParams": {
+        "voltage": 15,
+        "currentLimit": 5,
+        "internalResistance": 0.5,
+        "hasSwitch": true,
+        "isOn": true
+      },
+      "paramSpec": []
+    },
+    "mains220V": {
+      "labelKey": "circuit_parts.part_mains_220v",
+      "solverType": "voltageSource",
+      "width": 80,
+      "height": 90,
+      "ports": [
+        {
+          "id": "pos",
+          "dx": -20,
+          "dy": 50,
+          "labelKey": "circuit_parts.port_pos_live"
+        },
+        {
+          "id": "neg",
+          "dx": 20,
+          "dy": 50,
+          "labelKey": "circuit_parts.port_neg_neutral"
+        }
+      ],
+      "portOrder": [
+        "pos",
+        "neg"
+      ],
+      "defaultParams": {
+        "voltage": 220,
+        "internalResistance": 0
+      },
+      "paramSpec": [
+        {
+          "key": "voltage",
+          "labelKey": "circuit_parts.param_voltage",
+          "min": 0,
+          "max": 380,
+          "step": 1
+        }
+      ]
+    },
+    "yellowMotor": {
+      "labelKey": "circuit_parts.part_yellow_motor",
+      "solverType": "motor",
+      "width": 70,
+      "height": 130,
+      "ports": [
+        {
+          "id": "a",
+          "dx": -20,
+          "dy": 60,
+          "labelKey": "circuit_parts.port_pos"
+        },
+        {
+          "id": "b",
+          "dx": 20,
+          "dy": 60,
+          "labelKey": "circuit_parts.port_neg"
+        }
+      ],
+      "portOrder": [
+        "a",
+        "b"
+      ],
+      "defaultParams": {
+        "resistance": 24,
+        "kRpmPerVolt": 35,
+        "noLoadRpm": 210,
+        "stallVoltage": 0.7
+      },
+      "paramSpec": [
+        {
+          "key": "resistance",
+          "labelKey": "circuit_parts.param_winding_resistance",
+          "min": 1,
+          "max": 200,
+          "step": 1
+        },
+        {
+          "key": "noLoadRpm",
+          "labelKey": "circuit_parts.param_no_load_rpm",
+          "min": 10,
+          "max": 1000,
+          "step": 10
+        }
+      ]
+    },
+    "electrolyticCapacitor": {
+      "labelKey": "circuit_parts.part_electrolytic_capacitor",
+      "solverType": "capacitor",
+      "width": 60,
+      "height": 90,
+      "ports": [
+        {
+          "id": "a",
+          "dx": -10,
+          "dy": 40,
+          "labelKey": "circuit_parts.port_pos"
+        },
+        {
+          "id": "b",
+          "dx": 10,
+          "dy": 40,
+          "labelKey": "circuit_parts.port_neg"
+        }
+      ],
+      "portOrder": [
+        "a",
+        "b"
+      ],
+      "defaultParams": {
+        "capacitance": 0.00047,
+        "ratedVoltage": 25
+      },
+      "paramSpec": [
+        {
+          "key": "capacitance",
+          "labelKey": "circuit_parts.param_capacitance",
+          "min": 1e-09,
+          "max": 1,
+          "step": 1e-06
+        },
+        {
+          "key": "ratedVoltage",
+          "label": "Vmax (V)",
+          "min": 1,
+          "max": 100,
+          "step": 1
+        }
+      ]
+    },
+    "pnpTransistor": {
+      "label": "PNP Transistor",
+      "solverType": "pnpTransistor",
+      "width": 50,
+      "height": 80,
+      "ports": [
+        {
+          "id": "emitter",
+          "dx": -13,
+          "dy": 40,
+          "label": "E — Emitter"
+        },
+        {
+          "id": "base",
+          "dx": 0,
+          "dy": 40,
+          "label": "B — Base"
+        },
+        {
+          "id": "collector",
+          "dx": 13,
+          "dy": 40,
+          "label": "C — Collector"
+        }
+      ],
+      "portOrder": [
+        "collector",
+        "base",
+        "emitter"
+      ],
+      "defaultParams": {
+        "beta": 100
+      },
+      "paramSpec": [
+        {
+          "key": "beta",
+          "labelKey": "circuit_parts.param_beta",
+          "min": 20,
+          "max": 500,
+          "step": 10
+        }
+      ]
+    },
+    "relay": {
+      "label": "Relay SPDT",
+      "solverType": "relay",
+      "width": 140,
+      "height": 90,
+      "ports": [
+        {
+          "id": "coilP",
+          "dx": -70,
+          "dy": -20,
+          "labelKey": "circuit_parts.port_coil_pos"
+        },
+        {
+          "id": "coilN",
+          "dx": -70,
+          "dy": 20,
+          "labelKey": "circuit_parts.port_coil_neg"
+        },
+        {
+          "id": "no",
+          "dx": 70,
+          "dy": -30,
+          "labelKey": "circuit_parts.port_no"
+        },
+        {
+          "id": "com",
+          "dx": 70,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_com"
+        },
+        {
+          "id": "nc",
+          "dx": 70,
+          "dy": 30,
+          "labelKey": "circuit_parts.port_nc"
+        }
+      ],
+      "portOrder": [
+        "coilP",
+        "coilN",
+        "com",
+        "no",
+        "nc"
+      ],
+      "defaultParams": {
+        "coilResistance": 100,
+        "pickupVoltage": 3
+      },
+      "paramSpec": [
+        {
+          "key": "coilResistance",
+          "labelKey": "circuit_parts.param_coil_resistance",
+          "min": 10,
+          "max": 1000,
+          "step": 10
+        },
+        {
+          "key": "pickupVoltage",
+          "labelKey": "circuit_parts.param_pickup_voltage",
+          "min": 1,
+          "max": 12,
+          "step": 0.5
+        }
+      ]
+    },
+    "ldr": {
+      "labelKey": "circuit_parts.part_ldr",
+      "solverType": "ldr",
+      "width": 60,
+      "height": 80,
+      "ports": [
+        {
+          "id": "a",
+          "dx": -10,
+          "dy": 40,
+          "labelKey": "circuit_parts.port_lead_a"
+        },
+        {
+          "id": "b",
+          "dx": 10,
+          "dy": 40,
+          "labelKey": "circuit_parts.port_lead_b"
+        }
+      ],
+      "portOrder": [
+        "a",
+        "b"
+      ],
+      "defaultParams": {
+        "brightness": 0.5,
+        "minResistance": 100,
+        "maxResistance": 1000000
+      },
+      "paramSpec": [
+        {
+          "key": "brightness",
+          "labelKey": "circuit_parts.param_brightness",
+          "type": "slider",
+          "min": 0,
+          "max": 1,
+          "step": 0.01,
+          "format": "[fn format]"
+        },
+        {
+          "key": "minResistance",
+          "labelKey": "circuit_parts.param_min_resistance",
+          "min": 10,
+          "max": 10000,
+          "step": 10
+        },
+        {
+          "key": "maxResistance",
+          "labelKey": "circuit_parts.param_max_resistance",
+          "min": 1000,
+          "max": 10000000,
+          "step": 1000
+        }
+      ],
+      "runInteractiveSlider": {
+        "param": "brightness",
+        "min": 0,
+        "max": 1,
+        "cx": 0,
+        "cy": 56,
+        "length": 46
+      }
+    },
+    "servo": {
+      "labelKey": "circuit_parts.part_servo",
+      "solverType": "servo",
+      "width": 100,
+      "height": 160,
+      "ports": [
+        {
+          "id": "vcc",
+          "dx": -20,
+          "dy": -72,
+          "labelKey": "circuit_parts.port_servo_vcc"
+        },
+        {
+          "id": "gnd",
+          "dx": 0,
+          "dy": -72,
+          "label": "G — GND"
+        },
+        {
+          "id": "signal",
+          "dx": 20,
+          "dy": -72,
+          "labelKey": "circuit_parts.port_servo_signal"
+        }
+      ],
+      "portOrder": [
+        "vcc",
+        "gnd",
+        "signal"
+      ],
+      "defaultParams": {
+        "mode": "180",
+        "maxRpm": 60
+      },
+      "paramSpec": [
+        {
+          "key": "mode",
+          "labelKey": "circuit_parts.param_servo_type",
+          "type": "toggleButtons",
+          "options": [
+            {
+              "value": "180",
+              "label": "180°",
+              "titleKey": "circuit_parts.opt_servo_180_hint"
+            },
+            {
+              "value": "360",
+              "label": "360°",
+              "titleKey": "circuit_parts.opt_servo_360_hint"
+            }
+          ]
+        },
+        {
+          "key": "maxRpm",
+          "labelKey": "circuit_parts.param_servo_max_rpm",
+          "min": 10,
+          "max": 240,
+          "step": 10
+        }
+      ]
+    },
+    "tmp36": {
+      "labelKey": "circuit_parts.part_tmp36",
+      "solverType": "tmp36",
+      "width": 50,
+      "height": 80,
+      "ports": [
+        {
+          "id": "vs",
+          "dx": -13,
+          "dy": 40,
+          "labelKey": "circuit_parts.port_vs"
+        },
+        {
+          "id": "vout",
+          "dx": 0,
+          "dy": 40,
+          "labelKey": "circuit_parts.port_vout"
+        },
+        {
+          "id": "gnd",
+          "dx": 13,
+          "dy": 40,
+          "label": "GND"
+        }
+      ],
+      "portOrder": [
+        "vs",
+        "vout",
+        "gnd"
+      ],
+      "defaultParams": {
+        "temperature": 25
+      },
+      "paramSpec": [
+        {
+          "key": "temperature",
+          "labelKey": "circuit_parts.param_temperature",
+          "type": "slider",
+          "min": -40,
+          "max": 125,
+          "step": 1,
+          "format": "[fn format]"
+        }
+      ],
+      "runInteractiveSlider": {
+        "param": "temperature",
+        "min": -40,
+        "max": 125,
+        "cx": 0,
+        "cy": -50,
+        "length": 46,
+        "iconType": "temperature"
+      }
+    },
+    "ntcThermistor": {
+      "labelKey": "circuit_parts.part_ntc_10k",
+      "solverType": "ntcThermistor",
+      "width": 60,
+      "height": 80,
+      "ports": [
+        {
+          "id": "a",
+          "dx": -8,
+          "dy": 40,
+          "labelKey": "circuit_parts.port_lead_a"
+        },
+        {
+          "id": "b",
+          "dx": 8,
+          "dy": 40,
+          "labelKey": "circuit_parts.port_lead_b"
+        }
+      ],
+      "portOrder": [
+        "a",
+        "b"
+      ],
+      "defaultParams": {
+        "temperature": 25,
+        "r0": 10000,
+        "beta": 3950
+      },
+      "paramSpec": [
+        {
+          "key": "temperature",
+          "labelKey": "circuit_parts.param_temperature",
+          "type": "slider",
+          "min": -40,
+          "max": 125,
+          "step": 1,
+          "format": "[fn format]"
+        }
+      ],
+      "runInteractiveSlider": {
+        "param": "temperature",
+        "min": -40,
+        "max": 125,
+        "cx": 0,
+        "cy": -60,
+        "length": 46,
+        "iconType": "temperature"
+      }
+    },
+    "pencil": {
+      "labelKey": "circuit_parts.part_pencil",
+      "solverType": "resistor",
+      "width": 160,
+      "height": 40,
+      "ports": [
+        {
+          "id": "a",
+          "dx": -70,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_lead_a"
+        },
+        {
+          "id": "b",
+          "dx": 70,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_lead_b"
+        }
+      ],
+      "portOrder": [
+        "a",
+        "b"
+      ],
+      "defaultParams": {
+        "resistance": 50
+      },
+      "paramSpec": []
+    },
+    "pencilThin": {
+      "labelKey": "circuit_parts.part_thin_pencil",
+      "solverType": "resistor",
+      "width": 140,
+      "height": 24,
+      "ports": [
+        {
+          "id": "a",
+          "dx": -60,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_lead_a"
+        },
+        {
+          "id": "b",
+          "dx": 60,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_lead_b"
+        }
+      ],
+      "portOrder": [
+        "a",
+        "b"
+      ],
+      "defaultParams": {
+        "resistance": 500
+      },
+      "paramSpec": []
+    },
+    "banknote": {
+      "labelKey": "circuit_parts.part_banknote",
+      "solverType": null,
+      "width": 160,
+      "height": 80,
+      "ports": [
+        {
+          "id": "a",
+          "dx": -70,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_lead_a"
+        },
+        {
+          "id": "b",
+          "dx": 70,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_lead_b"
+        }
+      ],
+      "portOrder": [
+        "a",
+        "b"
+      ],
+      "defaultParams": {},
+      "paramSpec": []
+    },
+    "paperclip": {
+      "labelKey": "circuit_parts.part_paperclip",
+      "solverType": "resistor",
+      "width": 80,
+      "height": 30,
+      "ports": [
+        {
+          "id": "a",
+          "dx": -32,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_lead_a"
+        },
+        {
+          "id": "b",
+          "dx": 32,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_lead_b"
+        }
+      ],
+      "portOrder": [
+        "a",
+        "b"
+      ],
+      "defaultParams": {
+        "resistance": 0.5
+      },
+      "paramSpec": []
+    },
+    "coin": {
+      "labelKey": "circuit_parts.part_coin",
+      "solverType": "resistor",
+      "width": 100,
+      "height": 60,
+      "ports": [
+        {
+          "id": "a",
+          "dx": -22,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_lead_a"
+        },
+        {
+          "id": "b",
+          "dx": 22,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_lead_b"
+        }
+      ],
+      "portOrder": [
+        "a",
+        "b"
+      ],
+      "defaultParams": {
+        "resistance": 0.1
+      },
+      "paramSpec": []
+    },
+    "eraser": {
+      "labelKey": "circuit_parts.part_eraser",
+      "solverType": null,
+      "width": 100,
+      "height": 45,
+      "ports": [
+        {
+          "id": "a",
+          "dx": -40,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_lead_a"
+        },
+        {
+          "id": "b",
+          "dx": 40,
+          "dy": 0,
+          "labelKey": "circuit_parts.port_lead_b"
+        }
+      ],
+      "portOrder": [
+        "a",
+        "b"
+      ],
+      "defaultParams": {},
+      "paramSpec": []
+    },
+    "yoloUno": {
+      "label": "Yolo UNO",
+      "solverType": "yoloUno",
+      "width": 315,
+      "height": 420,
+      "ports": [
+        {
+          "id": "scl",
+          "dx": 135,
+          "dy": -75,
+          "label": "SCL (GPIO12)"
+        },
+        {
+          "id": "sda",
+          "dx": 135,
+          "dy": -60,
+          "label": "SDA (GPIO11)"
+        },
+        {
+          "id": "3v3_r",
+          "dx": 135,
+          "dy": -45,
+          "label": "3.3V"
+        },
+        {
+          "id": "gnd_r",
+          "dx": 135,
+          "dy": -30,
+          "label": "GND"
+        },
+        {
+          "id": "d13",
+          "dx": 135,
+          "dy": -15,
+          "label": "D13 (GPIO48)"
+        },
+        {
+          "id": "d12",
+          "dx": 135,
+          "dy": 0,
+          "label": "D12 (GPIO47)"
+        },
+        {
+          "id": "d11",
+          "dx": 135,
+          "dy": 15,
+          "label": "D11 (GPIO38)"
+        },
+        {
+          "id": "d10",
+          "dx": 135,
+          "dy": 30,
+          "label": "D10 (GPIO21)"
+        },
+        {
+          "id": "d9",
+          "dx": 135,
+          "dy": 45,
+          "label": "D9 (GPIO18)"
+        },
+        {
+          "id": "d8",
+          "dx": 135,
+          "dy": 60,
+          "label": "D8 (GPIO17)"
+        },
+        {
+          "id": "d7",
+          "dx": 135,
+          "dy": 75,
+          "label": "D7 (GPIO10)"
+        },
+        {
+          "id": "d6",
+          "dx": 135,
+          "dy": 90,
+          "label": "D6 (GPIO9)"
+        },
+        {
+          "id": "d5",
+          "dx": 135,
+          "dy": 105,
+          "label": "D5 (GPIO8)"
+        },
+        {
+          "id": "d4",
+          "dx": 135,
+          "dy": 120,
+          "label": "D4 (GPIO7)"
+        },
+        {
+          "id": "d3",
+          "dx": 135,
+          "dy": 135,
+          "label": "D3 (GPIO6)"
+        },
+        {
+          "id": "d2",
+          "dx": 135,
+          "dy": 150,
+          "label": "D2 (GPIO5)"
+        },
+        {
+          "id": "d1",
+          "dx": 135,
+          "dy": 165,
+          "label": "D1/TX (GPIO43)"
+        },
+        {
+          "id": "d0",
+          "dx": 135,
+          "dy": 180,
+          "label": "D0/RX (GPIO44)"
+        },
+        {
+          "id": "3v3_l1",
+          "dx": -135,
+          "dy": 0,
+          "label": "3.3V"
+        },
+        {
+          "id": "reset",
+          "dx": -135,
+          "dy": 15,
+          "label": "RESET"
+        },
+        {
+          "id": "3v3_l2",
+          "dx": -135,
+          "dy": 30,
+          "label": "3.3V"
+        },
+        {
+          "id": "5v",
+          "dx": -135,
+          "dy": 45,
+          "label": "5V"
+        },
+        {
+          "id": "gnd_l1",
+          "dx": -135,
+          "dy": 60,
+          "label": "GND"
+        },
+        {
+          "id": "gnd_l2",
+          "dx": -135,
+          "dy": 75,
+          "label": "GND"
+        },
+        {
+          "id": "vin",
+          "dx": -135,
+          "dy": 90,
+          "label": "VIN (6–12V)"
+        },
+        {
+          "id": "a0",
+          "dx": -135,
+          "dy": 105,
+          "label": "A0 (GPIO1)"
+        },
+        {
+          "id": "a1",
+          "dx": -135,
+          "dy": 120,
+          "label": "A1 (GPIO2)"
+        },
+        {
+          "id": "a2",
+          "dx": -135,
+          "dy": 135,
+          "label": "A2 (GPIO3)"
+        },
+        {
+          "id": "a3",
+          "dx": -135,
+          "dy": 150,
+          "label": "A3 (GPIO4)"
+        },
+        {
+          "id": "a4",
+          "dx": -135,
+          "dy": 165,
+          "label": "A4 (GPIO11)"
+        },
+        {
+          "id": "a5",
+          "dx": -135,
+          "dy": 180,
+          "label": "A5 (GPIO12)"
+        }
+      ],
+      "portOrder": [
+        "scl",
+        "sda",
+        "3v3_r",
+        "gnd_r",
+        "d13",
+        "d12",
+        "d11",
+        "d10",
+        "d9",
+        "d8",
+        "d7",
+        "d6",
+        "d5",
+        "d4",
+        "d3",
+        "d2",
+        "d1",
+        "d0",
+        "3v3_l1",
+        "reset",
+        "3v3_l2",
+        "5v",
+        "gnd_l1",
+        "gnd_l2",
+        "vin",
+        "a0",
+        "a1",
+        "a2",
+        "a3",
+        "a4",
+        "a5"
+      ],
+      "internalConnections": [
+        [
+          "gnd_r",
+          "gnd_l1",
+          "gnd_l2"
+        ],
+        [
+          "3v3_r",
+          "3v3_l1",
+          "3v3_l2"
+        ]
+      ],
+      "defaultParams": {
+        "pinStates": {},
+        "bootPressed": false
+      },
+      "paramSpec": [],
+      "groundPortId": "gnd_r"
+    },
+    "ground": {
+      "labelKey": "circuit_parts.part_ground",
+      "solverType": null,
+      "width": 40,
+      "height": 40,
+      "ports": [
+        {
+          "id": "g",
+          "dx": 0,
+          "dy": -20,
+          "label": "GND"
+        }
+      ],
+      "portOrder": [
+        "g"
+      ],
+      "defaultParams": {},
+      "paramSpec": []
+    }
+  }
+}

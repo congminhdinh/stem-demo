@@ -1,0 +1,43 @@
+{
+  "_note": "/static/gears/worlds/basic/lesson6.json (line follower: line is a ground texture image).",
+  "name": "Robot dò line",
+  "worldName": "custom",
+  "options": {
+    "rotateGround": true,
+    "imageURL": "textures/maps/basic/line_following_basic.png",
+    "groundType": "box",
+    "length": 100,
+    "width": 200,
+    "groundLength": 100,
+    "groundWidth": 200,
+    "uScale": 1,
+    "vScale": 1,
+    "imageScale": 1,
+    "timer": "none",
+    "timerDuration": 60,
+    "timerEnd": "continue",
+    "wall": false,
+    "wallHeight": 5,
+    "wallThickness": 2,
+    "wallColor": "#1A1A1A",
+    "groundFriction": 5,
+    "wallFriction": 0.1,
+    "groundRestitution": 0,
+    "wallRestitution": 0.1,
+    "restartAnimationOnRun": false,
+    "objects": [],
+    "startPos": "center",
+    "startPosXYZStr": "",
+    "startRotStr": "",
+    "startPosXYZ": [
+      0,
+      -85,
+      0
+    ],
+    "startRot": 0,
+    "arenaStartPosXYZ": null,
+    "arenaStartRot": null,
+    "image": "simple",
+    "startPosXY": ""
+  }
+}

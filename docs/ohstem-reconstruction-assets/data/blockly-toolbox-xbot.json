@@ -1,0 +1,288 @@
+{
+  "_note": "Read from live workspace toolbox. VERIFIED BY RUNTIME.",
+  "blocklyVersion": "8.0.1",
+  "renderer": "geras",
+  "theme": "classic",
+  "workspaceOptions": {
+    "grid": {
+      "spacing": 25,
+      "colour": "#ccc",
+      "length": 3,
+      "snap": true
+    },
+    "zoom": {
+      "controls": false,
+      "wheel": true,
+      "startScale": 1,
+      "maxScale": 3,
+      "minScale": 0.3,
+      "scaleSpeed": 1.1,
+      "pinch": true
+    },
+    "hasTrashcan": false,
+    "hasSounds": true,
+    "pathToMedia": "static/blocks/blockly/media/",
+    "horizontalLayout": false,
+    "toolboxPosition": 2,
+    "moveOptions": {
+      "scrollbars": true,
+      "wheel": false,
+      "drag": true
+    },
+    "readOnly": false,
+    "maxBlocks": null,
+    "comments": true,
+    "collapse": true,
+    "disable": true,
+    "hasCategories": true,
+    "RTL": false
+  },
+  "defaultWorkspaceXml": "<xml xmlns=\"https://developers.google.com/blockly/xml\"></xml>",
+  "categories": [
+    {
+      "name": "DI CHUYỂN",
+      "depth": 0,
+      "colour": "#00ceb9",
+      "custom": null,
+      "blocks": [
+        "xbot_move_move_delay",
+        "xbot_move_move",
+        "xbot_move_turn_angle",
+        "xbot_move_motor",
+        "xbot_move_stop",
+        "block_move_servo",
+        "block_move_servo_rotate",
+        "block_move_servo270",
+        "block_move_servo270_rotate",
+        "block_move_servo360_xbot",
+        "block_move_servo_read_position"
+      ]
+    },
+    {
+      "name": "ĐẦU VÀO",
+      "depth": 0,
+      "colour": "#5ca4fb",
+      "custom": null,
+      "blocks": [
+        "xbot_input_ultrasonic_read",
+        "xbot_input_ultrasonic_detect",
+        "xbot_input_line_array_read_all",
+        "xbot_input_line_array_read_single",
+        "xbot_button_onboard_read_digital",
+        "block_input_selected_value",
+        "xbot_input_ir_sensor_recv",
+        "xbot_input_ir_clear",
+        "xbot_input_timer_reset",
+        "xbot_input_timer_get",
+        "xbot_input_mpu_get_accel",
+        "xbot_input_mpu_get_gyro",
+        "xbot_input_mpu_is_shake"
+      ]
+    },
+    {
+      "name": "HIỆU ỨNG",
+      "depth": 0,
+      "colour": "#e63022",
+      "custom": null,
+      "blocks": [
+        "xbot_message",
+        "xbot_speaker_play_built_in",
+        "xbot_speaker_play_until_done",
+        "xbot_speaker_play_note",
+        "xbot_speaker_stop",
+        "xbot_speaker_pitch",
+        "xbot_led_onboard_delay",
+        "xbot_led_onboard_single",
+        "xbot_led_onboard_rgb",
+        "xbot_led_onboard_clear",
+        "xbot_LED_matrix_show_adv_image",
+        "xbot_LED_matrix_display"
+      ]
+    },
+    {
+      "name": "VÒNG LẶP",
+      "depth": 0,
+      "colour": "#42bf42",
+      "custom": null,
+      "blocks": [
+        "block_control_sleep",
+        "block_wait_until",
+        "block_control_forever",
+        "controls_repeat_ext",
+        "controls_whileUntil",
+        "controls_for",
+        "controls_forEach",
+        "controls_flow_statements"
+      ]
+    },
+    {
+      "name": "LÔGIC",
+      "depth": 0,
+      "colour": "#4281bf",
+      "custom": null,
+      "blocks": [
+        "controls_if",
+        "controls_if",
+        "controls_if",
+        "controls_if",
+        "logic_compare",
+        "logic_operation",
+        "logic_negate",
+        "logic_boolean"
+      ]
+    },
+    {
+      "name": "TÍNH TOÁN",
+      "depth": 0,
+      "colour": "#4257bf",
+      "custom": null,
+      "blocks": [
+        "math_number",
+        "math_tonum",
+        "math_arithmetic",
+        "math_random_int",
+        "math_random_float",
+        "math_single",
+        "math_trig",
+        "math_number_property",
+        "math_round",
+        "math_modulo",
+        "xbot_math_map"
+      ]
+    },
+    {
+      "name": "CHỮ VIẾT",
+      "depth": 0,
+      "colour": "#42bf95",
+      "custom": null,
+      "blocks": [
+        "text",
+        "text_join",
+        "text_append",
+        "text_length",
+        "text_isEmpty",
+        "text_indexOf",
+        "text_charAt",
+        "text_getSubstring",
+        "text_changeCase",
+        "text_trim",
+        "text_print"
+      ]
+    },
+    {
+      "name": "BIẾN",
+      "depth": 0,
+      "colour": "#ffa500",
+      "custom": "VARIABLE",
+      "blocks": []
+    },
+    {
+      "name": "?",
+      "depth": 0,
+      "colour": null,
+      "custom": null,
+      "blocks": []
+    },
+    {
+      "name": "NÂNG CAO",
+      "depth": 0,
+      "colour": "#675ba5",
+      "custom": null,
+      "blocks": []
+    },
+    {
+      "name": "HÀM",
+      "depth": 1,
+      "colour": "#aa42bf",
+      "custom": "PROCEDURE",
+      "blocks": []
+    },
+    {
+      "name": "SERIAL",
+      "depth": 1,
+      "colour": "#002050",
+      "custom": null,
+      "blocks": [
+        "xbot_serial_write_string",
+        "xbot_serial_write_number",
+        "xbot_serial_write_value",
+        "xbot_serial_write_line",
+        "xbot_serial_write_timer",
+        "xbot_serial_write_chart"
+      ]
+    },
+    {
+      "name": "DANH SÁCH",
+      "depth": 1,
+      "colour": "#6c42bf",
+      "custom": null,
+      "blocks": [
+        "lists_create_with",
+        "lists_create_with",
+        "lists_repeat",
+        "lists_length",
+        "lists_isEmpty",
+        "lists_indexOf",
+        "lists_getIndex",
+        "lists_setIndex",
+        "lists_getSublist",
+        "lists_split",
+        "lists_sort"
+      ]
+    },
+    {
+      "name": "BLUETOOTH",
+      "depth": 1,
+      "colour": "#e3008c",
+      "custom": null,
+      "blocks": [
+        "ble_connect",
+        "ble_connect_nearby",
+        "ble_is_connected",
+        "ble_send_number",
+        "ble_send_string",
+        "ble_send_name_value",
+        "ble_on_receive_number",
+        "ble_on_receive_string",
+        "ble_on_receive_name_value",
+        "ble_on_connected",
+        "ble_on_disconnected",
+        "ble_gamepad_app_message",
+        "ble_disconnect"
+      ]
+    },
+    {
+      "name": "CHÂN CẮM",
+      "depth": 1,
+      "colour": "#b22222",
+      "custom": null,
+      "blocks": [
+        "xbot_pin_read_analog",
+        "xbot_pin_write_analog",
+        "xbot_pin_read_digital",
+        "xbot_pin_pulse_in",
+        "xbot_pin_write_digital",
+        "xbot_pin_set_pull",
+        "xbot_pin_onoff_value"
+      ]
+    },
+    {
+      "name": "THIẾT BỊ",
+      "depth": 1,
+      "colour": "#393939",
+      "custom": null,
+      "blocks": [
+        "yolobit_device_read_terminal",
+        "yolobit_run_on_background",
+        "yolobit_reset"
+      ]
+    },
+    {
+      "name": "THƯ VIỆN",
+      "depth": 0,
+      "colour": "#717171",
+      "custom": null,
+      "blocks": []
+    }
+  ]
+}

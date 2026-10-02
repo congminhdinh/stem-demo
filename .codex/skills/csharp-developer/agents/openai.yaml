@@ -1,0 +1,4 @@
+interface:
+  display_name: "C# Developer"
+  short_description: "Build modern .NET features"
+  default_prompt: "Use $csharp-developer to implement a modern C#/.NET change in this solution."

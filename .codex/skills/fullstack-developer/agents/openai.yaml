@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fullstack Developer"
+  short_description: "Build end-to-end product features"
+  default_prompt: "Use $fullstack-developer to implement a complete feature across the app stack."

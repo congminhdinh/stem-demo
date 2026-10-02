@@ -1,0 +1,4 @@
+interface:
+  display_name: "Backend Developer"
+  short_description: "Build secure backend services"
+  default_prompt: "Use $backend-developer to implement a production-ready backend change."

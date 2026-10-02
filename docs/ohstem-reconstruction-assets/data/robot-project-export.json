@@ -1,0 +1,356 @@
+{
+  "_note": "ide.buildExportBundle() after Rover kit + Python program. Format vrb-project v2. VERIFIED BY RUNTIME.",
+  "version": 2,
+  "format": "vrb-project",
+  "exportedAt": "2026-10-02T06:14:35.759Z",
+  "project": {
+    "id": "proj_muqkhbw4_7gr53a",
+    "name": "My Robot",
+    "design": {
+      "bodyWidth": 14,
+      "bodyHeight": 4,
+      "bodyLength": 16,
+      "bodyMass": 1000,
+      "bodyFriction": 0,
+      "color": "#F09C0D",
+      "wheels": false,
+      "drivebaseType": "3wd",
+      "caster": false,
+      "casterFriction": 0,
+      "casterMass": 0,
+      "casterDiameter": 0,
+      "casterOffsetZ": 14.133333333333333,
+      "casterModelRotation": [
+        0,
+        0,
+        0
+      ],
+      "wheelFriction": 10,
+      "wheelDiameter": 5.6,
+      "wheelWidth": 0.8,
+      "bodyEdgeToWheelCenterY": 1,
+      "bodyEdgeToWheelCenterZ": 2,
+      "wheelToBodyOffset": 0.2,
+      "connections": [
+        {
+          "indexA": 0,
+          "indexB": 1,
+          "snapTypeA": "group",
+          "snapTypeB": "group",
+          "jointType": "rigid"
+        },
+        {
+          "indexA": 1,
+          "indexB": 2,
+          "snapTypeA": "group",
+          "snapTypeB": "group",
+          "jointType": "rigid"
+        },
+        {
+          "indexA": 2,
+          "indexB": 3,
+          "snapTypeA": "group",
+          "snapTypeB": "group",
+          "jointType": "rigid"
+        },
+        {
+          "indexA": 3,
+          "indexB": 4,
+          "snapTypeA": "group",
+          "snapTypeB": "group",
+          "jointType": "rigid"
+        }
+      ],
+      "_groupedComponents": [
+        {
+          "type": "Group",
+          "label": "Robot Rover",
+          "position": [
+            0,
+            -1.52,
+            0.8
+          ],
+          "_color": "#4A9EFF",
+          "children": [
+            {
+              "type": "LineSensor",
+              "position": [
+                -1.1102230246251565e-16,
+                -0.9400000000000001,
+                2.8999995307225945
+              ],
+              "rotation": [
+                0,
+                -2.7755575615628914e-16,
+                0
+              ],
+              "_assignedPort": "I2C_0",
+              "label": "Cảm biến dò line",
+              "options": {
+                "_part_id": "RoverLineSensor",
+                "width": 1,
+                "height": 0.01,
+                "depth": 0.5,
+                "mass": 0,
+                "color": "#ffffffff",
+                "modelScale": 1
+              }
+            },
+            {
+              "type": "CasterWheel",
+              "position": [
+                -6.661338147750939e-16,
+                -1.49,
+                4.099999336538841
+              ],
+              "rotation": [
+                0,
+                1.570796326794898,
+                0
+              ],
+              "label": "Bánh xe đa hướng",
+              "options": {
+                "_part_id": "WheelCasterTypeB",
+                "position": "0,0,0",
+                "rotation": "0,0,0",
+                "diameter": 1.86,
+                "mass": 100,
+                "color": "9BA3A8",
+                "modelScale": 100
+              }
+            },
+            {
+              "type": "ControlBoard",
+              "position": [
+                0,
+                1.81,
+                -0.5999999029081231
+              ],
+              "rotation": [
+                0,
+                -2.7755575615628914e-16,
+                0
+              ],
+              "label": "Robot Rover",
+              "options": {
+                "_part_id": "Rover",
+                "position": "0,0,0",
+                "rotation": "0,0,0",
+                "width": 11.492,
+                "height": 5.789,
+                "depth": 11.7,
+                "mass": 100,
+                "color": "#777777",
+                "modelScale": 100
+              }
+            },
+            {
+              "type": "WheelActuator",
+              "position": [
+                8.15,
+                0.52,
+                -3.199999482176657
+              ],
+              "rotation": [
+                0,
+                -2.7755575615628914e-16,
+                0
+              ],
+              "_assignedPort": "M2",
+              "label": "Bánh xe phải",
+              "options": {
+                "_part_id": "wheel_actuator",
+                "position": "0,0,0",
+                "rotation": "0,0,0",
+                "width": 1.9,
+                "diameter": 4.7,
+                "mass": 200,
+                "modelScale": 100
+              },
+              "components": []
+            },
+            {
+              "type": "WheelActuator",
+              "position": [
+                -8.15,
+                0.52,
+                -3.199999482176657
+              ],
+              "rotation": [
+                0,
+                -2.7755575615628914e-16,
+                0
+              ],
+              "_assignedPort": "M1",
+              "label": "Bánh xe trái",
+              "options": {
+                "_part_id": "wheel_actuator",
+                "position": "0,0,0",
+                "rotation": "0,0,0",
+                "width": 1.9,
+                "diameter": 4.7,
+                "mass": 200,
+                "modelScale": 100
+              },
+              "components": []
+            }
+          ]
+        }
+      ],
+      "_slimFormat": true,
+      "components": [
+        {
+          "type": "LineSensor",
+          "position": [
+            -1.1102230246251565e-16,
+            -2.46,
+            3.699999530722595
+          ],
+          "rotation": [
+            0,
+            -2.7755575615628914e-16,
+            0
+          ],
+          "_assignedPort": "I2C_0",
+          "label": "Cảm biến dò line",
+          "options": {
+            "_part_id": "RoverLineSensor",
+            "width": 1,
+            "height": 0.01,
+            "depth": 0.5,
+            "mass": 0,
+            "color": "#ffffffff",
+            "modelScale": 1
+          }
+        },
+        {
+          "type": "CasterWheel",
+          "position": [
+            -6.661338147750939e-16,
+            -3.01,
+            4.899999336538841
+          ],
+          "rotation": [
+            0,
+            1.570796326794898,
+            0
+          ],
+          "label": "Bánh xe đa hướng",
+          "options": {
+            "_part_id": "WheelCasterTypeB",
+            "position": "0,0,0",
+            "rotation": "0,0,0",
+            "diameter": 1.86,
+            "mass": 100,
+            "color": "9BA3A8",
+            "modelScale": 100
+          }
+        },
+        {
+          "type": "ControlBoard",
+          "position": [
+            0,
+            0.29000000000000004,
+            0.20000009709187694
+          ],
+          "rotation": [
+            0,
+            -2.7755575615628914e-16,
+            0
+          ],
+          "label": "Robot Rover",
+          "options": {
+            "_part_id": "Rover",
+            "position": "0,0,0",
+            "rotation": "0,0,0",
+            "width": 11.492,
+            "height": 5.789,
+            "depth": 11.7,
+            "mass": 100,
+            "color": "#777777",
+            "modelScale": 100
+          }
+        },
+        {
+          "type": "WheelActuator",
+          "position": [
+            8.15,
+            -1,
+            -2.399999482176657
+          ],
+          "rotation": [
+            0,
+            -2.7755575615628914e-16,
+            0
+          ],
+          "_assignedPort": "M2",
+          "label": "Bánh xe phải",
+          "options": {
+            "_part_id": "wheel_actuator",
+            "position": "0,0,0",
+            "rotation": "0,0,0",
+            "width": 1.9,
+            "diameter": 4.7,
+            "mass": 200,
+            "modelScale": 100
+          },
+          "components": []
+        },
+        {
+          "type": "WheelActuator",
+          "position": [
+            -8.15,
+            -1,
+            -2.399999482176657
+          ],
+          "rotation": [
+            0,
+            -2.7755575615628914e-16,
+            0
+          ],
+          "_assignedPort": "M1",
+          "label": "Bánh xe trái",
+          "options": {
+            "_part_id": "wheel_actuator",
+            "position": "0,0,0",
+            "rotation": "0,0,0",
+            "width": 1.9,
+            "diameter": 4.7,
+            "mass": 200,
+            "modelScale": 100
+          },
+          "components": []
+        }
+      ]
+    },
+    "scripts": {
+      "board-0": {
+        "boardType": "rover",
+        "label": "Robot Rover",
+        "xmlText": "<xml xmlns=\"https://developers.google.com/blockly/xml\"><block type=\"yolobit_basic_forever\" id=\"w5Bl*-!,Ihc8X2tI)wP*\" x=\"87\" y=\"37\"></block></xml>",
+        "python": "from rover import *\nimport time\nprint(\"start\")\nrover.forward(60)\ntime.sleep(2)\nrover.turn_right(50)\ntime.sleep(1)\nrover.stop()\nprint(\"done\", rover.ultrasonic.distance_cm())\n# No code generated yet.\n# Switch to Blocks mode and add some blocks.",
+        "c": ""
+      }
+    },
+    "activeBoard": "board-0",
+    "simConfig": {
+      "worldId": "configurator",
+      "popupWorldId": "Basic 1: Grid Map"
+    },
+    "extensions": [],
+    "updatedAt": "2026-10-02T06:14:33.720Z",
+    "codeMode": "python"
+  },
+  "robot": {
+    "_summary": "Hydrated runtime copy of design (each component expanded with _groupRef/_origChild). Omitted for size.",
+    "componentCount": 5,
+    "componentTypes": [
+      "LineSensor",
+      "CasterWheel",
+      "ControlBoard",
+      "WheelActuator",
+      "WheelActuator"
+    ]
+  },
+  "models": []
+}

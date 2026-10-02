@@ -1,0 +1,4 @@
+interface:
+  display_name: "Debugger"
+  short_description: "Diagnose and fix software failures"
+  default_prompt: "Use $debugger to reproduce this bug, find the root cause, and implement a verified fix."

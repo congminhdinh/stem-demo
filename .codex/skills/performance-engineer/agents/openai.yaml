@@ -1,0 +1,4 @@
+interface:
+  display_name: "Performance Engineer"
+  short_description: "Measure and improve performance"
+  default_prompt: "Use $performance-engineer to identify bottlenecks and validate performance improvements."

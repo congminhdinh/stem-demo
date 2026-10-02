@@ -1,0 +1,14 @@
+{
+  "_note": "localStorage after saving a project in /codes/yolouno.",
+  "yolouno-current-project-id": "9d6de5b6-1f17-4102-9011-df1f762feaf6",
+  "yolouno-code": [
+    {
+      "id": "9d6de5b6-1f17-4102-9011-df1f762feaf6",
+      "name": "demo-led",
+      "xmlText": "<xml xmlns=\"https://developers.google.com/blockly/xml\"><block type=\"uno_event_start\" id=\"nwJL`aB@JSG))9pnh3Bb\" x=\"20\" y=\"20\"><statement name=\"ONSTART\"><block type=\"uno_display_led\" id=\"ltyOL/qVcJ[1b%*hVtD8\"><field name=\"state\">1</field><field name=\"PIN\">D13</field></block></statement></block></xml>",
+      "python": "from pins import *\nfrom yolo_uno import *\n\nled_D13 = Pins(D13_PIN)\n\nasync def setup():\n\n  print('App started')\n  led_D13.write_digital(1)\n\nasync def main():\n  await setup()\n  while True:\n    await asleep_ms(100)\n\nrun_loop(main())\n",
+      "mode": "block",
+      "updatedAt": 1790922735387
+    }
+  ]
+}

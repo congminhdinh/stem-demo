@@ -1,0 +1,141 @@
+{
+  "_note": "Synthetic solid-colour PNG samples only. Test browser profile deleted after capture.",
+  "localStorage.ohstemai_projects": {
+    "data": {
+      "e788023c-785e-45f8-b641-8825bfd0f77a": {
+        "id": "e788023c-785e-45f8-b641-8825bfd0f77a",
+        "name": "Do",
+        "type": "image",
+        "createdAt": "2026-10-02T06:25:38.719Z",
+        "metadata": {
+          "tfjsVersion": "3.21.0",
+          "tmVersion": "2.4.4",
+          "packageVersion": "0.8.4-alpha2",
+          "packageName": "@teachablemachine/image",
+          "timeStamp": "2026-10-02T06:25:26.207Z",
+          "userMetadata": {},
+          "modelName": "classify-two-objects",
+          "labels": [
+            "Xanh",
+            "Nhóm 2"
+          ],
+          "imageSize": 224
+        },
+        "classes": [
+          {
+            "id": "klass-muqkweaw-1",
+            "name": "Xanh"
+          },
+          {
+            "id": "klass-muqkweaw-2",
+            "name": "Nhóm 2"
+          }
+        ],
+        "importedFrom": null
+      }
+    }
+  },
+  "indexedDB": {
+    "ohstem-ai-samples": {
+      "samples": {
+        "keyPath": "key",
+        "indexes": [
+          "by_project"
+        ],
+        "keys": [
+          "e788023c-785e-45f8-b641-8825bfd0f77a:muqkwle4-1",
+          "e788023c-785e-45f8-b641-8825bfd0f77a:muqkwmo9-2",
+          "e788023c-785e-45f8-b641-8825bfd0f77a:muqkwmpx-3",
+          "e788023c-785e-45f8-b641-8825bfd0f77a:muqkwnzw-4",
+          "e788023c-785e-45f8-b641-8825bfd0f77a:muqkwoo9-5",
+          "e788023c-785e-45f8-b641-8825bfd0f77a:muqkwpc4-6",
+          "e788023c-785e-45f8-b641-8825bfd0f77a:muqkwpdm-7",
+          "e788023c-785e-45f8-b641-8825bfd0f77a:muqkwqnl-8",
+          "e788023c-785e-45f8-b641-8825bfd0f77a:muqkwqpe-9",
+          "e788023c-785e-45f8-b641-8825bfd0f77a:muqkwrzg-a",
+          "e788023c-785e-45f8-b641-8825bfd0f77a:muqkwsnb-b",
+          "e788023c-785e-45f8-b641-8825bfd0f77a:muqkwtgu-c"
+        ],
+        "sample": [
+          {
+            "key": "e788023c-785e-45f8-b641-8825bfd0f77a:muqkwle4-1",
+            "id": "muqkwle4-1",
+            "projectId": "e788023c-785e-45f8-b641-8825bfd0f77a",
+            "klassId": "klass-muqkweaw-1",
+            "label": "Xanh",
+            "classIndex": 0,
+            "order": 0,
+            "blob": "[Blob image/jpeg 9152]",
+            "createdAt": "2026-10-02T06:25:13.804Z"
+          },
+          {
+            "key": "e788023c-785e-45f8-b641-8825bfd0f77a:muqkwmo9-2",
+            "id": "muqkwmo9-2",
+            "projectId": "e788023c-785e-45f8-b641-8825bfd0f77a",
+            "klassId": "klass-muqkweaw-1",
+            "label": "Xanh",
+            "classIndex": 0,
+            "order": 1,
+            "blob": "[Blob image/jpeg 9165]",
+            "createdAt": "2026-10-02T06:25:15.465Z"
+          }
+        ],
+        "count": 12
+      }
+    },
+    "tensorflowjs": {
+      "model_info_store": {
+        "keyPath": "modelPath",
+        "indexes": [],
+        "keys": [
+          "e788023c-785e-45f8-b641-8825bfd0f77a"
+        ],
+        "sample": [
+          {
+            "modelPath": "e788023c-785e-45f8-b641-8825bfd0f77a",
+            "modelArtifactsInfo": {
+              "dateSaved": "2026-10-02T06:25:40.163Z",
+              "modelTopologyType": "JSON",
+              "modelTopologyBytes": 72667,
+              "weightSpecsBytes": 19075,
+              "weightDataBytes": 2154032
+            }
+          }
+        ],
+        "count": 1
+      },
+      "models_store": {
+        "keyPath": "modelPath",
+        "indexes": [],
+        "keys": [
+          "e788023c-785e-45f8-b641-8825bfd0f77a"
+        ],
+        "sample": [
+          {
+            "modelPath": "e788023c-785e-45f8-b641-8825bfd0f77a",
+            "modelArtifacts": {
+              "_summary": "TF.js LayersModel artifacts (Sequential: MobileNetV2 truncated feature extractor + dense head). Omitted for size.",
+              "keys": [
+                "modelTopology",
+                "format",
+                "generatedBy",
+                "convertedBy",
+                "weightData",
+                "weightSpecs"
+              ],
+              "weightSpecsCount": 263
+            },
+            "modelArtifactsInfo": {
+              "dateSaved": "2026-10-02T06:25:40.163Z",
+              "modelTopologyType": "JSON",
+              "modelTopologyBytes": 72667,
+              "weightSpecsBytes": 19075,
+              "weightDataBytes": 2154032
+            }
+          }
+        ],
+        "count": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Reviewer"
+  short_description: "Review code quality and risk"
+  default_prompt: "Use $code-reviewer to review this change for correctness, security, and maintainability."

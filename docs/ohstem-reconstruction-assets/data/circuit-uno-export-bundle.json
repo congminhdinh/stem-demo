@@ -1,0 +1,92 @@
+{
+  "_note": "Output of _buildExportBundle (same function used by menu \"Xuất JSON\"). Yolo UNO D13→R→LED→GND + blink blocks.",
+  "format": "ohstem-circuit",
+  "version": 1,
+  "name": "Mạch điện mới",
+  "circuit": {
+    "components": [
+      {
+        "id": "yoloUno_muqk1kin_4",
+        "type": "yoloUno",
+        "x": 300,
+        "y": 420,
+        "rotation": 0,
+        "params": {
+          "pinStates": {},
+          "bootPressed": false
+        }
+      },
+      {
+        "id": "resistor_muqk1kyt_5",
+        "type": "resistor",
+        "x": 640,
+        "y": 300,
+        "rotation": 0,
+        "params": {
+          "resistance": 470
+        }
+      },
+      {
+        "id": "led_muqk1lel_6",
+        "type": "led",
+        "x": 820,
+        "y": 380,
+        "rotation": 0,
+        "params": {
+          "forwardVoltage": 2,
+          "color": "#ff3333"
+        }
+      }
+    ],
+    "wires": [
+      {
+        "id": "wire_muqk1lua_7",
+        "from": {
+          "componentId": "yoloUno_muqk1kin_4",
+          "portId": "d13"
+        },
+        "to": {
+          "componentId": "resistor_muqk1kyt_5",
+          "portId": "a"
+        },
+        "breakpoints": [],
+        "color": "#27ae60"
+      },
+      {
+        "id": "wire_muqk1m9z_8",
+        "from": {
+          "componentId": "resistor_muqk1kyt_5",
+          "portId": "b"
+        },
+        "to": {
+          "componentId": "led_muqk1lel_6",
+          "portId": "anode"
+        },
+        "breakpoints": [],
+        "color": "#27ae60"
+      },
+      {
+        "id": "wire_muqk1mpr_9",
+        "from": {
+          "componentId": "led_muqk1lel_6",
+          "portId": "cathode"
+        },
+        "to": {
+          "componentId": "yoloUno_muqk1kin_4",
+          "portId": "gnd_r"
+        },
+        "breakpoints": [],
+        "color": "#27ae60"
+      }
+    ]
+  },
+  "scripts": {
+    "yoloUno_muqk1kin_4": {
+      "boardType": "yolouno",
+      "label": "Yolo UNO",
+      "xmlText": "<xml xmlns=\"https://developers.google.com/blockly/xml\"><block type=\"uno_event_start\" id=\"QyrE%Kf*s5jZ@DH-^xLS\" x=\"-437\" y=\"-362\"></block><block type=\"uno_event_forever\" id=\"Y9DN=8vY}iD*+{-Atonj\" x=\"-437\" y=\"-262\"><statement name=\"FOREVER\"><block type=\"uno_display_led\" id=\"JOL_nJEVO4TZVGMZ{wQU\"><field name=\"state\">1</field><field name=\"PIN\">D13</field><next><block type=\"uno_event_sleep\" id=\"h$yp/(QH)?*t_H1~-wus\"><value name=\"duration\"><shadow type=\"math_number\" id=\"tl0%RhAF6ZZ5S5yz${T9\"><field name=\"NUM\">1</field></shadow></value><next><block type=\"uno_display_led\" id=\"S1$`]q1smH|z/M4^#5mZ\"><field name=\"state\">0</field><field name=\"PIN\">D13</field><next><block type=\"uno_event_sleep\" id=\"M{f8JB)jKdqrh{9|PQ7u\"><value name=\"duration\"><shadow type=\"math_number\" id=\"+|GCC2Bg-pl,%Vi!],P(\"><field name=\"NUM\">1</field></shadow></value></block></next></block></next></block></next></block></statement></block></xml>",
+      "python": "from machine import Pin\nimport time\nled = Pin(48, Pin.OUT)\nfor i in range(6):\n    led.value(i % 2)\n    print(\"d13 =\", i % 2)\n    time.sleep(0.5)\n# No code generated yet.\n# Switch to Blocks mode and add some blocks.",
+      "c": ""
+    }
+  }
+}

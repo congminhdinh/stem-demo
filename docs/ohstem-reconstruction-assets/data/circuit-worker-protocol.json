@@ -1,0 +1,100 @@
+{
+  "_note": "Captured by wrapping window.Worker (postMessage + message events). VERIFIED BY RUNTIME.",
+  "worker": "/static/gears/js/pyodideWorker.js",
+  "counts": {
+    "main→worker init": 2,
+    "worker→main syncModeDetected": 2,
+    "worker→main stdout": 42,
+    "worker→main ready": 2,
+    "main→worker portData": 1862,
+    "main→worker run": 2,
+    "worker→main started": 2,
+    "worker→main cmd writePortExtended": 2,
+    "worker→main cmd writePort": 27,
+    "main→worker stop": 1,
+    "worker→main done": 2
+  },
+  "firstOfEachKind": [
+    {
+      "dir": "main→worker",
+      "msg": {
+        "type": "init"
+      }
+    },
+    {
+      "dir": "worker→main",
+      "msg": {
+        "type": "syncModeDetected",
+        "mode": "jspi"
+      }
+    },
+    {
+      "dir": "worker→main",
+      "msg": {
+        "type": "stdout",
+        "text": "[bootstrap] ✅ Non-blocking time.sleep via run_sync\n"
+      }
+    },
+    {
+      "dir": "worker→main",
+      "msg": {
+        "type": "ready"
+      }
+    },
+    {
+      "dir": "main→worker",
+      "msg": {
+        "type": "portData",
+        "port": "d0",
+        "data": 0,
+        "isArray": false
+      }
+    },
+    {
+      "dir": "main→worker",
+      "msg": {
+        "type": "run",
+        "code": "from yolo_uno import *\nfrom pins import *\n\nled_D13 = Pins(D13_PIN)\n\nasync def task_forever():\n  while True:\n    await asleep_ms(50)\n    led_D13.write_digital(1)\n    await asleep_ms(1000)\n    led_D13.write_digital(0)\n    await asleep_ms(1000)\n\nasync def setup():\n\n  print('App started')\n\n  create_task(task_forever())\n\nasync def main():\n  await setup()\n  while True:\n    await asleep_ms(100)\n\nrun_loop…(409)",
+        "boardLibs": "{\"./simPython.js\":\"/static/gears/js/simPython.js\",\"./simNetwork.js\":\"/static/gears/js/simNetwork.js\",\"./machine.py\":\"/static/gears/override/machine.py\",\"./neopixel.py\":\"/static/gears/platform/esp32/neopixel.py\",\"./asyncio.py\":\"/static/gears/platform/esp32/asyncio.py\",\"./_scheduler.py\":\"/static/gears",
+        "boardId": "yolouno",
+        "bootScript": "/static/gears/firmware/yolouno/boot.py"
+      }
+    },
+    {
+      "dir": "worker→main",
+      "msg": {
+        "type": "started"
+      }
+    },
+    {
+      "dir": "worker→main",
+      "msg": {
+        "type": "cmd",
+        "cmd": "writePortExtended",
+        "port": "45",
+        "data": "{\"r\":0,\"g\":0,\"b\":0,\"index\":0}"
+      }
+    },
+    {
+      "dir": "worker→main",
+      "msg": {
+        "type": "cmd",
+        "cmd": "writePort",
+        "port": "48",
+        "value": 1
+      }
+    },
+    {
+      "dir": "main→worker",
+      "msg": {
+        "type": "stop"
+      }
+    },
+    {
+      "dir": "worker→main",
+      "msg": {
+        "type": "done"
+      }
+    }
+  ]
+}
