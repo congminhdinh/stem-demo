@@ -12,7 +12,7 @@
 |---|---|
 | **PoC chứng minh gì** | Kiến trúc đã chọn đủ tốt để xây một STEM editor thực tế. Kiến trúc đó gồm: document độc lập renderer, simulation là hàm thuần, Blockly chỉ là view và program được compile sang IR, runtime chỉ chạm phần cứng ảo qua `HardwareIO`, canvas chỉ render document và snapshot (§2) |
 | **Vertical slice** | **Checkpoint MP** (bằng chứng đầu tiên): Board + LED, block "on start: digital write D13 HIGH", bấm Run thì LED sáng trên canvas. **VS-1:** mở rộng MP thành mạch Board + Resistor + LED chạy program blink (`forever` + `wait`), Stop hoạt động đúng. **VS-2:** người dùng tự dựng mạch bằng chuột rồi chạy (§3) |
-| **Task tiếp theo** | `POC-03` App shell & canvas rendering (§9.2). `POC-01` và `POC-02` đã xong |
+| **Task tiếp theo** | `POC-04` Blocks, IR & compiler (§9.2). `POC-01`…`POC-03` đã xong |
 | **Critical path** | `01 → 02 → 03 → 05 → 08 → 11`. Hai nhánh `02 → 06 → 07 → 08` và `03 → 09 → 10 → 11` dài bằng nhau (§10) |
 | **PoC xong khi** | M1 và M2 (P0) đạt exit criteria, Learning log trả lời được L1–L4 (§8, §17). M3 và M4 (P1) làm PoC thuyết phục hơn |
 | **Ràng buộc cứng** | Boundary B1–B8 (§5.1) và acceptance criteria của task. Mọi thứ còn lại (tên file, API helper, cấu trúc nội bộ, type chi tiết) là gợi ý |
@@ -788,12 +788,23 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 **Out of scope.** Chỉnh sửa, Blockly, nối với run state, pan/zoom, xoay, renderer đẹp cho board (generic kèm nhãn chân là đủ).
 
 **Acceptance**
-- [ ] `pnpm dev` hiển thị mạch mẫu (MP: Board, LED và 2 dây; sau MP: có thêm Resistor), đầu dây trùng đúng port marker.
-- [ ] Đổi id renderer sang một giá trị lạ thì device vẫn hiển thị dạng generic với port đúng vị trí, không crash.
-- [ ] LED renderer có trạng thái sáng phân biệt rõ khi nhận `lit = true` (ảnh chụp đính kèm PR).
-- [ ] Renderer không tự tính vị trí port (review).
+- [x] `pnpm dev` hiển thị mạch mẫu (MP: Board, LED và 2 dây; sau MP: có thêm Resistor), đầu dây trùng đúng port marker.
+- [x] Đổi id renderer sang một giá trị lạ thì device vẫn hiển thị dạng generic với port đúng vị trí, không crash.
+- [x] LED renderer có trạng thái sáng phân biệt rõ khi nhận `lit = true` (ảnh chụp đính kèm PR).
+- [x] Renderer không tự tính vị trí port (review).
 
 **Notes.** Tránh để một thứ vừa là state của Konva vừa là state của store. Document là nguồn sự thật.
+
+**Trạng thái: phần MP xong (2026-10-02).**
+- **Canvas** (`src/ui/canvas/CircuitCanvas.tsx`):
+  - Stage co giãn theo container;
+  - thân device là một `Group` đặt tại `position`, và renderer chỉ vẽ phần thân trong toạ độ local;
+  - **port marker và dây được vẽ ở toạ độ world**, lấy từ `portWorldPosition` / `portRefPosition` của core (B7). Port marker không nằm trong `Group` của device, nên UI không tự cộng `position + offset`. Helper `portRefPosition` (tra component từ `PortRef`) được thêm vào core cùng unit test.
+- **Renderer:** chỉ có một map `{ led: LedRenderer }`, fallback về `GenericRenderer`. Board hiện cố ý không có renderer riêng, nên chính board là bằng chứng của AC thứ hai: id `board` lạ → render generic, port đúng vị trí.
+- **Store:** `projectStore` chỉ giữ `document` và **chưa có action**, vì chưa có thay đổi document nào. Đường cập nhật duy nhất (`apply`/tương tự) sẽ được thêm ở consumer đầu tiên (POC-05 ghi program, hoặc POC-09 chỉnh mạch).
+- **Viewport:** cố định với world = toạ độ stage. Helper pointer ↔ world **hoãn tới POC-09**, vì chưa có tương tác chuột nào.
+- **Test hook** (chỉ có ở dev build): có sớm ở task này, chỉ gồm `getCanvasState()`, đọc từ node Konva đã render (component, dây, port). E2E `e2e/canvas.spec.ts` dùng nó để kiểm vị trí port và đầu dây.
+- **Kiểm tra trạng thái sáng:** đã chụp ảnh bằng một thay đổi tạm thời (truyền `lit = true`), rồi khôi phục; code đã commit không chứa thay đổi này.
 
 ---
 

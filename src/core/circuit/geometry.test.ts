@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { localDeviceDefinitions } from '../devices/local-catalog';
 import { createDeviceRegistry } from '../devices/registry';
-import { portWorldPosition } from './geometry';
+import { portRefPosition, portWorldPosition } from './geometry';
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
 
@@ -17,5 +17,19 @@ describe('portWorldPosition', () => {
     const board = { id: 'board', deviceType: 'board', position: { x: 200, y: 220 } };
 
     expect(portWorldPosition(board, registry.get('board'), 'd13')).toEqual({ x: 310, y: 110 });
+  });
+});
+
+describe('portRefPosition', () => {
+  it('resolves a wire end to the world position of its port', () => {
+    const circuit = {
+      components: [{ id: 'led', deviceType: 'led', position: { x: 100, y: 100 } }],
+      wires: [],
+    };
+
+    expect(portRefPosition(circuit, registry, { componentId: 'led', portId: 'cathode' })).toEqual({
+      x: 110,
+      y: 130,
+    });
   });
 });

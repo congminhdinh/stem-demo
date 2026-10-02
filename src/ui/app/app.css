@@ -10,7 +10,9 @@ body {
 }
 
 .app-shell {
-  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100vh;
 }
 
 .app-header {
@@ -31,4 +33,34 @@ body {
   margin: 0;
   font-size: 13px;
   color: #627d98;
+}
+
+/* Canvas and program are visible at the same time (plan §3.4). */
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+  min-height: 0;
+}
+
+.canvas-region {
+  position: relative;
+  min-width: 0;
+  background: #ffffff;
+}
+
+/* Absolutely positioned so the Konva stage never drives the region's size. */
+.circuit-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.program-region {
+  border-left: 1px solid #d9e2ec;
+  padding: 16px;
+}
+
+.placeholder {
+  margin: 0;
+  font-size: 13px;
+  color: #829ab1;
 }
