@@ -11,9 +11,11 @@ import { createProjectStore } from './ui/state/project-store';
 // Composition root: the only place that picks the local catalog and the sample.
 const registry = createDeviceRegistry(localDeviceDefinitions);
 const projectStore = createProjectStore(projectDocumentSchema.parse(ledOnSample));
+// The PoC has a single board type; its pins are the board profile for blocks.
+const boardPins = registry.get('board').board?.pins.map((pin) => pin.name) ?? [];
 
 if (import.meta.env.DEV) {
-  installTestHooks();
+  installTestHooks(projectStore);
 }
 
 const container = document.getElementById('root');
@@ -23,6 +25,6 @@ if (!container) {
 
 createRoot(container).render(
   <StrictMode>
-    <App projectStore={projectStore} registry={registry} />
+    <App projectStore={projectStore} registry={registry} boardPins={boardPins} />
   </StrictMode>,
 );

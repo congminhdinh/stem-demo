@@ -55,12 +55,13 @@ body {
 }
 
 .program-region {
+  position: relative;
+  min-width: 0;
   border-left: 1px solid #d9e2ec;
-  padding: 16px;
 }
 
-.placeholder {
-  margin: 0;
-  font-size: 13px;
-  color: #829ab1;
+/* Same reason as the canvas: Blockly must not drive the region's size. */
+.blockly-panel {
+  position: absolute;
+  inset: 0;
 }

@@ -1,7 +1,10 @@
 import { readCanvasState, type CanvasTestState } from '../canvas/canvas-test-state';
+import type { ProjectStore } from '../state/project-store';
 
 export type StemTestHooks = {
   getCanvasState(): CanvasTestState | null;
+  /** The serialized program as stored in the document (not read from Blockly). */
+  getProgramBlocks(): unknown;
 };
 
 declare global {
@@ -11,6 +14,9 @@ declare global {
 }
 
 /** Installed only in dev builds (which E2E runs against); never in production. */
-export function installTestHooks() {
-  window.__stem = { getCanvasState: readCanvasState };
+export function installTestHooks(projectStore: ProjectStore) {
+  window.__stem = {
+    getCanvasState: readCanvasState,
+    getProgramBlocks: () => projectStore.getState().document.program.blocks,
+  };
 }

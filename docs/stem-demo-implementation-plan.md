@@ -12,7 +12,7 @@
 |---|---|
 | **PoC chứng minh gì** | Kiến trúc đã chọn đủ tốt để xây một STEM editor thực tế. Kiến trúc đó gồm: document độc lập renderer, simulation là hàm thuần, Blockly chỉ là view và program được compile sang IR, runtime chỉ chạm phần cứng ảo qua `HardwareIO`, canvas chỉ render document và snapshot (§2) |
 | **Vertical slice** | **Checkpoint MP** (bằng chứng đầu tiên): Board + LED, block "on start: digital write D13 HIGH", bấm Run thì LED sáng trên canvas. **VS-1:** mở rộng MP thành mạch Board + Resistor + LED chạy program blink (`forever` + `wait`), Stop hoạt động đúng. **VS-2:** người dùng tự dựng mạch bằng chuột rồi chạy (§3) |
-| **Task tiếp theo** | `POC-05` Blockly panel (§9.2). `POC-01`…`POC-04` đã xong |
+| **Task tiếp theo** | `POC-06` Logic simulation (§9.2). `POC-01`…`POC-05` đã xong |
 | **Critical path** | `01 → 02 → 03 → 05 → 08 → 11`. Hai nhánh `02 → 06 → 07 → 08` và `03 → 09 → 10 → 11` dài bằng nhau (§10) |
 | **PoC xong khi** | M1 và M2 (P0) đạt exit criteria, Learning log trả lời được L1–L4 (§8, §17). M3 và M4 (P1) làm PoC thuyết phục hơn |
 | **Ràng buộc cứng** | Boundary B1–B8 (§5.1) và acceptance criteria của task. Mọi thứ còn lại (tên file, API helper, cấu trúc nội bộ, type chi tiết) là gợi ý |
@@ -883,11 +883,32 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 **Out of scope.** Block M3, chế độ xem Python, highlight diagnostics.
 
 **Acceptance**
-- [ ] App hiển thị program của mạch mẫu (MP: led-on; sau MP: blink). Toolbox có các block hiện có, dropdown chân liệt kê D2–D13.
-- [ ] Sửa block thì `project.program.blocks` cập nhật trong vòng ~500 ms, và JSON đó compile được bằng `compileProgram`.
-- [ ] Không có workspace bị nhân đôi hay console error khi chạy StrictMode.
+- [x] App hiển thị program của mạch mẫu (MP: led-on; sau MP: blink). Toolbox có các block hiện có, dropdown chân liệt kê D2–D13.
+- [x] Sửa block thì `project.program.blocks` cập nhật trong vòng ~500 ms, và JSON đó compile được bằng `compileProgram`.
+- [x] Không có workspace bị nhân đôi hay console error khi chạy StrictMode.
 
 **Notes.** Nếu JSON do UI sinh ra khác fixture của POC-04, sửa fixture và ghi vào Learning log (bằng chứng cho L3).
+
+**Trạng thái: xong (2026-10-03).**
+- **`src/ui/blockly/BlocklyPanel.tsx`** là nơi duy nhất trong `src` import Blockly, qua entry `blockly` (gồm core, locale English và block built-in).
+  - Block được đăng ký một lần.
+  - Inject với zelos, toolbox từ core, `sounds: false`, `maxInstances` (một `on start`, một `forever`) và `disableOrphans`.
+- **Đồng bộ với document:**
+  - Workspace được tạo lại **chỉ khi `document.id` đổi**, sau đó load `program.blocks`.
+  - Mỗi change event không phải UI được debounce 250 ms rồi `serialization.workspaces.save`.
+  - Panel chỉ ghi vào store khi JSON thật sự khác, qua **action đầu tiên của `projectStore`**: `setProgramBlocks`. Không thêm `apply` tổng quát: autosave sau này chỉ cần subscribe store, còn undo là việc của circuit và đang nằm trong backlog.
+  - Khi unmount thì flush lần save đang chờ, có kiểm tra `document.id` để không ghi program cũ vào project mới.
+  - Dùng `ResizeObserver` để gọi `svgResize`.
+- **Board pins:** composition root lấy từ `registry.get('board')` (PoC chỉ có một loại board) rồi truyền xuống một mảng ổn định.
+- **Media không dùng CDN:** plugin nhỏ `blocklyMedia` trong `vite.config.ts` phục vụ `node_modules/blockly/media` tại `/blockly-media/`; ở dev thì rewrite URL, khi build thì copy vào `dist/`. **COOP/COEP vẫn giữ**, vì không có friction: không có request ra ngoài và không có console error.
+- **Evidence cho L3:** JSON do Blockly UI save lại khớp hoàn toàn với fixture viết tay của POC-04, chỉ khác đúng field vừa sửa. Không phải sửa fixture nào.
+- **E2E `e2e/program.spec.ts`:**
+  - load sample MP;
+  - đổi `HIGH` → `LOW` qua dropdown;
+  - disable block qua context menu.
+
+  Mỗi spec so JSON lưu trong document với kết quả mong đợi, rồi chạy `compileProgram` ngay trong tiến trình test. Spec ổn định khi chạy `--repeat-each=3`.
+- **Bundle** tăng lên khoảng 1,38 MB (gzip ~396 kB) vì Blockly. Build có cảnh báo chunk > 500 kB; không chặn PoC.
 
 ---
 
