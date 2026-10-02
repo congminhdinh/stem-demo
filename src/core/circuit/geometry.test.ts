@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { localDeviceDefinitions } from '../devices/local-catalog';
 import { createDeviceRegistry } from '../devices/registry';
-import { portRefPosition, portWorldPosition } from './geometry';
+import { portRefPosition, portWorldPosition, snapToGrid } from './geometry';
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
 
@@ -31,5 +31,18 @@ describe('portRefPosition', () => {
       x: 110,
       y: 130,
     });
+  });
+});
+
+describe('snapToGrid', () => {
+  it('rounds to the nearest multiple of 10 on each axis', () => {
+    expect(snapToGrid({ x: 457, y: 183 })).toEqual({ x: 460, y: 180 });
+    expect(snapToGrid({ x: -14.9, y: 5 })).toEqual({ x: -10, y: 10 });
+  });
+
+  it('keeps the ports of a snapped component on the grid', () => {
+    const led = { id: 'led', deviceType: 'led', position: snapToGrid({ x: 123, y: 77 }) };
+
+    expect(portWorldPosition(led, registry.get('led'), 'anode')).toEqual({ x: 110, y: 110 });
   });
 });

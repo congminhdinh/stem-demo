@@ -3,6 +3,8 @@ import { deviceDefinitionSchema, type DeviceDefinition } from './device-definiti
 export type DeviceRegistry = {
   /** Throws for an unknown device type: a document referencing one is invalid. */
   get(deviceType: string): DeviceDefinition;
+  /** Every definition, in catalog order (the palette lists these). */
+  list(): DeviceDefinition[];
 };
 
 /**
@@ -24,5 +26,6 @@ export function createDeviceRegistry(rawDefinitions: readonly unknown[]): Device
       }
       return definition;
     },
+    list: () => [...byId.values()],
   };
 }

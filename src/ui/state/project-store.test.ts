@@ -15,6 +15,17 @@ describe('projectStore', () => {
     expect(initial.program.blocks).toEqual(ledOnSample.program.blocks);
   });
 
+  it('replaces only the circuit on a circuit edit, without counting it as a load', () => {
+    const initial = projectDocumentSchema.parse(ledOnSample);
+    const store = createProjectStore(initial);
+    const circuit = { components: [], wires: [] };
+
+    store.getState().setCircuit(circuit);
+
+    expect(store.getState()).toMatchObject({ document: { ...initial, circuit }, loadRevision: 0 });
+    expect(initial.circuit.components).toHaveLength(2);
+  });
+
   it('bumps the load revision on every load, even of the same id, but not on edits', () => {
     const initial = projectDocumentSchema.parse(ledOnSample);
     const store = createProjectStore(initial);

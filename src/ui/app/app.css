@@ -96,10 +96,54 @@ body {
   background: #ffffff;
 }
 
+.circuit-editor {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #d9e2ec;
+  font-size: 13px;
+}
+
+.palette button {
+  padding: 3px 10px;
+  font: inherit;
+  border: 1px solid #9aa5b1;
+  border-radius: 4px;
+  background: #f5f7fa;
+  cursor: pointer;
+}
+
+.palette button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.circuit-canvas-area {
+  position: relative;
+  min-height: 0;
+}
+
 /* Absolutely positioned so the Konva stage never drives the region's size. */
 .circuit-canvas {
   position: absolute;
   inset: 0;
+}
+
+.circuit-canvas:focus {
+  outline: none;
+}
+
+.circuit-canvas:focus-visible {
+  outline: 2px solid #2680c2;
+  outline-offset: -2px;
 }
 
 .program-region {

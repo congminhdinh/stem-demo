@@ -11,6 +11,9 @@ export function useElementSize(ref: RefObject<HTMLElement | null>): Size | null 
     if (!element) {
       return;
     }
+    // Measured before the first paint, so a remounted canvas never shows (or
+    // exposes) an empty frame; the observer keeps it up to date afterwards.
+    setSize({ width: element.clientWidth, height: element.clientHeight });
     const observer = new ResizeObserver(([entry]) => {
       if (entry) {
         setSize({

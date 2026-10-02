@@ -26,6 +26,10 @@ describe('device registry', () => {
     expect(findPort(led, 'd13')).toBeUndefined();
   });
 
+  it('lists every definition in catalog order', () => {
+    expect(registry.list().map((definition) => definition.id)).toEqual(['board', 'led', 'resistor']);
+  });
+
   it('rejects an unknown device type', () => {
     expect(() => registry.get('motor')).toThrow('Unknown device type "motor"');
   });

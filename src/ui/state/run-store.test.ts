@@ -28,8 +28,12 @@ afterEach(() => {
 describe('runStore', () => {
   it('hands React at most one snapshot per animation frame: the latest', async () => {
     const { session, store, frames, renderFrame } = setup();
-    let updates = 0;
-    store.subscribe(() => updates++);
+    let snapshotUpdates = 0;
+    store.subscribe((state, previous) => {
+      if (state.snapshot !== previous.snapshot) {
+        snapshotUpdates++;
+      }
+    });
 
     store.getState().run(ledOn);
     await vi.advanceTimersByTimeAsync(0);
@@ -41,7 +45,7 @@ describe('runStore', () => {
 
     renderFrame();
     expect(store.getState().snapshot).toBe(session.getSnapshot());
-    expect(updates).toBe(2); // the Run itself (start result) and one snapshot
+    expect(snapshotUpdates).toBe(1);
   });
 
   it('keeps why a Run did not start until a Run starts', () => {
@@ -71,5 +75,17 @@ describe('runStore', () => {
     store.getState().stop();
     renderFrame();
     expect(selectIsRunning(store.getState())).toBe(false);
+  });
+
+  it('switches the edit lock at once on Run and on Stop, without waiting for a frame', () => {
+    const { store, frames } = setup();
+
+    store.getState().run(ledOn);
+    expect(selectIsRunning(store.getState())).toBe(true);
+    expect(store.getState().snapshot.status).toBe('idle'); // the snapshot still waits for its frame
+
+    store.getState().stop();
+    expect(selectIsRunning(store.getState())).toBe(false);
+    expect(frames).toHaveLength(1);
   });
 });

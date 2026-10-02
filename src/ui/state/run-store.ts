@@ -7,26 +7,34 @@ import type { RunSession, RunSnapshot, StartResult } from '../../core/run/run-se
 // sees the latest one, at most once per animation frame (plan §2.5).
 
 export type RunState = {
+  /** The latest session snapshot, handed over at most once per animation frame. */
   snapshot: RunSnapshot;
+  /**
+   * True from Run until Stop, also once the program finished: the board stays
+   * powered (E6) and editing the circuit stays locked (plan §3.4). Unlike
+   * `snapshot` it changes at once, because it is the edit lock: an edit made
+   * right after Run, before the next frame, must already see it.
+   */
+  running: boolean;
   /** Why the last Run did not start; cleared by the next Run that starts. */
   startFailure: Extract<StartResult, { ok: false }> | null;
   run(project: ProjectDocument): void;
   stop(): void;
 };
 
-/**
- * True from Run until Stop, also once the program finished: the board stays
- * powered (E6) and editing the circuit stays locked (plan §3.4).
- */
-export const selectIsRunning = (state: RunState) => state.snapshot.status !== 'idle';
+export const selectIsRunning = (state: RunState) => state.running;
 
 export function createRunStore(
   session: RunSession,
   requestFrame: (callback: () => void) => void = (callback) => requestAnimationFrame(callback),
 ) {
-  return createStore<RunState>()((set) => {
+  return createStore<RunState>()((set, get) => {
     let frameRequested = false;
-    session.subscribe(() => {
+    session.subscribe((snapshot) => {
+      const running = snapshot.status !== 'idle';
+      if (running !== get().running) {
+        set({ running });
+      }
       if (frameRequested) {
         return;
       }
@@ -39,6 +47,7 @@ export function createRunStore(
 
     return {
       snapshot: session.getSnapshot(),
+      running: session.getSnapshot().status !== 'idle',
       startFailure: null,
       run(project) {
         const result = session.start(project);

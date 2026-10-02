@@ -12,7 +12,7 @@
 |---|---|
 | **PoC chứng minh gì** | Kiến trúc đã chọn đủ tốt để xây một STEM editor thực tế. Kiến trúc đó gồm: document độc lập renderer, simulation là hàm thuần, Blockly chỉ là view và program được compile sang IR, runtime chỉ chạm phần cứng ảo qua `HardwareIO`, canvas chỉ render document và snapshot (§2) |
 | **Vertical slice** | **Checkpoint MP** (bằng chứng đầu tiên): Board + LED, block "on start: digital write D13 HIGH", bấm Run thì LED sáng trên canvas. **VS-1:** mở rộng MP thành mạch Board + Resistor + LED chạy program blink (`forever` + `wait`), Stop hoạt động đúng. **VS-2:** người dùng tự dựng mạch bằng chuột rồi chạy (§3) |
-| **Task tiếp theo** | `POC-09` Place, move & delete components (§9.2). `POC-01`…`POC-08` đã xong (M1 đóng) |
+| **Task tiếp theo** | `POC-10` Wire drawing (§9.2). `POC-01`…`POC-09` đã xong (M1 đóng) |
 | **Critical path** | `01 → 02 → 03 → 05 → 08 → 11`. Hai nhánh `02 → 06 → 07 → 08` và `03 → 09 → 10 → 11` dài bằng nhau (§10) |
 | **PoC xong khi** | M1 và M2 (P0) đạt exit criteria, Learning log trả lời được L1–L4 (§8, §17). M3 và M4 (P1) làm PoC thuyết phục hơn |
 | **Ràng buộc cứng** | Boundary B1–B8 (§5.1) và acceptance criteria của task. Mọi thứ còn lại (tên file, API helper, cấu trúc nội bộ, type chi tiết) là gợi ý |
@@ -1066,7 +1066,7 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 - **`runStore`** (`src/ui/state/run-store.ts`): store Zustand bọc `RunSession`, tạo ở composition root.
   - Mọi snapshot mà session phát ra trong cùng một frame được gộp lại; React chỉ nhận snapshot mới nhất, tối đa một lần mỗi animation frame.
   - `startFailure` giữ lý do của lần Run không bắt đầu được, vì khi đó session vẫn `idle` (§6.4).
-  - `selectIsRunning` là cờ "đang chạy" cho các task editor: `true` từ lúc Run tới lúc Stop, kể cả khi program đã xong (board vẫn được cấp nguồn).
+  - `selectIsRunning` là cờ "đang chạy" cho các task editor: `true` từ lúc Run tới lúc Stop, kể cả khi program đã xong (board vẫn được cấp nguồn). *(POC-09)* Cờ này (`running`) đổi **ngay** khi session publish, không chờ frame như `snapshot`, vì nó là khoá chỉnh sửa.
 - **Toolbar** (`RunToolbar.tsx`): Run, Stop (disabled khi idle), status `Idle` / `Running` / `Program finished — board powered` / `Error`, và diagnostics dạng text. Run khi đang chạy thì chạy lại (session thay lần chạy cũ).
 - **Snapshot → canvas:** `App` truyền `snapshot.simulation` xuống `CircuitCanvas`. Canvas đưa `components[id]` cho renderer qua `runtimeState`, có kiểm tra own property vì id là data. `LedRenderer` đặt attribute `lit` lên node Konva `led-light`, và test hook đọc lại từ node đó.
 - **Run ngay sau khi sửa block:** việc lưu program bị trễ hai lần: Blockly phát change event sau `requestAnimationFrame` + `setTimeout(0)`, rồi panel debounce thêm 250 ms. Vì vậy một lần Run trong vòng khoảng 270 ms sau khi sửa sẽ compile program cũ.
@@ -1107,11 +1107,46 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 **Out of scope.** Xoay, multi-select, undo, pan/zoom, label/property.
 
 **Acceptance**
-- [ ] Unit test: xoá component thì dây nối vào nó cũng mất; `add` sinh id không trùng; input không bị mutate.
-- [ ] Thêm LED → LED xuất hiện. Kéo → vị trí cuối nằm trên lưới, dây bám theo trong lúc kéo. Xoá → component và dây của nó biến mất.
-- [ ] Test: thêm một definition giả vào registry thì palette model có thêm một mục.
+- [x] Unit test: xoá component thì dây nối vào nó cũng mất; `add` sinh id không trùng; input không bị mutate.
+- [x] Thêm LED → LED xuất hiện. Kéo → vị trí cuối nằm trên lưới, dây bám theo trong lúc kéo. Xoá → component và dây của nó biến mất.
+- [x] Test: thêm một definition giả vào registry thì palette model có thêm một mục.
 
 **Notes.** Trong lúc kéo, tránh để Konva và store cùng giữ vị trí node, vì sẽ gây giật.
+
+**Trạng thái: xong (2026-10-03).**
+- **Core** (`src/core/circuit/components.ts`): ba operation thuần `addComponent`, `moveComponent`, `deleteComponent`. Không operation nào mutate input.
+  - `addComponent` sinh id `<deviceType>-<n>` chưa có component nào dùng (I1).
+  - `deleteComponent` xoá luôn mọi dây nối vào component (I4).
+  - `snapToGrid` và `gridSize = 10` nằm trong `geometry.ts` (B7).
+  - Registry có thêm `list()`; consumer đầu tiên là palette (POC-02 từng hoãn nó vì chưa có consumer).
+- **Store:** mọi thay đổi circuit đi qua **một** action `setCircuit(circuit)`, nhận kết quả của một operation core. Undo sẽ cắm vào đây (BL-E1). Action này không tăng `loadRevision`, nên Blockly không reload.
+- **Palette** (`Palette.tsx`, `palette-model.ts`): mỗi definition trong registry là một nút. Click thì thêm device vào giữa canvas, trên lưới, rồi chọn nó. Nếu chỗ đó đã có component thì dời chéo 20 cho tới khi trống. Chưa làm kéo thả từ palette (tuỳ chọn).
+- **Kéo:** Group được `draggable`.
+  - Trong lúc kéo, Konva giữ vị trí node; canvas giữ một preview cục bộ `{componentId, position}` và vẽ mọi thứ từ `moveComponent(document, preview)`, nên dây và port bám theo ngay.
+  - Khi thả, vị trí được snap rồi commit qua `setCircuit`. Document chỉ đổi một lần cho mỗi lần kéo, và document vẫn là nguồn sự thật duy nhất.
+- **Chọn và xoá:** chọn bằng pointerdown trên component; pointerdown vào vùng trống hoặc Esc thì bỏ chọn. Delete/Backspace xoá component đang chọn cùng các dây của nó.
+  - Phím chỉ có tác dụng khi canvas đang có focus, để không đụng phím Delete của Blockly. Konva chặn default của pointerdown nên canvas tự gọi `focus()`.
+  - Selection là state cục bộ của UI. Outline do canvas vẽ, không do renderer.
+  - `CircuitCanvas` được key theo `loadRevision`, nên load một project (kể cả cùng id) sẽ bỏ selection và preview kéo cũ; autosave không ảnh hưởng.
+  - Vì canvas được mount lại khi load, `useElementSize` giờ đo container ngay trong `useLayoutEffect`. Trước đó, sau mỗi lần mount sẽ có một frame không có Konva stage: E2E fail 2/45 lần với lỗi "Canvas state is not available", và người dùng thấy canvas nháy. Sau khi sửa: 45/45.
+  - Chọn dây và xoá dây thuộc POC-10.
+- **Pointer ↔ world:** helper `stageToWorld` (`viewport.ts`), hiện là identity vì viewport cố định; pan/zoom (BL-E5) sẽ đổi ở đây. Vị trí node Konva đã là toạ độ world.
+- **Khi đang chạy** (`selectIsRunning`): palette bị disable, component không kéo được, không có gì được chọn nên Delete không làm gì; selection có từ trước Run được ẩn đi.
+  - **Khoá ở nơi áp dụng thay đổi** (lỗi do review tìm ra): ban đầu khoá chỉ dựa vào snapshot (gộp theo frame) và props của lần render trước. Vì vậy một lần Add LED trong cùng task với Run vẫn được thêm vào document, trong khi session đang chạy circuit cũ.
+    - Giờ `runStore.running` đổi ngay khi session publish.
+    - `App.editCircuit`, nơi duy nhất gọi `setCircuit`, đọc cờ đó từ store tại thời điểm thay đổi và bỏ qua thay đổi nếu đang chạy.
+  - **Run chen giữa lúc kéo** (lỗi do review tìm ra): preview kéo từng chỉ bị xoá ở `onDragEnd`, nên nó sống qua lúc chạy và hiện lại sau Stop.
+    - Giờ canvas huỷ lần kéo ngay khi thấy khoá: bỏ preview và component về vị trí trong document. Lần kéo đó chưa được commit, và run dùng document lúc bấm Run.
+    - Konva tự kết thúc drag khi node hết `draggable`, nên phần còn lại của thao tác chuột không di chuyển gì; nếu có lần thả nào thì cũng bị chặn ở `editCircuit`.
+- **Test:**
+  - Unit test cho ba operation, `snapToGrid`, `registry.list()`, palette model (kèm definition giả) và `setCircuit`.
+  - Bốn E2E trong `canvas.spec.ts`:
+    1. kéo LED (dây bám theo trong lúc kéo, thả xuống thì nằm trên lưới), thêm LED từ palette, Esc, xoá cùng dây;
+    2. khoá chỉnh sửa khi đang chạy;
+    3. Add LED trong cùng task với Run bị từ chối;
+    4. Run chen giữa lúc kéo thì lần kéo bị huỷ, cả trong lúc chạy lẫn sau Stop.
+  - Bỏ từng quy tắc (preview khi kéo, snap khi thả, khoá kéo, khoá selection) thì đều có E2E fail.
+- **Lệch khỏi §11.1 có chủ đích:** thêm 2 test vào spec có sẵn thay vì chỉ kiểm thủ công. Lý do: Konva drag/focus là rủi ro R4/R5 và đây là nơi rẻ nhất để bắt nó; E2E-2 (POC-11) vẫn là spec của slice.
 
 ---
 
