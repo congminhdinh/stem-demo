@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import blinkSample from '../../samples/blink.project.json';
 import ledOnSample from '../../samples/led-on.project.json';
 import { localDeviceDefinitions } from '../devices/local-catalog';
 import { createDeviceRegistry } from '../devices/registry';
-import blink from './__fixtures__/blink.json';
 import disabledHat from './__fixtures__/disabled-hat.json';
 import disabledStatement from './__fixtures__/disabled-statement.json';
 import duplicateOnStart from './__fixtures__/duplicate-on-start.json';
@@ -11,6 +11,7 @@ import { compileProgram } from './compile-program';
 
 const boardPins = createDeviceRegistry(localDeviceDefinitions).get('board').board?.pins.map((pin) => pin.name) ?? [];
 const ledOnProgram = ledOnSample.program.blocks;
+const blink = blinkSample.program.blocks;
 
 /** Programs Blockly itself would not produce, but stored or imported data can contain. */
 const edited = (program: unknown, from: string, to: string): unknown =>

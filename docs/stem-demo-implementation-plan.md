@@ -12,7 +12,7 @@
 |---|---|
 | **PoC chứng minh gì** | Kiến trúc đã chọn đủ tốt để xây một STEM editor thực tế. Kiến trúc đó gồm: document độc lập renderer, simulation là hàm thuần, Blockly chỉ là view và program được compile sang IR, runtime chỉ chạm phần cứng ảo qua `HardwareIO`, canvas chỉ render document và snapshot (§2) |
 | **Vertical slice** | **Checkpoint MP** (bằng chứng đầu tiên): Board + LED, block "on start: digital write D13 HIGH", bấm Run thì LED sáng trên canvas. **VS-1:** mở rộng MP thành mạch Board + Resistor + LED chạy program blink (`forever` + `wait`), Stop hoạt động đúng. **VS-2:** người dùng tự dựng mạch bằng chuột rồi chạy (§3) |
-| **Task tiếp theo** | `POC-06` Logic simulation (§9.2). `POC-01`…`POC-05` đã xong |
+| **Task tiếp theo** | `POC-07` Interpreter & RunSession (§9.2). `POC-01`…`POC-06` đã xong |
 | **Critical path** | `01 → 02 → 03 → 05 → 08 → 11`. Hai nhánh `02 → 06 → 07 → 08` và `03 → 09 → 10 → 11` dài bằng nhau (§10) |
 | **PoC xong khi** | M1 và M2 (P0) đạt exit criteria, Learning log trả lời được L1–L4 (§8, §17). M3 và M4 (P1) làm PoC thuyết phục hơn |
 | **Ràng buộc cứng** | Boundary B1–B8 (§5.1) và acceptance criteria của task. Mọi thứ còn lại (tên file, API helper, cấu trúc nội bộ, type chi tiết) là gợi ý |
@@ -558,19 +558,23 @@ Việc giới hạn tối đa một lần cập nhật UI mỗi frame thuộc v�
 | Switch-level có strength (v1 §11.2) | Pull-up/pull-down; resistor là link yếu; không còn chập giả | Thêm ~150 dòng và các quy tắc tinh tế | Hoãn (BL-S1) |
 | Electrical (MNA + Newton) | Điện áp, dòng, độ sáng, linh kiện cháy | Lớn (cỡ một dự án SPICE nhỏ) | Hoãn xa (BL-S4) |
 
-**Thuật toán** — `simulateCircuit({ circuit, registry, inputs }) → SimulationResult`, hàm thuần, không bao giờ throw:
+**Thuật toán** — `simulateCircuit(circuit, registry, inputs) → SimulationResult`, hàm thuần. Giống `buildNetlist`, hàm giả định document hợp lệ (I1–I2); với document hợp lệ thì **không bao giờ throw**: chập, net floating, LED cắm ngược hay model lạ đều là kết quả, không phải lỗi.
 
-Input: `inputs = { powered: boolean; boardPins: Record<pinName, 0 | 1>; contacts: Record<componentId, boolean> }`. Chân không có trong `boardPins` là chân chưa được drive.
+Input: `inputs = { powered: boolean; pinOutputs: Record<pinName, 0 | 1> }`. Chân không có trong `pinOutputs` là chân chưa được drive. *(POC-06)* `contacts: Record<componentId, boolean>` được thêm ở POC-12, cùng lúc với model `contact` dùng nó.
 
 1. **Dẫn điện:** mỗi model có thể khai báo các cặp port đang dẫn: `resistor` luôn dẫn `a`–`b`; `contact` dẫn khi đang đóng.
 2. **Net:** union-find trên khoá `componentId/portId`, gộp theo dây, `internalConnections` và các cặp dẫn điện ở bước 1.
-3. **Driver** (chỉ khi `powered`): port `kind: 'power'` drive HIGH; port `kind: 'ground'` drive LOW; chân GPIO có trong `boardPins` drive theo giá trị của nó.
+3. **Driver** (chỉ khi `powered`, và chỉ device có model `board`): port `kind: 'power'` drive HIGH; port `kind: 'ground'` drive LOW; chân GPIO có trong `pinOutputs` drive theo giá trị của nó.
 4. **Mức của net:** không có driver → `floating`; chỉ có HIGH → `high`; chỉ có LOW → `low`; có cả hai → `conflict`.
 5. **Đánh giá model:**
    - LED `lit` ⇔ `net(anode) ≠ net(cathode)` ∧ `level(anode) = high` ∧ `level(cathode) = low`;
-   - chân board đọc ra `1` ⇔ net của nó là `high`;
-   - contact trả về `{closed}`.
-6. **Kết quả** (JSON-serializable): mức của từng net, `netOfPort`, runtime state của từng component, trạng thái chân của board (`driven?`, `read`), và danh sách net `conflict`. Model lạ thì device inert. PoC không cần danh sách `issues`.
+   - chân board đọc ra `1` ⇔ net của nó là `high` (net `conflict` đọc ra 0);
+   - contact trả về `{closed}` (POC-12).
+6. **Kết quả** (JSON-serializable): `{ nets, components, pinReads }`. Model lạ thì device inert. PoC không cần danh sách `issues`.
+   - `nets`: port và mức của từng net. Net `conflict` là các net có `level: 'conflict'`, nên không cần danh sách riêng.
+   - `components`: runtime state theo component id, dành cho renderer. Hiện chỉ LED có state (`{ lit }`).
+   - `pinReads`: giá trị `digitalRead` trả về, theo tên chân.
+   - *(POC-06)* Chưa có `netOfPort` (`nets[].ports` đã đủ; thêm khi tô màu dây, BL-S2) và `driven` của chân (runtime đã biết chân nào nó ghi).
 
 Mạch cỡ PoC đủ nhỏ để **mỗi lần có thay đổi thì tính lại toàn bộ**. Không cần tối ưu tăng dần.
 
@@ -752,7 +756,7 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 - [x] Netlist: port không có dây tạo thành net riêng; chuỗi dây được gộp; `extraConnections` gộp net.
 - [x] Mạch `led-on`: `{D13, LED.anode}` và `{LED.cathode, GND}` là hai net riêng.
 - [x] `connectWire` thêm được dây hợp lệ mà không mutate input, và từ chối 5 trường hợp lỗi (gồm cả id dây bị trùng, I1).
-- [ ] *(Sau MP, chuyển sang POC-06)* Mạch `blink`: `{D13, R.a}`, `{R.b, LED.anode}` và `{LED.cathode, GND}` là ba net riêng. Resistor không bị gộp ở mức netlist, vì việc dẫn điện là trách nhiệm của simulation.
+- [x] *(Sau MP, chuyển sang POC-06; xong ở POC-06)* Mạch `blink`: `{D13, R.a}`, `{R.b, LED.anode}` và `{LED.cathode, GND}` là ba net riêng. Resistor không bị gộp ở mức netlist, vì việc dẫn điện là trách nhiệm của simulation.
 
 **Notes.** Definition để dạng file JSON. Chỉ bootstrap import catalog local; các hàm core nhận registry qua tham số (seam cho API/CMS).
 
@@ -860,7 +864,7 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
   - `jsdom@29.1.1` (devDependency, peer của Blockly khi chạy trên Node).
 - **Chuyển task:**
   - `createDefaultProgram` chuyển sang POC-11, vì chưa có consumer trước hành động "New".
-  - Program blink hiện là fixture `src/core/program/__fixtures__/blink.json`. Mạch mẫu `blink` (có Resistor) được ghép ở POC-06 và dùng lại program này.
+  - Program blink hiện là fixture `src/core/program/__fixtures__/blink.json`. Mạch mẫu `blink` (có Resistor) được ghép ở POC-06 và dùng lại program này. *(POC-06: program đã chuyển vào `src/samples/blink.project.json`, fixture bị xoá.)*
 
 ---
 
@@ -916,7 +920,7 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 
 `M1 · S · P0 · Phụ thuộc: 02 · Contract: §6.5`
 
-**Goal.** Viết `simulateCircuit({ circuit, registry, inputs })` là hàm thuần, trả về mức của từng net và runtime state của từng component (LED sáng/tắt, giá trị đọc của chân board).
+**Goal.** Viết `simulateCircuit(circuit, registry, inputs)` là hàm thuần, trả về mức của từng net và runtime state của từng component (LED sáng/tắt, giá trị đọc của chân board).
 
 **Validates.** L2, B3.
 
@@ -932,14 +936,29 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 **Out of scope.** Strength (weak/strong), pull-up, cảnh báo thiếu điện trở, UI hiển thị fault, giá trị điện.
 
 **Acceptance** (mỗi dòng là một scenario test)
-- [ ] *(MP)* Mạch `led-on` (D13 → LED → GND): D13 = 1 → LED sáng; D13 = 0 → tắt; D13 chưa ghi → tắt (net floating); LED cắm ngược → tắt.
-- [ ] *(Sau MP)* Mạch `blink` (D13 → R → LED → GND): D13 = 1 → LED sáng.
-- [ ] D13 = 1 nối thẳng GND → net `conflict`, không crash.
-- [ ] D13 nối D2, D13 = 1 → D2 đọc 1. D2 không nối gì → đọc 0.
-- [ ] Không có nguồn (`powered = false`) → không có driver nào, LED tắt.
-- [ ] Kết quả JSON-serializable.
+- [x] *(MP)* Mạch `led-on` (D13 → LED → GND): D13 = 1 → LED sáng; D13 = 0 → tắt; D13 chưa ghi → tắt (net floating); LED cắm ngược → tắt.
+- [x] *(Sau MP)* Mạch `blink` (D13 → R → LED → GND): D13 = 1 → LED sáng.
+- [x] D13 = 1 nối thẳng GND → net `conflict`, không crash.
+- [x] D13 nối D2, D13 = 1 → D2 đọc 1. D2 không nối gì → đọc 0.
+- [x] Không có nguồn (`powered = false`) → không có driver nào, LED tắt.
+- [x] Kết quả JSON-serializable.
 
 **Notes.** Ghi các giới hạn đã biết (§6.5) thành comment ngắn ở đầu module.
+
+**Trạng thái: xong (2026-10-03).**
+- **`src/core/simulation/simulate-circuit.ts`:** `simulateCircuit(circuit, registry, inputs)` theo §6.5. Tham số truyền theo vị trí, giống `buildNetlist` và `connectWire`. Ba model là ba bước ngắn trong hàm, chọn theo `simulation.model`:
+  - `resistor` khai báo cặp `a`–`b` dẫn điện và truyền vào `buildNetlist` qua `extraConnections`; netlist vẫn chỉ lo topology;
+  - `board` drive rail và các chân đã ghi khi có nguồn, đồng thời cho ra giá trị đọc của chân;
+  - `led` cho ra `lit`.
+
+  Model lạ không khớp bước nào nên device inert. Chưa có model registry hay interface cho model, vì cả ba model đều nằm trong core và chưa có nguồn model nào từ bên ngoài.
+- **Contract** (đã chốt ở §6.5): input `{ powered, pinOutputs }`, kết quả `{ nets, components, pinReads }`. `components[ledId].lit` dành cho renderer (POC-08); `pinReads[pin]` dành cho `HardwareIO.digitalRead` (POC-07). Kết quả là JSON thuần, đặt được thẳng vào `RunSnapshot`.
+- **Xung đột:** net có cả driver HIGH lẫn LOW thì `level: 'conflict'`; LED trên net đó tắt, chân trên net đó đọc 0. Không throw.
+- **Resistor và blink:** `resistor.json` (port theo §3.2, thân 80×20, renderer `resistor` → generic) và mạch mẫu `src/samples/blink.project.json`.
+  - Program blink chuyển nguyên từ fixture của POC-04 vào sample, để chỉ có một nguồn; compiler test và conformance test giờ đọc từ sample.
+  - App vẫn load `led-on`; chọn sample là việc của POC-08. Bố cục mạch `blink` đã được kiểm tra bằng ảnh chụp (đổi sample tạm thời rồi khôi phục): dây GND đi vào cathode và không đè lên anode.
+- **Chủ động chưa làm:** `contacts` trong input (thêm ở POC-12 cùng model `contact`), `netOfPort` và `driven` của chân (xem §6.5).
+- **Test:** scenario test cho từng acceptance, cộng thêm: LED thiếu dây GND, LED không nối dây, chân sai (D12), rail 3V3 → LED → GND, model lạ, không mutate input và tất định. Đã thử làm hỏng từng quy tắc (resistor dẫn điện, `powered`, conflict, điều kiện cathode, rail 3V3): mỗi lần đều có test fail.
 
 ---
 

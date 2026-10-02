@@ -3,13 +3,17 @@ import { projectDocumentSchema, type Circuit } from '../core/circuit/document';
 import { connectWire } from '../core/circuit/wires';
 import { localDeviceDefinitions } from '../core/devices/local-catalog';
 import { createDeviceRegistry } from '../core/devices/registry';
+import blinkSample from './blink.project.json';
 import ledOnSample from './led-on.project.json';
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
 
-describe('led-on sample', () => {
+describe.each([
+  ['led-on', ledOnSample, ['board', 'led']],
+  ['blink', blinkSample, ['board', 'resistor', 'led']],
+])('%s sample', (_, sample, deviceTypes) => {
   it('is a project document whose wires all pass the wiring rules', () => {
-    const document = projectDocumentSchema.parse(ledOnSample);
+    const document = projectDocumentSchema.parse(sample);
 
     let rebuilt: Circuit = { ...document.circuit, wires: [] };
     for (const wire of document.circuit.wires) {
@@ -21,6 +25,6 @@ describe('led-on sample', () => {
     }
 
     expect(rebuilt).toEqual(document.circuit);
-    expect(document.circuit.components.map((component) => component.deviceType)).toEqual(['board', 'led']);
+    expect(document.circuit.components.map((component) => component.deviceType)).toEqual(deviceTypes);
   });
 });

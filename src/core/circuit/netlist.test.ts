@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import blinkSample from '../../samples/blink.project.json';
 import ledOnSample from '../../samples/led-on.project.json';
 import { localDeviceDefinitions } from '../devices/local-catalog';
 import { createDeviceRegistry } from '../devices/registry';
-import { projectDocumentSchema, type Circuit } from './document';
+import { projectDocumentSchema, type Circuit, type PortRef } from './document';
 import { buildNetlist } from './netlist';
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
@@ -40,5 +41,16 @@ describe('buildNetlist', () => {
     const netlist = buildNetlist(circuit, registry, [[led('anode'), led('cathode')]]);
 
     expect(netlist.netOf(board('d13'))).toBe(netlist.netOf(board('gnd')));
+  });
+
+  it('keeps the resistor between two nets (blink sample); conduction is left to the simulation', () => {
+    const netlist = buildNetlist(projectDocumentSchema.parse(blinkSample).circuit, registry);
+    const resistor = (portId: string) => ({ componentId: 'resistor', portId });
+    const netMembers = (port: PortRef) =>
+      netlist.nets[netlist.netOf(port)]?.map((member) => `${member.componentId}/${member.portId}`).sort();
+
+    expect(netMembers(board('d13'))).toEqual(['board/d13', 'resistor/a']);
+    expect(netMembers(resistor('b'))).toEqual(['led/anode', 'resistor/b']);
+    expect(netMembers(led('cathode'))).toEqual(['board/gnd', 'led/cathode']);
   });
 });

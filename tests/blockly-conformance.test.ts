@@ -1,11 +1,11 @@
 import * as Blockly from 'blockly/core';
 import { describe, expect, it } from 'vitest';
-import blink from '../src/core/program/__fixtures__/blink.json';
 import disabledHat from '../src/core/program/__fixtures__/disabled-hat.json';
 import disabledStatement from '../src/core/program/__fixtures__/disabled-statement.json';
 import duplicateOnStart from '../src/core/program/__fixtures__/duplicate-on-start.json';
 import orphanBlock from '../src/core/program/__fixtures__/orphan-block.json';
 import { buildBlockDefinitions } from '../src/core/program/blocks';
+import blinkSample from '../src/samples/blink.project.json';
 import ledOnSample from '../src/samples/led-on.project.json';
 
 // Guards the Blockly ↔ compiler contract (plan §6.3, risk R2): real Blockly
@@ -18,7 +18,7 @@ Blockly.common.defineBlocksWithJsonArray(
 describe('Blockly conformance', () => {
   it.each<[string, Record<string, unknown>]>([
     ['led-on sample', ledOnSample.program.blocks],
-    ['blink', blink],
+    ['blink sample', blinkSample.program.blocks],
     ['orphan-block', orphanBlock],
     ['duplicate-on-start', duplicateOnStart],
     ['disabled-statement', disabledStatement],

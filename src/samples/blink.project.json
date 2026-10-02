@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "id": "sample-blink",
+  "name": "Blink",
+  "circuit": {
+    "components": [
+      { "id": "board", "deviceType": "board", "position": { "x": 200, "y": 220 } },
+      { "id": "resistor", "deviceType": "resistor", "position": { "x": 480, "y": 270 } },
+      { "id": "led", "deviceType": "led", "position": { "x": 600, "y": 240 } }
+    ],
+    "wires": [
+      {
+        "id": "wire-d13-resistor",
+        "from": { "componentId": "board", "portId": "d13" },
+        "to": { "componentId": "resistor", "portId": "a" }
+      },
+      {
+        "id": "wire-resistor-anode",
+        "from": { "componentId": "resistor", "portId": "b" },
+        "to": { "componentId": "led", "portId": "anode" }
+      },
+      {
+        "id": "wire-cathode-gnd",
+        "from": { "componentId": "led", "portId": "cathode" },
+        "to": { "componentId": "board", "portId": "gnd" }
+      }
+    ]
+  },
+  "program": {
+    "blocks": {
+      "blocks": {
+        "languageVersion": 0,
+        "blocks": [
+          {
+            "type": "stem_forever",
+            "id": "forever",
+            "x": 40,
+            "y": 40,
+            "inputs": {
+              "DO": {
+                "block": {
+                  "type": "stem_digital_write",
+                  "id": "write-high",
+                  "fields": { "PIN": "D13", "LEVEL": "HIGH" },
+                  "next": {
+                    "block": {
+                      "type": "stem_wait",
+                      "id": "wait-on",
+                      "fields": { "SECONDS": 1 },
+                      "next": {
+                        "block": {
+                          "type": "stem_digital_write",
+                          "id": "write-low",
+                          "fields": { "PIN": "D13", "LEVEL": "LOW" },
+                          "next": {
+                            "block": {
+                              "type": "stem_wait",
+                              "id": "wait-off",
+                              "fields": { "SECONDS": 1 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
