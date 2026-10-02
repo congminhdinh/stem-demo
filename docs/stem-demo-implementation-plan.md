@@ -12,7 +12,7 @@
 |---|---|
 | **PoC chứng minh gì** | Kiến trúc đã chọn đủ tốt để xây một STEM editor thực tế. Kiến trúc đó gồm: document độc lập renderer, simulation là hàm thuần, Blockly chỉ là view và program được compile sang IR, runtime chỉ chạm phần cứng ảo qua `HardwareIO`, canvas chỉ render document và snapshot (§2) |
 | **Vertical slice** | **Checkpoint MP** (bằng chứng đầu tiên): Board + LED, block "on start: digital write D13 HIGH", bấm Run thì LED sáng trên canvas. **VS-1:** mở rộng MP thành mạch Board + Resistor + LED chạy program blink (`forever` + `wait`), Stop hoạt động đúng. **VS-2:** người dùng tự dựng mạch bằng chuột rồi chạy (§3) |
-| **Task tiếp theo** | `POC-07` Interpreter & RunSession (§9.2). `POC-01`…`POC-06` đã xong |
+| **Task tiếp theo** | `POC-08` Run in the UI · VS-1 (§9.2). `POC-01`…`POC-07` đã xong |
 | **Critical path** | `01 → 02 → 03 → 05 → 08 → 11`. Hai nhánh `02 → 06 → 07 → 08` và `03 → 09 → 10 → 11` dài bằng nhau (§10) |
 | **PoC xong khi** | M1 và M2 (P0) đạt exit criteria, Learning log trả lời được L1–L4 (§8, §17). M3 và M4 (P1) làm PoC thuyết phục hơn |
 | **Ràng buộc cứng** | Boundary B1–B8 (§5.1) và acceptance criteria của task. Mọi thứ còn lại (tên file, API helper, cấu trúc nội bộ, type chi tiết) là gợi ý |
@@ -501,6 +501,14 @@ function runProgram(ir: ProgramIR, io: HardwareIO, opts: { sleep: (ms: number, s
 
 `HardwareIO` không có `configurePin`, vì chế độ của chân được suy ra ngầm (ghi thì là output; floating đọc ra 0). `configurePin` được thêm khi cần pull-up, PWM hoặc analog. Đó là thay đổi cộng thêm, không phá vỡ code cũ.
 
+*(POC-07)* Đã implement:
+- `HardwareIO` hiện **chỉ có `digitalWrite`**. `digitalRead` được thêm ở POC-13, cùng với expression `digitalRead` của IR, vì IR v0 chưa có lệnh nào đọc chân. Nó sẽ đọc `SimulationResult.pinReads` (§6.5). Đây là thay đổi cộng thêm.
+- Chương trình bắt đầu **sau khi** `runProgram` trả về (một microtask), nên caller luôn có `stop` trước lệnh ghi chân đầu tiên.
+- `done` **luôn resolve**, không bao giờ reject:
+  - là `stopped` nếu Stop xảy ra trước khi chương trình chạy xong, kể cả khi Stop xảy ra trong lệnh cuối hoặc với program rỗng; chỉ là `finished` khi chạy xong mà không bị Stop;
+  - `message` của lỗi runtime lấy từ `Error.message` hoặc chính chuỗi bị throw, các giá trị khác dùng message chung. Không bao giờ convert giá trị bị throw sang chuỗi, vì việc đó cũng có thể throw.
+- `sleep` (contract): resolve sau `ms`, reject ngay khi `signal` abort. Bản thật là `timerSleep` (`setTimeout` huỷ được) nằm trong core. Test dùng nó với fake timer của Vitest.
+
 **Ngữ nghĩa thực thi:**
 
 | # | Quy tắc |
@@ -544,6 +552,19 @@ Luồng xử lý:
 7. Stop → huỷ interpreter, huỷ state → `idle`.
 
 Việc giới hạn tối đa một lần cập nhật UI mỗi frame thuộc về UI (run store), không thuộc về `RunSession`.
+
+*(POC-07)* Chốt thêm khi implement:
+- Tạo bằng `createRunSession(registry)`, dùng `timerSleep`.
+- **Board** là component có board profile (`definition.board`). Pin của profile đó được dùng để compile.
+- `start` khi đang chạy thì thay lần chạy hiện tại (abort nó, không phát snapshot `idle` ở giữa). `start` thất bại thì stop lần chạy hiện tại và session về `idle`; diagnostics chỉ nằm trong `StartResult`. `snapshot.diagnostics` là warning compile của lần chạy hiện tại.
+- **Reentrancy:** listener được gọi `start`/`stop` đồng bộ, và **lời gọi mới nhất thắng**. Cách giữ:
+  - mỗi thao tác chốt run đang sở hữu session (abort run bị thay) **trước khi** publish;
+  - publish luôn là bước cuối của thao tác.
+
+  Run mất ownership thì bị abort: timer bị huỷ, không ghi chân, không simulate và không publish nữa.
+- Chỉ simulate lại và phát snapshot khi một chân **đổi** mức.
+- Kết quả của một lần chạy đã bị stop hoặc bị thay thế không bao giờ ghi vào snapshot.
+- Bước 5 (`digitalRead`) và bước 6 (contact) chưa có: lần lượt thuộc POC-13 và POC-12.
 
 **Mở rộng sau này:** một runtime chạy ở thread khác (Pyodide) không đọc chân đồng bộ được. Khi đó `RunSession` sẽ phải đẩy các thay đổi giá trị đọc xuống runtime (v1 gọi là `notifyInputsChanged`). Đây là phần **cộng thêm** vào API, vì vậy cần giữ `RunSession` là nơi duy nhất biết khi nào giá trị đọc thay đổi.
 
@@ -983,13 +1004,30 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 **Out of scope.** UI, worker, Python, console, `print`.
 
 **Acceptance**
-- [ ] *(MP)* `led-on`: `start` → LED sáng, status `finished`, board vẫn được cấp nguồn. `stop` → `idle`, `simulation = null`.
-- [ ] *(Sau MP)* `blink` với thời gian giả: trong 5 s, trạng thái LED đổi ở các mốc ≈ 0, 1000, 2010, 3010… ms (sai lệch theo E3).
-- [ ] *(Sau MP)* Stop khi đang `wait` → dừng ngay; sau đó không còn lệnh ghi chân nào.
-- [ ] Lỗi compile → `{ok: false, reason: 'compile-error'}` và runtime không được tạo. Không có board → `no-board`. Có hai board → `multiple-boards`.
-- [ ] `start → stop → start` chạy được. Snapshot JSON-serializable. **Document deep-equal trước và sau một lần chạy** (B2).
+- [x] *(MP)* `led-on`: `start` → LED sáng, status `finished`, board vẫn được cấp nguồn. `stop` → `idle`, `simulation = null`.
+- [x] *(Sau MP)* `blink` với thời gian giả: trong 5 s, trạng thái LED đổi ở các mốc ≈ 0, 1000, 2010, 3010… ms (sai lệch theo E3).
+- [x] *(Sau MP)* Stop khi đang `wait` → dừng ngay; sau đó không còn lệnh ghi chân nào.
+- [x] Lỗi compile → `{ok: false, reason: 'compile-error'}` và runtime không được tạo. Không có board → `no-board`. Có hai board → `multiple-boards`.
+- [x] `start → stop → start` chạy được. Snapshot JSON-serializable. **Document deep-equal trước và sau một lần chạy** (B2).
 
 **Notes.** B1 không cấm timer, nhưng vẫn nên inject `sleep` để test tất định và để giữ cùng hình dạng với một runtime trong worker sau này.
+
+**Trạng thái: xong (2026-10-03).**
+- **Interpreter** (`src/core/program/interpreter.ts`): `runProgram(ir, io, { sleep }) → { done, stop }` theo §6.4, cùng type `HardwareIO`, `Sleep`, `RunOutcome` và `timerSleep`.
+  - `onStart` chạy một lần, sau đó `forever` lặp lại; cuối mỗi vòng `forever` có một pause 10 ms bằng `sleep`, tức là macrotask (E3).
+  - Stop dùng `AbortController`: `wait` đang chạy bị ngắt ngay vì timer bị huỷ, và `signal` được kiểm tra trước mỗi statement, nên không còn lệnh ghi nào sau Stop, kể cả khi Stop được gọi ngay trong một lệnh ghi (E5).
+  - Lỗi do `HardwareIO` throw cho ra `error` kèm `blockId` của statement đang chạy (E7). `done` không bao giờ reject, kể cả khi giá trị bị throw không convert được sang chuỗi.
+  - Stop trong lệnh cuối, hoặc trước một program rỗng, vẫn cho ra `stopped` (sửa sau review).
+- **`RunSession`** (`src/core/run/run-session.ts`): `createRunSession(registry)` gồm `start`, `stop`, `getSnapshot` và `subscribe` (các quyết định chốt thêm: xem §6.4).
+  - `start`: kiểm tra đúng một board → compile → giữ circuit → simulate lần đầu ở trạng thái có nguồn và chưa có chân nào được drive (E1) → chạy interpreter.
+  - `HardwareIO.digitalWrite` cập nhật `pinOutputs`, gọi `simulateCircuit` và phát snapshot mới.
+  - Snapshot là JSON thuần và được thay bằng object mới mỗi lần đổi (sẵn cho `useSyncExternalStore` ở POC-08).
+  - Listener gọi `start`/`stop` đồng bộ thì lời gọi mới nhất thắng (§6.4). Lỗi do review tìm ra: bản đầu tiên phát `idle` trước khi run mới nhận ownership, nên một `start` lồng bên trong có thể bị run ngoài ghi đè mà vẫn tiếp tục chạy.
+- **Chủ động chưa làm:** `HardwareIO.digitalRead` (POC-13), `setContactInput` (POC-12), runtime registry, worker. `sleep` của session không cho inject: chưa có consumer thứ hai ngoài `timerSleep`, và test dùng fake timer của Vitest trên chính `timerSleep`.
+- **Test** (headless, thời gian giả):
+  - `interpreter.test.ts`: thứ tự `onStart`/`forever`, pause 10 ms, Stop trước lệnh đầu tiên, Stop trong một lệnh ghi, Stop trong lệnh cuối, program rỗng bị Stop, Stop khi đang `wait`, lỗi runtime với từng loại giá trị bị throw;
+  - `run-session.test.ts`: tất cả acceptance ở trên, cộng thêm: chỉ phát snapshot khi chân đổi mức, warning compile nằm trong snapshot, `start` khi đang chạy, Stop xen vào trước khi kết quả `finished` của program về tới, listener tự gọi `start`/`stop` lồng bên trong.
+  - Đã thử làm hỏng từng quy tắc (kiểm tra abort, pause của `forever`, bắt đầu sau khi trả về, huỷ timer, guard cho lần chạy cũ, chỉ phát khi đổi mức, trạng thái `finished`): mỗi lần đều có test fail.
 
 ---
 
