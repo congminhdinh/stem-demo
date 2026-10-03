@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockTypes, buildBlockDefinitions, createDefaultProgram, toolbox } from './blocks';
+import { blockTypes, buildBlockDefinitions, builtInBlockTypes, createDefaultProgram, toolbox } from './blocks';
 import { compileProgram } from './compile-program';
 
 describe('block definitions', () => {
@@ -25,11 +25,30 @@ describe('block definitions', () => {
     );
   });
 
-  it('are the only block types the toolbox offers', () => {
+  it('with the Blockly built-ins, are the only block types the toolbox offers', () => {
     const defined = buildBlockDefinitions([]).map((definition) => definition.type);
-    const offered = toolbox.contents.flatMap((category) => category.contents.map((item) => item.type));
+    const offered = new Set(toolbox.contents.flatMap((category) => category.contents.map((item) => item.type)));
 
-    expect([...offered].sort()).toEqual([...defined].sort());
+    expect([...offered].sort()).toEqual([...defined, ...Object.values(builtInBlockTypes)].sort());
+  });
+
+  it('give digital read a Boolean output with the board pins, so it fits the conditions', () => {
+    const digitalRead = buildBlockDefinitions(['D2', 'D3']).find(
+      (definition) => definition.type === blockTypes.digitalRead,
+    );
+
+    expect(digitalRead).toMatchObject({
+      output: 'Boolean',
+      args0: [
+        {
+          name: 'PIN',
+          options: [
+            ['D2', 'D2'],
+            ['D3', 'D3'],
+          ],
+        },
+      ],
+    });
   });
 });
 

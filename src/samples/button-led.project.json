@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "id": "sample-button-led",
+  "name": "Button and LED",
+  "circuit": {
+    "components": [
+      { "id": "board", "deviceType": "board", "position": { "x": 200, "y": 220 } },
+      { "id": "button", "deviceType": "push-button", "position": { "x": 100, "y": 460 } },
+      { "id": "resistor", "deviceType": "resistor", "position": { "x": 480, "y": 270 } },
+      { "id": "led", "deviceType": "led", "position": { "x": 600, "y": 240 } }
+    ],
+    "wires": [
+      {
+        "id": "wire-3v3-button",
+        "from": { "componentId": "board", "portId": "3v3" },
+        "to": { "componentId": "button", "portId": "a" }
+      },
+      {
+        "id": "wire-button-d2",
+        "from": { "componentId": "button", "portId": "b" },
+        "to": { "componentId": "board", "portId": "d2" }
+      },
+      {
+        "id": "wire-d13-resistor",
+        "from": { "componentId": "board", "portId": "d13" },
+        "to": { "componentId": "resistor", "portId": "a" }
+      },
+      {
+        "id": "wire-resistor-anode",
+        "from": { "componentId": "resistor", "portId": "b" },
+        "to": { "componentId": "led", "portId": "anode" }
+      },
+      {
+        "id": "wire-cathode-gnd",
+        "from": { "componentId": "led", "portId": "cathode" },
+        "to": { "componentId": "board", "portId": "gnd" }
+      }
+    ]
+  },
+  "program": {
+    "blocks": {
+      "blocks": {
+        "languageVersion": 0,
+        "blocks": [
+          {
+            "type": "stem_forever",
+            "id": "forever",
+            "x": 40,
+            "y": 40,
+            "inputs": {
+              "DO": {
+                "block": {
+                  "type": "controls_if",
+                  "id": "if-pressed",
+                  "extraState": { "hasElse": true },
+                  "inputs": {
+                    "IF0": { "block": { "type": "stem_digital_read", "id": "read-d2", "fields": { "PIN": "D2" } } },
+                    "DO0": {
+                      "block": {
+                        "type": "stem_digital_write",
+                        "id": "write-high",
+                        "fields": { "PIN": "D13", "LEVEL": "HIGH" }
+                      }
+                    },
+                    "ELSE": {
+                      "block": {
+                        "type": "stem_digital_write",
+                        "id": "write-low",
+                        "fields": { "PIN": "D13", "LEVEL": "LOW" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

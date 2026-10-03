@@ -1,4 +1,4 @@
-import type { ProgramIR, Statement } from './ir';
+import type { Expression, ProgramIR, Statement } from './ir';
 
 // Async IR interpreter (plan §6.4). It touches the virtual hardware only
 // through HardwareIO (B5) and knows nothing about circuits, simulation or UI.
@@ -6,6 +6,8 @@ import type { ProgramIR, Statement } from './ir';
 /** The runtime's only way to reach the hardware. Pin modes are implicit: writing makes a pin an output. */
 export type HardwareIO = {
   digitalWrite(pin: string, level: 0 | 1): void;
+  /** The level of the net on the pin right now (floating reads 0). */
+  digitalRead(pin: string): 0 | 1;
 };
 
 /** Resolves after `ms`; rejects as soon as `signal` aborts. */
@@ -36,14 +38,33 @@ export function runProgram(ir: ProgramIR, io: HardwareIO, options: { sleep: Slee
 
 async function execute(ir: ProgramIR, io: HardwareIO, sleep: Sleep, signal: AbortSignal): Promise<RunOutcome> {
   let blockId: string | undefined;
+  // Synchronous: a condition reads the pins as they are at that moment.
+  const evaluate = (expression: Expression): boolean => {
+    blockId = expression.blockId;
+    switch (expression.kind) {
+      case 'digitalRead':
+        return io.digitalRead(expression.pin) === 1;
+      case 'not':
+        return !evaluate(expression.value);
+    }
+  };
   const runStatements = async (statements: readonly Statement[]) => {
     for (const statement of statements) {
       signal.throwIfAborted();
       blockId = statement.blockId;
-      if (statement.kind === 'digitalWrite') {
-        io.digitalWrite(statement.pin, statement.level);
-      } else {
-        await sleep(statement.ms, signal);
+      switch (statement.kind) {
+        case 'digitalWrite':
+          io.digitalWrite(statement.pin, statement.level);
+          break;
+        case 'wait':
+          await sleep(statement.ms, signal);
+          break;
+        case 'if': {
+          // Conditions are tested in order, each only if the ones before it were false.
+          const branch = statement.branches.find(({ condition }) => evaluate(condition));
+          await runStatements(branch ? branch.body : statement.else);
+          break;
+        }
       }
     }
   };

@@ -7,6 +7,7 @@ export const samples = {
   ledOn: readJson('../src/samples/led-on.project.json'),
   blink: readJson('../src/samples/blink.project.json'),
   buttonDirect: readJson('../src/samples/button-direct.project.json'),
+  buttonLed: readJson('../src/samples/button-led.project.json'),
 };
 
 /** Opens the app on a project other than the default sample, via the dev-only hook. */
@@ -36,6 +37,25 @@ export async function canvasState(page: Page) {
     throw new Error('Canvas state is not available');
   }
   return state;
+}
+
+/** The cap of the push button `button` and the LED `led` as their renderers drew them. */
+export async function buttonAndLed(page: Page) {
+  const { components } = await canvasState(page);
+  return {
+    closed: components.find((component) => component.id === 'button')?.closed,
+    lit: components.find((component) => component.id === 'led')?.lit,
+  };
+}
+
+/** The middle of the body of the push button `button`, clear of its port markers. */
+export async function buttonCenter(page: Page) {
+  const { at } = await worldToPage(page);
+  const button = (await canvasState(page)).components.find((component) => component.id === 'button');
+  if (!button) {
+    throw new Error('The button is not on the canvas');
+  }
+  return at(button.x, button.y);
 }
 
 /** World → page coordinates: the viewport is fixed, so world = stage = canvas pixels. */

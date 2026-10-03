@@ -51,6 +51,8 @@ type ActiveRun = {
   pinOutputs: Record<string, 0 | 1>;
   /** Contacts held closed, by component id. */
   contacts: Record<string, boolean>;
+  /** The latest simulation of these inputs: what `digitalRead` reads. */
+  simulation: SimulationResult | null;
 };
 
 // Listeners may call start or stop synchronously; the latest call wins. That
@@ -70,8 +72,12 @@ export function createRunSession(registry: DeviceRegistry): RunSession {
     }
   };
 
-  const simulate = (run: ActiveRun) =>
-    simulateCircuit(run.circuit, registry, { powered: true, pinOutputs: run.pinOutputs, contacts: run.contacts });
+  /** Every input change goes through here, so `run.simulation` is always the current one. */
+  const simulate = (run: ActiveRun) => {
+    const { circuit, pinOutputs, contacts } = run;
+    run.simulation = simulateCircuit(circuit, registry, { powered: true, pinOutputs, contacts });
+    return run.simulation;
+  };
 
   const stop = () => {
     if (!current) {
@@ -112,6 +118,12 @@ export function createRunSession(registry: DeviceRegistry): RunSession {
         run.pinOutputs = { ...run.pinOutputs, [pin]: level };
         publish({ ...snapshot, simulation: simulate(run) });
       },
+      // Step 5 (§6.4): the pins as last simulated, so a press or the
+      // program's own write is what the next read sees. A run that lost
+      // ownership reads nothing but 0.
+      digitalRead(pin) {
+        return current === run && run.simulation?.pinReads[pin] === 1 ? 1 : 0;
+      },
     };
 
     // The replaced run is aborted without an idle snapshot in between. The
@@ -123,6 +135,7 @@ export function createRunSession(registry: DeviceRegistry): RunSession {
       circuit: project.circuit,
       pinOutputs: {},
       contacts: {},
+      simulation: null,
     };
     current = run;
     void run.program.done.then((outcome) => {

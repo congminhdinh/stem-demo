@@ -1,6 +1,6 @@
 # STEM Studio PoC — Demo script
 
-> Kịch bản ngắn cho người chạy thử PoC (plan POC-11, §8.2). Mỗi demo mất khoảng 1–2 phút. Phần **Nhận xét (L8)** ở cuối dùng để ghi cảm nhận sau khi chạy thử.
+> Kịch bản ngắn cho người chạy thử PoC (plan POC-11 và POC-13, §8.2). Mỗi demo mất khoảng 1–2 phút. Phần **Nhận xét (L8)** ở cuối dùng để ghi cảm nhận sau khi chạy thử.
 
 ## Chuẩn bị
 
@@ -34,6 +34,29 @@ Mở `http://localhost:5173` bằng Chrome. Bên trái là canvas mạch, bên p
 
 Muốn thử thêm: nối lại dây vừa xoá rồi Run (LED sáng lại); nối trùng một dây đã có (hiện thông báo, mạch không đổi); xoá một component (các dây của nó cũng mất).
 
+## Demo M3 — Nút nhấn
+
+App chưa có menu chọn mạch mẫu. Ở `pnpm dev`, mở DevTools (F12) → Console và nạp mạch mẫu bằng lệnh dưới đây; thay `button-led` bằng `button-direct` cho phần A:
+
+```js
+await fetch('/src/samples/button-led.project.json').then((r) => r.json()).then((p) => __stem.loadProject(p))
+```
+
+Cũng có thể tự dựng hai mạch này như ở Demo M2, vì palette đã có **+ Push Button**.
+
+**A. Không cần program** (`button-direct`: 3V3 → nút → R → LED → GND, program rỗng)
+1. Bấm **Run**. LED tắt.
+2. Nhấn giữ nút (cap tròn màu xanh). Cap lún xuống và LED sáng. Nhả thì LED tắt, kể cả khi nhả chuột ở ngoài canvas.
+3. Bấm **Stop**. Khi không chạy, click vào nút chỉ chọn nó như mọi component.
+
+**B. Vòng kín qua program** (`button-led`: 3V3 → nút → D2; D13 → R → LED → GND)
+1. Program trong Blockly là `forever`: `if digital read D2` → `digital write D13 HIGH`, `else` → `digital write D13 LOW`.
+2. Bấm **Run**. Nhấn giữ nút: LED sáng; nhả: LED tắt.
+3. Bấm **Stop**. Đổi `LOW` trong nhánh `else` thành `HIGH` và `HIGH` trong nhánh đầu thành `LOW`, rồi **Run**. Nút giờ bị đảo: nhả thì sáng, giữ thì tắt.
+4. Muốn thử thêm:
+   - mở **Logic** và kéo thêm `not` vào điều kiện;
+   - rút `digital read` ra khỏi `if` rồi Run. Toolbar báo `"if" needs a condition.` và program không chạy.
+
 ## Nhận xét (L8)
 
 L8: *Flow có cảm giác giống một sản phẩm STEM thực tế không?*
@@ -51,6 +74,18 @@ Agent chạy demo M1 và M2 bằng trình duyệt điều khiển bằng script 
   4. Chưa có undo: xoá nhầm dây phải nối lại.
   5. Dây thẳng có thể vắt ngang thân device.
   6. Port của LED nhỏ và hai chân cách nhau chỉ 20; vùng bắt 12 px giúp nhiều, nhưng vẫn phải nhìn kỹ đâu là anode.
+
+### Lần chạy M3 của coding agent (2026-10-03)
+
+Cũng bằng Playwright, cũng không phải người dùng thật.
+
+- **Chạy được trọn vẹn**, không có lỗi console. Từ lúc nhấn tới khi LED sáng mất khoảng 37 ms qua program và khoảng 14 ms khi không có program; agent không đánh giá được cảm giác thật.
+- **Chỗ còn vấp:**
+  1. Phải dùng Console để nạp mạch mẫu.
+  2. Không có gì cho biết nút chỉ nhấn được khi đang chạy; con trỏ không đổi khi rê lên nút.
+  3. Category **Pins** và **Logic** cùng màu.
+  4. Program đọc nút theo vòng `forever`, nên một lần nhấn ngắn hơn khoảng 10 ms có thể bị bỏ qua. Với click của người thì khó gặp.
+  5. Dây từ nút lên D2 trong `button-led` cắt qua góc của board, vì dây là đường thẳng.
 
 ### Người chạy thử
 

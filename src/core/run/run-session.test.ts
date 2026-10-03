@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import blinkSample from '../../samples/blink.project.json';
 import buttonDirectSample from '../../samples/button-direct.project.json';
+import buttonLedSample from '../../samples/button-led.project.json';
 import ledOnSample from '../../samples/led-on.project.json';
 import { projectDocumentSchema, type ProjectDocument } from '../circuit/document';
 import { localDeviceDefinitions } from '../devices/local-catalog';
@@ -15,6 +16,7 @@ const registry = createDeviceRegistry(localDeviceDefinitions);
 const ledOn = projectDocumentSchema.parse(ledOnSample);
 const blink = projectDocumentSchema.parse(blinkSample);
 const buttonDirect = projectDocumentSchema.parse(buttonDirectSample);
+const buttonLed = projectDocumentSchema.parse(buttonLedSample);
 const unknownPin: ProjectDocument = {
   ...ledOn,
   program: { blocks: JSON.parse(JSON.stringify(ledOn.program.blocks).replace('"D13"', '"D99"')) },
@@ -400,6 +402,147 @@ describe('RunSession', () => {
       session.stop();
 
       expect(document).toStrictEqual(before);
+    });
+  });
+
+  describe('closed loop: button → digital read → if → LED (POC-13)', () => {
+    /** button-led with another forever body, written as Blockly JSON. */
+    const program = (hat: 'stem_on_start' | 'stem_forever', body: object) => ({
+      blocks: { blocks: { languageVersion: 0, blocks: [{ type: hat, id: 'hat', inputs: { DO: { block: body } } }] } },
+    });
+    const withForever = (body: object): ProjectDocument => ({ ...buttonLed, program: program('stem_forever', body) });
+    const write = (id: string, level: 'HIGH' | 'LOW', next?: object) => ({
+      type: 'stem_digital_write',
+      id,
+      fields: { PIN: 'D13', LEVEL: level },
+      ...(next ? { next: { block: next } } : {}),
+    });
+    const ifPressed = (then: object, otherwise: object, next?: object) => ({
+      type: 'controls_if',
+      id: 'if-pressed',
+      extraState: { hasElse: true },
+      inputs: {
+        IF0: { block: { type: 'stem_digital_read', id: 'read-d2', fields: { PIN: 'D2' } } },
+        DO0: { block: then },
+        ELSE: { block: otherwise },
+      },
+      ...(next ? { next: { block: next } } : {}),
+    });
+
+    it('lights the LED within one forever iteration of a press, and turns it off within one of the release', async () => {
+      const session = createRunSession(registry);
+      const published: RunSnapshot[] = [];
+      session.subscribe((snapshot) => published.push(snapshot));
+      session.start(buttonLed);
+      await vi.advanceTimersByTimeAsync(1000);
+      // About 100 iterations writing D13 LOW: the power-up and the first write only.
+      expect(published.map(lit)).toEqual([false, false]);
+
+      session.setContactInput('button', true);
+      // The program has not read D2 again yet: only the button changed.
+      expect([closed(session.getSnapshot()), lit(session.getSnapshot())]).toEqual([true, false]);
+      await vi.advanceTimersByTimeAsync(10);
+      expect(lit(session.getSnapshot())).toBe(true);
+
+      session.setContactInput('button', false);
+      await vi.advanceTimersByTimeAsync(10);
+      expect(lit(session.getSnapshot())).toBe(false);
+      expect(published.slice(2).map((snapshot) => [closed(snapshot), lit(snapshot)])).toEqual([
+        [true, false],
+        [true, true],
+        [false, true],
+        [false, false],
+      ]);
+    });
+
+    it('sees an input only when the program reads it: a press during a wait shows after the wait', async () => {
+      const session = createRunSession(registry);
+      const wait = { type: 'stem_wait', id: 'wait', fields: { SECONDS: 1 } };
+      session.start(withForever(ifPressed(write('write-high', 'HIGH'), write('write-low', 'LOW'), wait)));
+      await vi.advanceTimersByTimeAsync(100);
+
+      session.setContactInput('button', true);
+      await vi.advanceTimersByTimeAsync(800);
+      expect(lit(session.getSnapshot())).toBe(false);
+      // The wait ends at 1000 ms, then the forever pause (10 ms), then the read.
+      await vi.advanceTimersByTimeAsync(110);
+      expect(lit(session.getSnapshot())).toBe(true);
+    });
+
+    it('never sees a press released before the next read: a pin is polled, not latched', async () => {
+      const session = createRunSession(registry);
+      session.start(buttonLed);
+      await vi.advanceTimersByTimeAsync(5);
+
+      session.setContactInput('button', true);
+      session.setContactInput('button', false);
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(lit(session.getSnapshot())).toBe(false);
+    });
+
+    it('reads the latest simulation, its own writes included', async () => {
+      // Without the button: D13 is wired to D2, and the program copies D2 to D12 → a second LED.
+      const wire = (id: string, [fromId, fromPort]: string[], [toId, toPort]: string[]) => ({
+        id,
+        from: { componentId: fromId ?? '', portId: fromPort ?? '' },
+        to: { componentId: toId ?? '', portId: toPort ?? '' },
+      });
+      const writeD12 = { type: 'stem_digital_write', id: 'write-d12', fields: { PIN: 'D12', LEVEL: 'HIGH' } };
+      const document: ProjectDocument = {
+        ...buttonLed,
+        circuit: {
+          components: [
+            { id: 'board', deviceType: 'board', position: { x: 200, y: 220 } },
+            { id: 'led', deviceType: 'led', position: { x: 600, y: 240 } },
+          ],
+          wires: [
+            wire('wire-d13-d2', ['board', 'd13'], ['board', 'd2']),
+            wire('wire-d12-anode', ['board', 'd12'], ['led', 'anode']),
+            wire('wire-cathode-gnd', ['led', 'cathode'], ['board', 'gnd']),
+          ],
+        },
+        program: program('stem_on_start', write('write-d13', 'HIGH', ifPressed(writeD12, write('write-low', 'LOW')))),
+      };
+      const session = createRunSession(registry);
+
+      expect(session.start(document)).toEqual({ ok: true });
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(session.getSnapshot().status).toBe('finished');
+      expect(lit(session.getSnapshot())).toBe(true);
+    });
+
+    it('starts again with the button open: Stop while it is held drops the press and the pins (B2)', async () => {
+      const session = createRunSession(registry);
+      const document = structuredClone(buttonLed);
+      const before = structuredClone(document);
+      session.start(document);
+      session.setContactInput('button', true);
+      await vi.advanceTimersByTimeAsync(20);
+      expect(lit(session.getSnapshot())).toBe(true);
+
+      session.stop();
+      session.start(document);
+      await vi.advanceTimersByTimeAsync(20);
+
+      expect([closed(session.getSnapshot()), lit(session.getSnapshot())]).toEqual([false, false]);
+      expect(document).toStrictEqual(before);
+    });
+
+    it('stops the loop at once, so a held button lights nothing after Stop (E5)', async () => {
+      const session = createRunSession(registry);
+      session.start(buttonLed);
+      await vi.advanceTimersByTimeAsync(20);
+      const published: RunSnapshot[] = [];
+      session.subscribe((snapshot) => published.push(snapshot));
+
+      session.setContactInput('button', true);
+      session.stop();
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(published.map((snapshot) => snapshot.status)).toEqual(['running', 'idle']);
+      expect(vi.getTimerCount()).toBe(0);
     });
   });
 });

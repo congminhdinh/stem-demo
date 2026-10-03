@@ -6,7 +6,18 @@ export const blockTypes = {
   onStart: 'stem_on_start',
   forever: 'stem_forever',
   digitalWrite: 'stem_digital_write',
+  digitalRead: 'stem_digital_read',
   wait: 'stem_wait',
+} as const;
+
+/**
+ * Blockly's own blocks the toolbox offers (plan §3.3). Blockly defines them
+ * (`blockly/blocks`); the compiler reads their JSON like any other block.
+ */
+export const builtInBlockTypes = {
+  /** if / else if / else; the else-if count and the else are its `extraState`. */
+  if: 'controls_if',
+  not: 'logic_negate',
 } as const;
 
 /** JSON accepted by `Blockly.common.defineBlocksWithJsonArray`. */
@@ -19,6 +30,7 @@ const hatArgs = [
 
 /** Pin dropdown options come from the board profile, never from the block itself. */
 export function buildBlockDefinitions(boardPins: readonly string[]): BlockDefinitionJson[] {
+  const pinDropdown = { type: 'field_dropdown', name: 'PIN', options: boardPins.map((pin) => [pin, pin]) };
   return [
     {
       type: blockTypes.onStart,
@@ -38,7 +50,7 @@ export function buildBlockDefinitions(boardPins: readonly string[]): BlockDefini
       type: blockTypes.digitalWrite,
       message0: 'digital write %1 %2',
       args0: [
-        { type: 'field_dropdown', name: 'PIN', options: boardPins.map((pin) => [pin, pin]) },
+        pinDropdown,
         {
           type: 'field_dropdown',
           name: 'LEVEL',
@@ -52,6 +64,15 @@ export function buildBlockDefinitions(boardPins: readonly string[]): BlockDefini
       nextStatement: null,
       colour: 210,
       tooltip: 'Sets a digital pin HIGH or LOW.',
+    },
+    {
+      type: blockTypes.digitalRead,
+      message0: 'digital read %1',
+      args0: [pinDropdown],
+      // Boolean, so it fits the conditions of "if" and "not".
+      output: 'Boolean',
+      colour: 210,
+      tooltip: 'True while the pin reads HIGH.',
     },
     {
       type: blockTypes.wait,
@@ -81,7 +102,21 @@ export const toolbox = {
       kind: 'category',
       name: 'Pins',
       colour: '210',
-      contents: [{ kind: 'block', type: blockTypes.digitalWrite }],
+      contents: [
+        { kind: 'block', type: blockTypes.digitalWrite },
+        { kind: 'block', type: blockTypes.digitalRead },
+      ],
+    },
+    {
+      kind: 'category',
+      name: 'Logic',
+      colour: '210',
+      contents: [
+        { kind: 'block', type: builtInBlockTypes.if },
+        // The same block with its else already added, so if/else needs no mutator.
+        { kind: 'block', type: builtInBlockTypes.if, extraState: { hasElse: true } },
+        { kind: 'block', type: builtInBlockTypes.not },
+      ],
     },
     {
       kind: 'category',

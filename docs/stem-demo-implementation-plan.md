@@ -12,7 +12,7 @@
 |---|---|
 | **PoC chứng minh gì** | Kiến trúc đã chọn đủ tốt để xây một STEM editor thực tế. Kiến trúc đó gồm: document độc lập renderer, simulation là hàm thuần, Blockly chỉ là view và program được compile sang IR, runtime chỉ chạm phần cứng ảo qua `HardwareIO`, canvas chỉ render document và snapshot (§2) |
 | **Vertical slice** | **Checkpoint MP** (bằng chứng đầu tiên): Board + LED, block "on start: digital write D13 HIGH", bấm Run thì LED sáng trên canvas. **VS-1:** mở rộng MP thành mạch Board + Resistor + LED chạy program blink (`forever` + `wait`), Stop hoạt động đúng. **VS-2:** người dùng tự dựng mạch bằng chuột rồi chạy (§3) |
-| **Task tiếp theo** | `POC-13` Conditional blocks · VS-3 (§9.2, M3, P1). `POC-01`…`POC-12` đã xong: M1 và M2 đóng (GO cho M3/M4 đã được xác nhận, §17), phần P0 hoàn tất |
+| **Task tiếp theo** | `POC-14` Local persistence (§9.2, M4, P1). `POC-01`…`POC-13` đã xong: M1, M2 và M3 đóng (§17); phần P0 hoàn tất |
 | **Critical path** | `01 → 02 → 03 → 05 → 08 → 11`. Hai nhánh `02 → 06 → 07 → 08` và `03 → 09 → 10 → 11` dài bằng nhau (§10) |
 | **PoC xong khi** | M1 và M2 (P0) đạt exit criteria, Learning log trả lời được L1–L4 (§8, §17). M3 và M4 (P1) làm PoC thuyết phục hơn |
 | **Ràng buộc cứng** | Boundary B1–B8 (§5.1) và acceptance criteria của task. Mọi thứ còn lại (tên file, API helper, cấu trúc nội bộ, type chi tiết) là gợi ý |
@@ -449,6 +449,10 @@ Ví dụ `led.json`:
 
 Nếu thực tế cho thấy compiler chỉ là ánh xạ 1:1 và không có giá trị, ghi điều đó vào Learning log. Dự kiến giá trị của nó sẽ tăng khi có Python.
 
+*(POC-13)* IR thật của M3 (`ir.ts`) khác phác thảo dưới đây ở hai chỗ:
+- `if` giữ **danh sách nhánh** thay vì `then`/`else` lồng nhau: `{ kind: 'if'; branches: { condition; body }[]; else; blockId }`. Đây đúng là cấu trúc của `controls_if` (IF0/DO0, IF1/DO1…, ELSE). Interpreter thử các điều kiện theo thứ tự, mỗi điều kiện chỉ khi các điều kiện trước sai. Else-if không thành `if` lồng, nên không làm sâu thêm call stack.
+- Không có expression `boolean`: không block nào sinh ra nó, và điều kiện bỏ trống là lỗi compile (C8), không mặc định `false`.
+
 **IR v0 (phác thảo):**
 
 ```ts
@@ -470,7 +474,7 @@ type Expression =    // M3
 - **C1.** Input là Blockly serialization JSON (`blocks.blocks[]`, `next.block`, `fields`, `inputs.X.block`/`shadow`, `extraState`) cùng danh sách tên chân của board.
 - **C2.** Block top-level `stem_on_start` (tối đa 1) và `stem_forever` (tối đa 1) tạo ra hai section. Các block top-level khác bị bỏ qua kèm warning (Blockly cũng làm mờ chúng qua `disableOrphans`).
 - **C3.** Lỗi: block type lạ, chân không có trên board, hat bị trùng. Lỗi luôn kèm `blockId`.
-- **C4.** **Không bao giờ throw.** JSON sai cấu trúc sinh diagnostic lỗi. Cần phân biệt hai trường hợp:
+- **C4.** **Không bao giờ throw.** JSON sai cấu trúc sinh diagnostic lỗi. *(POC-13)* Body và điều kiện lồng sâu quá 100 tầng được báo `malformed-program` thay vì đi tiếp, nên dữ liệu lưu không thể làm tràn stack. `elseIfCount` cũng chỉ được duyệt tới số input đang có, nên một con số khổng lồ không làm compiler lặp mãi. Cần phân biệt hai trường hợp:
   - phần **vắng mặt hợp lệ**: statement input không có, hay `next` không có, được hiểu là body rỗng hoặc hết chuỗi;
   - phần **có mặt nhưng sai shape**: input không phải object, hoặc field mà block bắt buộc phải có (`PIN`, `LEVEL`, `SECONDS`) bị thiếu hay sai kiểu. Trường hợp này là `malformed-program` trên block đó, không được âm thầm bỏ qua.
 - **C5.** Mọi node IR mang `blockId`, để sau này highlight được block lỗi hoặc block đang chạy.
@@ -479,6 +483,7 @@ type Expression =    // M3
   - statement disabled không sinh IR, nhưng chuỗi vẫn tiếp tục sang `next`;
   - hat disabled (`on start` / `forever`) bỏ cả stack bên dưới;
   - block rời rạc bị disabled (ví dụ do `disableOrphans`) được bỏ qua mà không có warning.
+- **C8.** *(POC-13)* Input Boolean (điều kiện của `if`/`else if`, operand của `not`) mà vắng mặt, rỗng, hoặc chứa block bị disabled là lỗi `missing-condition` trên block sở hữu input đó. Lý do chọn lỗi thay vì `false` ngầm: program chạy phải đúng là program người dùng thấy, và lỗi được hiện trên toolbar ngay khi bấm Run. Shadow block được dùng làm giá trị cho tới khi có block thật che nó, như Blockly.
 
 **Fixture:** compiler test phải dùng JSON có **đúng format Blockly thật**. Xem POC-04 và rủi ro R2.
 
@@ -502,7 +507,7 @@ function runProgram(ir: ProgramIR, io: HardwareIO, opts: { sleep: (ms: number, s
 `HardwareIO` không có `configurePin`, vì chế độ của chân được suy ra ngầm (ghi thì là output; floating đọc ra 0). `configurePin` được thêm khi cần pull-up, PWM hoặc analog. Đó là thay đổi cộng thêm, không phá vỡ code cũ.
 
 *(POC-07)* Đã implement:
-- `HardwareIO` hiện **chỉ có `digitalWrite`**. `digitalRead` được thêm ở POC-13, cùng với expression `digitalRead` của IR, vì IR v0 chưa có lệnh nào đọc chân. Nó sẽ đọc `SimulationResult.pinReads` (§6.5). Đây là thay đổi cộng thêm.
+- `HardwareIO` hiện **chỉ có `digitalWrite`**. `digitalRead` được thêm ở POC-13, cùng với expression `digitalRead` của IR, vì IR v0 chưa có lệnh nào đọc chân. Nó sẽ đọc `SimulationResult.pinReads` (§6.5). Đây là thay đổi cộng thêm. *(POC-13: đã thêm, xem bên dưới.)*
 - Chương trình bắt đầu **sau khi** `runProgram` trả về (một microtask), nên caller luôn có `stop` trước lệnh ghi chân đầu tiên.
 - `done` **luôn resolve**, không bao giờ reject:
   - là `stopped` nếu Stop xảy ra trước khi chương trình chạy xong, kể cả khi Stop xảy ra trong lệnh cuối hoặc với program rỗng; chỉ là `finished` khi chạy xong mà không bị Stop;
@@ -564,7 +569,13 @@ Việc giới hạn tối đa một lần cập nhật UI mỗi frame thuộc v�
   Run mất ownership thì bị abort: timer bị huỷ, không ghi chân, không simulate và không publish nữa.
 - Chỉ simulate lại và phát snapshot khi một chân **đổi** mức.
 - Kết quả của một lần chạy đã bị stop hoặc bị thay thế không bao giờ ghi vào snapshot.
-- Bước 5 (`digitalRead`) chưa có, thuộc POC-13. *(Bước 6 có từ POC-12, xem bên dưới.)*
+- Bước 5 (`digitalRead`) có từ POC-13 và bước 6 có từ POC-12, xem bên dưới.
+
+*(POC-13)* `digitalRead(pin)`:
+- Đọc `pinReads` của **lần simulate gần nhất của chính run đó** (`ActiveRun.simulation`). Mọi thay đổi input (ghi chân, nhấn nút) đều đi qua cùng một hàm simulate, nên lần đọc tiếp theo luôn thấy thay đổi mới nhất, kể cả lệnh ghi của chính program.
+- Đồng bộ và không publish gì, nên không thêm đường reentrancy nào. Run đã mất ownership chỉ đọc ra 0 (nó cũng không còn chạy lệnh nào).
+- **Ngữ nghĩa polling, như MCU thật không có interrupt:** program chỉ thấy input tại lúc nó đọc. Nhấn trong lúc `wait` thì được thấy sau khi `wait` xong. Nhấn rồi nhả giữa hai lần đọc thì program không thấy; không có latch.
+- Với `forever` không có `wait`, mỗi vòng có pause 10 ms (E3), nên độ trễ từ lúc nhấn tới lúc program đọc tối đa khoảng một vòng.
 
 *(POC-12)* `setContactInput(componentId, closed)`:
 - `contacts` (component id → đang đóng) là runtime state của run, nằm cạnh `pinOutputs`. Nó mất cùng run: Stop, hay một `start` mới, mở lại mọi contact (B2).
@@ -1322,7 +1333,7 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
   - Thêm hook `getProject()` (§11.4).
 - **Chủ động chưa làm:** nhả khi cửa sổ mất focus (plan chỉ yêu cầu `pointerup`/`pointercancel`; lần nhả kế tiếp ở bất cứ đâu cũng mở nút), con trỏ dạng "tay" trên nút lúc chạy, switch latching (BL-S3), demo script M3 (POC-13 viết cùng sample `button-led`).
 - **Một lần chạy unit test bị fail không liên quan:** test đầu tiên của `tests/core-boundary.test.ts` (ESLint load config lần đầu) mất 11,6 s, vượt timeout 5 s; bình thường mất khoảng 0,7 s. Chỉ gặp một lần; các lần chạy sau (ít nhất 6 lần) đều xanh. Chưa sửa gì.
-- **Bằng chứng L6:** xem "M3 — chi tiết (POC-12, phần L6)" ở §17.
+- **Bằng chứng L6:** xem "M3 — chi tiết" ở §17.
 
 ---
 
@@ -1344,12 +1355,53 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 **Out of scope.** Biến, toán, `repeat`, so sánh số, sự kiện "khi nhấn nút".
 
 **Acceptance**
-- [ ] Fixture if/else (và else-if nếu hỗ trợ) compile ra IR đúng. Điều kiện bị bỏ trống → có diagnostic hoặc mặc định `false`; cách xử lý được ghi rõ.
-- [ ] Integration headless: nhấn nút → trong vòng một lần lặp `forever` LED sáng (thời gian giả).
-- [ ] E2E-3 xanh. Độ trễ nhấn nút → LED ≤ 50 ms (ghi chú đo thủ công).
-- [ ] Learning log M3 đã điền.
+- [x] Fixture if/else (và else-if nếu hỗ trợ) compile ra IR đúng. Điều kiện bị bỏ trống → có diagnostic hoặc mặc định `false`; cách xử lý được ghi rõ. *(Else-if có hỗ trợ. Điều kiện bỏ trống là lỗi `missing-condition`, C8.)*
+- [x] Integration headless: nhấn nút → trong vòng một lần lặp `forever` LED sáng (thời gian giả).
+- [x] E2E-3 xanh. Độ trễ nhấn nút → LED ≤ 50 ms (ghi chú đo thủ công). *(Median 36,5 ms, max 43,8 ms.)*
+- [x] Learning log M3 đã điền.
 
 **Notes.** Block built-in cần được đăng ký qua `blockly/blocks`. Tên input/field lấy theo đúng version Blockly đã cài.
+
+**Trạng thái: xong (2026-10-03). M3 đóng.**
+- **Block** (`blocks.ts`):
+  - `stem_digital_read`: output `Boolean`, dropdown `PIN` lấy từ board profile như `digital write`.
+  - `builtInBlockTypes` gồm `controls_if` và `logic_negate`. Toolbox có category **Logic** gồm `if`, `if` có sẵn `else` (cùng block, `extraState: { hasElse: true }`, để làm if/else không cần mở mutator) và `not`. `digital read` nằm trong **Pins**.
+  - **`BlocklyPanel.tsx` không đổi:** entry `blockly` đã đăng ký block built-in (`blockly/blocks`) và locale English, còn toolbox lấy từ core.
+- **IR** (`ir.ts`): `if` với danh sách nhánh, `Expression` = `digitalRead` | `not`. Khác phác thảo, xem §6.3.
+- **Compiler:**
+  - `controls_if` đọc `extraState` (`elseIfCount`, `hasElse`). Thiếu `extraState` nghĩa là không có else-if và else, vì Blockly bỏ các giá trị mặc định khi save. `extraState` sai kiểu, `elseIfCount` âm hoặc không nguyên, `hasElse` không phải boolean đều là `malformed-program` trên block `if`.
+  - Điều kiện tuân theo C8. Các lỗi khác của điều kiện: `unknown-pin` trên block `digital read`; `unknown-block` cho block điều kiện lạ, ví dụ `logic_boolean`.
+  - Giới hạn độ lồng và giới hạn duyệt `elseIfCount` theo C4.
+- **Interpreter:** `HardwareIO.digitalRead`. Việc đánh giá điều kiện là đồng bộ, và lỗi khi đọc chân mang `blockId` của block `digital read` (E7). Kiểm tra Stop trước mỗi statement vẫn như cũ, kể cả trong nhánh.
+- **`RunSession`:** `digitalRead` theo §6.4. Simulation, renderer, canvas và toolbar không đổi.
+- **Sample** `button-led` theo đúng scope: 3V3 → nút → D2; D13 → R → LED → GND; program "forever: if digital read D2 then digital write D13 HIGH else digital write D13 LOW".
+- **Fixture lấy từ Blockly thật** (R2): conformance test dựng program của `button-led` và fixture `if-else-if` (else-if, else, `not`) **bằng API của Blockly** rồi so với JSON đã commit, ngoài việc round-trip cả hai cùng fixture `missing-condition`. JSON viết tay khớp ngay với output của Blockly; không phải sửa fixture nào.
+- **Test** (thêm 39 unit test):
+  - compiler (19): `button-led`, else-if với `not`, `if` không có `extraState`, `if` lồng, shadow, 4 trường hợp `missing-condition`, 8 trường hợp lỗi khác, `elseIfCount` khổng lồ, lồng 100.000 tầng;
+  - interpreter (7): chọn nhánh (chỉ đọc tới điều kiện đúng đầu tiên), `not`, đọc lại ở mỗi vòng `forever`, Stop khi đang `wait` trong nhánh, lỗi khi đọc;
+  - integration headless `RunSession` (6):
+    - nhấn thì LED sáng trong vòng một lần lặp, nhả thì tắt trong vòng một lần lặp (acceptance); vòng `forever` chỉ phát snapshot khi có thay đổi;
+    - nhấn trong lúc `wait` chỉ được thấy sau `wait`; nhấn rồi nhả giữa hai lần đọc thì không được thấy;
+    - đọc thấy lệnh ghi của chính program;
+    - Stop khi đang giữ nút: chạy lại thì nút mở và document không đổi; sau Stop không còn timer hay snapshot nào;
+  - còn lại: block definition, sample, conformance (3 round-trip, 2 dựng bằng API).
+  - Đã thử làm hỏng từng quy tắc (10 lần): đánh giá mọi điều kiện, bỏ `not`, bỏ `else`, đọc simulation cũ, bỏ qua điều kiện rỗng, nhận điều kiện disabled, bỏ shadow, bỏ giới hạn lồng, bỏ `hasElse`, bỏ `elseIfCount`. Lần nào cũng có test fail.
+- **E2E-3** `e2e/vs3-button.spec.ts` (2 test):
+  1. Load `button-led` qua hook → Blockly hiện `digital read` và `else` → Run. JSON mà `saveNow` của Blockly UI ghi lại phải bằng đúng sample, kể cả `extraState`. Giữ nút bằng chuột thật → cap và LED đã render sáng → nhả → tắt → Stop.
+  2. Sửa program **qua Blockly UI** (đổi `LEVEL` của hai lệnh ghi), kiểm tra JSON đã lưu, rồi Run: nút thành đảo (nhả thì sáng, giữ thì tắt).
+
+  Hook chỉ dùng để mở sample và để quan sát; không set chân, không gọi simulation, không inject IR. Xanh 20/20 khi lặp 10 lần; cả bộ 29 E2E xanh khi lặp 3 lần (87/87). Helper `buttonAndLed` và `buttonCenter` chuyển từ `push-button.spec.ts` vào `e2e/helpers.ts`.
+- **Độ trễ nhấn → LED** (đường thật: pointerdown → `setContactInput` → simulate → vòng `forever` kế tiếp đọc D2 → `if` → ghi D13 → simulate → snapshot → frame React → node Konva):
+  - Đo thủ công, tuần tự, 20 lần trên dev server (Chromium headless, máy dev), từ `timeStamp` của pointerdown tới frame mà LED đã render sáng: **median 36,5 ms, max 43,8 ms** (mục tiêu ≤ 50 ms, §2.5). Nhả → tắt: median 32,2 ms, max 39,6 ms.
+  - So với mạch không có program (`button-direct`): median 13,4 ms. Phần chênh lệch là thời gian chờ vòng `forever` kế tiếp đọc chân (pause 10 ms cộng độ trễ của timer), cộng một frame.
+  - Trong E2E (chạy song song nhiều worker) giá trị chỉ được ghi lại, không assert: 31–45 ms qua 10 lần.
+  - Không tối ưu gì thêm. Nếu cần nhanh hơn, hướng là giảm pause của `forever` (E3) hoặc vẽ ngay khi snapshot đổi; cả hai đều là quyết định về runtime, không phải về boundary.
+- **Lệch khỏi plan, có chủ đích:**
+  - Shape IR của `if` (danh sách nhánh) và không có `boolean` (§6.3).
+  - Điều kiện bỏ trống là lỗi, không phải `false` (C8). Plan cho phép một trong hai.
+  - E2E-3 có thêm một test sửa program qua Blockly UI. Lý do: chứng minh compiler đọc đúng JSON mà Blockly UI ghi cho `controls_if`, không chỉ JSON của sample.
+  - Demo script có thêm phần M3 (`docs/stem-demo-demo-script.md`).
+- **Chủ động chưa làm:** `logic_boolean`, so sánh, `else if` trong toolbox (vẫn thêm được qua mutator và compiler hỗ trợ), sự kiện "khi nhấn nút" hay interrupt, highlight block đang chạy (BL-P3), đặt hai category cùng màu khác nhau (`Pins` và `Logic` đều dùng hue 210 mặc định của logic trong Blockly).
 
 ---
 
@@ -1481,6 +1533,7 @@ Hook không phải contract có version. Thêm hoặc bớt theo nhu cầu của
 - `getProgramBlocks()`;
 - `loadProject(doc)`;
 - *(POC-12)* `getProject()`, để E2E kiểm tra document sau một lần chạy có nhấn nút (B2). `getCanvasState()` có thêm `closed` của push button, đọc từ node Konva `button-cap`.
+- *(POC-13)* Không thêm hook nào. E2E-3 chỉ dùng hook để mở sample và để quan sát (trạng thái đã render, program đã lưu); nút được nhấn bằng chuột thật và program được sửa qua Blockly UI.
 
 Status Run đọc thẳng từ DOM, nên chưa cần `getRunSnapshot`.
 
@@ -1642,7 +1695,7 @@ Chỉ cần quay lại research khi làm hạng mục backlog: track Python (spe
 |---|---|---|---|---|---|
 | M1 | 2026-10-03 | L2 (mạch mẫu), L3, L4 | Xem "M1 — chi tiết" bên dưới | L2 ✅ (mạch mẫu; mạch tự dựng ở M2) · L3 ✅ · L4 ✅ | `digitalRead`, `contacts` để tới lúc có consumer; sample mặc định là `blink`; Run gọi `saveNow` của Blockly |
 | M2 | 2026-10-03 | L1, L2, L8 + go/no-go | Xem "M2 — chi tiết" bên dưới | L1 ✅ · L2 ✅ · L8 ⚠️ (mới có lần chạy của agent) · **GO** cho M3/M4 (reviewer xác nhận 2026-10-03) | Không đổi kiến trúc. Ghi nhận: lỗi tập trung ở chuyển trạng thái của thao tác chuột (UI), không ở model |
-| M3 | — | L3 (built-in), L5, L6 | L6 ghi ở POC-12 ("M3 — chi tiết" bên dưới); phần còn lại điền ở POC-13 | | |
+| M3 | 2026-10-03 | L3 (built-in), L5, L6 | Xem "M3 — chi tiết" bên dưới | L3 ✅ · L5 ✅ · L6 ✅ · L8 ⚠️ (chỉ có lần chạy của agent) | Không đổi kiến trúc. IR của `if` dùng danh sách nhánh; điều kiện bỏ trống là lỗi (C8) |
 | M4 | — | L7 | *(điền ở POC-14)* | | |
 
 **M2 — chi tiết (POC-11).**
@@ -1672,7 +1725,20 @@ Chỉ cần quay lại research khi làm hạng mục backlog: track Python (spe
 
   Điều kiện: một người chạy thử demo script để chốt L8 trước khi kết thúc PoC.
 
-**M3 — chi tiết (POC-12, phần L6).** *(POC-13 điền L3, L5 và verdict của M3.)*
+**M3 — chi tiết (POC-12, POC-13).** Verdict: **M3 đóng.** Exit criteria ở §8.2:
+- E2E-3 xanh (20/20 khi lặp 10 lần);
+- chi phí thêm device (L6) đã ghi ở dưới;
+- demo: `button-led` → Run → giữ nút → LED sáng → nhả → tắt (E2E-3); mạch 3V3 → nút → R → LED → GND không cần program cũng sáng khi nhấn (`e2e/push-button.spec.ts`, POC-12).
+
+- **L3** (block built-in có mutator compile được từ JSON không?): **✅**
+  - `controls_if` compile chỉ từ JSON: số nhánh và `else` nằm trong `extraState`, không cần Blockly runtime. Tín hiệu phản bác ở §2.4 ("`extraState` không đủ thông tin") không xảy ra.
+  - JSON trong fixture và sample là đúng thứ Blockly tự ghi khi dựng bằng API (conformance test), và cũng là thứ Blockly UI ghi lại khi Run (E2E-3). Lần lệch fixture: 0.
+  - Code Blockly vẫn chỉ nằm trong `src/ui/blockly`, và file đó không đổi: block built-in được đăng ký sẵn.
+- **L5** (chiều device → program và tương tác lúc chạy có vừa boundary không?): **✅**
+  - Interpreter chỉ đọc qua `HardwareIO.digitalRead`. `RunSession` là nơi duy nhất nối nó với simulation (B5).
+  - Simulation không đổi: `pinReads` có từ POC-06 và chưa có consumer cho tới giờ. Renderer, canvas và toolbar không đổi.
+  - Trạng thái nhấn và mức chân không lọt vào document (integration test và E2E).
+  - Ngữ nghĩa vòng kín là polling (§6.4). Đủ cho VS-3; sự kiện hay interrupt để lại cho backlog.
 - **L6** (thêm một device tốn bao nhiêu?): **✅ cho phần riêng của device.** Push button gồm definition (`push-button.json`), model (`contact`, khoảng 10 dòng logic trong `simulate-circuit.ts`) và renderer (`PushButtonRenderer.tsx`). Các file production khác phải sửa:
 
   | File | Thay đổi | Loại |
@@ -1689,8 +1755,14 @@ Chỉ cần quay lại research khi làm hạng mục backlog: track Python (spe
   - **Không đổi:** compiler, block, IR, interpreter, document schema, netlist, geometry, operation của circuit, palette, Blockly panel, toolbar.
   - **Tín hiệu phản bác ở §2.4** ("phải sửa `RunSession`, canvas hoặc compiler theo kiểu đặc thù cho device"): **không gặp.** `RunSession` và canvas có thay đổi, nhưng theo model `contact` (qua `isContact`), không theo id `push-button`. Compiler không đổi.
   - **Dự đoán chi phí tiếp theo:** một device contact khác kiểu "giữ để đóng" chỉ cần definition, renderer (tuỳ chọn) và 2 dòng đăng ký. Switch latching (BL-S3) cần thêm một cờ ở definition để canvas bật/tắt thay vì giữ, vì kiểu tương tác là của device chứ không phải của model.
-- **L5 (một phần):** trạng thái nhấn chỉ nằm trong `ActiveRun` và snapshot. Document deep-equal sau khi chạy, cả ở integration test lẫn E2E (qua `getProject()`). Chiều device → program (`digitalRead`, `if`) thuộc POC-13.
-- **Số liệu:** nhấn → LED đã render sáng median 14 ms, max 24 ms (không có program). 0 `eslint-disable` cho B1. E2E 27 test xanh khi lặp 3 lần (81/81); spec push button 20/20 khi lặp 10 lần.
+- **L8:** **⚠️** Chỉ có lần chạy bằng script của agent; demo M3 đã được thêm vào `docs/stem-demo-demo-script.md` cho người chạy thử.
+- **Số liệu:**
+  - **Nhấn → LED đã render sáng:**
+    - không có program (POC-12): median 14 ms, max 24 ms;
+    - qua `if` (POC-13, đo tuần tự 20 lần): median 36,5 ms, max 43,8 ms. Mục tiêu §2.5 là ≤ 50 ms.
+  - **Cập nhật React:** `forever` không có `wait` của `button-led` ghi D13 mỗi 10 ms nhưng chỉ phát snapshot khi mức đổi. Integration test cho thấy 1 giây chạy chỉ sinh 2 snapshot (cấp nguồn, lệnh ghi đầu tiên), nên không có commit React nào khi không có gì đổi. Chưa đo bằng React Profiler.
+  - **Boundary:** 0 `eslint-disable` cho B1. Renderer chỉ đọc snapshot.
+  - **E2E chập chờn:** 0 lần ở M3. E2E-3 20/20 và spec push button 20/20 khi lặp 10 lần; cả bộ 29 test xanh khi lặp 3 lần (87/87).
 
 **M1 — chi tiết (POC-08).**
 - **L2:** netlist union-find cộng cặp dẫn điện của resistor đủ cho `led-on` và `blink`: 16 scenario test ở POC-06, cộng E2E-1 thấy LED render từ snapshot. Mạch do người dùng tự nối còn chờ M2.
