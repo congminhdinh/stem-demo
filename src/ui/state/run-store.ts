@@ -16,10 +16,12 @@ export type RunState = {
    * right after Run, before the next frame, must already see it.
    */
   running: boolean;
-  /** Why the last Run did not start; cleared by the next Run that starts. */
+  /** Why the last Run did not start; cleared by the next Run that starts, or by `clearStartFailure`. */
   startFailure: Extract<StartResult, { ok: false }> | null;
   run(project: ProjectDocument): void;
   stop(): void;
+  /** Forgets why the last Run did not start, e.g. when another project replaces the one that was run. */
+  clearStartFailure(): void;
 };
 
 export const selectIsRunning = (state: RunState) => state.running;
@@ -54,6 +56,7 @@ export function createRunStore(
         set({ startFailure: result.ok ? null : result });
       },
       stop: () => session.stop(),
+      clearStartFailure: () => set({ startFailure: null }),
     };
   });
 }

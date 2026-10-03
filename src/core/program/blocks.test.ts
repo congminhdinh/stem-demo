@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { blockTypes, buildBlockDefinitions, toolbox } from './blocks';
+import { blockTypes, buildBlockDefinitions, createDefaultProgram, toolbox } from './blocks';
+import { compileProgram } from './compile-program';
 
 describe('block definitions', () => {
   it('are plain JSON data', () => {
@@ -29,5 +30,15 @@ describe('block definitions', () => {
     const offered = toolbox.contents.flatMap((category) => category.contents.map((item) => item.type));
 
     expect([...offered].sort()).toEqual([...defined].sort());
+  });
+});
+
+describe('createDefaultProgram', () => {
+  it('compiles to an empty on start and an empty forever', () => {
+    expect(compileProgram(createDefaultProgram(), ['D13'])).toEqual({
+      ok: true,
+      ir: { onStart: [], forever: [] },
+      diagnostics: [],
+    });
   });
 });

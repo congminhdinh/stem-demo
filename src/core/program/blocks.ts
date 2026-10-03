@@ -91,3 +91,19 @@ export const toolbox = {
     },
   ],
 };
+
+/**
+ * The program of a new project: an empty `on start` and an empty `forever`,
+ * as Blockly serialization JSON (what the document stores).
+ */
+export function createDefaultProgram() {
+  return {
+    blocks: {
+      languageVersion: 0,
+      blocks: [
+        { type: blockTypes.onStart, id: 'on-start', x: 40, y: 40 },
+        { type: blockTypes.forever, id: 'forever', x: 40, y: 220 },
+      ],
+    },
+  };
+}

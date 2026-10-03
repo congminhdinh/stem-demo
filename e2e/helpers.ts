@@ -27,3 +27,65 @@ export async function chooseInDropdown(page: Page, current: string, next: string
 export async function expectBlockText(page: Page, text: string) {
   await expect(page.getByTestId('blockly-panel').locator('.blocklyText', { hasText: text })).toBeVisible();
 }
+
+/** What Konva rendered (dev-only hook), in world coordinates. */
+export async function canvasState(page: Page) {
+  const state = await page.evaluate(() => window.__stem?.getCanvasState());
+  if (!state) {
+    throw new Error('Canvas state is not available');
+  }
+  return state;
+}
+
+/** World → page coordinates: the viewport is fixed, so world = stage = canvas pixels. */
+export async function worldToPage(page: Page) {
+  const box = await page.getByTestId('circuit-canvas').locator('canvas').first().boundingBox();
+  if (!box) {
+    throw new Error('The canvas is not visible');
+  }
+  return { box, at: (x: number, y: number) => ({ x: box.x + x, y: box.y + y }) };
+}
+
+/**
+ * Drags the first block labelled `blockLabel` from a toolbox category's flyout
+ * into the statement input of the hat labelled `hatLabel`, as a user would.
+ * It drops the block's top-left just inside the input; Blockly snaps it in.
+ */
+export async function dragFromFlyout(page: Page, category: string, blockLabel: string, hatLabel: string) {
+  const panel = page.getByTestId('blockly-panel');
+  await panel.locator('.blocklyToolboxCategory', { hasText: category }).click();
+  await panel.locator('.blocklyFlyout .blocklyText', { hasText: blockLabel }).first().waitFor();
+  const geometry = await page.evaluate(
+    ([block, hat]) => {
+      const box = (element: Element | null | undefined) => {
+        const rect = element?.getBoundingClientRect();
+        if (!rect) {
+          throw new Error('A Blockly block is missing');
+        }
+        return { x: rect.x, y: rect.y, height: rect.height };
+      };
+      // Blockly renders label spaces as no-break spaces (U+00A0).
+      const label = (text: Element) => text.textContent?.split(String.fromCharCode(0xa0)).join(' ');
+      const texts = [...document.querySelectorAll('[data-testid=blockly-panel] .blocklyText')];
+      const blockText = texts.find((text) => label(text) === block && text.closest('.blocklyFlyout'));
+      const hatText = texts.find((text) => label(text) === hat && !text.closest('.blocklyFlyout'));
+      return {
+        blockText: box(blockText),
+        block: box(blockText?.closest('.blocklyDraggable')),
+        hatText: box(hatText),
+        hat: box(hatText?.closest('.blocklyDraggable')),
+      };
+    },
+    [blockLabel, hatLabel],
+  );
+  const grab = { x: geometry.blockText.x + 10, y: geometry.blockText.y + geometry.blockText.height / 2 };
+  const drop = {
+    x: geometry.hat.x + 16 + (grab.x - geometry.block.x),
+    y: geometry.hatText.y + geometry.hatText.height + 12 + (grab.y - geometry.block.y),
+  };
+  await page.mouse.move(grab.x, grab.y);
+  await page.mouse.down();
+  await page.mouse.move(grab.x + 20, grab.y + 10, { steps: 3 });
+  await page.mouse.move(drop.x, drop.y, { steps: 10 });
+  await page.mouse.up();
+}

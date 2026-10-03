@@ -12,7 +12,7 @@
 |---|---|
 | **PoC chứng minh gì** | Kiến trúc đã chọn đủ tốt để xây một STEM editor thực tế. Kiến trúc đó gồm: document độc lập renderer, simulation là hàm thuần, Blockly chỉ là view và program được compile sang IR, runtime chỉ chạm phần cứng ảo qua `HardwareIO`, canvas chỉ render document và snapshot (§2) |
 | **Vertical slice** | **Checkpoint MP** (bằng chứng đầu tiên): Board + LED, block "on start: digital write D13 HIGH", bấm Run thì LED sáng trên canvas. **VS-1:** mở rộng MP thành mạch Board + Resistor + LED chạy program blink (`forever` + `wait`), Stop hoạt động đúng. **VS-2:** người dùng tự dựng mạch bằng chuột rồi chạy (§3) |
-| **Task tiếp theo** | `POC-11` Build it yourself · VS-2 (§9.2). `POC-01`…`POC-10` đã xong (M1 đóng) |
+| **Task tiếp theo** | `POC-12` Push button end-to-end (§9.2, M3, P1), sau khi go/no-go M2 được xác nhận (§17). `POC-01`…`POC-11` đã xong: M1 và M2 đóng, phần P0 hoàn tất |
 | **Critical path** | `01 → 02 → 03 → 05 → 08 → 11`. Hai nhánh `02 → 06 → 07 → 08` và `03 → 09 → 10 → 11` dài bằng nhau (§10) |
 | **PoC xong khi** | M1 và M2 (P0) đạt exit criteria, Learning log trả lời được L1–L4 (§8, §17). M3 và M4 (P1) làm PoC thuyết phục hơn |
 | **Ràng buộc cứng** | Boundary B1–B8 (§5.1) và acceptance criteria của task. Mọi thứ còn lại (tên file, API helper, cấu trúc nội bộ, type chi tiết) là gợi ý |
@@ -884,7 +884,7 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
   - `blockly@13.3.0` (dependency, POC-05 sẽ dùng ở runtime). Hiện chưa có module nào trong `src` import nó, nên chưa nằm trong bundle.
   - `jsdom@29.1.1` (devDependency, peer của Blockly khi chạy trên Node).
 - **Chuyển task:**
-  - `createDefaultProgram` chuyển sang POC-11, vì chưa có consumer trước hành động "New".
+  - `createDefaultProgram` chuyển sang POC-11, vì chưa có consumer trước hành động "New". *(Đã làm ở POC-11.)*
   - Program blink hiện là fixture `src/core/program/__fixtures__/blink.json`. Mạch mẫu `blink` (có Resistor) được ghép ở POC-06 và dùng lại program này. *(POC-06: program đã chuyển vào `src/samples/blink.project.json`, fixture bị xoá.)*
 
 ---
@@ -1236,9 +1236,26 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 **Out of scope.** Lưu project.
 
 **Acceptance**
-- [ ] E2E-2 xanh, không dùng sleep cố định.
-- [ ] Khi đang chạy, palette, kéo, nối dây và xoá không có tác dụng.
-- [ ] Learning log M2 đã điền: verdict cho L1/L2/L8, các điểm khó, số liệu (§17.1), và quyết định go/no-go cho M3/M4.
+- [x] E2E-2 xanh, không dùng sleep cố định.
+- [x] Khi đang chạy, palette, kéo, nối dây và xoá không có tác dụng.
+- [x] Learning log M2 đã điền: verdict cho L1/L2/L8, các điểm khó, số liệu (§17.1), và quyết định go/no-go cho M3/M4. *(Go/no-go là đề xuất của agent, chờ xác nhận; L8 còn chờ một người chạy thử.)*
+
+**Trạng thái: xong (2026-10-03). M2 đóng.**
+- **New:**
+  - `createDefaultProgram()` (`blocks.ts`) trả về `on start` và `forever` rỗng, viết bằng `blockTypes`. Nó có trong conformance test, và Blockly thật round-trip nó không đổi.
+  - `createNewProject(id)` (`document.ts`) tạo document với circuit trống và program mặc định.
+  - Nút **New** trên header gọi `loadProject(createNewProject(crypto.randomUUID()))`. Vì `loadRevision` tăng nên Blockly và canvas được reset.
+  - New thay cả project nên cũng bị khoá khi đang chạy: nút bị disable, và handler đọc khoá từ store như `editCircuit`. Chưa có hộp xác nhận, vì chưa có persistence để mất.
+  - **Thông báo của project cũ** (lỗi do review tìm ra): lý do một lần Run không start được (`runStore.startFailure`, ví dụ "The circuit can have only one board." hoặc diagnostics compile) chỉ bị xoá ở lần Run start được tiếp theo, nên vẫn hiện trên toolbar sau New. Giờ New gọi `runStore.clearStartFailure()` ngay sau `loadProject`. RunSession không đổi: một Run thất bại vốn đã để session ở `idle`, không còn diagnostics trong snapshot. Các flow khác (sửa mạch, sửa program) vẫn giữ thông báo tới lần Run sau như trước. Regression: 2 E2E (mạch hai board, program có hai `on start`) và 1 unit test của `runStore`.
+- **Khoá khi chạy:** đã có từ POC-09/10, gồm palette, kéo, nối dây, chọn, xoá, và giờ thêm New.
+- **E2E-2** (`e2e/vs2-build.spec.ts`), đi đúng demo M2:
+  - New → thêm Board, Resistor, LED từ palette → kéo tới chỗ đặt.
+  - Nối 3 dây bằng chuột tại vị trí port mà canvas đã render (lấy từ hook).
+  - **Kéo `digital write D13 HIGH` từ flyout Pins vào `on start`**, không dùng `setProgramBlocks` dự phòng.
+  - Run → LED sáng, New và palette bị disable → Stop → chọn và xoá dây D13 → R.a → Run → LED không sáng → Stop.
+  - Không dùng sleep cố định; xanh 10/10 lần với `--repeat-each=10`. Helper `dragFromFlyout`, `canvasState` và `worldToPage` chuyển vào `e2e/helpers.ts`.
+- **Demo script:** `docs/stem-demo-demo-script.md` (M1 và M2), kèm phần nhận xét L8 từ lần chạy của agent. Chỗ dành cho người chạy thử thật vẫn để trống.
+- **Evidence L2:** unit test ở POC-10 dựng lại mạch `blink` bằng operation và cho netlist trùng với sample. E2E-2 cho thấy mạch tự dựng làm LED sáng, và mạch hở (sau khi xoá dây) thì không.
 
 ---
 
@@ -1581,9 +1598,36 @@ Chỉ cần quay lại research khi làm hạng mục backlog: track Python (spe
 | Milestone | Ngày | Câu hỏi | Evidence | Verdict | Thay đổi plan |
 |---|---|---|---|---|---|
 | M1 | 2026-10-03 | L2 (mạch mẫu), L3, L4 | Xem "M1 — chi tiết" bên dưới | L2 ✅ (mạch mẫu; mạch tự dựng ở M2) · L3 ✅ · L4 ✅ | `digitalRead`, `contacts` để tới lúc có consumer; sample mặc định là `blink`; Run gọi `saveNow` của Blockly |
-| M2 | — | L1, L2, L8 + go/no-go | *(điền ở POC-11)* | | |
+| M2 | 2026-10-03 | L1, L2, L8 + go/no-go | Xem "M2 — chi tiết" bên dưới | L1 ✅ · L2 ✅ · L8 ⚠️ (mới có lần chạy của agent) · **Đề xuất: GO** cho M3/M4 | Không đổi kiến trúc. Ghi nhận: lỗi tập trung ở chuyển trạng thái của thao tác chuột (UI), không ở model |
 | M3 | — | L3 (built-in), L5, L6 | *(điền ở POC-13)* | | |
 | M4 | — | L7 | *(điền ở POC-14)* | | |
+
+**M2 — chi tiết (POC-11).**
+- **L1** (editor/document có hỗ trợ tốt tương tác thật trên Konva không?): **✅**
+  - Dựng mạch hoàn toàn bằng chuột (E2E-2). Document là nguồn sự thật duy nhất. Konva chỉ giữ vị trí node trong lúc kéo; preview kéo và preview dây là state cục bộ.
+  - Vị trí port, hit-test port (`nearestPort`) và snap lưới đều lấy từ core (B7). Renderer không tự tính geometry.
+  - **Điểm khó, toàn bộ ở UI:** 6 finding review ở POC-09/10/11, đều là chuyển trạng thái của thao tác:
+    - khoá chậm một frame sau Run;
+    - preview kéo sống qua lúc chạy;
+    - huỷ dây khi bấm làm Konva kéo nhầm component;
+    - dây đang nối sót lại khi rời canvas;
+    - một frame canvas trống khi mount lại;
+    - thông báo Run thất bại của project cũ còn hiện sau New.
+
+    Không finding nào bắt phải đổi model, operation hay boundary.
+- **L2** (connection graph có đủ cho mạch người dùng tự nối không?): **✅** Mạch dựng bằng operation có netlist trùng sample (unit test POC-10). Mạch tự dựng trong E2E-2 làm LED sáng; xoá một dây thì không.
+- **L8** (có cảm giác như sản phẩm STEM thật không?): **⚠️** Mới có lần chạy bằng script của agent (`docs/stem-demo-demo-script.md`): flow trọn vẹn, phản hồi rõ, và 6 chỗ vấp đã được ghi lại. **Cần một người chạy thử** rồi điền vào demo script và vào đây.
+- **Số liệu (§17.1):**
+  - **Boundary:** 0 `eslint-disable` cho B1; renderer không cần biết gì ngoài snapshot.
+  - **E2E chập chờn:** 1 lần trong M2 (canvas trống một frame khi mount lại, POC-09), đã sửa tận gốc. E2E-2 xanh 10/10 lần lặp; cả bộ 23 test xanh khi lặp 3 lần.
+  - **Sau fix review POC-11 (25 test):** có 1 lần fail chưa rõ nguyên nhân khi lặp cả bộ 3 lần (74/75). Đó là `beforeEach` của `program.spec.ts` (POC-05): sau `openProject(led-on)`, Blockly không hiện `on start` trong 5 s. Code path này (hook `loadProject` → Blockly reload) không đổi ở POC-11. Lần đó không có trace. Không tái hiện được trong 1.155 lần chạy sau: cả bộ ×4, ×5 (bảy lần), và các spec dùng `openProject` ×20 với 12 worker. Trong 680 lần chạy cuối có ghi log dev server, Vite không reload trang lần nào. Chưa sửa gì; nếu gặp lại thì xem trace (`--trace retain-on-failure`).
+  - **Kéo khối từ flyout Blockly** trong Playwright ổn định (rủi ro R5): không phải dùng `setProgramBlocks` dự phòng.
+- **Go/no-go: đề xuất GO** cho M3 (POC-12, 13), rồi M4 (POC-14), giữ nguyên kiến trúc. Lý do:
+  - L1/L2 đạt mà không phải đổi boundary nào;
+  - chi phí phát sinh nằm ở thao tác chuột, và M3 chỉ thêm một thao tác (nhấn giữ nút lúc chạy);
+  - seam cho M3 đã có: `pinReads` trong simulation, `contacts` ở POC-12, `digitalRead` ở POC-13.
+
+  Điều kiện: một người chạy thử demo script để chốt L8 trước khi kết thúc PoC.
 
 **M1 — chi tiết (POC-08).**
 - **L2:** netlist union-find cộng cặp dẫn điện của resistor đủ cho `led-on` và `blink`: 16 scenario test ở POC-06, cộng E2E-1 thấy LED render từ snapshot. Mạch do người dùng tự nối còn chờ M2.

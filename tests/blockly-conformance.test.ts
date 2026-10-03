@@ -4,7 +4,7 @@ import disabledHat from '../src/core/program/__fixtures__/disabled-hat.json';
 import disabledStatement from '../src/core/program/__fixtures__/disabled-statement.json';
 import duplicateOnStart from '../src/core/program/__fixtures__/duplicate-on-start.json';
 import orphanBlock from '../src/core/program/__fixtures__/orphan-block.json';
-import { buildBlockDefinitions } from '../src/core/program/blocks';
+import { buildBlockDefinitions, createDefaultProgram } from '../src/core/program/blocks';
 import blinkSample from '../src/samples/blink.project.json';
 import ledOnSample from '../src/samples/led-on.project.json';
 
@@ -19,6 +19,7 @@ describe('Blockly conformance', () => {
   it.each<[string, Record<string, unknown>]>([
     ['led-on sample', ledOnSample.program.blocks],
     ['blink sample', blinkSample.program.blocks],
+    ['default program of a new project', createDefaultProgram()],
     ['orphan-block', orphanBlock],
     ['duplicate-on-start', duplicateOnStart],
     ['disabled-statement', disabledStatement],

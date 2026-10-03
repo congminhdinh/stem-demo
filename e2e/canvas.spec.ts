@@ -1,27 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openProject, samples } from './helpers';
+import { canvasState, openProject, samples, worldToPage } from './helpers';
 
-const canvasState = async (page: Page) => {
-  const state = await page.evaluate(() => window.__stem?.getCanvasState());
-  if (!state) {
-    throw new Error('Canvas state is not available');
-  }
-  return state;
-};
 const componentIds = async (page: Page) => (await canvasState(page)).components.map((component) => component.id);
 const componentById = async (page: Page, id: string) =>
   (await canvasState(page)).components.find((component) => component.id === id);
 const wirePoints = async (page: Page, id: string) =>
   (await canvasState(page)).wires.find((wire) => wire.id === id)?.points;
-
-/** World → page coordinates: the viewport is fixed, so world = stage = canvas pixels. */
-async function worldToPage(page: Page) {
-  const box = await page.getByTestId('circuit-canvas').locator('canvas').first().boundingBox();
-  if (!box) {
-    throw new Error('The canvas is not visible');
-  }
-  return { box, at: (x: number, y: number) => ({ x: box.x + x, y: box.y + y }) };
-}
 
 test('renders the led-on sample on the canvas from the document', async ({ page }) => {
   await openProject(page, samples.ledOn);

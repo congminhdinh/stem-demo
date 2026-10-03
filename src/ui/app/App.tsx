@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useStore } from 'zustand';
-import type { Circuit } from '../../core/circuit/document';
+import { createNewProject, type Circuit } from '../../core/circuit/document';
 import type { DeviceRegistry } from '../../core/devices/registry';
 import { BlocklyPanel, type BlocklyPanelHandle } from '../blockly/BlocklyPanel';
 import { CircuitCanvas } from '../canvas/CircuitCanvas';
@@ -29,6 +29,15 @@ export function App({ projectStore, runStore, registry, boardPins }: AppProps) {
     runStore.getState().run(projectStore.getState().document);
   };
 
+  // New replaces the whole project, so it is locked while running like any
+  // edit. Why the last Run did not start was about the replaced project.
+  const newProject = () => {
+    if (!selectIsRunning(runStore.getState())) {
+      projectStore.getState().loadProject(createNewProject(crypto.randomUUID()));
+      runStore.getState().clearStartFailure();
+    }
+  };
+
   // Every circuit edit lands here. The lock is read from the store, not from
   // the last render: an edit in the same task as Run must not slip through,
   // or the document would no longer match the circuit being run.
@@ -43,6 +52,9 @@ export function App({ projectStore, runStore, registry, boardPins }: AppProps) {
       <header className="app-header">
         <h1>STEM Studio</h1>
         <p>Proof of Concept</p>
+        <button type="button" onClick={newProject} disabled={running}>
+          New
+        </button>
         <RunToolbar runStore={runStore} onRun={run} />
       </header>
       <main className="workspace">

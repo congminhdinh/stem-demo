@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { createDefaultProgram } from '../program/blocks';
 
 // Project document contract (plan §6.1). Design state only: runtime state
 // (pin levels, LED lit, pressed buttons) never lives here (B2).
@@ -39,4 +40,15 @@ export type Point = z.infer<typeof pointSchema>;
 
 export function isSamePort(a: PortRef, b: PortRef): boolean {
   return a.componentId === b.componentId && a.portId === b.portId;
+}
+
+/** What "New" opens (plan POC-11): no components, no wires, the default program. */
+export function createNewProject(id: string): ProjectDocument {
+  return {
+    schemaVersion: 1,
+    id,
+    name: 'Untitled',
+    circuit: { components: [], wires: [] },
+    program: { blocks: createDefaultProgram() },
+  };
 }

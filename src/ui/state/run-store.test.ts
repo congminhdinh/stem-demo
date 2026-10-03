@@ -62,6 +62,19 @@ describe('runStore', () => {
     expect(store.getState().startFailure).toBeNull();
   });
 
+  it('forgets why a Run did not start on clearStartFailure, without touching the session', () => {
+    const { session, store, frames } = setup();
+    store.getState().run({ ...ledOn, circuit: { components: [], wires: [] } });
+    expect(store.getState().startFailure).toMatchObject({ ok: false, reason: 'no-board' });
+
+    store.getState().clearStartFailure();
+
+    expect(store.getState().startFailure).toBeNull();
+    expect(session.getSnapshot().status).toBe('idle');
+    expect(selectIsRunning(store.getState())).toBe(false);
+    expect(frames).toHaveLength(0);
+  });
+
   it('counts a finished program as running until Stop (the board stays powered)', async () => {
     const { store, renderFrame } = setup();
     expect(selectIsRunning(store.getState())).toBe(false);
