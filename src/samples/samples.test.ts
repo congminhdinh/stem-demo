@@ -4,6 +4,7 @@ import { connectWire } from '../core/circuit/wires';
 import { localDeviceDefinitions } from '../core/devices/local-catalog';
 import { createDeviceRegistry } from '../core/devices/registry';
 import blinkSample from './blink.project.json';
+import buttonDirectSample from './button-direct.project.json';
 import ledOnSample from './led-on.project.json';
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
@@ -11,6 +12,7 @@ const registry = createDeviceRegistry(localDeviceDefinitions);
 describe.each([
   ['led-on', ledOnSample, ['board', 'led']],
   ['blink', blinkSample, ['board', 'resistor', 'led']],
+  ['button-direct', buttonDirectSample, ['board', 'push-button', 'resistor', 'led']],
 ])('%s sample', (_, sample, deviceTypes) => {
   it('is a project document whose wires all pass the wiring rules', () => {
     const document = projectDocumentSchema.parse(sample);

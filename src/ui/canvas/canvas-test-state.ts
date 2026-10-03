@@ -2,8 +2,19 @@ import Konva from 'konva';
 
 /** What Konva actually rendered, in world coordinates (dev/E2E only, plan §11.4). */
 export type CanvasTestState = {
-  /** `lit` is read from the LED's light node, as its renderer drew it; `selected` from the selection outline. */
-  components: { id: string; deviceType: string; x: number; y: number; lit?: boolean; selected: boolean }[];
+  /**
+   * `lit` and `closed` are read from the LED's light and the push button's
+   * cap, as their renderers drew them; `selected` from the selection outline.
+   */
+  components: {
+    id: string;
+    deviceType: string;
+    x: number;
+    y: number;
+    lit?: boolean;
+    closed?: boolean;
+    selected: boolean;
+  }[];
   wires: { id: string; points: number[]; selected: boolean }[];
   ports: { componentId: string; portId: string; x: number; y: number }[];
   /** Ports drawn highlighted: the hovered one and the one a wire is drawn from. */
@@ -25,6 +36,7 @@ export function readCanvasState(): CanvasTestState | null {
       x: node.x(),
       y: node.y(),
       lit: node.findOne('.led-light')?.getAttr('lit'),
+      closed: node.findOne('.button-cap')?.getAttr('closed'),
       selected: node.findOne('.selection') !== undefined,
     })),
     wires: stage.find<Konva.Line>('.wire').map((node) => ({

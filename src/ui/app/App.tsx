@@ -67,6 +67,8 @@ export function App({ projectStore, runStore, registry, boardPins }: AppProps) {
             simulation={simulation}
             locked={running}
             onCircuitChange={editCircuit}
+            // Runtime input, not an edit: the session ignores it unless running.
+            onContactChange={(componentId, closed) => runStore.getState().setContactInput(componentId, closed)}
           />
         </section>
         <section className="program-region" aria-label="Program" data-testid="program-region">

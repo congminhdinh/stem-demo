@@ -12,7 +12,7 @@
 |---|---|
 | **PoC chứng minh gì** | Kiến trúc đã chọn đủ tốt để xây một STEM editor thực tế. Kiến trúc đó gồm: document độc lập renderer, simulation là hàm thuần, Blockly chỉ là view và program được compile sang IR, runtime chỉ chạm phần cứng ảo qua `HardwareIO`, canvas chỉ render document và snapshot (§2) |
 | **Vertical slice** | **Checkpoint MP** (bằng chứng đầu tiên): Board + LED, block "on start: digital write D13 HIGH", bấm Run thì LED sáng trên canvas. **VS-1:** mở rộng MP thành mạch Board + Resistor + LED chạy program blink (`forever` + `wait`), Stop hoạt động đúng. **VS-2:** người dùng tự dựng mạch bằng chuột rồi chạy (§3) |
-| **Task tiếp theo** | `POC-12` Push button end-to-end (§9.2, M3, P1), sau khi go/no-go M2 được xác nhận (§17). `POC-01`…`POC-11` đã xong: M1 và M2 đóng, phần P0 hoàn tất |
+| **Task tiếp theo** | `POC-13` Conditional blocks · VS-3 (§9.2, M3, P1). `POC-01`…`POC-12` đã xong: M1 và M2 đóng (GO cho M3/M4 đã được xác nhận, §17), phần P0 hoàn tất |
 | **Critical path** | `01 → 02 → 03 → 05 → 08 → 11`. Hai nhánh `02 → 06 → 07 → 08` và `03 → 09 → 10 → 11` dài bằng nhau (§10) |
 | **PoC xong khi** | M1 và M2 (P0) đạt exit criteria, Learning log trả lời được L1–L4 (§8, §17). M3 và M4 (P1) làm PoC thuyết phục hơn |
 | **Ràng buộc cứng** | Boundary B1–B8 (§5.1) và acceptance criteria của task. Mọi thứ còn lại (tên file, API helper, cấu trúc nội bộ, type chi tiết) là gợi ý |
@@ -191,7 +191,7 @@ Mỗi assumption quan trọng của v1 được truy về nguồn gốc rồi qu
 | **Board** (Uno-like) | `d2`…`d13` (`gpio`, cùng một cạnh, cách nhau 20), `3v3` (`power`), `gnd` (`ground`) | `board` | M1 | Đích của program, đồng thời là nguồn |
 | **LED** | `anode` (−10, 30), `cathode` (10, 30); thân khoảng 40×70 | `led` | M1 | Phản ứng nhìn thấy được. Có cực tính nên mạch thực tế |
 | **Resistor** | `a` (−40, 0), `b` (40, 0) | `resistor` (dẫn điện) | M1, **sau MP** | Mạch STEM thật luôn có điện trở. Chứng minh một device passive nằm trong net graph. Chỉ là data, generic renderer và một model dẫn điện, nên rất rẻ. **Không phải dependency của MP** |
-| **Push button** | `a`, `b` (2 chân) | `contact` (dẫn khi đang nhấn) | M3 | Input, tương tác lúc chạy, và dùng để đo chi phí thêm device (L6) |
+| **Push button** | `a` (−30, 0), `b` (30, 0); thân 60×40 *(POC-12)* | `contact` (dẫn khi đang nhấn) | M3 | Input, tương tác lúc chạy, và dùng để đo chi phí thêm device (L6) |
 
 **Reference behavior:** offset của LED và resistor lấy từ catalog OhStem. OhStem dùng nút 4 chân có internal connection để cắm breadboard; PoC không có breadboard nên chỉ dùng 2 chân. Chân board OhStem cách nhau 15 px, dễ bấm nhầm, nên PoC dùng 20.
 
@@ -564,7 +564,13 @@ Việc giới hạn tối đa một lần cập nhật UI mỗi frame thuộc v�
   Run mất ownership thì bị abort: timer bị huỷ, không ghi chân, không simulate và không publish nữa.
 - Chỉ simulate lại và phát snapshot khi một chân **đổi** mức.
 - Kết quả của một lần chạy đã bị stop hoặc bị thay thế không bao giờ ghi vào snapshot.
-- Bước 5 (`digitalRead`) và bước 6 (contact) chưa có: lần lượt thuộc POC-13 và POC-12.
+- Bước 5 (`digitalRead`) chưa có, thuộc POC-13. *(Bước 6 có từ POC-12, xem bên dưới.)*
+
+*(POC-12)* `setContactInput(componentId, closed)`:
+- `contacts` (component id → đang đóng) là runtime state của run, nằm cạnh `pinOutputs`. Nó mất cùng run: Stop, hay một `start` mới, mở lại mọi contact (B2).
+- Bỏ qua khi `idle`, khi component không phải contact trong circuit của run (id lạ, LED, board…), và khi trạng thái không đổi. Nhờ vậy quy tắc "chỉ phát snapshot khi có thay đổi" vẫn đúng.
+- Có tác dụng ở mọi status của run, kể cả `finished` và `error`: board vẫn được cấp nguồn tới khi Stop (E6, E7), giống nút trên mạch thật.
+- Giữ quy tắc reentrancy: cập nhật `contacts` rồi mới publish, publish là bước cuối.
 
 **Mở rộng sau này:** một runtime chạy ở thread khác (Pyodide) không đọc chân đồng bộ được. Khi đó `RunSession` sẽ phải đẩy các thay đổi giá trị đọc xuống runtime (v1 gọi là `notifyInputsChanged`). Đây là phần **cộng thêm** vào API, vì vậy cần giữ `RunSession` là nơi duy nhất biết khi nào giá trị đọc thay đổi.
 
@@ -581,7 +587,7 @@ Việc giới hạn tối đa một lần cập nhật UI mỗi frame thuộc v�
 
 **Thuật toán** — `simulateCircuit(circuit, registry, inputs) → SimulationResult`, hàm thuần. Giống `buildNetlist`, hàm giả định document hợp lệ (I1–I2); với document hợp lệ thì **không bao giờ throw**: chập, net floating, LED cắm ngược hay model lạ đều là kết quả, không phải lỗi.
 
-Input: `inputs = { powered: boolean; pinOutputs: Record<pinName, 0 | 1> }`. Chân không có trong `pinOutputs` là chân chưa được drive. *(POC-06)* `contacts: Record<componentId, boolean>` được thêm ở POC-12, cùng lúc với model `contact` dùng nó.
+Input: `inputs = { powered: boolean; pinOutputs: Record<pinName, 0 | 1> }`. Chân không có trong `pinOutputs` là chân chưa được drive. *(POC-06)* `contacts: Record<componentId, boolean>` được thêm ở POC-12, cùng lúc với model `contact` dùng nó. *(POC-12)* `contacts` là field tuỳ chọn: contact không có trong đó (hoặc không phải đúng `true`) là đang mở, nên các caller cũ không phải đổi.
 
 1. **Dẫn điện:** mỗi model có thể khai báo các cặp port đang dẫn: `resistor` luôn dẫn `a`–`b`; `contact` dẫn khi đang đóng.
 2. **Net:** union-find trên khoá `componentId/portId`, gộp theo dây, `internalConnections` và các cặp dẫn điện ở bước 1.
@@ -590,10 +596,10 @@ Input: `inputs = { powered: boolean; pinOutputs: Record<pinName, 0 | 1> }`. Châ
 5. **Đánh giá model:**
    - LED `lit` ⇔ `net(anode) ≠ net(cathode)` ∧ `level(anode) = high` ∧ `level(cathode) = low`;
    - chân board đọc ra `1` ⇔ net của nó là `high` (net `conflict` đọc ra 0);
-   - contact trả về `{closed}` (POC-12).
+   - contact trả về `{closed}` (POC-12). *(POC-12)* Renderer vẽ nút "đang nhấn" từ giá trị này trong snapshot, giống LED đọc `lit`; UI không tự giữ trạng thái nhấn để vẽ.
 6. **Kết quả** (JSON-serializable): `{ nets, components, pinReads }`. Model lạ thì device inert. PoC không cần danh sách `issues`.
    - `nets`: port và mức của từng net. Net `conflict` là các net có `level: 'conflict'`, nên không cần danh sách riêng.
-   - `components`: runtime state theo component id, dành cho renderer. Hiện chỉ LED có state (`{ lit }`).
+   - `components`: runtime state theo component id, dành cho renderer: LED có `{ lit }`, contact có `{ closed }` (type `ComponentState`, POC-12).
    - `pinReads`: giá trị `digitalRead` trả về, theo tên chân.
    - *(POC-06)* Chưa có `netOfPort` (`nets[].ports` đã đủ; thêm khi tô màu dây, BL-S2) và `driven` của chân (runtime đã biết chân nào nó ghi).
 
@@ -1238,7 +1244,7 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 **Acceptance**
 - [x] E2E-2 xanh, không dùng sleep cố định.
 - [x] Khi đang chạy, palette, kéo, nối dây và xoá không có tác dụng.
-- [x] Learning log M2 đã điền: verdict cho L1/L2/L8, các điểm khó, số liệu (§17.1), và quyết định go/no-go cho M3/M4. *(Go/no-go là đề xuất của agent, chờ xác nhận; L8 còn chờ một người chạy thử.)*
+- [x] Learning log M2 đã điền: verdict cho L1/L2/L8, các điểm khó, số liệu (§17.1), và quyết định go/no-go cho M3/M4. *(Go/no-go: agent đề xuất, reviewer xác nhận ngày 2026-10-03; L8 còn chờ một người chạy thử.)*
 
 **Trạng thái: xong (2026-10-03). M2 đóng.**
 - **New:**
@@ -1277,10 +1283,46 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 **Out of scope.** Switch (dạng latching, có trong backlog), phím tắt, multi-touch.
 
 **Acceptance**
-- [ ] Integration headless: `setContactInput` làm simulation tính lại. D2 nối qua nút lên 3V3 đọc 1 khi nhấn, 0 khi nhả.
-- [ ] Giữ nút thì LED sáng (mạch không cần program), nhả thì tắt. Nhả chuột bên ngoài canvas không làm nút bị kẹt.
-- [ ] Document không đổi sau một lần chạy (trạng thái nhấn không được lưu).
-- [ ] Bằng chứng cho L6 đã được ghi.
+- [x] Integration headless: `setContactInput` làm simulation tính lại. D2 nối qua nút lên 3V3 đọc 1 khi nhấn, 0 khi nhả.
+- [x] Giữ nút thì LED sáng (mạch không cần program), nhả thì tắt. Nhả chuột bên ngoài canvas không làm nút bị kẹt.
+- [x] Document không đổi sau một lần chạy (trạng thái nhấn không được lưu).
+- [x] Bằng chứng cho L6 đã được ghi.
+
+**Trạng thái: xong (2026-10-03).**
+- **Definition** `push-button.json`: 2 port `passive` `a` (−30, 0) và `b` (30, 0), thân 60×40, renderer `push-button`, model `contact`. Palette tự có mục "Push Button" vì nó liệt kê registry (B6); không phải sửa code palette.
+- **Model `contact`** (`simulate-circuit.ts`):
+  - dẫn `a`–`b` khi `inputs.contacts[id] === true`, đi qua cùng đường `extraConnections` với resistor; netlist không đổi;
+  - trả về `components[id] = { closed }` cho renderer;
+  - `isContact(definition)` là nơi duy nhất biết id model `contact`; session và canvas dùng lại nó.
+  - So sánh đúng `=== true`, nên một id dạng "constructor" không bao giờ đọc nhầm member của `Object.prototype` thành "đang đóng".
+- **`RunSession.setContactInput`:** quy tắc ở §6.4. Để làm việc này, state của một run gom lại thành `ActiveRun` (`program`, `circuit`, `pinOutputs`, `contacts`) thay vì vài biến rời trong closure của `start`. Hành vi cũ không đổi: mọi test của POC-07 vẫn xanh nguyên văn.
+- **UI:**
+  - `runStore.setContactInput` chỉ chuyển tiếp xuống session. Snapshot vẫn được gộp theo frame như mọi thay đổi khác.
+  - `CircuitCanvas` nhận `onContactChange`, tách khỏi `onCircuitChange`: nhấn nút không phải thao tác sửa mạch, nên không đi qua `editCircuit` và không chạm document.
+  - **Nhấn:** khi đang chạy, pointerdown lên thân của một contact thì giữ nó đóng. Port marker vẫn nằm trên cùng và không làm gì khi đang chạy; tâm nút cách port 30, ngoài vùng bắt 12.
+  - **Nhả:** `pointerup` ở bất cứ đâu hoặc `pointercancel` (nghe trên `window`, qua `useEffectEvent` của React 19), hoặc khi canvas unmount (load project khác).
+  - Canvas chỉ nhớ id của nút đang được giữ (`ref`, không render). Hình "đang nhấn" lấy từ `closed` trong snapshot, nên session là nguồn sự thật duy nhất của trạng thái nhấn.
+  - **Lúc thiết kế** click vẫn chọn nút như mọi component; kéo, xoá, nối dây không đổi.
+  - **Stop khi đang giữ nút:** session mở contact cùng run. Lần nhả sau đó gọi `setContactInput` lúc `idle`, nên bị bỏ qua; Run lại thì nút đang mở.
+- **Renderer** `PushButtonRenderer`: đế tối và cap tròn; khi `closed` thì cap nhỏ lại, tối hơn và mất bóng. Thuộc tính `closed` được đặt trên node `button-cap` để test hook đọc lại điều renderer đã vẽ.
+- **Sample** `button-direct` (`src/samples/button-direct.project.json`): 3V3 → nút → R → LED → GND, program là program mặc định rỗng. Sample `button-led` (có `if`) vẫn thuộc POC-13.
+- **Test:**
+  - Unit simulation (4): contact chỉ dẫn khi đóng; D2 qua nút đọc 1/0; không có nguồn thì không sáng; chỉ đóng đúng contact được nêu, kể cả id "constructor".
+  - Integration headless `run-session.test.ts` (7): D2 đọc 1 khi nhấn, 0 khi nhả (acceptance); LED sáng không cần program, và chỉ phát snapshot khi contact đổi; vẫn có tác dụng sau khi program xong; bỏ qua lúc `idle`, id không phải contact và id lạ; Stop hoặc `start` mới mở lại contact; listener gọi Stop ngay trong lúc nhấn thì Stop thắng; document deep-equal sau khi nhấn (B2).
+  - Thêm: registry, palette, renderer, `runStore` chuyển tiếp lần nhấn, sample hợp lệ và conformance Blockly của sample.
+  - E2E `e2e/push-button.spec.ts` (2):
+    1. lúc thiết kế click thì chọn nút; Run → giữ → cap và LED đã render sáng → nhả → tắt → Stop; document vẫn deep-equal sample;
+    2. nhả trên vùng Blockly, `pointercancel`, và Stop trong lúc giữ đều không làm nút bị kẹt.
+  - Đã thử làm hỏng từng quy tắc (8 lần): bỏ listener `pointerup`, bỏ `pointercancel`, cho nhấn cả lúc thiết kế, giữ `contacts` qua run mới, so sánh truthy thay vì `=== true`, session nhận mọi id, session phát cả khi không đổi, contact luôn dẫn. Lần nào cũng có test fail.
+- **Số đo** (dev server, Chromium, máy dev; từ `pointerdown`/`pointerup` tới khi LED đã render đổi trạng thái, 10 lần): nhấn → sáng median 14 ms, max 24 ms; nhả → tắt median 14 ms, max 19 ms. Đây là đường không có program; mục tiêu ≤ 50 ms của §2.5 (qua `if`) thuộc POC-13.
+- **Lệch khỏi plan, có chủ đích:**
+  - Thêm E2E riêng cho nút ở task này, dù E2E-3 thuộc POC-13. Lý do: nhấn/nhả trên Konva và nhả ngoài canvas là hành vi của trình duyệt (R4/R5); unit test không thấy được. E2E-3 vẫn là spec của slice.
+  - Thêm sample `button-direct` dùng chung cho integration test và E2E.
+  - `contacts` là field tuỳ chọn của input simulation (§6.5).
+  - Thêm hook `getProject()` (§11.4).
+- **Chủ động chưa làm:** nhả khi cửa sổ mất focus (plan chỉ yêu cầu `pointerup`/`pointercancel`; lần nhả kế tiếp ở bất cứ đâu cũng mở nút), con trỏ dạng "tay" trên nút lúc chạy, switch latching (BL-S3), demo script M3 (POC-13 viết cùng sample `button-led`).
+- **Một lần chạy unit test bị fail không liên quan:** test đầu tiên của `tests/core-boundary.test.ts` (ESLint load config lần đầu) mất 11,6 s, vượt timeout 5 s; bình thường mất khoảng 0,7 s. Chỉ gặp một lần; các lần chạy sau (ít nhất 6 lần) đều xanh. Chưa sửa gì.
+- **Bằng chứng L6:** xem "M3 — chi tiết (POC-12, phần L6)" ở §17.
 
 ---
 
@@ -1437,7 +1479,8 @@ Hook không phải contract có version. Thêm hoặc bớt theo nhu cầu của
 *(Sau POC-08)* Hook hiện có:
 - `getCanvasState()`: component, dây, port, và `lit` đọc từ node Konva; đóng vai trò của `getRenderedState`. Từ POC-09/10 có thêm `selected` (component, dây), `highlightedPorts` và `wirePreview`. Toạ độ client được suy ra từ bounding box của canvas, vì viewport cố định nên world = toạ độ canvas; chưa cần `portClientPosition`;
 - `getProgramBlocks()`;
-- `loadProject(doc)`.
+- `loadProject(doc)`;
+- *(POC-12)* `getProject()`, để E2E kiểm tra document sau một lần chạy có nhấn nút (B2). `getCanvasState()` có thêm `closed` của push button, đọc từ node Konva `button-cap`.
 
 Status Run đọc thẳng từ DOM, nên chưa cần `getRunSnapshot`.
 
@@ -1598,8 +1641,8 @@ Chỉ cần quay lại research khi làm hạng mục backlog: track Python (spe
 | Milestone | Ngày | Câu hỏi | Evidence | Verdict | Thay đổi plan |
 |---|---|---|---|---|---|
 | M1 | 2026-10-03 | L2 (mạch mẫu), L3, L4 | Xem "M1 — chi tiết" bên dưới | L2 ✅ (mạch mẫu; mạch tự dựng ở M2) · L3 ✅ · L4 ✅ | `digitalRead`, `contacts` để tới lúc có consumer; sample mặc định là `blink`; Run gọi `saveNow` của Blockly |
-| M2 | 2026-10-03 | L1, L2, L8 + go/no-go | Xem "M2 — chi tiết" bên dưới | L1 ✅ · L2 ✅ · L8 ⚠️ (mới có lần chạy của agent) · **Đề xuất: GO** cho M3/M4 | Không đổi kiến trúc. Ghi nhận: lỗi tập trung ở chuyển trạng thái của thao tác chuột (UI), không ở model |
-| M3 | — | L3 (built-in), L5, L6 | *(điền ở POC-13)* | | |
+| M2 | 2026-10-03 | L1, L2, L8 + go/no-go | Xem "M2 — chi tiết" bên dưới | L1 ✅ · L2 ✅ · L8 ⚠️ (mới có lần chạy của agent) · **GO** cho M3/M4 (reviewer xác nhận 2026-10-03) | Không đổi kiến trúc. Ghi nhận: lỗi tập trung ở chuyển trạng thái của thao tác chuột (UI), không ở model |
+| M3 | — | L3 (built-in), L5, L6 | L6 ghi ở POC-12 ("M3 — chi tiết" bên dưới); phần còn lại điền ở POC-13 | | |
 | M4 | — | L7 | *(điền ở POC-14)* | | |
 
 **M2 — chi tiết (POC-11).**
@@ -1622,12 +1665,32 @@ Chỉ cần quay lại research khi làm hạng mục backlog: track Python (spe
   - **E2E chập chờn:** 1 lần trong M2 (canvas trống một frame khi mount lại, POC-09), đã sửa tận gốc. E2E-2 xanh 10/10 lần lặp; cả bộ 23 test xanh khi lặp 3 lần.
   - **Sau fix review POC-11 (25 test):** có 1 lần fail chưa rõ nguyên nhân khi lặp cả bộ 3 lần (74/75). Đó là `beforeEach` của `program.spec.ts` (POC-05): sau `openProject(led-on)`, Blockly không hiện `on start` trong 5 s. Code path này (hook `loadProject` → Blockly reload) không đổi ở POC-11. Lần đó không có trace. Không tái hiện được trong 1.155 lần chạy sau: cả bộ ×4, ×5 (bảy lần), và các spec dùng `openProject` ×20 với 12 worker. Trong 680 lần chạy cuối có ghi log dev server, Vite không reload trang lần nào. Chưa sửa gì; nếu gặp lại thì xem trace (`--trace retain-on-failure`).
   - **Kéo khối từ flyout Blockly** trong Playwright ổn định (rủi ro R5): không phải dùng `setProgramBlocks` dự phòng.
-- **Go/no-go: đề xuất GO** cho M3 (POC-12, 13), rồi M4 (POC-14), giữ nguyên kiến trúc. Lý do:
+- **Go/no-go: GO** cho M3 (POC-12, 13), rồi M4 (POC-14), giữ nguyên kiến trúc. Agent đề xuất; reviewer xác nhận ngày 2026-10-03 ("M2 verified" về exit criteria kỹ thuật). L8 vẫn chờ người chạy thử nhưng không chặn P1. Lý do:
   - L1/L2 đạt mà không phải đổi boundary nào;
   - chi phí phát sinh nằm ở thao tác chuột, và M3 chỉ thêm một thao tác (nhấn giữ nút lúc chạy);
   - seam cho M3 đã có: `pinReads` trong simulation, `contacts` ở POC-12, `digitalRead` ở POC-13.
 
   Điều kiện: một người chạy thử demo script để chốt L8 trước khi kết thúc PoC.
+
+**M3 — chi tiết (POC-12, phần L6).** *(POC-13 điền L3, L5 và verdict của M3.)*
+- **L6** (thêm một device tốn bao nhiêu?): **✅ cho phần riêng của device.** Push button gồm definition (`push-button.json`), model (`contact`, khoảng 10 dòng logic trong `simulate-circuit.ts`) và renderer (`PushButtonRenderer.tsx`). Các file production khác phải sửa:
+
+  | File | Thay đổi | Loại |
+  |---|---|---|
+  | `core/devices/local-catalog.ts` | +1 import, +1 phần tử | Đăng ký definition; device nào cũng cần |
+  | `ui/canvas/renderers.ts` | +1 entry; `runtimeState` dùng `ComponentState` | Đăng ký renderer; type chỉ đổi một lần, cho state đầu tiên không phải `lit` |
+  | `core/simulation/simulate-circuit.ts` | input `contacts`, `ComponentState`, `isContact` | Contract đã có ở §6.5; một lần cho model `contact` |
+  | `core/run/run-session.ts` | `setContactInput`, gom state run thành `ActiveRun` | API đã có ở §6.4; một lần cho input đầu tiên lúc chạy |
+  | `ui/state/run-store.ts` | 1 action chuyển tiếp | Một lần |
+  | `ui/canvas/CircuitCanvas.tsx` | nhấn/nhả lúc chạy, theo model `contact` | Một lần cho tương tác lúc chạy đầu tiên |
+  | `ui/app/App.tsx` | nối `onContactChange` vào `runStore` | Một lần |
+
+  Ngoài ra là test hook (`canvas-test-state.ts`, `test-hooks.ts`) và 2 test liệt kê toàn bộ catalog (`registry.test.ts`, `palette-model.test.ts`).
+  - **Không đổi:** compiler, block, IR, interpreter, document schema, netlist, geometry, operation của circuit, palette, Blockly panel, toolbar.
+  - **Tín hiệu phản bác ở §2.4** ("phải sửa `RunSession`, canvas hoặc compiler theo kiểu đặc thù cho device"): **không gặp.** `RunSession` và canvas có thay đổi, nhưng theo model `contact` (qua `isContact`), không theo id `push-button`. Compiler không đổi.
+  - **Dự đoán chi phí tiếp theo:** một device contact khác kiểu "giữ để đóng" chỉ cần definition, renderer (tuỳ chọn) và 2 dòng đăng ký. Switch latching (BL-S3) cần thêm một cờ ở definition để canvas bật/tắt thay vì giữ, vì kiểu tương tác là của device chứ không phải của model.
+- **L5 (một phần):** trạng thái nhấn chỉ nằm trong `ActiveRun` và snapshot. Document deep-equal sau khi chạy, cả ở integration test lẫn E2E (qua `getProject()`). Chiều device → program (`digitalRead`, `if`) thuộc POC-13.
+- **Số liệu:** nhấn → LED đã render sáng median 14 ms, max 24 ms (không có program). 0 `eslint-disable` cho B1. E2E 27 test xanh khi lặp 3 lần (81/81); spec push button 20/20 khi lặp 10 lần.
 
 **M1 — chi tiết (POC-08).**
 - **L2:** netlist union-find cộng cặp dẫn điện của resistor đủ cho `led-on` và `blink`: 16 scenario test ở POC-06, cộng E2E-1 thấy LED render từ snapshot. Mạch do người dùng tự nối còn chờ M2.

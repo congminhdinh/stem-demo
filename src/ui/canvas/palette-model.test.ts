@@ -11,6 +11,7 @@ describe('paletteItems', () => {
       { deviceType: 'board', name: 'STEM Board' },
       { deviceType: 'led', name: 'LED' },
       { deviceType: 'resistor', name: 'Resistor' },
+      { deviceType: 'push-button', name: 'Push Button' },
     ]);
   });
 
@@ -19,7 +20,7 @@ describe('paletteItems', () => {
 
     const items = paletteItems(createDeviceRegistry([...localDeviceDefinitions, buzzer]));
 
-    expect(items).toHaveLength(4);
+    expect(items).toHaveLength(5);
     expect(items.at(-1)).toEqual({ deviceType: 'buzzer', name: 'Buzzer' });
   });
 });

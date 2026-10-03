@@ -26,8 +26,18 @@ describe('device registry', () => {
     expect(findPort(led, 'd13')).toBeUndefined();
   });
 
+  it('loads the push button: two passive ports on the grid, simulated as a contact', () => {
+    const button = registry.get('push-button');
+
+    expect(button.ports).toEqual([
+      expect.objectContaining({ id: 'a', x: -30, y: 0, kind: 'passive' }),
+      expect.objectContaining({ id: 'b', x: 30, y: 0, kind: 'passive' }),
+    ]);
+    expect(button.simulation).toEqual({ model: 'contact' });
+  });
+
   it('lists every definition in catalog order', () => {
-    expect(registry.list().map((definition) => definition.id)).toEqual(['board', 'led', 'resistor']);
+    expect(registry.list().map((definition) => definition.id)).toEqual(['board', 'led', 'resistor', 'push-button']);
   });
 
   it('rejects an unknown device type', () => {

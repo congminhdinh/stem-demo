@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import blinkSample from '../../samples/blink.project.json';
+import buttonDirectSample from '../../samples/button-direct.project.json';
 import ledOnSample from '../../samples/led-on.project.json';
 import { isSamePort, projectDocumentSchema, type Circuit, type PortRef } from '../circuit/document';
 import { localDeviceDefinitions } from '../devices/local-catalog';
@@ -9,6 +10,7 @@ import { simulateCircuit, type SimulationInputs, type SimulationResult } from '.
 const registry = createDeviceRegistry(localDeviceDefinitions);
 const ledOn = projectDocumentSchema.parse(ledOnSample).circuit;
 const blink = projectDocumentSchema.parse(blinkSample).circuit;
+const buttonDirect = projectDocumentSchema.parse(buttonDirectSample).circuit;
 
 const board = (portId: string) => ({ componentId: 'board', portId });
 const led = (portId: string) => ({ componentId: 'led', portId });
@@ -126,5 +128,65 @@ describe('simulateCircuit', () => {
     expect(JSON.parse(JSON.stringify(result))).toStrictEqual(result);
     expect({ blink, inputs }).toStrictEqual(before);
     expect(simulateCircuit(blink, registry, inputs)).toStrictEqual(result);
+  });
+
+  describe('contact (push button)', () => {
+    const button = (portId: string) => ({ componentId: 'button', portId });
+    const held = (contacts: Record<string, boolean>): SimulationInputs => ({ ...powered(), contacts });
+
+    it('conducts only while closed: 3V3 → button → R → LED → GND lights while held, without a program', () => {
+      expect(simulateCircuit(buttonDirect, registry, held({ button: true })).components).toEqual({
+        led: { lit: true },
+        button: { closed: true },
+      });
+      for (const inputs of [powered(), held({}), held({ button: false })]) {
+        expect(simulateCircuit(buttonDirect, registry, inputs).components).toEqual({
+          led: { lit: false },
+          button: { closed: false },
+        });
+      }
+    });
+
+    it('reads D2 wired through the button to 3V3: 1 while closed, 0 while open', () => {
+      const circuit = rewired(
+        { ...buttonDirect, components: buttonDirect.components.filter(({ id }) => id === 'board' || id === 'button') },
+        [board('3v3'), button('a')],
+        [button('b'), board('d2')],
+      );
+
+      expect(simulateCircuit(circuit, registry, held({ button: true })).pinReads.D2).toBe(1);
+      expect(simulateCircuit(circuit, registry, held({ button: false })).pinReads.D2).toBe(0);
+    });
+
+    it('drives nothing through a closed contact while the board is unpowered', () => {
+      const inputs = { powered: false, pinOutputs: {}, contacts: { button: true } };
+
+      expect(simulateCircuit(buttonDirect, registry, inputs).components.led).toEqual({ lit: false });
+    });
+
+    it('closes only the contacts named in the input', () => {
+      // The same circuit with the button named like an Object.prototype member.
+      const constructor = (portId: string) => ({ componentId: 'constructor', portId });
+      const renamed = rewired(
+        {
+          ...buttonDirect,
+          components: buttonDirect.components.map((component) =>
+            component.id === 'button' ? { ...component, id: 'constructor' } : component,
+          ),
+        },
+        [board('3v3'), constructor('a')],
+        [constructor('b'), { componentId: 'resistor', portId: 'a' }],
+        [{ componentId: 'resistor', portId: 'b' }, led('anode')],
+        [led('cathode'), board('gnd')],
+      );
+
+      // The LED is not a contact, and an id is never read off Object.prototype.
+      expect(simulateCircuit(buttonDirect, registry, held({ led: true })).components.led).toEqual({ lit: false });
+      expect(simulateCircuit(renamed, registry, held({})).components).toEqual({
+        led: { lit: false },
+        constructor: { closed: false },
+      });
+      expect(simulateCircuit(renamed, registry, held({ constructor: true })).components.led).toEqual({ lit: true });
+    });
   });
 });

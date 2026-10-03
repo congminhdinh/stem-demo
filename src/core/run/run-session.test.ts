@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import blinkSample from '../../samples/blink.project.json';
+import buttonDirectSample from '../../samples/button-direct.project.json';
 import ledOnSample from '../../samples/led-on.project.json';
 import { projectDocumentSchema, type ProjectDocument } from '../circuit/document';
 import { localDeviceDefinitions } from '../devices/local-catalog';
@@ -13,12 +14,14 @@ import { createRunSession, type RunSnapshot } from './run-session';
 const registry = createDeviceRegistry(localDeviceDefinitions);
 const ledOn = projectDocumentSchema.parse(ledOnSample);
 const blink = projectDocumentSchema.parse(blinkSample);
+const buttonDirect = projectDocumentSchema.parse(buttonDirectSample);
 const unknownPin: ProjectDocument = {
   ...ledOn,
   program: { blocks: JSON.parse(JSON.stringify(ledOn.program.blocks).replace('"D13"', '"D99"')) },
 };
 const idle: RunSnapshot = { status: 'idle', diagnostics: [], error: null, simulation: null };
 const lit = (snapshot: RunSnapshot) => snapshot.simulation?.components.led?.lit;
+const closed = (snapshot: RunSnapshot) => snapshot.simulation?.components.button?.closed;
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -267,5 +270,136 @@ describe('RunSession', () => {
     for (const snapshot of snapshots) {
       expect(JSON.parse(JSON.stringify(snapshot))).toStrictEqual(snapshot);
     }
+  });
+
+  describe('contact input (push button, POC-12)', () => {
+    /** Board and button only: 3V3 → button → D2. */
+    const buttonToD2: ProjectDocument = {
+      ...buttonDirect,
+      circuit: {
+        components: buttonDirect.circuit.components.filter(({ id }) => id === 'board' || id === 'button'),
+        wires: [
+          {
+            id: 'wire-3v3-button',
+            from: { componentId: 'board', portId: '3v3' },
+            to: { componentId: 'button', portId: 'a' },
+          },
+          {
+            id: 'wire-button-d2',
+            from: { componentId: 'button', portId: 'b' },
+            to: { componentId: 'board', portId: 'd2' },
+          },
+        ],
+      },
+    };
+    const d2 = (snapshot: RunSnapshot) => snapshot.simulation?.pinReads.D2;
+
+    it('simulates again on a press: D2 wired through the button to 3V3 reads 1 while held, 0 when released', () => {
+      const session = createRunSession(registry);
+      expect(session.start(buttonToD2)).toEqual({ ok: true });
+      expect(d2(session.getSnapshot())).toBe(0);
+
+      session.setContactInput('button', true);
+      expect(d2(session.getSnapshot())).toBe(1);
+      expect(closed(session.getSnapshot())).toBe(true);
+
+      session.setContactInput('button', false);
+      expect(d2(session.getSnapshot())).toBe(0);
+      expect(closed(session.getSnapshot())).toBe(false);
+    });
+
+    it('lights the LED while held without a program, publishing only when the contact changes', async () => {
+      const session = createRunSession(registry);
+      session.start(buttonDirect);
+      await vi.advanceTimersByTimeAsync(100);
+      const published: RunSnapshot[] = [];
+      session.subscribe((snapshot) => published.push(snapshot));
+
+      session.setContactInput('button', true);
+      session.setContactInput('button', true);
+      await vi.advanceTimersByTimeAsync(100);
+      session.setContactInput('button', false);
+      session.setContactInput('button', false);
+
+      expect(published.map((snapshot) => [snapshot.status, closed(snapshot), lit(snapshot)])).toEqual([
+        ['running', true, true],
+        ['running', false, false],
+      ]);
+    });
+
+    it('still works once the program finished: the board stays powered (E6)', async () => {
+      const session = createRunSession(registry);
+      session.start({ ...buttonDirect, program: { blocks: {} } });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(session.getSnapshot().status).toBe('finished');
+
+      session.setContactInput('button', true);
+
+      expect(session.getSnapshot()).toMatchObject({ status: 'finished', error: null });
+      expect(lit(session.getSnapshot())).toBe(true);
+    });
+
+    it('ignores input while idle, for a component that is not a contact, and for an unknown one', async () => {
+      const session = createRunSession(registry);
+      const published: RunSnapshot[] = [];
+      session.subscribe((snapshot) => published.push(snapshot));
+
+      session.setContactInput('button', true);
+      expect(session.getSnapshot()).toEqual(idle);
+
+      session.start(buttonDirect);
+      await vi.advanceTimersByTimeAsync(100);
+      for (const componentId of ['led', 'board', 'missing', 'constructor', '__proto__']) {
+        session.setContactInput(componentId, true);
+      }
+
+      expect(published.map((snapshot) => snapshot.status)).toEqual(['running']);
+      expect(lit(session.getSnapshot())).toBe(false);
+    });
+
+    it('drops a press with the run: after Stop, or a new start, every contact is open again (B2)', () => {
+      const session = createRunSession(registry);
+      session.start(buttonDirect);
+      session.setContactInput('button', true);
+
+      session.start(buttonDirect);
+      expect(closed(session.getSnapshot())).toBe(false);
+      expect(lit(session.getSnapshot())).toBe(false);
+
+      session.setContactInput('button', true);
+      session.stop();
+      expect(session.getSnapshot()).toEqual(idle);
+      session.start(buttonDirect);
+      expect(closed(session.getSnapshot())).toBe(false);
+    });
+
+    it('lets a stop made by a listener on a press win', () => {
+      const session = createRunSession(registry);
+      session.start(buttonDirect);
+      session.subscribe((snapshot) => {
+        if (closed(snapshot)) {
+          session.stop();
+        }
+      });
+
+      session.setContactInput('button', true);
+
+      expect(session.getSnapshot()).toEqual(idle);
+    });
+
+    it('leaves the document unchanged: a press is never design state (B2)', async () => {
+      const session = createRunSession(registry);
+      const document = structuredClone(buttonDirect);
+      const before = structuredClone(document);
+
+      session.start(document);
+      session.setContactInput('button', true);
+      await vi.advanceTimersByTimeAsync(500);
+      session.setContactInput('button', false);
+      session.setContactInput('button', true);
+      session.stop();
+
+      expect(document).toStrictEqual(before);
+    });
   });
 });

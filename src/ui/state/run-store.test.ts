@@ -3,6 +3,7 @@ import { projectDocumentSchema } from '../../core/circuit/document';
 import { localDeviceDefinitions } from '../../core/devices/local-catalog';
 import { createDeviceRegistry } from '../../core/devices/registry';
 import { createRunSession } from '../../core/run/run-session';
+import buttonDirectSample from '../../samples/button-direct.project.json';
 import ledOnSample from '../../samples/led-on.project.json';
 import { createRunStore, selectIsRunning } from './run-store';
 
@@ -73,6 +74,20 @@ describe('runStore', () => {
     expect(session.getSnapshot().status).toBe('idle');
     expect(selectIsRunning(store.getState())).toBe(false);
     expect(frames).toHaveLength(0);
+  });
+
+  it('hands a push button press to the session; React sees it on the next frame', () => {
+    const { session, store, renderFrame } = setup();
+    store.getState().run(projectDocumentSchema.parse(buttonDirectSample));
+
+    store.getState().setContactInput('button', true);
+    expect(session.getSnapshot().simulation?.components.led).toEqual({ lit: true });
+
+    renderFrame();
+    expect(store.getState().snapshot.simulation?.components).toMatchObject({
+      button: { closed: true },
+      led: { lit: true },
+    });
   });
 
   it('counts a finished program as running until Stop (the board stays powered)', async () => {

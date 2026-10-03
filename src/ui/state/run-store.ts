@@ -20,6 +20,8 @@ export type RunState = {
   startFailure: Extract<StartResult, { ok: false }> | null;
   run(project: ProjectDocument): void;
   stop(): void;
+  /** Holds a push button of the running circuit closed or lets it open (no-op while idle). */
+  setContactInput(componentId: string, closed: boolean): void;
   /** Forgets why the last Run did not start, e.g. when another project replaces the one that was run. */
   clearStartFailure(): void;
 };
@@ -56,6 +58,7 @@ export function createRunStore(
         set({ startFailure: result.ok ? null : result });
       },
       stop: () => session.stop(),
+      setContactInput: (componentId, closed) => session.setContactInput(componentId, closed),
       clearStartFailure: () => set({ startFailure: null }),
     };
   });

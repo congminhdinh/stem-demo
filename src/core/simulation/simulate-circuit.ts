@@ -1,5 +1,6 @@
 import type { Circuit, ComponentInstance, PortRef } from '../circuit/document';
 import { buildNetlist } from '../circuit/netlist';
+import type { DeviceDefinition } from '../devices/device-definition';
 import type { DeviceRegistry } from '../devices/registry';
 
 // Net-level logic simulation (plan §6.5): a pure function of the design and
@@ -18,18 +19,33 @@ export type SimulationInputs = {
   powered: boolean;
   /** Levels the program drives, by board pin name. A pin left out is not driven. */
   pinOutputs: Readonly<Record<string, 0 | 1>>;
+  /** Contacts held closed (a pressed push button), by component id. One left out is open. */
+  contacts?: Readonly<Record<string, boolean>>;
 };
 
 export type NetLevel = 'floating' | 'high' | 'low' | 'conflict';
 
+/** A component's runtime state for its renderer: `lit` for an LED, `closed` for a contact. */
+export type ComponentState = { lit?: boolean; closed?: boolean };
+
 /** Plain JSON, so it can travel in a run snapshot. */
 export type SimulationResult = {
   nets: { ports: PortRef[]; level: NetLevel }[];
-  /** Runtime state for renderers, by component id. Only LEDs have state so far. */
-  components: Record<string, { lit: boolean }>;
+  /** Runtime state for renderers, by component id. */
+  components: Record<string, ComponentState>;
   /** What `digitalRead` returns, by board pin name: 1 only on a high net. */
   pinReads: Record<string, 0 | 1>;
 };
+
+const contactModel = 'contact';
+
+/**
+ * A contact (the push button) conducts between its ports `a` and `b` while
+ * closed. Closing it is a runtime input (`contacts`), never design state (B2).
+ */
+export function isContact(definition: DeviceDefinition): boolean {
+  return definition.simulation.model === contactModel;
+}
 
 /**
  * Models are picked by `simulation.model`; an unknown model is inert (B6).
@@ -47,9 +63,14 @@ export function simulateCircuit(
   }));
   const withModel = (model: string) => devices.filter(({ definition }) => definition.simulation.model === model);
   const boards = withModel('board');
+  const contacts = withModel(contactModel).map(({ component }) => ({
+    component,
+    // Strictly true: an id such as "constructor" must not read an Object.prototype member as closed.
+    closed: inputs.contacts?.[component.id] === true,
+  }));
 
-  // A resistor always conducts between its two ports.
-  const conducting = withModel('resistor').map(
+  // A resistor always conducts between its two ports; a contact only while closed.
+  const conducting = [...withModel('resistor'), ...contacts.filter(({ closed }) => closed)].map(
     ({ component }): [PortRef, PortRef] => [port(component, 'a'), port(component, 'b')],
   );
   const netlist = buildNetlist(circuit, registry, conducting);
@@ -85,13 +106,15 @@ export function simulateCircuit(
 
   return {
     nets: netlist.nets.map((ports, net) => ({ ports, level: netLevel(net) })),
-    // A shorted LED has one level on both legs, so it stays off.
-    components: Object.fromEntries(
-      withModel('led').map(({ component }): [string, { lit: boolean }] => [
+    components: Object.fromEntries([
+      // A shorted LED has one level on both legs, so it stays off.
+      ...withModel('led').map(({ component }): [string, ComponentState] => [
         component.id,
         { lit: levelOf(port(component, 'anode')) === 'high' && levelOf(port(component, 'cathode')) === 'low' },
       ]),
-    ),
+      // Reported back so a pressed button is drawn from the snapshot, like a lit LED.
+      ...contacts.map(({ component, closed }): [string, ComponentState] => [component.id, { closed }]),
+    ]),
     // The PoC runs exactly one board (RunSession checks it, plan §6.4).
     pinReads: Object.fromEntries(
       boards.flatMap(({ component, definition }) =>

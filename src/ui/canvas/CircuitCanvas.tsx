@@ -1,7 +1,7 @@
 import type { Context } from 'konva/lib/Context';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { Shape } from 'konva/lib/Shape';
-import { useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent } from 'react';
 import { Circle, Group, Layer, Line, Rect, Stage, Text } from 'react-konva';
 import { addComponent, deleteComponent, moveComponent } from '../../core/circuit/components';
 import {
@@ -16,7 +16,7 @@ import { nearestPort, portRefPosition, portWorldPosition, snapToGrid } from '../
 import { connectWire, deleteWire, nextWireId, type ConnectWireError } from '../../core/circuit/wires';
 import type { DeviceDefinition, PortDefinition } from '../../core/devices/device-definition';
 import type { DeviceRegistry } from '../../core/devices/registry';
-import type { SimulationResult } from '../../core/simulation/simulate-circuit';
+import { isContact, type SimulationResult } from '../../core/simulation/simulate-circuit';
 import { Palette } from './Palette';
 import { paletteItems, placementPosition } from './palette-model';
 import { rendererFor, type DeviceRendererProps } from './renderers';
@@ -27,8 +27,8 @@ import { portPickRadiusPx, stageToWorld, stageToWorldDistance } from './viewport
 // edits the circuit (add, move, delete, wire). The document is the source of
 // truth: Konva nodes are derived from it on every render and never stored, and
 // every edit is a pure core operation handed to `onCircuitChange`. Selection,
-// hover and the gesture in progress (a drag or a wire being drawn) are the
-// only local, UI-only state.
+// hover and the gesture in progress (a drag, a wire being drawn, a button
+// held while running) are the only local, UI-only state.
 
 type CircuitCanvasProps = {
   circuit: Circuit;
@@ -39,6 +39,8 @@ type CircuitCanvasProps = {
   locked: boolean;
   /** Receives each edit as a whole new circuit. */
   onCircuitChange(circuit: Circuit): void;
+  /** While running: a contact (push button) is held closed, or released. Never a design edit. */
+  onContactChange(componentId: string, closed: boolean): void;
 };
 
 type Selection = { kind: 'component' | 'wire'; id: string };
@@ -59,7 +61,14 @@ const wireErrorText: Record<ConnectWireError, string> = {
   'unknown-port': 'That wire cannot be added.',
 };
 
-export function CircuitCanvas({ circuit, registry, simulation, locked, onCircuitChange }: CircuitCanvasProps) {
+export function CircuitCanvas({
+  circuit,
+  registry,
+  simulation,
+  locked,
+  onCircuitChange,
+  onContactChange,
+}: CircuitCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useElementSize(containerRef);
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -67,6 +76,28 @@ export function CircuitCanvas({ circuit, registry, simulation, locked, onCircuit
   const [draft, setDraft] = useState<WireDraft | null>(null);
   const [hoveredPort, setHoveredPort] = useState<PortRef | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  // The button the pointer holds. Not rendered: how a button looks comes from
+  // the snapshot (`closed`), like a lit LED, so the run stays the only source.
+  const heldContact = useRef<string | null>(null);
+  // A press ends with a release anywhere, also outside the canvas, or with a
+  // cancelled pointer, so a button never sticks closed; and on unmount, when
+  // another project is loaded.
+  const releaseContact = useEffectEvent(() => {
+    const componentId = heldContact.current;
+    if (componentId !== null) {
+      heldContact.current = null;
+      onContactChange(componentId, false);
+    }
+  });
+  useEffect(() => {
+    window.addEventListener('pointerup', releaseContact);
+    window.addEventListener('pointercancel', releaseContact);
+    return () => {
+      window.removeEventListener('pointerup', releaseContact);
+      window.removeEventListener('pointercancel', releaseContact);
+      releaseContact();
+    };
+  }, []);
   // A run that starts mid-gesture cancels it: nothing of it was committed and
   // the run uses the document as it was. Dropping it as soon as the lock is
   // seen, not when the gesture ends (which may never come), keeps it from
@@ -153,6 +184,17 @@ export function CircuitCanvas({ circuit, registry, simulation, locked, onCircuit
     }
   };
 
+  // While running, pressing a contact closes it until release; while
+  // designing it is selected like any other component.
+  const onComponentPointerDown = (component: ComponentInstance) => {
+    if (locked && isContact(registry.get(component.deviceType))) {
+      heldContact.current = component.id;
+      onContactChange(component.id, true);
+    } else {
+      onSelectablePointerDown({ kind: 'component', id: component.id });
+    }
+  };
+
   const onStagePointerDown = (event: KonvaEventObject<PointerEvent>) => {
     if (!locked && event.target === event.target.getStage()) {
       setSelection(null);
@@ -236,7 +278,7 @@ export function CircuitCanvas({ circuit, registry, simulation, locked, onCircuit
                     selected={selected?.kind === 'component' && selected.id === component.id}
                     // Off while drawing a wire too, so a click there never starts a drag (R5).
                     draggable={!locked && !draft}
-                    onPointerDown={() => onSelectablePointerDown({ kind: 'component', id: component.id })}
+                    onPointerDown={() => onComponentPointerDown(component)}
                     {...dragHandlers(component.id)}
                   />
                 ))}

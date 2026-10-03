@@ -6,6 +6,7 @@ export const readJson = (path: string) => JSON.parse(readFileSync(new URL(path, 
 export const samples = {
   ledOn: readJson('../src/samples/led-on.project.json'),
   blink: readJson('../src/samples/blink.project.json'),
+  buttonDirect: readJson('../src/samples/button-direct.project.json'),
 };
 
 /** Opens the app on a project other than the default sample, via the dev-only hook. */

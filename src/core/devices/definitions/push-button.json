@@ -1,0 +1,11 @@
+{
+  "id": "push-button",
+  "name": "Push Button",
+  "body": { "width": 60, "height": 40 },
+  "ports": [
+    { "id": "a", "label": "A", "x": -30, "y": 0, "kind": "passive" },
+    { "id": "b", "label": "B", "x": 30, "y": 0, "kind": "passive" }
+  ],
+  "renderer": "push-button",
+  "simulation": { "model": "contact" }
+}

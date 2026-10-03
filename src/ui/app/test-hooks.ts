@@ -4,6 +4,8 @@ import type { ProjectStore } from '../state/project-store';
 
 export type StemTestHooks = {
   getCanvasState(): CanvasTestState | null;
+  /** The project document as stored (design state only, B2). */
+  getProject(): unknown;
   /** The serialized program as stored in the document (not read from Blockly). */
   getProgramBlocks(): unknown;
   /** Opens a project document (validated), e.g. a sample other than the default one. */
@@ -20,6 +22,7 @@ declare global {
 export function installTestHooks(projectStore: ProjectStore) {
   window.__stem = {
     getCanvasState: readCanvasState,
+    getProject: () => projectStore.getState().document,
     getProgramBlocks: () => projectStore.getState().document.program.blocks,
     loadProject: (document) => projectStore.getState().loadProject(projectDocumentSchema.parse(document)),
   };

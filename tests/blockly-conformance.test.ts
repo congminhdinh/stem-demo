@@ -6,6 +6,7 @@ import duplicateOnStart from '../src/core/program/__fixtures__/duplicate-on-star
 import orphanBlock from '../src/core/program/__fixtures__/orphan-block.json';
 import { buildBlockDefinitions, createDefaultProgram } from '../src/core/program/blocks';
 import blinkSample from '../src/samples/blink.project.json';
+import buttonDirectSample from '../src/samples/button-direct.project.json';
 import ledOnSample from '../src/samples/led-on.project.json';
 
 // Guards the Blockly ↔ compiler contract (plan §6.3, risk R2): real Blockly
@@ -19,6 +20,7 @@ describe('Blockly conformance', () => {
   it.each<[string, Record<string, unknown>]>([
     ['led-on sample', ledOnSample.program.blocks],
     ['blink sample', blinkSample.program.blocks],
+    ['button-direct sample', buttonDirectSample.program.blocks],
     ['default program of a new project', createDefaultProgram()],
     ['orphan-block', orphanBlock],
     ['duplicate-on-start', duplicateOnStart],
