@@ -42,6 +42,21 @@ export function connectWire(circuit: Circuit, registry: DeviceRegistry, wire: Wi
   return { ok: true, circuit: { ...circuit, wires: [...circuit.wires, wire] } };
 }
 
+/** A wire id (`wire-1`, `wire-2`, …) that no wire of the circuit uses yet (I1). */
+export function nextWireId(circuit: Circuit): string {
+  const taken = new Set(circuit.wires.map((wire) => wire.id));
+  let index = 1;
+  while (taken.has(`wire-${index}`)) {
+    index++;
+  }
+  return `wire-${index}`;
+}
+
+/** Removes one wire; the components and other wires stay as they are. */
+export function deleteWire(circuit: Circuit, wireId: string): Circuit {
+  return { ...circuit, wires: circuit.wires.filter((wire) => wire.id !== wireId) };
+}
+
 function endpointError(circuit: Circuit, registry: DeviceRegistry, end: PortRef): ConnectWireError | null {
   const component = circuit.components.find((candidate) => candidate.id === end.componentId);
   if (!component) {

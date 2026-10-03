@@ -27,6 +27,31 @@ export function snapToGrid(point: Point): Point {
   return { x: Math.round(point.x / gridSize) * gridSize, y: Math.round(point.y / gridSize) * gridSize };
 }
 
+/**
+ * The single hit-test for ports (B7): the port nearest to `point` that is at
+ * most `radius` away, both in world units, or null. Ties keep the first port
+ * in document order, so the result is deterministic.
+ */
+export function nearestPort(
+  circuit: Circuit,
+  registry: DeviceRegistry,
+  point: Point,
+  radius: number,
+): PortRef | null {
+  let nearest: { ref: PortRef; distance: number } | null = null;
+  for (const component of circuit.components) {
+    const definition = registry.get(component.deviceType);
+    for (const port of definition.ports) {
+      const at = portWorldPosition(component, definition, port.id);
+      const distance = Math.hypot(at.x - point.x, at.y - point.y);
+      if (distance <= radius && (!nearest || distance < nearest.distance)) {
+        nearest = { ref: { componentId: component.id, portId: port.id }, distance };
+      }
+    }
+  }
+  return nearest?.ref ?? null;
+}
+
 /** World position of the port a wire end points to (assumes a valid document). */
 export function portRefPosition(circuit: Circuit, registry: DeviceRegistry, ref: PortRef): Point {
   const component = circuit.components.find((candidate) => candidate.id === ref.componentId);

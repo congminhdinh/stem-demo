@@ -12,7 +12,7 @@
 |---|---|
 | **PoC chứng minh gì** | Kiến trúc đã chọn đủ tốt để xây một STEM editor thực tế. Kiến trúc đó gồm: document độc lập renderer, simulation là hàm thuần, Blockly chỉ là view và program được compile sang IR, runtime chỉ chạm phần cứng ảo qua `HardwareIO`, canvas chỉ render document và snapshot (§2) |
 | **Vertical slice** | **Checkpoint MP** (bằng chứng đầu tiên): Board + LED, block "on start: digital write D13 HIGH", bấm Run thì LED sáng trên canvas. **VS-1:** mở rộng MP thành mạch Board + Resistor + LED chạy program blink (`forever` + `wait`), Stop hoạt động đúng. **VS-2:** người dùng tự dựng mạch bằng chuột rồi chạy (§3) |
-| **Task tiếp theo** | `POC-10` Wire drawing (§9.2). `POC-01`…`POC-09` đã xong (M1 đóng) |
+| **Task tiếp theo** | `POC-11` Build it yourself · VS-2 (§9.2). `POC-01`…`POC-10` đã xong (M1 đóng) |
 | **Critical path** | `01 → 02 → 03 → 05 → 08 → 11`. Hai nhánh `02 → 06 → 07 → 08` và `03 → 09 → 10 → 11` dài bằng nhau (§10) |
 | **PoC xong khi** | M1 và M2 (P0) đạt exit criteria, Learning log trả lời được L1–L4 (§8, §17). M3 và M4 (P1) làm PoC thuyết phục hơn |
 | **Ràng buộc cứng** | Boundary B1–B8 (§5.1) và acceptance criteria của task. Mọi thứ còn lại (tên file, API helper, cấu trúc nội bộ, type chi tiết) là gợi ý |
@@ -1172,12 +1172,49 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 **Out of scope.** Bendpoint, màu dây, tự định tuyến dây.
 
 **Acceptance**
-- [ ] Unit test cho các trường hợp `connectWire` từ chối.
-- [ ] Các chân board cách nhau 20: click lệch 3 px khỏi D12 vẫn chọn D12 (E2E hoặc test dùng toạ độ từ hook).
-- [ ] Nối trùng dây → có thông báo, document không đổi. Esc → document không đổi.
-- [ ] Dựng lại mạch mẫu bằng các operation thì netlist trùng với netlist của mạch mẫu.
+- [x] Unit test cho các trường hợp `connectWire` từ chối.
+- [x] Các chân board cách nhau 20: click lệch 3 px khỏi D12 vẫn chọn D12 (E2E hoặc test dùng toạ độ từ hook).
+- [x] Nối trùng dây → có thông báo, document không đổi. Esc → document không đổi.
+- [x] Dựng lại mạch mẫu bằng các operation thì netlist trùng với netlist của mạch mẫu.
 
 **Notes.** Event ở port phải dừng lan truyền, và phải tạm tắt `draggable` của component trong lúc nối dây (rủi ro R5).
+
+**Trạng thái: xong (2026-10-03).**
+- **Core:**
+  - `nearestPort(circuit, registry, point, radius)` trong `geometry.ts` là hit-test duy nhất cho port (B7). Nó chọn port gần nhất trong bán kính; nếu bằng nhau thì lấy port đứng trước trong document.
+  - `wires.ts` có thêm `nextWireId` (`wire-<n>` chưa dùng, I1) và `deleteWire`.
+  - `connectWire` dùng lại nguyên vẹn. UI không tự kiểm tra gì: chỉ hiển thị lỗi mà `connectWire` trả về.
+- **Thao tác:**
+  - **Bắt đầu:** pointerdown lên port, hoặc trong vòng 12 px màn hình (`portPickRadiusPx`, đổi sang world qua `viewport.ts`).
+  - **Trong lúc nối:** preview nét đứt từ vị trí port (lấy từ core) tới con trỏ. Port đang hover và port bắt đầu được highlight.
+  - **Hoàn tất:** pointerdown lên một port khác thì gọi `connectWire` → `onCircuitChange`. Nếu `connectWire` từ chối thì hiện một thông báo ngắn (ví dụ "These ports are already connected.") và document không đổi.
+  - **Huỷ:** Esc, hoặc **thả chuột** ở bất cứ đâu không phải port (vùng trống, thân component, dây).
+  - **Huỷ khi rời canvas** (lỗi do review tìm ra): click palette hay Blockly không đi qua Konva stage, nên dây đang nối từng còn sót lại. Khi đó component không kéo được, và lần click port sau sẽ nối tiếp dây cũ.
+    - Sửa: canvas mất focus (`blur`) thì dây đang nối bị huỷ. Canvas được focus ở mỗi pointerdown bên trong nó, nên click trong canvas không gây blur; click palette, Blockly hay bất cứ đâu khác thì có.
+    - Quy tắc huỷ khi thả chuột bên trong canvas giữ nguyên.
+  - Chọn dây bằng click (vùng bắt rộng 12 px); Delete/Backspace xoá dây đó.
+- **Không kéo nhầm component** (R5):
+  - Mỗi port marker có vùng bắt bán kính 12 (qua `hitFunc`) và được vẽ trên cùng, nên một click gần port không bao giờ chạm tới thân component bên dưới. `nearestPort` quyết định chọn port nào. Pointerdown trên port dừng lan truyền.
+  - Trong lúc nối dây, component không `draggable`.
+  - Huỷ được làm khi *thả* chứ không phải khi *bấm*. Nếu huỷ ngay khi bấm, React sẽ render lại trước `mousedown` của trình duyệt, component lại `draggable`, và Konva kéo nó. E2E đã bắt được lỗi này.
+- **State:** preview (`WireDraft`), hover, selection và thông báo đều là state cục bộ của UI. Document chỉ đổi qua `editCircuit`, và dây vẫn chỉ giữ `PortRef`.
+- **Khi đang chạy:**
+  - Không highlight port. Click lên canvas không làm gì cả: không bắt đầu dây, không chọn, không bỏ chọn. Nhờ vậy sau Stop, selection vẫn là selection có từ trước Run.
+  - Run chen vào giữa lúc nối thì huỷ dây đang nối, cùng cơ chế với lúc kéo ở POC-09. Mọi lần nối đều đi qua khoá đồng bộ trong `editCircuit`.
+- **Lifecycle:** canvas được key theo `loadRevision`, nên load project thì huỷ dây đang nối, bỏ hover và thông báo.
+- **Focus:** canvas được focus bằng script ở mỗi click (capture phase, trước handler của Konva), nên đã bỏ outline `:focus-visible`, vốn hiện thành khung xanh quanh cả canvas.
+- **Test:**
+  - Unit test cho `nearestPort` (lệch 3 px khỏi D12, vùng bắt chồng nhau, ngoài bán kính), `nextWireId`, `deleteWire`.
+  - Unit test dựng lại mạch `blink` bằng `addComponent` + `connectWire`: netlist trùng với netlist của sample (so theo device type và port), và LED sáng như sample.
+  - 7 E2E trong `canvas.spec.ts`, nhóm "wires":
+    1. nối dây với điểm bấm lệch, kèm hover và preview;
+    2. dây trùng và cùng một port bị từ chối có thông báo; Esc và click vùng trống huỷ;
+    3. không kéo component từ port, và không kéo trong lúc đang nối;
+    4. chuyển sang palette hoặc Blockly thì huỷ dây đang nối: click port sau đó bắt đầu dây mới, và component kéo được lại;
+    5. chọn dây rồi xoá;
+    6. Run huỷ dây đang nối;
+    7. click khi đang chạy không làm gì.
+  - Bỏ từng quy tắc thì đều có test fail (9 lần thử): huỷ khi bấm, `draggable` khi đang nối, vùng bắt 12 px, khoá click lên port, khoá chọn, khoá bỏ chọn, Run huỷ dây, thả chuột ngoài port huỷ dây, huỷ khi canvas mất focus.
 
 ---
 
@@ -1381,7 +1418,7 @@ flowchart LR
 Hook không phải contract có version. Thêm hoặc bớt theo nhu cầu của spec.
 
 *(Sau POC-08)* Hook hiện có:
-- `getCanvasState()`: component, dây, port, và `lit` đọc từ node Konva; đóng vai trò của `getRenderedState`;
+- `getCanvasState()`: component, dây, port, và `lit` đọc từ node Konva; đóng vai trò của `getRenderedState`. Từ POC-09/10 có thêm `selected` (component, dây), `highlightedPorts` và `wirePreview`. Toạ độ client được suy ra từ bounding box của canvas, vì viewport cố định nên world = toạ độ canvas; chưa cần `portClientPosition`;
 - `getProgramBlocks()`;
 - `loadProject(doc)`.
 

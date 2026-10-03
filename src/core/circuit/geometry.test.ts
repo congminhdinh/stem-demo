@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { localDeviceDefinitions } from '../devices/local-catalog';
 import { createDeviceRegistry } from '../devices/registry';
-import { portRefPosition, portWorldPosition, snapToGrid } from './geometry';
+import { nearestPort, portRefPosition, portWorldPosition, snapToGrid } from './geometry';
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
 
@@ -44,5 +44,25 @@ describe('snapToGrid', () => {
     const led = { id: 'led', deviceType: 'led', position: snapToGrid({ x: 123, y: 77 }) };
 
     expect(portWorldPosition(led, registry.get('led'), 'anode')).toEqual({ x: 110, y: 110 });
+  });
+});
+
+describe('nearestPort', () => {
+  // Board at (200, 220): D13 at (310, 110), D12 at (310, 130), D11 at (310, 150), 20 apart.
+  const circuit = { components: [{ id: 'board', deviceType: 'board', position: { x: 200, y: 220 } }], wires: [] };
+  const pick = (x: number, y: number) => nearestPort(circuit, registry, { x, y }, 12);
+
+  it('picks D12 for a click 3 px off it, although the pins are only 20 apart', () => {
+    expect(pick(313, 130)).toEqual({ componentId: 'board', portId: 'd12' });
+    expect(pick(310, 127)).toEqual({ componentId: 'board', portId: 'd12' });
+  });
+
+  it('picks the nearer pin where two pick areas overlap', () => {
+    expect(pick(310, 138)).toEqual({ componentId: 'board', portId: 'd12' });
+    expect(pick(310, 142)).toEqual({ componentId: 'board', portId: 'd11' });
+  });
+
+  it('picks nothing farther than the radius', () => {
+    expect(pick(330, 130)).toBeNull();
   });
 });

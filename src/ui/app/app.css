@@ -137,13 +137,22 @@ body {
   inset: 0;
 }
 
+/* Focused by script on every click (for Delete/Esc), so no focus ring. */
 .circuit-canvas:focus {
   outline: none;
 }
 
-.circuit-canvas:focus-visible {
-  outline: 2px solid #2680c2;
-  outline-offset: -2px;
+.canvas-message {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: #fff3c4;
+  color: #8d2b0b;
+  font-size: 13px;
+  pointer-events: none;
 }
 
 .program-region {

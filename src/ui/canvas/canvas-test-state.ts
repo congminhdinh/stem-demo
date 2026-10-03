@@ -4,8 +4,12 @@ import Konva from 'konva';
 export type CanvasTestState = {
   /** `lit` is read from the LED's light node, as its renderer drew it; `selected` from the selection outline. */
   components: { id: string; deviceType: string; x: number; y: number; lit?: boolean; selected: boolean }[];
-  wires: { id: string; points: number[] }[];
+  wires: { id: string; points: number[]; selected: boolean }[];
   ports: { componentId: string; portId: string; x: number; y: number }[];
+  /** Ports drawn highlighted: the hovered one and the one a wire is drawn from. */
+  highlightedPorts: { componentId: string; portId: string }[];
+  /** The wire being drawn, from its port to the pointer; null when none is. */
+  wirePreview: number[] | null;
 };
 
 export function readCanvasState(): CanvasTestState | null {
@@ -13,6 +17,7 @@ export function readCanvasState(): CanvasTestState | null {
   if (!stage) {
     return null;
   }
+  const ports = stage.find('.port');
   return {
     components: stage.find<Konva.Group>('.component').map((node) => ({
       id: node.getAttr('componentId'),
@@ -25,12 +30,17 @@ export function readCanvasState(): CanvasTestState | null {
     wires: stage.find<Konva.Line>('.wire').map((node) => ({
       id: node.getAttr('wireId'),
       points: node.points(),
+      selected: node.getAttr('selected') === true,
     })),
-    ports: stage.find('.port').map((node) => ({
+    ports: ports.map((node) => ({
       componentId: node.getAttr('componentId'),
       portId: node.getAttr('portId'),
       x: node.x(),
       y: node.y(),
     })),
+    highlightedPorts: ports
+      .filter((node) => node.getAttr('highlighted') === true)
+      .map((node) => ({ componentId: node.getAttr('componentId'), portId: node.getAttr('portId') })),
+    wirePreview: stage.findOne<Konva.Line>('.wire-preview')?.points() ?? null,
   };
 }

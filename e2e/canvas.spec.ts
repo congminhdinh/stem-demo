@@ -183,3 +183,170 @@ test('cancels a drag that a Run interrupts, also after Stop', async ({ page }) =
   expect(await componentById(page, 'led')).toMatchObject({ x: 420, y: 160 });
   expect(await wirePoints(page, 'wire-d13-anode')).toEqual([310, 110, 410, 190]);
 });
+
+// Wiring, on the led-on sample: board at (200,220) with GND (310,90), D13 (310,110),
+// D12 (310,130); LED at (420,160) with anode (410,190) and cathode (430,190).
+
+test.describe('wires', () => {
+  test.beforeEach(async ({ page }) => {
+    await openProject(page, samples.ledOn);
+    await expect.poll(() => componentIds(page)).toEqual(['board', 'led']);
+  });
+
+  const wireIds = async (page: Page) => (await canvasState(page)).wires.map((wire) => wire.id);
+
+  test('draws a wire from port to port, picking the nearest port of an off-target click', async ({ page }) => {
+    const { at } = await worldToPage(page);
+
+    // 3 px off D12, with D13 and D11 only 20 px away: hover and click both pick D12.
+    await page.mouse.move(at(313, 130).x, at(313, 130).y);
+    expect((await canvasState(page)).highlightedPorts).toEqual([{ componentId: 'board', portId: 'd12' }]);
+    await page.mouse.click(at(313, 130).x, at(313, 130).y);
+
+    // The preview runs from the port to the pointer.
+    await page.mouse.move(at(380, 170).x, at(380, 170).y, { steps: 3 });
+    expect((await canvasState(page)).wirePreview).toEqual([310, 130, 380, 170]);
+
+    await page.mouse.click(at(412, 191).x, at(412, 191).y);
+    expect((await canvasState(page)).wirePreview).toBeNull();
+    expect(await wireIds(page)).toEqual(['wire-d13-anode', 'wire-cathode-gnd', 'wire-1']);
+    expect(await wirePoints(page, 'wire-1')).toEqual([310, 130, 410, 190]);
+  });
+
+  test('refuses an invalid wire with a message, and cancels on Esc or an empty click', async ({ page }) => {
+    const { at } = await worldToPage(page);
+    const message = page.getByTestId('canvas-message');
+
+    // D13 → anode already exists.
+    await page.mouse.click(at(310, 110).x, at(310, 110).y);
+    await page.mouse.click(at(410, 190).x, at(410, 190).y);
+    await expect(message).toHaveText('These ports are already connected.');
+    expect(await wireIds(page)).toEqual(['wire-d13-anode', 'wire-cathode-gnd']);
+    expect((await canvasState(page)).wirePreview).toBeNull();
+
+    // The same port twice.
+    await page.mouse.click(at(310, 130).x, at(310, 130).y);
+    await expect(message).toBeHidden();
+    await page.mouse.click(at(310, 130).x, at(310, 130).y);
+    await expect(message).toHaveText('A wire needs two different ports.');
+
+    await page.mouse.click(at(310, 130).x, at(310, 130).y);
+    expect((await canvasState(page)).wirePreview).not.toBeNull();
+    await page.keyboard.press('Escape');
+    expect((await canvasState(page)).wirePreview).toBeNull();
+
+    await page.mouse.click(at(310, 130).x, at(310, 130).y);
+    await page.mouse.click(at(600, 500).x, at(600, 500).y);
+    expect((await canvasState(page)).wirePreview).toBeNull();
+    expect(await wireIds(page)).toEqual(['wire-d13-anode', 'wire-cathode-gnd']);
+  });
+
+  test('never drags a component from a port, nor while a wire is being drawn', async ({ page }) => {
+    const { at } = await worldToPage(page);
+
+    // (302,110) is on the board body, 8 px from D13 (outside its 4 px marker, inside
+    // the 12 px pick radius): pressing there starts a wire, not a drag; releasing
+    // away from a port ends that wire.
+    await page.mouse.move(at(302, 110).x, at(302, 110).y);
+    await page.mouse.down();
+    await page.mouse.move(at(250, 180).x, at(250, 180).y, { steps: 4 });
+    expect((await canvasState(page)).wirePreview).toEqual([310, 110, 250, 180]);
+    expect(await componentById(page, 'board')).toMatchObject({ x: 200, y: 220 });
+    await page.mouse.up();
+    expect((await canvasState(page)).wirePreview).toBeNull();
+    expect(await componentById(page, 'board')).toMatchObject({ x: 200, y: 220 });
+
+    // While a wire is drawn, pressing on the LED body drags nothing; the release ends the wire.
+    await page.mouse.click(at(310, 110).x, at(310, 110).y);
+    expect((await canvasState(page)).wirePreview).not.toBeNull();
+    await page.mouse.move(at(420, 150).x, at(420, 150).y);
+    await page.mouse.down();
+    await page.mouse.move(at(470, 200).x, at(470, 200).y, { steps: 4 });
+    await page.mouse.up();
+    expect((await canvasState(page)).wirePreview).toBeNull();
+    expect(await componentById(page, 'led')).toMatchObject({ x: 420, y: 160 });
+  });
+
+  test('ends the wire being drawn when the user turns to the palette or Blockly', async ({ page }) => {
+    const { at } = await worldToPage(page);
+    const preview = async () => (await canvasState(page)).wirePreview;
+
+    // Palette: the wire ends; back on the canvas a port click starts a new one.
+    await page.mouse.click(at(310, 130).x, at(310, 130).y);
+    expect(await preview()).not.toBeNull();
+    await page.getByRole('button', { name: 'Add LED' }).click();
+    expect(await preview()).toBeNull();
+    expect(await componentIds(page)).toEqual(['board', 'led', 'led-1']);
+    await page.mouse.click(at(310, 110).x, at(310, 110).y);
+    expect((await preview())?.slice(0, 2)).toEqual([310, 110]);
+    await page.keyboard.press('Escape');
+
+    // Blockly: the same, and components drag again.
+    await page.mouse.click(at(310, 130).x, at(310, 130).y);
+    expect(await preview()).not.toBeNull();
+    await page.getByTestId('blockly-panel').locator('.blocklyText', { hasText: 'on start' }).click();
+    expect(await preview()).toBeNull();
+    await page.mouse.move(at(420, 150).x, at(420, 150).y);
+    await page.mouse.down();
+    await page.mouse.move(at(460, 190).x, at(460, 190).y, { steps: 4 });
+    await page.mouse.up();
+    expect(await componentById(page, 'led')).toMatchObject({ x: 460, y: 200 });
+    expect(await wireIds(page)).toEqual(['wire-d13-anode', 'wire-cathode-gnd']);
+  });
+
+  test('selects a wire with a click and deletes it with Delete', async ({ page }) => {
+    const { at } = await worldToPage(page);
+    const isSelected = async (id: string) => (await canvasState(page)).wires.find((wire) => wire.id === id)?.selected;
+
+    // (360,150) is halfway along D13 → anode, away from any port or body.
+    await page.mouse.click(at(360, 150).x, at(360, 150).y);
+    expect(await isSelected('wire-d13-anode')).toBe(true);
+    await page.keyboard.press('Escape');
+    expect(await isSelected('wire-d13-anode')).toBe(false);
+
+    await page.mouse.click(at(360, 150).x, at(360, 150).y);
+    await page.keyboard.press('Delete');
+    expect(await wireIds(page)).toEqual(['wire-cathode-gnd']);
+    expect(await componentIds(page)).toEqual(['board', 'led']);
+  });
+
+  test('a Run cancels the wire being drawn, also after Stop', async ({ page }) => {
+    const { at } = await worldToPage(page);
+
+    await page.mouse.click(at(310, 130).x, at(310, 130).y);
+    expect((await canvasState(page)).wirePreview).not.toBeNull();
+    await clickButtonsInOneTask(page, ['Run']);
+    await expect(page.getByTestId('run-status')).toHaveText('Program finished — board powered');
+    expect((await canvasState(page)).wirePreview).toBeNull();
+
+    await page.getByRole('button', { name: 'Stop' }).click();
+    await expect(page.getByTestId('run-status')).toHaveText('Idle');
+    expect((await canvasState(page)).wirePreview).toBeNull();
+    expect(await wireIds(page)).toEqual(['wire-d13-anode', 'wire-cathode-gnd']);
+  });
+
+  test('changes nothing on canvas clicks while a program runs', async ({ page }) => {
+    const { at } = await worldToPage(page);
+    await page.mouse.click(at(420, 150).x, at(420, 150).y);
+    expect(await componentById(page, 'led')).toMatchObject({ selected: true });
+    await clickButtonsInOneTask(page, ['Run']);
+    await expect(page.getByTestId('run-status')).toHaveText('Program finished — board powered');
+
+    // No highlight, no wire started, no wire selected or deleted, no deselection.
+    await page.mouse.move(at(310, 130).x, at(310, 130).y);
+    expect((await canvasState(page)).highlightedPorts).toEqual([]);
+    await page.mouse.click(at(310, 130).x, at(310, 130).y);
+    expect((await canvasState(page)).wirePreview).toBeNull();
+    await page.mouse.click(at(360, 150).x, at(360, 150).y);
+    await page.keyboard.press('Delete');
+    await page.mouse.click(at(600, 500).x, at(600, 500).y);
+    expect(await wireIds(page)).toEqual(['wire-d13-anode', 'wire-cathode-gnd']);
+
+    // After Stop the selection is the one from before Run.
+    await page.getByRole('button', { name: 'Stop' }).click();
+    await expect(page.getByTestId('run-status')).toHaveText('Idle');
+    expect(await componentById(page, 'led')).toMatchObject({ selected: true });
+    expect((await canvasState(page)).wires.every((wire) => !wire.selected)).toBe(true);
+    expect((await canvasState(page)).wirePreview).toBeNull();
+  });
+});
