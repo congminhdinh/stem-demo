@@ -1,0 +1,27 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "stem_forever",
+        "id": "forever",
+        "x": 40,
+        "y": 40,
+        "inputs": {
+          "DO": {
+            "block": {
+              "type": "controls_if",
+              "id": "empty-if",
+              "extraState": { "hasElse": true },
+              "inputs": {
+                "DO0": {
+                  "block": { "type": "stem_digital_write", "id": "write-high", "fields": { "PIN": "D13", "LEVEL": "HIGH" } }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

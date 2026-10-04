@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "sample-led-on",
+  "name": "LED on",
+  "circuit": {
+    "components": [
+      { "id": "board", "deviceType": "board", "position": { "x": 200, "y": 220 } },
+      { "id": "led", "deviceType": "led", "position": { "x": 420, "y": 160 } }
+    ],
+    "wires": [
+      {
+        "id": "wire-d13-anode",
+        "from": { "componentId": "board", "portId": "d13" },
+        "to": { "componentId": "led", "portId": "anode" }
+      },
+      {
+        "id": "wire-cathode-gnd",
+        "from": { "componentId": "led", "portId": "cathode" },
+        "to": { "componentId": "board", "portId": "gnd" }
+      }
+    ]
+  },
+  "program": {
+    "blocks": {
+      "blocks": {
+        "languageVersion": 0,
+        "blocks": [
+          {
+            "type": "stem_on_start",
+            "id": "on-start",
+            "x": 40,
+            "y": 40,
+            "inputs": {
+              "DO": {
+                "block": {
+                  "type": "stem_digital_write",
+                  "id": "write-d13-high",
+                  "fields": { "PIN": "D13", "LEVEL": "HIGH" }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

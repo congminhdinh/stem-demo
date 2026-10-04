@@ -1,0 +1,39 @@
+{
+  "id": "board",
+  "name": "STEM Board",
+  "body": { "width": 220, "height": 300 },
+  "ports": [
+    { "id": "3v3", "label": "3V3", "x": -110, "y": -130, "kind": "power" },
+    { "id": "gnd", "label": "GND", "x": 110, "y": -130, "kind": "ground" },
+    { "id": "d13", "label": "D13", "x": 110, "y": -110, "kind": "gpio" },
+    { "id": "d12", "label": "D12", "x": 110, "y": -90, "kind": "gpio" },
+    { "id": "d11", "label": "D11", "x": 110, "y": -70, "kind": "gpio" },
+    { "id": "d10", "label": "D10", "x": 110, "y": -50, "kind": "gpio" },
+    { "id": "d9", "label": "D9", "x": 110, "y": -30, "kind": "gpio" },
+    { "id": "d8", "label": "D8", "x": 110, "y": -10, "kind": "gpio" },
+    { "id": "d7", "label": "D7", "x": 110, "y": 10, "kind": "gpio" },
+    { "id": "d6", "label": "D6", "x": 110, "y": 30, "kind": "gpio" },
+    { "id": "d5", "label": "D5", "x": 110, "y": 50, "kind": "gpio" },
+    { "id": "d4", "label": "D4", "x": 110, "y": 70, "kind": "gpio" },
+    { "id": "d3", "label": "D3", "x": 110, "y": 90, "kind": "gpio" },
+    { "id": "d2", "label": "D2", "x": 110, "y": 110, "kind": "gpio" }
+  ],
+  "renderer": "board",
+  "simulation": { "model": "board" },
+  "board": {
+    "pins": [
+      { "name": "D13", "portId": "d13" },
+      { "name": "D12", "portId": "d12" },
+      { "name": "D11", "portId": "d11" },
+      { "name": "D10", "portId": "d10" },
+      { "name": "D9", "portId": "d9" },
+      { "name": "D8", "portId": "d8" },
+      { "name": "D7", "portId": "d7" },
+      { "name": "D6", "portId": "d6" },
+      { "name": "D5", "portId": "d5" },
+      { "name": "D4", "portId": "d4" },
+      { "name": "D3", "portId": "d3" },
+      { "name": "D2", "portId": "d2" }
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "id": "resistor",
+  "name": "Resistor",
+  "body": { "width": 80, "height": 20 },
+  "ports": [
+    { "id": "a", "label": "A", "x": -40, "y": 0, "kind": "passive" },
+    { "id": "b", "label": "B", "x": 40, "y": 0, "kind": "passive" }
+  ],
+  "renderer": "resistor",
+  "simulation": { "model": "resistor" }
+}

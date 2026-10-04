@@ -1,0 +1,30 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "stem_forever",
+        "id": "forever",
+        "x": 40,
+        "y": 40,
+        "inputs": {
+          "DO": {
+            "block": {
+              "type": "stem_digital_write",
+              "id": "disabled-write",
+              "disabledReasons": ["MANUALLY_DISABLED"],
+              "fields": { "PIN": "D13", "LEVEL": "HIGH" },
+              "next": {
+                "block": {
+                  "type": "stem_wait",
+                  "id": "wait-after",
+                  "fields": { "SECONDS": 1 }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

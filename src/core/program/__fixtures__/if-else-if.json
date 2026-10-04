@@ -1,0 +1,41 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "stem_on_start",
+        "id": "on-start",
+        "x": 40,
+        "y": 40,
+        "inputs": {
+          "DO": {
+            "block": {
+              "type": "controls_if",
+              "id": "if-else-if",
+              "extraState": { "elseIfCount": 1, "hasElse": true },
+              "inputs": {
+                "IF0": {
+                  "block": {
+                    "type": "logic_negate",
+                    "id": "not-d2",
+                    "inputs": { "BOOL": { "block": { "type": "stem_digital_read", "id": "read-d2", "fields": { "PIN": "D2" } } } }
+                  }
+                },
+                "DO0": {
+                  "block": { "type": "stem_digital_write", "id": "write-d13", "fields": { "PIN": "D13", "LEVEL": "HIGH" } }
+                },
+                "IF1": { "block": { "type": "stem_digital_read", "id": "read-d3", "fields": { "PIN": "D3" } } },
+                "DO1": {
+                  "block": { "type": "stem_digital_write", "id": "write-d12", "fields": { "PIN": "D12", "LEVEL": "HIGH" } }
+                },
+                "ELSE": {
+                  "block": { "type": "stem_digital_write", "id": "write-d11", "fields": { "PIN": "D11", "LEVEL": "HIGH" } }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}
