@@ -22,6 +22,25 @@ export default defineConfig([
   globalIgnores(['dist', 'coverage', 'playwright-report', 'test-results']),
   js.configs.recommended,
   tseslint.configs.recommended,
+  // Boundary B8 (§5.1): the UI and its stores reach persistence only through
+  // the ProjectRepository interface; the composition root (src/main.tsx)
+  // picks the implementation.
+  {
+    files: ['src/ui/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['dexie', 'dexie/*', '**/storage', '**/storage/**'],
+              message: 'src/ui must use the ProjectRepository interface, not the storage implementation (plan §5.1, B8).',
+            },
+          ],
+        },
+      ],
+    },
+  },
   {
     files: ['src/core/**/*.{ts,tsx}'],
     rules: {

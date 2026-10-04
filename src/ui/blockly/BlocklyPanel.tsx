@@ -1,23 +1,15 @@
 import * as Blockly from 'blockly';
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import { useStore } from 'zustand';
-import { blockTypes, buildBlockDefinitions, toolbox } from '../../core/program/blocks';
+import { blockTypes, toolbox } from '../../core/program/blocks';
 import type { ProjectStore } from '../state/project-store';
+import { registerBlocks } from './editor-blocks';
 
 // Blockly is only a view of `document.program.blocks` (plan §5.1 B4): the
 // workspace is loaded from that JSON and every non-UI change is serialized
 // back into the store. No Blockly object ever leaves this file.
 
 const saveDelayMs = 250;
-
-let blocksRegistered = false;
-
-function registerBlocks(boardPins: readonly string[]) {
-  if (!blocksRegistered) {
-    Blockly.common.defineBlocksWithJsonArray(buildBlockDefinitions(boardPins));
-    blocksRegistered = true;
-  }
-}
 
 export type BlocklyPanelHandle = {
   /**

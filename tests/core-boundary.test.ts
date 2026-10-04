@@ -34,3 +34,18 @@ describe('core boundary (B1)', () => {
     expect(await boundaryViolations("import { useState } from 'react';", 'src/ui/app/example.ts')).toEqual([]);
   });
 });
+
+describe('persistence boundary (B8)', () => {
+  it.each([
+    "import Dexie from 'dexie';",
+    "import { createDexieProjectRepository } from '../../storage/dexie-project-repository';",
+  ])('rejects `%s` inside src/ui', async (code) => {
+    expect(await boundaryViolations(code, 'src/ui/state/example.ts')).toHaveLength(1);
+  });
+
+  it('allows the storage implementation in the composition root and in src/storage', async () => {
+    const code = "import { createDexieProjectRepository } from './storage/dexie-project-repository';";
+    expect(await boundaryViolations(code, 'src/main.tsx')).toEqual([]);
+    expect(await boundaryViolations("import Dexie from 'dexie';", 'src/storage/example.ts')).toEqual([]);
+  });
+});

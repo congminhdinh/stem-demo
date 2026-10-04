@@ -1,6 +1,6 @@
 # STEM Studio PoC — Demo script
 
-> Kịch bản ngắn cho người chạy thử PoC (plan POC-11 và POC-13, §8.2). Mỗi demo mất khoảng 1–2 phút. Phần **Nhận xét (L8)** ở cuối dùng để ghi cảm nhận sau khi chạy thử.
+> Kịch bản ngắn cho người chạy thử PoC (plan POC-11, POC-13 và POC-14, §8.2). Mỗi demo mất khoảng 1–2 phút. Phần **Nhận xét (L8)** ở cuối dùng để ghi cảm nhận sau khi chạy thử.
 
 ## Chuẩn bị
 
@@ -57,6 +57,15 @@ Cũng có thể tự dựng hai mạch này như ở Demo M2, vì palette đã c
    - mở **Logic** và kéo thêm `not` vào điều kiện;
    - rút `digital read` ra khỏi `if` rồi Run. Toolbar báo `"if" needs a condition.` và program không chạy.
 
+## Demo M4 — Giữ project qua reload
+
+1. Sửa mạch đang mở: thêm một device, kéo nó đi, xoá một dây. Sửa program: đổi một `HIGH` thành `LOW`.
+2. Chờ khoảng một giây, rồi reload trang (F5). Mạch và program còn nguyên như trước khi reload.
+3. Bấm **New**, chờ một giây, rồi reload. App mở lại đúng project mới (canvas trống).
+4. Bấm **Run** trên một mạch có nút, giữ nút để LED sáng, rồi reload ngay khi đang giữ. App mở lại ở trạng thái thiết kế: `Idle`, LED tắt, nút không bị nhấn.
+
+Project được tự lưu khoảng 0,3 s sau mỗi thay đổi; một lần sửa trong Blockly cần thêm khoảng 0,3 s để vào project. Vì vậy reload ngay sau khi sửa có thể mất lần sửa cuối.
+
 ## Nhận xét (L8)
 
 L8: *Flow có cảm giác giống một sản phẩm STEM thực tế không?*
@@ -86,6 +95,13 @@ Cũng bằng Playwright, cũng không phải người dùng thật.
   3. Category **Pins** và **Logic** cùng màu.
   4. Program đọc nút theo vòng `forever`, nên một lần nhấn ngắn hơn khoảng 10 ms có thể bị bỏ qua. Với click của người thì khó gặp.
   5. Dây từ nút lên D2 trong `button-led` cắt qua góc của board, vì dây là đường thẳng.
+
+### Lần chạy M4 của coding agent (2026-10-03)
+
+Bằng Playwright, không phải người dùng thật. Reload mở lại project trong khoảng 0,1 s và không có lỗi console. Chỗ còn vấp:
+1. **New** không hỏi lại, mà project cũ không còn cách nào mở lại từ UI.
+2. Thay đổi trong khoảng 0,6 s cuối trước khi reload có thể mất.
+3. Mở app ở hai tab thì tab nào lưu sau sẽ thắng.
 
 ### Người chạy thử
 

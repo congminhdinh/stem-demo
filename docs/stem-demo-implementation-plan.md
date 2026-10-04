@@ -12,7 +12,7 @@
 |---|---|
 | **PoC chứng minh gì** | Kiến trúc đã chọn đủ tốt để xây một STEM editor thực tế. Kiến trúc đó gồm: document độc lập renderer, simulation là hàm thuần, Blockly chỉ là view và program được compile sang IR, runtime chỉ chạm phần cứng ảo qua `HardwareIO`, canvas chỉ render document và snapshot (§2) |
 | **Vertical slice** | **Checkpoint MP** (bằng chứng đầu tiên): Board + LED, block "on start: digital write D13 HIGH", bấm Run thì LED sáng trên canvas. **VS-1:** mở rộng MP thành mạch Board + Resistor + LED chạy program blink (`forever` + `wait`), Stop hoạt động đúng. **VS-2:** người dùng tự dựng mạch bằng chuột rồi chạy (§3) |
-| **Task tiếp theo** | `POC-14` Local persistence (§9.2, M4, P1). `POC-01`…`POC-13` đã xong: M1, M2 và M3 đóng (§17); phần P0 hoàn tất |
+| **Task tiếp theo** | Không còn task trong roadmap. `POC-01`…`POC-14` đã xong; M1–M4 đạt exit criteria kỹ thuật (§17, "Trạng thái PoC"; M4 chờ reviewer confirm final sau khi sửa F1–F4). Còn mở: L8 cần một người chạy thử demo script; các hạng mục P2 ở §13 |
 | **Critical path** | `01 → 02 → 03 → 05 → 08 → 11`. Hai nhánh `02 → 06 → 07 → 08` và `03 → 09 → 10 → 11` dài bằng nhau (§10) |
 | **PoC xong khi** | M1 và M2 (P0) đạt exit criteria, Learning log trả lời được L1–L4 (§8, §17). M3 và M4 (P1) làm PoC thuyết phục hơn |
 | **Ràng buộc cứng** | Boundary B1–B8 (§5.1) và acceptance criteria của task. Mọi thứ còn lại (tên file, API helper, cấu trúc nội bộ, type chi tiết) là gợi ý |
@@ -249,6 +249,10 @@ Stack baseline **không thay đổi**. Chỉ thay đổi *thời điểm* đưa 
 
 Chỉ nâng các version này khi đã nâng Node hoặc khi `typescript-eslint` hỗ trợ TypeScript 7.
 
+*(POC-14)* Thêm hai package, đều pin version:
+- `dexie@4.4.6` (dependency): adapter persistence duy nhất (§7);
+- `fake-indexeddb@6.2.5` (devDependency): IndexedDB cho unit test của adapter trên Node.
+
 ---
 
 ## 5. Architecture
@@ -266,7 +270,7 @@ Chỉ nâng các version này khi đã nâng Node hoặc khi `typescript-eslint`
 | **B5** | **Runtime chỉ nói chuyện với phần cứng ảo qua `HardwareIO`** (cộng status event), không biết gì về mạch, simulation hay UI. `RunSession` là nơi duy nhất nối program với simulation | Đây là seam để sau này thêm Pyodide và phần cứng thật | Contract ở §6.4 |
 | **B6** | **Device metadata là data.** Definition là file JSON, được validate bằng Zod khi tạo registry. Renderer và simulation model được tham chiếu bằng id dạng chuỗi; id lạ thì dùng generic renderer hoặc model inert, không crash. Không `eval`. Hàm core nhận registry qua tham số; chỉ bootstrap import catalog local | Đường lên API/CMS; tránh `eval` như OhStem | Definition để ở file `.json`; Zod schema |
 | **B7** | **Geometry một nguồn.** Vị trí port trong toạ độ world do **một** hàm core tính. Renderer, wiring, hit-test và test hook đều dùng hàm đó. Mọi chuyển đổi pointer ↔ world đi qua một helper | Tránh Konva và core lệch nhau; thêm xoay/zoom sau chỉ là thay đổi cục bộ | Review; acceptance criteria của POC-03 và POC-10 |
-| **B8** | **Persistence đặt sau interface** (P1). UI và store gọi interface; chỉ bootstrap biết tới Dexie | Đường lên API/backend mà không phải viết lại editor | POC-14 |
+| **B8** | **Persistence đặt sau interface** (P1). UI và store gọi interface; chỉ bootstrap biết tới Dexie | Đường lên API/backend mà không phải viết lại editor | POC-14: rule ESLint `no-restricted-imports` cho `src/ui/**` (không import `dexie` hay `src/storage`), có test trong `tests/core-boundary.test.ts` |
 
 **Boundary không phải lý do để tạo thêm abstraction.** Giữ boundary chủ yếu bằng cách đặt code đúng chỗ (đúng thư mục, đúng hướng import). Chỉ thêm interface, registry hay layer mới khi đã có **consumer thực tế** thứ hai, hoặc khi task yêu cầu rõ ràng.
 
@@ -381,7 +385,7 @@ type Point = { x: number; y: number };
 
 **Invariant.** Mọi operation phải giữ các invariant này, và dữ liệu load vào phải được kiểm tra theo chúng:
 - **I1.** `id` không trùng giữa các component, và không trùng giữa các wire.
-- **I2.** Đầu dây trỏ tới một component có thật, và tới một port có trong definition của component đó. `deviceType` lạ chỉ có thể xuất hiện khi load dữ liệu từ ngoài (POC-14, CMS); cách xử lý được quyết định khi có nguồn dữ liệu đó.
+- **I2.** Đầu dây trỏ tới một component có thật, và tới một port có trong definition của component đó. `deviceType` lạ chỉ có thể xuất hiện khi load dữ liệu từ ngoài (POC-14, CMS); cách xử lý được quyết định khi có nguồn dữ liệu đó. *(POC-14)* Document đọc từ storage được kiểm tra theo I1–I3 và theo registry; vi phạm thì không mở, xem §7.
 - **I3.** Không có dây nối một port với chính nó. Không có hai dây trùng nhau (kể cả khi đảo chiều). Một port được phép có nhiều dây.
 - **I4.** Xoá component thì xoá luôn các dây nối vào nó.
 - **I5.** Không có runtime state (B2).
@@ -646,6 +650,54 @@ Tuy vậy persistence vẫn cần để flow "cảm giác như sản phẩm", v�
 **Không làm:** migration framework, normalize kiểu "sửa và cảnh báo", contract suite, đồng bộ offline, danh sách project, export/import, dirty state, `beforeunload`, nhiều tab.
 
 **Seam cho tương lai:** một `ApiProjectRepository` implement cùng interface (REST lưu document dạng JSON nguyên khối). Backend có thể validate bằng JSON Schema sinh từ Zod (`z.toJSONSchema`). Editor core không phải thay đổi gì.
+
+*(POC-14)* **Đã implement:**
+- **Interface** `ProjectRepository` (`src/core/persistence/project-repository.ts`) chỉ có `save(document)` và `loadLast()`. `loadLast` trả về `{ document: unknown } | null`, tức đúng thứ đã lưu, chưa kiểm tra. Không có `load(id)`, vì chưa có consumer (chưa có danh sách project).
+- **Kiểm tra ở boundary** (`readStoredProject`): Zod schema (`schemaVersion` phải là 1), I1–I3 (dựng lại dây bằng `connectWire`), `deviceType` có trong registry, và program mà **chính editor** mở được.
+  - **Vì sao Zod chưa đủ** (evidence: chạy Blockly 13 headless): Blockly **throw** khi load block type lạ, block thiếu `type`, `blocks` không phải mảng, hay workspace `null`. Với giá trị field sai thì nó load được, bằng giá trị mặc định.
+  - **Program do Blockly phán** *(sửa sau review POC-14, F1)*. Bản đầu dùng một walker trong core, kiểm type, id và các kết nối. Reviewer tìm ra dữ liệu lọt qua walker nhưng vẫn làm Blockly throw: `controls_if` có `extraState: null` mà vẫn giữ input `ELSE` cho ra "missing a(n) ELSE connection", và app trắng trang. Các trường hợp cùng loại: input `IF1` mà `extraState` không tạo ra, value block nằm trong statement input, program lồng quá sâu.
+    - Thay vì chép lại cấu trúc của Blockly, core nhận một `ProgramCheck` được inject vào. App truyền `canOpenProgram` (`src/ui/blockly/editor-blocks.ts`): load program vào một `Blockly.Workspace` headless với đúng các block của editor (tắt event, dispose ngay sau đó), và mọi exception đều nghĩa là không mở được.
+    - Một program không phải object (null, số, chuỗi, mảng) cũng bị từ chối, vì panel sẽ mở nó thành workspace trống mà không báo gì.
+    - Core vẫn không import Blockly (B1); code dùng Blockly vẫn chỉ nằm trong `src/ui/blockly` (B4). Walker cũ đã bị gỡ bỏ.
+  - **Preflight trước Blockly** *(sửa sau review POC-14, F4)*. Để Blockly phán chỉ an toàn khi nó trả lời trong thời gian có hạn. Reviewer tìm ra một record làm main thread treo trước khi render: `controls_if` có `extraState.elseIfCount = 1_000_000_000`. Blockly tạo hai input cho mỗi else-if trước khi kiểm tra bất cứ gì, nên `try/catch` không giúp được.
+    - Evidence (Blockly 13 headless, Node): 1.000 else-if mất khoảng 5 ms, 100.000 khoảng 190 ms, 1 tỷ thì sau 8 s vẫn chưa xong. Blockly coi `elseIfCount` dạng chuỗi hay mảng cũng là số, còn `Infinity` thì không bao giờ xong. Các mutator khác mà Blockly cũng load dù toolbox không có đều như vậy: `lists_create_with` và `text_join` theo `itemCount`, lời gọi procedure theo `params`.
+    - Cùng loại, vì IndexedDB lưu structured clone chứ không phải JSON. Một object được tham chiếu hai lần thì bị load hai lần: một cây 2^16 block dựng từ khoảng 80 object đã mất 2,7 s. Mảng có lỗ thì bị duyệt tới hết `length`.
+    - `canOpenProgram` giờ chạy preflight `isBoundedForBlockly` trước `Blockly.serialization.workspaces.load`. Program phải giống thứ editor lưu ra:
+      - là một cây: không object nào xuất hiện hai lần, nên cũng không có vòng;
+      - mảng không có lỗ;
+      - mutator state chỉ có trên `controls_if`, với `elseIfCount` là số nguyên không âm;
+      - tổng số else-if của cả program không quá `maxElseIfs` = 1.000.
+    - **Vì sao đủ:** đó là những chỗ duy nhất mà vài byte dữ liệu bắt Blockly làm nhiều việc hơn kích thước của chính dữ liệu đó. Preflight không kiểm block, input hay field; mọi thứ khác Blockly vẫn tự phán bằng cách load (F1). Công việc tăng theo kích thước của record (ví dụ một danh sách biến dài) thì không bị giới hạn, vì record phải thật sự lớn như vậy.
+    - Ở mức tối đa 1.000 else-if: check headless mất khoảng 5 ms; trên bản production, panel mở và render xong trong khoảng 150 ms.
+  - Dây trỏ tới port không có, hay `deviceType` lạ, cũng làm canvas throw. Vì vậy dữ liệu như thế bị coi là hỏng.
+  - Program lưu từ editor mà có lỗi compile (ví dụ điều kiện trống, C8) vẫn mở được bình thường.
+- **Khi khởi động** (`openLastProject`):
+  - có project đã lưu và mở được: mở nó;
+  - chưa lưu gì: mở sample `blink`;
+  - project đã lưu bị hỏng hoặc version lạ: mở project mới, kèm thông báo "The saved project could not be opened, so a new project was started.";
+  - IndexedDB lỗi: mở sample, thông báo "Projects cannot be saved in this browser.", và phiên đó không autosave.
+  - **Phạm vi của thông báo** *(sửa sau review POC-14, F3)*. Thông báo "không mở được project đã lưu" nói về project lúc mở app, nên biến mất khi một project khác được mở (New). Thông báo "không lưu được" nói về cả phiên, nên còn tới khi người dùng bấm Dismiss, vì New không làm cho việc lưu chạy lại được. `Notice` có `about: 'opened-project' | 'session'`.
+
+  `main.tsx` chờ bước này xong rồi mới tạo store và render, nên không thể có chỉnh sửa hay lần autosave nào chen vào trước khi project cũ được đọc.
+- **Dexie** (`src/storage/dexie-project-repository.ts`): database `stem-studio`, bảng `projects` (`id, updatedAt`), record `{ id, name, updatedAt, document }`, project gần nhất là record có `updatedAt` lớn nhất. `updatedAt` tăng nghiêm ngặt trong một phiên và nối tiếp giá trị đã lưu sau mỗi lần load, nên lần save sau luôn là project gần nhất, kể cả khi hai lần save rơi vào cùng một millisecond hay đồng hồ máy bị lùi.
+- **Autosave** (`src/ui/state/autosave.ts`):
+  - Mỗi thay đổi `document` (sửa mạch, Blockly lưu program, load hay New) lên lịch một lần save sau 300 ms (debounce). Project vừa mở cũng được lưu một lần.
+  - Mỗi lần save ghi **document hiện tại của store lúc bắt đầu save**, không bao giờ ghi một document đã giữ từ trước. Mỗi lúc chỉ có một lần save, và thay đổi đến trong lúc đang save sẽ được ghi tiếp ngay sau đó.
+  - Hệ quả: một project đã bị New hay load thay thế không bao giờ được ghi sau project thay nó, nên không thể "quay lại" thành project gần nhất. Lần save cuối luôn là document mới nhất.
+  - Save lỗi thì `console.warn`, và **không** thử lại cùng document đó. *(Sửa sau review POC-14, F2.)* Lỗi được bắt cho từng lần save bên trong vòng lặp, nên một thay đổi đến trong lúc save đang chạy rồi hỏng (một lần sửa, hay New) vẫn được ghi ngay sau đó. Trước khi sửa, lỗi kết thúc cả vòng lặp: document B (vừa New) chờ trong lúc save của A đang chạy sẽ không bao giờ được ghi nếu A hỏng, cho tới khi có thay đổi kế tiếp.
+- **Kết hợp với chống stale-save của POC-08:** Blockly chỉ ghi được vào store khi `loadRevision` còn khớp, còn autosave chỉ đọc từ store. Vì vậy một lần save Blockly còn chờ của project cũ không thể tới được storage (có E2E).
+- **Được lưu:** chỉ `ProjectDocument`.
+- **Không được lưu:**
+  - snapshot, `pinOutputs` và `contacts` (nằm trong `RunSession`);
+  - IR (compile lúc Run);
+  - selection, hover, preview kéo và dây đang nối (state cục bộ của canvas);
+  - node Konva;
+  - `loadRevision` và `startFailure`.
+- **Giới hạn đã biết:**
+  - Không có `beforeunload` (§7 "Không làm"), nên thay đổi trong khoảng 0,6 s cuối trước khi đóng tab hay reload có thể mất. Khoảng này gồm 300 ms debounce, cộng khoảng 270 ms Blockly cần để đưa một lần sửa vào store (POC-08).
+  - Nhiều tab: tab ghi sau thắng.
+  - Mỗi lần New để lại record của project cũ; chưa có cách mở lại nó (BL-D1).
+  - Chưa có timeout khi IndexedDB không trả lời.
 
 ---
 
@@ -932,7 +984,7 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 **Notes.** Nếu JSON do UI sinh ra khác fixture của POC-04, sửa fixture và ghi vào Learning log (bằng chứng cho L3).
 
 **Trạng thái: xong (2026-10-03).**
-- **`src/ui/blockly/BlocklyPanel.tsx`** là nơi duy nhất trong `src` import Blockly, qua entry `blockly` (gồm core, locale English và block built-in).
+- **`src/ui/blockly/BlocklyPanel.tsx`** là nơi duy nhất trong `src` import Blockly, qua entry `blockly` (gồm core, locale English và block built-in). *(POC-14: thêm `editor-blocks.ts` trong cùng thư mục, gồm việc đăng ký block và check program đã lưu; B4 vẫn giữ.)*
   - Block được đăng ký một lần.
   - Inject với zelos, toolbox từ core, `sounds: false`, `maxInstances` (một `on start`, một `forever`) và `disableOrphans`.
 - **Đồng bộ với document:**
@@ -1262,7 +1314,7 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
   - `createDefaultProgram()` (`blocks.ts`) trả về `on start` và `forever` rỗng, viết bằng `blockTypes`. Nó có trong conformance test, và Blockly thật round-trip nó không đổi.
   - `createNewProject(id)` (`document.ts`) tạo document với circuit trống và program mặc định.
   - Nút **New** trên header gọi `loadProject(createNewProject(crypto.randomUUID()))`. Vì `loadRevision` tăng nên Blockly và canvas được reset.
-  - New thay cả project nên cũng bị khoá khi đang chạy: nút bị disable, và handler đọc khoá từ store như `editCircuit`. Chưa có hộp xác nhận, vì chưa có persistence để mất.
+  - New thay cả project nên cũng bị khoá khi đang chạy: nút bị disable, và handler đọc khoá từ store như `editCircuit`. Chưa có hộp xác nhận, vì chưa có persistence để mất. *(POC-14: vẫn chưa có, dù giờ đã có persistence; xem L8 ở M4.)*
   - **Thông báo của project cũ** (lỗi do review tìm ra): lý do một lần Run không start được (`runStore.startFailure`, ví dụ "The circuit can have only one board." hoặc diagnostics compile) chỉ bị xoá ở lần Run start được tiếp theo, nên vẫn hiện trên toolbar sau New. Giờ New gọi `runStore.clearStartFailure()` ngay sau `loadProject`. RunSession không đổi: một Run thất bại vốn đã để session ở `idle`, không còn diagnostics trong snapshot. Các flow khác (sửa mạch, sửa program) vẫn giữ thông báo tới lần Run sau như trước. Regression: 2 E2E (mạch hai board, program có hai `on start`) và 1 unit test của `runStore`.
 - **Khoá khi chạy:** đã có từ POC-09/10, gồm palette, kéo, nối dây, chọn, xoá, và giờ thêm New.
 - **E2E-2** (`e2e/vs2-build.spec.ts`), đi đúng demo M2:
@@ -1423,10 +1475,68 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 **Out of scope.** Danh sách project, export/import, migration, dirty state, `beforeunload`, nhiều tab.
 
 **Acceptance**
-- [ ] Reload khôi phục circuit và program (document deep-equal).
-- [ ] Record được lưu không chứa runtime state.
-- [ ] Dữ liệu lưu bị hỏng → app khởi động với project mới và có thông báo, không crash.
-- [ ] `dexie` chỉ được import trong implementation storage; UI chỉ phụ thuộc interface.
+- [x] Reload khôi phục circuit và program (document deep-equal).
+- [x] Record được lưu không chứa runtime state.
+- [x] Dữ liệu lưu bị hỏng → app khởi động với project mới và có thông báo, không crash.
+- [x] `dexie` chỉ được import trong implementation storage; UI chỉ phụ thuộc interface.
+
+**Trạng thái: xong (2026-10-03), sau khi sửa 4 finding của review cuối (F1–F4, xem §7). M4 đạt technical exit criteria; chờ reviewer confirm final.**
+- **Thiết kế:** theo §7 ("Đã implement").
+  - Interface và kiểm tra dữ liệu ở `src/core/persistence/`.
+  - Adapter Dexie ở `src/storage/`. `src/main.tsx`, composition root, là file duy nhất ngoài `src/storage` import nó.
+  - Autosave ở `src/ui/state/`, chỉ phụ thuộc interface.
+- **UI:** `App` nhận `notice`, hiện trên header với nút **Dismiss**.
+  - Thông báo về project lúc mở app biến mất khi một project khác được mở (New), tức khi `loadRevision` khác 0. Đây cùng loại lỗi với F1 của POC-11; mình tự tìm ra khi review.
+  - Thông báo về phiên ("không lưu được") thì không biến mất khi New (F3, §7).
+  - Không có nút Save; New vẫn tạo id mới như POC-11.
+- **Test** (thêm 65 unit test):
+  - `readStoredProject` / `openLastProject` (18): mở 3 loại document hợp lệ; từ chối program mà check của editor từ chối (và đưa đúng `program.blocks` cho check); từ chối 10 loại dữ liệu hỏng (schema, version, I1–I3, device lạ); đủ 4 trường hợp khi khởi động, kể cả phạm vi của thông báo.
+  - `canOpenProgram` trên Blockly thật (30):
+    - mở được blink, `button-led`, if/else-if/else, program mặc định, workspace rỗng, và program có điều kiện trống (C8);
+    - từ chối đúng case của reviewer (`extraState: null` còn `ELSE`), `IF1` thừa, value block trong statement input, block type lạ, block thiếu type, `blocks` không phải mảng, null, chuỗi, mảng;
+    - từ chối program lồng 100.000 tầng, và sau đó vẫn mở được program kế tiếp;
+    - mở được program có đúng `maxElseIfs` else-if, dưới 1 s; program qua được preflight vẫn được Blockly load (F1 còn nguyên).
+    - *(F4)* Từ chối dưới 100 ms, và không gọi tới loader của Blockly:
+      - case của reviewer (`elseIfCount` 1 tỷ);
+      - `Infinity`, chuỗi, mảng;
+      - tổng vượt giới hạn dù từng `if` không vượt;
+      - một count không phải số làm hỏng phép cộng và che một count 1 tỷ;
+      - `itemCount` của list và text block, `params` của lời gọi procedure;
+      - cây 2^30 block do chia sẻ object;
+      - block nằm trong chính nó;
+      - `disabledReasons` có lỗ tới độ dài lớn nhất.
+    - Trong các test F4, loader của Blockly bị stub. Guard hỏng thì test fail ngay, thay vì treo.
+  - Adapter Dexie trên `fake-indexeddb` (6):
+    - round-trip deep-equal qua một repository mới (L7);
+    - chưa lưu gì thì trả về null;
+    - project gần nhất đúng kể cả khi hai lần save cùng millisecond hay đồng hồ lùi;
+    - mỗi project một record, chỉ chứa `{ id, name, updatedAt, document }`;
+    - trả về dữ liệu hỏng nguyên trạng.
+  - Autosave (8): lưu project vừa mở; gộp các lần sửa nhanh; không ghi project đã bị thay thế; một lần save mỗi lúc và kết thúc bằng document mới nhất; save lỗi thì thử lại ở thay đổi kế tiếp; **save A đang chạy → New sang B → A hỏng → B vẫn được ghi (F2)**; save hỏng không bị thử lại khi không có gì đổi; dừng thì không lưu gì.
+  - Boundary B8 (3): `src/ui` không được import `dexie` hay `src/storage`; `src/main.tsx` và `src/storage` thì được.
+  - Đã thử làm hỏng từng quy tắc (11 lần), lần nào cũng có test fail: cho save chồng nhau, bỏ lần lưu lúc mở, ghi document cũ, bỏ kiểm tra invariant, bỏ kiểm tra block, mở sample khi dữ liệu hỏng, bỏ tăng nghiêm ngặt của `updatedAt`, bỏ nối tiếp `updatedAt`, không chạy autosave, tắt chống stale-save của POC-08, giữ thông báo sau New. Sau review: đưa từng lỗi F1–F3 trở lại (app không dùng check của Blockly, core bỏ qua check, lỗi kết thúc vòng lặp save, mọi thông báo đều mất khi New) thì đều có test fail.
+  - Với F4, mỗi lần bỏ một phần của preflight đều có test fail trong khoảng 1 s: bỏ cả preflight, cho mảng có lỗ, cho mọi block có mutator state, giới hạn theo từng `if` thay vì tổng, hay bỏ check số nguyên.
+    - Bỏ check chia sẻ thì chính preflight lặp mãi trên program vòng tròn, tới khi worker hết bộ nhớ (khoảng 24 s). Test run vẫn fail chứ không treo vô hạn.
+    - Bỏ preflight khỏi app thì E2E F4 fail: trang treo, app không mở được, và Playwright timeout ở 30 s.
+- **E2E-4** `e2e/persistence.spec.ts` (8 test). Project được sửa qua UI và app tự khôi phục khi reload; IndexedDB chỉ được đọc bằng API của trình duyệt để biết khi nào đã lưu xong (và bị làm hỏng trong test dữ liệu hỏng). Không hook nào inject dữ liệu đã lưu.
+  1. Thêm push button, xoá một dây, đổi `HIGH` → `LOW` trong Blockly → reload → document deep-equal; canvas và Blockly hiện đúng.
+  2. New → reload → đúng project mới.
+  3. Một lần sửa Blockly còn chờ khi bấm New không vào project mới và không vào storage; record của `blink` vẫn là bản lúc mở.
+  4. Reload khi đang chạy và đang giữ nút → `Idle`, nút mở, LED tắt; storage giữ nguyên document của sample (B2).
+  5. Record bị hỏng → project mới, có thông báo, không có lỗi trang → New làm thông báo biến mất. Làm hỏng thêm lần nữa → Dismiss làm nó biến mất → reload lần nữa thì mở project mới đó, không còn thông báo.
+  6. *(F1)* Lưu `button-led`, đặt `extraState` của `controls_if` thành `null` ngay trong IndexedDB (giữ `ELSE`) → reload → project mới, có thông báo, `#root` có nội dung, không có lỗi trang.
+  7. *(F4)* Lưu `button-led`, đặt `elseIfCount` của `controls_if` thành 1 tỷ ngay trong IndexedDB → reload → dưới 5 s đã có project mới kèm thông báo, `#root` có nội dung, không có lỗi trang.
+  8. *(F3)* `indexedDB.open` throw `SecurityError` → thông báo "không lưu được" → New → thông báo vẫn còn → Dismiss làm nó biến mất.
+- **Lặp lại** (sau khi sửa F1–F4): E2E-4 xanh 80/80 khi lặp 10 lần; cả bộ 37 E2E xanh 111/111 khi lặp 3 lần.
+- **Bản build production** (`vite preview`, có top-level await trong `main.tsx`): thêm 2 LED → reload → record trong IndexedDB vẫn có 5 component sau lần lưu lúc mở app; không có test hook; không có lỗi console. Case F1 cũng được thử trên bản này: app mở project mới kèm thông báo, không trắng trang.
+  - *(F4)* Ghi thẳng vào IndexedDB thật, mỗi lần một profile mới: `elseIfCount` 1 tỷ, `Infinity`, hay cây 2^30 block do chia sẻ object. Lần nào app cũng có project mới kèm thông báo sau khoảng 65 ms, không có lỗi trang. `button-led` hợp lệ vẫn mở bình thường. Bundle khoảng 1,50 MB (thêm Dexie).
+- **Helper E2E:** `openApp` chờ app mở xong project rồi mới tiếp tục, vì app giờ đọc storage trước khi render; `openProject` dùng nó. Thêm `currentProject`, `storedProjects` và `expectSaved`.
+- **Số đo** (dev server, Chromium): reload → app đã render lại project khoảng 95–112 ms; lần mở đầu tiên khoảng 360–400 ms (gồm transform của dev server).
+- **Lệch khỏi plan, có chủ đích:**
+  - Interface không có `load(id)`.
+  - Kiểm tra lúc load rộng hơn Zod: I1–I3, registry, và program do Blockly phán qua một `ProgramCheck` được inject vào, sau một preflight giới hạn công việc của Blockly. Lý do và evidence ở §7.
+  - Project vừa mở cũng được lưu ngay, để sau một lần dữ liệu hỏng thì thông báo chỉ hiện một lần.
+- **Chủ động chưa làm:** nút Save, `beforeunload`, xác nhận khi New, danh sách project (BL-D1), export/import (BL-D2), migration (BL-D3), đồng bộ nhiều tab, timeout khi mở IndexedDB.
 
 ---
 
@@ -1533,6 +1643,7 @@ Hook không phải contract có version. Thêm hoặc bớt theo nhu cầu của
 - `getProgramBlocks()`;
 - `loadProject(doc)`;
 - *(POC-12)* `getProject()`, để E2E kiểm tra document sau một lần chạy có nhấn nút (B2). `getCanvasState()` có thêm `closed` của push button, đọc từ node Konva `button-cap`.
+- *(POC-14)* Không thêm hook nào. Vì app đọc storage trước khi render, hook chỉ có sau khi project đã mở; helper `openApp` của E2E chờ điều đó. E2E-4 đọc IndexedDB bằng API của trình duyệt chứ không qua hook.
 - *(POC-13)* Không thêm hook nào. E2E-3 chỉ dùng hook để mở sample và để quan sát (trạng thái đã render, program đã lưu); nút được nhấn bằng chuột thật và program được sửa qua Blockly UI.
 
 Status Run đọc thẳng từ DOM, nên chưa cần `getRunSnapshot`.
@@ -1696,7 +1807,7 @@ Chỉ cần quay lại research khi làm hạng mục backlog: track Python (spe
 | M1 | 2026-10-03 | L2 (mạch mẫu), L3, L4 | Xem "M1 — chi tiết" bên dưới | L2 ✅ (mạch mẫu; mạch tự dựng ở M2) · L3 ✅ · L4 ✅ | `digitalRead`, `contacts` để tới lúc có consumer; sample mặc định là `blink`; Run gọi `saveNow` của Blockly |
 | M2 | 2026-10-03 | L1, L2, L8 + go/no-go | Xem "M2 — chi tiết" bên dưới | L1 ✅ · L2 ✅ · L8 ⚠️ (mới có lần chạy của agent) · **GO** cho M3/M4 (reviewer xác nhận 2026-10-03) | Không đổi kiến trúc. Ghi nhận: lỗi tập trung ở chuyển trạng thái của thao tác chuột (UI), không ở model |
 | M3 | 2026-10-03 | L3 (built-in), L5, L6 | Xem "M3 — chi tiết" bên dưới | L3 ✅ · L5 ✅ · L6 ✅ · L8 ⚠️ (chỉ có lần chạy của agent) | Không đổi kiến trúc. IR của `if` dùng danh sách nhánh; điều kiện bỏ trống là lỗi (C8) |
-| M4 | — | L7 | *(điền ở POC-14)* | | |
+| M4 | 2026-10-03 | L7 (+ B8) | Xem "M4 — chi tiết" bên dưới | L7 ✅ · B8 ✅ · L8 ⚠️ (chỉ có lần chạy của agent) | Kiểm tra lúc load gồm cả I1–I3, registry, và program do Blockly phán sau một preflight giới hạn công việc (§6.1, §7). Không đổi kiến trúc |
 
 **M2 — chi tiết (POC-11).**
 - **L1** (editor/document có hỗ trợ tốt tương tác thật trên Konva không?): **✅**
@@ -1724,6 +1835,52 @@ Chỉ cần quay lại research khi làm hạng mục backlog: track Python (spe
   - seam cho M3 đã có: `pinReads` trong simulation, `contacts` ở POC-12, `digitalRead` ở POC-13.
 
   Điều kiện: một người chạy thử demo script để chốt L8 trước khi kết thúc PoC.
+
+**Trạng thái PoC (sau POC-14, 2026-10-03).**
+- **Tiêu chí thành công §2.4: đạt về mặt kỹ thuật**, với M4 tính sau khi đã sửa F1–F4 của review cuối (chờ reviewer confirm final).
+  - M1 và M2 (P0) đạt exit criteria; M3 và M4 (P1) cũng vậy.
+  - E2E-1 đến E2E-4 xanh.
+  - Các chỉ số §2.5 nằm trong mục tiêu:
+    - Run → LED ~9 ms;
+    - Stop khi đang `wait` 15–26 ms;
+    - chu kỳ blink lệch dưới ±50 ms;
+    - nhấn nút → LED qua `if` median 36,5 ms, max 43,8 ms;
+    - tối đa một lần cập nhật React mỗi frame (theo thiết kế, có unit test).
+  - B1–B8 được giữ mà không cần `eslint-disable`.
+  - L1–L7 có verdict ✅.
+- **Tín hiệu phản bác ở §2.4: không gặp cái nào.**
+  - Renderer chỉ đọc snapshot.
+  - Compiler chỉ cần JSON, kể cả `extraState`.
+  - Thêm push button không phải sửa code theo kiểu đặc thù cho device.
+  - Không có giật hay trễ quá chỉ số.
+  - Geometry chỉ có một nguồn.
+  - UI không cần runtime state trong document.
+- **Còn mở:** L8 (cảm giác như sản phẩm thật) mới có các lần chạy bằng script của agent. Cần một người chạy demo script (M1–M4) rồi ghi nhận xét vào `docs/stem-demo-demo-script.md` và vào đây. Đây là learning question, không phải tiêu chí ở §2.4.
+- **Không chặn PoC (backlog/polish):** các hạng mục P2 ở §13 và các chỗ vấp đã ghi trong demo script, ví dụ: device mới luôn xuất hiện giữa canvas, chưa có undo, New không hỏi lại, chưa có menu mẫu, dây thẳng, `Pins` và `Logic` cùng màu.
+
+**M4 — chi tiết (POC-14).** Verdict: **M4 đạt technical exit criteria** sau khi sửa F1–F4 của review cuối; chờ reviewer confirm final. Exit ở §8.2: E2E-4 xanh; dữ liệu hỏng không làm app crash hay treo (E2E-4 test 5–7, trong đó test 6 và 7 là case F1 và F4 của reviewer; unit test với Blockly thật).
+- **L7** (document có tự đủ để persist/restore không?): **✅**
+  - Document được lưu nguyên khối và khôi phục deep-equal (unit trên `fake-indexeddb` và E2E reload).
+  - Record chỉ có `{ id, name, updatedAt, document }`.
+  - Reload trong lúc đang chạy và đang giữ nút chỉ khôi phục thiết kế; storage không chứa field runtime nào (E2E).
+  - Không phải thêm hay bỏ field nào trong document để persist được: B2 đã đủ.
+- **B8** (persistence có thật sự nằm sau seam không?): **✅**
+  - UI và store chỉ biết `ProjectRepository`; rule ESLint và test giữ điều này.
+  - Dexie chỉ nằm trong `src/storage` và composition root.
+  - Thay bằng adapter API (§14) nghĩa là viết một implementation khác của cùng interface và đổi một dòng trong `main.tsx`.
+- **Điều học được:**
+  - "Validate bằng Zod" chưa đủ để dữ liệu hỏng không làm crash: canvas throw với dây trỏ tới port không có hay device lạ. Vì vậy kiểm tra lúc load gồm cả các invariant của §6.1 (§7).
+  - Với program, chép lại luật của Blockly cũng không đủ (review F1: một walker kiểm type và kết nối vẫn để lọt dữ liệu mà mutator state không khớp input). Chỉ consumer thật mới biết nó từ chối gì. Seam đúng là một check do editor cung cấp, được inject vào core.
+  - Để consumer phán thì nó cũng phải trả lời trong thời gian có hạn (review F4). Blockly tin dữ liệu, dựng theo count trước khi kiểm tra. Còn IndexedDB trả về structured clone chứ không phải JSON, với object dùng chung và mảng có lỗ. Vì vậy trước khi hỏi Blockly cần một preflight nhỏ, giới hạn đúng những chỗ mà vài byte bắt Blockly làm việc không giới hạn; nó không kiểm cấu trúc thay cho Blockly.
+  - Đây là thay đổi nhỏ và cộng thêm, không phải dấu hiệu kiến trúc sai. Nó cũng củng cố B4: hiểu biết về Blockly vẫn nằm trong `src/ui/blockly`.
+- **L8:** **⚠️** Chỉ có lần chạy của agent; demo M4 đã có trong demo script. Chỗ vấp mới:
+  - New không hỏi lại, trong khi project cũ không còn cách mở lại từ UI;
+  - thay đổi trong khoảng 0,6 s cuối trước reload có thể mất;
+  - nhiều tab ghi đè nhau.
+- **Số liệu:**
+  - reload → app render lại project khoảng 0,1 s;
+  - 0 `eslint-disable`;
+  - E2E chập chờn: 0. Sau khi sửa F1–F4: E2E-4 80/80 khi lặp 10 lần; cả bộ 111/111 khi lặp 3 lần.
 
 **M3 — chi tiết (POC-12, POC-13).** Verdict: **M3 đóng.** Exit criteria ở §8.2:
 - E2E-3 xanh (20/20 khi lặp 10 lần);

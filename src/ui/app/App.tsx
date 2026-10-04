@@ -1,7 +1,8 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useStore } from 'zustand';
 import { createNewProject, type Circuit } from '../../core/circuit/document';
 import type { DeviceRegistry } from '../../core/devices/registry';
+import type { Notice } from '../../core/persistence/project-repository';
 import { BlocklyPanel, type BlocklyPanelHandle } from '../blockly/BlocklyPanel';
 import { CircuitCanvas } from '../canvas/CircuitCanvas';
 import type { ProjectStore } from '../state/project-store';
@@ -14,14 +15,21 @@ type AppProps = {
   runStore: RunStore;
   registry: DeviceRegistry;
   boardPins: readonly string[];
+  /** Why the app did not open the saved project, if it did not (plan §7). */
+  notice?: Notice | null;
 };
 
-export function App({ projectStore, runStore, registry, boardPins }: AppProps) {
+export function App({ projectStore, runStore, registry, boardPins, notice = null }: AppProps) {
   const document = useStore(projectStore, (state) => state.document);
   const loadRevision = useStore(projectStore, (state) => state.loadRevision);
   const simulation = useStore(runStore, (state) => state.snapshot.simulation);
   const running = useStore(runStore, selectIsRunning);
   const blocklyRef = useRef<BlocklyPanelHandle>(null);
+  const [noticeDismissed, setNoticeDismissed] = useState(false);
+  // A notice about the project the app opened is gone once another one is
+  // loaded (New); one about the session (no saving) stays until dismissed.
+  const isNoticeOutdated = notice?.about === 'opened-project' && loadRevision !== 0;
+  const shownNotice = noticeDismissed || isNoticeOutdated ? null : notice?.message;
 
   const run = () => {
     // Run compiles the document, so the latest Blockly edits must be in it first.
@@ -56,6 +64,14 @@ export function App({ projectStore, runStore, registry, boardPins }: AppProps) {
           New
         </button>
         <RunToolbar runStore={runStore} onRun={run} />
+        {shownNotice && (
+          <p className="app-notice" role="status" data-testid="app-notice">
+            {shownNotice}
+            <button type="button" onClick={() => setNoticeDismissed(true)}>
+              Dismiss
+            </button>
+          </p>
+        )}
       </header>
       <main className="workspace">
         <section className="canvas-region" aria-label="Circuit">

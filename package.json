@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "blockly": "13.3.0",
+    "dexie": "4.4.6",
     "konva": "10.7.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -35,6 +36,7 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
     "eslint": "10.11.0",
+    "fake-indexeddb": "6.2.5",
     "jsdom": "29.1.1",
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.0",

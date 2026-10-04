@@ -10,10 +10,53 @@ export const samples = {
   buttonLed: readJson('../src/samples/button-led.project.json'),
 };
 
+/** Opens the app and waits until it has opened its project (read from storage first) and rendered it. */
+export async function openApp(page: Page) {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__stem?.getCanvasState() != null);
+}
+
 /** Opens the app on a project other than the default sample, via the dev-only hook. */
 export async function openProject(page: Page, project: unknown) {
-  await page.goto('/');
+  await openApp(page);
   await page.evaluate((document) => window.__stem?.loadProject(document), project);
+}
+
+/** The project document as the app holds it (dev-only hook). */
+export const currentProject = (page: Page) => page.evaluate(() => window.__stem?.getProject());
+
+/**
+ * Every project record in IndexedDB, last saved first, read with the
+ * browser's own API rather than through the app (plan §7: database
+ * "stem-studio", table "projects").
+ */
+export const storedProjects = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Promise<{ id: string; updatedAt: number; document: unknown }[]>((resolve, reject) => {
+        const opening = indexedDB.open('stem-studio');
+        opening.onerror = () => reject(opening.error);
+        opening.onsuccess = () => {
+          const db = opening.result;
+          if (!db.objectStoreNames.contains('projects')) {
+            db.close();
+            resolve([]);
+            return;
+          }
+          const reading = db.transaction('projects').objectStore('projects').getAll();
+          reading.onerror = () => reject(reading.error);
+          reading.onsuccess = () => {
+            db.close();
+            resolve(reading.result.sort((a, b) => b.updatedAt - a.updatedAt));
+          };
+        };
+      }),
+  );
+
+/** Waits until IndexedDB holds the app's current document as its last project. */
+export async function expectSaved(page: Page) {
+  const project = await currentProject(page);
+  await expect.poll(async () => (await storedProjects(page))[0]?.document).toEqual(project);
 }
 
 /** The LED state as the renderer drew it on the Konva node (plan §11.4), not as the store says. */
