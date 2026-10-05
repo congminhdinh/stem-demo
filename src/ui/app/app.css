@@ -181,3 +181,27 @@ body {
   position: absolute;
   inset: 0;
 }
+
+.launch-error {
+  max-width: 560px;
+  margin: 48px auto;
+  padding: 16px 20px;
+  border-radius: 4px;
+  background: #ffe3e3;
+  color: #a61b1b;
+  font-size: 14px;
+}
+
+.launch-error h1 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: #1f2933;
+}
+
+.launch-error p {
+  margin: 6px 0;
+}
+
+.launch-error .launch-error-title {
+  font-weight: 600;
+}

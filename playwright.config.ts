@@ -2,15 +2,24 @@ import { defineConfig, devices } from '@playwright/test';
 
 const port = 5173;
 const baseURL = `http://localhost:${port}`;
+/** The lesson page that frames the lab in the iframe E2E (S1, e2e/lesson-host.mjs). */
+const lessonHostPort = 5190;
 
 export default defineConfig({
   testDir: 'e2e',
   reporter: 'list',
   use: { baseURL },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: {
-    command: `pnpm dev --port ${port} --strictPort`,
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: [
+    {
+      command: `pnpm dev --port ${port} --strictPort`,
+      url: baseURL,
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: `node e2e/lesson-host.mjs ${lessonHostPort}`,
+      url: `http://localhost:${lessonHostPort}/lesson`,
+      reuseExistingServer: !process.env.CI,
+    },
+  ],
 });

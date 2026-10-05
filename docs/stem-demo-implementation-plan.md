@@ -1,7 +1,8 @@
 # STEM Demo — PoC Implementation Plan
 
-> **Phiên bản:** 2.1 · **Cập nhật:** 2026-10-02 · **Trạng thái:** *current best implementation strategy*. Đây không phải spec bất biến (xem §15).
+> **Phiên bản:** 2.2 · **Cập nhật:** 2026-10-05 · **Trạng thái:** *current best implementation strategy*. Đây không phải spec bất biến (xem §15).
 > **v2.1:** thêm checkpoint **MP** (minimum architecture proof) trước blink; Resistor không còn chặn MP; COOP/COEP chuyển thành tuỳ chọn; giảm robustness không cần thiết ở POC-02.
+> **v2.2:** thêm task **S1 — embed launch** (§9.2): mở app như một lab nhúng qua `?embed=1&template=<key>`, theo yêu cầu D-21 của `docs/course-service-implementation-plan.md` §9.2.
 > **Phạm vi:** Proof of Concept nhỏ cho một STEM programming/simulation editor chạy hoàn toàn trên trình duyệt, gồm editor mạch 2D, lập trình Blockly, runtime và mô phỏng thiết bị ảo.
 > **Thay thế:** plan v1.0 (commit `9c34b73`: 61 task, 7 milestone, nhắm tới một demo gần hoàn chỉnh). Thiết kế chi tiết của v1 vẫn xem được bằng `git show 9c34b73:docs/stem-demo-implementation-plan.md`. §13 trỏ về đúng section v1 cho từng hạng mục bị hoãn.
 > **Tài liệu tham khảo:** `docs/ohstem-platform-investigation.md`, `docs/ohstem-demo-reconstruction-spec.md`, `docs/ohstem-reconstruction-assets/`. Đây là **reference**, không phải spec để clone. Phần PoC cần đã được tóm tắt ở §16, nên coding agent **không cần** đọc lại research khi làm task.
@@ -12,7 +13,7 @@
 |---|---|
 | **PoC chứng minh gì** | Kiến trúc đã chọn đủ tốt để xây một STEM editor thực tế. Kiến trúc đó gồm: document độc lập renderer, simulation là hàm thuần, Blockly chỉ là view và program được compile sang IR, runtime chỉ chạm phần cứng ảo qua `HardwareIO`, canvas chỉ render document và snapshot (§2) |
 | **Vertical slice** | **Checkpoint MP** (bằng chứng đầu tiên): Board + LED, block "on start: digital write D13 HIGH", bấm Run thì LED sáng trên canvas. **VS-1:** mở rộng MP thành mạch Board + Resistor + LED chạy program blink (`forever` + `wait`), Stop hoạt động đúng. **VS-2:** người dùng tự dựng mạch bằng chuột rồi chạy (§3) |
-| **Task tiếp theo** | Không còn task trong roadmap. `POC-01`…`POC-14` đã xong; M1–M4 đạt exit criteria kỹ thuật (§17, "Trạng thái PoC"; M4 chờ reviewer confirm final sau khi sửa F1–F4). Còn mở: L8 cần một người chạy thử demo script; các hạng mục P2 ở §13 |
+| **Task tiếp theo** | Không còn task trong roadmap. `POC-01`…`POC-14` đã xong; M1–M4 đạt exit criteria kỹ thuật (§17, "Trạng thái PoC"; M4 chờ reviewer confirm final sau khi sửa F1–F4). **S1** (embed launch cho CourseService, §9.2) xong 2026-10-05, chờ review. Còn mở: L8 cần một người chạy thử demo script; các hạng mục P2 ở §13 |
 | **Critical path** | `01 → 02 → 03 → 05 → 08 → 11`. Hai nhánh `02 → 06 → 07 → 08` và `03 → 09 → 10 → 11` dài bằng nhau (§10) |
 | **PoC xong khi** | M1 và M2 (P0) đạt exit criteria, Learning log trả lời được L1–L4 (§8, §17). M3 và M4 (P1) làm PoC thuyết phục hơn |
 | **Ràng buộc cứng** | Boundary B1–B8 (§5.1) và acceptance criteria của task. Mọi thứ còn lại (tên file, API helper, cấu trúc nội bộ, type chi tiết) là gợi ý |
@@ -294,7 +295,7 @@ Chỉ nâng các version này khi đã nâng Node hoặc khi `typescript-eslint`
 | AD-14: walking skeleton 7 milestone | **4 milestone theo learning** (§8) | — | — |
 | AD-15: danh sách hành vi OhStem không clone | **Giữ** các mục liên quan (§16) | — | — |
 | AD-16: vanilla store qua context, cấm singleton, batch theo rAF | **Đơn giản hoá:** store tạo bằng factory để test được; runtime gây ra tối đa 1 commit mỗi frame | Cách cung cấp store cho React do implementer quyết | — |
-| AD-17: COOP/COEP, self-host mọi asset, network guard | **Header tuỳ chọn**, không phải acceptance của P0. **Bỏ guard** | Nếu header chỉ là vài dòng config và không gây vấn đề thì giữ, vì nó làm lộ sớm các phụ thuộc CDN vốn sẽ chặn SAB/Pyodide sau này. Nếu nó gây thêm việc (media Blockly, load asset, Playwright, dev server, package bên thứ ba, hành vi trình duyệt) thì **tắt và hoãn cùng track Pyodide**, không debug COEP trong PoC. Guard không cần vì PoC không có phụ thuộc ngoài | Track Python (BL-PY1) |
+| AD-17: COOP/COEP, self-host mọi asset, network guard | **Header tuỳ chọn**, không phải acceptance của P0. **Bỏ guard** | Nếu header chỉ là vài dòng config và không gây vấn đề thì giữ, vì nó làm lộ sớm các phụ thuộc CDN vốn sẽ chặn SAB/Pyodide sau này. Nếu nó gây thêm việc (media Blockly, load asset, Playwright, dev server, package bên thứ ba, hành vi trình duyệt) thì **tắt và hoãn cùng track Pyodide**, không debug COEP trong PoC. Guard không cần vì PoC không có phụ thuộc ngoài. *(S1)* Header không chặn site khác nhúng app vào iframe (E2E và bản preview), nên vẫn giữ | Track Python (BL-PY1); hoặc khi trang nhúng tự bật COEP (§9.2, S1) |
 | AD-18: 6 device | **3 device + button** (§3.2) | — | BL-S3 |
 | AD-19: Python kiểu MicroPython đồng bộ | **Backlog** (BL-PY2). Giữ làm ghi chú | — | — |
 | AD-20: UI tiếng Anh, `strings.ts` | UI tiếng Anh. Không bắt buộc file strings | — | — |
@@ -676,6 +677,7 @@ Tuy vậy persistence vẫn cần để flow "cảm giác như sản phẩm", v�
   - chưa lưu gì: mở sample `blink`;
   - project đã lưu bị hỏng hoặc version lạ: mở project mới, kèm thông báo "The saved project could not be opened, so a new project was started.";
   - IndexedDB lỗi: mở sample, thông báo "Projects cannot be saved in this browser.", và phiên đó không autosave.
+  - *(S1)* Bốn trường hợp trên chỉ áp dụng cho **standalone editor**. Lab nhúng (`?embed=1&template=<key>`) mở template của nó, không đọc và không ghi IndexedDB; URL launch hỏng thì hiện lỗi, không mở project nào (§9.2, S1).
   - **Phạm vi của thông báo** *(sửa sau review POC-14, F3)*. Thông báo "không mở được project đã lưu" nói về project lúc mở app, nên biến mất khi một project khác được mở (New). Thông báo "không lưu được" nói về cả phiên, nên còn tới khi người dùng bấm Dismiss, vì New không làm cho việc lưu chạy lại được. `Notice` có `about: 'opened-project' | 'session'`.
 
   `main.tsx` chờ bước này xong rồi mới tạo store và render, nên không thể có chỉnh sửa hay lần autosave nào chen vào trước khi project cũ được đọc.
@@ -773,8 +775,9 @@ Các phần "sau MP" của cùng các task (Resistor, `forever`, `wait`, async s
 | POC-12 | Push button end-to-end | M3 | M | P1 | 08 | L5, L6 |
 | POC-13 | Conditional blocks · **VS-3** | M3 | M | P1 | 07, 05, 12 | L3, L5 |
 | POC-14 | Local persistence | M4 | M | P1 | 03 (nên làm sau 11) | L7, B8 |
+| S1 | Embed launch (cho CourseService) | — | S | — | 14 | B1, B8 |
 
-Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog §13.
+Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog §13. **S1** nằm ngoài roadmap PoC: nó là điều kiện của CourseService (T7, T9), không phải của hypothesis.
 
 ### 9.2 Chi tiết task
 
@@ -1540,6 +1543,80 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 
 ---
 
+### S1 — Embed launch (cho CourseService)
+
+`Ngoài roadmap PoC · S · Phụ thuộc: 14 · Yêu cầu: docs/course-service-implementation-plan.md §9.2 (D-21), điều kiện của T7 và T9`
+
+**Goal.** App chạy ở hai mode rõ ràng: **standalone editor** (như trước) và **embedded lab**. Lab mở đúng template mà launch URL chỉ định, nhúng được trong iframe, và không đọc hay ghi "last project" của standalone.
+
+**Scope**
+- Launch contract qua URL, đọc một lần ở composition root.
+- Template key: `blink`, `led-on`, `button-direct`, `button-led`, `empty`. Template thuộc simulator; URL chỉ mang key.
+- Lab: không restore, không autosave (bài làm trong lab không được lưu, CourseService D-17).
+- URL launch hỏng: hiện lỗi rõ ràng.
+- Kiểm tra COOP/COEP với iframe.
+
+**Out of scope.** `postMessage` (`ready`, `runStarted`, `runCompleted`, số đo), completion event, lưu bài làm theo learner/activity, template catalog API, CSP/`frame-ancestors`, thiết kế lại UI cho lab.
+
+**Contract**
+
+| URL | Kết quả |
+|---|---|
+| không có `embed`, không có `template` | Standalone: project gần nhất trong IndexedDB, chưa có thì `blink` (§7). Tham số khác bị bỏ qua |
+| `?embed=1&template=<key>`, key thuộc danh sách | Lab mở template `<key>`, luôn là bản mới; không đụng IndexedDB |
+| key lạ (so khớp chính xác, phân biệt hoa thường), thiếu hoặc rỗng; `template` lặp lại; `embed` khác `1` hoặc lặp lại; `template` mà không có `embed=1` | Màn hình lỗi "This lab could not be opened." kèm lý do và danh sách key; không mở project nào |
+
+**Acceptance**
+- [x] `?embed=1&template=blink` mở Blink, `?embed=1&template=button-led` mở Button LED, dù standalone last project là gì.
+- [x] Lab không restore và không ghi đè standalone last project; reload lab thì về lại template.
+- [x] Key lạ, thiếu hay sai dạng → lỗi hiển thị, không bao giờ là project của standalone.
+- [x] Nhúng được trong iframe của site khác, không lỗi console.
+- [x] Standalone giữ nguyên hành vi: 37 E2E cũ vẫn xanh.
+
+**Trạng thái: xong (2026-10-05), chờ review.**
+- **Thiết kế** (URL → launch config → startup → template loader):
+  - `src/ui/app/launch.ts`: `parseLaunch(search)` trả về `Launch` = `standalone` | `embed` (kèm template) | `invalid` (kèm lý do). Chỉ `main.tsx` gọi nó, với `window.location.search`.
+  - `src/samples/templates.ts`: key → document. Danh sách key là mảng và so khớp chính xác, nên `constructor` hay `__proto__` không phải key. Mỗi lần gọi trả về một bản deep copy.
+  - `src/ui/app/startup.ts`: `openAtStartup(launch, …)`.
+    - Standalone gọi `openLastProject` như POC-14; sample mặc định giờ lấy qua `createTemplateProject('blink')`.
+    - Lab trả về template với `saveTo: null`. Repository nhận qua factory và **không được tạo** trong lab.
+    - Launch hỏng trả về `launch-error`.
+  - `src/ui/app/LaunchError.tsx`: màn hình lỗi, thay cho editor.
+  - `main.tsx` chỉ autosave khi `saveTo` khác null, và chỉ cài test hook khi có editor.
+  - **Boundary:** core không đổi. Không có `window.location`, `URLSearchParams` hay iframe trong `src/core` (B1). B8 giữ nguyên: `src/ui` nhận repository qua interface, Dexie vẫn chỉ ở `src/storage` và composition root.
+- **Evidence:**
+  - **Zod không deep copy.** `projectDocumentSchema.parse` trả lại **chính object** `program.blocks` của sample JSON (field `z.unknown()`), còn các object khác thì được tạo mới. Nếu không copy, một lần sửa program tại chỗ sẽ lọt sang lần launch sau trong cùng page. Vì vậy `createTemplateProject` gọi `structuredClone` trước khi parse.
+  - **Id cố định.** Sample có id cố định (`sample-blink`, …), và standalone lưu Blink dưới đúng id đó. Lab không bao giờ tạo repository, nên không thể đè record đó; E2E kiểm chứng đúng trường hợp này. `empty` dùng id cố định `template-empty`.
+  - **COOP/COEP: giữ nguyên.** Lab load được trong iframe cross-site (lesson page không có COEP) trên cả dev server và bản preview, không lỗi console. COEP chỉ ràng buộc những gì app tải về, không ràng buộc ai nhúng app; COOP bị bỏ qua trong iframe. Chỉ cần xem lại nếu trang nhúng tự bật COEP: khi đó simulator phải gửi thêm `Cross-Origin-Resource-Policy`.
+  - **Chromium Local Network Access.** Trang ở địa chỉ public không nhúng được simulator chạy ở localhost hay mạng nội bộ: iframe bị chặn với `net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`. Lỗi này xuất hiện khi E2E giả lesson page bằng `page.route`, vì Chromium coi response giả là public. Fixture giờ là một server thật trên loopback (`e2e/lesson-host.mjs`, Playwright tự start/stop ở port 5190).
+    - Hệ quả cho T7: trang nhúng và simulator phải cùng không gian địa chỉ, tức cả hai ở localhost khi dev, hoặc cả hai public khi deploy.
+- **Test:**
+  - Unit (+78):
+    - `parseLaunch` (27): standalone, 5 key hợp lệ, key lạ, thiếu, sai dạng.
+    - Template (32): đúng sample, editor mở được, bản mới mỗi lần gọi, không dùng chung object với JSON, so khớp key chính xác.
+    - `openAtStartup` (16): repository được ghi lại từng lần dùng; lab và launch hỏng không dùng lần nào.
+    - `tests/launch-isolation.test.ts` (3): Dexie thật trên `fake-indexeddb` cùng autosave thật, ghép như `main.tsx`. Standalone A → lab sửa → reload lab → standalone vẫn A; Blink sửa dưới id `sample-blink`; lab trên trình duyệt mới không tạo database nào.
+  - E2E (+11) `e2e/embed.spec.ts`:
+    - 5 template;
+    - Button LED và Blink cách ly với standalone (sửa, Run, giữ nút, chờ quá thời gian autosave, rồi so nguyên các record trong IndexedDB);
+    - 4 URL hỏng;
+    - iframe cross-site cho `blink` và `button-led` (Run được trong frame), và iframe `sandbox="allow-scripts allow-same-origin"`.
+  - **Thử làm hỏng:** bỏ deep copy thì 5 unit test fail. Cho lab autosave vào storage của standalone thì 13 unit test và 2 E2E fail.
+- **Kiểm tra trên bản production** (`vite preview`, không có test hook; đọc Konva và IndexedDB trực tiếp, kèm ảnh chụp), các case A–F đều pass:
+  - standalone sửa → refresh → còn nguyên;
+  - lab `blink` và `button-led` mở đúng, sửa và Run không ghi gì;
+  - quay về standalone vẫn là project cũ;
+  - key lạ → lỗi;
+  - iframe → đúng template;
+  - không lỗi console.
+- **Chủ động chưa làm:**
+  - `postMessage`;
+  - lưu bài làm trong lab;
+  - ẩn nút New trong lab: New chỉ thay lab bằng một project trống, reload thì về lại template;
+  - hiện tên project hay mode trên UI.
+
+---
+
 ## 10. Dependency và critical path
 
 ```mermaid
@@ -1618,6 +1695,7 @@ flowchart LR
 | **E2E-2** `vs2-build` | 11 | New → thêm 3 device → đặt vị trí → nối 3 dây bằng chuột (toạ độ lấy từ hook) → program "on start: D13 HIGH" (ưu tiên kéo từ flyout; được dùng `setProgramBlocks` làm phương án dự phòng nếu ghi lý do trong PR) → Run → LED sáng → Stop |
 | **E2E-3** `vs3-button` | 13 | Load `button-led` qua hook → Run → `mouse.down` tại tâm nút → LED sáng → `mouse.up` → tắt → Stop |
 | **E2E-4** `persistence` | 14 | Sửa mạch → reload → document deep-equal |
+| **E2E-S1** `embed` | S1 | Mỗi template key → đúng document; standalone ↔ lab không lẫn storage; URL hỏng → lỗi; lab trong iframe của site khác (lesson host trên loopback) |
 
 **Quy ước:**
 - Không dùng `waitForTimeout`; dùng `expect.poll` trên hook.
@@ -1645,6 +1723,7 @@ Hook không phải contract có version. Thêm hoặc bớt theo nhu cầu của
 - *(POC-12)* `getProject()`, để E2E kiểm tra document sau một lần chạy có nhấn nút (B2). `getCanvasState()` có thêm `closed` của push button, đọc từ node Konva `button-cap`.
 - *(POC-14)* Không thêm hook nào. Vì app đọc storage trước khi render, hook chỉ có sau khi project đã mở; helper `openApp` của E2E chờ điều đó. E2E-4 đọc IndexedDB bằng API của trình duyệt chứ không qua hook.
 - *(POC-13)* Không thêm hook nào. E2E-3 chỉ dùng hook để mở sample và để quan sát (trạng thái đã render, program đã lưu); nút được nhấn bằng chuột thật và program được sửa qua Blockly UI.
+- *(S1)* Không thêm hook nào. Lab mở bằng URL thật, không qua `loadProject`; trong iframe, E2E đọc hook của chính frame đó. Màn hình lỗi launch không cài hook.
 
 Status Run đọc thẳng từ DOM, nên chưa cần `getRunSnapshot`.
 
