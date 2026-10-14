@@ -15,8 +15,8 @@ import { ANALOG_NATIVE_MAX } from '../simulation/conversions';
 // (C-27), pulse in is EXCLUDED (C-28). A pin that is not P0, P1 or P2 is outside the domain whatever a board's
 // data says, because the contract opens only those three (contract §9).
 //
-// The numbers below are the contract's domain written as constants; tests/contract-domain-sync keeps them equal
-// to the predicates in `compat/yolobit-contract.ts` (the runtime does not import that large data).
+// The numbers below are the contract's domain written as constants; ybc.pins.test.ts keeps them equal to the
+// predicates in `compat/yolobit-contract.ts` (the runtime does not import that large data).
 
 export const pinsPackId = 'ybc.pins';
 
@@ -62,16 +62,18 @@ export function pinNumberOf(name: string): number | null {
   return match?.[1] === undefined ? null : Number(match[1]);
 }
 
+/** Whether `name` is one of the pins the contract opens (P0, P1, P2): the one test of the YB-4 pin domain. */
+export function isContractPin(name: string): boolean {
+  const pin = pinNumberOf(name);
+  return pin !== null && PIN_NUMBERS.includes(pin);
+}
+
 // --- Blocks --------------------------------------------------------------------------------------
 
 /** The pins each pin block offers: what the board's data allows, never more than the contract opens. */
 export type PinChoices = { digital: readonly string[]; analogIn: readonly string[] };
 
-const inContract = (names: readonly string[]) =>
-  names.filter((name) => {
-    const pin = pinNumberOf(name);
-    return pin !== null && PIN_NUMBERS.includes(pin);
-  });
+const inContract = (names: readonly string[]) => names.filter(isContractPin);
 
 /** A dropdown needs at least one option; with no board to ask, the contract's pins stand in (no profile shows the block then). */
 const dropdown = (names: readonly string[]) => {

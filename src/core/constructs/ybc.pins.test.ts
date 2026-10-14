@@ -11,6 +11,7 @@ import {
   PIN_LEVELS,
   PIN_NUMBERS,
   createPinBlockDefinitions,
+  isContractPin,
   pinAnalogType,
   pinCapabilityOfBlock,
   pinConstructs,
@@ -135,6 +136,24 @@ describe('pin names', () => {
       expect(pinNumberOf(bad), JSON.stringify(bad)).toBeNull();
     }
     expect(pinNameOf(2)).toBe('P2');
+  });
+});
+
+describe('the pin-domain test the runtime uses (isContractPin)', () => {
+  it('is the contract\'s pin predicate for C-23, C-24 and C-25, pin by pin: P0, P1 and P2 and nothing else', () => {
+    for (let pin = 0; pin <= 20; pin += 1) {
+      for (const id of ['C-23', 'C-24', 'C-25'] as const) {
+        const values: Record<string, number> = id === 'C-23' ? { pin, value: 0 } : id === 'C-25' ? { pin, raw: 0 } : { pin };
+        expect(isContractPin(pinNameOf(pin)), `${id} P${pin}`).toBe(evaluatePred(domainOf(id).runtime, { values }));
+      }
+    }
+    expect([0, 1, 2, 3, 16, 19, 20].filter((pin) => isContractPin(pinNameOf(pin)))).toEqual([0, 1, 2]);
+  });
+
+  it('is false for anything that is not a pin name', () => {
+    for (const bad of ['p1', 'P', 'P01', 'P-1', 'P1 ', '', 'constructor', '__proto__', 'toString', 'P3', 'P16']) {
+      expect(isContractPin(bad), JSON.stringify(bad)).toBe(false);
+    }
   });
 });
 

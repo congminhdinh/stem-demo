@@ -1,3 +1,4 @@
+import { isContractPin } from '../constructs/ybc.pins';
 import { usablePins } from '../devices/board-pins';
 import type { DeviceRegistry } from '../devices/registry';
 import { RuntimeFault } from '../program/values';
@@ -20,8 +21,11 @@ import type { CapabilityFactory } from './run-session';
 export function createPinCapabilities(registry: DeviceRegistry): CapabilityFactory {
   return (environment) => {
     const definition = registry.get(environment.board.deviceType);
-    const digitalPins = new Set(usablePins(definition, 'digital'));
-    const analogPins = new Set(usablePins(definition, 'analogIn'));
+    // The pins a program may use: the three the contract opens (C-23, C-24, C-25), and of those only the ones the board's
+    // data gives the capability and does not reserve. The contract domain is checked here, not trusted to the blocks, the
+    // compiler or the metadata: a board that lists P3 does not open it.
+    const digitalPins = new Set(usablePins(definition, 'digital').filter(isContractPin));
+    const analogPins = new Set(usablePins(definition, 'analogIn').filter(isContractPin));
     const portOf = (pin: string) => definition.board?.pins.find((candidate) => candidate.name === pin)?.portId;
     /** The pins this program has set: it cannot read them as well. Per run, like the capabilities. */
     const written = new Set<string>();
