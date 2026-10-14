@@ -8,6 +8,7 @@ import { createBlockPackCatalog } from '../program/block-packs';
 import { and, cmp, ifThen, not, num, print, program, repeat, text, wait, whileLoop, type Json } from '../program/__fixtures__/ybc-blocks';
 import { pinAnalog, pinRead, pinWrite } from '../program/__fixtures__/ybc-pin-blocks';
 import { createRunSession, type RunSession, type RunSnapshot } from './run-session';
+import { createPinCapabilities } from './ybc-pin-io';
 
 // The header pins through the production RunSession (YB-4): a program's pin writes drive the circuit and the
 // snapshot shows it, a read sees what the circuit puts on the pin, a potentiometer is moved by a runtime input,
@@ -66,7 +67,7 @@ const lines = (session: RunSession) => session.getSnapshot().console?.lines ?? [
 
 describe('digital write drives the circuit (C-23)', () => {
   it('lights an LED on P0 and puts it out again; the board stays powered after the program ends (E6)', async () => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     expect(session.start(document(program([pinWrite('P0', true)]), ledOnP0))).toEqual({ ok: true });
     expect(lit(session)).toBe(false);
     await settle();
@@ -77,7 +78,7 @@ describe('digital write drives the circuit (C-23)', () => {
   });
 
   it('blinks: on, 500 ms, off, 500 ms, on again', async () => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     const forever = [pinWrite('P0', true), wait(num(500)), pinWrite('P0', false), wait(num(500))];
     session.start(document(program([], forever), ledOnP0));
     await settle();
@@ -99,7 +100,7 @@ describe('digital write drives the circuit (C-23)', () => {
   });
 
   it('publishes a new snapshot only when a pin changes: writing the level it already has is no news', async () => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     const published: RunSnapshot[] = [];
     session.subscribe((snapshot) => published.push(snapshot));
     session.start(document(program([pinWrite('P0', true), pinWrite('P0', true), pinWrite('P0', true)]), ledOnP0));
@@ -111,7 +112,7 @@ describe('digital write drives the circuit (C-23)', () => {
   });
 
   it('keeps the pins of one run out of the next: a new run starts with every pin undriven', async () => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.start(document(program([pinWrite('P0', true)]), ledOnP0));
     await settle();
     expect(lit(session)).toBe(true);
@@ -125,7 +126,7 @@ describe('digital write drives the circuit (C-23)', () => {
   it('does not change the document (B2): the circuit and the program are what they were', async () => {
     const doc = document(program([pinWrite('P0', true)]), ledOnP0);
     const before = structuredClone(doc);
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.start(doc);
     await settle();
     session.stop();
@@ -137,7 +138,7 @@ describe('a pin sees what the circuit puts on it (C-24, C-25)', () => {
   const wired = (to: string) => ({ components: [board], wires: [wire('r1', ['ybc-board-1', 'p1'], ['ybc-board-1', to])] });
 
   it('reads a pin wired to 3V3 as on (digital) and 4095 (analog), and one wired to GND as off and 0', async () => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.start(document(program([print(pinRead('P1')), print(pinAnalog('P1'))]), wired('3v3')));
     await settle();
     expect(lines(session)).toEqual(['True', '4095']);
@@ -149,7 +150,7 @@ describe('a pin sees what the circuit puts on it (C-24, C-25)', () => {
 
   it('reads the level another pin of the program drives (a loopback P0 to P1)', async () => {
     const loop = { components: [board], wires: [wire('l1', ['ybc-board-1', 'p0'], ['ybc-board-1', 'p1'])] };
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.start(document(program([print(pinRead('P1')), pinWrite('P0', true), print(pinRead('P1')), print(pinAnalog('P1')), pinWrite('P0', false), print(pinAnalog('P1'))]), loop));
     await settle();
     // Undriven at first: that is the floating read, and it stops the program (below). Here P0 is written first.
@@ -161,7 +162,7 @@ describe('a pin sees what the circuit puts on it (C-24, C-25)', () => {
   });
 
   it('reads a potentiometer on the native scale 0..4095, from the slider\'s percentage: 0, 1, 50, 51, 100 %', async () => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     // One pass of this loop is the wait (50 ms) plus the pause every forever pass ends with (10 ms).
     session.start(document(program([], [print(pinAnalog('P1')), wait(num(50))]), knobOnP1));
     await settle();
@@ -179,7 +180,7 @@ describe('a pin sees what the circuit puts on it (C-24, C-25)', () => {
 
   it('is the P7 program: the knob above half switches the LED on, below it off (threshold 2048 on the native scale)', async () => {
     const forever = [ifThen(cmp('GT', pinAnalog('P1'), num(2048)), [pinWrite('P0', true)], [pinWrite('P0', false)]), wait(num(10))];
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.start(document(program([], forever), knobAndLed));
     await settle();
     expect(lit(session)).toBe(false);
@@ -193,7 +194,7 @@ describe('a pin sees what the circuit puts on it (C-24, C-25)', () => {
 
   it('gives the same answer in Advanced as in Basic (the pins are in both profiles)', async () => {
     for (const profile of ['ybc-basic', 'ybc-advanced']) {
-      const session = createRunSession(registry);
+      const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
       expect(session.start(document(program([print(pinAnalog('P1'))]), wired('3v3'), profile))).toEqual({ ok: true });
       await settle();
       expect(lines(session), profile).toEqual(['4095']);
@@ -204,7 +205,7 @@ describe('a pin sees what the circuit puts on it (C-24, C-25)', () => {
 
 describe('a pin the program must not read stops it at the reading block (domain guard, plan §6.2)', () => {
   const failed = async (blocks: Json, circuit: { components: unknown[]; wires: unknown[] }) => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.start(document(blocks, circuit));
     await settle();
     const snapshot = session.getSnapshot();
@@ -261,18 +262,18 @@ describe('what Run refuses before the program starts (L-2, L-3)', () => {
   it('refuses a pin block in a generic project with not-in-profile and the block\'s id (L-2); the program stays as it is', () => {
     const block = pinWrite('P0', true);
     const generic: ProjectDocument = { ...fixtureDocument(undefined, { blocks: program([block]), components: [] }), circuit: { components: [], wires: [] } };
-    const result = createRunSession(registry).start(generic);
+    const result = createRunSession(registry, { capabilities: createPinCapabilities(registry) }).start(generic);
     expect(result).toMatchObject({ ok: false });
     // A generic project with no board is told so first; with a board the block is what is refused.
     const withBoard = { ...generic, circuit: { components: [{ id: 'g', deviceType: 'board', position: at }], wires: [] } };
-    const refused = createRunSession(registry).start(withBoard);
+    const refused = createRunSession(registry, { capabilities: createPinCapabilities(registry) }).start(withBoard);
     expect(refused).toMatchObject({ ok: false, reason: 'compile-error' });
     expect(refused.ok ? [] : refused.diagnostics).toEqual([expect.objectContaining({ code: 'not-in-profile', blockId: block.id })]);
   });
 
   it('refuses a potentiometer in a generic project (incompatible-devices): it belongs to the Yolo:Bit-compatible family', () => {
     const generic: ProjectDocument = { ...fixtureDocument(undefined), circuit: { components: [{ id: 'g', deviceType: 'board', position: at }, part('potentiometer-1', 'potentiometer')], wires: [] } };
-    expect(createRunSession(registry).start(generic)).toMatchObject({ ok: false, reason: 'incompatible-devices' });
+    expect(createRunSession(registry, { capabilities: createPinCapabilities(registry) }).start(generic)).toMatchObject({ ok: false, reason: 'incompatible-devices' });
   });
 
   it('refuses an analog read when the board has no analog input (capability-unavailable), and runs a digital one', () => {
@@ -280,7 +281,7 @@ describe('what Run refuses before the program starts (L-2, L-3)', () => {
       ...localDeviceDefinitions.filter((definition) => (definition as { id: string }).id !== 'ybc-board'),
       { ...structuredClone(ybcBoardJson), board: { ...ybcBoardJson.board, pins: ybcBoardJson.board.pins.map((pin) => ({ ...pin, capabilities: ['digital'] })) } },
     ]);
-    const session = createRunSession(noAnalog, { packs: createBlockPackCatalog(noAnalog) });
+    const session = createRunSession(noAnalog, { packs: createBlockPackCatalog(noAnalog), capabilities: createPinCapabilities(noAnalog) });
     const analog = pinAnalog('P1');
     const refused = session.start(document(program([print(analog)]), { components: [board], wires: [] }));
     expect(refused).toMatchObject({ ok: false, reason: 'compile-error' });
@@ -294,7 +295,7 @@ describe('what Run refuses before the program starts (L-2, L-3)', () => {
       ...localDeviceDefinitions.filter((definition) => (definition as { id: string }).id !== 'ybc-board'),
       { ...structuredClone(ybcBoardJson), board: { ...ybcBoardJson.board, reservedPins: ['P2'] } },
     ]);
-    const session = createRunSession(reserved, { packs: createBlockPackCatalog(reserved) });
+    const session = createRunSession(reserved, { packs: createBlockPackCatalog(reserved), capabilities: createPinCapabilities(reserved) });
     const write = pinWrite('P2', true);
     const refused = session.start(document(program([write]), { components: [board], wires: [] }));
     expect(refused.ok ? [] : refused.diagnostics).toEqual([expect.objectContaining({ code: 'value-out-of-range', blockId: write.id })]);
@@ -307,7 +308,7 @@ describe('what Run refuses before the program starts (L-2, L-3)', () => {
       ...localDeviceDefinitions.filter((definition) => (definition as { id: string }).id !== 'ybc-board'),
       { ...structuredClone(ybcBoardJson), board: { ...ybcBoardJson.board, pins: [...ybcBoardJson.board.pins, { name: 'P3', portId: 'p2', capabilities: ['digital', 'analogIn'] }] } },
     ]);
-    const session = createRunSession(wide, { packs: createBlockPackCatalog(wide) });
+    const session = createRunSession(wide, { packs: createBlockPackCatalog(wide), capabilities: createPinCapabilities(wide) });
     const write = pinWrite('P3', true);
     const refused = session.start(document(program([write]), { components: [board], wires: [] }));
     expect(refused.ok ? [] : refused.diagnostics).toEqual([expect.objectContaining({ code: 'value-out-of-range', blockId: write.id })]);
@@ -316,7 +317,7 @@ describe('what Run refuses before the program starts (L-2, L-3)', () => {
 
 describe('the runtime input of a potentiometer', () => {
   const start = async (circuit = knobOnP1) => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.start(document(program([], [print(pinAnalog('P1')), wait(num(50))]), circuit));
     await settle();
     return session;
@@ -373,7 +374,7 @@ describe('the runtime input of a potentiometer', () => {
   });
 
   it('is ignored while idle, and gone after the run: the next run starts with the knob at rest', async () => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.setComponentInput('potentiometer-1', { kind: 'slider', value: 90 });
     expect(session.getSnapshot().simulation).toBeNull();
     session.start(document(program([], []), knobOnP1));
@@ -388,7 +389,7 @@ describe('the runtime input of a potentiometer', () => {
   });
 
   it('works after the program finished or failed, as a button does: the board is still powered', async () => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.start(document(program([print(text('done'))]), knobOnP1));
     await settle();
     expect(session.getSnapshot().status).toBe('finished');
@@ -397,20 +398,25 @@ describe('the runtime input of a potentiometer', () => {
     session.stop();
   });
 
-  it('publishes nothing when the knob is already there (same position, or the clamp lands where it is)', async () => {
+  it('publishes nothing when the same input is given again, and a clamp-equivalent input leaves the knob where it is', async () => {
     const session = await start();
     session.setComponentInput('potentiometer-1', { kind: 'slider', value: 100 });
     const published: RunSnapshot[] = [];
     session.subscribe((snapshot) => published.push(snapshot));
     session.setComponentInput('potentiometer-1', { kind: 'slider', value: 100 });
-    session.setComponentInput('potentiometer-1', { kind: 'slider', value: 999 });
     expect(published).toEqual([]);
-    // The knob at rest is position 0 as well: setting 0 on a knob never moved changes nothing.
+    // The generic input plane compares what it was given, not what the knob makes of it (the model clamps): 999 is a
+    // new input, so a snapshot may follow, but the knob and everything the simulation says stay exactly as they were.
+    const before = session.getSnapshot().simulation;
+    session.setComponentInput('potentiometer-1', { kind: 'slider', value: 999 });
+    expect(session.getSnapshot().simulation).toEqual(before);
+    expect(value(session)).toBe(100);
+    // The knob at rest is position 0: setting 0 on a knob never moved changes nothing the simulation says.
     const fresh = await start();
-    const publishedFresh: RunSnapshot[] = [];
-    fresh.subscribe((snapshot) => publishedFresh.push(snapshot));
+    const atRest = fresh.getSnapshot().simulation;
     fresh.setComponentInput('potentiometer-1', { kind: 'slider', value: 0 });
-    expect(publishedFresh).toEqual([]);
+    expect(fresh.getSnapshot().simulation).toEqual(atRest);
+    expect(value(fresh)).toBe(0);
     session.stop();
     fresh.stop();
   });
@@ -445,7 +451,7 @@ describe('the runtime input of a potentiometer', () => {
 
 describe('Stop, replacement and reentrancy with pins', () => {
   it('stops a pin loop at once, and leaves no timer or write behind', async () => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.start(document(program([], [pinWrite('P0', true), wait(num(100)), pinWrite('P0', false), wait(num(100))]), ledOnP0));
     await tick(150);
     session.stop();
@@ -456,7 +462,7 @@ describe('Stop, replacement and reentrancy with pins', () => {
   });
 
   it('keeps run B when run A\'s own pin write notifies a listener that starts B (the latest call wins)', async () => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     const replacement = document(program([], [wait(num(1000))]), ledOnP0);
     let started = false;
     session.subscribe((snapshot) => {
@@ -477,7 +483,7 @@ describe('Stop, replacement and reentrancy with pins', () => {
   });
 
   it('ends in idle when a listener stops the session from a pin write; no later write of that run lights anything', async () => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     let stops = 0;
     session.subscribe((snapshot) => {
       if (snapshot.simulation?.components['led-1']?.lit === true) {
@@ -493,7 +499,7 @@ describe('Stop, replacement and reentrancy with pins', () => {
   });
 
   it('runs a loop of reads for a long time without growing: 20 000 reads of a wired pin', async () => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.start(document(program([repeat(num(20_000), [{ ...print(pinAnalog('P1')) }])]), knobOnP1));
     await tick(2000);
     expect(session.getSnapshot().status).toBe('finished');
@@ -512,7 +518,7 @@ describe('Stop, replacement and reentrancy with pins', () => {
         // there is none, so this circuit is the case the plan warns about (B9). It is a conflict while pressed.
       ],
     };
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.start(document(program([whileLoop(and(not(pinRead('P2')), not(pinRead('P2'))), [wait(num(10))])]), circuit));
     await settle();
     // Released: P2 floats, so the first read stops the program (it is not a logic level).

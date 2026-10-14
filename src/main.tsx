@@ -5,6 +5,7 @@ import { createDeviceRegistry } from './core/devices/registry';
 import { productionProfiles } from './core/profiles';
 import { createBlockPackCatalog } from './core/program/block-packs';
 import { createRunSession } from './core/run/run-session';
+import { createPinCapabilities } from './core/run/ybc-pin-io';
 import { createDexieProjectRepository } from './storage/dexie-project-repository';
 import { App } from './ui/app/App';
 import { LaunchError } from './ui/app/LaunchError';
@@ -53,7 +54,9 @@ if (started.kind === 'launch-error') {
   );
 } else {
   const projectStore = createProjectStore(started.document);
-  const runStore = createRunStore(createRunSession(registry, { profiles, packs }));
+  // The capabilities of a Yolo:Bit-compatible run are composed here, not inside RunSession (YB-CP amendment 1):
+  // today the header pins; YB-3's onboard parts join them when both factories land (a later composition-root change).
+  const runStore = createRunStore(createRunSession(registry, { profiles, packs, capabilities: createPinCapabilities(registry) }));
   if (started.saveTo) {
     startAutosave(projectStore, started.saveTo, (error) => console.warn('The project could not be saved.', error));
   }

@@ -3,7 +3,7 @@ import type { Circuit, PortRef } from '../circuit/document';
 import { localDeviceDefinitions } from '../devices/local-catalog';
 import { createDeviceRegistry } from '../devices/registry';
 import { analogValueOf, pinSignal } from './pin-signal';
-import { circuitInputKind, clampSliderPercent, simulateCircuit, type SimulationInputs } from './simulate-circuit';
+import { clampSliderPercent, inputKindOfModel, isContact, simulateCircuit, type SimulationInputs } from './simulate-circuit';
 
 // Signal-level simulation of the header pins (YB plan §11.1, YB-4): a Yolo:Bit-compatible board drives its
 // pins from the program, and a potentiometer is the analog source (the only signal that is not a logic level).
@@ -14,6 +14,10 @@ const at = { x: 0, y: 0 };
 const ref = (componentId: string, portId: string): PortRef => ({ componentId, portId });
 const wires = (...pairs: [PortRef, PortRef][]) => pairs.map(([from, to], index) => ({ id: `w${index}`, from, to }));
 const part = (id: string, deviceType: string) => ({ id, deviceType, position: at });
+
+/** The slider inputs of the potentiometers, in the one shape every runtime input has (`SimulationInputs.inputs`). */
+const slide = (positions: Record<string, number>): NonNullable<SimulationInputs['inputs']> =>
+  Object.fromEntries(Object.entries(positions).map(([id, value]) => [id, { kind: 'slider' as const, value }]));
 
 const run = (circuit: Circuit, inputs: Partial<SimulationInputs> = {}) =>
   simulateCircuit(circuit, registry, { powered: true, pinOutputs: {}, ...inputs });
@@ -82,7 +86,7 @@ describe('a Yolo:Bit-compatible board is powered and drives its pins', () => {
 
 describe('the potentiometer is an analog source', () => {
   it('drives OUT with its slider position while VCC is high and GND is low', () => {
-    const result = run(knobOnP1, { sliders: { pot: 37 } });
+    const result = run(knobOnP1, { inputs: slide({ pot: 37 }) });
     expect(pinSignal(result, 'b', 'p1')).toEqual({ kind: 'analog', percent: 37 });
     expect(result.nets.find((net) => net.level === 'analog')).toMatchObject({ analogPercent: 37 });
     // The knob is drawn from the snapshot, from the same number.
@@ -97,11 +101,11 @@ describe('the potentiometer is an analog source', () => {
   });
 
   it('clamps the position to 0..100, and takes anything that is not a whole number as the resting position', () => {
-    expect(run(knobOnP1, { sliders: { pot: 250 } }).components.pot).toEqual({ value: 100 });
-    expect(run(knobOnP1, { sliders: { pot: -3 } }).components.pot).toEqual({ value: 0 });
-    expect(run(knobOnP1, { sliders: { pot: 12.5 } }).components.pot).toEqual({ value: 0 });
-    expect(run(knobOnP1, { sliders: { pot: Number.NaN } }).components.pot).toEqual({ value: 0 });
-    expect(run(knobOnP1, { sliders: { pot: Number.POSITIVE_INFINITY } }).components.pot).toEqual({ value: 0 });
+    expect(run(knobOnP1, { inputs: slide({ pot: 250 }) }).components.pot).toEqual({ value: 100 });
+    expect(run(knobOnP1, { inputs: slide({ pot: -3 }) }).components.pot).toEqual({ value: 0 });
+    expect(run(knobOnP1, { inputs: slide({ pot: 12.5 }) }).components.pot).toEqual({ value: 0 });
+    expect(run(knobOnP1, { inputs: slide({ pot: Number.NaN }) }).components.pot).toEqual({ value: 0 });
+    expect(run(knobOnP1, { inputs: slide({ pot: Number.POSITIVE_INFINITY }) }).components.pot).toEqual({ value: 0 });
     expect([clampSliderPercent(0), clampSliderPercent(100), clampSliderPercent(101), clampSliderPercent(-1)]).toEqual([0, 100, 100, 0]);
   });
 
@@ -111,7 +115,7 @@ describe('the potentiometer is an analog source', () => {
       wires: wires([ref('constructor', 'vcc'), ref('b', '3v3')], [ref('constructor', 'gnd'), ref('b', 'gnd')], [ref('constructor', 'out'), ref('b', 'p1')]),
     };
     expect(run(circuit).components.constructor).toEqual({ value: 0 });
-    expect(run(circuit, { sliders: { constructor: 80 } }).components.constructor).toEqual({ value: 80 });
+    expect(run(circuit, { inputs: slide({ constructor: 80 }) }).components.constructor).toEqual({ value: 80 });
   });
 
   it('drives nothing unless its own rails are right: unpowered, reversed or unconnected', () => {
@@ -124,7 +128,7 @@ describe('the potentiometer is an analog source', () => {
     const noGround: Circuit = { ...knobOnP1, wires: knobOnP1.wires.filter((wire) => wire.from.portId !== 'gnd') };
     expect(pinSignal(run(noGround), 'b', 'p1')).toEqual({ kind: 'floating' });
     // The component state is still reported: the knob is where the learner left it.
-    expect(run(reversed, { sliders: { pot: 60 } }).components.pot).toEqual({ value: 60 });
+    expect(run(reversed, { inputs: slide({ pot: 60 }) }).components.pot).toEqual({ value: 60 });
   });
 
   it('is a conflict when another driver is on the same net: a pin written high, a rail, or a second wiper', () => {
@@ -138,7 +142,7 @@ describe('the potentiometer is an analog source', () => {
         ...wires([ref('pot2', 'vcc'), ref('b', '3v3')], [ref('pot2', 'gnd'), ref('b', 'gnd')], [ref('pot2', 'out'), ref('b', 'p1')]),
       ],
     };
-    expect(pinSignal(run(two, { sliders: { pot: 10, pot2: 10 } }), 'b', 'p1')).toEqual({ kind: 'conflict' });
+    expect(pinSignal(run(two, { inputs: slide({ pot: 10, pot2: 10 }) }), 'b', 'p1')).toEqual({ kind: 'conflict' });
   });
 
   it('does not light an LED: an analog level is neither on nor off', () => {
@@ -146,11 +150,11 @@ describe('the potentiometer is an analog source', () => {
       components: [...knobOnP1.components, part('led', 'led')],
       wires: [...knobOnP1.wires, ...wires([ref('b', 'p1'), ref('led', 'anode')], [ref('led', 'cathode'), ref('b', 'gnd')])],
     };
-    expect(run(circuit, { sliders: { pot: 100 } }).components.led).toEqual({ lit: false });
+    expect(run(circuit, { inputs: slide({ pot: 100 }) }).components.led).toEqual({ lit: false });
   });
 
   it('is independent of the pin outputs of other pins', () => {
-    const result = run(knobOnP1, { sliders: { pot: 55 }, pinOutputs: { P0: 1, P2: 0 } });
+    const result = run(knobOnP1, { inputs: slide({ pot: 55 }), pinOutputs: { P0: 1, P2: 0 } });
     expect(pinSignal(result, 'b', 'p1')).toEqual({ kind: 'analog', percent: 55 });
   });
 });
@@ -184,11 +188,20 @@ describe('what a reader of a pin gets from a signal (contract C-25, C-Q6 = Optio
 });
 
 describe('the runtime input a component of the circuit takes', () => {
-  it('is hold for a contact, slider for a potentiometer, and none for the rest', () => {
-    expect(circuitInputKind(registry.get('push-button'))).toBe('hold');
-    expect(circuitInputKind(registry.get('potentiometer'))).toBe('slider');
-    for (const id of ['led', 'resistor', 'board', 'ybc-board']) {
-      expect(circuitInputKind(registry.get(id)), id).toBeUndefined();
+  it('is hold for a contact, slider for the analog source, and none for the rest', () => {
+    expect(isContact(registry.get('push-button'))).toBe(true);
+    expect(inputKindOfModel[registry.get('potentiometer').simulation.model]).toBe('slider');
+    for (const id of ['led', 'resistor', 'board', 'ybc-board', 'push-button']) {
+      expect(inputKindOfModel[registry.get(id).simulation.model], id).toBeUndefined();
     }
+  });
+
+  it('is read from `inputs` for its own id and only as a slider: another kind of input is no position', () => {
+    expect(run(knobOnP1, { inputs: { pot: { kind: 'hold', closed: true } } }).components.pot).toEqual({ value: 0 });
+    expect(run(knobOnP1, { inputs: { pot: { kind: 'tilt', x: 1, y: 2 } } }).components.pot).toEqual({ value: 0 });
+    expect(run(knobOnP1, { inputs: { pot: { kind: 'gesture' } } }).components.pot).toEqual({ value: 0 });
+    // The input of a component that is not in the circuit is ignored.
+    expect(run(knobOnP1, { inputs: slide({ elsewhere: 90 }) }).components.pot).toEqual({ value: 0 });
+    expect(Object.keys(run(knobOnP1, { inputs: slide({ elsewhere: 90 }) }).components).sort()).toEqual(['pot']);
   });
 });

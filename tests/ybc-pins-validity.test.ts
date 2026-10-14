@@ -13,6 +13,7 @@ import { buildToolbox, createBlockPackCatalog } from '../src/core/program/block-
 import { num, print, program, wait } from '../src/core/program/__fixtures__/ybc-blocks';
 import { pinAnalog, pinRead, pinWrite } from '../src/core/program/__fixtures__/ybc-pin-blocks';
 import { createRunSession } from '../src/core/run/run-session';
+import { createPinCapabilities } from '../src/core/run/ybc-pin-io';
 import { canOpenProgram } from '../src/ui/blockly/editor-blocks';
 
 // The validity layers for programs with pins (YB plan §8.6, YB-4): a document with pin blocks is loadable
@@ -95,12 +96,12 @@ describe('L-2 profile-compatible: where the pins and the knob belong', () => {
 
 describe('L-3 runtime-ready and L-4 generator-ready: Run and the Python panel agree', () => {
   const generate = (document: ProjectDocument) => generateForDocument(document, registry, productionProfiles, packs);
-  const run = (document: ProjectDocument) => createRunSession(registry).start(document);
+  const run = (document: ProjectDocument) => createRunSession(registry, { capabilities: createPinCapabilities(registry) }).start(document);
 
   it('a pin program is runnable and generator-ready at once, in both profiles', () => {
     for (const profile of ['ybc-basic', 'ybc-advanced']) {
       const document = ybcDocument(profile);
-      const session = createRunSession(registry);
+      const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
       expect(session.start(document), profile).toEqual({ ok: true });
       session.stop();
       const generated = generate(document);
@@ -142,7 +143,7 @@ describe('L-3 runtime-ready and L-4 generator-ready: Run and the Python panel ag
     ];
     for (const [environment, blocks, code] of cases) {
       const document = ybcDocument('ybc-basic', blocks, [board]);
-      const started = createRunSession(environment.registry, { packs: environment.packs }).start(document);
+      const started = createRunSession(environment.registry, { packs: environment.packs, capabilities: createPinCapabilities(environment.registry) }).start(document);
       const generated = generateForDocument(document, environment.registry, productionProfiles, environment.packs);
       expect(started).toMatchObject({ ok: false, reason: 'compile-error', diagnostics: [expect.objectContaining({ code })] });
       expect(generated).toMatchObject({ ok: false, layer: 'L-3', diagnostics: [expect.objectContaining({ code })] });

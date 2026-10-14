@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Circuit } from '../../core/circuit/document';
 import type { DeviceRegistry } from '../../core/devices/registry';
-import { SLIDER_MAX_PERCENT, SLIDER_MIN_PERCENT, isPotentiometer, type SimulationResult } from '../../core/simulation/simulate-circuit';
+import { SLIDER_MAX_PERCENT, SLIDER_MIN_PERCENT, inputKindOfModel, type SimulationResult } from '../../core/simulation/simulate-circuit';
 
 // The runtime control of a potentiometer (plan §11.3 `slider`): a native range input, labelled, operable with
 // the keyboard and by touch. It only adapts input: the number it shows is the one in the run snapshot, and a
@@ -19,7 +19,10 @@ type PotentiometerControlsProps = {
 };
 
 export function PotentiometerControls({ circuit, registry, simulation, onChange }: PotentiometerControlsProps) {
-  const knobs = circuit.components.filter((component) => isPotentiometer(registry.get(component.deviceType)));
+  // A component of the circuit whose model takes a `slider` input (YB-CP input routing: `inputKindOfModel`).
+  const knobs = circuit.components.filter(
+    (component) => inputKindOfModel[registry.get(component.deviceType).simulation.model] === 'slider',
+  );
   if (knobs.length === 0) {
     return null;
   }

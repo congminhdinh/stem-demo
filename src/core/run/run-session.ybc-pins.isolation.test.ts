@@ -8,6 +8,7 @@ import { program } from '../program/__fixtures__/ybc-blocks';
 import { RuntimeFault } from '../program/values';
 import * as interpreter from '../program/ybc-interpreter';
 import { createRunSession, type RunSnapshot } from './run-session';
+import { createPinCapabilities } from './ybc-pin-io';
 
 // Cross-run isolation of the pin capabilities (YB-4, plan §10): the capabilities of a run are its own. A run that
 // was stopped or replaced is aborted, but whatever still holds its capabilities (a callback in flight) must not
@@ -46,7 +47,7 @@ const lit = (snapshot: RunSnapshot) => snapshot.simulation?.components['led-1']?
 
 describe('a run that lost the session', () => {
   it('writes nothing into the run that replaced it, and reads 0, never what the new run\'s circuit says', () => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.start(running());
     const stale = capabilitiesOfLastRun() as Required<Pick<Capabilities, 'digital' | 'analogIn'>>;
     session.start(running());
@@ -72,7 +73,7 @@ describe('a run that lost the session', () => {
   });
 
   it('writes and reads nothing after Stop either, and Stop publishes idle once, not again', () => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.start(running());
     const stale = capabilitiesOfLastRun() as Required<Pick<Capabilities, 'digital' | 'analogIn'>>;
     session.stop();
@@ -86,7 +87,7 @@ describe('a run that lost the session', () => {
   });
 
   it('gives each run capabilities of its own: never the same object, never the same pins', () => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.start(running());
     const first = capabilitiesOfLastRun();
     session.start(running());
@@ -99,7 +100,7 @@ describe('a run that lost the session', () => {
 
 describe('what a run is given', () => {
   it('is the two capabilities of the header pins, with their methods and nothing else: no event, no listener, no onboard part', () => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.start(running());
     const caps = capabilitiesOfLastRun();
     expect(Object.keys(caps).sort()).toEqual(['analogIn', 'digital']);
@@ -111,7 +112,7 @@ describe('what a run is given', () => {
 
 describe('the capability of the current run refuses what is not a pin it may use', () => {
   const live = () => {
-    const session = createRunSession(registry);
+    const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.start(running());
     return { session, caps: capabilitiesOfLastRun() as Required<Pick<Capabilities, 'digital' | 'analogIn'>> };
   };

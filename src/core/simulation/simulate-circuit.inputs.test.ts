@@ -178,8 +178,15 @@ describe('the models of the onboard parts take the input the plan gives them', (
     expect(models).toEqual({ display: null, 'button-a': 'hold', 'button-b': 'hold', light: 'slider', buzzer: null });
   });
 
-  it('covers the sensor and motion models of plan §11.2 that have a control', () => {
-    expect(inputKindOfModel).toEqual({ button: 'hold', 'light-sensor': 'slider', 'temperature-sensor': 'slider', accelerometer: 'tilt' });
+  it('covers the sensor and motion models of plan §11.2 that have a control, and the one device of the circuit that takes a slider', () => {
+    // `analog-source` is the one data line YB-4 adds (the potentiometer): the amendment note names it.
+    expect(inputKindOfModel).toEqual({
+      button: 'hold',
+      'light-sensor': 'slider',
+      'temperature-sensor': 'slider',
+      accelerometer: 'tilt',
+      'analog-source': 'slider',
+    });
   });
 });
 
