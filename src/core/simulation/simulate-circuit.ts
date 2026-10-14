@@ -22,6 +22,13 @@ export type SimulationInputs = {
   pinOutputs: Readonly<Record<string, 0 | 1>>;
   /** Contacts held closed (a pressed push button), by component id. One left out is open. */
   contacts?: Readonly<Record<string, boolean>>;
+  /**
+   * The runtime input of every other component, by component id: the one `ComponentInput` every control uses
+   * (plan §11.3), not a field per kind of control. A model reads the input of its own component and an id that
+   * names no component is ignored. No model takes one at YB-CP (YB-4's potentiometer is the first), so this only
+   * carries them.
+   */
+  inputs?: Readonly<Record<string, ComponentInput>>;
 };
 
 export type NetLevel = 'floating' | 'high' | 'low' | 'conflict';

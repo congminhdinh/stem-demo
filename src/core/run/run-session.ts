@@ -23,6 +23,8 @@ import {
   simulateCircuit,
   splitPeripheralComponentId,
   type ComponentInput,
+  type ComponentInputKind,
+  type ComponentState,
   type SimulationResult,
 } from '../simulation/simulate-circuit';
 
@@ -76,10 +78,12 @@ export type RunSession = {
   setContactInput(componentId: string, closed: boolean): void;
   /**
    * The general runtime input (plan §11.3, YB-CP): a contact of the circuit takes `hold` (this is
-   * `setContactInput`); an onboard part of a Yolo:Bit-compatible board, addressed `<board>/<peripheral>`,
+   * `setContactInput`); any other component of the circuit takes the input of its simulation model, which the
+   * simulation reads; an onboard part of a Yolo:Bit-compatible board, addressed `<board>/<peripheral>`,
    * takes the input of its model (button: hold, light and temperature sensor: slider, accelerometer: tilt).
-   * Ignored while idle, for a component or a part of another run, for the wrong kind of input, and when
-   * nothing changes. Like every input it is state of the run, dropped with it (B2).
+   * An id that names a component of the circuit is always that component (it may contain a slash). Ignored
+   * while idle, for a component or a part of another run, for the wrong kind of input, and when nothing
+   * changes. Like every input it is state of the run, dropped with it (B2).
    */
   setComponentInput(componentId: string, input: ComponentInput): void;
   getSnapshot(): RunSnapshot;
@@ -107,8 +111,12 @@ type ActiveRun = {
   capabilities?: Capabilities;
   /** YBC runs only: the board and its onboard parts, for `setComponentInput`. */
   board?: { id: string; onboard: readonly { id: string; model: string }[] };
-  /** Inputs of onboard parts, by `<board>/<peripheral>`. */
+  /** Inputs other than a contact's hold, by component id: the circuit's components and the onboard parts (`<board>/<peripheral>`). */
   inputs: Record<string, ComponentInput>;
+  /** Presses of onboard `hold` parts not taken yet: the `closed` edges of `inputs`, which a latest value cannot hold (C-13). */
+  presses: Map<string, number>;
+  /** The state onboard parts report for the snapshot, by `<board>/<peripheral>`; the simulation of the circuit is not theirs. */
+  reported: Map<string, ComponentState>;
 };
 
 // Listeners may call start or stop synchronously; the latest call wins. That
@@ -133,14 +141,43 @@ export type RunSessionOptions = {
   capabilities?: CapabilityFactory;
 };
 
-/** What a capability factory is given. `services` is every runtime service the session owns; the budget is the interpreter's own. */
+/**
+ * What a capability factory is given. `services` is every runtime service the session owns; the budget is the
+ * interpreter's own.
+ *
+ * Everything below `services` belongs to the ONE run this environment was made for (YB-CP amendment 1, shared by
+ * YB-3 and YB-4): once that run is stopped or replaced, or if it never started, each member does nothing and
+ * returns nothing, so a capability a test or a late timer still holds cannot touch the run that came after. They
+ * are pull and push of state, never events: nothing here calls a capability back.
+ */
 export type RunEnvironment = {
   board: ComponentInstance;
   /** Capability ids the board has (pin capabilities and onboard ones). */
   capabilitySet: readonly string[];
   services: RuntimeServices;
-  /** The latest input of an onboard part (`<board>/<peripheral>`), or undefined. Reads the run as it is now. */
+  /**
+   * The latest input of an onboard part (`<board>/<peripheral>`) or of a circuit component that takes one (not a
+   * contact: that is the circuit's own), or undefined. Reads the run as it is now.
+   */
   input(componentId: string): ComponentInput | undefined;
+  /**
+   * The presses of an onboard `hold` part since the last call, then counts from 0 again; before the first call,
+   * since the run began (contract C-13 `get_presses`: read and reset). A press is the edge from open to `closed`,
+   * so presses that begin and end between two calls are all counted, and a part that is still held counts once.
+   * 0 for anything that is not a part of this run.
+   */
+  takePresses(componentId: string): number;
+  /**
+   * Sets the state an onboard part (`<board>/<peripheral>`) shows in the snapshot, in place of the one before
+   * it, or removes it with `null`. The snapshot is published when it changed. Ignored for an id that is not an
+   * onboard part of this board, and for one that names a component of the circuit: the circuit's own state wins.
+   * Not honoured while the factory is still running, because the run does not exist yet.
+   */
+  report(componentId: string, state: ComponentState | null): void;
+  /** The latest simulation of this run, the one `digitalRead` reads and the snapshot shows; null once the run is over. Read only. */
+  simulation(): SimulationResult | null;
+  /** Drives a pin of this run's board and simulates again. A name that is not a pin of the board is ignored. */
+  drivePin(pin: string, level: 0 | 1): void;
 };
 
 export type CapabilityFactory = (environment: RunEnvironment) => Capabilities;
@@ -176,10 +213,15 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
     }
   };
 
-  /** Every input change goes through here, so `run.simulation` is always the current one. */
+  /**
+   * Every input change goes through here, so `run.simulation` is always the current one. What the onboard parts
+   * reported joins the circuit's own states, and the circuit's come last: an onboard part never overwrites a
+   * component of the circuit. Nothing is reported on a generic run, so its states are exactly the circuit's.
+   */
   const simulate = (run: ActiveRun) => {
-    const { circuit, pinOutputs, contacts } = run;
-    run.simulation = simulateCircuit(circuit, registry, { powered: true, pinOutputs, contacts });
+    const { circuit, pinOutputs, contacts, inputs } = run;
+    const result = simulateCircuit(circuit, registry, { powered: true, pinOutputs, contacts, inputs });
+    run.simulation = { ...result, components: { ...Object.fromEntries(run.reported), ...result.components } };
     return run.simulation;
   };
 
@@ -205,6 +247,60 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
   const retire = (retiring: ActiveRun) => {
     retiring.program.stop();
     retiring.scheduler?.dispose();
+  };
+
+  /**
+   * The environment of ONE run (YB-CP amendment 1). `holder.run` is set when the run is created and `current` is the
+   * run that owns the session, so an environment whose run lost ownership, or whose run was never created (the factory
+   * threw, or a newer start won), is inert: that single check is what keeps a stale capability from reaching the run
+   * that came after. A write that publishes does so last, as every operation does, because a listener may call `start`
+   * or `stop` from it.
+   */
+  const environmentFor = (
+    holder: { run?: ActiveRun },
+    base: Pick<RunEnvironment, 'board' | 'capabilitySet' | 'services'>,
+  ): RunEnvironment => {
+    const live = () => (holder.run !== undefined && current === holder.run ? holder.run : undefined);
+    const pins = new Set((registry.get(base.board.deviceType).board?.pins ?? []).map((pin) => pin.name));
+    return {
+      ...base,
+      input: (componentId) => live()?.inputs[componentId],
+      takePresses(componentId) {
+        const run = live();
+        const presses = run?.presses.get(componentId) ?? 0;
+        run?.presses.delete(componentId);
+        return presses;
+      },
+      report(componentId, state) {
+        const run = live();
+        // The circuit wins a shared id, as it does for inputs.
+        if (!run || circuitComponentOf(run, componentId) || !onboardPartOf(run, componentId)) {
+          return;
+        }
+        if (state === null) {
+          if (!run.reported.delete(componentId)) {
+            return;
+          }
+        } else {
+          // A copy: the caller may go on using its object, and a published snapshot must not change under a listener.
+          const next = structuredClone(state);
+          if (JSON.stringify(run.reported.get(componentId)) === JSON.stringify(next)) {
+            return;
+          }
+          run.reported.set(componentId, next);
+        }
+        publish({ ...fresh(), simulation: simulate(run) });
+      },
+      simulation: () => live()?.simulation ?? null,
+      drivePin(pin, level) {
+        const run = live();
+        if (!run || !pins.has(pin) || run.pinOutputs[pin] === level) {
+          return;
+        }
+        run.pinOutputs = { ...run.pinOutputs, [pin]: level };
+        publish({ ...fresh(), simulation: simulate(run) });
+      },
+    };
   };
 
   const stop = () => {
@@ -277,12 +373,9 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
         },
       });
       try {
-        const provided = options.capabilities?.({
-          board,
-          capabilitySet: context.readiness.capabilities,
-          services,
-          input: (componentId) => (current === holder.run ? holder.run?.inputs[componentId] : undefined),
-        });
+        const provided = options.capabilities?.(
+          environmentFor(holder, { board, capabilitySet: context.readiness.capabilities, services }),
+        );
         const composed = composeCapabilities(context.readiness.capabilities, provided ?? {}).capabilities;
         ybcRun = { services, capabilities: composed, controller };
         launch = () => ({ done: runYbcProgram(compiled.ir, composed, services).done, stop: () => controller.abort() });
@@ -317,6 +410,8 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
       contacts: {},
       simulation: null,
       inputs: {},
+      presses: new Map(),
+      reported: new Map(),
       ...(compiled.kind === 'ybc' ? { console: compiled.console } : {}),
       ...(ybcRun ? { scheduler: ybcRun.services.scheduler, capabilities: ybcRun.capabilities } : {}),
       ...(ybcRun
@@ -423,24 +518,38 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
     }
     // The circuit wins: a component id is free text (it may well contain a slash), so an id that names a
     // component of this run's circuit is always handled as that component, never read as `<board>/<part>`.
-    const component = run.circuit.components.find((candidate) => candidate.id === componentId);
+    const component = circuitComponentOf(run, componentId);
     if (component) {
+      const definition = registry.get(component.deviceType);
+      if (!isContact(definition)) {
+        // Any other component takes the input of its model, which the simulation reads. No model of the
+        // catalog is listed in `inputKindOfModel` yet, so nothing is kept for them today.
+        if (keepInput(run, componentId, inputKindOfModel[definition.simulation.model], input)) {
+          publish({ ...fresh(), simulation: simulate(run) });
+        }
+        return;
+      }
       // Strictly true, as in the simulation: ids are data, e.g. "constructor".
-      if (!isContact(registry.get(component.deviceType)) || input.kind !== 'hold' || (run.contacts[componentId] === true) === input.closed) {
+      if (input.kind !== 'hold' || (run.contacts[componentId] === true) === input.closed) {
         return;
       }
       run.contacts = { ...run.contacts, [componentId]: input.closed };
       publish({ ...fresh(), simulation: simulate(run) });
       return;
     }
-    // Otherwise an onboard part of this run's board, taking the input of its model. There is no peripheral
-    // model at YB-CP, so this only keeps the input for the capability the board's factory provides (YB-3, YB-4).
-    const peripheral = splitPeripheralComponentId(componentId);
-    const part = peripheral && peripheral.boardId === run.board?.id ? run.board.onboard.find((candidate) => candidate.id === peripheral.peripheralId) : undefined;
-    if (!part || inputKindOfModel[part.model] !== input.kind || JSON.stringify(run.inputs[componentId]) === JSON.stringify(input)) {
+    // Otherwise an onboard part of this run's board, taking the input of its model. The circuit does not see it:
+    // the capability the board's factory provides reads it (`environment.input`, `environment.takePresses`).
+    const part = onboardPartOf(run, componentId);
+    if (!part) {
       return;
     }
-    run.inputs = { ...run.inputs, [componentId]: input };
+    const before = run.inputs[componentId];
+    const wasClosed = before?.kind === 'hold' && before.closed;
+    if (keepInput(run, componentId, inputKindOfModel[part.model], input) && input.kind === 'hold' && input.closed && !wasClosed) {
+      // The edge to closed is a press. It is counted here, when it happens, because the latest value alone cannot say
+      // that the part was pressed and released in between two reads.
+      run.presses.set(componentId, (run.presses.get(componentId) ?? 0) + 1);
+    }
   };
 
   const setContactInput = (componentId: string, closed: boolean) => setComponentInput(componentId, { kind: 'hold', closed });
@@ -458,6 +567,23 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
       };
     },
   };
+}
+
+const circuitComponentOf = (run: ActiveRun, componentId: string) => run.circuit.components.find((candidate) => candidate.id === componentId);
+
+/** The onboard part `<board>/<peripheral>` names on the board of this run, or undefined. Only a Yolo:Bit-compatible run has parts. */
+function onboardPartOf(run: ActiveRun, componentId: string) {
+  const peripheral = splitPeripheralComponentId(componentId);
+  return peripheral && peripheral.boardId === run.board?.id ? run.board.onboard.find((candidate) => candidate.id === peripheral.peripheralId) : undefined;
+}
+
+/** Keeps `input` as the latest of the component when it is the kind the component takes and differs from the one kept. */
+function keepInput(run: ActiveRun, componentId: string, takes: ComponentInputKind | undefined, input: ComponentInput): boolean {
+  if (takes !== input.kind || JSON.stringify(run.inputs[componentId]) === JSON.stringify(input)) {
+    return false;
+  }
+  run.inputs = { ...run.inputs, [componentId]: input };
+  return true;
 }
 
 function toRunDiagnostic(diagnostic: LayerDiagnostic): RunDiagnostic {

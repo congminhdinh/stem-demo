@@ -4,7 +4,7 @@ import { localDeviceDefinitions } from '../devices/local-catalog';
 import { createDeviceRegistry } from '../devices/registry';
 import {
   inputKindOfModel, isComponentInput, peripheralComponentId, simulateCircuit, splitPeripheralComponentId,
-  type ComponentInput, type ComponentState, type SimulationResult, type ToneState,
+  type ComponentInput, type ComponentState, type SimulationInputs, type SimulationResult, type ToneState,
 } from './simulate-circuit';
 
 // YB-CP deliverables 2 and 3: the runtime input representation and the snapshot / peripheral state shape (plan §11.2-§11.4).
@@ -58,6 +58,35 @@ describe('component ids of onboard parts: <board>/<peripheral>', () => {
     const board = { id: 'ybc-board-1', deviceType: 'ybc-board', position: { x: 0, y: 0 } };
     const result = simulateCircuit({ components: [board], wires: [] }, registry, { powered: true, pinOutputs: {} });
     expect(Object.keys(result.components).filter((id) => id.includes('/'))).toEqual([]);
+  });
+});
+
+describe('SimulationInputs.inputs: one transport for every control (YB-CP amendment 1)', () => {
+  const circuit = {
+    components: [
+      { id: 'board', deviceType: 'board', position: { x: 0, y: 0 } },
+      { id: 'led', deviceType: 'led', position: { x: 100, y: 0 } },
+      { id: 'button', deviceType: 'push-button', position: { x: 200, y: 0 } },
+    ],
+    wires: [],
+  };
+  const base = { powered: true, pinOutputs: { D13: 1 as const }, contacts: { button: true } };
+
+  it('is the same ComponentInput the controls already use, by component id, with no field per kind of control', () => {
+    expectTypeOf<NonNullable<SimulationInputs['inputs']>>().toEqualTypeOf<Readonly<Record<string, ComponentInput>>>();
+    expectTypeOf<keyof SimulationInputs>().toEqualTypeOf<'powered' | 'pinOutputs' | 'contacts' | 'inputs'>();
+  });
+
+  it('changes nothing for the models that exist, whatever it carries: no model takes an input yet', () => {
+    const without = simulateCircuit(circuit, registry, base);
+    const inputs = {
+      led: { kind: 'slider', value: 7 },
+      button: { kind: 'hold', closed: false },
+      'ybc-board-1/light': { kind: 'slider', value: 50 },
+      nobody: { kind: 'gesture' },
+    } satisfies Record<string, ComponentInput>;
+    expect(JSON.stringify(simulateCircuit(circuit, registry, { ...base, inputs }))).toBe(JSON.stringify(without));
+    expect(JSON.stringify(simulateCircuit(circuit, registry, { ...base, inputs: {} }))).toBe(JSON.stringify(without));
   });
 });
 
