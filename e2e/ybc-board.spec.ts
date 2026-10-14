@@ -27,6 +27,7 @@ const ybcProject = (profile: string, components: unknown[] = [ybcBoard]) => ({
   program: { blocks: createDefaultProgram() },
 });
 
+const ybcCategories = ['Program', 'Logic', 'Loops', 'Time', 'Math', 'Text', 'Variables'];
 const toolboxCategories = (page: Page) =>
   page.getByTestId('blockly-panel').locator('.blocklyToolboxCategory').allInnerTexts();
 const paletteButtons = (page: Page) => page.getByRole('toolbar', { name: 'Add a device' }).getByRole('button').allInnerTexts();
@@ -76,11 +77,11 @@ test.describe('generic project (unchanged)', () => {
 
 for (const profile of ['ybc-basic', 'ybc-advanced']) {
   test.describe(`${profile} project`, () => {
-    test('offers the Yolo:Bit-compatible board only, and only the program structure in the toolbox', async ({ page }) => {
+    test('offers the Yolo:Bit-compatible board only, and the structure and language in the toolbox', async ({ page }) => {
       await openProject(page, ybcProject(profile));
 
       await expect.poll(() => paletteButtons(page)).toEqual(['+ Bit-compatible Board']);
-      expect(await toolboxCategories(page)).toEqual(['Program']);
+      expect(await toolboxCategories(page)).toEqual(ybcCategories);
       await expectBlockText(page, 'on start');
       await expectBlockText(page, 'forever');
       expect((await canvasState(page)).components.map((c) => c.deviceType)).toEqual(['ybc-board']);
@@ -107,7 +108,7 @@ for (const profile of ['ybc-basic', 'ybc-advanced']) {
       await reload(page);
 
       expect(await currentProject(page)).toEqual(edited);
-      expect(await toolboxCategories(page)).toEqual(['Program']);
+      expect(await toolboxCategories(page)).toEqual(ybcCategories);
       expect(await paletteButtons(page)).toEqual(['+ Bit-compatible Board']);
       await page.getByRole('button', { name: 'Run' }).click();
       await expect(runStatus(page)).toHaveText('Running');
@@ -128,7 +129,7 @@ for (const profile of ['ybc-basic', 'ybc-advanced']) {
       await page.keyboard.press('Delete');
       await expect.poll(async () => (await canvasState(page)).components).toEqual([]);
       expect(await currentProject(page)).toMatchObject({ profile });
-      expect(await toolboxCategories(page)).toEqual(['Program']);
+      expect(await toolboxCategories(page)).toEqual(ybcCategories);
 
       await page.getByRole('button', { name: 'Run' }).click();
       await expect(runMessages(page)).toContainText('The circuit needs a board.');

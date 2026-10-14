@@ -1,6 +1,7 @@
 import * as Blockly from 'blockly';
 import { builtInBlockTypes } from '../../core/program/blocks';
 import type { BlockPackCatalog } from '../../core/program/block-packs';
+import { MAX_PROGRAM_BLOCKS, MAX_TEXT_JOIN_PARTS } from '../../core/program/limits';
 
 // The editor's blocks, as Blockly knows them: registered once, and used to
 // tell whether a stored program can be opened at all.
@@ -23,10 +24,38 @@ export function registerBlocks(packs: BlockPackCatalog) {
 }
 
 /**
- * Else-ifs a whole program may have: far more than any program needs, and
- * few enough for Blockly to build at once (a few milliseconds headless).
+ * Blockly's variables flyout: "Create variable…", get and set. It also offers
+ * "change by", which the dialect has no construct for (YB-2a), so that is dropped.
  */
-export const maxElseIfs = 1000;
+export function ybcVariablesFlyout(workspace: Blockly.WorkspaceSvg): Blockly.utils.toolbox.FlyoutItemInfoArray {
+  const isChange = (item: Blockly.utils.toolbox.FlyoutItemInfo) => {
+    const blockxml = 'blockxml' in item ? item.blockxml : undefined;
+    const xmlType = typeof blockxml === 'object' && blockxml instanceof Element ? blockxml.getAttribute('type') : null;
+    return ('type' in item && item.type === 'math_change') || xmlType === 'math_change' || (typeof blockxml === 'string' && blockxml.includes('math_change'));
+  };
+  return Blockly.Variables.flyoutCategory(workspace).filter((item) => !isChange(item));
+}
+
+/**
+ * Structural bounds on mutator metadata (plan section 8.6, L-1 versus L-3). Anti-abuse limits on what Blockly
+ * is asked to build when it opens a stored program; they are NOT language rules, and the compiler's limits
+ * (50 join parts, 2 000 blocks) are separate. Two bounds, for two different costs:
+ *
+ * - `maxMutatorItemsPerBlock`: one join or one if may ask for at most this many parts / else-ifs. Blockly
+ *   builds the inputs of a single block in quadratic time (measured: 4 000 parts 22 ms, 8 000 parts 100 ms,
+ *   100 000 parts 26 s), so a single hostile block is stopped early. 2 x MAX_PROGRAM_BLOCKS: every part
+ *   and every else-if of an executable program is a block of it, so no executable block gets near it.
+ * - `maxTotalMutatorItems`: all the mutator items of a whole document, in any blocks. Many small mutator
+ *   blocks cost about linear time (2 000 joins of 50 parts: 40-75 ms), so this total is large:
+ *   MAX_PROGRAM_BLOCKS x MAX_TEXT_JOIN_PARTS. It must be large, because the editor saves blocks that the
+ *   compiler skips (loose blocks outside `on start` / `forever`, disabled blocks): their joins and ifs are
+ *   not counted in the 2 000 blocks of the program that runs, and the document must still reopen.
+ *
+ * A join of more than MAX_TEXT_JOIN_PARTS parts is a program the editor can make: it reopens, and Run
+ * refuses it (`limit-exceeded`).
+ */
+export const maxMutatorItemsPerBlock = 2 * MAX_PROGRAM_BLOCKS;
+export const maxTotalMutatorItems = MAX_PROGRAM_BLOCKS * MAX_TEXT_JOIN_PARTS;
 
 /**
  * Whether the editor can open `blocks` (plan §7): they are loaded into a
@@ -70,13 +99,14 @@ export function canOpenProgram(blocks: unknown, packs: BlockPackCatalog): boolea
  *   is loaded twice, so a few levels of sharing stand for millions of blocks,
  *   and an array with holes is walked to its length.
  * So the program must be what the editor saves: a tree, arrays without
- * holes, and mutator state only on "if", with whole else-if counts that add
- * up to at most `maxElseIfs`.
+ * holes, and mutator state only on "if" (a whole else-if count) and on text
+ * "join" (a whole part count), each at most `maxMutatorItemsPerBlock`, and all
+ * of them together at most `maxTotalMutatorItems`.
  */
 function isBoundedForBlockly(blocks: object): boolean {
   const seen = new Set<object>([blocks]);
   const pending: object[] = [blocks];
-  let elseIfs = 0;
+  let mutatorItems = 0;
   for (let value = pending.pop(); value !== undefined; value = pending.pop()) {
     const children = Object.values(value);
     if (Array.isArray(value) && children.length !== value.length) {
@@ -84,13 +114,18 @@ function isBoundedForBlockly(blocks: object): boolean {
     }
     const { type, extraState } = value as { type?: unknown; extraState?: unknown };
     if (extraState !== undefined) {
-      const count: unknown =
-        typeof extraState === 'object' && extraState !== null ? (Reflect.get(extraState, 'elseIfCount') ?? 0) : 0;
-      if (type !== builtInBlockTypes.if || !isWholeNumber(count)) {
+      const state = typeof extraState === 'object' && extraState !== null ? extraState : {};
+      // The if mutator (else-ifs) and the join mutator (`itemCount` parts) each make Blockly build that many inputs.
+      const key = type === builtInBlockTypes.if ? 'elseIfCount' : type === 'text_join' ? 'itemCount' : null;
+      if (key === null) {
         return false;
       }
-      elseIfs += count;
-      if (elseIfs > maxElseIfs) {
+      const count: unknown = Reflect.get(state, key) ?? 0;
+      if (!isWholeNumber(count) || count > maxMutatorItemsPerBlock) {
+        return false;
+      }
+      mutatorItems += count;
+      if (mutatorItems > maxTotalMutatorItems) {
         return false;
       }
     }

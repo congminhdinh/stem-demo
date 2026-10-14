@@ -17,8 +17,16 @@ const registry = createDeviceRegistry(localDeviceDefinitions);
 const packs = createBlockPackCatalog(registry);
 
 describe('block packs', () => {
-  it('know the generic pack and the YBC structure pack', () => {
-    expect(packs.list().map((pack) => pack.id)).toEqual([genericPackId, ybcStructurePackId]);
+  it('know the generic pack, the YBC structure pack and the YB-2a language packs', () => {
+    expect(packs.list().map((pack) => pack.id)).toEqual([
+      genericPackId,
+      ybcStructurePackId,
+      'lang.logic',
+      'lang.loops',
+      'lang.math',
+      'lang.text',
+      'lang.variables',
+    ]);
   });
 
   it('take the generic pins from the generic boards of the registry, not from the ybc board', () => {
@@ -49,7 +57,7 @@ describe('block packs', () => {
   it('register the blocks of every pack once, the shared hats included only once', () => {
     const types = packs.definitions().map((definition) => definition.type);
     expect(new Set(types).size).toBe(types.length);
-    expect(types).toEqual(buildBlockDefinitions(genericBoardPins(registry)).map((definition) => definition.type));
+    expect(types).toEqual([...buildBlockDefinitions(genericBoardPins(registry)).map((definition) => definition.type), 'ybc_while', 'ybc_count_up', 'ybc_wait_ms', 'ybc_arith', 'ybc_int_divide']);
   });
 
   it('tell the types of a pack set, and refuse an unknown pack', () => {
@@ -61,7 +69,7 @@ describe('block packs', () => {
 
   it('know the types some pack owns, and not the Blockly built-ins no pack lists', () => {
     expect(packs.isKnown(blockTypes.wait)).toBe(true);
-    expect(packs.isKnown('math_number')).toBe(false);
+    expect(packs.isKnown('math_single')).toBe(false);
     expect(packs.isKnown(testMarkerType)).toBe(false);
   });
 

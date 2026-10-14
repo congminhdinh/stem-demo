@@ -4,7 +4,7 @@ import { useStore } from 'zustand';
 import { blockTypes } from '../../core/program/blocks';
 import type { BlockPackCatalog, Toolbox } from '../../core/program/block-packs';
 import type { ProjectStore } from '../state/project-store';
-import { registerBlocks } from './editor-blocks';
+import { registerBlocks, ybcVariablesFlyout } from './editor-blocks';
 
 // Blockly is only a view of `document.program.blocks` (plan §5.1 B4): the
 // workspace is loaded from that JSON and every non-UI change is serialized
@@ -52,6 +52,8 @@ export function BlocklyPanel({ projectStore, packs, toolbox, ref }: BlocklyPanel
       sounds: false,
       maxInstances: { [blockTypes.onStart]: 1, [blockTypes.forever]: 1 },
     });
+
+    workspace.registerToolboxCategoryCallback('VARIABLE', ybcVariablesFlyout);
 
     const blocks = projectStore.getState().document.program.blocks;
     if (typeof blocks === 'object' && blocks !== null) {

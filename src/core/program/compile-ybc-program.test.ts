@@ -1,34 +1,35 @@
 import { describe, expect, it } from 'vitest';
 import { programWithMarker, testMarkerType } from '../profiles/__fixtures__/test-profiles';
 import { createDefaultProgram } from './blocks';
-import { compileYbcSkeleton } from './compile-ybc-skeleton';
+import { compileYbcProgram } from './compile-ybc-program';
 
 // The YB-1 skeleton compiler: two hats and, for a block the profile exposes, a
 // no-op. The language compiler is YB-2's.
 
 const hatsOnly = new Set(['stem_on_start', 'stem_forever']);
 const withMarker = new Set([...hatsOnly, testMarkerType]);
+const markerOnly = new Set([testMarkerType]);
 const workspace = (...blocks: unknown[]) => ({ blocks: { languageVersion: 0, blocks } });
 
-describe('compileYbcSkeleton', () => {
+describe('compileYbcProgram', () => {
   it('compiles the empty default program to two empty hats', () => {
-    expect(compileYbcSkeleton(createDefaultProgram(), hatsOnly)).toEqual({
+    expect(compileYbcProgram(createDefaultProgram(), hatsOnly)).toEqual({
       ok: true,
-      ir: { onStart: [], forever: [] },
+      ir: { onStart: [], forever: [], variables: [] },
       diagnostics: [],
     });
   });
 
   it('leaves forever null when the program has none, and accepts an empty workspace', () => {
-    expect(compileYbcSkeleton(workspace({ type: 'stem_on_start', id: 'a' }), hatsOnly)).toMatchObject({
+    expect(compileYbcProgram(workspace({ type: 'stem_on_start', id: 'a' }), hatsOnly)).toMatchObject({
       ok: true,
       ir: { onStart: [], forever: null },
     });
-    expect(compileYbcSkeleton({}, hatsOnly)).toMatchObject({ ok: true, ir: { onStart: [], forever: null } });
+    expect(compileYbcProgram({}, hatsOnly)).toMatchObject({ ok: true, ir: { onStart: [], forever: null } });
   });
 
   it('compiles a block the profile exposes to a no-op, with its block id', () => {
-    expect(compileYbcSkeleton(programWithMarker(), withMarker)).toMatchObject({
+    expect(compileYbcProgram(programWithMarker(), withMarker, markerOnly)).toMatchObject({
       ok: true,
       ir: { onStart: [{ kind: 'noop', blockId: 'marker-1' }], forever: [] },
     });
@@ -48,19 +49,19 @@ describe('compileYbcSkeleton', () => {
         },
       },
     });
-    expect(compileYbcSkeleton(chain, withMarker)).toMatchObject({
+    expect(compileYbcProgram(chain, withMarker, markerOnly)).toMatchObject({
       ok: true,
       ir: { forever: [{ kind: 'noop', blockId: 'one' }, { kind: 'noop', blockId: 'two' }] },
     });
   });
 
   it('reports a block the profile does not expose as an unknown block, with its id', () => {
-    const result = compileYbcSkeleton(programWithMarker(), hatsOnly);
+    const result = compileYbcProgram(programWithMarker(), hatsOnly);
     expect(result).toMatchObject({ ok: false, diagnostics: [{ severity: 'error', code: 'unknown-block', blockId: 'marker-1' }] });
   });
 
   it('reports a second hat of a kind, and warns about a loose block', () => {
-    const result = compileYbcSkeleton(
+    const result = compileYbcProgram(
       workspace({ type: 'stem_on_start', id: 'a' }, { type: 'stem_on_start', id: 'b' }, { type: testMarkerType, id: 'loose' }),
       withMarker,
     );
@@ -72,21 +73,21 @@ describe('compileYbcSkeleton', () => {
   });
 
   it('drops a disabled hat with its whole stack', () => {
-    expect(compileYbcSkeleton(workspace({ type: 'stem_forever', id: 'f', disabledReasons: ['x'] }), hatsOnly)).toMatchObject({
+    expect(compileYbcProgram(workspace({ type: 'stem_forever', id: 'f', disabledReasons: ['x'] }), hatsOnly)).toMatchObject({
       ok: true,
       ir: { onStart: [], forever: null },
     });
   });
 
   it.each([null, 7, 'text', [], { blocks: 5 }, { blocks: { blocks: 'x' } }])('never throws for %j; it reports', (blocks) => {
-    const result = compileYbcSkeleton(blocks, hatsOnly);
+    const result = compileYbcProgram(blocks, hatsOnly);
     expect(result.ok).toBe(false);
     expect(result.diagnostics[0]).toMatchObject({ severity: 'error', code: 'malformed-program' });
   });
 
   it('reports a malformed block and a malformed input', () => {
-    expect(compileYbcSkeleton(workspace({ id: 'no-type' }), hatsOnly).diagnostics[0]).toMatchObject({ code: 'malformed-program' });
-    expect(compileYbcSkeleton(workspace({ type: 'stem_on_start', id: 'a', inputs: { DO: 4 } }), hatsOnly).diagnostics[0]).toMatchObject({
+    expect(compileYbcProgram(workspace({ id: 'no-type' }), hatsOnly).diagnostics[0]).toMatchObject({ code: 'malformed-program' });
+    expect(compileYbcProgram(workspace({ type: 'stem_on_start', id: 'a', inputs: { DO: 4 } }), hatsOnly).diagnostics[0]).toMatchObject({
       code: 'malformed-program',
       blockId: 'a',
     });
@@ -95,13 +96,13 @@ describe('compileYbcSkeleton', () => {
   it('does not follow a chain without end', () => {
     const cyclic: Record<string, unknown> = { type: testMarkerType, id: 'loop' };
     cyclic.next = { block: cyclic };
-    const result = compileYbcSkeleton(workspace({ type: 'stem_on_start', id: 'a', inputs: { DO: { block: cyclic } } }), withMarker);
+    const result = compileYbcProgram(workspace({ type: 'stem_on_start', id: 'a', inputs: { DO: { block: cyclic } } }), withMarker);
     expect(result.ok).toBe(false);
     expect(result.diagnostics.at(-1)).toMatchObject({ code: 'malformed-program' });
   });
 
   it('puts no type field on IR nodes (the typed IR is YB-2)', () => {
-    const result = compileYbcSkeleton(programWithMarker(), withMarker);
+    const result = compileYbcProgram(programWithMarker(), withMarker, markerOnly);
     expect(JSON.stringify(result.ok ? result.ir : null)).not.toContain('"type"');
   });
 });

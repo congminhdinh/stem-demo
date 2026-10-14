@@ -73,6 +73,8 @@ export function createFixtureEnvironment() {
     // The production profiles stay available next to the fixtures, as in the real catalog.
     profiles: createProfileCatalog([...productionProfileData, ...testProfileData]),
     packs: createBlockPackCatalog(registry, [testExtendedPack]),
+    // The only block the YBC compiler may turn into a no-op.
+    noopBlockTypes: new Set([testMarkerType]),
   };
 }
 

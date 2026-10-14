@@ -75,10 +75,10 @@ describe('the production profiles', () => {
     expect(advanced?.extends).toBe('ybc-basic');
   });
 
-  it('expose only the structure pack at YB-1: no display, sensor, pin, sound, function, event, random or time block', () => {
+  it('expose only the structure and the YB-2 language: no display, sensor, pin, sound, function, event, random or elapsed-time block', () => {
     for (const profile of [basic, advanced]) {
-      expect(profile?.blockPacks).toEqual(['ybc.structure']);
-      expect(profile?.constructs).toEqual(['C-01', 'C-02']);
+      expect(profile?.blockPacks).toEqual(['ybc.structure', 'lang.logic', 'lang.loops', 'lang.math', 'lang.text', 'lang.variables']);
+      expect(profile?.constructs).toEqual(['C-01', 'C-02', 'C-04', 'C-29', 'C-30', 'C-31', 'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-56']);
       expect(profile?.controls).toEqual([]);
     }
   });

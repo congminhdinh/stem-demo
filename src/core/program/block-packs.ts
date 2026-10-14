@@ -1,4 +1,5 @@
 import { deviceFamily } from '../devices/device-definition';
+import { arithDefinition, arithType, countUpDefinition, countUpType, intDivideDefinition, intDivideType, waitDefinition, waitType, whileDefinition, whileType, langConstructs, langPackIds, type LangPackId } from '../constructs/lang';
 import type { DeviceRegistry } from '../devices/registry';
 import {
   blockTypes,
@@ -13,7 +14,14 @@ import {
 // known packs once, so any stored program stays structurally loadable (L-1);
 // the toolbox shown comes from the board context, a profile choosing packs by id.
 
-export type ToolboxCategory = { kind: string; name?: string; colour?: string; contents?: readonly unknown[] };
+export type ToolboxCategory = {
+  kind: string;
+  name?: string;
+  colour?: string;
+  contents?: readonly unknown[];
+  /** A dynamic category Blockly fills itself (variables). */
+  custom?: string;
+};
 export type Toolbox = { kind: string; contents: readonly ToolboxCategory[] };
 
 export type BlockPack = {
@@ -74,6 +82,98 @@ export function createYbcStructurePack(): BlockPack {
   };
 }
 
+const shadowNumber = (value: number) => ({ shadow: { type: 'math_number', fields: { NUM: value } } });
+const block = (type: string, extra: Record<string, unknown> = {}) => ({ kind: 'block', type, ...extra });
+const arithmetic = (op: string) => block(arithType, { fields: { OP: op }, inputs: { A: shadowNumber(1), B: shadowNumber(1) } });
+
+/** What each language pack shows in the toolbox. */
+const langCategories: Readonly<Record<LangPackId, ToolboxCategory[]>> = {
+  'lang.logic': [
+    {
+      kind: 'category',
+      name: 'Logic',
+      colour: '210',
+      contents: [
+        block('controls_if'),
+        block('controls_if', { extraState: { hasElse: true } }),
+        block('logic_compare'),
+        block('logic_operation', { fields: { OP: 'AND' } }),
+        block('logic_operation', { fields: { OP: 'OR' } }),
+        block('logic_negate'),
+        block('logic_boolean', { fields: { BOOL: 'TRUE' } }),
+        block('logic_boolean', { fields: { BOOL: 'FALSE' } }),
+      ],
+    },
+  ],
+  'lang.loops': [
+    {
+      kind: 'category',
+      name: 'Loops',
+      colour: '120',
+      contents: [
+        block('controls_repeat_ext', { inputs: { TIMES: shadowNumber(10) } }),
+        block(whileType),
+        block(countUpType, { inputs: { FROM: shadowNumber(1), TO: shadowNumber(10) } }),
+      ],
+    },
+    {
+      kind: 'category',
+      name: 'Time',
+      colour: '120',
+      contents: [block(waitType, { inputs: { MS: shadowNumber(1000) } })],
+    },
+  ],
+  'lang.math': [
+    {
+      kind: 'category',
+      name: 'Math',
+      colour: '230',
+      contents: [
+        block('math_number', { fields: { NUM: 0 } }),
+        arithmetic('ADD'),
+        arithmetic('MINUS'),
+        arithmetic('MULTIPLY'),
+        block(intDivideType, { inputs: { A: shadowNumber(7), B: shadowNumber(2) } }),
+        block('math_modulo', { inputs: { DIVIDEND: shadowNumber(7), DIVISOR: shadowNumber(2) } }),
+      ],
+    },
+  ],
+  'lang.text': [
+    {
+      kind: 'category',
+      name: 'Text',
+      colour: '160',
+      contents: [
+        block('text'),
+      block('text_join'),
+        block('text_print', { inputs: { TEXT: { shadow: { type: 'text', fields: { TEXT: 'abc' } } } } }),
+      ],
+    },
+  ],
+  // Blockly's own dynamic category: "Create variable…", set and get. The panel replaces its
+  // callback to drop the extra blocks Blockly adds (change by) that the dialect does not have.
+  'lang.variables': [{ kind: 'category', name: 'Variables', colour: '330', custom: 'VARIABLE' }],
+};
+
+const langBlocks: Readonly<Record<LangPackId, BlockDefinitionJson[]>> = {
+  'lang.logic': [],
+  'lang.loops': [whileDefinition, countUpDefinition, waitDefinition],
+  'lang.math': [arithDefinition, intDivideDefinition],
+  'lang.text': [],
+  'lang.variables': [],
+};
+
+/** The language packs of YB-2a: Blockly's own blocks, plus `ybc_arith` and `ybc_int_divide`, whose operators the dialect fixes. */
+export function createLangPacks(): BlockPack[] {
+  return langPackIds.map((id) => ({
+    id,
+    family: 'ybc',
+    blocks: langBlocks[id],
+    blockTypes: langConstructs.filter((construct) => construct.pack === id).flatMap((construct) => construct.blockTypes),
+    categories: langCategories[id],
+  }));
+}
+
 export type BlockPackCatalog = {
   list(): readonly BlockPack[];
   get(id: string): BlockPack | undefined;
@@ -93,7 +193,7 @@ export function createBlockPackCatalog(
   registry: DeviceRegistry,
   extraPacks: readonly BlockPack[] = [],
 ): BlockPackCatalog {
-  const packs = [createGenericPack(genericBoardPins(registry)), createYbcStructurePack(), ...extraPacks];
+  const packs = [createGenericPack(genericBoardPins(registry)), createYbcStructurePack(), ...createLangPacks(), ...extraPacks];
   const byId = new Map<string, BlockPack>();
   for (const pack of packs) {
     if (byId.has(pack.id)) {

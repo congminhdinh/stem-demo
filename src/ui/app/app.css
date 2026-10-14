@@ -98,6 +98,30 @@ body {
   color: #a61b1b;
 }
 
+/* What a Yolo:Bit-compatible program printed: the newest lines, scrolling. */
+.run-console {
+  flex-basis: 100%;
+  max-height: 120px;
+  overflow-y: auto;
+  border-radius: 4px;
+  background: #1f2933;
+  color: #e4e7eb;
+  font-size: 12px;
+}
+
+.run-console pre {
+  margin: 0;
+  padding: 6px 10px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.run-console-hidden {
+  margin: 0;
+  padding: 4px 10px 0;
+  color: #9aa5b1;
+}
+
 /* Canvas and program are visible at the same time (plan §3.4). */
 .workspace {
   display: grid;

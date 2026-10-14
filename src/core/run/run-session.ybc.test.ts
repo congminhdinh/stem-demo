@@ -123,17 +123,17 @@ describe('RunSession, generic project', () => {
   });
 
   it('refuses a Yolo:Bit-only block (fixture) with not-in-profile, before the legacy compiler sees it', () => {
-    const { registry: fixtureRegistry, profiles, packs } = createFixtureEnvironment();
+    const { registry: fixtureRegistry, profiles, packs, noopBlockTypes } = createFixtureEnvironment();
     const led = createTemplateProject('led-on');
-    const session = createRunSession(fixtureRegistry, { profiles, packs });
+    const session = createRunSession(fixtureRegistry, { profiles, packs, noopBlockTypes });
     const result = session.start({ ...led, program: { blocks: programWithMarker() } });
     expect(result).toMatchObject({ ok: false, reason: 'compile-error', diagnostics: [{ code: 'not-in-profile', blockId: 'marker-1' }] });
   });
 });
 
 describe('RunSession, profile mechanics with the test-only fixtures (plan §8.7)', () => {
-  const { registry: fixtureRegistry, profiles, packs } = createFixtureEnvironment();
-  const session = () => createRunSession(fixtureRegistry, { profiles, packs });
+  const { registry: fixtureRegistry, profiles, packs, noopBlockTypes } = createFixtureEnvironment();
+  const session = () => createRunSession(fixtureRegistry, { profiles, packs, noopBlockTypes });
   const lowered = fixtureDocument('test-base', { components: [fixtureComponents.board, fixtureComponents.testDevice], blocks: programWithMarker() });
 
   it('blocks Run of out-of-profile content: the device first, then the block', () => {

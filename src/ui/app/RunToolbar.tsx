@@ -1,6 +1,7 @@
 import { useStore } from 'zustand';
 import type { RunDiagnostic, RunStatus } from '../../core/run/run-session';
 import { selectIsRunning, type RunState, type RunStore } from '../state/run-store';
+import { Console } from './Console';
 
 const statusText: Record<RunStatus, string> = {
   idle: 'Idle',
@@ -42,6 +43,7 @@ export function RunToolbar({ runStore, onRun }: RunToolbarProps) {
       <span className={`run-status run-status-${snapshot.status}`} role="status" data-testid="run-status">
         {statusText[snapshot.status]}
       </span>
+      {snapshot.console && <Console console={snapshot.console} />}
       {messages.length > 0 && (
         <ul className="run-messages" data-testid="run-messages">
           {messages.map((message, index) => (
