@@ -4,6 +4,7 @@ import { createDeviceRegistry } from '../../core/devices/registry';
 import { GenericRenderer } from './GenericRenderer';
 import { LedRenderer } from './LedRenderer';
 import { PushButtonRenderer } from './PushButtonRenderer';
+import { YbcBoardRenderer } from './YbcBoardRenderer';
 import { rendererFor } from './renderers';
 
 const led = createDeviceRegistry(localDeviceDefinitions).get('led');
@@ -13,6 +14,7 @@ describe('rendererFor', () => {
   it('returns the registered renderer for a known id', () => {
     expect(rendererFor(withRenderer('led'))).toBe(LedRenderer);
     expect(rendererFor(withRenderer('push-button'))).toBe(PushButtonRenderer);
+    expect(rendererFor(withRenderer('ybc-board'))).toBe(YbcBoardRenderer);
   });
 
   it.each(['board', 'missing-renderer'])('falls back to the generic renderer for %s', (renderer) => {

@@ -14,6 +14,8 @@ export type CanvasTestState = {
     lit?: boolean;
     closed?: boolean;
     selected: boolean;
+    /** Drawn with the mark for a device that does not belong to the project's family (R-F4). */
+    incompatible: boolean;
   }[];
   wires: { id: string; points: number[]; selected: boolean }[];
   ports: { componentId: string; portId: string; x: number; y: number }[];
@@ -38,6 +40,7 @@ export function readCanvasState(): CanvasTestState | null {
       lit: node.findOne('.led-light')?.getAttr('lit'),
       closed: node.findOne('.button-cap')?.getAttr('closed'),
       selected: node.findOne('.selection') !== undefined,
+      incompatible: node.findOne('.incompatible') !== undefined,
     })),
     wires: stage.find<Konva.Line>('.wire').map((node) => ({
       id: node.getAttr('wireId'),

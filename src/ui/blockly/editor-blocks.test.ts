@@ -4,17 +4,18 @@ import { localDeviceDefinitions } from '../../core/devices/local-catalog';
 import { createDeviceRegistry } from '../../core/devices/registry';
 import ifElseIf from '../../core/program/__fixtures__/if-else-if.json';
 import missingCondition from '../../core/program/__fixtures__/missing-condition.json';
+import { createBlockPackCatalog } from '../../core/program/block-packs';
 import { createDefaultProgram } from '../../core/program/blocks';
 import blinkSample from '../../samples/blink.project.json';
 import buttonLedSample from '../../samples/button-led.project.json';
-import { canOpenProgram, maxElseIfs } from './editor-blocks';
+import { canOpenProgram, maxMutatorItemsPerBlock, maxTotalMutatorItems } from './editor-blocks';
 
 // The editor's own check of stored programs (plan §7), on real Blockly (its
 // Node build, on jsdom): what it refuses is exactly what would make the
 // program panel throw, and so the app go blank.
 
-const boardPins = createDeviceRegistry(localDeviceDefinitions).get('board').board?.pins.map((pin) => pin.name) ?? [];
-const canOpen = (blocks: unknown) => canOpenProgram(blocks, boardPins);
+const packs = createBlockPackCatalog(createDeviceRegistry(localDeviceDefinitions));
+const canOpen = (blocks: unknown) => canOpenProgram(blocks, packs);
 
 /** The button-led program with `change` applied to its "if" block. */
 const buttonLedWithIf = (change: (block: Record<string, unknown> & { inputs: Record<string, unknown> }) => void) => {
@@ -76,7 +77,7 @@ describe('canOpenProgram', () => {
   it('opens a program with as many else-ifs as allowed, quickly', () => {
     const started = performance.now();
 
-    expect(canOpen(program(ifWith({ elseIfCount: maxElseIfs, hasElse: true })))).toBe(true);
+    expect(canOpen(program(ifWith({ elseIfCount: maxMutatorItemsPerBlock, hasElse: true })))).toBe(true);
     expect(performance.now() - started).toBeLessThan(1000);
   });
 });
@@ -125,7 +126,13 @@ describe('canOpenProgram, before Blockly loads anything (F4)', () => {
     ['an else-if count in an array, which Blockly takes as a number', program(ifWith({ elseIfCount: [1_000_000_000] }))],
     [
       'more else-ifs in all than allowed, each "if" within the limit',
-      program(ifWith({ elseIfCount: maxElseIfs }, 'first'), ifWith({ elseIfCount: 1 }, 'second')),
+      // Each "if" is within its own limit; together they ask for more than a document may (review R3: the total is per document,
+      // large, because loose and disabled blocks are saved too).
+      program(
+        ...Array.from({ length: Math.floor(maxTotalMutatorItems / maxMutatorItemsPerBlock) + 1 }, (_, index) =>
+          ifWith({ elseIfCount: maxMutatorItemsPerBlock }, `if-${index}`),
+        ),
+      ),
     ],
     [
       // Added to the total, "many" would make it a string that is not a number.

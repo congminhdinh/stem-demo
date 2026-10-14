@@ -1,6 +1,8 @@
 import { createNewProject, projectDocumentSchema, type Circuit, type ProjectDocument } from '../circuit/document';
 import { connectWire } from '../circuit/wires';
 import type { DeviceRegistry } from '../devices/registry';
+import { productionProfiles } from '../profiles';
+import type { ProfileCatalog } from '../profiles/profile';
 
 // Where the current project is kept between sessions (plan §7, B8). The UI
 // and the store only know this interface; the app bootstrap picks the
@@ -25,24 +27,60 @@ export type ProjectRepository = {
  */
 export type ProgramCheck = (blocks: unknown) => boolean;
 
+/** Why a stored document is not loadable (layer L-1, YB plan §8.6). */
+export type LoadProblem = {
+  code: 'invalid-document' | 'unknown-profile' | 'invalid-circuit' | 'unknown-device' | 'program-not-openable';
+  message: string;
+};
+
+export type LoadResult = { ok: true; document: ProjectDocument } | { ok: false; problem: LoadProblem };
+
 /**
- * A stored document the app can open, or null. Besides the schema (which
- * pins `schemaVersion` to 1) it checks what would otherwise break the editor
- * later: invariants I1–I3 (plan §6.1), device types the registry knows, and
- * a program the editor can open.
+ * Layer L-1, loadable: the structure, and nothing else. Besides the schema
+ * (which pins `schemaVersion` to 1) it checks what would otherwise break the
+ * editor later: a `profile` the catalog knows (R-F2), invariants I1–I3 (plan
+ * §6.1), device types the registry knows, and a program the editor can open
+ * (with the blocks of every known pack, not only the profile's).
+ *
+ * It does not look at how many boards there are, at devices or blocks outside
+ * the profile, or at compile errors. Those are layers L-2…L-4: the document
+ * stays a valid, editable one (R-F4, R-F11).
  */
+export function inspectStoredProject(
+  stored: unknown,
+  registry: DeviceRegistry,
+  canOpenProgram: ProgramCheck,
+  profiles: ProfileCatalog = productionProfiles,
+): LoadResult {
+  const parsed = projectDocumentSchema.safeParse(stored);
+  if (!parsed.success) {
+    return fail('invalid-document', 'The document does not match the project schema.');
+  }
+  const document = parsed.data;
+  if (document.profile !== undefined && !profiles.get(document.profile)) {
+    return fail('unknown-profile', `"${document.profile}" is not a known profile.`);
+  }
+  const circuit = checkCircuit(document.circuit, registry);
+  if (circuit) {
+    return { ok: false, problem: circuit };
+  }
+  return canOpenProgram(document.program.blocks)
+    ? { ok: true, document }
+    : fail('program-not-openable', 'The program editor cannot open the program.');
+}
+
+/** A stored document the app can open, or null (`inspectStoredProject` says why not). */
 export function readStoredProject(
   stored: unknown,
   registry: DeviceRegistry,
   canOpenProgram: ProgramCheck,
+  profiles: ProfileCatalog = productionProfiles,
 ): ProjectDocument | null {
-  const parsed = projectDocumentSchema.safeParse(stored);
-  if (!parsed.success) {
-    return null;
-  }
-  const document = parsed.data;
-  return isOpenableCircuit(document.circuit, registry) && canOpenProgram(document.program.blocks) ? document : null;
+  const result = inspectStoredProject(stored, registry, canOpenProgram, profiles);
+  return result.ok ? result.document : null;
 }
+
+const fail = (code: LoadProblem['code'], message: string): LoadResult => ({ ok: false, problem: { code, message } });
 
 /** Why the app did not open the saved project, as shown to the user. */
 export type Notice = {
@@ -70,7 +108,7 @@ export type OpenedProject = {
 export async function openLastProject(
   repository: ProjectRepository,
   registry: DeviceRegistry,
-  options: { sample(): ProjectDocument; newId(): string; canOpenProgram: ProgramCheck },
+  options: { sample(): ProjectDocument; newId(): string; canOpenProgram: ProgramCheck; profiles?: ProfileCatalog },
 ): Promise<OpenedProject> {
   let stored: { document: unknown } | null;
   try {
@@ -85,7 +123,7 @@ export async function openLastProject(
   if (!stored) {
     return { document: options.sample(), notice: null, canSave: true };
   }
-  const document = readStoredProject(stored.document, registry, options.canOpenProgram);
+  const document = readStoredProject(stored.document, registry, options.canOpenProgram, options.profiles);
   return document
     ? { document, notice: null, canSave: true }
     : {
@@ -99,22 +137,22 @@ export async function openLastProject(
 }
 
 /** I1–I3, rebuilt with the same operation the editor wires with, on known device types. */
-function isOpenableCircuit(circuit: Circuit, registry: DeviceRegistry): boolean {
+function checkCircuit(circuit: Circuit, registry: DeviceRegistry): LoadProblem | null {
   const deviceTypes = new Set(registry.list().map((definition) => definition.id));
   const componentIds = new Set(circuit.components.map((component) => component.id));
-  if (
-    componentIds.size !== circuit.components.length ||
-    !circuit.components.every((component) => deviceTypes.has(component.deviceType))
-  ) {
-    return false;
+  if (componentIds.size !== circuit.components.length) {
+    return { code: 'invalid-circuit', message: 'Two components share an id.' };
+  }
+  if (!circuit.components.every((component) => deviceTypes.has(component.deviceType))) {
+    return { code: 'unknown-device', message: 'The circuit has a device the app does not know.' };
   }
   let rebuilt: Circuit = { components: circuit.components, wires: [] };
   for (const wire of circuit.wires) {
     const result = connectWire(rebuilt, registry, wire);
     if (!result.ok) {
-      return false;
+      return { code: 'invalid-circuit', message: `Wire ${wire.id} is invalid: ${result.error}.` };
     }
     rebuilt = result.circuit;
   }
-  return true;
+  return null;
 }

@@ -33,8 +33,17 @@ corepack enable pnpm --install-directory "<writable dir on PATH>"
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm lint` | ESLint, including the core boundary rule (B1) |
 | `pnpm test` | Vitest unit tests (Node) |
-| `pnpm e2e` | Playwright smoke tests on Chromium; starts the dev server |
+| `pnpm e2e` | Playwright smoke tests on Chromium; starts the dev server, and a lesson page on port 5190 for the iframe tests |
 | `pnpm verify` | Fast quality gate: typecheck + lint + unit tests. E2E is run separately with `pnpm e2e` |
+
+## Launch modes
+
+| URL | Mode |
+|---|---|
+| `/` | Standalone editor: restores the last project from IndexedDB (Blink when there is none) |
+| `/?embed=1&template=<key>` | Embedded lab: opens the bundled template `<key>` (`blink`, `led-on`, `button-direct`, `button-led`, `empty`); never reads or overwrites the standalone last project |
+
+Any other use of `embed`/`template` shows an explicit error instead of a project. Details: [`docs/stem-demo-local-development.md`](docs/stem-demo-local-development.md#hai-mode-standalone-và-lab-nhúng-s1).
 
 ## Architecture rule
 

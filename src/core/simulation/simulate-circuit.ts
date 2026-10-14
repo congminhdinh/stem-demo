@@ -1,6 +1,7 @@
 import type { Circuit, ComponentInstance, PortRef } from '../circuit/document';
 import { buildNetlist } from '../circuit/netlist';
 import type { DeviceDefinition } from '../devices/device-definition';
+import type { Frame } from '../capabilities/frame';
 import type { DeviceRegistry } from '../devices/registry';
 
 // Net-level logic simulation (plan §6.5): a pure function of the design and
@@ -25,8 +26,84 @@ export type SimulationInputs = {
 
 export type NetLevel = 'floating' | 'high' | 'low' | 'conflict';
 
-/** A component's runtime state for its renderer: `lit` for an LED, `closed` for a contact. */
-export type ComponentState = { lit?: boolean; closed?: boolean };
+/**
+ * A component's runtime state for its renderer (plan §11.4). The generic circuit uses `lit` (an LED) and
+ * `closed` (a contact) only; the rest is the peripheral state of a Yolo:Bit-compatible board, written by
+ * the models YB-3 and YB-4 add (none exists at YB-CP). Every field is optional, so a generic snapshot is
+ * exactly what it was (GB4).
+ */
+export type ComponentState = {
+  lit?: boolean;
+  closed?: boolean;
+  /** An external LED's brightness, 0..1 (presentation). */
+  brightness?: number;
+  /** A sensor or a slider-driven value, in the scale of the peripheral. */
+  value?: number;
+  /** The display's current frame (contract §4.3). */
+  frame?: Frame;
+  /** The tone the buzzer is playing, in Hz; absent when silent (plan §11.5: the core knows the Hz, WebAudio is a renderer). */
+  hz?: number;
+  /** A servo's angle. */
+  angle?: number;
+};
+
+/** The tone state of the buzzer: what `ComponentState.hz` says while a note plays. */
+export type ToneState = Required<Pick<ComponentState, 'hz'>>;
+
+/**
+ * A runtime input of a component (plan §11.3, YB-CP deliverable 2). Inputs belong to the run, never to the
+ * document (B2). `hold` is a push button or a board button (Space/Enter or pointer down/up); `slider` is an
+ * integer in the peripheral's range (clamped at its ends by the peripheral); `tilt` the accelerometer;
+ * `gesture` a one-shot event (shake).
+ */
+export type ComponentInput =
+  | { kind: 'hold'; closed: boolean }
+  | { kind: 'slider'; value: number }
+  | { kind: 'tilt'; x: number; y: number }
+  | { kind: 'gesture' };
+
+export type ComponentInputKind = ComponentInput['kind'];
+
+/** The input a model of an onboard part (plan §11.2) takes; a part that takes none (display, buzzer) is not listed. */
+export const inputKindOfModel: Readonly<Record<string, ComponentInputKind>> = {
+  button: 'hold',
+  'light-sensor': 'slider',
+  'temperature-sensor': 'slider',
+  accelerometer: 'tilt',
+};
+
+/**
+ * The id of an onboard peripheral in snapshots and inputs: `<board>/<peripheral>` (plan §11.2). A peripheral id
+ * never contains `/`, so the split is at the last one, whatever characters the board's own id has.
+ */
+export const peripheralComponentId = (boardId: string, peripheralId: string) => `${boardId}/${peripheralId}`;
+
+export function splitPeripheralComponentId(componentId: string): { boardId: string; peripheralId: string } | null {
+  const cut = componentId.lastIndexOf('/');
+  return cut <= 0 || cut === componentId.length - 1
+    ? null
+    : { boardId: componentId.slice(0, cut), peripheralId: componentId.slice(cut + 1) };
+}
+
+/** Whether a value read from a hook or a UI event is a well-formed input. */
+export function isComponentInput(value: unknown): value is ComponentInput {
+  if (typeof value !== 'object' || value === null || !('kind' in value)) {
+    return false;
+  }
+  const input = value as Record<string, unknown>;
+  switch (input.kind) {
+    case 'hold':
+      return typeof input.closed === 'boolean';
+    case 'slider':
+      return typeof input.value === 'number' && Number.isInteger(input.value);
+    case 'tilt':
+      return Number.isFinite(input.x) && Number.isFinite(input.y);
+    case 'gesture':
+      return true;
+    default:
+      return false;
+  }
+}
 
 /** Plain JSON, so it can travel in a run snapshot. */
 export type SimulationResult = {

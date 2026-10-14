@@ -1,0 +1,35 @@
+// The only place that converts between the learner scale, the UI scale and the native scale of the
+// board (YB plan §11.3, YB-CP deliverable 4). Pure functions of numbers, no document, no run.
+//
+// C-Q6 = Option A (owner, 2026-10-14): an analog read is the NATIVE 0..4095 of the board (contract C-25);
+// the UI shows 0..100 %. There is no 0..1023 scale and no duty: PWM / analog write is EXCLUDED (C-26).
+
+/** The native range of an analog read (contract C-25). */
+export const ANALOG_NATIVE_MAX = 4095;
+
+/** NaN has no place on the scale; an infinity is just far outside it, and the clamp takes it to the end. */
+function assertNumber(value: number, what: string): void {
+  if (Number.isNaN(value)) {
+    throw new RangeError(`${what} must be a number, got NaN`);
+  }
+}
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+/** floor(clamp(p, 0, 100) x N / 100 + 0.5): a percentage of the native range N, rounded half up. N is a positive integer from the contract. */
+export function percentToNative(percent: number, nativeMax: number): number {
+  assertNumber(percent, 'A percentage');
+  if (!Number.isInteger(nativeMax) || nativeMax < 1) {
+    throw new RangeError(`The native maximum must be a positive integer, got ${String(nativeMax)}`);
+  }
+  return Math.floor((clamp(percent, 0, 100) * nativeMax) / 100 + 0.5);
+}
+
+/** The analog read of a slider position: percentToNative(p, 4095). */
+export const percentToRaw = (percent: number): number => percentToNative(percent, ANALOG_NATIVE_MAX);
+
+/** floor(r x 100 / 4095 + 0.5), for display only: the learner reads the native value. */
+export function rawToPercent(raw: number): number {
+  assertNumber(raw, 'A raw reading');
+  return Math.floor((clamp(raw, 0, ANALOG_NATIVE_MAX) * 100) / ANALOG_NATIVE_MAX + 0.5);
+}

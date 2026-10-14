@@ -16,6 +16,7 @@ import { nearestPort, portRefPosition, portWorldPosition, snapToGrid } from '../
 import { connectWire, deleteWire, nextWireId, type ConnectWireError } from '../../core/circuit/wires';
 import type { DeviceDefinition, PortDefinition } from '../../core/devices/device-definition';
 import type { DeviceRegistry } from '../../core/devices/registry';
+import type { BoardContext } from '../../core/profiles/board-context';
 import { isContact, type SimulationResult } from '../../core/simulation/simulate-circuit';
 import { Palette } from './Palette';
 import { paletteItems, placementPosition } from './palette-model';
@@ -33,6 +34,8 @@ import { portPickRadiusPx, stageToWorld, stageToWorldDistance } from './viewport
 type CircuitCanvasProps = {
   circuit: Circuit;
   registry: DeviceRegistry;
+  /** Decides what the palette offers and which components are marked as not belonging here. */
+  context: BoardContext;
   /** The run snapshot's simulation; null while idle (design state only). */
   simulation: SimulationResult | null;
   /** While a run is active the circuit cannot be edited (plan §3.4). */
@@ -64,6 +67,7 @@ const wireErrorText: Record<ConnectWireError, string> = {
 export function CircuitCanvas({
   circuit,
   registry,
+  context,
   simulation,
   locked,
   onCircuitChange,
@@ -233,10 +237,12 @@ export function CircuitCanvas({
   });
 
   const draftStart = draft && portRefPosition(shown, registry, draft.from);
+  // Kept in the circuit, never removed for belonging to another family (R-F4); only marked.
+  const incompatibleIds = new Set(context.incompatible.map((component) => component.id));
 
   return (
     <div className="circuit-editor">
-      <Palette items={paletteItems(registry)} disabled={locked} onAdd={add} />
+      <Palette items={paletteItems(registry, context)} disabled={locked} onAdd={add} />
       <div className="circuit-canvas-area">
         <div
           ref={containerRef}
@@ -274,6 +280,7 @@ export function CircuitCanvas({
                     key={component.id}
                     component={component}
                     definition={registry.get(component.deviceType)}
+                    incompatible={incompatibleIds.has(component.id)}
                     runtimeState={runtimeStateOf(simulation, component.id)}
                     selected={selected?.kind === 'component' && selected.id === component.id}
                     // Off while drawing a wire too, so a click there never starts a drag (R5).
@@ -342,6 +349,8 @@ function runtimeStateOf(simulation: SimulationResult | null, componentId: string
 type ComponentBodyProps = ComponentProps &
   Pick<DeviceRendererProps, 'runtimeState'> & {
     selected: boolean;
+    /** The device does not belong to this kind of project (R-F4). */
+    incompatible: boolean;
     draggable: boolean;
     onPointerDown(): void;
     onDragMove(event: KonvaEventObject<DragEvent>): void;
@@ -350,7 +359,7 @@ type ComponentBodyProps = ComponentProps &
 
 const selectionMargin = 6;
 
-function ComponentBody({ component, definition, runtimeState, selected, ...interaction }: ComponentBodyProps) {
+function ComponentBody({ component, definition, runtimeState, selected, incompatible, ...interaction }: ComponentBodyProps) {
   const Renderer = rendererFor(definition);
   const { width, height } = definition.body;
   return (
@@ -363,6 +372,19 @@ function ComponentBody({ component, definition, runtimeState, selected, ...inter
       {...interaction}
     >
       <Renderer definition={definition} runtimeState={runtimeState} />
+      {incompatible && (
+        <Rect
+          name="incompatible"
+          x={-width / 2 - selectionMargin}
+          y={-height / 2 - selectionMargin}
+          width={width + 2 * selectionMargin}
+          height={height + 2 * selectionMargin}
+          stroke="#d64545"
+          strokeWidth={2}
+          cornerRadius={4}
+          listening={false}
+        />
+      )}
       {/* Drawn by the canvas, not the renderer: selection is editor state. */}
       {selected && (
         <Rect

@@ -1,12 +1,18 @@
 import type { Circuit, Point } from '../../core/circuit/document';
 import { gridSize, snapToGrid } from '../../core/circuit/geometry';
 import type { DeviceRegistry } from '../../core/devices/registry';
+import type { BoardContext } from '../../core/profiles/board-context';
 
 export type PaletteItem = { deviceType: string; name: string };
 
-/** One entry per device definition, so a new definition needs no UI change (B6). */
-export function paletteItems(registry: DeviceRegistry): PaletteItem[] {
-  return registry.list().map((definition) => ({ deviceType: definition.id, name: definition.name }));
+/**
+ * One entry per device the board context allows (B6, YB plan R-F3): a generic
+ * project offers the generic devices, a Yolo:Bit-compatible one its profile's
+ * palette. So a new definition shows up where its family belongs and nowhere
+ * else, with no UI change.
+ */
+export function paletteItems(registry: DeviceRegistry, context: Pick<BoardContext, 'allowedDeviceTypes'>): PaletteItem[] {
+  return context.allowedDeviceTypes.map((deviceType) => ({ deviceType, name: registry.get(deviceType).name }));
 }
 
 /**

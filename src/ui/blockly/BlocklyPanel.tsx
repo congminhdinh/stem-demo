@@ -1,9 +1,10 @@
 import * as Blockly from 'blockly';
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import { useStore } from 'zustand';
-import { blockTypes, toolbox } from '../../core/program/blocks';
+import { blockTypes } from '../../core/program/blocks';
+import type { BlockPackCatalog, Toolbox } from '../../core/program/block-packs';
 import type { ProjectStore } from '../state/project-store';
-import { registerBlocks } from './editor-blocks';
+import { registerBlocks, ybcVariablesFlyout } from './editor-blocks';
 
 // Blockly is only a view of `document.program.blocks` (plan §5.1 B4): the
 // workspace is loaded from that JSON and every non-UI change is serialized
@@ -22,32 +23,37 @@ export type BlocklyPanelHandle = {
 
 type BlocklyPanelProps = {
   projectStore: ProjectStore;
-  /** Must be a stable array: a new one would rebuild the workspace. */
-  boardPins: readonly string[];
+  /** Every known block pack: all their blocks are registered, so any stored program loads. */
+  packs: BlockPackCatalog;
+  /** What the learner sees, from the board context. Must be stable: a new one would rebuild the workspace. */
+  toolbox: Toolbox;
   ref?: Ref<BlocklyPanelHandle>;
 };
 
-export function BlocklyPanel({ projectStore, boardPins, ref }: BlocklyPanelProps) {
+export function BlocklyPanel({ projectStore, packs, toolbox, ref }: BlocklyPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const saveNowRef = useRef<() => void>(() => {});
   const loadRevision = useStore(projectStore, (state) => state.loadRevision);
   useImperativeHandle(ref, () => ({ saveNow: () => saveNowRef.current() }), []);
 
-  // Rebuilt whenever a project is loaded (even one with the same id), but not
-  // on the panel's own saves or any other store update.
+  // Rebuilt whenever a project is loaded (even one with the same id) or the
+  // toolbox changes (another profile), but not on the panel's own saves or any
+  // other store update.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) {
       return;
     }
-    registerBlocks(boardPins);
+    registerBlocks(packs);
     const workspace = Blockly.inject(container, {
       renderer: 'zelos',
-      toolbox,
+      toolbox: toolbox as Blockly.utils.toolbox.ToolboxInfo,
       media: '/blockly-media/',
       sounds: false,
       maxInstances: { [blockTypes.onStart]: 1, [blockTypes.forever]: 1 },
     });
+
+    workspace.registerToolboxCategoryCallback('VARIABLE', ybcVariablesFlyout);
 
     const blocks = projectStore.getState().document.program.blocks;
     if (typeof blocks === 'object' && blocks !== null) {
@@ -93,7 +99,7 @@ export function BlocklyPanel({ projectStore, boardPins, ref }: BlocklyPanelProps
       }
       workspace.dispose();
     };
-  }, [loadRevision, projectStore, boardPins]);
+  }, [loadRevision, projectStore, packs, toolbox]);
 
   return <div ref={containerRef} className="blockly-panel" data-testid="blockly-panel" />;
 }
