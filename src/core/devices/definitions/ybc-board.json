@@ -1,0 +1,46 @@
+{
+  "id": "ybc-board",
+  "name": "Bit-compatible Board",
+  "family": "ybc",
+  "body": { "width": 220, "height": 260 },
+  "ports": [
+    { "id": "p0", "label": "P0", "x": 110, "y": -50, "kind": "gpio" },
+    { "id": "p1", "label": "P1", "x": 110, "y": -30, "kind": "gpio" },
+    { "id": "p2", "label": "P2", "x": 110, "y": -10, "kind": "gpio" },
+    { "id": "3v3", "label": "3V3", "x": 110, "y": 20, "kind": "power" },
+    { "id": "gnd", "label": "GND", "x": 110, "y": 40, "kind": "ground" }
+  ],
+  "renderer": "ybc-board",
+  "simulation": { "model": "ybc-board" },
+  "board": {
+    "pins": [
+      { "name": "P0", "portId": "p0", "capabilities": ["digital", "analogIn"] },
+      { "name": "P1", "portId": "p1", "capabilities": ["digital", "analogIn"] },
+      { "name": "P2", "portId": "p2", "capabilities": ["digital", "analogIn"] }
+    ],
+    "codeTarget": "yolobit-micropython",
+    "reservedPins": [],
+    "onboard": [
+      {
+        "id": "display",
+        "model": "matrix-display",
+        "capability": "display",
+        "config": {
+          "width": 5,
+          "height": 5,
+          "colourModel": "rgb-hex",
+          "origin": "top-left",
+          "xAxis": "column",
+          "yAxis": "row",
+          "defaultColour": "#FF0000"
+        },
+        "at": { "x": -50, "y": -115, "width": 100, "height": 100 },
+        "label": "Display"
+      },
+      { "id": "button-a", "model": "button", "capability": "buttons", "at": { "x": -100, "y": 10, "width": 40, "height": 40 }, "label": "A" },
+      { "id": "button-b", "model": "button", "capability": "buttons", "at": { "x": -50, "y": 10, "width": 40, "height": 40 }, "label": "B" },
+      { "id": "light", "model": "light-sensor", "capability": "light", "at": { "x": 10, "y": 10, "width": 30, "height": 30 }, "label": "Light" },
+      { "id": "buzzer", "model": "buzzer", "capability": "sound", "at": { "x": -100, "y": 70, "width": 40, "height": 40 }, "label": "Buzzer" }
+    ]
+  }
+}

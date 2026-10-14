@@ -1,5 +1,6 @@
 import type { ProjectDocument } from '../../core/circuit/document';
 import type { DeviceRegistry } from '../../core/devices/registry';
+import type { ProfileCatalog } from '../../core/profiles/profile';
 import {
   openLastProject,
   type Notice,
@@ -32,6 +33,8 @@ export async function openAtStartup(
   options: {
     openRepository(): ProjectRepository;
     registry: DeviceRegistry;
+    /** Defaults to the production profiles; tests inject fixture profiles. */
+    profiles?: ProfileCatalog;
     newId(): string;
     canOpenProgram: ProgramCheck;
   },
@@ -45,6 +48,7 @@ export async function openAtStartup(
       const repository = options.openRepository();
       const opened = await openLastProject(repository, options.registry, {
         sample: () => createTemplateProject('blink'),
+        ...(options.profiles ? { profiles: options.profiles } : {}),
         newId: options.newId,
         canOpenProgram: options.canOpenProgram,
       });

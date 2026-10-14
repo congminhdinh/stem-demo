@@ -23,6 +23,13 @@ export const projectDocumentSchema = z.object({
   schemaVersion: z.literal(1),
   id: z.string(),
   name: z.string(),
+  /**
+   * The curriculum profile of a Yolo:Bit-compatible project (YB plan §8.3, R-F1). Absent: a
+   * generic project, exactly as before. Only its shape is checked here; whether the id is a
+   * known profile is the loader's job (L-1), because the catalog of profiles is data. Not a
+   * schema bump: old documents have no profile and mean what they always meant.
+   */
+  profile: z.string().min(1).optional(),
   circuit: z.object({
     components: z.array(componentInstanceSchema),
     wires: z.array(wireSchema),

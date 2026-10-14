@@ -1,0 +1,3675 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`GB1: generic device definitions > board is unchanged 1`] = `
+{
+  "board": {
+    "pins": [
+      {
+        "name": "D13",
+        "portId": "d13",
+      },
+      {
+        "name": "D12",
+        "portId": "d12",
+      },
+      {
+        "name": "D11",
+        "portId": "d11",
+      },
+      {
+        "name": "D10",
+        "portId": "d10",
+      },
+      {
+        "name": "D9",
+        "portId": "d9",
+      },
+      {
+        "name": "D8",
+        "portId": "d8",
+      },
+      {
+        "name": "D7",
+        "portId": "d7",
+      },
+      {
+        "name": "D6",
+        "portId": "d6",
+      },
+      {
+        "name": "D5",
+        "portId": "d5",
+      },
+      {
+        "name": "D4",
+        "portId": "d4",
+      },
+      {
+        "name": "D3",
+        "portId": "d3",
+      },
+      {
+        "name": "D2",
+        "portId": "d2",
+      },
+    ],
+  },
+  "body": {
+    "height": 300,
+    "width": 220,
+  },
+  "id": "board",
+  "name": "STEM Board",
+  "ports": [
+    {
+      "id": "3v3",
+      "kind": "power",
+      "label": "3V3",
+      "x": -110,
+      "y": -130,
+    },
+    {
+      "id": "gnd",
+      "kind": "ground",
+      "label": "GND",
+      "x": 110,
+      "y": -130,
+    },
+    {
+      "id": "d13",
+      "kind": "gpio",
+      "label": "D13",
+      "x": 110,
+      "y": -110,
+    },
+    {
+      "id": "d12",
+      "kind": "gpio",
+      "label": "D12",
+      "x": 110,
+      "y": -90,
+    },
+    {
+      "id": "d11",
+      "kind": "gpio",
+      "label": "D11",
+      "x": 110,
+      "y": -70,
+    },
+    {
+      "id": "d10",
+      "kind": "gpio",
+      "label": "D10",
+      "x": 110,
+      "y": -50,
+    },
+    {
+      "id": "d9",
+      "kind": "gpio",
+      "label": "D9",
+      "x": 110,
+      "y": -30,
+    },
+    {
+      "id": "d8",
+      "kind": "gpio",
+      "label": "D8",
+      "x": 110,
+      "y": -10,
+    },
+    {
+      "id": "d7",
+      "kind": "gpio",
+      "label": "D7",
+      "x": 110,
+      "y": 10,
+    },
+    {
+      "id": "d6",
+      "kind": "gpio",
+      "label": "D6",
+      "x": 110,
+      "y": 30,
+    },
+    {
+      "id": "d5",
+      "kind": "gpio",
+      "label": "D5",
+      "x": 110,
+      "y": 50,
+    },
+    {
+      "id": "d4",
+      "kind": "gpio",
+      "label": "D4",
+      "x": 110,
+      "y": 70,
+    },
+    {
+      "id": "d3",
+      "kind": "gpio",
+      "label": "D3",
+      "x": 110,
+      "y": 90,
+    },
+    {
+      "id": "d2",
+      "kind": "gpio",
+      "label": "D2",
+      "x": 110,
+      "y": 110,
+    },
+  ],
+  "renderer": "board",
+  "simulation": {
+    "model": "board",
+  },
+}
+`;
+
+exports[`GB1: generic device definitions > led is unchanged 1`] = `
+{
+  "body": {
+    "height": 70,
+    "width": 40,
+  },
+  "id": "led",
+  "name": "LED",
+  "ports": [
+    {
+      "id": "anode",
+      "kind": "passive",
+      "label": "Anode (+)",
+      "x": -10,
+      "y": 30,
+    },
+    {
+      "id": "cathode",
+      "kind": "passive",
+      "label": "Cathode (−)",
+      "x": 10,
+      "y": 30,
+    },
+  ],
+  "renderer": "led",
+  "simulation": {
+    "model": "led",
+  },
+}
+`;
+
+exports[`GB1: generic device definitions > push-button is unchanged 1`] = `
+{
+  "body": {
+    "height": 40,
+    "width": 60,
+  },
+  "id": "push-button",
+  "name": "Push Button",
+  "ports": [
+    {
+      "id": "a",
+      "kind": "passive",
+      "label": "A",
+      "x": -30,
+      "y": 0,
+    },
+    {
+      "id": "b",
+      "kind": "passive",
+      "label": "B",
+      "x": 30,
+      "y": 0,
+    },
+  ],
+  "renderer": "push-button",
+  "simulation": {
+    "model": "contact",
+  },
+}
+`;
+
+exports[`GB1: generic device definitions > resistor is unchanged 1`] = `
+{
+  "body": {
+    "height": 20,
+    "width": 80,
+  },
+  "id": "resistor",
+  "name": "Resistor",
+  "ports": [
+    {
+      "id": "a",
+      "kind": "passive",
+      "label": "A",
+      "x": -40,
+      "y": 0,
+    },
+    {
+      "id": "b",
+      "kind": "passive",
+      "label": "B",
+      "x": 40,
+      "y": 0,
+    },
+  ],
+  "renderer": "resistor",
+  "simulation": {
+    "model": "resistor",
+  },
+}
+`;
+
+exports[`GB2: generic blocks and toolbox > keeps the block definitions, the toolbox and the default program 1`] = `
+{
+  "blockTypes": {
+    "digitalRead": "stem_digital_read",
+    "digitalWrite": "stem_digital_write",
+    "forever": "stem_forever",
+    "onStart": "stem_on_start",
+    "wait": "stem_wait",
+  },
+  "builtInBlockTypes": {
+    "if": "controls_if",
+    "not": "logic_negate",
+  },
+  "defaultProgram": {
+    "blocks": {
+      "blocks": [
+        {
+          "id": "on-start",
+          "type": "stem_on_start",
+          "x": 40,
+          "y": 40,
+        },
+        {
+          "id": "forever",
+          "type": "stem_forever",
+          "x": 40,
+          "y": 220,
+        },
+      ],
+      "languageVersion": 0,
+    },
+  },
+  "definitions": [
+    {
+      "args0": [
+        {
+          "type": "input_dummy",
+        },
+        {
+          "name": "DO",
+          "type": "input_statement",
+        },
+      ],
+      "colour": 45,
+      "message0": "on start %1 %2",
+      "tooltip": "Runs once when the program starts.",
+      "type": "stem_on_start",
+    },
+    {
+      "args0": [
+        {
+          "type": "input_dummy",
+        },
+        {
+          "name": "DO",
+          "type": "input_statement",
+        },
+      ],
+      "colour": 45,
+      "message0": "forever %1 %2",
+      "tooltip": "Repeats until the program is stopped.",
+      "type": "stem_forever",
+    },
+    {
+      "args0": [
+        {
+          "name": "PIN",
+          "options": [
+            [
+              "D13",
+              "D13",
+            ],
+            [
+              "D12",
+              "D12",
+            ],
+            [
+              "D11",
+              "D11",
+            ],
+            [
+              "D10",
+              "D10",
+            ],
+            [
+              "D9",
+              "D9",
+            ],
+            [
+              "D8",
+              "D8",
+            ],
+            [
+              "D7",
+              "D7",
+            ],
+            [
+              "D6",
+              "D6",
+            ],
+            [
+              "D5",
+              "D5",
+            ],
+            [
+              "D4",
+              "D4",
+            ],
+            [
+              "D3",
+              "D3",
+            ],
+            [
+              "D2",
+              "D2",
+            ],
+          ],
+          "type": "field_dropdown",
+        },
+        {
+          "name": "LEVEL",
+          "options": [
+            [
+              "HIGH",
+              "HIGH",
+            ],
+            [
+              "LOW",
+              "LOW",
+            ],
+          ],
+          "type": "field_dropdown",
+        },
+      ],
+      "colour": 210,
+      "message0": "digital write %1 %2",
+      "nextStatement": null,
+      "previousStatement": null,
+      "tooltip": "Sets a digital pin HIGH or LOW.",
+      "type": "stem_digital_write",
+    },
+    {
+      "args0": [
+        {
+          "name": "PIN",
+          "options": [
+            [
+              "D13",
+              "D13",
+            ],
+            [
+              "D12",
+              "D12",
+            ],
+            [
+              "D11",
+              "D11",
+            ],
+            [
+              "D10",
+              "D10",
+            ],
+            [
+              "D9",
+              "D9",
+            ],
+            [
+              "D8",
+              "D8",
+            ],
+            [
+              "D7",
+              "D7",
+            ],
+            [
+              "D6",
+              "D6",
+            ],
+            [
+              "D5",
+              "D5",
+            ],
+            [
+              "D4",
+              "D4",
+            ],
+            [
+              "D3",
+              "D3",
+            ],
+            [
+              "D2",
+              "D2",
+            ],
+          ],
+          "type": "field_dropdown",
+        },
+      ],
+      "colour": 210,
+      "message0": "digital read %1",
+      "output": "Boolean",
+      "tooltip": "True while the pin reads HIGH.",
+      "type": "stem_digital_read",
+    },
+    {
+      "args0": [
+        {
+          "min": 0,
+          "name": "SECONDS",
+          "type": "field_number",
+          "value": 1,
+        },
+      ],
+      "colour": 120,
+      "message0": "wait %1 seconds",
+      "nextStatement": null,
+      "previousStatement": null,
+      "tooltip": "Pauses the program.",
+      "type": "stem_wait",
+    },
+  ],
+  "toolbox": {
+    "contents": [
+      {
+        "colour": "45",
+        "contents": [
+          {
+            "kind": "block",
+            "type": "stem_on_start",
+          },
+          {
+            "kind": "block",
+            "type": "stem_forever",
+          },
+        ],
+        "kind": "category",
+        "name": "Events",
+      },
+      {
+        "colour": "210",
+        "contents": [
+          {
+            "kind": "block",
+            "type": "stem_digital_write",
+          },
+          {
+            "kind": "block",
+            "type": "stem_digital_read",
+          },
+        ],
+        "kind": "category",
+        "name": "Pins",
+      },
+      {
+        "colour": "210",
+        "contents": [
+          {
+            "kind": "block",
+            "type": "controls_if",
+          },
+          {
+            "extraState": {
+              "hasElse": true,
+            },
+            "kind": "block",
+            "type": "controls_if",
+          },
+          {
+            "kind": "block",
+            "type": "logic_negate",
+          },
+        ],
+        "kind": "category",
+        "name": "Logic",
+      },
+      {
+        "colour": "120",
+        "contents": [
+          {
+            "kind": "block",
+            "type": "stem_wait",
+          },
+        ],
+        "kind": "category",
+        "name": "Time",
+      },
+    ],
+    "kind": "categoryToolbox",
+  },
+}
+`;
+
+exports[`GB3 / GB11: legacy IR golden > compiles blink to the captured IR 1`] = `
+{
+  "diagnostics": [],
+  "ir": {
+    "forever": [
+      {
+        "blockId": "write-high",
+        "kind": "digitalWrite",
+        "level": 1,
+        "pin": "D13",
+      },
+      {
+        "blockId": "wait-on",
+        "kind": "wait",
+        "ms": 1000,
+      },
+      {
+        "blockId": "write-low",
+        "kind": "digitalWrite",
+        "level": 0,
+        "pin": "D13",
+      },
+      {
+        "blockId": "wait-off",
+        "kind": "wait",
+        "ms": 1000,
+      },
+    ],
+    "onStart": [],
+  },
+  "ok": true,
+}
+`;
+
+exports[`GB3 / GB11: legacy IR golden > compiles button-direct to the captured IR 1`] = `
+{
+  "diagnostics": [],
+  "ir": {
+    "forever": [],
+    "onStart": [],
+  },
+  "ok": true,
+}
+`;
+
+exports[`GB3 / GB11: legacy IR golden > compiles button-led to the captured IR 1`] = `
+{
+  "diagnostics": [],
+  "ir": {
+    "forever": [
+      {
+        "blockId": "if-pressed",
+        "branches": [
+          {
+            "body": [
+              {
+                "blockId": "write-high",
+                "kind": "digitalWrite",
+                "level": 1,
+                "pin": "D13",
+              },
+            ],
+            "condition": {
+              "blockId": "read-d2",
+              "kind": "digitalRead",
+              "pin": "D2",
+            },
+          },
+        ],
+        "else": [
+          {
+            "blockId": "write-low",
+            "kind": "digitalWrite",
+            "level": 0,
+            "pin": "D13",
+          },
+        ],
+        "kind": "if",
+      },
+    ],
+    "onStart": [],
+  },
+  "ok": true,
+}
+`;
+
+exports[`GB3 / GB11: legacy IR golden > compiles empty template to the captured IR 1`] = `
+{
+  "diagnostics": [],
+  "ir": {
+    "forever": [],
+    "onStart": [],
+  },
+  "ok": true,
+}
+`;
+
+exports[`GB3 / GB11: legacy IR golden > compiles fixture disabled-hat to the captured IR 1`] = `
+{
+  "diagnostics": [],
+  "ir": {
+    "forever": [
+      {
+        "blockId": "wait-in-forever",
+        "kind": "wait",
+        "ms": 1000,
+      },
+    ],
+    "onStart": [],
+  },
+  "ok": true,
+}
+`;
+
+exports[`GB3 / GB11: legacy IR golden > compiles fixture disabled-statement to the captured IR 1`] = `
+{
+  "diagnostics": [],
+  "ir": {
+    "forever": [
+      {
+        "blockId": "wait-after",
+        "kind": "wait",
+        "ms": 1000,
+      },
+    ],
+    "onStart": [],
+  },
+  "ok": true,
+}
+`;
+
+exports[`GB3 / GB11: legacy IR golden > compiles fixture duplicate-on-start to the captured IR 1`] = `
+{
+  "diagnostics": [
+    {
+      "blockId": "second-on-start",
+      "code": "duplicate-hat",
+      "message": "Only one "stem_on_start" block is allowed.",
+      "severity": "error",
+    },
+  ],
+  "ok": false,
+}
+`;
+
+exports[`GB3 / GB11: legacy IR golden > compiles fixture if-else-if to the captured IR 1`] = `
+{
+  "diagnostics": [],
+  "ir": {
+    "forever": null,
+    "onStart": [
+      {
+        "blockId": "if-else-if",
+        "branches": [
+          {
+            "body": [
+              {
+                "blockId": "write-d13",
+                "kind": "digitalWrite",
+                "level": 1,
+                "pin": "D13",
+              },
+            ],
+            "condition": {
+              "blockId": "not-d2",
+              "kind": "not",
+              "value": {
+                "blockId": "read-d2",
+                "kind": "digitalRead",
+                "pin": "D2",
+              },
+            },
+          },
+          {
+            "body": [
+              {
+                "blockId": "write-d12",
+                "kind": "digitalWrite",
+                "level": 1,
+                "pin": "D12",
+              },
+            ],
+            "condition": {
+              "blockId": "read-d3",
+              "kind": "digitalRead",
+              "pin": "D3",
+            },
+          },
+        ],
+        "else": [
+          {
+            "blockId": "write-d11",
+            "kind": "digitalWrite",
+            "level": 1,
+            "pin": "D11",
+          },
+        ],
+        "kind": "if",
+      },
+    ],
+  },
+  "ok": true,
+}
+`;
+
+exports[`GB3 / GB11: legacy IR golden > compiles fixture missing-condition to the captured IR 1`] = `
+{
+  "diagnostics": [
+    {
+      "blockId": "empty-if",
+      "code": "missing-condition",
+      "message": ""if" needs a condition.",
+      "severity": "error",
+    },
+  ],
+  "ok": false,
+}
+`;
+
+exports[`GB3 / GB11: legacy IR golden > compiles fixture orphan-block to the captured IR 1`] = `
+{
+  "diagnostics": [
+    {
+      "blockId": "orphan-write",
+      "code": "ignored-block",
+      "message": "Blocks outside "on start" and "forever" do not run.",
+      "severity": "warning",
+    },
+  ],
+  "ir": {
+    "forever": null,
+    "onStart": [
+      {
+        "blockId": "write-d13-high",
+        "kind": "digitalWrite",
+        "level": 1,
+        "pin": "D13",
+      },
+    ],
+  },
+  "ok": true,
+}
+`;
+
+exports[`GB3 / GB11: legacy IR golden > compiles led-on to the captured IR 1`] = `
+{
+  "diagnostics": [],
+  "ir": {
+    "forever": null,
+    "onStart": [
+      {
+        "blockId": "write-d13-high",
+        "kind": "digitalWrite",
+        "level": 1,
+        "pin": "D13",
+      },
+    ],
+  },
+  "ok": true,
+}
+`;
+
+exports[`GB4 / GB11: generic run traces > blink publishes the captured snapshots 1`] = `
+[
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": {
+      "components": {
+        "led": {
+          "lit": false,
+        },
+      },
+      "nets": [
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "3v3",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "gnd",
+            },
+            {
+              "componentId": "led",
+              "portId": "cathode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d13",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "a",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "b",
+            },
+            {
+              "componentId": "led",
+              "portId": "anode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d12",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d11",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d10",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d9",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d8",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d7",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d6",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d5",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d4",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d3",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d2",
+            },
+          ],
+        },
+      ],
+      "pinReads": {
+        "D10": 0,
+        "D11": 0,
+        "D12": 0,
+        "D13": 0,
+        "D2": 0,
+        "D3": 0,
+        "D4": 0,
+        "D5": 0,
+        "D6": 0,
+        "D7": 0,
+        "D8": 0,
+        "D9": 0,
+      },
+    },
+    "status": "running",
+  },
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": {
+      "components": {
+        "led": {
+          "lit": true,
+        },
+      },
+      "nets": [
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "3v3",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "gnd",
+            },
+            {
+              "componentId": "led",
+              "portId": "cathode",
+            },
+          ],
+        },
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d13",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "a",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "b",
+            },
+            {
+              "componentId": "led",
+              "portId": "anode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d12",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d11",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d10",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d9",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d8",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d7",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d6",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d5",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d4",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d3",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d2",
+            },
+          ],
+        },
+      ],
+      "pinReads": {
+        "D10": 0,
+        "D11": 0,
+        "D12": 0,
+        "D13": 1,
+        "D2": 0,
+        "D3": 0,
+        "D4": 0,
+        "D5": 0,
+        "D6": 0,
+        "D7": 0,
+        "D8": 0,
+        "D9": 0,
+      },
+    },
+    "status": "running",
+  },
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": {
+      "components": {
+        "led": {
+          "lit": false,
+        },
+      },
+      "nets": [
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "3v3",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "gnd",
+            },
+            {
+              "componentId": "led",
+              "portId": "cathode",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d13",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "a",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "b",
+            },
+            {
+              "componentId": "led",
+              "portId": "anode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d12",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d11",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d10",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d9",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d8",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d7",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d6",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d5",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d4",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d3",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d2",
+            },
+          ],
+        },
+      ],
+      "pinReads": {
+        "D10": 0,
+        "D11": 0,
+        "D12": 0,
+        "D13": 0,
+        "D2": 0,
+        "D3": 0,
+        "D4": 0,
+        "D5": 0,
+        "D6": 0,
+        "D7": 0,
+        "D8": 0,
+        "D9": 0,
+      },
+    },
+    "status": "running",
+  },
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": {
+      "components": {
+        "led": {
+          "lit": true,
+        },
+      },
+      "nets": [
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "3v3",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "gnd",
+            },
+            {
+              "componentId": "led",
+              "portId": "cathode",
+            },
+          ],
+        },
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d13",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "a",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "b",
+            },
+            {
+              "componentId": "led",
+              "portId": "anode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d12",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d11",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d10",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d9",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d8",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d7",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d6",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d5",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d4",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d3",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d2",
+            },
+          ],
+        },
+      ],
+      "pinReads": {
+        "D10": 0,
+        "D11": 0,
+        "D12": 0,
+        "D13": 1,
+        "D2": 0,
+        "D3": 0,
+        "D4": 0,
+        "D5": 0,
+        "D6": 0,
+        "D7": 0,
+        "D8": 0,
+        "D9": 0,
+      },
+    },
+    "status": "running",
+  },
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": null,
+    "status": "idle",
+  },
+]
+`;
+
+exports[`GB4 / GB11: generic run traces > button-direct publishes the captured snapshots 1`] = `
+[
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": {
+      "components": {
+        "button": {
+          "closed": false,
+        },
+        "led": {
+          "lit": false,
+        },
+      },
+      "nets": [
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "3v3",
+            },
+            {
+              "componentId": "button",
+              "portId": "a",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "gnd",
+            },
+            {
+              "componentId": "led",
+              "portId": "cathode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d13",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d12",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d11",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d10",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d9",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d8",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d7",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d6",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d5",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d4",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d3",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d2",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "button",
+              "portId": "b",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "a",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "b",
+            },
+            {
+              "componentId": "led",
+              "portId": "anode",
+            },
+          ],
+        },
+      ],
+      "pinReads": {
+        "D10": 0,
+        "D11": 0,
+        "D12": 0,
+        "D13": 0,
+        "D2": 0,
+        "D3": 0,
+        "D4": 0,
+        "D5": 0,
+        "D6": 0,
+        "D7": 0,
+        "D8": 0,
+        "D9": 0,
+      },
+    },
+    "status": "running",
+  },
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": {
+      "components": {
+        "button": {
+          "closed": true,
+        },
+        "led": {
+          "lit": true,
+        },
+      },
+      "nets": [
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "3v3",
+            },
+            {
+              "componentId": "button",
+              "portId": "a",
+            },
+            {
+              "componentId": "button",
+              "portId": "b",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "a",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "b",
+            },
+            {
+              "componentId": "led",
+              "portId": "anode",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "gnd",
+            },
+            {
+              "componentId": "led",
+              "portId": "cathode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d13",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d12",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d11",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d10",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d9",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d8",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d7",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d6",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d5",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d4",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d3",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d2",
+            },
+          ],
+        },
+      ],
+      "pinReads": {
+        "D10": 0,
+        "D11": 0,
+        "D12": 0,
+        "D13": 0,
+        "D2": 0,
+        "D3": 0,
+        "D4": 0,
+        "D5": 0,
+        "D6": 0,
+        "D7": 0,
+        "D8": 0,
+        "D9": 0,
+      },
+    },
+    "status": "running",
+  },
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": {
+      "components": {
+        "button": {
+          "closed": false,
+        },
+        "led": {
+          "lit": false,
+        },
+      },
+      "nets": [
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "3v3",
+            },
+            {
+              "componentId": "button",
+              "portId": "a",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "gnd",
+            },
+            {
+              "componentId": "led",
+              "portId": "cathode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d13",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d12",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d11",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d10",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d9",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d8",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d7",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d6",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d5",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d4",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d3",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d2",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "button",
+              "portId": "b",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "a",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "b",
+            },
+            {
+              "componentId": "led",
+              "portId": "anode",
+            },
+          ],
+        },
+      ],
+      "pinReads": {
+        "D10": 0,
+        "D11": 0,
+        "D12": 0,
+        "D13": 0,
+        "D2": 0,
+        "D3": 0,
+        "D4": 0,
+        "D5": 0,
+        "D6": 0,
+        "D7": 0,
+        "D8": 0,
+        "D9": 0,
+      },
+    },
+    "status": "running",
+  },
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": null,
+    "status": "idle",
+  },
+]
+`;
+
+exports[`GB4 / GB11: generic run traces > button-led publishes the captured snapshots 1`] = `
+[
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": {
+      "components": {
+        "button": {
+          "closed": false,
+        },
+        "led": {
+          "lit": false,
+        },
+      },
+      "nets": [
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "3v3",
+            },
+            {
+              "componentId": "button",
+              "portId": "a",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "gnd",
+            },
+            {
+              "componentId": "led",
+              "portId": "cathode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d13",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "a",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "b",
+            },
+            {
+              "componentId": "led",
+              "portId": "anode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d12",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d11",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d10",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d9",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d8",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d7",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d6",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d5",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d4",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d3",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d2",
+            },
+            {
+              "componentId": "button",
+              "portId": "b",
+            },
+          ],
+        },
+      ],
+      "pinReads": {
+        "D10": 0,
+        "D11": 0,
+        "D12": 0,
+        "D13": 0,
+        "D2": 0,
+        "D3": 0,
+        "D4": 0,
+        "D5": 0,
+        "D6": 0,
+        "D7": 0,
+        "D8": 0,
+        "D9": 0,
+      },
+    },
+    "status": "running",
+  },
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": {
+      "components": {
+        "button": {
+          "closed": false,
+        },
+        "led": {
+          "lit": false,
+        },
+      },
+      "nets": [
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "3v3",
+            },
+            {
+              "componentId": "button",
+              "portId": "a",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "gnd",
+            },
+            {
+              "componentId": "led",
+              "portId": "cathode",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d13",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "a",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "b",
+            },
+            {
+              "componentId": "led",
+              "portId": "anode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d12",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d11",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d10",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d9",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d8",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d7",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d6",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d5",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d4",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d3",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d2",
+            },
+            {
+              "componentId": "button",
+              "portId": "b",
+            },
+          ],
+        },
+      ],
+      "pinReads": {
+        "D10": 0,
+        "D11": 0,
+        "D12": 0,
+        "D13": 0,
+        "D2": 0,
+        "D3": 0,
+        "D4": 0,
+        "D5": 0,
+        "D6": 0,
+        "D7": 0,
+        "D8": 0,
+        "D9": 0,
+      },
+    },
+    "status": "running",
+  },
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": {
+      "components": {
+        "button": {
+          "closed": true,
+        },
+        "led": {
+          "lit": false,
+        },
+      },
+      "nets": [
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "3v3",
+            },
+            {
+              "componentId": "board",
+              "portId": "d2",
+            },
+            {
+              "componentId": "button",
+              "portId": "a",
+            },
+            {
+              "componentId": "button",
+              "portId": "b",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "gnd",
+            },
+            {
+              "componentId": "led",
+              "portId": "cathode",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d13",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "a",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "b",
+            },
+            {
+              "componentId": "led",
+              "portId": "anode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d12",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d11",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d10",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d9",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d8",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d7",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d6",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d5",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d4",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d3",
+            },
+          ],
+        },
+      ],
+      "pinReads": {
+        "D10": 0,
+        "D11": 0,
+        "D12": 0,
+        "D13": 0,
+        "D2": 1,
+        "D3": 0,
+        "D4": 0,
+        "D5": 0,
+        "D6": 0,
+        "D7": 0,
+        "D8": 0,
+        "D9": 0,
+      },
+    },
+    "status": "running",
+  },
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": {
+      "components": {
+        "button": {
+          "closed": true,
+        },
+        "led": {
+          "lit": true,
+        },
+      },
+      "nets": [
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "3v3",
+            },
+            {
+              "componentId": "board",
+              "portId": "d2",
+            },
+            {
+              "componentId": "button",
+              "portId": "a",
+            },
+            {
+              "componentId": "button",
+              "portId": "b",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "gnd",
+            },
+            {
+              "componentId": "led",
+              "portId": "cathode",
+            },
+          ],
+        },
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d13",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "a",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "b",
+            },
+            {
+              "componentId": "led",
+              "portId": "anode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d12",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d11",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d10",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d9",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d8",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d7",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d6",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d5",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d4",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d3",
+            },
+          ],
+        },
+      ],
+      "pinReads": {
+        "D10": 0,
+        "D11": 0,
+        "D12": 0,
+        "D13": 1,
+        "D2": 1,
+        "D3": 0,
+        "D4": 0,
+        "D5": 0,
+        "D6": 0,
+        "D7": 0,
+        "D8": 0,
+        "D9": 0,
+      },
+    },
+    "status": "running",
+  },
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": {
+      "components": {
+        "button": {
+          "closed": false,
+        },
+        "led": {
+          "lit": true,
+        },
+      },
+      "nets": [
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "3v3",
+            },
+            {
+              "componentId": "button",
+              "portId": "a",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "gnd",
+            },
+            {
+              "componentId": "led",
+              "portId": "cathode",
+            },
+          ],
+        },
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d13",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "a",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "b",
+            },
+            {
+              "componentId": "led",
+              "portId": "anode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d12",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d11",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d10",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d9",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d8",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d7",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d6",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d5",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d4",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d3",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d2",
+            },
+            {
+              "componentId": "button",
+              "portId": "b",
+            },
+          ],
+        },
+      ],
+      "pinReads": {
+        "D10": 0,
+        "D11": 0,
+        "D12": 0,
+        "D13": 1,
+        "D2": 0,
+        "D3": 0,
+        "D4": 0,
+        "D5": 0,
+        "D6": 0,
+        "D7": 0,
+        "D8": 0,
+        "D9": 0,
+      },
+    },
+    "status": "running",
+  },
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": {
+      "components": {
+        "button": {
+          "closed": false,
+        },
+        "led": {
+          "lit": false,
+        },
+      },
+      "nets": [
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "3v3",
+            },
+            {
+              "componentId": "button",
+              "portId": "a",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "gnd",
+            },
+            {
+              "componentId": "led",
+              "portId": "cathode",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d13",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "a",
+            },
+            {
+              "componentId": "resistor",
+              "portId": "b",
+            },
+            {
+              "componentId": "led",
+              "portId": "anode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d12",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d11",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d10",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d9",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d8",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d7",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d6",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d5",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d4",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d3",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d2",
+            },
+            {
+              "componentId": "button",
+              "portId": "b",
+            },
+          ],
+        },
+      ],
+      "pinReads": {
+        "D10": 0,
+        "D11": 0,
+        "D12": 0,
+        "D13": 0,
+        "D2": 0,
+        "D3": 0,
+        "D4": 0,
+        "D5": 0,
+        "D6": 0,
+        "D7": 0,
+        "D8": 0,
+        "D9": 0,
+      },
+    },
+    "status": "running",
+  },
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": null,
+    "status": "idle",
+  },
+]
+`;
+
+exports[`GB4 / GB11: generic run traces > led-on publishes the captured snapshots 1`] = `
+[
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": {
+      "components": {
+        "led": {
+          "lit": false,
+        },
+      },
+      "nets": [
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "3v3",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "gnd",
+            },
+            {
+              "componentId": "led",
+              "portId": "cathode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d13",
+            },
+            {
+              "componentId": "led",
+              "portId": "anode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d12",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d11",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d10",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d9",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d8",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d7",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d6",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d5",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d4",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d3",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d2",
+            },
+          ],
+        },
+      ],
+      "pinReads": {
+        "D10": 0,
+        "D11": 0,
+        "D12": 0,
+        "D13": 0,
+        "D2": 0,
+        "D3": 0,
+        "D4": 0,
+        "D5": 0,
+        "D6": 0,
+        "D7": 0,
+        "D8": 0,
+        "D9": 0,
+      },
+    },
+    "status": "running",
+  },
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": {
+      "components": {
+        "led": {
+          "lit": true,
+        },
+      },
+      "nets": [
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "3v3",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "gnd",
+            },
+            {
+              "componentId": "led",
+              "portId": "cathode",
+            },
+          ],
+        },
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d13",
+            },
+            {
+              "componentId": "led",
+              "portId": "anode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d12",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d11",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d10",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d9",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d8",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d7",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d6",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d5",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d4",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d3",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d2",
+            },
+          ],
+        },
+      ],
+      "pinReads": {
+        "D10": 0,
+        "D11": 0,
+        "D12": 0,
+        "D13": 1,
+        "D2": 0,
+        "D3": 0,
+        "D4": 0,
+        "D5": 0,
+        "D6": 0,
+        "D7": 0,
+        "D8": 0,
+        "D9": 0,
+      },
+    },
+    "status": "running",
+  },
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": {
+      "components": {
+        "led": {
+          "lit": true,
+        },
+      },
+      "nets": [
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "3v3",
+            },
+          ],
+        },
+        {
+          "level": "low",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "gnd",
+            },
+            {
+              "componentId": "led",
+              "portId": "cathode",
+            },
+          ],
+        },
+        {
+          "level": "high",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d13",
+            },
+            {
+              "componentId": "led",
+              "portId": "anode",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d12",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d11",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d10",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d9",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d8",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d7",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d6",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d5",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d4",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d3",
+            },
+          ],
+        },
+        {
+          "level": "floating",
+          "ports": [
+            {
+              "componentId": "board",
+              "portId": "d2",
+            },
+          ],
+        },
+      ],
+      "pinReads": {
+        "D10": 0,
+        "D11": 0,
+        "D12": 0,
+        "D13": 1,
+        "D2": 0,
+        "D3": 0,
+        "D4": 0,
+        "D5": 0,
+        "D6": 0,
+        "D7": 0,
+        "D8": 0,
+        "D9": 0,
+      },
+    },
+    "status": "finished",
+  },
+  {
+    "diagnostics": [],
+    "error": null,
+    "simulation": null,
+    "status": "idle",
+  },
+]
+`;
+
+exports[`GB9: generic palette > lists the four generic devices, in this order 1`] = `
+[
+  {
+    "deviceType": "board",
+    "name": "STEM Board",
+  },
+  {
+    "deviceType": "led",
+    "name": "LED",
+  },
+  {
+    "deviceType": "resistor",
+    "name": "Resistor",
+  },
+  {
+    "deviceType": "push-button",
+    "name": "Push Button",
+  },
+]
+`;

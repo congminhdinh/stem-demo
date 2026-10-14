@@ -1,16 +1,24 @@
 import * as Blockly from 'blockly';
-import { buildBlockDefinitions, builtInBlockTypes } from '../../core/program/blocks';
+import { builtInBlockTypes } from '../../core/program/blocks';
+import type { BlockPackCatalog } from '../../core/program/block-packs';
 
 // The editor's blocks, as Blockly knows them: registered once, and used to
 // tell whether a stored program can be opened at all.
 
-let blocksRegistered = false;
+const registeredTypes = new Set<string>();
 
-/** Registers the core block definitions; the dropdowns get the board pins. */
-export function registerBlocks(boardPins: readonly string[]) {
-  if (!blocksRegistered) {
-    Blockly.common.defineBlocksWithJsonArray(buildBlockDefinitions(boardPins));
-    blocksRegistered = true;
+/**
+ * Registers the blocks of every known pack, whatever profile is active (YB
+ * plan §12, L-1): a program that holds a block the active profile does not
+ * show must still load, or lowering a profile would lose the document. What
+ * the learner sees is the toolbox, which the board context decides. Each type
+ * is registered once; a pack that shares a definition (the hats) adds nothing.
+ */
+export function registerBlocks(packs: BlockPackCatalog) {
+  const fresh = packs.definitions().filter((definition) => !registeredTypes.has(definition.type));
+  if (fresh.length > 0) {
+    Blockly.common.defineBlocksWithJsonArray(fresh);
+    fresh.forEach((definition) => registeredTypes.add(definition.type));
   }
 }
 
@@ -23,12 +31,13 @@ export const maxElseIfs = 1000;
 /**
  * Whether the editor can open `blocks` (plan §7): they are loaded into a
  * headless workspace with the editor's own blocks, the way the panel will
- * load them. Blockly is the judge because only it knows every structure it
+ * load them, with the blocks of every known pack, not only the active
+ * profile's. Blockly is the judge because only it knows every structure it
  * rejects, e.g. an input that the block's mutator state does not create, a
  * block in the wrong kind of input, or a nesting too deep to load. Only what
  * Blockly could not judge in bounded time is refused before it loads.
  */
-export function canOpenProgram(blocks: unknown, boardPins: readonly string[]): boolean {
+export function canOpenProgram(blocks: unknown, packs: BlockPackCatalog): boolean {
   // Blockly would open these as an empty workspace, hiding that the program is lost.
   if (typeof blocks !== 'object' || blocks === null || Array.isArray(blocks)) {
     return false;
@@ -36,7 +45,7 @@ export function canOpenProgram(blocks: unknown, boardPins: readonly string[]): b
   if (!isBoundedForBlockly(blocks)) {
     return false;
   }
-  registerBlocks(boardPins);
+  registerBlocks(packs);
   const workspace = new Blockly.Workspace();
   Blockly.Events.disable();
   try {

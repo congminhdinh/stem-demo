@@ -2,6 +2,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { localDeviceDefinitions } from './core/devices/local-catalog';
 import { createDeviceRegistry } from './core/devices/registry';
+import { productionProfiles } from './core/profiles';
+import { createBlockPackCatalog } from './core/program/block-packs';
 import { createRunSession } from './core/run/run-session';
 import { createDexieProjectRepository } from './storage/dexie-project-repository';
 import { App } from './ui/app/App';
@@ -17,8 +19,12 @@ import { createRunStore } from './ui/state/run-store';
 // Composition root: the only place that reads the launch URL and picks the
 // local catalog and the storage implementation (B8).
 const registry = createDeviceRegistry(localDeviceDefinitions);
-// The PoC has a single board type; its pins are the board profile for blocks.
-const boardPins = registry.get('board').board?.pins.map((pin) => pin.name) ?? [];
+// Which family and profile a project belongs to is decided by resolveBoardContext
+// from the document's profile (YB plan §8.5); nothing here names a board type.
+// The block packs are the data of every family's blocks, all of them registered
+// with Blockly so any stored program loads, whatever profile is active.
+const profiles = productionProfiles;
+const packs = createBlockPackCatalog(registry);
 
 // The project is chosen before anything renders: in the standalone editor the
 // last project is read first, so nothing can be shown, edited or saved over
@@ -27,9 +33,10 @@ const boardPins = registry.get('board').board?.pins.map((pin) => pin.name) ?? []
 const started = await openAtStartup(parseLaunch(window.location.search), {
   openRepository: () => createDexieProjectRepository(),
   registry,
+  profiles,
   newId: () => crypto.randomUUID(),
-  // Blockly, with the editor's own blocks, tells whether the editor can open a stored program.
-  canOpenProgram: (blocks) => canOpenProgram(blocks, boardPins),
+  // Blockly, with the blocks of every pack, tells whether the editor can open a stored program.
+  canOpenProgram: (blocks) => canOpenProgram(blocks, packs),
 });
 
 const container = document.getElementById('root');
@@ -46,13 +53,13 @@ if (started.kind === 'launch-error') {
   );
 } else {
   const projectStore = createProjectStore(started.document);
-  const runStore = createRunStore(createRunSession(registry));
+  const runStore = createRunStore(createRunSession(registry, { profiles, packs }));
   if (started.saveTo) {
     startAutosave(projectStore, started.saveTo, (error) => console.warn('The project could not be saved.', error));
   }
 
   if (import.meta.env.DEV) {
-    installTestHooks(projectStore);
+    installTestHooks(projectStore, profiles);
   }
 
   root.render(
@@ -61,7 +68,8 @@ if (started.kind === 'launch-error') {
         projectStore={projectStore}
         runStore={runStore}
         registry={registry}
-        boardPins={boardPins}
+        profiles={profiles}
+        packs={packs}
         notice={started.notice}
       />
     </StrictMode>,

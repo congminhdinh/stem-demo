@@ -1,8 +1,11 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useStore } from 'zustand';
 import { createNewProject, type Circuit } from '../../core/circuit/document';
 import type { DeviceRegistry } from '../../core/devices/registry';
 import type { Notice } from '../../core/persistence/project-repository';
+import { resolveBoardContext } from '../../core/profiles/board-context';
+import type { ProfileCatalog } from '../../core/profiles/profile';
+import { buildToolbox, type BlockPackCatalog } from '../../core/program/block-packs';
 import { BlocklyPanel, type BlocklyPanelHandle } from '../blockly/BlocklyPanel';
 import { CircuitCanvas } from '../canvas/CircuitCanvas';
 import type { ProjectStore } from '../state/project-store';
@@ -14,17 +17,28 @@ type AppProps = {
   projectStore: ProjectStore;
   runStore: RunStore;
   registry: DeviceRegistry;
-  boardPins: readonly string[];
+  profiles: ProfileCatalog;
+  packs: BlockPackCatalog;
   /** Why the app did not open the saved project, if it did not (plan §7). */
   notice?: Notice | null;
 };
 
-export function App({ projectStore, runStore, registry, boardPins, notice = null }: AppProps) {
+export function App({ projectStore, runStore, registry, profiles, packs, notice = null }: AppProps) {
   const document = useStore(projectStore, (state) => state.document);
   const loadRevision = useStore(projectStore, (state) => state.loadRevision);
   const simulation = useStore(runStore, (state) => state.snapshot.simulation);
   const running = useStore(runStore, selectIsRunning);
   const blocklyRef = useRef<BlocklyPanelHandle>(null);
+  // The one place the family, the palette and the toolbox are decided (R-F1…R-F6):
+  // from the document's profile, never from the boards on the canvas.
+  const profile = document.profile;
+  const context = useMemo(
+    () => resolveBoardContext({ profile, circuit: document.circuit }, registry, profiles),
+    [profile, document.circuit, registry, profiles],
+  );
+  // Only a different set of packs is a different toolbox, so circuit edits keep the Blockly workspace.
+  const packKey = context.blockPacks.join('|');
+  const toolbox = useMemo(() => buildToolbox(packKey === '' ? [] : packKey.split('|'), packs), [packKey, packs]);
   const [noticeDismissed, setNoticeDismissed] = useState(false);
   // A notice about the project the app opened is gone once another one is
   // loaded (New); one about the session (no saving) stays until dismissed.
@@ -80,6 +94,7 @@ export function App({ projectStore, runStore, registry, boardPins, notice = null
             key={loadRevision}
             circuit={document.circuit}
             registry={registry}
+            context={context}
             simulation={simulation}
             locked={running}
             onCircuitChange={editCircuit}
@@ -88,7 +103,7 @@ export function App({ projectStore, runStore, registry, boardPins, notice = null
           />
         </section>
         <section className="program-region" aria-label="Program" data-testid="program-region">
-          <BlocklyPanel ref={blocklyRef} projectStore={projectStore} boardPins={boardPins} />
+          <BlocklyPanel ref={blocklyRef} projectStore={projectStore} packs={packs} toolbox={toolbox} />
         </section>
       </main>
     </div>

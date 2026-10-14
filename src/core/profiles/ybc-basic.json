@@ -1,0 +1,10 @@
+{
+  "id": "ybc-basic",
+  "family": "ybc",
+  "boardType": "ybc-board",
+  "constructs": ["C-01", "C-02"],
+  "blockPacks": ["ybc.structure"],
+  "palette": ["ybc-board"],
+  "controls": [],
+  "variableTypes": ["int"]
+}

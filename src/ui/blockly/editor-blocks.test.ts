@@ -4,6 +4,7 @@ import { localDeviceDefinitions } from '../../core/devices/local-catalog';
 import { createDeviceRegistry } from '../../core/devices/registry';
 import ifElseIf from '../../core/program/__fixtures__/if-else-if.json';
 import missingCondition from '../../core/program/__fixtures__/missing-condition.json';
+import { createBlockPackCatalog } from '../../core/program/block-packs';
 import { createDefaultProgram } from '../../core/program/blocks';
 import blinkSample from '../../samples/blink.project.json';
 import buttonLedSample from '../../samples/button-led.project.json';
@@ -13,8 +14,8 @@ import { canOpenProgram, maxElseIfs } from './editor-blocks';
 // Node build, on jsdom): what it refuses is exactly what would make the
 // program panel throw, and so the app go blank.
 
-const boardPins = createDeviceRegistry(localDeviceDefinitions).get('board').board?.pins.map((pin) => pin.name) ?? [];
-const canOpen = (blocks: unknown) => canOpenProgram(blocks, boardPins);
+const packs = createBlockPackCatalog(createDeviceRegistry(localDeviceDefinitions));
+const canOpen = (blocks: unknown) => canOpenProgram(blocks, packs);
 
 /** The button-led program with `change` applied to its "if" block. */
 const buttonLedWithIf = (change: (block: Record<string, unknown> & { inputs: Record<string, unknown> }) => void) => {

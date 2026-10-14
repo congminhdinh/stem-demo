@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findPort } from './device-definition';
+import { deviceFamily, findPort } from './device-definition';
 import { localDeviceDefinitions } from './local-catalog';
 import { createDeviceRegistry } from './registry';
 
@@ -36,8 +36,25 @@ describe('device registry', () => {
     expect(button.simulation).toEqual({ model: 'contact' });
   });
 
-  it('lists every definition in catalog order', () => {
-    expect(registry.list().map((definition) => definition.id)).toEqual(['board', 'led', 'resistor', 'push-button']);
+  it('lists every definition in catalog order: the generic ones first, the Yolo:Bit-compatible board after them', () => {
+    expect(registry.list().map((definition) => definition.id)).toEqual([
+      'board',
+      'led',
+      'resistor',
+      'push-button',
+      'ybc-board',
+    ]);
+  });
+
+  it('gives a definition the generic family unless it says otherwise (GB1: the generic files stay as they are)', () => {
+    expect(registry.list().map((definition) => [definition.id, deviceFamily(definition)])).toEqual([
+      ['board', 'generic'],
+      ['led', 'generic'],
+      ['resistor', 'generic'],
+      ['push-button', 'generic'],
+      ['ybc-board', 'ybc'],
+    ]);
+    expect(registry.get('board')).not.toHaveProperty('family');
   });
 
   it('rejects an unknown device type', () => {
