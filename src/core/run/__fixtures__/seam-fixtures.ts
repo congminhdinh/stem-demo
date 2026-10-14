@@ -34,7 +34,10 @@ const testSlider = {
   simulation: { model: 'light-sensor' },
 };
 
-const testDevices = [testButton, testLed, testSlider];
+/** A model id that is also an `Object.prototype` member: a lookup by model must not take it for a model that takes an input. */
+const testPrototypeModel = { ...testSlider, id: 'test-ybc-proto-model', renderer: 'test-ybc-proto-model', simulation: { model: 'constructor' } };
+
+const testDevices = [testButton, testLed, testSlider, testPrototypeModel];
 
 /** The catalog and the test parts. */
 export const seamRegistry = createDeviceRegistry([...localDeviceDefinitions, ...testDevices]);
@@ -59,7 +62,7 @@ export const seamProfiles = createProfileCatalog([
     extends: 'ybc-basic',
     constructs: [],
     blockPacks: [],
-    palette: ['test-ybc-button', 'test-ybc-led', 'test-ybc-slider'],
+    palette: ['test-ybc-button', 'test-ybc-led', 'test-ybc-slider', 'test-ybc-proto-model'],
     controls: [],
     variableTypes: [],
   },
@@ -72,3 +75,27 @@ export function seamDocument(
 ): ProjectDocument {
   return { ...fixtureDocument('test-seams', { components, blocks: program([], []) }), circuit: { components, wires } };
 }
+
+export const at = { x: 100, y: 100 };
+
+export const wire = (id: string, from: [string, string], to: [string, string]) => ({
+  id,
+  from: { componentId: from[0], portId: from[1] },
+  to: { componentId: to[0], portId: to[1] },
+});
+
+/** P0 → LED → GND, and 3V3 → push button → P1: one output pin and one input pin. Run it with `seamRegistryWithSimulatedBoard`. */
+export const seamPinDocument = (): ProjectDocument =>
+  seamDocument(
+    [
+      ybcBoard,
+      { id: 'led-1', deviceType: 'test-ybc-led', position: at },
+      { id: 'btn-1', deviceType: 'test-ybc-button', position: at },
+    ],
+    [
+      wire('w1', [boardId, 'p0'], ['led-1', 'anode']),
+      wire('w2', ['led-1', 'cathode'], [boardId, 'gnd']),
+      wire('w3', [boardId, '3v3'], ['btn-1', 'a']),
+      wire('w4', ['btn-1', 'b'], [boardId, 'p1']),
+    ],
+  );

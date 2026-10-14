@@ -17,9 +17,11 @@ import { runProgram, timerSleep, type HardwareIO, type ProgramRun } from '../pro
 import { runYbcProgram } from '../program/ybc-interpreter';
 import type { YbcProgramIR } from '../program/ybc-ir';
 import {
+  copyComponentInput,
   inputKindOfModel,
   isComponentInput,
   isContact,
+  sameComponentState,
   simulateCircuit,
   splitPeripheralComponentId,
   type ComponentInput,
@@ -101,7 +103,7 @@ type ActiveRun = {
   pinOutputs: Record<string, 0 | 1>;
   /** Contacts held closed, by component id. */
   contacts: Record<string, boolean>;
-  /** The latest simulation of these inputs: what `digitalRead` reads. */
+  /** The latest simulation of these inputs: what `digitalRead` reads. The run's own: snapshots and `environment.simulation` get copies of it. */
   simulation: SimulationResult | null;
   /** YBC runs only; runtime state, dropped with the run (B2). */
   console?: RunConsole;
@@ -111,11 +113,15 @@ type ActiveRun = {
   capabilities?: Capabilities;
   /** YBC runs only: the board and its onboard parts, for `setComponentInput`. */
   board?: { id: string; onboard: readonly { id: string; model: string }[] };
-  /** Inputs other than a contact's hold, by component id: the circuit's components and the onboard parts (`<board>/<peripheral>`). */
-  inputs: Record<string, ComponentInput>;
+  /**
+   * Inputs other than a contact's hold, by component id: the circuit's components and the onboard parts
+   * (`<board>/<peripheral>`). The run's own copies (nothing else holds them), in a `Map` because an id is free text:
+   * "constructor" or "__proto__" is an id, not a member of an object.
+   */
+  inputs: Map<string, ComponentInput>;
   /** Presses of onboard `hold` parts not taken yet: the `closed` edges of `inputs`, which a latest value cannot hold (C-13). */
   presses: Map<string, number>;
-  /** The state onboard parts report for the snapshot, by `<board>/<peripheral>`; the simulation of the circuit is not theirs. */
+  /** The state onboard parts report for the snapshot, by `<board>/<peripheral>`; the run's own copies, as `inputs`. */
   reported: Map<string, ComponentState>;
 };
 
@@ -157,7 +163,7 @@ export type RunEnvironment = {
   services: RuntimeServices;
   /**
    * The latest input of an onboard part (`<board>/<peripheral>`) or of a circuit component that takes one (not a
-   * contact: that is the circuit's own), or undefined. Reads the run as it is now.
+   * contact: that is the circuit's own), or undefined. Reads the run as it is now. A copy: changing it changes nothing.
    */
   input(componentId: string): ComponentInput | undefined;
   /**
@@ -174,7 +180,11 @@ export type RunEnvironment = {
    * Not honoured while the factory is still running, because the run does not exist yet.
    */
   report(componentId: string, state: ComponentState | null): void;
-  /** The latest simulation of this run, the one `digitalRead` reads and the snapshot shows; null once the run is over. Read only. */
+  /**
+   * The latest simulation of this run, what the snapshot shows; null once the run is over. A copy for every call:
+   * a capability that changes it changes nothing of the run, of a snapshot already published or of the next
+   * simulation, and nobody is notified.
+   */
   simulation(): SimulationResult | null;
   /** Drives a pin of this run's board and simulates again. A name that is not a pin of the board is ignored. */
   drivePin(pin: string, level: 0 | 1): void;
@@ -217,12 +227,14 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
    * Every input change goes through here, so `run.simulation` is always the current one. What the onboard parts
    * reported joins the circuit's own states, and the circuit's come last: an onboard part never overwrites a
    * component of the circuit. Nothing is reported on a generic run, so its states are exactly the circuit's.
+   * `run.simulation` is the run's own (what `digitalRead` and `environment.simulation` read) and what is returned,
+   * to be published, is a copy of it: a subscriber that edits its snapshot cannot reach the state the run keeps.
    */
   const simulate = (run: ActiveRun) => {
-    const { circuit, pinOutputs, contacts, inputs } = run;
-    const result = simulateCircuit(circuit, registry, { powered: true, pinOutputs, contacts, inputs });
+    const { circuit, pinOutputs, contacts } = run;
+    const result = simulateCircuit(circuit, registry, { powered: true, pinOutputs, contacts, inputs: inputsOf(run) });
     run.simulation = { ...result, components: { ...Object.fromEntries(run.reported), ...result.components } };
-    return run.simulation;
+    return structuredClone(run.simulation);
   };
 
   /**
@@ -264,7 +276,10 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
     const pins = new Set((registry.get(base.board.deviceType).board?.pins ?? []).map((pin) => pin.name));
     return {
       ...base,
-      input: (componentId) => live()?.inputs[componentId],
+      input(componentId) {
+        const kept = live()?.inputs.get(componentId);
+        return kept && copyComponentInput(kept);
+      },
       takePresses(componentId) {
         const run = live();
         const presses = run?.presses.get(componentId) ?? 0;
@@ -282,16 +297,22 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
             return;
           }
         } else {
-          // A copy: the caller may go on using its object, and a published snapshot must not change under a listener.
+          // A copy: the caller may go on using its object, and the state the run keeps must not change under it.
           const next = structuredClone(state);
-          if (JSON.stringify(run.reported.get(componentId)) === JSON.stringify(next)) {
+          const kept = run.reported.get(componentId);
+          if (kept && sameComponentState(kept, next)) {
             return;
           }
           run.reported.set(componentId, next);
         }
         publish({ ...fresh(), simulation: simulate(run) });
       },
-      simulation: () => live()?.simulation ?? null,
+      // A copy for every read: what a capability does to it changes nothing of the run, of a snapshot already
+      // published or of the next simulation, and notifies nobody.
+      simulation() {
+        const run = live();
+        return run?.simulation ? structuredClone(run.simulation) : null;
+      },
       drivePin(pin, level) {
         const run = live();
         if (!run || !pins.has(pin) || run.pinOutputs[pin] === level) {
@@ -409,7 +430,7 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
       pinOutputs: {},
       contacts: {},
       simulation: null,
-      inputs: {},
+      inputs: new Map(),
       presses: new Map(),
       reported: new Map(),
       ...(compiled.kind === 'ybc' ? { console: compiled.console } : {}),
@@ -511,11 +532,13 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
 
   // Works in every status of a run, also once the program finished or failed:
   // the board stays powered until Stop (E6, E7), as a real button would.
-  const setComponentInput = (componentId: string, input: ComponentInput) => {
+  const setComponentInput = (componentId: string, given: ComponentInput) => {
     const run = current;
-    if (!run || !isComponentInput(input)) {
+    if (!run || !isComponentInput(given)) {
       return;
     }
+    // From here the run works on its own copy: the caller may go on editing, and submitting, the object it passed.
+    const input = copyComponentInput(given);
     // The circuit wins: a component id is free text (it may well contain a slash), so an id that names a
     // component of this run's circuit is always handled as that component, never read as `<board>/<part>`.
     const component = circuitComponentOf(run, componentId);
@@ -543,11 +566,10 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
     if (!part) {
       return;
     }
-    const before = run.inputs[componentId];
-    const wasClosed = before?.kind === 'hold' && before.closed;
-    if (keepInput(run, componentId, inputKindOfModel[part.model], input) && input.kind === 'hold' && input.closed && !wasClosed) {
-      // The edge to closed is a press. It is counted here, when it happens, because the latest value alone cannot say
-      // that the part was pressed and released in between two reads.
+    // A hold that is kept is a hold that changed, so one that is now closed was open (or unset) before: that edge is
+    // a press. It is counted here, when it happens, because the latest value alone cannot say that the part was
+    // pressed and released in between two reads.
+    if (keepInput(run, componentId, inputKindOfModel[part.model], input) && input.kind === 'hold' && input.closed) {
       run.presses.set(componentId, (run.presses.get(componentId) ?? 0) + 1);
     }
   };
@@ -577,13 +599,27 @@ function onboardPartOf(run: ActiveRun, componentId: string) {
   return peripheral && peripheral.boardId === run.board?.id ? run.board.onboard.find((candidate) => candidate.id === peripheral.peripheralId) : undefined;
 }
 
-/** Keeps `input` as the latest of the component when it is the kind the component takes and differs from the one kept. */
+/**
+ * Keeps `input`, which must be the run's own copy (`copyComponentInput`), as the latest of the component when it is
+ * the kind the component takes and differs from the one kept. Both are copies, so they have the same property order
+ * and equal inputs compare equal as text.
+ */
 function keepInput(run: ActiveRun, componentId: string, takes: ComponentInputKind | undefined, input: ComponentInput): boolean {
-  if (takes !== input.kind || JSON.stringify(run.inputs[componentId]) === JSON.stringify(input)) {
+  const kept = run.inputs.get(componentId);
+  if (takes !== input.kind || (kept !== undefined && JSON.stringify(kept) === JSON.stringify(input))) {
     return false;
   }
-  run.inputs = { ...run.inputs, [componentId]: input };
+  run.inputs.set(componentId, input);
   return true;
+}
+
+/** What the simulation reads: copies, by component id, in a record with no prototype, so that an id such as "constructor" is not a member of it. */
+function inputsOf(run: ActiveRun): Readonly<Record<string, ComponentInput>> {
+  const inputs: Record<string, ComponentInput> = Object.create(null);
+  for (const [id, input] of run.inputs) {
+    inputs[id] = copyComponentInput(input);
+  }
+  return inputs;
 }
 
 function toRunDiagnostic(diagnostic: LayerDiagnostic): RunDiagnostic {

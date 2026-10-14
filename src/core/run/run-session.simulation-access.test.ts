@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import buttonDirectSample from '../../samples/button-direct.project.json';
-import { projectDocumentSchema, type ProjectDocument } from '../circuit/document';
+import { projectDocumentSchema } from '../circuit/document';
 import type { Capabilities } from '../capabilities/io';
 import { localDeviceDefinitions } from '../devices/local-catalog';
 import { createDeviceRegistry } from '../devices/registry';
 import * as interpreter from '../program/ybc-interpreter';
 import * as simulation from '../simulation/simulate-circuit';
 import type { ComponentInput } from '../simulation/simulate-circuit';
-import { boardId, seamDocument, seamProfiles, seamRegistry, seamRegistryWithSimulatedBoard, ybcBoard } from './__fixtures__/seam-fixtures';
+import { at, boardId, seamDocument, seamPinDocument, seamProfiles, seamRegistry, seamRegistryWithSimulatedBoard, ybcBoard } from './__fixtures__/seam-fixtures';
 import { createRunSession, type RunEnvironment, type RunSnapshot } from './run-session';
 
 // YB-CP amendment 1: what a capability may use of the simulation of its run (`environment.simulation`, `drivePin`), and
@@ -40,28 +40,7 @@ afterEach(() => {
 
 const hold = (closed: boolean): ComponentInput => ({ kind: 'hold', closed });
 const slider = (value: number): ComponentInput => ({ kind: 'slider', value });
-const at = { x: 100, y: 100 };
-const wire = (id: string, from: [string, string], to: [string, string]) => ({
-  id,
-  from: { componentId: from[0], portId: from[1] },
-  to: { componentId: to[0], portId: to[1] },
-});
-
-/** P0 → LED → GND, and 3V3 → push button → P1: one output pin and one input pin. */
-const pinCircuit = (): ProjectDocument =>
-  seamDocument(
-    [
-      ybcBoard,
-      { id: 'led-1', deviceType: 'test-ybc-led', position: at },
-      { id: 'btn-1', deviceType: 'test-ybc-button', position: at },
-    ],
-    [
-      wire('w1', [boardId, 'p0'], ['led-1', 'anode']),
-      wire('w2', ['led-1', 'cathode'], [boardId, 'gnd']),
-      wire('w3', [boardId, '3v3'], ['btn-1', 'a']),
-      wire('w4', ['btn-1', 'b'], [boardId, 'p1']),
-    ],
-  );
+const pinCircuit = seamPinDocument;
 
 /** A factory whose capability is built on the environment alone. */
 function pinSession() {
@@ -136,11 +115,12 @@ describe('a pin capability built on the environment', () => {
     session.stop();
   });
 
-  it('is one simulation: what a capability reads is the very object the snapshot shows', () => {
+  it('is one simulation, not two: what a capability reads says what the snapshot shows, as a copy of its own (CP-A1)', () => {
     const { session, env } = pinSession();
     session.start(pinCircuit());
     env().drivePin('P0', 1);
-    expect(env().simulation()).toBe(session.getSnapshot().simulation);
+    expect(env().simulation()).toEqual(session.getSnapshot().simulation);
+    expect(env().simulation()).not.toBe(session.getSnapshot().simulation);
     session.stop();
   });
 
