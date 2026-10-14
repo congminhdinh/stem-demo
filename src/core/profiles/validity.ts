@@ -11,9 +11,9 @@ import type { BoardContext } from './board-context';
 //                           (checked where a stored project is read: persistence/project-repository.ts)
 //   L-2 profile-compatible  every device and block belongs to the family/profile
 //   L-3 runtime-ready       L-2 + exactly one board + the program compiles (compile: RunSession)
-//   L-4 generator-ready     YBC only; arrives with the generator (YB-5A)
+//   L-4 generator-ready     YBC only: L-3 + the generator says ok (codegen/yolobit/generate-document.ts)
 
-export type ValidityLayer = 'L-1' | 'L-2' | 'L-3';
+export type ValidityLayer = 'L-1' | 'L-2' | 'L-3' | 'L-4';
 
 export type LayerDiagnostic = {
   layer: ValidityLayer;

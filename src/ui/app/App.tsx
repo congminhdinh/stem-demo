@@ -10,6 +10,7 @@ import { BlocklyPanel, type BlocklyPanelHandle } from '../blockly/BlocklyPanel';
 import { CircuitCanvas } from '../canvas/CircuitCanvas';
 import type { ProjectStore } from '../state/project-store';
 import { selectIsRunning, type RunStore } from '../state/run-store';
+import { PythonPanel } from './PythonPanel';
 import { RunToolbar } from './RunToolbar';
 import './app.css';
 
@@ -102,8 +103,24 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
             onContactChange={(componentId, closed) => runStore.getState().setContactInput(componentId, closed)}
           />
         </section>
-        <section className="program-region" aria-label="Program" data-testid="program-region">
+        <section
+          className={context.family === 'ybc' ? 'program-region program-region-with-python' : 'program-region'}
+          aria-label="Program"
+          data-testid="program-region"
+        >
           <BlocklyPanel ref={blocklyRef} projectStore={projectStore} packs={packs} toolbox={toolbox} />
+          {/* Python exists for Yolo:Bit-compatible projects only (R-F5); a generic project has no panel. */}
+          {context.family === 'ybc' && (
+            <PythonPanel
+              key={loadRevision}
+              document={document}
+              registry={registry}
+              profiles={profiles}
+              packs={packs}
+              flush={() => blocklyRef.current?.saveNow()}
+              latestDocument={() => projectStore.getState().document}
+            />
+          )}
         </section>
       </main>
     </div>

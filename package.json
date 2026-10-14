@@ -16,6 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
+    "check:python": "node scripts/check-python-syntax.mjs --require",
+    "check:micropython": "node scripts/check-python-syntax.mjs --require-mpy",
     "verify": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
