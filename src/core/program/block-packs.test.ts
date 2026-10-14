@@ -17,10 +17,11 @@ const registry = createDeviceRegistry(localDeviceDefinitions);
 const packs = createBlockPackCatalog(registry);
 
 describe('block packs', () => {
-  it('know the generic pack, the YBC structure pack and the YB-2a language packs', () => {
+  it('know the generic pack, the YBC structure pack, the YB-4 pins pack and the YB-2a language packs', () => {
     expect(packs.list().map((pack) => pack.id)).toEqual([
       genericPackId,
       ybcStructurePackId,
+      'ybc.pins',
       'lang.logic',
       'lang.loops',
       'lang.math',
@@ -57,7 +58,18 @@ describe('block packs', () => {
   it('register the blocks of every pack once, the shared hats included only once', () => {
     const types = packs.definitions().map((definition) => definition.type);
     expect(new Set(types).size).toBe(types.length);
-    expect(types).toEqual([...buildBlockDefinitions(genericBoardPins(registry)).map((definition) => definition.type), 'ybc_while', 'ybc_count_up', 'ybc_wait_ms', 'ybc_arith', 'ybc_int_divide']);
+    expect(types).toEqual([
+      ...buildBlockDefinitions(genericBoardPins(registry)).map((definition) => definition.type),
+      // The pins pack comes before the language packs, in the order of the catalog.
+      'ybc_pin_write',
+      'ybc_pin_read',
+      'ybc_pin_analog',
+      'ybc_while',
+      'ybc_count_up',
+      'ybc_wait_ms',
+      'ybc_arith',
+      'ybc_int_divide',
+    ]);
   });
 
   it('tell the types of a pack set, and refuse an unknown pack', () => {

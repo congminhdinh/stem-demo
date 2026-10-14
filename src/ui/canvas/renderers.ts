@@ -3,6 +3,7 @@ import type { DeviceDefinition } from '../../core/devices/device-definition';
 import type { ComponentState } from '../../core/simulation/simulate-circuit';
 import { GenericRenderer } from './GenericRenderer';
 import { LedRenderer } from './LedRenderer';
+import { PotentiometerRenderer } from './PotentiometerRenderer';
 import { PushButtonRenderer } from './PushButtonRenderer';
 import { YbcBoardRenderer } from './YbcBoardRenderer';
 
@@ -23,6 +24,7 @@ const renderers = new Map<string, ComponentType<DeviceRendererProps>>([
   ['led', LedRenderer],
   ['push-button', PushButtonRenderer],
   ['ybc-board', YbcBoardRenderer],
+  ['potentiometer', PotentiometerRenderer],
 ]);
 
 /** Unknown renderer ids (e.g. the board for now) fall back to the generic body (B6). */

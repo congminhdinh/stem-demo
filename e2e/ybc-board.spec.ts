@@ -27,7 +27,9 @@ const ybcProject = (profile: string, components: unknown[] = [ybcBoard]) => ({
   program: { blocks: createDefaultProgram() },
 });
 
-const ybcCategories = ['Program', 'Logic', 'Loops', 'Time', 'Math', 'Text', 'Variables'];
+const ybcCategories = ['Program', 'Pins', 'Logic', 'Loops', 'Time', 'Math', 'Text', 'Variables'];
+// YB-4: the board and the parts a learner wires to the header pins (YB plan, YB-1 note 3).
+const ybcPalette = ['+ Bit-compatible Board', '+ LED', '+ Resistor', '+ Push Button', '+ Potentiometer'];
 const toolboxCategories = (page: Page) =>
   page.getByTestId('blockly-panel').locator('.blocklyToolboxCategory').allInnerTexts();
 const paletteButtons = (page: Page) => page.getByRole('toolbar', { name: 'Add a device' }).getByRole('button').allInnerTexts();
@@ -80,7 +82,7 @@ for (const profile of ['ybc-basic', 'ybc-advanced']) {
     test('offers the Yolo:Bit-compatible board only, and the structure and language in the toolbox', async ({ page }) => {
       await openProject(page, ybcProject(profile));
 
-      await expect.poll(() => paletteButtons(page)).toEqual(['+ Bit-compatible Board']);
+      await expect.poll(() => paletteButtons(page)).toEqual(ybcPalette);
       expect(await toolboxCategories(page)).toEqual(ybcCategories);
       await expectBlockText(page, 'on start');
       await expectBlockText(page, 'forever');
@@ -109,7 +111,7 @@ for (const profile of ['ybc-basic', 'ybc-advanced']) {
 
       expect(await currentProject(page)).toEqual(edited);
       expect(await toolboxCategories(page)).toEqual(ybcCategories);
-      expect(await paletteButtons(page)).toEqual(['+ Bit-compatible Board']);
+      expect(await paletteButtons(page)).toEqual(ybcPalette);
       await page.getByRole('button', { name: 'Run' }).click();
       await expect(runStatus(page)).toHaveText('Running');
       await page.getByRole('button', { name: 'Stop' }).click();

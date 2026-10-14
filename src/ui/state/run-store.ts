@@ -1,6 +1,7 @@
 import { createStore } from 'zustand/vanilla';
 import type { ProjectDocument } from '../../core/circuit/document';
 import type { RunSession, RunSnapshot, StartResult } from '../../core/run/run-session';
+import type { ComponentInput } from '../../core/simulation/simulate-circuit';
 
 // Thin UI wrapper around the core RunSession (plan POC-08). The session may
 // publish many snapshots per frame (a forever loop without wait); React only
@@ -22,6 +23,8 @@ export type RunState = {
   stop(): void;
   /** Holds a push button of the running circuit closed or lets it open (no-op while idle). */
   setContactInput(componentId: string, closed: boolean): void;
+  /** The general runtime input (a potentiometer's `slider`, YB-4); the session ignores it unless running and for what cannot take it. */
+  setComponentInput(componentId: string, input: ComponentInput): void;
   /** Forgets why the last Run did not start, e.g. when another project replaces the one that was run. */
   clearStartFailure(): void;
 };
@@ -59,6 +62,7 @@ export function createRunStore(
       },
       stop: () => session.stop(),
       setContactInput: (componentId, closed) => session.setContactInput(componentId, closed),
+      setComponentInput: (componentId, input) => session.setComponentInput(componentId, input),
       clearStartFailure: () => set({ startFailure: null }),
     };
   });

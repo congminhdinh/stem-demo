@@ -1,5 +1,7 @@
 import { deviceFamily } from '../devices/device-definition';
 import { arithDefinition, arithType, countUpDefinition, countUpType, intDivideDefinition, intDivideType, waitDefinition, waitType, whileDefinition, whileType, langConstructs, langPackIds, type LangPackId } from '../constructs/lang';
+import { createPinBlockDefinitions, pinAnalogType, pinConstructs, pinReadType, pinsPackId, pinWriteType, type PinChoices } from '../constructs/ybc.pins';
+import { usablePins } from '../devices/board-pins';
 import type { DeviceRegistry } from '../devices/registry';
 import {
   blockTypes,
@@ -174,6 +176,31 @@ export function createLangPacks(): BlockPack[] {
   }));
 }
 
+/** The pins each pin block offers: those the Yolo:Bit-compatible boards of the registry allow (reserved ones left out). */
+export function ybcPinChoices(registry: DeviceRegistry): PinChoices {
+  const boards = registry.list().filter((definition) => deviceFamily(definition) === 'ybc' && definition.board !== undefined);
+  const names = (capability: 'digital' | 'analogIn') => [...new Set(boards.flatMap((definition) => usablePins(definition, capability)))];
+  return { digital: names('digital'), analogIn: names('analogIn') };
+}
+
+/** The header pins of a Yolo:Bit-compatible project (YB-4): write, digital read and analog read of P0–P2. */
+export function createYbcPinsPack(choices: PinChoices): BlockPack {
+  return {
+    id: pinsPackId,
+    family: 'ybc',
+    blocks: createPinBlockDefinitions(choices),
+    blockTypes: pinConstructs.flatMap((construct) => construct.blockTypes),
+    categories: [
+      {
+        kind: 'category',
+        name: 'Pins',
+        colour: '210',
+        contents: [block(pinWriteType), block(pinReadType), block(pinAnalogType)],
+      },
+    ],
+  };
+}
+
 export type BlockPackCatalog = {
   list(): readonly BlockPack[];
   get(id: string): BlockPack | undefined;
@@ -193,7 +220,13 @@ export function createBlockPackCatalog(
   registry: DeviceRegistry,
   extraPacks: readonly BlockPack[] = [],
 ): BlockPackCatalog {
-  const packs = [createGenericPack(genericBoardPins(registry)), createYbcStructurePack(), ...createLangPacks(), ...extraPacks];
+  const packs = [
+    createGenericPack(genericBoardPins(registry)),
+    createYbcStructurePack(),
+    createYbcPinsPack(ybcPinChoices(registry)),
+    ...createLangPacks(),
+    ...extraPacks,
+  ];
   const byId = new Map<string, BlockPack>();
   for (const pack of packs) {
     if (byId.has(pack.id)) {

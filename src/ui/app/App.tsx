@@ -8,6 +8,7 @@ import type { ProfileCatalog } from '../../core/profiles/profile';
 import { buildToolbox, type BlockPackCatalog } from '../../core/program/block-packs';
 import { BlocklyPanel, type BlocklyPanelHandle } from '../blockly/BlocklyPanel';
 import { CircuitCanvas } from '../canvas/CircuitCanvas';
+import { PotentiometerControls } from '../canvas/PotentiometerControls';
 import type { ProjectStore } from '../state/project-store';
 import { selectIsRunning, type RunStore } from '../state/run-store';
 import { PythonPanel } from './PythonPanel';
@@ -102,6 +103,16 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
             // Runtime input, not an edit: the session ignores it unless running.
             onContactChange={(componentId, closed) => runStore.getState().setContactInput(componentId, closed)}
           />
+          {/* Runtime controls exist while a run does: a position is state of the run, never of the document (B2). */}
+          {running && (
+            <PotentiometerControls
+              key={`runtime-controls-${loadRevision}`}
+              circuit={document.circuit}
+              registry={registry}
+              simulation={simulation}
+              onChange={(componentId, percent) => runStore.getState().setComponentInput(componentId, { kind: 'slider', value: percent })}
+            />
+          )}
         </section>
         <section
           className={context.family === 'ybc' ? 'program-region program-region-with-python' : 'program-region'}

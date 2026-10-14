@@ -1,5 +1,6 @@
 import type { Capabilities } from '../capabilities/io';
 import type { RuntimeServices } from '../capabilities/services';
+import { runPinCall, runPinRead } from '../constructs/ybc.pins';
 import type { RunOutcome } from './interpreter';
 import { MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_TEXT_CHARS, MAX_WAIT_MS } from './limits';
 import * as values from './values';
@@ -34,14 +35,15 @@ export type YbcProgramRun = { done: Promise<YbcRunOutcome> };
 
 /**
  * Runs a program with the capabilities of its board and the services of its run (plan §9.0, §10). Both come from
- * RunSession and are the run's own. YB-2's language needs no capability, so `capabilities` is not read yet: the
- * IR has no capability operation until YB-3 and YB-4. Like `runProgram`, `done` never rejects.
+ * RunSession and are the run's own. The language needs no capability; a `call` or `read` operation (YB-4: the
+ * header pins) reaches the world only through the capability it names, and nowhere else. Like `runProgram`,
+ * `done` never rejects.
  */
-export function runYbcProgram(ir: YbcProgramIR, _capabilities: Capabilities, services: RuntimeServices): YbcProgramRun {
-  return { done: Promise.resolve().then(() => execute(ir, services)) };
+export function runYbcProgram(ir: YbcProgramIR, capabilities: Capabilities, services: RuntimeServices): YbcProgramRun {
+  return { done: Promise.resolve().then(() => execute(ir, capabilities, services)) };
 }
 
-async function execute(ir: YbcProgramIR, services: RuntimeServices): Promise<YbcRunOutcome> {
+async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: RuntimeServices): Promise<YbcRunOutcome> {
   const { budget, signal } = services;
   // The slice of a run starts when the program does, not when its services were built.
   budget.startSlice();
@@ -112,6 +114,16 @@ async function execute(ir: YbcProgramIR, services: RuntimeServices): Promise<Ybc
           throw new RuntimeFault('limit-exceeded', `A text is limited to ${MAX_TEXT_CHARS} characters.`);
         }
         return values.str(parts.join(''));
+      }
+      case 'read': {
+        // The arguments first, left to right, each once; then the one call into the board. A fault names this block.
+        const args = expr.args.map((arg) => values.asInt(evaluate(arg)));
+        blockId = expr.blockId;
+        const value = runPinRead(expr.op, args, capabilities);
+        if (value.t !== expr.type) {
+          throw new RuntimeFault('internal-error', 'A read gave another type than its block says.');
+        }
+        return value;
       }
     }
   };
@@ -199,6 +211,12 @@ async function execute(ir: YbcProgramIR, services: RuntimeServices): Promise<Ybc
           blockId = statement.blockId;
           await services.sleep(ms, signal);
           budget.startSlice();
+          break;
+        }
+        case 'call': {
+          const args = statement.args.map((arg) => values.asInt(evaluate(arg)));
+          blockId = statement.blockId;
+          runPinCall(statement.op, args, capabilities);
           break;
         }
       }

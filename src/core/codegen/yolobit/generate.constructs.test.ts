@@ -5,6 +5,7 @@ import { langConstructs } from '../../constructs/lang';
 import { productionProfiles } from '../../profiles';
 import { compileBlocks } from './__fixtures__/compile-case';
 import { langCases } from './__fixtures__/lang-cases';
+import { pinCases } from './__fixtures__/pin-cases';
 import { generatedConstructs, generateYbcMicroPython } from './generate';
 import { defaultTarget } from './target';
 
@@ -37,7 +38,8 @@ describe('what the generator covers', () => {
   });
 
   it('has a golden that exercises every construct', () => {
-    const covered = new Set(langCases.flatMap((c) => c.covers));
+    // The language goldens (YB-5A) and the pin goldens (YB-4, in pins/__golden__).
+    const covered = new Set([...langCases, ...pinCases].flatMap((c) => c.covers));
     expect([...generated].filter((id) => !covered.has(id))).toEqual([]);
     expect([...covered].filter((id) => !generated.has(id))).toEqual([]);
   });
@@ -56,7 +58,8 @@ describe('what the generator covers', () => {
       expect(generated.has(id), id).toBe(false);
       expect(row === undefined || row.eligibility === 'EXCLUDED' || row.eligibility === 'DEFERRED', id).toBe(true);
     }
-    for (const id of ['C-06', 'C-07', 'C-08', 'C-09', 'C-12', 'C-13', 'C-15', 'C-23', 'C-24', 'C-25', 'C-50', 'C-51', 'C-57', 'C-58', 'C-59']) {
+    // C-23, C-24 and C-25 are generated since YB-4 (the header pins); every other hardware row waits for its phase.
+    for (const id of ['C-06', 'C-07', 'C-08', 'C-09', 'C-12', 'C-13', 'C-15', 'C-16', 'C-27', 'C-50', 'C-51', 'C-57', 'C-58', 'C-59']) {
       expect(generated.has(id), id).toBe(false);
     }
   });

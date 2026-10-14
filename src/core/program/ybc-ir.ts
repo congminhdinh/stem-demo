@@ -6,12 +6,20 @@
 // `elif`, `repeat`, `while`, `count up`, `wait`, `print`, text `join`. Every
 // `Expr` carries its static `type`, decided by the compiler; the interpreter
 // checks it defensively. The IR says WHAT the learner program means; when it
-// yields to the browser is the interpreter's business. Capability ops,
-// functions and handlers arrive with the later phases. Hardware
-// operands (images, melodies, pins) are never values. The IR holds no Blockly
-// object and is never persisted.
+// yields to the browser is the interpreter's business. Capability ops
+// (`call` / `read`, plan §9.1) arrive with the hardware phases: YB-4 adds the
+// header pins. Functions and handlers arrive later. Hardware operands (images,
+// melodies) are never values. The IR holds no Blockly object and is never persisted.
 
 export type Type = 'int' | 'bool' | 'str';
+
+/**
+ * The capability operations (plan §9.1 `OpId`). Each belongs to exactly one construct and one capability;
+ * an op names what the program means, not the Python that says it. YB-4: the header pins (contract C-23,
+ * C-24, C-25). A statement op and a value op are different kinds of op.
+ */
+export type CallOp = 'digital.write';
+export type ReadOp = 'digital.read' | 'analogIn.read';
 
 export type YbcProgramIR = {
   onStart: YbcStatement[];
@@ -38,7 +46,12 @@ export type YbcStatement =
    */
   | { kind: 'countUp'; variable: string; from: Expr; to: Expr; step: number; body: YbcStatement[]; blockId: string }
   /** `ms` is an int in 0..MAX_WAIT_MS, else out-of-domain. */
-  | { kind: 'waitMs'; ms: Expr; blockId: string };
+  | { kind: 'waitMs'; ms: Expr; blockId: string }
+  /**
+   * A capability operation with side effects (plan §9.1). The arguments are evaluated left to right, each once,
+   * then checked against the construct's domain (contract C-23: `args` = [pin 0..2, value 0|1]).
+   */
+  | { kind: 'call'; op: CallOp; args: Expr[]; blockId: string };
 
 export type ArithOp = '+' | '-' | '*' | '//' | '%';
 export type CompareOp = '==' | '!=' | '<' | '<=' | '>' | '>=';
@@ -54,4 +67,9 @@ export type Expr = { type: Type; blockId: string } & (
   | { kind: 'not'; value: Expr }
   /** Text join: every part goes through str(); the result is at most MAX_TEXT_CHARS characters. */
   | { kind: 'join'; parts: Expr[] }
+  /**
+   * A capability read (plan §9.1). `digital.read` is a bool (the pin is high), `analogIn.read` an int on the
+   * board's native scale 0..4095 (contract C-24, C-25). The argument is the pin number.
+   */
+  | { kind: 'read'; op: ReadOp; args: Expr[] }
 );

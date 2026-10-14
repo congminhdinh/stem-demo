@@ -57,24 +57,27 @@ describe('the interpreter boundary: runYbcProgram(ir, capabilities, services)', 
     expect(ir.onStart).toHaveLength(1);
     expect(services).toBe((environments[0] as RunEnvironment).services);
     expect(typeof services.budget.step).toBe('function');
-    // The board has `digital`, so the implementation is kept: the interpreter gets the composed capabilities.
-    expect(capabilities).toEqual({ digital });
+    // The board has `digital`, so the implementation is kept: the interpreter gets the composed capabilities. What the
+    // factory offers wins over the session's own header pins (YB-4), which still supply the capability it left out.
     expect(capabilities.digital).toBe(digital);
+    expect(Object.keys(capabilities).sort()).toEqual(['analogIn', 'digital']);
     session.stop();
   });
 
   it('gives the interpreter no capability the board does not have', () => {
     const { session } = recordingSession({ digital, servo: { servoWrite: () => {} } });
     session.start(ybc());
-    expect(Object.keys(lastCall()[1])).toEqual(['digital']);
+    // `servo` is offered but the board has no servo (PWM / servo are not on the ybc-board): it never reaches the program.
+    expect(Object.keys(lastCall()[1]).sort()).toEqual(['analogIn', 'digital']);
+    expect(lastCall()[1]).not.toHaveProperty('servo');
     session.stop();
   });
 
-  it('runs without a factory exactly as YB-2 did: empty capabilities, the same services shape', async () => {
+  it('runs without a factory with the header pins the session itself connects (YB-4) and nothing else, with the same services shape', async () => {
     const session = createRunSession(registry);
     session.start(ybc());
     const [, capabilities, services] = lastCall();
-    expect(capabilities).toEqual({});
+    expect(Object.keys(capabilities).sort()).toEqual(['analogIn', 'digital']);
     expect(Object.keys(services).sort()).toEqual(['budget', 'clock', 'console', 'scheduler', 'signal', 'sleep']);
     await vi.advanceTimersByTimeAsync(0);
     expect(session.getSnapshot()).toMatchObject({ status: 'finished', console: { lines: ['1'] } });

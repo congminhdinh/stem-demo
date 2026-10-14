@@ -100,7 +100,13 @@ test('offers the language blocks, a variables category without "change by", and 
   expect(variables).toMatch(/Create variable/);
   expect(variables).toMatch(/set/);
   expect(variables).not.toMatch(/change/i);
-  expect(await panel.locator('.blocklyToolboxCategory').allInnerTexts()).toEqual(['Program', 'Logic', 'Loops', 'Time', 'Math', 'Text', 'Variables']);
+  // YB-4 adds the one hardware category the profile has: the header pins (C-23…C-25). Nothing else of the hardware.
+  expect(await panel.locator('.blocklyToolboxCategory').allInnerTexts()).toEqual(['Program', 'Pins', 'Logic', 'Loops', 'Time', 'Math', 'Text', 'Variables']);
+  const pins = await flyoutTexts('Pins');
+  expect(pins).toMatch(/set\spin/);
+  expect(pins).toMatch(/digital\sread\spin/);
+  expect(pins).toMatch(/analog\sread\spin/);
+  expect(pins).not.toMatch(/pwm|analog write|servo|pulse|display|button|light|sound|temperature|random/i);
 });
 
 test('saves the program, not the run: a reload brings the same document back, with no console', async ({ page }) => {

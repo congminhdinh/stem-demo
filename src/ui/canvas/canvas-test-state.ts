@@ -13,6 +13,8 @@ export type CanvasTestState = {
     y: number;
     lit?: boolean;
     closed?: boolean;
+    /** A potentiometer's knob position in percent, read from its knob node. */
+    value?: number;
     selected: boolean;
     /** Drawn with the mark for a device that does not belong to the project's family (R-F4). */
     incompatible: boolean;
@@ -39,6 +41,7 @@ export function readCanvasState(): CanvasTestState | null {
       y: node.y(),
       lit: node.findOne('.led-light')?.getAttr('lit'),
       closed: node.findOne('.button-cap')?.getAttr('closed'),
+      value: node.findOne('.knob')?.getAttr('value'),
       selected: node.findOne('.selection') !== undefined,
       incompatible: node.findOne('.incompatible') !== undefined,
     })),

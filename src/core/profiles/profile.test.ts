@@ -75,20 +75,24 @@ describe('the production profiles', () => {
     expect(advanced?.extends).toBe('ybc-basic');
   });
 
-  it('expose only the structure and the YB-2 language: no display, sensor, pin, sound, function, event, random or elapsed-time block', () => {
+  it('expose only the structure, the YB-2 language and the header pins (YB-4): no display, sensor, sound, PWM, servo, function, event, random or elapsed-time block', () => {
     for (const profile of [basic, advanced]) {
-      expect(profile?.blockPacks).toEqual(['ybc.structure', 'lang.logic', 'lang.loops', 'lang.math', 'lang.text', 'lang.variables']);
-      expect(profile?.constructs).toEqual(['C-01', 'C-02', 'C-04', 'C-29', 'C-30', 'C-31', 'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-56']);
+      expect(profile?.blockPacks).toEqual(['ybc.structure', 'ybc.pins', 'lang.logic', 'lang.loops', 'lang.math', 'lang.text', 'lang.variables']);
+      expect(profile?.constructs).toEqual(['C-01', 'C-02', 'C-04', 'C-23', 'C-24', 'C-25', 'C-29', 'C-30', 'C-31', 'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-56']);
       expect(profile?.controls).toEqual([]);
     }
   });
 
-  it('use the ybc board and offer no generic device', () => {
+  it('use the ybc board and offer no generic board; the circuit parts of the header pins are the generic LED, resistor and button plus the potentiometer (YB-4)', () => {
     for (const profile of [basic, advanced]) {
       expect(profile?.boardType).toBe('ybc-board');
-      expect(profile?.palette).toEqual(['ybc-board']);
-      for (const deviceType of profile?.palette ?? []) {
-        expect(registry.get(deviceType).family).toBe('ybc');
+      expect(profile?.palette).toEqual(['ybc-board', 'led', 'resistor', 'push-button', 'potentiometer']);
+      expect(profile?.palette).not.toContain('board');
+      // The devices of this track are of the ybc family; the three generic parts are reused by listing them (R-F3).
+      expect(registry.get('ybc-board').family).toBe('ybc');
+      expect(registry.get('potentiometer').family).toBe('ybc');
+      for (const deviceType of ['led', 'resistor', 'push-button']) {
+        expect(registry.get(deviceType).family).toBeUndefined();
       }
     }
   });
