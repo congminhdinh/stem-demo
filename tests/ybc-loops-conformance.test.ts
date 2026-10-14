@@ -8,7 +8,7 @@ import { productionProfiles } from '../src/core/profiles';
 import { createBlockPackCatalog } from '../src/core/program/block-packs';
 import { compileYbcProgram } from '../src/core/program/compile-ybc-program';
 import { createRunConsole } from '../src/core/program/console';
-import { runYbcProgram } from '../src/core/program/ybc-interpreter';
+import { runYbc } from '../src/core/program/__fixtures__/run-ybc';
 
 // The Blockly <-> YBC compiler contract for the YB-2b blocks: real Blockly, headless, builds and saves
 // repeat, while, count up, wait and join; the compiler reads exactly what Blockly writes.
@@ -73,7 +73,7 @@ async function printedBy(saved: Record<string, unknown>) {
     throw new Error(`Does not compile: ${JSON.stringify(compiled.diagnostics)}`);
   }
   const runConsole = createRunConsole();
-  const outcome = await runYbcProgram(compiled.ir, {
+  const outcome = await runYbc(compiled.ir, {
     sleep: () => Promise.resolve(),
     console: runConsole,
     yieldNow: () => Promise.resolve(),

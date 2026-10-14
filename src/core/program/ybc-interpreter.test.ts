@@ -11,7 +11,7 @@ import {
 } from './__fixtures__/ybc-blocks';
 import { MAX_SAFE_INT } from './limits';
 import type { Sleep } from './interpreter';
-import { runYbcProgram } from './ybc-interpreter';
+import { runYbc } from './__fixtures__/run-ybc';
 
 // Semantic traces of YB-2a programs: compile real block JSON, run it, read what the
 // program printed and how it ended. The same traces become the simulator / generator
@@ -32,7 +32,7 @@ async function run(blocks: Json) {
     throw new Error(`Does not compile: ${JSON.stringify(compiled.diagnostics)}`);
   }
   const runConsole = createRunConsole();
-  const running = runYbcProgram(compiled.ir, { sleep: blockedSleep, console: runConsole });
+  const running = runYbc(compiled.ir, { sleep: blockedSleep, console: runConsole });
   const outcome = await running.done;
   return { outcome, lines: runConsole.snapshot().lines };
 }
@@ -193,7 +193,7 @@ describe('life cycle', () => {
       throw new Error('does not compile');
     }
     const runConsole = createRunConsole();
-    const running = runYbcProgram(compiled.ir, { sleep: blockedSleep, console: runConsole });
+    const running = runYbc(compiled.ir, { sleep: blockedSleep, console: runConsole });
     await new Promise((resolve) => setTimeout(resolve, 5));
     running.stop();
     expect(await running.done).toEqual({ status: 'stopped' });
@@ -206,7 +206,7 @@ describe('life cycle', () => {
       throw new Error('does not compile');
     }
     const runConsole = createRunConsole();
-    const running = runYbcProgram(compiled.ir, { sleep: blockedSleep, console: runConsole });
+    const running = runYbc(compiled.ir, { sleep: blockedSleep, console: runConsole });
     running.stop();
     expect(await running.done).toEqual({ status: 'stopped' });
     expect(runConsole.snapshot().lines).toEqual([]);
@@ -219,7 +219,7 @@ describe('life cycle', () => {
     }
     const seen: string[][] = [];
     const runConsole = createRunConsole();
-    await runYbcProgram(compiled.ir, { sleep: blockedSleep, console: runConsole, onPrint: () => seen.push(runConsole.snapshot().lines) }).done;
+    await runYbc(compiled.ir, { sleep: blockedSleep, console: runConsole, onPrint: () => seen.push(runConsole.snapshot().lines) }).done;
     expect(seen).toEqual([['1'], ['1', '2']]);
   });
 });

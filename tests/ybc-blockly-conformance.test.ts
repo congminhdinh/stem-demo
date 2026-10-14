@@ -8,7 +8,7 @@ import { productionProfiles } from '../src/core/profiles';
 import { createBlockPackCatalog } from '../src/core/program/block-packs';
 import { compileYbcProgram } from '../src/core/program/compile-ybc-program';
 import { createRunConsole } from '../src/core/program/console';
-import { runYbcProgram } from '../src/core/program/ybc-interpreter';
+import { runYbc } from '../src/core/program/__fixtures__/run-ybc';
 
 // The Blockly <-> YBC compiler contract for YB-2a (plan §9.4, risk R2): real Blockly,
 // headless, builds the programs and saves them; the compiler must read exactly the
@@ -60,7 +60,7 @@ async function printedBy(saved: Record<string, unknown>) {
     throw new Error(`Does not compile: ${JSON.stringify(compiled.diagnostics)}`);
   }
   const runConsole = createRunConsole();
-  const outcome = await runYbcProgram(compiled.ir, {
+  const outcome = await runYbc(compiled.ir, {
     sleep: () => new Promise(() => {}),
     console: runConsole,
   }).done;

@@ -1,6 +1,6 @@
-import { createRunConsole, type RunConsole } from './console';
-import { createExecutionBudget, timerYield } from './execution-budget';
-import type { RunOutcome, Sleep } from './interpreter';
+import type { Capabilities } from '../capabilities/io';
+import type { RuntimeServices } from '../capabilities/services';
+import type { RunOutcome } from './interpreter';
 import { MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_TEXT_CHARS, MAX_WAIT_MS } from './limits';
 import * as values from './values';
 import { RuntimeFault, type Value } from './values';
@@ -24,41 +24,29 @@ import type { Expr, YbcProgramIR, YbcStatement } from './ybc-ir';
 /** E3, as in the legacy interpreter: every forever iteration ends with at least this pause. */
 const foreverYieldMs = 10;
 
-export type YbcServices = {
-  sleep: Sleep;
-  console: RunConsole;
-  /** Called after a line was written, so the session can publish a snapshot. */
-  onPrint?(): void;
-  /** The clock of the execution budget, in ms. Defaults to `performance.now`. */
-  now?(): number;
-  /** How the budget hands control back to the browser. Defaults to a zero-delay timer. */
-  yieldNow?(): Promise<void>;
-};
-
 /** A runtime fault carries a diagnostic code that the legacy outcome has no field for. */
 export type YbcRunOutcome =
   | Exclude<RunOutcome, { status: 'error' }>
   | { status: 'error'; code: RuntimeFault['code']; message: string; blockId?: string };
 
-export type YbcProgramRun = { done: Promise<YbcRunOutcome>; stop(): void };
+/** The program starts after `runYbcProgram` returns. Stop is the abort of `services.signal`, owned by the run's creator. */
+export type YbcProgramRun = { done: Promise<YbcRunOutcome> };
 
-export const defaultServices = (sleep: Sleep): YbcServices => ({ sleep, console: createRunConsole() });
-
-/** Like `runProgram`, the program starts after this returns, and `done` never rejects. */
-export function runYbcProgram(ir: YbcProgramIR, services: YbcServices): YbcProgramRun {
-  const controller = new AbortController();
-  const done = Promise.resolve().then(() => execute(ir, services, controller.signal));
-  return { done, stop: () => controller.abort() };
+/**
+ * Runs a program with the capabilities of its board and the services of its run (plan §9.0, §10). Both come from
+ * RunSession and are the run's own. YB-2's language needs no capability, so `capabilities` is not read yet: the
+ * IR has no capability operation until YB-3 and YB-4. Like `runProgram`, `done` never rejects.
+ */
+export function runYbcProgram(ir: YbcProgramIR, _capabilities: Capabilities, services: RuntimeServices): YbcProgramRun {
+  return { done: Promise.resolve().then(() => execute(ir, services)) };
 }
 
-async function execute(ir: YbcProgramIR, services: YbcServices, signal: AbortSignal): Promise<YbcRunOutcome> {
+async function execute(ir: YbcProgramIR, services: RuntimeServices): Promise<YbcRunOutcome> {
+  const { budget, signal } = services;
+  // The slice of a run starts when the program does, not when its services were built.
+  budget.startSlice();
   let blockId: string | undefined;
   const variables = new Map<string, Value>(ir.variables.map((variable) => [variable.id, values.int(0)]));
-  const budget = createExecutionBudget({
-    signal,
-    now: services.now ?? (() => performance.now()),
-    yieldNow: services.yieldNow ?? timerYield,
-  });
 
   const evaluate = (expr: Expr): Value => {
     // An expression node is a step too (it only counts; the checkpoint is the next statement or iteration).
@@ -170,7 +158,6 @@ async function execute(ir: YbcProgramIR, services: YbcServices, signal: AbortSig
           const text = values.toText(evaluate(statement.value));
           blockId = statement.blockId;
           services.console.write(text);
-          services.onPrint?.();
           break;
         }
         case 'repeat': {

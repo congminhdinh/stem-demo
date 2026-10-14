@@ -8,7 +8,7 @@ import { compileYbcProgram } from './compile-ybc-program';
 import { createRunConsole } from './console';
 import { timerSleep } from './interpreter';
 import { MAX_PROGRAM_BLOCKS } from './limits';
-import { runYbcProgram } from './ybc-interpreter';
+import { runYbc } from './__fixtures__/run-ybc';
 
 // Expression nodes are execution steps too (plan section 6.7): a tight loop around a big expression
 // must hand control back about every 8 ms, not every 256 iterations of a heavy body. Real timers; the
@@ -41,7 +41,7 @@ function start(blocks: Json) {
     throw new Error(`Does not compile: ${JSON.stringify(compiled.diagnostics)}`);
   }
   const runConsole = createRunConsole();
-  return runYbcProgram(compiled.ir, { sleep: timerSleep, console: runConsole });
+  return runYbc(compiled.ir, { sleep: timerSleep, console: runConsole });
 }
 
 /** A 1 ms timer: the longest time between two of its ticks is how long the event loop was blocked. */
@@ -115,7 +115,7 @@ describe('a tight loop around a big expression', () => {
     }
     let clockReads = 0;
     let yields = 0;
-    await runYbcProgram(compiled.ir, {
+    await runYbc(compiled.ir, {
       sleep: timerSleep,
       console: createRunConsole(),
       now: () => {
@@ -140,7 +140,7 @@ describe('a tight loop around a big expression', () => {
     }
     const lines = async (yieldNow: () => Promise<void>) => {
       const runConsole = createRunConsole();
-      await runYbcProgram(compiled.ir, { sleep: timerSleep, console: runConsole, yieldNow }).done;
+      await runYbc(compiled.ir, { sleep: timerSleep, console: runConsole, yieldNow }).done;
       return runConsole.snapshot().lines;
     };
     expect(await lines(() => Promise.resolve())).toEqual([String(leaves)]);

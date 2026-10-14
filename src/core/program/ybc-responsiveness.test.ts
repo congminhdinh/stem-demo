@@ -10,7 +10,7 @@ import { compileYbcProgram } from './compile-ybc-program';
 import { createRunConsole } from './console';
 import { timerSleep, type Sleep } from './interpreter';
 import { MAX_REPEAT_ABS, MAX_WAIT_MS } from './limits';
-import { runYbcProgram } from './ybc-interpreter';
+import { runYbc } from './__fixtures__/run-ybc';
 
 // Real time, real timers (no fake clock): a learner loop must not freeze the event loop, and Stop
 // must end any program within the frozen 100 ms (plan section 6.7, 18.5). The deadline is the plan's;
@@ -29,7 +29,7 @@ function start(blocks: Json, options: { sleep?: Sleep; yieldNow?: () => Promise<
   const runConsole = createRunConsole();
   let yields = 0;
   const sleeps: number[] = [];
-  const running = runYbcProgram(compiled.ir, {
+  const running = runYbc(compiled.ir, {
     sleep: (ms, signal) => {
       sleeps.push(ms);
       return (options.sleep ?? timerSleep)(ms, signal);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRunConsole } from '../../program/console';
 import type { Sleep } from '../../program/interpreter';
-import { runYbcProgram } from '../../program/ybc-interpreter';
+import { runYbc } from '../../program/__fixtures__/run-ybc';
 import { compileBlocks } from './__fixtures__/compile-case';
 import { langCases } from './__fixtures__/lang-cases';
 import { runUnderCpython } from './__fixtures__/cpython-run';
@@ -26,7 +26,7 @@ async function simulate(blocks: unknown): Promise<string[]> {
         stop();
       }
     });
-  const running = runYbcProgram(compileBlocks(blocks), { sleep, console: runConsole });
+  const running = runYbc(compileBlocks(blocks), { sleep, console: runConsole });
   stop = running.stop;
   const outcome = await running.done;
   expect(['finished', 'stopped']).toContain(outcome.status);

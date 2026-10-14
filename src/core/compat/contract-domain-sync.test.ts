@@ -7,7 +7,7 @@ import { compileYbcProgram } from '../program/compile-ybc-program';
 import { createRunConsole } from '../program/console';
 import { MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_WAIT_MS } from '../program/limits';
 import { add, countUp, num, program, repeat, wait, type Json } from '../program/__fixtures__/ybc-blocks';
-import { runYbcProgram } from '../program/ybc-interpreter';
+import { runYbc } from '../program/__fixtures__/run-ybc';
 import { evaluatePred } from './contract-validation';
 import { yolobitContract } from './yolobit-contract';
 
@@ -39,7 +39,7 @@ async function runs(statement: Json) {
   if (!compiled.ok) {
     throw new Error(`Does not compile: ${JSON.stringify(compiled.diagnostics)}`);
   }
-  const outcome = await runYbcProgram(compiled.ir, {
+  const outcome = await runYbc(compiled.ir, {
     sleep: () => Promise.resolve(),
     console: createRunConsole(),
     yieldNow: () => Promise.resolve(),

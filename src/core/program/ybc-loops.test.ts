@@ -11,7 +11,7 @@ import { compileYbcProgram } from './compile-ybc-program';
 import { createRunConsole } from './console';
 import type { Sleep } from './interpreter';
 import { MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_TEXT_CHARS, MAX_WAIT_MS } from './limits';
-import { runYbcProgram } from './ybc-interpreter';
+import { runYbc } from './__fixtures__/run-ybc';
 
 // YB-2b semantics: else-if, repeat, while, count up, wait and join, as compiled traces.
 
@@ -32,7 +32,7 @@ async function run(blocks: Json) {
   }
   const runConsole = createRunConsole();
   const slept: number[] = [];
-  const outcome = await runYbcProgram(compiled.ir, {
+  const outcome = await runYbc(compiled.ir, {
     sleep: (ms) => {
       slept.push(ms);
       return Promise.resolve();
@@ -322,7 +322,7 @@ describe('wait', () => {
       throw new Error('does not compile');
     }
     const runConsole = createRunConsole();
-    const running = runYbcProgram(compiled.ir, { sleep: blockedSleep, console: runConsole });
+    const running = runYbc(compiled.ir, { sleep: blockedSleep, console: runConsole });
     await new Promise((resolve) => setTimeout(resolve, 5));
     running.stop();
     expect(await running.done).toEqual({ status: 'stopped' });

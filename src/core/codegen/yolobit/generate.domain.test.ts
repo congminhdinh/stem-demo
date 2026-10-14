@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { compileYbcProgram } from '../../program/compile-ybc-program';
 import { createRunConsole } from '../../program/console';
-import { runYbcProgram, type YbcRunOutcome } from '../../program/ybc-interpreter';
+import { runYbc } from '../../program/__fixtures__/run-ybc';
+import { type YbcRunOutcome } from '../../program/ybc-interpreter';
 import { add, countUp, getVar, idiv, join, mod, mul, num, print, program, repeat, setVar, sub, text, wait, type Json } from '../../program/__fixtures__/ybc-blocks';
 import { compileBlocks } from './__fixtures__/compile-case';
 import { runUnderCpython, type CpythonRun } from './__fixtures__/cpython-run';
@@ -40,7 +41,7 @@ type Row = {
 
 async function simulate(blocks: Json): Promise<Sim> {
   const runConsole = createRunConsole();
-  const running = runYbcProgram(compileBlocks(blocks), { sleep: async () => {}, console: runConsole });
+  const running = runYbc(compileBlocks(blocks), { sleep: async () => {}, console: runConsole });
   const outcome: YbcRunOutcome = await running.done;
   return {
     status: outcome.status,

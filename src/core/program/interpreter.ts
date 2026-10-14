@@ -1,14 +1,12 @@
+import type { DigitalIO } from '../capabilities/io';
 import type { Expression, ProgramIR, Statement } from './ir';
 
 // Async IR interpreter (plan §6.4). It touches the virtual hardware only
 // through HardwareIO (B5) and knows nothing about circuits, simulation or UI.
 
 /** The runtime's only way to reach the hardware. Pin modes are implicit: writing makes a pin an output. */
-export type HardwareIO = {
-  digitalWrite(pin: string, level: 0 | 1): void;
-  /** The level of the net on the pin right now (floating reads 0). */
-  digitalRead(pin: string): 0 | 1;
-};
+/** Since YB-CP an alias of the capability interface `DigitalIO` (plan §10): the same two methods, nothing changed. */
+export type HardwareIO = DigitalIO;
 
 /** Resolves after `ms`; rejects as soon as `signal` aborts. */
 export type Sleep = (ms: number, signal: AbortSignal) => Promise<void>;
