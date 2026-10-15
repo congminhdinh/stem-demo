@@ -56,7 +56,9 @@ export function generateForDocument(
   if (outOfProfile.length > 0) {
     return blocked('L-2', outOfProfile);
   }
-  const compiled = compileYbcProgram(project.program.blocks, packs.typesOf(context.blockPacks), noopBlockTypes);
+  // Readiness holds here (checked above), so the board and its capabilities are known: the same compile as Run's.
+  const capabilities = context.readiness.ok ? context.readiness.capabilities : undefined;
+  const compiled = compileYbcProgram(project.program.blocks, packs.typesOf(context.blockPacks), noopBlockTypes, capabilities);
   if (!compiled.ok) {
     return blocked('L-3', compiled.diagnostics);
   }

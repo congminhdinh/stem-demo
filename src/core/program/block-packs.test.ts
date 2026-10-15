@@ -17,10 +17,13 @@ const registry = createDeviceRegistry(localDeviceDefinitions);
 const packs = createBlockPackCatalog(registry);
 
 describe('block packs', () => {
-  it('know the generic pack, the YBC structure pack and the YB-2a language packs', () => {
+  it('know the generic pack, the YBC structure pack, the YB-3 hardware packs and the YB-2a language packs', () => {
     expect(packs.list().map((pack) => pack.id)).toEqual([
       genericPackId,
       ybcStructurePackId,
+      'ybc.display',
+      'ybc.input',
+      'ybc.sound',
       'lang.logic',
       'lang.loops',
       'lang.math',
@@ -57,7 +60,24 @@ describe('block packs', () => {
   it('register the blocks of every pack once, the shared hats included only once', () => {
     const types = packs.definitions().map((definition) => definition.type);
     expect(new Set(types).size).toBe(types.length);
-    expect(types).toEqual([...buildBlockDefinitions(genericBoardPins(registry)).map((definition) => definition.type), 'ybc_while', 'ybc_count_up', 'ybc_wait_ms', 'ybc_arith', 'ybc_int_divide']);
+    expect(types).toEqual([
+      ...buildBlockDefinitions(genericBoardPins(registry)).map((definition) => definition.type),
+      // YB-3: the hardware packs come before the language ones, in the order of the profiles.
+      'ybc_display_show_image',
+      'ybc_display_scroll_text',
+      'ybc_display_scroll_number',
+      'ybc_display_clear',
+      'ybc_button_pressed',
+      'ybc_button_presses',
+      'ybc_light_level',
+      'ybc_sound_note',
+      'ybc_sound_rest',
+      'ybc_while',
+      'ybc_count_up',
+      'ybc_wait_ms',
+      'ybc_arith',
+      'ybc_int_divide',
+    ]);
   });
 
   it('tell the types of a pack set, and refuse an unknown pack', () => {

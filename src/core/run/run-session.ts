@@ -366,7 +366,7 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
     if (outOfProfile.length > 0) {
       return fail('compile-error', outOfProfile.map(toRunDiagnostic));
     }
-    const compiled = compileFor(context, context.readiness.board.deviceType, project);
+    const compiled = compileFor(context, context.readiness.board.deviceType, context.readiness.capabilities, project);
     if (!compiled.ok) {
       return fail('compile-error', compiled.diagnostics);
     }
@@ -485,13 +485,14 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
   const compileFor = (
     context: BoardContext,
     boardType: string,
+    capabilities: readonly string[],
     project: ProjectDocument,
   ):
     | { ok: false; diagnostics: RunDiagnostic[] }
     | { ok: true; kind: 'ybc'; diagnostics: RunDiagnostic[]; ir: YbcProgramIR; console: RunConsole }
     | { ok: true; kind: 'generic'; diagnostics: RunDiagnostic[]; launch: (getRun: () => ActiveRun) => ProgramRun } => {
     if (context.family === 'ybc') {
-      const compiled = compileYbcProgram(project.program.blocks, packs.typesOf(context.blockPacks), options.noopBlockTypes);
+      const compiled = compileYbcProgram(project.program.blocks, packs.typesOf(context.blockPacks), options.noopBlockTypes, capabilities);
       if (!compiled.ok) {
         return compiled;
       }

@@ -1,5 +1,8 @@
+import { IMAGE_SIZE, isDisplayText } from '../../constructs/ybc.display';
+import { isButtonName } from '../../constructs/ybc.input';
+import { isNoteName, noteTicks } from '../../constructs/ybc.sound';
 import { MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_SAFE_INT, MAX_TEXT_CHARS, MAX_WAIT_MS } from '../../program/limits';
-import type { ArithOp, Expr, Type, YbcProgramIR, YbcStatement } from '../../program/ybc-ir';
+import type { ArithOp, CallStatement, Expr, ReadExpr, Type, YbcProgramIR, YbcStatement } from '../../program/ybc-ir';
 import { MAX_EXPRESSION_DEPTH, MAX_GENERATED_BYTES, MAX_STATEMENT_DEPTH } from './limits';
 import { assignNames } from './names';
 import { defaultTarget, type GenTarget } from './target';
@@ -11,9 +14,13 @@ import { defaultTarget, type GenTarget } from './target';
 // helpers. Anything it cannot say faithfully is a diagnostic, never a half
 // program (K4): the result has either source or diagnostics.
 
-/** The contract rows the generator can emit (YB-5A: the language layer). Hardware rows arrive with their phases. */
+/**
+ * The contract rows the generator can emit: the language layer (YB-5A) and the onboard hardware of YB-3 (display C-06…C-09,
+ * buttons C-12 and C-13, light C-15, sound C-50 and C-51). The other hardware rows arrive with their phases.
+ */
 export const generatedConstructs = [
-  'C-01', 'C-02', 'C-04', 'C-29', 'C-30', 'C-31', 'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-56',
+  'C-01', 'C-02', 'C-04', 'C-06', 'C-07', 'C-08', 'C-09', 'C-12', 'C-13', 'C-15', 'C-29', 'C-30', 'C-31', 'C-32', 'C-33', 'C-34', 'C-35', 'C-36',
+  'C-37', 'C-38', 'C-39', 'C-50', 'C-51', 'C-56',
 ] as const;
 
 export type GenDiagnosticCode =
@@ -84,6 +91,51 @@ export function pythonString(text: string): string | null {
 }
 
 type Rendered = { text: string; prec: number };
+
+// The modules of the hardware (contract §2.3). IM-2: `from yolobit import *` and exactly three lines of preamble,
+// right after `import time`. IM-3 / IM-4: `import music` and, because the generator fixes the tempo, `music.set_tempo(4, 120)`.
+// The order is fixed: time, yolobit with its preamble, music. They are written here, not read from the contract data, so
+// that the large contract stays out of the app bundle; generate.constructs.test.ts keeps them equal to the contract.
+const yolobitHeader = [
+  'from yolobit import *',
+  'button_a.on_pressed = None',
+  'button_b.on_pressed = None',
+  'button_a.on_pressed_ab = button_b.on_pressed_ab = -1',
+] as const;
+const musicHeader = ['import music', 'music.set_tempo(4, 120)'] as const;
+
+/** Which module each hardware operation needs. Typed by the ops, so an op without an entry does not compile. */
+const moduleOfOp: Readonly<Record<CallStatement['op'] | ReadExpr['op'], 'yolobit' | 'music'>> = {
+  'display.show': 'yolobit',
+  'display.scrollText': 'yolobit',
+  'display.scrollNumber': 'yolobit',
+  'display.clear': 'yolobit',
+  'button.isPressed': 'yolobit',
+  'button.getPresses': 'yolobit',
+  'light.level': 'yolobit',
+  'sound.playNote': 'music',
+  'sound.rest': 'music',
+};
+
+/**
+ * Which modules the program needs. An explicit stack, not recursion: the IR may be nested as deep as a hostile document
+ * asks, and the generator never throws (it reports the depth later, when it writes the nesting).
+ */
+function modulesUsed(ir: YbcProgramIR): { yolobit: boolean; music: boolean } {
+  const used = { yolobit: false, music: false };
+  const pending: unknown[] = [ir.onStart, ir.forever];
+  for (let node = pending.pop(); node !== undefined; node = pending.pop()) {
+    if (typeof node !== 'object' || node === null) {
+      continue;
+    }
+    const { kind, op } = node as { kind?: unknown; op?: unknown };
+    if ((kind === 'call' || kind === 'read') && typeof op === 'string' && Object.hasOwn(moduleOfOp, op)) {
+      used[moduleOfOp[op as keyof typeof moduleOfOp]] = true;
+    }
+    pending.push(...Object.values(node));
+  }
+  return used;
+}
 
 /** A literal int is a whole number inside the safe range (plan §6.4); NaN, Infinity and 1.5 are not. */
 const isValidIntLiteral = (value: number) => Number.isSafeInteger(value) && Math.abs(value) <= MAX_SAFE_INT;
@@ -227,9 +279,33 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
         // Evaluated left to right, each part once; `+` is left-associative, so a nested join on the right keeps its parentheses.
         return { text: [wrap(first, precAdd), ...rest.map((part) => wrap(part, precAdd + 1))].join(' + '), prec: precAdd };
       }
+      case 'read':
+        return { text: renderRead(expr), prec: precAtom };
       default:
         report('unsupported-node', 'The generator does not know this kind of value.', (expr as { blockId?: string }).blockId);
         return { text: '', prec: precAtom };
+    }
+  };
+
+  /** C-12, C-13, C-15: the call the contract writes (`button_a.is_pressed()`, `button_b.get_presses()`, `light_level()`). */
+  const renderRead = (expr: Expr & ReadExpr): string => {
+    switch (expr.op) {
+      case 'button.isPressed':
+      case 'button.getPresses': {
+        expectType(expr, expr.op === 'button.isPressed' ? 'bool' : 'int', expr.op === 'button.isPressed' ? 'A button check' : 'A press count');
+        const button = (expr.operand as { button?: unknown }).button;
+        if (!isButtonName(button)) {
+          report('unsupported-node', 'A button is A or B.', expr.blockId);
+          return '';
+        }
+        return `button_${button === 'A' ? 'a' : 'b'}.${expr.op === 'button.isPressed' ? 'is_pressed' : 'get_presses'}()`;
+      }
+      case 'light.level':
+        expectType(expr, 'int', 'A light level');
+        return 'light_level()';
+      default:
+        report('unsupported-node', 'The generator does not know this kind of value.', (expr as { blockId?: string }).blockId);
+        return '';
     }
   };
 
@@ -313,6 +389,72 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
       case 'countUp':
         emitCountUp(statement, depth);
         return;
+      case 'call':
+        emitCall(statement, depth);
+        return;
+      default:
+        report('unsupported-node', 'The generator does not know this kind of block.', (statement as { blockId?: string }).blockId);
+    }
+  };
+
+  /** The statements of the onboard hardware, each in the exact form of its contract row (C-06…C-09, C-50, C-51). */
+  const emitCall = (statement: CallStatement, depth: number) => {
+    switch (statement.op) {
+      case 'display.show': {
+        // `Image("r0:r1:r2:r3:r4")`: rows from the top, digits from the left, 1 lit (red) and 0 off (contract C-06, EVD-05).
+        const { operand } = statement;
+        const pixels = operand.image.pixels;
+        const wellFormed =
+          operand.kind === 'image' &&
+          operand.image.source === 'custom' &&
+          pixels.length === IMAGE_SIZE * IMAGE_SIZE &&
+          pixels.every((lit) => typeof lit === 'boolean');
+        if (!wellFormed) {
+          report('unsupported-node', 'A picture is 5 rows of 5 squares, each lit or not.', statement.blockId);
+          return;
+        }
+        const rows = Array.from({ length: IMAGE_SIZE }, (_, row) =>
+          pixels.slice(row * IMAGE_SIZE, (row + 1) * IMAGE_SIZE).map((lit) => (lit ? '1' : '0')).join(''),
+        );
+        emit(depth, `display.show(Image("${rows.join(':')}"))`, statement.blockId);
+        return;
+      }
+      case 'display.scrollText': {
+        const [text] = statement.args;
+        expectType(text, 'str', 'The text to scroll');
+        if (text.kind === 'str' && !isDisplayText(text.value)) {
+          report('value-out-of-range', 'The display shows only the characters from space to ~ (ASCII).', text.blockId);
+        }
+        emit(depth, `display.scroll(${expression(text)})`, statement.blockId);
+        return;
+      }
+      case 'display.scrollNumber': {
+        const [value] = statement.args;
+        expectType(value, 'int', 'The number to scroll');
+        emit(depth, `display.scroll(${expression(value)})`, statement.blockId);
+        return;
+      }
+      case 'display.clear':
+        emit(depth, 'display.clear()', statement.blockId);
+        return;
+      case 'sound.playNote': {
+        const { note, ticks } = statement.operand;
+        if (!isNoteName(note) || !noteTicks.some((allowed) => allowed === ticks)) {
+          report('value-out-of-range', 'A note is one of the natural notes from C3 to C5, for 1, 2 or 4 ticks.', statement.blockId);
+          return;
+        }
+        emit(depth, `music.play(['${note}:${ticks}'], wait=True)`, statement.blockId);
+        return;
+      }
+      case 'sound.rest': {
+        const { ticks } = statement.operand;
+        if (!noteTicks.some((allowed) => allowed === ticks)) {
+          report('value-out-of-range', 'A rest is 1, 2 or 4 ticks.', statement.blockId);
+          return;
+        }
+        emit(depth, `music.play(['R:${ticks}'], wait=True)`, statement.blockId);
+        return;
+      }
       default:
         report('unsupported-node', 'The generator does not know this kind of block.', (statement as { blockId?: string }).blockId);
     }
@@ -362,6 +504,13 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
   // The file (plan §13.3, contract §2.3): comment, imports, variables, on-start, then the forever (or idle) loop.
   lines.push(`# Generated by STEM Studio for Yolo:Bit MicroPython (contract ${target.contract})`);
   lines.push('import time');
+  const modules = modulesUsed(ir);
+  if (modules.yolobit) {
+    lines.push(...yolobitHeader);
+  }
+  if (modules.music) {
+    lines.push(...musicHeader);
+  }
   if (ir.variables.length > 0) {
     lines.push('');
     for (const variable of ir.variables) {

@@ -1,23 +1,30 @@
 import { Group, Rect, Text } from 'react-konva';
 import type { OnboardPeripheral } from '../../core/devices/device-definition';
+import type { ComponentState } from '../../core/simulation/simulate-circuit';
+import { formatHz, toneHz } from '../audio/tone';
+import { renderedPixels } from '../runtime-controls/display-view';
 import type { DeviceRendererProps } from './renderers';
 
-// The body of a Yolo:Bit-compatible board (YB plan §8.4, S9): our own shell and
-// the places of the onboard parts, drawn from the definition's data. This is
-// structure only. The display shows its 5×5 grid dark and the other parts
-// are labelled footprints; what they do (lit pixels, pressed buttons, sound)
-// is drawn by the capability phases from the run snapshot.
+// The body of a Yolo:Bit-compatible board (YB plan §8.4, S9): our own shell and the places of the onboard
+// parts, drawn from the definition's data. What the parts show comes from the run snapshot only
+// (`partStates`): the display's cells take their colour from its frame, and the buzzer is marked, with
+// its frequency as text, while a note sounds. The buttons and the light sensor are labelled footprints:
+// their pressed state and slider belong to the controls under the canvas, and the snapshot does not echo them.
 
 const shellFill = '#1f4e5f';
 const shellStroke = '#143642';
 const partFill = '#2c7a8c';
 const labelFill = '#e6f4f7';
+const soundingStroke = '#f0b429';
 const cellOff = '#10292f';
 const cellGap = 3;
 
-export function YbcBoardRenderer({ definition }: DeviceRendererProps) {
+export function YbcBoardRenderer({ definition, partStates }: DeviceRendererProps) {
   const { width, height } = definition.body;
   const onboard = definition.board?.onboard ?? [];
+  // Part ids are data: "constructor" must not find a member of Object.prototype.
+  const stateOf = (partId: string): ComponentState | undefined =>
+    partStates && Object.hasOwn(partStates, partId) ? partStates[partId] : undefined;
   return (
     <>
       <Rect
@@ -41,19 +48,28 @@ export function YbcBoardRenderer({ definition }: DeviceRendererProps) {
         listening={false}
       />
       {onboard.map((part) =>
-        part.model === 'matrix-display' ? <DisplayGrid key={part.id} part={part} /> : <PartFootprint key={part.id} part={part} />,
+        part.model === 'matrix-display' ? (
+          <DisplayGrid key={part.id} part={part} state={stateOf(part.id)} />
+        ) : (
+          <PartFootprint key={part.id} part={part} hz={part.model === 'buzzer' ? toneHz(stateOf(part.id)) : undefined} />
+        ),
       )}
     </>
   );
 }
 
-/** The display's cell grid, from the definition's `config` (the contract's 5×5), all cells off. */
-function DisplayGrid({ part }: { part: OnboardPeripheral }) {
+/**
+ * The display's cell grid, from the definition's `config` (the contract's 5×5). The pixel at column x, row y
+ * is `frame.pixels[y * 5 + x]`, origin top left; a state without a well-formed frame draws every cell off.
+ * `frame` is set on the group, like `closed` on a push button, so tests read what was rendered (plan §11.4).
+ */
+function DisplayGrid({ part, state }: { part: OnboardPeripheral; state: ComponentState | undefined }) {
   const columns = numberConfig(part, 'width');
   const rows = numberConfig(part, 'height');
   const cell = Math.min(part.at.width / columns, part.at.height / rows);
+  const pixels = renderedPixels(state);
   return (
-    <Group name="ybc-display" x={part.at.x} y={part.at.y} columns={columns} rows={rows} listening={false}>
+    <Group name="ybc-display" x={part.at.x} y={part.at.y} columns={columns} rows={rows} frame={pixels} listening={false}>
       {Array.from({ length: columns * rows }, (_, index) => (
         <Rect
           key={index}
@@ -62,19 +78,34 @@ function DisplayGrid({ part }: { part: OnboardPeripheral }) {
           width={cell - cellGap}
           height={cell - cellGap}
           cornerRadius={3}
-          fill={cellOff}
+          fill={pixels[index] ?? cellOff}
         />
       ))}
     </Group>
   );
 }
 
-function PartFootprint({ part }: { part: OnboardPeripheral }) {
+/**
+ * A labelled place of a part. `hz` is only given for the buzzer, and while it sounds the footprint gets a ring
+ * and the frequency as text (a colour is never the only sign); it is also set on the group for tests.
+ */
+function PartFootprint({ part, hz }: { part: OnboardPeripheral; hz?: number }) {
   const { x, y, width, height } = part.at;
+  const sounding = hz !== undefined;
   return (
-    <Group name={`ybc-part-${part.id}`} listening={false}>
-      <Rect x={x} y={y} width={width} height={height} cornerRadius={6} fill={partFill} />
+    <Group name={`ybc-part-${part.id}`} hz={hz} listening={false}>
+      <Rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        cornerRadius={6}
+        fill={partFill}
+        stroke={sounding ? soundingStroke : undefined}
+        strokeWidth={sounding ? 3 : 0}
+      />
       <Text text={part.label} x={x} y={y + height / 2 - 5} width={width} align="center" fontSize={10} fill={labelFill} />
+      {sounding && <Text text={formatHz(hz)} x={x + width + 6} y={y + height / 2 - 6} fontSize={12} fill={soundingStroke} />}
     </Group>
   );
 }

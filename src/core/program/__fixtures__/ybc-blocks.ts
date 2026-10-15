@@ -125,3 +125,35 @@ export const ifElif = (branches: [Json, Json[]][], otherwise?: Json[]): Json => 
     ...(otherwise && otherwise.length > 0 ? { ELSE: body(otherwise) } : {}),
   },
 });
+
+// --- YB-3: the onboard hardware (display, buttons, light, sound) -----------------------------------------
+
+/** A picture as five rows of five digits (1 lit, 0 off), top to bottom, as the contract writes `Image("…")`. */
+export type ImageRows = [string, string, string, string, string];
+
+/** "show image": all 25 squares are written, as Blockly saves a checkbox that is off too. */
+export const showImage = (rows: ImageRows): Json => ({
+  type: 'ybc_display_show_image',
+  id: id('show-image'),
+  fields: Object.fromEntries(rows.flatMap((digits, row) => [...digits].map((digit, column) => [`R${row}C${column}`, digit === '1']))),
+});
+
+export const scrollText = (value: Json): Json => ({ type: 'ybc_display_scroll_text', id: id('scroll-text'), inputs: { TEXT: { block: value } } });
+export const scrollNumber = (value: Json): Json => ({ type: 'ybc_display_scroll_number', id: id('scroll-number'), inputs: { NUM: { block: value } } });
+export const clearDisplay = (): Json => ({ type: 'ybc_display_clear', id: id('clear-display') });
+
+export const buttonPressed = (button: 'A' | 'B'): Json => ({ type: 'ybc_button_pressed', id: id('button-pressed'), fields: { BUTTON: button } });
+export const buttonPresses = (button: 'A' | 'B'): Json => ({ type: 'ybc_button_presses', id: id('button-presses'), fields: { BUTTON: button } });
+export const lightLevel = (): Json => ({ type: 'ybc_light_level', id: id('light-level') });
+
+/** Blockly saves a dropdown as the text of its option, so the length is '1', '2' or '4'. */
+export const playNote = (note: string, ticks: 1 | 2 | 4): Json => ({ type: 'ybc_sound_note', id: id('note'), fields: { NOTE: note, TICKS: String(ticks) } });
+export const rest = (ticks: 1 | 2 | 4): Json => ({ type: 'ybc_sound_rest', id: id('rest'), fields: { TICKS: String(ticks) } });
+
+/** The contract's own sample pictures (§18). */
+export const images = {
+  RING: ['11111', '10001', '10001', '10001', '11111'],
+  CROSS: ['10001', '01010', '00100', '01010', '10001'],
+  DOT: ['00000', '00000', '00100', '00000', '00000'],
+  FULL: ['11111', '11111', '11111', '11111', '11111'],
+} as const satisfies Record<string, ImageRows>;

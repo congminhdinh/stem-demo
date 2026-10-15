@@ -1,6 +1,7 @@
 import { createStore } from 'zustand/vanilla';
 import type { ProjectDocument } from '../../core/circuit/document';
 import type { RunSession, RunSnapshot, StartResult } from '../../core/run/run-session';
+import type { ComponentInput } from '../../core/simulation/simulate-circuit';
 
 // Thin UI wrapper around the core RunSession (plan POC-08). The session may
 // publish many snapshots per frame (a forever loop without wait); React only
@@ -22,8 +23,19 @@ export type RunState = {
   stop(): void;
   /** Holds a push button of the running circuit closed or lets it open (no-op while idle). */
   setContactInput(componentId: string, closed: boolean): void;
+  /**
+   * Gives a component of the running circuit, or an onboard part of its board (`<board>/<part>`), the runtime input
+   * its model takes: a button held, the light sensor's level. What it means is the session's (no-op while idle).
+   */
+  setComponentInput(componentId: string, input: ComponentInput): void;
   /** Forgets why the last Run did not start, e.g. when another project replaces the one that was run. */
   clearStartFailure(): void;
+  /**
+   * Every snapshot the session publishes, as it is published: not held back to one per frame like `snapshot`. For what
+   * must not miss a change that comes and goes inside a frame, and must not wait for a frame that a hidden tab never
+   * draws: the sound (a note that ends and the next one that starts in one task). Returns the way to stop listening.
+   */
+  onSnapshot(listener: (snapshot: RunSnapshot) => void): () => void;
 };
 
 export const selectIsRunning = (state: RunState) => state.running;
@@ -59,7 +71,9 @@ export function createRunStore(
       },
       stop: () => session.stop(),
       setContactInput: (componentId, closed) => session.setContactInput(componentId, closed),
+      setComponentInput: (componentId, input) => session.setComponentInput(componentId, input),
       clearStartFailure: () => set({ startFailure: null }),
+      onSnapshot: (listener) => session.subscribe(listener),
     };
   });
 }

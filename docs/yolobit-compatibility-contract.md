@@ -498,7 +498,7 @@ Provenance của mình (plan §6.8): hình, font, giai điệu mẫu trong templ
 | Asset của mình | Tác giả | License |
 |---|---|---|
 | Hình mẫu P1–P11 (`RING`, `CROSS`, `DOT`, `FULL`), giai điệu P5 | STEM Studio (YB-0) | Của dự án |
-| Font 5×5 (YB-3a) | sẽ tạo | Của dự án |
+| Font 5×5 của display, ASCII 0x20–0x7E, 95 glyph (YB-3a, `src/core/simulation/peripherals/font.ts`) | STEM Studio (YB-3) | Của dự án |
 
 ---
 

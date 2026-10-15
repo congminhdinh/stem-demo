@@ -6,6 +6,8 @@ import { localDeviceDefinitions } from '../src/core/devices/local-catalog';
 import { createDeviceRegistry } from '../src/core/devices/registry';
 import { productionProfiles } from '../src/core/profiles';
 import { buildToolbox, createBlockPackCatalog } from '../src/core/program/block-packs';
+import { noteNames, noteTicks } from '../src/core/constructs/ybc.sound';
+import { buttonNames } from '../src/core/constructs/ybc.input';
 import { compileYbcProgram } from '../src/core/program/compile-ybc-program';
 import { program, print, num, foreignArith } from '../src/core/program/__fixtures__/ybc-blocks';
 
@@ -25,6 +27,15 @@ const allowed: Record<string, Record<string, string[]>> = {
   logic_compare: { OP: ['EQ', 'NEQ', 'LT', 'LTE', 'GT', 'GTE'] },
   logic_operation: { OP: ['AND', 'OR'] },
   logic_boolean: { BOOL: ['TRUE', 'FALSE'] },
+  // YB-3, the onboard hardware: the buttons are A and B and nothing else (A+B is EXCLUDED, C-47), a note is one of the 15
+  // natural notes C3…C5 (C-50) and a length is 1, 2 or 4 ticks (C-50, C-51). Spelled out here, not read from the constants.
+  ybc_button_pressed: { BUTTON: ['A', 'B'] },
+  ybc_button_presses: { BUTTON: ['A', 'B'] },
+  ybc_sound_note: {
+    NOTE: ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'],
+    TICKS: ['1', '2', '4'],
+  },
+  ybc_sound_rest: { TICKS: ['1', '2', '4'] },
 };
 
 function blockTypesIn(value: unknown, found = new Set<string>()): Set<string> {
@@ -60,12 +71,32 @@ describe('dropdowns of the YBC toolbox', () => {
             }
           }
         }
-        expect(dropdowns).toBeGreaterThanOrEqual(4);
+        // The four of the language, and the five of the YB-3 hardware (two buttons, a note and its length, a rest's length).
+        expect(dropdowns).toBeGreaterThanOrEqual(9);
       } finally {
         workspace.dispose();
       }
     });
   }
+
+  it('gives the hardware dropdowns exactly the contract domains, read from real Blockly blocks', () => {
+    const workspace = new Blockly.Workspace();
+    try {
+      const options = (type: string, name: string) =>
+        (workspace.newBlock(type).getField(name) as Blockly.FieldDropdown).getOptions(false).map(([, value]) => value);
+      expect(options('ybc_button_pressed', 'BUTTON')).toEqual([...buttonNames]);
+      expect(options('ybc_button_presses', 'BUTTON')).toEqual([...buttonNames]);
+      expect(options('ybc_sound_note', 'NOTE')).toEqual([...noteNames]);
+      expect(options('ybc_sound_note', 'TICKS')).toEqual(noteTicks.map(String));
+      expect(options('ybc_sound_rest', 'TICKS')).toEqual(noteTicks.map(String));
+      // No A+B, no sharps or flats, no octave beyond C3…C5, no length of 8 ticks.
+      expect(options('ybc_button_pressed', 'BUTTON')).not.toContain('A+B');
+      expect(options('ybc_sound_note', 'NOTE')).toHaveLength(15);
+      expect(options('ybc_sound_note', 'TICKS')).not.toContain('8');
+    } finally {
+      workspace.dispose();
+    }
+  });
 
   it('gives ybc_arith exactly + − ×: no DIVIDE, no POWER', () => {
     const workspace = new Blockly.Workspace();

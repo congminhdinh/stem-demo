@@ -27,7 +27,8 @@ const ybcProject = (profile: string, components: unknown[] = [ybcBoard]) => ({
   program: { blocks: createDefaultProgram() },
 });
 
-const ybcCategories = ['Program', 'Logic', 'Loops', 'Time', 'Math', 'Text', 'Variables'];
+// YB-3 adds the onboard hardware categories (Display, Input, Sound) after the program structure.
+const ybcCategories = ['Program', 'Display', 'Input', 'Sound', 'Logic', 'Loops', 'Time', 'Math', 'Text', 'Variables'];
 const toolboxCategories = (page: Page) =>
   page.getByTestId('blockly-panel').locator('.blocklyToolboxCategory').allInnerTexts();
 const paletteButtons = (page: Page) => page.getByRole('toolbar', { name: 'Add a device' }).getByRole('button').allInnerTexts();

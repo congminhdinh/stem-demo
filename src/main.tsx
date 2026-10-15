@@ -5,6 +5,7 @@ import { createDeviceRegistry } from './core/devices/registry';
 import { productionProfiles } from './core/profiles';
 import { createBlockPackCatalog } from './core/program/block-packs';
 import { createRunSession } from './core/run/run-session';
+import { createOnboardCapabilities } from './core/simulation/peripherals/onboard-capabilities';
 import { createDexieProjectRepository } from './storage/dexie-project-repository';
 import { App } from './ui/app/App';
 import { LaunchError } from './ui/app/LaunchError';
@@ -53,7 +54,10 @@ if (started.kind === 'launch-error') {
   );
 } else {
   const projectStore = createProjectStore(started.document);
-  const runStore = createRunStore(createRunSession(registry, { profiles, packs }));
+  // The onboard parts of a Yolo:Bit-compatible board (display, buttons, light, buzzer) are the run's capabilities.
+  const runStore = createRunStore(
+    createRunSession(registry, { profiles, packs, capabilities: createOnboardCapabilities }),
+  );
   if (started.saveTo) {
     startAutosave(projectStore, started.saveTo, (error) => console.warn('The project could not be saved.', error));
   }
