@@ -369,3 +369,293 @@ describe('createAudioPlayer', () => {
     });
   });
 });
+
+// YB3-A1: what the player owns (oscillator, gain node, AudioContext) is released one resource at a time, whatever
+// happens to the others. The browser below writes every acquire and release to a log as `<context number>:<operation>`
+// BEFORE it may throw, so a step that was attempted is in the log whether it failed or not; the tests read that log
+// (cleanup accounting) and not only that nothing was thrown.
+
+type Op =
+  | 'createGain'
+  | 'gain.connect'
+  | 'gain.disconnect'
+  | 'oscillator.connect'
+  | 'oscillator.start'
+  | 'oscillator.stop'
+  | 'oscillator.disconnect'
+  | 'context.close';
+
+/**
+ * A browser that numbers its AudioContexts from 1, logs every operation, and throws from the operations listed in
+ * `failing`. The list is read when an operation is called, so a test can change it between two attempts.
+ */
+function createAccountingBrowser(failing: Op[] = []) {
+  const log: string[] = [];
+  const gains: { gain: { value: number } }[] = [];
+  let contexts = 0;
+  const createContext = (): AudioContextLike => {
+    contexts += 1;
+    const id = contexts;
+    const step = (op: Op) => {
+      log.push(`${id}:${op}`);
+      if (failing.includes(op)) {
+        throw new DOMException(`${op} failed`, 'InvalidStateError');
+      }
+    };
+    return {
+      destination: 'destination',
+      currentTime: NOW,
+      createGain() {
+        step('createGain');
+        const node = { gain: { value: Number.NaN }, connect: () => step('gain.connect'), disconnect: () => step('gain.disconnect') };
+        gains.push(node);
+        return node;
+      },
+      createOscillator: () => ({
+        type: 'sine',
+        frequency: { value: 0 },
+        connect: () => step('oscillator.connect'),
+        start: () => step('oscillator.start'),
+        stop: () => step('oscillator.stop'),
+        disconnect: () => step('oscillator.disconnect'),
+      }),
+      resume: () => Promise.resolve(),
+      close() {
+        step('context.close');
+        return Promise.resolve();
+      },
+    };
+  };
+  return { createContext, log, gains, contextCount: () => contexts };
+}
+
+/** The entries of the log about one operation, in order. */
+const entriesOf = (log: string[], op: Op) => log.filter((entry) => entry.endsWith(`:${op}`));
+
+/** A player with sound turned on and a note sounding (context 1), and a view of the log from that point on: the cleanup only. */
+function startPlaying(failing: Op[] = []) {
+  const browser = createAccountingBrowser(failing);
+  const player = createAudioPlayer(browser.createContext);
+  expect(player.setEnabled(true)).toBe(true);
+  player.setTone(262);
+  const mark = browser.log.length;
+  return { ...browser, player, failing, since: () => browser.log.slice(mark) };
+}
+
+/** Everything a sounding player owns, released in the order the player is meant to release it. */
+const RELEASE_ALL = ['1:oscillator.stop', '1:oscillator.disconnect', '1:gain.disconnect', '1:context.close'];
+
+describe('a start that fails half way releases what it got (YB3-A1, partial initialization)', () => {
+  it('createGain throws after the context was created: the context is closed, once, and sound stays off', () => {
+    const browser = createAccountingBrowser(['createGain']);
+    const player = createAudioPlayer(browser.createContext);
+
+    expect(player.setEnabled(true)).toBe(false);
+
+    expect(browser.log).toEqual(['1:createGain', '1:context.close']);
+    expect(() => player.setTone(262)).not.toThrow();
+    expect(browser.log).toEqual(['1:createGain', '1:context.close']);
+  });
+
+  it('gain.connect throws: the gain node that was created is disconnected, then the context is closed', () => {
+    const browser = createAccountingBrowser(['gain.connect']);
+    const player = createAudioPlayer(browser.createContext);
+
+    expect(player.setEnabled(true)).toBe(false);
+
+    expect(browser.log).toEqual(['1:createGain', '1:gain.connect', '1:gain.disconnect', '1:context.close']);
+  });
+
+  it('gain.connect throws and the gain node will not disconnect either: the context is still closed', () => {
+    const browser = createAccountingBrowser(['gain.connect', 'gain.disconnect']);
+    const player = createAudioPlayer(browser.createContext);
+
+    expect(() => player.setEnabled(true)).not.toThrow();
+
+    expect(browser.log).toEqual(['1:createGain', '1:gain.connect', '1:gain.disconnect', '1:context.close']);
+  });
+
+  it('createGain throws and the context will not close: setEnabled still answers false and throws nothing', () => {
+    const browser = createAccountingBrowser(['createGain', 'context.close']);
+    const player = createAudioPlayer(browser.createContext);
+
+    const answers: boolean[] = [];
+    expect(() => answers.push(player.setEnabled(true))).not.toThrow();
+
+    expect(answers).toEqual([false]);
+    expect(browser.log).toEqual(['1:createGain', '1:context.close']);
+  });
+
+  it('a context that closes by rejecting its promise is handled, with nothing left unhandled', async () => {
+    const browser = createAccountingBrowser(['createGain']);
+    const rejecting = (): AudioContextLike => ({ ...browser.createContext(), close: () => Promise.reject(new Error('already closed')) });
+    const player = createAudioPlayer(rejecting);
+
+    expect(player.setEnabled(true)).toBe(false);
+    // An unhandled rejection would be reported by the test runner as an error of this test.
+    await Promise.resolve();
+
+    expect(browser.log).toEqual(['1:createGain']);
+  });
+
+  it.each<Op>(['createGain', 'gain.connect'])('repeated failed attempts (%s throws) close every context they opened, once each', (op) => {
+    const browser = createAccountingBrowser([op]);
+    const player = createAudioPlayer(browser.createContext);
+    const attemptsOf = (id: number) =>
+      op === 'createGain' ? [`${id}:createGain`, `${id}:context.close`] : [`${id}:createGain`, `${id}:gain.connect`, `${id}:gain.disconnect`, `${id}:context.close`];
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      expect(player.setEnabled(true)).toBe(false);
+    }
+
+    expect(browser.contextCount()).toBe(5);
+    expect(entriesOf(browser.log, 'context.close')).toEqual([1, 2, 3, 4, 5].map((id) => `${id}:context.close`));
+    expect(browser.log).toEqual([1, 2, 3, 4, 5].flatMap(attemptsOf));
+  });
+
+  it('after failed attempts a working one keeps its context open, and dispose closes that one too, exactly once', () => {
+    const failing: Op[] = ['createGain'];
+    const browser = createAccountingBrowser(failing);
+    const player = createAudioPlayer(browser.createContext);
+    expect(player.setEnabled(true)).toBe(false);
+    expect(player.setEnabled(true)).toBe(false);
+
+    failing.length = 0;
+    expect(player.setEnabled(true)).toBe(true);
+
+    expect(browser.contextCount()).toBe(3);
+    expect(entriesOf(browser.log, 'context.close')).toEqual(['1:context.close', '2:context.close']);
+
+    player.dispose();
+    player.dispose();
+
+    expect(entriesOf(browser.log, 'context.close')).toEqual(['1:context.close', '2:context.close', '3:context.close']);
+    expect(entriesOf(browser.log, 'gain.disconnect')).toEqual(['3:gain.disconnect']);
+  });
+});
+
+describe('dispose releases every resource, each step on its own (YB3-A1, best-effort disposal)', () => {
+  it('releases in order: oscillator stop, oscillator disconnect, gain disconnect, context close, each once', () => {
+    const world = startPlaying();
+
+    world.player.dispose();
+
+    expect(world.since()).toEqual(RELEASE_ALL);
+    expect(world.gains.map((node) => node.gain.value)).toEqual([0]);
+  });
+
+  const single: { failing: Op[] }[] = [
+    { failing: ['oscillator.stop'] },
+    { failing: ['oscillator.disconnect'] },
+    { failing: ['gain.disconnect'] },
+    { failing: ['context.close'] },
+  ];
+  it.each(single)('when $failing throws, the steps after it are still attempted', ({ failing }) => {
+    const world = startPlaying(failing);
+
+    expect(() => world.player.dispose()).not.toThrow();
+
+    expect(world.since()).toEqual(RELEASE_ALL);
+  });
+
+  const several: { failing: Op[] }[] = [
+    { failing: ['oscillator.stop', 'gain.disconnect'] },
+    { failing: ['oscillator.disconnect', 'context.close'] },
+    { failing: ['oscillator.stop', 'oscillator.disconnect', 'context.close'] },
+    { failing: ['oscillator.stop', 'oscillator.disconnect', 'gain.disconnect', 'context.close'] },
+  ];
+  it.each(several)('when several steps throw independently ($failing), every one of the four is still attempted, once', ({ failing }) => {
+    const world = startPlaying(failing);
+
+    expect(() => world.player.dispose()).not.toThrow();
+
+    expect(world.since()).toEqual(RELEASE_ALL);
+  });
+
+  it('with no note sounding there is no oscillator to release, and a gain node that will not disconnect does not keep the context open', () => {
+    const browser = createAccountingBrowser(['gain.disconnect']);
+    const player = createAudioPlayer(browser.createContext);
+    player.setEnabled(true);
+    const mark = browser.log.length;
+
+    expect(() => player.dispose()).not.toThrow();
+
+    expect(browser.log.slice(mark)).toEqual(['1:gain.disconnect', '1:context.close']);
+  });
+
+  it('a player that never turned sound on has nothing to release: dispose touches no context', () => {
+    const browser = createAccountingBrowser();
+    const player = createAudioPlayer(browser.createContext);
+
+    player.dispose();
+
+    expect(browser.log).toEqual([]);
+    expect(browser.contextCount()).toBe(0);
+  });
+
+  it('disposing again, or using the player afterwards, attempts no cleanup a second time even when every step failed', () => {
+    const world = startPlaying(['oscillator.stop', 'oscillator.disconnect', 'gain.disconnect', 'context.close']);
+
+    expect(() => world.player.dispose()).not.toThrow();
+    const afterFirst = world.since();
+    expect(afterFirst).toEqual(RELEASE_ALL);
+
+    world.player.dispose();
+    world.player.dispose();
+    expect(world.player.setEnabled(true)).toBe(false);
+    world.player.setTone(440);
+    expect(world.player.setEnabled(false)).toBe(false);
+    world.player.setTone(undefined);
+
+    expect(world.since()).toEqual(afterFirst);
+    expect(world.contextCount()).toBe(1);
+    expect(world.gains.map((node) => node.gain.value)).toEqual([0]);
+  });
+
+  it('twice on a working player: one release of each resource, not two', () => {
+    const world = startPlaying();
+
+    world.player.dispose();
+    world.player.dispose();
+
+    expect(world.since()).toEqual(RELEASE_ALL);
+  });
+});
+
+describe('a node that will not stop or disconnect does not keep the rest from being released (YB3-A1)', () => {
+  it.each<Op>(['oscillator.stop', 'oscillator.disconnect'])('when the tone ends and %s throws, both steps are attempted, the gain is 0 and the next note has a fresh oscillator', (op) => {
+    const world = startPlaying([op]);
+
+    expect(() => world.player.setTone(undefined)).not.toThrow();
+
+    expect(world.since()).toEqual(['1:oscillator.stop', '1:oscillator.disconnect']);
+    expect(world.gains.map((node) => node.gain.value)).toEqual([0]);
+
+    world.failing.length = 0;
+    expect(() => world.player.setTone(330)).not.toThrow();
+    expect(entriesOf(world.log, 'oscillator.start')).toHaveLength(2);
+    expect(world.gains.map((node) => node.gain.value)).toEqual([GAIN_CEILING]);
+  });
+
+  it.each<Op>(['oscillator.connect', 'oscillator.start'])('an oscillator that was created but fails at %s is stopped and disconnected, and not kept', (op) => {
+    const failing: Op[] = [];
+    const browser = createAccountingBrowser(failing);
+    const player = createAudioPlayer(browser.createContext);
+    player.setEnabled(true);
+    // From here on the operation throws: the first note is the one that fails half way.
+    failing.push(op);
+    const mark = browser.log.length;
+
+    expect(() => player.setTone(262)).not.toThrow();
+
+    const reached = op === 'oscillator.connect' ? ['1:oscillator.connect'] : ['1:oscillator.connect', '1:oscillator.start'];
+    expect(browser.log.slice(mark)).toEqual([...reached, '1:oscillator.stop', '1:oscillator.disconnect']);
+    expect(browser.gains.map((node) => node.gain.value)).toEqual([0]);
+
+    // The broken node was let go: the next note is made on a new oscillator (a second connect), and it sounds.
+    failing.length = 0;
+    expect(() => player.setTone(294)).not.toThrow();
+    expect(entriesOf(browser.log, 'oscillator.connect')).toHaveLength(2);
+    expect(browser.gains.map((node) => node.gain.value)).toEqual([GAIN_CEILING]);
+  });
+});
