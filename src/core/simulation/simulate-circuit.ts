@@ -22,6 +22,13 @@ export type SimulationInputs = {
   pinOutputs: Readonly<Record<string, 0 | 1>>;
   /** Contacts held closed (a pressed push button), by component id. One left out is open. */
   contacts?: Readonly<Record<string, boolean>>;
+  /**
+   * The runtime input of every other component, by component id: the one `ComponentInput` every control uses
+   * (plan §11.3), not a field per kind of control. A model reads the input of its own component and an id that
+   * names no component is ignored. No model takes one at YB-CP (YB-4's potentiometer is the first), so this only
+   * carries them.
+   */
+  inputs?: Readonly<Record<string, ComponentInput>>;
 };
 
 export type NetLevel = 'floating' | 'high' | 'low' | 'conflict';
@@ -49,6 +56,36 @@ export type ComponentState = {
 
 /** The tone state of the buzzer: what `ComponentState.hz` says while a note plays. */
 export type ToneState = Required<Pick<ComponentState, 'hz'>>;
+
+/**
+ * Whether two states say the same thing, whatever order their properties were written in; a property that is
+ * `undefined` is a property that is absent. The frame is compared pixel by pixel. A property this does not know
+ * compares by identity, so a state is published once too often and never once too rarely.
+ */
+export function sameComponentState(a: ComponentState, b: ComponentState): boolean {
+  for (const key of new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof ComponentState>) {
+    if (key === 'frame' ? !sameFrame(a.frame, b.frame) : !Object.is(a[key], b[key])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function sameFrame(a: Frame | undefined, b: Frame | undefined): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  if (a.pixels.length !== b.pixels.length) {
+    return false;
+  }
+  // Every index is read: a sparse frame is not a short one.
+  for (let index = 0; index < a.pixels.length; index += 1) {
+    if (!Object.is(a.pixels[index], b.pixels[index])) {
+      return false;
+    }
+  }
+  return true;
+}
 
 /**
  * A runtime input of a component (plan §11.3, YB-CP deliverable 2). Inputs belong to the run, never to the
@@ -102,6 +139,24 @@ export function isComponentInput(value: unknown): value is ComponentInput {
       return true;
     default:
       return false;
+  }
+}
+
+/**
+ * A copy of a valid input that nothing else holds: what a run keeps (the caller may go on editing its own object),
+ * what it hands out and what it gives the simulation. It is written kind by kind, so a new kind of input cannot be
+ * forgotten here, and equal inputs get the same property order, so they also compare equal as text.
+ */
+export function copyComponentInput(input: ComponentInput): ComponentInput {
+  switch (input.kind) {
+    case 'hold':
+      return { kind: 'hold', closed: input.closed };
+    case 'slider':
+      return { kind: 'slider', value: input.value };
+    case 'tilt':
+      return { kind: 'tilt', x: input.x, y: input.y };
+    case 'gesture':
+      return { kind: 'gesture' };
   }
 }
 

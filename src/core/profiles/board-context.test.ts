@@ -9,6 +9,9 @@ import { createFixtureEnvironment, fixtureComponents, fixtureDocument, testDevic
 import { capabilitiesOf, resolveBoardContext } from './board-context';
 import { productionProfiles } from './index';
 
+/** The block packs of both production profiles: the structure, the YB-3 hardware and the YB-2 language. */
+const ybcPacks = ['ybc.structure', 'ybc.display', 'ybc.input', 'ybc.sound', 'lang.logic', 'lang.loops', 'lang.math', 'lang.text', 'lang.variables'];
+
 const registry = createDeviceRegistry(localDeviceDefinitions);
 const resolve = (document: Parameters<typeof resolveBoardContext>[0]) => resolveBoardContext(document, registry, productionProfiles);
 
@@ -26,7 +29,7 @@ describe('resolveBoardContext: the family comes from the document profile (R-F1)
     const context = resolve(withComponents(profile));
     expect(context.family).toBe('ybc');
     expect(context.profile?.id).toBe(profile);
-    expect(context.blockPacks).toEqual(['ybc.structure', 'lang.logic', 'lang.loops', 'lang.math', 'lang.text', 'lang.variables']);
+    expect(context.blockPacks).toEqual(ybcPacks);
   });
 
   it('does not depend on the boards present: a ybc project with only a generic board is still ybc', () => {
@@ -83,7 +86,7 @@ describe('the YBC editing states (R-F4, R-F5)', () => {
   it('has no board: valid to edit, the toolbox and the profile stay, Run says no-board', () => {
     const context = resolve(withComponents('ybc-basic'));
     expect(context.profile?.id).toBe('ybc-basic');
-    expect(context.blockPacks).toEqual(['ybc.structure', 'lang.logic', 'lang.loops', 'lang.math', 'lang.text', 'lang.variables']);
+    expect(context.blockPacks).toEqual(ybcPacks);
     expect(context.readiness).toEqual({ ok: false, reason: 'no-board', componentIds: [] });
   });
 
@@ -124,7 +127,7 @@ describe('board deletion and replacement (R-F7, R-F8)', () => {
   it('keeps the family, the profile and the toolbox when the board is deleted; readiness becomes no-board', () => {
     const circuit = deleteComponent(ready.circuit, 'ybc-board-1');
     const context = resolve({ ...ready, circuit });
-    expect(context).toMatchObject({ family: 'ybc', blockPacks: ['ybc.structure', 'lang.logic', 'lang.loops', 'lang.math', 'lang.text', 'lang.variables'] });
+    expect(context).toMatchObject({ family: 'ybc', blockPacks: ybcPacks });
     expect(context.profile?.id).toBe('ybc-advanced');
     expect(context.readiness).toEqual({ ok: false, reason: 'no-board', componentIds: [] });
   });

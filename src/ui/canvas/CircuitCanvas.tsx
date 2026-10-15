@@ -17,7 +17,8 @@ import { connectWire, deleteWire, nextWireId, type ConnectWireError } from '../.
 import type { DeviceDefinition, PortDefinition } from '../../core/devices/device-definition';
 import type { DeviceRegistry } from '../../core/devices/registry';
 import type { BoardContext } from '../../core/profiles/board-context';
-import { isContact, type SimulationResult } from '../../core/simulation/simulate-circuit';
+import { isContact, type ComponentState, type SimulationResult } from '../../core/simulation/simulate-circuit';
+import { partStateOf } from '../runtime-controls/display-view';
 import { Palette } from './Palette';
 import { paletteItems, placementPosition } from './palette-model';
 import { rendererFor, type DeviceRendererProps } from './renderers';
@@ -282,6 +283,7 @@ export function CircuitCanvas({
                     definition={registry.get(component.deviceType)}
                     incompatible={incompatibleIds.has(component.id)}
                     runtimeState={runtimeStateOf(simulation, component.id)}
+                    partStates={partStatesOf(simulation, component.id, registry.get(component.deviceType))}
                     selected={selected?.kind === 'component' && selected.id === component.id}
                     // Off while drawing a wire too, so a click there never starts a drag (R5).
                     draggable={!locked && !draft}
@@ -346,8 +348,32 @@ function runtimeStateOf(simulation: SimulationResult | null, componentId: string
     : undefined;
 }
 
+/**
+ * The states of a board's onboard parts, by part id, read from the snapshot as `<board>/<part>`; undefined
+ * while idle and for a component whose definition has no onboard parts. Only parts that have a state are in it.
+ */
+export function partStatesOf(
+  simulation: SimulationResult | null,
+  componentId: string,
+  definition: DeviceDefinition,
+): Record<string, ComponentState> | undefined {
+  const onboard = definition.board?.onboard;
+  if (!simulation || !onboard) {
+    return undefined;
+  }
+  // No prototype: a part id such as "__proto__" is a key here, not a way to replace the object's prototype.
+  const states: Record<string, ComponentState> = Object.create(null);
+  for (const part of onboard) {
+    const state = partStateOf(simulation, componentId, part.id);
+    if (state) {
+      states[part.id] = state;
+    }
+  }
+  return states;
+}
+
 type ComponentBodyProps = ComponentProps &
-  Pick<DeviceRendererProps, 'runtimeState'> & {
+  Pick<DeviceRendererProps, 'runtimeState' | 'partStates'> & {
     selected: boolean;
     /** The device does not belong to this kind of project (R-F4). */
     incompatible: boolean;
@@ -359,7 +385,15 @@ type ComponentBodyProps = ComponentProps &
 
 const selectionMargin = 6;
 
-function ComponentBody({ component, definition, runtimeState, selected, incompatible, ...interaction }: ComponentBodyProps) {
+function ComponentBody({
+  component,
+  definition,
+  runtimeState,
+  partStates,
+  selected,
+  incompatible,
+  ...interaction
+}: ComponentBodyProps) {
   const Renderer = rendererFor(definition);
   const { width, height } = definition.body;
   return (
@@ -371,7 +405,7 @@ function ComponentBody({ component, definition, runtimeState, selected, incompat
       y={component.position.y}
       {...interaction}
     >
-      <Renderer definition={definition} runtimeState={runtimeState} />
+      <Renderer definition={definition} runtimeState={runtimeState} partStates={partStates} />
       {incompatible && (
         <Rect
           name="incompatible"

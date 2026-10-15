@@ -1,10 +1,16 @@
-import type { Capabilities } from '../capabilities/io';
+import { blankFrame } from '../capabilities/frame';
+import type { ButtonId, Capabilities, CapabilityKey } from '../capabilities/io';
 import type { RuntimeServices } from '../capabilities/services';
+import { isDisplayText } from '../constructs/ybc.display';
+import { noteTicks } from '../constructs/ybc.sound';
+import { charactersOf, imageFrame, SCROLL_STEP_MS, scrollFrame, scrollSteps } from '../simulation/peripherals/display';
+import { LIGHT_LEVEL_MAX, LIGHT_LEVEL_MIN } from '../simulation/peripherals/light';
+import { NOTE_TICK_MS, noteHz } from '../simulation/peripherals/sound';
 import type { RunOutcome } from './interpreter';
 import { MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_TEXT_CHARS, MAX_WAIT_MS } from './limits';
 import * as values from './values';
 import { RuntimeFault, type Value } from './values';
-import type { Expr, YbcProgramIR, YbcStatement } from './ybc-ir';
+import type { ButtonOperand, CallStatement, Expr, ReadExpr, YbcProgramIR, YbcStatement } from './ybc-ir';
 
 // The YBC interpreter (YB plan §9.0, §9.3): runs a `YbcProgramIR`. It reaches
 // the world only through `services` and knows nothing about circuits or UI.
@@ -20,6 +26,11 @@ import type { Expr, YbcProgramIR, YbcStatement } from './ybc-ir';
 // it goes on. That yield is not program semantics; the
 // program's own pauses are `wait` and the 10 ms at the end of each `forever`
 // iteration, and those go through `services.sleep`, which Stop also interrupts.
+//
+// The onboard hardware (YB-3) is reached only through `capabilities`: the display, the buttons, the light
+// sensor and the sound. A scrolling text and a note take time, and that time is the statement's own
+// (contract C-07, C-50): the interpreter waits with `services.sleep`, one column or one note at a time, so
+// Stop interrupts it at the next step and no timer outlives the run.
 
 /** E3, as in the legacy interpreter: every forever iteration ends with at least this pause. */
 const foreverYieldMs = 10;
@@ -34,19 +45,62 @@ export type YbcProgramRun = { done: Promise<YbcRunOutcome> };
 
 /**
  * Runs a program with the capabilities of its board and the services of its run (plan §9.0, §10). Both come from
- * RunSession and are the run's own. YB-2's language needs no capability, so `capabilities` is not read yet: the
- * IR has no capability operation until YB-3 and YB-4. Like `runProgram`, `done` never rejects.
+ * RunSession and are the run's own. The language needs no capability; the hardware operations of the IR (YB-3) reach
+ * the board through them, and a capability the board has not got is an internal error, never a crash (the compiler
+ * has already refused such a program with `capability-unavailable`). Like `runProgram`, `done` never rejects.
  */
-export function runYbcProgram(ir: YbcProgramIR, _capabilities: Capabilities, services: RuntimeServices): YbcProgramRun {
-  return { done: Promise.resolve().then(() => execute(ir, services)) };
+export function runYbcProgram(ir: YbcProgramIR, capabilities: Capabilities, services: RuntimeServices): YbcProgramRun {
+  return { done: Promise.resolve().then(() => execute(ir, capabilities, services)) };
 }
 
-async function execute(ir: YbcProgramIR, services: RuntimeServices): Promise<YbcRunOutcome> {
+async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: RuntimeServices): Promise<YbcRunOutcome> {
   const { budget, signal } = services;
   // The slice of a run starts when the program does, not when its services were built.
   budget.startSlice();
   let blockId: string | undefined;
   const variables = new Map<string, Value>(ir.variables.map((variable) => [variable.id, values.int(0)]));
+
+  /** A part of the board the program reaches. Missing means the factory did not provide what the board promised. */
+  const part = <Key extends CapabilityKey>(key: Key): NonNullable<Capabilities[Key]> => {
+    const found = capabilities[key];
+    if (found === undefined) {
+      throw new RuntimeFault('internal-error', 'The board is missing a part this block needs.');
+    }
+    return found;
+  };
+
+  const buttonOf = (operand: ButtonOperand): ButtonId => {
+    if (operand.button !== 'A' && operand.button !== 'B') {
+      throw new RuntimeFault('internal-error', 'A button block names a button that does not exist.');
+    }
+    return operand.button === 'A' ? 'a' : 'b';
+  };
+
+  /** C-12, C-13, C-15: what the learner reads from an onboard part, at the moment of the call. */
+  const readPart = (expr: ReadExpr): Value => {
+    switch (expr.op) {
+      case 'button.isPressed':
+        return values.bool(part('buttons').isPressed(buttonOf(expr.operand)));
+      case 'button.getPresses': {
+        const buttons = part('buttons');
+        if (buttons.takePresses === undefined) {
+          throw new RuntimeFault('internal-error', 'The board cannot count presses.');
+        }
+        const presses = buttons.takePresses(buttonOf(expr.operand));
+        if (!Number.isSafeInteger(presses) || presses < 0) {
+          throw new RuntimeFault('internal-error', 'The press count is not a whole number.');
+        }
+        return values.int(presses);
+      }
+      case 'light.level': {
+        const level = part('light').lightLevel();
+        if (!Number.isInteger(level) || level < LIGHT_LEVEL_MIN || level > LIGHT_LEVEL_MAX) {
+          throw new RuntimeFault('internal-error', 'The light level is not a whole number from 0 to 100.');
+        }
+        return values.int(level);
+      }
+    }
+  };
 
   const evaluate = (expr: Expr): Value => {
     // An expression node is a step too (it only counts; the checkpoint is the next statement or iteration).
@@ -105,14 +159,16 @@ async function execute(ir: YbcProgramIR, services: RuntimeServices): Promise<Ybc
       }
       case 'join': {
         // Every part goes through str(), left to right. The length is known before any text is built.
-        const parts = expr.parts.map((part) => values.toText(evaluate(part)));
+        const parts = expr.parts.map((piece) => values.toText(evaluate(piece)));
         blockId = expr.blockId;
-        const length = parts.reduce((total, part) => total + part.length, 0);
+        const length = parts.reduce((total, piece) => total + piece.length, 0);
         if (length > MAX_TEXT_CHARS) {
           throw new RuntimeFault('limit-exceeded', `A text is limited to ${MAX_TEXT_CHARS} characters.`);
         }
         return values.str(parts.join(''));
       }
+      case 'read':
+        return readPart(expr);
     }
   };
 
@@ -124,6 +180,107 @@ async function execute(ir: YbcProgramIR, services: RuntimeServices): Promise<Ybc
       throw new RuntimeFault('out-of-domain', `${what} must be between ${low} and ${high}, not ${value}.`);
     }
     return value;
+  };
+
+  /**
+   * C-07 / C-08 (contract §4.2): nothing for an empty text; one character is shown and stays; two or more scroll, one
+   * column every SCROLL_STEP_MS, 6 columns per character, and end on an empty frame. Each column is a step of the
+   * budget and a wait that Stop interrupts, so the statement blocks for 1200 ms × n and no longer.
+   *
+   * The columns are due at fixed times counted from the first one, not one wait after the other: a timer is always a
+   * little late, and that lateness would otherwise add up along a long text (plan §19: ±20 ms per frame). A wake-up
+   * that is late makes the next wait shorter; one that is a whole column late (a hidden tab, a stalled machine) is not
+   * made up for with a burst of frames, the text goes on from there at its own pace.
+   */
+  const scroll = async (text: string): Promise<void> => {
+    const display = part('display');
+    // Domain guard: the display shows ASCII 0x20–0x7E. A typed-in text outside it was refused at compile time.
+    if (!isDisplayText(text)) {
+      throw new RuntimeFault('out-of-domain', 'The display shows only the characters from space to ~ (ASCII).');
+    }
+    const characters = charactersOf(text);
+    if (characters.length === 0) {
+      return;
+    }
+    if (characters.length === 1) {
+      display.setFrame(scrollFrame(characters, 0));
+      return;
+    }
+    const steps = scrollSteps(characters.length);
+    let due = services.clock.now();
+    for (let step = 0; step < steps; step++) {
+      await budget.step();
+      display.setFrame(scrollFrame(characters, step));
+      due += SCROLL_STEP_MS;
+      const now = services.clock.now();
+      if (now - due >= SCROLL_STEP_MS) {
+        due = now + SCROLL_STEP_MS;
+      }
+      await services.sleep(Math.max(0, due - now), signal);
+      budget.startSlice();
+    }
+    display.setFrame(blankFrame());
+  };
+
+  /** The length of a note or a rest in ticks, from a program that may not be the compiler's own. */
+  const waitTicks = (ticks: number): number => {
+    if (!noteTicks.some((allowed) => allowed === ticks)) {
+      throw new RuntimeFault('internal-error', 'A note or rest has a length that does not exist.');
+    }
+    return ticks * NOTE_TICK_MS;
+  };
+
+  const runCall = async (statement: CallStatement): Promise<void> => {
+    switch (statement.op) {
+      case 'display.show':
+        part('display').setFrame(imageFrame(statement.operand.image.pixels));
+        return;
+      case 'display.clear':
+        part('display').setFrame(blankFrame());
+        return;
+      case 'display.scrollText': {
+        const text = evaluate(statement.args[0]);
+        blockId = statement.blockId;
+        if (text.t !== 'str') {
+          throw new RuntimeFault('internal-error', 'A text block was given another type.');
+        }
+        await scroll(text.v);
+        return;
+      }
+      case 'display.scrollNumber': {
+        const number = evaluate(statement.args[0]);
+        blockId = statement.blockId;
+        if (number.t !== 'int') {
+          throw new RuntimeFault('internal-error', 'A number block was given another type.');
+        }
+        await scroll(values.toText(number));
+        return;
+      }
+      case 'sound.playNote': {
+        const sound = part('sound');
+        const { note, ticks } = statement.operand;
+        if (!Object.hasOwn(noteHz, note)) {
+          throw new RuntimeFault('internal-error', 'A note block names a note that does not exist.');
+        }
+        const ms = waitTicks(ticks);
+        try {
+          sound.startTone(noteHz[note]);
+          await services.sleep(ms, signal);
+        } finally {
+          // Also when Stop ends the wait, or the report of the tone failed after it was stored: the tone never outlives its note.
+          sound.stopTone();
+        }
+        budget.startSlice();
+        return;
+      }
+      case 'sound.rest':
+        await services.sleep(waitTicks(statement.operand.ticks), signal);
+        budget.startSlice();
+        return;
+      default:
+        // The compiler writes only the ops above; a program that is not its own must not be skipped without a word.
+        throw new RuntimeFault('internal-error', 'This block is not known to the board.');
+    }
   };
 
   const runStatements = async (statements: readonly YbcStatement[]): Promise<void> => {
@@ -201,6 +358,9 @@ async function execute(ir: YbcProgramIR, services: RuntimeServices): Promise<Ybc
           budget.startSlice();
           break;
         }
+        case 'call':
+          await runCall(statement);
+          break;
       }
     }
   };
