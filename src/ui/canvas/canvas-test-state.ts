@@ -17,6 +17,8 @@ export type CanvasTestState = {
     display?: (string | null)[];
     /** A Yolo:Bit-compatible board's buzzer: the frequency it is drawn sounding, in Hz; absent when silent. */
     tone?: number;
+    /** A potentiometer's knob position in percent, read from its knob node. */
+    value?: number;
     selected: boolean;
     /** Drawn with the mark for a device that does not belong to the project's family (R-F4). */
     incompatible: boolean;
@@ -45,6 +47,7 @@ export function readCanvasState(): CanvasTestState | null {
       closed: node.findOne('.button-cap')?.getAttr('closed'),
       display: node.findOne('.ybc-display')?.getAttr('frame'),
       tone: node.findOne('.ybc-part-buzzer')?.getAttr('hz'),
+      value: node.findOne('.knob')?.getAttr('value'),
       selected: node.findOne('.selection') !== undefined,
       incompatible: node.findOne('.incompatible') !== undefined,
     })),

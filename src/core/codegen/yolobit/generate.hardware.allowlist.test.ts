@@ -238,8 +238,12 @@ describe('the allowlist this phase may generate is part of the contract allowlis
       expect(contractList.forms, form).toContain(form);
     }
     expect(phaseList.forms.every((form) => contractList.forms.includes(form))).toBe(true);
-    // The rows of the later phases are in the contract’s list but not in what this phase generates.
-    for (const later of ["display.set_pixel(<x>, <y>, '<#rrggbb>')", 'int(pin<N>.read_analog())', 'int(temperature())', 'pin<N>.servo_write(<angle>)']) {
+    // The header pins of YB-4 (C-23…C-25) are generated too, in their contract forms.
+    for (const form of ['pin<N>.write_digital(<value>)', '(pin<N>.read_digital() == 1)', 'int(pin<N>.read_analog())']) {
+      expect(phaseList.forms, form).toContain(form);
+    }
+    // The rows of the later phases are in the contract’s list but not in what is generated.
+    for (const later of ["display.set_pixel(<x>, <y>, '<#rrggbb>')", 'int(temperature())', 'pin<N>.servo_write(<angle>)']) {
       expect(contractList.forms, later).toContain(later);
       expect(phaseList.forms, later).not.toContain(later);
     }
@@ -384,10 +388,14 @@ describe('the audit would notice what the hardware must not use (it is not vacuo
     expect(audit(around('display.set_pixel(0, 0, "#FF0000")'), contractList, learner).calls).toEqual(['display.set_pixel(0, 0, "#FF0000")']);
   });
 
-  it('knows set_pixel and a wrapped read_analog as rows of the contract, which this phase does not generate', () => {
-    for (const line of ["display.set_pixel(0, 0, '#FF0000')", 'x = int(pin0.read_analog())', 'pin1.write_digital(1)']) {
+  it('knows set_pixel as a row of the contract that is not generated yet, and the pins of YB-4 as generated', () => {
+    for (const line of ["display.set_pixel(0, 0, '#FF0000')"]) {
       expect(audit(around(line), contractList, learner), line).toEqual(clean);
       expect(audit(around(line), phaseList, learner), line).not.toEqual(clean);
+    }
+    for (const line of ['x = int(pin0.read_analog())', 'pin1.write_digital(1)']) {
+      expect(audit(around(line), contractList, learner), line).toEqual(clean);
+      expect(audit(around(line), phaseList, learner), line).toEqual(clean);
     }
   });
 

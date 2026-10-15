@@ -36,6 +36,10 @@ const allowed: Record<string, Record<string, string[]>> = {
     TICKS: ['1', '2', '4'],
   },
   ybc_sound_rest: { TICKS: ['1', '2', '4'] },
+  // YB-4, contract C-23…C-25: the three pins the contract opens, and ON (1) / OFF (0). Never P3…P20, never PWM.
+  ybc_pin_write: { PIN: ['P0', 'P1', 'P2'], LEVEL: ['1', '0'] },
+  ybc_pin_read: { PIN: ['P0', 'P1', 'P2'] },
+  ybc_pin_analog: { PIN: ['P0', 'P1', 'P2'] },
 };
 
 function blockTypesIn(value: unknown, found = new Set<string>()): Set<string> {

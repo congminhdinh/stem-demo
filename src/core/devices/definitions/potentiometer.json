@@ -1,0 +1,13 @@
+{
+  "id": "potentiometer",
+  "name": "Potentiometer",
+  "family": "ybc",
+  "body": { "width": 60, "height": 80 },
+  "ports": [
+    { "id": "vcc", "label": "VCC", "x": -20, "y": 40, "kind": "passive" },
+    { "id": "out", "label": "OUT", "x": 0, "y": 40, "kind": "passive" },
+    { "id": "gnd", "label": "GND", "x": 20, "y": 40, "kind": "passive" }
+  ],
+  "renderer": "potentiometer",
+  "simulation": { "model": "analog-source" }
+}

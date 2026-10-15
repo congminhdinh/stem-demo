@@ -1,9 +1,11 @@
 import { IMAGE_SIZE, isDisplayText } from '../../constructs/ybc.display';
 import { isButtonName } from '../../constructs/ybc.input';
+import { PIN_LEVELS, PIN_NUMBERS } from '../../constructs/ybc.pins';
 import { isNoteName, noteTicks } from '../../constructs/ybc.sound';
 import { MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_SAFE_INT, MAX_TEXT_CHARS, MAX_WAIT_MS } from '../../program/limits';
 import type { ArithOp, CallStatement, Expr, ReadExpr, Type, YbcProgramIR, YbcStatement } from '../../program/ybc-ir';
 import { MAX_EXPRESSION_DEPTH, MAX_GENERATED_BYTES, MAX_STATEMENT_DEPTH } from './limits';
+import { moduleOfOp, yolobitModuleLines } from './modules';
 import { assignNames } from './names';
 import { defaultTarget, type GenTarget } from './target';
 
@@ -15,12 +17,13 @@ import { defaultTarget, type GenTarget } from './target';
 // program (K4): the result has either source or diagnostics.
 
 /**
- * The contract rows the generator can emit: the language layer (YB-5A) and the onboard hardware of YB-3 (display C-06…C-09,
- * buttons C-12 and C-13, light C-15, sound C-50 and C-51). The other hardware rows arrive with their phases.
+ * The contract rows the generator can emit: the language layer (YB-5A), the onboard hardware of YB-3 (display C-06…C-09,
+ * buttons C-12 and C-13, light C-15, sound C-50 and C-51) and the header pins of YB-4 (C-23, C-24, C-25). The other
+ * hardware rows arrive with their phases.
  */
 export const generatedConstructs = [
-  'C-01', 'C-02', 'C-04', 'C-06', 'C-07', 'C-08', 'C-09', 'C-12', 'C-13', 'C-15', 'C-29', 'C-30', 'C-31', 'C-32', 'C-33', 'C-34', 'C-35', 'C-36',
-  'C-37', 'C-38', 'C-39', 'C-50', 'C-51', 'C-56',
+  'C-01', 'C-02', 'C-04', 'C-06', 'C-07', 'C-08', 'C-09', 'C-12', 'C-13', 'C-15', 'C-23', 'C-24', 'C-25', 'C-29', 'C-30',
+  'C-31', 'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-50', 'C-51', 'C-56',
 ] as const;
 
 export type GenDiagnosticCode =
@@ -93,29 +96,11 @@ export function pythonString(text: string): string | null {
 type Rendered = { text: string; prec: number };
 
 // The modules of the hardware (contract §2.3). IM-2: `from yolobit import *` and exactly three lines of preamble,
-// right after `import time`. IM-3 / IM-4: `import music` and, because the generator fixes the tempo, `music.set_tempo(4, 120)`.
-// The order is fixed: time, yolobit with its preamble, music. They are written here, not read from the contract data, so
-// that the large contract stays out of the app bundle; generate.constructs.test.ts keeps them equal to the contract.
-const yolobitHeader = [
-  'from yolobit import *',
-  'button_a.on_pressed = None',
-  'button_b.on_pressed = None',
-  'button_a.on_pressed_ab = button_b.on_pressed_ab = -1',
-] as const;
+// right after `import time` (`yolobitModuleLines`). IM-3 / IM-4: `import music` and, because the generator fixes the
+// tempo, `music.set_tempo(4, 120)`. The order is fixed: time, yolobit with its preamble, music. They are written here
+// and in modules.ts, not read from the contract data, so that the large contract stays out of the app bundle;
+// generate.constructs.test.ts keeps them equal to the contract.
 const musicHeader = ['import music', 'music.set_tempo(4, 120)'] as const;
-
-/** Which module each hardware operation needs. Typed by the ops, so an op without an entry does not compile. */
-const moduleOfOp: Readonly<Record<CallStatement['op'] | ReadExpr['op'], 'yolobit' | 'music'>> = {
-  'display.show': 'yolobit',
-  'display.scrollText': 'yolobit',
-  'display.scrollNumber': 'yolobit',
-  'display.clear': 'yolobit',
-  'button.isPressed': 'yolobit',
-  'button.getPresses': 'yolobit',
-  'light.level': 'yolobit',
-  'sound.playNote': 'music',
-  'sound.rest': 'music',
-};
 
 /**
  * Which modules the program needs. An explicit stack, not recursion: the IR may be nested as deep as a hostile document
@@ -170,6 +155,23 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
   let countUpCount = 0;
 
   const isLiteralInt = (expr: Expr): expr is Expr & { kind: 'int' } => expr.kind === 'int';
+
+  /**
+   * The pin of a pin operation (contract C-23…C-25). The Python name is `pinN`, so the pin has to be a number
+   * known now, inside the pins the contract opens; anything else cannot be said faithfully (K4).
+   */
+  const pinOf = (args: readonly Expr[], expectedArgs: number, blockId: string): number | null => {
+    const pin = args[0];
+    if (args.length !== expectedArgs || pin === undefined || !isLiteralInt(pin)) {
+      report('unsupported-node', 'A pin operation needs the pin as a number known before the program runs.', blockId);
+      return null;
+    }
+    if (!PIN_NUMBERS.includes(pin.value)) {
+      report('value-out-of-range', 'Only the pins P0, P1 and P2 can be used.', blockId);
+      return null;
+    }
+    return pin.value;
+  };
 
   const wrap = (rendered: Rendered, minimum: number) => (rendered.prec < minimum ? `(${rendered.text})` : rendered.text);
 
@@ -262,6 +264,24 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
         const inner = value.prec < precAtom && value.prec !== precNot ? `(${value.text})` : value.text;
         return { text: `not ${inner}`, prec: precNot };
       }
+      case 'read': {
+        if (expr.op === 'digital.read' || expr.op === 'analogIn.read') {
+          // A header pin (YB-4, C-24, C-25): the pin is a literal of the block.
+          const pin = pinOf(expr.args, 1, expr.blockId);
+          if (pin === null) {
+            return { text: '', prec: precAtom };
+          }
+          if (expr.op === 'digital.read') {
+            expectType(expr, 'bool', 'A digital read');
+            // The comparison is the generator's: the value is a bool whether the API returns an int or a bool (C-24).
+            // The text carries its own parentheses, so it is an atom wherever it stands.
+            return { text: `(pin${pin}.read_digital() == 1)`, prec: precAtom };
+          }
+          expectType(expr, 'int', 'An analog read');
+          return { text: `int(pin${pin}.read_analog())`, prec: precAtom };
+        }
+        return { text: renderRead(expr), prec: precAtom };
+      }
       case 'join': {
         expectType(expr, 'str', 'A join');
         const parts = expr.parts.map((part): Rendered => {
@@ -279,8 +299,6 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
         // Evaluated left to right, each part once; `+` is left-associative, so a nested join on the right keeps its parentheses.
         return { text: [wrap(first, precAdd), ...rest.map((part) => wrap(part, precAdd + 1))].join(' + '), prec: precAdd };
       }
-      case 'read':
-        return { text: renderRead(expr), prec: precAtom };
       default:
         report('unsupported-node', 'The generator does not know this kind of value.', (expr as { blockId?: string }).blockId);
         return { text: '', prec: precAtom };
@@ -389,9 +407,28 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
       case 'countUp':
         emitCountUp(statement, depth);
         return;
-      case 'call':
+      case 'call': {
+        if (statement.op === 'digital.write') {
+          // A header pin (YB-4, C-23): the pin and the level are literals of the block.
+          const pin = pinOf(statement.args, 2, statement.blockId);
+          const level = statement.args[1];
+          if (pin === null) {
+            return;
+          }
+          if (level === undefined || !isLiteralInt(level)) {
+            report('unsupported-node', 'A pin is set ON or OFF by a value known before the program runs.', statement.blockId);
+            return;
+          }
+          if (!PIN_LEVELS.includes(level.value)) {
+            report('value-out-of-range', 'A pin is set to 0 (off) or 1 (on).', statement.blockId);
+            return;
+          }
+          emit(depth, `pin${pin}.write_digital(${level.value})`, statement.blockId);
+          return;
+        }
         emitCall(statement, depth);
         return;
+      }
       default:
         report('unsupported-node', 'The generator does not know this kind of block.', (statement as { blockId?: string }).blockId);
     }
@@ -506,7 +543,7 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
   lines.push('import time');
   const modules = modulesUsed(ir);
   if (modules.yolobit) {
-    lines.push(...yolobitHeader);
+    lines.push(...yolobitModuleLines);
   }
   if (modules.music) {
     lines.push(...musicHeader);

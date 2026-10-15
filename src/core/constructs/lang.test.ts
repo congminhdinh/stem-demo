@@ -8,23 +8,25 @@ import { productionProfiles } from '../profiles';
 import { buildToolbox, createBlockPackCatalog } from '../program/block-packs';
 import { langConstructs, langContractIds, langPackIds } from './lang';
 import { hardwareConstructs, hardwareContractIds } from './ybc';
+import { pinConstructs, pinContractIds } from './ybc.pins';
 
-// The YB-2a language constructs against the frozen machine-readable contract: every
-// block a profile shows is a construct, every construct a contract row that passes
-// the exposure gate, and nothing excluded, deferred or later-phase is shown.
+// The YB-2a language constructs (and, since YB-4, the three header-pin rows) against the frozen
+// machine-readable contract: every block a profile shows is a construct, every construct a contract
+// row that passes the exposure gate, and nothing excluded, deferred or later-phase is shown.
 
 const contract = yolobitContract;
 const packs = createBlockPackCatalog(createDeviceRegistry(localDeviceDefinitions));
 const profiles = ['ybc-basic', 'ybc-advanced'].map((id) => productionProfiles.get(id));
 
 /**
- * Rows that must stay out of every profile at YB-3: random, elapsed time, events, PWM, the header pins (YB-4), the
- * Advanced display, temperature and servo (YB-7), text variables and functions. The onboard hardware of YB-3 itself
- * (display C-06…C-09, buttons C-12 and C-13, light C-15, sound C-50 and C-51) is shown and is tested in ybc.test.ts.
+ * Rows that must stay out of every profile until their own phase: random, elapsed time, events, PWM, the Advanced
+ * display, temperature and servo (YB-7), text variables and functions. The onboard hardware of YB-3 (display C-06…C-09,
+ * buttons C-12 and C-13, light C-15, sound C-50 and C-51) is shown and is tested in ybc.test.ts; C-23, C-24 and C-25 are
+ * the header pins of YB-4.
  */
 const notYet = [
   'C-40', 'C-19', 'C-14', 'C-26',
-  'C-10', 'C-16', 'C-23', 'C-24', 'C-25', 'C-27', 'C-42', 'C-43',
+  'C-10', 'C-16', 'C-27', 'C-42', 'C-43',
   'C-57', 'C-58', 'C-59',
 ];
 
@@ -52,9 +54,9 @@ describe('YB-2a language constructs', () => {
     expect(construct.blockTypes.length).toBeGreaterThan(0);
   });
 
-  it('is, with the YB-3 hardware, exactly what both profiles list next to the structure (C-01, C-02), and passes the gate for each profile', () => {
+  it('is, with the YB-3 hardware and the header pins, exactly what both profiles list next to the structure (C-01, C-02), and passes the gate for each profile', () => {
     for (const profile of profiles) {
-      expect([...(profile?.constructs ?? [])].sort()).toEqual(['C-01', 'C-02', ...langContractIds, ...hardwareContractIds].sort());
+      expect([...(profile?.constructs ?? [])].sort()).toEqual(['C-01', 'C-02', ...langContractIds, ...hardwareContractIds, ...pinContractIds].sort());
       expect(profileConstructViolations(profile?.id ?? '', profile?.constructs ?? [], contract)).toEqual([]);
     }
   });
@@ -91,6 +93,7 @@ describe('YB-2a language constructs', () => {
       'stem_forever',
       ...langConstructs.flatMap((construct) => construct.blockTypes),
       ...hardwareConstructs.flatMap((construct) => construct.blockTypes),
+      ...pinConstructs.flatMap((construct) => construct.blockTypes),
     ]);
     for (const profile of profiles) {
       const shown = blockTypesIn(buildToolbox(profile?.blockPacks ?? [], packs));

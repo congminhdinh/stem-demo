@@ -25,7 +25,8 @@ export type RunState = {
   setContactInput(componentId: string, closed: boolean): void;
   /**
    * Gives a component of the running circuit, or an onboard part of its board (`<board>/<part>`), the runtime input
-   * its model takes: a button held, the light sensor's level. What it means is the session's (no-op while idle).
+   * its model takes: a button held, the light sensor's level (YB-3), a potentiometer's `slider` (YB-4). What it means
+   * is the session's (no-op while idle, and for what cannot take it).
    */
   setComponentInput(componentId: string, input: ComponentInput): void;
   /** Forgets why the last Run did not start, e.g. when another project replaces the one that was run. */

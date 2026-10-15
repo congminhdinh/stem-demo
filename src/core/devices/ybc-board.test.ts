@@ -76,10 +76,12 @@ describe('ybc-board', () => {
     expect(board.name).not.toBe(registry.get('board').name);
   });
 
-  it('is not simulated yet: no pin reads and no component state', () => {
+  it('has live header pins (YB-4) and no simulated onboard part yet: no component state', () => {
     const circuit = { components: [{ id: 'y', deviceType: 'ybc-board', position: { x: 0, y: 0 } }], wires: [] };
     const result = simulateCircuit(circuit, registry, { powered: true, pinOutputs: {}, contacts: {} });
-    expect(result.pinReads).toEqual({});
+    // Nothing is wired and nothing is written: every pin reads low, as an undriven pin does.
+    expect(result.pinReads).toEqual({ P0: 0, P1: 0, P2: 0 });
+    // The display, buttons, light sensor and buzzer arrive with YB-3: no snapshot state for them.
     expect(result.components).toEqual({});
   });
 });

@@ -2,6 +2,7 @@ import { blankFrame } from '../capabilities/frame';
 import type { ButtonId, Capabilities, CapabilityKey } from '../capabilities/io';
 import type { RuntimeServices } from '../capabilities/services';
 import { isDisplayText } from '../constructs/ybc.display';
+import { runPinCall, runPinRead } from '../constructs/ybc.pins';
 import { noteTicks } from '../constructs/ybc.sound';
 import { charactersOf, imageFrame, SCROLL_STEP_MS, scrollFrame, scrollSteps } from '../simulation/peripherals/display';
 import { LIGHT_LEVEL_MAX, LIGHT_LEVEL_MIN } from '../simulation/peripherals/light';
@@ -45,9 +46,10 @@ export type YbcProgramRun = { done: Promise<YbcRunOutcome> };
 
 /**
  * Runs a program with the capabilities of its board and the services of its run (plan §9.0, §10). Both come from
- * RunSession and are the run's own. The language needs no capability; the hardware operations of the IR (YB-3) reach
- * the board through them, and a capability the board has not got is an internal error, never a crash (the compiler
- * has already refused such a program with `capability-unavailable`). Like `runProgram`, `done` never rejects.
+ * RunSession and are the run's own. The language needs no capability; the hardware operations of the IR (YB-3: the
+ * onboard parts; YB-4: the header pins) reach the board through them, and nowhere else. A capability the board has
+ * not got is an internal error, never a crash (the compiler has already refused such a program with
+ * `capability-unavailable`). Like `runProgram`, `done` never rejects.
  */
 export function runYbcProgram(ir: YbcProgramIR, capabilities: Capabilities, services: RuntimeServices): YbcProgramRun {
   return { done: Promise.resolve().then(() => execute(ir, capabilities, services)) };
@@ -167,8 +169,20 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
         }
         return values.str(parts.join(''));
       }
-      case 'read':
+      case 'read': {
+        if (expr.op === 'digital.read' || expr.op === 'analogIn.read') {
+          // A header pin (YB-4): the arguments first, left to right, each once; then the one call into the board.
+          // A fault names this block.
+          const args = expr.args.map((arg) => values.asInt(evaluate(arg)));
+          blockId = expr.blockId;
+          const value = runPinRead(expr.op, args, capabilities);
+          if (value.t !== expr.type) {
+            throw new RuntimeFault('internal-error', 'A read gave another type than its block says.');
+          }
+          return value;
+        }
         return readPart(expr);
+      }
     }
   };
 
@@ -358,9 +372,17 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
           budget.startSlice();
           break;
         }
-        case 'call':
+        case 'call': {
+          if (statement.op === 'digital.write') {
+            // A header pin (YB-4): the arguments first, left to right, each once; then the one call into the board.
+            const args = statement.args.map((arg) => values.asInt(evaluate(arg)));
+            blockId = statement.blockId;
+            runPinCall(statement.op, args, capabilities);
+            break;
+          }
           await runCall(statement);
           break;
+        }
       }
     }
   };

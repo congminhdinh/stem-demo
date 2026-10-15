@@ -1,4 +1,5 @@
 import type { ProjectDocument } from '../../circuit/document';
+import { boardTargetOf } from '../../devices/board-pins';
 import type { DeviceRegistry } from '../../devices/registry';
 import { resolveBoardContext } from '../../profiles/board-context';
 import type { ProfileCatalog } from '../../profiles/profile';
@@ -56,9 +57,10 @@ export function generateForDocument(
   if (outOfProfile.length > 0) {
     return blocked('L-2', outOfProfile);
   }
-  // Readiness holds here (checked above), so the board and its capabilities are known: the same compile as Run's.
-  const capabilities = context.readiness.ok ? context.readiness.capabilities : undefined;
-  const compiled = compileYbcProgram(project.program.blocks, packs.typesOf(context.blockPacks), noopBlockTypes, capabilities);
+  // Readiness holds here (checked above), so the board and its capabilities are known: the same board target Run
+  // compiles for, so a program that runs is a program that generates (and vice versa).
+  const target = context.readiness.ok ? boardTargetOf(registry.get(context.readiness.board.deviceType), context.readiness.capabilities) : undefined;
+  const compiled = compileYbcProgram(project.program.blocks, packs.typesOf(context.blockPacks), noopBlockTypes, target);
   if (!compiled.ok) {
     return blocked('L-3', compiled.diagnostics);
   }

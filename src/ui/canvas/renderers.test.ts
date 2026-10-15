@@ -3,6 +3,7 @@ import { localDeviceDefinitions } from '../../core/devices/local-catalog';
 import { createDeviceRegistry } from '../../core/devices/registry';
 import { GenericRenderer } from './GenericRenderer';
 import { LedRenderer } from './LedRenderer';
+import { PotentiometerRenderer } from './PotentiometerRenderer';
 import { PushButtonRenderer } from './PushButtonRenderer';
 import { YbcBoardRenderer } from './YbcBoardRenderer';
 import { rendererFor } from './renderers';
@@ -15,6 +16,7 @@ describe('rendererFor', () => {
     expect(rendererFor(withRenderer('led'))).toBe(LedRenderer);
     expect(rendererFor(withRenderer('push-button'))).toBe(PushButtonRenderer);
     expect(rendererFor(withRenderer('ybc-board'))).toBe(YbcBoardRenderer);
+    expect(rendererFor(withRenderer('potentiometer'))).toBe(PotentiometerRenderer);
   });
 
   it.each(['board', 'missing-renderer'])('falls back to the generic renderer for %s', (renderer) => {

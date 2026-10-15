@@ -10,10 +10,14 @@ import type { DeviceRegistry } from '../devices/registry';
 // Known limits (logic, not electrical):
 // - Resistance is ignored: a HIGH pin through a resistor to GND is reported
 //   as a conflict, although the real circuit is fine.
-// - No pull-up/pull-down: a floating pin reads 0 (an implicit pull-down).
+// - No pull-up/pull-down: a floating pin reads 0 (an implicit pull-down) on the
+//   generic board. A Yolo:Bit-compatible board does not guess: the reader of the
+//   pin sees `floating` (and the program stops, see run/ybc-pin-io.ts).
 // - Two LEDs in series stay off: the net between them is floating.
 // - No voltage, current, brightness, burn-out or transients; all rails share
 //   one reference.
+// - The one signal that is not a logic level is an analog source's output (YB-4, a potentiometer's wiper):
+//   a net it alone drives is `analog`, with the slider position as a percentage.
 
 export type SimulationInputs = {
   /** Run powers the board (plan §6.4 E1). Nothing drives a net while unpowered. */
@@ -25,13 +29,13 @@ export type SimulationInputs = {
   /**
    * The runtime input of every other component, by component id: the one `ComponentInput` every control uses
    * (plan §11.3), not a field per kind of control. A model reads the input of its own component and an id that
-   * names no component is ignored. No model takes one at YB-CP (YB-4's potentiometer is the first), so this only
-   * carries them.
+   * names no component is ignored. The potentiometer (`analog-source`, YB-4) is the first model to take one.
    */
   inputs?: Readonly<Record<string, ComponentInput>>;
 };
 
-export type NetLevel = 'floating' | 'high' | 'low' | 'conflict';
+/** `analog`: driven by exactly one analog source (a potentiometer wiper); the position is the net's `analogPercent`. */
+export type NetLevel = 'floating' | 'high' | 'low' | 'conflict' | 'analog';
 
 /**
  * A component's runtime state for its renderer (plan §11.4). The generic circuit uses `lit` (an LED) and
@@ -101,12 +105,14 @@ export type ComponentInput =
 
 export type ComponentInputKind = ComponentInput['kind'];
 
-/** The input a model of an onboard part (plan §11.2) takes; a part that takes none (display, buzzer) is not listed. */
+/** The input a model takes (plan §11.2); a model that takes none (display, buzzer) is not listed. */
 export const inputKindOfModel: Readonly<Record<string, ComponentInputKind>> = {
   button: 'hold',
   'light-sensor': 'slider',
   'temperature-sensor': 'slider',
   accelerometer: 'tilt',
+  // A device of the circuit, not an onboard part: its input is routed by id like a contact's (plan §6.5).
+  'analog-source': 'slider',
 };
 
 /**
@@ -162,7 +168,8 @@ export function copyComponentInput(input: ComponentInput): ComponentInput {
 
 /** Plain JSON, so it can travel in a run snapshot. */
 export type SimulationResult = {
-  nets: { ports: PortRef[]; level: NetLevel }[];
+  /** `analogPercent` (0..100) is present only on a net whose level is `analog`. */
+  nets: { ports: PortRef[]; level: NetLevel; analogPercent?: number }[];
   /** Runtime state for renderers, by component id. */
   components: Record<string, ComponentState>;
   /** What `digitalRead` returns, by board pin name: 1 only on a high net. */
@@ -170,6 +177,9 @@ export type SimulationResult = {
 };
 
 const contactModel = 'contact';
+const analogSourceModel = 'analog-source';
+/** The models of a board whose pins a program drives and reads: the generic board and the Yolo:Bit-compatible one. */
+const boardModels: ReadonlySet<string> = new Set(['board', 'ybc-board']);
 
 /**
  * A contact (the push button) conducts between its ports `a` and `b` while
@@ -177,6 +187,18 @@ const contactModel = 'contact';
  */
 export function isContact(definition: DeviceDefinition): boolean {
   return definition.simulation.model === contactModel;
+}
+
+/** The slider range, in percent: the analog source clamps at its ends. */
+export const SLIDER_MIN_PERCENT = 0;
+export const SLIDER_MAX_PERCENT = 100;
+
+/** A slider value as the analog source takes it: a whole number clamped to 0..100. Anything else is the resting position 0. */
+export function clampSliderPercent(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isInteger(value)) {
+    return SLIDER_MIN_PERCENT;
+  }
+  return Math.min(SLIDER_MAX_PERCENT, Math.max(SLIDER_MIN_PERCENT, value));
 }
 
 /**
@@ -194,12 +216,17 @@ export function simulateCircuit(
     definition: registry.get(component.deviceType),
   }));
   const withModel = (model: string) => devices.filter(({ definition }) => definition.simulation.model === model);
-  const boards = withModel('board');
+  const boards = devices.filter(({ definition }) => boardModels.has(definition.simulation.model));
   const contacts = withModel(contactModel).map(({ component }) => ({
     component,
     // Strictly true: an id such as "constructor" must not read an Object.prototype member as closed.
     closed: inputs.contacts?.[component.id] === true,
   }));
+  const analogSources = withModel(analogSourceModel).map(({ component }) => {
+    // Ids are data: only an own key is an input, so "constructor" rests at 0; and only a slider is a position.
+    const input = inputs.inputs && Object.hasOwn(inputs.inputs, component.id) ? inputs.inputs[component.id] : undefined;
+    return { component, percent: clampSliderPercent(input?.kind === 'slider' ? input.value : 0) };
+  });
 
   // A resistor always conducts between its two ports; a contact only while closed.
   const conducting = [...withModel('resistor'), ...contacts.filter(({ closed }) => closed)].map(
@@ -216,6 +243,17 @@ export function simulateCircuit(
     const driven = level === 1 ? 'high' : 'low';
     const current = netLevel(net);
     levels.set(net, current === 'floating' || current === driven ? driven : 'conflict');
+  };
+  // An analog source: alone on its net it gives `analog`; any other driver, or a second source, is a conflict.
+  const analogPercents = new Map<number, number>();
+  const driveAnalog = (ref: PortRef, percent: number) => {
+    const net = netlist.netOf(ref);
+    if (netLevel(net) === 'floating') {
+      levels.set(net, 'analog');
+      analogPercents.set(net, percent);
+    } else {
+      levels.set(net, 'conflict');
+    }
   };
 
   if (inputs.powered) {
@@ -234,10 +272,21 @@ export function simulateCircuit(
         }
       }
     }
+    // Second pass: a source is driven only when its own rails are, as the board and the pins left them.
+    for (const { component, percent } of analogSources) {
+      if (levelOf(port(component, 'vcc')) === 'high' && levelOf(port(component, 'gnd')) === 'low') {
+        driveAnalog(port(component, 'out'), percent);
+      }
+    }
   }
 
   return {
-    nets: netlist.nets.map((ports, net) => ({ ports, level: netLevel(net) })),
+    nets: netlist.nets.map((ports, net) => {
+      const analogPercent = analogPercents.get(net);
+      return netLevel(net) === 'analog' && analogPercent !== undefined
+        ? { ports, level: netLevel(net), analogPercent }
+        : { ports, level: netLevel(net) };
+    }),
     components: Object.fromEntries([
       // A shorted LED has one level on both legs, so it stays off.
       ...withModel('led').map(({ component }): [string, ComponentState] => [
@@ -246,6 +295,8 @@ export function simulateCircuit(
       ]),
       // Reported back so a pressed button is drawn from the snapshot, like a lit LED.
       ...contacts.map(({ component, closed }): [string, ComponentState] => [component.id, { closed }]),
+      // The knob is drawn from the snapshot too: its position is the run's input, never the document's (B2).
+      ...analogSources.map(({ component, percent }): [string, ComponentState] => [component.id, { value: percent }]),
     ]),
     // The PoC runs exactly one board (RunSession checks it, plan §6.4).
     pinReads: Object.fromEntries(

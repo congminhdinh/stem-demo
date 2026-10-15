@@ -10,7 +10,7 @@ import { capabilitiesOf, resolveBoardContext } from './board-context';
 import { productionProfiles } from './index';
 
 /** The block packs of both production profiles: the structure, the YB-3 hardware and the YB-2 language. */
-const ybcPacks = ['ybc.structure', 'ybc.display', 'ybc.input', 'ybc.sound', 'lang.logic', 'lang.loops', 'lang.math', 'lang.text', 'lang.variables'];
+const ybcPacks = ['ybc.structure', 'ybc.display', 'ybc.input', 'ybc.sound', 'ybc.pins', 'lang.logic', 'lang.loops', 'lang.math', 'lang.text', 'lang.variables'];
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
 const resolve = (document: Parameters<typeof resolveBoardContext>[0]) => resolveBoardContext(document, registry, productionProfiles);
@@ -93,7 +93,8 @@ describe('the YBC editing states (R-F4, R-F5)', () => {
   it.each(['ybc-basic', 'ybc-advanced'])('is ready with exactly one ybc board in %s', (profile) => {
     const context = resolve(fixtureDocument(profile));
     expect(context.readiness).toMatchObject({ ok: true, board: { deviceType: 'ybc-board' } });
-    expect(context.allowedDeviceTypes).toEqual(['ybc-board']);
+    // YB-4: the devices a learner wires to the header pins join the board (YB-1 note 3).
+    expect(context.allowedDeviceTypes).toEqual(['ybc-board', 'led', 'resistor', 'push-button', 'potentiometer']);
   });
 
   it('reports the capabilities of the ybc board: pin capabilities and onboard parts, each once', () => {
@@ -114,10 +115,14 @@ describe('the YBC editing states (R-F4, R-F5)', () => {
     expect(context.readiness).toEqual({ ok: false, reason: 'incompatible-devices', componentIds: ['g'] });
   });
 
-  it('offers a generic LED or button only if the profile lists it (not at YB-1)', () => {
-    const context = resolve(withComponents('ybc-basic', { id: 'y', deviceType: 'ybc-board' }, { id: 'l', deviceType: 'led' }));
-    expect(context.incompatible.map((c) => c.id)).toEqual(['l']);
-    expect(context.readiness.ok).toBe(false);
+  it('offers a generic LED, resistor or button only because the profile lists them (YB-4), and still no generic board', () => {
+    const wired = resolve(
+      withComponents('ybc-basic', { id: 'y', deviceType: 'ybc-board' }, { id: 'l', deviceType: 'led' }, { id: 'r', deviceType: 'resistor' }, { id: 'b', deviceType: 'push-button' }, { id: 'p', deviceType: 'potentiometer' }),
+    );
+    expect(wired.incompatible).toEqual([]);
+    expect(wired.readiness.ok).toBe(true);
+    // What no profile lists stays out, and a project of this family never takes the generic board.
+    expect(resolve(withComponents('ybc-basic', { id: 'y', deviceType: 'ybc-board' }, { id: 'g', deviceType: 'board' })).readiness.ok).toBe(false);
   });
 });
 
@@ -163,7 +168,7 @@ describe('profile mechanics, with the test-only fixtures (plan §8.7)', () => {
   it('keeps a registered ybc device out of the generic palette (GB9) and out of the ybc-basic palette', () => {
     const generic = resolveFixture(createNewProject('p'));
     expect(generic.allowedDeviceTypes).toEqual(['board', 'led', 'resistor', 'push-button']);
-    expect(resolveFixture(fixtureDocument('ybc-basic')).allowedDeviceTypes).toEqual(['ybc-board']);
+    expect(resolveFixture(fixtureDocument('ybc-basic')).allowedDeviceTypes).toEqual(['ybc-board', 'led', 'resistor', 'push-button', 'potentiometer']);
   });
 
   it('marks a device of test-extended incompatible in test-base, keeps it, and is fine in test-extended', () => {

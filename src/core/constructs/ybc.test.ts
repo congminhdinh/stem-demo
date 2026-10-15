@@ -14,6 +14,7 @@ import { langConstructs, langContractIds } from './lang';
 import { hardwareConstructOf, hardwareConstructs, hardwareContractIds, hardwarePackIds } from './ybc';
 import { clearDisplayType, IMAGE_SIZE, isDisplayText, pixelFieldName, scrollNumberType, scrollTextType, showImageDefinition, showImageType } from './ybc.display';
 import { buttonNames, buttonPressedType, buttonPressesType, lightLevelType } from './ybc.input';
+import { pinConstructs, pinContractIds } from './ybc.pins';
 import { noteNames, noteTicks, playNoteType, restType } from './ybc.sound';
 
 // The YB-3 hardware constructs against the frozen machine-readable contract: every block a profile shows for the
@@ -53,8 +54,9 @@ const hardwareBlockTypes = [
 ];
 
 /** The rows another phase owns, or that no phase opens: none of them may be shown by YB-3. */
+/** Rows YB-3 does not own that no profile lists yet. The header pins (C-23…C-25) are not YB-3's either: they are YB-4's, and listed. */
 const notOwned = [
-  'C-10', 'C-16', 'C-23', 'C-24', 'C-25', 'C-27', 'C-42', 'C-43',
+  'C-10', 'C-16', 'C-27', 'C-42', 'C-43',
   'C-14', 'C-26', 'C-19', 'C-40', 'C-47', 'C-11', 'C-20', 'C-21', 'C-22', 'C-52',
 ];
 
@@ -248,9 +250,9 @@ describe('the YB-3 block packs', () => {
 });
 
 describe('what both profiles list', () => {
-  it('is exactly the YB-3 rows next to the structure and the language, for Basic and for Advanced', () => {
+  it('is exactly the YB-3 rows and the header pins of YB-4 next to the structure and the language, for Basic and for Advanced', () => {
     for (const profile of profiles) {
-      expect([...profile.constructs].sort(), profile.id).toEqual(['C-01', 'C-02', ...langContractIds, ...hardwareIds].sort());
+      expect([...profile.constructs].sort(), profile.id).toEqual(['C-01', 'C-02', ...langContractIds, ...hardwareIds, ...pinContractIds].sort());
       expect(profileConstructViolations(profile.id, profile.constructs, contract), profile.id).toEqual([]);
       for (const pack of hardwarePackIds) {
         expect(profile.blockPacks, profile.id).toContain(pack);
@@ -264,7 +266,10 @@ describe('what both profiles list', () => {
     }
   });
 
-  it('do not list the rows YB-3 does not own: pins, temperature, the Advanced display, events, PWM, time, random, A+B, melodies, pitch, stop, tempo', () => {
+  it('do not list the rows YB-3 does not own (temperature, the Advanced display, events, PWM, time, random, A+B, melodies, pitch, stop, tempo), and do not count the pins of YB-4 as YB-3 rows', () => {
+    for (const id of pinContractIds) {
+      expect(hardwareContractIds, id).not.toContain(id);
+    }
     for (const id of notOwned) {
       expect(contract.constructs.some((candidate) => candidate.id === id), `${id} is a contract row`).toBe(true);
       expect(hardwareContractIds, id).not.toContain(id);
@@ -274,11 +279,12 @@ describe('what both profiles list', () => {
     }
   });
 
-  it('have a block type for the nine rows only: no pitch, stop, brightness, A+B, event, random, elapsed-time or pin block exists in the YBC packs', () => {
+  it('have a block type for the nine rows and the three pin rows of YB-4 only: no pitch, stop, brightness, A+B, event, random, elapsed-time or other pin block exists in the YBC packs', () => {
     const ybcTypes = packs.list().filter((pack) => pack.family === 'ybc').flatMap((pack) => pack.blockTypes);
-    const expected = ['stem_on_start', 'stem_forever', ...langConstructs.flatMap((construct) => construct.blockTypes), ...hardwareBlockTypes];
+    const pinBlockTypes = pinConstructs.flatMap((construct) => construct.blockTypes);
+    const expected = ['stem_on_start', 'stem_forever', ...langConstructs.flatMap((construct) => construct.blockTypes), ...hardwareBlockTypes, ...pinBlockTypes];
     expect([...ybcTypes].sort()).toEqual([...expected].sort());
-    expect(ybcTypes.filter((type) => /pitch|stop|brightness|tempo|melody|event|_ab\b|random|elapsed|running|timer|pin|pixel|set_all|gesture|accelerometer|temperature|servo|pwm|pulse|touch|digital|analog/i.test(type))).toEqual([]);
+    expect(ybcTypes.filter((type) => !pinBlockTypes.includes(type)).filter((type) => /pitch|stop|brightness|tempo|melody|event|_ab\b|random|elapsed|running|timer|pin|pixel|set_all|gesture|accelerometer|temperature|servo|pwm|pulse|touch|digital|analog/i.test(type))).toEqual([]);
     for (const profile of profiles) {
       const shown = typesIn(toolboxOf(profile));
       expect([...shown].filter((type) => !expected.includes(type)), profile.id).toEqual([]);

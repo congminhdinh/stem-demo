@@ -44,8 +44,8 @@ describe('paletteItems by family (GB9, R-F3)', () => {
   });
 
   it('offers a ybc project only what its profile lists, and not the generic board', () => {
-    expect(paletteOf('ybc-basic')).toEqual(['ybc-board']);
-    expect(paletteOf('ybc-advanced')).toEqual(['ybc-board']);
+    expect(paletteOf('ybc-basic')).toEqual(['ybc-board', 'led', 'resistor', 'push-button', 'potentiometer']);
+    expect(paletteOf('ybc-advanced')).toEqual(['ybc-board', 'led', 'resistor', 'push-button', 'potentiometer']);
   });
 
   it('adds a device of a richer profile only to that profile (test-only fixture)', () => {
@@ -53,9 +53,15 @@ describe('paletteItems by family (GB9, R-F3)', () => {
     expect(paletteOf('test-extended')).toEqual(['ybc-board', 'test-device']);
   });
 
-  it('names the ybc board with its own name', () => {
+  it('names the ybc board with its own name, and offers the parts of the header pins after it (YB-4)', () => {
     const context = resolveBoardContext({ profile: 'ybc-basic', circuit: emptyCircuit }, registry, productionProfiles);
-    expect(paletteItems(registry, context)).toEqual([{ deviceType: 'ybc-board', name: 'Bit-compatible Board' }]);
+    expect(paletteItems(registry, context)).toEqual([
+      { deviceType: 'ybc-board', name: 'Bit-compatible Board' },
+      { deviceType: 'led', name: 'LED' },
+      { deviceType: 'resistor', name: 'Resistor' },
+      { deviceType: 'push-button', name: 'Push Button' },
+      { deviceType: 'potentiometer', name: 'Potentiometer' },
+    ]);
   });
 });
 

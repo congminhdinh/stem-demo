@@ -11,6 +11,7 @@ import { SoundIndicator } from '../audio/SoundIndicator';
 import { toneHz } from '../audio/tone';
 import { BlocklyPanel, type BlocklyPanelHandle } from '../blockly/BlocklyPanel';
 import { CircuitCanvas } from '../canvas/CircuitCanvas';
+import { PotentiometerControls } from '../canvas/PotentiometerControls';
 import { DisplayText } from '../runtime-controls/DisplayText';
 import { partStateOf } from '../runtime-controls/display-view';
 import { RuntimeControls } from '../runtime-controls/RuntimeControls';
@@ -104,6 +105,17 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
       onContactChange={(componentId, closed) => runStore.getState().setContactInput(componentId, closed)}
     />
   );
+  // The potentiometers' controls (YB-4), over the bottom of the circuit. They exist while a run does: a position is
+  // state of the run, never of the document (B2).
+  const potentiometerControls = running && (
+    <PotentiometerControls
+      key={`potentiometer-controls-${loadRevision}`}
+      circuit={document.circuit}
+      registry={registry}
+      simulation={simulation}
+      onChange={(componentId, percent) => runStore.getState().setComponentInput(componentId, { kind: 'slider', value: percent })}
+    />
+  );
 
   return (
     <div className="app-shell">
@@ -127,7 +139,10 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
         <section className={isYbc ? 'canvas-region canvas-region-with-board-panel' : 'canvas-region'} aria-label="Circuit">
           {isYbc ? (
             <>
-              <div className="circuit-stage">{canvas}</div>
+              <div className="circuit-stage">
+                {canvas}
+                {potentiometerControls}
+              </div>
               {/* What the board shows and takes, under the circuit; the run is the only source of both (B2). */}
               {board && (
                 <div className="board-panel" data-testid="board-panel">
@@ -145,7 +160,10 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
               )}
             </>
           ) : (
-            canvas
+            <>
+              {canvas}
+              {potentiometerControls}
+            </>
           )}
         </section>
         <section

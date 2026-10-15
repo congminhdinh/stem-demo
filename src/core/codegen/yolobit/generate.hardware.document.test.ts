@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ledOnSample from '../../../samples/led-on.project.json';
 import { projectDocumentSchema, type ProjectDocument } from '../../circuit/document';
+import { boardTargetOf } from '../../devices/board-pins';
 import ybcBoardDefinition from '../../devices/definitions/ybc-board.json';
 import { localDeviceDefinitions } from '../../devices/local-catalog';
 import { createDeviceRegistry } from '../../devices/registry';
@@ -61,7 +62,8 @@ describe('a hardware program of a real Basic or Advanced document passes L-2 to 
       expect(reportLayers(project, context, packs)).toEqual({ profileCompatible: [], runtimeReady: [] });
       const capabilities = context.readiness.ok ? context.readiness.capabilities : undefined;
       expect(capabilities).toEqual(['digital', 'analogIn', 'display', 'buttons', 'light', 'sound']);
-      expect(compileYbcProgram(project.program.blocks, packs.typesOf(context.blockPacks), undefined, capabilities).ok).toBe(true);
+      const target = context.readiness.ok ? boardTargetOf(registry.get(context.readiness.board.deviceType), context.readiness.capabilities) : undefined;
+      expect(compileYbcProgram(project.program.blocks, packs.typesOf(context.blockPacks), undefined, target).ok).toBe(true);
       const session = createRunSession(registry);
       expect(session.start(project)).toEqual({ ok: true });
       session.stop();

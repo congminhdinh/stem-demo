@@ -4,6 +4,7 @@ import { clearDisplayType, DISPLAY_CHAR_FROM, DISPLAY_CHAR_TO, pixelFieldName, s
 import { buttonNames, buttonPressedType, buttonPressesType, lightLevelType } from '../constructs/ybc.input';
 import { noteNames, noteTicks, playNoteType, restType } from '../constructs/ybc.sound';
 import { localDeviceDefinitions } from '../devices/local-catalog';
+import { boardTargetOf } from '../devices/board-pins';
 import { createDeviceRegistry } from '../devices/registry';
 import { productionProfiles } from '../profiles';
 import { capabilitiesOf } from '../profiles/board-context';
@@ -26,7 +27,9 @@ const exposed = packs.typesOf(basicPacks);
 const boardCapabilities = capabilitiesOf(registry.get('ybc-board'));
 
 /** Compiles for the ybc-board, the way every caller that has a board does. */
-const compile = (blocks: unknown, capabilitySet: readonly string[] = boardCapabilities) => compileYbcProgram(blocks, exposed, undefined, capabilitySet);
+/** The `ybc-board` as a compile target with the capabilities given (its pins as the board offers them). */
+const targetWith = (capabilitySet: readonly string[]) => boardTargetOf(registry.get('ybc-board'), capabilitySet);
+const compile = (blocks: unknown, capabilitySet: readonly string[] = boardCapabilities) => compileYbcProgram(blocks, exposed, undefined, targetWith(capabilitySet));
 const main = (...statements: Json[]) => program(statements);
 const diagnostics = (result: YbcCompileResult) => result.diagnostics.map(({ code, blockId }) => ({ code, blockId }));
 const codes = (blocks: unknown, capabilitySet?: readonly string[]) => compile(blocks, capabilitySet).diagnostics.map((d) => d.code);
@@ -539,7 +542,7 @@ describe('a block of a pack the profile does not show is not compiled', () => {
 
   it.each(Object.entries(blocksOfPack))('is unknown-block for each block of %s when that pack is left out', (pack, blocks) => {
     for (const block of blocks) {
-      const result = compileYbcProgram(main(block), exposedWithout(pack), undefined, boardCapabilities);
+      const result = compileYbcProgram(main(block), exposedWithout(pack), undefined, targetWith(boardCapabilities));
       expect(result.ok, block.type as string).toBe(false);
       expect(diagnostics(result), block.type as string).toEqual([{ code: 'unknown-block', blockId: idOf(block) }]);
     }
@@ -547,19 +550,19 @@ describe('a block of a pack the profile does not show is not compiled', () => {
 
   it('is unknown-block for each value block of ybc.input when that pack is left out, also inside print', () => {
     for (const block of valuesOfInput) {
-      const result = compileYbcProgram(main(print(block)), exposedWithout('ybc.input'), undefined, boardCapabilities);
+      const result = compileYbcProgram(main(print(block)), exposedWithout('ybc.input'), undefined, targetWith(boardCapabilities));
       expect(diagnostics(result), block.type as string).toEqual([{ code: 'unknown-block', blockId: idOf(block) }]);
     }
   });
 
   it('leaves the other packs alone: with ybc.input left out the display still compiles', () => {
-    expect(compileYbcProgram(main(showImage(images.RING), rest(1)), exposedWithout('ybc.input'), undefined, boardCapabilities).ok).toBe(true);
+    expect(compileYbcProgram(main(showImage(images.RING), rest(1)), exposedWithout('ybc.input'), undefined, targetWith(boardCapabilities)).ok).toBe(true);
   });
 
   it('refuses every hardware block when only the structure is shown, as the profiles before YB-3 did', () => {
     const structureOnly = packs.typesOf(['ybc.structure']);
     for (const block of [...blocksOfPack['ybc.display'], ...blocksOfPack['ybc.sound'], buttonPressed('A'), lightLevel()]) {
-      const result = compileYbcProgram(main(block), structureOnly, undefined, boardCapabilities);
+      const result = compileYbcProgram(main(block), structureOnly, undefined, targetWith(boardCapabilities));
       expect(diagnostics(result), block.type as string).toEqual([{ code: 'unknown-block', blockId: idOf(block) }]);
     }
   });

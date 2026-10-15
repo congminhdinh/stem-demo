@@ -2,6 +2,7 @@ import type { Circuit, ComponentInstance, ProjectDocument } from '../circuit/doc
 import { composeCapabilities } from '../capabilities/compose';
 import type { Capabilities } from '../capabilities/io';
 import { createRuntimeServices, type RunScheduler, type RuntimeServices } from '../capabilities/services';
+import { boardTargetOf } from '../devices/board-pins';
 import type { DeviceRegistry } from '../devices/registry';
 import { resolveBoardContext, type BoardContext } from '../profiles/board-context';
 import { productionProfiles } from '../profiles';
@@ -492,7 +493,10 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
     | { ok: true; kind: 'ybc'; diagnostics: RunDiagnostic[]; ir: YbcProgramIR; console: RunConsole }
     | { ok: true; kind: 'generic'; diagnostics: RunDiagnostic[]; launch: (getRun: () => ActiveRun) => ProgramRun } => {
     if (context.family === 'ybc') {
-      const compiled = compileYbcProgram(project.program.blocks, packs.typesOf(context.blockPacks), options.noopBlockTypes, capabilities);
+      // The compiler is told which board the program is for (its capabilities and usable pins), so a block that needs
+      // what the board lacks is refused here.
+      const target = boardTargetOf(registry.get(boardType), capabilities);
+      const compiled = compileYbcProgram(project.program.blocks, packs.typesOf(context.blockPacks), options.noopBlockTypes, target);
       if (!compiled.ok) {
         return compiled;
       }
@@ -546,8 +550,8 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
     if (component) {
       const definition = registry.get(component.deviceType);
       if (!isContact(definition)) {
-        // Any other component takes the input of its model, which the simulation reads. No model of the
-        // catalog is listed in `inputKindOfModel` yet, so nothing is kept for them today.
+        // Any other component takes the input of its model, which the simulation reads. A model that
+        // `inputKindOfModel` does not list takes none, and nothing is kept for it.
         if (keepInput(run, componentId, inputKindOfModel[definition.simulation.model], input)) {
           publish({ ...fresh(), simulation: simulate(run) });
         }

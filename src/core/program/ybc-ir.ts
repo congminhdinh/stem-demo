@@ -15,11 +15,23 @@
 // expressions, one `op` per contract row, each carrying what the block fixed in
 // its own fields as an operand. An operand is not a value: it cannot be stored in
 // a variable, compared, printed or passed on (plan §9.1, F3-A).
+//
+// YB-4 adds the header pins (contract C-23…C-25): `call` / `read` ops whose
+// arguments are expressions, evaluated left to right, each once.
 
 import type { ButtonName } from '../constructs/ybc.input';
 import type { NoteName, NoteTicks } from '../constructs/ybc.sound';
 
 export type Type = 'int' | 'bool' | 'str';
+
+/**
+ * The header-pin operations (plan §9.1 `OpId`). Each belongs to exactly one construct and one capability;
+ * an op names what the program means, not the Python that says it. YB-4: the header pins (contract C-23,
+ * C-24, C-25); the onboard ops of YB-3 are named in `CallStatement` and `ReadExpr`. A statement op and a value
+ * op are different kinds of op.
+ */
+export type CallOp = 'digital.write';
+export type ReadOp = 'digital.read' | 'analogIn.read';
 
 export type YbcProgramIR = {
   onStart: YbcStatement[];
@@ -47,7 +59,8 @@ export type YbcStatement =
   | { kind: 'countUp'; variable: string; from: Expr; to: Expr; step: number; body: YbcStatement[]; blockId: string }
   /** `ms` is an int in 0..MAX_WAIT_MS, else out-of-domain. */
   | { kind: 'waitMs'; ms: Expr; blockId: string }
-  | CallStatement;
+  | CallStatement
+  | PinCallStatement;
 
 /**
  * An operation on an onboard part (YB-3). The contract row of each is in `constructs/ybc.*.ts`.
@@ -66,6 +79,13 @@ export type CallStatement =
   | { kind: 'call'; op: 'sound.playNote'; operand: NoteOperand; blockId: string }
   /** C-51: silence for `ticks` ticks, and the statement waits that long. */
   | { kind: 'call'; op: 'sound.rest'; operand: RestOperand; blockId: string };
+
+/**
+ * A header-pin operation with side effects (YB-4, plan §9.1). The arguments are evaluated left to right, each once,
+ * then checked against the construct's domain (contract C-23: `args` = [pin 0..2, value 0|1]). One member per op, so
+ * that a check of `op` tells a pin call from an onboard one.
+ */
+export type PinCallStatement = { [Op in CallOp]: { kind: 'call'; op: Op; args: Expr[]; blockId: string } }[CallOp];
 
 /** C-06: the learner's own picture, 25 cells row by row from the top left; a lit cell is red (digit 1), the others off (digit 0). */
 export type ImageOperand = { kind: 'image'; image: { source: 'custom'; pixels: readonly boolean[] } };
@@ -88,6 +108,7 @@ export type Expr = { type: Type; blockId: string } & (
   /** Text join: every part goes through str(); the result is at most MAX_TEXT_CHARS characters. */
   | { kind: 'join'; parts: Expr[] }
   | ReadExpr
+  | PinReadExpr
 );
 
 /**
@@ -101,3 +122,10 @@ export type ReadExpr =
   | { kind: 'read'; op: 'button.getPresses'; operand: ButtonOperand }
   /** C-15: an int from 0 (darkest) to 100 (brightest). */
   | { kind: 'read'; op: 'light.level' };
+
+/**
+ * A header-pin read (YB-4, plan §9.1). `digital.read` is a bool (the pin is high), `analogIn.read` an int on the
+ * board's native scale 0..4095 (contract C-24, C-25). The argument is the pin number. One member per op, so that a
+ * check of `op` tells a pin read from an onboard one.
+ */
+export type PinReadExpr = { [Op in ReadOp]: { kind: 'read'; op: Op; args: Expr[] } }[ReadOp];

@@ -170,6 +170,40 @@ body {
   min-height: 0;
 }
 
+/* The potentiometers' runtime controls (plan §11.3, YB-4): over the bottom of the canvas, only while a run lasts. */
+.potentiometer-controls {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 8px 12px;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.95);
+  font-size: 13px;
+}
+
+.runtime-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.runtime-control input[type='range'] {
+  /* A comfortable target for a finger (plan §19), and nothing else to scroll or pan with. */
+  min-width: 160px;
+  min-height: 28px;
+  touch-action: none;
+}
+
+.runtime-control-value {
+  min-width: 3.5em;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Absolutely positioned so the Konva stage never drives the region's size. */
 .circuit-canvas {
   position: absolute;

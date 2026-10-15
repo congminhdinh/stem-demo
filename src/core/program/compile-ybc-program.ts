@@ -3,7 +3,17 @@ import { arithType, countUpType, intDivideType, langConstructs, waitType, whileT
 import { hardwareConstructOf } from '../constructs/ybc';
 import { clearDisplayType, IMAGE_SIZE, isDisplayText, pixelFieldName, scrollNumberType, scrollTextType, showImageType } from '../constructs/ybc.display';
 import { buttonPressedType, buttonPressesType, isButtonName, lightLevelType, type ButtonName } from '../constructs/ybc.input';
+import {
+  PIN_LEVELS,
+  PIN_NUMBERS,
+  pinAnalogType,
+  pinCapabilityOfBlock,
+  pinNumberOf,
+  pinReadType,
+  pinWriteType,
+} from '../constructs/ybc.pins';
 import { isNoteName, playNoteType, restType, ticksOfOption, type NoteName, type NoteTicks } from '../constructs/ybc.sound';
+import { noBoardTarget, type BoardTarget, type HeaderPinCapability } from '../devices/board-pins';
 import { exceedsBlockLimit } from './block-walk';
 import { blockTypes } from './blocks';
 import {
@@ -26,18 +36,20 @@ import type { ArithOp, CompareOp, Expr, Type, YbcProgramIR, YbcStatement } from 
 //
 // Literals, integer variables, + − × // %, comparisons, and/or/not, `if` /
 // `elif` / `else`, `repeat`, `while`, `count up`, `wait`, text `join`, `print`,
-// and the onboard hardware of YB-3: the display, the two buttons, the light
-// sensor and the sound. A hardware block is compiled against the contract
-// domain of its row (notes, ticks, buttons, the display's characters), and
-// against the capabilities of the board when the caller says which they are.
-// It says what the program means; when the interpreter yields to the browser is
-// not in the IR.
+// the onboard hardware of YB-3 (the display, the two buttons, the light sensor
+// and the sound) and the header pins of YB-4. A hardware block is compiled
+// against the contract domain of its row (notes, ticks, buttons, the display's
+// characters, the pins), and a construct that needs a capability the board does
+// not have is refused here (`capability-unavailable`, plan §10), so the runtime
+// never meets an absent one. It says what the program means; when the
+// interpreter yields to the browser is not in the IR.
 
 export type YbcDiagnosticCode =
   | 'malformed-program'
   | 'unknown-block'
   | 'duplicate-hat'
   | 'ignored-block'
+  | 'capability-unavailable'
   | 'not-eligible'
   | 'unsupported-construct'
   | 'descending-range-not-supported'
@@ -99,15 +111,17 @@ const hasControlCharacter = (text: string) => [...text].some((char) => {
  * @param exposedBlockTypes the block types the profile exposes (from its packs); the hats always compile.
  * @param noopBlockTypes block types that compile to a `noop`: only the test-only marker of the profile
  *   fixtures. Any other exposed block type without a handler here is an `unsupported-construct`, never a silent no-op.
- * @param capabilitySet the capabilities of the board the program is for (`BoardContext.readiness`): a hardware block
- *   whose capability is not in it is `capability-unavailable` (plan §10). Left out, nothing is checked: only the
- *   unit tests of the language and of single blocks do that; every caller that has a board passes it.
+ * @param target the board the program is for (`BoardContext.readiness`): its capabilities and the pins usable for
+ *   each. A hardware block whose capability is not in it is `capability-unavailable` (plan §10). Left out, a header
+ *   pin block is `capability-unavailable` (a board with nothing: no made-up success) and an onboard block is not
+ *   checked: only the unit tests of the language and of single blocks leave it out; every caller that has a board
+ *   passes it.
  */
 export function compileYbcProgram(
   blocksJson: unknown,
   exposedBlockTypes: ReadonlySet<string>,
   noopBlockTypes: ReadonlySet<string> = new Set(),
-  capabilitySet?: readonly string[],
+  target?: BoardTarget,
 ): YbcCompileResult {
   const diagnostics: YbcDiagnostic[] = [];
   const report = (severity: YbcDiagnostic['severity'], code: YbcDiagnosticCode, message: string, blockId?: string) => {
@@ -204,7 +218,7 @@ export function compileYbcProgram(
   /** Whether the board has the part a hardware block reaches; says so when it has not. */
   const boardHasPartFor = (block: RawBlock): boolean => {
     const construct = hardwareConstructOf(block.type);
-    if (!construct || capabilitySet === undefined || missingCapabilities(capabilitySet, [construct.capability]).length === 0) {
+    if (!construct || target === undefined || missingCapabilities(target.capabilities, [construct.capability]).length === 0) {
       return true;
     }
     report('error', 'capability-unavailable', `This board has no ${construct.capability} for "${block.type}".`, block.id);
@@ -239,6 +253,43 @@ export function compileYbcProgram(
     return known;
   };
 
+  /**
+   * The pin a pin block names (contract C-23…C-25): the board must have the capability, the name must be
+   * `P<N>` with N one of the pins the contract opens, and the board must offer that pin (not reserved) for
+   * the capability. Reports and returns null otherwise. The dropdown only offers such pins; a program that
+   * arrives from storage is checked all the same (R5).
+   */
+  const pinOf = (block: RawBlock): number | null => {
+    const board = target ?? noBoardTarget;
+    const capability: HeaderPinCapability = pinCapabilityOfBlock.get(block.type) ?? 'digital';
+    if (!board.capabilities.includes(capability)) {
+      report(
+        'error',
+        'capability-unavailable',
+        `This board has no ${capability === 'analogIn' ? 'analog input' : 'digital pin'}, so this block cannot be used.`,
+        block.id,
+      );
+      return null;
+    }
+    const name = block.fields?.PIN;
+    if (typeof name !== 'string') {
+      report('error', 'malformed-program', 'A pin block needs its pin.', block.id);
+      return null;
+    }
+    const pin = pinNumberOf(name);
+    if (pin === null || !PIN_NUMBERS.includes(pin)) {
+      report('error', 'value-out-of-range', 'Only the pins P0, P1 and P2 can be used.', block.id);
+      return null;
+    }
+    if (!board.pins[capability].includes(name)) {
+      report('error', 'value-out-of-range', `Pin ${name} cannot be used on this board.`, block.id);
+      return null;
+    }
+    return pin;
+  };
+
+  const intLiteral = (value: number, blockId: string): Expr => ({ blockId, type: 'int', kind: 'int', value });
+
   const compileExpr = (block: RawBlock, depth: number): Expr | null => {
     if (isTooDeep(depth, block.id) || !isExposed(block)) {
       return null;
@@ -258,6 +309,16 @@ export function compileYbcProgram(
       }
       case lightLevelType:
         return boardHasPartFor(block) ? { ...base, type: 'int', kind: 'read', op: 'light.level' } : null;
+      case pinReadType:
+      case pinAnalogType: {
+        const pin = pinOf(block);
+        if (pin === null) {
+          return null;
+        }
+        return block.type === pinReadType
+          ? { ...base, type: 'bool', kind: 'read', op: 'digital.read', args: [intLiteral(pin, block.id)] }
+          : { ...base, type: 'int', kind: 'read', op: 'analogIn.read', args: [intLiteral(pin, block.id)] };
+      }
       case 'math_number': {
         const value = block.fields?.NUM;
         if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value)) {
@@ -601,6 +662,23 @@ export function compileYbcProgram(
     return ticks !== null ? { kind: 'call', op: 'sound.rest', operand: { kind: 'rest', ticks }, blockId: block.id } : null;
   };
 
+  /** "set pin P to ON / OFF" (C-23): the pin and the level are chosen in the block, so both are literals of the IR. */
+  const compilePinWrite = (block: RawBlock): YbcStatement | null => {
+    const pin = pinOf(block);
+    const level = block.fields?.LEVEL;
+    let value: number | null = null;
+    if (typeof level !== 'string') {
+      report('error', 'malformed-program', 'A "set pin" block needs ON or OFF.', block.id);
+    } else if (/^(0|[1-9]\d*)$/.test(level) && PIN_LEVELS.includes(Number(level))) {
+      value = Number(level);
+    } else {
+      report('error', 'value-out-of-range', 'A pin is set ON or OFF.', block.id);
+    }
+    return pin !== null && value !== null
+      ? { kind: 'call', op: 'digital.write', args: [intLiteral(pin, block.id), intLiteral(value, block.id)], blockId: block.id }
+      : null;
+  };
+
   const compileStatement = (block: RawBlock, depth: number): YbcStatement | null => {
     if (!isExposed(block)) {
       return null;
@@ -646,6 +724,8 @@ export function compileYbcProgram(
         return compileCountUp(block, depth);
       case waitType:
         return compileWait(block, depth);
+      case pinWriteType:
+        return compilePinWrite(block);
       default:
         if (languageBlockTypes.has(block.type) || hardwareValueBlockTypes.has(block.type)) {
           report('error', 'unsupported-construct', `"${block.type}" cannot be used as a statement.`, block.id);

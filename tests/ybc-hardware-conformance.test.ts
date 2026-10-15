@@ -6,6 +6,7 @@ import { clearDisplayType, pixelFieldName, scrollNumberType, scrollTextType, sho
 import { buttonPressedType, buttonPressesType, lightLevelType } from '../src/core/constructs/ybc.input';
 import { noteNames, noteTicks, playNoteType, restType } from '../src/core/constructs/ybc.sound';
 import { localDeviceDefinitions } from '../src/core/devices/local-catalog';
+import { boardTargetOf } from '../src/core/devices/board-pins';
 import { createDeviceRegistry } from '../src/core/devices/registry';
 import { productionProfiles } from '../src/core/profiles';
 import { capabilitiesOf } from '../src/core/profiles/board-context';
@@ -32,6 +33,8 @@ registerBlocks(packs);
 const basic = productionProfiles.get('ybc-basic');
 const exposed = packs.typesOf(basic?.blockPacks ?? []);
 const boardCapabilities = capabilitiesOf(registry.get('ybc-board'));
+/** The compile target Run and generation use for the `ybc-board`: its capabilities and usable pins. */
+const boardTarget = boardTargetOf(registry.get('ybc-board'), boardCapabilities);
 
 type Fields = Record<string, string | number | boolean>;
 
@@ -156,7 +159,7 @@ function fakeBoard(world: { held?: Partial<Record<'a' | 'b', boolean>>; presses?
 
 /** Compiles the saved workspace for the ybc-board in the Basic profile, and runs it on the fake board. */
 async function compileAndRun(saved: Record<string, unknown>, world: Parameters<typeof fakeBoard>[0] = {}) {
-  const compiled = compileYbcProgram(saved, exposed, undefined, boardCapabilities);
+  const compiled = compileYbcProgram(saved, exposed, undefined, boardTarget);
   if (!compiled.ok) {
     throw new Error(`Does not compile: ${JSON.stringify(compiled.diagnostics)}`);
   }
@@ -483,7 +486,7 @@ describe('the preset values of the toolbox, as real Blockly creates the blocks',
     const block = valueBlocks.has(String(preset.type)) ? asRecord(asRecord(asRecord(asRecord(savedBlock(saved)).inputs).TEXT).block) : asRecord(savedBlock(saved));
     // The values the toolbox presets are saved as they are: Blockly neither drops nor replaces one.
     expect(asRecord(block).fields).toEqual(preset.fields);
-    expect(compileYbcProgram(saved, exposed, undefined, boardCapabilities).ok).toBe(true);
+    expect(compileYbcProgram(saved, exposed, undefined, boardTarget).ok).toBe(true);
     const { outcome } = await compileAndRun(saved);
     expect(outcome).toEqual({ status: 'finished' });
   });
@@ -515,7 +518,7 @@ describe('what Blockly does with a value outside the domain', () => {
   });
 
   const hostile = (block: Json) => program([block]);
-  const compileRaw = (blocks: Json) => compileYbcProgram(blocks, exposed, undefined, boardCapabilities);
+  const compileRaw = (blocks: Json) => compileYbcProgram(blocks, exposed, undefined, boardTarget);
   const fieldsOfSaved = (saved: Record<string, unknown>) => asRecord(asRecord(savedBlock(saved)).fields);
 
   it.each(['E9', 'C6', 'C2', 'DB4', 'C#4', 'c4', ''])('replaces the note %j by the first option, C3, when it loads, and saves it back as such', (note) => {
@@ -601,7 +604,7 @@ describe('a picture with all 25 squares lit, and the stored programs that hold t
     ]);
     expect(canOpenProgram(everything, packs)).toBe(true);
     // Whatever the editor loads and saves compiles for the board.
-    expect(compileYbcProgram(reload(everything), exposed, undefined, boardCapabilities).ok).toBe(true);
+    expect(compileYbcProgram(reload(everything), exposed, undefined, boardTarget).ok).toBe(true);
   });
 
   it('opens a stored program that holds a picture, a note and a button of a profile that shows them, whichever profile is open', () => {

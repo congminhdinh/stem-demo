@@ -6,6 +6,7 @@ import { productionProfiles } from '../../profiles';
 import { compileBlocks } from './__fixtures__/compile-case';
 import { hardwareCases } from './__fixtures__/hardware-cases';
 import { langCases } from './__fixtures__/lang-cases';
+import { pinCases } from './__fixtures__/pin-cases';
 import { generatedConstructs, generateYbcMicroPython } from './generate';
 import { defaultTarget } from './target';
 
@@ -40,7 +41,8 @@ describe('what the generator covers', () => {
   });
 
   it('has a golden that exercises every construct', () => {
-    const covered = new Set([...langCases, ...hardwareCases].flatMap((c) => c.covers));
+    // The language goldens (YB-5A), the onboard hardware goldens (YB-3) and the pin goldens (YB-4, in pins/__golden__).
+    const covered = new Set([...langCases, ...hardwareCases, ...pinCases].flatMap((c) => c.covers));
     expect([...generated].filter((id) => !covered.has(id))).toEqual([]);
     expect([...covered].filter((id) => !generated.has(id))).toEqual([]);
   });
@@ -59,8 +61,9 @@ describe('what the generator covers', () => {
       expect(generated.has(id), id).toBe(false);
       expect(row === undefined || row.eligibility === 'EXCLUDED' || row.eligibility === 'DEFERRED', id).toBe(true);
     }
-    // Header pins (YB-4), the Advanced display, temperature and servo (YB-7), text variables, `len` and functions (YB-7).
-    for (const id of ['C-10', 'C-16', 'C-23', 'C-24', 'C-25', 'C-27', 'C-42', 'C-43', 'C-57', 'C-58', 'C-59']) {
+    // The Advanced display, temperature and servo (YB-7), text variables, `len` and functions (YB-7); every other hardware
+    // row waits for its phase. The onboard hardware (YB-3) and the header pins (YB-4) are generated.
+    for (const id of ['C-10', 'C-16', 'C-27', 'C-42', 'C-43', 'C-57', 'C-58', 'C-59']) {
       expect(generated.has(id), id).toBe(false);
     }
   });
