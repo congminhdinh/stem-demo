@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { Expr, YbcProgramIR, YbcStatement } from '../../program/ybc-ir';
+import { hardwareCases } from './__fixtures__/hardware-cases';
 import { langCases } from './__fixtures__/lang-cases';
 import { generateYbcMicroPython } from './generate';
 import { MAX_EXPRESSION_DEPTH, MAX_STATEMENT_DEPTH } from './limits';
@@ -29,7 +30,8 @@ describe.skipIf(!available)(`syntax check of the generated Python (${goldens.che
     expect(goldens.status).toBe('pass');
     // Only mpy-cross is a MicroPython check. A CPython pass must never be reported as one.
     expect(goldens.micropython).toBe(goldens.checker === 'mpy-cross' ? 'pass' : 'pending');
-    expect(goldens.files).toBeGreaterThanOrEqual(langCases.length);
+    // The language goldens of YB-5A and the hardware goldens of YB-3 (`hardware/__golden__`) are both in the gate.
+    expect(goldens.files).toBeGreaterThanOrEqual(langCases.length + hardwareCases.length);
   });
 
   it('fails on a file with a syntax error', () => {

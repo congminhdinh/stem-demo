@@ -1,5 +1,11 @@
 import { deviceFamily } from '../devices/device-definition';
 import { arithDefinition, arithType, countUpDefinition, countUpType, intDivideDefinition, intDivideType, waitDefinition, waitType, whileDefinition, whileType, langConstructs, langPackIds, type LangPackId } from '../constructs/lang';
+import { hardwareConstructs, type HardwarePackId } from '../constructs/ybc';
+import { clearDisplayType, displayDefinitions, IMAGE_SIZE, pixelFieldName, scrollNumberType, scrollTextType, showImageType } from '../constructs/ybc.display';
+import { buttonPressedType, buttonPressesType, inputDefinitions, lightLevelType } from '../constructs/ybc.input';
+import { createPinBlockDefinitions, pinAnalogType, pinConstructs, pinReadType, pinsPackId, pinWriteType, type PinChoices } from '../constructs/ybc.pins';
+import { playNoteType, restType, soundDefinitions } from '../constructs/ybc.sound';
+import { usablePins } from '../devices/board-pins';
 import type { DeviceRegistry } from '../devices/registry';
 import {
   blockTypes,
@@ -174,6 +180,95 @@ export function createLangPacks(): BlockPack[] {
   }));
 }
 
+/** The picture the "show image" block of the toolbox starts with: a ring of lights (the contract's own sample, §18). */
+const ringImage = ['11111', '10001', '10001', '10001', '11111'];
+const ringFields = Object.fromEntries(
+  ringImage.flatMap((rowDigits, row) =>
+    Array.from({ length: IMAGE_SIZE }, (_, column) => [pixelFieldName(row, column), rowDigits[column] === '1'] as const),
+  ),
+);
+
+/** What each hardware pack shows in the toolbox (YB-3). */
+const hardwareCategories: Readonly<Record<HardwarePackId, ToolboxCategory[]>> = {
+  'ybc.display': [
+    {
+      kind: 'category',
+      name: 'Display',
+      colour: '290',
+      contents: [
+        block(showImageType, { fields: ringFields }),
+        block(scrollTextType, { inputs: { TEXT: { shadow: { type: 'text', fields: { TEXT: 'Hi' } } } } }),
+        block(scrollNumberType, { inputs: { NUM: shadowNumber(0) } }),
+        block(clearDisplayType),
+      ],
+    },
+  ],
+  'ybc.input': [
+    {
+      kind: 'category',
+      name: 'Input',
+      colour: '20',
+      contents: [
+        block(buttonPressedType, { fields: { BUTTON: 'A' } }),
+        block(buttonPressedType, { fields: { BUTTON: 'B' } }),
+        block(buttonPressesType, { fields: { BUTTON: 'A' } }),
+        block(buttonPressesType, { fields: { BUTTON: 'B' } }),
+        block(lightLevelType),
+      ],
+    },
+  ],
+  'ybc.sound': [
+    {
+      kind: 'category',
+      name: 'Sound',
+      colour: '180',
+      contents: [block(playNoteType, { fields: { NOTE: 'C4', TICKS: '4' } }), block(restType, { fields: { TICKS: '4' } })],
+    },
+  ],
+};
+
+const hardwareBlocks: Readonly<Record<HardwarePackId, BlockDefinitionJson[]>> = {
+  'ybc.display': [...displayDefinitions],
+  'ybc.input': [...inputDefinitions],
+  'ybc.sound': [...soundDefinitions],
+};
+
+/** The onboard hardware packs of YB-3: display, buttons and light, sound. */
+export function createHardwarePacks(): BlockPack[] {
+  return (Object.keys(hardwareBlocks) as HardwarePackId[]).map((id) => ({
+    id,
+    family: 'ybc',
+    blocks: hardwareBlocks[id],
+    blockTypes: hardwareConstructs.filter((construct) => construct.pack === id).flatMap((construct) => construct.blockTypes),
+    categories: hardwareCategories[id],
+  }));
+}
+
+/** The pins each pin block offers: those the Yolo:Bit-compatible boards of the registry allow (reserved ones left out). */
+export function ybcPinChoices(registry: DeviceRegistry): PinChoices {
+  const boards = registry.list().filter((definition) => deviceFamily(definition) === 'ybc' && definition.board !== undefined);
+  const names = (capability: 'digital' | 'analogIn') => [...new Set(boards.flatMap((definition) => usablePins(definition, capability)))];
+  return { digital: names('digital'), analogIn: names('analogIn') };
+}
+
+/** The header pins of a Yolo:Bit-compatible project (YB-4): write, digital read and analog read of P0–P2. */
+export function createYbcPinsPack(choices: PinChoices): BlockPack {
+  return {
+    id: pinsPackId,
+    family: 'ybc',
+    blocks: createPinBlockDefinitions(choices),
+    blockTypes: pinConstructs.flatMap((construct) => construct.blockTypes),
+    categories: [
+      {
+        kind: 'category',
+        name: 'Pins',
+        colour: '210',
+        contents: [block(pinWriteType), block(pinReadType), block(pinAnalogType)],
+      },
+    ],
+  };
+}
+
 export type BlockPackCatalog = {
   list(): readonly BlockPack[];
   get(id: string): BlockPack | undefined;
@@ -193,7 +288,14 @@ export function createBlockPackCatalog(
   registry: DeviceRegistry,
   extraPacks: readonly BlockPack[] = [],
 ): BlockPackCatalog {
-  const packs = [createGenericPack(genericBoardPins(registry)), createYbcStructurePack(), ...createLangPacks(), ...extraPacks];
+  const packs = [
+    createGenericPack(genericBoardPins(registry)),
+    createYbcStructurePack(),
+    ...createHardwarePacks(),
+    createYbcPinsPack(ybcPinChoices(registry)),
+    ...createLangPacks(),
+    ...extraPacks,
+  ];
   const byId = new Map<string, BlockPack>();
   for (const pack of packs) {
     if (byId.has(pack.id)) {

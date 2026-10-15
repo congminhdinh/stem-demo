@@ -36,13 +36,14 @@ describe('device registry', () => {
     expect(button.simulation).toEqual({ model: 'contact' });
   });
 
-  it('lists every definition in catalog order: the generic ones first, the Yolo:Bit-compatible board after them', () => {
+  it('lists every definition in catalog order: the generic ones first, the Yolo:Bit-compatible devices after them', () => {
     expect(registry.list().map((definition) => definition.id)).toEqual([
       'board',
       'led',
       'resistor',
       'push-button',
       'ybc-board',
+      'potentiometer',
     ]);
   });
 
@@ -53,6 +54,8 @@ describe('device registry', () => {
       ['resistor', 'generic'],
       ['push-button', 'generic'],
       ['ybc-board', 'ybc'],
+      // YB-4: a device of the Yolo:Bit-compatible track never shows up in a generic palette (R-F3, GB9).
+      ['potentiometer', 'ybc'],
     ]);
     expect(registry.get('board')).not.toHaveProperty('family');
   });

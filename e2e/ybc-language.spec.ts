@@ -79,7 +79,7 @@ test('keeps at most 500 lines when a program prints without end', async ({ page 
   await expect(runStatus(page)).toHaveText('Idle');
 });
 
-test('offers the language blocks, a variables category without "change by", and no loop, wait or hardware', async ({ page }) => {
+test('offers the language blocks, a variables category without "change by", and the onboard hardware categories', async ({ page }) => {
   await openProject(page, project(program([])));
   const panel = page.getByTestId('blockly-panel');
   const flyoutTexts = async (category: string) => {
@@ -100,7 +100,13 @@ test('offers the language blocks, a variables category without "change by", and 
   expect(variables).toMatch(/Create variable/);
   expect(variables).toMatch(/set/);
   expect(variables).not.toMatch(/change/i);
-  expect(await panel.locator('.blocklyToolboxCategory').allInnerTexts()).toEqual(['Program', 'Logic', 'Loops', 'Time', 'Math', 'Text', 'Variables']);
+  // The hardware categories: YB-3's onboard parts (Display, Input, Sound) and YB-4's header pins (C-23…C-25).
+  expect(await panel.locator('.blocklyToolboxCategory').allInnerTexts()).toEqual(['Program', 'Display', 'Input', 'Sound', 'Pins', 'Logic', 'Loops', 'Time', 'Math', 'Text', 'Variables']);
+  const pins = await flyoutTexts('Pins');
+  expect(pins).toMatch(/set\spin/);
+  expect(pins).toMatch(/digital\sread\spin/);
+  expect(pins).toMatch(/analog\sread\spin/);
+  expect(pins).not.toMatch(/pwm|analog write|servo|pulse|display|button|light|sound|temperature|random/i);
 });
 
 test('saves the program, not the run: a reload brings the same document back, with no console', async ({ page }) => {

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useStore } from 'zustand';
 import { createNewProject, type Circuit } from '../../core/circuit/document';
 import type { DeviceRegistry } from '../../core/devices/registry';
@@ -6,8 +6,15 @@ import type { Notice } from '../../core/persistence/project-repository';
 import { resolveBoardContext } from '../../core/profiles/board-context';
 import type { ProfileCatalog } from '../../core/profiles/profile';
 import { buildToolbox, type BlockPackCatalog } from '../../core/program/block-packs';
+import { buzzerPartId, displayPartId } from '../../core/simulation/peripherals/onboard-capabilities';
+import { SoundIndicator } from '../audio/SoundIndicator';
+import { toneHz } from '../audio/tone';
 import { BlocklyPanel, type BlocklyPanelHandle } from '../blockly/BlocklyPanel';
 import { CircuitCanvas } from '../canvas/CircuitCanvas';
+import { PotentiometerControls } from '../canvas/PotentiometerControls';
+import { DisplayText } from '../runtime-controls/DisplayText';
+import { partStateOf } from '../runtime-controls/display-view';
+import { RuntimeControls } from '../runtime-controls/RuntimeControls';
 import type { ProjectStore } from '../state/project-store';
 import { selectIsRunning, type RunStore } from '../state/run-store';
 import { PythonPanel } from './PythonPanel';
@@ -41,6 +48,8 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
   const packKey = context.blockPacks.join('|');
   const toolbox = useMemo(() => buildToolbox(packKey === '' ? [] : packKey.split('|'), packs), [packKey, packs]);
   const [noticeDismissed, setNoticeDismissed] = useState(false);
+  // Counts Run clicks. The runtime controls start from their initial place in every run (inputs belong to a run, B2).
+  const [runEpoch, setRunEpoch] = useState(0);
   // A notice about the project the app opened is gone once another one is
   // loaded (New); one about the session (no saving) stays until dismissed.
   const isNoticeOutdated = notice?.about === 'opened-project' && loadRevision !== 0;
@@ -50,6 +59,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
     // Run compiles the document, so the latest Blockly edits must be in it first.
     blocklyRef.current?.saveNow();
     runStore.getState().run(projectStore.getState().document);
+    setRunEpoch((epoch) => epoch + 1);
   };
 
   // New replaces the whole project, so it is locked while running like any
@@ -70,6 +80,43 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
     }
   };
 
+  const isYbc = context.family === 'ybc';
+  const boardId = context.readiness.ok ? context.readiness.board.id : null;
+  // The sound follows every snapshot of the session, not the one a frame shows (see SoundIndicator).
+  const tones = useCallback(
+    (listener: (hz: number | undefined) => void) =>
+      runStore.getState().onSnapshot((snapshot) => listener(boardId === null ? undefined : toneHz(partStateOf(snapshot.simulation, boardId, buzzerPartId)))),
+    [runStore, boardId],
+  );
+  // The board the controls, the display text and the sound belong to: the project's one board, when it can run.
+  const board = context.readiness.ok ? context.readiness.board : null;
+
+  // A loaded project starts without the previous selection or drag.
+  const canvas = (
+    <CircuitCanvas
+      key={loadRevision}
+      circuit={document.circuit}
+      registry={registry}
+      context={context}
+      simulation={simulation}
+      locked={running}
+      onCircuitChange={editCircuit}
+      // Runtime input, not an edit: the session ignores it unless running.
+      onContactChange={(componentId, closed) => runStore.getState().setContactInput(componentId, closed)}
+    />
+  );
+  // The potentiometers' controls (YB-4), over the bottom of the circuit. They exist while a run does: a position is
+  // state of the run, never of the document (B2).
+  const potentiometerControls = running && (
+    <PotentiometerControls
+      key={`potentiometer-controls-${loadRevision}`}
+      circuit={document.circuit}
+      registry={registry}
+      simulation={simulation}
+      onChange={(componentId, percent) => runStore.getState().setComponentInput(componentId, { kind: 'slider', value: percent })}
+    />
+  );
+
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -89,19 +136,35 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
         )}
       </header>
       <main className="workspace">
-        <section className="canvas-region" aria-label="Circuit">
-          {/* A loaded project starts without the previous selection or drag. */}
-          <CircuitCanvas
-            key={loadRevision}
-            circuit={document.circuit}
-            registry={registry}
-            context={context}
-            simulation={simulation}
-            locked={running}
-            onCircuitChange={editCircuit}
-            // Runtime input, not an edit: the session ignores it unless running.
-            onContactChange={(componentId, closed) => runStore.getState().setContactInput(componentId, closed)}
-          />
+        <section className={isYbc ? 'canvas-region canvas-region-with-board-panel' : 'canvas-region'} aria-label="Circuit">
+          {isYbc ? (
+            <>
+              <div className="circuit-stage">
+                {canvas}
+                {potentiometerControls}
+              </div>
+              {/* What the board shows and takes, under the circuit; the run is the only source of both (B2). */}
+              {board && (
+                <div className="board-panel" data-testid="board-panel">
+                  <DisplayText display={partStateOf(simulation, board.id, displayPartId)} />
+                  <RuntimeControls
+                    key={running ? `run-${runEpoch}` : 'idle'}
+                    boardId={board.id}
+                    definition={registry.get(board.deviceType)}
+                    controls={context.profile?.controls ?? []}
+                    active={running}
+                    onInput={(componentId, input) => runStore.getState().setComponentInput(componentId, input)}
+                  />
+                  <SoundIndicator buzzer={partStateOf(simulation, board.id, buzzerPartId)} tones={tones} />
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {canvas}
+              {potentiometerControls}
+            </>
+          )}
         </section>
         <section
           className={context.family === 'ybc' ? 'program-region program-region-with-python' : 'program-region'}
