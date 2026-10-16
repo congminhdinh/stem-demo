@@ -8,7 +8,7 @@ import { createRunSession } from '../../core/run/run-session';
 import { createOnboardCapabilities } from '../../core/simulation/peripherals/onboard-capabilities';
 import buttonDirectSample from '../../samples/button-direct.project.json';
 import ledOnSample from '../../samples/led-on.project.json';
-import { createRunStore, selectIsRunning } from './run-store';
+import { checkSessionOf, createRunStore, selectIsRunning } from './run-store';
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
 const ledOn = projectDocumentSchema.parse(ledOnSample);
@@ -218,5 +218,38 @@ describe('runStore', () => {
     store.getState().stop();
     expect(selectIsRunning(store.getState())).toBe(false);
     expect(frames).toHaveLength(1);
+  });
+});
+
+describe('runStore for a check (N6a S2)', () => {
+  it('says whether Run started', () => {
+    const { store } = setup();
+    expect(store.getState().run(ledOn)).toEqual({ ok: true });
+    expect(store.getState().run({ ...ledOn, circuit: { components: [], wires: [] } })).toEqual({ ok: false, reason: 'no-board', diagnostics: [] });
+  });
+
+  it('hands out the session’s snapshot now, before any frame', () => {
+    const { session, store } = setup();
+    store.getState().run(ledOn);
+    expect(store.getState().latestSnapshot()).toBe(session.getSnapshot());
+    expect(store.getState().snapshot.status).toBe('idle');
+  });
+
+  it('is the session of a check: start, stop, subscribe, snapshot and inputs go to the same run', async () => {
+    const { session, store } = setup();
+    const checkSession = checkSessionOf(store);
+    const seen: string[] = [];
+    const unsubscribe = checkSession.subscribe((snapshot) => seen.push(snapshot.status));
+
+    expect(checkSession.start(projectDocumentSchema.parse(buttonDirectSample))).toEqual({ ok: true });
+    checkSession.setComponentInput('button', { kind: 'hold', closed: true });
+    expect(checkSession.getSnapshot().simulation?.components.led?.lit).toBe(true);
+    checkSession.stop();
+    unsubscribe();
+
+    expect(seen[0]).toBe('running');
+    expect(seen.at(-1)).toBe('idle');
+    expect(session.getSnapshot().status).toBe('idle');
+    expect(selectIsRunning(store.getState())).toBe(false);
   });
 });

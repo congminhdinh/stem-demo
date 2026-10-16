@@ -8,9 +8,10 @@ import { createRunSession } from './core/run/run-session';
 import { createPinCapabilities } from './core/run/ybc-pin-io';
 import { createOnboardCapabilities } from './core/simulation/peripherals/onboard-capabilities';
 import { templateChallenge } from './samples/challenges';
+import { createTemplateProject } from './samples/templates';
 import { createDexieProjectRepository } from './storage/dexie-project-repository';
 import { App } from './ui/app/App';
-import { createHostBridge } from './ui/app/host-bridge';
+import { createHostBridge, type HostBridge } from './ui/app/host-bridge';
 import { connectLabHost, loadHostProject } from './ui/app/lab-host';
 import { LaunchError } from './ui/app/LaunchError';
 import { parseLaunch } from './ui/app/launch';
@@ -88,9 +89,10 @@ if (started.kind === 'launch-error') {
   // its `origin=` names. Opened on its own (a new tab), the lab works the same and talks to nobody.
   const lab = launch.mode === 'embed' ? (launch.lab ?? null) : null;
   const challenge = launch.mode === 'embed' && lab ? templateChallenge(launch.template, locale) : null;
+  let bridge: HostBridge | null = null;
   if (launch.mode === 'embed' && lab && lab.hostOrigin !== null && window.parent !== window) {
     const rules = { lab: lab.kind, profile: lab.profile, registry, profiles, canOpenProgram: (blocks: unknown) => canOpenProgram(blocks, packs) };
-    const bridge = createHostBridge({
+    bridge = createHostBridge({
       host: window.parent,
       hostOrigin: lab.hostOrigin,
       window,
@@ -113,6 +115,16 @@ if (started.kind === 'launch-error') {
           profiles={profiles}
           packs={packs}
           notice={started.notice}
+          lab={
+            launch.mode === 'embed' && lab
+              ? {
+                  kind: lab.kind,
+                  challenge,
+                  createTemplate: () => createTemplateProject(launch.template, lab.profile === null ? {} : { profile: lab.profile }),
+                  onChecked: (result) => bridge?.checkResult(result),
+                }
+              : null
+          }
         />
       </TextProvider>
     </StrictMode>,

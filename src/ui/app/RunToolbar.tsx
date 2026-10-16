@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useStore } from 'zustand';
 import type { RunDiagnostic } from '../../core/run/run-session';
 import { useText, type Text } from '../i18n/text';
@@ -8,9 +9,16 @@ import { Console } from './Console';
 export const diagnosticText = (t: Text, diagnostic: RunDiagnostic) =>
   t(diagnostic.severity === 'error' ? 'diagnostic.error' : 'diagnostic.warning', { message: diagnostic.message });
 
-type RunToolbarProps = { runStore: RunStore; onRun(): void };
+type RunToolbarProps = {
+  runStore: RunStore;
+  onRun(): void;
+  /** True while something else drives the run (a lab's check, N6a S4): Run waits, Stop still stops. */
+  runDisabled?: boolean;
+  /** More buttons after Stop (a lab's Check and Reset). */
+  actions?: ReactNode;
+};
 
-export function RunToolbar({ runStore, onRun }: RunToolbarProps) {
+export function RunToolbar({ runStore, onRun, runDisabled = false, actions }: RunToolbarProps) {
   const snapshot = useStore(runStore, (state) => state.snapshot);
   const startFailure = useStore(runStore, (state) => state.startFailure);
   const running = useStore(runStore, selectIsRunning);
@@ -26,12 +34,13 @@ export function RunToolbar({ runStore, onRun }: RunToolbarProps) {
 
   return (
     <div className="run-toolbar" role="toolbar" aria-label={t('run.toolbar')}>
-      <button type="button" onClick={onRun}>
+      <button type="button" onClick={onRun} disabled={runDisabled}>
         {t('run.run')}
       </button>
       <button type="button" onClick={() => runStore.getState().stop()} disabled={!running}>
         {t('run.stop')}
       </button>
+      {actions}
       <span className={`run-status run-status-${snapshot.status}`} role="status" data-testid="run-status">
         {t(`run.status.${snapshot.status}`)}
       </span>

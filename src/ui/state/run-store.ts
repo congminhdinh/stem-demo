@@ -1,4 +1,5 @@
 import { createStore } from 'zustand/vanilla';
+import type { CheckSession } from '../../core/challenge';
 import type { ProjectDocument } from '../../core/circuit/document';
 import type { RunSession, RunSnapshot, StartResult } from '../../core/run/run-session';
 import type { ComponentInput } from '../../core/simulation/simulate-circuit';
@@ -19,7 +20,8 @@ export type RunState = {
   running: boolean;
   /** Why the last Run did not start; cleared by the next Run that starts, or by `clearStartFailure`. */
   startFailure: Extract<StartResult, { ok: false }> | null;
-  run(project: ProjectDocument): void;
+  /** Starts a run of `project`; what the session answered (N6a: a check needs to know whether its run started). */
+  run(project: ProjectDocument): StartResult;
   stop(): void;
   /** Holds a push button of the running circuit closed or lets it open (no-op while idle). */
   setContactInput(componentId: string, closed: boolean): void;
@@ -37,6 +39,8 @@ export type RunState = {
    * draws: the sound (a note that ends and the next one that starts in one task). Returns the way to stop listening.
    */
   onSnapshot(listener: (snapshot: RunSnapshot) => void): () => void;
+  /** The session's snapshot now, its console brought up to date: not held back to a frame like `snapshot` (N6a S2). */
+  latestSnapshot(): RunSnapshot;
 };
 
 export const selectIsRunning = (state: RunState) => state.running;
@@ -69,14 +73,30 @@ export function createRunStore(
       run(project) {
         const result = session.start(project);
         set({ startFailure: result.ok ? null : result });
+        return result;
       },
       stop: () => session.stop(),
       setContactInput: (componentId, closed) => session.setContactInput(componentId, closed),
       setComponentInput: (componentId, input) => session.setComponentInput(componentId, input),
       clearStartFailure: () => set({ startFailure: null }),
       onSnapshot: (listener) => session.subscribe(listener),
+      latestSnapshot: () => session.getSnapshot(),
     };
   });
 }
 
 export type RunStore = ReturnType<typeof createRunStore>;
+
+/**
+ * The run store as the session of a check (N6a S2): a check starts, observes and stops the same run the toolbar
+ * shows, so its run locks the editor, draws on the canvas and reports why it did not start, like Run.
+ */
+export function checkSessionOf(runStore: RunStore): CheckSession {
+  return {
+    start: (project) => runStore.getState().run(project),
+    stop: () => runStore.getState().stop(),
+    subscribe: (listener) => runStore.getState().onSnapshot(listener),
+    getSnapshot: () => runStore.getState().latestSnapshot(),
+    setComponentInput: (componentId, input) => runStore.getState().setComponentInput(componentId, input),
+  };
+}

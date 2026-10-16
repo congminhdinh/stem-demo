@@ -13,6 +13,7 @@ body {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   height: 100vh;
+  height: 100dvh;
 }
 
 .app-header {
@@ -473,4 +474,95 @@ body {
 
 .launch-error .launch-error-title {
   font-weight: 600;
+}
+
+/* A lab launch (N6a S4): Check stands out, Reset asks twice, and the goals take a row of the header. */
+.app-header .lab-check {
+  border-color: #2680c2;
+  background: #2680c2;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.app-header .lab-reset-armed {
+  border-color: #a61b1b;
+  color: #a61b1b;
+}
+
+.challenge-panel {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  font-size: 13px;
+}
+
+.challenge-panel h2 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.challenge-panel ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.challenge-goal-mark {
+  display: inline-block;
+  width: 1.4em;
+  font-weight: 700;
+}
+
+.challenge-goal-passed {
+  color: #207227;
+}
+
+.challenge-goal-failed {
+  color: #a61b1b;
+}
+
+.challenge-status {
+  margin: 0;
+  color: #52606d;
+}
+
+.challenge-status:empty {
+  display: none;
+}
+
+.challenge-status-passed {
+  color: #207227;
+  font-weight: 600;
+}
+
+.challenge-status-failed {
+  color: #a61b1b;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* A narrow frame (a phone, a tablet in portrait, a small lesson column): circuit above, program below, scrolling. */
+@media (max-width: 760px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: minmax(320px, 1fr);
+    overflow-y: auto;
+  }
+
+  .program-region {
+    border-top: 1px solid #d9e2ec;
+    border-left: 0;
+  }
 }

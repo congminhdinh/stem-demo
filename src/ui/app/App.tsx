@@ -1,12 +1,14 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from 'zustand';
-import { createNewProject, type Circuit } from '../../core/circuit/document';
+import { runCheck, type Challenge, type CheckResult, type CheckRun } from '../../core/challenge';
+import { createNewProject, type Circuit, type ProjectDocument } from '../../core/circuit/document';
 import type { DeviceRegistry } from '../../core/devices/registry';
 import type { Notice } from '../../core/persistence/project-repository';
 import { resolveBoardContext } from '../../core/profiles/board-context';
 import type { ProfileCatalog } from '../../core/profiles/profile';
 import { buildToolbox, type BlockPackCatalog } from '../../core/program/block-packs';
 import { buzzerPartId, displayPartId } from '../../core/simulation/peripherals/onboard-capabilities';
+import type { LabKind } from '../../samples/templates';
 import { SoundIndicator } from '../audio/SoundIndicator';
 import { toneHz } from '../audio/tone';
 import { BlocklyPanel, type BlocklyPanelHandle } from '../blockly/BlocklyPanel';
@@ -18,10 +20,25 @@ import { DisplayText } from '../runtime-controls/DisplayText';
 import { partStateOf } from '../runtime-controls/display-view';
 import { RuntimeControls } from '../runtime-controls/RuntimeControls';
 import type { ProjectStore } from '../state/project-store';
-import { selectIsRunning, type RunStore } from '../state/run-store';
+import { checkSessionOf, selectIsRunning, type RunStore } from '../state/run-store';
+import { ChallengePanel, type CheckView } from './ChallengePanel';
 import { PythonPanel } from './PythonPanel';
 import { RunToolbar } from './RunToolbar';
 import './app.css';
+
+/** What a lab launch (`lab=`, N6a S4) adds to the editor: its title, the template's challenge and Reset. */
+export type LabChrome = {
+  kind: LabKind;
+  /** The template's challenge; null: nothing to check (the empty templates). */
+  challenge: Challenge | null;
+  /** A fresh copy of the template, for Reset. */
+  createTemplate(): ProjectDocument;
+  /** Every finished check (the host bridge's `check-result`). */
+  onChecked?(result: CheckResult): void;
+};
+
+/** How long Reset waits for the second click before it forgets the first. */
+const resetConfirmMs = 4000;
 
 type AppProps = {
   projectStore: ProjectStore;
@@ -31,9 +48,11 @@ type AppProps = {
   packs: BlockPackCatalog;
   /** Why the app did not open the saved project, if it did not (plan §7). */
   notice?: Notice | null;
+  /** A lab launch's chrome; null for the standalone editor and the legacy S1 lab, which look as they did. */
+  lab?: LabChrome | null;
 };
 
-export function App({ projectStore, runStore, registry, profiles, packs, notice = null }: AppProps) {
+export function App({ projectStore, runStore, registry, profiles, packs, notice = null, lab = null }: AppProps) {
   const document = useStore(projectStore, (state) => state.document);
   const loadRevision = useStore(projectStore, (state) => state.loadRevision);
   const simulation = useStore(runStore, (state) => state.snapshot.simulation);
@@ -66,6 +85,20 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
     setRunEpoch((epoch) => epoch + 1);
   };
 
+  // A lab's check (N6a S4): one at a time, on the run the toolbar shows. Its result belongs to the document it
+  // checked: once the learner edits, the goals go back to "not checked yet".
+  const [check, setCheck] = useState<CheckView & { document?: ProjectDocument }>({ state: 'idle' });
+  const checkRun = useRef<CheckRun | null>(null);
+  const [resetArmed, setResetArmed] = useState(false);
+  useEffect(() => () => checkRun.current?.cancel(), []);
+  useEffect(() => {
+    if (!resetArmed) {
+      return;
+    }
+    const timer = setTimeout(() => setResetArmed(false), resetConfirmMs);
+    return () => clearTimeout(timer);
+  }, [resetArmed]);
+
   // New replaces the whole project, so it is locked while running like any
   // edit. Why the last Run did not start was about the replaced project.
   const newProject = () => {
@@ -86,6 +119,53 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
 
   const isYbc = context.family === 'ybc';
   const boardId = context.readiness.ok ? context.readiness.board.id : null;
+
+  const startCheck = () => {
+    const challenge = lab?.challenge;
+    if (!challenge || checkRun.current) {
+      return;
+    }
+    blocklyRef.current?.saveNow();
+    const checked = projectStore.getState().document;
+    setRunEpoch((epoch) => epoch + 1);
+    setCheck({ state: 'checking' });
+    const started = runCheck({ session: checkSessionOf(runStore), document: checked, challenge, boardId });
+    checkRun.current = started;
+    void started.done.then((outcome) => {
+      if (checkRun.current !== started) {
+        return;
+      }
+      checkRun.current = null;
+      if (outcome.status === 'cancelled') {
+        setCheck({ state: 'idle' });
+        return;
+      }
+      setCheck({ state: 'done', result: outcome.result, started: outcome.started, document: checked });
+      lab?.onChecked?.(outcome.result);
+    });
+  };
+
+  // Reset puts the template back, after a second click: a frame may not allow a confirm dialog (sandbox).
+  const reset = () => {
+    if (!lab) {
+      return;
+    }
+    if (!resetArmed) {
+      setResetArmed(true);
+      return;
+    }
+    setResetArmed(false);
+    const cancelled = checkRun.current;
+    checkRun.current = null;
+    cancelled?.cancel();
+    runStore.getState().stop();
+    projectStore.getState().loadProject(lab.createTemplate());
+    runStore.getState().clearStartFailure();
+    setCheck({ state: 'idle' });
+  };
+
+  const checking = check.state === 'checking';
+  const shownCheck: CheckView = check.state === 'done' && check.document !== document ? { state: 'idle' } : check;
   // The sound follows every snapshot of the session, not the one a frame shows (see SoundIndicator).
   const tones = useCallback(
     (listener: (hz: number | undefined) => void) =>
@@ -124,12 +204,34 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
   return (
     <div className="app-shell">
       <header className="app-header">
-        <h1>{t('app.title')}</h1>
-        <p>{t('app.subtitle')}</p>
-        <button type="button" onClick={newProject} disabled={running}>
-          {t('app.new')}
-        </button>
-        <RunToolbar runStore={runStore} onRun={run} />
+        <h1>{lab ? t(`lab.title.${lab.kind}`) : t('app.title')}</h1>
+        <p>{lab ? t('app.title') : t('app.subtitle')}</p>
+        {/* A lab always holds its template: Reset brings it back, nothing replaces it with an empty project. */}
+        {!lab && (
+          <button type="button" onClick={newProject} disabled={running}>
+            {t('app.new')}
+          </button>
+        )}
+        <RunToolbar
+          runStore={runStore}
+          onRun={run}
+          runDisabled={checking}
+          actions={
+            lab && (
+              <>
+                {lab.challenge && (
+                  <button type="button" className="lab-check" onClick={startCheck} disabled={checking}>
+                    {checking ? t('lab.checking') : t('lab.check')}
+                  </button>
+                )}
+                <button type="button" className={resetArmed ? 'lab-reset lab-reset-armed' : 'lab-reset'} onClick={reset}>
+                  {resetArmed ? t('lab.resetConfirm') : t('lab.reset')}
+                </button>
+              </>
+            )
+          }
+        />
+        {lab?.challenge && <ChallengePanel challenge={lab.challenge} check={shownCheck} />}
         {shownNotice && (
           <p className="app-notice" role="status" data-testid="app-notice">
             {shownNotice}

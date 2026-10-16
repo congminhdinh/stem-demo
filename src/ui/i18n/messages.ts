@@ -57,6 +57,20 @@ export const en = {
   'python.layer.L-2': 'The project does not fit this profile.',
   'python.layer.L-3': 'The program cannot run yet.',
   'python.layer.L-4': 'Python cannot be generated yet.',
+  'lab.title.blockly': 'Block programming',
+  'lab.title.yolobit': 'Yolo:Bit circuit',
+  'lab.check': 'Check',
+  'lab.checking': 'Checking…',
+  'lab.reset': 'Reset',
+  'lab.resetConfirm': 'Click again to reset',
+  'lab.goals': 'Goals',
+  'lab.goal.todo': 'not checked yet',
+  'lab.goal.passed': 'met',
+  'lab.goal.failed': 'not met yet',
+  'lab.result.checking': 'Checking: the lab runs your program for a few seconds…',
+  'lab.result.passed': 'Passed! Every goal is met.',
+  'lab.result.failed': 'Not yet: look at the goals that are not met, change the program and check again.',
+  'lab.result.notStarted': 'The program could not run: fix what the toolbar says, then check again.',
 } as const satisfies Record<string, string>;
 
 export type MessageKey = keyof typeof en;
@@ -113,6 +127,20 @@ export const vi: Readonly<Record<MessageKey, string>> = {
   'python.layer.L-2': 'Dự án không hợp với cấp độ này.',
   'python.layer.L-3': 'Chương trình chưa chạy được.',
   'python.layer.L-4': 'Chưa sinh được Python.',
+  'lab.title.blockly': 'Lập trình khối',
+  'lab.title.yolobit': 'Mạch Yolo:Bit',
+  'lab.check': 'Kiểm tra',
+  'lab.checking': 'Đang kiểm tra…',
+  'lab.reset': 'Đặt lại',
+  'lab.resetConfirm': 'Bấm lần nữa để đặt lại',
+  'lab.goals': 'Mục tiêu',
+  'lab.goal.todo': 'chưa kiểm tra',
+  'lab.goal.passed': 'đạt',
+  'lab.goal.failed': 'chưa đạt',
+  'lab.result.checking': 'Đang kiểm tra: chương trình của bạn được chạy thử vài giây…',
+  'lab.result.passed': 'Đạt! Bạn đã hoàn thành mọi mục tiêu.',
+  'lab.result.failed': 'Chưa đạt: xem các mục tiêu chưa đạt, sửa chương trình rồi kiểm tra lại.',
+  'lab.result.notStarted': 'Chương trình chưa chạy được: sửa lỗi được báo ở thanh trên rồi kiểm tra lại.',
 };
 
 const dictionaries: Readonly<Record<Locale, Readonly<Record<MessageKey, string>>>> = { en, vi };
