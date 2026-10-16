@@ -21,6 +21,7 @@
     "verify": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
+    "@fontsource/be-vietnam-pro": "5.3.0",
     "blockly": "13.3.0",
     "dexie": "4.4.6",
     "konva": "10.7.0",

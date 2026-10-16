@@ -5,6 +5,7 @@ import { blockTypes } from '../../core/program/blocks';
 import type { BlockPackCatalog, Toolbox } from '../../core/program/block-packs';
 import type { ProjectStore } from '../state/project-store';
 import { registerBlocks, ybcVariablesFlyout } from './editor-blocks';
+import { stemTheme } from './theme';
 
 // Blockly is only a view of `document.program.blocks` (plan §5.1 B4): the
 // workspace is loaded from that JSON and every non-UI change is serialized
@@ -47,6 +48,7 @@ export function BlocklyPanel({ projectStore, packs, toolbox, ref }: BlocklyPanel
     registerBlocks(packs);
     const workspace = Blockly.inject(container, {
       renderer: 'zelos',
+      theme: stemTheme,
       toolbox: toolbox as Blockly.utils.toolbox.ToolboxInfo,
       media: '/blockly-media/',
       sounds: false,

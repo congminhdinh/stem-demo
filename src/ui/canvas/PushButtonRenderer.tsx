@@ -1,5 +1,6 @@
 import { Circle, Rect } from 'react-konva';
 import type { DeviceRendererProps } from './renderers';
+import { canvasPalette } from './colors';
 
 const capRadius = 13;
 
@@ -15,17 +16,17 @@ export function PushButtonRenderer({ definition, runtimeState }: DeviceRendererP
         width={width}
         height={height}
         cornerRadius={4}
-        fill="#3e4c59"
-        stroke="#1f2933"
+        fill={canvasPalette.pushButton.body}
+        stroke={canvasPalette.pushButton.outline}
       />
       {/* `closed` is set on the node so tests read what was rendered (plan §11.4). */}
       <Circle
         name="button-cap"
         closed={closed}
         radius={closed ? capRadius - 2 : capRadius}
-        fill={closed ? '#147d64' : '#3ebd93'}
-        stroke="#0c6b58"
-        shadowColor="#000000"
+        fill={closed ? canvasPalette.pushButton.pressed : canvasPalette.pushButton.released}
+        stroke={canvasPalette.pushButton.capOutline}
+        shadowColor={canvasPalette.pushButton.shadow}
         shadowOffsetY={closed ? 0 : 2}
         shadowBlur={closed ? 0 : 3}
         shadowOpacity={0.5}

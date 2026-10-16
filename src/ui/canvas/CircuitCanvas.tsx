@@ -24,6 +24,7 @@ import { paletteItems, placementPosition } from './palette-model';
 import { rendererFor, type DeviceRendererProps } from './renderers';
 import { useElementSize } from './use-element-size';
 import { portPickRadiusPx, stageToWorld, stageToWorldDistance } from './viewport';
+import { canvasPalette } from './colors';
 
 // Renders the design state plus, while running, the simulation snapshot, and
 // edits the circuit (add, move, delete, wire). The document is the source of
@@ -305,7 +306,7 @@ export function CircuitCanvas({
                   <Line
                     name="wire-preview"
                     points={[draftStart.x, draftStart.y, draft.pointer.x, draft.pointer.y]}
-                    stroke="#2680c2"
+                    stroke={canvasPalette.selection}
                     strokeWidth={2}
                     dash={[6, 4]}
                     lineCap="round"
@@ -413,7 +414,7 @@ function ComponentBody({
           y={-height / 2 - selectionMargin}
           width={width + 2 * selectionMargin}
           height={height + 2 * selectionMargin}
-          stroke="#d64545"
+          stroke={canvasPalette.incompatible}
           strokeWidth={2}
           cornerRadius={4}
           listening={false}
@@ -427,7 +428,7 @@ function ComponentBody({
           y={-height / 2 - selectionMargin}
           width={width + 2 * selectionMargin}
           height={height + 2 * selectionMargin}
-          stroke="#2680c2"
+          stroke={canvasPalette.selection}
           strokeWidth={2}
           dash={[6, 4]}
           cornerRadius={4}
@@ -455,7 +456,7 @@ function WireLine({ wire, circuit, registry, selected, onPointerDown }: WireLine
       wireId={wire.id}
       selected={selected}
       points={[from.x, from.y, to.x, to.y]}
-      stroke={selected ? '#2680c2' : '#334e68'}
+      stroke={selected ? canvasPalette.wire.selected : canvasPalette.wire.normal}
       strokeWidth={selected ? 4 : 3}
       // Easier to click than the 3 px it shows.
       hitStrokeWidth={12}
@@ -466,10 +467,10 @@ function WireLine({ wire, circuit, registry, selected, onPointerDown }: WireLine
 }
 
 const portColors: Record<PortDefinition['kind'], string> = {
-  gpio: '#2680c2',
-  power: '#d64545',
-  ground: '#1f2933',
-  passive: '#7b8794',
+  gpio: canvasPalette.port.gpio,
+  power: canvasPalette.port.power,
+  ground: canvasPalette.port.ground,
+  passive: canvasPalette.port.passive,
 };
 
 const labelWidth = 48;
@@ -509,7 +510,7 @@ function PortMarkers({ component, definition, highlightedPorts, onPointerDown }:
           y={at.y}
           radius={highlighted ? 6 : 4}
           fill={portColors[port.kind]}
-          stroke={highlighted ? '#f0b429' : '#ffffff'}
+          stroke={highlighted ? canvasPalette.port.highlighted : canvasPalette.port.outline}
           strokeWidth={highlighted ? 2 : 1}
           hitFunc={pickAreaHit}
           onPointerDown={onPointerDown}
@@ -522,7 +523,7 @@ function PortMarkers({ component, definition, highlightedPorts, onPointerDown }:
             width={labelWidth}
             align={labelOnLeft ? 'right' : 'left'}
             fontSize={10}
-            fill="#52606d"
+            fill={canvasPalette.port.label}
             listening={false}
           />
         )}

@@ -1,5 +1,6 @@
 import { Rect, Text } from 'react-konva';
 import type { DeviceRendererProps } from './renderers';
+import { canvasPalette } from './colors';
 
 const fontSize = 13;
 
@@ -13,8 +14,8 @@ export function GenericRenderer({ definition }: DeviceRendererProps) {
         width={width}
         height={height}
         cornerRadius={6}
-        fill="#e4e7eb"
-        stroke="#9aa5b1"
+        fill={canvasPalette.generic.body}
+        stroke={canvasPalette.generic.outline}
       />
       <Text
         text={definition.name}
@@ -23,7 +24,7 @@ export function GenericRenderer({ definition }: DeviceRendererProps) {
         width={width}
         align="center"
         fontSize={fontSize}
-        fill="#334e68"
+        fill={canvasPalette.generic.label}
       />
     </>
   );

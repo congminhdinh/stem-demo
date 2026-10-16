@@ -1,6 +1,7 @@
 import { Circle, Group, Line, Rect, Text } from 'react-konva';
 import { SLIDER_MAX_PERCENT, SLIDER_MIN_PERCENT } from '../../core/simulation/simulate-circuit';
 import type { DeviceRendererProps } from './renderers';
+import { canvasPalette } from './colors';
 
 /** The knob turns through this many degrees from its start (0 %) to its end (100 %). */
 const travel = 270;
@@ -16,11 +17,11 @@ export function PotentiometerRenderer({ definition, runtimeState }: DeviceRender
   const angle = -travel / 2 + (percent / SLIDER_MAX_PERCENT) * travel;
   return (
     <>
-      <Rect x={-width / 2} y={-height / 2} width={width} height={height} cornerRadius={6} fill="#3e4c59" stroke="#1f2933" />
+      <Rect x={-width / 2} y={-height / 2} width={width} height={height} cornerRadius={6} fill={canvasPalette.potentiometer.body} stroke={canvasPalette.potentiometer.outline} />
       <Group y={-10}>
-        <Circle radius={knobRadius} fill="#cbd2d9" stroke="#52606d" strokeWidth={2} />
+        <Circle radius={knobRadius} fill={canvasPalette.potentiometer.knob} stroke={canvasPalette.potentiometer.knobOutline} strokeWidth={2} />
         {/* `value` is set on the node so tests read what was rendered (plan §11.4). */}
-        <Line name="knob" value={percent} points={[0, 0, 0, -(knobRadius - 4)]} rotation={angle} stroke="#1f2933" strokeWidth={4} lineCap="round" />
+        <Line name="knob" value={percent} points={[0, 0, 0, -(knobRadius - 4)]} rotation={angle} stroke={canvasPalette.potentiometer.pointer} strokeWidth={4} lineCap="round" />
       </Group>
       <Text
         text={`${percent} %`}
@@ -29,7 +30,7 @@ export function PotentiometerRenderer({ definition, runtimeState }: DeviceRender
         width={width}
         align="center"
         fontSize={11}
-        fill="#e4e7eb"
+        fill={canvasPalette.potentiometer.label}
         listening={false}
       />
     </>

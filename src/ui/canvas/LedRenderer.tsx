@@ -1,5 +1,6 @@
 import { Rect } from 'react-konva';
 import type { DeviceRendererProps } from './renderers';
+import { canvasPalette } from './colors';
 
 export function LedRenderer({ definition, runtimeState }: DeviceRendererProps) {
   const { width, height } = definition.body;
@@ -16,9 +17,9 @@ export function LedRenderer({ definition, runtimeState }: DeviceRendererProps) {
         width={width}
         height={domeHeight}
         cornerRadius={[width / 2, width / 2, 4, 4]}
-        fill={lit ? '#ff3b30' : '#7f1d1d'}
-        stroke="#5c1010"
-        shadowColor="#ff3b30"
+        fill={lit ? canvasPalette.led.lit : canvasPalette.led.dark}
+        stroke={canvasPalette.led.outline}
+        shadowColor={canvasPalette.led.glow}
         shadowBlur={lit ? 28 : 0}
         shadowOpacity={lit ? 0.9 : 0}
       />
@@ -28,7 +29,7 @@ export function LedRenderer({ definition, runtimeState }: DeviceRendererProps) {
         width={width + 6}
         height={6}
         cornerRadius={2}
-        fill="#9aa5b1"
+        fill={canvasPalette.led.base}
       />
     </>
   );

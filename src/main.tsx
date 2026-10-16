@@ -11,6 +11,7 @@ import { templateChallenge } from './samples/challenges';
 import { createTemplateProject } from './samples/templates';
 import { createDexieProjectRepository } from './storage/dexie-project-repository';
 import { App } from './ui/app/App';
+import { loadUiFont } from './ui/app/fonts';
 import { createHostBridge, type HostBridge } from './ui/app/host-bridge';
 import { connectLabHost, loadHostProject } from './ui/app/lab-host';
 import { LaunchError } from './ui/app/LaunchError';
@@ -45,6 +46,9 @@ const locale = localeOf(launch, window.location.search);
 document.documentElement.lang = locale;
 applyEditorLocale(locale);
 
+// Blockly measures block text when it draws: the font is loaded first (at most a moment, N6a S5).
+const fontLoaded = loadUiFont();
+
 const started = await openAtStartup(launch, {
   openRepository: () => createDexieProjectRepository(),
   registry,
@@ -53,6 +57,8 @@ const started = await openAtStartup(launch, {
   // Blockly, with the blocks of every pack, tells whether the editor can open a stored program.
   canOpenProgram: (blocks) => canOpenProgram(blocks, packs),
 });
+
+await fontLoaded;
 
 const container = document.getElementById('root');
 if (!container) {

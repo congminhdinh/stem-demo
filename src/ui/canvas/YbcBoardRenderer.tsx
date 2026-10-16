@@ -4,6 +4,7 @@ import type { ComponentState } from '../../core/simulation/simulate-circuit';
 import { formatHz, toneHz } from '../audio/tone';
 import { renderedPixels } from '../runtime-controls/display-view';
 import type { DeviceRendererProps } from './renderers';
+import { canvasPalette } from './colors';
 
 // The body of a Yolo:Bit-compatible board (YB plan §8.4, S9): our own shell and the places of the onboard
 // parts, drawn from the definition's data. What the parts show comes from the run snapshot only
@@ -11,12 +12,7 @@ import type { DeviceRendererProps } from './renderers';
 // its frequency as text, while a note sounds. The buttons and the light sensor are labelled footprints:
 // their pressed state and slider belong to the controls under the canvas, and the snapshot does not echo them.
 
-const shellFill = '#1f4e5f';
-const shellStroke = '#143642';
-const partFill = '#2c7a8c';
-const labelFill = '#e6f4f7';
-const soundingStroke = '#f0b429';
-const cellOff = '#10292f';
+const { shell: shellFill, shellOutline: shellStroke, part: partFill, label: labelFill, sounding: soundingStroke, cellOff } = canvasPalette.ybcBoard;
 const cellGap = 3;
 
 export function YbcBoardRenderer({ definition, partStates }: DeviceRendererProps) {
