@@ -7,8 +7,11 @@ import { createBlockPackCatalog } from './core/program/block-packs';
 import { createRunSession } from './core/run/run-session';
 import { createPinCapabilities } from './core/run/ybc-pin-io';
 import { createOnboardCapabilities } from './core/simulation/peripherals/onboard-capabilities';
+import { templateChallenge } from './samples/challenges';
 import { createDexieProjectRepository } from './storage/dexie-project-repository';
 import { App } from './ui/app/App';
+import { createHostBridge } from './ui/app/host-bridge';
+import { connectLabHost, loadHostProject } from './ui/app/lab-host';
 import { LaunchError } from './ui/app/LaunchError';
 import { parseLaunch } from './ui/app/launch';
 import { openAtStartup } from './ui/app/startup';
@@ -79,6 +82,21 @@ if (started.kind === 'launch-error') {
   );
   if (started.saveTo) {
     startAutosave(projectStore, started.saveTo, (error) => console.warn('The project could not be saved.', error));
+  }
+
+  // A lab launch (N6a): the template's challenge, and the stem-lab/v1 bridge when the lab is framed by the page
+  // its `origin=` names. Opened on its own (a new tab), the lab works the same and talks to nobody.
+  const lab = launch.mode === 'embed' ? (launch.lab ?? null) : null;
+  const challenge = launch.mode === 'embed' && lab ? templateChallenge(launch.template, locale) : null;
+  if (launch.mode === 'embed' && lab && lab.hostOrigin !== null && window.parent !== window) {
+    const rules = { lab: lab.kind, profile: lab.profile, registry, profiles, canOpenProgram: (blocks: unknown) => canOpenProgram(blocks, packs) };
+    const bridge = createHostBridge({
+      host: window.parent,
+      hostOrigin: lab.hostOrigin,
+      window,
+      onLoadProject: (document) => void loadHostProject(document, { ...rules, projectStore, runStore }),
+    });
+    connectLabHost({ ...rules, bridge, projectStore, runStore, template: launch.template, challenge });
   }
 
   if (import.meta.env.DEV) {
