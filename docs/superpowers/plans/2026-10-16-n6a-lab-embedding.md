@@ -7022,6 +7022,10 @@ EOF
 
 ## Deferred (ghi lại, không làm ở N6a)
 
+> **N8s (2026-10-17, `docs/superpowers/plans/2026-10-17-n8s-lab-polish.md`)** đã làm: diagnostic của core, lỗi nối
+> dây và nhãn Konva bằng tiếng Việt (lab `lab=`); S6 media Blockly theo `BASE_URL`; 4 E2E `ybc-python` trên macOS;
+> flake thời gian (đo CPU time). Còn lại: N6b, template nâng cao, CSP/deploy.
+
 - **N6b (STEMLearning):** preview `LabFrame` trong editor CMS (sau N5); chặn `requiresCheck=true` với `empty`/`ybc-empty` (R7).
 - Diagnostic của core (compiler/runtime) và lỗi nối dây trên canvas vẫn tiếng Anh; nhãn Konva lấy từ device definition ("Bit-compatible Board", "Light", "Buzzer") vẫn tiếng Anh.
 - S6: media Blockly dưới sub-path (`import.meta.env.BASE_URL` trong `BlocklyPanel.tsx`), P2.

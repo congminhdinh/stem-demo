@@ -27,8 +27,10 @@ hay font. Mọi thứ đi qua **launch URL** và **message `stem-lab/v1`** dư�
 - **Launch hỏng** → màn hình lỗi (tiếng Việt với `lab=`), không mở project nào: `lab` lạ hoặc lặp; key lạ, thiếu,
   lặp; key không thuộc `lab` (vd. `lab=blockly&template=ybc-heart`); `profile` lặp, lạ, hoặc có với `lab=blockly`;
   `origin` lặp hoặc không phải một page origin (`*`, `null`, có path, có `/` cuối, port mặc định viết ra…).
-  Lý do (tiếng Anh, cho người viết URL) và danh sách key của lab đó được hiện ra.
-- **Ngôn ngữ**: `lab=` → tiếng Việt; standalone và lab S1 → tiếng Anh. `lang=vi|en` ghi đè.
+  Lý do (theo ngôn ngữ của lab; với `lab=` là tiếng Việt, nguyên văn tiếng Anh cho người viết URL nằm dưới
+  "Chi tiết kỹ thuật") và danh sách key của lab đó được hiện ra.
+- **Ngôn ngữ**: `lab=` → tiếng Việt; standalone và lab S1 → tiếng Anh. `lang=vi|en` ghi đè. Với tiếng Việt, cả
+  thông báo của core (lỗi biên dịch, lỗi khi chạy, lỗi mạch) và nhãn vẽ trên bo mạch cũng tiếng Việt (N8s).
 - **Lab không lưu gì** trong trình duyệt (như S1): mỗi lần mở là template mới. Bài làm được giữ bởi host (xem
   `project-changed` / `load-project`).
 
@@ -68,6 +70,9 @@ hợp lệ và lab nằm trong một frame.
   có trong chương trình và được chạy).
 - Template Yolo:Bit là **bài khởi đầu**: board và chương trình, cùng một khối (hoặc chuỗi khối) đặt rời, bị vô hiệu
   hoá; học sinh kéo nó vào đúng chỗ thì đạt. Template generic là chương trình hoàn chỉnh (như S1): Kiểm tra đạt ngay.
+- Kiểm tra chạy **trên bo mạch học sinh đang nhìn** (N8s): đó chính là lượt chạy được chấm. Các lần bấm nút A/B,
+  kéo ánh sáng, giữ nút bấm của kịch bản được vẽ lên bo mạch và lên nút điều khiển; có thanh tiến độ trong lúc chạy;
+  xong thì bo mạch giữ khung hình cuối (có ghi chú) tới lần chạy hoặc lần sửa tiếp theo. Message không đổi.
 - **Người soạn bài**: với `empty`/`ybc-empty` (không có mục tiêu), để `requiresCheck = false`.
 
 ## 4. Khung nhúng
@@ -75,9 +80,17 @@ hợp lệ và lab nằm trong một frame.
 - iframe của host: `sandbox="allow-scripts allow-same-origin allow-downloads"`. Không có `allow-modals`, nên lab
   không dùng `confirm()`: **Đặt lại** cần bấm hai lần.
 - Host và lab phải cùng không gian địa chỉ (cùng localhost hoặc cùng public; Chromium Local Network Access).
-- Lab tự host font (Be Vietnam Pro, OFL) và media Blockly; không tải gì từ trang nhúng hay CDN.
+- Lab tự host font (Be Vietnam Pro, OFL) và media Blockly; không tải gì từ trang nhúng hay CDN. Media Blockly và
+  favicon đi theo base path của bản build (`vite build --base /lab/` cũng chạy).
+- **Bố cục theo khung** (N8s, chỉ launch `lab=`): khung rộng từ 800 px: mạch | chương trình, chương trình rộng hơn
+  (62 %), có thanh kéo đổi độ rộng và nút thu gọn mạch; mạch được thu nhỏ cho vừa khung, khối khởi đầu luôn nằm
+  trong tầm nhìn. Khung hẹp hơn 800 px: hai tab "Chương trình" / "Mạch"; Chạy và Kiểm tra tự chuyển sang tab Mạch.
+  Trang không cuộn khi khung cao từ khoảng 600 px. Host không phải làm gì: iframe hiện tại
+  (`h-[min(78dvh,56rem)] min-h-[32rem]`) vừa. Lab không lưu bố cục (mỗi lần mở là mặc định).
 
 ## 5. Phiên bản
 
 `stem-lab/v1` chỉ được **thêm** trường hoặc `type` mới (bên nhận bỏ qua cái không biết). Đổi nghĩa hay bỏ trường
 → `stem-lab/v2`, và lab phải nói được cả hai trong thời gian chuyển tiếp.
+
+N8s (2026-10-17) không đổi URL hay message nào: chỉ bố cục, Kiểm tra nhìn thấy được và tiếng Việt bên trong lab.

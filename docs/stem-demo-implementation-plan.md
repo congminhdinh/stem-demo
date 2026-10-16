@@ -777,6 +777,7 @@ Các phần "sau MP" của cùng các task (Resistor, `forever`, `wait`, async s
 | POC-14 | Local persistence | M4 | M | P1 | 03 (nên làm sau 11) | L7, B8 |
 | S1 | Embed launch (cho CourseService) | — | S | — | 14 | B1, B8 |
 | N6a | Lab embedding (`lab=`, `stem-lab/v1`, Kiểm tra, tiếng Việt) | — | M | — | S1, YB-3 | B1, B2, B8 |
+| N8s | Lab polish (bố cục khung nhúng, Kiểm tra nhìn thấy được, tiếng Việt của core) | — | S | — | N6a | B1, B2, B7 |
 
 Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog §13. **S1** nằm ngoài roadmap PoC: nó là điều kiện của CourseService (T7, T9), không phải của hypothesis. **N6a** cũng vậy: nó là phần stem-demo của bản demo LMS (plan redesign STEMLearning §7, S0–S5).
 
@@ -1643,6 +1644,33 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
 - `BlocklyPanel` media dưới sub-path (`import.meta.env.BASE_URL`, S6, P2).
 - CSP `frame-ancestors`, deploy.
 
+*(N8s đã làm hai mục đầu (phần text) và mục `BlocklyPanel`, xem dưới.)*
+
+### N8s — Lab polish (sau demo-v1)
+
+`Ngoài roadmap PoC · S · Phụ thuộc: N6a · Plan: docs/superpowers/plans/2026-10-17-n8s-lab-polish.md`
+
+**Evidence (test trình duyệt end-to-end của demo-v1).** Nhúng ở ~1000 px, canvas chiếm 60 % nên vùng khối hẹp và
+khối khởi đầu nằm nửa ngoài màn hình; ở ~670 px (tablet 1024×768) vùng chương trình bị đẩy xuống dưới nếp gấp.
+Trong lúc Kiểm tra, màn hình 5×5 *có* đổi (✓ ở 205 ms, ✗ ở 853 ms — đo lại khi dry-run) nhưng lượt chạy chỉ 1–2 s
+rồi tắt, các lần bấm của kịch bản không hiện ở đâu, nên học sinh chỉ thấy danh sách mục tiêu. Câu lỗi launch và
+thông báo của core vẫn tiếng Anh; `/favicon.ico` 404.
+
+**Đã làm**
+- Bố cục `lab=`: chương trình 62 %, thanh kéo (bàn phím + chuột), thu gọn mạch; < 800 px: tab "Chương trình" /
+  "Mạch", Chạy và Kiểm tra chuyển sang Mạch; canvas tự thu nhỏ cho vừa (viewport scale + offset trong
+  `viewport.ts`, B7); khối khởi đầu được thu nhỏ vào tầm nhìn (chỉ đổi view, không đổi document); Python thu gọn
+  lúc mở. Standalone và lab S1 giữ bố cục cũ.
+- Kiểm tra nhìn thấy được: chính lượt chạy được chấm, các input của kịch bản vẽ lên bo mạch và nút điều khiển
+  (`checkSessionOf(runStore, observer)`, lớp UI), thanh tiến độ, giữ khung cuối. Bộ chấm trong core không đổi.
+- Tiếng Việt: `src/ui/i18n/core-text.ts` dịch thông báo của core và lý do launch hỏng theo từng khung câu (core
+  không có locale, B1); test đọc nguồn của core để bắt câu mới chưa dịch. Nhãn Konva qua `src/ui/i18n/devices.ts`.
+- Nhỏ: favicon SVG tự vẽ, media Blockly theo `BASE_URL` (S6), bỏ `describeTone`.
+- Test: 4 E2E `ybc-python` trên macOS (`ControlOrMeta`, phím copy theo nền tảng), test thời gian đo bằng CPU time
+  (`__fixtures__/cpu-clock.ts`, giữ nguyên ngưỡng, thêm trần wall-clock), cổng E2E đổi được (`E2E_PORT`).
+
+**Không đổi**: `stem-lab/v1` (URL, message), compile → IR → MicroPython, `src/core/challenge`.
+
 ---
 
 ## 10. Dependency và critical path
@@ -1915,6 +1943,7 @@ Chỉ cần quay lại research khi làm hạng mục backlog: track Python (spe
 | M2 | 2026-10-03 | L1, L2, L8 + go/no-go | Xem "M2 — chi tiết" bên dưới | L1 ✅ · L2 ✅ · L8 ⚠️ (mới có lần chạy của agent) · **GO** cho M3/M4 (reviewer xác nhận 2026-10-03) | Không đổi kiến trúc. Ghi nhận: lỗi tập trung ở chuyển trạng thái của thao tác chuột (UI), không ở model |
 | M3 | 2026-10-03 | L3 (built-in), L5, L6 | Xem "M3 — chi tiết" bên dưới | L3 ✅ · L5 ✅ · L6 ✅ · L8 ⚠️ (chỉ có lần chạy của agent) | Không đổi kiến trúc. IR của `if` dùng danh sách nhánh; điều kiện bỏ trống là lỗi (C8) |
 | N6a | 2026-10-16 | Lab nhúng cho LMS có chấm bài được không mà không đưa logic LMS vào stem-demo? | Mục N6a ở §9.2; `pnpm verify`; `e2e/ybc-embed.spec.ts` | ✅ Challenge là dữ liệu template + evaluator thuần trong core, bridge chỉ ở UI | Scope mở rộng có ghi (§9.2 N6a); quy ước ngôn ngữ UI đổi (CLAUDE.md) |
+| N8s | 2026-10-17 | Lab nhúng dùng được trong khung 600–1000 px, Kiểm tra nhìn thấy được, tiếng Việt trọn vẹn — mà không đổi hợp đồng? | Mục N8s ở §9.2; `e2e/lab-layout.spec.ts`, `e2e/lab-check.spec.ts`; `pnpm e2e` xanh hoàn toàn | ✅ Bố cục và dịch thuật thuần lớp UI; `stem-lab/v1` không đổi | Timing test đo CPU time (máy bận không còn làm fail) |
 | M4 | 2026-10-03 | L7 (+ B8) | Xem "M4 — chi tiết" bên dưới | L7 ✅ · B8 ✅ · L8 ⚠️ (chỉ có lần chạy của agent) | Kiểm tra lúc load gồm cả I1–I3, registry, và program do Blockly phán sau một preflight giới hạn công việc (§6.1, §7). Không đổi kiến trúc |
 
 **M2 — chi tiết (POC-11).**

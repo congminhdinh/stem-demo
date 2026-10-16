@@ -100,7 +100,7 @@ Luật riêng của track này:
   - list (trừ khi YB-7 đủ điều kiện, NICE);
   - **event block, nếu gate EV không đạt** (§6.6).
 - `postMessage`/chấm bài/completion mới; lưu bài làm trong lab nhúng. *(N6a, 2026-10-16: đã làm ngoài plan này, theo plan redesign STEMLearning §7: `stem-lab/v1`, Kiểm tra, `load-project`/`project-changed`; lab vẫn không lưu gì. Xem docs/lab-embed-contract.md và stem-demo plan §9.2 N6a.)*
-- Viết lại i18n; layout mobile đầy đủ. *(N6a: lab `lab=` nói tiếng Việt qua từ điển UI; standalone giữ tiếng Anh.)*
+- Viết lại i18n; layout mobile đầy đủ. *(N6a: lab `lab=` nói tiếng Việt qua từ điển UI; standalone giữ tiếng Anh. N8s: cả thông báo của core và nhãn bo mạch; lab `lab=` dưới 800 px dùng tab Chương trình / Mạch — chưa phải layout mobile đầy đủ.)*
 - Bluetooth, Wi-Fi, MQTT, radio, IoT; module cần thư viện ngoài firmware chuẩn.
 - Robot simulator.
 - Thay đổi `board` generic, block `stem_*`, toolbox/palette generic, năm template cũ.
@@ -1735,7 +1735,7 @@ YB-0 → YB-1 → YB-2 → YB-5A → YB-CP → ( YB-3 ∥ YB-4 ) → YB-5B → Y
 - **Event**, nếu gate EV không đạt.
 - ~~`postMessage`/chấm bài~~ (N6a); lưu bài làm trong lab (host giữ, lab không lưu); i18n ngoài lab `lab=`.
 - Module cần thư viện; giao tiếp; game; nhiều board.
-- Màu/độ sáng display (nếu chưa qua EG); layout mobile.
+- Màu/độ sáng display (nếu chưa qua EG); layout mobile (lab `lab=` có tab dưới 800 px từ N8s; standalone chưa).
 - Ngôn ngữ mới cho board generic; robot.
 
 ---
