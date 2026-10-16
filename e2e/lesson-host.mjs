@@ -9,6 +9,10 @@ import { URL } from 'node:url';
 // frame localhost (net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS).
 //
 //   GET /lesson?lab=<lab URL>[&sandbox=<iframe sandbox tokens>]
+//
+// Like the learn app's LabFrame (N6a S3), the page keeps every message the frame's window sends it, with its
+// origin, in `window.__labMessages`, and `window.__sendToLab(message, targetOrigin)` posts to the frame: the
+// E2E reads and drives stem-lab/v1 through them.
 
 const port = Number(argv[2] ?? 5190);
 
@@ -28,6 +32,16 @@ createServer((request, response) => {
     <iframe title="Lab" src="${escapeHtml(lab)}" width="1100" height="640"${
       sandbox === null ? '' : ` sandbox="${escapeHtml(sandbox)}"`
     }></iframe>
+    <script>
+      const frame = document.querySelector('iframe');
+      window.__labMessages = [];
+      window.addEventListener('message', (event) => {
+        if (event.source === frame.contentWindow) {
+          window.__labMessages.push({ origin: event.origin, data: event.data });
+        }
+      });
+      window.__sendToLab = (message, targetOrigin) => frame.contentWindow.postMessage(message, targetOrigin);
+    </script>
   </body>
 </html>
 `);
