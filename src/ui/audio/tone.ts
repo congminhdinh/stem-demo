@@ -11,6 +11,3 @@ export function toneHz(state: ComponentState | undefined): number | undefined {
 
 /** "262 Hz": the notes of the contract are whole numbers (§8.1), so rounding only guards the reading. */
 export const formatHz = (hz: number) => `${Math.round(hz)} Hz`;
-
-/** The text indicator: what is sounding, whether or not sound is turned on. */
-export const describeTone = (hz: number | undefined) => (hz === undefined ? 'Silent' : `Playing ${formatHz(hz)}`);

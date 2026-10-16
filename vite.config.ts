@@ -16,18 +16,22 @@ const crossOriginIsolationHeaders = {
 const blocklyMediaDir = 'node_modules/blockly/media';
 
 /**
- * Serves Blockly's media (dropdown arrow, sprites, cursors) at /blockly-media/
+ * Serves Blockly's media (dropdown arrow, sprites, cursors) at <base>blockly-media/
  * so it never comes from a CDN: in dev by rewriting to the package folder,
- * in builds by copying that folder next to the bundle.
+ * in builds by copying that folder next to the bundle. The base path is the
+ * app's (`--base /lab/` serves it at /lab/blockly-media/, S6), and so is the
+ * URL BlocklyPanel gives Blockly (src/ui/blockly/media.ts).
  */
 function blocklyMedia(): Plugin {
   return {
     name: 'blockly-media',
     configureServer(server) {
+      const prefix = `${server.config.base}blockly-media/`;
       // Not mounted on a path: connect would re-add the mount prefix after next().
       server.middlewares.use((req, _res, next) => {
-        if (req.url?.startsWith('/blockly-media/')) {
-          req.url = `/${blocklyMediaDir}/${req.url.slice('/blockly-media/'.length)}`;
+        if (req.url?.startsWith(prefix)) {
+          // Still under the base, which Vite strips before it serves the file.
+          req.url = `${server.config.base}${blocklyMediaDir}/${req.url.slice(prefix.length)}`;
         }
         next();
       });

@@ -5,6 +5,7 @@ import { blockTypes } from '../../core/program/blocks';
 import type { BlockPackCatalog, Toolbox } from '../../core/program/block-packs';
 import type { ProjectStore } from '../state/project-store';
 import { registerBlocks, ybcVariablesFlyout } from './editor-blocks';
+import { blocklyMediaUrl } from './media';
 import { stemTheme } from './theme';
 
 // Blockly is only a view of `document.program.blocks` (plan §5.1 B4): the
@@ -50,7 +51,7 @@ export function BlocklyPanel({ projectStore, packs, toolbox, ref }: BlocklyPanel
       renderer: 'zelos',
       theme: stemTheme,
       toolbox: toolbox as Blockly.utils.toolbox.ToolboxInfo,
-      media: '/blockly-media/',
+      media: blocklyMediaUrl(import.meta.env.BASE_URL),
       sounds: false,
       maxInstances: { [blockTypes.onStart]: 1, [blockTypes.forever]: 1 },
     });
