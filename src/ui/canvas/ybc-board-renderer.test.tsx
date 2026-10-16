@@ -9,7 +9,7 @@ import { localDeviceDefinitions } from '../../core/devices/local-catalog';
 import { createDeviceRegistry } from '../../core/devices/registry';
 import { productionProfiles } from '../../core/profiles';
 import { resolveBoardContext } from '../../core/profiles/board-context';
-import type { SimulationResult } from '../../core/simulation/simulate-circuit';
+import type { ComponentInput, SimulationResult } from '../../core/simulation/simulate-circuit';
 import { readCanvasState } from './canvas-test-state';
 import { CircuitCanvas, partStatesOf } from './CircuitCanvas';
 
@@ -80,7 +80,7 @@ const genericCircuit: Circuit = {
 const simulation = (components: SimulationResult['components']): SimulationResult => ({ nets: [], components, pinReads: {} });
 const frameOf = (...lit: number[]): Frame => ({ pixels: blankFrame().pixels.map((_, index) => (lit.includes(index) ? red : null)) });
 
-function render(circuit: Circuit, profile: string | undefined, run: SimulationResult | null) {
+function render(circuit: Circuit, profile: string | undefined, run: SimulationResult | null, inputs?: Record<string, ComponentInput>) {
   const context = resolveBoardContext({ profile, circuit }, registry, productionProfiles);
   return act(async () =>
     root.render(
@@ -92,6 +92,7 @@ function render(circuit: Circuit, profile: string | undefined, run: SimulationRe
         locked={run !== null}
         onCircuitChange={() => undefined}
         onContactChange={() => undefined}
+        {...(inputs ? { inputs } : {})}
       />,
     ),
   );
@@ -206,6 +207,29 @@ describe('the buzzer on the canvas', () => {
       expect(footprint?.getAttr('hz')).toBeUndefined();
       expect(footprint?.findOne<Konva.Rect>('Rect')?.strokeWidth()).toBe(0);
     }
+  });
+});
+
+describe('the inputs of a lab’s check on the board (N8s)', () => {
+  it('draws a button the check holds pressed, and the light level it gives beside the sensor', async () => {
+    await render(ybcCircuit, 'ybc-basic', simulation({}), {
+      'ybc-board-1/button-a': { kind: 'hold', closed: true },
+      'ybc-board-1/button-b': { kind: 'hold', closed: false },
+      'ybc-board-1/light': { kind: 'slider', value: 10 },
+    });
+
+    expect(board().pressedParts).toEqual(['button-a']);
+    expect(board().lightLevel).toBe(10);
+    expect(groupNamed('.ybc-part-button-a')?.findOne<Konva.Rect>('Rect')?.strokeWidth()).toBeGreaterThan(0);
+    expect(groupNamed('.ybc-part-button-b')?.findOne<Konva.Rect>('Rect')?.strokeWidth()).toBe(0);
+    expect(stage().find<Konva.Text>('Text').map((text) => text.text())).toContain('10');
+  });
+
+  it('draws nothing pressed without inputs, and ignores the inputs of another board', async () => {
+    await render(ybcCircuit, 'ybc-basic', simulation({}), { 'other/button-a': { kind: 'hold', closed: true } });
+
+    expect(board().pressedParts).toEqual([]);
+    expect(board().lightLevel).toBeUndefined();
   });
 });
 

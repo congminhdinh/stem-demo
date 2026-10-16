@@ -8,6 +8,7 @@ import { resolveBoardContext } from '../../core/profiles/board-context';
 import type { ProfileCatalog } from '../../core/profiles/profile';
 import { buildToolbox, type BlockPackCatalog } from '../../core/program/block-packs';
 import { buzzerPartId, displayPartId } from '../../core/simulation/peripherals/onboard-capabilities';
+import type { ComponentInput, SimulationResult } from '../../core/simulation/simulate-circuit';
 import type { LabKind } from '../../samples/templates';
 import { SoundIndicator } from '../audio/SoundIndicator';
 import { toneHz } from '../audio/tone';
@@ -90,8 +91,11 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
   };
 
   // A lab's check (N6a S4): one at a time, on the run the toolbar shows. Its result belongs to the document it
-  // checked: once the learner edits, the goals go back to "not checked yet".
-  const [check, setCheck] = useState<CheckView & { document?: ProjectDocument }>({ state: 'idle' });
+  // checked: once the learner edits, the goals go back to "not checked yet". The run is the one the canvas draws;
+  // the inputs the check gives it are drawn too (`scriptedInputs`), and its last frame stays on the board after it
+  // (`final`) until the next run or edit (N8s).
+  const [check, setCheck] = useState<CheckView & { document?: ProjectDocument; final?: SimulationResult | null }>({ state: 'idle' });
+  const [scriptedInputs, setScriptedInputs] = useState<Readonly<Record<string, ComponentInput>>>({});
   const checkRun = useRef<CheckRun | null>(null);
   const [resetArmed, setResetArmed] = useState(false);
   useEffect(() => () => checkRun.current?.cancel(), []);
@@ -133,18 +137,27 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
     const checked = projectStore.getState().document;
     setRunEpoch((epoch) => epoch + 1);
     setCheck({ state: 'checking' });
-    const started = runCheck({ session: checkSessionOf(runStore), document: checked, challenge, boardId });
+    setScriptedInputs({});
+    let final: SimulationResult | null = null;
+    const session = checkSessionOf(runStore, {
+      onInput: (componentId, input) => setScriptedInputs((inputs) => ({ ...inputs, [componentId]: input })),
+      beforeStop: (snapshot) => {
+        final = snapshot.simulation;
+      },
+    });
+    const started = runCheck({ session, document: checked, challenge, boardId });
     checkRun.current = started;
     void started.done.then((outcome) => {
       if (checkRun.current !== started) {
         return;
       }
       checkRun.current = null;
+      setScriptedInputs({});
       if (outcome.status === 'cancelled') {
         setCheck({ state: 'idle' });
         return;
       }
-      setCheck({ state: 'done', result: outcome.result, started: outcome.started, document: checked });
+      setCheck({ state: 'done', result: outcome.result, started: outcome.started, document: checked, final });
       lab?.onChecked?.(outcome.result);
     });
   };
@@ -170,6 +183,22 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
 
   const checking = check.state === 'checking';
   const shownCheck: CheckView = check.state === 'done' && check.document !== document ? { state: 'idle' } : check;
+  // After a check, the board keeps its last frame until the next run or edit (N8s): what the goals were judged on.
+  const heldSimulation = !running && check.state === 'done' && check.document === document ? (check.final ?? null) : null;
+  const shownSimulation = simulation ?? heldSimulation;
+  const checkOverlay =
+    checking && lab?.challenge ? (
+      <div className="check-overlay" data-testid="check-overlay" data-state="running">
+        <span>{t('lab.check.running')}</span>
+        <span className="check-progress" aria-hidden="true">
+          <span style={{ animationDuration: `${lab.challenge.durationMs}ms` }} />
+        </span>
+      </div>
+    ) : heldSimulation ? (
+      <div className="check-overlay" data-testid="check-overlay" data-state="held">
+        {t('lab.check.held')}
+      </div>
+    ) : null;
   // The sound follows every snapshot of the session, not the one a frame shows (see SoundIndicator).
   const tones = useCallback(
     (listener: (hz: number | undefined) => void) =>
@@ -186,9 +215,11 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
       circuit={document.circuit}
       registry={registry}
       context={context}
-      simulation={simulation}
+      simulation={shownSimulation}
       locked={running}
       fit={lab !== null}
+      {...(checking ? { inputs: scriptedInputs } : {})}
+      overlay={checkOverlay}
       onCircuitChange={editCircuit}
       // Runtime input, not an edit: the session ignores it unless running.
       onContactChange={(componentId, closed) => runStore.getState().setContactInput(componentId, closed)}
@@ -217,7 +248,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
           {/* What the board shows and takes, under the circuit; the run is the only source of both (B2). */}
           {board && (
             <div className="board-panel" data-testid="board-panel">
-              <DisplayText display={partStateOf(simulation, board.id, displayPartId)} />
+              <DisplayText display={partStateOf(shownSimulation, board.id, displayPartId)} />
               <RuntimeControls
                 key={running ? `run-${runEpoch}` : 'idle'}
                 boardId={board.id}
@@ -225,6 +256,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
                 controls={context.profile?.controls ?? []}
                 active={running}
                 onInput={(componentId, input) => runStore.getState().setComponentInput(componentId, input)}
+                {...(checking ? { scripted: scriptedInputs } : {})}
               />
               <SoundIndicator buzzer={partStateOf(simulation, board.id, buzzerPartId)} tones={tones} />
             </div>

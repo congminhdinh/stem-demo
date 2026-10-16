@@ -1,6 +1,6 @@
 import { Group, Rect, Text } from 'react-konva';
 import type { OnboardPeripheral } from '../../core/devices/device-definition';
-import type { ComponentState } from '../../core/simulation/simulate-circuit';
+import type { ComponentInput, ComponentState } from '../../core/simulation/simulate-circuit';
 import { formatHz, toneHz } from '../audio/tone';
 import { renderedPixels } from '../runtime-controls/display-view';
 import type { DeviceRendererProps } from './renderers';
@@ -10,17 +10,29 @@ import { canvasPalette } from './colors';
 // parts, drawn from the definition's data. What the parts show comes from the run snapshot only
 // (`partStates`): the display's cells take their colour from its frame, and the buzzer is marked, with
 // its frequency as text, while a note sounds. The buttons and the light sensor are labelled footprints:
-// their pressed state and slider belong to the controls under the canvas, and the snapshot does not echo them.
+// their pressed state and slider belong to the controls under the canvas, and the snapshot does not echo them;
+// while a lab's check presses them (N8s), its inputs (`partInputs`) are drawn: a held button filled and ringed,
+// the light's level as text beside it.
 
-const { shell: shellFill, shellOutline: shellStroke, part: partFill, label: labelFill, sounding: soundingStroke, cellOff } = canvasPalette.ybcBoard;
+const {
+  shell: shellFill,
+  shellOutline: shellStroke,
+  part: partFill,
+  label: labelFill,
+  sounding: soundingStroke,
+  cellOff,
+  pressed: pressedFill,
+} = canvasPalette.ybcBoard;
 const cellGap = 3;
 
-export function YbcBoardRenderer({ definition, partStates }: DeviceRendererProps) {
+export function YbcBoardRenderer({ definition, partStates, partInputs }: DeviceRendererProps) {
   const { width, height } = definition.body;
   const onboard = definition.board?.onboard ?? [];
   // Part ids are data: "constructor" must not find a member of Object.prototype.
   const stateOf = (partId: string): ComponentState | undefined =>
     partStates && Object.hasOwn(partStates, partId) ? partStates[partId] : undefined;
+  const inputOf = (partId: string): ComponentInput | undefined =>
+    partInputs && Object.hasOwn(partInputs, partId) ? partInputs[partId] : undefined;
   return (
     <>
       <Rect
@@ -47,7 +59,7 @@ export function YbcBoardRenderer({ definition, partStates }: DeviceRendererProps
         part.model === 'matrix-display' ? (
           <DisplayGrid key={part.id} part={part} state={stateOf(part.id)} />
         ) : (
-          <PartFootprint key={part.id} part={part} hz={part.model === 'buzzer' ? toneHz(stateOf(part.id)) : undefined} />
+          <PartFootprint key={part.id} part={part} hz={part.model === 'buzzer' ? toneHz(stateOf(part.id)) : undefined} input={inputOf(part.id)} />
         ),
       )}
     </>
@@ -83,25 +95,31 @@ function DisplayGrid({ part, state }: { part: OnboardPeripheral; state: Componen
 
 /**
  * A labelled place of a part. `hz` is only given for the buzzer, and while it sounds the footprint gets a ring
- * and the frequency as text (a colour is never the only sign); it is also set on the group for tests.
+ * and the frequency as text (a colour is never the only sign); it is also set on the group for tests. `input` is
+ * what a lab's check gives the part: a held button is filled and ringed, a light level is written beside it;
+ * both are set on the group too (`pressed`, `level`).
  */
-function PartFootprint({ part, hz }: { part: OnboardPeripheral; hz?: number }) {
+function PartFootprint({ part, hz, input }: { part: OnboardPeripheral; hz?: number; input?: ComponentInput }) {
   const { x, y, width, height } = part.at;
   const sounding = hz !== undefined;
+  const pressed = input?.kind === 'hold' && input.closed;
+  const level = input?.kind === 'slider' ? input.value : undefined;
+  const ring = sounding ? soundingStroke : pressed ? labelFill : undefined;
   return (
-    <Group name={`ybc-part-${part.id}`} hz={hz} listening={false}>
+    <Group name={`ybc-part-${part.id}`} hz={hz} pressed={pressed} level={level} listening={false}>
       <Rect
         x={x}
         y={y}
         width={width}
         height={height}
         cornerRadius={6}
-        fill={partFill}
-        stroke={sounding ? soundingStroke : undefined}
-        strokeWidth={sounding ? 3 : 0}
+        fill={pressed ? pressedFill : partFill}
+        stroke={ring}
+        strokeWidth={ring === undefined ? 0 : 3}
       />
       <Text text={part.label} x={x} y={y + height / 2 - 5} width={width} align="center" fontSize={10} fill={labelFill} />
       {sounding && <Text text={formatHz(hz)} x={x + width + 6} y={y + height / 2 - 6} fontSize={12} fill={soundingStroke} />}
+      {level !== undefined && <Text text={String(level)} x={x + width + 6} y={y + height / 2 - 6} fontSize={12} fill={soundingStroke} />}
     </Group>
   );
 }

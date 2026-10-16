@@ -252,4 +252,23 @@ describe('runStore for a check (N6a S2)', () => {
     expect(session.getSnapshot().status).toBe('idle');
     expect(selectIsRunning(store.getState())).toBe(false);
   });
+
+  it('tells the UI each input of the check and the last snapshot before the check stops the run (N8s)', () => {
+    const { store } = setup();
+    const inputs: [string, unknown][] = [];
+    const last: string[] = [];
+    const checkSession = checkSessionOf(store, {
+      onInput: (componentId, input) => inputs.push([componentId, input]),
+      beforeStop: (snapshot) => last.push(`${snapshot.status} ${String(snapshot.simulation?.components.led?.lit)}`),
+    });
+
+    checkSession.start(projectDocumentSchema.parse(buttonDirectSample));
+    checkSession.setComponentInput('button', { kind: 'hold', closed: true });
+    checkSession.stop();
+
+    expect(inputs).toEqual([['button', { kind: 'hold', closed: true }]]);
+    // Taken while the run still held the lit LED, before the stop dropped it.
+    expect(last).toEqual(['running true']);
+    expect(store.getState().latestSnapshot().simulation).toBeNull();
+  });
 });

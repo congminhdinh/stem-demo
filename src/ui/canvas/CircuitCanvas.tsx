@@ -1,7 +1,7 @@
 import type { Context } from 'konva/lib/Context';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { Shape } from 'konva/lib/Shape';
-import { useEffect, useEffectEvent, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useEffectEvent, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { Circle, Group, Layer, Line, Rect, Stage, Text } from 'react-konva';
 import { addComponent, deleteComponent, moveComponent } from '../../core/circuit/components';
 import {
@@ -17,7 +17,7 @@ import { connectWire, deleteWire, nextWireId, type ConnectWireError } from '../.
 import type { DeviceDefinition, PortDefinition } from '../../core/devices/device-definition';
 import type { DeviceRegistry } from '../../core/devices/registry';
 import type { BoardContext } from '../../core/profiles/board-context';
-import { isContact, type ComponentState, type SimulationResult } from '../../core/simulation/simulate-circuit';
+import { isContact, peripheralComponentId, type ComponentInput, type ComponentState, type SimulationResult } from '../../core/simulation/simulate-circuit';
 import { localizeDeviceDefinition } from '../i18n/devices';
 import type { MessageKey } from '../i18n/messages';
 import { useLocale, useText } from '../i18n/text';
@@ -54,6 +54,10 @@ type CircuitCanvasProps = {
    * fitted again when the canvas changes size, never when the circuit is edited. Absent: the identity viewport.
    */
   fit?: boolean;
+  /** The inputs a lab's check gives the run, by component id (`<board>/<part>`), drawn on the board (N8s). */
+  inputs?: Readonly<Record<string, ComponentInput>>;
+  /** Shown over the top of the canvas, e.g. how a lab's check is going (N8s). */
+  overlay?: ReactNode;
 };
 
 type Selection = { kind: 'component' | 'wire'; id: string };
@@ -83,6 +87,8 @@ export function CircuitCanvas({
   onCircuitChange,
   onContactChange,
   fit = false,
+  inputs,
+  overlay,
 }: CircuitCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useElementSize(containerRef);
@@ -316,6 +322,7 @@ export function CircuitCanvas({
                     incompatible={incompatibleIds.has(component.id)}
                     runtimeState={runtimeStateOf(simulation, component.id)}
                     partStates={partStatesOf(simulation, component.id, registry.get(component.deviceType))}
+                    partInputs={partInputsOf(inputs, component.id, registry.get(component.deviceType))}
                     selected={selected?.kind === 'component' && selected.id === component.id}
                     // Off while drawing a wire too, so a click there never starts a drag (R5).
                     draggable={!locked && !draft}
@@ -363,6 +370,7 @@ export function CircuitCanvas({
             {message}
           </p>
         )}
+        {overlay}
       </div>
     </div>
   );
@@ -405,8 +413,29 @@ export function partStatesOf(
   return states;
 }
 
+/** The inputs given to a board's onboard parts, by part id; undefined for no inputs and for a component without parts. */
+export function partInputsOf(
+  inputs: Readonly<Record<string, ComponentInput>> | undefined,
+  componentId: string,
+  definition: DeviceDefinition,
+): Record<string, ComponentInput> | undefined {
+  const onboard = definition.board?.onboard;
+  if (!inputs || !onboard) {
+    return undefined;
+  }
+  // No prototype, as in partStatesOf: part ids are data.
+  const given: Record<string, ComponentInput> = Object.create(null);
+  for (const part of onboard) {
+    const id = peripheralComponentId(componentId, part.id);
+    if (Object.hasOwn(inputs, id)) {
+      given[part.id] = inputs[id] as ComponentInput;
+    }
+  }
+  return given;
+}
+
 type ComponentBodyProps = ComponentProps &
-  Pick<DeviceRendererProps, 'runtimeState' | 'partStates'> & {
+  Pick<DeviceRendererProps, 'runtimeState' | 'partStates' | 'partInputs'> & {
     selected: boolean;
     /** The device does not belong to this kind of project (R-F4). */
     incompatible: boolean;
@@ -423,6 +452,7 @@ function ComponentBody({
   definition,
   runtimeState,
   partStates,
+  partInputs,
   selected,
   incompatible,
   ...interaction
@@ -438,7 +468,7 @@ function ComponentBody({
       y={component.position.y}
       {...interaction}
     >
-      <Renderer definition={definition} runtimeState={runtimeState} partStates={partStates} />
+      <Renderer definition={definition} runtimeState={runtimeState} partStates={partStates} partInputs={partInputs} />
       {incompatible && (
         <Rect
           name="incompatible"

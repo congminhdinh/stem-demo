@@ -87,16 +87,30 @@ export function createRunStore(
 
 export type RunStore = ReturnType<typeof createRunStore>;
 
+/** What the UI watches of a check's run (N8s): the inputs the check gives it, and its last snapshot. */
+export type CheckObserver = {
+  /** Every input of the challenge's script, as the check gives it to the run (to draw the virtual press). */
+  onInput?(componentId: string, input: ComponentInput): void;
+  /** The run's snapshot just before the check stops it (the board as the check left it). */
+  beforeStop?(snapshot: RunSnapshot): void;
+};
+
 /**
  * The run store as the session of a check (N6a S2): a check starts, observes and stops the same run the toolbar
  * shows, so its run locks the editor, draws on the canvas and reports why it did not start, like Run.
  */
-export function checkSessionOf(runStore: RunStore): CheckSession {
+export function checkSessionOf(runStore: RunStore, observer: CheckObserver = {}): CheckSession {
   return {
     start: (project) => runStore.getState().run(project),
-    stop: () => runStore.getState().stop(),
+    stop: () => {
+      observer.beforeStop?.(runStore.getState().latestSnapshot());
+      runStore.getState().stop();
+    },
     subscribe: (listener) => runStore.getState().onSnapshot(listener),
     getSnapshot: () => runStore.getState().latestSnapshot(),
-    setComponentInput: (componentId, input) => runStore.getState().setComponentInput(componentId, input),
+    setComponentInput: (componentId, input) => {
+      observer.onInput?.(componentId, input);
+      runStore.getState().setComponentInput(componentId, input);
+    },
   };
 }

@@ -21,5 +21,14 @@ export const canvasPalette = {
   led: { lit: '#ff3b30', dark: '#7f1d1d', outline: '#5c1010', glow: '#ff3b30', base: '#9aa5b1' },
   potentiometer: { body: '#3e4c59', outline: '#1f2933', knob: '#cbd2d9', knobOutline: '#52606d', pointer: '#1f2933', label: '#e4e7eb' },
   pushButton: { body: '#3e4c59', outline: '#1f2933', pressed: '#147d64', released: '#3ebd93', capOutline: '#0c6b58', shadow: '#000000' },
-  ybcBoard: { shell: '#1f4e5f', shellOutline: '#143642', part: '#2c7a8c', label: '#e6f4f7', sounding: '#f0b429', cellOff: '#10292f' },
+  ybcBoard: {
+    shell: '#1f4e5f',
+    shellOutline: '#143642',
+    part: '#2c7a8c',
+    label: '#e6f4f7',
+    sounding: '#f0b429',
+    cellOff: '#10292f',
+    /** A part a lab's check is pressing (N8s): the pressed colour of the controls (app.css `--stem-color-pressed`). */
+    pressed: '#147d64',
+  },
 } as const;

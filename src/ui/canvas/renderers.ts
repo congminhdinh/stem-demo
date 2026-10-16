@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import type { DeviceDefinition } from '../../core/devices/device-definition';
-import type { ComponentState } from '../../core/simulation/simulate-circuit';
+import type { ComponentInput, ComponentState } from '../../core/simulation/simulate-circuit';
 import { GenericRenderer } from './GenericRenderer';
 import { LedRenderer } from './LedRenderer';
 import { PotentiometerRenderer } from './PotentiometerRenderer';
@@ -21,6 +21,12 @@ export type DeviceRendererProps = {
    * (e.g. 'display', 'buzzer'). Absent while idle and for every other component.
    */
   partStates?: Readonly<Record<string, ComponentState>>;
+  /**
+   * A board with onboard parts only: the input a lab's check gives a part, by part id (a button held, the light's
+   * level), drawn so the learner sees the check press it (N8s). Absent otherwise: the controls under the canvas
+   * show the learner's own presses.
+   */
+  partInputs?: Readonly<Record<string, ComponentInput>>;
 };
 
 // A Map, not an object literal: ids come from data, and names such as

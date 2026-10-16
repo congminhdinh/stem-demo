@@ -731,3 +731,58 @@ body {
   box-sizing: border-box;
   border-bottom: 0;
 }
+
+/* How a lab's check is going (N8s), over the top right of the canvas: its progress, then the frame it left. */
+.check-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: calc(100% - 16px);
+  padding: 6px 10px;
+  border: 1px solid var(--stem-color-border);
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-overlay);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.check-overlay[data-state='held'] {
+  border-style: dashed;
+  border-color: var(--stem-color-primary);
+  color: var(--stem-color-primary);
+}
+
+.check-progress {
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--stem-color-neutral-soft);
+}
+
+.check-progress > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--stem-color-primary);
+  transform-origin: left;
+  animation: check-progress linear forwards;
+}
+
+@keyframes check-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .check-progress > span {
+    animation: none;
+  }
+}

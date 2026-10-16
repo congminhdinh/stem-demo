@@ -24,6 +24,10 @@ export type CanvasTestState = {
     incompatible: boolean;
     /** Every text drawn on the body (its name, its parts' labels), in drawing order (N8s). */
     texts: string[];
+    /** A Yolo:Bit-compatible board's parts drawn pressed by a lab's check (N8s). */
+    pressedParts?: string[];
+    /** The light level a lab's check gives the board, as drawn beside the sensor (N8s); absent when none. */
+    lightLevel?: number;
   }[];
   wires: { id: string; points: number[]; selected: boolean }[];
   ports: { componentId: string; portId: string; x: number; y: number }[];
@@ -55,6 +59,12 @@ export function readCanvasState(): CanvasTestState | null {
       selected: node.findOne('.selection') !== undefined,
       incompatible: node.findOne('.incompatible') !== undefined,
       texts: node.find<Konva.Text>('Text').map((text) => text.text()),
+      pressedParts: node.findOne('.ybc-display')
+        ? node
+            .find<Konva.Group>((part: Konva.Node) => part.name().startsWith('ybc-part-') && part.getAttr('pressed') === true)
+            .map((part) => part.name().slice('ybc-part-'.length))
+        : undefined,
+      lightLevel: node.findOne('.ybc-part-light')?.getAttr('level'),
     })),
     wires: stage.find<Konva.Line>('.wire').map((node) => ({
       id: node.getAttr('wireId'),

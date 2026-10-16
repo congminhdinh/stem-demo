@@ -114,6 +114,32 @@ describe('what is shown', () => {
   });
 });
 
+describe('while a lab’s check drives the run (N8s)', () => {
+  const renderScripted = (scripted: Record<string, ComponentInput>) =>
+    act(async () =>
+      root.render(<RuntimeControls boardId="board-1" definition={definition} controls={controls} active onInput={() => undefined} scripted={scripted} />),
+    );
+
+  it('shows the buttons the check holds as pressed, and takes no press of the learner', async () => {
+    await renderScripted({ 'board-1/button-a': hold(true), 'board-1/button-b': hold(false) });
+
+    expect(buttonA().getAttribute('aria-pressed')).toBe('true');
+    expect(byTestId('control-button-b').getAttribute('aria-pressed')).toBe('false');
+    for (const testId of ['control-button-a', 'control-button-b', 'control-light']) {
+      expect(byTestId<HTMLButtonElement | HTMLInputElement>(testId).disabled).toBe(true);
+    }
+  });
+
+  it('shows the light level the check gives, and the initial level before it gives one', async () => {
+    await renderScripted({});
+    expect(slider().value).toBe(String(LIGHT_LEVEL_INITIAL));
+
+    await renderScripted({ 'board-1/light': { kind: 'slider', value: 10 } });
+    expect(slider().value).toBe('10');
+    expect(byTestId('control-light-value').textContent).toBe('10');
+  });
+});
+
 describe('a button held with the pointer', () => {
   it('sends closed once on pointerdown and open once on pointerup, for the part of the board', async () => {
     const { sent, ready } = setup();

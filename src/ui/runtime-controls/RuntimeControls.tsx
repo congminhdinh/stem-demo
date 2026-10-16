@@ -10,7 +10,9 @@ import { createHoldTracker, isHoldKey } from './hold-tracker';
 // more: they send `ComponentInput` for the part (`<board>/<part>`) to the run through `onInput`, and the
 // run decides what that means. What a control shows of itself (pressed, the slider's place) is its own
 // presentation; what the board does is drawn from the snapshot. Inputs belong to a run (B2): the owner
-// gives the controls a new key for each run, so every run starts from their initial place.
+// gives the controls a new key for each run, so every run starts from their initial place. While a lab's
+// check drives the run (N8s), the controls only show what the check gives the board (`scripted`): pressed
+// buttons, the light's level; the learner cannot press them then.
 
 type RuntimeControlsProps = {
   /** The id of the board component of the circuit. */
@@ -21,9 +23,11 @@ type RuntimeControlsProps = {
   /** True while a run is active; the controls do nothing before and after. */
   active: boolean;
   onInput(componentId: string, input: ComponentInput): void;
+  /** While a lab's check drives the run: the inputs it gave, by component id; the controls show them and take none. */
+  scripted?: Readonly<Record<string, ComponentInput>>;
 };
 
-export function RuntimeControls({ boardId, definition, controls, active, onInput }: RuntimeControlsProps) {
+export function RuntimeControls({ boardId, definition, controls, active, onInput, scripted }: RuntimeControlsProps) {
   const t = useText();
   // A part the dictionary does not know keeps the label the model gives it.
   const specs = controlsOf(boardId, definition, controls).map((spec) => {
@@ -35,13 +39,14 @@ export function RuntimeControls({ boardId, definition, controls, active, onInput
   }
   return (
     <div className="runtime-controls" role="group" aria-label={t('controls.label')} data-testid="runtime-controls">
-      {specs.map((spec) =>
-        spec.kind === 'hold' ? (
-          <HoldButton key={spec.partId} spec={spec} active={active} onInput={onInput} />
+      {specs.map((spec) => {
+        const shown = scripted ? { input: Object.hasOwn(scripted, spec.componentId) ? scripted[spec.componentId] : undefined } : undefined;
+        return spec.kind === 'hold' ? (
+          <HoldButton key={spec.partId} spec={spec} active={active && !shown} onInput={onInput} scripted={shown} />
         ) : (
-          <RangeControl key={spec.partId} spec={spec} active={active} onInput={onInput} />
-        ),
-      )}
+          <RangeControl key={spec.partId} spec={spec} active={active && !shown} onInput={onInput} scripted={shown} />
+        );
+      })}
     </div>
   );
 }
@@ -50,13 +55,15 @@ type ControlProps<Kind extends ControlSpec['kind']> = {
   spec: Extract<ControlSpec, { kind: Kind }>;
   active: boolean;
   onInput(componentId: string, input: ComponentInput): void;
+  /** Set while a check drives the run: what it gave this part (undefined: nothing yet), shown instead of the control's own state. */
+  scripted?: { input: ComponentInput | undefined };
 };
 
 const keySource = (key: string) => `key:${key}`;
 const pointerSource = (pointerId: number) => `pointer:${pointerId}`;
 
 /** Closed while a pointer or a key holds it, open when nothing does, also when it is disabled, loses focus or goes away. */
-function HoldButton({ spec, active, onInput }: ControlProps<'hold'>) {
+function HoldButton({ spec, active, onInput, scripted }: ControlProps<'hold'>) {
   const [tracker] = useState(createHoldTracker);
   // Only for how the button looks (aria-pressed, styling); what the run sees is the tracker's changes.
   const [pressed, setPressed] = useState(false);
@@ -104,7 +111,7 @@ function HoldButton({ spec, active, onInput }: ControlProps<'hold'>) {
       type="button"
       className="control-hold"
       data-testid={`control-${spec.partId}`}
-      aria-pressed={pressed}
+      aria-pressed={scripted ? scripted.input?.kind === 'hold' && scripted.input.closed : pressed}
       disabled={!active}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerEnd}
@@ -120,9 +127,10 @@ function HoldButton({ spec, active, onInput }: ControlProps<'hold'>) {
 }
 
 /** A slider of the part's range, an integer, which the run reads as the value of the sensor. */
-function RangeControl({ spec, active, onInput }: ControlProps<'slider'>) {
+function RangeControl({ spec, active, onInput, scripted }: ControlProps<'slider'>) {
   const { min, max, initial } = spec.range;
-  const [value, setValue] = useState(initial);
+  const [own, setValue] = useState(initial);
+  const value = scripted ? (scripted.input?.kind === 'slider' ? scripted.input.value : initial) : own;
   const inputId = useId();
   const onChange = (raw: string) => {
     const next = sliderValueOf(raw, spec.range);
