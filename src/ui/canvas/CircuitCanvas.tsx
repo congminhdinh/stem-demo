@@ -1,7 +1,7 @@
 import type { Context } from 'konva/lib/Context';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { Shape } from 'konva/lib/Shape';
-import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useEffectEvent, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Circle, Group, Layer, Line, Rect, Stage, Text } from 'react-konva';
 import { addComponent, deleteComponent, moveComponent } from '../../core/circuit/components';
 import {
@@ -18,6 +18,9 @@ import type { DeviceDefinition, PortDefinition } from '../../core/devices/device
 import type { DeviceRegistry } from '../../core/devices/registry';
 import type { BoardContext } from '../../core/profiles/board-context';
 import { isContact, type ComponentState, type SimulationResult } from '../../core/simulation/simulate-circuit';
+import { localizeDeviceDefinition } from '../i18n/devices';
+import type { MessageKey } from '../i18n/messages';
+import { useLocale, useText } from '../i18n/text';
 import { partStateOf } from '../runtime-controls/display-view';
 import { Palette } from './Palette';
 import { paletteItems, placementPosition } from './palette-model';
@@ -58,12 +61,12 @@ type WireDraft = { from: PortRef; pointer: Point };
 
 // connectWire decides what is valid; the UI only words its answer. Only the
 // first two can come from a click: ports come from the circuit, ids from nextWireId.
-const wireErrorText: Record<ConnectWireError, string> = {
-  'duplicate-wire': 'These ports are already connected.',
-  'same-port': 'A wire needs two different ports.',
-  'duplicate-wire-id': 'That wire cannot be added.',
-  'unknown-component': 'That wire cannot be added.',
-  'unknown-port': 'That wire cannot be added.',
+const wireErrorText: Record<ConnectWireError, MessageKey> = {
+  'duplicate-wire': 'wire.duplicate-wire',
+  'same-port': 'wire.same-port',
+  'duplicate-wire-id': 'wire.rejected',
+  'unknown-component': 'wire.rejected',
+  'unknown-port': 'wire.rejected',
 };
 
 export function CircuitCanvas({
@@ -82,6 +85,20 @@ export function CircuitCanvas({
   const [draft, setDraft] = useState<WireDraft | null>(null);
   const [hoveredPort, setHoveredPort] = useState<PortRef | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const t = useText();
+  const locale = useLocale();
+  // What a body draws (its name, its parts' labels) in the UI's language (N8s); geometry keeps the registry's definitions.
+  const drawnDefinition = useMemo(() => {
+    const drawn = new Map<string, DeviceDefinition>();
+    return (deviceType: string) => {
+      let definition = drawn.get(deviceType);
+      if (!definition) {
+        definition = localizeDeviceDefinition(registry.get(deviceType), locale);
+        drawn.set(deviceType, definition);
+      }
+      return definition;
+    };
+  }, [registry, locale]);
   // The button the pointer holds. Not rendered: how a button looks comes from
   // the snapshot (`closed`), like a lit LED, so the run stays the only source.
   const heldContact = useRef<string | null>(null);
@@ -177,7 +194,7 @@ export function CircuitCanvas({
     if (result.ok) {
       onCircuitChange(result.circuit);
     } else {
-      setMessage(wireErrorText[result.error]);
+      setMessage(t(wireErrorText[result.error]));
     }
   };
 
@@ -251,7 +268,7 @@ export function CircuitCanvas({
           className="circuit-canvas"
           data-testid="circuit-canvas"
           tabIndex={0}
-          aria-label="Circuit canvas"
+          aria-label={t('canvas.label')}
           onKeyDown={onKeyDown}
           // Capture: runs before Konva's handlers. Konva prevents the default of
           // pointerdown on shapes, so focus by hand (Delete and Esc act only
@@ -281,7 +298,7 @@ export function CircuitCanvas({
                   <ComponentBody
                     key={component.id}
                     component={component}
-                    definition={registry.get(component.deviceType)}
+                    definition={drawnDefinition(component.deviceType)}
                     incompatible={incompatibleIds.has(component.id)}
                     runtimeState={runtimeStateOf(simulation, component.id)}
                     partStates={partStatesOf(simulation, component.id, registry.get(component.deviceType))}

@@ -22,6 +22,8 @@ export type CanvasTestState = {
     selected: boolean;
     /** Drawn with the mark for a device that does not belong to the project's family (R-F4). */
     incompatible: boolean;
+    /** Every text drawn on the body (its name, its parts' labels), in drawing order (N8s). */
+    texts: string[];
   }[];
   wires: { id: string; points: number[]; selected: boolean }[];
   ports: { componentId: string; portId: string; x: number; y: number }[];
@@ -50,6 +52,7 @@ export function readCanvasState(): CanvasTestState | null {
       value: node.findOne('.knob')?.getAttr('value'),
       selected: node.findOne('.selection') !== undefined,
       incompatible: node.findOne('.incompatible') !== undefined,
+      texts: node.find<Konva.Text>('Text').map((text) => text.text()),
     })),
     wires: stage.find<Konva.Line>('.wire').map((node) => ({
       id: node.getAttr('wireId'),

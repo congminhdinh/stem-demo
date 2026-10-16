@@ -171,7 +171,32 @@ test.describe('a lab opened on its own (a new tab)', () => {
 
     const error = page.getByTestId('launch-error');
     await expect(error).toContainText('Không mở được bài thực hành này.');
-    await expect(error).toContainText('The template "ybc-heart" does not open in lab=blockly.');
+    // The reason in Vietnamese (N8s); the parser's English stays for whoever wrote the URL, under "technical detail".
+    await expect(error.getByText('Mẫu bài "ybc-heart" không mở trong lab=blockly.')).toBeVisible();
+    await expect(error.getByText('The template "ybc-heart" does not open in lab=blockly.')).toBeHidden();
+    await error.getByText('Chi tiết kỹ thuật (cho người tạo đường dẫn)').click();
+    await expect(error.getByText('The template "ybc-heart" does not open in lab=blockly.')).toBeVisible();
     await expect(error).toContainText('Các mẫu được hỗ trợ: blink, led-on, button-direct, button-led, empty.');
+  });
+
+  test('says what the core reports and what the board is in Vietnamese; the legacy lab keeps English (N8s)', async ({ page }) => {
+    const boardTexts = async () =>
+      (await page.evaluate(() => window.__stem?.getCanvasState()))?.components.find((component) => component.deviceType === 'ybc-board')?.texts;
+
+    await page.goto('/?embed=1&lab=yolobit&template=ybc-heart');
+    await page.waitForFunction(() => window.__stem?.getCanvasState() != null);
+    expect(await boardTexts()).toEqual(expect.arrayContaining(['Bo mạch tương thích Bit', 'Ánh sáng', 'Loa']));
+
+    // Two "on start" blocks: the compiler refuses the program, and the toolbar says why in Vietnamese.
+    const twoStarts = ybcSolutionDocument('ybc-heart');
+    (twoStarts.program.blocks as { blocks: { blocks: unknown[] } }).blocks.blocks.push({ type: 'stem_on_start', id: 'on-start-2', x: 40, y: 420 });
+    await page.evaluate((document) => window.__stem?.loadProject(document), twoStarts);
+    await page.getByRole('button', { name: 'Chạy' }).click();
+    await expect(page.getByTestId('run-messages')).toContainText('Chương trình có lỗi.');
+    await expect(page.getByTestId('run-messages')).toContainText('Lỗi: Chỉ được có một khối "khi bắt đầu".');
+
+    await page.goto('/?embed=1&template=ybc-heart');
+    await page.waitForFunction(() => window.__stem?.getCanvasState() != null);
+    expect(await boardTexts()).toEqual(expect.arrayContaining(['Bit-compatible Board', 'Light', 'Buzzer']));
   });
 });

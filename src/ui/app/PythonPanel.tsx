@@ -4,7 +4,8 @@ import { generateForDocument, type DocumentGeneration } from '../../core/codegen
 import type { DeviceRegistry } from '../../core/devices/registry';
 import type { ProfileCatalog } from '../../core/profiles/profile';
 import type { BlockPackCatalog } from '../../core/program/block-packs';
-import { useText } from '../i18n/text';
+import { localizeCoreMessage } from '../i18n/core-text';
+import { useLocale, useText } from '../i18n/text';
 
 // The Python panel of a Yolo:Bit-compatible project (YB plan §13.7): the MicroPython the
 // program generates, read-only, or why there is none, with the same diagnostics Run gives.
@@ -47,6 +48,7 @@ export function PythonPanel({ document, registry, profiles, packs, flush, latest
   const sourceRef = useRef<HTMLPreElement>(null);
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle');
   const t = useText();
+  const locale = useLocale();
 
   useEffect(() => {
     const timer = setTimeout(() => setGeneration(generateForDocument({ profile, circuit, program }, registry, profiles, packs)), debounceMs);
@@ -142,7 +144,7 @@ export function PythonPanel({ document, registry, profiles, packs, flush, latest
           <ul>
             {generation.diagnostics.map((diagnostic, index) => (
               <li key={index}>
-                {t(diagnostic.severity === 'error' ? 'diagnostic.error' : 'diagnostic.warning', { message: diagnostic.message })}
+                {t(diagnostic.severity === 'error' ? 'diagnostic.error' : 'diagnostic.warning', { message: localizeCoreMessage(diagnostic.message, locale) })}
               </li>
             ))}
           </ul>

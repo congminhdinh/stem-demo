@@ -1,7 +1,7 @@
 // The strings of the lab's UI in its two languages (N6a S5). English is the standalone editor's, unchanged; a
 // lab launched by an LMS (`lab=`) speaks Vietnamese (locale.ts). Every key exists in both, with the same
-// `{name}` parameters (messages.test.ts). What the core says (compiler and runtime diagnostics) stays English:
-// the core has no UI strings to translate (B1).
+// `{name}` parameters (messages.test.ts). What the core says (compiler and runtime diagnostics) is English in
+// the core (B1); core-text.ts says it in Vietnamese for a Vietnamese UI (N8s).
 
 export type Locale = 'en' | 'vi';
 
@@ -31,8 +31,13 @@ export const en = {
   'console.hiddenMany': '{count} earlier lines hidden',
   'launch.title': 'This lab could not be opened.',
   'launch.supported': 'Supported templates: {keys}.',
+  'launch.detail': 'Technical detail (for whoever wrote the link)',
   'palette.label': 'Add a device',
   'palette.add': 'Add {name}',
+  'canvas.label': 'Circuit canvas',
+  'wire.duplicate-wire': 'These ports are already connected.',
+  'wire.same-port': 'A wire needs two different ports.',
+  'wire.rejected': 'That wire cannot be added.',
   'device.board': 'STEM Board',
   'device.ybc-board': 'Bit-compatible Board',
   'device.led': 'LED',
@@ -101,8 +106,13 @@ export const vi: Readonly<Record<MessageKey, string>> = {
   'console.hiddenMany': 'Đã ẩn {count} dòng cũ hơn',
   'launch.title': 'Không mở được bài thực hành này.',
   'launch.supported': 'Các mẫu được hỗ trợ: {keys}.',
+  'launch.detail': 'Chi tiết kỹ thuật (cho người tạo đường dẫn)',
   'palette.label': 'Thêm linh kiện',
   'palette.add': 'Thêm {name}',
+  'canvas.label': 'Khung vẽ mạch',
+  'wire.duplicate-wire': 'Hai cổng này đã được nối.',
+  'wire.same-port': 'Một dây cần hai cổng khác nhau.',
+  'wire.rejected': 'Không thêm được dây đó.',
   'device.board': 'Bo mạch STEM',
   'device.ybc-board': 'Bo mạch tương thích Bit',
   'device.led': 'Đèn LED',
