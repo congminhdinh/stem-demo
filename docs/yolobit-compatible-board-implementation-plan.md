@@ -99,8 +99,8 @@ Luật riêng của track này:
   - biến kiểu text ở Basic;
   - list (trừ khi YB-7 đủ điều kiện, NICE);
   - **event block, nếu gate EV không đạt** (§6.6).
-- `postMessage`/chấm bài/completion mới; lưu bài làm trong lab nhúng.
-- Viết lại i18n; layout mobile đầy đủ.
+- `postMessage`/chấm bài/completion mới; lưu bài làm trong lab nhúng. *(N6a, 2026-10-16: đã làm ngoài plan này, theo plan redesign STEMLearning §7: `stem-lab/v1`, Kiểm tra, `load-project`/`project-changed`; lab vẫn không lưu gì. Xem docs/lab-embed-contract.md và stem-demo plan §9.2 N6a.)*
+- Viết lại i18n; layout mobile đầy đủ. *(N6a: lab `lab=` nói tiếng Việt qua từ điển UI; standalone giữ tiếng Anh.)*
 - Bluetooth, Wi-Fi, MQTT, radio, IoT; module cần thư viện ngoài firmware chuẩn.
 - Robot simulator.
 - Thay đổi `board` generic, block `stem_*`, toolbox/palette generic, năm template cũ.
@@ -1106,6 +1106,8 @@ type GenerateResult =
 
 **Bài học** (key đề xuất, freeze ở YB-6). YB-0 đã thay/bỏ những bài phụ thuộc construct bị loại. Hình và nốt trong bài là **tự làm** (§6.8).
 
+> **N6a (2026-10-16):** key đã ship cho STEMLearning là `ybc-heart`, `ybc-button-ab`, `ybc-night-light`, `ybc-melody`, `ybc-empty` (CourseService `LabTemplateCatalog`), thay cho danh sách đề xuất dưới đây; các bài còn lại là backlog của YB-6. B9 vẫn chờ quyết định của owner.
+
 | Bài | Key | Nội dung (sau YB-0) | Construct | Ghi chú YB-0 |
 |---|---|---|---|---|
 | B1 | `ybc-hello` | Hiện hình **tự vẽ**, rồi chạy chữ ASCII | display | Hình dựng sẵn → hình tự vẽ |
@@ -1180,6 +1182,8 @@ Advanced = Basic ∪ dưới đây; mỗi dòng phải qua EG trước khi mở.
 
 ### 17.1 Không đổi
 `?embed=1&template=<key>`; lỗi key lạ; lab không lưu (Q10); `OnView` (Q7); không `postMessage`; không thêm quyền iframe.
+
+> **N6a (2026-10-16):** phần "không `postMessage`" và `OnView` chỉ còn đúng cho URL S1 trên. Launch `lab=blockly|yolobit` (thêm `profile=`, `origin=`) có `stem-lab/v1` và Kiểm tra; host STEMLearning hoàn thành activity bằng `check-result` (`OnCheck`). Hợp đồng: docs/lab-embed-contract.md.
 
 ### 17.2 Thêm
 - Key `ybc-*` (§14, §15), freeze trước khi đưa vào lesson; không đổi tên, không tái dùng.
@@ -1669,7 +1673,7 @@ YB-0 → YB-1 → YB-2 → YB-5A → YB-CP → ( YB-3 ∥ YB-4 ) → YB-5B → Y
     - load/save/reload;
     - diagnostic bằng construct đã có (vd. xoá board → `no-board`, dữ liệu trộn family → `incompatible-devices`).
 - **Acceptance:** key Basic freeze và mở đúng; lab không lưu; GB xanh; UI chọn profile đạt các điểm trên; bàn giao danh sách key cho STEMLearning. **Không** đòi construct Advanced thật chạy hay sinh code (round-trip hạ profile thật thuộc YB-7).
-- **Out-of-scope:** `postMessage`, sửa repo STEMLearning.
+- **Out-of-scope:** `postMessage`, sửa repo STEMLearning. *(N6a đã làm `postMessage` và 5 key `ybc-*` cho STEMLearning; YB-6 còn lại: bài B1–B10, UI chọn profile ở standalone.)*
 - **Dependencies:** YB-5B; OQ-A trước khi ship ra lesson.
 
 ### YB-7 — Advanced hardware/peripherals
@@ -1729,7 +1733,7 @@ YB-0 → YB-1 → YB-2 → YB-5A → YB-CP → ( YB-3 ∥ YB-4 ) → YB-5B → Y
 - Transport Serial/BLE; gate L3 (cần phần cứng).
 - Số thực, đếm xuống, list (nếu YB-7 chưa đủ điều kiện), `break`/`continue`.
 - **Event**, nếu gate EV không đạt.
-- `postMessage`/chấm bài/lưu bài làm trong lab; i18n.
+- ~~`postMessage`/chấm bài~~ (N6a); lưu bài làm trong lab (host giữ, lab không lưu); i18n ngoài lab `lab=`.
 - Module cần thư viện; giao tiếp; game; nhiều board.
 - Màu/độ sáng display (nếu chưa qua EG); layout mobile.
 - Ngôn ngữ mới cho board generic; robot.

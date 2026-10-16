@@ -1,0 +1,83 @@
+# Lab embed contract (`stem-lab/v1`)
+
+Hợp đồng **duy nhất** giữa STEM Studio (repo này, một sản phẩm độc lập) và trang nhúng nó (hiện tại là app `learn`
+của STEMLearning: `BlocklyLab`, `YolobitLab`). Hai bên không import code của nhau, không dùng chung package, token
+hay font. Mọi thứ đi qua **launch URL** và **message `stem-lab/v1`** dưới đây. Code: `src/ui/app/launch.ts`
+(URL), `src/ui/app/host-bridge.ts` (message), `src/ui/app/lab-host.ts` (nối store với bridge),
+`src/samples/templates.ts` + `src/samples/challenges.ts` (template và mục tiêu). Phía host:
+`STEMLearning/Web/apps/learn/src/features/player/activities/lab/` (`lab-launch.ts`, `lab-protocol.ts`,
+`useLabBridge.ts`).
+
+## 1. Launch URL
+
+| URL | Kết quả |
+|---|---|
+| không có `embed`, `template`, `lab` | Editor standalone, như trước. Tham số khác bị bỏ qua |
+| `?embed=1&template=<key>` | Lab S1 (legacy, cho `StemLab` cũ): mọi key, tiếng Anh, có nút New, **không** bridge, **không** Kiểm tra. `profile`, `origin` bị bỏ qua |
+| `?embed=1&lab=blockly&template=<key>[&origin=<o>]` | Lab "Lập trình khối": chỉ key generic |
+| `?embed=1&lab=yolobit&template=<key>[&profile=<p>][&origin=<o>]` | Lab "Mạch Yolo:Bit": chỉ key `ybc-*`; `profile` = `ybc-basic` \| `ybc-advanced` (thiếu thì dùng profile của template, `ybc-basic`) |
+
+- **Key** (so khớp chính xác, phân biệt hoa thường; không bao giờ đổi tên hay tái dùng):
+  - Blockly: `blink`, `led-on`, `button-direct`, `button-led`, `empty`.
+  - Yolo:Bit: `ybc-heart`, `ybc-button-ab`, `ybc-night-light`, `ybc-melody`, `ybc-empty`.
+  - Khớp với `LabTemplateCatalog.DefaultBlockly` / `DefaultYolobit` của CourseService.
+- **`origin`**: origin của trang nhúng, viết đúng như trình duyệt serialize (`scheme://host[:port]`, không path,
+  không `/` cuối; vd. `http://localhost:3000`). Lab chỉ nói chuyện với origin này. Thiếu `origin` thì lab vẫn chạy
+  (mở ở tab mới), chỉ là không gửi message nào.
+- **Launch hỏng** → màn hình lỗi (tiếng Việt với `lab=`), không mở project nào: `lab` lạ hoặc lặp; key lạ, thiếu,
+  lặp; key không thuộc `lab` (vd. `lab=blockly&template=ybc-heart`); `profile` lặp, lạ, hoặc có với `lab=blockly`;
+  `origin` lặp hoặc không phải một page origin (`*`, `null`, có path, có `/` cuối, port mặc định viết ra…).
+  Lý do (tiếng Anh, cho người viết URL) và danh sách key của lab đó được hiện ra.
+- **Ngôn ngữ**: `lab=` → tiếng Việt; standalone và lab S1 → tiếng Anh. `lang=vi|en` ghi đè.
+- **Lab không lưu gì** trong trình duyệt (như S1): mỗi lần mở là template mới. Bài làm được giữ bởi host (xem
+  `project-changed` / `load-project`).
+
+## 2. Message
+
+Mọi message là object JSON có `protocol: "stem-lab/v1"` và `type`. Lab gửi bằng
+`window.parent.postMessage(msg, origin)`, **không bao giờ** `'*'`. Lab chỉ nhận message có `event.origin === origin`
+**và** `event.source === window.parent`; mọi thứ khác bị bỏ qua. Bridge chỉ bật khi launch có `lab=`, có `origin`
+hợp lệ và lab nằm trong một frame.
+
+### Lab → host
+
+| `type` | Trường | Khi nào |
+|---|---|---|
+| `ready` | `template: string`, `profile: string \| null`, `goals: { id, label }[]` | Một lần, khi lab đã mở template. `profile` là profile của project (null với lab Blockly). `goals` rỗng khi template không có challenge (`empty`, `ybc-empty`) |
+| `run-started` | — | Một lượt chạy bắt đầu (Chạy, hoặc lượt chạy của Kiểm tra) |
+| `run-stopped` | — | Lượt chạy kết thúc (Dừng, Đặt lại, hoặc Kiểm tra xong) |
+| `check-result` | `passed: boolean`, `goals: { id, label, passed }[]` | Mỗi lần Kiểm tra xong. `passed` = mọi mục tiêu đạt. Đến **sau** `run-stopped` của lượt chạy đó. Kiểm tra bị huỷ (Dừng giữa chừng) thì không gửi |
+| `project-changed` | `document` (project document, schema v1) | Sau mỗi thay đổi của project, debounce 1 giây (thay đổi cuối thắng); gửi ngay khi trang `pagehide`. Mở template không gửi gì |
+
+- Tối đa 50 mục tiêu, nhãn 1–200 ký tự (host bỏ qua nguyên message nếu vượt). Nhãn theo ngôn ngữ của lab.
+- Lab không có khái niệm XP, lớp, tiến độ hay hoàn thành: host tự quyết `requiresCheck` và lúc nào activity xong.
+
+### Host → lab
+
+| `type` | Trường | Lab làm gì |
+|---|---|---|
+| `load-project` | `document` | Mở project này thay template, nếu: editor mở được nó (schema, device, profile, program Blockly nạp được), đúng loại lab (project Yolo:Bit cho lab `yolobit`, generic cho lab `blockly`) và không có lượt chạy nào. Lab `yolobit` có `profile=` thì project mở với profile đó. Không hợp lệ → bỏ qua, không báo lỗi |
+
+## 3. Kiểm tra (challenge)
+
+- Mỗi template (trừ `empty`, `ybc-empty`) có một challenge: danh sách mục tiêu, thời lượng chạy (≤ 5 s) và kịch bản
+  input (bấm nút A/B, kéo cảm biến ánh sáng, giữ nút bấm của mạch generic). Nút **Kiểm tra** chạy chương trình
+  với kịch bản đó, chấm từng mục tiêu, rồi dừng. Chạy được cả khi không có host (mở ở tab mới).
+- Loại mục tiêu (`src/core/challenge`): `display-shows` (màn hình 5×5 hiện một hình, có thể từ một thời điểm),
+  `led-lit`, `led-blinks` (số lần đổi sáng/tắt), `buzzer-played` (số nốt), `console-contains`, `uses-block` (khối
+  có trong chương trình và được chạy).
+- Template Yolo:Bit là **bài khởi đầu**: board và chương trình, cùng một khối (hoặc chuỗi khối) đặt rời, bị vô hiệu
+  hoá; học sinh kéo nó vào đúng chỗ thì đạt. Template generic là chương trình hoàn chỉnh (như S1): Kiểm tra đạt ngay.
+- **Người soạn bài**: với `empty`/`ybc-empty` (không có mục tiêu), để `requiresCheck = false`.
+
+## 4. Khung nhúng
+
+- iframe của host: `sandbox="allow-scripts allow-same-origin allow-downloads"`. Không có `allow-modals`, nên lab
+  không dùng `confirm()`: **Đặt lại** cần bấm hai lần.
+- Host và lab phải cùng không gian địa chỉ (cùng localhost hoặc cùng public; Chromium Local Network Access).
+- Lab tự host font (Be Vietnam Pro, OFL) và media Blockly; không tải gì từ trang nhúng hay CDN.
+
+## 5. Phiên bản
+
+`stem-lab/v1` chỉ được **thêm** trường hoặc `type` mới (bên nhận bỏ qua cái không biết). Đổi nghĩa hay bỏ trường
+→ `stem-lab/v2`, và lab phải nói được cả hai trong thời gian chuyển tiếp.

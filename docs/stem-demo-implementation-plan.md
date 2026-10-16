@@ -776,8 +776,9 @@ Các phần "sau MP" của cùng các task (Resistor, `forever`, `wait`, async s
 | POC-13 | Conditional blocks · **VS-3** | M3 | M | P1 | 07, 05, 12 | L3, L5 |
 | POC-14 | Local persistence | M4 | M | P1 | 03 (nên làm sau 11) | L7, B8 |
 | S1 | Embed launch (cho CourseService) | — | S | — | 14 | B1, B8 |
+| N6a | Lab embedding (`lab=`, `stem-lab/v1`, Kiểm tra, tiếng Việt) | — | M | — | S1, YB-3 | B1, B2, B8 |
 
-Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog §13. **S1** nằm ngoài roadmap PoC: nó là điều kiện của CourseService (T7, T9), không phải của hypothesis.
+Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog §13. **S1** nằm ngoài roadmap PoC: nó là điều kiện của CourseService (T7, T9), không phải của hypothesis. **N6a** cũng vậy: nó là phần stem-demo của bản demo LMS (plan redesign STEMLearning §7, S0–S5).
 
 ### 9.2 Chi tiết task
 
@@ -1615,6 +1616,33 @@ Tổng cộng **14 task: 11 P0, 3 P1.** 23 hạng mục P2 nằm trong backlog �
   - ẩn nút New trong lab: New chỉ thay lab bằng một project trống, reload thì về lại template;
   - hiện tên project hay mode trên UI.
 
+### N6a — Lab embedding (cho STEMLearning `BlocklyLab` / `YolobitLab`)
+
+`Ngoài roadmap PoC · M · Phụ thuộc: S1, YB-3 · Yêu cầu: plan redesign STEMLearning §7 (S0–S5), hợp đồng ở docs/lab-embed-contract.md`
+
+**Mở rộng scope (§15).** S1 đã để `postMessage`, completion và thiết kế lại UI lab ra ngoài; YB plan §2 ghi `postMessage`/chấm bài/i18n là non-goal. N6a đưa chúng vào, có giới hạn: lab **báo** việc nó làm (`ready`, chạy/dừng, `check-result`, `project-changed`) và nhận `load-project`; nó **không** biết XP, lớp, tiến độ hay hoàn thành (host quyết). Standalone, lab S1 legacy và đường compile → IR → MicroPython không đổi.
+
+**Đã làm**
+- **S0** `launch.ts`: `lab=blockly|yolobit`, `profile=` (chỉ `yolobit`), `origin=` (page origin chính xác). Sai cặp → `LaunchError` liệt kê key của lab đó. Thiếu `lab` → S1 như cũ (giờ nhận cả key `ybc-*`).
+- **S1** `ybc-templates.ts`: `ybc-heart`, `ybc-button-ab`, `ybc-night-light`, `ybc-melody`, `ybc-empty`; là **bài khởi đầu** (một khối rời bị vô hiệu hoá, học sinh kéo vào). Lời giải ở `ybc-solutions.ts` (chỉ test/E2E dùng). Không đọc chân header (net hở → `out-of-domain`, YB-4 #9).
+- **S2** `src/core/challenge` (thuần TS, B1): `display-shows`, `led-lit`, `led-blinks`, `buzzer-played`, `console-contains`, `uses-block`; `runCheck` chạy qua `RunSession` (subscribe), có `inputScript` (P1 được kéo lên: không có nó thì `ybc-button-ab`/`ybc-night-light`/`ybc-melody`/`button-led` không chấm được). Challenge của từng template ở `src/samples/challenges.ts`.
+- **S3** `host-bridge.ts` + `lab-host.ts`: `postMessage(msg, origin)`, không bao giờ `'*'`; chỉ nhận từ `window.parent` ở đúng origin; `project-changed` debounce 1 s; `load-project` (P1, nhưng host đã gửi nó) mở project nếu hợp lệ.
+- **S4** chrome: tiêu đề theo lab, ẩn New, nút Kiểm tra + danh sách mục tiêu, Đặt lại (bấm hai lần), layout co giãn (< 760 px xếp dọc).
+- **S5** token CSS (`app.css`), Be Vietnam Pro tự host (`@fontsource/be-vietnam-pro` 5.3.0, OFL), theme Blockly Zelos (`theme.ts`), `blockly/msg/vi`, từ điển UI (`src/ui/i18n`), text block tiếng Việt phủ lên ở UI (core không đổi), một bảng màu canvas (`src/ui/canvas/colors.ts`, giá trị cũ).
+
+**Evidence / quyết định**
+- Host (STEMLearning `lab-protocol.ts`, đã ship) thắng spec khi lệch: URL luôn có `lab=` và `origin=`, `profile=ybc-basic|ybc-advanced` cho Yolo:Bit; `check-result.goals` mang `label`; host gửi `load-project` sau `ready`.
+- Thứ tự key JSON: template viết đúng thứ tự Blockly lưu (`type, id, x, y, disabledReasons, fields, inputs, next`), nếu không lab gửi `project-changed` ngay khi mở dù không ai sửa gì (E2E bắt được).
+- `src/ui/canvas/palette.ts` trùng tên với `Palette.tsx` trên ổ không phân biệt hoa thường (macOS): import `'./Palette'` trỏ nhầm sang `palette.ts`. Bảng màu đặt ở `colors.ts`.
+- Playwright không nạp được JSON import không có `with { type: 'json' }`: E2E dựng template Yolo:Bit từ `ybc-templates.ts`, không import `templates.ts`.
+- `check-result` đến sau `run-stopped` (lượt chạy dừng trước, kết quả tính xong sau).
+
+**Chưa làm (có chủ đích)**
+- Text của core (diagnostic compiler/runtime, lỗi nối dây trên canvas) vẫn tiếng Anh.
+- Template Yolo:Bit cấp nâng cao riêng (`ybc-adv-*`, YB-8); bài B1–B10 của YB plan §14 (thay bằng 5 key trên).
+- `BlocklyPanel` media dưới sub-path (`import.meta.env.BASE_URL`, S6, P2).
+- CSP `frame-ancestors`, deploy.
+
 ---
 
 ## 10. Dependency và critical path
@@ -1886,6 +1914,7 @@ Chỉ cần quay lại research khi làm hạng mục backlog: track Python (spe
 | M1 | 2026-10-03 | L2 (mạch mẫu), L3, L4 | Xem "M1 — chi tiết" bên dưới | L2 ✅ (mạch mẫu; mạch tự dựng ở M2) · L3 ✅ · L4 ✅ | `digitalRead`, `contacts` để tới lúc có consumer; sample mặc định là `blink`; Run gọi `saveNow` của Blockly |
 | M2 | 2026-10-03 | L1, L2, L8 + go/no-go | Xem "M2 — chi tiết" bên dưới | L1 ✅ · L2 ✅ · L8 ⚠️ (mới có lần chạy của agent) · **GO** cho M3/M4 (reviewer xác nhận 2026-10-03) | Không đổi kiến trúc. Ghi nhận: lỗi tập trung ở chuyển trạng thái của thao tác chuột (UI), không ở model |
 | M3 | 2026-10-03 | L3 (built-in), L5, L6 | Xem "M3 — chi tiết" bên dưới | L3 ✅ · L5 ✅ · L6 ✅ · L8 ⚠️ (chỉ có lần chạy của agent) | Không đổi kiến trúc. IR của `if` dùng danh sách nhánh; điều kiện bỏ trống là lỗi (C8) |
+| N6a | 2026-10-16 | Lab nhúng cho LMS có chấm bài được không mà không đưa logic LMS vào stem-demo? | Mục N6a ở §9.2; `pnpm verify`; `e2e/ybc-embed.spec.ts` | ✅ Challenge là dữ liệu template + evaluator thuần trong core, bridge chỉ ở UI | Scope mở rộng có ghi (§9.2 N6a); quy ước ngôn ngữ UI đổi (CLAUDE.md) |
 | M4 | 2026-10-03 | L7 (+ B8) | Xem "M4 — chi tiết" bên dưới | L7 ✅ · B8 ✅ · L8 ⚠️ (chỉ có lần chạy của agent) | Kiểm tra lúc load gồm cả I1–I3, registry, và program do Blockly phán sau một preflight giới hạn công việc (§6.1, §7). Không đổi kiến trúc |
 
 **M2 — chi tiết (POC-11).**
