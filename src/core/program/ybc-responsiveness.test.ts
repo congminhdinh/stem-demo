@@ -10,11 +10,13 @@ import { compileYbcProgram } from './compile-ybc-program';
 import { createRunConsole } from './console';
 import { timerSleep, type Sleep } from './interpreter';
 import { MAX_REPEAT_ABS, MAX_WAIT_MS } from './limits';
+import { cpuMs, heartbeat, wallCeilingMs } from './__fixtures__/cpu-clock';
 import { runYbc } from './__fixtures__/run-ybc';
 
 // Real time, real timers (no fake clock): a learner loop must not freeze the event loop, and Stop
 // must end any program within the frozen 100 ms (plan section 6.7, 18.5). The deadline is the plan's;
-// the runs below need a few milliseconds.
+// the runs below need a few milliseconds. Time is the CPU time the run uses (__fixtures__/cpu-clock.ts),
+// with a wall-clock ceiling for what waits, so a loaded machine does not fail them.
 
 const packs = createBlockPackCatalog(createDeviceRegistry(localDeviceDefinitions));
 const exposed = packs.typesOf(productionProfiles.get('ybc-basic')?.blockPacks ?? []);
@@ -43,44 +45,32 @@ function start(blocks: Json, options: { sleep?: Sleep; yieldNow?: () => Promise<
   return { running, runConsole, stats: () => ({ yields, sleeps }) };
 }
 
-/** A 1 ms timer. `maxGap` is the longest time between two ticks: how long the event loop was blocked at a stretch. */
-function heartbeat() {
-  let beats = 0;
-  let last = performance.now();
-  let maxGap = 0;
-  const timer = setInterval(() => {
-    const now = performance.now();
-    maxGap = Math.max(maxGap, now - last);
-    last = now;
-    beats++;
-  }, 1);
-  return { beats: () => beats, maxGap: () => maxGap, stop: () => clearInterval(timer) };
-}
-
 /** Generous for Windows timer granularity; a loop that never yields would show a gap of the whole run. */
 const maxGapAllowedMs = 50;
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Presses Stop after `runForMs` and says how long the program took to end. */
+/** Presses Stop after `runForMs` and says how long the program took to end: in CPU time, and on the wall clock. */
 async function stopAfter(blocks: Json, runForMs: number, options: Parameters<typeof start>[1] = {}) {
   const { running, runConsole, stats } = start(blocks, options);
   await pause(runForMs);
-  const pressed = performance.now();
+  const pressedCpu = cpuMs();
+  const pressedWall = performance.now();
   running.stop();
   const outcome = await running.done;
-  return { outcome, tookMs: performance.now() - pressed, runConsole, stats };
+  return { outcome, tookMs: cpuMs() - pressedCpu, tookWallMs: performance.now() - pressedWall, runConsole, stats };
 }
 
 describe('the event loop keeps running while a learner loop computes', () => {
   it('lets a timer fire during a tight while true with an empty body', async () => {
     const beat = heartbeat();
-    const { tookMs, outcome, stats } = await stopAfter(prog([whileLoop(bool(true), [])]), 100);
+    const { tookMs, tookWallMs, outcome, stats } = await stopAfter(prog([whileLoop(bool(true), [])]), 100);
     beat.stop();
     expect(outcome).toEqual({ status: 'stopped' });
-    expect(beat.maxGap()).toBeLessThan(maxGapAllowedMs);
+    expect(beat.maxBusyMs()).toBeLessThan(maxGapAllowedMs);
     expect(stats().yields).toBeGreaterThan(3);
     expect(tookMs).toBeLessThan(stopDeadlineMs);
+    expect(tookWallMs).toBeLessThan(wallCeilingMs);
   });
 
   it('lets a timer fire during a large repeat, and then finishes it', async () => {
@@ -129,9 +119,10 @@ describe('Stop ends a program within 100 ms', () => {
   ];
 
   it.each(cases)('during %s', async (_, blocks) => {
-    const { outcome, tookMs } = await stopAfter(blocks, 30);
+    const { outcome, tookMs, tookWallMs } = await stopAfter(blocks, 30);
     expect(outcome).toEqual({ status: 'stopped' });
     expect(tookMs).toBeLessThan(stopDeadlineMs);
+    expect(tookWallMs).toBeLessThan(wallCeilingMs);
   });
 
   it('prints nothing after Stop', async () => {

@@ -6,13 +6,15 @@ import ifElseIf from '../../core/program/__fixtures__/if-else-if.json';
 import missingCondition from '../../core/program/__fixtures__/missing-condition.json';
 import { createBlockPackCatalog } from '../../core/program/block-packs';
 import { createDefaultProgram } from '../../core/program/blocks';
+import { cpuMs } from '../../core/program/__fixtures__/cpu-clock';
 import blinkSample from '../../samples/blink.project.json';
 import buttonLedSample from '../../samples/button-led.project.json';
 import { canOpenProgram, maxMutatorItemsPerBlock, maxTotalMutatorItems } from './editor-blocks';
 
 // The editor's own check of stored programs (plan §7), on real Blockly (its
 // Node build, on jsdom): what it refuses is exactly what would make the
-// program panel throw, and so the app go blank.
+// program panel throw, and so the app go blank. "Quickly" and "in bounded time" are CPU time
+// (core/program/__fixtures__/cpu-clock.ts): the work is synchronous, and a loaded machine must not fail it.
 
 const packs = createBlockPackCatalog(createDeviceRegistry(localDeviceDefinitions));
 const canOpen = (blocks: unknown) => canOpenProgram(blocks, packs);
@@ -64,7 +66,8 @@ describe('canOpenProgram', () => {
     expect(canOpen(blocks)).toBe(false);
   });
 
-  it('refuses a program nested too deeply for Blockly to load, and still opens the next one', () => {
+  // It asserts what is refused, not how fast: building 100 000 nested blocks may take longer than the default 5 s on a loaded machine.
+  it('refuses a program nested too deeply for Blockly to load, and still opens the next one', { timeout: 30_000 }, () => {
     let block: Record<string, unknown> = { type: 'stem_digital_read', id: 'read', fields: { PIN: 'D2' } };
     for (let depth = 0; depth < 100_000; depth++) {
       block = { type: 'logic_negate', id: `not-${depth}`, inputs: { BOOL: { block } } };
@@ -75,10 +78,10 @@ describe('canOpenProgram', () => {
   });
 
   it('opens a program with as many else-ifs as allowed, quickly', () => {
-    const started = performance.now();
+    const started = cpuMs();
 
     expect(canOpen(program(ifWith({ elseIfCount: maxMutatorItemsPerBlock, hasElse: true })))).toBe(true);
-    expect(performance.now() - started).toBeLessThan(1000);
+    expect(cpuMs() - started).toBeLessThan(1000);
   });
 });
 
@@ -165,10 +168,10 @@ describe('canOpenProgram, before Blockly loads anything (F4)', () => {
     const load = vi.spyOn(Blockly.serialization.workspaces, 'load').mockImplementation(() => {
       throw new Error('Blockly must not be asked to load this program');
     });
-    const started = performance.now();
+    const started = cpuMs();
 
     expect(canOpen(blocks)).toBe(false);
-    expect(performance.now() - started).toBeLessThan(100);
+    expect(cpuMs() - started).toBeLessThan(100);
     // The count only: printing the calls would walk the program's holes too.
     expect(load.mock.calls.length).toBe(0);
   });

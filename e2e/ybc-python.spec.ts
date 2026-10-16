@@ -127,12 +127,20 @@ test('has no Python panel in a generic project', async ({ page }) => {
 
 const blocklyPanel = (page: Page) => page.getByTestId('blockly-panel');
 
-/** Types a new value into the number block showing `current`, as a learner does, and returns without waiting. */
+/**
+ * Types a new value into the number block showing `current`, as a learner does, and returns without waiting for
+ * any save. It does wait for Blockly's editor to open before typing (on a busy machine it opens late, and the keys
+ * would go elsewhere) and to close on Enter, which commits the value at once.
+ */
 async function editNumber(page: Page, current: string, next: string) {
+  const editor = page.locator('.blocklyWidgetDiv input.blocklyHtmlInput');
   await blocklyPanel(page).locator('.blocklyEditableField .blocklyText', { hasText: new RegExp(`^${current}$`) }).first().click();
-  await page.keyboard.press('Control+A');
+  await expect(editor).toBeVisible();
+  // Select all the field's text: Cmd+A on macOS, Ctrl+A elsewhere (Control+A only moves the caret on macOS).
+  await page.keyboard.press('ControlOrMeta+A');
   await page.keyboard.type(next);
   await page.keyboard.press('Enter');
+  await expect(editor).toBeHidden();
 }
 
 async function downloadedText(page: Page) {
@@ -201,7 +209,7 @@ test.describe('export is never older than the blocks on screen', () => {
   });
 });
 
-test('when the clipboard is refused, the source is selected and Ctrl+C is explained, with no false Copied', async ({ page }) => {
+test('when the clipboard is refused, the source is selected and the copy key is explained, with no false Copied', async ({ page }) => {
   await openProject(page, project(program([print(text('héllo'))])));
   await expect(source(page)).toContainText("print('héllo')");
   await page.evaluate(() => {
@@ -210,7 +218,9 @@ test('when the clipboard is refused, the source is selected and Ctrl+C is explai
 
   await page.getByRole('button', { name: 'Copy' }).click();
 
-  await expect(page.getByTestId('python-copy-status')).toHaveText('Copy failed. Press Ctrl+C to copy the selected code.');
+  // The app names the copy key of the platform the browser reports (PythonPanel's copyKey): Cmd+C on macOS.
+  const copyKey = await page.evaluate(() => (/Mac|iPhone|iPad/.test(navigator.platform) ? 'Cmd+C' : 'Ctrl+C'));
+  await expect(page.getByTestId('python-copy-status')).toHaveText(`Copy failed. Press ${copyKey} to copy the selected code.`);
   await expect(page.getByRole('button', { name: 'Copied' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Copy' })).toBeVisible();
   const shown = await source(page).evaluate((element) => element.textContent ?? '');

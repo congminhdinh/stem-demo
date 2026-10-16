@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const port = 5173;
+const port = Number(process.env.E2E_PORT ?? 5173);
 const baseURL = `http://localhost:${port}`;
 /** The lesson page that frames the lab in the iframe E2E (S1, e2e/lesson-host.mjs). */
 const lessonHostPort = 5190;

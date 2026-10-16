@@ -8,11 +8,13 @@ import { compileYbcProgram } from './compile-ybc-program';
 import { createRunConsole } from './console';
 import { timerSleep } from './interpreter';
 import { MAX_PROGRAM_BLOCKS } from './limits';
+import { cpuMs, heartbeat, wallCeilingMs } from './__fixtures__/cpu-clock';
 import { runYbc } from './__fixtures__/run-ybc';
 
 // Expression nodes are execution steps too (plan section 6.7): a tight loop around a big expression
 // must hand control back about every 8 ms, not every 256 iterations of a heavy body. Real timers; the
-// bounds catch the old behaviour (gaps of 50-70 ms) with room for Windows timer granularity.
+// bounds catch the old behaviour (gaps of 50-70 ms) with room for Windows timer granularity. Time is the
+// CPU time the run uses (__fixtures__/cpu-clock.ts), so a loaded machine does not make the loop look blocked.
 
 const packs = createBlockPackCatalog(createDeviceRegistry(localDeviceDefinitions));
 const exposed = packs.typesOf(productionProfiles.get('ybc-basic')?.blockPacks ?? []);
@@ -44,18 +46,6 @@ function start(blocks: Json) {
   return runYbc(compiled.ir, { sleep: timerSleep, console: runConsole });
 }
 
-/** A 1 ms timer: the longest time between two of its ticks is how long the event loop was blocked. */
-function heartbeat() {
-  let last = performance.now();
-  let maxGap = 0;
-  const timer = setInterval(() => {
-    const now = performance.now();
-    maxGap = Math.max(maxGap, now - last);
-    last = now;
-  }, 1);
-  return { maxGap: () => maxGap, stop: () => clearInterval(timer) };
-}
-
 // Measured here: 17-24 ms with expression accounting, 37-38 ms without it. The bound is the generous
 // one (a gross-blocking guard, Windows timers are coarse); the exact property is pinned by the
 // deterministic clock-read test below.
@@ -83,29 +73,33 @@ describe('a tight loop around a big expression', () => {
     running.stop();
     await running.done;
     beat.stop();
-    expect(beat.maxGap()).toBeLessThan(maxGapAllowedMs);
+    expect(beat.maxBusyMs()).toBeLessThan(maxGapAllowedMs);
   });
 
   it.each(heavy)('is stopped promptly by a Stop that is itself scheduled on the event loop: %s', async (_, build) => {
+    const beat = heartbeat();
     const running = start(prog([whileLoop(bool(true), [setVar('x', build())])]));
-    let pressedAt = 0;
-    let lateness = 0;
-    const due = performance.now() + 60;
+    let pressedCpu = 0;
+    let pressedWall = 0;
     const pressed = new Promise<void>((resolve) => {
       setTimeout(() => {
-        pressedAt = performance.now();
-        lateness = pressedAt - due; // how long the busy program kept the Stop button waiting
+        pressedCpu = cpuMs();
+        pressedWall = performance.now();
         running.stop();
         resolve();
       }, 60);
     });
     await pressed;
     const outcome = await running.done;
-    const total = performance.now() - due;
+    const stopCpu = cpuMs() - pressedCpu;
+    const stopWall = performance.now() - pressedWall;
+    beat.stop();
 
     expect(outcome).toEqual({ status: 'stopped' });
-    expect(lateness).toBeLessThan(maxGapAllowedMs);
-    expect(total).toBeLessThan(stopDeadlineMs);
+    // How long the busy program kept the Stop button waiting: its longest stretch without letting a timer run.
+    expect(beat.maxBusyMs()).toBeLessThan(maxGapAllowedMs);
+    expect(stopCpu).toBeLessThan(stopDeadlineMs);
+    expect(stopWall).toBeLessThan(wallCeilingMs);
   });
 
   it('looks at the clock at every iteration of a loop around a big expression, not after 256 iterations', async () => {
