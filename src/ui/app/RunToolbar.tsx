@@ -1,24 +1,12 @@
 import { useStore } from 'zustand';
-import type { RunDiagnostic, RunStatus } from '../../core/run/run-session';
-import { selectIsRunning, type RunState, type RunStore } from '../state/run-store';
+import type { RunDiagnostic } from '../../core/run/run-session';
+import { useText, type Text } from '../i18n/text';
+import { selectIsRunning, type RunStore } from '../state/run-store';
 import { Console } from './Console';
 
-const statusText: Record<RunStatus, string> = {
-  idle: 'Idle',
-  running: 'Running',
-  finished: 'Program finished — board powered',
-  error: 'Error',
-};
-
-const startFailureText: Record<NonNullable<RunState['startFailure']>['reason'], string> = {
-  'no-board': 'The circuit needs a board.',
-  'multiple-boards': 'The circuit can have only one board.',
-  'incompatible-devices': 'The circuit has devices that this kind of project cannot use.',
-  'compile-error': 'The program has errors.',
-};
-
-const diagnosticText = (diagnostic: RunDiagnostic) =>
-  `${diagnostic.severity === 'error' ? 'Error' : 'Warning'}: ${diagnostic.message}`;
+/** A diagnostic of the core as the toolbar lists it: the core's message (English) after the UI's own prefix. */
+export const diagnosticText = (t: Text, diagnostic: RunDiagnostic) =>
+  t(diagnostic.severity === 'error' ? 'diagnostic.error' : 'diagnostic.warning', { message: diagnostic.message });
 
 type RunToolbarProps = { runStore: RunStore; onRun(): void };
 
@@ -26,22 +14,26 @@ export function RunToolbar({ runStore, onRun }: RunToolbarProps) {
   const snapshot = useStore(runStore, (state) => state.snapshot);
   const startFailure = useStore(runStore, (state) => state.startFailure);
   const running = useStore(runStore, selectIsRunning);
+  const t = useText();
 
   // A failed Run leaves the session idle, so its reasons come from the start result.
   const messages = startFailure
-    ? [startFailureText[startFailure.reason], ...startFailure.diagnostics.map(diagnosticText)]
-    : [...(snapshot.error ? [`Error: ${snapshot.error.message}`] : []), ...snapshot.diagnostics.map(diagnosticText)];
+    ? [t(`run.failure.${startFailure.reason}`), ...startFailure.diagnostics.map((diagnostic) => diagnosticText(t, diagnostic))]
+    : [
+        ...(snapshot.error ? [t('run.error', { message: snapshot.error.message })] : []),
+        ...snapshot.diagnostics.map((diagnostic) => diagnosticText(t, diagnostic)),
+      ];
 
   return (
-    <div className="run-toolbar" role="toolbar" aria-label="Run">
+    <div className="run-toolbar" role="toolbar" aria-label={t('run.toolbar')}>
       <button type="button" onClick={onRun}>
-        Run
+        {t('run.run')}
       </button>
       <button type="button" onClick={() => runStore.getState().stop()} disabled={!running}>
-        Stop
+        {t('run.stop')}
       </button>
       <span className={`run-status run-status-${snapshot.status}`} role="status" data-testid="run-status">
-        {statusText[snapshot.status]}
+        {t(`run.status.${snapshot.status}`)}
       </span>
       {snapshot.console && <Console console={snapshot.console} />}
       {messages.length > 0 && (

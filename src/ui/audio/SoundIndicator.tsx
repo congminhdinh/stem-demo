@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ComponentState } from '../../core/simulation/simulate-circuit';
+import { useText } from '../i18n/text';
 import { createAudioPlayer, type AudioPlayer } from './audio-player';
-import { describeTone, toneHz } from './tone';
+import { formatHz, toneHz } from './tone';
 
 type SoundIndicatorProps = {
   /** The buzzer's state in the run snapshot (`<board>/buzzer`), as drawn; absent while idle or silent. Only for the text. */
@@ -21,6 +22,7 @@ type SoundIndicatorProps = {
  */
 export function SoundIndicator({ buzzer, tones }: SoundIndicatorProps) {
   const hz = toneHz(buzzer);
+  const t = useText();
   const [enabled, setEnabled] = useState(false);
   const player = useRef<AudioPlayer | null>(null);
 
@@ -42,10 +44,10 @@ export function SoundIndicator({ buzzer, tones }: SoundIndicatorProps) {
     <div className="sound-indicator">
       {/* The label says what a click does and changes with the state; aria-pressed as well would announce the state twice. */}
       <button type="button" onClick={toggle}>
-        {enabled ? 'Turn sound off' : 'Turn sound on'}
+        {enabled ? t('sound.turnOff') : t('sound.turnOn')}
       </button>
       <span className={hz === undefined ? 'sound-state' : 'sound-state sound-state-playing'} data-testid="sound-indicator">
-        {describeTone(hz)}
+        {hz === undefined ? t('sound.silent') : t('sound.playing', { hz: formatHz(hz) })}
       </span>
     </div>
   );

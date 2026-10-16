@@ -1,0 +1,130 @@
+// The strings of the lab's UI in its two languages (N6a S5). English is the standalone editor's, unchanged; a
+// lab launched by an LMS (`lab=`) speaks Vietnamese (locale.ts). Every key exists in both, with the same
+// `{name}` parameters (messages.test.ts). What the core says (compiler and runtime diagnostics) stays English:
+// the core has no UI strings to translate (B1).
+
+export type Locale = 'en' | 'vi';
+
+export const en = {
+  'app.title': 'STEM Studio',
+  'app.subtitle': 'Proof of Concept',
+  'app.new': 'New',
+  'app.dismiss': 'Dismiss',
+  'app.circuit': 'Circuit',
+  'app.program': 'Program',
+  'run.toolbar': 'Run',
+  'run.run': 'Run',
+  'run.stop': 'Stop',
+  'run.status.idle': 'Idle',
+  'run.status.running': 'Running',
+  'run.status.finished': 'Program finished — board powered',
+  'run.status.error': 'Error',
+  'run.failure.no-board': 'The circuit needs a board.',
+  'run.failure.multiple-boards': 'The circuit can have only one board.',
+  'run.failure.incompatible-devices': 'The circuit has devices that this kind of project cannot use.',
+  'run.failure.compile-error': 'The program has errors.',
+  'run.error': 'Error: {message}',
+  'diagnostic.error': 'Error: {message}',
+  'diagnostic.warning': 'Warning: {message}',
+  'console.label': 'Console',
+  'console.hiddenOne': '{count} earlier line hidden',
+  'console.hiddenMany': '{count} earlier lines hidden',
+  'launch.title': 'This lab could not be opened.',
+  'launch.supported': 'Supported templates: {keys}.',
+  'palette.label': 'Add a device',
+  'palette.add': 'Add {name}',
+  'device.board': 'STEM Board',
+  'device.ybc-board': 'Bit-compatible Board',
+  'device.led': 'LED',
+  'device.resistor': 'Resistor',
+  'device.push-button': 'Push Button',
+  'device.potentiometer': 'Potentiometer',
+  'controls.label': 'Board controls',
+  'control.button-a': 'Button A',
+  'control.button-b': 'Button B',
+  'control.light': 'Light level',
+  'display.label': 'Display text',
+  'sound.turnOn': 'Turn sound on',
+  'sound.turnOff': 'Turn sound off',
+  'sound.silent': 'Silent',
+  'sound.playing': 'Playing {hz}',
+  'python.copy': 'Copy',
+  'python.copied': 'Copied',
+  'python.download': 'Download',
+  'python.copyFailed': 'Copy failed. Press {key} to copy the selected code.',
+  'python.claim': 'Generated for Yolo:Bit MicroPython. MicroPython syntax validation: pending. Physical-board verification: pending.',
+  'python.layer.L-1': 'The project cannot be opened.',
+  'python.layer.L-2': 'The project does not fit this profile.',
+  'python.layer.L-3': 'The program cannot run yet.',
+  'python.layer.L-4': 'Python cannot be generated yet.',
+} as const satisfies Record<string, string>;
+
+export type MessageKey = keyof typeof en;
+
+export const vi: Readonly<Record<MessageKey, string>> = {
+  'app.title': 'STEM Studio',
+  'app.subtitle': 'Bản thử nghiệm',
+  'app.new': 'Mới',
+  'app.dismiss': 'Đóng',
+  'app.circuit': 'Mạch',
+  'app.program': 'Chương trình',
+  'run.toolbar': 'Chạy',
+  'run.run': 'Chạy',
+  'run.stop': 'Dừng',
+  'run.status.idle': 'Chưa chạy',
+  'run.status.running': 'Đang chạy',
+  'run.status.finished': 'Chương trình đã chạy xong — bo mạch vẫn bật',
+  'run.status.error': 'Lỗi',
+  'run.failure.no-board': 'Mạch cần có một bo mạch.',
+  'run.failure.multiple-boards': 'Mạch chỉ được có một bo mạch.',
+  'run.failure.incompatible-devices': 'Mạch có linh kiện mà loại dự án này không dùng được.',
+  'run.failure.compile-error': 'Chương trình có lỗi.',
+  'run.error': 'Lỗi: {message}',
+  'diagnostic.error': 'Lỗi: {message}',
+  'diagnostic.warning': 'Cảnh báo: {message}',
+  'console.label': 'Bảng in',
+  'console.hiddenOne': 'Đã ẩn {count} dòng cũ hơn',
+  'console.hiddenMany': 'Đã ẩn {count} dòng cũ hơn',
+  'launch.title': 'Không mở được bài thực hành này.',
+  'launch.supported': 'Các mẫu được hỗ trợ: {keys}.',
+  'palette.label': 'Thêm linh kiện',
+  'palette.add': 'Thêm {name}',
+  'device.board': 'Bo mạch STEM',
+  'device.ybc-board': 'Bo mạch tương thích Bit',
+  'device.led': 'Đèn LED',
+  'device.resistor': 'Điện trở',
+  'device.push-button': 'Nút bấm',
+  'device.potentiometer': 'Biến trở',
+  'controls.label': 'Điều khiển bo mạch',
+  'control.button-a': 'Nút A',
+  'control.button-b': 'Nút B',
+  'control.light': 'Mức ánh sáng',
+  'display.label': 'Màn hình dạng chữ',
+  'sound.turnOn': 'Bật âm thanh',
+  'sound.turnOff': 'Tắt âm thanh',
+  'sound.silent': 'Im lặng',
+  'sound.playing': 'Đang phát {hz}',
+  'python.copy': 'Sao chép',
+  'python.copied': 'Đã chép',
+  'python.download': 'Tải xuống',
+  'python.copyFailed': 'Không sao chép được. Nhấn {key} để chép đoạn mã đã chọn.',
+  'python.claim': 'Sinh cho Yolo:Bit MicroPython. Kiểm tra cú pháp MicroPython: chưa làm. Kiểm tra trên bo mạch thật: chưa làm.',
+  'python.layer.L-1': 'Không mở được dự án.',
+  'python.layer.L-2': 'Dự án không hợp với cấp độ này.',
+  'python.layer.L-3': 'Chương trình chưa chạy được.',
+  'python.layer.L-4': 'Chưa sinh được Python.',
+};
+
+const dictionaries: Readonly<Record<Locale, Readonly<Record<MessageKey, string>>>> = { en, vi };
+
+export type Params = Readonly<Record<string, string | number>>;
+
+/** The text of `key` in `locale`, with each `{name}` replaced by `params[name]`. */
+export function translate(locale: Locale, key: MessageKey, params: Params = {}): string {
+  return dictionaries[locale][key].replace(/\{(\w+)\}/g, (match, name: string) => (Object.hasOwn(params, name) ? String(params[name]) : match));
+}
+
+/** Whether `key` names a message: for keys made from data (a device type, a part id), which may have none. */
+export function isMessageKey(key: string): key is MessageKey {
+  return Object.hasOwn(en, key);
+}

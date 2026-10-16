@@ -1,4 +1,5 @@
 import type { ComponentState } from '../../core/simulation/simulate-circuit';
+import { useText } from '../i18n/text';
 import { displayLines } from './display-view';
 
 /**
@@ -7,8 +8,9 @@ import { displayLines } from './display-view';
  * changes it every 200 ms, and announcing that would drown everything else.
  */
 export function DisplayText({ display }: { display: ComponentState | undefined }) {
+  const t = useText();
   return (
-    <pre className="display-text" role="group" aria-label="Display text" data-testid="display-text">
+    <pre className="display-text" role="group" aria-label={t('display.label')} data-testid="display-text">
       {displayLines(display).join('\n')}
     </pre>
   );

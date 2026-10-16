@@ -10,6 +10,8 @@ import { buzzerPartId, displayPartId } from '../../core/simulation/peripherals/o
 import { SoundIndicator } from '../audio/SoundIndicator';
 import { toneHz } from '../audio/tone';
 import { BlocklyPanel, type BlocklyPanelHandle } from '../blockly/BlocklyPanel';
+import { localizeToolbox } from '../i18n/blocks';
+import { useLocale, useText } from '../i18n/text';
 import { CircuitCanvas } from '../canvas/CircuitCanvas';
 import { PotentiometerControls } from '../canvas/PotentiometerControls';
 import { DisplayText } from '../runtime-controls/DisplayText';
@@ -37,6 +39,8 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
   const simulation = useStore(runStore, (state) => state.snapshot.simulation);
   const running = useStore(runStore, selectIsRunning);
   const blocklyRef = useRef<BlocklyPanelHandle>(null);
+  const t = useText();
+  const locale = useLocale();
   // The one place the family, the palette and the toolbox are decided (R-F1…R-F6):
   // from the document's profile, never from the boards on the canvas.
   const profile = document.profile;
@@ -46,7 +50,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
   );
   // Only a different set of packs is a different toolbox, so circuit edits keep the Blockly workspace.
   const packKey = context.blockPacks.join('|');
-  const toolbox = useMemo(() => buildToolbox(packKey === '' ? [] : packKey.split('|'), packs), [packKey, packs]);
+  const toolbox = useMemo(() => localizeToolbox(buildToolbox(packKey === '' ? [] : packKey.split('|'), packs), locale), [packKey, packs, locale]);
   const [noticeDismissed, setNoticeDismissed] = useState(false);
   // Counts Run clicks. The runtime controls start from their initial place in every run (inputs belong to a run, B2).
   const [runEpoch, setRunEpoch] = useState(0);
@@ -120,23 +124,23 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
   return (
     <div className="app-shell">
       <header className="app-header">
-        <h1>STEM Studio</h1>
-        <p>Proof of Concept</p>
+        <h1>{t('app.title')}</h1>
+        <p>{t('app.subtitle')}</p>
         <button type="button" onClick={newProject} disabled={running}>
-          New
+          {t('app.new')}
         </button>
         <RunToolbar runStore={runStore} onRun={run} />
         {shownNotice && (
           <p className="app-notice" role="status" data-testid="app-notice">
             {shownNotice}
             <button type="button" onClick={() => setNoticeDismissed(true)}>
-              Dismiss
+              {t('app.dismiss')}
             </button>
           </p>
         )}
       </header>
       <main className="workspace">
-        <section className={isYbc ? 'canvas-region canvas-region-with-board-panel' : 'canvas-region'} aria-label="Circuit">
+        <section className={isYbc ? 'canvas-region canvas-region-with-board-panel' : 'canvas-region'} aria-label={t('app.circuit')}>
           {isYbc ? (
             <>
               <div className="circuit-stage">
@@ -168,7 +172,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
         </section>
         <section
           className={context.family === 'ybc' ? 'program-region program-region-with-python' : 'program-region'}
-          aria-label="Program"
+          aria-label={t('app.program')}
           data-testid="program-region"
         >
           <BlocklyPanel ref={blocklyRef} projectStore={projectStore} packs={packs} toolbox={toolbox} />

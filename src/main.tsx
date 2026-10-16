@@ -14,6 +14,9 @@ import { parseLaunch } from './ui/app/launch';
 import { openAtStartup } from './ui/app/startup';
 import { installTestHooks } from './ui/app/test-hooks';
 import { canOpenProgram } from './ui/blockly/editor-blocks';
+import { applyEditorLocale } from './ui/blockly/locale';
+import { localeOf } from './ui/i18n/locale';
+import { TextProvider } from './ui/i18n/text';
 import { startAutosave } from './ui/state/autosave';
 import { createProjectStore } from './ui/state/project-store';
 import { createRunStore } from './ui/state/run-store';
@@ -32,7 +35,13 @@ const packs = createBlockPackCatalog(registry);
 // last project is read first, so nothing can be shown, edited or saved over
 // it in the meantime; an embedded lab opens its template and never touches
 // storage (S1).
-const started = await openAtStartup(parseLaunch(window.location.search), {
+const launch = parseLaunch(window.location.search);
+// The UI's language is chosen once, before Blockly registers a block (N6a S5).
+const locale = localeOf(launch, window.location.search);
+document.documentElement.lang = locale;
+applyEditorLocale(locale);
+
+const started = await openAtStartup(launch, {
   openRepository: () => createDexieProjectRepository(),
   registry,
   profiles,
@@ -50,7 +59,9 @@ const root = createRoot(container);
 if (started.kind === 'launch-error') {
   root.render(
     <StrictMode>
-      <LaunchError problem={started.problem} lab={started.lab} />
+      <TextProvider locale={locale}>
+        <LaunchError problem={started.problem} lab={started.lab} />
+      </TextProvider>
     </StrictMode>,
   );
 } else {
@@ -76,14 +87,16 @@ if (started.kind === 'launch-error') {
 
   root.render(
     <StrictMode>
-      <App
-        projectStore={projectStore}
-        runStore={runStore}
-        registry={registry}
-        profiles={profiles}
-        packs={packs}
-        notice={started.notice}
-      />
+      <TextProvider locale={locale}>
+        <App
+          projectStore={projectStore}
+          runStore={runStore}
+          registry={registry}
+          profiles={profiles}
+          packs={packs}
+          notice={started.notice}
+        />
+      </TextProvider>
     </StrictMode>,
   );
 }

@@ -1,6 +1,8 @@
 import { useEffect, useEffectEvent, useId, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import type { DeviceDefinition } from '../../core/devices/device-definition';
 import type { ComponentInput } from '../../core/simulation/simulate-circuit';
+import { isMessageKey } from '../i18n/messages';
+import { useText } from '../i18n/text';
 import { controlsOf, sliderValueOf, type ControlSpec } from './controls-model';
 import { createHoldTracker, isHoldKey } from './hold-tracker';
 
@@ -22,12 +24,17 @@ type RuntimeControlsProps = {
 };
 
 export function RuntimeControls({ boardId, definition, controls, active, onInput }: RuntimeControlsProps) {
-  const specs = controlsOf(boardId, definition, controls);
+  const t = useText();
+  // A part the dictionary does not know keeps the label the model gives it.
+  const specs = controlsOf(boardId, definition, controls).map((spec) => {
+    const key = `control.${spec.partId}`;
+    return isMessageKey(key) ? { ...spec, label: t(key) } : spec;
+  });
   if (specs.length === 0) {
     return null;
   }
   return (
-    <div className="runtime-controls" role="group" aria-label="Board controls" data-testid="runtime-controls">
+    <div className="runtime-controls" role="group" aria-label={t('controls.label')} data-testid="runtime-controls">
       {specs.map((spec) =>
         spec.kind === 'hold' ? (
           <HoldButton key={spec.partId} spec={spec} active={active} onInput={onInput} />

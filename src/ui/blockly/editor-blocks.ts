@@ -2,11 +2,21 @@ import * as Blockly from 'blockly';
 import { builtInBlockTypes } from '../../core/program/blocks';
 import type { BlockPackCatalog } from '../../core/program/block-packs';
 import { MAX_PROGRAM_BLOCKS, MAX_TEXT_JOIN_PARTS } from '../../core/program/limits';
+import { localizeBlockDefinitions } from '../i18n/blocks';
+import type { Locale } from '../i18n/messages';
 
 // The editor's blocks, as Blockly knows them: registered once, and used to
 // tell whether a stored program can be opened at all.
 
 const registeredTypes = new Set<string>();
+
+/** The language the blocks are registered in; Blockly keeps a definition once registered, so it is set first (N6a S5). */
+let blockLocale: Locale = 'en';
+
+/** Chooses the language of the custom blocks. Called once at startup, before any block is registered (src/ui/blockly/locale.ts). */
+export function setBlockLocale(locale: Locale) {
+  blockLocale = locale;
+}
 
 /**
  * Registers the blocks of every known pack, whatever profile is active (YB
@@ -16,7 +26,7 @@ const registeredTypes = new Set<string>();
  * is registered once; a pack that shares a definition (the hats) adds nothing.
  */
 export function registerBlocks(packs: BlockPackCatalog) {
-  const fresh = packs.definitions().filter((definition) => !registeredTypes.has(definition.type));
+  const fresh = localizeBlockDefinitions(packs.definitions(), blockLocale).filter((definition) => !registeredTypes.has(definition.type));
   if (fresh.length > 0) {
     Blockly.common.defineBlocksWithJsonArray(fresh);
     fresh.forEach((definition) => registeredTypes.add(definition.type));

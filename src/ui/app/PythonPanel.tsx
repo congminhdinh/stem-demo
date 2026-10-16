@@ -4,13 +4,14 @@ import { generateForDocument, type DocumentGeneration } from '../../core/codegen
 import type { DeviceRegistry } from '../../core/devices/registry';
 import type { ProfileCatalog } from '../../core/profiles/profile';
 import type { BlockPackCatalog } from '../../core/program/block-packs';
+import { useText } from '../i18n/text';
 
 // The Python panel of a Yolo:Bit-compatible project (YB plan §13.7): the MicroPython the
 // program generates, read-only, or why there is none, with the same diagnostics Run gives.
 // It states what is true now and no more: the Python was generated (L-4), the MicroPython compiler has
 // not been run over this generator's output (plan §13.9, OQ-B: that is the YB-5A freeze condition),
 // and no board has run it (L3). The L2 sentence of §6.9 ("code-generation compatible") is NOT used
-// until mpy-cross has passed; then this constant is the one line to change.
+// until mpy-cross has passed; then the message `python.claim` (src/ui/i18n/messages.ts) is the line to change.
 //
 // FRESHNESS. What is shown follows the document after a debounce, and the document follows Blockly
 // after another one, so the screen can be up to ~500 ms behind the blocks. Copy and Download therefore
@@ -23,10 +24,6 @@ const debounceMs = 250;
 
 /** Contract IM-8: the downloaded file is `program.py`. */
 export const downloadName = 'program.py';
-
-const claim = 'Generated for Yolo:Bit MicroPython. MicroPython syntax validation: pending. Physical-board verification: pending.';
-
-const layerText = { 'L-1': 'The project cannot be opened.', 'L-2': 'The project does not fit this profile.', 'L-3': 'The program cannot run yet.', 'L-4': 'Python cannot be generated yet.' };
 
 type ProjectView = Pick<ProjectDocument, 'profile' | 'circuit' | 'program'>;
 
@@ -49,6 +46,7 @@ export function PythonPanel({ document, registry, profiles, packs, flush, latest
   const { profile, circuit, program } = document;
   const sourceRef = useRef<HTMLPreElement>(null);
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const t = useText();
 
   useEffect(() => {
     const timer = setTimeout(() => setGeneration(generateForDocument({ profile, circuit, program }, registry, profiles, packs)), debounceMs);
@@ -115,19 +113,19 @@ export function PythonPanel({ document, registry, profiles, packs, flush, latest
       <header className="python-panel-header">
         <h2>Python</h2>
         <button type="button" onClick={() => void copySource()} disabled={!generation.ok}>
-          {copy === 'copied' ? 'Copied' : 'Copy'}
+          {copy === 'copied' ? t('python.copied') : t('python.copy')}
         </button>
         <button type="button" onClick={download} disabled={!generation.ok}>
-          Download
+          {t('python.download')}
         </button>
       </header>
       <p className="python-copy-status" role="status" data-testid="python-copy-status">
-        {copy === 'failed' && generation.ok ? `Copy failed. Press ${copyKey()} to copy the selected code.` : ''}
+        {copy === 'failed' && generation.ok ? t('python.copyFailed', { key: copyKey() }) : ''}
       </p>
       {generation.ok ? (
         <>
           <p className="python-claim" data-testid="python-claim">
-            {claim}
+            {t('python.claim')}
           </p>
           <pre ref={sourceRef} className="python-source" data-testid="python-source" tabIndex={0}>
             {lines.map((line, index) => (
@@ -140,11 +138,11 @@ export function PythonPanel({ document, registry, profiles, packs, flush, latest
         </>
       ) : (
         <div className="python-blocked" role="status" data-testid="python-diagnostics">
-          <p>{layerText[generation.layer]}</p>
+          <p>{t(`python.layer.${generation.layer}`)}</p>
           <ul>
             {generation.diagnostics.map((diagnostic, index) => (
               <li key={index}>
-                {diagnostic.severity === 'error' ? 'Error' : 'Warning'}: {diagnostic.message}
+                {t(diagnostic.severity === 'error' ? 'diagnostic.error' : 'diagnostic.warning', { message: diagnostic.message })}
               </li>
             ))}
           </ul>
