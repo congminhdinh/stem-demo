@@ -22,6 +22,7 @@ import { RuntimeControls } from '../runtime-controls/RuntimeControls';
 import type { ProjectStore } from '../state/project-store';
 import { checkSessionOf, selectIsRunning, type RunStore } from '../state/run-store';
 import { ChallengePanel, type CheckView } from './ChallengePanel';
+import { LabWorkspace } from './LabWorkspace';
 import { PythonPanel } from './PythonPanel';
 import { RunToolbar } from './RunToolbar';
 import './app.css';
@@ -72,7 +73,10 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
   const toolbox = useMemo(() => localizeToolbox(buildToolbox(packKey === '' ? [] : packKey.split('|'), packs), locale), [packKey, packs, locale]);
   const [noticeDismissed, setNoticeDismissed] = useState(false);
   // Counts Run clicks. The runtime controls start from their initial place in every run (inputs belong to a run, B2).
+  // A lab also brings its circuit into sight on every new value (LabWorkspace `showBoard`, N8s).
   const [runEpoch, setRunEpoch] = useState(0);
+  // A lab folds the Python panel to its title bar at launch: the blocks get the room (N8s).
+  const [pythonCollapsed, setPythonCollapsed] = useState(true);
   // A notice about the project the app opened is gone once another one is
   // loaded (New); one about the session (no saving) stays until dismissed.
   const isNoticeOutdated = notice?.about === 'opened-project' && loadRevision !== 0;
@@ -202,8 +206,66 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
     />
   );
 
+  const boardRegion = (
+    <section className={isYbc ? 'canvas-region canvas-region-with-board-panel' : 'canvas-region'} aria-label={t('app.circuit')}>
+      {isYbc ? (
+        <>
+          <div className="circuit-stage">
+            {canvas}
+            {potentiometerControls}
+          </div>
+          {/* What the board shows and takes, under the circuit; the run is the only source of both (B2). */}
+          {board && (
+            <div className="board-panel" data-testid="board-panel">
+              <DisplayText display={partStateOf(simulation, board.id, displayPartId)} />
+              <RuntimeControls
+                key={running ? `run-${runEpoch}` : 'idle'}
+                boardId={board.id}
+                definition={registry.get(board.deviceType)}
+                controls={context.profile?.controls ?? []}
+                active={running}
+                onInput={(componentId, input) => runStore.getState().setComponentInput(componentId, input)}
+              />
+              <SoundIndicator buzzer={partStateOf(simulation, board.id, buzzerPartId)} tones={tones} />
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {canvas}
+          {potentiometerControls}
+        </>
+      )}
+    </section>
+  );
+  const pythonShown = context.family === 'ybc';
+  const programRegion = (
+    <section
+      className={
+        pythonShown ? (lab && pythonCollapsed ? 'program-region program-region-with-python program-region-python-collapsed' : 'program-region program-region-with-python') : 'program-region'
+      }
+      aria-label={t('app.program')}
+      data-testid="program-region"
+    >
+      <BlocklyPanel ref={blocklyRef} projectStore={projectStore} packs={packs} toolbox={toolbox} fitOnLoad={lab !== null} />
+      {/* Python exists for Yolo:Bit-compatible projects only (R-F5); a generic project has no panel. */}
+      {pythonShown && (
+        <PythonPanel
+          key={loadRevision}
+          document={document}
+          registry={registry}
+          profiles={profiles}
+          packs={packs}
+          flush={() => blocklyRef.current?.saveNow()}
+          latestDocument={() => projectStore.getState().document}
+          {...(lab ? { collapsed: pythonCollapsed, onToggleCollapsed: () => setPythonCollapsed(!pythonCollapsed) } : {})}
+        />
+      )}
+    </section>
+  );
+
   return (
-    <div className="app-shell">
+    <div className={lab ? 'app-shell app-shell-lab' : 'app-shell'}>
       <header className="app-header">
         <h1>{lab ? t(`lab.title.${lab.kind}`) : t('app.title')}</h1>
         <p>{lab ? t('app.title') : t('app.subtitle')}</p>
@@ -242,57 +304,14 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
           </p>
         )}
       </header>
-      <main className="workspace">
-        <section className={isYbc ? 'canvas-region canvas-region-with-board-panel' : 'canvas-region'} aria-label={t('app.circuit')}>
-          {isYbc ? (
-            <>
-              <div className="circuit-stage">
-                {canvas}
-                {potentiometerControls}
-              </div>
-              {/* What the board shows and takes, under the circuit; the run is the only source of both (B2). */}
-              {board && (
-                <div className="board-panel" data-testid="board-panel">
-                  <DisplayText display={partStateOf(simulation, board.id, displayPartId)} />
-                  <RuntimeControls
-                    key={running ? `run-${runEpoch}` : 'idle'}
-                    boardId={board.id}
-                    definition={registry.get(board.deviceType)}
-                    controls={context.profile?.controls ?? []}
-                    active={running}
-                    onInput={(componentId, input) => runStore.getState().setComponentInput(componentId, input)}
-                  />
-                  <SoundIndicator buzzer={partStateOf(simulation, board.id, buzzerPartId)} tones={tones} />
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              {canvas}
-              {potentiometerControls}
-            </>
-          )}
-        </section>
-        <section
-          className={context.family === 'ybc' ? 'program-region program-region-with-python' : 'program-region'}
-          aria-label={t('app.program')}
-          data-testid="program-region"
-        >
-          <BlocklyPanel ref={blocklyRef} projectStore={projectStore} packs={packs} toolbox={toolbox} />
-          {/* Python exists for Yolo:Bit-compatible projects only (R-F5); a generic project has no panel. */}
-          {context.family === 'ybc' && (
-            <PythonPanel
-              key={loadRevision}
-              document={document}
-              registry={registry}
-              profiles={profiles}
-              packs={packs}
-              flush={() => blocklyRef.current?.saveNow()}
-              latestDocument={() => projectStore.getState().document}
-            />
-          )}
-        </section>
-      </main>
+      {lab ? (
+        <LabWorkspace board={boardRegion} program={programRegion} showBoard={runEpoch} />
+      ) : (
+        <main className="workspace">
+          {boardRegion}
+          {programRegion}
+        </main>
+      )}
     </div>
   );
 }

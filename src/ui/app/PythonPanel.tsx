@@ -37,12 +37,15 @@ type PythonPanelProps = {
   flush(): void;
   /** The document in the store, read at the moment of the call. */
   latestDocument(): ProjectView;
+  /** A lab launch (N8s): the panel can be folded to its title bar, to leave the blocks the room. */
+  collapsed?: boolean;
+  onToggleCollapsed?(): void;
 };
 
 /** Plan §17.3: when the clipboard is refused, the code is selected and the learner is told how to copy it. */
 const copyKey = () => (/Mac|iPhone|iPad/.test(window.navigator.platform) ? 'Cmd+C' : 'Ctrl+C');
 
-export function PythonPanel({ document, registry, profiles, packs, flush, latestDocument }: PythonPanelProps) {
+export function PythonPanel({ document, registry, profiles, packs, flush, latestDocument, collapsed = false, onToggleCollapsed }: PythonPanelProps) {
   const [generation, setGeneration] = useState<DocumentGeneration | null>(() => generateForDocument(document, registry, profiles, packs));
   const { profile, circuit, program } = document;
   const sourceRef = useRef<HTMLPreElement>(null);
@@ -111,44 +114,57 @@ export function PythonPanel({ document, registry, profiles, packs, flush, latest
   };
 
   return (
-    <section className="python-panel" aria-label="Python" data-testid="python-panel">
+    <section className={collapsed ? 'python-panel python-panel-collapsed' : 'python-panel'} aria-label="Python" data-testid="python-panel">
       <header className="python-panel-header">
         <h2>Python</h2>
-        <button type="button" onClick={() => void copySource()} disabled={!generation.ok}>
-          {copy === 'copied' ? t('python.copied') : t('python.copy')}
-        </button>
-        <button type="button" onClick={download} disabled={!generation.ok}>
-          {t('python.download')}
-        </button>
+        {onToggleCollapsed && (
+          <button type="button" aria-expanded={!collapsed} onClick={onToggleCollapsed}>
+            {collapsed ? t('python.show') : t('python.hide')}
+          </button>
+        )}
+        {!collapsed && (
+          <>
+            <button type="button" onClick={() => void copySource()} disabled={!generation.ok}>
+              {copy === 'copied' ? t('python.copied') : t('python.copy')}
+            </button>
+            <button type="button" onClick={download} disabled={!generation.ok}>
+              {t('python.download')}
+            </button>
+          </>
+        )}
       </header>
-      <p className="python-copy-status" role="status" data-testid="python-copy-status">
-        {copy === 'failed' && generation.ok ? t('python.copyFailed', { key: copyKey() }) : ''}
-      </p>
-      {generation.ok ? (
+      {!collapsed && (
         <>
-          <p className="python-claim" data-testid="python-claim">
-            {t('python.claim')}
+          <p className="python-copy-status" role="status" data-testid="python-copy-status">
+            {copy === 'failed' && generation.ok ? t('python.copyFailed', { key: copyKey() }) : ''}
           </p>
-          <pre ref={sourceRef} className="python-source" data-testid="python-source" tabIndex={0}>
-            {lines.map((line, index) => (
-              <span key={index} className="python-line">
-                {line}
-                {'\n'}
-              </span>
-            ))}
-          </pre>
+          {generation.ok ? (
+            <>
+              <p className="python-claim" data-testid="python-claim">
+                {t('python.claim')}
+              </p>
+              <pre ref={sourceRef} className="python-source" data-testid="python-source" tabIndex={0}>
+                {lines.map((line, index) => (
+                  <span key={index} className="python-line">
+                    {line}
+                    {'\n'}
+                  </span>
+                ))}
+              </pre>
+            </>
+          ) : (
+            <div className="python-blocked" role="status" data-testid="python-diagnostics">
+              <p>{t(`python.layer.${generation.layer}`)}</p>
+              <ul>
+                {generation.diagnostics.map((diagnostic, index) => (
+                  <li key={index}>
+                    {t(diagnostic.severity === 'error' ? 'diagnostic.error' : 'diagnostic.warning', { message: localizeCoreMessage(diagnostic.message, locale) })}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </>
-      ) : (
-        <div className="python-blocked" role="status" data-testid="python-diagnostics">
-          <p>{t(`python.layer.${generation.layer}`)}</p>
-          <ul>
-            {generation.diagnostics.map((diagnostic, index) => (
-              <li key={index}>
-                {t(diagnostic.severity === 'error' ? 'diagnostic.error' : 'diagnostic.warning', { message: localizeCoreMessage(diagnostic.message, locale) })}
-              </li>
-            ))}
-          </ul>
-        </div>
       )}
     </section>
   );

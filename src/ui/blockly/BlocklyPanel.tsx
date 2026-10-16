@@ -5,6 +5,7 @@ import { blockTypes } from '../../core/program/blocks';
 import type { BlockPackCatalog, Toolbox } from '../../core/program/block-packs';
 import type { ProjectStore } from '../state/project-store';
 import { registerBlocks, ybcVariablesFlyout } from './editor-blocks';
+import { fitBlocksIntoView } from './fit';
 import { blocklyMediaUrl } from './media';
 import { stemTheme } from './theme';
 
@@ -29,10 +30,12 @@ type BlocklyPanelProps = {
   packs: BlockPackCatalog;
   /** What the learner sees, from the board context. Must be stable: a new one would rebuild the workspace. */
   toolbox: Toolbox;
+  /** A lab launch (N8s): every loaded program is shrunk, if needed, so that all its blocks are in sight. */
+  fitOnLoad?: boolean;
   ref?: Ref<BlocklyPanelHandle>;
 };
 
-export function BlocklyPanel({ projectStore, packs, toolbox, ref }: BlocklyPanelProps) {
+export function BlocklyPanel({ projectStore, packs, toolbox, fitOnLoad = false, ref }: BlocklyPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const saveNowRef = useRef<() => void>(() => {});
   const loadRevision = useStore(projectStore, (state) => state.loadRevision);
@@ -61,6 +64,9 @@ export function BlocklyPanel({ projectStore, packs, toolbox, ref }: BlocklyPanel
     const blocks = projectStore.getState().document.program.blocks;
     if (typeof blocks === 'object' && blocks !== null) {
       Blockly.serialization.workspaces.load(blocks, workspace);
+    }
+    if (fitOnLoad) {
+      fitBlocksIntoView(workspace);
     }
 
     let pendingSave: ReturnType<typeof setTimeout> | undefined;
@@ -102,7 +108,7 @@ export function BlocklyPanel({ projectStore, packs, toolbox, ref }: BlocklyPanel
       }
       workspace.dispose();
     };
-  }, [loadRevision, projectStore, packs, toolbox]);
+  }, [loadRevision, projectStore, packs, toolbox, fitOnLoad]);
 
   return <div ref={containerRef} className="blockly-panel" data-testid="blockly-panel" />;
 }

@@ -602,3 +602,132 @@ body {
     border-left: 0;
   }
 }
+
+/*
+ * The workspace of a lab launch (N8s): circuit | gutter | program, the program the wider; the gutter holds the
+ * button that folds the circuit away and the separator that resizes it. In a narrow frame the two panels share
+ * one cell and tabs choose the one in sight; the other keeps its size (Blockly and Konva keep their layout).
+ */
+.lab-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, var(--lab-board-share, 38%)) 14px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+}
+
+.lab-workspace-collapsed {
+  grid-template-columns: 0 14px minmax(0, 1fr);
+}
+
+.lab-pane {
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.lab-pane[data-shown='false'] {
+  visibility: hidden;
+}
+
+.lab-pane > .program-region {
+  border-left: 0;
+}
+
+.lab-gutter {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  border-left: 1px solid var(--stem-color-border);
+  border-right: 1px solid var(--stem-color-border);
+  background: var(--stem-color-surface-muted);
+}
+
+.lab-collapse {
+  height: 32px;
+  padding: 0;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  border: 0;
+  border-bottom: 1px solid var(--stem-color-border);
+  background: transparent;
+  color: var(--stem-color-text-muted);
+  cursor: pointer;
+}
+
+.lab-separator {
+  flex: 1;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.lab-separator:hover,
+.lab-separator:focus-visible {
+  background: var(--stem-color-neutral-soft);
+}
+
+.lab-collapse:focus-visible,
+.lab-separator:focus-visible,
+.lab-tabs [role='tab']:focus-visible {
+  outline: 3px solid var(--stem-color-primary);
+  outline-offset: -3px;
+}
+
+.lab-workspace[data-layout='tabs'] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.lab-workspace[data-layout='tabs'] .lab-pane {
+  grid-row: 2;
+  grid-column: 1;
+}
+
+.lab-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px 12px 0;
+  border-bottom: 1px solid var(--stem-color-border);
+  background: var(--stem-color-surface);
+}
+
+.lab-tabs [role='tab'] {
+  min-height: 36px;
+  padding: 4px 16px;
+  font: inherit;
+  font-size: 14px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--stem-color-text-muted);
+  cursor: pointer;
+}
+
+.lab-tabs [role='tab'][aria-selected='true'] {
+  border-bottom-color: var(--stem-color-primary);
+  color: var(--stem-color-text);
+  font-weight: 600;
+}
+
+/* A lab's header shows the console once there is something in it: an empty one only pushes the workspace down. */
+.app-shell-lab .run-console:has(> pre:empty):not(:has(.run-console-hidden)) {
+  display: none;
+}
+
+/* A lab folds its Python panel to the title bar: the blocks take the room. */
+.program-region-python-collapsed .blockly-panel {
+  bottom: 34px;
+}
+
+.program-region-python-collapsed .python-panel {
+  inset: auto 0 0;
+  height: 34px;
+}
+
+.python-panel-collapsed .python-panel-header {
+  height: 34px;
+  box-sizing: border-box;
+  border-bottom: 0;
+}
