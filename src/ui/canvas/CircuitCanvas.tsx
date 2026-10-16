@@ -26,7 +26,7 @@ import { Palette } from './Palette';
 import { paletteItems, placementPosition } from './palette-model';
 import { rendererFor, type DeviceRendererProps } from './renderers';
 import { useElementSize } from './use-element-size';
-import { portPickRadiusPx, stageToWorld, stageToWorldDistance } from './viewport';
+import { circuitBounds, fitViewport, identityViewport, portPickRadiusPx, stageToWorld, stageToWorldDistance } from './viewport';
 import { canvasPalette } from './colors';
 
 // Renders the design state plus, while running, the simulation snapshot, and
@@ -49,6 +49,11 @@ type CircuitCanvasProps = {
   onCircuitChange(circuit: Circuit): void;
   /** While running: a contact (push button) is held closed, or released. Never a design edit. */
   onContactChange(componentId: string, closed: boolean): void;
+  /**
+   * A lab launch (N8s): the circuit as it was loaded is shrunk, if needed, and centred to fit the canvas, and
+   * fitted again when the canvas changes size, never when the circuit is edited. Absent: the identity viewport.
+   */
+  fit?: boolean;
 };
 
 type Selection = { kind: 'component' | 'wire'; id: string };
@@ -77,9 +82,14 @@ export function CircuitCanvas({
   locked,
   onCircuitChange,
   onContactChange,
+  fit = false,
 }: CircuitCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useElementSize(containerRef);
+  // The canvas is mounted again for every loaded project (App keys it), so this is the circuit as loaded.
+  const [loadedBounds] = useState(() => (fit ? circuitBounds(circuit, registry) : null));
+  const viewport = useMemo(() => (fit && size ? fitViewport(loadedBounds, size) : identityViewport), [fit, size, loadedBounds]);
+  const pickRadius = stageToWorldDistance(portPickRadiusPx, viewport);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [drag, setDrag] = useState<DragPreview | null>(null);
   const [draft, setDraft] = useState<WireDraft | null>(null);
@@ -151,12 +161,12 @@ export function CircuitCanvas({
     if (!pointer) {
       return null;
     }
-    const point = stageToWorld(pointer);
-    return { point, port: nearestPort(shown, registry, point, stageToWorldDistance(portPickRadiusPx)) };
+    const point = stageToWorld(pointer, viewport);
+    return { point, port: nearestPort(shown, registry, point, pickRadius) };
   };
 
   const add = (deviceType: string) => {
-    const middle = stageToWorld({ x: (size?.width ?? 0) / 2, y: (size?.height ?? 0) / 2 });
+    const middle = stageToWorld({ x: (size?.width ?? 0) / 2, y: (size?.height ?? 0) / 2 }, viewport);
     const { circuit: next, componentId } = addComponent(circuit, deviceType, placementPosition(circuit, middle));
     onCircuitChange(next);
     setSelection({ kind: 'component', id: componentId });
@@ -288,6 +298,10 @@ export function CircuitCanvas({
             <Stage
               width={size.width}
               height={size.height}
+              scaleX={viewport.scale}
+              scaleY={viewport.scale}
+              x={viewport.x}
+              y={viewport.y}
               onPointerDown={onStagePointerDown}
               onPointerUp={onStagePointerUp}
               onPointerMove={onStagePointerMove}
@@ -336,6 +350,7 @@ export function CircuitCanvas({
                     component={component}
                     definition={registry.get(component.deviceType)}
                     highlightedPorts={highlightedPorts}
+                    pickRadius={pickRadius}
                     onPointerDown={onPortPointerDown}
                   />
                 ))}
@@ -493,23 +508,26 @@ const portColors: Record<PortDefinition['kind'], string> = {
 const labelWidth = 48;
 
 /**
- * Each marker takes clicks in a circle of the pick radius around its port and
- * is drawn above bodies and wires. So a click near a port never reaches the
- * component under it (no drag starts), and nearestPort decides which port.
+ * Each marker takes clicks in a circle of the pick radius (world units) around
+ * its port and is drawn above bodies and wires. So a click near a port never
+ * reaches the component under it (no drag starts), and nearestPort decides which port.
  */
-function pickAreaHit(context: Context, shape: Shape) {
+const pickAreaHit = (radius: number) => (context: Context, shape: Shape) => {
   context.beginPath();
-  context.arc(0, 0, stageToWorldDistance(portPickRadiusPx), 0, Math.PI * 2, false);
+  context.arc(0, 0, radius, 0, Math.PI * 2, false);
   context.closePath();
   context.fillStrokeShape(shape);
-}
+};
 
 type PortMarkersProps = ComponentProps & {
   highlightedPorts: PortRef[];
+  /** The pick radius in world units: the same screen distance at any scale. */
+  pickRadius: number;
   onPointerDown(event: KonvaEventObject<PointerEvent>): void;
 };
 
-function PortMarkers({ component, definition, highlightedPorts, onPointerDown }: PortMarkersProps) {
+function PortMarkers({ component, definition, highlightedPorts, pickRadius, onPointerDown }: PortMarkersProps) {
+  const hit = useMemo(() => pickAreaHit(pickRadius), [pickRadius]);
   return definition.ports.map((port) => {
     const at = portWorldPosition(component, definition, port.id);
     const highlighted = highlightedPorts.some((ref) => isSamePort(ref, { componentId: component.id, portId: port.id }));
@@ -529,7 +547,7 @@ function PortMarkers({ component, definition, highlightedPorts, onPointerDown }:
           fill={portColors[port.kind]}
           stroke={highlighted ? canvasPalette.port.highlighted : canvasPalette.port.outline}
           strokeWidth={highlighted ? 2 : 1}
-          hitFunc={pickAreaHit}
+          hitFunc={hit}
           onPointerDown={onPointerDown}
         />
         {port.kind !== 'passive' && (

@@ -184,6 +184,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
       context={context}
       simulation={simulation}
       locked={running}
+      fit={lab !== null}
       onCircuitChange={editCircuit}
       // Runtime input, not an edit: the session ignores it unless running.
       onContactChange={(componentId, closed) => runStore.getState().setContactInput(componentId, closed)}

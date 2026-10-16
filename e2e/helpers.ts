@@ -101,13 +101,14 @@ export async function buttonCenter(page: Page) {
   return at(button.x, button.y);
 }
 
-/** World → page coordinates: the viewport is fixed, so world = stage = canvas pixels. */
+/** World → page coordinates, through the stage's viewport (the identity in the standalone editor; a lab fits its circuit, N8s). */
 export async function worldToPage(page: Page) {
   const box = await page.getByTestId('circuit-canvas').locator('canvas').first().boundingBox();
   if (!box) {
     throw new Error('The canvas is not visible');
   }
-  return { box, at: (x: number, y: number) => ({ x: box.x + x, y: box.y + y }) };
+  const { viewport } = await canvasState(page);
+  return { box, at: (x: number, y: number) => ({ x: box.x + viewport.x + x * viewport.scale, y: box.y + viewport.y + y * viewport.scale }) };
 }
 
 /**

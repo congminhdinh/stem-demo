@@ -31,6 +31,8 @@ export type CanvasTestState = {
   highlightedPorts: { componentId: string; portId: string }[];
   /** The wire being drawn, from its port to the pointer; null when none is. */
   wirePreview: number[] | null;
+  /** Stage pixels = world units × scale + offset (the identity unless a lab fits its circuit, N8s). */
+  viewport: { scale: number; x: number; y: number };
 };
 
 export function readCanvasState(): CanvasTestState | null {
@@ -69,5 +71,6 @@ export function readCanvasState(): CanvasTestState | null {
       .filter((node) => node.getAttr('highlighted') === true)
       .map((node) => ({ componentId: node.getAttr('componentId'), portId: node.getAttr('portId') })),
     wirePreview: stage.findOne<Konva.Line>('.wire-preview')?.points() ?? null,
+    viewport: { scale: stage.scaleX(), x: stage.x(), y: stage.y() },
   };
 }
