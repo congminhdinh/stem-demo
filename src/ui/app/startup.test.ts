@@ -144,3 +144,44 @@ describe('openAtStartup (S1)', () => {
     });
   });
 });
+
+describe('openAtStartup: lab launches (N6a S0)', () => {
+  it('opens a Yolo:Bit template with the launch profile, never its storage', async () => {
+    const { uses, options } = storage(ownProject);
+
+    expect(await openAtStartup(parseLaunch('?embed=1&lab=yolobit&template=ybc-heart&profile=ybc-advanced'), options)).toEqual({
+      kind: 'editor',
+      document: createTemplateProject('ybc-heart', { profile: 'ybc-advanced' }),
+      notice: null,
+      saveTo: null,
+    });
+    expect(uses).toEqual([]);
+  });
+
+  it('opens a Yolo:Bit template with its own profile when the launch names none', async () => {
+    const { options } = storage(ownProject);
+
+    expect(await openAtStartup(parseLaunch('?embed=1&lab=yolobit&template=ybc-melody'), options)).toMatchObject({
+      document: { profile: 'ybc-basic' },
+    });
+  });
+
+  it('opens a Blockly template as the legacy launch does', async () => {
+    const { options } = storage(ownProject);
+
+    expect(await openAtStartup(parseLaunch('?embed=1&lab=blockly&template=blink&origin=http://localhost:3000'), options)).toEqual(
+      await openAtStartup(parseLaunch('?embed=1&template=blink'), options),
+    );
+  });
+
+  it('carries the lab of a broken lab launch to the error', async () => {
+    const { uses, options } = storage(ownProject);
+
+    expect(await openAtStartup(parseLaunch('?embed=1&lab=yolobit&template=blink'), options)).toEqual({
+      kind: 'launch-error',
+      problem: 'The template "blink" does not open in lab=yolobit.',
+      lab: 'yolobit',
+    });
+    expect(uses).toEqual([]);
+  });
+});

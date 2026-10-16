@@ -50,7 +50,7 @@ const root = createRoot(container);
 if (started.kind === 'launch-error') {
   root.render(
     <StrictMode>
-      <LaunchError problem={started.problem} />
+      <LaunchError problem={started.problem} lab={started.lab} />
     </StrictMode>,
   );
 } else {
