@@ -8,13 +8,31 @@ import blinkSample from './blink.project.json';
 import buttonDirectSample from './button-direct.project.json';
 import buttonLedSample from './button-led.project.json';
 import ledOnSample from './led-on.project.json';
-import { createTemplateProject, isTemplateKey, templateKeys, type TemplateKey } from './templates';
+import { createTemplateProject, isTemplateKey, labOfTemplate, templateKeys, templateKeysOf, type TemplateKey } from './templates';
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
 
 describe('templates (S1)', () => {
   it('are exactly the keys of the launch contract', () => {
-    expect(templateKeys).toEqual(['blink', 'led-on', 'button-direct', 'button-led', 'empty']);
+    expect(templateKeys).toEqual([
+      'blink',
+      'led-on',
+      'button-direct',
+      'button-led',
+      'empty',
+      'ybc-heart',
+      'ybc-button-ab',
+      'ybc-night-light',
+      'ybc-melody',
+      'ybc-empty',
+    ]);
+  });
+
+  it('opens the ybc-* templates in a Yolo:Bit lab and every other one in a Blockly lab', () => {
+    expect(templateKeysOf('blockly')).toEqual(['blink', 'led-on', 'button-direct', 'button-led', 'empty']);
+    expect(templateKeysOf('yolobit')).toEqual(['ybc-heart', 'ybc-button-ab', 'ybc-night-light', 'ybc-melody', 'ybc-empty']);
+    expect(labOfTemplate('blink')).toBe('blockly');
+    expect(labOfTemplate('ybc-empty')).toBe('yolobit');
   });
 
   it.each<[TemplateKey, unknown]>([
@@ -63,7 +81,7 @@ describe('templates (S1)', () => {
     expect(isTemplateKey(key)).toBe(true);
   });
 
-  it.each(['', 'Blink', 'BLINK', ' blink', 'blink ', 'sample-blink', 'button_led', 'constructor', '__proto__', 'toString'])(
+  it.each(['', 'Blink', 'BLINK', ' blink', 'blink ', 'sample-blink', 'button_led', 'constructor', '__proto__', 'toString', 'YBC-HEART', 'ybc_heart', 'ybc-'])(
     'refuses %j: keys match exactly',
     (value) => {
       expect(isTemplateKey(value)).toBe(false);

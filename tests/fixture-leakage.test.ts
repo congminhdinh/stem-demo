@@ -8,7 +8,7 @@ import { productionProfileData, productionProfiles } from '../src/core/profiles'
 import { createBlockPackCatalog, buildToolbox } from '../src/core/program/block-packs';
 import { resolveBoardContext } from '../src/core/profiles/board-context';
 import { toolbox } from '../src/core/program/blocks';
-import { templateKeys, createTemplateProject } from '../src/samples/templates';
+import { genericTemplateKeys, templateKeys, createTemplateProject } from '../src/samples/templates';
 import { paletteItems } from '../src/ui/canvas/palette-model';
 
 // The test-only profile fixtures (YB plan §8.7) must never reach production:
@@ -124,8 +124,9 @@ describe('fixture leakage', () => {
     expect(shown).not.toMatch(/test[_-]/);
   });
 
-  it('leaves the templates generic: no profile, no ybc device', () => {
-    for (const key of templateKeys) {
+  // The ybc-* templates (N6a S1) are Yolo:Bit projects by design; the generic ones stay generic.
+  it('leaves the generic templates generic: no profile, no ybc device', () => {
+    for (const key of genericTemplateKeys) {
       const document = createTemplateProject(key);
       expect(Object.hasOwn(document, 'profile'), key).toBe(false);
       expect(document.circuit.components.map((component) => component.deviceType).filter((type) => type.startsWith('ybc'))).toEqual([]);

@@ -154,7 +154,9 @@ test('a broken launch URL shows an error, never the standalone last project', as
     const error = page.getByTestId('launch-error');
     await expect(error).toContainText('This lab could not be opened.');
     await expect(error).toContainText(problem);
-    await expect(error).toContainText('Supported templates: blink, led-on, button-direct, button-led, empty.');
+    await expect(error).toContainText(
+      'Supported templates: blink, led-on, button-direct, button-led, empty, ybc-heart, ybc-button-ab, ybc-night-light, ybc-melody, ybc-empty.',
+    );
     await expect(page.getByTestId('circuit-canvas')).toHaveCount(0);
     await expect(page.getByTestId('program-region')).toHaveCount(0);
     expect(await page.evaluate(() => window.__stem)).toBeUndefined();

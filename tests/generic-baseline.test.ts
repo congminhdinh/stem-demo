@@ -22,7 +22,7 @@ import blinkSample from '../src/samples/blink.project.json';
 import buttonDirectSample from '../src/samples/button-direct.project.json';
 import buttonLedSample from '../src/samples/button-led.project.json';
 import ledOnSample from '../src/samples/led-on.project.json';
-import { createTemplateProject, templateKeys } from '../src/samples/templates';
+import { createTemplateProject, genericTemplateKeys, templateKeys } from '../src/samples/templates';
 import { productionProfiles } from '../src/core/profiles';
 import { resolveBoardContext } from '../src/core/profiles/board-context';
 import { paletteItems } from '../src/ui/canvas/palette-model';
@@ -149,7 +149,8 @@ describe('GB6 / GB12: generic editing states', () => {
     expect(createRunSession(registry).start(two)).toEqual({ ok: false, reason: 'multiple-boards', diagnostics: [] });
   });
 
-  it('keeps every template key', () => {
-    expect(templateKeys).toEqual(['blink', 'led-on', 'button-direct', 'button-led', 'empty']);
+  it('keeps every generic template key, first in the list (the ybc-* keys of N6a come after them)', () => {
+    expect(genericTemplateKeys).toEqual(['blink', 'led-on', 'button-direct', 'button-led', 'empty']);
+    expect(templateKeys.slice(0, genericTemplateKeys.length)).toEqual([...genericTemplateKeys]);
   });
 });
