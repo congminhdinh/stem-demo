@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { num, program } from '../src/core/program/__fixtures__/ybc-blocks';
 import { servoWrite } from '../src/core/program/__fixtures__/ybc-pin-blocks';
 import { ybcSolutionDocument } from '../src/samples/ybc-solutions';
-import { ybcStarterDocument } from '../src/samples/ybc-templates';
+import { ybcStarterDocument, type YbcTemplateKey } from '../src/samples/ybc-templates';
 import { canvasState, worldToPage } from './helpers';
 
 // N8s: how a lab launch (`lab=`) lays itself out in the frame of a lesson page: the program the wider part, a
@@ -387,6 +387,54 @@ test.describe('a run warning in a lab (1440 × 620)', () => {
     expect(await placesOf()).toEqual(before);
   });
 });
+
+/*
+ * Fix 6 (N17 m3): no loose starter block lies on the program, in any template, in the LMS lesson's frames (a tall picture used to
+ * cover the "if" of the night light and of the A/B lab, and the melody's notes the "if" under them).
+ */
+const looseTemplates: { key: YbcTemplateKey; profile: string }[] = [
+  { key: 'ybc-heart', profile: 'ybc-basic' },
+  { key: 'ybc-button-ab', profile: 'ybc-basic' },
+  { key: 'ybc-night-light', profile: 'ybc-basic' },
+  { key: 'ybc-melody', profile: 'ybc-basic' },
+  { key: 'ybc-rainbow', profile: 'ybc-basic' },
+  { key: 'ybc-thermometer', profile: 'ybc-advanced' },
+  { key: 'ybc-dice', profile: 'ybc-advanced' },
+  { key: 'ybc-servo-gate', profile: 'ybc-advanced' },
+];
+
+/** The page boxes of the top blocks of the workspace (the stacks and the loose blocks, not the flyout's). */
+const topBlockBoxes = async (page: Page) => {
+  const tops = page.getByTestId('blockly-panel').locator('.blocklyWorkspace > .blocklyBlockCanvas > .blocklyDraggable');
+  return Promise.all((await tops.all()).map(async (top) => ({ label: (await top.locator('.blocklyText').first().textContent()) ?? '', box: await boxOf(top) })));
+};
+
+const overlap = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) =>
+  a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
+for (const size of [
+  { width: 862, height: 402 },
+  { width: 1022, height: 581 },
+]) {
+  test.describe(`the starters in a lesson's frame (${size.width} × ${size.height})`, () => {
+    test.use({ viewport: size });
+
+    test('lay no loose block on the program, in Vietnamese and in English', async ({ page }) => {
+      for (const { key, profile } of looseTemplates) {
+        for (const query of [`lab=yolobit&template=${key}&profile=${profile}`, `template=${key}`]) {
+          await openLab(page, query);
+          const tops = await topBlockBoxes(page);
+          expect(tops.length, `${query}: the starter's top blocks`).toBeGreaterThanOrEqual(3);
+          for (const [index, a] of tops.entries()) {
+            for (const b of tops.slice(index + 1)) {
+              expect(overlap(a.box, b.box), `${query}: "${a.label}" and "${b.label}"`).toBe(false);
+            }
+          }
+        }
+      }
+    });
+  });
+}
 
 test.describe('outside a lab', () => {
   test.use({ viewport: { width: 1000, height: 640 } });

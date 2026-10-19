@@ -199,21 +199,30 @@ export const melodyNotes = (prefix: string): Json[] => [
   playNote(`${prefix}-c5`, 'C5', 2),
 ];
 
+/** Where a loose block sits unless its template says otherwise: right of the empty "on start", above "forever". */
+const besideOnStart = { x: 230, y: 40 };
+
 /**
  * A loose block or stack beside the program, disabled until the learner attaches it; keys in the order Blockly
- * saves them. It sits right of the empty "on start", where a lesson frame (1100×640) still shows it.
+ * saves them. It sits right of the empty "on start" (`besideOnStart`), where a lesson frame (1100×640) still shows it. A tall one
+ * (a picture) would lie on a wide "forever" there, so its template puts it right of the program instead (Fix 6, N17 m3):
+ * `at` clears the widest "forever" of either language by about 30 units, as the editor draws it (e2e/lab-layout.spec.ts checks
+ * that no two blocks overlap in a lesson's frame).
  */
-export const loose = ({ type, id, ...rest }: Json): Json => ({ type, id, x: 230, y: 40, ...orphaned, ...rest });
+export const loose = ({ type, id, ...rest }: Json, at: { x: number; y: number } = besideOnStart): Json => ({ type, id, x: at.x, y: at.y, ...orphaned, ...rest });
 
-/** The parts of a Yolo:Bit program: what `on start` and `forever` hold, the loose blocks beside them and its variables. */
-export type YbcProgramParts = { onStart: Json[]; forever: Json[]; loose?: Json[]; variables?: { name: string; id: string }[] };
+/**
+ * The parts of a Yolo:Bit program: what `on start` and `forever` hold, the loose blocks beside them and its variables. `foreverY`
+ * moves "forever" down (220 otherwise), under a loose stack beside "on start" that reaches lower than 220 (the melody's notes).
+ */
+export type YbcProgramParts = { onStart: Json[]; forever: Json[]; loose?: Json[]; variables?: { name: string; id: string }[]; foreverY?: number };
 
 /** The blocks of a program, as Blockly saves a workspace: its variables after the blocks, when it has any. */
 export function ybcProgram(parts: YbcProgramParts): Json {
   return {
     blocks: {
       languageVersion: 0,
-      blocks: [hat('stem_on_start', 'on-start', 40, parts.onStart), hat('stem_forever', 'forever', 220, parts.forever), ...(parts.loose ?? [])],
+      blocks: [hat('stem_on_start', 'on-start', 40, parts.onStart), hat('stem_forever', 'forever', parts.foreverY ?? 220, parts.forever), ...(parts.loose ?? [])],
     },
     ...(parts.variables && parts.variables.length > 0 ? { variables: parts.variables } : {}),
   };
@@ -308,7 +317,10 @@ const starters: Readonly<Record<YbcTemplateKey, () => Json>> = {
             [buttonPressed('pressed-b', 'B'), []],
           ]),
         ],
+        // The picture beside "on start" reaches down to 302: "forever" starts under it. (Right of the "if A … else if B", 461 units
+        // wide, the starter would be too wide for the program column of an 820 px frame.)
         loose: [loose(showImage('show-cross', ybcImages.cross))],
+        foreverY: 332,
       }),
     ),
   // Bright: clear. Drag the full picture into "if light level < 30".
@@ -319,7 +331,8 @@ const starters: Readonly<Record<YbcTemplateKey, () => Json>> = {
       ybcProgram({
         onStart: [],
         forever: [ifBlock('if-dark', [[lightBelow('dark', 30), []]], [clearDisplay('clear')])],
-        loose: [loose(showImage('show-full', ybcImages.full))],
+        // Right of the "if light level < 30 … else" (426 units wide in Vietnamese).
+        loose: [loose(showImage('show-full', ybcImages.full), { x: 460, y: 40 })],
       }),
     ),
   // Drag the melody (four notes) into "if button A is pressed".
@@ -330,7 +343,9 @@ const starters: Readonly<Record<YbcTemplateKey, () => Json>> = {
       ybcProgram({
         onStart: [],
         forever: [ifBlock('if-a', [[buttonPressed('pressed-a', 'A'), []]])],
+        // The four notes beside "on start" reach down to 244: "forever" starts under them, so the whole starter still fits a lesson's frame.
         loose: [loose(chain(melodyNotes('melody')) ?? {})],
+        foreverY: 280,
       }),
     ),
   'ybc-empty': () => ybcProject('ybc-empty', 'Untitled', ybcProgram({ onStart: [], forever: [] })),
