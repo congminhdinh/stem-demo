@@ -93,8 +93,8 @@ const challenges: Readonly<Record<TemplateKey, ChallengeData | null>> = {
     goals: [{ id: 'a-plays-notes', kind: 'buzzer-played', minNotes: 3, label: { vi: 'Nhấn nút A thì phát ít nhất 3 nốt nhạc', en: 'Button A plays at least 3 notes' } }],
   },
   'ybc-empty': null,
-  // N17 B6: the labs of the full board. Each moment a goal reads (`atMs`) comes after the input it waits for. A hidden tab is
-  // interrupted by the page (Review Focus 4); a visible tab that is late by less than CHECK_LATENESS_LIMIT_MS is judged.
+  // N17 B6: the labs of the full board. Each moment a goal reads (`atMs`) is more than CHECK_LATE_LIMIT_MS after the input it waits
+  // for, so a check whose inputs came late is interrupted rather than judged (Review Focus 4).
   'ybc-rainbow': {
     durationMs: 1600,
     inputScript: [

@@ -3,7 +3,7 @@ import { createNewProject } from '../circuit/document';
 import type { RunSnapshot, StartResult } from '../run/run-session';
 import type { ComponentInput } from '../simulation/simulate-circuit';
 import type { Challenge } from './challenge';
-import { CHECK_LATENESS_LIMIT_MS, CHECK_RANDOM_SEED, runCheck, type CheckSession, type CheckTimers } from './check-run';
+import { CHECK_LATE_LIMIT_MS, CHECK_RANDOM_SEED, runCheck, type CheckSession, type CheckTimers } from './check-run';
 
 // The check against a fake session (N6a S2): when it starts and stops the run, when it gives inputs, and how it
 // ends. Real runs of real templates are in src/samples/challenges.test.ts.
@@ -142,39 +142,25 @@ describe('runCheck (N6a S2)', () => {
     expect(fake.calls).toEqual(['start', 'stop']);
   });
 
-  // Review Focus 4 of N17 (task B6): a hidden tab runs a check's timers about once a second, so its inputs reach the run at the wrong
-  // moments. A check whose page is hidden is interrupted (the UI tells `interrupt` on visibilitychange); a timer more than
-  // CHECK_LATENESS_LIMIT_MS late interrupts it too. Neither gives a verdict, so a check never passes falsely: the learner checks
-  // again. A visible tab that is only busy (late by less than the limit) is judged.
+  // Review Focus 4 of N17 (task B6): a check whose timers ran late (a hidden tab: the browser runs its timers about once a second;
+  // a stalled machine) gave its inputs late, so its goals were judged against the wrong moments. It never gives a verdict, so it
+  // never passes falsely: it ends as interrupted, and the learner checks again.
   describe('a check that cannot be trusted (Review Focus 4)', () => {
-    /** Timers that all come `lateMs` after they were due (a busy or stalled tab). */
-    const lateBy = (lateMs: number, only: (ms: number) => boolean = () => true): CheckTimers => ({
-      setTimeout: (task, ms) => setTimeout(task, only(ms) ? ms + lateMs : ms),
-      clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
-      now: () => Date.now(),
-    });
+    /** Timers as a hidden tab runs them: each one waits for the next whole second from the start. */
+    const hiddenTabTimers = (): CheckTimers => {
+      const start = Date.now();
+      return {
+        setTimeout: (task, ms) => setTimeout(task, Math.ceil((Date.now() + ms - start) / 1000) * 1000 + start - Date.now()),
+        clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+        now: () => Date.now(),
+      };
+    };
 
-    it('the limit is a second: a hidden tab runs timers at least that far apart', () => {
-      expect(CHECK_LATENESS_LIMIT_MS).toBe(1000);
-    });
-
-    it('does not interrupt a visible tab whose timers are 600 ms late: it is judged, and its inputs are given', async () => {
+    it('ends as interrupted, with no verdict, when an input comes too late, and stops the run', async () => {
       const fake = fakeSession();
-      const startedAt = Date.now();
-      const check = runCheck({ session: fake.session, document, challenge, boardId: 'board', timers: lateBy(600) });
+      const check = runCheck({ session: fake.session, document, challenge, boardId: 'board', timers: hiddenTabTimers() });
       fake.publish(running(true));
       await vi.advanceTimersByTimeAsync(2000);
-
-      expect(await check.done).toMatchObject({ status: 'checked', started: true, result: { passed: true } });
-      expect(fake.inputs.map(([at]) => at - startedAt)).toEqual([700, 900]);
-      expect(fake.calls).toEqual(['start', 'stop']);
-    });
-
-    it('ends as interrupted, with no verdict, when an input is 1200 ms late, and stops the run', async () => {
-      const fake = fakeSession();
-      const check = runCheck({ session: fake.session, document, challenge, boardId: 'board', timers: lateBy(1200) });
-      fake.publish(running(true));
-      await vi.advanceTimersByTimeAsync(3000);
 
       expect(await check.done).toEqual({ status: 'interrupted', reason: 'late' });
       expect(fake.calls).toEqual(['start', 'stop']);
@@ -183,28 +169,35 @@ describe('runCheck (N6a S2)', () => {
       expect(fake.inputs).toEqual([]);
     });
 
-    it('ends as interrupted when only its end is 1200 ms late', async () => {
+    it('ends as interrupted when its end comes too late', async () => {
       const fake = fakeSession();
-      const check = runCheck({ session: fake.session, document, challenge, boardId: 'board', timers: lateBy(1200, (ms) => ms >= 1000) });
+      const late: CheckTimers = {
+        setTimeout: (task, ms) => setTimeout(task, ms >= 1000 ? ms + CHECK_LATE_LIMIT_MS + 1 : ms),
+        clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+        now: () => Date.now(),
+      };
+      const check = runCheck({ session: fake.session, document, challenge, boardId: 'board', timers: late });
       fake.publish(running(true));
-      await vi.advanceTimersByTimeAsync(3000);
+      await vi.advanceTimersByTimeAsync(2000);
 
       expect(await check.done).toEqual({ status: 'interrupted', reason: 'late' });
       expect(fake.calls).toEqual(['start', 'stop']);
     });
 
-    it('accepts a timer late by exactly the limit, and interrupts one a millisecond later', async () => {
-      const exactly = fakeSession();
-      const accepted = runCheck({ session: exactly.session, document, challenge, boardId: 'board', timers: lateBy(CHECK_LATENESS_LIMIT_MS) });
-      exactly.publish(running(true));
-      await vi.advanceTimersByTimeAsync(3000);
-      expect(await accepted.done).toMatchObject({ status: 'checked', result: { passed: true } });
+    it('accepts a timer a little late, up to the limit', async () => {
+      const fake = fakeSession();
+      const slightly: CheckTimers = {
+        setTimeout: (task, ms) => setTimeout(task, ms + CHECK_LATE_LIMIT_MS),
+        clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+        now: () => Date.now(),
+      };
+      const check = runCheck({ session: fake.session, document, challenge, boardId: 'board', timers: slightly });
+      fake.publish(running(true));
+      await vi.advanceTimersByTimeAsync(2000);
 
-      const over = fakeSession();
-      const refused = runCheck({ session: over.session, document, challenge, boardId: 'board', timers: lateBy(CHECK_LATENESS_LIMIT_MS + 1) });
-      over.publish(running(true));
-      await vi.advanceTimersByTimeAsync(3000);
-      expect(await refused.done).toEqual({ status: 'interrupted', reason: 'late' });
+      expect(await check.done).toMatchObject({ status: 'checked', result: { passed: true } });
+      expect(CHECK_LATE_LIMIT_MS).toBeGreaterThan(0);
+      expect(CHECK_LATE_LIMIT_MS).toBeLessThanOrEqual(250);
     });
 
     it('interrupt (the page was hidden) ends it as interrupted at once and stops the run; it does nothing once the check is over', async () => {
