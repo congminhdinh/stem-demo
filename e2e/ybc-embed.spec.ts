@@ -199,4 +199,22 @@ test.describe('a lab opened on its own (a new tab)', () => {
     await page.waitForFunction(() => window.__stem?.getCanvasState() != null);
     expect(await boardTexts()).toEqual(expect.arrayContaining(['Bit-compatible Board', 'Light', 'Buzzer']));
   });
+
+  test('offers the RGB display in Vietnamese: the colours by name, the built-in pictures, one light and all lights (N17 B1)', async ({ page }) => {
+    await page.goto('/?embed=1&lab=yolobit&template=ybc-heart');
+    await page.waitForFunction(() => window.__stem?.getCanvasState() != null);
+    const panel = page.getByTestId('blockly-panel');
+    await panel.locator('.blocklyToolboxCategory', { hasText: 'Màn hình' }).click();
+    await panel.locator('.blocklyFlyout .blocklyText').first().waitFor({ state: 'attached' });
+    await page.waitForTimeout(200);
+    const texts = (await panel.locator('.blocklyFlyout .blocklyText').allTextContents()).join(' | ').replaceAll(String.fromCharCode(0xa0), ' ');
+    expect(texts).toContain('hiển thị hình có sẵn | trái tim');
+    expect(texts).toContain('bật đèn tại cột');
+    expect(texts).toContain('tắt đèn tại cột');
+    expect(texts).toContain('bật tất cả đèn màu');
+    // The colour dropdowns say their colour in Vietnamese (`\b` does not know Vietnamese letters, so the separators are spelled out).
+    expect(texts).toContain('hiển thị hình | đỏ |');
+    expect(texts).toContain('| lục | bật đèn tại cột');
+    expect(texts).not.toMatch(/\b(red|green|heart)\b/);
+  });
 });

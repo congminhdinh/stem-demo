@@ -28,6 +28,11 @@ export const canvasPalette = {
     label: '#e6f4f7',
     sounding: '#f0b429',
     cellOff: '#10292f',
+    /**
+     * The rim of a lit cell (N17 B1): a dark colour of the palette (indigo #4B0082, purple, blue) is close to `cellOff` on this
+     * board, so every lit cell gets a light rim and a glow of its own colour, and lit never reads as off.
+     */
+    cellLitRim: '#e6f4f7',
     /** A part a lab's check is pressing (N8s): the pressed colour of the controls (app.css `--stem-color-pressed`). */
     pressed: '#147d64',
   },

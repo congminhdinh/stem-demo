@@ -2,15 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { isFrame, blankFrame, type Frame, type HexColour } from '../../capabilities/frame';
 import { yolobitContract } from '../../compat/yolobit-contract';
 import type { ComponentState } from '../simulate-circuit';
+import { builtinImageNames } from '../../constructs/ybc.images';
 import {
   charactersOf,
+  clearPixelFrame,
   COLUMNS_PER_CHARACTER,
   createDisplayIO,
   DISPLAY_COLOUR,
+  iconFrame,
   imageFrame,
   SCROLL_STEP_MS,
   scrollFrame,
   scrollSteps,
+  setAllFrame,
+  setPixelFrame,
 } from './display';
 import { glyphs } from './font';
 
@@ -257,5 +262,123 @@ describe('createDisplayIO (the display capability)', () => {
     const reported: ComponentState[] = [];
     expect(() => createDisplayIO(reportTo(reported)).setFrame(value as unknown as Frame)).toThrow(TypeError);
     expect(reported).toEqual([]);
+  });
+});
+
+// --- N17 B1: the RGB display ----------------------------------------------------------------------------------
+// Colours, one pixel, all pixels, the built-in pictures and a coloured scroll. A frame holds upper-case '#RRGGBB'
+// (frame.ts); the expected cells are written here by hand, not read back from the functions under test.
+
+const GREEN: HexColour = '#00FF00';
+const BLUE: HexColour = '#0000FF';
+/** A frame as five strings of five characters, the first letter of the colour of each lit cell (R, G, B, Y, W…) and '.' off. */
+const paint = (frame: Frame) => {
+  const letter: Record<string, string> = { '#FF0000': 'R', '#00FF00': 'G', '#0000FF': 'B', '#FFFF00': 'Y', '#FFFFFF': 'W', '#FFA500': 'O', '#4B0082': 'I', '#800080': 'P' };
+  return Array.from({ length: SIZE }, (_, row) =>
+    frame.pixels.slice(row * SIZE, row * SIZE + SIZE).map((pixel) => (pixel === null ? '.' : (letter[pixel] ?? '?'))).join(''),
+  );
+};
+
+describe('setPixelFrame (C-10): one light at column x, row y, in a colour', () => {
+  it('puts the colour at column 2, row 3 (index 17) and changes nothing else', () => {
+    const before = imageFrame([...'1000000000000000000000001'].map((digit) => digit === '1'));
+    const after = setPixelFrame(before, 2, 3, GREEN);
+    expect(after.pixels[3 * SIZE + 2]).toBe(GREEN);
+    expect(paint(after)).toEqual(['R....', '.....', '.....', '..G..', '....R']);
+    // The frame it was given is left as it was: the run keeps what was reported, never a frame changed afterwards.
+    expect(paint(before)).toEqual(['R....', '.....', '.....', '.....', '....R']);
+    expect(isFrame(after)).toBe(true);
+  });
+
+  it('places every one of the 25 cells at its own column and row: x the column, y the row, origin top left', () => {
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const lit = paint(setPixelFrame(blankFrame(), x, y, BLUE));
+        expect(lit[y]?.[x], `x ${x} y ${y}`).toBe('B');
+        expect(lit.join('').replaceAll('.', ''), `x ${x} y ${y}`).toBe('B');
+      }
+    }
+  });
+
+  it('recolours a light that is already lit', () => {
+    expect(paint(setPixelFrame(setAllFrame(DISPLAY_COLOUR), 0, 0, GREEN))).toEqual(['GRRRR', 'RRRRR', 'RRRRR', 'RRRRR', 'RRRRR']);
+  });
+
+  it.each([[-1, 0], [5, 0], [0, -1], [0, 5], [1.5, 2], [Number.NaN, 0]])('refuses the cell (%d, %d): the interpreter checks 0..4 first', (x, y) => {
+    expect(() => setPixelFrame(blankFrame(), x, y, GREEN)).toThrow(RangeError);
+  });
+});
+
+describe('clearPixelFrame (C-42): one light off', () => {
+  it('turns the light at column 4, row 0 off and leaves the others lit', () => {
+    expect(paint(clearPixelFrame(setAllFrame(GREEN), 4, 0))).toEqual(['GGGG.', 'GGGGG', 'GGGGG', 'GGGGG', 'GGGGG']);
+  });
+
+  it('leaves a light that is already off off', () => {
+    expect(paint(clearPixelFrame(blankFrame(), 2, 2))).toEqual(paint(blankFrame()));
+  });
+});
+
+describe('setAllFrame (C-43): every light in one colour', () => {
+  it.each(['#FF0000', '#00FF00', '#4B0082', '#FFFFFF'] as const)('lights all 25 in %s', (colour) => {
+    const frame = setAllFrame(colour);
+    expect(frame.pixels).toHaveLength(pixelCount);
+    expect(frame.pixels.every((pixel) => pixel === colour)).toBe(true);
+    expect(isFrame(frame)).toBe(true);
+  });
+});
+
+describe('imageFrame in a colour (C-06 with the colour field of N17)', () => {
+  it('lights the ticked squares in the colour given, and red when none is given (an image saved before N17)', () => {
+    const cells = [...'0101011111111110111000100'].map((digit) => digit === '1');
+    expect(paint(imageFrame(cells, GREEN))).toEqual(['.G.G.', 'GGGGG', 'GGGGG', '.GGG.', '..G..']);
+    expect(paint(imageFrame(cells))).toEqual(['.R.R.', 'RRRRR', 'RRRRR', '.RRR.', '..R..']);
+  });
+});
+
+describe('iconFrame (C-05): the built-in pictures, in red', () => {
+  // The micro:bit MicroPython images (microbitconstimage.c, MIT), a 9 there being a lit light here.
+  const microbit: Record<string, string[]> = {
+    HEART: ['01010', '11111', '11111', '01110', '00100'],
+    HEART_SMALL: ['00000', '01010', '01110', '00100', '00000'],
+    HAPPY: ['00000', '01010', '00000', '10001', '01110'],
+    SAD: ['00000', '01010', '00000', '01110', '10001'],
+    CONFUSED: ['00000', '01010', '00000', '01010', '10101'],
+    ANGRY: ['10001', '01010', '00000', '11111', '10101'],
+    SURPRISED: ['01010', '00000', '00100', '01010', '00100'],
+    YES: ['00000', '00001', '00010', '10100', '01000'],
+    NO: ['10001', '01010', '00100', '01010', '10001'],
+    ARROW_N: ['00100', '01110', '10101', '00100', '00100'],
+    ARROW_E: ['00100', '00010', '11111', '00010', '00100'],
+    ARROW_S: ['00100', '00100', '10101', '01110', '00100'],
+    ARROW_W: ['00100', '01000', '11111', '01000', '00100'],
+  };
+
+  it('draws HEART as the micro:bit heart: exactly these 25 cells, the lit ones red', () => {
+    const frame = iconFrame('HEART');
+    expect(frame.pixels).toHaveLength(pixelCount);
+    expect(paint(frame)).toEqual(['.R.R.', 'RRRRR', 'RRRRR', '.RRR.', '..R..']);
+    expect(frame.pixels.filter((pixel) => pixel !== null)).toHaveLength(16);
+    expect(isFrame(frame)).toBe(true);
+  });
+
+  it('offers the thirteen pictures of the plan, and draws each as the micro:bit table does', () => {
+    expect([...builtinImageNames]).toEqual(Object.keys(microbit));
+    for (const name of builtinImageNames) {
+      const rows = microbit[name] ?? [];
+      expect(draw(iconFrame(name)), name).toEqual(rows.map((row) => row.replaceAll('1', '#').replaceAll('0', '.')));
+      expect(iconFrame(name).pixels.every((pixel) => pixel === null || pixel === DISPLAY_COLOUR), name).toBe(true);
+    }
+  });
+
+  it.each(['heart', 'SMILE', '', 'constructor', '__proto__'])('refuses %j, which is not one of them', (name) => {
+    expect(() => iconFrame(name as never)).toThrow(RangeError);
+  });
+});
+
+describe('scrollFrame in a colour (C-07 / C-08 with the colour input of N17)', () => {
+  it('draws the glyph in the colour given, and in red when none is given', () => {
+    expect(paint(scrollFrame(['A'], 0, BLUE))).toEqual(['.BBB.', 'B...B', 'BBBBB', 'B...B', 'B...B']);
+    expect(paint(scrollFrame(['A'], 0))).toEqual(['.RRR.', 'R...R', 'RRRRR', 'R...R', 'R...R']);
   });
 });

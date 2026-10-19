@@ -3,6 +3,7 @@
 > **Version:** 1.0-draft (r3) · **Date:** 2026-10-14 · **Status:** DRAFT, chờ **cùng reviewer** làm final freeze check.
 > - r2 sửa các finding của review độc lập (verdict *CHANGES REQUIRED*: R1–R3, N1–N3; §22.6).
 > - r3 áp dụng hai quyết định cuối của owner: **OQ-E APPROVED**, **C-Q6 = Option A** (§22.2).
+> - **N17 B1 (2026-10-19):** owner chọn "Mô phỏng đủ chức năng". Màn hình RGB mở cho cả hai profile: C-05 (hình có sẵn) mở lại, C-10/C-42/C-43 sang cả Basic; màu cho C-06/C-07/C-08. Dạng code mới và nhãn VERIFIED/UNVERIFIED ở **§23**.
 > - Chưa phải căn cứ implement cho tới khi freeze.
 > **Target snapshot:** editor public `app.ohstem.vn/#!/codes/yolobit`, build marker `?v=20261007130057`, Blockly `8.0.1`; simulator public (Thiết bị ảo → Project Builder, `static/gears/index.html?…&build=658a5…`); trang firmware public `fw.ohstem.vn` liệt kê **"Yolo:Bit v1.12"** và **"Yolo:Bit S3 v1.14"** (đọc 2026-10-14). Ngày quan sát: **2026-10-14**.
 > **Firmware chính xác: UNKNOWN. MicroPython version: UNKNOWN.** Contract này được **pin vào snapshot evidence public ở trên**, không phải bảo đảm tương thích vô thời hạn (§1).
@@ -319,10 +320,14 @@ FN1–FN10 chỉ dùng `def`, tham số vị trí, `global`, `return <expr>` ở
 > Timing chạy chữ là quan sát simulator, chưa kiểm vật lý (L3).
 >
 > **Trạng thái:** OQ-E đã đóng. Capability display (YB-3a, YB-7a) được implement theo model này, trong phạm vi các construct ELIGIBLE/RESTRICTED của §15.
+>
+> **N17 B1 (2026-10-19):** cả **Basic** và **Advanced** có `set_pixel`/`clear_pixel`/`set_all` với 8 màu bảng (§4.4), màu cho hình tự vẽ và chạy chữ, và hình có sẵn (C-05, mở lại không chép asset: §14). Màu sai dạng không bao giờ là lỗi: hiện đỏ kèm cảnh báo `invalid-colour`. Chi tiết §23.
 
 ### 4.4 Bảng màu Advanced (RESTRICTED)
 
 `#FF0000`, `#FFA500`, `#FFFF00`, `#00FF00`, `#0000FF`, `#4B0082`, `#800080`, `#FFFFFF` (8 ô màu colour picker editor, EVD-05). Generator truyền chuỗi hex này (V·G). Màu logic là chuỗi hex; cách LED thật/màn hình hiển thị là `presentation`. Màu ngoài bảng **không** mở.
+
+N17 B1: block chọn màu bằng dropdown 8 màu này (Blockly 13 không còn colour field, `@blockly/field-colour` không cài, plan không cho thêm thư viện). Giá trị dropdown viết thường `'#rrggbb'`, như colour field của editor ghi; generator viết thường. Frame trong simulator giữ dạng hoa (`src/core/capabilities/frame.ts`). Màu ngoài bảng, hay text sai dạng (`red`, `#ff00`, rỗng) trong chương trình lưu → **đỏ + cảnh báo**, không dừng chương trình (Review Focus 3).
 
 ---
 
@@ -487,7 +492,8 @@ Preamble IM-2 vẫn được sinh (editor luôn sinh); nó không đăng ký han
 
 | Asset | Identifier | Nội dung | Provenance dùng được | Quyết định |
 |---|---|---|---|---|
-| 13 hình dựng sẵn (`HEART`, `HEART_SMALL`, `HAPPY`, `SMILE`, `SAD`, `CONFUSED`, `ANGRY`, `ASLEEP`, `SURPRISED`, `SILLY`, `FABULOUS`, `YES`, `NO`) | V·G | asset OhStem, không ghi | Không | **EXCLUDED** → `Image("…")` tự vẽ (C-06) |
+| 13 hình dựng sẵn (`HEART`, `HEART_SMALL`, `HAPPY`, `SMILE`, `SAD`, `CONFUSED`, `ANGRY`, `ASLEEP`, `SURPRISED`, `SILLY`, `FABULOUS`, `YES`, `NO`) | V·G | asset OhStem, không ghi | Không | **N17 B1: mở lại (C-05)** cho 9 tên; nội dung asset OhStem vẫn **không** ghi. Simulator vẽ bảng micro:bit (dòng dưới) |
+| Hình có sẵn trong simulator (N17 B1): 9 tên trên + `ARROW_N/E/S/W` | — | 5×5 của hằng `Image` micro:bit MicroPython (`microbitconstimage.c`) | **MIT License** (micro:bit MicroPython) | `src/core/constructs/ybc.images.ts`; `presentation`: board thật vẽ hình của OhStem (UNVERIFIED). Mũi tên sinh `Image("…")` (C-06) nên board vẽ đúng hình này |
 | 14 giai điệu (`DADADADUM`, `ENTERTAINER`, `PRELUDE`, `ODE`, `NYAN`, `RINGTONE`, `BIRTHDAY`, `WEDDING`, `PYTHON`, `CHASE`, `JUMP_UP`, `JUMP_DOWN`, `POWER_UP`, `POWER_DOWN`) | V·G | asset, không ghi | Không | **EXCLUDED** → chuỗi C-50/C-51 tự viết |
 | Font chạy chữ | — | không ghi | Không | Font 5×5 tự vẽ (presentation) |
 | Bảng 8 màu | V·G | mã hex chuẩn | Không phải tác phẩm | Dùng (§4.4) |
@@ -499,6 +505,7 @@ Provenance của mình (plan §6.8): hình, font, giai điệu mẫu trong templ
 |---|---|---|
 | Hình mẫu P1–P11 (`RING`, `CROSS`, `DOT`, `FULL`), giai điệu P5 | STEM Studio (YB-0) | Của dự án |
 | Font 5×5 của display, ASCII 0x20–0x7E, 95 glyph (YB-3a, `src/core/simulation/peripherals/font.ts`) | STEM Studio (YB-3) | Của dự án |
+| 13 hình có sẵn của simulator (N17 B1, `src/core/constructs/ybc.images.ts`) | micro:bit MicroPython (Damien P. George và micro:bit Educational Foundation) | MIT |
 
 ---
 
@@ -562,8 +569,8 @@ Ghi chú:
 |---|---|---|---|---|
 | C-03d / C-40 | `random` / `random.randint` | `import random`, `random.randint(1, 6)` | `OF-module` INFERRED (§2.2, §3.5) | **EXCLUDED** (domain đặc tả sẵn để mở lại) |
 | C-19 | thời gian chạy | `running_time()` | wrap/reset/khoảng phép trừ UNKNOWN; gốc mâu thuẫn | **EXCLUDED** (LATER) |
-| C-05 | hình dựng sẵn | `display.show(Image.HEART)` | provenance | EXCLUDED → C-06 |
-| C-70 | chữ số màu 2–8 trong `Image` | `Image("2…")` | `OF-content` mâu thuẫn | EXCLUDED |
+| C-05 | hình dựng sẵn | `display.show(Image.HEART)` | ~~provenance~~ | **N17 B1: RESTRICTED, cả hai profile** (§23) |
+| C-70 | chữ số màu 2–8 trong `Image` | `Image("2…")` | `OF-content` mâu thuẫn | EXCLUDED như construct riêng; N17 B1 viết chữ số 2–8 qua field màu của C-06 như dạng **UNVERIFIED** (§23) |
 | C-11 | độ sáng | `display.set_brightness(n)` | không quan sát được | EXCLUDED |
 | C-44 | biểu đồ | `display.show_graph(v, max)` | `OF-content` | EXCLUDED |
 | C-45 | tạo màu RGB | helper `colour_rgb` + `round` | float | EXCLUDED |
@@ -601,6 +608,7 @@ Ghi chú:
 | display: hình | MUST | RESTRICTED | hình tự vẽ `0`/`1` | V·G + D·W + V·S |
 | display: chạy chữ / số | MUST | RESTRICTED | ASCII; 1 ký tự tĩnh; n ≥ 2: 1200 ms × n (simulator) | V·S + D·U |
 | display: xoá | MUST | ELIGIBLE | | V·G + D·U + V·S |
+| display: hình có sẵn, đặt/tắt điểm, đặt tất cả, màu (N17 B1) | MUST | RESTRICTED | 13 hình; x, y 0..4; 8 màu, sai → đỏ + cảnh báo; chạy chữ có màu UNVERIFIED (§23) | V·G + D·W + V·S |
 | nút A/B đang giữ | MUST | RESTRICTED | A, B; không A+B | V·G + V·S + D·U |
 | số lần nhấn A/B | NICE | RESTRICTED | A, B; reset khi đọc | D·U + V·S |
 | âm thanh | MUST | RESTRICTED | nốt chặn C3…C5, 1/2/4 tick @ (4,120); nghỉ; không `pitch`/`stop` | V·G + V·S + D·U |
@@ -1027,3 +1035,28 @@ Còn lại: C-01, C-02, C-03a, C-04, C-29 và ngôn ngữ (C-30…C-39, C-56…C
 | 1.0-draft | 2026-10-14 | Bản đầu tiên (YB-0) |
 | 1.0-draft (r2) | 2026-10-14 | Sửa R1–R3, N1–N3; RV-1 ACCEPT WITH RESTRICTIONS; C-19, C-40 EXCLUDED; P10 viết lại |
 | 1.0-draft (r3) | 2026-10-14 | Áp dụng quyết định owner: OQ-E APPROVED (model display cuối); C-Q6 = Option A (analog native 0–4095, UI 0–100 %, PWM EXCLUDED). Không còn quyết định owner đang chờ |
+| 1.0-draft (r3) + N17 B1 | 2026-10-19 | Owner: "Mô phỏng đủ chức năng". C-05 mở lại (RESTRICTED, 13 hình, nội dung micro:bit MIT); C-10/C-42/C-43 sang cả Basic; domain C-10 bỏ `colour`, C-43 thành structural (màu không bao giờ bị từ chối, sai thì đỏ + cảnh báo); thêm `unverifiedForms` cho C-06/C-07/C-08; §23. Chuỗi version của bản máy đọc được **không** đổi để golden cũ giữ nguyên (dòng đầu file Python ghi version) |
+
+
+## 23. N17 B1 — màn hình RGB: dạng code và nhãn (2026-10-19)
+
+Owner chọn "Mô phỏng đủ chức năng" (plan `docs/superpowers/plans/2026-10-20-n17-yolobit-full-board.md`). Dạng nào đã có evidence thì ghi **VERIFIED** kèm nguồn; dạng chưa thấy ghi **UNVERIFIED** kèm lý do. Không dạng nào được ghi là đã kiểm mà chưa kiểm. Bản máy đọc được: `src/core/compat/yolobit-contract.ts` (C-05, C-10, C-42, C-43, và `unverifiedForms` của C-06/C-07/C-08). Golden: `src/core/codegen/yolobit/hardware/__golden__/{builtin-icons,pixels-and-colours,pixel-walk}.py`.
+
+| Block (N17 B1) | Construct | Python sinh ra | Nhãn | Lý do / nguồn |
+|---|---|---|---|---|
+| `ybc_display_show_icon` HEART, HEART_SMALL, HAPPY, SAD, CONFUSED, ANGRY, SURPRISED, YES, NO | C-05 | `display.show(Image.HEART)` | **VERIFIED** (dạng) | V·G: output editor nguyên văn (investigation §5.3, EVD-03); tên có trong dropdown editor (§14, EVD-02). Hình board thật vẽ cho mỗi tên: **UNVERIFIED** (asset OhStem không đọc; simulator vẽ bảng micro:bit, `presentation`) |
+| `ybc_display_show_icon` ARROW_N/E/S/W | C-05 → dạng C-06 | `display.show(Image("00100:01110:10101:00100:00100"))` | **VERIFIED** (dạng C-06) | Editor không có mũi tên, nên không sinh `Image.ARROW_N` (tên chưa thấy). Viết thành hình tự vẽ chữ số 0/1 (EVD-05): board vẽ đúng hình simulator vẽ |
+| `ybc_display_set_pixel` | C-10 | `display.set_pixel(2, 3, '#00ff00')` | **VERIFIED** (dạng) | V·G EVD-03; toạ độ DOC-W4 + EVD-06. Màu viết thường như colour field editor (EVD-28 dùng `'#0000ff'`). Plan N17 liệt kê dạng này là UNVERIFIED; contract đã có V·G nên giữ VERIFIED |
+| `ybc_display_clear_pixel` | C-42 | `display.clear_pixel(0, 0)` | **VERIFIED** (dạng) | V·G EVD-03 |
+| `ybc_display_set_all` | C-43 | `display.set_all('#0000ff')` | **VERIFIED** (dạng) | V·G EVD-03; không chặn EVD-28 |
+| `ybc_display_show_image` field màu, màu khác đỏ | C-06 (`unverifiedForms`) | `display.show(Image("20002:02020:00200:02020:20002"))` | dạng **VERIFIED**, hiển thị **UNVERIFIED** | Chữ số = chỉ số bảng màu editor (EVD-05, V·G): đúng text editor sinh cho ô màu. Board/simulator hiển thị chữ số 2, 6, 7 khác bảng (EVD-13: 2 → vàng, 6/7 → magenta; C-70) |
+| `ybc_display_scroll_text` / `number` input màu, khác đỏ | C-07 / C-08 (`unverifiedForms`) | `display.scroll('Hi', color='#ffff00')`, `display.scroll(42, color='#ffffff')` | **UNVERIFIED** | Không có evidence editor hay board chạy chữ có màu; keyword `color` là giả định theo tên của thư viện `yolobit`. Có thể lỗi `TypeError` trên board thật nếu firmware không nhận `color` |
+| Màu đỏ, hoặc block cũ không có field/input màu | C-06 / C-07 / C-08 | `display.show(Image("…1…"))`, `display.scroll('Hi')` | **VERIFIED** | Dạng cũ, golden cũ không đổi |
+| `ybc_colour` | (đối số màu của C-10, C-43, C-06–C-08) | không có dòng riêng | — | Dropdown 8 màu §4.4; trong IR là operand, không phải giá trị (không gán biến, không in) |
+
+Ngữ nghĩa simulator (N17 B1):
+- Màn hình giữ khung đang hiện: `set_pixel`/`clear_pixel` đổi một ô của khung đó (hình, ký tự đứng yên, `set_all`). Chạy chữ ≥ 2 ký tự kết thúc bằng khung trống, như §4.2.
+- Toạ độ: literal ngoài 0..4 → `value-out-of-range` khi compile; giá trị tính ra ngoài 0..4 → `out-of-domain` (cột và hàng được tính hết rồi mới kiểm, như Python).
+- Màu: chỉ 8 màu bảng. Giá trị khác (text `red`, `#ff00`, rỗng, màu ngoài bảng, block không phải màu) → **đỏ + cảnh báo `invalid-colour`**, không bao giờ là lỗi. Python khi đó cũng viết đỏ, nên board và simulator giống nhau.
+- Block lưu trước N17 (hình không có field màu, chạy chữ không có input màu) → đỏ, không cảnh báo, IR và Python y như trước.
+- Goal `display-shows` có `colour` thì so cả màu (`src/core/challenge/goal-tracker.ts`); không có thì so sáng/tắt như cũ.

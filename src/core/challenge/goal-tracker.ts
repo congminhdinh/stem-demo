@@ -1,3 +1,4 @@
+import { hexColourOf } from '../capabilities/frame';
 import type { RunSnapshot } from '../run/run-session';
 import { buzzerPartId, displayPartId } from '../simulation/peripherals/onboard-capabilities';
 import { peripheralComponentId } from '../simulation/simulate-circuit';
@@ -29,13 +30,18 @@ export function createGoalTracker(challenge: Challenge, boardId: string | null):
     switch (goal.kind) {
       case 'display-shows': {
         const target = parseFrame(goal.frame);
-        if (display === null || target === null || atMs < (goal.fromMs ?? 0)) {
+        // N17 B1: a goal that names a colour compares it too; a colour that is not a '#rrggbb' code never matches.
+        const colour = goal.colour === undefined ? undefined : hexColourOf(goal.colour);
+        if (display === null || target === null || colour === null || atMs < (goal.fromMs ?? 0)) {
           return;
         }
         // A display that never showed anything is dark.
         const pixels = components[display]?.frame?.pixels;
-        const lit = target.map((_, index) => pixels?.[index] != null);
-        if (lit.every((value, index) => value === target[index])) {
+        const shows = target.every((wanted, index) => {
+          const pixel = pixels?.[index] ?? null;
+          return wanted ? pixel !== null && (colour === undefined || hexColourOf(pixel) === colour) : pixel === null;
+        });
+        if (shows) {
           state.passed = true;
         }
         return;

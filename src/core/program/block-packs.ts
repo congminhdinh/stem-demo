@@ -1,7 +1,23 @@
 import { deviceFamily } from '../devices/device-definition';
 import { arithDefinition, arithType, countUpDefinition, countUpType, intDivideDefinition, intDivideType, waitDefinition, waitType, whileDefinition, whileType, langConstructs, langPackIds, type LangPackId } from '../constructs/lang';
 import { hardwareConstructs, type HardwarePackId } from '../constructs/ybc';
-import { clearDisplayType, displayDefinitions, IMAGE_SIZE, pixelFieldName, scrollNumberType, scrollTextType, showImageType } from '../constructs/ybc.display';
+import {
+  clearDisplayType,
+  clearPixelType,
+  COLOUR_NAME,
+  colourType,
+  displayDefinitions,
+  ICON_NAME,
+  IMAGE_SIZE,
+  paletteColours,
+  pixelFieldName,
+  scrollNumberType,
+  scrollTextType,
+  setAllType,
+  setPixelType,
+  showIconType,
+  showImageType,
+} from '../constructs/ybc.display';
 import { buttonPressedType, buttonPressesType, inputDefinitions, lightLevelType } from '../constructs/ybc.input';
 import { createPinBlockDefinitions, pinAnalogType, pinConstructs, pinReadType, pinsPackId, pinWriteType, type PinChoices } from '../constructs/ybc.pins';
 import { playNoteType, restType, soundDefinitions } from '../constructs/ybc.sound';
@@ -188,7 +204,10 @@ const ringFields = Object.fromEntries(
   ),
 );
 
-/** What each hardware pack shows in the toolbox (YB-3). */
+/** A colour input filled with the colour block (N17 B1), red unless said otherwise: the learner picks another in its dropdown. */
+const shadowColour = (value: string = paletteColours[0].value) => ({ [COLOUR_NAME]: { shadow: { type: colourType, fields: { [COLOUR_NAME]: value } } } });
+
+/** What each hardware pack shows in the toolbox (YB-3; the RGB display of N17 B1 after the four blocks of YB-3). */
 const hardwareCategories: Readonly<Record<HardwarePackId, ToolboxCategory[]>> = {
   'ybc.display': [
     {
@@ -196,10 +215,15 @@ const hardwareCategories: Readonly<Record<HardwarePackId, ToolboxCategory[]>> = 
       name: 'Display',
       colour: '290',
       contents: [
-        block(showImageType, { fields: ringFields }),
-        block(scrollTextType, { inputs: { TEXT: { shadow: { type: 'text', fields: { TEXT: 'Hi' } } } } }),
-        block(scrollNumberType, { inputs: { NUM: shadowNumber(0) } }),
+        block(showImageType, { fields: { ...ringFields, [COLOUR_NAME]: paletteColours[0].value } }),
+        block(showIconType, { fields: { [ICON_NAME]: 'HEART' } }),
+        block(scrollTextType, { inputs: { TEXT: { shadow: { type: 'text', fields: { TEXT: 'Hi' } } }, ...shadowColour() } }),
+        block(scrollNumberType, { inputs: { NUM: shadowNumber(0), ...shadowColour() } }),
         block(clearDisplayType),
+        block(setPixelType, { inputs: { X: shadowNumber(2), Y: shadowNumber(2), ...shadowColour('#00ff00') } }),
+        block(clearPixelType, { inputs: { X: shadowNumber(2), Y: shadowNumber(2) } }),
+        block(setAllType, { inputs: shadowColour('#0000ff') }),
+        block(colourType, { fields: { [COLOUR_NAME]: paletteColours[0].value } }),
       ],
     },
   ],

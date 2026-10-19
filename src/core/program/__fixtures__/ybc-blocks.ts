@@ -131,12 +131,21 @@ export const ifElif = (branches: [Json, Json[]][], otherwise?: Json[]): Json => 
 /** A picture as five rows of five digits (1 lit, 0 off), top to bottom, as the contract writes `Image("…")`. */
 export type ImageRows = [string, string, string, string, string];
 
-/** "show image": all 25 squares are written, as Blockly saves a checkbox that is off too. */
+/** The 25 squares of a picture, as Blockly saves them: every one written, a square that is off too. */
+const squares = (rows: ImageRows) => Object.fromEntries(rows.flatMap((digits, row) => [...digits].map((digit, column) => [`R${row}C${column}`, digit === '1'])));
+
+/**
+ * "show image" as Blockly saves it since N17 B1: the colour field first (it is on the first line of the block), red unless chosen
+ * otherwise, then all 25 squares.
+ */
 export const showImage = (rows: ImageRows): Json => ({
   type: 'ybc_display_show_image',
   id: id('show-image'),
-  fields: Object.fromEntries(rows.flatMap((digits, row) => [...digits].map((digit, column) => [`R${row}C${column}`, digit === '1']))),
+  fields: { COLOUR: '#ff0000', ...squares(rows) },
 });
+
+/** "show image" as it was saved before N17 B1, without a colour field: an old project. It shows red. */
+export const legacyShowImage = (rows: ImageRows): Json => ({ type: 'ybc_display_show_image', id: id('show-image'), fields: squares(rows) });
 
 export const scrollText = (value: Json): Json => ({ type: 'ybc_display_scroll_text', id: id('scroll-text'), inputs: { TEXT: { block: value } } });
 export const scrollNumber = (value: Json): Json => ({ type: 'ybc_display_scroll_number', id: id('scroll-number'), inputs: { NUM: { block: value } } });
@@ -157,3 +166,34 @@ export const images = {
   DOT: ['00000', '00000', '00100', '00000', '00000'],
   FULL: ['11111', '11111', '11111', '11111', '11111'],
 } as const satisfies Record<string, ImageRows>;
+
+// --- N17 B1: the RGB display (colours, pixels, fill, built-in pictures) -----------------------------------
+
+/** The colour block as Blockly saves it: the dropdown's value, a lower-case '#rrggbb' of the palette. */
+export const colour = (value: string): Json => ({ type: 'ybc_colour', id: id('colour'), fields: { COLOUR: value } });
+
+/** A colour input as the toolbox fills it: a shadow colour block (a real block would be `{ block }`). */
+const colourInput = (value: Json | undefined) => (value ? { COLOUR: { shadow: value } } : {});
+
+/** "show image" in a colour: the colour field and the picture's squares, as Blockly saves a block made after N17. */
+export const showImageIn = (rows: ImageRows, colourValue: string): Json => {
+  const block = showImage(rows);
+  return { ...block, fields: { ...(block.fields as Json), COLOUR: colourValue } };
+};
+
+/** One of the display's built-in pictures (HEART, HAPPY, ARROW_N…), by name. */
+export const showIcon = (name: string): Json => ({ type: 'ybc_display_show_icon', id: id('show-icon'), fields: { ICON: name } });
+
+export const setPixel = (x: Json, y: Json, colourBlock?: Json): Json => ({
+  type: 'ybc_display_set_pixel',
+  id: id('set-pixel'),
+  inputs: { X: { block: x }, Y: { block: y }, ...colourInput(colourBlock) },
+});
+
+export const clearPixel = (x: Json, y: Json): Json => ({ type: 'ybc_display_clear_pixel', id: id('clear-pixel'), inputs: { X: { block: x }, Y: { block: y } } });
+
+export const setAll = (colourBlock?: Json): Json => ({ type: 'ybc_display_set_all', id: id('set-all'), inputs: { ...colourInput(colourBlock) } });
+
+/** "scroll text" / "scroll number" with a colour block in their colour input (a block made after N17). */
+export const scrollTextIn = (value: Json, colourBlock: Json): Json => ({ ...scrollText(value), inputs: { TEXT: { block: value }, ...colourInput(colourBlock) } });
+export const scrollNumberIn = (value: Json, colourBlock: Json): Json => ({ ...scrollNumber(value), inputs: { NUM: { block: value }, ...colourInput(colourBlock) } });

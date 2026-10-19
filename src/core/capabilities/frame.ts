@@ -16,6 +16,15 @@ const hexColour = /^#[0-9A-F]{6}$/;
 
 export const frameIndex = (x: number, y: number) => y * DISPLAY_WIDTH + x;
 
+/**
+ * A '#rrggbb' code in either case as the colour a frame holds (upper case), or null for anything else: a name such as
+ * 'red', a short code, an empty text, a value that is not a text (N17 B1). Whether the colour is one the blocks offer is
+ * the construct's business (`paletteColourOf` in constructs/ybc.display.ts).
+ */
+export function hexColourOf(value: unknown): HexColour | null {
+  return typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value) ? (value.toUpperCase() as HexColour) : null;
+}
+
 /** All pixels off: the display after `clear()` and at power-on. */
 export const blankFrame = (): Frame => ({ pixels: Array.from({ length: DISPLAY_WIDTH * DISPLAY_HEIGHT }, () => null) });
 

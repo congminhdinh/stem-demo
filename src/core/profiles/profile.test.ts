@@ -75,14 +75,14 @@ describe('the production profiles', () => {
     expect(advanced?.extends).toBe('ybc-basic');
   });
 
-  it('expose the structure, the YB-2 language, the YB-3 onboard hardware and the YB-4 header pins: no PWM, function, event, random, elapsed-time, colour, temperature or servo block', () => {
+  it('expose the structure, the YB-2 language, the YB-3 onboard hardware with the RGB display of N17 B1, and the YB-4 header pins: no PWM, function, event, random, elapsed-time, temperature or servo block', () => {
     for (const profile of [basic, advanced]) {
       expect(profile?.blockPacks).toEqual([
         'ybc.structure', 'ybc.display', 'ybc.input', 'ybc.sound', 'ybc.pins', 'lang.logic', 'lang.loops', 'lang.math', 'lang.text', 'lang.variables',
       ]);
       expect(profile?.constructs).toEqual([
-        'C-01', 'C-02', 'C-04', 'C-06', 'C-07', 'C-08', 'C-09', 'C-12', 'C-13', 'C-15', 'C-23', 'C-24', 'C-25', 'C-29', 'C-30', 'C-31', 'C-32',
-        'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-50', 'C-51', 'C-56',
+        'C-01', 'C-02', 'C-04', 'C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-12', 'C-13', 'C-15', 'C-23', 'C-24', 'C-25', 'C-29', 'C-30', 'C-31',
+        'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-42', 'C-43', 'C-50', 'C-51', 'C-56',
       ]);
       // The parts that get a runtime control: the two buttons (hold) and the light sensor (slider). Display and buzzer only show.
       expect(profile?.controls).toEqual(['button-a', 'button-b', 'light']);

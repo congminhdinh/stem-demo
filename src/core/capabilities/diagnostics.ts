@@ -33,7 +33,10 @@ export const ybc2CompileDiagnosticCodes = [
   'limit-exceeded',
 ] as const;
 
-export const compileDiagnosticCodes = [...plannedCompileDiagnosticCodes, ...ybc2CompileDiagnosticCodes] as const;
+/** Compile codes N17 added: a colour that is not one of the palette, shown red with a warning (B1, Review Focus 3). */
+export const n17CompileDiagnosticCodes = ['invalid-colour'] as const;
+
+export const compileDiagnosticCodes = [...plannedCompileDiagnosticCodes, ...ybc2CompileDiagnosticCodes, ...n17CompileDiagnosticCodes] as const;
 
 /** Faults of a run: the program stops with one, naming the block (plan §6.3 "Domain guard", §6.7). */
 export const runtimeDiagnosticCodes = ['out-of-domain', 'limit-exceeded', 'zero-division', 'internal-error'] as const;

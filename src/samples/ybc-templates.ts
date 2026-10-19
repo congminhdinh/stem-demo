@@ -53,13 +53,18 @@ const hat = (type: 'stem_on_start' | 'stem_forever', id: string, y: number, body
   return { type, id, x: 40, y, ...(DO ? { inputs: { DO } } : {}) };
 };
 
+/**
+ * "show image" as the editor saves it: the colour field of N17 B1 first (red), then the 25 squares. Written so, opening a lab
+ * changes nothing in the program, and the lab sends no project-changed.
+ */
 export const showImage = (id: string, picture: string, extra: Json = {}): Json => ({
   type: 'ybc_display_show_image',
   id,
   ...extra,
-  fields: Object.fromEntries(
-    picture.split(':').flatMap((row, rowIndex) => [...row].map((digit, column) => [`R${rowIndex}C${column}`, digit === '1'])),
-  ),
+  fields: {
+    COLOUR: '#ff0000',
+    ...Object.fromEntries(picture.split(':').flatMap((row, rowIndex) => [...row].map((digit, column) => [`R${rowIndex}C${column}`, digit === '1']))),
+  },
 });
 
 export const clearDisplay = (id: string): Json => ({ type: 'ybc_display_clear', id });

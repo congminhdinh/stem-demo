@@ -61,10 +61,13 @@ describe('what the generator covers', () => {
       expect(generated.has(id), id).toBe(false);
       expect(row === undefined || row.eligibility === 'EXCLUDED' || row.eligibility === 'DEFERRED', id).toBe(true);
     }
-    // The Advanced display, temperature and servo (YB-7), text variables, `len` and functions (YB-7); every other hardware
-    // row waits for its phase. The onboard hardware (YB-3) and the header pins (YB-4) are generated.
-    for (const id of ['C-10', 'C-16', 'C-27', 'C-42', 'C-43', 'C-57', 'C-58', 'C-59']) {
+    // Temperature and servo (YB-7), text variables, `len` and functions (YB-7); every other hardware row waits for its phase.
+    // The onboard hardware (YB-3), the header pins (YB-4) and the RGB display of N17 B1 (C-05, C-10, C-42, C-43) are generated.
+    for (const id of ['C-16', 'C-27', 'C-57', 'C-58', 'C-59']) {
       expect(generated.has(id), id).toBe(false);
+    }
+    for (const id of ['C-05', 'C-10', 'C-42', 'C-43']) {
+      expect(generated.has(id), id).toBe(true);
     }
   });
 });

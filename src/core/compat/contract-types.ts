@@ -234,6 +234,12 @@ export type ConstructContract = {
   python?: { form: string; builtins?: readonly ('print' | 'range' | 'str' | 'int' | 'len')[] };
   /** What the public editor generated for it, kept as a note; never an allowlist entry. */
   observedPython?: string;
+  /**
+   * N17 (owner, 2026-10-19: "Mô phỏng đủ chức năng"): further forms the generator writes for this row that no evidence has
+   * checked, each with why it is UNVERIFIED. Never a claim and never a field: the row is exposable on its verified `python`
+   * form alone, and the allowlist admits these so that they are written on purpose and nowhere else.
+   */
+  unverifiedForms?: readonly { form: string; reason: string }[];
   fields: Readonly<Record<OfField, FieldEntry>>;
   domain?: Domain;
   timing?: { blocksMs: string; source: 'SIM-observed' };
@@ -367,6 +373,7 @@ const constructSchema = z.object({
     .object({ form: z.string().min(1), builtins: z.array(z.enum(['print', 'range', 'str', 'int', 'len'])).optional() })
     .optional(),
   observedPython: z.string().optional(),
+  unverifiedForms: z.array(z.object({ form: z.string().min(1), reason: z.string().min(1) })).optional(),
   fields: fieldsSchema,
   domain: domainSchema.optional(),
   timing: z.object({ blocksMs: z.string(), source: z.literal('SIM-observed') }).optional(),

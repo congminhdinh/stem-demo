@@ -1,7 +1,26 @@
 import { missingCapabilities } from '../capabilities/compose';
+import type { HexColour } from '../capabilities/frame';
 import { arithType, countUpType, intDivideType, langConstructs, waitType, whileType } from '../constructs/lang';
 import { hardwareConstructOf } from '../constructs/ybc';
-import { clearDisplayType, IMAGE_SIZE, isDisplayText, pixelFieldName, scrollNumberType, scrollTextType, showImageType } from '../constructs/ybc.display';
+import {
+  clearDisplayType,
+  clearPixelType,
+  COLOUR_NAME,
+  colourType,
+  DEFAULT_COLOUR,
+  ICON_NAME,
+  IMAGE_SIZE,
+  isDisplayText,
+  paletteColourOf,
+  pixelFieldName,
+  scrollNumberType,
+  scrollTextType,
+  setAllType,
+  setPixelType,
+  showIconType,
+  showImageType,
+} from '../constructs/ybc.display';
+import { isBuiltinImageName } from '../constructs/ybc.images';
 import { buttonPressedType, buttonPressesType, isButtonName, lightLevelType, type ButtonName } from '../constructs/ybc.input';
 import {
   PIN_LEVELS,
@@ -25,7 +44,7 @@ import {
   MAX_TEXT_JOIN_PARTS,
   MAX_WAIT_MS,
 } from './limits';
-import type { ArithOp, CompareOp, Expr, Type, YbcProgramIR, YbcStatement } from './ybc-ir';
+import type { ArithOp, ColourOperand, CompareOp, Expr, Type, YbcProgramIR, YbcStatement } from './ybc-ir';
 
 // The YBC compiler (YB plan §9.4): Blockly serialization JSON to `YbcProgramIR`,
 // with the static types the dialect is defined by (§6.4). Types are known at
@@ -43,6 +62,10 @@ import type { ArithOp, CompareOp, Expr, Type, YbcProgramIR, YbcStatement } from 
 // not have is refused here (`capability-unavailable`, plan §10), so the runtime
 // never meets an absent one. It says what the program means; when the
 // interpreter yields to the browser is not in the IR.
+//
+// N17 B1 adds the RGB display (colours, one pixel, all pixels, built-in pictures). A colour is never an error:
+// what is not a colour of the palette is shown red, with a warning (`invalid-colour`), so a stored program with
+// 'red' or '#ff00' in it still runs (Review Focus 3). A block saved before N17 has no colour and stays red.
 
 export type YbcDiagnosticCode =
   | 'malformed-program'
@@ -62,7 +85,8 @@ export type YbcDiagnosticCode =
   | 'limit-exceeded'
   | 'program-too-large'
   | 'capability-unavailable'
-  | 'display-char-unsupported';
+  | 'display-char-unsupported'
+  | 'invalid-colour';
 
 export type YbcDiagnostic = {
   severity: 'error' | 'warning';
@@ -99,8 +123,8 @@ const floatOps = new Set(['DIVIDE', 'POWER']);
 const foreignArithmetic = 'math_arithmetic';
 const compareOps: Readonly<Record<string, CompareOp>> = { EQ: '==', NEQ: '!=', LT: '<', LTE: '<=', GT: '>', GTE: '>=' };
 const languageBlockTypes = new Set(langConstructs.flatMap((construct) => construct.blockTypes));
-/** The hardware blocks that give a value: one of these cannot be a statement. */
-const hardwareValueBlockTypes = new Set([buttonPressedType, buttonPressesType, lightLevelType]);
+/** The hardware blocks that give a value: one of these cannot be a statement. The colour block only fills a colour input. */
+const hardwareValueBlockTypes = new Set([buttonPressedType, buttonPressesType, lightLevelType, colourType]);
 /** C0 and C1 control characters (plan §6.4: print text allows Unicode except these). */
 const hasControlCharacter = (text: string) => [...text].some((char) => {
   const code = char.codePointAt(0) ?? 0;
@@ -598,7 +622,120 @@ export function compileYbcProgram(
       report('error', 'malformed-program', 'Every square of a picture is either lit or not.', block.id);
       return null;
     }
-    return { kind: 'call', op: 'display.show', operand: { kind: 'image', image: { source: 'custom', pixels } }, blockId: block.id };
+    // N17: the colour field. A picture saved before it has none and is red; red is left out of the IR, so both are the same program.
+    const field = block.fields?.[COLOUR_NAME];
+    const colour = field === undefined ? DEFAULT_COLOUR : colourValue(field, block.id);
+    const image = { source: 'custom' as const, pixels, ...(colour === DEFAULT_COLOUR ? {} : { colour }) };
+    return { kind: 'call', op: 'display.show', operand: { kind: 'image', image }, blockId: block.id };
+  };
+
+  /**
+   * N17 B1: a colour as a frame holds it. What is not one of the palette's (a name, a short code, an empty text, a colour
+   * outside the palette, nothing at all) is red, with a warning on `blockId`: never an error (Review Focus 3).
+   */
+  const colourValue = (value: unknown, blockId: string): HexColour => {
+    const colour = paletteColourOf(value);
+    if (colour !== null) {
+      return colour;
+    }
+    if (value === undefined) {
+      report('warning', 'invalid-colour', 'A colour block needs its colour, so it is shown red.', blockId);
+    } else {
+      report('warning', 'invalid-colour', `The colour "${String(value)}" is not one of the display's colours, so it is shown red.`, blockId);
+    }
+    return DEFAULT_COLOUR;
+  };
+
+  /**
+   * The colour in the colour input of a block (N17 B1), or undefined when the input is empty: a block saved before N17 has
+   * none, and an empty input is red, as the display always was. A shadow counts until a block that is not disabled covers it,
+   * as in Blockly. The editor only fits the colour block there; a stored program may hold anything, and a typed-in text
+   * is read as a colour code. Nothing here is ever an error.
+   */
+  const colourIn = (owner: RawBlock): HexColour | undefined => {
+    const input = owner.inputs?.[COLOUR_NAME];
+    if (input === undefined) {
+      return undefined;
+    }
+    const record = asRecord(input);
+    const real = asBlock(record?.block);
+    const shadow = asBlock(record?.shadow);
+    const plugged = real && !isDisabled(real) ? real : shadow && !isDisabled(shadow) ? shadow : null;
+    if (!plugged) {
+      if (!record || (record.block !== undefined && !real) || (record.shadow !== undefined && !shadow)) {
+        return colourValue(undefined, owner.id);
+      }
+      return undefined;
+    }
+    switch (plugged.type) {
+      case colourType:
+        return colourValue(plugged.fields?.[COLOUR_NAME], plugged.id);
+      case 'text':
+        return colourValue(plugged.fields?.TEXT, plugged.id);
+      default:
+        report('warning', 'invalid-colour', `"${plugged.type}" is not a colour, so it is shown red.`, plugged.id);
+        return DEFAULT_COLOUR;
+    }
+  };
+
+  /** The colour operand of a scroll: none for red, so a scroll saved before N17 and a red one are the same IR. */
+  const scrollColour = (block: RawBlock): { operand?: ColourOperand } => {
+    const colour = colourIn(block);
+    return colour === undefined || colour === DEFAULT_COLOUR ? {} : { operand: { kind: 'colour', colour } };
+  };
+
+  /** C-05: one of the built-in pictures, by the name the block's dropdown saves. */
+  const compileShowIcon = (block: RawBlock): YbcStatement | null => {
+    if (!boardHasPartFor(block)) {
+      return null;
+    }
+    const name = block.fields?.[ICON_NAME];
+    if (typeof name !== 'string') {
+      report('error', 'malformed-program', 'A picture block needs its picture.', block.id);
+      return null;
+    }
+    if (!isBuiltinImageName(name)) {
+      report('error', 'value-out-of-range', 'A picture is one of the built-in pictures of the display.', block.id);
+      return null;
+    }
+    return { kind: 'call', op: 'display.show', operand: { kind: 'image', image: { source: 'builtin', name } }, blockId: block.id };
+  };
+
+  /**
+   * The column and the row of a pixel block (C-10, C-42): whole numbers, each 0..4 when typed in (contract domain); a computed
+   * one is checked when the program runs.
+   */
+  const pixelOf = (block: RawBlock, label: string, depth: number): [x: Expr, y: Expr] | null => {
+    const x = operand(block, 'X', label, 'int', 'The column', depth);
+    const y = operand(block, 'Y', label, 'int', 'The row', depth);
+    const badX = outsideLiteral(x, 0, IMAGE_SIZE - 1, 'The column');
+    const badY = outsideLiteral(y, 0, IMAGE_SIZE - 1, 'The row');
+    return x && y && !badX && !badY ? [x, y] : null;
+  };
+
+  const compileSetPixel = (block: RawBlock, depth: number): YbcStatement | null => {
+    if (!boardHasPartFor(block)) {
+      return null;
+    }
+    const cell = pixelOf(block, 'set light', depth);
+    const colour = colourIn(block) ?? DEFAULT_COLOUR;
+    return cell ? { kind: 'call', op: 'display.setPixel', args: cell, operand: { kind: 'colour', colour }, blockId: block.id } : null;
+  };
+
+  const compileClearPixel = (block: RawBlock, depth: number): YbcStatement | null => {
+    if (!boardHasPartFor(block)) {
+      return null;
+    }
+    const cell = pixelOf(block, 'turn off light', depth);
+    return cell ? { kind: 'call', op: 'display.clearPixel', args: cell, blockId: block.id } : null;
+  };
+
+  const compileSetAll = (block: RawBlock): YbcStatement | null => {
+    if (!boardHasPartFor(block)) {
+      return null;
+    }
+    const colour = colourIn(block) ?? DEFAULT_COLOUR;
+    return { kind: 'call', op: 'display.setAll', operand: { kind: 'colour', colour }, blockId: block.id };
   };
 
   /** The text typed into a `text` block plugged into an input, read without compiling it (and so without the language rules for print text). */
@@ -624,7 +761,8 @@ export function compileYbcProgram(
       return null;
     }
     const text = operand(block, 'TEXT', 'scroll text', 'str', '"scroll text"', depth);
-    return text ? { kind: 'call', op: 'display.scrollText', args: [text], blockId: block.id } : null;
+    const colour = scrollColour(block);
+    return text ? { kind: 'call', op: 'display.scrollText', args: [text], ...colour, blockId: block.id } : null;
   };
 
   const compileScrollNumber = (block: RawBlock, depth: number): YbcStatement | null => {
@@ -632,7 +770,8 @@ export function compileYbcProgram(
       return null;
     }
     const value = operand(block, 'NUM', 'scroll number', 'int', '"scroll number"', depth);
-    return value ? { kind: 'call', op: 'display.scrollNumber', args: [value], blockId: block.id } : null;
+    const colour = scrollColour(block);
+    return value ? { kind: 'call', op: 'display.scrollNumber', args: [value], ...colour, blockId: block.id } : null;
   };
 
   /** C-50: one of the 15 natural notes C3…C5 for 1, 2 or 4 ticks. */
@@ -692,6 +831,14 @@ export function compileYbcProgram(
         return compileScrollNumber(block, depth);
       case clearDisplayType:
         return boardHasPartFor(block) ? { kind: 'call', op: 'display.clear', blockId: block.id } : null;
+      case showIconType:
+        return compileShowIcon(block);
+      case setPixelType:
+        return compileSetPixel(block, depth);
+      case clearPixelType:
+        return compileClearPixel(block, depth);
+      case setAllType:
+        return compileSetAll(block);
       case playNoteType:
         return compilePlayNote(block);
       case restType:

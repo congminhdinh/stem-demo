@@ -1,9 +1,10 @@
-import { IMAGE_SIZE, isDisplayText } from '../../constructs/ybc.display';
+import { DEFAULT_COLOUR, IMAGE_SIZE, isDisplayText, paletteColourOf, paletteDigitOf } from '../../constructs/ybc.display';
+import { builtinImageRows, isBuiltinImageName, vendorImageNames } from '../../constructs/ybc.images';
 import { isButtonName } from '../../constructs/ybc.input';
 import { PIN_LEVELS, PIN_NUMBERS } from '../../constructs/ybc.pins';
 import { isNoteName, noteTicks } from '../../constructs/ybc.sound';
 import { MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_SAFE_INT, MAX_TEXT_CHARS, MAX_WAIT_MS } from '../../program/limits';
-import type { ArithOp, CallStatement, Expr, ReadExpr, Type, YbcProgramIR, YbcStatement } from '../../program/ybc-ir';
+import type { ArithOp, CallStatement, ColourOperand, Expr, ReadExpr, Type, YbcProgramIR, YbcStatement } from '../../program/ybc-ir';
 import { MAX_EXPRESSION_DEPTH, MAX_GENERATED_BYTES, MAX_STATEMENT_DEPTH } from './limits';
 import { moduleOfOp, yolobitModuleLines } from './modules';
 import { assignNames } from './names';
@@ -18,12 +19,13 @@ import { defaultTarget, type GenTarget } from './target';
 
 /**
  * The contract rows the generator can emit: the language layer (YB-5A), the onboard hardware of YB-3 (display C-06…C-09,
- * buttons C-12 and C-13, light C-15, sound C-50 and C-51) and the header pins of YB-4 (C-23, C-24, C-25). The other
- * hardware rows arrive with their phases.
+ * buttons C-12 and C-13, light C-15, sound C-50 and C-51), the header pins of YB-4 (C-23, C-24, C-25) and the RGB display
+ * of N17 B1 (built-in pictures C-05, set pixel C-10, clear pixel C-42, set all C-43). The other hardware rows arrive with
+ * their phases.
  */
 export const generatedConstructs = [
-  'C-01', 'C-02', 'C-04', 'C-06', 'C-07', 'C-08', 'C-09', 'C-12', 'C-13', 'C-15', 'C-23', 'C-24', 'C-25', 'C-29', 'C-30',
-  'C-31', 'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-50', 'C-51', 'C-56',
+  'C-01', 'C-02', 'C-04', 'C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-12', 'C-13', 'C-15', 'C-23', 'C-24', 'C-25', 'C-29',
+  'C-30', 'C-31', 'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-42', 'C-43', 'C-50', 'C-51', 'C-56',
 ] as const;
 
 export type GenDiagnosticCode =
@@ -434,26 +436,78 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
     }
   };
 
-  /** The statements of the onboard hardware, each in the exact form of its contract row (C-06…C-09, C-50, C-51). */
+  /**
+   * A colour as the program writes it (N17 B1): '#rrggbb' in lower case, as the editor's colour field writes it. Only the eight
+   * colours of the palette (contract §4.4) can be said; the compiler never gives another.
+   */
+  const colourLiteral = (operand: ColourOperand | undefined, blockId: string): string | null => {
+    const colour = operand?.kind === 'colour' ? paletteColourOf(operand.colour) : null;
+    if (colour === null) {
+      report('value-out-of-range', 'A colour is one of the eight colours of the palette.', blockId);
+      return null;
+    }
+    return `'${colour.toLowerCase()}'`;
+  };
+
+  /** `Image("r0:r1:r2:r3:r4")`: rows from the top, digits from the left, 0 off and the palette digit of `digit` lit (EVD-05). */
+  const imageLiteral = (pixels: readonly boolean[], digit: number) =>
+    `Image("${Array.from({ length: IMAGE_SIZE }, (_, row) => pixels.slice(row * IMAGE_SIZE, (row + 1) * IMAGE_SIZE).map((lit) => (lit ? String(digit) : '0')).join('')).join(':')}")`;
+
+  /** The column and the row of a pixel (C-10, C-42): literals are checked against 0..4; computed ones are the simulator's to refuse. */
+  const cellOf = (args: readonly Expr[], blockId: string): string | null => {
+    const [x, y] = args;
+    if (args.length !== 2 || x === undefined || y === undefined) {
+      report('unsupported-node', 'A light needs its column and its row.', blockId);
+      return null;
+    }
+    for (const coordinate of [x, y]) {
+      expectType(coordinate, 'int', 'A column or a row');
+      if (isLiteralInt(coordinate) && (coordinate.value < 0 || coordinate.value > IMAGE_SIZE - 1)) {
+        report('value-out-of-range', `A column or a row is 0 to ${IMAGE_SIZE - 1}.`, coordinate.blockId);
+      }
+    }
+    return `${expression(x)}, ${expression(y)}`;
+  };
+
+  /** `, color='#rrggbb'` for a scroll in a colour other than red (N17, UNVERIFIED); nothing for red, the verified form. */
+  const scrollColour = (operand: ColourOperand | undefined, blockId: string): string | null => {
+    if (operand === undefined || paletteColourOf(operand.colour) === DEFAULT_COLOUR) {
+      return '';
+    }
+    const literal = colourLiteral(operand, blockId);
+    return literal === null ? null : `, color=${literal}`;
+  };
+
+  /** The statements of the onboard hardware, each in the exact form of its contract row (C-05…C-10, C-42, C-43, C-50, C-51). */
   const emitCall = (statement: CallStatement, depth: number) => {
     switch (statement.op) {
       case 'display.show': {
-        // `Image("r0:r1:r2:r3:r4")`: rows from the top, digits from the left, 1 lit (red) and 0 off (contract C-06, EVD-05).
         const { operand } = statement;
-        const pixels = operand.image.pixels;
-        const wellFormed =
-          operand.kind === 'image' &&
-          operand.image.source === 'custom' &&
-          pixels.length === IMAGE_SIZE * IMAGE_SIZE &&
-          pixels.every((lit) => typeof lit === 'boolean');
-        if (!wellFormed) {
+        const image = operand.kind === 'image' ? operand.image : undefined;
+        if (image?.source === 'builtin') {
+          // C-05: a name of the vendor's editor is written `Image.<NAME>` (investigation §5.3); an arrow, which that editor does
+          // not offer, as a picture of our own (C-06), so the board shows exactly what the simulator showed.
+          if (!isBuiltinImageName(image.name)) {
+            report('value-out-of-range', 'A picture is one of the built-in pictures of the display.', statement.blockId);
+            return;
+          }
+          const name = image.name;
+          emit(depth, vendorImageNames.has(name) ? `display.show(Image.${name})` : `display.show(${imageLiteral([...builtinImageRows[name].join('')].map((digit) => digit === '1'), 1)})`, statement.blockId);
+          return;
+        }
+        // C-06 `Image("r0:r1:r2:r3:r4")`: 0 off and the palette digit of the colour lit, 1 for red (contract C-06, EVD-05).
+        const pixels = image?.source === 'custom' ? image.pixels : undefined;
+        if (pixels === undefined || pixels.length !== IMAGE_SIZE * IMAGE_SIZE || !pixels.every((lit) => typeof lit === 'boolean')) {
           report('unsupported-node', 'A picture is 5 rows of 5 squares, each lit or not.', statement.blockId);
           return;
         }
-        const rows = Array.from({ length: IMAGE_SIZE }, (_, row) =>
-          pixels.slice(row * IMAGE_SIZE, (row + 1) * IMAGE_SIZE).map((lit) => (lit ? '1' : '0')).join(''),
-        );
-        emit(depth, `display.show(Image("${rows.join(':')}"))`, statement.blockId);
+        const colour = image?.source === 'custom' && image.colour !== undefined ? image.colour : DEFAULT_COLOUR;
+        const digit = paletteDigitOf(colour);
+        if (digit === null) {
+          report('value-out-of-range', 'A colour is one of the eight colours of the palette.', statement.blockId);
+          return;
+        }
+        emit(depth, `display.show(${imageLiteral(pixels, digit)})`, statement.blockId);
         return;
       }
       case 'display.scrollText': {
@@ -462,18 +516,49 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
         if (text.kind === 'str' && !isDisplayText(text.value)) {
           report('value-out-of-range', 'The display shows only the characters from space to ~ (ASCII).', text.blockId);
         }
-        emit(depth, `display.scroll(${expression(text)})`, statement.blockId);
+        const colour = scrollColour(statement.operand, statement.blockId);
+        if (colour !== null) {
+          emit(depth, `display.scroll(${expression(text)}${colour})`, statement.blockId);
+        }
         return;
       }
       case 'display.scrollNumber': {
         const [value] = statement.args;
         expectType(value, 'int', 'The number to scroll');
-        emit(depth, `display.scroll(${expression(value)})`, statement.blockId);
+        const colour = scrollColour(statement.operand, statement.blockId);
+        if (colour !== null) {
+          emit(depth, `display.scroll(${expression(value)}${colour})`, statement.blockId);
+        }
         return;
       }
       case 'display.clear':
         emit(depth, 'display.clear()', statement.blockId);
         return;
+      case 'display.setPixel': {
+        // C-10: `display.set_pixel(x, y, '#rrggbb')` (V·G, EVD-03).
+        const cell = cellOf(statement.args, statement.blockId);
+        const colour = colourLiteral(statement.operand, statement.blockId);
+        if (cell !== null && colour !== null) {
+          emit(depth, `display.set_pixel(${cell}, ${colour})`, statement.blockId);
+        }
+        return;
+      }
+      case 'display.clearPixel': {
+        // C-42: `display.clear_pixel(x, y)` (V·G, EVD-03).
+        const cell = cellOf(statement.args, statement.blockId);
+        if (cell !== null) {
+          emit(depth, `display.clear_pixel(${cell})`, statement.blockId);
+        }
+        return;
+      }
+      case 'display.setAll': {
+        // C-43: `display.set_all('#rrggbb')` (V·G, EVD-03).
+        const colour = colourLiteral(statement.operand, statement.blockId);
+        if (colour !== null) {
+          emit(depth, `display.set_all(${colour})`, statement.blockId);
+        }
+        return;
+      }
       case 'sound.playNote': {
         const { note, ticks } = statement.operand;
         if (!isNoteName(note) || !noteTicks.some((allowed) => allowed === ticks)) {

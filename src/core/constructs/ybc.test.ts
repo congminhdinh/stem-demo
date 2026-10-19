@@ -12,7 +12,10 @@ import { images, showImage } from '../program/__fixtures__/ybc-blocks';
 import { inputKindOfModel } from '../simulation/simulate-circuit';
 import { langConstructs, langContractIds } from './lang';
 import { hardwareConstructOf, hardwareConstructs, hardwareContractIds, hardwarePackIds } from './ybc';
-import { clearDisplayType, IMAGE_SIZE, isDisplayText, pixelFieldName, scrollNumberType, scrollTextType, showImageDefinition, showImageType } from './ybc.display';
+import {
+  clearDisplayType, clearPixelType, colourType, IMAGE_SIZE, isDisplayText, paletteColours, pixelFieldName, scrollNumberType, scrollTextType, setAllType,
+  setPixelType, showIconType, showImageDefinition, showImageType,
+} from './ybc.display';
 import { buttonNames, buttonPressedType, buttonPressesType, lightLevelType } from './ybc.input';
 import { pinConstructs, pinContractIds } from './ybc.pins';
 import { noteNames, noteTicks, playNoteType, restType } from './ybc.sound';
@@ -45,18 +48,18 @@ const row = (id: string) => {
   return found;
 };
 
-/** What YB-3 opens, spelled out here and not read from the table under test. */
-const hardwareIds = ['C-06', 'C-07', 'C-08', 'C-09', 'C-12', 'C-13', 'C-15', 'C-50', 'C-51'];
+/** What YB-3 opens, and the RGB display N17 B1 adds to it (C-05, C-10, C-42, C-43), spelled out here and not read from the table under test. */
+const hardwareIds = ['C-06', 'C-07', 'C-08', 'C-09', 'C-05', 'C-10', 'C-42', 'C-43', 'C-12', 'C-13', 'C-15', 'C-50', 'C-51'];
 const hardwareBlockTypes = [
   showImageType, scrollTextType, scrollNumberType, clearDisplayType,
+  showIconType, setPixelType, colourType, clearPixelType, setAllType,
   buttonPressedType, buttonPressesType, lightLevelType,
   playNoteType, restType,
 ];
 
-/** The rows another phase owns, or that no phase opens: none of them may be shown by YB-3. */
-/** Rows YB-3 does not own that no profile lists yet. The header pins (C-23…C-25) are not YB-3's either: they are YB-4's, and listed. */
+/** Rows the onboard hardware does not own that no profile lists yet. The header pins (C-23…C-25) are not its either: they are YB-4's, and listed. */
 const notOwned = [
-  'C-10', 'C-16', 'C-27', 'C-42', 'C-43',
+  'C-16', 'C-27',
   'C-14', 'C-26', 'C-19', 'C-40', 'C-47', 'C-11', 'C-20', 'C-21', 'C-22', 'C-52',
 ];
 
@@ -94,7 +97,7 @@ const fieldsOf = (block: Json) => (block.fields ?? {}) as Json;
 const toolboxOf = (profile: typeof basic) => buildToolbox(profile.blockPacks, packs);
 
 describe('YB-3 hardware constructs', () => {
-  it('are exactly the nine rows YB-3 opens, in the order display, input, sound', () => {
+  it('are exactly the rows YB-3 and N17 B1 open, in the order display, input, sound', () => {
     expect(hardwareContractIds).toEqual(hardwareIds);
     expect(hardwareConstructs.flatMap((construct) => construct.blockTypes)).toEqual(hardwareBlockTypes);
     expect(hardwarePackIds).toEqual(['ybc.display', 'ybc.input', 'ybc.sound']);
@@ -120,10 +123,11 @@ describe('YB-3 hardware constructs', () => {
     },
   );
 
-  it('are RESTRICTED where the contract restricts them (image, text, number, buttons, notes, rests) and ELIGIBLE for clear and light', () => {
+  it('are RESTRICTED where the contract restricts them (images, text, number, pixels, fill, buttons, notes, rests) and ELIGIBLE for clear and light', () => {
     const eligibility = Object.fromEntries(hardwareIds.map((id) => [id, row(id).eligibility]));
     expect(eligibility).toEqual({
       'C-06': 'RESTRICTED', 'C-07': 'RESTRICTED', 'C-08': 'RESTRICTED', 'C-09': 'ELIGIBLE',
+      'C-05': 'RESTRICTED', 'C-10': 'RESTRICTED', 'C-42': 'RESTRICTED', 'C-43': 'RESTRICTED',
       'C-12': 'RESTRICTED', 'C-13': 'RESTRICTED', 'C-15': 'ELIGIBLE', 'C-50': 'RESTRICTED', 'C-51': 'RESTRICTED',
     });
   });
@@ -142,6 +146,7 @@ describe('YB-3 hardware constructs', () => {
     const capabilityOf = Object.fromEntries(hardwareConstructs.map((construct) => [construct.contractId, construct.capability]));
     expect(capabilityOf).toEqual({
       'C-06': 'display', 'C-07': 'display', 'C-08': 'display', 'C-09': 'display',
+      'C-05': 'display', 'C-10': 'display', 'C-42': 'display', 'C-43': 'display',
       'C-12': 'buttons', 'C-13': 'buttons', 'C-15': 'light', 'C-50': 'sound', 'C-51': 'sound',
     });
   });
@@ -206,7 +211,7 @@ describe('the YB-3 block packs', () => {
   });
 
   it('give each block the connections its construct needs: a statement the stack connections, a value an output', () => {
-    const values = new Map<string, string>([[buttonPressedType, 'Boolean'], [buttonPressesType, 'Number'], [lightLevelType, 'Number']]);
+    const values = new Map<string, string>([[buttonPressedType, 'Boolean'], [buttonPressesType, 'Number'], [lightLevelType, 'Number'], [colourType, 'Colour']]);
     const definitions = hardwarePackIds.flatMap((id) => packs.get(id)?.blocks ?? []);
     expect(definitions.map((definition) => definition.type).sort()).toEqual([...hardwareBlockTypes].sort());
     for (const definition of definitions) {
@@ -222,10 +227,23 @@ describe('the YB-3 block packs', () => {
     }
   });
 
-  it('type the value inputs of the display: text for scroll text and a number for scroll number', () => {
-    const inputOf = (type: string) => (packs.get('ybc.display')?.blocks.find((definition) => definition.type === type)?.args0 as Json[] | undefined)?.[0];
-    expect(inputOf(scrollTextType)).toMatchObject({ type: 'input_value', name: 'TEXT', check: 'String' });
-    expect(inputOf(scrollNumberType)).toMatchObject({ type: 'input_value', name: 'NUM', check: 'Number' });
+  it('type the value inputs of the display: text for scroll text, a number for scroll number and the coordinates, a colour for the colour (N17)', () => {
+    const argsOf = (type: string) => (packs.get('ybc.display')?.blocks.find((definition) => definition.type === type)?.args0 as Json[] | undefined) ?? [];
+    const colour = { type: 'input_value', name: 'COLOUR', check: 'Colour' };
+    expect(argsOf(scrollTextType)).toEqual([{ type: 'input_value', name: 'TEXT', check: 'String' }, colour]);
+    expect(argsOf(scrollNumberType)).toEqual([{ type: 'input_value', name: 'NUM', check: 'Number' }, colour]);
+    const coordinates = [{ type: 'input_value', name: 'X', check: 'Number' }, { type: 'input_value', name: 'Y', check: 'Number' }];
+    expect(argsOf(setPixelType)).toEqual([...coordinates, colour]);
+    expect(argsOf(clearPixelType)).toEqual(coordinates);
+    expect(argsOf(setAllType)).toEqual([colour]);
+  });
+
+  it('offer the eight colours of the palette (contract §4.4), red first, in the colour block and the colour field of "show image"', () => {
+    const options = [['red', '#ff0000'], ['orange', '#ffa500'], ['yellow', '#ffff00'], ['green', '#00ff00'], ['blue', '#0000ff'], ['indigo', '#4b0082'], ['purple', '#800080'], ['white', '#ffffff']];
+    const dropdownOf = (type: string) => (packs.get('ybc.display')?.blocks.find((definition) => definition.type === type)?.args0 as Json[] | undefined)?.[0];
+    expect(dropdownOf(colourType)).toEqual({ type: 'field_dropdown', name: 'COLOUR', options });
+    expect(dropdownOf(showImageType)).toEqual({ type: 'field_dropdown', name: 'COLOUR', options });
+    expect(paletteColours.map(({ value }) => value.toUpperCase())).toEqual(contract.display.palette);
   });
 
   it('give the show-image block exactly 25 checkbox fields named R{row}C{col}, five to a row, in reading order', () => {
@@ -243,8 +261,9 @@ describe('the YB-3 block packs', () => {
     }
     expect(names).toHaveLength(25);
     expect(new Set(names).size).toBe(25);
-    // Nothing else holds a value: no other field, no input.
-    expect(definition).not.toHaveProperty('args0');
+    // Nothing else holds a value but the colour field of N17 on the first line: no other field, no input.
+    expect(definition.message0).toBe('show image in %1');
+    expect((definition.args0 as Json[]).map((arg) => [arg.type, arg.name])).toEqual([['field_dropdown', 'COLOUR']]);
     expect(definition).not.toHaveProperty('args6');
   });
 });
@@ -279,12 +298,12 @@ describe('what both profiles list', () => {
     }
   });
 
-  it('have a block type for the nine rows and the three pin rows of YB-4 only: no pitch, stop, brightness, A+B, event, random, elapsed-time or other pin block exists in the YBC packs', () => {
+  it('have a block type for the onboard rows and the three pin rows of YB-4 only: no pitch, stop, brightness, A+B, event, random, elapsed-time or other pin block exists in the YBC packs', () => {
     const ybcTypes = packs.list().filter((pack) => pack.family === 'ybc').flatMap((pack) => pack.blockTypes);
     const pinBlockTypes = pinConstructs.flatMap((construct) => construct.blockTypes);
     const expected = ['stem_on_start', 'stem_forever', ...langConstructs.flatMap((construct) => construct.blockTypes), ...hardwareBlockTypes, ...pinBlockTypes];
     expect([...ybcTypes].sort()).toEqual([...expected].sort());
-    expect(ybcTypes.filter((type) => !pinBlockTypes.includes(type)).filter((type) => /pitch|stop|brightness|tempo|melody|event|_ab\b|random|elapsed|running|timer|pin|pixel|set_all|gesture|accelerometer|temperature|servo|pwm|pulse|touch|digital|analog/i.test(type))).toEqual([]);
+    expect(ybcTypes.filter((type) => !pinBlockTypes.includes(type)).filter((type) => /pitch|stop|brightness|tempo|melody|event|_ab\b|random|elapsed|running|timer|_pin_|gesture|accelerometer|temperature|servo|pwm|pulse|touch|digital|analog/i.test(type))).toEqual([]);
     for (const profile of profiles) {
       const shown = typesIn(toolboxOf(profile));
       expect([...shown].filter((type) => !expected.includes(type)), profile.id).toEqual([]);
@@ -310,12 +329,13 @@ describe('the toolbox of both profiles', () => {
     }
   });
 
-  it('offers a ring as the first picture of the show-image block, with all 25 cells written', () => {
+  it('offers a ring as the first picture of the show-image block, with all 25 cells written, in red', () => {
     const [first] = blocksIn(toolboxOf(basic).contents).filter((block) => block.type === showImageType);
     expect(first).toBeDefined();
     const fields = fieldsOf(first ?? {});
+    expect(fields.COLOUR).toBe('#ff0000');
     expect(Object.keys(fields).sort()).toEqual(Object.keys(showImage(images.RING).fields as Json).sort());
-    expect(Object.keys(fields)).toHaveLength(25);
+    expect(Object.keys(fields).filter((name) => /^R\dC\d$/.test(name))).toHaveLength(25);
     expect(fields).toEqual(showImage(images.RING).fields);
     // Row by row, a ring: the border lit and the inside dark.
     const picture = images.RING.map((digits, rowIndex) => [...digits].map((_, column) => (fields[pixelFieldName(rowIndex, column)] === true ? '1' : '0')).join(''));
@@ -370,7 +390,9 @@ describe('the toolbox of both profiles', () => {
       [buttonPressesType]: ['BUTTON'],
       [playNoteType]: ['NOTE', 'TICKS'],
       [restType]: ['TICKS'],
-      [showImageType]: Array.from({ length: 25 }, (_, index) => pixelFieldName(Math.floor(index / 5), index % 5)),
+      [showImageType]: [...Array.from({ length: 25 }, (_, index) => pixelFieldName(Math.floor(index / 5), index % 5)), 'COLOUR'],
+      [showIconType]: ['ICON'],
+      [colourType]: ['COLOUR'],
     };
     for (const profile of profiles) {
       for (const block of blocksIn(toolboxOf(profile).contents)) {
@@ -462,7 +484,7 @@ describe('the gate keeps a hardware construct out when its evidence is not enoug
   });
 
   it.each(['UNKNOWN', 'INFERRED'] as const)('a profile cannot list a hardware row whose module is %s: C-03b for the display, buttons and light, C-03c for the sound', (label) => {
-    for (const [module, ids] of [['C-03b', ['C-06', 'C-07', 'C-08', 'C-09', 'C-12', 'C-13', 'C-15']], ['C-03c', ['C-50', 'C-51']]] as const) {
+    for (const [module, ids] of [['C-03b', ['C-06', 'C-07', 'C-08', 'C-09', 'C-05', 'C-10', 'C-42', 'C-43', 'C-12', 'C-13', 'C-15']], ['C-03c', ['C-50', 'C-51']]] as const) {
       for (const field of ['import', 'module'] as const) {
         const broken = mutatedModule(module, field, unsure(label));
         for (const id of ids) {

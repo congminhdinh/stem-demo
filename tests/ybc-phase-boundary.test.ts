@@ -18,13 +18,21 @@ import { capabilityKeys } from '../src/core/capabilities/io';
 const registry = createDeviceRegistry(localDeviceDefinitions);
 const packs = createBlockPackCatalog(registry);
 const profiles = ['ybc-basic', 'ybc-advanced'].map((id) => productionProfiles.get(id));
-/** The onboard blocks of YB-3: the display, the buttons, the light sensor and the sound (contract C-06…C-09, C-12, C-13, C-15, C-50, C-51). */
+/**
+ * The onboard blocks of YB-3: the display, the buttons, the light sensor and the sound (contract C-06…C-09, C-12, C-13, C-15, C-50,
+ * C-51), and the RGB display N17 B1 opened with its contract rows (C-05, C-10, C-42, C-43; the colour block is C-10's).
+ */
 const onboardBlockTypes = [
   'ybc_button_pressed',
   'ybc_button_presses',
+  'ybc_colour',
   'ybc_display_clear',
+  'ybc_display_clear_pixel',
   'ybc_display_scroll_number',
   'ybc_display_scroll_text',
+  'ybc_display_set_all',
+  'ybc_display_set_pixel',
+  'ybc_display_show_icon',
   'ybc_display_show_image',
   'ybc_light_level',
   'ybc_sound_note',
@@ -32,7 +40,7 @@ const onboardBlockTypes = [
 ];
 
 describe('the blocks a Yolo:Bit-compatible project has', () => {
-  it('are the two hats, the YB-2 language, the nine onboard blocks of YB-3 and the three pin blocks: nothing else of this family is registered', () => {
+  it('are the two hats, the YB-2 language, the onboard blocks of YB-3 and N17 B1 and the three pin blocks: nothing else of this family is registered', () => {
     const ybc = packs.list().filter((pack) => pack.family === 'ybc');
     const types = ybc.flatMap((pack) => pack.blockTypes).filter((type) => type.startsWith('ybc_') || type.startsWith('stem_'));
     expect([...new Set(types)].sort()).toEqual(
@@ -59,7 +67,7 @@ describe('the blocks a Yolo:Bit-compatible project has', () => {
     );
   });
 
-  it('have no block for PWM, servo, pulse, temperature, events, random or elapsed time, and none for the display, the buttons, light or sound but the nine of YB-3', () => {
+  it('have no block for PWM, servo, pulse, temperature, events, random or elapsed time, and none for the display, the buttons, light or sound but the onboard ones', () => {
     const everything = packs.list().flatMap((pack) => pack.blockTypes).filter((type) => !onboardBlockTypes.includes(type)).join(' ');
     expect(everything).not.toMatch(/pwm|servo|pulse|temperature|display|image|scroll|button|light|sound|music|note|tone|event|random|timer|running|elapsed|shake|accel/i);
   });
@@ -67,18 +75,18 @@ describe('the blocks a Yolo:Bit-compatible project has', () => {
 
 describe('the contract rows a profile shows', () => {
   const exposed = [
-    'C-01', 'C-02', 'C-04', 'C-06', 'C-07', 'C-08', 'C-09', 'C-12', 'C-13', 'C-15', 'C-23', 'C-24', 'C-25', 'C-29', 'C-30', 'C-31', 'C-32',
-    'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-50', 'C-51', 'C-56',
+    'C-01', 'C-02', 'C-04', 'C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-12', 'C-13', 'C-15', 'C-23', 'C-24', 'C-25', 'C-29', 'C-30', 'C-31',
+    'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-42', 'C-43', 'C-50', 'C-51', 'C-56',
   ];
 
-  it('are the language of YB-2, the onboard hardware of YB-3 and the pins of YB-4, in both profiles', () => {
+  it('are the language of YB-2, the onboard hardware of YB-3 with the RGB display of N17 B1, and the pins of YB-4, in both profiles', () => {
     for (const profile of profiles) {
       expect([...(profile?.constructs ?? [])].sort(), profile?.id).toEqual([...exposed].sort());
     }
   });
 
   it.each([
-    ['YB-7: Advanced display drawing, temperature, text variables, functions, servo', ['C-10', 'C-42', 'C-43', 'C-16', 'C-57', 'C-58', 'C-59', 'C-27']],
+    ['YB-7: temperature, text variables, functions, servo', ['C-16', 'C-57', 'C-58', 'C-59', 'C-27']],
     ['excluded: PWM / analog write, pulse in, random, elapsed time', ['C-26', 'C-28', 'C-40', 'C-19']],
     ['deferred: events', ['C-14']],
   ])('keep out %s', (_, ids) => {

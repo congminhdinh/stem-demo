@@ -19,14 +19,14 @@ const packs = createBlockPackCatalog(createDeviceRegistry(localDeviceDefinitions
 const profiles = ['ybc-basic', 'ybc-advanced'].map((id) => productionProfiles.get(id));
 
 /**
- * Rows that must stay out of every profile until their own phase: random, elapsed time, events, PWM, the Advanced
- * display, temperature and servo (YB-7), text variables and functions. The onboard hardware of YB-3 (display C-06…C-09,
- * buttons C-12 and C-13, light C-15, sound C-50 and C-51) is shown and is tested in ybc.test.ts; C-23, C-24 and C-25 are
- * the header pins of YB-4.
+ * Rows that must stay out of every profile until their own phase: random, elapsed time, events, PWM, temperature and
+ * servo (YB-7), text variables and functions. The onboard hardware of YB-3 (display C-06…C-09, buttons C-12 and C-13,
+ * light C-15, sound C-50 and C-51) and the RGB display of N17 B1 (C-05, C-10, C-42, C-43) are shown and are tested in
+ * ybc.test.ts; C-23, C-24 and C-25 are the header pins of YB-4.
  */
 const notYet = [
   'C-40', 'C-19', 'C-14', 'C-26',
-  'C-10', 'C-16', 'C-27', 'C-42', 'C-43',
+  'C-16', 'C-27',
   'C-57', 'C-58', 'C-59',
 ];
 

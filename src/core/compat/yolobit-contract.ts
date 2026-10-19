@@ -238,9 +238,22 @@ const exposed: readonly ConstructContract[] = [
     tier: { 'ybc-basic': 'MUST' },
     profiles: BOTH,
     eligibility: 'RESTRICTED',
-    restrictions: ['5×5 image', 'digit 0 (off) or 1 (red) only', 'replaces the whole frame', 'does not block'],
+    restrictions: [
+      '5×5 image',
+      'digit 0 (off) or 1 (red) in the verified form',
+      'N17 B1: the colour field lights the squares in a palette colour, written as its digit 1–8 (an UNVERIFIED form, below)',
+      'replaces the whole frame',
+      'does not block',
+    ],
     modules: ['C-03b'],
     python: { form: 'display.show(Image("<r0>:<r1>:<r2>:<r3>:<r4>"))' },
+    unverifiedForms: [
+      {
+        form: 'display.show(Image("<c0>:<c1>:<c2>:<c3>:<c4>"))',
+        reason:
+          'N17 B1. The digit is the palette index the editor writes for a coloured square (EVD-05, V·G), so the text is the editor\'s own; how the board shows digits 2–8 is UNVERIFIED: the accepted simulator drew 2 as yellow and 6 and 7 as magenta (EVD-13, C-70).',
+      },
+    ],
     fields: open({
       call: field([callShape('display.show(Image("r0:r1:r2:r3:r4"))')]),
       import: field([importLine('from yolobit import *')]),
@@ -270,6 +283,13 @@ const exposed: readonly ConstructContract[] = [
     ],
     modules: ['C-03b'],
     python: { form: "display.scroll('<text>')" },
+    unverifiedForms: [
+      {
+        form: "display.scroll('<text>', color='<#rrggbb>')",
+        reason:
+          'N17 B1: the scroll block takes a colour. UNVERIFIED: no evidence shows the editor or the board scrolling in a colour; the keyword `color` is assumed from the yolobit library\'s naming. Red writes the verified form, without it.',
+      },
+    ],
     fields: open({
       call: field([callShape("display.scroll('…')")]),
       import: field([importLine('from yolobit import *')]),
@@ -300,6 +320,12 @@ const exposed: readonly ConstructContract[] = [
     ],
     modules: ['C-03b'],
     python: { form: 'display.scroll(<n>)' },
+    unverifiedForms: [
+      {
+        form: "display.scroll(<n>, color='<#rrggbb>')",
+        reason: 'N17 B1: as for C-07, the keyword `color` of a coloured scroll is assumed and UNVERIFIED. Red writes the verified form, without it.',
+      },
+    ],
     fields: open({
       call: field([callShape('display.scroll(n)')]),
       import: field([importLine('from yolobit import *')]),
@@ -336,12 +362,52 @@ const exposed: readonly ConstructContract[] = [
     }),
   },
   {
+    id: 'C-05',
+    capability: 'display: built-in image',
+    tier: { 'ybc-basic': 'MUST', 'ybc-advanced': 'MUST' },
+    profiles: BOTH,
+    eligibility: 'RESTRICTED',
+    restrictions: [
+      'N17 B1 (owner, 2026-10-19, "Mô phỏng đủ chức năng"): reopened without copying a vendor asset',
+      'HEART, HEART_SMALL, HAPPY, SAD, CONFUSED, ANGRY, SURPRISED, YES and NO are names of the editor\'s list, written Image.<NAME>',
+      'ARROW_N, ARROW_E, ARROW_S and ARROW_W are not in the editor\'s list: written as an image of our own (the C-06 form), so the board shows what the simulator shows',
+      'the simulator draws the micro:bit MicroPython pictures (MIT); how the board draws a name of the editor is presentation, UNVERIFIED',
+      'red; replaces the whole frame; does not block',
+    ],
+    modules: ['C-03b'],
+    python: { form: 'display.show(Image.<name>)' },
+    observedPython: 'display.show(Image.HEART)',
+    fields: open({
+      call: field([callShape('display.show(Image.HEART)')]),
+      import: field([importLine('from yolobit import *')]),
+      module: field([moduleYolobit]),
+      range: field([
+        claim(
+          'call-shape',
+          'EVD-02',
+          'The editor offers HEART, HEART_SMALL, HAPPY, SMILE, SAD, CONFUSED, ANGRY, ASLEEP, SURPRISED, SILLY, FABULOUS, YES and NO; the block offers nine of them.',
+        ),
+      ]),
+      block: field([returnsAtOnce('show', 'EVD-06')]),
+      content: field([claim('display-transition', 'EVD-17', 'show replaces the whole frame.')]),
+    }),
+    domain: domain(
+      { name: 'str' },
+      oneOf('name', ['HEART', 'HEART_SMALL', 'HAPPY', 'SAD', 'CONFUSED', 'ANGRY', 'SURPRISED', 'YES', 'NO', 'ARROW_N', 'ARROW_E', 'ARROW_S', 'ARROW_W']),
+    ),
+    presentation: ['the 5×5 pattern of each picture (the micro:bit MicroPython table, MIT; the board draws its own)', 'LED colour on a computer screen'],
+  },
+  {
     id: 'C-10',
     capability: 'display: set one pixel',
-    tier: { 'ybc-advanced': 'MUST' },
-    profiles: ADVANCED,
+    tier: { 'ybc-basic': 'MUST', 'ybc-advanced': 'MUST' },
+    profiles: BOTH,
     eligibility: 'RESTRICTED',
-    restrictions: ['x and y in 0..4 (0-based, origin top-left, x column, y row)', 'one of the eight palette colours'],
+    restrictions: [
+      'x and y in 0..4 (0-based, origin top-left, x column, y row)',
+      'one of the eight palette colours, chosen with the colour block; written in lower case, as the editor\'s colour field writes it',
+      'N17 B1, Review Focus 3: any other colour value (a name such as red, a short code, an empty text, a colour outside the palette) is shown red with a warning, never an error',
+    ],
     modules: ['C-03b'],
     python: { form: "display.set_pixel(<x>, <y>, '<#rrggbb>')" },
     fields: open({
@@ -355,21 +421,21 @@ const exposed: readonly ConstructContract[] = [
       coord: field([claim('documented', 'DOC-W4', 'x is the column, y the row; origin top-left; 0-based.')], ['EVD-06']),
       content: field([callShape("The colour is a '#rrggbb' string.")], ['EVD-06']),
     }),
+    // The colour is not part of the domain since N17: it is never refused, only shown red (restrictions).
     domain: {
-      args: { x: 'int', y: 'int', colour: 'str' },
+      args: { x: 'int', y: 'int' },
       compileTime: [
         { when: between('x', 0, 4), diagnostic: 'value-out-of-range' },
         { when: between('y', 0, 4), diagnostic: 'value-out-of-range' },
-        { when: oneOf('colour', palette), diagnostic: 'value-out-of-range' },
       ],
-      runtime: all(between('x', 0, 4), between('y', 0, 4), oneOf('colour', palette)),
+      runtime: all(between('x', 0, 4), between('y', 0, 4)),
     },
   },
   {
     id: 'C-42',
     capability: 'display: clear one pixel',
-    tier: { 'ybc-advanced': 'MUST' },
-    profiles: ADVANCED,
+    tier: { 'ybc-basic': 'NICE', 'ybc-advanced': 'MUST' },
+    profiles: BOTH,
     eligibility: 'RESTRICTED',
     restrictions: ['x and y in 0..4 (0-based, origin top-left, x column, y row)'],
     modules: ['C-03b'],
@@ -390,10 +456,13 @@ const exposed: readonly ConstructContract[] = [
   {
     id: 'C-43',
     capability: 'display: set all pixels',
-    tier: { 'ybc-advanced': 'MUST' },
-    profiles: ADVANCED,
+    tier: { 'ybc-basic': 'MUST', 'ybc-advanced': 'MUST' },
+    profiles: BOTH,
     eligibility: 'RESTRICTED',
-    restrictions: ['one of the eight palette colours'],
+    restrictions: [
+      'one of the eight palette colours, chosen with the colour block; written in lower case',
+      'N17 B1, Review Focus 3: any other colour value is shown red with a warning, never an error',
+    ],
     modules: ['C-03b'],
     python: { form: "display.set_all('<#rrggbb>')" },
     fields: open({
@@ -401,11 +470,12 @@ const exposed: readonly ConstructContract[] = [
       import: field([importLine('from yolobit import *')]),
       module: field([moduleYolobit]),
       range: field([claim('encoding', 'EVD-05', 'The eight editor colours: #FF0000, #FFA500, #FFFF00, #00FF00, #0000FF, #4B0082, #800080, #FFFFFF.')]),
-      clamp: byDomain('Colours outside the palette are outside the domain (the editor produces `undefined` for them).'),
+      clamp: byDomain('A colour outside the palette (the editor produces `undefined` for one) is not written: since N17 it is shown red, with a warning.'),
       block: field([returnsAtOnce('set_all', 'EVD-28')]),
       content: field([ui('Tooltip: sets all the LEDs to the colour.')], ['EVD-06']),
     }),
-    domain: domain({ colour: 'str' }, oneOf('colour', palette)),
+    // A palette colour is the only one written; the closed predicates cannot say how another is turned red (restrictions).
+    domain: structural({ colour: 'str' }),
   },
   {
     id: 'C-12',
@@ -931,10 +1001,6 @@ const randomDomain: Domain = {
 };
 
 const withdrawnConstructs: readonly ConstructContract[] = [
-  withdrawn('C-05', 'display: built-in image', 'EXCLUDED', 'Asset of the vendor; replaced by C-06 (provenance).', {
-    observedPython: 'display.show(Image.HEART)',
-    fields: callOnly('display.show(Image.HEART)'),
-  }),
   withdrawn('C-11', 'display: brightness', 'EXCLUDED', 'The behaviour cannot be observed (EVD-13).', {
     observedPython: 'display.set_brightness(n)',
     fields: callOnly('display.set_brightness(n)'),
@@ -984,7 +1050,7 @@ const withdrawnConstructs: readonly ConstructContract[] = [
     observedPython: "music.play(['C4:8'], wait=True)",
   }),
   withdrawn('C-69', 'ultrasonic sensor', 'EXCLUDED', 'Depends on pulse_in (C-28). LATER.'),
-  withdrawn('C-70', 'image digits 2–8', 'EXCLUDED', 'OF-content is contradictory (colour table vs. display).', { observedPython: 'Image("2…")' }),
+  withdrawn('C-70', 'image digits 2–8', 'EXCLUDED', 'OF-content is contradictory (colour table vs. display, EVD-13). Not a construct of its own: since N17 B1 the colour field of C-06 writes digits 2–8 as an UNVERIFIED form of C-06.', { observedPython: 'Image("2…")' }),
   withdrawn('C-55', 'grouped exclusions', 'EXCLUDED', 'Domain, non-goal, or code that does not stand alone: serial block, floats and extended maths, map/constrain/to-number, wait-until, break/list, background run, Bluetooth/game/device blocks.', {
     alsoCovers: ['C-61', 'C-62', 'C-63', 'C-64', 'C-65', 'C-66'],
   }),

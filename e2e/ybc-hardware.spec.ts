@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
-  add, buttonPresses, buttonPressed, clearDisplay, cmp, getVar, ifElif, ifThen, images, lightLevel, num, playNote, print, program, rest,
-  scrollNumber, scrollText, setVar, showImage, text, wait, type ImageRows,
+  add, buttonPresses, buttonPressed, clearDisplay, clearPixel, cmp, colour, getVar, ifElif, ifThen, images, legacyShowImage, lightLevel, num, playNote,
+  print, program, rest, scrollNumber, scrollText, scrollTextIn, setAll, setPixel, setVar, showIcon, showImage, showImageIn, text, wait, type ImageRows,
 } from '../src/core/program/__fixtures__/ybc-blocks';
 import { canvasState, currentProject, expectSaved, openApp, openProject } from './helpers';
 
@@ -362,7 +362,13 @@ test.describe('the toolbox and the dropdowns', () => {
       expect(display).toMatch(/scroll text/);
       expect(display).toMatch(/scroll number/);
       expect(display).toMatch(/clear display/);
-      expect(display).not.toMatch(/brightness|pixel|colour|color|heart|graph/i);
+      // N17 B1: the RGB display, with the colour block red and the heart as the presets.
+      expect(display).toMatch(/show icon \| heart/);
+      expect(display).toMatch(/set light at column/);
+      expect(display).toMatch(/turn off light at column/);
+      expect(display).toMatch(/set all lights to/);
+      expect(display).toMatch(/\bred\b/);
+      expect(display).not.toMatch(/brightness|graph/i);
 
       const input = await flyoutTexts(page, 'Input');
       expect(input).toMatch(/is pressed/);
@@ -392,6 +398,75 @@ test.describe('the toolbox and the dropdowns', () => {
     expect(await optionsOf(/^C4$/)).toEqual(['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5']);
     expect(await optionsOf(/^4$/)).toEqual(['1', '2', '4']);
     expect(await optionsOf(/^2$/)).toEqual(['1', '2', '4']);
+  });
+});
+
+// N17 B1: the RGB display. Colours, one light, all lights and the built-in pictures, read off what the canvas drew.
+test.describe('the RGB display (N17 B1)', () => {
+  /** The 25 colours the canvas drew, '.' for a light that is off, row by row. */
+  async function displayColours(page: Page): Promise<string[] | undefined> {
+    const cells = (await canvasState(page)).components.find((component) => component.deviceType === 'ybc-board')?.display;
+    return cells && Array.from({ length: 5 }, (_, row) => cells.slice(row * 5, row * 5 + 5).map((cell) => cell ?? '.').join(' '));
+  }
+  const B = '#0000FF';
+  const G = '#00FF00';
+
+  test('fills the display blue, lights one green light at column 2, row 3, then turns it off, then shows the heart', async ({ page }) => {
+    await openProject(
+      page,
+      project(program([setAll(colour('#0000ff')), setPixel(num(2), num(3), colour('#00ff00')), wait(num(800)), clearPixel(num(2), num(3)), wait(num(800)), showIcon('HEART')])),
+    );
+    await run(page);
+    await expect.poll(() => displayColours(page)).toEqual([`${B} ${B} ${B} ${B} ${B}`, `${B} ${B} ${B} ${B} ${B}`, `${B} ${B} ${B} ${B} ${B}`, `${B} ${B} ${G} ${B} ${B}`, `${B} ${B} ${B} ${B} ${B}`]);
+    await expect.poll(() => displayColours(page)).toEqual([`${B} ${B} ${B} ${B} ${B}`, `${B} ${B} ${B} ${B} ${B}`, `${B} ${B} ${B} ${B} ${B}`, `${B} ${B} . ${B} ${B}`, `${B} ${B} ${B} ${B} ${B}`]);
+    await expectDisplay(page, ['01010', '11111', '11111', '01110', '00100']);
+    expect((await displayColours(page))?.join(' ').replaceAll('.', '').trim().split(/\s+/).every((cell) => cell === '#FF0000')).toBe(true);
+    await stop(page);
+    await expectDisplay(page, blank);
+  });
+
+  test('shows a picture in yellow and scrolls a green text; a picture saved before N17 is still red', async ({ page }) => {
+    await openProject(page, project(program([showImageIn(images.CROSS, '#ffff00'), wait(num(600)), scrollTextIn(text('A'), colour('#00ff00')), wait(num(600)), legacyShowImage(images.DOT)])));
+    await run(page);
+    await expect.poll(async () => (await displayColours(page))?.[0]).toBe('#FFFF00 . . . #FFFF00');
+    await expect.poll(async () => (await displayColours(page))?.[2]).toBe(`${G} ${G} ${G} ${G} ${G}`);
+    await expect.poll(async () => (await displayColours(page))?.[2]).toBe('. . #FF0000 . .');
+    await stop(page);
+  });
+
+  test('writes the Python of the RGB display: set_pixel, set_all, clear_pixel, Image.HEART, a palette digit and a coloured scroll', async ({ page }) => {
+    await openProject(
+      page,
+      project(program([setPixel(num(2), num(3), colour('#00ff00')), setAll(colour('#0000ff')), clearPixel(num(0), num(0)), showIcon('HEART'), showImageIn(images.DOT, '#ffa500'), scrollTextIn(text('Hi'), colour('#ffff00'))])),
+    );
+    const source = page.getByTestId('python-source');
+    await expect(source).toContainText("display.set_pixel(2, 3, '#00ff00')");
+    await expect(source).toContainText("display.set_all('#0000ff')");
+    await expect(source).toContainText('display.clear_pixel(0, 0)');
+    await expect(source).toContainText('display.show(Image.HEART)');
+    await expect(source).toContainText('display.show(Image("00000:00000:00200:00000:00000"))');
+    await expect(source).toContainText("display.scroll('Hi', color='#ffff00')");
+  });
+
+  test('runs a stored colour that is not one in red, and says so as a warning, not an error', async ({ page }) => {
+    // A program the editor did not write: Blockly itself would put red in the dropdown, so the warning comes from the compiler's reading of the document.
+    await openProject(page, project(program([setAll({ ...colour('#00ff00'), fields: { COLOUR: 'red' } })])));
+    await run(page);
+    await expect.poll(async () => (await displayColours(page))?.[0]).toBe('#FF0000 #FF0000 #FF0000 #FF0000 #FF0000');
+    await expect(runStatus(page)).not.toContainText(/error/i);
+    await stop(page);
+  });
+
+  test('chooses another colour in the colour block of the workspace', async ({ page }) => {
+    await openProject(page, project(program([setAll(colour('#ff0000'))])));
+    await page.getByTestId('blockly-panel').locator('.blocklyDropdownText', { hasText: 'red' }).first().click();
+    const options = await page.locator('.blocklyDropDownDiv .blocklyMenuItem').allInnerTexts();
+    expect(options).toEqual(['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'purple', 'white']);
+    await page.locator('.blocklyDropDownDiv .blocklyMenuItem', { hasText: 'purple' }).click();
+    await run(page);
+    await expect.poll(async () => (await displayColours(page))?.[4]).toBe('#800080 #800080 #800080 #800080 #800080');
+    await stop(page);
+    await expect(page.getByTestId('python-source')).toContainText("display.set_all('#800080')");
   });
 });
 

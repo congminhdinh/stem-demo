@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { hardwareConstructs } from '../constructs/ybc';
-import { clearDisplayType, DISPLAY_CHAR_FROM, DISPLAY_CHAR_TO, pixelFieldName, scrollNumberType, scrollTextType, showImageType } from '../constructs/ybc.display';
+import {
+  clearDisplayType, clearPixelType, colourType, DISPLAY_CHAR_FROM, DISPLAY_CHAR_TO, pixelFieldName, scrollNumberType, scrollTextType, setAllType, setPixelType,
+  showIconType, showImageType,
+} from '../constructs/ybc.display';
 import { buttonNames, buttonPressedType, buttonPressesType, lightLevelType } from '../constructs/ybc.input';
 import { noteNames, noteTicks, playNoteType, restType } from '../constructs/ybc.sound';
 import { localDeviceDefinitions } from '../devices/local-catalog';
@@ -9,8 +12,8 @@ import { createDeviceRegistry } from '../devices/registry';
 import { productionProfiles } from '../profiles';
 import { capabilitiesOf } from '../profiles/board-context';
 import {
-  add, and, bool, buttonPressed, buttonPresses, clearDisplay, cmp, getVar, ifElif, ifThen, images, join, lightLevel, mul, not, num, or, playNote, print, program,
-  repeat, rest, scrollNumber, scrollText, setVar, showImage, text, wait, whileLoop, type ImageRows, type Json,
+  add, and, bool, buttonPressed, buttonPresses, clearDisplay, clearPixel, cmp, colour, getVar, ifElif, ifThen, images, join, lightLevel, mul, not, num, or,
+  playNote, print, program, repeat, rest, scrollNumber, scrollText, setAll, setPixel, setVar, showIcon, showImage, text, wait, whileLoop, type ImageRows, type Json,
 } from './__fixtures__/ybc-blocks';
 import { createBlockPackCatalog } from './block-packs';
 import { compileYbcProgram, type YbcCompileResult } from './compile-ybc-program';
@@ -135,13 +138,18 @@ describe('the IR of each hardware block', () => {
   });
 
   it('compiles a block of every hardware construct, and of nothing else', () => {
+    // The colour block is a statement of none: it is in a colour input of set pixel and set all here (N17 B1).
     const everything = [
       showImage(images.CROSS), scrollText(text('x')), scrollNumber(num(1)), clearDisplay(), playNote('C3', 1), rest(1),
       print(buttonPressed('A')), print(buttonPresses('A')), print(lightLevel()),
+      showIcon('HEART'), setPixel(num(1), num(2), colour('#00ff00')), clearPixel(num(1), num(2)), setAll(colour('#ffffff')),
     ];
     expect(onStart(main(...everything))).toHaveLength(everything.length);
     expect(hardwareConstructs.flatMap((construct) => construct.blockTypes).sort()).toEqual(
-      [showImageType, scrollTextType, scrollNumberType, clearDisplayType, playNoteType, restType, buttonPressedType, buttonPressesType, lightLevelType].sort(),
+      [
+        showImageType, scrollTextType, scrollNumberType, clearDisplayType, playNoteType, restType, buttonPressedType, buttonPressesType, lightLevelType,
+        showIconType, setPixelType, colourType, clearPixelType, setAllType,
+      ].sort(),
     );
   });
 });
@@ -150,7 +158,7 @@ describe('"show image" (C-06): the 25 checkboxes', () => {
   it('puts the cell of column x and row y at index y * 5 + x: a lone lit cell at column 3, row 1 is pixel 8', () => {
     const picture: ImageRows = ['00000', '00010', '00000', '00000', '00000'];
     const [statement] = onStart(main(showImage(picture)));
-    const pixels = statement?.kind === 'call' && statement.op === 'display.show' ? statement.operand.image.pixels : [];
+    const pixels = statement?.kind === 'call' && statement.op === 'display.show' ? (statement.operand.image.source === 'custom' ? statement.operand.image.pixels : []) : [];
     expect(pixels).toHaveLength(25);
     expect(pixels[1 * 5 + 3]).toBe(true);
     expect(pixels.filter(Boolean)).toHaveLength(1);
@@ -162,7 +170,7 @@ describe('"show image" (C-06): the 25 checkboxes', () => {
       for (let column = 0; column < 5; column++) {
         const block = { ...showImage(images.DOT), fields: Object.fromEntries(Array.from({ length: 25 }, (_, index) => [`R${Math.floor(index / 5)}C${index % 5}`, index === row * 5 + column])) };
         const [statement] = onStart(main(block));
-        const pixels = statement?.kind === 'call' && statement.op === 'display.show' ? statement.operand.image.pixels : [];
+        const pixels = statement?.kind === 'call' && statement.op === 'display.show' ? (statement.operand.image.source === 'custom' ? statement.operand.image.pixels : []) : [];
         expect(pixels.indexOf(true), `row ${row} column ${column}`).toBe(row * 5 + column);
         expect(pixels.filter(Boolean), `row ${row} column ${column}`).toHaveLength(1);
       }
@@ -178,13 +186,13 @@ describe('"show image" (C-06): the 25 checkboxes', () => {
 
   it.each(Object.entries(images))('keeps the picture %s: lit cells lit, the others off', (_name, rows) => {
     const [statement] = onStart(main(showImage(rows)));
-    expect(statement?.kind === 'call' && statement.op === 'display.show' && statement.operand.image.pixels).toEqual(pixelsOf(rows));
+    expect(statement?.kind === 'call' && statement.op === 'display.show' && (statement.operand.image.source === 'custom' ? statement.operand.image.pixels : [])).toEqual(pixelsOf(rows));
   });
 
   it('reads a checkbox that Blockly never saved as unticked', () => {
     const block = withFields(showImage(images.FULL), { R1C3: true });
     const [statement] = onStart(main(block));
-    const pixels = statement?.kind === 'call' && statement.op === 'display.show' ? statement.operand.image.pixels : [];
+    const pixels = statement?.kind === 'call' && statement.op === 'display.show' ? (statement.operand.image.source === 'custom' ? statement.operand.image.pixels : []) : [];
     expect(pixels.indexOf(true)).toBe(8);
     expect(pixels.filter(Boolean)).toHaveLength(1);
   });
@@ -212,7 +220,7 @@ describe('"show image" (C-06): the 25 checkboxes', () => {
   it('ignores a field that is not a square: nothing else is read from the block', () => {
     const block = withFields(showImage(images.RING), { ...(showImage(images.RING).fields as Json), EXTRA: 'x', R5C0: true, R0C5: true });
     const [statement] = onStart(main(block));
-    expect(statement?.kind === 'call' && statement.op === 'display.show' && statement.operand.image.pixels).toEqual(pixelsOf(images.RING));
+    expect(statement?.kind === 'call' && statement.op === 'display.show' && (statement.operand.image.source === 'custom' ? statement.operand.image.pixels : [])).toEqual(pixelsOf(images.RING));
   });
 });
 

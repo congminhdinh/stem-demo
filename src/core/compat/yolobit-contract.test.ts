@@ -94,7 +94,7 @@ describe('the contract data', () => {
 
 describe('rows and eligibility (contract §15)', () => {
   const eligibleOrRestricted: [string, 'ELIGIBLE' | 'RESTRICTED'][] = [
-    ['C-01', 'ELIGIBLE'], ['C-02', 'ELIGIBLE'], ['C-04', 'ELIGIBLE'], ['C-06', 'RESTRICTED'], ['C-07', 'RESTRICTED'],
+    ['C-01', 'ELIGIBLE'], ['C-02', 'ELIGIBLE'], ['C-04', 'ELIGIBLE'], ['C-05', 'RESTRICTED'], ['C-06', 'RESTRICTED'], ['C-07', 'RESTRICTED'],
     ['C-08', 'RESTRICTED'], ['C-09', 'ELIGIBLE'], ['C-10', 'RESTRICTED'], ['C-42', 'RESTRICTED'], ['C-43', 'RESTRICTED'],
     ['C-12', 'RESTRICTED'], ['C-13', 'RESTRICTED'], ['C-15', 'ELIGIBLE'], ['C-16', 'RESTRICTED'], ['C-50', 'RESTRICTED'],
     ['C-51', 'RESTRICTED'], ['C-23', 'RESTRICTED'], ['C-24', 'RESTRICTED'], ['C-25', 'RESTRICTED'], ['C-27', 'RESTRICTED'],
@@ -103,7 +103,7 @@ describe('rows and eligibility (contract §15)', () => {
     ['C-39', 'RESTRICTED'], ['C-56', 'ELIGIBLE'], ['C-57', 'ELIGIBLE'], ['C-58', 'RESTRICTED'], ['C-59', 'RESTRICTED'],
   ];
   const excluded = [
-    'C-05', 'C-11', 'C-17', 'C-18', 'C-19', 'C-20', 'C-21', 'C-22', 'C-26', 'C-28', 'C-40', 'C-41', 'C-44', 'C-45',
+    'C-11', 'C-17', 'C-18', 'C-19', 'C-20', 'C-21', 'C-22', 'C-26', 'C-28', 'C-40', 'C-41', 'C-44', 'C-45',
     'C-46', 'C-47', 'C-48', 'C-49', 'C-52', 'C-53', 'C-54', 'C-55', 'C-60', 'C-69', 'C-70',
   ];
 
@@ -154,16 +154,41 @@ describe('rows and eligibility (contract §15)', () => {
   });
 
   it('keeps the Advanced-only constructs out of Basic', () => {
-    expect(row('C-10').profiles).toEqual(['ybc-advanced']);
     expect(row('C-16').profiles).toEqual(['ybc-advanced']);
     expect(row('C-27').profiles).toEqual(['ybc-advanced']);
     expect(row('C-06').profiles).toEqual(['ybc-basic', 'ybc-advanced']);
+  });
+
+  it('opens the RGB display to both profiles (N17 B1): built-in pictures, set pixel, clear pixel, set all', () => {
+    for (const id of ['C-05', 'C-10', 'C-42', 'C-43']) {
+      expect(row(id).profiles, id).toEqual(['ybc-basic', 'ybc-advanced']);
+    }
+  });
+
+  it('names the UNVERIFIED forms of N17 B1 on the rows that write them, each with a reason, and on no other row', () => {
+    const named = contract.constructs.filter((c) => (c.unverifiedForms?.length ?? 0) > 0);
+    expect(named.map((c) => [c.id, c.unverifiedForms?.map((extra) => extra.form)])).toEqual([
+      ['C-06', ['display.show(Image("<c0>:<c1>:<c2>:<c3>:<c4>"))']],
+      ['C-07', ["display.scroll('<text>', color='<#rrggbb>')"]],
+      ['C-08', ["display.scroll(<n>, color='<#rrggbb>')"]],
+    ]);
+    for (const construct of named) {
+      for (const extra of construct.unverifiedForms ?? []) {
+        expect(extra.reason, `${construct.id}: ${extra.form}`).toMatch(/UNVERIFIED/);
+      }
+    }
+  });
+
+  it('refuses UNVERIFIED forms on an excluded row: they are never a way around the gate', () => {
+    const broken = { ...contract, constructs: contract.constructs.map((c) => (c.id === 'C-40' ? { ...c, unverifiedForms: [{ form: 'random.randint(<a>, <b>)', reason: 'UNVERIFIED' }] } : c)) };
+    expect(validateContract(broken).join('\n')).toContain('C-40 is EXCLUDED but has UNVERIFIED forms');
   });
 });
 
 describe('simDependent, derived per field (contract §15.1 last column)', () => {
   const expected: Record<string, string[]> = {
     'C-01': [], 'C-02': [], 'C-04': [],
+    'C-05': ['module', 'block', 'content'],
     'C-06': ['module', 'block', 'content'],
     'C-07': ['module', 'unit', 'range', 'block', 'coord', 'content'],
     'C-08': ['module', 'unit', 'range', 'block', 'coord', 'content'],
@@ -238,7 +263,7 @@ describe('RV-1: what the simulator may establish', () => {
   });
 
   it('would drop every hardware construct, and keep the language, if RV-1 were rejected (contract §22.3)', () => {
-    const hardware = ['C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-12', 'C-13', 'C-15', 'C-16', 'C-23', 'C-24', 'C-25', 'C-27', 'C-50', 'C-51'];
+    const hardware = ['C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-42', 'C-43', 'C-12', 'C-13', 'C-15', 'C-16', 'C-23', 'C-24', 'C-25', 'C-27', 'C-50', 'C-51'];
     for (const id of hardware) {
       expect(isExposable(row(id), contract, 'REJECTED'), id).toBe(false);
     }
@@ -265,7 +290,7 @@ describe('the exposure eligibility gate (EG)', () => {
 
   it('shows no excluded or deferred row to either profile', () => {
     const shown = new Set([...exposableConstructs(contract, 'ybc-basic'), ...exposableConstructs(contract, 'ybc-advanced')].map((c) => c.id));
-    for (const id of ['C-14', 'C-19', 'C-26', 'C-40', 'C-17', 'C-18', 'C-05', 'C-47']) {
+    for (const id of ['C-14', 'C-19', 'C-26', 'C-40', 'C-17', 'C-18', 'C-47', 'C-70']) {
       expect(shown.has(id), id).toBe(false);
     }
   });
@@ -448,6 +473,7 @@ describe('OF-block evidence (review R2)', () => {
   };
 
   it.each([
+    ['C-05', 'show', ['blocking:EVD-06']],
     ['C-06', 'show', ['blocking:EVD-06']],
     ['C-09', 'clear', ['blocking:EVD-06']],
     ['C-10', 'set_pixel', ['blocking:EVD-06']],
@@ -489,8 +515,9 @@ describe('profiles against the contract', () => {
     expect(profileConstructViolations('ybc-basic', ['C-99'], contract)).not.toEqual([]);
     expect(profileConstructViolations('ybc-basic', ['C-40'], contract)).not.toEqual([]);
     expect(profileConstructViolations('ybc-basic', ['C-14'], contract)).not.toEqual([]);
-    expect(profileConstructViolations('ybc-basic', ['C-10'], contract)).not.toEqual([]);
-    expect(profileConstructViolations('ybc-advanced', ['C-10'], contract)).toEqual([]);
+    expect(profileConstructViolations('ybc-basic', ['C-16'], contract)).not.toEqual([]);
+    expect(profileConstructViolations('ybc-advanced', ['C-16'], contract)).toEqual([]);
+    expect(profileConstructViolations('ybc-basic', ['C-10'], contract)).toEqual([]);
     expect(profileConstructViolations('test-base', ['C-01'], contract)).not.toEqual([]);
   });
 });
@@ -553,14 +580,27 @@ describe('relational restrictions (contract §21 invariant 10)', () => {
     expect(ok(0, 1023 + 4000)).toBe(false);
   });
 
-  it('allows display coordinates 0..4 only, and the eight palette colours', () => {
+  it('allows display coordinates 0..4 only; the colour is not in the domain since N17: it is never refused, only shown red', () => {
     const domain = row('C-10').domain;
-    const ok = (x: number, y: number, colour: string) => domain !== undefined && evaluatePred(domain.runtime, { values: { x, y, colour } });
-    expect(ok(0, 0, '#FF0000')).toBe(true);
-    expect(ok(4, 4, '#FFFFFF')).toBe(true);
-    expect(ok(5, 0, '#FF0000')).toBe(false);
-    expect(ok(0, -1, '#FF0000')).toBe(false);
-    expect(ok(0, 0, '#123456')).toBe(false);
+    const ok = (x: number, y: number) => domain !== undefined && evaluatePred(domain.runtime, { values: { x, y } });
+    expect(ok(0, 0)).toBe(true);
+    expect(ok(4, 4)).toBe(true);
+    expect(ok(5, 0)).toBe(false);
+    expect(ok(0, -1)).toBe(false);
+    expect(domain?.args).toEqual({ x: 'int', y: 'int' });
+    expect(row('C-10').restrictions.join(' ')).toMatch(/shown red with a warning, never an error/);
+    expect(row('C-43').restrictions.join(' ')).toMatch(/shown red with a warning, never an error/);
+  });
+
+  it('allows the thirteen built-in pictures of N17 B1 and no other name', () => {
+    const domain = row('C-05').domain;
+    const ok = (name: string) => domain !== undefined && evaluatePred(domain.runtime, { values: { name } });
+    for (const name of ['HEART', 'HEART_SMALL', 'HAPPY', 'SAD', 'CONFUSED', 'ANGRY', 'SURPRISED', 'YES', 'NO', 'ARROW_N', 'ARROW_E', 'ARROW_S', 'ARROW_W']) {
+      expect(ok(name), name).toBe(true);
+    }
+    for (const name of ['SMILE', 'ASLEEP', 'heart', '', 'ARROW_NE']) {
+      expect(ok(name), name).toBe(false);
+    }
   });
 });
 
@@ -580,11 +620,12 @@ describe('the generator allowlist (contract §21 invariant 9)', () => {
 
   it('has nothing from an excluded or deferred row, nor the random module', () => {
     const text = JSON.stringify(allowlist);
-    for (const word of ['random', 'running_time', 'on_pressed = f', 'write_analog', 'show_graph', 'Image.HEART', 'set_brightness', 'pitch', 'is_pressed_ab']) {
+    for (const word of ['random', 'running_time', 'on_pressed = f', 'write_analog', 'show_graph', 'set_brightness', 'pitch', 'is_pressed_ab']) {
       expect(text, word).not.toContain(word);
     }
+    // The verified form of every exposable row, and the UNVERIFIED forms that N17 rows name.
     expect(allowlist.forms.length).toBe(
-      new Set(contract.constructs.filter((c) => isExposable(c, contract)).map((c) => c.python?.form)).size,
+      new Set(contract.constructs.filter((c) => isExposable(c, contract)).flatMap((c) => [c.python?.form, ...(c.unverifiedForms ?? []).map((extra) => extra.form)])).size,
     );
   });
 });

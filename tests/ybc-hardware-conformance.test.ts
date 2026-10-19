@@ -2,7 +2,9 @@ import * as Blockly from 'blockly';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Frame } from '../src/core/capabilities/frame';
 import type { Capabilities } from '../src/core/capabilities/io';
-import { clearDisplayType, pixelFieldName, scrollNumberType, scrollTextType, showImageType } from '../src/core/constructs/ybc.display';
+import {
+  clearDisplayType, clearPixelType, colourType, pixelFieldName, scrollNumberType, scrollTextType, setAllType, setPixelType, showIconType, showImageType,
+} from '../src/core/constructs/ybc.display';
 import { buttonPressedType, buttonPressesType, lightLevelType } from '../src/core/constructs/ybc.input';
 import { noteNames, noteTicks, playNoteType, restType } from '../src/core/constructs/ybc.sound';
 import { localDeviceDefinitions } from '../src/core/devices/local-catalog';
@@ -14,9 +16,10 @@ import { buildToolbox, createBlockPackCatalog } from '../src/core/program/block-
 import { compileYbcProgram } from '../src/core/program/compile-ybc-program';
 import { createRunConsole } from '../src/core/program/console';
 import {
-  buttonPressed, buttonPresses, chain, clearDisplay, images, lightLevel, playNote, print, program, rest, scrollNumber, scrollText, showImage, text, num,
-  type ImageRows, type Json,
+  buttonPressed, buttonPresses, chain, clearDisplay, clearPixel, colour, images, legacyShowImage, lightLevel, playNote, print, program, rest, scrollNumber,
+  scrollText, setAll, setPixel, showIcon, showImage, showImageIn, text, num, type ImageRows, type Json,
 } from '../src/core/program/__fixtures__/ybc-blocks';
+import { generateYbcMicroPython } from '../src/core/codegen/yolobit/generate';
 import { runYbc } from '../src/core/program/__fixtures__/run-ybc';
 import { noteHz } from '../src/core/simulation/peripherals/sound';
 import { canOpenProgram, registerBlocks } from '../src/ui/blockly/editor-blocks';
@@ -189,8 +192,10 @@ describe('"show image" as real Blockly builds it', () => {
     try {
       const block = workspace.newBlock(showImageType);
       const rows = block.inputList.map((input) => input.fieldRow.filter((field) => field.name !== undefined));
-      // The first input holds the label; each of the five after it holds one row of the picture.
-      expect(rows.map((fields) => fields.length)).toEqual([0, 5, 5, 5, 5, 5]);
+      // The first input holds the label and the colour field of N17 B1; each of the five after it holds one row of the picture.
+      expect(rows.map((fields) => fields.length)).toEqual([1, 5, 5, 5, 5, 5]);
+      expect(rows[0]?.[0]?.name).toBe('COLOUR');
+      expect(block.getFieldValue('COLOUR')).toBe('#ff0000');
       rows.slice(1).forEach((fields, row) => {
         expect(fields.map((field) => field.name)).toEqual([0, 1, 2, 3, 4].map((column) => `R${row}C${column}`));
         for (const field of fields) {
@@ -215,7 +220,9 @@ describe('"show image" as real Blockly builds it', () => {
       plug(onStart, 'DO', block);
     });
     expect(savedBlock(saved)).toEqual(fixture);
-    expect(Object.keys(asRecord(asRecord(savedBlock(saved)).fields))).toHaveLength(25);
+    // The colour field first, red (N17 B1), then every square.
+    expect(Object.keys(asRecord(asRecord(savedBlock(saved)).fields))).toHaveLength(26);
+    expect(Object.keys(asRecord(asRecord(savedBlock(saved)).fields))[0]).toBe('COLOUR');
   });
 
   it('saves a lone lit square at column 3, row 1 under R1C3', () => {
@@ -472,10 +479,11 @@ describe('the preset values of the toolbox, as real Blockly creates the blocks',
     });
   }
 
-  it('finds the eleven blocks the toolbox offers for the hardware', () => {
-    // Show image, scroll text, scroll number, clear; button pressed A and B, presses A and B, light; note, rest.
+  it('finds the fifteen blocks the toolbox offers for the hardware', () => {
+    // Show image, show icon, scroll text, scroll number, clear, set / clear one light, set all (N17 B1, the colour block is in the
+    // colour inputs and after them); button pressed A and B, presses A and B, light; note, rest.
     expect(presets.map((preset) => preset.type)).toEqual([
-      showImageType, scrollTextType, scrollNumberType, clearDisplayType,
+      showImageType, showIconType, scrollTextType, scrollNumberType, clearDisplayType, setPixelType, clearPixelType, setAllType,
       buttonPressedType, buttonPressedType, buttonPressesType, buttonPressesType, lightLevelType,
       playNoteType, restType,
     ]);
@@ -614,5 +622,95 @@ describe('a picture with all 25 squares lit, and the stored programs that hold t
     expect(canOpenProgram(stored, packs)).toBe(true);
     // A lowered profile that does not show the blocks still opens the document, and Run refuses it with unknown-block.
     expect(compileYbcProgram(stored, structureOnly).diagnostics.map((d) => d.code)).toEqual(['unknown-block', 'unknown-block']);
+  });
+});
+
+// N17 B1: the RGB display as real Blockly builds, saves and reloads it. A block saved before N17 opens and runs as it did.
+describe('the RGB display as real Blockly builds it (N17 B1)', () => {
+  let warn: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    warn.mockRestore();
+  });
+
+  it('saves "set light", "turn off light" and "set all" with their number and colour blocks as the fixtures write them, and runs them', async () => {
+    const fixtures = [setPixel(num(2), num(3), colour('#00ff00')), clearPixel(num(2), num(3)), setAll(colour('#0000ff'))];
+    const inputBlock = (fixture: Json, name: string) => asRecord(asRecord(asRecord(fixture.inputs)[name]).block ?? asRecord(asRecord(fixture.inputs)[name]).shadow);
+    const saved = build((workspace, onStart) => {
+      const set = newBlock(workspace, setPixelType, String(fixtures[0]?.id));
+      plug(set, 'X', newBlock(workspace, 'math_number', String(inputBlock(fixtures[0] ?? {}, 'X').id), { NUM: 2 }));
+      plug(set, 'Y', newBlock(workspace, 'math_number', String(inputBlock(fixtures[0] ?? {}, 'Y').id), { NUM: 3 }));
+      const green = newBlock(workspace, colourType, String(inputBlock(fixtures[0] ?? {}, 'COLOUR').id), { COLOUR: '#00ff00' });
+      plug(set, 'COLOUR', green);
+      const clear = newBlock(workspace, clearPixelType, String(fixtures[1]?.id));
+      plug(clear, 'X', newBlock(workspace, 'math_number', String(inputBlock(fixtures[1] ?? {}, 'X').id), { NUM: 2 }));
+      plug(clear, 'Y', newBlock(workspace, 'math_number', String(inputBlock(fixtures[1] ?? {}, 'Y').id), { NUM: 3 }));
+      const all = newBlock(workspace, setAllType, String(fixtures[2]?.id));
+      plug(all, 'COLOUR', newBlock(workspace, colourType, String(inputBlock(fixtures[2] ?? {}, 'COLOUR').id), { COLOUR: '#0000ff' }));
+      stack(onStart, 'DO', set, clear, all);
+    });
+    // The fixture puts the colour block in as a shadow, as the toolbox does; a block the learner drags in is a real block.
+    const asReal = (fixture: Json): Json => JSON.parse(JSON.stringify(fixture).replaceAll('"shadow":', '"block":')) as Json;
+    expect(savedBlock(saved)).toEqual(chain(fixtures.map(asReal)));
+    const { frames, outcome } = await compileAndRun(saved);
+    expect(outcome).toEqual({ status: 'finished' });
+    expect(frames.map((frame) => frame.pixels.filter((pixel) => pixel !== null).length)).toEqual([1, 0, 25]);
+    expect(frames[0]?.pixels[3 * 5 + 2]).toBe('#00FF00');
+    expect(frames[2]?.pixels.every((pixel) => pixel === '#0000FF')).toBe(true);
+  });
+
+  it('saves "show icon" with the name of its picture, and shows the heart', async () => {
+    const fixture = showIcon('HEART');
+    const saved = build((workspace, onStart) => {
+      plug(onStart, 'DO', newBlock(workspace, showIconType, String(fixture.id), { ICON: 'HEART' }));
+    });
+    expect(savedBlock(saved)).toEqual(fixture);
+    const { frames } = await compileAndRun(saved);
+    expect(frames[0]?.pixels.map((pixel) => (pixel === null ? '0' : '1')).join('')).toBe('0101011111111110111000100');
+  });
+
+  it('saves a picture in a colour with its colour field, and lights it in that colour', async () => {
+    const fixture = showImageIn(images.DOT, '#ffff00');
+    const saved = build((workspace, onStart) => {
+      const block = newBlock(workspace, showImageType, String(fixture.id), { COLOUR: '#ffff00' });
+      lightSquares(block, images.DOT);
+      plug(onStart, 'DO', block);
+    });
+    expect(savedBlock(saved)).toEqual(fixture);
+    const { frames } = await compileAndRun(saved);
+    expect(frames[0]?.pixels[12]).toBe('#FFFF00');
+  });
+
+  it('opens a picture saved before N17 (no colour field) in red, saves it with the red field, and writes the same Python', () => {
+    const old = program([legacyShowImage(images.CROSS)]);
+    expect(canOpenProgram(old, packs)).toBe(true);
+    const saved = reload(old);
+    expect(asRecord(asRecord(savedBlock(saved)).fields).COLOUR).toBe('#ff0000');
+    const python = (blocks: unknown) => {
+      const compiled = compileYbcProgram(blocks, exposed, undefined, boardTarget);
+      const generated = compiled.ok ? generateYbcMicroPython(compiled.ir) : null;
+      return generated?.ok ? generated.source : JSON.stringify(compiled.diagnostics);
+    };
+    expect(python(saved)).toBe(python(old));
+    expect(python(old)).toContain('display.show(Image("10001:01010:00100:01010:10001"))');
+  });
+
+  it('opens a scroll saved before N17 (no colour input) and saves it back exactly as it was', () => {
+    const old = program([scrollText(text('Hi')), scrollNumber(num(7))]);
+    expect(canOpenProgram(old, packs)).toBe(true);
+    expect(savedBlock(reload(old))).toEqual(savedBlock(old));
+  });
+
+  it.each(['red', '#ff00', '', '#123456'])('replaces the colour %j, which the dropdown does not offer, by red when it loads; the raw JSON compiles red with a warning', (value) => {
+    const raw = program([setAll({ ...colour('#00ff00'), fields: { COLOUR: value } })]);
+    const compiled = compileYbcProgram(raw, exposed, undefined, boardTarget);
+    expect(compiled.ok).toBe(true);
+    expect(compiled.diagnostics.map((diagnostic) => [diagnostic.severity, diagnostic.code])).toEqual([['warning', 'invalid-colour']]);
+    const saved = reload(raw);
+    const shadow = asRecord(asRecord(asRecord(asRecord(savedBlock(saved)).inputs).COLOUR).shadow);
+    expect(asRecord(shadow.fields).COLOUR).toBe('#ff0000');
+    expect(compileYbcProgram(saved, exposed, undefined, boardTarget).diagnostics).toEqual([]);
   });
 });

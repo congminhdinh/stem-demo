@@ -1,6 +1,7 @@
 import {
-  add, and, bool, buttonPressed, buttonPresses, clearDisplay, cmp, countUp, getVar, ifElif, ifThen, images, join, lightLevel, mul, num, or,
-  playNote, print, program, rest, scrollNumber, scrollText, setVar, showImage, text, wait, type Json,
+  add, and, bool, buttonPressed, buttonPresses, clearDisplay, clearPixel, cmp, colour, countUp, getVar, ifElif, ifThen, images, join, lightLevel, mul,
+  num, or, playNote, print, program, rest, scrollNumber, scrollNumberIn, scrollText, scrollTextIn, setAll, setPixel, setVar, showIcon, showImage,
+  showImageIn, text, wait, type Json,
 } from '../../../program/__fixtures__/ybc-blocks';
 import { noteNames, noteTicks } from '../../../constructs/ybc.sound';
 
@@ -93,5 +94,31 @@ export const hardwareCases: HardwareCase[] = [
     name: 'count-up-reads-bounds-once',
     covers: ['C-13', 'C-39', 'C-29'],
     blocks: program([countUp('i', buttonPresses('A'), buttonPresses('A'), 1, [print(getVar('i'))])], undefined, ['x', 'y', 'z', 'i']),
+  },
+  // N17 B1: built-in pictures. The vendor's names are written `Image.<NAME>` (investigation §5.3); the arrows, which the vendor's
+  // editor does not offer, are written as a picture of our own (the C-06 form), so the board shows what the simulator shows.
+  {
+    name: 'builtin-icons',
+    covers: ['C-05', 'C-04', 'C-06'],
+    blocks: program([showIcon('HEART'), wait(num(500)), showIcon('ARROW_N'), showIcon('HAPPY')]),
+  },
+  // N17 B1: the RGB display: fill, one pixel, one pixel off, a coloured picture (the palette digit), a coloured text and number.
+  {
+    name: 'pixels-and-colours',
+    covers: ['C-43', 'C-10', 'C-42', 'C-06', 'C-07', 'C-08'],
+    blocks: program([
+      setAll(colour('#0000ff')),
+      setPixel(num(2), num(3), colour('#00ff00')),
+      clearPixel(num(0), num(0)),
+      showImageIn(images.CROSS, '#ffa500'),
+      scrollTextIn(text('Hi'), colour('#ffff00')),
+      scrollNumberIn(num(42), colour('#ffffff')),
+    ]),
+  },
+  // N17 B1: a light that walks along row 2: computed coordinates, each pixel set and then cleared.
+  {
+    name: 'pixel-walk',
+    covers: ['C-10', 'C-42', 'C-39', 'C-04'],
+    blocks: program([], [countUp('x', num(0), num(4), 1, [setPixel(getVar('x'), num(2), colour('#ff0000')), wait(num(100)), clearPixel(getVar('x'), num(2))])]),
   },
 ];

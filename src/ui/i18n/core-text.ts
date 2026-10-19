@@ -32,6 +32,8 @@ const terms: Readonly<Record<string, string>> = {
   'set pin': 'đặt chân',
   set: 'đặt',
   'analog read': 'đọc tương tự',
+  'set light': 'bật đèn',
+  'turn off light': 'tắt đèn',
 };
 
 /** Blockly's own blocks that the core may name by type; the custom blocks are named by their Vietnamese text. */
@@ -70,6 +72,8 @@ const quantities: Readonly<Record<string, string>> = {
   'The product': 'Tích',
   'The quotient': 'Thương',
   'The remainder': 'Số dư',
+  'The column': 'Cột',
+  'The row': 'Hàng',
 };
 
 /** The capabilities a board may lack (constructs' `capability`). */
@@ -182,6 +186,12 @@ export const coreMessageRules: readonly Rule[] = [
   [/^A comparison needs its operator\.$/, () => 'Khối so sánh cần chọn phép so sánh.'],
   [/^A logic block needs "and" or "or"\.$/, () => 'Khối logic cần "và" hoặc "hoặc".'],
   [/^Every square of a picture is either lit or not\.$/, () => 'Mỗi ô của hình chỉ sáng hoặc tắt.'],
+  // The RGB display (N17 B1): a colour that is not one is shown red, with a warning.
+  [/^A picture block needs its picture\.$/, () => 'Khối hình có sẵn cần chọn hình.'],
+  [/^A picture is one of the built-in pictures of the display\.$/, () => 'Hình phải là một hình có sẵn của màn hình.'],
+  [/^A colour block needs its colour, so it is shown red\.$/, () => 'Khối màu chưa có màu, nên đèn sáng màu đỏ.'],
+  [/^The colour "(.*)" is not one of the display's colours, so it is shown red\.$/, (colour) => `Màu "${colour}" không phải một màu của màn hình, nên đèn sáng màu đỏ.`],
+  [/^"(.+)" is not a colour, so it is shown red\.$/, (type) => `Khối "${blockName(type)}" không phải một màu, nên đèn sáng màu đỏ.`],
   // Values and limits
   [/^Only \+, − and × are supported; use \/\/ for whole-number division\.$/, () => 'Chỉ có +, − và ×; dùng // để chia lấy phần nguyên.'],
   [/^This arithmetic block is not available here; use the \+ − × block of this profile\.$/, () => 'Khối phép tính này không dùng ở đây; dùng khối + − × của cấp độ này.'],
@@ -227,6 +237,8 @@ export const coreMessageRules: readonly Rule[] = [
   [/^A text block was given another type\.$/, () => 'Khối chữ nhận một loại khác.'],
   [/^A number block was given another type\.$/, () => 'Khối số nhận một loại khác.'],
   [/^A note block names a note that does not exist\.$/, () => 'Khối nốt gọi một nốt không tồn tại.'],
+  [/^A picture block names a picture that does not exist\.$/, () => 'Khối hình gọi một hình không tồn tại.'],
+  [/^A light block was given the wrong number of values\.$/, () => 'Khối đèn nhận sai số giá trị.'],
   [/^This block is not known to the board\.$/, () => 'Bo mạch không biết khối này.'],
   [/^An int variable was given another type\.$/, () => 'Biến số nguyên nhận một loại khác.'],
   [/^A pin block was given the wrong number of values\.$/, () => 'Khối chân nhận sai số giá trị.'],

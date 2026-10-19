@@ -1,6 +1,7 @@
-import { DISPLAY_HEIGHT, DISPLAY_WIDTH, isFrame, type Frame, type HexColour } from '../../capabilities/frame';
+import { blankFrame, DISPLAY_HEIGHT, DISPLAY_WIDTH, frameIndex, isFrame, type Frame, type HexColour } from '../../capabilities/frame';
 import type { DisplayIO } from '../../capabilities/io';
-import { IMAGE_SIZE } from '../../constructs/ybc.display';
+import { DEFAULT_COLOUR, IMAGE_SIZE } from '../../constructs/ybc.display';
+import { builtinImagePixels, isBuiltinImageName, type BuiltinImageName } from '../../constructs/ybc.images';
 import type { ComponentState } from '../simulate-circuit';
 import { GLYPH_HEIGHT, GLYPH_WIDTH, glyphs } from './font';
 
@@ -19,14 +20,50 @@ export const SCROLL_STEP_MS = 200;
 export const COLUMNS_PER_CHARACTER = 6;
 
 /** Contract §4.3: the default colour of the text and of a lit light of a picture is red. */
-export const DISPLAY_COLOUR: HexColour = '#FF0000';
+export const DISPLAY_COLOUR: HexColour = DEFAULT_COLOUR;
 
-/** The frame of a picture the learner drew: cell (column x, row y) is `pixels[y * 5 + x]`, a lit one is red (contract C-06). */
-export function imageFrame(pixels: readonly boolean[]): Frame {
+/**
+ * The frame of a picture the learner drew: cell (column x, row y) is `pixels[y * 5 + x]`, a lit one in `colour` (contract C-06;
+ * red unless the colour field of N17 says otherwise).
+ */
+export function imageFrame(pixels: readonly boolean[], colour: HexColour = DISPLAY_COLOUR): Frame {
   if (pixels.length !== IMAGE_SIZE * IMAGE_SIZE) {
     throw new RangeError(`A picture has ${IMAGE_SIZE * IMAGE_SIZE} cells, not ${pixels.length}`);
   }
-  return { pixels: pixels.map((lit) => (lit ? DISPLAY_COLOUR : null)) };
+  return { pixels: pixels.map((lit) => (lit ? colour : null)) };
+}
+
+/** The frame of a built-in picture (C-05, N17 B1), in red: the micro:bit table of constructs/ybc.images.ts (presentation). */
+export function iconFrame(name: BuiltinImageName): Frame {
+  if (!isBuiltinImageName(name)) {
+    throw new RangeError(`"${String(name)}" is not a built-in picture`);
+  }
+  return imageFrame(builtinImagePixels(name));
+}
+
+/** Throws unless (x, y) is a cell of the display: the interpreter checks the domain first and names the block. */
+function cellIndex(x: number, y: number): number {
+  if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || x >= DISPLAY_WIDTH || y < 0 || y >= DISPLAY_HEIGHT) {
+    throw new RangeError(`(${x}, ${y}) is not a light of the display`);
+  }
+  return frameIndex(x, y);
+}
+
+/** C-10 (N17 B1): `frame` with the light at column x, row y in `colour`; a new frame, the one given is left as it was. */
+export function setPixelFrame(frame: Frame, x: number, y: number, colour: HexColour): Frame {
+  const index = cellIndex(x, y);
+  return { pixels: frame.pixels.map((pixel, at) => (at === index ? colour : pixel)) };
+}
+
+/** C-42 (N17 B1): `frame` with the light at column x, row y off. */
+export function clearPixelFrame(frame: Frame, x: number, y: number): Frame {
+  const index = cellIndex(x, y);
+  return { pixels: frame.pixels.map((pixel, at) => (at === index ? null : pixel)) };
+}
+
+/** C-43 (N17 B1): every light in `colour`. */
+export function setAllFrame(colour: HexColour): Frame {
+  return { pixels: blankFrame().pixels.map(() => colour) };
 }
 
 /** The characters of a text one by one; a character outside the BMP is one character, not two. */
@@ -45,13 +82,14 @@ function stripLit(characters: readonly string[], column: number, row: number): b
 /**
  * The frame after `step` one-column shifts of the text: the window of the strip that starts at column `step`.
  * Step 0 shows the first character against column 0; step `scrollSteps(n)` is empty. A text of one character
- * is shown with step 0 and stays (contract §4.2: "one character is shown without scrolling").
+ * is shown with step 0 and stays (contract §4.2: "one character is shown without scrolling"). The glyphs are in `colour`: red,
+ * unless the colour input of N17 says otherwise.
  */
-export function scrollFrame(characters: readonly string[], step: number): Frame {
+export function scrollFrame(characters: readonly string[], step: number, colour: HexColour = DISPLAY_COLOUR): Frame {
   const pixels: (HexColour | null)[] = [];
   for (let y = 0; y < DISPLAY_HEIGHT; y += 1) {
     for (let x = 0; x < DISPLAY_WIDTH; x += 1) {
-      pixels.push(stripLit(characters, step + x, y) ? DISPLAY_COLOUR : null);
+      pixels.push(stripLit(characters, step + x, y) ? colour : null);
     }
   }
   return { pixels };

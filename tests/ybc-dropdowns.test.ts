@@ -40,6 +40,13 @@ const allowed: Record<string, Record<string, string[]>> = {
   ybc_pin_write: { PIN: ['P0', 'P1', 'P2'], LEVEL: ['1', '0'] },
   ybc_pin_read: { PIN: ['P0', 'P1', 'P2'] },
   ybc_pin_analog: { PIN: ['P0', 'P1', 'P2'] },
+  // N17 B1, the RGB display: the eight palette colours of contract §4.4 (red first, as the editor's colour field writes them),
+  // and the thirteen built-in pictures (C-05: nine names of the editor's list and four arrows).
+  ybc_colour: { COLOUR: ['#ff0000', '#ffa500', '#ffff00', '#00ff00', '#0000ff', '#4b0082', '#800080', '#ffffff'] },
+  ybc_display_show_image: { COLOUR: ['#ff0000', '#ffa500', '#ffff00', '#00ff00', '#0000ff', '#4b0082', '#800080', '#ffffff'] },
+  ybc_display_show_icon: {
+    ICON: ['HEART', 'HEART_SMALL', 'HAPPY', 'SAD', 'CONFUSED', 'ANGRY', 'SURPRISED', 'YES', 'NO', 'ARROW_N', 'ARROW_E', 'ARROW_S', 'ARROW_W'],
+  },
 };
 
 function blockTypesIn(value: unknown, found = new Set<string>()): Set<string> {
@@ -75,8 +82,9 @@ describe('dropdowns of the YBC toolbox', () => {
             }
           }
         }
-        // The four of the language, and the five of the YB-3 hardware (two buttons, a note and its length, a rest's length).
-        expect(dropdowns).toBeGreaterThanOrEqual(9);
+        // The four of the language, the five of the YB-3 hardware (two buttons, a note and its length, a rest's length) and the
+        // three of N17 B1 (the colour block, the colour of a picture, the built-in picture).
+        expect(dropdowns).toBeGreaterThanOrEqual(12);
       } finally {
         workspace.dispose();
       }

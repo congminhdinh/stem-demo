@@ -68,6 +68,12 @@ describe('block packs', () => {
       'ybc_display_scroll_text',
       'ybc_display_scroll_number',
       'ybc_display_clear',
+      // N17 B1: the RGB display.
+      'ybc_display_show_icon',
+      'ybc_display_set_pixel',
+      'ybc_display_clear_pixel',
+      'ybc_display_set_all',
+      'ybc_colour',
       'ybc_button_pressed',
       'ybc_button_presses',
       'ybc_light_level',

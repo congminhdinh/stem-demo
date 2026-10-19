@@ -18,7 +18,14 @@
 //
 // YB-4 adds the header pins (contract C-23…C-25): `call` / `read` ops whose
 // arguments are expressions, evaluated left to right, each once.
+//
+// N17 B1 adds the RGB display: a colour is an operand (the compiler has already
+// made it one of the palette, as a frame holds it), the built-in pictures are a
+// second source of image, and set / clear pixel take the column and the row as
+// expressions, like the pins.
 
+import type { HexColour } from '../capabilities/frame';
+import type { BuiltinImageName } from '../constructs/ybc.images';
 import type { ButtonName } from '../constructs/ybc.input';
 import type { NoteName, NoteTicks } from '../constructs/ybc.sound';
 
@@ -67,14 +74,23 @@ export type YbcStatement =
  * Timing (a scrolling text, a note) belongs to the operation, not to the part: the interpreter waits.
  */
 export type CallStatement =
-  /** C-06: the picture replaces the whole frame; does not wait. */
+  /** C-06 / C-05: the picture replaces the whole frame; does not wait. */
   | { kind: 'call'; op: 'display.show'; operand: ImageOperand; blockId: string }
-  /** C-07: a text of the display's characters (ASCII 0x20–0x7E, else out-of-domain). One character stays; two or more scroll and block. */
-  | { kind: 'call'; op: 'display.scrollText'; args: [text: Expr]; blockId: string }
-  /** C-08: an int, shown as str(n). */
-  | { kind: 'call'; op: 'display.scrollNumber'; args: [value: Expr]; blockId: string }
+  /**
+   * C-07: a text of the display's characters (ASCII 0x20–0x7E, else out-of-domain). One character stays; two or more scroll and
+   * block. The colour (N17) is red when absent: a block saved before N17.
+   */
+  | { kind: 'call'; op: 'display.scrollText'; args: [text: Expr]; operand?: ColourOperand; blockId: string }
+  /** C-08: an int, shown as str(n), in the colour (red when absent). */
+  | { kind: 'call'; op: 'display.scrollNumber'; args: [value: Expr]; operand?: ColourOperand; blockId: string }
   /** C-09: every light off; does not wait. */
   | { kind: 'call'; op: 'display.clear'; blockId: string }
+  /** C-10: the light at column x, row y (each 0..4, else out-of-domain) in the colour; the rest of the frame stays. */
+  | { kind: 'call'; op: 'display.setPixel'; args: [x: Expr, y: Expr]; operand: ColourOperand; blockId: string }
+  /** C-42: the light at column x, row y off; the rest of the frame stays. */
+  | { kind: 'call'; op: 'display.clearPixel'; args: [x: Expr, y: Expr]; blockId: string }
+  /** C-43: all 25 lights in the colour. */
+  | { kind: 'call'; op: 'display.setAll'; operand: ColourOperand; blockId: string }
   /** C-50: the note sounds for `ticks` ticks, and the statement waits that long. */
   | { kind: 'call'; op: 'sound.playNote'; operand: NoteOperand; blockId: string }
   /** C-51: silence for `ticks` ticks, and the statement waits that long. */
@@ -87,8 +103,16 @@ export type CallStatement =
  */
 export type PinCallStatement = { [Op in CallOp]: { kind: 'call'; op: Op; args: Expr[]; blockId: string } }[CallOp];
 
-/** C-06: the learner's own picture, 25 cells row by row from the top left; a lit cell is red (digit 1), the others off (digit 0). */
-export type ImageOperand = { kind: 'image'; image: { source: 'custom'; pixels: readonly boolean[] } };
+/**
+ * C-06: the learner's own picture, 25 cells row by row from the top left; a lit cell is in `colour` (red when absent: a picture
+ * saved before N17), the others off. C-05: one of the built-in pictures, in red.
+ */
+export type ImageOperand = {
+  kind: 'image';
+  image: { source: 'custom'; pixels: readonly boolean[]; colour?: HexColour } | { source: 'builtin'; name: BuiltinImageName };
+};
+/** A colour of the palette, as a frame holds it ('#RRGGBB'). */
+export type ColourOperand = { kind: 'colour'; colour: HexColour };
 export type NoteOperand = { kind: 'note'; note: NoteName; ticks: NoteTicks };
 export type RestOperand = { kind: 'rest'; ticks: NoteTicks };
 export type ButtonOperand = { kind: 'button'; button: ButtonName };

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  clearDisplay, images, num, playNote, print, program, rest, scrollNumber, scrollText, showImage, text, wait, type ImageRows, type Json,
+  clearDisplay, colour, images, num, playNote, print, program, rest, scrollNumber, scrollText, scrollTextIn, setPixel, showImage, text, wait,
+  type ImageRows, type Json,
 } from '../../program/__fixtures__/ybc-blocks';
 import { charactersOf, scrollFrame } from '../../simulation/peripherals/display';
 import { compileBlocks } from './__fixtures__/compile-case';
@@ -215,6 +216,47 @@ const scenarios: Scenario[] = [
     blocks: program([rest(1), rest(2), rest(4)]),
     timeline: [[0, 'sleep:125'], [125, 'sleep:250'], [375, 'sleep:500'], [875, 'end']],
   },
+  // N17 B1: the built-in pictures, the pixels, the fill and the colours, in the palette digits of the contract.
+  {
+    name: 'builtin-icons',
+    blocks: caseBlocks('builtin-icons'),
+    timeline: [
+      [0, frame(['01010', '11111', '11111', '01110', '00100'])],
+      [0, 'sleep:500'],
+      [500, frame(['00100', '01110', '10101', '00100', '00100'])],
+      [500, frame(['00000', '01010', '00000', '10001', '01110'])],
+      [500, 'end'],
+    ],
+  },
+  {
+    name: 'pixels-and-colours',
+    blocks: caseBlocks('pixels-and-colours'),
+    scrolls: ['Hi', '42'],
+    timeline: [
+      [0, frame(['55555', '55555', '55555', '55555', '55555'])],
+      [0, frame(['55555', '55555', '55555', '55455', '55555'])],
+      [0, frame(['05555', '55555', '55555', '55455', '55555'])],
+      [0, frame(['20002', '02020', '00200', '02020', '20002'])],
+      [0, 'scroll:Hi@3'],
+      [2400, 'scroll:42@8'],
+      [4800, 'end'],
+    ],
+  },
+  {
+    name: 'pixel-walk',
+    blocks: caseBlocks('pixel-walk'),
+    timeline: [0, 1, 2, 3, 4].flatMap((x): Timeline => [
+      [x * 100, frame(['00000', '00000', '0'.repeat(x) + '1' + '0'.repeat(4 - x), '00000', '00000'])],
+      [x * 100, 'sleep:100'],
+      [x * 100 + 100, BLANK],
+    ]).concat([[500, 'end']]),
+  },
+  {
+    name: 'a pixel on a picture, a still green character, then a clear',
+    blocks: program([showImage(images.DOT), setPixel(num(4), num(0), colour('#ffa500')), scrollTextIn(text('A'), colour('#00ff00')), clearDisplay()]),
+    scrolls: ['A'],
+    timeline: [[0, DOT], [0, frame(['00002', '00000', '00100', '00000', '00000'])], [0, 'scroll:A@4'], [0, BLANK], [0, 'end']],
+  },
   {
     // (3, 1) is column 3 of row 1 (EVD-06), and an L shows that rows and columns are not turned the wrong way round.
     name: 'pictures keep their rows and columns: a pixel at (3, 1), an L, a full frame, a clear',
@@ -320,6 +362,12 @@ describe.skipIf(python === null)('the generated Python takes the time and shows 
       ['a picture turned', 'image-then-text', '11111:10001:10001:10001:11111', '11111:10001:10001:10001:11110'],
       ['a text with another length', 'image-then-text', "scroll('Hi')", "scroll('Hii')"],
       ['a wait that is too short', 'image-then-text', 'time.sleep_ms(1000)', 'time.sleep_ms(999)'],
+      // N17 B1.
+      ['another built-in picture', 'builtin-icons', 'Image.HEART', 'Image.SAD'],
+      ['a pixel in another colour', 'pixels-and-colours', "set_pixel(2, 3, '#00ff00')", "set_pixel(2, 3, '#0000ff')"],
+      ['a pixel at another place', 'pixels-and-colours', 'set_pixel(2, 3,', 'set_pixel(3, 2,'],
+      ['a picture in another colour', 'pixels-and-colours', '20002:02020:00200:02020:20002', '30003:03030:00300:03030:30003'],
+      ['a scroll in red', 'pixels-and-colours', ", color='#ffff00'", ''],
     ];
     for (const [label, name, from, to] of mutations) {
       const scenario = scenarioNamed(name);
@@ -357,12 +405,18 @@ describe.skipIf(python === null)('the fake modules enforce the forms the contrac
     ['music.play without wait=True', "music.play(['C4:4'])"],
     ['music.play with wait=False', "music.play(['C4:4'], wait=False)"],
     ['music.play of a text, not a list', "music.play('C4:4', wait=True)"],
-    ['a picture that is not 5 rows of 5 digits', 'display.show(Image("20000:00000:00000:00000:00000"))'],
+    ['a picture that is not 5 rows of 5 digits', 'display.show(Image("90000:00000:00000:00000:00000"))'],
+    ['a pixel in a colour name', "display.set_pixel(0, 0, 'red')"],
+    ['a pixel in an upper-case code (the generator writes lower case)', "display.set_pixel(0, 0, '#FF0000')"],
+    ['a pixel outside the display', "display.set_pixel(5, 0, '#ff0000')"],
+    ['a fill in a colour off the palette', "display.set_all('#123456')"],
+    ['a scroll in a colour name', "display.scroll('Hi', color='red')"],
+    ['a picture name the block does not offer', 'display.show(Image.SMILE)'],
     ['a picture with 4 rows', 'display.show(Image("00000:00000:00000:00000"))'],
     ['display.show of something that is not an Image', "display.show('00000:00000:00000:00000:00000')"],
     ['display.scroll of a list', 'display.scroll([1])'],
     ['a button that is not there', 'button_c.is_pressed()'],
-    ['an API that is not in the module (display.set_pixel)', "display.set_pixel(0, 0, '#FF0000')"],
+    ['an API that is not in the module (display.set_brightness, C-11)', 'display.set_brightness(5)'],
     ['an unscripted read', 'light_level()'],
   ])('refuses %s', (_label, body) => {
     expect(attempt(body)?.error).not.toBeNull();

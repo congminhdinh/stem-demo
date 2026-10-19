@@ -85,6 +85,12 @@ describe('the core’s messages in Vietnamese (N8s)', () => {
     ['The circuit needs a board.', 'Mạch cần có một bo mạch.'],
     ['"ybc_light_level" is not available in the ybc-basic profile.', 'Khối "mức ánh sáng" không có ở cấp độ ybc-basic.'],
     ['Unknown block "stem_servo".', 'Không biết khối "stem_servo".'],
+    // N17 B1.
+    ['The colour "red" is not one of the display\'s colours, so it is shown red.', 'Màu "red" không phải một màu của màn hình, nên đèn sáng màu đỏ.'],
+    ['"math_number" is not a colour, so it is shown red.', 'Khối "số" không phải một màu, nên đèn sáng màu đỏ.'],
+    ['The column must be between 0 and 4, not 5.', 'Cột phải nằm trong khoảng 0 tới 4, không phải 5.'],
+    ['The row must be between 0 and 4.', 'Hàng phải nằm trong khoảng 0 tới 4.'],
+    ['"set light" needs a value.', 'Khối "bật đèn" cần một giá trị.'],
   ])('says %j as %j', (english, vietnamese) => {
     expect(localizeCoreMessage(english, 'vi')).toBe(vietnamese);
   });

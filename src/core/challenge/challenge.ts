@@ -6,8 +6,11 @@ import type { ComponentInput } from '../simulation/simulate-circuit';
 
 /** What one goal looks for in the run, or in the program. */
 export type GoalSpec =
-  /** The board's 5×5 display shows `frame` at some moment of the check, at or after `fromMs`. */
-  | { kind: 'display-shows'; frame: string; fromMs?: number }
+  /**
+   * The board's 5×5 display shows `frame` at some moment of the check, at or after `fromMs`. With `colour` ('#rrggbb', N17 B1)
+   * every lit light must also be that colour; without it only lit and dark are compared, as before.
+   */
+  | { kind: 'display-shows'; frame: string; fromMs?: number; colour?: string }
   /** The circuit component `componentId` (an LED) is lit at some moment. */
   | { kind: 'led-lit'; componentId: string }
   /** The LED `componentId` changes between lit and dark at least `minToggles` times (dark is where it starts). */

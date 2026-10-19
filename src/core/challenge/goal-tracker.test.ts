@@ -82,6 +82,46 @@ describe('display-shows', () => {
   });
 });
 
+// N17 B1: a goal that names a colour compares the colour of every lit light too; a goal without one still compares lit and dark only.
+describe('display-shows with a colour', () => {
+  const tinted = (rows: string, colour: string) => ({ pixels: frameOf(rows).pixels.map((pixel) => (pixel ? colour : null)) });
+  const shows = (frame: { pixels: (string | null)[] }) => snapshot({ [`${board}/display`]: { frame: frame as never } });
+  const green: Goal = { id: 'green-heart', label: 'Green heart', kind: 'display-shows', frame: heart, colour: '#00ff00' };
+
+  it('passes when the frame is shown with every lit light in that colour, whatever the case of the code', () => {
+    expect(verdicts(challengeOf(green), [[shows(tinted(heart, '#00FF00')), 0]]).passed).toBe(true);
+    expect(verdicts(challengeOf({ ...green, colour: '#00FF00' }), [[shows(tinted(heart, '#00FF00')), 0]]).passed).toBe(true);
+  });
+
+  it('fails on the right picture in another colour, and on the right colour in another picture', () => {
+    expect(verdicts(challengeOf(green), [[shows(tinted(heart, '#FF0000')), 0]]).passed).toBe(false);
+    expect(verdicts(challengeOf(green), [[shows(tinted(dark.replace('0', '1'), '#00FF00')), 0]]).passed).toBe(false);
+  });
+
+  it('fails when one lit light of the picture has another colour', () => {
+    const mixed = tinted(heart, '#00FF00');
+    mixed.pixels[1] = '#0000FF';
+    expect(verdicts(challengeOf(green), [[shows(mixed), 0]]).passed).toBe(false);
+  });
+
+  it('passes once, at any moment: colours shown before and after do not undo it', () => {
+    expect(
+      verdicts(challengeOf(green), [[shows(tinted(heart, '#FF0000')), 0], [shows(tinted(heart, '#00FF00')), 100], [shows(tinted(heart, '#0000FF')), 200]]).passed,
+    ).toBe(true);
+  });
+
+  it('never passes with a colour that is not a #rrggbb code', () => {
+    for (const colour of ['green', '#0f0', '', '00ff00']) {
+      expect(verdicts(challengeOf({ ...green, colour }), [[shows(tinted(heart, '#00FF00')), 0]]).passed, colour).toBe(false);
+    }
+  });
+
+  it('keeps a goal without a colour as it was: lit and dark only', () => {
+    const plain: Goal = { id: green.id, label: green.label, kind: 'display-shows', frame: heart };
+    expect(verdicts(challengeOf(plain), [[shows(tinted(heart, '#4B0082')), 0]]).passed).toBe(true);
+  });
+});
+
 describe('led-lit', () => {
   const goal: Goal = { id: 'lit', label: 'Lit', kind: 'led-lit', componentId: 'led' };
 

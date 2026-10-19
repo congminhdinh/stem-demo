@@ -169,8 +169,9 @@ describe('a picture that is not 5 × 5 squares, each lit or not, is refused (C-0
     expect(failure(program([bad])).diagnostics).toEqual([{ severity: 'error', code: 'unsupported-node', message: expect.any(String), blockId: bad.blockId }]);
   });
 
-  it('refuses a picture that is not the learner’s own (a built-in image is EXCLUDED), and an operand that is not an image', () => {
-    expect(codes(program([show(pixels(25), { source: 'builtin' })]))).toEqual(['unsupported-node']);
+  it('refuses a built-in picture without one of the thirteen names (C-05, opened by N17 B1), and an operand that is not an image', () => {
+    expect(codes(program([show(pixels(25), { source: 'builtin' })]))).toEqual(['value-out-of-range']);
+    expect(codes(program([show(pixels(25), { source: 'builtin', name: 'SMILE' })]))).toEqual(['value-out-of-range']);
     const notImage = { kind: 'call', op: 'display.show', operand: { kind: 'note', image: { source: 'custom', pixels: pixels(25) } }, blockId: id() } as unknown as YbcStatement;
     expect(codes(program([notImage]))).toEqual(['unsupported-node']);
   });

@@ -287,13 +287,16 @@ export function profileConstructViolations(
   });
 }
 
-/** Plan §13.9, invariant 9: the Python text a generator may write is exactly what exposable rows list. */
+/**
+ * Plan §13.9, invariant 9: the Python text a generator may write is exactly what exposable rows list: their verified form and,
+ * since N17, the UNVERIFIED forms a row names explicitly (`unverifiedForms`).
+ */
 export function generatorAllowlist(contract: YolobitContract): { forms: string[]; imports: string[]; preamble: string[]; builtins: string[] } {
   const constructs = contract.constructs.filter((construct) => isExposable(construct, contract));
   const modules = contract.modules.filter((module) => moduleViolations(module, contract).length === 0);
   const unique = (values: (string | undefined)[]) => [...new Set(values.filter((value): value is string => value !== undefined))];
   return {
-    forms: unique(constructs.map((construct) => construct.python?.form)),
+    forms: unique(constructs.flatMap((construct) => [construct.python?.form, ...(construct.unverifiedForms ?? []).map((extra) => extra.form)])),
     imports: unique(modules.map((module) => module.importForm ?? undefined)),
     preamble: unique(modules.flatMap((module) => module.preamble ?? [])),
     builtins: unique(constructs.flatMap((construct) => construct.python?.builtins ?? [])),
@@ -362,6 +365,9 @@ export function validateContract(contract: YolobitContract): string[] {
       }
       if (construct.python) {
         problems.push(`${construct.id} is ${construct.eligibility} but has a Python mapping`);
+      }
+      if ((construct.unverifiedForms?.length ?? 0) > 0) {
+        problems.push(`${construct.id} is ${construct.eligibility} but has UNVERIFIED forms`);
       }
       if (construct.profiles.length > 0) {
         problems.push(`${construct.id} is ${construct.eligibility} but a profile lists it`);

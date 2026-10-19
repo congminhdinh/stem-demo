@@ -1,17 +1,28 @@
-import { blankFrame } from '../capabilities/frame';
+import { blankFrame, type Frame, type HexColour } from '../capabilities/frame';
 import type { ButtonId, Capabilities, CapabilityKey } from '../capabilities/io';
 import type { RuntimeServices } from '../capabilities/services';
-import { isDisplayText } from '../constructs/ybc.display';
+import { DEFAULT_COLOUR, IMAGE_SIZE, isDisplayText, paletteColourOf } from '../constructs/ybc.display';
+import { isBuiltinImageName } from '../constructs/ybc.images';
 import { runPinCall, runPinRead } from '../constructs/ybc.pins';
 import { noteTicks } from '../constructs/ybc.sound';
-import { charactersOf, imageFrame, SCROLL_STEP_MS, scrollFrame, scrollSteps } from '../simulation/peripherals/display';
+import {
+  charactersOf,
+  clearPixelFrame,
+  iconFrame,
+  imageFrame,
+  SCROLL_STEP_MS,
+  scrollFrame,
+  scrollSteps,
+  setAllFrame,
+  setPixelFrame,
+} from '../simulation/peripherals/display';
 import { LIGHT_LEVEL_MAX, LIGHT_LEVEL_MIN } from '../simulation/peripherals/light';
 import { NOTE_TICK_MS, noteHz } from '../simulation/peripherals/sound';
 import type { RunOutcome } from './interpreter';
 import { MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_TEXT_CHARS, MAX_WAIT_MS } from './limits';
 import * as values from './values';
 import { RuntimeFault, type Value } from './values';
-import type { ButtonOperand, CallStatement, Expr, ReadExpr, YbcProgramIR, YbcStatement } from './ybc-ir';
+import type { ButtonOperand, CallStatement, ColourOperand, Expr, ImageOperand, ReadExpr, YbcProgramIR, YbcStatement } from './ybc-ir';
 
 // The YBC interpreter (YB plan §9.0, §9.3): runs a `YbcProgramIR`. It reaches
 // the world only through `services` and knows nothing about circuits or UI.
@@ -32,6 +43,11 @@ import type { ButtonOperand, CallStatement, Expr, ReadExpr, YbcProgramIR, YbcSta
 // sensor and the sound. A scrolling text and a note take time, and that time is the statement's own
 // (contract C-07, C-50): the interpreter waits with `services.sleep`, one column or one note at a time, so
 // Stop interrupts it at the next step and no timer outlives the run.
+//
+// N17 B1: the display keeps what it shows. Every frame the program gives it goes through `show`, so set / clear
+// pixel change one light of the frame on the display (a picture, a still character, a fill) and leave the rest.
+// A colour comes from the compiler as one of the palette; IR from anywhere else with another value is shown red,
+// never a crash (Review Focus 3).
 
 /** E3, as in the legacy interpreter: every forever iteration ends with at least this pause. */
 const foreverYieldMs = 10;
@@ -69,6 +85,45 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
       throw new RuntimeFault('internal-error', 'The board is missing a part this block needs.');
     }
     return found;
+  };
+
+  /** What the display shows now: the frame the program gave it last. It starts dark, as RunSession's display does. */
+  let shown: Frame = blankFrame();
+  const show = (frame: Frame) => {
+    part('display').setFrame(frame);
+    shown = frame;
+  };
+
+  /** The colour of an operand: the compiler's palette colour, or red for IR that is not the compiler's (never a crash). */
+  const colourOf = (operand: ColourOperand | undefined): HexColour => (operand === undefined ? DEFAULT_COLOUR : (paletteColourOf(operand.colour) ?? DEFAULT_COLOUR));
+
+  /** The frame of a picture operand: the learner's own in its colour (red when it has none), or a built-in one. */
+  const pictureOf = (operand: ImageOperand): Frame => {
+    const { image } = operand;
+    if (image.source === 'builtin') {
+      if (!isBuiltinImageName(image.name)) {
+        throw new RuntimeFault('internal-error', 'A picture block names a picture that does not exist.');
+      }
+      return iconFrame(image.name);
+    }
+    return imageFrame(image.pixels, image.colour === undefined ? DEFAULT_COLOUR : (paletteColourOf(image.colour) ?? DEFAULT_COLOUR));
+  };
+
+  /** C-10, C-42: the column and the row, evaluated left to right, each once, then checked against 0..4 (contract domain). */
+  const cellOf = (args: readonly Expr[]): [x: number, y: number] => {
+    const [xExpr, yExpr] = args;
+    if (args.length !== 2 || xExpr === undefined || yExpr === undefined) {
+      throw new RuntimeFault('internal-error', 'A light block was given the wrong number of values.');
+    }
+    const x = values.asInt(evaluate(xExpr));
+    const y = values.asInt(evaluate(yExpr));
+    for (const [what, value, expr] of [['The column', x, xExpr], ['The row', y, yExpr]] as const) {
+      if (value < 0 || value > IMAGE_SIZE - 1) {
+        blockId = expr.blockId;
+        throw new RuntimeFault('out-of-domain', `${what} must be between 0 and ${IMAGE_SIZE - 1}, not ${value}.`);
+      }
+    }
+    return [x, y];
   };
 
   const buttonOf = (operand: ButtonOperand): ButtonId => {
@@ -206,8 +261,9 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
    * that is late makes the next wait shorter; one that is a whole column late (a hidden tab, a stalled machine) is not
    * made up for with a burst of frames, the text goes on from there at its own pace.
    */
-  const scroll = async (text: string): Promise<void> => {
-    const display = part('display');
+  const scroll = async (text: string, colour: HexColour): Promise<void> => {
+    // A board without a display is an internal error before anything else, as it always was.
+    part('display');
     // Domain guard: the display shows ASCII 0x20–0x7E. A typed-in text outside it was refused at compile time.
     if (!isDisplayText(text)) {
       throw new RuntimeFault('out-of-domain', 'The display shows only the characters from space to ~ (ASCII).');
@@ -217,14 +273,14 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
       return;
     }
     if (characters.length === 1) {
-      display.setFrame(scrollFrame(characters, 0));
+      show(scrollFrame(characters, 0, colour));
       return;
     }
     const steps = scrollSteps(characters.length);
     let due = services.clock.now();
     for (let step = 0; step < steps; step++) {
       await budget.step();
-      display.setFrame(scrollFrame(characters, step));
+      show(scrollFrame(characters, step, colour));
       due += SCROLL_STEP_MS;
       const now = services.clock.now();
       if (now - due >= SCROLL_STEP_MS) {
@@ -233,7 +289,7 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
       await services.sleep(Math.max(0, due - now), signal);
       budget.startSlice();
     }
-    display.setFrame(blankFrame());
+    show(blankFrame());
   };
 
   /** The length of a note or a rest in ticks, from a program that may not be the compiler's own. */
@@ -247,10 +303,10 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
   const runCall = async (statement: CallStatement): Promise<void> => {
     switch (statement.op) {
       case 'display.show':
-        part('display').setFrame(imageFrame(statement.operand.image.pixels));
+        show(pictureOf(statement.operand));
         return;
       case 'display.clear':
-        part('display').setFrame(blankFrame());
+        show(blankFrame());
         return;
       case 'display.scrollText': {
         const text = evaluate(statement.args[0]);
@@ -258,7 +314,7 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
         if (text.t !== 'str') {
           throw new RuntimeFault('internal-error', 'A text block was given another type.');
         }
-        await scroll(text.v);
+        await scroll(text.v, colourOf(statement.operand));
         return;
       }
       case 'display.scrollNumber': {
@@ -267,9 +323,24 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
         if (number.t !== 'int') {
           throw new RuntimeFault('internal-error', 'A number block was given another type.');
         }
-        await scroll(values.toText(number));
+        await scroll(values.toText(number), colourOf(statement.operand));
         return;
       }
+      case 'display.setPixel': {
+        const [x, y] = cellOf(statement.args);
+        blockId = statement.blockId;
+        show(setPixelFrame(shown, x, y, colourOf(statement.operand)));
+        return;
+      }
+      case 'display.clearPixel': {
+        const [x, y] = cellOf(statement.args);
+        blockId = statement.blockId;
+        show(clearPixelFrame(shown, x, y));
+        return;
+      }
+      case 'display.setAll':
+        show(setAllFrame(colourOf(statement.operand)));
+        return;
       case 'sound.playNote': {
         const sound = part('sound');
         const { note, ticks } = statement.operand;

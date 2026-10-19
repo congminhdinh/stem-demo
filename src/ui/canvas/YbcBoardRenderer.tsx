@@ -21,6 +21,7 @@ const {
   label: labelFill,
   sounding: soundingStroke,
   cellOff,
+  cellLitRim,
   pressed: pressedFill,
 } = canvasPalette.ybcBoard;
 const cellGap = 3;
@@ -78,17 +79,26 @@ function DisplayGrid({ part, state }: { part: OnboardPeripheral; state: Componen
   const pixels = renderedPixels(state);
   return (
     <Group name="ybc-display" x={part.at.x} y={part.at.y} columns={columns} rows={rows} frame={pixels} listening={false}>
-      {Array.from({ length: columns * rows }, (_, index) => (
-        <Rect
-          key={index}
-          x={(index % columns) * cell + cellGap / 2}
-          y={Math.floor(index / columns) * cell + cellGap / 2}
-          width={cell - cellGap}
-          height={cell - cellGap}
-          cornerRadius={3}
-          fill={pixels[index] ?? cellOff}
-        />
-      ))}
+      {Array.from({ length: columns * rows }, (_, index) => {
+        // A lit cell has a light rim and glows in its own colour, so a dark colour of the palette never reads as off (N17 B1).
+        const lit = pixels[index] ?? null;
+        return (
+          <Rect
+            key={index}
+            x={(index % columns) * cell + cellGap / 2}
+            y={Math.floor(index / columns) * cell + cellGap / 2}
+            width={cell - cellGap}
+            height={cell - cellGap}
+            cornerRadius={3}
+            fill={lit ?? cellOff}
+            stroke={lit === null ? undefined : cellLitRim}
+            strokeWidth={lit === null ? 0 : 1}
+            shadowColor={lit ?? undefined}
+            shadowBlur={lit === null ? 0 : 6}
+            shadowEnabled={lit !== null}
+          />
+        );
+      })}
     </Group>
   );
 }

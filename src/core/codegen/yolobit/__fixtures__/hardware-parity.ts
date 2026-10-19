@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { blankFrame, type Frame } from '../../../capabilities/frame';
+import { blankFrame, type Frame, type HexColour } from '../../../capabilities/frame';
 import type { Capabilities } from '../../../capabilities/io';
 import type { Sleep } from '../../../program/interpreter';
 import { runYbc } from '../../../program/__fixtures__/run-ybc';
@@ -13,8 +13,10 @@ import { python } from './python';
 // runs the generated Python under CPython with FAKE `time`, `yolobit` and `music` modules. Both record a TIMELINE of
 // [milliseconds, event] with the same events:
 //
-//   frame:<5 rows of 5 digits>   a picture was shown or the display was cleared (1 lit red, 0 off)
-//   scroll:<text>                a text or number was scrolled from here; the clock moves on by 1200 ms × n for n ≥ 2 characters
+//   frame:<5 rows of 5 digits>   the display changed: a picture, a clear, a pixel set or cleared, a fill. 0 off and the
+//                                palette digit of the colour (contract §4.1, EVD-05): 1 red … 8 white (N17 B1)
+//   scroll:<text>[@<digit>]      a text or number was scrolled from here; the clock moves on by 1200 ms × n for n ≥ 2 characters;
+//                                `@<digit>` when it is not red (N17 B1)
 //   note:<NAME>:<ticks>          a note sounded for that many ticks
 //   sleep:<ms>                   time passed without anything else (a wait, a rest, a pause of a forever that is not the last)
 //   print:<text>                 a line was printed
@@ -44,9 +46,14 @@ const contractNotes: Record<number, string> = {
 /** Contract C-50: at the tempo (4, 120) the generator sets (IM-4), a tick lasts 125 ms. */
 const TICK_MS = 125;
 
-/** The five rows of five digits that a frame shows: 1 for a lit light. */
+/** Contract §4.1 (EVD-05): the digit of each palette colour, as the contract writes the table (not read back from the code). */
+const paletteDigits: Record<string, string> = {
+  '#FF0000': '1', '#FFA500': '2', '#FFFF00': '3', '#00FF00': '4', '#0000FF': '5', '#4B0082': '6', '#800080': '7', '#FFFFFF': '8',
+};
+
+/** The five rows of five digits that a frame shows: 0 off, the palette digit of a lit light ('?' for a colour off the palette). */
 export function rowsOf(frame: Frame): string {
-  const digits = frame.pixels.map((pixel) => (pixel === null ? '0' : '1'));
+  const digits = frame.pixels.map((pixel) => (pixel === null ? '0' : (paletteDigits[pixel] ?? '?')));
   return Array.from({ length: 5 }, (_, row) => digits.slice(row * 5, row * 5 + 5).join('')).join(':');
 }
 
@@ -58,9 +65,17 @@ import json, re, sys, types
 class Stop(BaseException):
     pass
 
-IMAGE = re.compile(r'^[01]{5}(:[01]{5}){4}$')
+IMAGE = re.compile(r'^[0-8]{5}(:[0-8]{5}){4}$')
 BLANK = ':'.join(['00000'] * 5)
 PARTS = ['a.pressed', 'b.pressed', 'a.presses', 'b.presses', 'light']
+# Contract §4.4 / EVD-05: the palette and its digits, as the generator writes a colour (lower case).
+PALETTE = {'#ff0000': '1', '#ffa500': '2', '#ffff00': '3', '#00ff00': '4', '#0000ff': '5', '#4b0082': '6', '#800080': '7', '#ffffff': '8'}
+# The pictures C-05 names (N17 B1): the micro:bit MicroPython table, written here again by hand, not read from the simulator.
+NAMED = {
+    'HEART': '01010:11111:11111:01110:00100', 'HEART_SMALL': '00000:01010:01110:00100:00000', 'HAPPY': '00000:01010:00000:10001:01110',
+    'SAD': '00000:01010:00000:01110:10001', 'CONFUSED': '00000:01010:00000:01010:10101', 'ANGRY': '10001:01010:00000:11111:10101',
+    'SURPRISED': '01010:00000:00100:01010:00100', 'YES': '00000:00001:00010:10100:01000', 'NO': '10001:01010:00100:01010:10001',
+}
 
 def run(case):
     source, script, passes = case['source'], case['script'], case['passes']
@@ -101,24 +116,67 @@ def run(case):
                 raise AssertionError('not a picture: ' + repr(rows))
             self.rows = rows
 
+    for name, rows in NAMED.items():
+        setattr(Image, name, Image(rows))
+
+    def digit_of(color):
+        if color not in PALETTE:
+            raise AssertionError('not a colour of the palette: ' + repr(color))
+        return PALETTE[color]
+
+    def coordinate(value):
+        if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 4:
+            raise AssertionError('not a column or a row: ' + repr(value))
+        return value
+
     class Display:
+        def __init__(self):
+            # What the display shows, as 25 digits; None after a one-character scroll, whose glyph the fake does not draw.
+            self.cells = list('0' * 25)
+
+        def show_cells(self):
+            record('frame:' + ':'.join(''.join(self.cells[row * 5:row * 5 + 5]) for row in range(5)))
+
         def show(self, image):
             if not isinstance(image, Image):
                 raise AssertionError('show needs an Image')
+            self.cells = list(image.rows.replace(':', ''))
             record('frame:' + image.rows)
 
-        def scroll(self, value):
+        def scroll(self, value, color='#ff0000'):
             if isinstance(value, bool) or not isinstance(value, (str, int)):
                 raise AssertionError('scroll needs a text or an int')
+            digit = digit_of(color)
             text = str(value)
             if len(text) == 0:
                 return
-            record('scroll:' + text)
+            record('scroll:' + text + ('' if digit == '1' else '@' + digit))
             if len(text) >= 2:
                 state['now'] += 1200 * len(text)
+                self.cells = list('0' * 25)
+            else:
+                self.cells = None
 
         def clear(self):
+            self.cells = list('0' * 25)
             record('frame:' + BLANK)
+
+        def set_pixel(self, x, y, color):
+            digit = digit_of(color)
+            if self.cells is None:
+                raise AssertionError('a pixel on a still character, which the fake does not draw')
+            self.cells[coordinate(y) * 5 + coordinate(x)] = digit
+            self.show_cells()
+
+        def clear_pixel(self, x, y):
+            if self.cells is None:
+                raise AssertionError('a pixel on a still character, which the fake does not draw')
+            self.cells[coordinate(y) * 5 + coordinate(x)] = '0'
+            self.show_cells()
+
+        def set_all(self, color):
+            self.cells = [digit_of(color)] * 25
+            self.show_cells()
 
     class Button:
         def __init__(self, name):
@@ -225,7 +283,7 @@ export async function simulateWithHardware(ir: YbcProgramIR, script: Script, scr
   const frames: [number, Frame][] = [];
   const queues = Object.fromEntries(partNames.map((name) => [name, [...(script[name] ?? [])]])) as Record<(typeof partNames)[number], number[]>;
   const expected = scrolls.filter((text) => text.length > 0);
-  let scroll: { characters: string[]; step: number; start: number } | null = null;
+  let scroll: { characters: string[]; step: number; start: number; colour: HexColour } | null = null;
   let tone: { hz: number; at: number } | null = null;
   let pauses = 0;
   let ended = false;
@@ -244,14 +302,14 @@ export async function simulateWithHardware(ir: YbcProgramIR, script: Script, scr
     display: {
       setFrame(frame) {
         frames.push([now, frame]);
-        if (frame.pixels.some((pixel) => pixel !== null && pixel !== '#FF0000')) {
-          problems.push(`a light that is not red at ${now}`);
+        if (frame.pixels.some((pixel) => pixel !== null && paletteDigits[pixel] === undefined)) {
+          problems.push(`a light that is not a colour of the palette at ${now}`);
         }
         if (scroll) {
           // Inside a scroll the program is blocked, so only the next column of the text can arrive.
           const columns = scroll.characters.length * 6;
           const due = scroll.start + 200 * scroll.step;
-          const wanted = scroll.step < columns ? scrollFrame(scroll.characters, scroll.step) : blankFrame();
+          const wanted = scroll.step < columns ? scrollFrame(scroll.characters, scroll.step, scroll.colour) : blankFrame();
           if (now !== due || JSON.stringify(frame) !== JSON.stringify(wanted)) {
             problems.push(`column ${scroll.step} of "${scroll.characters.join('')}" at ${now} (due at ${due}) is not the frame the contract gives`);
           }
@@ -262,12 +320,14 @@ export async function simulateWithHardware(ir: YbcProgramIR, script: Script, scr
           return;
         }
         const next = expected[0];
-        if (next !== undefined && JSON.stringify(frame) === JSON.stringify(scrollFrame(charactersOf(next), 0))) {
+        // The first column of the next text, in whichever colour of the palette it scrolls (N17 B1).
+        const colour = next === undefined ? undefined : (Object.keys(paletteDigits) as HexColour[]).find((candidate) => JSON.stringify(frame) === JSON.stringify(scrollFrame(charactersOf(next), 0, candidate)));
+        if (next !== undefined && colour !== undefined) {
           expected.shift();
-          events.push([now, `scroll:${next}`]);
+          events.push([now, `scroll:${next}${colour === '#FF0000' ? '' : `@${paletteDigits[colour] ?? '?'}`}`]);
           const characters = charactersOf(next);
           // One character stays and does not block; two or more scroll for 6 columns each, and end on an empty frame.
-          scroll = characters.length >= 2 ? { characters, step: 1, start: now } : null;
+          scroll = characters.length >= 2 ? { characters, step: 1, start: now, colour } : null;
           return;
         }
         events.push([now, `frame:${rowsOf(frame)}`]);

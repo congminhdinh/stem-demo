@@ -24,11 +24,15 @@ const phaseList: Allowlist = {
     ...new Set(
       contract.constructs
         .filter((row) => generatedIds.has(row.id) && isExposable(row, contract))
-        .map((row) => row.python?.form)
+        // The verified form of each row, and the UNVERIFIED forms N17 names on it (contract `unverifiedForms`).
+        .flatMap((row) => [row.python?.form, ...(row.unverifiedForms ?? []).map((extra) => extra.form)])
         .filter((form): form is string => form !== undefined),
     ),
   ],
 };
+
+/** The names of the vendor's pictures C-05 writes as `Image.<NAME>` (N17 B1); the arrows are written as an own picture. */
+const pictureNames = ['HEART', 'HEART_SMALL', 'HAPPY', 'SAD', 'CONFUSED', 'ANGRY', 'SURPRISED', 'YES', 'NO'];
 
 /** The 15 natural notes and the 3 lengths of C-50 (contract §8.2), which the `<note>` and `<ticks>` placeholders stand for. */
 const notes = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
@@ -50,6 +54,13 @@ const placeholderPatterns: Record<string, string> = {
   r4: '[01]{5}',
   text: "(?:[^'\\\\]|\\\\.)*",
   '#rrggbb': '#[0-9A-Fa-f]{6}',
+  // N17 B1: a coloured picture writes the palette digit 1–8 of its colour (C-06, UNVERIFIED form), a built-in one its name (C-05).
+  c0: '[0-8]{5}',
+  c1: '[0-8]{5}',
+  c2: '[0-8]{5}',
+  c3: '[0-8]{5}',
+  c4: '[0-8]{5}',
+  name: `(?:${pictureNames.join('|')})`,
 };
 
 /** One line of a form as a pattern. A placeholder is its domain where the contract names one, and any expression otherwise. */
@@ -73,7 +84,13 @@ const patternsOf = (forms: readonly string[]) =>
   forms
     .flatMap((form) => form.split('\n').map((line) => line.trim()))
     .filter((line) => line.length > 0 && !/^<[a-z ]+>$/.test(line))
-    .map((line) => ({ pattern: linePattern(line), names: new Set(expand(line).flatMap((variant) => callsOf(variant).map((call) => call.name))) }));
+    .map((line) => ({
+      pattern: linePattern(line),
+      names: new Set(expand(line).flatMap((variant) => callsOf(variant).map((call) => call.name))),
+      // N17 B1: the keyword arguments the line writes (`wait`, `color`) and whether it reads an attribute by name (`Image.<name>`).
+      keywords: new Set([...line.matchAll(/[(, ]([a-z_]+)=/g)].map((match) => match[1] ?? '')),
+      readsAttribute: /(?<![\w.])[A-Za-z_]\w*\.<[^<>]+>/.test(line),
+    }));
 
 /** A form with `button_<a|b>` and `pin<N>` written out, so the call names in it can be read. */
 function expand(text: string): string[] {
@@ -139,6 +156,20 @@ function codeOnly(line: string): string {
 type Findings = { imports: string[]; names: string[]; calls: string[]; identifiers: string[] };
 
 /**
+ * The attributes a form reads without calling them (`Image.<name>`, N17 B1), each as a whole-word pattern: an attribute read in
+ * the source is explained only by one of these, never by a placeholder that stands for any expression.
+ */
+const attributePatternsOf = (forms: readonly string[]) =>
+  forms.flatMap((form) =>
+    [...form.matchAll(/(?<![\w.])([A-Za-z_]\w*)\.<([^<>]+)>/g)].map(
+      (match) => new RegExp(`^${escapeRegex(match[1] ?? '')}\\.${placeholderPatterns[match[2] ?? ''] ?? '(?!)'}$`),
+    ),
+  );
+
+/** The keyword arguments the forms write (`wait=True`, N17's `color='…'`): a word in the source that is one of these is the form's. */
+const keywordsOf = (forms: readonly string[]) => new Set(forms.flatMap((form) => [...form.matchAll(/[(, ]([a-z_]+)=/g)].map((match) => match[1] ?? '')));
+
+/**
  * The audit. `imports` are header lines (imports and preamble) the list does not have, or an import after the header; `names` are
  * calls or attribute reads that no form has; `calls` are calls of a known name written in a shape no form has (a wrong note, a
  * wrong digit, `wait` left out); `identifiers` are words that are neither the learner's, the generator's, a keyword nor a form's.
@@ -152,6 +183,8 @@ function audit(source: string, allow: Allowlist, learnerNames: ReadonlySet<strin
   );
   const heads = new Set([...allowedNames].map((name) => name.split('.')[0] ?? ''));
   const patterns = patternsOf(allow.forms);
+  const attributePatterns = attributePatternsOf(allow.forms);
+  const formKeywords = keywordsOf(allow.forms);
   const headerEnd = lines.indexOf('');
 
   lines.forEach((line, index) => {
@@ -170,11 +203,16 @@ function audit(source: string, allow: Allowlist, learnerNames: ReadonlySet<strin
       return;
     }
     const code = codeOnly(line);
-    // An attribute that is read and not called (`Image.HEART`) is in no form.
+    // An attribute that is read and not called (`Image.HEART`) is in no form, unless a form reads it by name (C-05, N17 B1).
     const calledAt = new Set(callsOf(code).map((call) => call.start));
     for (const attribute of code.matchAll(/(?<![\w.])([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+)/g)) {
-      if (!calledAt.has(attribute.index)) {
-        found.names.push(attribute[1] ?? '');
+      const name = attribute[1] ?? '';
+      const end = attribute.index + name.length;
+      const readByAForm =
+        attributePatterns.some((pattern) => pattern.test(name)) &&
+        patterns.some(({ pattern, readsAttribute }) => readsAttribute && [...line.matchAll(pattern)].some((match) => match.index <= attribute.index && match.index + match[0].length >= end));
+      if (!calledAt.has(attribute.index) && !readByAForm) {
+        found.names.push(name);
       }
     }
     for (const call of callsOf(line)) {
@@ -185,9 +223,14 @@ function audit(source: string, allow: Allowlist, learnerNames: ReadonlySet<strin
         found.names.push(call.name);
         continue;
       }
+      // A keyword argument in the call (`color=`, N17) is explained only by a form line that writes that keyword: a placeholder
+      // that stands for any expression does not stand for a keyword argument.
+      const keywords = [...codeOnly(line.slice(call.start, call.end)).matchAll(/[(, ]([a-z_]+)=/g)].map((match) => match[1] ?? '');
       const explained = patterns.some(
-        ({ pattern, names }) =>
-          names.has(call.name) && [...line.matchAll(pattern)].some((match) => match.index <= call.start && match.index + match[0].length >= call.end),
+        ({ pattern, names, keywords: written }) =>
+          names.has(call.name) &&
+          keywords.every((keyword) => written.has(keyword)) &&
+          [...line.matchAll(pattern)].some((match) => match.index <= call.start && match.index + match[0].length >= call.end),
       );
       if (!explained) {
         found.calls.push(line.slice(call.start, call.end));
@@ -195,8 +238,8 @@ function audit(source: string, allow: Allowlist, learnerNames: ReadonlySet<strin
     }
     for (const word of code.matchAll(/(?<![\w.])([A-Za-z_]\w*)\b/g)) {
       const name = word[1] ?? '';
-      // `wait` is the keyword argument of `music.play(…, wait=True)`; the call itself was checked above.
-      const keywordArgument = name === 'wait' && /, wait=True\)/.test(code);
+      // `wait` is the keyword argument of `music.play(…, wait=True)`, `color` that of a coloured scroll (N17); the call itself was checked above.
+      const keywordArgument = formKeywords.has(name) && new RegExp(`[(, ]${name}=`).test(code);
       if (!keywords.has(name) && !keywordArgument && !builtins.has(name) && !heads.has(name) && !allowedNames.has(name) && !learnerNames.has(name) && !generatorName.test(name)) {
         found.identifiers.push(name);
       }
@@ -222,12 +265,20 @@ const goldens = readdirSync(goldenDirectory)
   .map((file) => ({ file, source: readFileSync(new URL(file, goldenDirectory), 'utf8') }));
 
 describe('the allowlist this phase may generate is part of the contract allowlist', () => {
-  it('has the hardware forms of the nine rows, and they are all in the contract’s list', () => {
+  it('has the hardware forms of the onboard rows, and they are all in the contract’s list', () => {
     for (const form of [
       'display.show(Image("<r0>:<r1>:<r2>:<r3>:<r4>"))',
       "display.scroll('<text>')",
       'display.scroll(<n>)',
       'display.clear()',
+      // N17 B1: the RGB display, verified forms (C-05, C-10, C-42, C-43) and the UNVERIFIED ones its rows name (C-06, C-07, C-08).
+      'display.show(Image.<name>)',
+      "display.set_pixel(<x>, <y>, '<#rrggbb>')",
+      'display.clear_pixel(<x>, <y>)',
+      "display.set_all('<#rrggbb>')",
+      'display.show(Image("<c0>:<c1>:<c2>:<c3>:<c4>"))',
+      "display.scroll('<text>', color='<#rrggbb>')",
+      "display.scroll(<n>, color='<#rrggbb>')",
       'button_<a|b>.is_pressed()',
       'button_<a|b>.get_presses()',
       'light_level()',
@@ -243,7 +294,7 @@ describe('the allowlist this phase may generate is part of the contract allowlis
       expect(phaseList.forms, form).toContain(form);
     }
     // The rows of the later phases are in the contract’s list but not in what is generated.
-    for (const later of ["display.set_pixel(<x>, <y>, '<#rrggbb>')", 'int(temperature())', 'pin<N>.servo_write(<angle>)']) {
+    for (const later of ['int(temperature())', 'pin<N>.servo_write(<angle>)']) {
       expect(contractList.forms, later).toContain(later);
       expect(phaseList.forms, later).not.toContain(later);
     }
@@ -308,6 +359,14 @@ describe('every generated hardware program stays inside the allowlist', () => {
     expect(covered(/light_level\(\)/)).toBe(true);
     expect(covered(/music\.play\(\['[A-G]\d:[124]'\], wait=True\)/)).toBe(true);
     expect(covered(/music\.play\(\['R:[124]'\], wait=True\)/)).toBe(true);
+    // N17 B1: the RGB display.
+    expect(covered(/display\.show\(Image\.[A-Z_]+\)/)).toBe(true);
+    expect(covered(/display\.set_pixel\(.+, .+, '#[0-9a-f]{6}'\)/)).toBe(true);
+    expect(covered(/display\.clear_pixel\(.+, .+\)/)).toBe(true);
+    expect(covered(/display\.set_all\('#[0-9a-f]{6}'\)/)).toBe(true);
+    expect(covered(/display\.show\(Image\("[0-8]{5}(:[0-8]{5}){4}"\)\)/) && covered(/Image\("[^"]*[2-8]/)).toBe(true);
+    expect(covered(/display\.scroll\('[^']*', color='#[0-9a-f]{6}'\)/)).toBe(true);
+    expect(covered(/display\.scroll\(\d+, color='#[0-9a-f]{6}'\)/)).toBe(true);
     // Every note of the domain and every length is written somewhere.
     for (const note of notes) {
       expect(text, note).toMatch(new RegExp(`'${note}:[124]'`));
@@ -338,22 +397,34 @@ describe('the audit would notice what the hardware must not use (it is not vacuo
       "music.play(['C3:1'], wait=True)",
       "music.play(['C5:4'], wait=True)",
       "music.play(['R:2'], wait=True)",
+      // N17 B1.
+      'display.show(Image.HEART)',
+      'display.show(Image.HEART_SMALL)',
+      "display.set_pixel(x, 4, '#4b0082')",
+      'display.clear_pixel(0, x + 1)',
+      "display.set_all('#ffffff')",
+      'display.show(Image("08080:88888:88888:08880:00800"))',
+      "display.scroll('Hi', color='#00ff00')",
+      "display.scroll(x, color='#ffa500')",
     ]) {
       expect(audit(around(line), phaseList, learner), line).toEqual(clean);
     }
   });
 
   const refused: [label: string, line: string, header?: string[]][] = [
-    ['display.set_pixel (Advanced display, YB-7a)', "display.set_pixel(0, 0, '#FF0000')"],
     ['pin0.read_analog written without int() (YB-4)', 'x = pin0.read_analog()'],
     ['music.pitch (EXCLUDED, C-21)', 'music.pitch(440, 100)'],
     ['random (EXCLUDED, C-40)', 'x = random.randint(1, 6)', ['import time', 'import random']],
     ['an import of random', 'x = 1', ['import time', 'import random']],
     ['button_a.is_pressed_ab (A+B, EXCLUDED, C-47)', 'if button_a.is_pressed_ab():'],
     ['accelerometer (EXCLUDED, C-17)', 'x = accelerometer.get_x()'],
-    ['a built-in image', 'display.show(Image.HEART)'],
+    ['a built-in image the block does not offer', 'display.show(Image.SMILE)'],
+    ['an arrow by name (the generator writes it as an own picture)', 'display.show(Image.ARROW_N)'],
+    ['a name read off Image that is no picture', 'x = Image.HEART'],
     ['a built-in melody', 'music.play(music.DADADADUM)'],
-    ['an image with a digit other than 0 and 1 (C-70)', 'display.show(Image("20000:00000:00000:00000:00000"))'],
+    ['an image with a digit beyond the palette', 'display.show(Image("90000:00000:00000:00000:00000"))'],
+    ['a colour keyword on clear', "display.clear(color='#ff0000')"],
+    ['a colour name on a scroll', "display.scroll('Hi', color='red')"],
     ['an image with four rows', 'display.show(Image("00000:00000:00000:00000"))'],
     ['a note above C5', "music.play(['C6:4'], wait=True)"],
     ['a flat note', "music.play(['DB4:1'], wait=True)"],
@@ -375,8 +446,7 @@ describe('the audit would notice what the hardware must not use (it is not vacuo
     expect(found).not.toEqual(clean);
   });
 
-  // The contract lists `display.set_pixel(<x>, <y>, '<#rrggbb>')`, so the call as such is not refused by the whole list (only by this phase's).
-  it.each(refused.filter(([label]) => !label.startsWith('display.set_pixel')))('refuses %s (whole contract list)', (_label, line, header) => {
+  it.each(refused)('refuses %s (whole contract list)', (_label, line, header) => {
     const found = audit(around(line, header), contractList, learner);
     expect(found).not.toEqual(clean);
   });
@@ -388,10 +458,14 @@ describe('the audit would notice what the hardware must not use (it is not vacuo
     expect(audit(around('display.set_pixel(0, 0, "#FF0000")'), contractList, learner).calls).toEqual(['display.set_pixel(0, 0, "#FF0000")']);
   });
 
-  it('knows set_pixel as a row of the contract that is not generated yet, and the pins of YB-4 as generated', () => {
-    for (const line of ["display.set_pixel(0, 0, '#FF0000')"]) {
+  it('knows temperature as a row of the contract that is not generated yet, and the pins of YB-4 and the pixels of N17 B1 as generated', () => {
+    for (const line of ['x = int(temperature())']) {
       expect(audit(around(line), contractList, learner), line).toEqual(clean);
       expect(audit(around(line), phaseList, learner), line).not.toEqual(clean);
+    }
+    for (const line of ["display.set_pixel(0, 0, '#FF0000')", 'display.show(Image.HEART)']) {
+      expect(audit(around(line), contractList, learner), line).toEqual(clean);
+      expect(audit(around(line), phaseList, learner), line).toEqual(clean);
     }
     for (const line of ['x = int(pin0.read_analog())', 'pin1.write_digital(1)']) {
       expect(audit(around(line), contractList, learner), line).toEqual(clean);

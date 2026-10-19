@@ -139,6 +139,27 @@ describe('the display on the canvas', () => {
     expect((cells[1] as Konva.Rect).fill()).not.toBe(red);
   });
 
+  it('draws a cell in any colour of the palette, and rims and lights every lit cell so a dark colour never reads as off (N17 B1)', async () => {
+    const colours: HexColour[] = ['#FF0000', '#FFA500', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#800080', '#FFFFFF'];
+    const pixels = blankFrame().pixels.map((_, index) => colours[index] ?? null);
+    await render(ybcCircuit, 'ybc-basic', simulation({ 'ybc-board-1/display': { frame: { pixels } } }));
+
+    expect(board().display).toEqual(pixels);
+    const cells = (groupNamed('.ybc-display')?.getChildren() ?? []) as Konva.Rect[];
+    colours.forEach((colour, index) => {
+      const lit = cells[index];
+      expect(lit?.fill(), colour).toBe(colour);
+      expect(lit?.strokeWidth(), colour).toBeGreaterThan(0);
+      expect(lit?.stroke(), colour).not.toBe(colour);
+      expect(lit?.shadowEnabled(), colour).toBe(true);
+      expect(lit?.shadowColor(), colour).toBe(colour);
+    });
+    const off = cells[24];
+    expect(off?.strokeWidth()).toBe(0);
+    expect(off?.shadowEnabled()).toBe(false);
+    expect(off?.fill()).not.toBe('#4B0082');
+  });
+
   it('follows the snapshot from one frame to the next, and back to dark when the run ends', async () => {
     await render(ybcCircuit, 'ybc-basic', simulation({ 'ybc-board-1/display': { frame: frameOf(0) } }));
     expect(board().display?.filter((fill) => fill !== null)).toHaveLength(1);
