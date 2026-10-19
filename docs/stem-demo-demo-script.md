@@ -116,7 +116,8 @@ mà tab bị ẩn sẽ báo "bị gián đoạn" chứ không chấm (cố ý, �
 
 **Nếu có sự cố:**
 - Kéo khối hụt: bấm **Đặt lại** hai lần để mở lại bài, hoặc kéo lại.
-- Không nghe tiếng: âm thanh bật khi bấm Chạy/Kiểm tra; nút loa dưới mạch là công tắc tắt/bật.
+- Không nghe tiếng: âm thanh bật khi bấm Chạy/Kiểm tra; nút **Tắt âm thanh / Bật âm thanh** cuối bảng điều khiển là công tắc
+  tắt/bật (khi tắt, dòng chữ ghi "Đang phát … (đã tắt tiếng)").
 - Mở nhầm `profile=ybc-basic` cho bài Nhiệt kế: lab báo bằng tiếng Việt rằng bài cần mức Nâng cao, sửa URL thành
   `profile=ybc-advanced`.
 - Hai bài Nâng cao khác để hỏi đáp: `ybc-dice` (lắc thì hiện số 1–6) và `ybc-servo-gate` (trời tối thì servo về 0°).

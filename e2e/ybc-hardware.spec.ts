@@ -342,8 +342,9 @@ test.describe('sound (C-50, C-51)', () => {
     const before = await audioLog(page);
 
     await run(page);
-    await expectSounding(page, 'Playing 262 Hz');
-    await expectSounding(page, 'Playing 440 Hz');
+    // It says what plays, and that it is not heard (Fix 6, N17 c6).
+    await expectSounding(page, 'Playing 262 Hz (sound off)');
+    await expectSounding(page, 'Playing 440 Hz (sound off)');
     await expect(runStatus(page)).toHaveText('Program finished — board powered', { timeout: 10_000 });
     const after = await audioLog(page);
     expect(after.contexts).toBe(before.contexts);

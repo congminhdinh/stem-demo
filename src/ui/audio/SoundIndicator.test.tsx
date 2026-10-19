@@ -167,12 +167,13 @@ describe('the sound of the buzzer (N17 B3: on from the start, started by Run or 
     expect(context().resumes).toEqual([true, true, true]);
   });
 
-  it('says what the buzzer plays, from the snapshot, whether or not sound is on or started', async () => {
+  it('says what the buzzer plays, from the snapshot, whether or not sound is on or started; with sound off, that it is not heard', async () => {
     await render({ hz: 262 });
     expect(indicator()).toBe('Playing 262 Hz');
 
+    // Fix 6 (N17 c6): the learner who turned the sound off still reads that the program plays, and why nothing is heard.
     await clickToggle();
-    expect(indicator()).toBe('Playing 262 Hz');
+    expect(indicator()).toBe('Playing 262 Hz (sound off)');
 
     await render(undefined);
     expect(indicator()).toBe('Silent');
@@ -217,7 +218,8 @@ describe('the sound of the buzzer (N17 B3: on from the start, started by Run or 
 
     expect(toggle().textContent).toBe('Turn sound on');
     expect(context().sounding()).toEqual([]);
-    expect(indicator()).toBe('Playing 440 Hz');
+    // Still playing in the run, and the text says it is not heard (Fix 6, N17 c6).
+    expect(indicator()).toBe('Playing 440 Hz (sound off)');
     await clickRun();
     await emit(523);
     expect(context().sounding()).toEqual([]);
@@ -313,6 +315,6 @@ describe('the sound of the buzzer (N17 B3: on from the start, started by Run or 
     await clickRun();
 
     expect(toggle().textContent).toBe('Turn sound on');
-    expect(indicator()).toBe('Playing 262 Hz');
+    expect(indicator()).toBe('Playing 262 Hz (sound off)');
   });
 });

@@ -12,8 +12,8 @@ type SoundIndicatorProps = {
 
 /**
  * What the buzzer is doing as text, and the switch for hearing it (N17 B3: a mute switch; the sound is on from the start and is
- * started by Run or Check). The text comes from the snapshot only and says the same whether sound is on or not (the sound is never
- * the only signal, plan §19). An idle run has no buzzer state, so Stop silences at once.
+ * started by Run or Check). The text comes from the snapshot (the sound is never the only signal, plan §19); with the sound off it
+ * also says that the tone is not heard (Fix 6, N17 c6). An idle run has no buzzer state, so Stop silences at once.
  */
 export function SoundIndicator({ buzzer, sound }: SoundIndicatorProps) {
   const hz = toneHz(buzzer);
@@ -26,7 +26,7 @@ export function SoundIndicator({ buzzer, sound }: SoundIndicatorProps) {
         {sound.on ? t('sound.turnOff') : t('sound.turnOn')}
       </button>
       <span className={hz === undefined ? 'sound-state' : 'sound-state sound-state-playing'} data-testid="sound-indicator">
-        {hz === undefined ? t('sound.silent') : t('sound.playing', { hz: formatHz(hz) })}
+        {hz === undefined ? t('sound.silent') : t(sound.on ? 'sound.playing' : 'sound.playingMuted', { hz: formatHz(hz) })}
       </span>
     </div>
   );
