@@ -15,6 +15,7 @@ import { toneHz } from '../audio/tone';
 import { useBuzzerSound } from '../audio/use-buzzer-sound';
 import { BlocklyPanel, type BlocklyPanelHandle } from '../blockly/BlocklyPanel';
 import { localizeToolbox } from '../i18n/blocks';
+import type { MessageKey } from '../i18n/messages';
 import { useLocale, useText } from '../i18n/text';
 import { CircuitCanvas } from '../canvas/CircuitCanvas';
 import { PotentiometerControls } from '../canvas/PotentiometerControls';
@@ -26,6 +27,7 @@ import { RuntimeControls } from '../runtime-controls/RuntimeControls';
 import type { ProjectStore } from '../state/project-store';
 import { checkSessionOf, selectIsRunning, type RunStore } from '../state/run-store';
 import { ChallengePanel, type CheckView } from './ChallengePanel';
+import { ErrorBoundary } from './ErrorBoundary';
 import { LabWorkspace } from './LabWorkspace';
 import { onPageHidden } from './page-hidden';
 import { PythonPanel } from './PythonPanel';
@@ -144,6 +146,22 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
     const timer = setTimeout(() => setResetArmed(false), resetConfirmMs);
     return () => clearTimeout(timer);
   }, [resetArmed]);
+
+  // Fix 6 (N17 m2): the document's program did not open in the block editor (BlocklyPanel), or the panel failed. A lab opens its
+  // template again, the editor a new project, with a notice; the host hears of it as of any other project the lab opens
+  // (project-changed). Once per load: if what replaced it fails as well, the panel stays empty and saves nothing.
+  const recoveredAt = useRef<number | null>(null);
+  const [programNotice, setProgramNotice] = useState<{ revision: number; message: MessageKey } | null>(null);
+  const recoverProgram = () => {
+    if (recoveredAt.current === projectStore.getState().loadRevision) {
+      return;
+    }
+    projectStore.getState().loadProject(lab ? lab.createTemplate() : createNewProject(crypto.randomUUID()));
+    runStore.getState().clearStartFailure();
+    recoveredAt.current = projectStore.getState().loadRevision;
+    setProgramNotice({ revision: recoveredAt.current, message: lab ? 'lab.loadFailed' : 'app.loadFailed' });
+  };
+  const shownProgramNotice = programNotice?.revision === loadRevision ? programNotice.message : null;
 
   // New replaces the whole project, so it is locked while running like any
   // edit. Why the last Run did not start was about the replaced project.
@@ -328,7 +346,18 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
       aria-label={t('app.program')}
       data-testid="program-region"
     >
-      <BlocklyPanel ref={blocklyRef} projectStore={projectStore} packs={packs} toolbox={toolbox} fitOnLoad={lab !== null} />
+      {/* A new boundary for every loaded project: what failed was the program of the one before. */}
+      <ErrorBoundary
+        key={`blocks-${loadRevision}`}
+        onError={recoverProgram}
+        fallback={
+          <p className="program-failed" role="alert" data-testid="program-failed">
+            {t('program.failed')}
+          </p>
+        }
+      >
+        <BlocklyPanel ref={blocklyRef} projectStore={projectStore} packs={packs} toolbox={toolbox} fitOnLoad={lab !== null} onLoadFailed={recoverProgram} />
+      </ErrorBoundary>
       {/* Python exists for Yolo:Bit-compatible projects only (R-F5); a generic project has no panel. */}
       {pythonShown && (
         <PythonPanel
@@ -381,6 +410,14 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
           <p className="app-notice" role="status" data-testid="app-notice">
             {shownNotice}
             <button type="button" onClick={() => setNoticeDismissed(true)}>
+              {t('app.dismiss')}
+            </button>
+          </p>
+        )}
+        {shownProgramNotice && (
+          <p className="app-notice" role="status" data-testid="program-notice">
+            {t(shownProgramNotice)}
+            <button type="button" onClick={() => setProgramNotice(null)}>
               {t('app.dismiss')}
             </button>
           </p>

@@ -1,6 +1,6 @@
 import { expect, test, type Frame, type Page } from '@playwright/test';
 import { projectDocumentSchema } from '../src/core/circuit/document';
-import { playNote, program } from '../src/core/program/__fixtures__/ybc-blocks';
+import { playNote, program, text } from '../src/core/program/__fixtures__/ybc-blocks';
 import { ybcSolutionDocument, type YbcLessonKey } from '../src/samples/ybc-solutions';
 import { ybcStarterDocument, type YbcTemplateKey } from '../src/samples/ybc-templates';
 
@@ -194,6 +194,42 @@ test.describe('a Yolo:Bit lab in a lesson (stem-lab/v1)', () => {
         { id: 'uses-wait', passed: true },
       ],
     });
+  });
+
+  test('opens the template again, with a notice, when a project does not open in the block editor, and tells the host (Fix 6, N17 m2)', async ({ page, baseURL }) => {
+    const errors = collectErrors(page);
+    const labOrigin = new URL(baseURL ?? '').origin;
+    const frame = await openInLesson(page, labUrl(baseURL, `lab=yolobit&template=ybc-empty&origin=${encodeURIComponent(lessonOrigin)}&profile=ybc-advanced`));
+    await expect.poll(() => messagesOfType(page, 'ready')).toHaveLength(1);
+    const template = { ...starter('ybc-empty'), profile: 'ybc-advanced' };
+
+    // A text in the colour input of "fill the display": the document's schema takes it, the drawn editor does not.
+    const corrupted = {
+      ...template,
+      id: 'corrupted',
+      program: { blocks: program([{ type: 'ybc_display_set_all', id: 'fill', inputs: { COLOUR: { block: text('đỏ') } } }], []) },
+    };
+    // The host's load-project is checked before it is opened (canOpenProgram), and refused: the lab keeps what it has.
+    await sendToLab(page, { protocol: 'stem-lab/v1', type: 'load-project', document: corrupted }, labOrigin);
+    await page.waitForTimeout(300);
+    expect(await frame.evaluate(() => window.__stem?.getProject())).toEqual(template);
+    await expect(frame.getByTestId('program-notice')).toHaveCount(0);
+
+    // Opened without that check (a corrupted save, a newer lab's project): the lab is not left blank, it opens its template.
+    await frame.evaluate((document) => window.__stem?.loadProject(document), corrupted);
+    await expect(frame.getByTestId('program-notice')).toContainText('Không mở được bài đã lưu, đã mở lại bài mẫu.');
+    await expect(frame.getByTestId('blockly-panel').locator('.blocklyText', { hasText: 'lặp mãi mãi' })).toBeVisible();
+    await expect.poll(() => frame.evaluate(() => window.__stem?.getProject())).toEqual(template);
+    // The host hears of the project the lab holds now, as of any other (project-changed); never of the corrupted one.
+    await expect.poll(async () => (await messagesOfType(page, 'project-changed')).at(-1)?.data.document, { timeout: 5_000 }).toEqual(template);
+    expect((await messagesOfType(page, 'project-changed')).map((message) => (message.data.document as { id: string }).id)).not.toContain('corrupted');
+
+    // The template works, and the notice goes away when dismissed.
+    await frame.getByRole('button', { name: 'Chạy', exact: true }).click();
+    await expect(frame.getByTestId('run-status')).toHaveText('Đang chạy');
+    await frame.getByTestId('program-notice').getByRole('button', { name: 'Đóng' }).click();
+    await expect(frame.getByTestId('program-notice')).toHaveCount(0);
+    expect(errors).toEqual([]);
   });
 });
 

@@ -694,6 +694,18 @@ body {
   bottom: 38%;
 }
 
+/* What the program panel shows when it failed (Fix 6, N17 m2), instead of the blocks. */
+.program-failed {
+  position: absolute;
+  inset: 0 0 auto;
+  margin: 12px;
+  padding: 8px 12px;
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-danger-soft);
+  color: var(--stem-color-danger);
+  font-size: 13px;
+}
+
 .python-panel {
   position: absolute;
   inset: 62% 0 0;

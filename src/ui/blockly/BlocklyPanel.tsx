@@ -1,5 +1,5 @@
 import * as Blockly from 'blockly';
-import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
+import { useEffect, useEffectEvent, useImperativeHandle, useRef, type Ref } from 'react';
 import { useStore } from 'zustand';
 import { blockTypes } from '../../core/program/blocks';
 import type { BlockPackCatalog, Toolbox } from '../../core/program/block-packs';
@@ -32,13 +32,19 @@ type BlocklyPanelProps = {
   toolbox: Toolbox;
   /** A lab launch (N8s): every loaded program is shrunk, if needed, so that all its blocks are in sight. */
   fitOnLoad?: boolean;
+  /**
+   * The document's program did not open in the editor (Fix 6, N17 m2: e.g. a block in an input whose type it does not take). The
+   * panel shows nothing and saves nothing for that document, so it is never overwritten; its owner opens another one.
+   */
+  onLoadFailed?(): void;
   ref?: Ref<BlocklyPanelHandle>;
 };
 
-export function BlocklyPanel({ projectStore, packs, toolbox, fitOnLoad = false, ref }: BlocklyPanelProps) {
+export function BlocklyPanel({ projectStore, packs, toolbox, fitOnLoad = false, onLoadFailed, ref }: BlocklyPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const saveNowRef = useRef<() => void>(() => {});
   const loadRevision = useStore(projectStore, (state) => state.loadRevision);
+  const loadFailed = useEffectEvent(() => onLoadFailed?.());
   useImperativeHandle(ref, () => ({ saveNow: () => saveNowRef.current() }), []);
 
   // Rebuilt whenever a project is loaded (even one with the same id) or the
@@ -61,12 +67,27 @@ export function BlocklyPanel({ projectStore, packs, toolbox, fitOnLoad = false, 
 
     workspace.registerToolboxCategoryCallback('VARIABLE', ybcVariablesFlyout);
 
-    const blocks = projectStore.getState().document.program.blocks;
-    if (typeof blocks === 'object' && blocks !== null) {
-      Blockly.serialization.workspaces.load(blocks, workspace);
-    }
-    if (fitOnLoad) {
-      fitBlocksIntoView(workspace);
+    // The stored and the host's programs were checked on a headless workspace before they got here (canOpenProgram); a program
+    // that still fails (a check only the drawn editor makes, or one opened another way) must not take the whole page down. Blockly
+    // stops in the middle of such a load, so the workspace is emptied and nothing of it is ever saved.
+    let loaded = true;
+    try {
+      const blocks = projectStore.getState().document.program.blocks;
+      if (typeof blocks === 'object' && blocks !== null) {
+        Blockly.serialization.workspaces.load(blocks, workspace);
+      }
+      if (fitOnLoad) {
+        fitBlocksIntoView(workspace);
+      }
+    } catch (error) {
+      loaded = false;
+      console.warn('The program could not be opened in the block editor.', error);
+      Blockly.Events.disable();
+      try {
+        workspace.clear();
+      } finally {
+        Blockly.Events.enable();
+      }
     }
 
     let pendingSave: ReturnType<typeof setTimeout> | undefined;
@@ -76,7 +97,8 @@ export function BlocklyPanel({ projectStore, packs, toolbox, fitOnLoad = false, 
       const state = projectStore.getState();
       // This workspace belongs to one load: once another project is loaded,
       // its pending, flushed or Run-time saves must never overwrite it.
-      if (state.loadRevision !== loadRevision) {
+      // Nor does one that did not load: it is not the document's program.
+      if (!loaded || state.loadRevision !== loadRevision) {
         return;
       }
       const { document, setProgramBlocks } = state;
@@ -99,6 +121,10 @@ export function BlocklyPanel({ projectStore, packs, toolbox, fitOnLoad = false, 
 
     const resizeObserver = new ResizeObserver(() => Blockly.svgResize(workspace));
     resizeObserver.observe(container);
+
+    if (!loaded) {
+      loadFailed();
+    }
 
     return () => {
       saveNowRef.current = () => {};
