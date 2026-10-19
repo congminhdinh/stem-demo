@@ -77,9 +77,9 @@ describe('the pin constructs are contract rows that pass the exposure gate', () 
     }
   });
 
-  it('keep out what the contract excludes or leaves to a later phase: PWM / analog write, servo, pulse in, temperature', () => {
+  it('keep out what the contract excludes or leaves to a later phase: PWM / analog write, servo, pulse in', () => {
     for (const profile of profiles) {
-      for (const id of ['C-26', 'C-27', 'C-28', 'C-16']) {
+      for (const id of ['C-26', 'C-27', 'C-28']) {
         expect(profile?.constructs, `${profile?.id}/${id}`).not.toContain(id);
       }
     }

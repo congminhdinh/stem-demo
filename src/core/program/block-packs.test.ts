@@ -24,6 +24,7 @@ describe('block packs', () => {
       'ybc.display',
       'ybc.input',
       'ybc.sound',
+      'ybc.sensors',
       'ybc.pins',
       'lang.logic',
       'lang.loops',
@@ -79,6 +80,10 @@ describe('block packs', () => {
       'ybc_light_level',
       'ybc_sound_note',
       'ybc_sound_rest',
+      // N17 B2: the sensors of the Advanced board.
+      'ybc_temperature',
+      'ybc_accel',
+      'ybc_gesture_is',
       'ybc_pin_write',
       'ybc_pin_read',
       'ybc_pin_analog',
@@ -88,6 +93,20 @@ describe('block packs', () => {
       'ybc_arith',
       'ybc_int_divide',
     ]);
+  });
+
+  it('merge a category a later pack shows under a name an earlier pack already used (N17 B2: the sensors join Input), and never a dynamic one', () => {
+    const toolbox = buildToolbox(['ybc.input', 'ybc.sound', 'ybc.sensors', 'lang.variables'], packs);
+    expect(toolbox.contents.map((category) => category.name)).toEqual(['Input', 'Sound', 'Variables']);
+    const input = toolbox.contents[0]?.contents as { type: string; fields?: Record<string, unknown> }[];
+    expect(input.map((block) => block.type)).toEqual([
+      'ybc_button_pressed', 'ybc_button_pressed', 'ybc_button_presses', 'ybc_button_presses', 'ybc_light_level',
+      'ybc_temperature', 'ybc_accel', 'ybc_gesture_is', 'ybc_gesture_is',
+    ]);
+    // The pack's own category is not changed by the merge.
+    expect(packs.get('ybc.input')?.categories[0]?.contents).toHaveLength(5);
+    // Alone, the sensors pack shows its own Input category.
+    expect(buildToolbox(['ybc.sensors'], packs).contents.map((category) => category.name)).toEqual(['Input']);
   });
 
   it('tell the types of a pack set, and refuse an unknown pack', () => {

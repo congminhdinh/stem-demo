@@ -375,3 +375,208 @@ describe('the display as text', () => {
     expect(byTestId('display-text').closest('[aria-live], [role="status"], [role="alert"], [role="log"]')).toBeNull();
   });
 });
+
+// --- N17 B2: the temperature and the accelerometer of the Advanced board ------------------------------------------
+
+describe('the sensors of the Advanced board (N17 B2)', () => {
+  const advancedControls = ['button-a', 'button-b', 'light', 'temperature', 'accelerometer'];
+  const shake: ComponentInput = { kind: 'gesture' };
+
+  function setupAdvanced(active = true, scripted?: Record<string, ComponentInput>, scriptedEvents?: Record<string, number>) {
+    const sent: Sent[] = [];
+    const render = (isActive: boolean, given = scripted, events = scriptedEvents, key?: string) =>
+      act(async () =>
+        root.render(
+          <RuntimeControls
+            key={key}
+            boardId="board-1"
+            definition={definition}
+            controls={advancedControls}
+            active={isActive}
+            onInput={(componentId, input) => sent.push([componentId, input])}
+            {...(given ? { scripted: given } : {})}
+            {...(events ? { scriptedEvents: events } : {})}
+          />,
+        ),
+      );
+    return { sent, render, ready: render(active) };
+  }
+  const pad = () => byTestId<HTMLDivElement>('control-accelerometer');
+  const gesture = () => byTestId('control-accelerometer-gesture').textContent;
+  const shakeButton = () => byTestId<HTMLButtonElement>('control-accelerometer-shake');
+  const faceDown = () => byTestId<HTMLButtonElement>('control-accelerometer-face-down');
+  const press = (keyName: string) => fire(pad(), key('keydown', { key: keyName }));
+
+  it('shows a temperature slider of −10..50 °C from 25 °C, with its unit, and sends whole degrees', async () => {
+    const { sent, ready } = setupAdvanced();
+    await ready;
+    const temperature = byTestId<HTMLInputElement>('control-temperature');
+    expect([temperature.min, temperature.max, temperature.step, temperature.value]).toEqual(['-10', '50', '1', '25']);
+    expect(byTestId('control-temperature-value').textContent).toBe('25 °C');
+    expect(container.querySelector(`label[for="${temperature.id}"]`)?.textContent).toBe('Temperature');
+
+    await dragTo(temperature, '-4');
+    expect(sent).toEqual([['board-1/temperature', { kind: 'slider', value: -4 }]]);
+    expect(byTestId('control-temperature-value').textContent).toBe('-4 °C');
+  });
+
+  it('shows the pad lying flat, face up, with its name, the gesture it makes and a hint, in a group', async () => {
+    await setupAdvanced().ready;
+    expect(pad().closest('[role="group"]')?.textContent).toContain('Tilt');
+    expect([pad().dataset.x, pad().dataset.y, pad().dataset.z]).toEqual(['0', '0', '-1024']);
+    expect(pad().getAttribute('aria-valuetext')).toBe('x 0, y 0, z -1024 mg');
+    expect(gesture()).toBe('Face up');
+    expect(pad().tabIndex).toBe(0);
+    expect(shakeButton().textContent).toBe('Shake');
+    expect(faceDown().getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('moves with the arrow keys, 128 mg a press, says the gesture once beyond 400 mg, and Home lays it flat again', async () => {
+    const { sent, ready } = setupAdvanced();
+    await ready;
+    for (let press_ = 0; press_ < 4; press_++) {
+      await press('ArrowLeft');
+    }
+    expect(sent.map(([, input]) => input)).toEqual([-128, -256, -384, -512].map((x) => ({ kind: 'tilt', x, y: 0 })));
+    expect(sent.every(([componentId]) => componentId === 'board-1/accelerometer')).toBe(true);
+    expect(gesture()).toBe('Tilted left');
+    expect(pad().dataset.x).toBe('-512');
+
+    await press('ArrowUp');
+    await press('ArrowUp');
+    await press('ArrowUp');
+    expect(sent.at(-1)?.[1]).toEqual({ kind: 'tilt', x: -512, y: 384 });
+    // x has the first say.
+    expect(gesture()).toBe('Tilted left');
+
+    await press('Home');
+    expect(sent.at(-1)?.[1]).toEqual({ kind: 'tilt', x: 0, y: 0 });
+    expect(gesture()).toBe('Face up');
+    // A key that does nothing sends nothing.
+    const before = sent.length;
+    await press('Enter');
+    await press('Home');
+    expect(sent).toHaveLength(before);
+  });
+
+  it('follows a drag with the pointer, captured, in steps of 32 mg, and stops when it is let go', async () => {
+    const { sent, ready } = setupAdvanced();
+    await ready;
+    const element = pad();
+    element.getBoundingClientRect = () => ({ left: 100, top: 100, width: 80, height: 80, right: 180, bottom: 180, x: 100, y: 100, toJSON: () => ({}) });
+    const capture = vi.fn();
+    element.setPointerCapture = capture;
+
+    await fire(element, pointer('pointerdown', { clientX: 140, clientY: 140 }));
+    expect(capture).toHaveBeenCalledWith(1);
+    // The centre is flat: nothing changed, nothing sent.
+    expect(sent).toEqual([]);
+    await fire(element, pointer('pointermove', { clientX: 180, clientY: 140 }));
+    expect(sent.at(-1)?.[1]).toEqual({ kind: 'tilt', x: 1024, y: 0 });
+    expect(gesture()).toBe('Tilted right');
+    await fire(element, pointer('pointermove', { clientX: 140, clientY: 110 }));
+    expect(sent.at(-1)?.[1]).toEqual({ kind: 'tilt', x: 0, y: 768 });
+    expect(gesture()).toBe('Logo down');
+    await fire(element, pointer('pointerup', { clientX: 140, clientY: 110 }));
+    const count = sent.length;
+    await fire(element, pointer('pointermove', { clientX: 100, clientY: 180 }));
+    expect(sent).toHaveLength(count);
+    // The dot stays where it was let go.
+    expect(pad().dataset.y).toBe('768');
+  });
+
+  it('turns the board face down and back: the run gets the z of face down, and the gesture says so', async () => {
+    const { sent, ready } = setupAdvanced();
+    await ready;
+    await act(async () => faceDown().click());
+    expect(sent).toEqual([['board-1/accelerometer', { kind: 'tilt', x: 0, y: 0, z: 1024 }]]);
+    expect(faceDown().getAttribute('aria-pressed')).toBe('true');
+    expect(gesture()).toBe('Face down');
+    await act(async () => faceDown().click());
+    expect(sent.at(-1)?.[1]).toEqual({ kind: 'tilt', x: 0, y: 0 });
+    expect(gesture()).toBe('Face up');
+  });
+
+  describe('the shake button', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('sends a shake, says "Shaken" for 1 s, then the tilt’s gesture again; the tilt is not sent again', async () => {
+      const { sent, ready } = setupAdvanced();
+      await ready;
+      await act(async () => shakeButton().click());
+      expect(sent).toEqual([['board-1/accelerometer', shake]]);
+      expect(gesture()).toBe('Shaken');
+      await act(async () => void vi.advanceTimersByTime(999));
+      expect(gesture()).toBe('Shaken');
+      await act(async () => void vi.advanceTimersByTime(1));
+      expect(gesture()).toBe('Face up');
+    });
+
+    it('starts the second again when it is pressed during a shake', async () => {
+      const { ready } = setupAdvanced();
+      await ready;
+      await act(async () => shakeButton().click());
+      await act(async () => void vi.advanceTimersByTime(800));
+      await act(async () => shakeButton().click());
+      await act(async () => void vi.advanceTimersByTime(900));
+      expect(gesture()).toBe('Shaken');
+      await act(async () => void vi.advanceTimersByTime(100));
+      expect(gesture()).toBe('Face up');
+    });
+  });
+
+  it('does nothing while no run is active: the pad takes no key and no pointer, the buttons are disabled', async () => {
+    const { sent, ready } = setupAdvanced(false);
+    await ready;
+    expect(pad().tabIndex).toBe(-1);
+    expect(pad().getAttribute('aria-disabled')).toBe('true');
+    expect(shakeButton().disabled).toBe(true);
+    expect(faceDown().disabled).toBe(true);
+    expect(byTestId<HTMLInputElement>('control-temperature').disabled).toBe(true);
+    await press('ArrowLeft');
+    await fire(pad(), pointer('pointerdown', { clientX: 0, clientY: 0 }));
+    expect(sent).toEqual([]);
+  });
+
+  it('shows what a check gives: its temperature, its tilt and its shake, and takes nothing of the learner', async () => {
+    vi.useFakeTimers();
+    try {
+      const { sent, render, ready } = setupAdvanced(true, {
+        'board-1/temperature': { kind: 'slider', value: 30 },
+        'board-1/accelerometer': { kind: 'tilt', x: -800, y: 0 },
+      });
+      await ready;
+      expect(byTestId('control-temperature-value').textContent).toBe('30 °C');
+      expect(pad().dataset.x).toBe('-800');
+      expect(gesture()).toBe('Tilted left');
+      expect(shakeButton().disabled).toBe(true);
+      await press('ArrowRight');
+      expect(sent).toEqual([]);
+
+      await render(true, { 'board-1/accelerometer': { kind: 'tilt', x: -800, y: 0 } }, { 'board-1/accelerometer': 1 });
+      expect(gesture()).toBe('Shaken');
+      await act(async () => void vi.advanceTimersByTime(1000));
+      expect(gesture()).toBe('Tilted left');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('starts every run lying flat and not shaken: a new key is a new run', async () => {
+    const { render, ready } = setupAdvanced();
+    await ready;
+    await press('ArrowRight');
+    await press('ArrowRight');
+    await press('ArrowRight');
+    await press('ArrowRight');
+    expect(gesture()).toBe('Tilted right');
+    await render(true, undefined, undefined, 'run-2');
+    expect(gesture()).toBe('Face up');
+    expect(pad().dataset.x).toBe('0');
+  });
+});

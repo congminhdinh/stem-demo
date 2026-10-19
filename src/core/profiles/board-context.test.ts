@@ -11,6 +11,8 @@ import { productionProfiles } from './index';
 
 /** The block packs of both production profiles: the structure, the YB-3 hardware and the YB-2 language. */
 const ybcPacks = ['ybc.structure', 'ybc.display', 'ybc.input', 'ybc.sound', 'ybc.pins', 'lang.logic', 'lang.loops', 'lang.math', 'lang.text', 'lang.variables'];
+/** N17 B2: Advanced adds the sensors pack (temperature, accelerometer, gestures) after the packs of Basic. */
+const packsOf = (profile: string) => (profile === 'ybc-advanced' ? [...ybcPacks, 'ybc.sensors'] : ybcPacks);
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
 const resolve = (document: Parameters<typeof resolveBoardContext>[0]) => resolveBoardContext(document, registry, productionProfiles);
@@ -29,7 +31,7 @@ describe('resolveBoardContext: the family comes from the document profile (R-F1)
     const context = resolve(withComponents(profile));
     expect(context.family).toBe('ybc');
     expect(context.profile?.id).toBe(profile);
-    expect(context.blockPacks).toEqual(ybcPacks);
+    expect(context.blockPacks).toEqual(packsOf(profile));
   });
 
   it('does not depend on the boards present: a ybc project with only a generic board is still ybc', () => {
@@ -99,8 +101,8 @@ describe('the YBC editing states (R-F4, R-F5)', () => {
 
   it('reports the capabilities of the ybc board: pin capabilities and onboard parts, each once', () => {
     const context = resolve(fixtureDocument('ybc-basic'));
-    expect(context.readiness.ok && context.readiness.capabilities).toEqual(['digital', 'analogIn', 'display', 'buttons', 'light', 'sound']);
-    expect(capabilitiesOf(registry.get('ybc-board'))).toEqual(['digital', 'analogIn', 'display', 'buttons', 'light', 'sound']);
+    expect(context.readiness.ok && context.readiness.capabilities).toEqual(['digital', 'analogIn', 'display', 'buttons', 'light', 'sound', 'temperature', 'motion']);
+    expect(capabilitiesOf(registry.get('ybc-board'))).toEqual(['digital', 'analogIn', 'display', 'buttons', 'light', 'sound', 'temperature', 'motion']);
   });
 
   it('has several boards: valid to edit, Run says multiple-boards', () => {
@@ -132,7 +134,7 @@ describe('board deletion and replacement (R-F7, R-F8)', () => {
   it('keeps the family, the profile and the toolbox when the board is deleted; readiness becomes no-board', () => {
     const circuit = deleteComponent(ready.circuit, 'ybc-board-1');
     const context = resolve({ ...ready, circuit });
-    expect(context).toMatchObject({ family: 'ybc', blockPacks: ybcPacks });
+    expect(context).toMatchObject({ family: 'ybc', blockPacks: packsOf('ybc-advanced') });
     expect(context.profile?.id).toBe('ybc-advanced');
     expect(context.readiness).toEqual({ ok: false, reason: 'no-board', componentIds: [] });
   });

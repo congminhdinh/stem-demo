@@ -23,10 +23,13 @@
 // made it one of the palette, as a frame holds it), the built-in pictures are a
 // second source of image, and set / clear pixel take the column and the row as
 // expressions, like the pins.
+//
+// N17 B2 adds the sensors of the Advanced board: the temperature, the acceleration along an axis and whether the board
+// makes a gesture, each a read; the axis and the gesture are operands, as the button is.
 
 import type { HexColour } from '../capabilities/frame';
 import type { BuiltinImageName } from '../constructs/ybc.images';
-import type { ButtonName } from '../constructs/ybc.input';
+import type { AxisName, ButtonName, GestureName } from '../constructs/ybc.input';
 import type { NoteName, NoteTicks } from '../constructs/ybc.sound';
 
 export type Type = 'int' | 'bool' | 'str';
@@ -116,6 +119,8 @@ export type ColourOperand = { kind: 'colour'; colour: HexColour };
 export type NoteOperand = { kind: 'note'; note: NoteName; ticks: NoteTicks };
 export type RestOperand = { kind: 'rest'; ticks: NoteTicks };
 export type ButtonOperand = { kind: 'button'; button: ButtonName };
+export type AxisOperand = { kind: 'axis'; axis: AxisName };
+export type GestureOperand = { kind: 'gesture'; gesture: GestureName };
 
 export type ArithOp = '+' | '-' | '*' | '//' | '%';
 export type CompareOp = '==' | '!=' | '<' | '<=' | '>' | '>=';
@@ -136,8 +141,8 @@ export type Expr = { type: Type; blockId: string } & (
 );
 
 /**
- * A read of an onboard part (YB-3). The `type` of the node is fixed by the op: bool for `button.isPressed`,
- * int for the others.
+ * A read of an onboard part (YB-3, N17 B2). The `type` of the node is fixed by the op: bool for `button.isPressed` and
+ * `motion.isGesture`, int for the others.
  */
 export type ReadExpr =
   /** C-12: true while the button is held at the call; not latched. */
@@ -145,7 +150,13 @@ export type ReadExpr =
   /** C-13: the presses since the last read of this button, which resets the count to 0. */
   | { kind: 'read'; op: 'button.getPresses'; operand: ButtonOperand }
   /** C-15: an int from 0 (darkest) to 100 (brightest). */
-  | { kind: 'read'; op: 'light.level' };
+  | { kind: 'read'; op: 'light.level' }
+  /** C-16 (N17 B2): whole degrees Celsius, −10..50 in the simulator. */
+  | { kind: 'read'; op: 'temperature.read' }
+  /** C-17 (N17 B2): the acceleration along the axis, whole mg in −2048..2048. */
+  | { kind: 'read'; op: 'motion.acceleration'; operand: AxisOperand }
+  /** C-18 (N17 B2): true while the board makes the gesture (shake: for 1 s after it). */
+  | { kind: 'read'; op: 'motion.isGesture'; operand: GestureOperand };
 
 /**
  * A header-pin read (YB-4, plan §9.1). `digital.read` is a bool (the pin is high), `analogIn.read` an int on the

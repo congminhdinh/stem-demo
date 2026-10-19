@@ -19,14 +19,14 @@ const packs = createBlockPackCatalog(createDeviceRegistry(localDeviceDefinitions
 const profiles = ['ybc-basic', 'ybc-advanced'].map((id) => productionProfiles.get(id));
 
 /**
- * Rows that must stay out of every profile until their own phase: random, elapsed time, events, PWM, temperature and
- * servo (YB-7), text variables and functions. The onboard hardware of YB-3 (display C-06…C-09, buttons C-12 and C-13,
- * light C-15, sound C-50 and C-51) and the RGB display of N17 B1 (C-05, C-10, C-42, C-43) are shown and are tested in
- * ybc.test.ts; C-23, C-24 and C-25 are the header pins of YB-4.
+ * Rows that must stay out of every profile until their own phase: random, elapsed time, events, PWM and servo (YB-7), text
+ * variables and functions. The onboard hardware of YB-3 (display C-06…C-09, buttons C-12 and C-13, light C-15, sound C-50 and
+ * C-51), the RGB display of N17 B1 (C-05, C-10, C-42, C-43) and the sensors of N17 B2 (C-16, C-17, C-18: Advanced only) are
+ * shown and are tested in ybc.test.ts; C-23, C-24 and C-25 are the header pins of YB-4.
  */
 const notYet = [
   'C-40', 'C-19', 'C-14', 'C-26',
-  'C-16', 'C-27',
+  'C-27',
   'C-57', 'C-58', 'C-59',
 ];
 
@@ -54,17 +54,19 @@ describe('YB-2a language constructs', () => {
     expect(construct.blockTypes.length).toBeGreaterThan(0);
   });
 
-  it('is, with the YB-3 hardware and the header pins, exactly what both profiles list next to the structure (C-01, C-02), and passes the gate for each profile', () => {
+  it('is, with the hardware and the header pins, exactly what both profiles list next to the structure (C-01, C-02), and passes the gate for each profile', () => {
+    const sensors = ['C-16', 'C-17', 'C-18'];
     for (const profile of profiles) {
-      expect([...(profile?.constructs ?? [])].sort()).toEqual(['C-01', 'C-02', ...langContractIds, ...hardwareContractIds, ...pinContractIds].sort());
+      const hardware = profile?.id === 'ybc-advanced' ? hardwareContractIds : hardwareContractIds.filter((id) => !sensors.includes(id));
+      expect([...(profile?.constructs ?? [])].sort()).toEqual(['C-01', 'C-02', ...langContractIds, ...hardware, ...pinContractIds].sort());
       expect(profileConstructViolations(profile?.id ?? '', profile?.constructs ?? [], contract)).toEqual([]);
     }
   });
 
-  it('keeps Advanced a superset of Basic, with no extra construct at YB-2a', () => {
+  it('keeps Advanced a superset of Basic, with no extra language construct: Advanced adds only the sensors of N17 B2 and their pack', () => {
     const [basic, advanced] = profiles;
-    expect(advanced?.constructs).toEqual(basic?.constructs);
-    expect(advanced?.blockPacks).toEqual(basic?.blockPacks);
+    expect(advanced?.constructs).toEqual([...(basic?.constructs ?? []), 'C-16', 'C-17', 'C-18']);
+    expect(advanced?.blockPacks).toEqual([...(basic?.blockPacks ?? []), 'ybc.sensors']);
   });
 
   it('exposes none of the rows that are excluded, deferred or belong to a later phase', () => {

@@ -3,6 +3,7 @@ import type { ButtonId, Capabilities, CapabilityKey } from '../capabilities/io';
 import type { RuntimeServices } from '../capabilities/services';
 import { DEFAULT_COLOUR, IMAGE_SIZE, isDisplayText, paletteColourOf } from '../constructs/ybc.display';
 import { isBuiltinImageName } from '../constructs/ybc.images';
+import { isAxisName, isGestureName } from '../constructs/ybc.input';
 import { runPinCall, runPinRead } from '../constructs/ybc.pins';
 import { noteTicks } from '../constructs/ybc.sound';
 import {
@@ -16,7 +17,9 @@ import {
   setAllFrame,
   setPixelFrame,
 } from '../simulation/peripherals/display';
+import { ACCELERATION_LIMIT_MG } from '../simulation/peripherals/accelerometer';
 import { LIGHT_LEVEL_MAX, LIGHT_LEVEL_MIN } from '../simulation/peripherals/light';
+import { TEMPERATURE_MAX, TEMPERATURE_MIN } from '../simulation/peripherals/temperature';
 import { NOTE_TICK_MS, noteHz } from '../simulation/peripherals/sound';
 import type { RunOutcome } from './interpreter';
 import { MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_TEXT_CHARS, MAX_WAIT_MS } from './limits';
@@ -48,6 +51,9 @@ import type { ButtonOperand, CallStatement, ColourOperand, Expr, ImageOperand, R
 // pixel change one light of the frame on the display (a picture, a still character, a fill) and leave the rest.
 // A colour comes from the compiler as one of the palette; IR from anywhere else with another value is shown red,
 // never a crash (Review Focus 3).
+//
+// N17 B2: the temperature, the acceleration and the gesture are reads of the `temperature` and `motion` capabilities at the
+// moment of the call; a reading outside its domain (a broken capability) is an internal error, never a crash.
 
 /** E3, as in the legacy interpreter: every forever iteration ends with at least this pause. */
 const foreverYieldMs = 10;
@@ -133,7 +139,7 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
     return operand.button === 'A' ? 'a' : 'b';
   };
 
-  /** C-12, C-13, C-15: what the learner reads from an onboard part, at the moment of the call. */
+  /** C-12, C-13, C-15, and C-16…C-18 (N17 B2): what the learner reads from an onboard part, at the moment of the call. */
   const readPart = (expr: ReadExpr): Value => {
     switch (expr.op) {
       case 'button.isPressed':
@@ -155,6 +161,35 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
           throw new RuntimeFault('internal-error', 'The light level is not a whole number from 0 to 100.');
         }
         return values.int(level);
+      }
+      case 'temperature.read': {
+        const degrees = part('temperature').temperature();
+        if (!Number.isInteger(degrees) || degrees < TEMPERATURE_MIN || degrees > TEMPERATURE_MAX) {
+          throw new RuntimeFault('internal-error', `The temperature is not a whole number from ${TEMPERATURE_MIN} to ${TEMPERATURE_MAX}.`);
+        }
+        return values.int(degrees);
+      }
+      case 'motion.acceleration': {
+        const { axis } = expr.operand;
+        if (!isAxisName(axis)) {
+          throw new RuntimeFault('internal-error', 'An acceleration block names an axis that does not exist.');
+        }
+        const reading = part('motion').acceleration(axis);
+        if (!Number.isInteger(reading) || Math.abs(reading) > ACCELERATION_LIMIT_MG) {
+          throw new RuntimeFault('internal-error', `The acceleration is not a whole number from -${ACCELERATION_LIMIT_MG} to ${ACCELERATION_LIMIT_MG}.`);
+        }
+        return values.int(reading);
+      }
+      case 'motion.isGesture': {
+        const { gesture } = expr.operand;
+        if (!isGestureName(gesture)) {
+          throw new RuntimeFault('internal-error', 'A gesture block names a gesture that does not exist.');
+        }
+        const motion = part('motion');
+        if (motion.gesture === undefined) {
+          throw new RuntimeFault('internal-error', 'The board cannot tell its gesture.');
+        }
+        return values.bool(motion.gesture() === gesture);
       }
     }
   };

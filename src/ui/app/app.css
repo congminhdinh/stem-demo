@@ -360,6 +360,99 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* N17 B2: the accelerometer. A small square pad with a dot (where the board tips down to), the gesture it makes, and two buttons. */
+.control-tilt {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas:
+    'label label'
+    'pad gesture'
+    'pad actions'
+    'hint hint';
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.control-tilt-label {
+  grid-area: label;
+}
+
+.tilt-pad {
+  grid-area: pad;
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border: 1px solid var(--stem-color-border-strong);
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-surface-muted);
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tilt-pad[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.tilt-pad:focus-visible {
+  outline: 3px solid var(--stem-color-primary);
+  outline-offset: 2px;
+}
+
+/* The centre lines: lying flat is where they cross. */
+.tilt-pad-cross {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(var(--stem-color-border-strong), var(--stem-color-border-strong)) center / 1px 100% no-repeat,
+    linear-gradient(var(--stem-color-border-strong), var(--stem-color-border-strong)) center / 100% 1px no-repeat;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.tilt-pad-dot {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid var(--stem-color-surface);
+  border-radius: 50%;
+  background: var(--stem-color-primary);
+  box-shadow: 0 1px 3px var(--stem-shadow-pressed);
+  pointer-events: none;
+}
+
+.control-tilt-gesture {
+  grid-area: gesture;
+  min-width: 16ch;
+  font-weight: 600;
+}
+
+.control-tilt[data-gesture='shake'] .control-tilt-gesture {
+  color: var(--stem-color-accent);
+}
+
+.control-tilt-actions {
+  grid-area: actions;
+  display: flex;
+  gap: 8px;
+}
+
+.control-tilt-hint {
+  grid-area: hint;
+  max-width: 34ch;
+  color: var(--stem-color-text-muted);
+  font-size: 12px;
+}
+
+.board-panel .control-tilt-actions button[aria-pressed='true'] {
+  border-color: var(--stem-color-pressed-border);
+  background: var(--stem-color-pressed);
+  color: var(--stem-color-on-primary);
+}
+
 .sound-indicator {
   display: flex;
   align-items: center;

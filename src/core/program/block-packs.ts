@@ -18,7 +18,16 @@ import {
   showIconType,
   showImageType,
 } from '../constructs/ybc.display';
-import { buttonPressedType, buttonPressesType, inputDefinitions, lightLevelType } from '../constructs/ybc.input';
+import {
+  accelerationType,
+  buttonPressedType,
+  buttonPressesType,
+  gestureIsType,
+  inputDefinitions,
+  lightLevelType,
+  sensorDefinitions,
+  temperatureType,
+} from '../constructs/ybc.input';
 import { createPinBlockDefinitions, pinAnalogType, pinConstructs, pinReadType, pinsPackId, pinWriteType, type PinChoices } from '../constructs/ybc.pins';
 import { playNoteType, restType, soundDefinitions } from '../constructs/ybc.sound';
 import { usablePins } from '../devices/board-pins';
@@ -207,7 +216,10 @@ const ringFields = Object.fromEntries(
 /** A colour input filled with the colour block (N17 B1), red unless said otherwise: the learner picks another in its dropdown. */
 const shadowColour = (value: string = paletteColours[0].value) => ({ [COLOUR_NAME]: { shadow: { type: colourType, fields: { [COLOUR_NAME]: value } } } });
 
-/** What each hardware pack shows in the toolbox (YB-3; the RGB display of N17 B1 after the four blocks of YB-3). */
+/**
+ * What each hardware pack shows in the toolbox (YB-3; the RGB display of N17 B1 after the four blocks of YB-3). The sensors of
+ * N17 B2 join the Input category (`buildToolbox` merges a category of the same name), after the buttons and the light.
+ */
 const hardwareCategories: Readonly<Record<HardwarePackId, ToolboxCategory[]>> = {
   'ybc.display': [
     {
@@ -249,15 +261,29 @@ const hardwareCategories: Readonly<Record<HardwarePackId, ToolboxCategory[]>> = 
       contents: [block(playNoteType, { fields: { NOTE: 'C4', TICKS: '4' } }), block(restType, { fields: { TICKS: '4' } })],
     },
   ],
+  'ybc.sensors': [
+    {
+      kind: 'category',
+      name: 'Input',
+      colour: '20',
+      contents: [
+        block(temperatureType),
+        block(accelerationType, { fields: { AXIS: 'x' } }),
+        block(gestureIsType, { fields: { GESTURE: 'shake' } }),
+        block(gestureIsType, { fields: { GESTURE: 'tilt_left' } }),
+      ],
+    },
+  ],
 };
 
 const hardwareBlocks: Readonly<Record<HardwarePackId, BlockDefinitionJson[]>> = {
   'ybc.display': [...displayDefinitions],
   'ybc.input': [...inputDefinitions],
   'ybc.sound': [...soundDefinitions],
+  'ybc.sensors': [...sensorDefinitions],
 };
 
-/** The onboard hardware packs of YB-3: display, buttons and light, sound. */
+/** The onboard hardware packs of YB-3: display, buttons and light, sound; and the sensors of the Advanced board (N17 B2). */
 export function createHardwarePacks(): BlockPack[] {
   return (Object.keys(hardwareBlocks) as HardwarePackId[]).map((id) => ({
     id,
@@ -359,16 +385,27 @@ export function createBlockPackCatalog(
   };
 }
 
-/** The toolbox of the packs a board context shows, in that order. */
+/**
+ * The toolbox of the packs a board context shows, in that order. A category whose name an earlier pack already showed is not
+ * shown twice: its blocks are added to the end of that one (N17 B2: the sensors of the Advanced board join Input). A dynamic
+ * category (variables) is never merged.
+ */
 export function buildToolbox(packIds: readonly string[], catalog: BlockPackCatalog): Toolbox {
-  return {
-    kind: 'categoryToolbox',
-    contents: packIds.flatMap((id) => {
-      const pack = catalog.get(id);
-      if (!pack) {
-        throw new Error(`Unknown block pack "${id}"`);
+  const contents: ToolboxCategory[] = [];
+  for (const id of packIds) {
+    const pack = catalog.get(id);
+    if (!pack) {
+      throw new Error(`Unknown block pack "${id}"`);
+    }
+    for (const category of pack.categories) {
+      const index = contents.findIndex((shown) => category.name !== undefined && shown.name === category.name && shown.custom === undefined && category.custom === undefined);
+      const shown = contents[index];
+      if (shown) {
+        contents[index] = { ...shown, contents: [...(shown.contents ?? []), ...(category.contents ?? [])] };
+      } else {
+        contents.push(category);
       }
-      return pack.categories;
-    }),
-  };
+    }
+  }
+  return { kind: 'categoryToolbox', contents };
 }

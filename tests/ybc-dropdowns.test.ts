@@ -47,6 +47,9 @@ const allowed: Record<string, Record<string, string[]>> = {
   ybc_display_show_icon: {
     ICON: ['HEART', 'HEART_SMALL', 'HAPPY', 'SAD', 'CONFUSED', 'ANGRY', 'SURPRISED', 'YES', 'NO', 'ARROW_N', 'ARROW_E', 'ARROW_S', 'ARROW_W'],
   },
+  // N17 B2, the sensors of Advanced: the three axes (C-17) and the seven gestures (C-18), shake first.
+  ybc_accel: { AXIS: ['x', 'y', 'z'] },
+  ybc_gesture_is: { GESTURE: ['shake', 'tilt_left', 'tilt_right', 'face_up', 'face_down', 'logo_up', 'logo_down'] },
 };
 
 function blockTypesIn(value: unknown, found = new Set<string>()): Set<string> {

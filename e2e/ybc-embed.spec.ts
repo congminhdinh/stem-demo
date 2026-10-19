@@ -217,4 +217,40 @@ test.describe('a lab opened on its own (a new tab)', () => {
     expect(texts).toContain('| lục | bật đèn tại cột');
     expect(texts).not.toMatch(/\b(red|green|heart)\b/);
   });
+
+  test('offers the sensors of the Advanced board in Vietnamese: the blocks under "Đầu vào", the controls and the gesture (N17 B2)', async ({ page }) => {
+    await page.goto('/?embed=1&lab=yolobit&template=ybc-empty&profile=ybc-advanced');
+    await page.waitForFunction(() => window.__stem?.getCanvasState() != null);
+    const panel = page.getByTestId('blockly-panel');
+    await panel.locator('.blocklyToolboxCategory', { hasText: 'Đầu vào' }).click();
+    await panel.locator('.blocklyFlyout .blocklyText').first().waitFor({ state: 'attached' });
+    await page.waitForTimeout(200);
+    const texts = (await panel.locator('.blocklyFlyout .blocklyText').allTextContents()).join(' | ').replaceAll(String.fromCharCode(0xa0), ' ');
+    expect(texts).toContain('mức ánh sáng');
+    expect(texts).toContain('nhiệt độ (°C)');
+    expect(texts).toContain('gia tốc | x | (mg)');
+    expect(texts).toContain('cử chỉ là | lắc');
+    expect(texts).toContain('cử chỉ là | nghiêng trái');
+    // One "Đầu vào" category, not two.
+    await expect(panel.locator('.blocklyToolboxCategory', { hasText: 'Đầu vào' })).toHaveCount(1);
+
+    const boardTexts = (await page.evaluate(() => window.__stem?.getCanvasState()))?.components.find((component) => component.deviceType === 'ybc-board')?.texts;
+    expect(boardTexts).toEqual(expect.arrayContaining(['Nhiệt độ', 'Gia tốc']));
+    await expect(page.getByText('Nhiệt độ', { exact: true }).first()).toBeVisible();
+    await expect(page.getByTestId('control-accelerometer-shake')).toHaveText('Lắc');
+    await expect(page.getByTestId('control-accelerometer-face-down')).toHaveText('Úp mặt');
+
+    await page.getByRole('button', { name: 'Chạy' }).click();
+    await expect(page.getByTestId('control-accelerometer-gesture')).toHaveText('Ngửa mặt');
+    await page.getByTestId('control-accelerometer').focus();
+    for (let press = 0; press < 4; press++) {
+      await page.keyboard.press('ArrowLeft');
+    }
+    await expect(page.getByTestId('control-accelerometer-gesture')).toHaveText('Nghiêng trái');
+    await page.getByTestId('control-accelerometer-shake').click();
+    await expect(page.getByTestId('control-accelerometer-gesture')).toHaveText('Lắc');
+    await expect(page.getByTestId('control-accelerometer-gesture')).toHaveText('Nghiêng trái', { timeout: 3_000 });
+    await expect(page.getByTestId('control-temperature-value')).toHaveText('25 °C');
+    await page.getByRole('button', { name: 'Dừng' }).click();
+  });
 });

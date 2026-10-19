@@ -54,8 +54,13 @@ type CircuitCanvasProps = {
    * fitted again when the canvas changes size, never when the circuit is edited. Absent: the identity viewport.
    */
   fit?: boolean;
-  /** The inputs a lab's check gives the run, by component id (`<board>/<part>`), drawn on the board (N8s). */
+  /**
+   * The inputs the run is given, by component id (`<board>/<part>`), drawn on the board: a lab's check's (N8s) or, since N17 B2,
+   * the learner's own while a run is on (the sensors' readings). Absent while no run is on.
+   */
   inputs?: Readonly<Record<string, ComponentInput>>;
+  /** N17 B2: how many one-shot events (shakes) each part had in the run, by component id; the board is drawn shaken after each. */
+  events?: Readonly<Record<string, number>>;
   /** Shown over the top of the canvas, e.g. how a lab's check is going (N8s). */
   overlay?: ReactNode;
 };
@@ -88,6 +93,7 @@ export function CircuitCanvas({
   onContactChange,
   fit = false,
   inputs,
+  events,
   overlay,
 }: CircuitCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -323,6 +329,7 @@ export function CircuitCanvas({
                     runtimeState={runtimeStateOf(simulation, component.id)}
                     partStates={partStatesOf(simulation, component.id, registry.get(component.deviceType))}
                     partInputs={partInputsOf(inputs, component.id, registry.get(component.deviceType))}
+                    partEvents={partInputsOf(events, component.id, registry.get(component.deviceType))}
                     selected={selected?.kind === 'component' && selected.id === component.id}
                     // Off while drawing a wire too, so a click there never starts a drag (R5).
                     draggable={!locked && !draft}
@@ -413,29 +420,32 @@ export function partStatesOf(
   return states;
 }
 
-/** The inputs given to a board's onboard parts, by part id; undefined for no inputs and for a component without parts. */
-export function partInputsOf(
-  inputs: Readonly<Record<string, ComponentInput>> | undefined,
+/**
+ * What was given to a board's onboard parts (their inputs, or their counts of events), by part id; undefined for nothing given
+ * and for a component without parts.
+ */
+export function partInputsOf<Value>(
+  inputs: Readonly<Record<string, Value>> | undefined,
   componentId: string,
   definition: DeviceDefinition,
-): Record<string, ComponentInput> | undefined {
+): Record<string, Value> | undefined {
   const onboard = definition.board?.onboard;
   if (!inputs || !onboard) {
     return undefined;
   }
   // No prototype, as in partStatesOf: part ids are data.
-  const given: Record<string, ComponentInput> = Object.create(null);
+  const given: Record<string, Value> = Object.create(null);
   for (const part of onboard) {
     const id = peripheralComponentId(componentId, part.id);
     if (Object.hasOwn(inputs, id)) {
-      given[part.id] = inputs[id] as ComponentInput;
+      given[part.id] = inputs[id] as Value;
     }
   }
   return given;
 }
 
 type ComponentBodyProps = ComponentProps &
-  Pick<DeviceRendererProps, 'runtimeState' | 'partStates' | 'partInputs'> & {
+  Pick<DeviceRendererProps, 'runtimeState' | 'partStates' | 'partInputs' | 'partEvents'> & {
     selected: boolean;
     /** The device does not belong to this kind of project (R-F4). */
     incompatible: boolean;
@@ -453,6 +463,7 @@ function ComponentBody({
   runtimeState,
   partStates,
   partInputs,
+  partEvents,
   selected,
   incompatible,
   ...interaction
@@ -468,7 +479,7 @@ function ComponentBody({
       y={component.position.y}
       {...interaction}
     >
-      <Renderer definition={definition} runtimeState={runtimeState} partStates={partStates} partInputs={partInputs} />
+      <Renderer definition={definition} runtimeState={runtimeState} partStates={partStates} partInputs={partInputs} partEvents={partEvents} />
       {incompatible && (
         <Rect
           name="incompatible"

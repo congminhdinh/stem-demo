@@ -8,7 +8,7 @@ import { resolveBoardContext } from '../../core/profiles/board-context';
 import type { ProfileCatalog } from '../../core/profiles/profile';
 import { buildToolbox, type BlockPackCatalog } from '../../core/program/block-packs';
 import { buzzerPartId, displayPartId } from '../../core/simulation/peripherals/onboard-capabilities';
-import type { ComponentInput, SimulationResult } from '../../core/simulation/simulate-circuit';
+import type { SimulationResult } from '../../core/simulation/simulate-circuit';
 import type { LabKind } from '../../samples/templates';
 import { SoundIndicator } from '../audio/SoundIndicator';
 import { toneHz } from '../audio/tone';
@@ -17,6 +17,7 @@ import { localizeToolbox } from '../i18n/blocks';
 import { useLocale, useText } from '../i18n/text';
 import { CircuitCanvas } from '../canvas/CircuitCanvas';
 import { PotentiometerControls } from '../canvas/PotentiometerControls';
+import { noBoardInputs, withBoardInput, type BoardInputs } from '../runtime-controls/board-inputs';
 import { DisplayText } from '../runtime-controls/DisplayText';
 import { partStateOf } from '../runtime-controls/display-view';
 import { RuntimeControls } from '../runtime-controls/RuntimeControls';
@@ -83,19 +84,24 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
   const isNoticeOutdated = notice?.about === 'opened-project' && loadRevision !== 0;
   const shownNotice = noticeDismissed || isNoticeOutdated ? null : notice?.message;
 
+  // What the learner's controls gave this run (N17 B2), so the board draws it: the readings of the sensors, a held button,
+  // a shake. Runtime state of the run (B2): every run starts without any.
+  const [liveBoard, setLiveBoard] = useState<BoardInputs>(noBoardInputs);
+
   const run = () => {
     // Run compiles the document, so the latest Blockly edits must be in it first.
     blocklyRef.current?.saveNow();
     runStore.getState().run(projectStore.getState().document);
     setRunEpoch((epoch) => epoch + 1);
+    setLiveBoard(noBoardInputs);
   };
 
   // A lab's check (N6a S4): one at a time, on the run the toolbar shows. Its result belongs to the document it
   // checked: once the learner edits, the goals go back to "not checked yet". The run is the one the canvas draws;
-  // the inputs the check gives it are drawn too (`scriptedInputs`), and its last frame stays on the board after it
+  // the inputs the check gives it are drawn too (`scripted`), and its last frame stays on the board after it
   // (`final`) until the next run or edit (N8s).
   const [check, setCheck] = useState<CheckView & { document?: ProjectDocument; final?: SimulationResult | null }>({ state: 'idle' });
-  const [scriptedInputs, setScriptedInputs] = useState<Readonly<Record<string, ComponentInput>>>({});
+  const [scripted, setScripted] = useState<BoardInputs>(noBoardInputs);
   const checkRun = useRef<CheckRun | null>(null);
   const [resetArmed, setResetArmed] = useState(false);
   useEffect(() => () => checkRun.current?.cancel(), []);
@@ -137,10 +143,10 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
     const checked = projectStore.getState().document;
     setRunEpoch((epoch) => epoch + 1);
     setCheck({ state: 'checking' });
-    setScriptedInputs({});
+    setScripted(noBoardInputs);
     let final: SimulationResult | null = null;
     const session = checkSessionOf(runStore, {
-      onInput: (componentId, input) => setScriptedInputs((inputs) => ({ ...inputs, [componentId]: input })),
+      onInput: (componentId, input) => setScripted((given) => withBoardInput(given, componentId, input)),
       beforeStop: (snapshot) => {
         final = snapshot.simulation;
       },
@@ -152,7 +158,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
         return;
       }
       checkRun.current = null;
-      setScriptedInputs({});
+      setScripted(noBoardInputs);
       if (outcome.status === 'cancelled') {
         setCheck({ state: 'idle' });
         return;
@@ -207,6 +213,8 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
   );
   // The board the controls, the display text and the sound belong to: the project's one board, when it can run.
   const board = context.readiness.ok ? context.readiness.board : null;
+  // What the board draws of its inputs while a run is on: the check's, or the learner's own (N17 B2: the sensors' readings).
+  const drawnInputs = checking ? scripted : running ? liveBoard : null;
 
   // A loaded project starts without the previous selection or drag.
   const canvas = (
@@ -218,7 +226,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
       simulation={shownSimulation}
       locked={running}
       fit={lab !== null}
-      {...(checking ? { inputs: scriptedInputs } : {})}
+      {...(drawnInputs ? { inputs: drawnInputs.inputs, events: drawnInputs.events } : {})}
       overlay={checkOverlay}
       onCircuitChange={editCircuit}
       // Runtime input, not an edit: the session ignores it unless running.
@@ -255,8 +263,11 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
                 definition={registry.get(board.deviceType)}
                 controls={context.profile?.controls ?? []}
                 active={running}
-                onInput={(componentId, input) => runStore.getState().setComponentInput(componentId, input)}
-                {...(checking ? { scripted: scriptedInputs } : {})}
+                onInput={(componentId, input) => {
+                  runStore.getState().setComponentInput(componentId, input);
+                  setLiveBoard((given) => withBoardInput(given, componentId, input));
+                }}
+                {...(checking ? { scripted: scripted.inputs, scriptedEvents: scripted.events } : {})}
               />
               <SoundIndicator buzzer={partStateOf(simulation, board.id, buzzerPartId)} tones={tones} />
             </div>

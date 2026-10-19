@@ -240,6 +240,13 @@ export type ConstructContract = {
    * form alone, and the allowlist admits these so that they are written on purpose and nowhere else.
    */
   unverifiedForms?: readonly { form: string; reason: string }[];
+  /**
+   * N17 B2 (owner, 2026-10-19: "Mô phỏng đủ chức năng"): fields of this row that no evidence establishes and that the owner opened
+   * anyway, each with why it is UNVERIFIED and what the simulator does instead. The field stays UNKNOWN in `fields`: this is the
+   * recorded decision, never a claim. Only an ELIGIBLE or RESTRICTED row may name them, only fields labelled UNKNOWN, and the gate
+   * lets exactly these through; every other field of the row is held to EG as before.
+   */
+  unverifiedFields?: Readonly<Partial<Record<OfField, string>>>;
   fields: Readonly<Record<OfField, FieldEntry>>;
   domain?: Domain;
   timing?: { blocksMs: string; source: 'SIM-observed' };
@@ -374,6 +381,7 @@ const constructSchema = z.object({
     .optional(),
   observedPython: z.string().optional(),
   unverifiedForms: z.array(z.object({ form: z.string().min(1), reason: z.string().min(1) })).optional(),
+  unverifiedFields: z.partialRecord(z.enum(ofFields), z.string().min(1)).optional(),
   fields: fieldsSchema,
   domain: domainSchema.optional(),
   timing: z.object({ blocksMs: z.string(), source: z.literal('SIM-observed') }).optional(),

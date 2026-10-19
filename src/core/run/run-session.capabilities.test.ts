@@ -39,7 +39,7 @@ describe('the capability factory', () => {
     expect(environments).toHaveLength(1);
     const [environment] = environments as [RunEnvironment];
     expect(environment.board.id).toBe(boardId);
-    expect(environment.capabilitySet).toEqual(['digital', 'analogIn', 'display', 'buttons', 'light', 'sound']);
+    expect(environment.capabilitySet).toEqual(['digital', 'analogIn', 'display', 'buttons', 'light', 'sound', 'temperature', 'motion']);
     expect(Object.keys(environment.services).sort()).toEqual(['budget', 'clock', 'console', 'scheduler', 'signal', 'sleep']);
     expect(typeof environment.services.clock.now()).toBe('number');
     expect(environment.services.scheduler.disposed).toBe(false);
@@ -181,7 +181,11 @@ describe('setComponentInput', () => {
       [`${boardId}/light`, { kind: 'hold', closed: true }],
       [`${boardId}/display`, { kind: 'hold', closed: true }],
       [`${boardId}/buzzer`, { kind: 'slider', value: 3 }],
-      [`${boardId}/temperature`, { kind: 'slider', value: 3 }],
+      [`${boardId}/temperature`, { kind: 'tilt', x: 1, y: 1 }],
+      [`${boardId}/accelerometer`, { kind: 'slider', value: 3 }],
+      // N17 B2: a shake is an event of the accelerometer, never its input.
+      [`${boardId}/accelerometer`, { kind: 'gesture' }],
+      [`${boardId}/accelerometer`, { kind: 'tilt', x: Number.NaN, y: 0 }],
       [`${boardId}/nothing`, { kind: 'hold', closed: true }],
       ['another-board/button-a', { kind: 'hold', closed: true }],
       [`${boardId}/light`, { kind: 'slider', value: 1.5 }],

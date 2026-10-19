@@ -28,6 +28,12 @@ export type CanvasTestState = {
     pressedParts?: string[];
     /** The light level a lab's check gives the board, as drawn beside the sensor (N8s); absent when none. */
     lightLevel?: number;
+    /** N17 B2: the temperature drawn under the display while a run is on; absent otherwise. */
+    temperature?: number;
+    /** N17 B2: the acceleration drawn under the display while a run is on, in mg; absent otherwise. */
+    acceleration?: { x: number; y: number; z: number };
+    /** N17 B2: the board is drawn shaken (the accelerometer ringed, and jiggled unless less motion is asked for). */
+    shaking?: boolean;
   }[];
   wires: { id: string; points: number[]; selected: boolean }[];
   ports: { componentId: string; portId: string; x: number; y: number }[];
@@ -65,6 +71,9 @@ export function readCanvasState(): CanvasTestState | null {
             .map((part) => part.name().slice('ybc-part-'.length))
         : undefined,
       lightLevel: node.findOne('.ybc-part-light')?.getAttr('level'),
+      temperature: node.findOne('.ybc-readouts')?.getAttr('temperature'),
+      acceleration: node.findOne('.ybc-readouts')?.getAttr('acceleration'),
+      shaking: node.findOne('.ybc-body')?.getAttr('shaking'),
     })),
     wires: stage.find<Konva.Line>('.wire').map((node) => ({
       id: node.getAttr('wireId'),

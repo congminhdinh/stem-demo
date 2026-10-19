@@ -21,7 +21,20 @@ import {
   showImageType,
 } from '../constructs/ybc.display';
 import { isBuiltinImageName } from '../constructs/ybc.images';
-import { buttonPressedType, buttonPressesType, isButtonName, lightLevelType, type ButtonName } from '../constructs/ybc.input';
+import {
+  accelerationType,
+  buttonPressedType,
+  buttonPressesType,
+  gestureIsType,
+  isAxisName,
+  isButtonName,
+  isGestureName,
+  lightLevelType,
+  temperatureType,
+  type AxisName,
+  type ButtonName,
+  type GestureName,
+} from '../constructs/ybc.input';
 import {
   PIN_LEVELS,
   PIN_NUMBERS,
@@ -56,7 +69,8 @@ import type { ArithOp, ColourOperand, CompareOp, Expr, Type, YbcProgramIR, YbcSt
 // Literals, integer variables, + − × // %, comparisons, and/or/not, `if` /
 // `elif` / `else`, `repeat`, `while`, `count up`, `wait`, text `join`, `print`,
 // the onboard hardware of YB-3 (the display, the two buttons, the light sensor
-// and the sound) and the header pins of YB-4. A hardware block is compiled
+// and the sound), the sensors of N17 B2 (temperature, acceleration, gesture) and
+// the header pins of YB-4. A hardware block is compiled
 // against the contract domain of its row (notes, ticks, buttons, the display's
 // characters, the pins), and a construct that needs a capability the board does
 // not have is refused here (`capability-unavailable`, plan §10), so the runtime
@@ -124,7 +138,7 @@ const foreignArithmetic = 'math_arithmetic';
 const compareOps: Readonly<Record<string, CompareOp>> = { EQ: '==', NEQ: '!=', LT: '<', LTE: '<=', GT: '>', GTE: '>=' };
 const languageBlockTypes = new Set(langConstructs.flatMap((construct) => construct.blockTypes));
 /** The hardware blocks that give a value: one of these cannot be a statement. The colour block only fills a colour input. */
-const hardwareValueBlockTypes = new Set([buttonPressedType, buttonPressesType, lightLevelType, colourType]);
+const hardwareValueBlockTypes = new Set([buttonPressedType, buttonPressesType, lightLevelType, colourType, temperatureType, accelerationType, gestureIsType]);
 /** C0 and C1 control characters (plan §6.4: print text allows Unicode except these). */
 const hasControlCharacter = (text: string) => [...text].some((char) => {
   const code = char.codePointAt(0) ?? 0;
@@ -263,6 +277,34 @@ export function compileYbcProgram(
     return button;
   };
 
+  /** The axis an acceleration block names: x, y or z (contract C-17, N17 B2). */
+  const axisOf = (block: RawBlock): AxisName | null => {
+    const axis = block.fields?.AXIS;
+    if (typeof axis !== 'string') {
+      report('error', 'malformed-program', 'An acceleration block needs its axis.', block.id);
+      return null;
+    }
+    if (!isAxisName(axis)) {
+      report('error', 'value-out-of-range', 'An axis is x, y or z.', block.id);
+      return null;
+    }
+    return axis;
+  };
+
+  /** The gesture a gesture block names: one of the seven of its dropdown (contract C-18, N17 B2). */
+  const gestureOf = (block: RawBlock): GestureName | null => {
+    const gesture = block.fields?.GESTURE;
+    if (typeof gesture !== 'string') {
+      report('error', 'malformed-program', 'A gesture block needs its gesture.', block.id);
+      return null;
+    }
+    if (!isGestureName(gesture)) {
+      report('error', 'value-out-of-range', 'A gesture is one of shake, tilted left or right, face up or down, logo up or down.', block.id);
+      return null;
+    }
+    return gesture;
+  };
+
   /** The length in ticks a note or rest block names: 1, 2 or 4 (contract C-50, C-51). */
   const ticksOf = (block: RawBlock): NoteTicks | null => {
     const ticks = block.fields?.TICKS;
@@ -333,6 +375,16 @@ export function compileYbcProgram(
       }
       case lightLevelType:
         return boardHasPartFor(block) ? { ...base, type: 'int', kind: 'read', op: 'light.level' } : null;
+      case temperatureType:
+        return boardHasPartFor(block) ? { ...base, type: 'int', kind: 'read', op: 'temperature.read' } : null;
+      case accelerationType: {
+        const axis = boardHasPartFor(block) ? axisOf(block) : null;
+        return axis === null ? null : { ...base, type: 'int', kind: 'read', op: 'motion.acceleration', operand: { kind: 'axis', axis } };
+      }
+      case gestureIsType: {
+        const gesture = boardHasPartFor(block) ? gestureOf(block) : null;
+        return gesture === null ? null : { ...base, type: 'bool', kind: 'read', op: 'motion.isGesture', operand: { kind: 'gesture', gesture } };
+      }
       case pinReadType:
       case pinAnalogType: {
         const pin = pinOf(block);

@@ -55,12 +55,13 @@ describe('the capability interfaces', () => {
 describe('composition: a board offers only what it has', () => {
   it('gives the generic board digital and nothing else, and the Yolo:Bit board what its data names', () => {
     expect(availableCapabilityKeys(boardSet('board'))).toEqual(['digital']);
-    expect(availableCapabilityKeys(boardSet('ybc-board'))).toEqual(['digital', 'analogIn', 'display', 'buttons', 'sound', 'light']);
+    // N17 B2: the temperature sensor and the accelerometer are onboard parts of the board's data.
+    expect(availableCapabilityKeys(boardSet('ybc-board'))).toEqual(['digital', 'analogIn', 'display', 'buttons', 'sound', 'light', 'temperature', 'motion']);
   });
 
-  it('leaves out PWM, temperature, motion, servo and pulse: the board does not have them, or the contract excludes them', () => {
+  it('leaves out PWM, servo and pulse: the board does not have them, or the contract excludes them', () => {
     const keys = availableCapabilityKeys(boardSet('ybc-board'));
-    for (const key of ['pwm', 'temperature', 'motion', 'servo', 'pulse'] as const) {
+    for (const key of ['pwm', 'servo', 'pulse'] as const) {
       expect(keys).not.toContain(key);
     }
   });

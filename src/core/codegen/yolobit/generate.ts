@@ -1,6 +1,6 @@
 import { DEFAULT_COLOUR, IMAGE_SIZE, isDisplayText, paletteColourOf, paletteDigitOf } from '../../constructs/ybc.display';
 import { builtinImageRows, isBuiltinImageName, vendorImageNames } from '../../constructs/ybc.images';
-import { isButtonName } from '../../constructs/ybc.input';
+import { isAxisName, isButtonName, isGestureName } from '../../constructs/ybc.input';
 import { PIN_LEVELS, PIN_NUMBERS } from '../../constructs/ybc.pins';
 import { isNoteName, noteTicks } from '../../constructs/ybc.sound';
 import { MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_SAFE_INT, MAX_TEXT_CHARS, MAX_WAIT_MS } from '../../program/limits';
@@ -19,13 +19,13 @@ import { defaultTarget, type GenTarget } from './target';
 
 /**
  * The contract rows the generator can emit: the language layer (YB-5A), the onboard hardware of YB-3 (display C-06…C-09,
- * buttons C-12 and C-13, light C-15, sound C-50 and C-51), the header pins of YB-4 (C-23, C-24, C-25) and the RGB display
- * of N17 B1 (built-in pictures C-05, set pixel C-10, clear pixel C-42, set all C-43). The other hardware rows arrive with
- * their phases.
+ * buttons C-12 and C-13, light C-15, sound C-50 and C-51), the header pins of YB-4 (C-23, C-24, C-25), the RGB display
+ * of N17 B1 (built-in pictures C-05, set pixel C-10, clear pixel C-42, set all C-43) and the sensors of N17 B2 (temperature
+ * C-16, acceleration C-17, gesture C-18). The other hardware rows arrive with their phases.
  */
 export const generatedConstructs = [
-  'C-01', 'C-02', 'C-04', 'C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-12', 'C-13', 'C-15', 'C-23', 'C-24', 'C-25', 'C-29',
-  'C-30', 'C-31', 'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-42', 'C-43', 'C-50', 'C-51', 'C-56',
+  'C-01', 'C-02', 'C-04', 'C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-12', 'C-13', 'C-15', 'C-16', 'C-17', 'C-18', 'C-23', 'C-24',
+  'C-25', 'C-29', 'C-30', 'C-31', 'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-42', 'C-43', 'C-50', 'C-51', 'C-56',
 ] as const;
 
 export type GenDiagnosticCode =
@@ -307,7 +307,11 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
     }
   };
 
-  /** C-12, C-13, C-15: the call the contract writes (`button_a.is_pressed()`, `button_b.get_presses()`, `light_level()`). */
+  /**
+   * C-12, C-13, C-15: the call the contract writes (`button_a.is_pressed()`, `button_b.get_presses()`, `light_level()`). N17 B2:
+   * `int(temperature())` (C-16: the board's temperature() is a float, EVD-10), `accelerometer.get_x()` (C-17; get_y and get_z are
+   * UNVERIFIED forms), `accelerometer.is_gesture("shake")` (C-18, in the editor's double quotes; the other names are UNVERIFIED).
+   */
   const renderRead = (expr: Expr & ReadExpr): string => {
     switch (expr.op) {
       case 'button.isPressed':
@@ -323,6 +327,27 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
       case 'light.level':
         expectType(expr, 'int', 'A light level');
         return 'light_level()';
+      case 'temperature.read':
+        expectType(expr, 'int', 'A temperature');
+        return 'int(temperature())';
+      case 'motion.acceleration': {
+        expectType(expr, 'int', 'An acceleration');
+        const axis = (expr.operand as { axis?: unknown }).axis;
+        if (!isAxisName(axis)) {
+          report('unsupported-node', 'An axis is x, y or z.', expr.blockId);
+          return '';
+        }
+        return `accelerometer.get_${axis}()`;
+      }
+      case 'motion.isGesture': {
+        expectType(expr, 'bool', 'A gesture check');
+        const gesture = (expr.operand as { gesture?: unknown }).gesture;
+        if (!isGestureName(gesture)) {
+          report('unsupported-node', 'A gesture is one of the seven the block offers.', expr.blockId);
+          return '';
+        }
+        return `accelerometer.is_gesture("${gesture}")`;
+      }
       default:
         report('unsupported-node', 'The generator does not know this kind of value.', (expr as { blockId?: string }).blockId);
         return '';

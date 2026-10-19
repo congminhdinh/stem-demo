@@ -22,11 +22,13 @@ export type DeviceRendererProps = {
    */
   partStates?: Readonly<Record<string, ComponentState>>;
   /**
-   * A board with onboard parts only: the input a lab's check gives a part, by part id (a button held, the light's
-   * level), drawn so the learner sees the check press it (N8s). Absent otherwise: the controls under the canvas
-   * show the learner's own presses.
+   * A board with onboard parts only: the input the run is given for a part, by part id (a button held, the light's level, the
+   * temperature, the tilt), drawn so the learner sees what the board senses: a lab's check's (N8s) or, since N17 B2, the
+   * learner's own. Present while a run is on, also when nothing was given yet (`{}`); absent otherwise.
    */
   partInputs?: Readonly<Record<string, ComponentInput>>;
+  /** A board with onboard parts only (N17 B2): how many one-shot events (shakes) a part had in the run, by part id. */
+  partEvents?: Readonly<Record<string, number>>;
 };
 
 // A Map, not an object literal: ids come from data, and names such as

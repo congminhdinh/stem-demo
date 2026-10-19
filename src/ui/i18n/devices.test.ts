@@ -9,7 +9,7 @@ describe('the canvas text of a device (N8s)', () => {
   it('draws the Yolo:Bit-compatible board and its parts in Vietnamese', () => {
     const board = localizeDeviceDefinition(registry.get('ybc-board'), 'vi');
     expect(board.name).toBe('Bo mạch tương thích Bit');
-    expect(board.board?.onboard?.map((part) => part.label)).toEqual(['Màn hình', 'A', 'B', 'Ánh sáng', 'Loa']);
+    expect(board.board?.onboard?.map((part) => part.label)).toEqual(['Màn hình', 'A', 'B', 'Ánh sáng', 'Loa', 'Nhiệt độ', 'Gia tốc']);
     // Only text changes: where the parts are, what they are and the ports stay the core's.
     expect(board.ports).toEqual(registry.get('ybc-board').ports);
     expect(board.board?.onboard?.map((part) => part.at)).toEqual(registry.get('ybc-board').board?.onboard?.map((part) => part.at));

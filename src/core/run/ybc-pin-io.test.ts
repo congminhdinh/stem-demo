@@ -36,6 +36,7 @@ function fakeEnvironment(simulation: () => SimulationResult | null = () => null)
     services: {} as RuntimeServices,
     input: () => undefined,
     takePresses: () => 0,
+    sinceEvent: () => undefined,
     report: () => {},
     simulation,
     drivePin,

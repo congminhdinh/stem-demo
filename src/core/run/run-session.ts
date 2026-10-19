@@ -1,7 +1,7 @@
 import type { Circuit, ComponentInstance, ProjectDocument } from '../circuit/document';
 import { composeCapabilities } from '../capabilities/compose';
 import type { Capabilities } from '../capabilities/io';
-import { createRuntimeServices, type RunScheduler, type RuntimeServices } from '../capabilities/services';
+import { createRuntimeServices, type Clock, type RunScheduler, type RuntimeServices } from '../capabilities/services';
 import { boardTargetOf } from '../devices/board-pins';
 import type { DeviceRegistry } from '../devices/registry';
 import { resolveBoardContext, type BoardContext } from '../profiles/board-context';
@@ -19,6 +19,7 @@ import { runYbcProgram } from '../program/ybc-interpreter';
 import type { YbcProgramIR } from '../program/ybc-ir';
 import {
   copyComponentInput,
+  eventKindOfModel,
   inputKindOfModel,
   isComponentInput,
   isContact,
@@ -83,7 +84,8 @@ export type RunSession = {
    * The general runtime input (plan §11.3, YB-CP): a contact of the circuit takes `hold` (this is
    * `setContactInput`); any other component of the circuit takes the input of its simulation model, which the
    * simulation reads; an onboard part of a Yolo:Bit-compatible board, addressed `<board>/<peripheral>`,
-   * takes the input of its model (button: hold, light and temperature sensor: slider, accelerometer: tilt).
+   * takes the input of its model (button: hold, light and temperature sensor: slider, accelerometer: tilt), and the one-shot
+   * event of its model (N17 B2: the accelerometer's gesture, a shake), which is kept as the time it happened, never as its input.
    * An id that names a component of the circuit is always that component (it may contain a slash). Ignored
    * while idle, for a component or a part of another run, for the wrong kind of input, and when nothing
    * changes. Like every input it is state of the run, dropped with it (B2).
@@ -122,6 +124,13 @@ type ActiveRun = {
   inputs: Map<string, ComponentInput>;
   /** Presses of onboard `hold` parts not taken yet: the `closed` edges of `inputs`, which a latest value cannot hold (C-13). */
   presses: Map<string, number>;
+  /**
+   * YBC runs only (N17 B2): when the latest one-shot event of each onboard part happened (a shake of the accelerometer), on the
+   * run's clock. An event is not an input: the part's input (the tilt) stays as it was.
+   */
+  events: Map<string, number>;
+  /** YBC runs only: the clock of the run's services, which `events` are timed on. */
+  clock?: Clock;
   /** The state onboard parts report for the snapshot, by `<board>/<peripheral>`; the run's own copies, as `inputs`. */
   reported: Map<string, ComponentState>;
 };
@@ -174,6 +183,11 @@ export type RunEnvironment = {
    * 0 for anything that is not a part of this run.
    */
   takePresses(componentId: string): number;
+  /**
+   * N17 B2: how many ms ago, on the run's clock (`services.clock`), the latest one-shot event of an onboard part happened in this
+   * run (a shake of the accelerometer); undefined when none did, and for anything that is not a part of this run.
+   */
+  sinceEvent(componentId: string): number | undefined;
   /**
    * Sets the state an onboard part (`<board>/<peripheral>`) shows in the snapshot, in place of the one before
    * it, or removes it with `null`. The snapshot is published when it changed. Ignored for an id that is not an
@@ -286,6 +300,10 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
         const presses = run?.presses.get(componentId) ?? 0;
         run?.presses.delete(componentId);
         return presses;
+      },
+      sinceEvent(componentId) {
+        const at = live()?.events.get(componentId);
+        return at === undefined ? undefined : base.services.clock.now() - at;
       },
       report(componentId, state) {
         const run = live();
@@ -433,9 +451,10 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
       simulation: null,
       inputs: new Map(),
       presses: new Map(),
+      events: new Map(),
       reported: new Map(),
       ...(compiled.kind === 'ybc' ? { console: compiled.console } : {}),
-      ...(ybcRun ? { scheduler: ybcRun.services.scheduler, capabilities: ybcRun.capabilities } : {}),
+      ...(ybcRun ? { scheduler: ybcRun.services.scheduler, capabilities: ybcRun.capabilities, clock: ybcRun.services.clock } : {}),
       ...(ybcRun
         ? {
             board: {
@@ -569,6 +588,13 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
     // the capability the board's factory provides reads it (`environment.input`, `environment.takePresses`).
     const part = onboardPartOf(run, componentId);
     if (!part) {
+      return;
+    }
+    // A one-shot event of the part's model (N17 B2: a shake) is kept as the time it happened, and the input stays as it was.
+    if (Object.hasOwn(eventKindOfModel, part.model) && eventKindOfModel[part.model] === input.kind) {
+      if (run.clock) {
+        run.events.set(componentId, run.clock.now());
+      }
       return;
     }
     // A hold that is kept is a hold that changed, so one that is now closed was open (or unset) before: that edge is

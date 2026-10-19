@@ -40,7 +40,9 @@
       { "id": "button-a", "model": "button", "capability": "buttons", "at": { "x": -100, "y": 10, "width": 40, "height": 40 }, "label": "A" },
       { "id": "button-b", "model": "button", "capability": "buttons", "at": { "x": -50, "y": 10, "width": 40, "height": 40 }, "label": "B" },
       { "id": "light", "model": "light-sensor", "capability": "light", "at": { "x": 10, "y": 10, "width": 30, "height": 30 }, "label": "Light" },
-      { "id": "buzzer", "model": "buzzer", "capability": "sound", "at": { "x": -100, "y": 70, "width": 40, "height": 40 }, "label": "Buzzer" }
+      { "id": "buzzer", "model": "buzzer", "capability": "sound", "at": { "x": -100, "y": 70, "width": 40, "height": 40 }, "label": "Buzzer" },
+      { "id": "temperature", "model": "temperature-sensor", "capability": "temperature", "at": { "x": -50, "y": 70, "width": 40, "height": 40 }, "label": "Temp" },
+      { "id": "accelerometer", "model": "accelerometer", "capability": "motion", "at": { "x": 10, "y": 70, "width": 40, "height": 40 }, "label": "Accel" }
     ]
   }
 }

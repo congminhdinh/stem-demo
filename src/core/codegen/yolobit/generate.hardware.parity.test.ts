@@ -257,6 +257,50 @@ const scenarios: Scenario[] = [
     scrolls: ['A'],
     timeline: [[0, DOT], [0, frame(['00002', '00000', '00100', '00000', '00000'])], [0, 'scroll:A@4'], [0, BLANK], [0, 'end']],
   },
+  // N17 B2: the temperature (a float on the board, written int(temperature())), the accelerometer and the gestures. A gesture
+  // answer is the index of the gesture the board makes in `gestureNames` (shake 0, tilt_left 1, tilt_right 2, face_up 3,
+  // face_down 4, logo_up 5, logo_down 6), and each `is_gesture` asks once.
+  {
+    name: 'thermometer (31, then 30 twice, then −5 twice)',
+    blocks: caseBlocks('thermometer'),
+    script: { temperature: [31, 30, 30, -5, -5] },
+    scrolls: ['30', '-5'],
+    passes: 3,
+    timeline: [
+      [0, 'read:temperature=31'], [0, FULL], [0, 'sleep:10'],
+      [10, 'read:temperature=30'], [10, 'read:temperature=30'], [10, 'scroll:30'], [2410, 'sleep:10'],
+      [2420, 'read:temperature=-5'], [2420, 'read:temperature=-5'], [2420, 'scroll:-5'], [4820, 'end'],
+    ],
+  },
+  {
+    name: 'tilt-and-shake (shaken, then tilted left, then face up)',
+    blocks: caseBlocks('tilt-and-shake'),
+    script: { gesture: [0, 1, 1, 3, 3] },
+    passes: 3,
+    timeline: [
+      [0, 'read:gesture=0'], [0, FULL], [0, 'sleep:10'],
+      [10, 'read:gesture=1'], [10, 'read:gesture=1'], [10, CROSS], [10, 'sleep:10'],
+      [20, 'read:gesture=3'], [20, 'read:gesture=3'], [20, BLANK], [20, 'end'],
+    ],
+  },
+  {
+    name: 'accelerometer-readings (tilted, face up, 35 °C)',
+    blocks: caseBlocks('accelerometer-readings'),
+    script: { 'accel.x': [-700], 'accel.y': [300], 'accel.z': [-685], gesture: [3, 3, 3, 3, 3], temperature: [35] },
+    scrolls: ['25'],
+    timeline: [
+      [0, 'read:accel.x=-700'], [0, 'read:accel.y=300'], [0, 'read:accel.z=-685'], [0, 'print:-1085'],
+      [0, 'read:gesture=3'], [0, 'print:False'], [0, 'read:gesture=3'], [0, 'print:True'], [0, 'read:gesture=3'], [0, 'print:False'],
+      [0, 'read:gesture=3'], [0, 'print:False'], [0, 'read:gesture=3'], [0, 'print:False'],
+      [0, 'read:temperature=35'], [0, 'scroll:25'], [2400, 'end'],
+    ],
+  },
+  {
+    name: 'accelerometer-readings (face down, logo up and down)',
+    blocks: caseBlocks('accelerometer-readings'),
+    script: { 'accel.x': [0], 'accel.y': [0], 'accel.z': [1024], gesture: [2, 4, 4, 5, 6], temperature: [-10] },
+    scrolls: ['-20'],
+  },
   {
     // (3, 1) is column 3 of row 1 (EVD-06), and an L shows that rows and columns are not turned the wrong way round.
     name: 'pictures keep their rows and columns: a pixel at (3, 1), an L, a full frame, a clear',
@@ -379,6 +423,48 @@ describe.skipIf(python === null)('the generated Python takes the time and shows 
       expect(mutated?.error, label).toBeNull();
       expect(mutated?.events, label).not.toEqual(simulated.events);
     }
+  });
+});
+
+describe.skipIf(python === null)('the sensors of N17 B2 in the Python: what the simulator would not notice by itself', () => {
+  it('would notice another gesture, another axis or another threshold than the simulator’s', async () => {
+    const mutations: [label: string, scenario: string, from: string, to: string][] = [
+      ['another gesture', 'tilt-and-shake (shaken, then tilted left, then face up)', 'is_gesture("tilt_left")', 'is_gesture("tilt_right")'],
+      ['another axis', 'accelerometer-readings (tilted, face up, 35 °C)', 'y = accelerometer.get_y()', 'y = accelerometer.get_x()'],
+      ['another threshold', 'thermometer (31, then 30 twice, then −5 twice)', '> 30', '>= 30'],
+    ];
+    for (const [label, name, from, to] of mutations) {
+      const scenario = scenarioNamed(name);
+      const original = sourceOf(scenario);
+      expect(original, label).toContain(from);
+      const script = scenario.script ?? {};
+      const mutated = python ? runUnderCpythonWithHardware({ mutated: { source: original.replace(from, to), script, passes: scenario.passes ?? 1 } })['mutated'] : undefined;
+      const simulated = await simulateWithHardware(irOf(scenario), script, scenario.scrolls ?? [], scenario.passes ?? 1);
+      expect(simulated.problems, label).toEqual([]);
+      expect(mutated?.events, label).not.toEqual(simulated.events);
+    }
+  });
+
+  it('gives temperature() as a float, as the simulator printed it (EVD-10): without int() the scroll is refused, with it the reading scrolls', () => {
+    const header = 'import time\nfrom yolobit import *\n';
+    const results = python
+      ? runUnderCpythonWithHardware({
+          bare: { source: `${header}display.scroll(temperature())\ntime.sleep_ms(10)\n`, script: { temperature: [25] }, passes: 1 },
+          wrapped: { source: `${header}display.scroll(int(temperature()))\ntime.sleep_ms(10)\n`, script: { temperature: [25] }, passes: 1 },
+        })
+      : {};
+    expect(results['bare']?.error).toMatch(/scroll needs a text or an int/);
+    expect(results['wrapped']?.events).toEqual([[0, 'read:temperature=25'], [0, 'scroll:25'], [2400, 'end']]);
+  });
+
+  it.each([
+    ['a gesture the block does not offer', 'accelerometer.is_gesture("freefall")'],
+    ['a gesture written with a space', 'accelerometer.is_gesture("tilt left")'],
+    ['an axis that is not there', 'accelerometer.get_w()'],
+  ])('refuses %s', (_label, body) => {
+    const header = 'import time\nfrom yolobit import *\n';
+    const result = python ? runUnderCpythonWithHardware({ attempt: { source: `${header}${body}\ntime.sleep_ms(10)\n`, script: { gesture: [0] }, passes: 1 } })['attempt'] : undefined;
+    expect(result?.error).not.toBeNull();
   });
 });
 

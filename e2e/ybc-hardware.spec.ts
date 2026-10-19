@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
-  add, buttonPresses, buttonPressed, clearDisplay, clearPixel, cmp, colour, getVar, ifElif, ifThen, images, legacyShowImage, lightLevel, num, playNote,
-  print, program, rest, scrollNumber, scrollText, scrollTextIn, setAll, setPixel, setVar, showIcon, showImage, showImageIn, text, wait, type ImageRows,
+  acceleration, add, buttonPresses, buttonPressed, clearDisplay, clearPixel, cmp, colour, gestureIs, getVar, ifElif, ifThen, images, legacyShowImage,
+  lightLevel, num, playNote, print, program, rest, scrollNumber, scrollText, scrollTextIn, setAll, setPixel, setVar, showIcon, showImage, showImageIn,
+  temperature, text, wait, type ImageRows,
 } from '../src/core/program/__fixtures__/ybc-blocks';
 import { canvasState, currentProject, expectSaved, openApp, openProject } from './helpers';
 
@@ -374,7 +375,16 @@ test.describe('the toolbox and the dropdowns', () => {
       expect(input).toMatch(/is pressed/);
       expect(input).toMatch(/presses of button/);
       expect(input).toMatch(/light level/);
-      expect(input).not.toMatch(/A\+B|shake|temperature|accelerometer|running time/i);
+      expect(input).not.toMatch(/A\+B|running time/i);
+      // N17 B2: the sensors of the Advanced board join its Input category; Basic has none of them.
+      if (profile === 'ybc-advanced') {
+        expect(input).toMatch(/temperature \(°C\)/);
+        expect(input).toMatch(/acceleration \| x \| \(mg\)/);
+        expect(input).toMatch(/gesture is \| shaken/);
+        expect(input).toMatch(/gesture is \| tilted left/);
+      } else {
+        expect(input).not.toMatch(/shake|temperature|acceleration|gesture/i);
+      }
 
       const sound = await flyoutTexts(page, 'Sound');
       expect(sound).toMatch(/play note/);
@@ -467,6 +477,130 @@ test.describe('the RGB display (N17 B1)', () => {
     await expect.poll(async () => (await displayColours(page))?.[4]).toBe('#800080 #800080 #800080 #800080 #800080');
     await stop(page);
     await expect(page.getByTestId('python-source')).toContainText("display.set_all('#800080')");
+  });
+});
+
+// N17 B2: the temperature sensor and the accelerometer of the Advanced board. The controls send what the board senses; the board
+// writes it under the display while a run is on; the program reads it. Read off what the canvas drew and what the controls show.
+test.describe('the sensors of the Advanced board (N17 B2)', () => {
+  const advanced = (blocks: unknown) => project(blocks, 'ybc-advanced');
+  const boardState = async (page: Page) => (await canvasState(page)).components.find((component) => component.deviceType === 'ybc-board');
+  const gesture = (page: Page) => page.getByTestId('control-accelerometer-gesture');
+
+  test('the temperature slider (−10..50 °C, 25 °C at the start): the program reads it, the board writes it under the display', async ({ page }) => {
+    await openProject(page, advanced(program([], [ifThen(cmp('GT', temperature(), num(30)), [showImage(images.FULL)], [clearDisplay()])])));
+    const slider = page.getByTestId('control-temperature');
+    await expect(slider).toBeDisabled();
+    expect((await boardState(page))?.temperature).toBeUndefined();
+
+    await run(page);
+    await expect(slider).toBeEnabled();
+    await expect(slider).toHaveAttribute('min', '-10');
+    await expect(slider).toHaveAttribute('max', '50');
+    await expect(page.getByTestId('control-temperature-value')).toHaveText('25 °C');
+    await expect.poll(async () => (await boardState(page))?.temperature).toBe(25);
+    await expectDisplay(page, blank);
+
+    await slider.fill('35');
+    await expect(page.getByTestId('control-temperature-value')).toHaveText('35 °C');
+    await expectDisplay(page, images.FULL);
+    await expect.poll(async () => (await boardState(page))?.temperature).toBe(35);
+    await slider.fill('-5');
+    await expectDisplay(page, blank);
+    await stop(page);
+    // Readings belong to the run: none is drawn once it is stopped, and the next run starts at 25 °C again.
+    await expect.poll(async () => (await boardState(page))?.temperature).toBeUndefined();
+    await run(page);
+    await expect(page.getByTestId('control-temperature-value')).toHaveText('25 °C');
+    await stop(page);
+  });
+
+  test('the tilt pad: the arrow keys and a drag tilt the board, the gesture is named, and the program sees it', async ({ page }) => {
+    await openProject(
+      page,
+      advanced(program([], [ifElif([[gestureIs('tilt_left'), [showImage(images.CROSS)]], [gestureIs('logo_down'), [showImage(images.RING)]]], [clearDisplay()])])),
+    );
+    await run(page);
+    await expect(gesture(page)).toHaveText('Face up');
+    await expect.poll(async () => (await boardState(page))?.acceleration).toEqual({ x: 0, y: 0, z: -1024 });
+
+    const pad = page.getByTestId('control-accelerometer');
+    await pad.focus();
+    for (let press = 0; press < 4; press++) {
+      await page.keyboard.press('ArrowLeft');
+    }
+    await expect(gesture(page)).toHaveText('Tilted left');
+    await expectDisplay(page, images.CROSS);
+    await expect.poll(async () => (await boardState(page))?.acceleration).toEqual({ x: -512, y: 0, z: -887 });
+    await page.keyboard.press('Home');
+    await expect(gesture(page)).toHaveText('Face up');
+    await expectDisplay(page, blank);
+
+    // A drag to the top edge: the logo edge goes down.
+    await pad.scrollIntoViewIfNeeded();
+    const box = await pad.boundingBox();
+    if (!box) {
+      throw new Error('The pad is not visible');
+    }
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2, box.y + 2, { steps: 4 });
+    await page.mouse.up();
+    await expect(gesture(page)).toHaveText('Logo down');
+    await expectDisplay(page, images.RING);
+    expect((await boardState(page))?.acceleration?.y).toBeGreaterThan(400);
+    await stop(page);
+  });
+
+  test('"Face down" turns the board over: z is positive and the program sees face down', async ({ page }) => {
+    await openProject(page, advanced(program([], [ifThen(gestureIs('face_down'), [showImage(images.FULL)], [clearDisplay()])])));
+    await run(page);
+    await page.getByTestId('control-accelerometer-face-down').click();
+    await expect(page.getByTestId('control-accelerometer-face-down')).toHaveAttribute('aria-pressed', 'true');
+    await expect(gesture(page)).toHaveText('Face down');
+    await expectDisplay(page, images.FULL);
+    await expect.poll(async () => (await boardState(page))?.acceleration).toEqual({ x: 0, y: 0, z: 1024 });
+    await stop(page);
+  });
+
+  test('"Shake": the program sees a shake for 1 s, the gesture says so, and the board is drawn shaken meanwhile', async ({ page }) => {
+    await openProject(page, advanced(program([], [ifThen(gestureIs('shake'), [showImage(images.FULL)], [clearDisplay()])])));
+    await run(page);
+    await expectDisplay(page, blank);
+    await page.getByTestId('control-accelerometer-shake').click();
+    await expectDisplay(page, images.FULL, 900);
+    await expect(gesture(page)).toHaveText('Shaken');
+    expect((await boardState(page))?.shaking).toBe(true);
+    // 1 s later it is over: the display clears and the board is still again.
+    await expectDisplay(page, blank, 3_000);
+    await expect(gesture(page)).toHaveText('Face up');
+    await expect.poll(async () => (await boardState(page))?.shaking).toBe(false);
+    await stop(page);
+  });
+
+  test('prints the readings: whole degrees and whole mg on every axis', async ({ page }) => {
+    await openProject(page, advanced(program([], [print(temperature()), print(acceleration('x')), print(acceleration('z')), wait(num(200))])));
+    await run(page);
+    await expect(consoleLines(page)).toContainText('25');
+    await expect(consoleLines(page)).toContainText('-1024');
+    await stop(page);
+  });
+
+  test('writes the Python of the sensors: int(temperature()), accelerometer.get_x() and is_gesture("shake")', async ({ page }) => {
+    await openProject(page, advanced(program([], [ifThen(gestureIs('shake'), [scrollNumber(temperature())]), print(acceleration('x'))])));
+    const source = page.getByTestId('python-source');
+    await expect(source).toContainText('if accelerometer.is_gesture("shake"):');
+    await expect(source).toContainText('display.scroll(int(temperature()))');
+    await expect(source).toContainText('print(accelerometer.get_x())');
+  });
+
+  test('a Basic board has no sensor control, and a sensor block in a Basic project does not run', async ({ page }) => {
+    await openProject(page, project(program([print(temperature())]), 'ybc-basic'));
+    await expect(page.getByTestId('control-light')).toBeVisible();
+    await expect(page.getByTestId('control-temperature')).toHaveCount(0);
+    await expect(page.getByTestId('control-accelerometer')).toHaveCount(0);
+    await run(page);
+    await expect(page.getByTestId('run-messages')).toContainText('not available in the ybc-basic profile');
   });
 });
 

@@ -197,3 +197,11 @@ export const setAll = (colourBlock?: Json): Json => ({ type: 'ybc_display_set_al
 /** "scroll text" / "scroll number" with a colour block in their colour input (a block made after N17). */
 export const scrollTextIn = (value: Json, colourBlock: Json): Json => ({ ...scrollText(value), inputs: { TEXT: { block: value }, ...colourInput(colourBlock) } });
 export const scrollNumberIn = (value: Json, colourBlock: Json): Json => ({ ...scrollNumber(value), inputs: { NUM: { block: value }, ...colourInput(colourBlock) } });
+
+// --- N17 B2: the temperature sensor and the accelerometer ---------------------------------------------------
+
+export const temperature = (): Json => ({ type: 'ybc_temperature', id: id('temperature') });
+/** The acceleration along one axis, as Blockly saves the dropdown: 'x', 'y' or 'z'. */
+export const acceleration = (axis: string): Json => ({ type: 'ybc_accel', id: id('accel'), fields: { AXIS: axis } });
+/** "gesture is …", as Blockly saves the dropdown: 'shake', 'tilt_left', 'tilt_right', 'face_up', 'face_down', 'logo_up' or 'logo_down'. */
+export const gestureIs = (gesture: string): Json => ({ type: 'ybc_gesture_is', id: id('gesture'), fields: { GESTURE: gesture } });

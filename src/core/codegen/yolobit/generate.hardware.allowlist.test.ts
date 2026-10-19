@@ -61,6 +61,8 @@ const placeholderPatterns: Record<string, string> = {
   c3: '[0-8]{5}',
   c4: '[0-8]{5}',
   name: `(?:${pictureNames.join('|')})`,
+  // N17 B2: the seven gestures of C-18's block (the names other than shake are an UNVERIFIED form).
+  gesture: '(?:shake|tilt_left|tilt_right|face_up|face_down|logo_up|logo_down)',
 };
 
 /** One line of a form as a pattern. A placeholder is its domain where the contract names one, and any expression otherwise. */
@@ -284,6 +286,13 @@ describe('the allowlist this phase may generate is part of the contract allowlis
       'light_level()',
       "music.play(['<note>:<ticks>'], wait=True)",
       "music.play(['R:<ticks>'], wait=True)",
+      // N17 B2: the sensors of the Advanced board, verified forms (C-16, C-17, C-18) and the UNVERIFIED ones C-17 and C-18 name.
+      'int(temperature())',
+      'accelerometer.get_x()',
+      'accelerometer.get_y()',
+      'accelerometer.get_z()',
+      'accelerometer.is_gesture("shake")',
+      'accelerometer.is_gesture("<gesture>")',
     ]) {
       expect(phaseList.forms, form).toContain(form);
       expect(contractList.forms, form).toContain(form);
@@ -294,7 +303,7 @@ describe('the allowlist this phase may generate is part of the contract allowlis
       expect(phaseList.forms, form).toContain(form);
     }
     // The rows of the later phases are in the contract’s list but not in what is generated.
-    for (const later of ['int(temperature())', 'pin<N>.servo_write(<angle>)']) {
+    for (const later of ['pin<N>.servo_write(<angle>)']) {
       expect(contractList.forms, later).toContain(later);
       expect(phaseList.forms, later).not.toContain(later);
     }
@@ -337,7 +346,7 @@ describe('every generated hardware program stays inside the allowlist', () => {
       const header = lines.slice(1, lines.indexOf(''));
       const expected = [
         'import time',
-        ...(/\b(display|button_[ab]|light_level)\b/.test(body)
+        ...(/\b(display|button_[ab]|light_level|temperature|accelerometer)\b/.test(body)
           ? ['from yolobit import *', 'button_a.on_pressed = None', 'button_b.on_pressed = None', 'button_a.on_pressed_ab = button_b.on_pressed_ab = -1']
           : []),
         ...(/\bmusic\.play\(/.test(body) ? ['import music', 'music.set_tempo(4, 120)'] : []),
@@ -367,6 +376,14 @@ describe('every generated hardware program stays inside the allowlist', () => {
     expect(covered(/display\.show\(Image\("[0-8]{5}(:[0-8]{5}){4}"\)\)/) && covered(/Image\("[^"]*[2-8]/)).toBe(true);
     expect(covered(/display\.scroll\('[^']*', color='#[0-9a-f]{6}'\)/)).toBe(true);
     expect(covered(/display\.scroll\(\d+, color='#[0-9a-f]{6}'\)/)).toBe(true);
+    // N17 B2: the sensors, every axis and every gesture.
+    expect(covered(/int\(temperature\(\)\)/)).toBe(true);
+    for (const axis of ['x', 'y', 'z']) {
+      expect(covered(new RegExp(`accelerometer\\.get_${axis}\\(\\)`)), axis).toBe(true);
+    }
+    for (const gesture of ['shake', 'tilt_left', 'tilt_right', 'face_up', 'face_down', 'logo_up', 'logo_down']) {
+      expect(text, gesture).toContain(`accelerometer.is_gesture("${gesture}")`);
+    }
     // Every note of the domain and every length is written somewhere.
     for (const note of notes) {
       expect(text, note).toMatch(new RegExp(`'${note}:[124]'`));
@@ -406,6 +423,10 @@ describe('the audit would notice what the hardware must not use (it is not vacuo
       'display.show(Image("08080:88888:88888:08880:00800"))',
       "display.scroll('Hi', color='#00ff00')",
       "display.scroll(x, color='#ffa500')",
+      // N17 B2.
+      'if int(temperature()) > 30:',
+      'x = accelerometer.get_x() + accelerometer.get_y() - accelerometer.get_z()',
+      'if accelerometer.is_gesture("shake") or accelerometer.is_gesture("logo_down"):',
     ]) {
       expect(audit(around(line), phaseList, learner), line).toEqual(clean);
     }
@@ -417,7 +438,11 @@ describe('the audit would notice what the hardware must not use (it is not vacuo
     ['random (EXCLUDED, C-40)', 'x = random.randint(1, 6)', ['import time', 'import random']],
     ['an import of random', 'x = 1', ['import time', 'import random']],
     ['button_a.is_pressed_ab (A+B, EXCLUDED, C-47)', 'if button_a.is_pressed_ab():'],
-    ['accelerometer (EXCLUDED, C-17)', 'x = accelerometer.get_x()'],
+    ['an axis the block does not offer', 'x = accelerometer.get_w()'],
+    ['a gesture the block does not offer', 'x = accelerometer.is_gesture("freefall")'],
+    ['a gesture in single quotes (the editor writes double quotes)', "x = accelerometer.is_gesture('shake')"],
+    ['the sensitivity of a shake (not offered)', 'accelerometer.sensor.shake(15)'],
+    ['the strength of the acceleration (not offered)', 'x = accelerometer.get_strength()'],
     ['a built-in image the block does not offer', 'display.show(Image.SMILE)'],
     ['an arrow by name (the generator writes it as an own picture)', 'display.show(Image.ARROW_N)'],
     ['a name read off Image that is no picture', 'x = Image.HEART'],
@@ -458,12 +483,12 @@ describe('the audit would notice what the hardware must not use (it is not vacuo
     expect(audit(around('display.set_pixel(0, 0, "#FF0000")'), contractList, learner).calls).toEqual(['display.set_pixel(0, 0, "#FF0000")']);
   });
 
-  it('knows temperature as a row of the contract that is not generated yet, and the pins of YB-4 and the pixels of N17 B1 as generated', () => {
-    for (const line of ['x = int(temperature())']) {
+  it('knows servo as a row of the contract that is not generated yet, and the pins of YB-4, the pixels of N17 B1 and the sensors of N17 B2 as generated', () => {
+    for (const line of ['pin0.servo_write(90)']) {
       expect(audit(around(line), contractList, learner), line).toEqual(clean);
       expect(audit(around(line), phaseList, learner), line).not.toEqual(clean);
     }
-    for (const line of ["display.set_pixel(0, 0, '#FF0000')", 'display.show(Image.HEART)']) {
+    for (const line of ["display.set_pixel(0, 0, '#FF0000')", 'display.show(Image.HEART)', 'x = int(temperature())', 'x = accelerometer.get_z()']) {
       expect(audit(around(line), contractList, learner), line).toEqual(clean);
       expect(audit(around(line), phaseList, learner), line).toEqual(clean);
     }

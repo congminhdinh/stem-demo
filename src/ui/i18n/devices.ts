@@ -10,6 +10,8 @@ export const viPartLabels: Readonly<Record<string, string>> = {
   Display: 'Màn hình',
   Light: 'Ánh sáng',
   Buzzer: 'Loa',
+  Temp: 'Nhiệt độ',
+  Accel: 'Gia tốc',
 };
 
 /** `definition` with the text the canvas draws in `locale`: the same object in English. */

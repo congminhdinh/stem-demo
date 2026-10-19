@@ -4,6 +4,7 @@ import type { Capabilities } from '../../../capabilities/io';
 import type { Sleep } from '../../../program/interpreter';
 import { runYbc } from '../../../program/__fixtures__/run-ybc';
 import type { YbcProgramIR } from '../../../program/ybc-ir';
+import { gestureNames } from '../../../constructs/ybc.input';
 import { charactersOf, scrollFrame } from '../../../simulation/peripherals/display';
 import { python } from './python';
 
@@ -20,7 +21,9 @@ import { python } from './python';
 //   note:<NAME>:<ticks>          a note sounded for that many ticks
 //   sleep:<ms>                   time passed without anything else (a wait, a rest, a pause of a forever that is not the last)
 //   print:<text>                 a line was printed
-//   read:<part>=<n>              a scripted answer was consumed (a.pressed, b.pressed, a.presses, b.presses, light)
+//   read:<part>=<n>              a scripted answer was consumed (a.pressed, b.pressed, a.presses, b.presses, light; N17 B2:
+//                                temperature, accel.x, accel.y, accel.z, and gesture: the index in `gestureNames` of the
+//                                gesture the board makes, −1 for none, asked once by every is_gesture)
 //   end                          the program reached its last pause: the `passes`-th 10 ms pause of a forever, or the idle loop
 //
 // The Python side is told by the CONTRACT, not by the simulator: the fake `display.scroll(x)` moves its clock by 1200 ms per
@@ -32,11 +35,11 @@ import { python } from './python';
 export type Timeline = [at: number, event: string][];
 
 /** The answers a program is given, in the order it asks for them. Booleans are 0 and 1. */
-export type Script = Partial<Record<'a.pressed' | 'b.pressed' | 'a.presses' | 'b.presses' | 'light', number[]>>;
+export type Script = Partial<Record<(typeof partNames)[number], number[]>>;
 
 export type RunResult = { events: Timeline; error: string | null; left: Record<string, number> };
 
-const partNames = ['a.pressed', 'b.pressed', 'a.presses', 'b.presses', 'light'] as const;
+const partNames = ['a.pressed', 'b.pressed', 'a.presses', 'b.presses', 'light', 'temperature', 'accel.x', 'accel.y', 'accel.z', 'gesture'] as const;
 
 /** Contract §8.1 (EVD-21): the note of a frequency, as the contract writes the table (not read back from the code). */
 const contractNotes: Record<number, string> = {
@@ -67,7 +70,9 @@ class Stop(BaseException):
 
 IMAGE = re.compile(r'^[0-8]{5}(:[0-8]{5}){4}$')
 BLANK = ':'.join(['00000'] * 5)
-PARTS = ['a.pressed', 'b.pressed', 'a.presses', 'b.presses', 'light']
+PARTS = ['a.pressed', 'b.pressed', 'a.presses', 'b.presses', 'light', 'temperature', 'accel.x', 'accel.y', 'accel.z', 'gesture']
+# N17 B2: the gestures of C-18, in the order of the block's dropdown (constructs/ybc.input.ts gestureNames, passed in).
+GESTURES = json.loads(sys.argv[1])
 # Contract §4.4 / EVD-05: the palette and its digits, as the generator writes a colour (lower case).
 PALETTE = {'#ff0000': '1', '#ffa500': '2', '#ffff00': '3', '#00ff00': '4', '#0000ff': '5', '#4b0082': '6', '#800080': '7', '#ffffff': '8'}
 # The pictures C-05 names (N17 B1): the micro:bit MicroPython table, written here again by hand, not read from the simulator.
@@ -195,6 +200,26 @@ def run(case):
     yolobit.button_a = Button('a')
     yolobit.button_b = Button('b')
     yolobit.light_level = lambda: take('light')
+    # N17 B2: the simulator printed temperature() as a float with one digit (EVD-10), so the fake gives a float too.
+    yolobit.temperature = lambda: float(take('temperature'))
+
+    class Accelerometer:
+        def get_x(self):
+            return take('accel.x')
+
+        def get_y(self):
+            return take('accel.y')
+
+        def get_z(self):
+            return take('accel.z')
+
+        def is_gesture(self, name):
+            if name not in GESTURES:
+                raise AssertionError('not a gesture of the block: ' + repr(name))
+            index = take('gesture')
+            return index >= 0 and GESTURES[index] == name
+
+    yolobit.accelerometer = Accelerometer()
 
     music = types.ModuleType('music')
 
@@ -249,7 +274,7 @@ export function runUnderCpythonWithHardware(cases: Record<string, { source: stri
   if (!python) {
     throw new Error('No CPython 3 on this machine');
   }
-  const result = spawnSync(python.command, [...python.prefix, '-c', harness], {
+  const result = spawnSync(python.command, [...python.prefix, '-c', harness, JSON.stringify(gestureNames)], {
     input: JSON.stringify(cases),
     encoding: 'utf8',
     timeout: 120_000,
@@ -338,6 +363,14 @@ export async function simulateWithHardware(ir: YbcProgramIR, script: Script, scr
       takePresses: (id) => take(`${id}.presses`),
     },
     light: { lightLevel: () => take('light') },
+    temperature: { temperature: () => take('temperature') },
+    motion: {
+      acceleration: (axis) => take(`accel.${axis}`),
+      gesture() {
+        const index = take('gesture');
+        return index < 0 ? null : (gestureNames[index] ?? null);
+      },
+    },
     sound: {
       startTone(hz) {
         if (tone) {

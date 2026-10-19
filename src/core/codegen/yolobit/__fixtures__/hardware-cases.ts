@@ -1,7 +1,7 @@
 import {
-  add, and, bool, buttonPressed, buttonPresses, clearDisplay, clearPixel, cmp, colour, countUp, getVar, ifElif, ifThen, images, join, lightLevel, mul,
-  num, or, playNote, print, program, rest, scrollNumber, scrollNumberIn, scrollText, scrollTextIn, setAll, setPixel, setVar, showIcon, showImage,
-  showImageIn, text, wait, type Json,
+  acceleration, add, and, bool, buttonPressed, buttonPresses, clearDisplay, clearPixel, cmp, colour, countUp, gestureIs, getVar, ifElif, ifThen, images,
+  join, lightLevel, mul, num, or, playNote, print, program, rest, scrollNumber, scrollNumberIn, scrollText, scrollTextIn, setAll, setPixel, setVar,
+  showIcon, showImage, showImageIn, sub, temperature, text, wait, type Json,
 } from '../../../program/__fixtures__/ybc-blocks';
 import { noteNames, noteTicks } from '../../../constructs/ybc.sound';
 
@@ -10,7 +10,11 @@ import { noteNames, noteTicks } from '../../../constructs/ybc.sound';
 // Python; the golden of a case is `hardware/__golden__/<name>.py` (a separate folder, so the language goldens of
 // YB-5A stay exactly as they were). `covers` lists the contract rows the case exercises.
 
-export type HardwareCase = { name: string; covers: string[]; blocks: Json };
+/** `profiles`: the profiles whose packs have every block of the case; both when absent (N17 B2: the sensors are Advanced only). */
+export type HardwareCase = { name: string; covers: string[]; blocks: Json; profiles?: readonly ('ybc-basic' | 'ybc-advanced')[] };
+
+/** Whether a case's blocks are all in the profile's packs. */
+export const caseIsIn = (hardwareCase: HardwareCase, profile: 'ybc-basic' | 'ybc-advanced') => (hardwareCase.profiles ?? ['ybc-basic', 'ybc-advanced']).includes(profile);
 
 const x = () => getVar('x');
 
@@ -120,5 +124,37 @@ export const hardwareCases: HardwareCase[] = [
     name: 'pixel-walk',
     covers: ['C-10', 'C-42', 'C-39', 'C-04'],
     blocks: program([], [countUp('x', num(0), num(4), 1, [setPixel(getVar('x'), num(2), colour('#ff0000')), wait(num(100)), clearPixel(getVar('x'), num(2))])]),
+  },
+  // N17 B2: a thermometer. The generator writes int(temperature()) (C-16): the board's temperature() is a float.
+  {
+    name: 'thermometer',
+    covers: ['C-16', 'C-06', 'C-08', 'C-34', 'C-36'],
+    profiles: ['ybc-advanced'],
+    blocks: program([], [ifThen(cmp('GT', temperature(), num(30)), [showImage(images.FULL)], [scrollNumber(temperature())])]),
+  },
+  // N17 B2: shake and tilt: the verified gesture "shake" and one more of the seven (UNVERIFIED names).
+  {
+    name: 'tilt-and-shake',
+    covers: ['C-18', 'C-06', 'C-09', 'C-36'],
+    profiles: ['ybc-advanced'],
+    blocks: program([], [ifElif([[gestureIs('shake'), [showImage(images.FULL)]], [gestureIs('tilt_left'), [showImage(images.CROSS)]]], [clearDisplay()])]),
+  },
+  // N17 B2: the three axes (get_x is the verified form, get_y and get_z UNVERIFIED), the other gestures, a temperature in a sum.
+  {
+    name: 'accelerometer-readings',
+    covers: ['C-17', 'C-18', 'C-16', 'C-08', 'C-29', 'C-30'],
+    profiles: ['ybc-advanced'],
+    blocks: program([
+      setVar('x', acceleration('x')),
+      setVar('y', acceleration('y')),
+      setVar('z', acceleration('z')),
+      print(add(add(getVar('x'), getVar('y')), getVar('z'))),
+      print(gestureIs('tilt_right')),
+      print(gestureIs('face_up')),
+      print(gestureIs('face_down')),
+      print(gestureIs('logo_up')),
+      print(gestureIs('logo_down')),
+      scrollNumber(sub(temperature(), num(10))),
+    ]),
   },
 ];

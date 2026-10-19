@@ -4,6 +4,7 @@
 > - r2 sửa các finding của review độc lập (verdict *CHANGES REQUIRED*: R1–R3, N1–N3; §22.6).
 > - r3 áp dụng hai quyết định cuối của owner: **OQ-E APPROVED**, **C-Q6 = Option A** (§22.2).
 > - **N17 B1 (2026-10-19):** owner chọn "Mô phỏng đủ chức năng". Màn hình RGB mở cho cả hai profile: C-05 (hình có sẵn) mở lại, C-10/C-42/C-43 sang cả Basic; màu cho C-06/C-07/C-08. Dạng code mới và nhãn VERIFIED/UNVERIFIED ở **§23**.
+> - **N17 B2 (2026-10-19):** cảm biến của Advanced: C-16 nhiệt độ (domain hỗ trợ −10..50), C-17 gia tốc và C-18 cử chỉ/lắc **mở lại** (RESTRICTED, chỉ Advanced) bằng quyết định owner, với field chưa có evidence ghi rõ **UNVERIFIED** (`unverifiedFields`), không bịa evidence. Chi tiết ở **§24**.
 > - Chưa phải căn cứ implement cho tới khi freeze.
 > **Target snapshot:** editor public `app.ohstem.vn/#!/codes/yolobit`, build marker `?v=20261007130057`, Blockly `8.0.1`; simulator public (Thiết bị ảo → Project Builder, `static/gears/index.html?…&build=658a5…`); trang firmware public `fw.ohstem.vn` liệt kê **"Yolo:Bit v1.12"** và **"Yolo:Bit S3 v1.14"** (đọc 2026-10-14). Ngày quan sát: **2026-10-14**.
 > **Firmware chính xác: UNKNOWN. MicroPython version: UNKNOWN.** Contract này được **pin vào snapshot evidence public ở trên**, không phải bảo đảm tương thích vô thời hạn (§1).
@@ -348,9 +349,9 @@ N17 B1: block chọn màu bằng dropdown 8 màu này (Blockly 13 không còn co
 | Sensor | Dạng gọi (V·G) | Đơn vị | Khoảng | Kiểu / làm tròn | Kết luận |
 |---|---|---|---|---|---|
 | Ánh sáng (C-15) | `light_level()` | mức tương đối (D·U) | **0..100**, **D·U** tooltip: "Lấy mức độ sáng tối của ánh sáng (0: tối nhất, 100: sáng nhất)." (không dựa vào widget) | `int` (V·S `return-reset`: in `78`, `82`, …) | **ELIGIBLE**. Slider UI 0–100 % → giá trị đồng nhất (plan §18.2, N = 100) |
-| Nhiệt độ (C-16) | `temperature()` | **°C** (D·U: "Lấy nhiệt độ hiện tại theo độ C.") | Khoảng vật lý **UNKNOWN, không tuyên bố**. **Domain hỗ trợ của contract:** slider số nguyên **0..50 °C** (`–ᴰ`) | float 1 chữ số (V·S `return-reset`) → generator sinh **`int(temperature())`** (`–ᴱ`, truncation D·M) | **RESTRICTED** |
-| Gia tốc (C-17) | `accelerometer.get_x()`… | mg (D·U) | UNKNOWN (giá trị simulator `0, 0, -50` không phải claim) | — | **EXCLUDED** |
-| Cử chỉ / lắc (C-18) | `accelerometer.is_gesture("shake")`, `accelerometer.sensor.shake(15)` | — | — | — | **EXCLUDED** |
+| Nhiệt độ (C-16) | `temperature()` | **°C** (D·U: "Lấy nhiệt độ hiện tại theo độ C.") | Khoảng vật lý **UNKNOWN, không tuyên bố**. **Domain hỗ trợ của contract:** slider số nguyên **−10..50 °C** (`–ᴰ`; 0..50 trước N17 B2) | float 1 chữ số (V·S `return-reset`) → generator sinh **`int(temperature())`** (`–ᴱ`, truncation D·M) | **RESTRICTED** (Advanced) |
+| Gia tốc (C-17) | `accelerometer.get_x()` (V·G); `get_y()`, `get_z()` **UNVERIFIED** | mg (D·U) | UNKNOWN (giá trị simulator `0, 0, -50` không phải claim). **Domain hỗ trợ:** số nguyên −2048..2048 mg (`–ᴰ`) | số nguyên (V·S EVD-10 in `0,0,-50`) | **RESTRICTED** (Advanced, N17 B2, trục/hướng/timing **UNVERIFIED**, §24) |
+| Cử chỉ / lắc (C-18) | `accelerometer.is_gesture("shake")` (V·G); 6 tên khác **UNVERIFIED**; `accelerometer.sensor.shake(15)` không mở | — | 7 cử chỉ của dropdown (`–ᴰ`) | bool | **RESTRICTED** (Advanced, N17 B2, tiêu chí/timing **UNVERIFIED**, §24) |
 | Chạm chân (C-48) | `pin0.is_touched()` | — | — | — | **EXCLUDED** |
 
 Mỗi lần gọi đọc giá trị hiện tại; không chặn (V·S `blocking`). Nhiễu cảm biến của simulator OhStem không thuộc contract.
@@ -534,6 +535,8 @@ Ký hiệu: §0.2. Cột field: `call import module unit range default clamp rou
 | C-13 | số lần nhấn A/B | B NICE | V·G | V·G | V·S | – | – | – | – | – | V·S | – | D·U+V·S | – | – | – | – | RESTRICTED | module, block, return (cạnh nhấn) |
 | C-15 | ánh sáng | B MUST | V·G | V·G | V·S | D·U | D·U | – | – | V·S | V·S | – | D·U | – | – | – | – | ELIGIBLE | module, round, block |
 | C-16 | nhiệt độ (`int(...)`) | A MUST | V·G+D·M | V·G | V·S | D·U | –ᴰ | – | – | –ᴱ | V·S | – | D·U | – | – | – | – | RESTRICTED | module, block |
+| C-17 | gia tốc x/y/z (N17 B2) | A MUST | V·G (`get_x`) | V·G | V·S | D·U | –ᴰ | – | – | V·S | U→**UNVERIFIED** | – | U→**UNVERIFIED** | – | U→**UNVERIFIED** | – | – | RESTRICTED (owner N17) | module, round |
+| C-18 | cử chỉ / lắc (N17 B2) | A MUST | V·G (`"shake"`) | V·G | V·S | – | –ᴰ | – | – | – | U→**UNVERIFIED** | – | U→**UNVERIFIED** | – | – | – | U→**UNVERIFIED** | RESTRICTED (owner N17) | module |
 | C-50 | phát nốt (chặn) | B MUST / A | V·G | V·G | V·S | V·S+D·U | V·S | –ᴱ | –ᴰ | – | V·S+D·U | – | – | –ᴰ | – | – | V·S | RESTRICTED | module, unit (tick→ms), range, content (Hz) |
 | C-51 | nghỉ (chặn) | B NICE / A | V·G | V·G | V·S | V·S+D·U | V·S | –ᴱ | –ᴰ | – | V·S | – | – | –ᴰ | – | – | – | RESTRICTED | module, unit, range, block |
 | C-23 | digital write | B MUST | V·G | V·G | V·S | – | V·G+D·U | – | –ᴰ | – | V·S | – | – | –ᴰ | – | – | D·U | RESTRICTED (P0–P2) | module, block |
@@ -577,7 +580,8 @@ Ghi chú:
 | C-46 | "hiện thông tin" | `say('Hello')` không import | code không tự đủ | EXCLUDED |
 | C-47 | nút A+B | `button_a.is_pressed_ab()` | không được hỗ trợ trong snapshot simulator đã chấp nhận | EXCLUDED |
 | C-14 | event nhấn nút | `button_a.on_pressed = f` | gate EV | **DEFERRED** |
-| C-17, C-18, C-48 | gia tốc; cử chỉ/lắc; chạm | `accelerometer.get_x()`, `is_gesture`, `is_touched()` | range/trục/tiêu chí | EXCLUDED |
+| C-17, C-18 | gia tốc; cử chỉ/lắc | `accelerometer.get_x()`, `is_gesture` | ~~range/trục/tiêu chí~~ | **N17 B2: RESTRICTED, Advanced** (field thiếu evidence ghi UNVERIFIED, §24) |
+| C-48 | chạm | `is_touched()` | tiêu chí | EXCLUDED |
 | C-49 | timer | `timer.reset()` không import | code không tự đủ | EXCLUDED |
 | C-20, C-21, C-22, C-52, C-60 | giai điệu dựng sẵn; `pitch`; `stop`; tempo learner; tick ≥ 8 / lẻ / tần số số | `music.play(music.ODE)`, `music.pitch(440, 1000)` … | provenance / kết thúc tone / không nhất quán | EXCLUDED |
 | C-26 | analog write / PWM | `pin0.write_analog(512)` | `OF-range` | EXCLUDED |
@@ -635,8 +639,8 @@ Sẵn sàng theo phase:
 | đặt / tắt điểm, vẽ hình tự do | MUST | RESTRICTED | x, y ∈ 0..4; 8 màu; `Image` `0`/`1` | V·G + D·W + V·S |
 | màu | MUST nếu EG đạt | RESTRICTED | 8 màu bảng; `set_all` | V·G + V·S |
 | độ sáng | MUST nếu EG đạt | EXCLUDED | không quan sát được | — |
-| gia tốc, nghiêng, lắc | MUST | EXCLUDED | range/trục/tiêu chí UNKNOWN | — |
-| nhiệt độ | MUST | RESTRICTED | `int(temperature())`, °C; domain hỗ trợ 0..50 (không phải khoảng vật lý) | V·G + D·U + V·S + D·M |
+| gia tốc, nghiêng, lắc | MUST | **RESTRICTED (N17 B2)** | x/y/z số nguyên −2048..2048 mg; 7 cử chỉ; trục, tiêu chí, timing **UNVERIFIED** (§24) | V·G (`get_x`, `"shake"`) + D·U (mg) + V·S |
+| nhiệt độ | MUST | RESTRICTED | `int(temperature())`, °C; domain hỗ trợ −10..50 (N17 B2; không phải khoảng vật lý) | V·G + D·U + V·S + D·M |
 | thời gian chạy / timer | MUST | **EXCLUDED** | §7 (R3) | — |
 | biến `str`, nối, `str()` | MUST | ELIGIBLE | plan §6.7 | V·G + D·M |
 | độ dài text | MUST | RESTRICTED | chỉ ASCII | D·M |
@@ -1035,6 +1039,7 @@ Còn lại: C-01, C-02, C-03a, C-04, C-29 và ngôn ngữ (C-30…C-39, C-56…C
 | 1.0-draft | 2026-10-14 | Bản đầu tiên (YB-0) |
 | 1.0-draft (r2) | 2026-10-14 | Sửa R1–R3, N1–N3; RV-1 ACCEPT WITH RESTRICTIONS; C-19, C-40 EXCLUDED; P10 viết lại |
 | 1.0-draft (r3) | 2026-10-14 | Áp dụng quyết định owner: OQ-E APPROVED (model display cuối); C-Q6 = Option A (analog native 0–4095, UI 0–100 %, PWM EXCLUDED). Không còn quyết định owner đang chờ |
+| 1.0-draft (r3) + N17 B2 | 2026-10-19 | Owner: "Mô phỏng đủ chức năng". C-17, C-18 mở lại (RESTRICTED, Advanced) với `unverifiedFields` (cơ chế mới: field UNKNOWN được owner chấp nhận, ghi rõ lý do; gate chỉ cho qua đúng các field đó); C-16 domain −10..50; `unverifiedForms` cho `get_y/get_z` và 6 tên cử chỉ; §24. Chuỗi version không đổi |
 | 1.0-draft (r3) + N17 B1 | 2026-10-19 | Owner: "Mô phỏng đủ chức năng". C-05 mở lại (RESTRICTED, 13 hình, nội dung micro:bit MIT); C-10/C-42/C-43 sang cả Basic; domain C-10 bỏ `colour`, C-43 thành structural (màu không bao giờ bị từ chối, sai thì đỏ + cảnh báo); thêm `unverifiedForms` cho C-06/C-07/C-08; §23. Chuỗi version của bản máy đọc được **không** đổi để golden cũ giữ nguyên (dòng đầu file Python ghi version) |
 
 
@@ -1060,3 +1065,29 @@ Ngữ nghĩa simulator (N17 B1):
 - Màu: chỉ 8 màu bảng. Giá trị khác (text `red`, `#ff00`, rỗng, màu ngoài bảng, block không phải màu) → **đỏ + cảnh báo `invalid-colour`**, không bao giờ là lỗi. Python khi đó cũng viết đỏ, nên board và simulator giống nhau.
 - Block lưu trước N17 (hình không có field màu, chạy chữ không có input màu) → đỏ, không cảnh báo, IR và Python y như trước.
 - Goal `display-shows` có `colour` thì so cả màu (`src/core/challenge/goal-tracker.ts`); không có thì so sáng/tắt như cũ.
+
+
+## 24. N17 B2 — nhiệt độ, gia tốc kế, cử chỉ: dạng code và nhãn (2026-10-19)
+
+Owner chọn "Mô phỏng đủ chức năng" (plan N17, task B2). Ba block mới, chỉ ở profile **Advanced** (pack `ybc.sensors`, hiện trong nhóm "Đầu vào"/Input): `ybc_temperature`, `ybc_accel` (x|y|z), `ybc_gesture_is` (shake | tilt_left | tilt_right | face_up | face_down | logo_up | logo_down). Bản máy đọc được: `src/core/compat/yolobit-contract.ts` (C-16, C-17, C-18). Golden: `src/core/codegen/yolobit/hardware/__golden__/{thermometer,tilt-and-shake,accelerometer-readings}.py`.
+
+**Cơ chế mới `unverifiedFields`.** C-17 và C-18 có field mà không evidence nào xác lập (OF-block, OF-return, OF-coord / OF-content). Thay vì bịa evidence, mỗi field đó vẫn là **UNKNOWN** trong data, và row ghi thêm `unverifiedFields: { <field>: "<lý do UNVERIFIED>" }` là quyết định owner N17. Gate (`contract-validation.ts`) chỉ cho qua đúng field UNKNOWN được nêu tên; field khác vẫn theo EG. Audit từ chối: `unverifiedFields` trên row EXCLUDED/DEFERRED, và nêu tên một field không phải UNKNOWN. Nếu RV-1 bị thu hồi, C-17/C-18 vẫn bị loại như mọi construct phần cứng (module `yolobit` simDependent).
+
+| Block (N17 B2) | Construct | Python sinh ra | Nhãn | Lý do / nguồn |
+|---|---|---|---|---|
+| `ybc_temperature` | C-16 | `int(temperature())` | **VERIFIED** (dạng) | Dạng gọi `temperature()` V·G (EVD-03); `int()` vì simulator in float 1 chữ số (EVD-10) và block trả số nguyên (D·M truncation). Domain: −10..50 °C (slider simulator, bước 1, mặc định 25 °C), không phải khoảng vật lý |
+| `ybc_accel` x | C-17 | `accelerometer.get_x()` | **VERIFIED** (dạng) | V·G EVD-03 (observedPython của C-17). Kiểu số nguyên: V·S EVD-10 in `0,0,-50`. Đơn vị mg: D·U (§6) |
+| `ybc_accel` y, z | C-17 (`unverifiedForms`) | `accelerometer.get_y()`, `accelerometer.get_z()` | **UNVERIFIED** | Chỉ thấy `get_x()` trong output editor; tên y, z theo cùng mẫu (kiểu micro:bit) |
+| `ybc_gesture_is` shake | C-18 | `accelerometer.is_gesture("shake")` | **VERIFIED** (dạng) | V·G EVD-03 nguyên văn, **dấu nháy kép** như editor (plan ghi `'shake'`; evidence thắng, Python tương đương) |
+| `ybc_gesture_is` 6 cử chỉ còn lại | C-18 (`unverifiedForms`) | `accelerometer.is_gesture("tilt_left")`… | **UNVERIFIED** | Danh sách tên trong dropdown editor không được ghi lại; tên theo kiểu micro:bit |
+| — | C-17 `block`, `return`, `coord` | — | **UNVERIFIED** (`unverifiedFields`) | Không trace nào đo thời gian; tooltip không ghi lại; hướng trục trên board thật không thấy |
+| — | C-18 `block`, `return`, `content` | — | **UNVERIFIED** (`unverifiedFields`) | Tiêu chí cử chỉ và thời điểm board báo cử chỉ không thấy |
+
+Ngữ nghĩa simulator (N17 B2; là lựa chọn của môi trường ảo, **không** phải claim về board thật):
+- Mỗi lần Chạy bắt đầu ở **25 °C** và **nằm phẳng, ngửa mặt: (0, 0, −1024) mg**. Input thuộc run, không lưu vào tài liệu dự án.
+- Nhiệt độ: slider −10..50, bước 1; giá trị ngoài khoảng bị kẹp, không phải số → 25.
+- Gia tốc: tấm nghiêng cho x, y trong ±1024 mg (bước kéo 32 mg, phím mũi tên 128 mg, Home = nằm phẳng); z = −√(1024² − x² − y²) (ngửa) hoặc + (khi bật "Úp mặt"); mọi trục là số nguyên trong −2048..2048.
+- Cử chỉ: **shake** đúng trong **1 s** sau nút "Lắc" (lắc lại thì tính lại 1 s), bất kể độ nghiêng, và không thay độ nghiêng; ngoài ra x < −400 → `tilt_left`, x > 400 → `tilt_right` (x xét trước), rồi y < −400 → `logo_up`, y > 400 → `logo_down`, rồi z < −400 → `face_up`, z > 400 → `face_down`; ngưỡng **±400 mg**. Một cử chỉ hiện tại tại một thời điểm (như `current_gesture` của micro:bit).
+- Kiểm tra (Check): kịch bản `{ part: 'temperature', input: { kind: 'slider', value } }`, `{ part: 'accelerometer', input: { kind: 'tilt', x, y, z? } }` và `{ part: 'accelerometer', input: { kind: 'gesture' } }` (lắc) chạy như ánh sáng (`src/core/challenge/check-run.sensors.test.ts`).
+- Khi chạy, bo mạch trên canvas ghi số đo dưới màn hình (`25 °C   x 0  y 0  z -1024`) và rung nhẹ khi lắc (người dùng bật giảm chuyển động thì chỉ viền gia tốc kế).
+

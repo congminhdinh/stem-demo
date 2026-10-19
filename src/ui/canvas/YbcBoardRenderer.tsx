@@ -1,8 +1,12 @@
+import { useEffect, useState } from 'react';
 import { Group, Rect, Text } from 'react-konva';
 import type { OnboardPeripheral } from '../../core/devices/device-definition';
+import { accelerationOf } from '../../core/simulation/peripherals/accelerometer';
+import { temperatureOf } from '../../core/simulation/peripherals/temperature';
 import type { ComponentInput, ComponentState } from '../../core/simulation/simulate-circuit';
 import { formatHz, toneHz } from '../audio/tone';
 import { renderedPixels } from '../runtime-controls/display-view';
+import { prefersReducedMotion, useShaking } from '../runtime-controls/use-shaking';
 import type { DeviceRendererProps } from './renderers';
 import { canvasPalette } from './colors';
 
@@ -12,7 +16,9 @@ import { canvasPalette } from './colors';
 // its frequency as text, while a note sounds. The buttons and the light sensor are labelled footprints:
 // their pressed state and slider belong to the controls under the canvas, and the snapshot does not echo them;
 // while a lab's check presses them (N8s), its inputs (`partInputs`) are drawn: a held button filled and ringed,
-// the light's level as text beside it.
+// the light's level as text beside it. N17 B2: while a run is on, a quiet line under the display reads what the temperature
+// sensor and the accelerometer sense (25 °C and x 0 y 0 z −1024 until the controls say otherwise), and a shake jiggles the
+// board for a moment (only marked, the accelerometer ringed, when the person asked for less motion).
 
 const {
   shell: shellFill,
@@ -23,10 +29,40 @@ const {
   cellOff,
   cellLitRim,
   pressed: pressedFill,
+  readout: readoutFill,
 } = canvasPalette.ybcBoard;
 const cellGap = 3;
+/** How long the board jiggles after a shake, in ms (the shake itself lasts 1 s; the jiggle is only its sign). */
+const JIGGLE_MS = 450;
 
-export function YbcBoardRenderer({ definition, partStates, partInputs }: DeviceRendererProps) {
+/** The board's x offset while it jiggles after the `count`-th shake: 0 at rest, and always 0 for someone who asked for less motion. */
+function useJiggle(count: number): number {
+  const [offset, setOffset] = useState(0);
+  useEffect(() => {
+    if (count === 0 || prefersReducedMotion() || typeof requestAnimationFrame !== 'function') {
+      return;
+    }
+    let frame = 0;
+    const start = performance.now();
+    const step = (now: number) => {
+      const elapsed = now - start;
+      if (elapsed >= JIGGLE_MS) {
+        setOffset(0);
+        return;
+      }
+      setOffset(Math.round(Math.sin(elapsed / 22) * 5 * (1 - elapsed / JIGGLE_MS)));
+      frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => {
+      cancelAnimationFrame(frame);
+      setOffset(0);
+    };
+  }, [count]);
+  return offset;
+}
+
+export function YbcBoardRenderer({ definition, partStates, partInputs, partEvents }: DeviceRendererProps) {
   const { width, height } = definition.body;
   const onboard = definition.board?.onboard ?? [];
   // Part ids are data: "constructor" must not find a member of Object.prototype.
@@ -34,8 +70,24 @@ export function YbcBoardRenderer({ definition, partStates, partInputs }: DeviceR
     partStates && Object.hasOwn(partStates, partId) ? partStates[partId] : undefined;
   const inputOf = (partId: string): ComponentInput | undefined =>
     partInputs && Object.hasOwn(partInputs, partId) ? partInputs[partId] : undefined;
+  const temperaturePart = onboard.find((part) => part.model === 'temperature-sensor');
+  const accelerometerPart = onboard.find((part) => part.model === 'accelerometer');
+  const shakes = accelerometerPart && partEvents && Object.hasOwn(partEvents, accelerometerPart.id) ? (partEvents[accelerometerPart.id] ?? 0) : 0;
+  const shaking = useShaking(shakes);
+  const jiggle = useJiggle(shakes);
+  // The readings, while a run is on (the inputs are given then, `{}` before the first): what the program reads, worked out by the
+  // same functions the run uses.
+  const degrees = partInputs && temperaturePart ? temperatureOf(inputOf(temperaturePart.id)) : undefined;
+  const reading = partInputs && accelerometerPart ? accelerationOf(inputOf(accelerometerPart.id)) : undefined;
+  const display = onboard.find((part) => part.model === 'matrix-display');
+  const readoutText = [
+    degrees === undefined ? null : `${degrees} °C`,
+    reading === undefined ? null : `x ${reading.x}  y ${reading.y}  z ${reading.z}`,
+  ]
+    .filter((part) => part !== null)
+    .join('   ');
   return (
-    <>
+    <Group name="ybc-body" x={jiggle} shaking={shaking}>
       <Rect
         x={-width / 2}
         y={-height / 2}
@@ -60,10 +112,31 @@ export function YbcBoardRenderer({ definition, partStates, partInputs }: DeviceR
         part.model === 'matrix-display' ? (
           <DisplayGrid key={part.id} part={part} state={stateOf(part.id)} />
         ) : (
-          <PartFootprint key={part.id} part={part} hz={part.model === 'buzzer' ? toneHz(stateOf(part.id)) : undefined} input={inputOf(part.id)} />
+          <PartFootprint
+            key={part.id}
+            part={part}
+            hz={part.model === 'buzzer' ? toneHz(stateOf(part.id)) : undefined}
+            input={inputOf(part.id)}
+            shaken={part === accelerometerPart && shaking}
+          />
         ),
       )}
-    </>
+      {readoutText !== '' && (
+        <Text
+          name="ybc-readouts"
+          temperature={degrees}
+          acceleration={reading}
+          text={readoutText}
+          x={-width / 2 + 6}
+          y={(display ? display.at.y + display.at.height : 0) + 3}
+          width={width - 12}
+          align="center"
+          fontSize={10}
+          fill={readoutFill}
+          listening={false}
+        />
+      )}
+    </Group>
   );
 }
 
@@ -106,17 +179,18 @@ function DisplayGrid({ part, state }: { part: OnboardPeripheral; state: Componen
 /**
  * A labelled place of a part. `hz` is only given for the buzzer, and while it sounds the footprint gets a ring
  * and the frequency as text (a colour is never the only sign); it is also set on the group for tests. `input` is
- * what a lab's check gives the part: a held button is filled and ringed, a light level is written beside it;
- * both are set on the group too (`pressed`, `level`).
+ * what the run is given for the part: a held button is filled and ringed, a light level is written beside it;
+ * both are set on the group too (`pressed`, `level`). `shaken`: the accelerometer is ringed while the board is shaken (N17 B2).
  */
-function PartFootprint({ part, hz, input }: { part: OnboardPeripheral; hz?: number; input?: ComponentInput }) {
+function PartFootprint({ part, hz, input, shaken = false }: { part: OnboardPeripheral; hz?: number; input?: ComponentInput; shaken?: boolean }) {
   const { x, y, width, height } = part.at;
   const sounding = hz !== undefined;
   const pressed = input?.kind === 'hold' && input.closed;
-  const level = input?.kind === 'slider' ? input.value : undefined;
-  const ring = sounding ? soundingStroke : pressed ? labelFill : undefined;
+  // Only the light's level is written beside the part: the temperature has the line under the display (N17 B2).
+  const level = input?.kind === 'slider' && part.model === 'light-sensor' ? input.value : undefined;
+  const ring = sounding || shaken ? soundingStroke : pressed ? labelFill : undefined;
   return (
-    <Group name={`ybc-part-${part.id}`} hz={hz} pressed={pressed} level={level} listening={false}>
+    <Group name={`ybc-part-${part.id}`} hz={hz} pressed={pressed} level={level} shaken={shaken} listening={false}>
       <Rect
         x={x}
         y={y}

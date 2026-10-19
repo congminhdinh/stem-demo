@@ -10,9 +10,9 @@ import { createBlockPackCatalog } from '../src/core/program/block-packs';
 import { capabilityKeys } from '../src/core/capabilities/io';
 
 // Where YB-3 and YB-4 end (YB plan §21 YB-3, YB-4, §6.2 R4, the frozen exclusions). Whatever is not the onboard parts
-// of YB-3 (display, buttons, light, sound), the header pins and the potentiometer of YB-4 must not have appeared: the
-// Advanced hardware of YB-7 (temperature, servo, the drawing blocks), and the rows the contract excludes or defers
-// (PWM, random, elapsed time, events). These tests are meant to be updated deliberately by the phase that opens a
+// of YB-3 (display, buttons, light, sound), the RGB display of N17 B1, the sensors of N17 B2 (temperature, accelerometer,
+// gestures: Advanced only), the header pins and the potentiometer of YB-4 must not have appeared: the Advanced hardware of
+// YB-7 (servo, the drawing blocks), and the rows the contract excludes or defers (PWM, random, elapsed time, events). These tests are meant to be updated deliberately by the phase that opens a
 // construct, together with its contract row, never as a side effect of another change.
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
@@ -37,6 +37,10 @@ const onboardBlockTypes = [
   'ybc_light_level',
   'ybc_sound_note',
   'ybc_sound_rest',
+  // N17 B2: the sensors of the Advanced board (C-16, C-17, C-18).
+  'ybc_temperature',
+  'ybc_accel',
+  'ybc_gesture_is',
 ];
 
 describe('the blocks a Yolo:Bit-compatible project has', () => {
@@ -67,9 +71,9 @@ describe('the blocks a Yolo:Bit-compatible project has', () => {
     );
   });
 
-  it('have no block for PWM, servo, pulse, temperature, events, random or elapsed time, and none for the display, the buttons, light or sound but the onboard ones', () => {
+  it('have no block for PWM, servo, pulse, events, random or elapsed time, and none for the display, the buttons, light, sound or the sensors but the onboard ones', () => {
     const everything = packs.list().flatMap((pack) => pack.blockTypes).filter((type) => !onboardBlockTypes.includes(type)).join(' ');
-    expect(everything).not.toMatch(/pwm|servo|pulse|temperature|display|image|scroll|button|light|sound|music|note|tone|event|random|timer|running|elapsed|shake|accel/i);
+    expect(everything).not.toMatch(/pwm|servo|pulse|temperature|display|image|scroll|button|light|sound|music|note|tone|event|random|timer|running|elapsed|shake|accel|gesture/i);
   });
 });
 
@@ -79,14 +83,14 @@ describe('the contract rows a profile shows', () => {
     'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-42', 'C-43', 'C-50', 'C-51', 'C-56',
   ];
 
-  it('are the language of YB-2, the onboard hardware of YB-3 with the RGB display of N17 B1, and the pins of YB-4, in both profiles', () => {
-    for (const profile of profiles) {
-      expect([...(profile?.constructs ?? [])].sort(), profile?.id).toEqual([...exposed].sort());
-    }
+  it('are the language of YB-2, the onboard hardware of YB-3 with the RGB display of N17 B1, and the pins of YB-4, in both profiles; Advanced adds the sensors of N17 B2', () => {
+    const [basic, advanced] = profiles;
+    expect([...(basic?.constructs ?? [])].sort()).toEqual([...exposed].sort());
+    expect([...(advanced?.constructs ?? [])].sort()).toEqual([...exposed, 'C-16', 'C-17', 'C-18'].sort());
   });
 
   it.each([
-    ['YB-7: temperature, text variables, functions, servo', ['C-16', 'C-57', 'C-58', 'C-59', 'C-27']],
+    ['YB-7: text variables, functions, servo', ['C-57', 'C-58', 'C-59', 'C-27']],
     ['excluded: PWM / analog write, pulse in, random, elapsed time', ['C-26', 'C-28', 'C-40', 'C-19']],
     ['deferred: events', ['C-14']],
   ])('keep out %s', (_, ids) => {

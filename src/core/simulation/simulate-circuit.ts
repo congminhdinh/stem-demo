@@ -94,13 +94,14 @@ function sameFrame(a: Frame | undefined, b: Frame | undefined): boolean {
 /**
  * A runtime input of a component (plan §11.3, YB-CP deliverable 2). Inputs belong to the run, never to the
  * document (B2). `hold` is a push button or a board button (Space/Enter or pointer down/up); `slider` is an
- * integer in the peripheral's range (clamped at its ends by the peripheral); `tilt` the accelerometer;
+ * integer in the peripheral's range (clamped at its ends by the peripheral); `tilt` the accelerometer, in mg
+ * (N17 B2: `z` absent is the rest of the board's weight, face up; a positive `z` is face down);
  * `gesture` a one-shot event (shake).
  */
 export type ComponentInput =
   | { kind: 'hold'; closed: boolean }
   | { kind: 'slider'; value: number }
-  | { kind: 'tilt'; x: number; y: number }
+  | { kind: 'tilt'; x: number; y: number; z?: number }
   | { kind: 'gesture' };
 
 export type ComponentInputKind = ComponentInput['kind'];
@@ -113,6 +114,14 @@ export const inputKindOfModel: Readonly<Record<string, ComponentInputKind>> = {
   accelerometer: 'tilt',
   // A device of the circuit, not an onboard part: its input is routed by id like a contact's (plan §6.5).
   'analog-source': 'slider',
+};
+
+/**
+ * The one-shot event a model takes besides its input (N17 B2): the accelerometer is shaken. An event is not a state: it never
+ * replaces the model's input (the tilt stays), and the run keeps only when it last happened.
+ */
+export const eventKindOfModel: Readonly<Record<string, ComponentInputKind>> = {
+  accelerometer: 'gesture',
 };
 
 /**
@@ -140,7 +149,7 @@ export function isComponentInput(value: unknown): value is ComponentInput {
     case 'slider':
       return typeof input.value === 'number' && Number.isInteger(input.value);
     case 'tilt':
-      return Number.isFinite(input.x) && Number.isFinite(input.y);
+      return Number.isFinite(input.x) && Number.isFinite(input.y) && (input.z === undefined || Number.isFinite(input.z));
     case 'gesture':
       return true;
     default:
@@ -160,7 +169,7 @@ export function copyComponentInput(input: ComponentInput): ComponentInput {
     case 'slider':
       return { kind: 'slider', value: input.value };
     case 'tilt':
-      return { kind: 'tilt', x: input.x, y: input.y };
+      return input.z === undefined ? { kind: 'tilt', x: input.x, y: input.y } : { kind: 'tilt', x: input.x, y: input.y, z: input.z };
     case 'gesture':
       return { kind: 'gesture' };
   }

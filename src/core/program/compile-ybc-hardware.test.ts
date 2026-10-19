@@ -4,7 +4,7 @@ import {
   clearDisplayType, clearPixelType, colourType, DISPLAY_CHAR_FROM, DISPLAY_CHAR_TO, pixelFieldName, scrollNumberType, scrollTextType, setAllType, setPixelType,
   showIconType, showImageType,
 } from '../constructs/ybc.display';
-import { buttonNames, buttonPressedType, buttonPressesType, lightLevelType } from '../constructs/ybc.input';
+import { accelerationType, buttonNames, buttonPressedType, buttonPressesType, gestureIsType, lightLevelType, temperatureType } from '../constructs/ybc.input';
 import { noteNames, noteTicks, playNoteType, restType } from '../constructs/ybc.sound';
 import { localDeviceDefinitions } from '../devices/local-catalog';
 import { boardTargetOf } from '../devices/board-pins';
@@ -137,7 +137,7 @@ describe('the IR of each hardware block', () => {
     expect(result.ok && JSON.parse(JSON.stringify(result.ir))).toEqual(result.ok && result.ir);
   });
 
-  it('compiles a block of every hardware construct, and of nothing else', () => {
+  it('compiles a block of every hardware construct of Basic, and of nothing else (the sensors of N17 B2, Advanced only, are in ybc-sensors.test.ts)', () => {
     // The colour block is a statement of none: it is in a colour input of set pixel and set all here (N17 B1).
     const everything = [
       showImage(images.CROSS), scrollText(text('x')), scrollNumber(num(1)), clearDisplay(), playNote('C3', 1), rest(1),
@@ -148,7 +148,7 @@ describe('the IR of each hardware block', () => {
     expect(hardwareConstructs.flatMap((construct) => construct.blockTypes).sort()).toEqual(
       [
         showImageType, scrollTextType, scrollNumberType, clearDisplayType, playNoteType, restType, buttonPressedType, buttonPressesType, lightLevelType,
-        showIconType, setPixelType, colourType, clearPixelType, setAllType,
+        showIconType, setPixelType, colourType, clearPixelType, setAllType, temperatureType, accelerationType, gestureIsType,
       ].sort(),
     );
   });
@@ -438,8 +438,8 @@ describe('the capabilities of the board (plan §10)', () => {
   const lacking = (capability: string) => boardCapabilities.filter((candidate) => candidate !== capability);
   const unavailable = (capabilitySet: readonly string[]) => diagnostics(compile(everything, capabilitySet));
 
-  it('has the capabilities of the ybc-board: display, buttons, light and sound next to the pins', () => {
-    expect([...boardCapabilities].sort()).toEqual(['analogIn', 'buttons', 'digital', 'display', 'light', 'sound']);
+  it('has the capabilities of the ybc-board: display, buttons, light and sound (and the temperature and motion of N17 B2) next to the pins', () => {
+    expect([...boardCapabilities].sort()).toEqual(['analogIn', 'buttons', 'digital', 'display', 'light', 'motion', 'sound', 'temperature']);
     expect(compile(everything).ok).toBe(true);
   });
 

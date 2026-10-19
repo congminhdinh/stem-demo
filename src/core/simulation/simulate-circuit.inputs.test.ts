@@ -3,7 +3,7 @@ import { blankFrame } from '../capabilities/frame';
 import { localDeviceDefinitions } from '../devices/local-catalog';
 import { createDeviceRegistry } from '../devices/registry';
 import {
-  copyComponentInput, inputKindOfModel, isComponentInput, peripheralComponentId, sameComponentState, simulateCircuit, splitPeripheralComponentId,
+  copyComponentInput, eventKindOfModel, inputKindOfModel, isComponentInput, peripheralComponentId, sameComponentState, simulateCircuit, splitPeripheralComponentId,
   type ComponentInput, type ComponentState, type SimulationInputs, type SimulationResult, type ToneState,
 } from './simulate-circuit';
 
@@ -175,7 +175,21 @@ describe('the models of the onboard parts take the input the plan gives them', (
   it('maps each model of the ybc-board that has a control to its kind, and the display and buzzer to none', () => {
     const onboard = registry.get('ybc-board').board?.onboard ?? [];
     const models = Object.fromEntries(onboard.map((part) => [part.id, inputKindOfModel[part.model] ?? null]));
-    expect(models).toEqual({ display: null, 'button-a': 'hold', 'button-b': 'hold', light: 'slider', buzzer: null });
+    expect(models).toEqual({ display: null, 'button-a': 'hold', 'button-b': 'hold', light: 'slider', buzzer: null, temperature: 'slider', accelerometer: 'tilt' });
+  });
+
+  it('gives the accelerometer a one-shot event besides its tilt (N17 B2: a shake), and no other model one', () => {
+    expect(eventKindOfModel).toEqual({ accelerometer: 'gesture' });
+  });
+
+  it('takes a tilt with or without z (N17 B2: z absent is face up, a positive z face down), and copies z only when it is there', () => {
+    expect(isComponentInput({ kind: 'tilt', x: 1, y: 2 })).toBe(true);
+    expect(isComponentInput({ kind: 'tilt', x: 1, y: 2, z: 1024 })).toBe(true);
+    expect(isComponentInput({ kind: 'tilt', x: 1, y: 2, z: Number.NaN })).toBe(false);
+    expect(isComponentInput({ kind: 'tilt', x: 1, y: 2, z: '3' })).toBe(false);
+    expect(copyComponentInput({ kind: 'tilt', x: 1, y: 2 })).toEqual({ kind: 'tilt', x: 1, y: 2 });
+    expect(Object.keys(copyComponentInput({ kind: 'tilt', x: 1, y: 2 }))).toEqual(['kind', 'x', 'y']);
+    expect(copyComponentInput({ kind: 'tilt', x: 1, y: 2, z: 1024 })).toEqual({ kind: 'tilt', x: 1, y: 2, z: 1024 });
   });
 
   it('covers the sensor and motion models of plan §11.2 that have a control, and the one device of the circuit that takes a slider', () => {

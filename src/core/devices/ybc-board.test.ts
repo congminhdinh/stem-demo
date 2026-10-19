@@ -57,8 +57,18 @@ describe('ybc-board', () => {
     });
   });
 
-  it('lists the onboard parts the contract names, and no sensor it excludes', () => {
-    expect(board.board?.onboard?.map((part) => part.id)).toEqual(['display', 'button-a', 'button-b', 'light', 'buzzer']);
+  it('lists the onboard parts the contract names (N17 B2: the temperature sensor and the accelerometer too), and no sensor it excludes', () => {
+    expect(board.board?.onboard?.map((part) => part.id)).toEqual(['display', 'button-a', 'button-b', 'light', 'buzzer', 'temperature', 'accelerometer']);
+  });
+
+  it('draws no two onboard parts over each other (N17 B2 placed two more)', () => {
+    const parts = board.board?.onboard ?? [];
+    for (const [index, a] of parts.entries()) {
+      for (const b of parts.slice(index + 1)) {
+        const apart = a.at.x + a.at.width <= b.at.x || b.at.x + b.at.width <= a.at.x || a.at.y + a.at.height <= b.at.y || b.at.y + b.at.height <= a.at.y;
+        expect(apart, `${a.id} / ${b.id}`).toBe(true);
+      }
+    }
   });
 
   it('draws every onboard part inside the body', () => {

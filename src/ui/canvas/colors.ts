@@ -35,5 +35,7 @@ export const canvasPalette = {
     cellLitRim: '#e6f4f7',
     /** A part a lab's check is pressing (N8s): the pressed colour of the controls (app.css `--stem-color-pressed`). */
     pressed: '#147d64',
+    /** The quiet line of the sensors' readings under the display while a run is on (N17 B2). */
+    readout: '#a9d6df',
   },
 } as const;

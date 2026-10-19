@@ -26,6 +26,17 @@ export const viColourNames: Readonly<Record<string, string>> = {
   '#ffffff': 'trắng',
 };
 
+/** The gestures of the gesture block (constructs/ybc.input.ts `gestureNames`) by value (N17 B2). */
+export const viGestureNames: Readonly<Record<string, string>> = {
+  shake: 'lắc',
+  tilt_left: 'nghiêng trái',
+  tilt_right: 'nghiêng phải',
+  face_up: 'ngửa mặt',
+  face_down: 'úp mặt',
+  logo_up: 'logo hướng lên',
+  logo_down: 'logo hướng xuống',
+};
+
 /** The built-in pictures (constructs/ybc.images.ts) by name. */
 export const viPictureNames: Readonly<Record<string, string>> = {
   HEART: 'trái tim',
@@ -74,6 +85,16 @@ export const viBlockText: Readonly<Record<string, BlockText>> = {
   ybc_button_pressed: { message0: 'nút %1 đang được nhấn', tooltip: 'Đúng khi nút đang được giữ ở thời điểm này.' },
   ybc_button_presses: { message0: 'số lần nhấn nút %1', tooltip: 'Số lần nút được nhấn kể từ lần đọc trước (bởi bất kỳ khối nào); đọc xong thì đếm lại từ 0.' },
   ybc_light_level: { message0: 'mức ánh sáng', tooltip: 'Độ sáng, một số nguyên từ 0 (tối nhất) tới 100 (sáng nhất).' },
+  ybc_temperature: { message0: 'nhiệt độ (°C)', tooltip: 'Nhiệt độ theo độ C, một số nguyên.' },
+  ybc_accel: {
+    message0: 'gia tốc %1 (mg)',
+    tooltip: 'Gia tốc theo một trục, đơn vị mg (1024 mg là sức hút của Trái Đất). Nằm phẳng, ngửa mặt: x 0, y 0, z −1024.',
+  },
+  ybc_gesture_is: {
+    message0: 'cử chỉ là %1',
+    tooltip: 'Đúng khi bo mạch đang có cử chỉ này: bị lắc (trong 1 giây sau khi lắc), nghiêng trái hoặc phải, ngửa hoặc úp mặt, logo hướng lên hoặc xuống.',
+    options: { GESTURE: viGestureNames },
+  },
   ybc_sound_note: { message0: 'phát nốt %1 trong %2 nhịp', tooltip: 'Phát một nốt rồi chờ nốt kết thúc. Một nhịp dài 125 mili giây.' },
   ybc_sound_rest: { message0: 'nghỉ %1 nhịp', tooltip: 'Im lặng và chờ. Một nhịp dài 125 mili giây.' },
   ybc_pin_write: { message0: 'đặt chân %1 thành %2', tooltip: 'Bật hoặc tắt một chân.' },

@@ -17,7 +17,7 @@ import {
 } from '../../program/__fixtures__/ybc-blocks';
 import { createRunSession } from '../../run/run-session';
 import { compileBlocks, packs, registry } from './__fixtures__/compile-case';
-import { hardwareCases } from './__fixtures__/hardware-cases';
+import { caseIsIn, hardwareCases } from './__fixtures__/hardware-cases';
 import { generateYbcMicroPython } from './generate';
 import { generateForDocument } from './generate-document';
 
@@ -47,7 +47,8 @@ afterEach(() => {
 
 describe('a hardware program of a real Basic or Advanced document passes L-2 to L-4 and is the Python of its IR', () => {
   describe.each(profileIds)('%s', (profile) => {
-    it.each(hardwareCases)('$name: is generated, and is exactly what the generator writes for the compiled program', ({ blocks }) => {
+    const cases = hardwareCases.filter((hardwareCase) => caseIsIn(hardwareCase, profile));
+    it.each(cases)('$name: is generated, and is exactly what the generator writes for the compiled program', ({ blocks }) => {
       const project = document(blocks, profile);
       const generated = generate(project);
       const direct = generateYbcMicroPython(compileBlocks(blocks));
@@ -56,12 +57,12 @@ describe('a hardware program of a real Basic or Advanced document passes L-2 to 
       expect(generated).toEqual(direct);
     });
 
-    it.each(hardwareCases)('$name: L-2 and L-3 hold (the layers say nothing, the program compiles), and Run starts it', ({ blocks }) => {
+    it.each(cases)('$name: L-2 and L-3 hold (the layers say nothing, the program compiles), and Run starts it', ({ blocks }) => {
       const project = document(blocks, profile);
       const context = resolveBoardContext(project, registry, productionProfiles);
       expect(reportLayers(project, context, packs)).toEqual({ profileCompatible: [], runtimeReady: [] });
       const capabilities = context.readiness.ok ? context.readiness.capabilities : undefined;
-      expect(capabilities).toEqual(['digital', 'analogIn', 'display', 'buttons', 'light', 'sound']);
+      expect(capabilities).toEqual(['digital', 'analogIn', 'display', 'buttons', 'light', 'sound', 'temperature', 'motion']);
       const target = context.readiness.ok ? boardTargetOf(registry.get(context.readiness.board.deviceType), context.readiness.capabilities) : undefined;
       expect(compileYbcProgram(project.program.blocks, packs.typesOf(context.blockPacks), undefined, target).ok).toBe(true);
       const session = createRunSession(registry);
@@ -70,10 +71,17 @@ describe('a hardware program of a real Basic or Advanced document passes L-2 to 
     });
   });
 
-  it.each(hardwareCases)('$name: Basic and Advanced write the same bytes', ({ blocks }) => {
+  it.each(hardwareCases.filter((hardwareCase) => profileIds.every((profile) => caseIsIn(hardwareCase, profile))))('$name: Basic and Advanced write the same bytes', ({ blocks }) => {
     const [basic, advanced] = profileIds.map((profile) => generate(document(blocks, profile)));
     expect(basic).toMatchObject({ ok: true });
     expect(advanced).toEqual(basic);
+  });
+
+  it.each(hardwareCases.filter((hardwareCase) => !caseIsIn(hardwareCase, 'ybc-basic')))('$name: a Basic document is refused at L-2, before any Python (N17 B2: the sensors are Advanced)', ({ blocks }) => {
+    const project = document(blocks, 'ybc-basic');
+    const context = resolveBoardContext(project, registry, productionProfiles);
+    expect(reportLayers(project, context, packs).profileCompatible.map((diagnostic) => diagnostic.code)).toContain('not-in-profile');
+    expect(generate(project)).toMatchObject({ ok: false });
   });
 
   it('maps the lines of the Python to the hardware blocks that produced them, from the document', () => {
@@ -253,7 +261,7 @@ describe('the Python of a hardware program is a text of the document and nothing
   const hardware = hardwareCases.map((c) => c.blocks);
 
   it.each(hardware)('a result has exactly the keys of the panel and no console, simulation or state of the display or the buzzer', (blocks) => {
-    const generated = generate(document(blocks));
+    const generated = generate(document(blocks, 'ybc-advanced'));
     if (!generated || !generated.ok) {
       throw new Error(JSON.stringify(generated));
     }

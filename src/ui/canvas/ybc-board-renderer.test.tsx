@@ -80,7 +80,13 @@ const genericCircuit: Circuit = {
 const simulation = (components: SimulationResult['components']): SimulationResult => ({ nets: [], components, pinReads: {} });
 const frameOf = (...lit: number[]): Frame => ({ pixels: blankFrame().pixels.map((_, index) => (lit.includes(index) ? red : null)) });
 
-function render(circuit: Circuit, profile: string | undefined, run: SimulationResult | null, inputs?: Record<string, ComponentInput>) {
+function render(
+  circuit: Circuit,
+  profile: string | undefined,
+  run: SimulationResult | null,
+  inputs?: Record<string, ComponentInput>,
+  events?: Record<string, number>,
+) {
   const context = resolveBoardContext({ profile, circuit }, registry, productionProfiles);
   return act(async () =>
     root.render(
@@ -93,6 +99,7 @@ function render(circuit: Circuit, profile: string | undefined, run: SimulationRe
         onCircuitChange={() => undefined}
         onContactChange={() => undefined}
         {...(inputs ? { inputs } : {})}
+        {...(events ? { events } : {})}
       />,
     ),
   );
@@ -251,6 +258,72 @@ describe('the inputs of a lab’s check on the board (N8s)', () => {
 
     expect(board().pressedParts).toEqual([]);
     expect(board().lightLevel).toBeUndefined();
+  });
+});
+
+describe('the readings of the sensors on the board while a run is on (N17 B2)', () => {
+  const readouts = () => groupNamed('.ybc-readouts') as unknown as Konva.Text | undefined;
+
+  it('draws no reading while idle, nor after a run (no inputs are given then)', async () => {
+    await render(ybcCircuit, 'ybc-advanced', null);
+    expect(readouts()).toBeUndefined();
+    expect(board().temperature).toBeUndefined();
+    await render(ybcCircuit, 'ybc-advanced', simulation({}));
+    expect(readouts()).toBeUndefined();
+  });
+
+  it('reads 25 °C and lying flat while a run is on and the controls were not touched, in a quiet line under the display', async () => {
+    await render(ybcCircuit, 'ybc-advanced', simulation({}), {});
+    expect(board().temperature).toBe(25);
+    expect(board().acceleration).toEqual({ x: 0, y: 0, z: -1024 });
+    expect(readouts()?.text()).toBe('25 °C   x 0  y 0  z -1024');
+    // Under the display, above the buttons; it takes no pointer.
+    const display = ybcBoardDefinition.board?.onboard?.find((part) => part.id === 'display');
+    expect(readouts()?.y()).toBeGreaterThanOrEqual((display?.at.y ?? 0) + (display?.at.height ?? 0));
+    expect(readouts()?.y()).toBeLessThan(ybcBoardDefinition.board?.onboard?.find((part) => part.id === 'button-a')?.at.y ?? 0);
+    expect(readouts()?.listening()).toBe(false);
+  });
+
+  it('reads what the run is given: the temperature and the tilt (face down too), with the program’s own rounding and range', async () => {
+    await render(ybcCircuit, 'ybc-advanced', simulation({}), {
+      'ybc-board-1/temperature': { kind: 'slider', value: 31 },
+      'ybc-board-1/accelerometer': { kind: 'tilt', x: -700, y: 300 },
+    });
+    expect(board().temperature).toBe(31);
+    expect(board().acceleration).toEqual({ x: -700, y: 300, z: -685 });
+    expect(readouts()?.text()).toBe('31 °C   x -700  y 300  z -685');
+    // The temperature has the line: it is not written beside its part, as the light's level is.
+    expect(board().lightLevel).toBeUndefined();
+
+    await render(ybcCircuit, 'ybc-advanced', simulation({}), { 'ybc-board-1/accelerometer': { kind: 'tilt', x: 0, y: 0, z: 1024 } });
+    expect(board().acceleration).toEqual({ x: 0, y: 0, z: 1024 });
+  });
+
+  it('marks the board shaken after a shake: the accelerometer is ringed for 1 s', async () => {
+    vi.useFakeTimers();
+    try {
+      await render(ybcCircuit, 'ybc-advanced', simulation({}), {}, {});
+      expect(board().shaking).toBe(false);
+      const ring = () => groupNamed('.ybc-part-accelerometer')?.findOne<Konva.Rect>('Rect')?.strokeWidth();
+      expect(ring()).toBe(0);
+
+      await render(ybcCircuit, 'ybc-advanced', simulation({}), {}, { 'ybc-board-1/accelerometer': 1 });
+      expect(board().shaking).toBe(true);
+      expect(groupNamed('.ybc-part-accelerometer')?.getAttr('shaken')).toBe(true);
+      expect(ring()).toBeGreaterThan(0);
+      await act(async () => void vi.advanceTimersByTime(1000));
+      expect(board().shaking).toBe(false);
+      expect(ring()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('draws the temperature sensor and the accelerometer as labelled parts, inside the board', async () => {
+    await render(ybcCircuit, 'ybc-advanced', null);
+    expect(groupNamed('.ybc-part-temperature')).toBeDefined();
+    expect(groupNamed('.ybc-part-accelerometer')).toBeDefined();
+    expect(board().texts).toEqual(expect.arrayContaining(['Temp', 'Accel']));
   });
 });
 

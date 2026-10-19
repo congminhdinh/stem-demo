@@ -166,18 +166,24 @@ export function entrySemanticProblems(name: string, field: OfField, entry: Field
 
 // --- Exposure eligibility gate (EG, plan §6.2) -------------------------------------------
 
-/** What a field may rest on to count: UNKNOWN and INFERRED never do. */
+/**
+ * What a field may rest on to count: UNKNOWN and INFERRED never do, except an UNKNOWN field the row names as UNVERIFIED by the
+ * owner's N17 decision (`unverifiedFields`): that one is let through, and only that one.
+ */
 function fieldProblems(
   name: string,
   field: OfField,
   entry: FieldEntry,
-  owner: { python?: ConstructContract['python']; domain?: Domain; preamble?: readonly string[] },
+  owner: { python?: ConstructContract['python']; domain?: Domain; preamble?: readonly string[]; unverifiedFields?: ConstructContract['unverifiedFields'] },
   contract: YolobitContract,
   rv1: Rv1Mode,
 ): string[] {
   switch (entry.label) {
     case 'INFERRED':
     case 'UNKNOWN':
+      if (entry.label === 'UNKNOWN' && owner.unverifiedFields !== undefined && Object.hasOwn(owner.unverifiedFields, field)) {
+        return [];
+      }
       return [`field ${name} is ${entry.label}: ${entry.note}`];
     case 'n/a':
       if (entry.reason === 'domain-restricted' && !owner.domain) {
@@ -344,10 +350,18 @@ export function validateContract(contract: YolobitContract): string[] {
       if (construct.profiles.length === 0) {
         problems.push(`${construct.id} is ${construct.eligibility} but no profile shows it`);
       }
+      const unverified = construct.unverifiedFields ?? {};
       for (const field of ofFields) {
         const label = construct.fields[field].label;
-        if (label === 'INFERRED' || label === 'UNKNOWN') {
+        if ((label === 'INFERRED' || label === 'UNKNOWN') && !(label === 'UNKNOWN' && Object.hasOwn(unverified, field))) {
           problems.push(`${construct.id}.${field} is ${label} on an ${construct.eligibility} construct (EG)`);
+        }
+      }
+      // The owner's N17 list names only fields that no evidence establishes: a field with evidence is not UNVERIFIED.
+      for (const field of Object.keys(unverified) as OfField[]) {
+        const label = construct.fields[field]?.label;
+        if (label !== 'UNKNOWN') {
+          problems.push(`${construct.id} names ${field} as UNVERIFIED, but it is ${label ?? 'not a field'}`);
         }
       }
       for (const id of construct.modules) {
@@ -368,6 +382,9 @@ export function validateContract(contract: YolobitContract): string[] {
       }
       if ((construct.unverifiedForms?.length ?? 0) > 0) {
         problems.push(`${construct.id} is ${construct.eligibility} but has UNVERIFIED forms`);
+      }
+      if (Object.keys(construct.unverifiedFields ?? {}).length > 0) {
+        problems.push(`${construct.id} is ${construct.eligibility} but has UNVERIFIED fields`);
       }
       if (construct.profiles.length > 0) {
         problems.push(`${construct.id} is ${construct.eligibility} but a profile lists it`);

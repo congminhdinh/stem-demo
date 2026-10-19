@@ -96,14 +96,14 @@ describe('rows and eligibility (contract §15)', () => {
   const eligibleOrRestricted: [string, 'ELIGIBLE' | 'RESTRICTED'][] = [
     ['C-01', 'ELIGIBLE'], ['C-02', 'ELIGIBLE'], ['C-04', 'ELIGIBLE'], ['C-05', 'RESTRICTED'], ['C-06', 'RESTRICTED'], ['C-07', 'RESTRICTED'],
     ['C-08', 'RESTRICTED'], ['C-09', 'ELIGIBLE'], ['C-10', 'RESTRICTED'], ['C-42', 'RESTRICTED'], ['C-43', 'RESTRICTED'],
-    ['C-12', 'RESTRICTED'], ['C-13', 'RESTRICTED'], ['C-15', 'ELIGIBLE'], ['C-16', 'RESTRICTED'], ['C-50', 'RESTRICTED'],
+    ['C-12', 'RESTRICTED'], ['C-13', 'RESTRICTED'], ['C-15', 'ELIGIBLE'], ['C-16', 'RESTRICTED'], ['C-17', 'RESTRICTED'], ['C-18', 'RESTRICTED'], ['C-50', 'RESTRICTED'],
     ['C-51', 'RESTRICTED'], ['C-23', 'RESTRICTED'], ['C-24', 'RESTRICTED'], ['C-25', 'RESTRICTED'], ['C-27', 'RESTRICTED'],
     ['C-29', 'ELIGIBLE'], ['C-30', 'ELIGIBLE'], ['C-31', 'ELIGIBLE'], ['C-32', 'ELIGIBLE'], ['C-33', 'ELIGIBLE'],
     ['C-34', 'ELIGIBLE'], ['C-35', 'ELIGIBLE'], ['C-36', 'ELIGIBLE'], ['C-37', 'RESTRICTED'], ['C-38', 'ELIGIBLE'],
     ['C-39', 'RESTRICTED'], ['C-56', 'ELIGIBLE'], ['C-57', 'ELIGIBLE'], ['C-58', 'RESTRICTED'], ['C-59', 'RESTRICTED'],
   ];
   const excluded = [
-    'C-11', 'C-17', 'C-18', 'C-19', 'C-20', 'C-21', 'C-22', 'C-26', 'C-28', 'C-40', 'C-41', 'C-44', 'C-45',
+    'C-11', 'C-19', 'C-20', 'C-21', 'C-22', 'C-26', 'C-28', 'C-40', 'C-41', 'C-44', 'C-45',
     'C-46', 'C-47', 'C-48', 'C-49', 'C-52', 'C-53', 'C-54', 'C-55', 'C-60', 'C-69', 'C-70',
   ];
 
@@ -155,6 +155,8 @@ describe('rows and eligibility (contract §15)', () => {
 
   it('keeps the Advanced-only constructs out of Basic', () => {
     expect(row('C-16').profiles).toEqual(['ybc-advanced']);
+    expect(row('C-17').profiles).toEqual(['ybc-advanced']);
+    expect(row('C-18').profiles).toEqual(['ybc-advanced']);
     expect(row('C-27').profiles).toEqual(['ybc-advanced']);
     expect(row('C-06').profiles).toEqual(['ybc-basic', 'ybc-advanced']);
   });
@@ -171,12 +173,58 @@ describe('rows and eligibility (contract §15)', () => {
       ['C-06', ['display.show(Image("<c0>:<c1>:<c2>:<c3>:<c4>"))']],
       ['C-07', ["display.scroll('<text>', color='<#rrggbb>')"]],
       ['C-08', ["display.scroll(<n>, color='<#rrggbb>')"]],
+      ['C-17', ['accelerometer.get_y()', 'accelerometer.get_z()']],
+      ['C-18', ['accelerometer.is_gesture("<gesture>")']],
     ]);
     for (const construct of named) {
       for (const extra of construct.unverifiedForms ?? []) {
         expect(extra.reason, `${construct.id}: ${extra.form}`).toMatch(/UNVERIFIED/);
       }
     }
+  });
+
+  it('opens the temperature, the accelerometer and the gestures to Advanced (N17 B2) in the forms the editor writes', () => {
+    expect(row('C-16').python).toEqual({ form: 'int(temperature())', builtins: ['int'] });
+    expect(row('C-17').python).toEqual({ form: 'accelerometer.get_x()' });
+    expect(row('C-18').python).toEqual({ form: 'accelerometer.is_gesture("shake")' });
+    for (const id of ['C-16', 'C-17', 'C-18']) {
+      expect(isExposable(row(id), contract), id).toBe(true);
+      expect(profileConstructViolations('ybc-advanced', [id], contract), id).toEqual([]);
+      expect(profileConstructViolations('ybc-basic', [id], contract), id).not.toEqual([]);
+    }
+  });
+
+  it('names the fields N17 B2 opened without evidence on the rows that have them, each UNKNOWN in the data and UNVERIFIED with a reason', () => {
+    const named = contract.constructs.filter((c) => Object.keys(c.unverifiedFields ?? {}).length > 0);
+    expect(named.map((c) => [c.id, Object.keys(c.unverifiedFields ?? {}).sort()])).toEqual([
+      ['C-17', ['block', 'coord', 'return']],
+      ['C-18', ['block', 'content', 'return']],
+    ]);
+    for (const construct of named) {
+      for (const [field, reason] of Object.entries(construct.unverifiedFields ?? {})) {
+        expect(construct.fields[field as OfField].label, `${construct.id}.${field}`).toBe('UNKNOWN');
+        expect(reason, `${construct.id}.${field}`).toMatch(/UNVERIFIED/);
+      }
+    }
+  });
+
+  it('lets an UNVERIFIED field through the gate only where the row names it: the same field of another row still keeps that row out', () => {
+    const unnamed = withField('C-15', 'block', { label: 'UNKNOWN', note: 'not established' });
+    const c15 = unnamed.constructs.find((c) => c.id === 'C-15') as ConstructContract;
+    expect(exposureViolations(c15, unnamed).join('\n')).toContain('C-15.block is UNKNOWN');
+    // C-17 without its list is refused for each field the list names.
+    const bare: ConstructContract = { ...row('C-17'), unverifiedFields: undefined };
+    const problems = exposureViolations(bare, contract).join('\n');
+    for (const field of ['block', 'coord', 'return']) {
+      expect(problems).toContain(`C-17.${field} is UNKNOWN`);
+    }
+  });
+
+  it('refuses a list of UNVERIFIED fields on an excluded row, and one that names a field that is not UNKNOWN', () => {
+    const onExcluded = { ...contract, constructs: contract.constructs.map((c) => (c.id === 'C-19' ? { ...c, unverifiedFields: { range: 'UNVERIFIED' } } : c)) };
+    expect(validateContract(onExcluded).join('\n')).toContain('C-19 is EXCLUDED but has UNVERIFIED fields');
+    const onVerified = { ...contract, constructs: contract.constructs.map((c) => (c.id === 'C-17' ? { ...c, unverifiedFields: { ...c.unverifiedFields, call: 'UNVERIFIED' } } : c)) };
+    expect(validateContract(onVerified).join('\n')).toContain('C-17 names call as UNVERIFIED, but it is VERIFIED');
   });
 
   it('refuses UNVERIFIED forms on an excluded row: they are never a way around the gate', () => {
@@ -194,7 +242,7 @@ describe('simDependent, derived per field (contract §15.1 last column)', () => 
     'C-08': ['module', 'unit', 'range', 'block', 'coord', 'content'],
     'C-09': ['module', 'block'], 'C-10': ['module', 'block'], 'C-42': ['module', 'block'], 'C-43': ['module', 'block'],
     'C-12': ['module', 'block', 'return'], 'C-13': ['module', 'block', 'return'],
-    'C-15': ['module', 'round', 'block'], 'C-16': ['module', 'block'],
+    'C-15': ['module', 'round', 'block'], 'C-16': ['module', 'block'], 'C-17': ['module', 'round'], 'C-18': ['module'],
     'C-50': ['module', 'unit', 'range', 'content'], 'C-51': ['module', 'unit', 'range', 'block'],
     'C-23': ['module', 'block'], 'C-24': ['module', 'block'], 'C-25': ['module', 'block'], 'C-27': ['module', 'block'],
     'C-29': [], 'C-30': [], 'C-31': [], 'C-32': [], 'C-33': [], 'C-34': [], 'C-35': [], 'C-36': [], 'C-37': [],
@@ -263,7 +311,7 @@ describe('RV-1: what the simulator may establish', () => {
   });
 
   it('would drop every hardware construct, and keep the language, if RV-1 were rejected (contract §22.3)', () => {
-    const hardware = ['C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-42', 'C-43', 'C-12', 'C-13', 'C-15', 'C-16', 'C-23', 'C-24', 'C-25', 'C-27', 'C-50', 'C-51'];
+    const hardware = ['C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-42', 'C-43', 'C-12', 'C-13', 'C-15', 'C-16', 'C-17', 'C-18', 'C-23', 'C-24', 'C-25', 'C-27', 'C-50', 'C-51'];
     for (const id of hardware) {
       expect(isExposable(row(id), contract, 'REJECTED'), id).toBe(false);
     }
@@ -290,7 +338,7 @@ describe('the exposure eligibility gate (EG)', () => {
 
   it('shows no excluded or deferred row to either profile', () => {
     const shown = new Set([...exposableConstructs(contract, 'ybc-basic'), ...exposableConstructs(contract, 'ybc-advanced')].map((c) => c.id));
-    for (const id of ['C-14', 'C-19', 'C-26', 'C-40', 'C-17', 'C-18', 'C-47', 'C-70']) {
+    for (const id of ['C-14', 'C-19', 'C-26', 'C-40', 'C-47', 'C-70']) {
       expect(shown.has(id), id).toBe(false);
     }
   });
@@ -590,6 +638,23 @@ describe('relational restrictions (contract §21 invariant 10)', () => {
     expect(domain?.args).toEqual({ x: 'int', y: 'int' });
     expect(row('C-10').restrictions.join(' ')).toMatch(/shown red with a warning, never an error/);
     expect(row('C-43').restrictions.join(' ')).toMatch(/shown red with a warning, never an error/);
+  });
+
+  it('allows −10..50 °C (N17 B2: the slider of the simulator, not a physical range), the axes x, y, z within ±2048 mg and the seven gestures', () => {
+    const temperature = row('C-16').domain;
+    const degrees = (celsius: number) => temperature !== undefined && evaluatePred(temperature.runtime, { values: { celsius } });
+    expect([-11, -10, 0, 25, 50, 51].map(degrees)).toEqual([false, true, true, true, true, false]);
+    const acceleration = row('C-17').domain;
+    const reading = (axis: string, mg: number) => acceleration !== undefined && evaluatePred(acceleration.runtime, { values: { axis, mg } });
+    expect([reading('x', -2048), reading('y', 2048), reading('z', 0), reading('x', 2049), reading('w', 0)]).toEqual([true, true, true, false, false]);
+    const gesture = row('C-18').domain;
+    const named = (name: string) => gesture !== undefined && evaluatePred(gesture.runtime, { values: { gesture: name } });
+    for (const name of ['shake', 'tilt_left', 'tilt_right', 'face_up', 'face_down', 'logo_up', 'logo_down']) {
+      expect(named(name), name).toBe(true);
+    }
+    for (const name of ['freefall', 'up', 'SHAKE', '']) {
+      expect(named(name), name).toBe(false);
+    }
   });
 
   it('allows the thirteen built-in pictures of N17 B1 and no other name', () => {

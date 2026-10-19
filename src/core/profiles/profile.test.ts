@@ -61,7 +61,7 @@ describe('the production profiles', () => {
     }
   });
 
-  it('differ only in profile data: the id, the extension and the variable types', () => {
+  it('differ in profile data (the id, the extension, the variable types) and in the sensors of N17 B2: their rows, their pack, their controls', () => {
     const strip = (profile: typeof basic) => {
       const rest: Record<string, unknown> = { ...profile };
       delete rest.id;
@@ -69,24 +69,32 @@ describe('the production profiles', () => {
       delete rest.variableTypes;
       return { rest, variableTypes: profile?.variableTypes };
     };
-    expect(strip(advanced).rest).toEqual(strip(basic).rest);
+    const sensors = { constructs: ['C-16', 'C-17', 'C-18'], blockPacks: ['ybc.sensors'], controls: ['temperature', 'accelerometer'] };
+    expect(strip(advanced).rest).toEqual({
+      ...strip(basic).rest,
+      constructs: [...(basic?.constructs ?? []), ...sensors.constructs],
+      blockPacks: [...(basic?.blockPacks ?? []), ...sensors.blockPacks],
+      controls: [...(basic?.controls ?? []), ...sensors.controls],
+    });
     expect(strip(basic).variableTypes).toEqual(['int']);
     expect(strip(advanced).variableTypes).toEqual(['int', 'str']);
     expect(advanced?.extends).toBe('ybc-basic');
   });
 
-  it('expose the structure, the YB-2 language, the YB-3 onboard hardware with the RGB display of N17 B1, and the YB-4 header pins: no PWM, function, event, random, elapsed-time, temperature or servo block', () => {
-    for (const profile of [basic, advanced]) {
-      expect(profile?.blockPacks).toEqual([
-        'ybc.structure', 'ybc.display', 'ybc.input', 'ybc.sound', 'ybc.pins', 'lang.logic', 'lang.loops', 'lang.math', 'lang.text', 'lang.variables',
-      ]);
-      expect(profile?.constructs).toEqual([
-        'C-01', 'C-02', 'C-04', 'C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-12', 'C-13', 'C-15', 'C-23', 'C-24', 'C-25', 'C-29', 'C-30', 'C-31',
-        'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-42', 'C-43', 'C-50', 'C-51', 'C-56',
-      ]);
-      // The parts that get a runtime control: the two buttons (hold) and the light sensor (slider). Display and buzzer only show.
-      expect(profile?.controls).toEqual(['button-a', 'button-b', 'light']);
-    }
+  it('expose the structure, the YB-2 language, the YB-3 onboard hardware with the RGB display of N17 B1, and the YB-4 header pins; Advanced the sensors of N17 B2 too: no PWM, function, event, random, elapsed-time or servo block', () => {
+    const basicPacks = ['ybc.structure', 'ybc.display', 'ybc.input', 'ybc.sound', 'ybc.pins', 'lang.logic', 'lang.loops', 'lang.math', 'lang.text', 'lang.variables'];
+    const basicConstructs = [
+      'C-01', 'C-02', 'C-04', 'C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-12', 'C-13', 'C-15', 'C-23', 'C-24', 'C-25', 'C-29', 'C-30', 'C-31',
+      'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-42', 'C-43', 'C-50', 'C-51', 'C-56',
+    ];
+    expect(basic?.blockPacks).toEqual(basicPacks);
+    expect(basic?.constructs).toEqual(basicConstructs);
+    // The parts that get a runtime control: the two buttons (hold) and the light sensor (slider). Display and buzzer only show.
+    expect(basic?.controls).toEqual(['button-a', 'button-b', 'light']);
+    // Advanced, the union with Basic first: the sensors pack (its blocks join the Input category), its rows and its controls.
+    expect(advanced?.blockPacks).toEqual([...basicPacks, 'ybc.sensors']);
+    expect(advanced?.constructs).toEqual([...basicConstructs, 'C-16', 'C-17', 'C-18']);
+    expect(advanced?.controls).toEqual(['button-a', 'button-b', 'light', 'temperature', 'accelerometer']);
   });
 
   it('use the ybc board and offer no generic board; the circuit parts of the header pins are the generic LED, resistor and button plus the potentiometer (YB-4)', () => {

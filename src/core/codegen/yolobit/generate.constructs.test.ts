@@ -25,10 +25,10 @@ describe('what the generator covers', () => {
     expect(defaultTarget).toEqual({ id: contract.contractId, contract: contract.version });
   });
 
-  it('is exactly the constructs both profiles list: nothing shown without Python, no Python for what is not shown', () => {
-    for (const profile of profiles) {
-      expect([...(profile?.constructs ?? [])].sort()).toEqual([...generatedConstructs].sort());
-    }
+  it('is exactly the constructs Advanced lists, and Basic all but the sensors of N17 B2: nothing shown without Python, no Python for what is not shown', () => {
+    const [basic, advanced] = profiles;
+    expect([...(advanced?.constructs ?? [])].sort()).toEqual([...generatedConstructs].sort());
+    expect([...(basic?.constructs ?? [])].sort()).toEqual([...generatedConstructs].filter((id) => !['C-16', 'C-17', 'C-18'].includes(id)).sort());
   });
 
   it.each([...generatedConstructs])('%s is a contract row that passes the exposure gate, with a Python form', (id) => {
@@ -61,12 +61,13 @@ describe('what the generator covers', () => {
       expect(generated.has(id), id).toBe(false);
       expect(row === undefined || row.eligibility === 'EXCLUDED' || row.eligibility === 'DEFERRED', id).toBe(true);
     }
-    // Temperature and servo (YB-7), text variables, `len` and functions (YB-7); every other hardware row waits for its phase.
-    // The onboard hardware (YB-3), the header pins (YB-4) and the RGB display of N17 B1 (C-05, C-10, C-42, C-43) are generated.
-    for (const id of ['C-16', 'C-27', 'C-57', 'C-58', 'C-59']) {
+    // Servo (YB-7), text variables, `len` and functions (YB-7); every other hardware row waits for its phase. The onboard
+    // hardware (YB-3), the header pins (YB-4), the RGB display of N17 B1 (C-05, C-10, C-42, C-43) and the sensors of N17 B2
+    // (C-16, C-17, C-18) are generated.
+    for (const id of ['C-27', 'C-57', 'C-58', 'C-59']) {
       expect(generated.has(id), id).toBe(false);
     }
-    for (const id of ['C-05', 'C-10', 'C-42', 'C-43']) {
+    for (const id of ['C-05', 'C-10', 'C-42', 'C-43', 'C-16', 'C-17', 'C-18']) {
       expect(generated.has(id), id).toBe(true);
     }
   });
