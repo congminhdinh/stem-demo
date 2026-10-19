@@ -77,16 +77,16 @@ describe('the pin constructs are contract rows that pass the exposure gate', () 
     }
   });
 
-  it('keep out what the contract excludes or leaves to a later phase: PWM / analog write, servo, pulse in', () => {
+  it('keep out what the contract excludes: pulse in; analog write and the servo (N17 B5) are Advanced\'s, in a pack of their own', () => {
     for (const profile of profiles) {
-      for (const id of ['C-26', 'C-27', 'C-28']) {
-        expect(profile?.constructs, `${profile?.id}/${id}`).not.toContain(id);
-      }
+      expect(profile?.constructs, `${profile?.id}/C-28`).not.toContain('C-28');
     }
-    expect(row('C-26').eligibility).toBe('EXCLUDED');
     expect(row('C-28').eligibility).toBe('EXCLUDED');
-    // Servo is a RESTRICTED row, but of the Advanced profile and of YB-7: no profile lists it at YB-4.
-    expect(row('C-27').profiles).toEqual(['ybc-advanced']);
+    for (const id of ['C-26', 'C-27']) {
+      expect(row(id).profiles, id).toEqual(['ybc-advanced']);
+      expect(productionProfiles.get('ybc-basic')?.constructs, id).not.toContain(id);
+      expect(productionProfiles.get('ybc-advanced')?.constructs, id).toContain(id);
+    }
   });
 });
 
@@ -125,7 +125,7 @@ describe('the constants are the contract\'s domain (C-23, C-24, C-25)', () => {
   it('opens P0, P1 and P2 and nothing else: the contract\'s pins are the board\'s pins', () => {
     expect(PIN_NUMBERS).toEqual([0, 1, 2]);
     expect(PIN_NUMBERS.map(pinNameOf)).toEqual(ybcPinChoices(registry).digital);
-    expect(ybcPinChoices(registry)).toEqual({ digital: ['P0', 'P1', 'P2'], analogIn: ['P0', 'P1', 'P2'] });
+    expect(ybcPinChoices(registry)).toEqual({ digital: ['P0', 'P1', 'P2'], analogIn: ['P0', 'P1', 'P2'], pwm: ['P0', 'P1', 'P2'], servo: ['P0', 'P1', 'P2'] });
   });
 });
 
@@ -171,15 +171,16 @@ describe('the pins pack', () => {
     expect(pinCapabilityOfBlock.get(pinAnalogType)).toBe('analogIn');
   });
 
-  it('is in the toolbox of both profiles as the "Pins" category, with the three blocks and nothing else', () => {
+  it('is in the toolbox of both profiles as the "Pins" category, with the three blocks; Advanced adds analog write and the servo after them (N17 B5)', () => {
     for (const profile of profiles) {
       const toolbox = buildToolbox(profile?.blockPacks ?? [], packs);
       const category = toolbox.contents.find((candidate) => candidate.name === 'Pins');
-      expect(category?.contents).toEqual([
+      expect(category?.contents?.slice(0, 3)).toEqual([
         { kind: 'block', type: pinWriteType },
         { kind: 'block', type: pinReadType },
         { kind: 'block', type: pinAnalogType },
       ]);
+      expect(category?.contents?.slice(3).map((item) => (item as { type: string }).type)).toEqual(profile?.id === 'ybc-advanced' ? ['ybc_pin_write_analog', 'ybc_servo_write'] : []);
     }
   });
 
@@ -208,7 +209,7 @@ describe('the pins a block offers come from the board\'s data', () => {
 
   it('leave out a reserved pin', () => {
     const reserved = withBoard((board) => ({ ...board, board: { ...board.board, reservedPins: ['P2'] } }));
-    expect(ybcPinChoices(reserved)).toEqual({ digital: ['P0', 'P1'], analogIn: ['P0', 'P1'] });
+    expect(ybcPinChoices(reserved)).toEqual({ digital: ['P0', 'P1'], analogIn: ['P0', 'P1'], pwm: ['P0', 'P1'], servo: ['P0', 'P1'] });
     const pack = createYbcPinsPack(ybcPinChoices(reserved));
     expect([pinWriteType, pinReadType, pinAnalogType].map((type) => optionsOf(pack, type))).toEqual([['P0', 'P1'], ['P0', 'P1'], ['P0', 'P1']]);
   });
@@ -221,7 +222,7 @@ describe('the pins a block offers come from the board\'s data', () => {
         pins: board.board.pins.map((pin) => (pin.name === 'P1' ? { ...pin, capabilities: ['digital'] } : pin.name === 'P2' ? { ...pin, capabilities: ['analogIn'] } : pin)),
       },
     }));
-    expect(ybcPinChoices(mixed)).toEqual({ digital: ['P0', 'P1'], analogIn: ['P0', 'P2'] });
+    expect(ybcPinChoices(mixed)).toEqual({ digital: ['P0', 'P1'], analogIn: ['P0', 'P2'], pwm: ['P0'], servo: ['P0'] });
   });
 
   it('never offer a pin the contract does not open, whatever the data says', () => {
@@ -235,8 +236,8 @@ describe('the pins a block offers come from the board\'s data', () => {
   });
 
   it('stand in with the contract\'s pins when there is no board to ask, so the block can still be registered', () => {
-    const none = createYbcPinsPack({ digital: [], analogIn: [] });
+    const none = createYbcPinsPack({ digital: [], analogIn: [], pwm: [], servo: [] });
     expect(optionsOf(none, pinReadType)).toEqual(['P0', 'P1', 'P2']);
-    expect(createPinBlockDefinitions({ digital: [], analogIn: [] })).toHaveLength(3);
+    expect(createPinBlockDefinitions({ digital: [], analogIn: [], pwm: [], servo: [] })).toHaveLength(3);
   });
 });

@@ -7,6 +7,7 @@
 > - **N17 B2 (2026-10-19):** cảm biến của Advanced: C-16 nhiệt độ (domain hỗ trợ −10..50), C-17 gia tốc và C-18 cử chỉ/lắc **mở lại** (RESTRICTED, chỉ Advanced) bằng quyết định owner, với field chưa có evidence ghi rõ **UNVERIFIED** (`unverifiedFields`), không bịa evidence. Chi tiết ở **§24**.
 > - **N17 B3 (2026-10-19):** loa của Advanced: C-20 giai điệu có sẵn (RESTRICTED, 20 tên, chờ xong / không chờ), C-21 `music.pitch` (RESTRICTED, 20..20000 Hz, 0..60000 ms, không chặn) và C-22 `music.stop()` (ELIGIBLE) **mở lại**, chỉ Advanced, với field chưa có evidence ghi **UNVERIFIED**. Nốt của giai điệu trong simulator lấy từ micro:bit MicroPython (MIT), không phải asset OhStem. Chi tiết ở **§25**.
 > - **N17 B4 (2026-10-19):** A+B là lựa chọn thứ ba của C-12 (`button_a.is_pressed() and button_b.is_pressed()`; `is_pressed_ab()` của editor, C-47, vẫn EXCLUDED); C-19 thời gian chạy (ELIGIBLE) và C-40 `random.randint` (RESTRICTED, hai đầu theo thứ tự nào cũng được) **mở lại** cho cả hai profile (B6 chốt), module C-03d `random` ELIGIBLE với field `module` INFERRED ghi **UNVERIFIED**; C-24: chân thả nổi đọc **0** kèm cảnh báo, chương trình không dừng (B9 cũ); dropdown giai điệu chỉ còn 14 tên VERIFIED. Chi tiết ở **§26**.
+> - **N17 B5 (2026-10-19):** chân của Advanced: C-26 ghi analog / PWM (`pin0.write_analog(512)`, giá trị 0..1023) **mở lại** (RESTRICTED, chỉ Advanced) thay cho quyết định loại ở C-Q6, với khoảng, tác dụng của duty và thời gian gọi ghi **UNVERIFIED**; C-27 servo 180° (`pin1.servo_write(90)`) được sinh code. Giá trị ngoài khoảng (0..1023, 0..180) **bị kẹp** kèm cảnh báo một lần mỗi chân mỗi lần chạy, và generator viết sẵn giá trị đã kẹp nên board không bao giờ nhận giá trị ngoài khoảng. Linh kiện servo mới (chỉ Advanced). Chi tiết ở **§27**.
 > - Chưa phải căn cứ implement cho tới khi freeze.
 > **Target snapshot:** editor public `app.ohstem.vn/#!/codes/yolobit`, build marker `?v=20261007130057`, Blockly `8.0.1`; simulator public (Thiết bị ảo → Project Builder, `static/gears/index.html?…&build=658a5…`); trang firmware public `fw.ohstem.vn` liệt kê **"Yolo:Bit v1.12"** và **"Yolo:Bit S3 v1.14"** (đọc 2026-10-14). Ngày quan sát: **2026-10-14**.
 > **Firmware chính xác: UNKNOWN. MicroPython version: UNKNOWN.** Contract này được **pin vào snapshot evidence public ở trên**, không phải bảo đảm tương thích vô thời hạn (§1).
@@ -23,7 +24,7 @@
 |---|---|
 | Kỹ thuật YB-0 | Self-audit (§22.1): không construct nào được mở còn field bắt buộc UNKNOWN/INFERRED. **Không còn quyết định owner nào đang chờ** (OQ-E, C-Q6 đã quyết, §22.2) |
 | Display model | **OQ-E APPROVED (owner, 2026-10-14):** **5×5 RGB**, toạ độ 0-based, gốc trên-trái, x = cột, y = hàng, màu hex, mặc định đỏ (§4.3) |
-| C-Q6 (owner decision) | **Option A (owner, 2026-10-14):** analog read dùng thang native **0–4095** (tài liệu OhStem, §10); UI 0–100 %; không chuẩn hoá về 0–1023. PWM vẫn EXCLUDED (§10.2) |
+| C-Q6 (owner decision) | **Option A (owner, 2026-10-14):** analog read dùng thang native **0–4095** (tài liệu OhStem, §10); UI 0–100 %; không chuẩn hoá về 0–1023. PWM vẫn EXCLUDED (§10.2); **N17 B5 (2026-10-19):** owner mở PWM (C-26) ở Advanced, giá trị 0..1023 UNVERIFIED (§27) |
 | RV-1 | **ACCEPT WITH RESTRICTIONS** (quyết định của reviewer). Ranh giới evidence ở §0.4, được mã hoá theo **từng claim** trong ledger (§20) và bản máy đọc được (§21) |
 | Thay đổi eligibility ở r2 | C-19 thời gian chạy → **EXCLUDED** (R3). C-40 `random.randint` → **EXCLUDED** (self-audit N2: không có evidence chấp nhận được rằng firmware có `randint`). C-39 count up: **thứ tự đánh giá tường minh** + domain không âm có quan hệ (R1, R2) |
 | Events | **DEFERRED** (§13) |
@@ -441,12 +442,12 @@ Simulator cho C-50: âm `hz(N)` bắt đầu khi gọi, kéo dài `t × 125` ms,
 | 4. Tài liệu chung ESP32 | `ADC.read()` "0-4095 for 12-bit resolution" | D·M | DOC-M5 | **Ngữ cảnh**: không chứng minh wrapper của Yolo:Bit |
 | 5. Chuyển kiểu | Generator sinh `int(pinN.read_analog())`: `int()` của MicroPython (D·M) cho ra kiểu nguyên dù API trả `int` hay `float` | D·M | DOC-M8 | `OF-round` = `–ᴱ`, **tách khỏi** khoảng raw |
 
-Analog write: `pinN.write_analog(v)` (V·G); **khoảng UNKNOWN** (không tài liệu; widget LED của simulator chỉ bật/tắt, EVD-15).
+Analog write: `pinN.write_analog(v)` (V·G); **khoảng UNKNOWN** (không tài liệu; widget LED của simulator chỉ bật/tắt, EVD-15). **N17 B5:** mở ở Advanced với khoảng 0..1023 ghi **UNVERIFIED** (§27).
 
 | ID | Construct | Python | Domain | Kết luận |
 |---|---|---|---|---|
 | C-25 | Analog read | `int(pinN.read_analog())` | `N` ∈ {0,1,2}; giá trị native **0..4095** (learner dùng đúng thang này, C-Q6 = A); net `high` → 4095, `low` → 0, analog-source → `percentToNative(p, 4095)`; `floating`/`conflict` → `out-of-domain` | **RESTRICTED** |
-| C-26 | Analog write / PWM | — | khoảng UNKNOWN | **EXCLUDED** (owner xác nhận ở C-Q6) |
+| C-26 | Analog write / PWM | `pinN.write_analog(v)` | `N` ∈ {0,1,2}; `v` 0..1023, ngoài khoảng **bị kẹp** + cảnh báo (generator viết giá trị đã kẹp); khoảng **UNVERIFIED** | ~~EXCLUDED (owner xác nhận ở C-Q6)~~ **N17 B5: RESTRICTED, chỉ Advanced** (§27) |
 
 ### 10.2 OWNER DECISION — C-Q6 = Option A (2026-10-14)
 
@@ -456,7 +457,7 @@ Analog write: `pinN.write_analog(v)` (V·G); **khoảng UNKNOWN** (không tài l
 | Evidence YB-0 | Tài liệu OhStem: analog read native của Yolo:Bit là **0–4095** (DOC-W6, DOC-W7) |
 | **Quyết định của owner** | **Option A:** analog read dùng **thang native 0–4095**; UI control vẫn **0–100 %**; **không** chuẩn hoá về 0–1023 |
 | Ngữ nghĩa áp dụng | Generator: `int(pinN.read_analog())`, learner thấy giá trị 0..4095. Simulator: slider p ∈ 0..100 → `percentToNative(p, 4095) = floor(p × 4095 / 100 + 0.5)`; net `high` → 4095, `low` → 0; hở/xung đột → `out-of-domain` |
-| PWM / analog write | Vẫn **EXCLUDED** (C-26): quyết định của owner không tạo ra được ngữ nghĩa PWM đang UNKNOWN |
+| PWM / analog write | Vẫn **EXCLUDED** (C-26): quyết định của owner không tạo ra được ngữ nghĩa PWM đang UNKNOWN. **N17 B5 (owner, 2026-10-19):** mở ở Advanced bằng quyết định owner, ngữ nghĩa còn thiếu ghi **UNVERIFIED** (§27); thang analog read không đổi |
 | Trạng thái | C-Q6 đã đóng. C-25 RESTRICTED, không còn bị chặn. Plan §3 Q6 và §11.3 đã cập nhật |
 
 ---
@@ -469,10 +470,10 @@ Analog write: `pinN.write_analog(v)` (V·G); **khoảng UNKNOWN** (không tài l
 | Đơn vị / khoảng | độ, **0–180** ("quay đến một góc trong khoảng 0-180 độ") | D·U | EVD-02 |
 | Chân | P0–P2 có trong dropdown servo (V·G); contract chỉ mở P0–P2 | V·G | EVD-02 |
 | Chặn | Không (≈ 0 ms) | V·S (`blocking`) | EVD-16 |
-| Ngoài khoảng | UNKNOWN → `–ᴰ` | U | — |
+| Ngoài khoảng | UNKNOWN → `–ᴰ`; **N17 B5:** bị kẹp về 0..180 kèm cảnh báo, generator viết sẵn góc đã kẹp (`–ᴱ`, §27) | U | — |
 | Chuyển động vật lý | `presentation`; kiểm L3 | – | — |
 
-**C-27 Servo: RESTRICTED** (180°, `int` 0..180, P0–P2). Biến thể 270/360/release: EXCLUDED.
+**C-27 Servo: RESTRICTED** (180°, `int` 0..180, P0–P2). Biến thể 270/360/release: EXCLUDED. **N17 B5:** được sinh code (`pin1.servo_write(90)`), chỉ Advanced; vị trí trước lần ghi đầu (simulator: 90°) ghi **UNVERIFIED** (§27).
 
 ---
 
@@ -557,7 +558,8 @@ Ký hiệu: §0.2. Cột field: `call import module unit range default clamp rou
 | C-23 | digital write | B MUST | V·G | V·G | V·S | – | V·G+D·U | – | –ᴰ | – | V·S | – | – | –ᴰ | – | – | D·U | RESTRICTED (P0–P2) | module, block |
 | C-24 | digital read | B MUST | V·G | V·G | V·S | – | D·U | U→**UNVERIFIED** (N17 B4: pull) | – | – | V·S | – | D·U+D·M | –ᴰ | – | – | – | RESTRICTED (P0–P2, guard; hở → 0 + cảnh báo) | module, block |
 | C-25 | analog read | B MUST | V·G | V·G | V·S | – | D·W | – | – | –ᴱ | V·S | – | D·W | –ᴰ | – | – | – | RESTRICTED | module, block |
-| C-27 | servo 180° | A MUST | V·G | V·G | V·S | D·U | D·U | – | –ᴰ | – | V·S | – | – | –ᴰ | – | – | D·U | RESTRICTED (P0–P2) | module, block |
+| C-26 | ghi analog / PWM (N17 B5) | A MUST | V·G | V·G | V·S | – | U→**UNVERIFIED** | – | –ᴱ | – | U→**UNVERIFIED** | – | – | –ᴰ | – | – | U→**UNVERIFIED** | RESTRICTED (P0–P2, 0..1023 kẹp) | module |
+| C-27 | servo 180° | A MUST | V·G | V·G | V·S | D·U | D·U | U→**UNVERIFIED** (N17 B5: 90° lúc đầu) | –ᴱ (N17 B5: kẹp) | – | V·S | – | – | –ᴰ | – | – | D·U | RESTRICTED (P0–P2, 0..180 kẹp) | module, block |
 | C-29 | print | B MUST | V·G | – | D·M | – | – | – | – | – | – | – | – | – | – | – | D·M+D·U | ELIGIBLE | — |
 | C-30 | biến int | B MUST | V·G | – | – | – | D·M | – | – | – | – | – | – | – | – | – | – | ELIGIBLE | — |
 | C-31 | `+ − ×` | B MUST | V·G | – | – | – | D·M | – | – | – | – | – | D·M | D·M | – | – | – | ELIGIBLE | — |
@@ -600,7 +602,7 @@ Ghi chú:
 | C-49 | timer | `timer.reset()` không import | code không tự đủ | EXCLUDED |
 | C-20, C-21, C-22 | giai điệu dựng sẵn; `pitch`; `stop` | `music.play(music.DADADADUM, wait=False)`, `music.pitch(440, 1000)`, `music.stop()` | ~~provenance / kết thúc tone~~ | **N17 B3: RESTRICTED / ELIGIBLE, Advanced** (field thiếu evidence ghi UNVERIFIED, §25) |
 | C-52, C-60 | tempo learner; tick ≥ 8 / lẻ / tần số số | `music.set_tempo(ticks, bpm)`, `music.play(['C4:8'], wait=True)` | không nhất quán | EXCLUDED |
-| C-26 | analog write / PWM | `pin0.write_analog(512)` | `OF-range` | EXCLUDED |
+| C-26 | analog write / PWM | `pin0.write_analog(512)` | ~~`OF-range`~~ | **N17 B5: RESTRICTED, chỉ Advanced** (khoảng, tác dụng, thời gian gọi ghi UNVERIFIED, §27) |
 | C-53, C-54 | servo 270/360/release; pull | `servo_write(a, max=270)`, `set_pull` | ngoài tier / thiếu import | EXCLUDED |
 | C-28, C-69 | pulse in; siêu âm | `pin0.pulse_in(1)` | `OF-error`, `OF-block` | EXCLUDED / LATER |
 | C-55, C-61…C-66 | serial block, float/toán mở rộng, map/constrain/to-number, chờ-đến-khi, break/list, chạy nền, Bluetooth/game/thiết bị | — | domain / non-goal / code không tự đủ | EXCLUDED |
@@ -636,7 +638,7 @@ Ghi chú:
 | thời gian chạy | NICE | **ELIGIBLE (N17 B4, B6 chốt profile)** | ms nguyên từ lúc chạy (simulator); gốc/wrap/kiểu **UNVERIFIED** (§26) | V·G + D·U |
 | chân digital | MUST | RESTRICTED | P0–P2; ghi 0/1; đọc `== 1`; net xung đột → `out-of-domain`; N17 B4: net hở đọc 0 + cảnh báo | V·G + D·W + D·U |
 | chân analog (đọc) | MUST | RESTRICTED | P0–P2; native 0..4095 (tài liệu OhStem; C-Q6 = A); slider 0–100 %; `int(...)` | V·G + D·W + D·M |
-| PWM / analog write | MUST | **EXCLUDED** | khoảng UNKNOWN | — |
+| PWM / analog write | MUST | **EXCLUDED ở Basic** (N17 B5: Advanced, §17) | khoảng UNKNOWN | — |
 | event nút | → Advanced | **DEFERRED** | gate EV | — |
 
 Sẵn sàng theo phase:
@@ -664,7 +666,8 @@ Sẵn sàng theo phase:
 | event | có điều kiện | **DEFERRED** | gate EV | — |
 | nốt, giai điệu | MUST | RESTRICTED | chuỗi C-50/C-51 tự viết | V·G + V·S + D·U |
 | giai điệu có sẵn, phát tần số, dừng | MUST | **RESTRICTED / ELIGIBLE (N17 B3)** | 20 giai điệu, chờ xong / không chờ; `pitch` 20..20000 Hz × 0..60000 ms, không chặn; `stop`; kết thúc tone, phát nền, nốt của giai điệu **UNVERIFIED** (§25) | V·G + V·S + D·U |
-| servo | MUST | RESTRICTED | 180°, 0..180, P0–P2 | V·G + D·U + V·S |
+| servo | MUST | RESTRICTED (**N17 B5: có block, sinh code**) | 180°, 0..180 (ngoài khoảng kẹp + cảnh báo), P0–P2; linh kiện servo; 90° lúc đầu UNVERIFIED (§27) | V·G + D·U + V·S |
+| ghi analog / PWM | MUST | **RESTRICTED (N17 B5)** | P0–P2, 0..1023 (ngoài khoảng kẹp + cảnh báo); LED qua điện trở sáng theo duty; khoảng / tác dụng / thời gian **UNVERIFIED** (§27) | V·G |
 | random (cho xúc xắc, trò chơi) | (từ Basic) | **RESTRICTED (N17 B4)** | §3.5, §26 | V·G + D·M |
 | siêu âm / pulse | MUST nếu đo được | EXCLUDED / LATER | — | — |
 | chạm, list, biểu đồ | NICE | EXCLUDED | — | — |
@@ -753,10 +756,11 @@ Khác biệt: mình chỉ khai báo `global` cho biến toàn cục **bị gán*
 - Chân P0–P2; đọc chân xung đột → `out-of-domain`; N17 B4: đọc on/off chân hở → 0 + cảnh báo (đọc analog chân hở vẫn `out-of-domain`).
 - Toạ độ 0..4; 8 màu.
 - 15 nốt × {1, 2, 4} tick.
-- Servo 0..180.
+- Servo 0..180; N17 B5: ngoài khoảng bị kẹp kèm cảnh báo (không dừng), generator viết giá trị đã kẹp.
+- Ghi analog (N17 B5, Advanced): 0..1023; ngoài khoảng bị kẹp kèm cảnh báo, generator viết giá trị đã kẹp.
 - Nhiệt độ: domain hỗ trợ 0..50 °C.
 
-**Loại (owner được báo, không cần duyệt từng mục):** timer; độ sáng; biểu đồ; `is_pressed_ab()`; event; chạm; tempo cho learner; PWM; servo 270/360; `pulse_in`; siêu âm; pull; float và block toán/text mở rộng; list; chạy nền; Bluetooth; game; block thiết bị.
+**Loại (owner được báo, không cần duyệt từng mục):** timer; độ sáng; biểu đồ; `is_pressed_ab()`; event; chạm; tempo cho learner; PWM (N17 B5: mở ở Advanced, §27); servo 270/360; `pulse_in`; siêu âm; pull; float và block toán/text mở rộng; list; chạy nền; Bluetooth; game; block thiết bị.
 
 **Lỗi editor OhStem quan sát được** (để không bắt chước): `say()`, `timer.*`, `set_pull` thiếu import; `translate()` không định nghĩa; `is_pressed_ab()` lỗi trong simulator; số trong ô nốt sinh chuỗi không phát; màu ngoài bảng → `undefined`.
 
@@ -994,7 +998,7 @@ Không construct nào được mở còn field bắt buộc UNKNOWN/INFERRED.
 | ID | Quyết định (2026-10-14) | Áp dụng ở |
 |---|---|---|
 | **OQ-E** | **APPROVED:** 5×5 RGB, 0-based, gốc trên-trái, `x` = cột, `y` = hàng, màu hex, mặc định đỏ | §4.3; plan §3 Q5, §7.4, §25 |
-| **C-Q6** | **Option A:** analog read native 0–4095, UI 0–100 %, không chuẩn hoá về 0–1023; PWM EXCLUDED | §10.2; plan §3 Q6, §11.3, §25 |
+| **C-Q6** | **Option A:** analog read native 0–4095, UI 0–100 %, không chuẩn hoá về 0–1023; PWM EXCLUDED (N17 B5: owner mở PWM ở Advanced, §27) | §10.2; plan §3 Q6, §11.3, §25 |
 
 **Không còn quyết định YB-0 nào đang chờ owner.** RV-1 đã được reviewer quyết: **ACCEPT WITH RESTRICTIONS**.
 
@@ -1057,6 +1061,7 @@ Còn lại: C-01, C-02, C-03a, C-04, C-29 và ngôn ngữ (C-30…C-39, C-56…C
 | 1.0-draft | 2026-10-14 | Bản đầu tiên (YB-0) |
 | 1.0-draft (r2) | 2026-10-14 | Sửa R1–R3, N1–N3; RV-1 ACCEPT WITH RESTRICTIONS; C-19, C-40 EXCLUDED; P10 viết lại |
 | 1.0-draft (r3) | 2026-10-14 | Áp dụng quyết định owner: OQ-E APPROVED (model display cuối); C-Q6 = Option A (analog native 0–4095, UI 0–100 %, PWM EXCLUDED). Không còn quyết định owner đang chờ |
+| 1.0-draft (r3) + N17 B5 | 2026-10-19 | Owner: "Mô phỏng đủ chức năng". C-26 (`write_analog`, RESTRICTED, Advanced, pack `ybc.pwm`) mở lại với `unverifiedFields` range/content/block; C-27 sinh code, `default` UNVERIFIED; C-26/C-27 `clamp` thành `–ᴱ` (generator viết giá trị đã kẹp: số gõ tay kẹp sẵn, giá trị tính ra `max(0, min(top, v))`), domain chỉ còn chân; builtin `min`/`max` trên hai row; linh kiện `servo`; §27. Chuỗi version không đổi |
 | 1.0-draft (r3) + N17 B4 | 2026-10-19 | Owner: "Mô phỏng đủ chức năng". A+B qua C-12 (domain A, B, A+B; dạng `and` của hai `is_pressed()`); C-19 (ELIGIBLE) và C-40 (RESTRICTED, hai đầu theo thứ tự nào cũng được) mở cho cả hai profile; C-03d ELIGIBLE; `unverifiedFields` nhận cả field INFERRED và có trên module; C-24 `default` (pull) UNVERIFIED, net hở đọc 0 + cảnh báo; builtin `min`, `max`; dropdown giai điệu chỉ 14 tên VERIFIED; §26. Chuỗi version không đổi |
 | 1.0-draft (r3) + N17 B3 | 2026-10-19 | Owner: "Mô phỏng đủ chức năng". C-20 (giai điệu, RESTRICTED), C-21 (`pitch`, RESTRICTED), C-22 (`stop`, ELIGIBLE) mở lại, chỉ Advanced (pack `ybc.music`), với `unverifiedFields` và `unverifiedForms`; nốt giai điệu của simulator từ micro:bit MicroPython (MIT, §14); §25. Chuỗi version không đổi |
 | 1.0-draft (r3) + N17 B2 | 2026-10-19 | Owner: "Mô phỏng đủ chức năng". C-17, C-18 mở lại (RESTRICTED, Advanced) với `unverifiedFields` (cơ chế mới: field UNKNOWN được owner chấp nhận, ghi rõ lý do; gate chỉ cho qua đúng các field đó); C-16 domain −10..50; `unverifiedForms` cho `get_y/get_z` và 6 tên cử chỉ; §24. Chuỗi version không đổi |
@@ -1160,3 +1165,29 @@ Ngữ nghĩa simulator (N17 B4; là lựa chọn của môi trường ảo, **kh
 - **Thời gian chạy:** số ms nguyên tính từ lúc **mỗi lần chạy** bắt đầu (theo đồng hồ của run), không wrap.
 - **Số ngẫu nhiên:** gồm cả hai đầu; hai đầu được tính theo thứ tự của chúng, mỗi đầu một lần, kiểm ±1 000 000 ngay khi biết, rồi kiểm cách nhau ≤ 1 000 000; ngoài domain → `out-of-domain` tại block của giá trị (literal → `value-out-of-range` khi compile). Khi chạy thường: `Math.random`. Khi **Kiểm tra**: seed cố định (`CHECK_RANDOM_SEED`), nên cùng chương trình cho cùng dãy số và goal xác định.
 - **Chân thả nổi (B9 cũ):** đọc on/off một chân không gì điều khiển trả **0** (như có pull-down) và chương trình chạy tiếp; lần đầu trong mỗi lần chạy, mỗi chân, thêm cảnh báo vào vùng thông báo dưới thanh chạy: "Chân P1 đang thả nổi — đọc là 0. Hãy nối nút với 3V3 hoặc GND." Xung đột (hai thứ cùng điều khiển), chân chương trình tự ghi, và đọc **analog** chân hở vẫn dừng chương trình (`out-of-domain`) như trước.
+
+## 27. N17 B5 — ghi analog (PWM) và servo: dạng code và nhãn (2026-10-19)
+
+Owner chọn "Mô phỏng đủ chức năng" (plan N17, task B5). Hai block mới, **chỉ Advanced**, trong pack riêng `ybc.pwm` (nhóm "Chân", sau ba block của Basic): `ybc_pin_write_analog` (chân P0–P2, ô `VALUE`, mặc định 512) và `ybc_servo_write` (chân P0–P2, ô `ANGLE`, mặc định 90). Linh kiện mới `servo` (`src/core/devices/definitions/servo.json`; cổng `signal` SIG, `vcc` 3V3, `gnd` GND), chỉ trong bảng linh kiện của Advanced. Chân P0–P2 của `ybc-board` có thêm capability `pwm` và `servo`. Bản máy đọc được: `src/core/compat/yolobit-contract.ts` (C-26, C-27). Golden: `src/core/codegen/yolobit/pins/__golden__/{pins-pwm-and-servo,pins-fade-and-sweep,pins-knob-servo}.py`.
+
+| Block (N17 B5) | Construct | Python sinh ra | Nhãn | Lý do / nguồn |
+|---|---|---|---|---|
+| `ybc_pin_write_analog` giá trị gõ tay | C-26 | `pin0.write_analog(512)` | **VERIFIED** (dạng gọi) | V·G EVD-03 (observedPython của C-26). Giá trị ngoài 0..1023 viết **đã kẹp** (`2000` → `pin0.write_analog(1023)`) |
+| `ybc_pin_write_analog` giá trị tính ra | C-26 | `pin0.write_analog(max(0, min(1023, v)))` | dạng gọi **VERIFIED**, `min`/`max` D·M | Board gặp giá trị ngoài khoảng thì làm gì không thấy, nên generator kẹp tường minh như simulator; `v` được tính **một lần** |
+| — | C-26 `range` | — | **UNVERIFIED** (`unverifiedFields`) | Không tài liệu nào cho khoảng của `write_analog` trên Yolo:Bit. Simulator dùng 0..1023 (theo brief; `machine.PWM` duty của ESP32 MicroPython là 0..1023, DOC-M6, chỉ là ngữ cảnh). Trace simulator OhStem ghi 0…4095 (EVD-15), không chứng minh gì |
+| — | C-26 `content` | — | **UNVERIFIED** | Tác dụng của duty lên chân (tần số, độ sáng LED) không thấy: LED của simulator OhStem chỉ bật/tắt (EVD-15) |
+| — | C-26 `block` | — | **UNVERIFIED** | Không trace nào đo thời gian `write_analog`; simulator trả về ngay |
+| `ybc_servo_write` góc gõ tay | C-27 | `pin1.servo_write(90)` | **VERIFIED** (dạng gọi) | V·G EVD-03; 0..180 độ D·U (tooltip); không chặn V·S EVD-16. Góc ngoài 0..180 viết **đã kẹp** (`200` → `180`) |
+| `ybc_servo_write` góc tính ra | C-27 | `pin1.servo_write(max(0, min(180, a)))` | dạng gọi **VERIFIED**, `min`/`max` D·M | Như C-26 |
+| — | C-27 `default` | — | **UNVERIFIED** | Servo đứng ở đâu trước lần `servo_write` đầu tiên không thấy (servo thật đứng yên ở vị trí cũ). Simulator: **90°** mỗi khi bắt đầu chạy và sau Stop |
+| — | C-26 / C-27 `clamp` | — | `–ᴱ` (n/a, tham số tường minh) | Generator luôn viết giá trị đã kẹp, nên board không bao giờ gặp giá trị ngoài khoảng; hành vi kẹp của chính board vẫn không biết và không cần |
+
+Ngữ nghĩa simulator (N17 B5; là lựa chọn của môi trường ảo, **không** phải claim về board thật):
+- **Ghi analog:** chân mang duty 0..1023 trên net của nó. Đèn LED nối từ chân qua điện trở xuống GND **sáng theo tỉ lệ** duty / 1023 (0 tắt, 1023 sáng nhất; trạng thái `brightness`, hình vẽ đổi màu và quầng sáng theo). Các linh kiện khác đọc chân như **mức logic: bật khi duty > 0**, tắt khi duty = 0 (đọc digital chân khác nối cùng net được 1, đọc analog được 4095). Duty 0 là mức thấp ổn định. Chân PWM chung net với nguồn khác (ray 3V3/GND, chân khác) là **xung đột**. LED có cathode ở chân PWM theo mức logic (tắt khi duty > 0), không theo duty đảo.
+- **Servo:** servo cấp nguồn từ 3V3 và GND, chân tín hiệu nối với chân đang `servo_write`, quay tới góc đó. Không nguồn, không tín hiệu servo (mức logic, PWM), hoặc xung đột → đứng ở **90°**. Simulator không nhớ trạng thái: servo mất tín hiệu thì về 90° (servo thật đứng yên). Tín hiệu servo đọc như mức **bật** với linh kiện khác; LED trên chân servo sáng hết cỡ.
+- **Kẹp:** giá trị ngoài 0..1023 / 0..180 (gõ tay hay tính ra) bị kẹp; lần đầu trong mỗi lần chạy, mỗi chân, mỗi loại, thêm cảnh báo vào vùng thông báo dưới thanh chạy, ví dụ "Giá trị analog 2000 của chân P0 nằm ngoài khoảng 0 tới 1023, nên được kẹp về 1023." / "Góc servo 200 của chân P1 nằm ngoài khoảng 0 tới 180, nên được kẹp về 180." Chương trình chạy tiếp.
+- **Đọc lại chân đang ghi** (digital hay analog) vẫn dừng chương trình (`out-of-domain`, chân tự ghi) như ghi digital.
+- **Hình servo trên canvas:** cánh tay quay tới góc với tốc độ khoảng **60° mỗi 0,1 s**, góc hiện bằng chữ (0° chỉ sang phải, 90° lên, 180° sang trái); người dùng bật "giảm chuyển động" (`prefers-reduced-motion`) thấy cánh tay nhảy thẳng tới góc. Chuyển động là trình bày: lời gọi trả về ngay (EVD-16).
+- **Stop / chạy lại (Review Focus 1):** Stop dừng ngay, servo vẽ ở **90°** ngay lập tức (không quay về từ từ), LED tắt; lần chạy mới (hay lần chạy thay thế) bắt đầu với mọi chân không điều khiển: servo 90°, LED tắt.
+- **Basic** không có hai block và không có linh kiện servo; project Basic có servo bị đánh dấu "không dùng được" và không chạy.
+

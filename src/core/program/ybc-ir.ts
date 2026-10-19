@@ -32,6 +32,9 @@
 //
 // N17 B4 adds the running time (a read of the run's clock) and a random number, whose two ends are expressions, evaluated in
 // their order, each once. "A+B is pressed" needs no node of its own: the compiler writes the `and` of the two button reads.
+//
+// N17 B5 adds the two outputs of the Advanced board's pins, pin calls like a digital write: an analog write (a PWM duty) and a
+// servo's angle, whose value is an expression; outside 0..1023 / 0..180 it is clamped when it runs, with a warning.
 
 import type { HexColour } from '../capabilities/frame';
 import type { BuiltinImageName } from '../constructs/ybc.images';
@@ -46,7 +49,7 @@ export type Type = 'int' | 'bool' | 'str';
  * C-24, C-25); the onboard ops of YB-3 are named in `CallStatement` and `ReadExpr`. A statement op and a value
  * op are different kinds of op.
  */
-export type CallOp = 'digital.write';
+export type CallOp = 'digital.write' | 'pwm.write' | 'servo.write';
 export type ReadOp = 'digital.read' | 'analogIn.read';
 
 export type YbcProgramIR = {
@@ -119,7 +122,8 @@ export type CallStatement =
 
 /**
  * A header-pin operation with side effects (YB-4, plan §9.1). The arguments are evaluated left to right, each once,
- * then checked against the construct's domain (contract C-23: `args` = [pin 0..2, value 0|1]). One member per op, so
+ * then checked against the construct's domain (contract C-23: `args` = [pin 0..2, value 0|1]; N17 B5, C-26 `pwm.write`:
+ * [pin 0..2, duty, clamped to 0..1023]; C-27 `servo.write`: [pin 0..2, angle, clamped to 0..180]). One member per op, so
  * that a check of `op` tells a pin call from an onboard one.
  */
 export type PinCallStatement = { [Op in CallOp]: { kind: 'call'; op: Op; args: Expr[]; blockId: string } }[CallOp];

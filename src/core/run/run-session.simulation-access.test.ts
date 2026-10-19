@@ -387,7 +387,8 @@ describe('the capabilities and services of a run are the ones the environment na
   it('still drops an implementation of a capability the board does not have, and keeps one the factory provides for one it has', () => {
     const session = createRunSession(seamRegistry, {
       profiles: seamProfiles,
-      capabilities: () => ({ digital: { digitalWrite: () => {}, digitalRead: () => 0 }, servo: { servoWrite: () => {} } }),
+      // N17 B5: the ybc board does servo now; pulse in it does not have.
+      capabilities: () => ({ digital: { digitalWrite: () => {}, digitalRead: () => 0 }, pulse: { pulseIn: () => 0 } }),
     });
     session.start(seamDocument());
     const [, capabilities] = interpreterSpy.mock.calls.at(-1) ?? [];

@@ -64,7 +64,8 @@ describe('the interpreter boundary: runYbcProgram(ir, capabilities, services)', 
   });
 
   it('gives the interpreter no capability the board does not have', () => {
-    const { session } = recordingSession({ digital, servo: { servoWrite: () => {} } });
+    // N17 B5: the board does servo now; pulse in it does not have (C-28 is excluded).
+    const { session } = recordingSession({ digital, pulse: { pulseIn: () => 0 } });
     session.start(ybc());
     expect(Object.keys(lastCall()[1])).toEqual(['digital']);
     session.stop();
@@ -75,7 +76,7 @@ describe('the interpreter boundary: runYbcProgram(ir, capabilities, services)', 
     session.start(ybc());
     const [, capabilities, services] = lastCall();
     expect(capabilities).toEqual({});
-    expect(Object.keys(services).sort()).toEqual(['budget', 'clock', 'console', 'randomInt', 'scheduler', 'signal', 'sleep']);
+    expect(Object.keys(services).sort()).toEqual(['budget', 'clock', 'console', 'randomInt', 'scheduler', 'signal', 'sleep', 'warn']);
     await vi.advanceTimersByTimeAsync(0);
     expect(session.getSnapshot()).toMatchObject({ status: 'finished', console: { lines: ['1'] } });
   });

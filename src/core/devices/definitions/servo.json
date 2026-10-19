@@ -1,0 +1,13 @@
+{
+  "id": "servo",
+  "name": "Servo",
+  "family": "ybc",
+  "body": { "width": 80, "height": 80 },
+  "ports": [
+    { "id": "signal", "label": "SIG", "x": -20, "y": 40, "kind": "passive" },
+    { "id": "vcc", "label": "3V3", "x": 0, "y": 40, "kind": "passive" },
+    { "id": "gnd", "label": "GND", "x": 20, "y": 40, "kind": "passive" }
+  ],
+  "renderer": "servo",
+  "simulation": { "model": "servo" }
+}

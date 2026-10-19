@@ -13,8 +13,9 @@ import { capabilityKeys } from '../src/core/capabilities/io';
 // of YB-3 (display, buttons, light, sound), the RGB display of N17 B1, the sensors of N17 B2 (temperature, accelerometer,
 // gestures: Advanced only), the melodies, the tone and stop of N17 B3 (Advanced only), the header pins and the potentiometer of
 // YB-4 must not have appeared: the Advanced hardware of
-// YB-7 (servo, the drawing blocks), and the rows the contract excludes or defers (PWM, events). N17 B4 opened the running time
-// (C-19) and random numbers (C-40) as language blocks of both profiles. These tests are meant to be updated deliberately by the phase that opens a
+// YB-7 (the drawing blocks), and the rows the contract excludes or defers (pulse in, events). N17 B4 opened the running time
+// (C-19) and random numbers (C-40) as language blocks of both profiles; N17 B5 opened analog write (C-26) and the servo (C-27) as pin
+// blocks of the Advanced board, with the servo part. These tests are meant to be updated deliberately by the phase that opens a
 // construct, together with its contract row, never as a side effect of another change.
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
@@ -24,6 +25,9 @@ const profiles = ['ybc-basic', 'ybc-advanced'].map((id) => productionProfiles.ge
  * The onboard blocks of YB-3: the display, the buttons, the light sensor and the sound (contract C-06…C-09, C-12, C-13, C-15, C-50,
  * C-51), and the RGB display N17 B1 opened with its contract rows (C-05, C-10, C-42, C-43; the colour block is C-10's).
  */
+/** N17 B5: the pin blocks of the Advanced board, analog write (C-26) and the servo (C-27). */
+const pinOutputBlockTypes = ['ybc_pin_write_analog', 'ybc_servo_write'];
+
 const onboardBlockTypes = [
   'ybc_button_pressed',
   'ybc_button_presses',
@@ -50,7 +54,7 @@ const onboardBlockTypes = [
 ];
 
 describe('the blocks a Yolo:Bit-compatible project has', () => {
-  it('are the two hats, the YB-2 language, the onboard blocks of YB-3 and N17 B1 and the three pin blocks: nothing else of this family is registered', () => {
+  it('are the two hats, the YB-2 language, the onboard blocks of YB-3 and N17 B1, the three pin blocks and (N17 B5) analog write and the servo: nothing else of this family is registered', () => {
     const ybc = packs.list().filter((pack) => pack.family === 'ybc');
     const types = ybc.flatMap((pack) => pack.blockTypes).filter((type) => type.startsWith('ybc_') || type.startsWith('stem_'));
     expect([...new Set(types)].sort()).toEqual(
@@ -72,18 +76,24 @@ describe('the blocks a Yolo:Bit-compatible project has', () => {
         'ybc_pin_analog',
         'ybc_pin_read',
         'ybc_pin_write',
+        // N17 B5
+        ...pinOutputBlockTypes,
       ].sort(),
     );
     // The registered definitions say the same: nothing hides in a pack with a block that is not listed.
     expect(packs.definitions().map((d) => d.type).filter((type) => type.startsWith('ybc_')).sort()).toEqual(
-      ['ybc_arith', 'ybc_count_up', 'ybc_int_divide', ...onboardBlockTypes, 'ybc_pin_analog', 'ybc_pin_read', 'ybc_pin_write', 'ybc_wait_ms', 'ybc_while', 'ybc_running_time', 'ybc_random_int'].sort(),
+      ['ybc_arith', 'ybc_count_up', 'ybc_int_divide', ...onboardBlockTypes, 'ybc_pin_analog', 'ybc_pin_read', 'ybc_pin_write', ...pinOutputBlockTypes, 'ybc_wait_ms', 'ybc_while', 'ybc_running_time', 'ybc_random_int'].sort(),
     );
   });
 
-  it('have no block for PWM, servo, pulse, events, a timer or Blockly\'s random, and none for the display, the buttons, light, sound or the sensors but the onboard ones (N17 B4: the running time and the dialect\'s random number)', () => {
+  it('have no block for pulse, events, a timer or Blockly\'s random, and none for PWM, the servo, the display, the buttons, light, sound or the sensors but the onboard ones (N17 B4: the running time and the dialect\'s random number; N17 B5: analog write and the servo)', () => {
     const logic = ['ybc_running_time', 'ybc_random_int'];
-    const everything = packs.list().flatMap((pack) => pack.blockTypes).filter((type) => !onboardBlockTypes.includes(type) && !logic.includes(type)).join(' ');
-    expect(everything).not.toMatch(/pwm|servo|pulse|temperature|display|image|scroll|button|light|sound|music|note|tone|event|random|timer|running|elapsed|shake|accel|gesture/i);
+    const everything = packs
+      .list()
+      .flatMap((pack) => pack.blockTypes)
+      .filter((type) => !onboardBlockTypes.includes(type) && !logic.includes(type) && !pinOutputBlockTypes.includes(type))
+      .join(' ');
+    expect(everything).not.toMatch(/pwm|servo|pulse|temperature|display|image|scroll|button|light|sound|music|note|tone|event|random|timer|running|elapsed|shake|accel|gesture|write_analog/i);
   });
 });
 
@@ -93,15 +103,22 @@ describe('the contract rows a profile shows', () => {
     'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-40', 'C-42', 'C-43', 'C-50', 'C-51', 'C-56',
   ];
 
-  it('are the language of YB-2 with the running time and random numbers of N17 B4, the onboard hardware of YB-3 with the RGB display of N17 B1, and the pins of YB-4, in both profiles; Advanced adds the sensors of N17 B2 and the music of N17 B3', () => {
+  it('are the language of YB-2 with the running time and random numbers of N17 B4, the onboard hardware of YB-3 with the RGB display of N17 B1, and the pins of YB-4, in both profiles; Advanced adds the sensors of N17 B2, the music of N17 B3 and analog write and the servo of N17 B5', () => {
     const [basic, advanced] = profiles;
     expect([...(basic?.constructs ?? [])].sort()).toEqual([...exposed].sort());
-    expect([...(advanced?.constructs ?? [])].sort()).toEqual([...exposed, 'C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22'].sort());
+    expect([...(advanced?.constructs ?? [])].sort()).toEqual([...exposed, 'C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22', 'C-26', 'C-27'].sort());
+  });
+
+  it('keep analog write and the servo (N17 B5) out of Basic', () => {
+    for (const id of ['C-26', 'C-27']) {
+      expect(profiles[0]?.constructs, id).not.toContain(id);
+      expect(generatedConstructs as readonly string[], id).toContain(id);
+    }
   });
 
   it.each([
-    ['YB-7: text variables, functions, servo', ['C-57', 'C-58', 'C-59', 'C-27']],
-    ['excluded: PWM / analog write, pulse in, the editor\'s A+B', ['C-26', 'C-28', 'C-47']],
+    ['YB-7: text variables, functions', ['C-57', 'C-58', 'C-59']],
+    ['excluded: pulse in, the editor\'s A+B', ['C-28', 'C-47']],
     ['deferred: events', ['C-14']],
   ])('keep out %s', (_, ids) => {
     for (const profile of profiles) {
@@ -117,28 +134,29 @@ describe('the contract rows a profile shows', () => {
   it('keep the eligibility the contract gave them: nothing was upgraded to make a pin work', () => {
     const eligibility = (id: string) => yolobitContract.constructs.find((row) => row.id === id)?.eligibility;
     expect(['C-23', 'C-24', 'C-25'].map(eligibility)).toEqual(['RESTRICTED', 'RESTRICTED', 'RESTRICTED']);
-    expect(['C-26', 'C-28', 'C-47'].map(eligibility)).toEqual(['EXCLUDED', 'EXCLUDED', 'EXCLUDED']);
-    // N17 B4 opened these by the owner's decision, with UNVERIFIED fields, not to make a pin work.
-    expect(['C-19', 'C-40'].map(eligibility)).toEqual(['ELIGIBLE', 'RESTRICTED']);
+    expect(['C-28', 'C-47'].map(eligibility)).toEqual(['EXCLUDED', 'EXCLUDED']);
+    // N17 B4 and B5 opened these by the owner's decision, with UNVERIFIED fields, not to make a pin work.
+    expect(['C-19', 'C-40', 'C-26', 'C-27'].map(eligibility)).toEqual(['ELIGIBLE', 'RESTRICTED', 'RESTRICTED', 'RESTRICTED']);
     expect(eligibility('C-14')).toBe('DEFERRED');
     expect(yolobitContract.analog.nativeMax).toBe(4095);
   });
 });
 
 describe('the devices and capabilities', () => {
-  it('give the ybc board digital and analog pins and the onboard parts of YB-3 as data only, and no PWM, servo or pulse', () => {
+  it('give the ybc board digital and analog pins (and, N17 B5, PWM and servo) and the onboard parts of YB-3 as data only, and no pulse', () => {
     const definition = registry.get('ybc-board');
     const pinCapabilities = new Set(definition.board?.pins.flatMap((pin) => pin.capabilities ?? []));
-    expect([...pinCapabilities].sort()).toEqual(['analogIn', 'digital']);
+    expect([...pinCapabilities].sort()).toEqual(['analogIn', 'digital', 'pwm', 'servo']);
     expect(definition.board?.reservedPins).toEqual([]);
-    expect(capabilityKeys).toContain('pwm');
+    expect(capabilityKeys).toContain('pulse');
     // The interface exists (YB-CP) and the board does not have it: a type is not an exposure.
-    expect(pinCapabilities.has('pwm')).toBe(false);
+    expect(pinCapabilities.has('pulse')).toBe(false);
   });
 
-  it('add one device for YB-4 and no other: the potentiometer, of the ybc family', () => {
-    expect(registry.list().map((definition) => definition.id)).toEqual(['board', 'led', 'resistor', 'push-button', 'ybc-board', 'potentiometer']);
+  it('add one device for YB-4 and one for N17 B5, and no other: the potentiometer and the servo, of the ybc family', () => {
+    expect(registry.list().map((definition) => definition.id)).toEqual(['board', 'led', 'resistor', 'push-button', 'ybc-board', 'potentiometer', 'servo']);
     expect(registry.get('potentiometer').family).toBe('ybc');
+    expect(registry.get('servo').family).toBe('ybc');
   });
 });
 
@@ -151,11 +169,12 @@ describe('the Python of the pins', () => {
     return generated.source;
   });
 
-  it('registers no event handler (the preamble only sets them to None), and uses no random, elapsed time or PWM', () => {
+  it('registers no event handler (the preamble only sets them to None), and uses no random, elapsed time or pulse; PWM and the servo only as their two calls (N17 B5)', () => {
     for (const source of sources) {
       const registrations = source.split('\n').filter((line) => /on_pressed/.test(line));
       expect(registrations).toEqual(['button_a.on_pressed = None', 'button_b.on_pressed = None', 'button_a.on_pressed_ab = button_b.on_pressed_ab = -1']);
-      expect(source).not.toMatch(/random|running_time|ticks_|timer|write_analog|pwm|servo|pulse_in|set_pull|display\.|music\.|accelerometer|light_level|temperature\(/);
+      const withoutOutputs = source.replace(/pin[0-2]\.(write_analog|servo_write)\(/g, '');
+      expect(withoutOutputs).not.toMatch(/random|running_time|ticks_|timer|write_analog|pwm|servo|pulse_in|set_pull|display\.|music\.|accelerometer|light_level|temperature\(/);
     }
   });
 });

@@ -1,5 +1,5 @@
 import type { Capabilities } from '../../capabilities/io';
-import { createRuntimeServices, type Clock, type RandomInt, type RunScheduler } from '../../capabilities/services';
+import { createRuntimeServices, type Clock, type RandomInt, type RunScheduler, type RunWarning } from '../../capabilities/services';
 import type { ConsoleSink } from '../../capabilities/services';
 import type { Sleep } from '../interpreter';
 import { runYbcProgram, type YbcProgramRun } from '../ybc-interpreter';
@@ -22,11 +22,13 @@ export function runYbc(
     scheduler?: RunScheduler;
     /** The run's random numbers (N17 B4); Math.random by default. */
     randomInt?: RandomInt;
+    /** Where the run's warnings go (N17 B5: a value clamped); nowhere by default. */
+    warn?(warning: RunWarning): void;
   },
   capabilities: Capabilities = {},
 ): YbcProgramRun & { stop(): void } {
   const controller = new AbortController();
-  const { now, yieldNow, onPrint, scheduler, randomInt } = options;
+  const { now, yieldNow, onPrint, scheduler, randomInt, warn } = options;
   const clock: Clock | undefined = now ? { now } : undefined;
   const services = createRuntimeServices({
     signal: controller.signal,
@@ -43,6 +45,7 @@ export function runYbc(
     ...(yieldNow ? { yieldNow } : {}),
     ...(scheduler ? { scheduler } : {}),
     ...(randomInt ? { randomInt } : {}),
+    ...(warn ? { warn } : {}),
   });
   return { ...runYbcProgram(ir, capabilities, services), stop: () => controller.abort() };
 }

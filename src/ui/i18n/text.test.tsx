@@ -44,7 +44,8 @@ describe('TextProvider (N6a S5)', () => {
   it('names devices in Vietnamese, and keeps a name it does not know', async () => {
     const items = [
       { deviceType: 'led', name: 'LED' },
-      { deviceType: 'servo', name: 'Servo' },
+      // N17 B5 made the servo a device; a motor is still none.
+      { deviceType: 'motor', name: 'Motor' },
     ];
     await act(async () =>
       root.render(
@@ -55,7 +56,7 @@ describe('TextProvider (N6a S5)', () => {
     );
     expect([...container.querySelectorAll('button')].map((button) => [button.getAttribute('aria-label'), button.textContent])).toEqual([
       ['Thêm Đèn LED', '+ Đèn LED'],
-      ['Thêm Servo', '+ Servo'],
+      ['Thêm Motor', '+ Motor'],
     ]);
   });
 });

@@ -7,8 +7,8 @@ import type { DeviceDefinition } from './device-definition';
 /** The pin capabilities a board's data can name (the schema's list). */
 export type PinCapabilityId = 'digital' | 'analogIn' | 'pwm' | 'servo' | 'pulse';
 
-/** The ones a program reaches in this phase: PWM is EXCLUDED (C-26), servo is YB-7 (C-27), pulse is EXCLUDED (C-28). */
-export type HeaderPinCapability = Extract<PinCapabilityId, 'digital' | 'analogIn'>;
+/** The ones a program reaches: digital, analog in, and (N17 B5) PWM (C-26) and servo (C-27); pulse is EXCLUDED (C-28). */
+export type HeaderPinCapability = Extract<PinCapabilityId, 'digital' | 'analogIn' | 'pwm' | 'servo'>;
 
 /** The names of the pins of `definition` a program may use for `capability`, in board order. */
 export function usablePins(definition: DeviceDefinition, capability: PinCapabilityId): string[] {
@@ -33,6 +33,8 @@ export function boardTargetOf(definition: DeviceDefinition, capabilities: readon
     pins: {
       digital: usablePins(definition, 'digital'),
       analogIn: usablePins(definition, 'analogIn'),
+      pwm: usablePins(definition, 'pwm'),
+      servo: usablePins(definition, 'servo'),
     },
   };
 }
@@ -40,5 +42,5 @@ export function boardTargetOf(definition: DeviceDefinition, capabilities: readon
 /** A target with no capability at all: what a compile gets when nobody says which board the program is for. */
 export const noBoardTarget: BoardTarget = {
   capabilities: [],
-  pins: { digital: [], analogIn: [] },
+  pins: { digital: [], analogIn: [], pwm: [], servo: [] },
 };

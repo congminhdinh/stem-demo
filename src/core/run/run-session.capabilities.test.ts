@@ -39,8 +39,8 @@ describe('the capability factory', () => {
     expect(environments).toHaveLength(1);
     const [environment] = environments as [RunEnvironment];
     expect(environment.board.id).toBe(boardId);
-    expect(environment.capabilitySet).toEqual(['digital', 'analogIn', 'display', 'buttons', 'light', 'sound', 'temperature', 'motion']);
-    expect(Object.keys(environment.services).sort()).toEqual(['budget', 'clock', 'console', 'randomInt', 'scheduler', 'signal', 'sleep']);
+    expect(environment.capabilitySet).toEqual(['digital', 'analogIn', 'pwm', 'servo', 'display', 'buttons', 'light', 'sound', 'temperature', 'motion']);
+    expect(Object.keys(environment.services).sort()).toEqual(['budget', 'clock', 'console', 'randomInt', 'scheduler', 'signal', 'sleep', 'warn']);
     expect(typeof environment.services.clock.now()).toBe('number');
     expect(environment.services.scheduler.disposed).toBe(false);
     session.stop();

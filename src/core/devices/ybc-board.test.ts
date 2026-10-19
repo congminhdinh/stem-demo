@@ -22,17 +22,16 @@ describe('ybc-board', () => {
     expect(board.board?.pins.map((pin) => pin.name)).toEqual(['P0', 'P1', 'P2']);
     for (const pin of board.board?.pins ?? []) {
       expect(findPort(board, pin.portId)?.kind).toBe('gpio');
-      expect(pin.capabilities).toEqual(['digital', 'analogIn']);
+      // N17 B5: PWM (C-26) and servo (C-27) on P0–P2 too.
+      expect(pin.capabilities).toEqual(['digital', 'analogIn', 'pwm', 'servo']);
     }
     expect(findPort(board, '3v3')?.kind).toBe('power');
     expect(findPort(board, 'gnd')?.kind).toBe('ground');
     expect(board.board?.reservedPins).toEqual([]);
   });
 
-  it('keeps every pin off the capabilities the contract excludes (PWM) or has not opened here yet', () => {
+  it('keeps every pin off the capability the contract excludes: pulse in (C-28)', () => {
     const capabilities = (board.board?.pins ?? []).flatMap((pin) => pin.capabilities ?? []);
-    expect(capabilities).not.toContain('pwm');
-    expect(capabilities).not.toContain('servo');
     expect(capabilities).not.toContain('pulse');
   });
 

@@ -95,7 +95,8 @@ describe('the lines the file starts with (IM-1, IM-2)', () => {
 
 describe('API allowlist (plan §13.9, K2)', () => {
   const allowed = generatorAllowlist(contract);
-  const pinForm = /^(pin[0-2]\.(write_digital|read_digital|read_analog))$/;
+  // N17 B5: write_analog (C-26) and servo_write (C-27) too.
+  const pinForm = /^(pin[0-2]\.(write_digital|read_digital|read_analog|write_analog|servo_write))$/;
   const preambleAttributes = ['button_a.on_pressed', 'button_b.on_pressed', 'button_a.on_pressed_ab', 'button_b.on_pressed_ab'];
 
   /** Code only: no comments, no string literals. */
@@ -118,41 +119,51 @@ describe('API allowlist (plan §13.9, K2)', () => {
     const unknown = attributes.filter((attribute) => attribute !== 'time.sleep_ms' && !pinForm.test(attribute) && !preambleAttributes.includes(attribute));
     expect(unknown).toEqual([]);
     const calls = [...stripped.matchAll(/\b([A-Za-z_]\w*)\s*\(/g)].map((match) => match[1] as string);
-    const builtins = calls.filter((name) => ['print', 'range', 'str', 'int', 'len'].includes(name));
+    // N17 B5: min and max clamp a computed analog write or angle.
+    const builtins = calls.filter((name) => ['print', 'range', 'str', 'int', 'len', 'min', 'max'].includes(name));
     for (const builtin of builtins) {
       expect(allowed.builtins).toContain(builtin);
     }
   });
 
   it('writes each pin call in exactly the form of its contract row', () => {
-    const forms = { write: row('C-23').python?.form, read: row('C-24').python?.form, analog: row('C-25').python?.form };
+    const forms = {
+      write: row('C-23').python?.form,
+      read: row('C-24').python?.form,
+      analog: row('C-25').python?.form,
+      pwm: row('C-26').python?.form,
+      servo: row('C-27').python?.form,
+    };
     expect(forms).toEqual({
       write: 'pin<N>.write_digital(<value>)',
       read: '(pin<N>.read_digital() == 1)',
       analog: 'int(pin<N>.read_analog())',
+      pwm: 'pin<N>.write_analog(<value>)',
+      servo: 'pin<N>.servo_write(<angle>)',
     });
-    const regex = (form: string) => new RegExp(form.replace(/[.()]/g, '\\$&').replace('<N>', '[0-2]').replace('<value>', '[01]'));
+    const regex = (form: string, value = '[01]') =>
+      new RegExp(form.replace(/[.()]/g, '\\$&').replace('<N>', '[0-2]').replace('<value>', value).replace('<angle>', value));
     const all = pinCases.map(({ blocks }) => generate(blocks).source).join('\n');
     expect(all).toMatch(regex(forms.write ?? ''));
     expect(all).toMatch(regex(forms.read ?? ''));
     expect(all).toMatch(regex(forms.analog ?? ''));
-    // And nothing else of the module is spoken: no other pin call, no pull, no PWM, no servo, no pulse.
-    expect(all).not.toMatch(/write_analog|servo_write|pulse_in|set_pull|pwm/i);
+    // N17 B5: a typed-in value as a number, a computed one clamped with max and min.
+    expect(all).toMatch(regex(forms.pwm ?? '', '\\d+'));
+    expect(all).toMatch(regex(forms.servo ?? '', '\\d+'));
+    expect(all).toMatch(regex(forms.pwm ?? '', 'max\\(0, min\\(1023, .+\\)\\)'));
+    expect(all).toMatch(regex(forms.servo ?? '', 'max\\(0, min\\(180, .+\\)\\)'));
+    // And nothing else of the module is spoken: no other pin call, no pull, no pulse.
+    expect(all).not.toMatch(/pulse_in|set_pull|pwm\.|servo_release|max=/i);
   });
 
   it('keeps the rows it generates exposable, and the rows it must not generate out', () => {
-    for (const id of ['C-23', 'C-24', 'C-25']) {
+    for (const id of ['C-23', 'C-24', 'C-25', 'C-26', 'C-27']) {
       expect(exposureViolations(row(id), contract), id).toEqual([]);
     }
-    // PWM and pulse are EXCLUDED (no Python at all in the contract); servo is an Advanced row of YB-7 that the
-    // contract does describe, and this generator must not speak it yet.
-    for (const id of ['C-26', 'C-28']) {
-      expect(row(id).python, id).toBeUndefined();
-    }
-    for (const id of ['C-26', 'C-27', 'C-28']) {
-      expect(generatedConstructs as readonly string[], id).not.toContain(id);
-    }
-    expect(generatedConstructs).toEqual(expect.arrayContaining(['C-23', 'C-24', 'C-25']));
+    // Pulse in is EXCLUDED (no Python at all in the contract); N17 B5 opened analog write (C-26) and generates the servo (C-27).
+    expect(row('C-28').python).toBeUndefined();
+    expect(generatedConstructs as readonly string[]).not.toContain('C-28');
+    expect(generatedConstructs).toEqual(expect.arrayContaining(['C-23', 'C-24', 'C-25', 'C-26', 'C-27']));
   });
 });
 
@@ -238,6 +249,9 @@ async function simulate(blocks: unknown, script: PinScript) {
         return reading('analog', pin);
       },
     },
+    // N17 B5: what reaches the board is the value the interpreter clamped.
+    pwm: { pwmWrite: (pin, duty) => void calls.push(`pwm ${pin} ${duty}`) },
+    servo: { servoWrite: (pin, angle) => void calls.push(`servo ${pin} ${angle}`) },
   };
   const runConsole = createRunConsole();
   let stop = () => {};
@@ -278,6 +292,18 @@ describe.skipIf(python === null)('the generated pin program does what the simula
     expect(skipped.slice(0, 5)).toEqual(['read_analog P0', 'read_analog P2', 'read_analog P1', 'read_digital P0', 'read_digital P0']);
     expect(skipped).not.toContain('read_digital P1');
     expect(await simulate(pinCases.find((c) => c.name === 'pins-expressions')?.blocks, (pinCases.find((c) => c.name === 'pins-expressions')?.scripts ?? [])[1] as PinScript)).toMatchObject({ calls: skipped });
+  });
+
+  it('checks the clamp (N17 B5): the strict fake board receives only values in range, the same ones the simulator gives its board', () => {
+    expect(results['pins-pwm-and-servo#0']?.calls).toEqual(['pwm P0 512', 'servo P1 90', 'pwm P0 1023', 'servo P1 0']);
+    expect(results['pins-fade-and-sweep#0']?.calls).toEqual([
+      'pwm P0 0', 'servo P2 0', 'pwm P0 300', 'servo P2 50', 'pwm P0 600', 'servo P2 100', 'pwm P0 900', 'servo P2 150', 'pwm P0 1023', 'servo P2 180',
+    ]);
+    expect(['pins-knob-servo#0', 'pins-knob-servo#1', 'pins-knob-servo#2'].map((key) => results[key]?.calls)).toEqual([
+      ['read_analog P2', 'servo P1 0'],
+      ['read_analog P2', 'servo P1 93'],
+      ['read_analog P2', 'servo P1 180'],
+    ]);
   });
 });
 

@@ -36,6 +36,8 @@ const terms: Readonly<Record<string, string>> = {
   'turn off light': 'tắt đèn',
   'start tone': 'bật âm',
   'random number': 'số ngẫu nhiên',
+  'analog write': 'ghi analog',
+  servo: 'servo',
 };
 
 /** Blockly's own blocks that the core may name by type; the custom blocks are named by their Vietnamese text. */
@@ -81,6 +83,8 @@ const quantities: Readonly<Record<string, string>> = {
   'The length of a tone': 'Độ dài âm',
   'A bound of a random number': 'Một đầu của số ngẫu nhiên',
   'The running time': 'Thời gian chạy',
+  'An analog value': 'Giá trị analog',
+  'A servo angle': 'Góc servo',
 };
 
 /** The capabilities a board may lack (constructs' `capability`). */
@@ -95,6 +99,8 @@ const capabilities: Readonly<Record<string, string>> = {
   analogIn: 'đầu vào tương tự',
   'analog input': 'đầu vào tương tự',
   'digital pin': 'chân số',
+  'PWM output': 'đầu ra PWM',
+  'servo pin': 'chân servo',
 };
 
 const own = <Value>(table: Readonly<Record<string, Value>>, key: string): Value | undefined => (Object.hasOwn(table, key) ? table[key] : undefined);
@@ -242,6 +248,11 @@ export const coreMessageRules: readonly Rule[] = [
   [/^Pin (.+) is not connected to anything, so it cannot be read\.$/, (pin) => `Chân ${pin} chưa nối với gì, nên không đọc được.`],
   // N17 B4: an on/off read of a pin nothing drives reads 0, and says so once.
   [/^Pin (.+) is floating, so it reads 0\. Connect the button to 3V3 or GND\.$/, (pin) => `Chân ${pin} đang thả nổi — đọc là 0. Hãy nối nút với 3V3 hoặc GND.`],
+  // N17 B5: an analog write or a servo angle outside its range is clamped, and the run says so once per pin.
+  [/^The analog value (.+) for (.+) is outside 0 to (.+), so it is clamped to (.+)\.$/, (value, pin, max, clamped) => `Giá trị analog ${value} của chân ${pin} nằm ngoài khoảng 0 tới ${max}, nên được kẹp về ${clamped}.`],
+  [/^The servo angle (.+) for (.+) is outside 0 to (.+), so it is clamped to (.+)\.$/, (value, pin, max, clamped) => `Góc servo ${value} của chân ${pin} nằm ngoài khoảng 0 tới ${max}, nên được kẹp về ${clamped}.`],
+  [/^An analog value is between 0 and (.+), not (.+)\.$/, (max, value) => `Giá trị analog nằm trong khoảng 0 tới ${max}, không phải ${value}.`],
+  [/^A servo angle is between 0 and (.+), not (.+)\.$/, (max, value) => `Góc servo nằm trong khoảng 0 tới ${max}, không phải ${value}.`],
   [/^Pin (.+) is driven by two things at once, so it cannot be read\.$/, (pin) => `Chân ${pin} bị hai thứ cùng điều khiển, nên không đọc được.`],
   [/^Pin (.+) carries an analog level, which is neither on nor off\. Use "analog read"\.$/, (pin) => `Chân ${pin} mang mức tương tự, không phải bật hay tắt. Dùng "đọc tương tự".`],
   [/^Pin (.+) could not be read\.$/, (pin) => `Không đọc được chân ${pin}.`],

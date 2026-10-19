@@ -30,7 +30,9 @@ const ybcProject = (profile: string, components: unknown[] = [ybcBoard]) => ({
 // YB-3 adds the onboard hardware categories (Display, Input, Sound) after the program structure, and YB-4 the header pins.
 const ybcCategories = ['Program', 'Display', 'Input', 'Sound', 'Pins', 'Logic', 'Loops', 'Time', 'Math', 'Text', 'Variables'];
 // YB-4: the board and the parts a learner wires to the header pins (YB plan, YB-1 note 3).
-const ybcPalette = ['+ Bit-compatible Board', '+ LED', '+ Resistor', '+ Push Button', '+ Potentiometer'];
+const basicPalette = ['+ Bit-compatible Board', '+ LED', '+ Resistor', '+ Push Button', '+ Potentiometer'];
+/** N17 B5: the servo is a part of the Advanced palette only. */
+const paletteOf = (profile: string) => (profile === 'ybc-advanced' ? [...basicPalette, '+ Servo'] : basicPalette);
 const toolboxCategories = (page: Page) =>
   page.getByTestId('blockly-panel').locator('.blocklyToolboxCategory').allInnerTexts();
 const paletteButtons = (page: Page) => page.getByRole('toolbar', { name: 'Add a device' }).getByRole('button').allInnerTexts();
@@ -83,7 +85,7 @@ for (const profile of ['ybc-basic', 'ybc-advanced']) {
     test('offers the Yolo:Bit-compatible board only, and the structure and language in the toolbox', async ({ page }) => {
       await openProject(page, ybcProject(profile));
 
-      await expect.poll(() => paletteButtons(page)).toEqual(ybcPalette);
+      await expect.poll(() => paletteButtons(page)).toEqual(paletteOf(profile));
       expect(await toolboxCategories(page)).toEqual(ybcCategories);
       await expectBlockText(page, 'on start');
       await expectBlockText(page, 'forever');
@@ -112,7 +114,7 @@ for (const profile of ['ybc-basic', 'ybc-advanced']) {
 
       expect(await currentProject(page)).toEqual(edited);
       expect(await toolboxCategories(page)).toEqual(ybcCategories);
-      expect(await paletteButtons(page)).toEqual(ybcPalette);
+      expect(await paletteButtons(page)).toEqual(paletteOf(profile));
       await page.getByRole('button', { name: 'Run' }).click();
       await expect(runStatus(page)).toHaveText('Running');
       await page.getByRole('button', { name: 'Stop' }).click();

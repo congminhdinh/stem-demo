@@ -23,7 +23,7 @@ export interface AnalogInIO {
   analogRead(pin: string): number;
 }
 
-/** Declared by the plan; PWM / analog write is EXCLUDED (contract C-26), so nothing implements it. */
+/** N17 B5: `write_analog`, a PWM duty 0..1023 on a header pin (contract C-26); run/ybc-pin-io.ts implements it. */
 export interface PwmIO {
   pwmWrite(pin: string, value: number): void;
 }
@@ -56,6 +56,7 @@ export interface MotionIO {
   gesture?(): string | null;
 }
 
+/** N17 B5: `servo_write`, a 180° servo's angle 0..180 on a header pin (contract C-27); run/ybc-pin-io.ts implements it. */
 export interface ServoIO {
   servoWrite(pin: string, angle: number): void;
 }

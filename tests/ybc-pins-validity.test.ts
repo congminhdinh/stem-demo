@@ -86,13 +86,14 @@ describe('L-2 profile-compatible: where the pins and the knob belong', () => {
     expect(inspectStoredProject(structuredClone(lowered), fixture.registry, open, fixture.profiles)).toEqual({ ok: true, document: lowered });
   });
 
-  it('shows Advanced exactly what Basic shows of the pins: same pack, same constructs, the same toolbox category', () => {
+  it('shows Advanced what Basic shows of the pins, the same pack, constructs and category, and (N17 B5) analog write and the servo after them', () => {
     const [basic, advanced] = ['ybc-basic', 'ybc-advanced'].map((id) => productionProfiles.get(id));
-    // N17 B2 and B3: Advanced has the sensors and the music packs on top; the pins are the same.
-    expect(advanced?.blockPacks).toEqual([...(basic?.blockPacks ?? []), 'ybc.sensors', 'ybc.music']);
+    // N17 B2, B3 and B5: Advanced has the sensors, the music and the PWM packs on top; the three pins of Basic are the same.
+    expect(advanced?.blockPacks).toEqual([...(basic?.blockPacks ?? []), 'ybc.sensors', 'ybc.music', 'ybc.pwm']);
     expect(advanced?.constructs.filter((id) => ['C-23', 'C-24', 'C-25'].includes(id))).toEqual(basic?.constructs.filter((id) => ['C-23', 'C-24', 'C-25'].includes(id)));
     const category = (id: string) => buildToolbox(productionProfiles.get(id)?.blockPacks ?? [], packs).contents.find((c) => c.name === 'Pins');
-    expect(category('ybc-advanced')).toEqual(category('ybc-basic'));
+    expect(category('ybc-advanced')?.contents?.slice(0, 3)).toEqual(category('ybc-basic')?.contents);
+    expect(category('ybc-advanced')?.contents?.slice(3).map((item) => (item as { type: string }).type)).toEqual(['ybc_pin_write_analog', 'ybc_servo_write']);
   });
 });
 

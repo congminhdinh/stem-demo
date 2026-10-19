@@ -29,7 +29,7 @@ function simulationOf(levels: Partial<Record<'p0' | 'p1' | 'p2' | 'p3' | 'p16', 
 }
 
 function fakeEnvironment(simulation: () => SimulationResult | null = () => null) {
-  const drivePin = vi.fn<(pin: string, level: 0 | 1) => void>();
+  const drivePin = vi.fn<RunEnvironment['drivePin']>();
   const warn = vi.fn<RunEnvironment['warn']>();
   const environment: RunEnvironment = {
     board,
@@ -62,12 +62,12 @@ const fault = (action: () => unknown) => {
 };
 
 describe('the pin factory', () => {
-  it('offers the digital and analog-in capabilities of the header pins and nothing else, new for every run', () => {
+  it('offers the digital and analog-in capabilities of the header pins (and, N17 B5, PWM and servo) and nothing else, new for every run', () => {
     const { environment } = fakeEnvironment();
     const factory = createPinCapabilities(registry);
     const first = factory(environment);
     const second = factory(environment);
-    expect(Object.keys(first).sort()).toEqual(['analogIn', 'digital']);
+    expect(Object.keys(first).sort()).toEqual(['analogIn', 'digital', 'pwm', 'servo']);
     expect(first.digital).not.toBe(second.digital);
     expect(first.analogIn).not.toBe(second.analogIn);
   });
@@ -298,5 +298,52 @@ describe('the pin domain of the runtime: the contract pins AND what the board da
     expect(fault(() => digital.digitalRead('P2'))).toEqual(outOfDomain('P2'));
     expect(fault(() => analogIn.analogRead('P2'))).toEqual(outOfDomain('P2'));
     expect(fault(() => digital.digitalRead('P3'))).toEqual(outOfDomain('P3'));
+  });
+});
+
+// N17 B5: the PWM and servo capabilities of the header pins. The interpreter has clamped the value already (and warned); a
+// capability does not trust its caller, so it refuses a value outside its range all the same, and drives the pin with the duty or
+// the angle through the same `drivePin`, so the simulation carries it on the pin's net. A pin it drives is one the program set.
+describe('PWM and servo on the header pins (N17 B5)', () => {
+  function outputsOver(simulation: () => SimulationResult | null) {
+    const { environment, drivePin } = fakeEnvironment(simulation);
+    const capabilities = createPinCapabilities(registry)(environment);
+    return { ...capabilities, drivePin };
+  }
+
+  it('are offered for every run, next to digital and analog in', () => {
+    const { environment } = fakeEnvironment();
+    expect(Object.keys(createPinCapabilities(registry)(environment)).sort()).toEqual(['analogIn', 'digital', 'pwm', 'servo']);
+  });
+
+  it('drive the pin with the duty or the angle, through environment.drivePin', () => {
+    const { pwm, servo, drivePin } = outputsOver(() => simulationOf({}));
+    pwm?.pwmWrite('P0', 512);
+    pwm?.pwmWrite('P2', 0);
+    servo?.servoWrite('P1', 90);
+    expect(drivePin.mock.calls).toEqual([
+      ['P0', { kind: 'pwm', duty: 512 }],
+      ['P2', { kind: 'pwm', duty: 0 }],
+      ['P1', { kind: 'servo', angle: 90 }],
+    ]);
+  });
+
+  it('refuse a pin that is not on the board and a value outside the range, before the run is touched', () => {
+    const { pwm, servo, drivePin } = outputsOver(() => simulationOf({}));
+    expect(fault(() => pwm?.pwmWrite('P3', 1))).toEqual({ code: 'out-of-domain', message: 'Pin P3 cannot be used on this board.' });
+    expect(fault(() => pwm?.pwmWrite('P0', 1024))).toEqual({ code: 'out-of-domain', message: 'An analog value is between 0 and 1023, not 1024.' });
+    expect(fault(() => pwm?.pwmWrite('P0', 1.5))).toMatchObject({ code: 'out-of-domain' });
+    expect(fault(() => servo?.servoWrite('P1', -1))).toEqual({ code: 'out-of-domain', message: 'A servo angle is between 0 and 180, not -1.' });
+    expect(fault(() => servo?.servoWrite('constructor', 10))).toMatchObject({ code: 'out-of-domain' });
+    expect(drivePin).not.toHaveBeenCalled();
+  });
+
+  it('make the pin one the program set: reading it back stops the program, as for a digital write', () => {
+    const levels = simulationOf({ p0: 'high', p1: 'high' });
+    const { pwm, servo, digital, analogIn } = outputsOver(() => levels);
+    pwm?.pwmWrite('P0', 300);
+    servo?.servoWrite('P1', 20);
+    expect(fault(() => digital?.digitalRead('P0'))).toEqual({ code: 'out-of-domain', message: 'Pin P0 is set by this program, so it cannot be read as well.' });
+    expect(fault(() => analogIn?.analogRead('P1'))).toEqual({ code: 'out-of-domain', message: 'Pin P1 is set by this program, so it cannot be read as well.' });
   });
 });

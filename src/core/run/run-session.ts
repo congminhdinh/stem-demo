@@ -1,7 +1,7 @@
 import type { Circuit, ComponentInstance, ProjectDocument } from '../circuit/document';
 import { composeCapabilities } from '../capabilities/compose';
 import type { Capabilities } from '../capabilities/io';
-import { createRuntimeServices, createSeededRandomInt, type Clock, type RunScheduler, type RuntimeServices } from '../capabilities/services';
+import { createRuntimeServices, createSeededRandomInt, type Clock, type RunScheduler, type RunWarning, type RuntimeServices } from '../capabilities/services';
 import { boardTargetOf } from '../devices/board-pins';
 import type { DeviceRegistry } from '../devices/registry';
 import { resolveBoardContext, type BoardContext } from '../profiles/board-context';
@@ -24,11 +24,13 @@ import {
   isComponentInput,
   isContact,
   sameComponentState,
+  samePinOutput,
   simulateCircuit,
   splitPeripheralComponentId,
   type ComponentInput,
   type ComponentInputKind,
   type ComponentState,
+  type PinOutput,
   type SimulationResult,
 } from '../simulation/simulate-circuit';
 
@@ -111,8 +113,8 @@ type ActiveRun = {
   program: ProgramRun;
   /** Documents are never mutated, so keeping the circuit is the snapshot of it. */
   circuit: Circuit;
-  /** Levels the program wrote, by pin name. */
-  pinOutputs: Record<string, 0 | 1>;
+  /** What the program wrote, by pin name: a level, or (N17 B5) a PWM duty or a servo signal. */
+  pinOutputs: Record<string, PinOutput>;
   /** Contacts held closed, by component id. */
   contacts: Record<string, boolean>;
   /** The latest simulation of these inputs: what `digitalRead` reads. The run's own: snapshots and `environment.simulation` get copies of it. */
@@ -210,8 +212,11 @@ export type RunEnvironment = {
    * simulation, and nobody is notified.
    */
   simulation(): SimulationResult | null;
-  /** Drives a pin of this run's board and simulates again. A name that is not a pin of the board is ignored. */
-  drivePin(pin: string, level: 0 | 1): void;
+  /**
+   * Drives a pin of this run's board and simulates again: a level, or (N17 B5) a PWM duty or a servo signal, which replaces what
+   * the pin was driven with. A name that is not a pin of the board is ignored, and so is the drive the pin already has.
+   */
+  drivePin(pin: string, level: PinOutput): void;
   /**
    * N17 B4: a warning of the board for this run (a floating pin that reads 0), added to the snapshot's diagnostics after the compile
    * warnings and published. A warning the run already has (the same code and message) is not added again.
@@ -291,6 +296,18 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
   };
 
   /**
+   * A warning for `run` (N17 B4: the board's, a floating pin; N17 B5: the program's, a value clamped), added to the snapshot's
+   * diagnostics after the compile warnings and published, once per code and message. Nothing for a run that is not the current one.
+   */
+  const addWarning = (run: ActiveRun | undefined, { code, message }: RunWarning) => {
+    const now = fresh();
+    if (run === undefined || current !== run || now.diagnostics.some((known) => known.code === code && known.message === message)) {
+      return;
+    }
+    publish({ ...now, diagnostics: [...now.diagnostics, { severity: 'warning', code, message }] });
+  };
+
+  /**
    * The environment of ONE run (YB-CP amendment 1). `holder.run` is set when the run is created and `current` is the
    * run that owns the session, so an environment whose run lost ownership, or whose run was never created (the factory
    * threw, or a newer start won), is inert: that single check is what keeps a stale capability from reaching the run
@@ -348,18 +365,15 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
       },
       drivePin(pin, level) {
         const run = live();
-        if (!run || !pins.has(pin) || run.pinOutputs[pin] === level) {
+        if (!run || !pins.has(pin) || samePinOutput(run.pinOutputs[pin], level)) {
           return;
         }
-        run.pinOutputs = { ...run.pinOutputs, [pin]: level };
+        // A copy of a signal: the caller may go on using its object.
+        run.pinOutputs = { ...run.pinOutputs, [pin]: typeof level === 'object' ? { ...level } : level };
         publish({ ...fresh(), simulation: simulate(run) });
       },
-      warn({ code, message }) {
-        const now = fresh();
-        if (!live() || now.diagnostics.some((known) => known.code === code && known.message === message)) {
-          return;
-        }
-        publish({ ...now, diagnostics: [...now.diagnostics, { severity: 'warning', code, message }] });
+      warn(warning) {
+        addWarning(live(), warning);
       },
     };
   };
@@ -427,6 +441,8 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
         signal: controller.signal,
         // A seeded run (a lab's check, N17 B4) draws the same random numbers every time.
         ...(startOptions.seed === undefined ? {} : { randomInt: createSeededRandomInt(startOptions.seed) }),
+        // N17 B5: the program's warnings (a value clamped) join the run's diagnostics; a run that lost ownership says nothing.
+        warn: (warning) => addWarning(holder.run, warning),
         // What the program or a capability writes shows in the snapshot, and a run that lost ownership notices nothing.
         console: {
           write(line) {

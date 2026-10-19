@@ -39,6 +39,8 @@ export const moduleOfOp: Readonly<
   'time.runningTime': 'yolobit',
   'random.int': 'random',
   'digital.write': 'yolobit',
+  'pwm.write': 'yolobit',
+  'servo.write': 'yolobit',
   'digital.read': 'yolobit',
   'analogIn.read': 'yolobit',
   'sound.playNote': 'music',

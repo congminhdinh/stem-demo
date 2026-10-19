@@ -1,4 +1,4 @@
-import { isContractPin } from '../constructs/ybc.pins';
+import { isContractPin, PWM_MAX, SERVO_MAX_ANGLE } from '../constructs/ybc.pins';
 import { usablePins } from '../devices/board-pins';
 import type { DeviceRegistry } from '../devices/registry';
 import { RuntimeFault } from '../program/values';
@@ -19,6 +19,11 @@ import type { CapabilityFactory } from './run-session';
 // with `out-of-domain` at the block that read it. N17 B4 (owner, 2026-10-19; the old B9): an on/off read of a pin nothing
 // drives reads 0, as a pin with a pull-down would, and the run gets a warning once per pin (the pull of the board is
 // UNVERIFIED, contract C-24); the program goes on.
+//
+// N17 B5: `pwm` (`write_analog`, C-26) and `servo` (`servo_write`, C-27) drive the pin with a PWM duty 0..1023 or a servo signal
+// 0..180° through the same `drivePin`; the simulation carries it on the pin's net (an LED there glows at duty / 1023, a servo
+// there turns). The interpreter has clamped the value (and warned the run); a value outside the range here is a caller that does
+// not keep the contract, refused like a level that is not 0 or 1. A pin driven so is one the program set: it cannot be read.
 
 export function createPinCapabilities(registry: DeviceRegistry): CapabilityFactory {
   return (environment) => {
@@ -28,6 +33,8 @@ export function createPinCapabilities(registry: DeviceRegistry): CapabilityFacto
     // compiler or the metadata: a board that lists P3 does not open it.
     const digitalPins = new Set(usablePins(definition, 'digital').filter(isContractPin));
     const analogPins = new Set(usablePins(definition, 'analogIn').filter(isContractPin));
+    const pwmPins = new Set(usablePins(definition, 'pwm').filter(isContractPin));
+    const servoPins = new Set(usablePins(definition, 'servo').filter(isContractPin));
     const portOf = (pin: string) => definition.board?.pins.find((candidate) => candidate.name === pin)?.portId;
     /** The pins this program has set: it cannot read them as well. Per run, like the capabilities. */
     const written = new Set<string>();
@@ -37,6 +44,12 @@ export function createPinCapabilities(registry: DeviceRegistry): CapabilityFacto
     const usable = (pin: string, pins: ReadonlySet<string>) => {
       if (!pins.has(pin)) {
         throw new RuntimeFault('out-of-domain', `Pin ${pin} cannot be used on this board.`);
+      }
+    };
+    /** A whole number in 0..max, else the caller broke the contract. */
+    const within = (value: number, max: number, fault: () => RuntimeFault) => {
+      if (!Number.isInteger(value) || value < 0 || value > max) {
+        throw fault();
       }
     };
 
@@ -94,6 +107,22 @@ export function createPinCapabilities(registry: DeviceRegistry): CapabilityFacto
             throw new RuntimeFault('out-of-domain', `Pin ${pin} carries an analog level, which is neither on nor off. Use "analog read".`);
           }
           return signal.kind === 'high' ? 1 : 0;
+        },
+      },
+      pwm: {
+        pwmWrite(pin, duty) {
+          usable(pin, pwmPins);
+          within(duty, PWM_MAX, () => new RuntimeFault('out-of-domain', `An analog value is between 0 and ${PWM_MAX}, not ${String(duty)}.`));
+          written.add(pin);
+          environment.drivePin(pin, { kind: 'pwm', duty });
+        },
+      },
+      servo: {
+        servoWrite(pin, angle) {
+          usable(pin, servoPins);
+          within(angle, SERVO_MAX_ANGLE, () => new RuntimeFault('out-of-domain', `A servo angle is between 0 and ${SERVO_MAX_ANGLE}, not ${String(angle)}.`));
+          written.add(pin);
+          environment.drivePin(pin, { kind: 'servo', angle });
         },
       },
       analogIn: {

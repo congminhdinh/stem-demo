@@ -45,7 +45,8 @@ describe('paletteItems by family (GB9, R-F3)', () => {
 
   it('offers a ybc project only what its profile lists, and not the generic board', () => {
     expect(paletteOf('ybc-basic')).toEqual(['ybc-board', 'led', 'resistor', 'push-button', 'potentiometer']);
-    expect(paletteOf('ybc-advanced')).toEqual(['ybc-board', 'led', 'resistor', 'push-button', 'potentiometer']);
+    // N17 B5: the servo is a part of the Advanced palette only.
+    expect(paletteOf('ybc-advanced')).toEqual(['ybc-board', 'led', 'resistor', 'push-button', 'potentiometer', 'servo']);
   });
 
   it('adds a device of a richer profile only to that profile (test-only fixture)', () => {

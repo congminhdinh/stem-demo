@@ -99,13 +99,15 @@ describe('a run that lost the session', () => {
 });
 
 describe('what a run is given', () => {
-  it('is the two capabilities of the header pins, with their methods and nothing else: no event, no listener, no onboard part', () => {
+  it('is the four capabilities of the header pins (N17 B5: PWM and servo), with their methods and nothing else: no event, no listener, no onboard part', () => {
     const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.start(running());
     const caps = capabilitiesOfLastRun();
-    expect(Object.keys(caps).sort()).toEqual(['analogIn', 'digital']);
+    expect(Object.keys(caps).sort()).toEqual(['analogIn', 'digital', 'pwm', 'servo']);
     expect(Object.keys(caps.digital ?? {}).sort()).toEqual(['digitalRead', 'digitalWrite']);
     expect(Object.keys(caps.analogIn ?? {}).sort()).toEqual(['analogRead']);
+    expect(Object.keys(caps.pwm ?? {}).sort()).toEqual(['pwmWrite']);
+    expect(Object.keys(caps.servo ?? {}).sort()).toEqual(['servoWrite']);
     session.stop();
   });
 });

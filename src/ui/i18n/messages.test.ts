@@ -31,7 +31,8 @@ describe('UI messages (N6a S5)', () => {
     expect(isMessageKey(key)).toBe(true);
   });
 
-  it.each(['device.servo', 'toString', 'constructor', ''])('does not take %j for a key', (key) => {
+  // N17 B5 made device.servo a key; a motor is still no device of the app.
+  it.each(['device.motor', 'toString', 'constructor', ''])('does not take %j for a key', (key) => {
     expect(isMessageKey(key)).toBe(false);
   });
 });

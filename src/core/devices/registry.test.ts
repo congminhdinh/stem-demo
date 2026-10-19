@@ -44,6 +44,7 @@ describe('device registry', () => {
       'push-button',
       'ybc-board',
       'potentiometer',
+      'servo',
     ]);
   });
 
@@ -56,6 +57,8 @@ describe('device registry', () => {
       ['ybc-board', 'ybc'],
       // YB-4: a device of the Yolo:Bit-compatible track never shows up in a generic palette (R-F3, GB9).
       ['potentiometer', 'ybc'],
+      // N17 B5: the servo of the Advanced board.
+      ['servo', 'ybc'],
     ]);
     expect(registry.get('board')).not.toHaveProperty('family');
   });

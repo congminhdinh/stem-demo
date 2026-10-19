@@ -439,8 +439,8 @@ describe('the capabilities of the board (plan §10)', () => {
   const lacking = (capability: string) => boardCapabilities.filter((candidate) => candidate !== capability);
   const unavailable = (capabilitySet: readonly string[]) => diagnostics(compile(everything, capabilitySet));
 
-  it('has the capabilities of the ybc-board: display, buttons, light and sound (and the temperature and motion of N17 B2) next to the pins', () => {
-    expect([...boardCapabilities].sort()).toEqual(['analogIn', 'buttons', 'digital', 'display', 'light', 'motion', 'sound', 'temperature']);
+  it('has the capabilities of the ybc-board: display, buttons, light and sound (and the temperature and motion of N17 B2) next to the pins (with PWM and servo, N17 B5)', () => {
+    expect([...boardCapabilities].sort()).toEqual(['analogIn', 'buttons', 'digital', 'display', 'light', 'motion', 'pwm', 'servo', 'sound', 'temperature']);
     expect(compile(everything).ok).toBe(true);
   });
 

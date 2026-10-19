@@ -45,7 +45,9 @@ import {
   pinCapabilityOfBlock,
   pinNumberOf,
   pinReadType,
+  pinWriteAnalogType,
   pinWriteType,
+  servoWriteType,
 } from '../constructs/ybc.pins';
 import {
   isMelodyMode,
@@ -109,6 +111,9 @@ import type { ArithOp, ColourOperand, CompareOp, Expr, Type, YbcProgramIR, YbcSt
 // N17 B4: "button A+B is pressed" is the `and` of the reads of A and B, so it means exactly what the generator writes for it; the
 // running time is a read; a random number has two int ends, each typed-in one checked against ±1000000 and two typed-in ones
 // against being more than 1000000 apart (contract C-40). The ends may come in either order: no descending error.
+//
+// N17 B5: "analog write" (C-26) and "servo" (C-27) of the Advanced board are pin calls; the pin is the block's, the value an int
+// expression. A value outside 0..1023 / 0..180, typed in or computed, is not an error: the run clamps it and warns (owner ruling).
 
 export type YbcDiagnosticCode =
   | 'malformed-program'
@@ -168,6 +173,13 @@ const floatOps = new Set(['DIVIDE', 'POWER']);
 const foreignArithmetic = 'math_arithmetic';
 const compareOps: Readonly<Record<string, CompareOp>> = { EQ: '==', NEQ: '!=', LT: '<', LTE: '<=', GT: '>', GTE: '>=' };
 const languageBlockTypes = new Set(langConstructs.flatMap((construct) => construct.blockTypes));
+/** What a board lacks when a pin block's capability is missing, in the words of the diagnostic. */
+const pinCapabilityWords: Readonly<Record<HeaderPinCapability, string>> = {
+  digital: 'digital pin',
+  analogIn: 'analog input',
+  pwm: 'PWM output',
+  servo: 'servo pin',
+};
 /** The hardware blocks that give a value: one of these cannot be a statement. The colour block only fills a colour input. */
 const hardwareValueBlockTypes = new Set([buttonPressedType, buttonPressesType, lightLevelType, colourType, temperatureType, accelerationType, gestureIsType]);
 /** C0 and C1 control characters (plan §6.4: print text allows Unicode except these). */
@@ -377,12 +389,7 @@ export function compileYbcProgram(
     const board = target ?? noBoardTarget;
     const capability: HeaderPinCapability = pinCapabilityOfBlock.get(block.type) ?? 'digital';
     if (!board.capabilities.includes(capability)) {
-      report(
-        'error',
-        'capability-unavailable',
-        `This board has no ${capability === 'analogIn' ? 'analog input' : 'digital pin'}, so this block cannot be used.`,
-        block.id,
-      );
+      report('error', 'capability-unavailable', `This board has no ${pinCapabilityWords[capability]}, so this block cannot be used.`, block.id);
       return null;
     }
     const name = block.fields?.PIN;
@@ -981,6 +988,21 @@ export function compileYbcProgram(
       : null;
   };
 
+  /**
+   * N17 B5: "analog write pin P value V" (C-26) and "servo pin P turn to A°" (C-27). The pin is chosen in the block, so it is a
+   * literal of the IR; the value is a whole-number expression, never refused for its size: the run clamps it to 0..1023 / 0..180.
+   */
+  const compilePinOutput = (block: RawBlock, depth: number): YbcStatement | null => {
+    const pwm = block.type === pinWriteAnalogType;
+    const pin = pinOf(block);
+    const value = pwm
+      ? operand(block, 'VALUE', 'analog write', 'int', 'An analog value', depth)
+      : operand(block, 'ANGLE', 'servo', 'int', 'A servo angle', depth);
+    return pin !== null && value
+      ? { kind: 'call', op: pwm ? 'pwm.write' : 'servo.write', args: [intLiteral(pin, block.id), value], blockId: block.id }
+      : null;
+  };
+
   const compileStatement = (block: RawBlock, depth: number): YbcStatement | null => {
     if (!isExposed(block)) {
       return null;
@@ -1042,6 +1064,9 @@ export function compileYbcProgram(
         return compileWait(block, depth);
       case pinWriteType:
         return compilePinWrite(block);
+      case pinWriteAnalogType:
+      case servoWriteType:
+        return compilePinOutput(block, depth);
       default:
         if (languageBlockTypes.has(block.type) || hardwareValueBlockTypes.has(block.type)) {
           report('error', 'unsupported-construct', `"${block.type}" cannot be used as a statement.`, block.id);

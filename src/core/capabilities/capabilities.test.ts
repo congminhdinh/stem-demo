@@ -55,15 +55,14 @@ describe('the capability interfaces', () => {
 describe('composition: a board offers only what it has', () => {
   it('gives the generic board digital and nothing else, and the Yolo:Bit board what its data names', () => {
     expect(availableCapabilityKeys(boardSet('board'))).toEqual(['digital']);
-    // N17 B2: the temperature sensor and the accelerometer are onboard parts of the board's data.
-    expect(availableCapabilityKeys(boardSet('ybc-board'))).toEqual(['digital', 'analogIn', 'display', 'buttons', 'sound', 'light', 'temperature', 'motion']);
+    // N17 B2: the temperature sensor and the accelerometer are onboard parts of the board's data. N17 B5: P0–P2 do PWM and servo.
+    expect(availableCapabilityKeys(boardSet('ybc-board'))).toEqual(['digital', 'analogIn', 'pwm', 'display', 'buttons', 'sound', 'light', 'temperature', 'motion', 'servo']);
   });
 
-  it('leaves out PWM, servo and pulse: the board does not have them, or the contract excludes them', () => {
+  it('leaves out pulse: the contract excludes it (C-28); PWM and servo are the pins\' since N17 B5 (C-26, C-27)', () => {
     const keys = availableCapabilityKeys(boardSet('ybc-board'));
-    for (const key of ['pwm', 'servo', 'pulse'] as const) {
-      expect(keys).not.toContain(key);
-    }
+    expect(keys).not.toContain('pulse');
+    expect(keys).toEqual(expect.arrayContaining(['pwm', 'servo']));
   });
 
   it('knows only capability ids: an unknown id in a board set is not a capability', () => {
@@ -73,7 +72,7 @@ describe('composition: a board offers only what it has', () => {
   it('reports what a construct needs and the board lacks (the compiler capability-unavailable, once ops exist)', () => {
     expect(missingCapabilities(boardSet('board'), ['digital'])).toEqual([]);
     expect(missingCapabilities(boardSet('board'), ['digital', 'display', 'buttons'])).toEqual(['display', 'buttons']);
-    expect(missingCapabilities(boardSet('ybc-board'), ['display', 'pwm'])).toEqual(['pwm']);
+    expect(missingCapabilities(boardSet('ybc-board'), ['display', 'pwm', 'pulse'])).toEqual(['pulse']);
   });
 
   it('keeps an implementation of a capability the board has, and drops one it does not, naming it', () => {
@@ -153,8 +152,8 @@ describe('the display frame (contract §4.3)', () => {
 });
 
 describe('the runtime services of a run (one canonical shape, plan §10)', () => {
-  it('has the five services of the plan and the cancellation of the run, budget included, and (N17 B4) the run’s random numbers', () => {
-    expectTypeOf<keyof RuntimeServices>().toEqualTypeOf<'clock' | 'console' | 'budget' | 'sleep' | 'scheduler' | 'signal' | 'randomInt'>();
+  it('has the five services of the plan and the cancellation of the run, budget included, (N17 B4) the run’s random numbers and (N17 B5) its warnings', () => {
+    expectTypeOf<keyof RuntimeServices>().toEqualTypeOf<'clock' | 'console' | 'budget' | 'sleep' | 'scheduler' | 'signal' | 'randomInt' | 'warn'>();
     expectTypeOf<RuntimeServices['budget']>().toEqualTypeOf<ExecutionBudget>();
   });
 

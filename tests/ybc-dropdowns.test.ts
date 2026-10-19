@@ -41,6 +41,9 @@ const allowed: Record<string, Record<string, string[]>> = {
   ybc_pin_write: { PIN: ['P0', 'P1', 'P2'], LEVEL: ['1', '0'] },
   ybc_pin_read: { PIN: ['P0', 'P1', 'P2'] },
   ybc_pin_analog: { PIN: ['P0', 'P1', 'P2'] },
+  // N17 B5: analog write and the servo of the Advanced board, on the three pins the contract opens.
+  ybc_pin_write_analog: { PIN: ['P0', 'P1', 'P2'] },
+  ybc_servo_write: { PIN: ['P0', 'P1', 'P2'] },
   // N17 B1, the RGB display: the eight palette colours of contract §4.4 (red first, as the editor's colour field writes them),
   // and the thirteen built-in pictures (C-05: nine names of the editor's list and four arrows).
   ybc_colour: { COLOUR: ['#ff0000', '#ffa500', '#ffff00', '#00ff00', '#0000ff', '#4b0082', '#800080', '#ffffff'] },

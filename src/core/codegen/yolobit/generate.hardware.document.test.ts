@@ -62,7 +62,8 @@ describe('a hardware program of a real Basic or Advanced document passes L-2 to 
       const context = resolveBoardContext(project, registry, productionProfiles);
       expect(reportLayers(project, context, packs)).toEqual({ profileCompatible: [], runtimeReady: [] });
       const capabilities = context.readiness.ok ? context.readiness.capabilities : undefined;
-      expect(capabilities).toEqual(['digital', 'analogIn', 'display', 'buttons', 'light', 'sound', 'temperature', 'motion']);
+      // N17 B5: the pins do PWM and servo too.
+      expect(capabilities).toEqual(['digital', 'analogIn', 'pwm', 'servo', 'display', 'buttons', 'light', 'sound', 'temperature', 'motion']);
       const target = context.readiness.ok ? boardTargetOf(registry.get(context.readiness.board.deviceType), context.readiness.capabilities) : undefined;
       expect(compileYbcProgram(project.program.blocks, packs.typesOf(context.blockPacks), undefined, target).ok).toBe(true);
       const session = createRunSession(registry);

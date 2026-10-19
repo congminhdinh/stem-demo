@@ -1,5 +1,5 @@
-import { add, and, cmp, getVar, idiv, ifElif, ifThen, join, not, num, or, print, program, setVar, text, whileLoop, type Json } from '../../../program/__fixtures__/ybc-blocks';
-import { pinAnalog, pinRead, pinWrite } from '../../../program/__fixtures__/ybc-pin-blocks';
+import { add, and, cmp, countUp, getVar, idiv, ifElif, ifThen, join, mul, not, num, or, print, program, setVar, text, whileLoop, type Json } from '../../../program/__fixtures__/ybc-blocks';
+import { pinAnalog, pinRead, pinWrite, pinWriteAnalog, servoWrite } from '../../../program/__fixtures__/ybc-pin-blocks';
 
 // The pin programs of YB-4, as Blockly JSON: each is compiled to the IR (for the ybc-board), run by the
 // interpreter AND generated to Python. The golden of a case is `pins/__golden__/<name>.py`. `covers` lists the
@@ -77,5 +77,27 @@ export const pinCases: PinCase[] = [
     blocks: program([whileLoop(not(pinRead('P2')), [print(text('waiting'))]), pinWrite('P0', true)]),
     // P2 goes on at the third read.
     scripts: [script({ P2: [0, 0, 1] }), script({ P2: [1] })],
+  },
+  // N17 B5: analog write (PWM, C-26) and the servo (C-27). The brief's two lines, and a typed-in value outside the range, which
+  // the generator writes clamped (2000 is 1023, -30 is 0), as the simulator clamps it.
+  {
+    name: 'pins-pwm-and-servo',
+    covers: ['C-01', 'C-26', 'C-27'],
+    blocks: program([pinWriteAnalog('P0', num(512)), servoWrite('P1', num(90)), pinWriteAnalog('P0', num(2000)), servoWrite('P1', num(-30))]),
+    scripts: [script({})],
+  },
+  {
+    // A fade and a sweep: computed values are written as max(0, min(top, v)); the last step (1200 and 200) is clamped on both sides.
+    name: 'pins-fade-and-sweep',
+    covers: ['C-02', 'C-26', 'C-27', 'C-30', 'C-32', 'C-34'],
+    blocks: program([], [countUp('x', num(0), num(4), 1, [pinWriteAnalog('P0', mul(getVar('x'), num(300))), servoWrite('P2', mul(getVar('x'), num(50)))])]),
+    scripts: [script({})],
+  },
+  {
+    // The knob on P2 turns the servo on P1: 4095 // 22 is 186, clamped to 180; the pin is read once.
+    name: 'pins-knob-servo',
+    covers: ['C-02', 'C-25', 'C-27', 'C-34'],
+    blocks: program([], [servoWrite('P1', idiv(pinAnalog('P2'), num(22)))]),
+    scripts: [script({}, { P2: [0] }), script({}, { P2: [2048] }), script({}, { P2: [4095] })],
   },
 ];

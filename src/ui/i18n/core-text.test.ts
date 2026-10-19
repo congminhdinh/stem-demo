@@ -46,6 +46,8 @@ const handWritten = [
   'led cannot be used in a ybc-basic project.',
   'led, button cannot be used in a generic project.',
   'This board has no analog input, so this block cannot be used.',
+  'This board has no PWM output, so this block cannot be used.',
+  'This board has no servo pin, so this block cannot be used.',
 ];
 
 describe('the core’s messages in Vietnamese (N8s)', () => {
@@ -93,6 +95,13 @@ describe('the core’s messages in Vietnamese (N8s)', () => {
     ['"set light" needs a value.', 'Khối "bật đèn" cần một giá trị.'],
     // N17 B4: the floating pin, in the words of the owner's ruling, A+B and random numbers.
     ['Pin P1 is floating, so it reads 0. Connect the button to 3V3 or GND.', 'Chân P1 đang thả nổi — đọc là 0. Hãy nối nút với 3V3 hoặc GND.'],
+    // N17 B5: a value outside its range is clamped, with a warning, in Vietnamese in a lab launch.
+    ['The analog value 2000 for P0 is outside 0 to 1023, so it is clamped to 1023.', 'Giá trị analog 2000 của chân P0 nằm ngoài khoảng 0 tới 1023, nên được kẹp về 1023.'],
+    ['The servo angle -40 for P1 is outside 0 to 180, so it is clamped to 0.', 'Góc servo -40 của chân P1 nằm ngoài khoảng 0 tới 180, nên được kẹp về 0.'],
+    ['An analog value is between 0 and 1023, not 1024.', 'Giá trị analog nằm trong khoảng 0 tới 1023, không phải 1024.'],
+    ['A servo angle is between 0 and 180, not -1.', 'Góc servo nằm trong khoảng 0 tới 180, không phải -1.'],
+    ['This board has no PWM output, so this block cannot be used.', 'Bo mạch này không có đầu ra PWM, nên không dùng được khối này.'],
+    ['This board has no servo pin, so this block cannot be used.', 'Bo mạch này không có chân servo, nên không dùng được khối này.'],
     ['A button is A, B or A+B.', 'Nút là A, B hoặc A+B.'],
     ['A bound of a random number must be between -1000000 and 1000000, not 1000001.', 'Một đầu của số ngẫu nhiên phải nằm trong khoảng -1000000 tới 1000000, không phải 1000001.'],
     ['The bounds of a random number must be at most 1000000 apart.', 'Hai đầu của số ngẫu nhiên chỉ được cách nhau tối đa 1000000.'],

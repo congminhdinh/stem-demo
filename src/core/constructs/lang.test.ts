@@ -8,7 +8,7 @@ import { productionProfiles } from '../profiles';
 import { buildToolbox, createBlockPackCatalog } from '../program/block-packs';
 import { langConstructs, langContractIds, langPackIds } from './lang';
 import { hardwareConstructs, hardwareContractIds } from './ybc';
-import { pinConstructs, pinContractIds } from './ybc.pins';
+import { pinConstructs, pinContractIds, pinOutputConstructs } from './ybc.pins';
 
 // The YB-2a language constructs (and, since YB-4, the three header-pin rows) against the frozen
 // machine-readable contract: every block a profile shows is a construct, every construct a contract
@@ -19,15 +19,15 @@ const packs = createBlockPackCatalog(createDeviceRegistry(localDeviceDefinitions
 const profiles = ['ybc-basic', 'ybc-advanced'].map((id) => productionProfiles.get(id));
 
 /**
- * Rows that must stay out of every profile until their own phase: events, PWM and servo (YB-7), text variables and functions.
+ * Rows that must stay out of every profile until their own phase: events, text variables and functions (YB-7). N17 B5 opened
+ * analog write (C-26) and the servo (C-27) in Advanced; they stay out of Basic (checked below).
  * N17 B4 opened random (C-40) and the running time (C-19) as language rows of both profiles. The onboard hardware of YB-3 (display C-06…C-09, buttons C-12 and C-13, light C-15, sound C-50 and
  * C-51), the RGB display of N17 B1 (C-05, C-10, C-42, C-43), the sensors of N17 B2 (C-16, C-17, C-18) and the melodies, the tone
  * and stop of N17 B3 (C-20, C-21, C-22), both Advanced only, are shown and are tested in ybc.test.ts; C-23, C-24 and C-25 are the
  * header pins of YB-4.
  */
 const notYet = [
-  'C-14', 'C-26',
-  'C-27',
+  'C-14',
   'C-57', 'C-58', 'C-59',
 ];
 
@@ -59,15 +59,20 @@ describe('YB-2a language constructs', () => {
     const advancedOnly = ['C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22'];
     for (const profile of profiles) {
       const hardware = profile?.id === 'ybc-advanced' ? hardwareContractIds : hardwareContractIds.filter((id) => !advancedOnly.includes(id));
-      expect([...(profile?.constructs ?? [])].sort()).toEqual(['C-01', 'C-02', ...langContractIds, ...hardware, ...pinContractIds].sort());
+      // N17 B5: analog write and the servo are Advanced's pins.
+      const pins = profile?.id === 'ybc-advanced' ? [...pinContractIds, ...pinOutputConstructs.map((construct) => construct.contractId)] : pinContractIds;
+      expect([...(profile?.constructs ?? [])].sort()).toEqual(['C-01', 'C-02', ...langContractIds, ...hardware, ...pins].sort());
       expect(profileConstructViolations(profile?.id ?? '', profile?.constructs ?? [], contract)).toEqual([]);
     }
   });
 
-  it('keeps Advanced a superset of Basic, with no extra language construct: Advanced adds only the sensors of N17 B2, the music of N17 B3 and their packs', () => {
+  it('keeps Advanced a superset of Basic, with no extra language construct: Advanced adds only the sensors of N17 B2, the music of N17 B3, analog write and the servo of N17 B5 and their packs', () => {
     const [basic, advanced] = profiles;
-    expect(advanced?.constructs).toEqual([...(basic?.constructs ?? []), 'C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22']);
-    expect(advanced?.blockPacks).toEqual([...(basic?.blockPacks ?? []), 'ybc.sensors', 'ybc.music']);
+    expect([...(advanced?.constructs ?? [])].sort()).toEqual([...(basic?.constructs ?? []), 'C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22', 'C-26', 'C-27'].sort());
+    expect([...(advanced?.blockPacks ?? [])].sort()).toEqual([...(basic?.blockPacks ?? []), 'ybc.sensors', 'ybc.music', 'ybc.pwm'].sort());
+    for (const id of ['C-26', 'C-27']) {
+      expect(basic?.constructs, id).not.toContain(id);
+    }
   });
 
   it('exposes none of the rows that are excluded, deferred or belong to a later phase', () => {
@@ -97,6 +102,7 @@ describe('YB-2a language constructs', () => {
       ...langConstructs.flatMap((construct) => construct.blockTypes),
       ...hardwareConstructs.flatMap((construct) => construct.blockTypes),
       ...pinConstructs.flatMap((construct) => construct.blockTypes),
+      ...pinOutputConstructs.flatMap((construct) => construct.blockTypes),
     ]);
     for (const profile of profiles) {
       const shown = blockTypesIn(buildToolbox(profile?.blockPacks ?? [], packs));
@@ -145,7 +151,7 @@ describe('YB-2a language constructs', () => {
     });
 
     it('a profile cannot list an excluded or deferred row', () => {
-      for (const id of ['C-26', 'C-14', 'C-47']) {
+      for (const id of ['C-28', 'C-14', 'C-47']) {
         expect(profileConstructViolations('ybc-basic', [id], contract), id).not.toEqual([]);
       }
     });

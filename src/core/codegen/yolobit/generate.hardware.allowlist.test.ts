@@ -316,15 +316,12 @@ describe('the allowlist this phase may generate is part of the contract allowlis
       expect(contractList.forms, form).toContain(form);
     }
     expect(phaseList.forms.every((form) => contractList.forms.includes(form))).toBe(true);
-    // The header pins of YB-4 (C-23…C-25) are generated too, in their contract forms.
-    for (const form of ['pin<N>.write_digital(<value>)', '(pin<N>.read_digital() == 1)', 'int(pin<N>.read_analog())']) {
+    // The header pins of YB-4 (C-23…C-25) are generated too, in their contract forms, and (N17 B5) analog write and the servo.
+    for (const form of ['pin<N>.write_digital(<value>)', '(pin<N>.read_digital() == 1)', 'int(pin<N>.read_analog())', 'pin<N>.write_analog(<value>)', 'pin<N>.servo_write(<angle>)']) {
       expect(phaseList.forms, form).toContain(form);
     }
-    // The rows of the later phases are in the contract’s list but not in what is generated.
-    for (const later of ['pin<N>.servo_write(<angle>)']) {
-      expect(contractList.forms, later).toContain(later);
-      expect(phaseList.forms, later).not.toContain(later);
-    }
+    // Pulse in (C-28) is EXCLUDED: it has no form in either list.
+    expect([...contractList.forms, ...phaseList.forms].filter((form) => form.includes('pulse_in'))).toEqual([]);
   });
 
   it('has the four imports (N17 B4: random), the four preamble lines (IM-2, IM-4) and the builtins of IM-9 with min and max (N17 B4)', () => {
@@ -528,10 +525,14 @@ describe('the audit would notice what the hardware must not use (it is not vacuo
     expect(audit(around('display.set_pixel(0, 0, "#FF0000")'), contractList, learner).calls).toEqual(['display.set_pixel(0, 0, "#FF0000")']);
   });
 
-  it('knows servo as a row of the contract that is not generated yet, and the pins of YB-4, the pixels of N17 B1 and the sensors of N17 B2 as generated', () => {
-    for (const line of ['pin0.servo_write(90)']) {
-      expect(audit(around(line), contractList, learner), line).toEqual(clean);
+  it('knows pulse in as no row of the list, and the pins of YB-4, the pixels of N17 B1, the sensors of N17 B2 and analog write and the servo of N17 B5 as generated', () => {
+    for (const line of ['x = pin0.pulse_in(1)']) {
+      expect(audit(around(line), contractList, learner), line).not.toEqual(clean);
       expect(audit(around(line), phaseList, learner), line).not.toEqual(clean);
+    }
+    for (const line of ['pin0.servo_write(90)', 'pin1.write_analog(512)', 'pin2.write_analog(max(0, min(1023, x * 4)))', 'pin0.servo_write(max(0, min(180, x)))']) {
+      expect(audit(around(line), contractList, learner), line).toEqual(clean);
+      expect(audit(around(line), phaseList, learner), line).toEqual(clean);
     }
     for (const line of ["display.set_pixel(0, 0, '#FF0000')", 'display.show(Image.HEART)', 'x = int(temperature())', 'x = accelerometer.get_z()']) {
       expect(audit(around(line), contractList, learner), line).toEqual(clean);

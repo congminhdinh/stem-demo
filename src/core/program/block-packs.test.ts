@@ -27,6 +27,8 @@ describe('block packs', () => {
       'ybc.sensors',
       'ybc.music',
       'ybc.pins',
+      // N17 B5: analog write and the servo of the Advanced board.
+      'ybc.pwm',
       'lang.logic',
       'lang.loops',
       'lang.math',
@@ -92,6 +94,9 @@ describe('block packs', () => {
       'ybc_pin_write',
       'ybc_pin_read',
       'ybc_pin_analog',
+      // N17 B5: analog write and the servo of the Advanced board.
+      'ybc_pin_write_analog',
+      'ybc_servo_write',
       'ybc_while',
       'ybc_count_up',
       'ybc_wait_ms',

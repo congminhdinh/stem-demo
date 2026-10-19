@@ -94,7 +94,8 @@ describe('the pin blocks as Blockly registers them', () => {
       const toolbox = buildToolbox(productionProfiles.get(id)?.blockPacks ?? [], packs);
       const pins = toolbox.contents.find((category) => category.name === 'Pins');
       const types = (pins?.contents ?? []).map((item) => (item as { type: string }).type);
-      expect(types, id).toEqual(['ybc_pin_write', 'ybc_pin_read', 'ybc_pin_analog']);
+      // N17 B5: Advanced adds analog write and the servo after the three.
+      expect(types, id).toEqual(['ybc_pin_write', 'ybc_pin_read', 'ybc_pin_analog', ...(id === 'ybc-advanced' ? ['ybc_pin_write_analog', 'ybc_servo_write'] : [])]);
       withWorkspace((workspace) => {
         for (const type of types) {
           expect(() => workspace.newBlock(type), type).not.toThrow();

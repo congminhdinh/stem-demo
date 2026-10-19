@@ -4,7 +4,7 @@ import type { RuntimeServices } from '../capabilities/services';
 import { DEFAULT_COLOUR, IMAGE_SIZE, isDisplayText, paletteColourOf } from '../constructs/ybc.display';
 import { isBuiltinImageName } from '../constructs/ybc.images';
 import { isAxisName, isGestureName } from '../constructs/ybc.input';
-import { runPinCall, runPinRead } from '../constructs/ybc.pins';
+import { clampWarning, runPinCall, runPinRead, type ClampedValue } from '../constructs/ybc.pins';
 import { isMelodyName, noteTicks, PITCH_MAX_HZ, PITCH_MAX_MS, PITCH_MIN_HZ } from '../constructs/ybc.sound';
 import {
   charactersOf,
@@ -64,6 +64,10 @@ import type { ButtonOperand, CallStatement, ColourOperand, Expr, ImageOperand, R
 // N17 B4: the running time is the whole milliseconds on the run's clock since the program started. A random number evaluates its
 // ends in their order, each once, checks each as soon as it is known, then their distance, and draws from the run's `randomInt`
 // with the lower end first (the ends may come in either order); a number outside them is an internal error, never a crash.
+//
+// N17 B5: an analog write (a PWM duty) and a servo's angle are pin calls, their arguments evaluated as a digital write's are. A value
+// outside 0..1023 / 0..180 is clamped (constructs/ybc.pins.ts) and the run is warned through `services.warn`, once per pin and kind;
+// the program goes on.
 
 /** One note or rest of a melody (or a tone), for `ms`; `hz` null is silence. */
 type Sounding = { hz: number | null; ms: number };
@@ -106,6 +110,16 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
       throw new RuntimeFault('internal-error', 'The board is missing a part this block needs.');
     }
     return found;
+  };
+
+  /** N17 B5: the pins and kinds (`pwm.write:P0`) whose clamped value the run was warned about: once each in a run. */
+  const clampWarned = new Set<string>();
+  const warnClamped = (clamped: ClampedValue) => {
+    const key = `${clamped.op}:${clamped.pin}`;
+    if (!clampWarned.has(key)) {
+      clampWarned.add(key);
+      services.warn(clampWarning(clamped));
+    }
   };
 
   /** What the display shows now: the frame the program gave it last. It starts dark, as RunSession's display does. */
@@ -683,11 +697,12 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
           break;
         }
         case 'call': {
-          if (statement.op === 'digital.write') {
-            // A header pin (YB-4): the arguments first, left to right, each once; then the one call into the board.
+          if (statement.op === 'digital.write' || statement.op === 'pwm.write' || statement.op === 'servo.write') {
+            // A header pin (YB-4; N17 B5: PWM and servo): the arguments first, left to right, each once; then the one call into the
+            // board, with a PWM duty or an angle outside its range clamped and the run warned.
             const args = statement.args.map((arg) => values.asInt(evaluate(arg)));
             blockId = statement.blockId;
-            runPinCall(statement.op, args, capabilities);
+            runPinCall(statement.op, args, capabilities, warnClamped);
             break;
           }
           await runCall(statement);

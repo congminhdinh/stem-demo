@@ -3,6 +3,7 @@ import { buildNetlist } from '../circuit/netlist';
 import type { DeviceDefinition } from '../devices/device-definition';
 import type { Frame } from '../capabilities/frame';
 import type { DeviceRegistry } from '../devices/registry';
+import { dutyToBrightness } from './conversions';
 
 // Net-level logic simulation (plan §6.5): a pure function of the design and
 // the runtime inputs, recomputed in full on every change.
@@ -14,16 +15,23 @@ import type { DeviceRegistry } from '../devices/registry';
 //   generic board. A Yolo:Bit-compatible board does not guess: the reader of the
 //   pin sees `floating` (and the program stops, see run/ybc-pin-io.ts).
 // - Two LEDs in series stay off: the net between them is floating.
-// - No voltage, current, brightness, burn-out or transients; all rails share
-//   one reference.
+// - No voltage, current, burn-out or transients; all rails share one
+//   reference. An LED's brightness is a PWM duty's only (N17 B5, below).
 // - The one signal that is not a logic level is an analog source's output (YB-4, a potentiometer's wiper):
 //   a net it alone drives is `analog`, with the slider position as a percentage.
+// - N17 B5: a pin a program drives with a PWM duty (`write_analog`, 0..1023) or a servo signal (`servo_write`, 0..180°) carries
+//   it on its net. Such a pulse train is on part of the time: to every other part the net reads as on (high; a duty of 0 is a
+//   steady low), and anything else that drives the net fights it (a conflict). An LED fed from a PWM net is lit at duty / 1023
+//   (`brightness`); on any other high net it is lit as before, with no brightness. A servo powered from a high and a low rail
+//   turns to the angle of a servo signal on its own net, and rests at 90° otherwise: the simulation keeps no memory, so a servo
+//   whose signal stops goes back to 90° (a real one stays where it was). An LED whose cathode is on a PWM pin follows the level
+//   (off while the duty is above 0), not the inverse duty.
 
 export type SimulationInputs = {
   /** Run powers the board (plan §6.4 E1). Nothing drives a net while unpowered. */
   powered: boolean;
-  /** Levels the program drives, by board pin name. A pin left out is not driven. */
-  pinOutputs: Readonly<Record<string, 0 | 1>>;
+  /** What the program drives, by board pin name: a level, or (N17 B5) a PWM duty or a servo signal. A pin left out is not driven. */
+  pinOutputs: Readonly<Record<string, PinOutput>>;
   /** Contacts held closed (a pressed push button), by component id. One left out is open. */
   contacts?: Readonly<Record<string, boolean>>;
   /**
@@ -57,6 +65,29 @@ export type ComponentState = {
   /** A servo's angle. */
   angle?: number;
 };
+
+/**
+ * N17 B5: what a program drives a pin with besides a level. `pwm` is `write_analog`'s duty, 0..1023 (0 is a steady low, anything
+ * else a pulse train); `servo` is `servo_write`'s pulse train for an angle, 0..180°. The capability that writes them has checked
+ * their range (run/ybc-pin-io.ts).
+ */
+export type PinSignalOutput = { kind: 'pwm'; duty: number } | { kind: 'servo'; angle: number };
+/** What a program drives a pin with: a level, or a signal (N17 B5). */
+export type PinOutput = 0 | 1 | PinSignalOutput;
+
+/** Whether two pin outputs are the same drive (a level, or a signal of the same kind and value). */
+export function samePinOutput(a: PinOutput | undefined, b: PinOutput | undefined): boolean {
+  if (typeof a !== 'object' || typeof b !== 'object') {
+    return a === b;
+  }
+  if (a.kind === 'pwm') {
+    return b.kind === 'pwm' && a.duty === b.duty;
+  }
+  return b.kind === 'servo' && a.angle === b.angle;
+}
+
+/** N17 B5: where a servo stands when no servo signal reaches it: at 90°, the middle of its 0..180°, at every run start and Stop. */
+export const SERVO_REST_ANGLE = 90;
 
 /** The tone state of the buzzer: what `ComponentState.hz` says while a note plays. */
 export type ToneState = Required<Pick<ComponentState, 'hz'>>;
@@ -187,6 +218,7 @@ export type SimulationResult = {
 
 const contactModel = 'contact';
 const analogSourceModel = 'analog-source';
+const servoModel = 'servo';
 /** The models of a board whose pins a program drives and reads: the generic board and the Yolo:Bit-compatible one. */
 const boardModels: ReadonlySet<string> = new Set(['board', 'ybc-board']);
 
@@ -247,11 +279,28 @@ export function simulateCircuit(
   const levels = new Map<number, NetLevel>();
   const netLevel = (net: number): NetLevel => levels.get(net) ?? 'floating';
   const levelOf = (ref: PortRef) => netLevel(netlist.netOf(ref));
+  // N17 B5: the signal a pin drives its net with (a PWM duty above 0, a servo pulse train), by net index. It counts only while the
+  // net is high, its own: a net it shares with another driver is a conflict.
+  const signals = new Map<number, PinSignalOutput>();
+  const signalOf = (ref: PortRef) => {
+    const net = netlist.netOf(ref);
+    return netLevel(net) === 'high' ? signals.get(net) : undefined;
+  };
   const drive = (ref: PortRef, level: 0 | 1) => {
     const net = netlist.netOf(ref);
     const driven = level === 1 ? 'high' : 'low';
     const current = netLevel(net);
-    levels.set(net, current === 'floating' || current === driven ? driven : 'conflict');
+    levels.set(net, !signals.has(net) && (current === 'floating' || current === driven) ? driven : 'conflict');
+  };
+  // A pulse train is high only part of the time: alone on its net it reads as on; with any other driver it is a conflict.
+  const driveSignal = (ref: PortRef, signal: PinSignalOutput) => {
+    const net = netlist.netOf(ref);
+    if (netLevel(net) === 'floating') {
+      levels.set(net, 'high');
+      signals.set(net, signal);
+    } else {
+      levels.set(net, 'conflict');
+    }
   };
   // An analog source: alone on its net it gives `analog`; any other driver, or a second source, is a conflict.
   const analogPercents = new Map<number, number>();
@@ -275,9 +324,17 @@ export function simulateCircuit(
         }
       }
       for (const pin of definition.board?.pins ?? []) {
-        const level = Object.hasOwn(inputs.pinOutputs, pin.name) ? inputs.pinOutputs[pin.name] : undefined;
-        if (level !== undefined) {
-          drive(port(component, pin.portId), level);
+        const output = Object.hasOwn(inputs.pinOutputs, pin.name) ? inputs.pinOutputs[pin.name] : undefined;
+        if (output === undefined) {
+          continue;
+        }
+        if (typeof output === 'number') {
+          drive(port(component, pin.portId), output);
+        } else if (output.kind === 'pwm' && output.duty <= 0) {
+          // A duty of 0 never goes high: a steady low, as a level is.
+          drive(port(component, pin.portId), 0);
+        } else {
+          driveSignal(port(component, pin.portId), output);
         }
       }
     }
@@ -297,11 +354,18 @@ export function simulateCircuit(
         : { ports, level: netLevel(net) };
     }),
     components: Object.fromEntries([
-      // A shorted LED has one level on both legs, so it stays off.
-      ...withModel('led').map(({ component }): [string, ComponentState] => [
-        component.id,
-        { lit: levelOf(port(component, 'anode')) === 'high' && levelOf(port(component, 'cathode')) === 'low' },
-      ]),
+      // A shorted LED has one level on both legs, so it stays off. Fed from a PWM net (N17 B5), it is as bright as the duty.
+      ...withModel('led').map(({ component }): [string, ComponentState] => {
+        const lit = levelOf(port(component, 'anode')) === 'high' && levelOf(port(component, 'cathode')) === 'low';
+        const signal = lit ? signalOf(port(component, 'anode')) : undefined;
+        return [component.id, signal?.kind === 'pwm' ? { lit, brightness: dutyToBrightness(signal.duty) } : { lit }];
+      }),
+      // N17 B5: a servo powered from its rails turns to the angle of the servo signal on its net, and rests at 90° otherwise.
+      ...withModel(servoModel).map(({ component }): [string, ComponentState] => {
+        const powered = levelOf(port(component, 'vcc')) === 'high' && levelOf(port(component, 'gnd')) === 'low';
+        const signal = powered ? signalOf(port(component, 'signal')) : undefined;
+        return [component.id, { angle: signal?.kind === 'servo' ? signal.angle : SERVO_REST_ANGLE }];
+      }),
       // Reported back so a pressed button is drawn from the snapshot, like a lit LED.
       ...contacts.map(({ component, closed }): [string, ComponentState] => [component.id, { closed }]),
       // The knob is drawn from the snapshot too: its position is the run's input, never the document's (B2).

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { cmp, ifThen, num, print, program, wait } from '../src/core/program/__fixtures__/ybc-blocks';
-import { pinAnalog, pinRead, pinWrite } from '../src/core/program/__fixtures__/ybc-pin-blocks';
+import { pinAnalog, pinRead, pinWrite, pinWriteAnalog, servoWrite } from '../src/core/program/__fixtures__/ybc-pin-blocks';
 import { canvasState, currentProject, dragFromFlyout, expectBlockText, openProject } from './helpers';
 
 // YB-4 (YB plan §14 B8–B10, contract P7): the header pins through the whole stack. A potentiometer on P1 and an
@@ -161,4 +161,98 @@ test('builds a pin block from the toolbox, with its real dropdowns, and the LED 
   await expect.poll(async () => (await rendered(page, 'led-1'))?.lit).toBe(true);
   await page.getByRole('button', { name: 'Stop' }).click();
   expect(JSON.stringify(await page.evaluate(() => window.__stem?.getProgramBlocks()))).toContain('"PIN":"P0"');
+});
+
+// N17 B5: analog write (PWM) dims an LED fed through the resistor, and a servo turns on P0–P2, in the Advanced profile only. The
+// LED's brightness and the servo's arm are read back from what Konva drew. Review Focus 1: Stop puts the servo back at 90° and the
+// LED out at once, and a new run starts from there.
+test.describe('analog write and the servo (N17 B5)', () => {
+  const servoPart = { id: 'servo-1', deviceType: 'servo', position: { x: 560, y: 120 } };
+  const servoWires = [
+    wire('s1', ['servo-1', 'signal'], ['ybc-board-1', 'p1']),
+    wire('s2', ['servo-1', 'vcc'], ['ybc-board-1', '3v3']),
+    wire('s3', ['servo-1', 'gnd'], ['ybc-board-1', 'gnd']),
+  ];
+  const ledAndServo = { components: [board, resistor, led, servoPart], wires: [...ledWires, ...servoWires] };
+  /** Waits 1.5 s first, so the start of each run can be seen: the servo at 90°, the LED out. */
+  const dimAndTurn = (profile = 'ybc-advanced') =>
+    project(program([wait(num(1500)), pinWriteAnalog('P0', num(512)), servoWrite('P1', num(30))], []), ledAndServo, profile);
+
+  test('offers the servo in the Advanced palette and the two blocks in its Pins category; Basic has neither', async ({ page }) => {
+    await openProject(page, project(program([], []), { components: [board], wires: [] }, 'ybc-advanced'));
+    await expect(page.getByRole('toolbar', { name: 'Add a device' }).getByRole('button')).toHaveText([
+      '+ Bit-compatible Board',
+      '+ LED',
+      '+ Resistor',
+      '+ Push Button',
+      '+ Potentiometer',
+      '+ Servo',
+    ]);
+    const panel = page.getByTestId('blockly-panel');
+    await panel.locator('.blocklyToolboxCategory', { hasText: 'Pins' }).click();
+    for (const label of ['set pin', 'digital read pin', 'analog read pin', 'analog write pin', 'servo pin']) {
+      await expect(panel.locator('.blocklyFlyout .blocklyText', { hasText: label }).first()).toBeVisible();
+    }
+
+    await openProject(page, project(program([], []), { components: [board], wires: [] }, 'ybc-basic'));
+    await expect(page.getByRole('toolbar', { name: 'Add a device' }).getByRole('button')).toHaveText(['+ Bit-compatible Board', '+ LED', '+ Resistor', '+ Push Button', '+ Potentiometer']);
+    await panel.locator('.blocklyToolboxCategory', { hasText: 'Pins' }).click();
+    await expect(panel.locator('.blocklyFlyout .blocklyText', { hasText: /analog write|servo/ })).toHaveCount(0);
+  });
+
+  test('dims the LED and turns the servo; Stop puts the servo at 90° and the LED out at once, and Run starts clean (Review Focus 1)', async ({ page }) => {
+    await openProject(page, dimAndTurn());
+    await expect.poll(async () => (await rendered(page, 'servo-1'))?.angle).toBe(90);
+    expect((await rendered(page, 'servo-1'))?.texts).toContain('90°');
+
+    await page.getByRole('button', { name: 'Run' }).click();
+    await expect(status(page)).toHaveText('Running');
+    expect(await rendered(page, 'servo-1')).toMatchObject({ angle: 90 });
+    expect(await rendered(page, 'led-1')).toMatchObject({ lit: false });
+    await expect.poll(async () => (await rendered(page, 'led-1'))?.brightness, { timeout: 10_000 }).toBeCloseTo(512 / 1023, 5);
+    await expect.poll(async () => (await rendered(page, 'servo-1'))?.angle).toBe(30);
+    expect((await rendered(page, 'servo-1'))?.texts).toContain('30°');
+
+    await page.getByRole('button', { name: 'Stop' }).click();
+    await expect(status(page)).toHaveText('Idle');
+    expect(await rendered(page, 'servo-1')).toMatchObject({ angle: 90 });
+    expect(await rendered(page, 'led-1')).toMatchObject({ lit: false, brightness: 0 });
+
+    await page.getByRole('button', { name: 'Run' }).click();
+    await expect(status(page)).toHaveText('Running');
+    expect(await rendered(page, 'servo-1')).toMatchObject({ angle: 90 });
+    expect(await rendered(page, 'led-1')).toMatchObject({ lit: false });
+    await expect.poll(async () => (await rendered(page, 'servo-1'))?.angle, { timeout: 10_000 }).toBe(30);
+    await page.getByRole('button', { name: 'Stop' }).click();
+  });
+
+  test('clamps a value outside its range and says so once, as a warning; the program goes on', async ({ page }) => {
+    await openProject(page, project(program([], [pinWriteAnalog('P0', num(5000)), servoWrite('P1', num(-20)), wait(num(50))]), ledAndServo, 'ybc-advanced'));
+    await page.getByRole('button', { name: 'Run' }).click();
+    await expect.poll(async () => (await rendered(page, 'led-1'))?.brightness).toBe(1);
+    await expect.poll(async () => (await rendered(page, 'servo-1'))?.angle).toBe(0);
+    const messages = page.getByTestId('run-messages').locator('li');
+    await expect(messages).toHaveText([
+      'Warning: The analog value 5000 for P0 is outside 0 to 1023, so it is clamped to 1023.',
+      'Warning: The servo angle -20 for P1 is outside 0 to 180, so it is clamped to 0.',
+    ]);
+    await expect(status(page)).toHaveText('Running');
+    await page.getByRole('button', { name: 'Stop' }).click();
+  });
+
+  test('writes the Python: pin0.write_analog(512) and pin1.servo_write(30)', async ({ page }) => {
+    await openProject(page, dimAndTurn());
+    const source = page.getByTestId('python-source');
+    await expect(source).toContainText('from yolobit import *');
+    await expect(source).toContainText('pin0.write_analog(512)');
+    await expect(source).toContainText('pin1.servo_write(30)');
+  });
+
+  test('a Basic project cannot hold the servo: the part is marked and the run does not start', async ({ page }) => {
+    await openProject(page, dimAndTurn('ybc-basic'));
+    await expect.poll(async () => (await rendered(page, 'servo-1'))?.incompatible).toBe(true);
+    await page.getByRole('button', { name: 'Run' }).click();
+    await expect(page.getByTestId('run-messages')).toContainText('The circuit has devices that this kind of project cannot use.');
+    await expect(status(page)).toHaveText('Idle');
+  });
 });

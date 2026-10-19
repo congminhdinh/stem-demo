@@ -17,7 +17,7 @@ import {
   setPixelType, showIconType, showImageDefinition, showImageType,
 } from './ybc.display';
 import { accelerationType, axisNames, buttonNames, buttonPressedType, buttonPressesType, gestureIsType, gestureNames, lightLevelType, pressedButtonNames, temperatureType } from './ybc.input';
-import { pinConstructs, pinContractIds } from './ybc.pins';
+import { pinConstructs, pinContractIds, pinOutputConstructs } from './ybc.pins';
 import { editorMelodyNames, melodyNames, melodyType, noteNames, noteTicks, pitchType, playNoteType, restType, soundStopType } from './ybc.sound';
 
 // The YB-3 hardware constructs against the frozen machine-readable contract: every block a profile shows for the
@@ -73,12 +73,14 @@ const profilesOf = (id: string) => (advancedOnlyIds.includes(id) ? [advanced] : 
 
 /**
  * Rows the onboard hardware does not own that no profile lists yet. The header pins (C-23…C-25) are not its either: they are YB-4's,
- * and listed; nor are the running time (C-19) and random numbers (C-40) of N17 B4, which are language rows (constructs/lang.ts).
+ * and listed; nor are the running time (C-19) and random numbers (C-40) of N17 B4, which are language rows (constructs/lang.ts),
+ * nor analog write (C-26) and the servo (C-27) of N17 B5, which are pin rows of Advanced (constructs/ybc.pins.ts).
  */
 const notOwned = [
-  'C-27',
-  'C-14', 'C-26', 'C-47', 'C-11', 'C-52',
+  'C-14', 'C-47', 'C-11', 'C-52',
 ];
+/** N17 B5: the pin rows of the Advanced board's `ybc.pwm` pack. */
+const pinOutputIds = pinOutputConstructs.map((construct) => construct.contractId);
 
 type Json = Record<string, unknown>;
 
@@ -314,7 +316,8 @@ describe('what both profiles list', () => {
   it('is exactly the hardware rows next to the structure, the language and the header pins of YB-4: Advanced all of them, Basic all but the sensors and the music', () => {
     for (const profile of profiles) {
       const shown = profile === advanced ? hardwareIds : hardwareIds.filter((id) => !advancedOnlyIds.includes(id));
-      expect([...profile.constructs].sort(), profile.id).toEqual(['C-01', 'C-02', ...langContractIds, ...shown, ...pinContractIds].sort());
+      const pins = profile === advanced ? [...pinContractIds, ...pinOutputIds] : pinContractIds;
+      expect([...profile.constructs].sort(), profile.id).toEqual(['C-01', 'C-02', ...langContractIds, ...shown, ...pins].sort());
       expect(profileConstructViolations(profile.id, profile.constructs, contract), profile.id).toEqual([]);
       for (const pack of hardwarePackIds) {
         if (profile === advanced || (pack !== 'ybc.sensors' && pack !== 'ybc.music')) {
@@ -333,7 +336,7 @@ describe('what both profiles list', () => {
   });
 
   it('do not list the rows the onboard hardware does not own (events, PWM, time, random, A+B, brightness, tempo), and do not count the pins of YB-4 as its rows', () => {
-    for (const id of pinContractIds) {
+    for (const id of [...pinContractIds, ...pinOutputIds]) {
       expect(hardwareContractIds, id).not.toContain(id);
     }
     for (const id of notOwned) {
@@ -347,7 +350,8 @@ describe('what both profiles list', () => {
 
   it('have a block type for the onboard rows and the three pin rows of YB-4 only: no brightness, tempo, A+B, event, random, elapsed-time or other pin block exists in the YBC packs', () => {
     const ybcTypes = packs.list().filter((pack) => pack.family === 'ybc').flatMap((pack) => pack.blockTypes);
-    const pinBlockTypes = pinConstructs.flatMap((construct) => construct.blockTypes);
+    // N17 B5: analog write and the servo are pin blocks too (the `ybc.pwm` pack).
+    const pinBlockTypes = [...pinConstructs, ...pinOutputConstructs].flatMap((construct) => construct.blockTypes);
     const expected = ['stem_on_start', 'stem_forever', ...langConstructs.flatMap((construct) => construct.blockTypes), ...hardwareBlockTypes, ...pinBlockTypes];
     expect([...ybcTypes].sort()).toEqual([...expected].sort());
     // N17 B4: the running time and random numbers are language rows of both profiles (constructs/lang.ts), so they are not counted here.

@@ -15,6 +15,12 @@ export type Clock = { now(): number };
  */
 export type RandomInt = (low: number, high: number) => number;
 
+/**
+ * N17 B5: a warning of a run that does not stop it (a value outside its range, clamped). It joins the run's diagnostics, once per
+ * code and message, as the board's warnings do (RunEnvironment.warn, N17 B4).
+ */
+export type RunWarning = { code: string; message: string };
+
 /** Where `print` writes. The run console (500 lines / 256 KB, plan §6.7) is one; it is runtime state, never the document. */
 export type ConsoleSink = Pick<RunConsole, 'write'>;
 
@@ -49,6 +55,8 @@ export type RuntimeServices = {
   signal: AbortSignal;
   /** N17 B4: the run's random numbers (`random.randint`): Math.random's, or a seeded run's own. */
   randomInt: RandomInt;
+  /** N17 B5: tells the run something it should know and goes on (a value clamped). Inert once the run is over. */
+  warn(warning: RunWarning): void;
 };
 
 const performanceClock: Clock = { now: () => performance.now() };
@@ -89,6 +97,8 @@ export function createRuntimeServices(options: {
   scheduler?: RunScheduler;
   /** N17 B4: where the random numbers come from; Math.random by default. */
   randomInt?: RandomInt;
+  /** N17 B5: where the run's warnings go; nowhere by default. */
+  warn?(warning: RunWarning): void;
 }): RuntimeServices {
   const { signal, console } = options;
   const clock = options.clock ?? performanceClock;
@@ -100,6 +110,7 @@ export function createRuntimeServices(options: {
     scheduler: options.scheduler ?? createRunScheduler(),
     signal,
     randomInt: options.randomInt ?? mathRandomInt,
+    warn: options.warn ?? (() => {}),
   };
 }
 

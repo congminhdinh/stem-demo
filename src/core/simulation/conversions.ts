@@ -2,7 +2,8 @@
 // board (YB plan §11.3, YB-CP deliverable 4). Pure functions of numbers, no document, no run.
 //
 // C-Q6 = Option A (owner, 2026-10-14): an analog read is the NATIVE 0..4095 of the board (contract C-25);
-// the UI shows 0..100 %. There is no 0..1023 scale and no duty: PWM / analog write is EXCLUDED (C-26).
+// the UI shows 0..100 %. N17 B5 (owner, 2026-10-19): an analog WRITE is a PWM duty 0..1023 (contract C-26, its range UNVERIFIED);
+// it is not an analog read's scale, and nothing converts one into the other.
 
 /** The native range of an analog read (contract C-25). */
 export const ANALOG_NATIVE_MAX = 4095;
@@ -32,4 +33,13 @@ export const percentToRaw = (percent: number): number => percentToNative(percent
 export function rawToPercent(raw: number): number {
   assertNumber(raw, 'A raw reading');
   return Math.floor((clamp(raw, 0, ANALOG_NATIVE_MAX) * 100) / ANALOG_NATIVE_MAX + 0.5);
+}
+
+/** N17 B5: the top of a PWM duty, `write_analog`'s 0..1023 (contract C-26; the range is UNVERIFIED on the board). */
+export const PWM_DUTY_MAX = 1023;
+
+/** N17 B5: how bright an LED fed by a duty is, 0..1, for display only: duty / 1023, clamped. */
+export function dutyToBrightness(duty: number): number {
+  assertNumber(duty, 'A duty');
+  return clamp(duty, 0, PWM_DUTY_MAX) / PWM_DUTY_MAX;
 }

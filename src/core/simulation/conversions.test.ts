@@ -101,8 +101,16 @@ describe('rawToPercent(r) = floor(r x 100 / 4095 + 0.5), for display', () => {
   });
 });
 
-describe('what is NOT converted (PWM and analog write are EXCLUDED, contract C-26)', () => {
-  it('has no 0..1023 scale and no duty function', () => {
-    expect(Object.keys(conversions).sort()).toEqual(['ANALOG_NATIVE_MAX', 'percentToNative', 'percentToRaw', 'rawToPercent']);
+describe('what is converted, and what is not (N17 B5: analog write is a PWM duty 0..1023, contract C-26)', () => {
+  it('has the analog read scale and, since N17 B5, the duty of an analog write, and nothing that turns one into the other', () => {
+    expect(Object.keys(conversions).sort()).toEqual(['ANALOG_NATIVE_MAX', 'PWM_DUTY_MAX', 'dutyToBrightness', 'percentToNative', 'percentToRaw', 'rawToPercent']);
+  });
+
+  it('gives the brightness of a duty, for display: duty / 1023, clamped; NaN is refused', () => {
+    expect(conversions.PWM_DUTY_MAX).toBe(1023);
+    expect([0, 1, 512, 1023].map(conversions.dutyToBrightness)).toEqual([0, 1 / 1023, 512 / 1023, 1]);
+    expect(conversions.dutyToBrightness(-5)).toBe(0);
+    expect(conversions.dutyToBrightness(5000)).toBe(1);
+    expect(() => conversions.dutyToBrightness(Number.NaN)).toThrow(RangeError);
   });
 });

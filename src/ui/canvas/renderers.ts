@@ -5,6 +5,7 @@ import { GenericRenderer } from './GenericRenderer';
 import { LedRenderer } from './LedRenderer';
 import { PotentiometerRenderer } from './PotentiometerRenderer';
 import { PushButtonRenderer } from './PushButtonRenderer';
+import { ServoRenderer } from './ServoRenderer';
 import { YbcBoardRenderer } from './YbcBoardRenderer';
 
 /**
@@ -43,6 +44,7 @@ const renderers = new Map<string, ComponentType<DeviceRendererProps>>([
   ['push-button', PushButtonRenderer],
   ['ybc-board', YbcBoardRenderer],
   ['potentiometer', PotentiometerRenderer],
+  ['servo', ServoRenderer],
 ]);
 
 /** Unknown renderer ids (e.g. the board for now) fall back to the generic body (B6). */

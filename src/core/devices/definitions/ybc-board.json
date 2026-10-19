@@ -14,9 +14,9 @@
   "simulation": { "model": "ybc-board" },
   "board": {
     "pins": [
-      { "name": "P0", "portId": "p0", "capabilities": ["digital", "analogIn"] },
-      { "name": "P1", "portId": "p1", "capabilities": ["digital", "analogIn"] },
-      { "name": "P2", "portId": "p2", "capabilities": ["digital", "analogIn"] }
+      { "name": "P0", "portId": "p0", "capabilities": ["digital", "analogIn", "pwm", "servo"] },
+      { "name": "P1", "portId": "p1", "capabilities": ["digital", "analogIn", "pwm", "servo"] },
+      { "name": "P2", "portId": "p2", "capabilities": ["digital", "analogIn", "pwm", "servo"] }
     ],
     "codeTarget": "yolobit-micropython",
     "reservedPins": [],

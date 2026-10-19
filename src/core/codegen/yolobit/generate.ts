@@ -1,7 +1,7 @@
 import { DEFAULT_COLOUR, IMAGE_SIZE, isDisplayText, paletteColourOf, paletteDigitOf } from '../../constructs/ybc.display';
 import { builtinImageRows, isBuiltinImageName, vendorImageNames } from '../../constructs/ybc.images';
 import { isAxisName, isButtonName, isGestureName } from '../../constructs/ybc.input';
-import { PIN_LEVELS, PIN_NUMBERS } from '../../constructs/ybc.pins';
+import { PIN_LEVELS, PIN_NUMBERS, PWM_MAX, SERVO_MAX_ANGLE } from '../../constructs/ybc.pins';
 import { isMelodyName, isNoteName, noteTicks, PITCH_MAX_HZ, PITCH_MAX_MS, PITCH_MIN_HZ } from '../../constructs/ybc.sound';
 import { MAX_RANDOM_ABS, MAX_RANDOM_SPAN, MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_SAFE_INT, MAX_TEXT_CHARS, MAX_WAIT_MS } from '../../program/limits';
 import type { ArithOp, CallStatement, ColourOperand, Expr, RandomExpr, ReadExpr, Type, YbcProgramIR, YbcStatement } from '../../program/ybc-ir';
@@ -21,12 +21,13 @@ import { defaultTarget, type GenTarget } from './target';
  * The contract rows the generator can emit: the language layer (YB-5A), the onboard hardware of YB-3 (display C-06…C-09,
  * buttons C-12 and C-13, light C-15, sound C-50 and C-51), the header pins of YB-4 (C-23, C-24, C-25), the RGB display
  * of N17 B1 (built-in pictures C-05, set pixel C-10, clear pixel C-42, set all C-43), the sensors of N17 B2 (temperature
- * C-16, acceleration C-17, gesture C-18), the buzzer of N17 B3 (melody C-20, tone C-21, stop C-22) and N17 B4's running time
- * (C-19) and random number (C-40); A+B is C-12 twice with C-35's `and`. The other hardware rows arrive with their phases.
+ * C-16, acceleration C-17, gesture C-18), the buzzer of N17 B3 (melody C-20, tone C-21, stop C-22), N17 B4's running time
+ * (C-19) and random number (C-40), and N17 B5's analog write (C-26) and servo (C-27); A+B is C-12 twice with C-35's `and`. The
+ * other hardware rows arrive with their phases.
  */
 export const generatedConstructs = [
   'C-01', 'C-02', 'C-04', 'C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-12', 'C-13', 'C-15', 'C-16', 'C-17', 'C-18', 'C-19', 'C-20', 'C-21', 'C-22', 'C-23',
-  'C-24', 'C-25', 'C-29', 'C-30', 'C-31', 'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-40', 'C-42', 'C-43', 'C-50', 'C-51', 'C-56',
+  'C-24', 'C-25', 'C-26', 'C-27', 'C-29', 'C-30', 'C-31', 'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-40', 'C-42', 'C-43', 'C-50', 'C-51', 'C-56',
 ] as const;
 
 export type GenDiagnosticCode =
@@ -517,12 +518,40 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
           emit(depth, `pin${pin}.write_digital(${level.value})`, statement.blockId);
           return;
         }
+        if (statement.op === 'pwm.write' || statement.op === 'servo.write') {
+          emitPinOutput(statement.op, statement.args, statement.blockId, depth);
+          return;
+        }
         emitCall(statement, depth);
         return;
       }
       default:
         report('unsupported-node', 'The generator does not know this kind of block.', (statement as { blockId?: string }).blockId);
     }
+  };
+
+  /**
+   * N17 B5: `pin<N>.write_analog(<value>)` (C-26) and `pin<N>.servo_write(<angle>)` (C-27), the calls the editor wrote (V·G). What
+   * the board does with a value outside 0..1023 / 0..180 is not shown, so it never gets one: a typed-in value is written clamped,
+   * a computed one as `max(0, min(top, v))`, evaluated once; the simulator clamps the same way and warns.
+   */
+  const emitPinOutput = (op: 'pwm.write' | 'servo.write', args: readonly Expr[], blockId: string, depth: number) => {
+    const pin = pinOf(args, 2, blockId);
+    const value = args[1];
+    if (pin === null || value === undefined) {
+      return;
+    }
+    const [call, top] = op === 'pwm.write' ? ['write_analog', PWM_MAX] : ['servo_write', SERVO_MAX_ANGLE];
+    expectType(value, 'int', op === 'pwm.write' ? 'An analog value' : 'A servo angle');
+    if (isLiteralInt(value)) {
+      if (!isValidIntLiteral(value.value)) {
+        report('invalid-literal', 'A number must be a whole number inside the safe range.', value.blockId);
+        return;
+      }
+      emit(depth, `pin${pin}.${call}(${Math.min(top, Math.max(0, value.value))})`, blockId);
+      return;
+    }
+    emit(depth, `pin${pin}.${call}(max(0, min(${top}, ${expression(value)})))`, blockId);
   };
 
   /**

@@ -1,4 +1,4 @@
-import { ANALOG_MAX } from '../../core/constructs/ybc.pins';
+import { ANALOG_MAX, PWM_MAX, SERVO_MAX_ANGLE } from '../../core/constructs/ybc.pins';
 import { melodyLabels, type MelodyName } from '../../core/constructs/ybc.sound';
 import type { Toolbox, ToolboxCategory } from '../../core/program/block-packs';
 import type { BlockDefinitionJson } from '../../core/program/blocks';
@@ -141,6 +141,11 @@ export const viBlockText: Readonly<Record<string, BlockText>> = {
   ybc_pin_write: { message0: 'đặt chân %1 thành %2', tooltip: 'Bật hoặc tắt một chân.' },
   ybc_pin_read: { message0: 'đọc số chân %1', tooltip: 'Đúng khi chân đang bật.' },
   ybc_pin_analog: { message0: 'đọc tương tự chân %1', tooltip: `Đọc giá trị tương tự của một chân: từ 0 tới ${ANALOG_MAX}.` },
+  ybc_pin_write_analog: {
+    message0: 'ghi analog chân %1 giá trị %2',
+    tooltip: `Ghi giá trị PWM ra một chân: từ 0 (tắt) tới ${PWM_MAX} (sáng nhất). Đèn LED nối qua điện trở vào chân sáng theo tỉ lệ đó.`,
+  },
+  ybc_servo_write: { message0: 'servo chân %1 quay tới %2 độ', tooltip: `Quay servo 180° nối ở chân tới một góc từ 0 tới ${SERVO_MAX_ANGLE} độ.` },
   ybc_arith: { message0: '%1 %2 %3', tooltip: 'Cộng, trừ hoặc nhân hai số nguyên.' },
   ybc_int_divide: { message0: '%1 // %2', tooltip: 'Chia lấy phần nguyên, làm tròn xuống (như // của Python).' },
   ybc_while: { message0: 'lặp khi %1 %2', tooltip: 'Lặp lại khi điều kiện còn đúng.' },

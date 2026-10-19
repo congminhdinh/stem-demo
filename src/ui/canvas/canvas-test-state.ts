@@ -12,6 +12,8 @@ export type CanvasTestState = {
     x: number;
     y: number;
     lit?: boolean;
+    /** N17 B5: an LED's brightness as drawn, 0..1: 0 off, 1 a plain lit LED, the PWM duty / 1023 otherwise. */
+    brightness?: number;
     closed?: boolean;
     /** A Yolo:Bit-compatible board's display: the 25 cells as drawn, row-major, a colour or null for off. */
     display?: (string | null)[];
@@ -19,6 +21,8 @@ export type CanvasTestState = {
     tone?: number;
     /** A potentiometer's knob position in percent, read from its knob node. */
     value?: number;
+    /** N17 B5: a servo's arm, in degrees, as drawn now (it turns towards the snapshot's angle). */
+    angle?: number;
     selected: boolean;
     /** Drawn with the mark for a device that does not belong to the project's family (R-F4). */
     incompatible: boolean;
@@ -58,10 +62,12 @@ export function readCanvasState(): CanvasTestState | null {
       x: node.x(),
       y: node.y(),
       lit: node.findOne('.led-light')?.getAttr('lit'),
+      brightness: node.findOne('.led-light')?.getAttr('brightness'),
       closed: node.findOne('.button-cap')?.getAttr('closed'),
       display: node.findOne('.ybc-display')?.getAttr('frame'),
       tone: node.findOne('.ybc-part-buzzer')?.getAttr('hz'),
       value: node.findOne('.knob')?.getAttr('value'),
+      angle: node.findOne('.servo-horn')?.getAttr('angle'),
       selected: node.findOne('.selection') !== undefined,
       incompatible: node.findOne('.incompatible') !== undefined,
       texts: node.find<Konva.Text>('Text').map((text) => text.text()),

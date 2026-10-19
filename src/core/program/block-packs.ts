@@ -46,7 +46,20 @@ import {
   sensorDefinitions,
   temperatureType,
 } from '../constructs/ybc.input';
-import { createPinBlockDefinitions, pinAnalogType, pinConstructs, pinReadType, pinsPackId, pinWriteType, type PinChoices } from '../constructs/ybc.pins';
+import {
+  createPinBlockDefinitions,
+  createPinOutputBlockDefinitions,
+  pinAnalogType,
+  pinConstructs,
+  pinOutputConstructs,
+  pinReadType,
+  pinsPackId,
+  pinWriteAnalogType,
+  pinWriteType,
+  pwmPackId,
+  servoWriteType,
+  type PinChoices,
+} from '../constructs/ybc.pins';
 import { melodyType, musicDefinitions, pitchType, playNoteType, restType, soundDefinitions, soundStopType } from '../constructs/ybc.sound';
 import { usablePins } from '../devices/board-pins';
 import type { DeviceRegistry } from '../devices/registry';
@@ -333,8 +346,8 @@ export function createHardwarePacks(): BlockPack[] {
 /** The pins each pin block offers: those the Yolo:Bit-compatible boards of the registry allow (reserved ones left out). */
 export function ybcPinChoices(registry: DeviceRegistry): PinChoices {
   const boards = registry.list().filter((definition) => deviceFamily(definition) === 'ybc' && definition.board !== undefined);
-  const names = (capability: 'digital' | 'analogIn') => [...new Set(boards.flatMap((definition) => usablePins(definition, capability)))];
-  return { digital: names('digital'), analogIn: names('analogIn') };
+  const names = (capability: keyof PinChoices) => [...new Set(boards.flatMap((definition) => usablePins(definition, capability)))];
+  return { digital: names('digital'), analogIn: names('analogIn'), pwm: names('pwm'), servo: names('servo') };
 }
 
 /** The header pins of a Yolo:Bit-compatible project (YB-4): write, digital read and analog read of P0–P2. */
@@ -350,6 +363,30 @@ export function createYbcPinsPack(choices: PinChoices): BlockPack {
         name: 'Pins',
         colour: '210',
         contents: [block(pinWriteType), block(pinReadType), block(pinAnalogType)],
+      },
+    ],
+  };
+}
+
+/**
+ * N17 B5: analog write (PWM) and the servo on P0–P2, the Advanced board's own pack. Its category is named Pins, so `buildToolbox`
+ * shows its two blocks after the three of `ybc.pins`, starting at 512 and 90.
+ */
+export function createYbcPwmPack(choices: PinChoices): BlockPack {
+  return {
+    id: pwmPackId,
+    family: 'ybc',
+    blocks: createPinOutputBlockDefinitions(choices),
+    blockTypes: pinOutputConstructs.flatMap((construct) => construct.blockTypes),
+    categories: [
+      {
+        kind: 'category',
+        name: 'Pins',
+        colour: '210',
+        contents: [
+          block(pinWriteAnalogType, { inputs: { VALUE: shadowNumber(512) } }),
+          block(servoWriteType, { inputs: { ANGLE: shadowNumber(90) } }),
+        ],
       },
     ],
   };
@@ -374,11 +411,13 @@ export function createBlockPackCatalog(
   registry: DeviceRegistry,
   extraPacks: readonly BlockPack[] = [],
 ): BlockPackCatalog {
+  const pinChoices = ybcPinChoices(registry);
   const packs = [
     createGenericPack(genericBoardPins(registry)),
     createYbcStructurePack(),
     ...createHardwarePacks(),
-    createYbcPinsPack(ybcPinChoices(registry)),
+    createYbcPinsPack(pinChoices),
+    createYbcPwmPack(pinChoices),
     ...createLangPacks(),
     ...extraPacks,
   ];

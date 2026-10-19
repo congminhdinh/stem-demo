@@ -15,3 +15,17 @@ export const pinRead = (pin: string): Json => ({ type: 'ybc_pin_read', id: id('p
 export const pinAnalog = (pin: string): Json => ({ type: 'ybc_pin_analog', id: id('pin-analog'), fields: { PIN: pin } });
 
 export { chain };
+/** "analog write pin P value V" (C-26, N17 B5): a PWM duty, 0 (off) to 1023 (fully on); outside that it is clamped. */
+export const pinWriteAnalog = (pin: string, value: Json): Json => ({
+  type: 'ybc_pin_write_analog',
+  id: id('pin-write-analog'),
+  fields: { PIN: pin },
+  inputs: { VALUE: { block: value } },
+});
+/** "servo pin P turn to A°" (C-27, N17 B5): a 180° servo, 0 to 180 degrees; outside that it is clamped. */
+export const servoWrite = (pin: string, angle: Json): Json => ({
+  type: 'ybc_servo_write',
+  id: id('servo-write'),
+  fields: { PIN: pin },
+  inputs: { ANGLE: { block: angle } },
+});

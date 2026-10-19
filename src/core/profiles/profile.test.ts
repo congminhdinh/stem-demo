@@ -61,7 +61,7 @@ describe('the production profiles', () => {
     }
   });
 
-  it('differ in profile data (the id, the extension, the variable types), in the sensors of N17 B2 (rows, pack, controls) and in the music of N17 B3 (rows, pack)', () => {
+  it('differ in profile data (the id, the extension, the variable types), in the sensors of N17 B2 (rows, pack, controls), in the music of N17 B3 (rows, pack) and in analog write and the servo of N17 B5 (rows, pack, part)', () => {
     const strip = (profile: typeof basic) => {
       const rest: Record<string, unknown> = { ...profile };
       delete rest.id;
@@ -69,19 +69,25 @@ describe('the production profiles', () => {
       delete rest.variableTypes;
       return { rest, variableTypes: profile?.variableTypes };
     };
-    const sensors = { constructs: ['C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22'], blockPacks: ['ybc.sensors', 'ybc.music'], controls: ['temperature', 'accelerometer'] };
+    const sensors = {
+      constructs: ['C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22', 'C-26', 'C-27'],
+      blockPacks: ['ybc.sensors', 'ybc.music', 'ybc.pwm'],
+      controls: ['temperature', 'accelerometer'],
+      palette: ['servo'],
+    };
     expect(strip(advanced).rest).toEqual({
       ...strip(basic).rest,
       constructs: [...(basic?.constructs ?? []), ...sensors.constructs],
       blockPacks: [...(basic?.blockPacks ?? []), ...sensors.blockPacks],
       controls: [...(basic?.controls ?? []), ...sensors.controls],
+      palette: [...(basic?.palette ?? []), ...sensors.palette],
     });
     expect(strip(basic).variableTypes).toEqual(['int']);
     expect(strip(advanced).variableTypes).toEqual(['int', 'str']);
     expect(advanced?.extends).toBe('ybc-basic');
   });
 
-  it('expose the structure, the YB-2 language with the running time and random numbers of N17 B4, the YB-3 onboard hardware with the RGB display of N17 B1, and the YB-4 header pins; Advanced the sensors of N17 B2 and the music of N17 B3 too: no PWM, function, event or servo block', () => {
+  it('expose the structure, the YB-2 language with the running time and random numbers of N17 B4, the YB-3 onboard hardware with the RGB display of N17 B1, and the YB-4 header pins; Advanced the sensors of N17 B2, the music of N17 B3 and analog write and the servo of N17 B5 too: no function or event block', () => {
     const basicPacks = ['ybc.structure', 'ybc.display', 'ybc.input', 'ybc.sound', 'ybc.pins', 'lang.logic', 'lang.loops', 'lang.math', 'lang.text', 'lang.variables'];
     const basicConstructs = [
       'C-01', 'C-02', 'C-04', 'C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-12', 'C-13', 'C-15', 'C-19', 'C-23', 'C-24', 'C-25', 'C-29', 'C-30', 'C-31',
@@ -93,15 +99,17 @@ describe('the production profiles', () => {
     expect(basic?.controls).toEqual(['button-a', 'button-b', 'light']);
     // Advanced, the union with Basic first: the sensors pack (its blocks join the Input category), its rows and its controls; the
     // music pack of N17 B3 (its blocks join the Sound category) and its rows.
-    expect(advanced?.blockPacks).toEqual([...basicPacks, 'ybc.sensors', 'ybc.music']);
-    expect(advanced?.constructs).toEqual([...basicConstructs, 'C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22']);
+    // N17 B5: the `ybc.pwm` pack (its blocks join the Pins category) and its rows.
+    expect(advanced?.blockPacks).toEqual([...basicPacks, 'ybc.sensors', 'ybc.music', 'ybc.pwm']);
+    expect(advanced?.constructs).toEqual([...basicConstructs, 'C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22', 'C-26', 'C-27']);
     expect(advanced?.controls).toEqual(['button-a', 'button-b', 'light', 'temperature', 'accelerometer']);
   });
 
-  it('use the ybc board and offer no generic board; the circuit parts of the header pins are the generic LED, resistor and button plus the potentiometer (YB-4)', () => {
+  it('use the ybc board and offer no generic board; the circuit parts of the header pins are the generic LED, resistor and button plus the potentiometer (YB-4), and the servo in Advanced (N17 B5)', () => {
+    expect(registry.get('servo').family).toBe('ybc');
     for (const profile of [basic, advanced]) {
       expect(profile?.boardType).toBe('ybc-board');
-      expect(profile?.palette).toEqual(['ybc-board', 'led', 'resistor', 'push-button', 'potentiometer']);
+      expect(profile?.palette).toEqual(['ybc-board', 'led', 'resistor', 'push-button', 'potentiometer', ...(profile === advanced ? ['servo'] : [])]);
       expect(profile?.palette).not.toContain('board');
       // The devices of this track are of the ybc family; the three generic parts are reused by listing them (R-F3).
       expect(registry.get('ybc-board').family).toBe('ybc');

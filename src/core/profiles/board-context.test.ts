@@ -12,7 +12,7 @@ import { productionProfiles } from './index';
 /** The block packs of both production profiles: the structure, the YB-3 hardware and the YB-2 language. */
 const ybcPacks = ['ybc.structure', 'ybc.display', 'ybc.input', 'ybc.sound', 'ybc.pins', 'lang.logic', 'lang.loops', 'lang.math', 'lang.text', 'lang.variables'];
 /** N17 B2 and B3: Advanced adds the sensors pack (temperature, accelerometer, gestures) and the music pack (melodies, tone, stop) after the packs of Basic. */
-const packsOf = (profile: string) => (profile === 'ybc-advanced' ? [...ybcPacks, 'ybc.sensors', 'ybc.music'] : ybcPacks);
+const packsOf = (profile: string) => (profile === 'ybc-advanced' ? [...ybcPacks, 'ybc.sensors', 'ybc.music', 'ybc.pwm'] : ybcPacks);
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
 const resolve = (document: Parameters<typeof resolveBoardContext>[0]) => resolveBoardContext(document, registry, productionProfiles);
@@ -95,14 +95,15 @@ describe('the YBC editing states (R-F4, R-F5)', () => {
   it.each(['ybc-basic', 'ybc-advanced'])('is ready with exactly one ybc board in %s', (profile) => {
     const context = resolve(fixtureDocument(profile));
     expect(context.readiness).toMatchObject({ ok: true, board: { deviceType: 'ybc-board' } });
-    // YB-4: the devices a learner wires to the header pins join the board (YB-1 note 3).
-    expect(context.allowedDeviceTypes).toEqual(['ybc-board', 'led', 'resistor', 'push-button', 'potentiometer']);
+    // YB-4: the devices a learner wires to the header pins join the board (YB-1 note 3). N17 B5: Advanced adds the servo.
+    expect(context.allowedDeviceTypes).toEqual(['ybc-board', 'led', 'resistor', 'push-button', 'potentiometer', ...(profile === 'ybc-advanced' ? ['servo'] : [])]);
   });
 
   it('reports the capabilities of the ybc board: pin capabilities and onboard parts, each once', () => {
     const context = resolve(fixtureDocument('ybc-basic'));
-    expect(context.readiness.ok && context.readiness.capabilities).toEqual(['digital', 'analogIn', 'display', 'buttons', 'light', 'sound', 'temperature', 'motion']);
-    expect(capabilitiesOf(registry.get('ybc-board'))).toEqual(['digital', 'analogIn', 'display', 'buttons', 'light', 'sound', 'temperature', 'motion']);
+    // N17 B5: P0–P2 do PWM and servo too.
+    expect(context.readiness.ok && context.readiness.capabilities).toEqual(['digital', 'analogIn', 'pwm', 'servo', 'display', 'buttons', 'light', 'sound', 'temperature', 'motion']);
+    expect(capabilitiesOf(registry.get('ybc-board'))).toEqual(['digital', 'analogIn', 'pwm', 'servo', 'display', 'buttons', 'light', 'sound', 'temperature', 'motion']);
   });
 
   it('has several boards: valid to edit, Run says multiple-boards', () => {

@@ -5,7 +5,7 @@
 > **Cập nhật YB-0 (2026-10-14, contract 1.0-draft r3):** cập nhật theo `docs/yolobit-compatibility-contract.md`, không đổi kiến trúc.
 > - Các mục đổi: §3 (Q5, Q6), §6.4, §6.5, §6.7, §7.3, §7.4, §10, §11.3, §13.9, §14, §15, §18.3, §18.4, §18.7, YB-1, YB-2, YB-3, YB-4, YB-7, §22, §24, §25.
 > - r2 sửa review YB-0 (R1–R3, N1–N3). RV-1 = **ACCEPT WITH RESTRICTIONS**.
-> - **Owner decisions áp dụng (2026-10-14):** **OQ-E APPROVED** (model display cuối); **C-Q6 = Option A** (analog native 0–4095, UI 0–100 %, không chuẩn hoá về 0–1023, PWM EXCLUDED). Không còn quyết định YB-0 nào đang chờ. Chờ cùng reviewer final freeze check.
+> - **Owner decisions áp dụng (2026-10-14):** **OQ-E APPROVED** (model display cuối); **C-Q6 = Option A** (analog native 0–4095, UI 0–100 %, không chuẩn hoá về 0–1023, PWM EXCLUDED). Không còn quyết định YB-0 nào đang chờ. **N17 B5 (owner, 2026-10-19):** PWM (C-26, `write_analog` 0..1023) và servo (C-27) mở ở Advanced, ngoài khoảng thì kẹp + cảnh báo, `pinOutputs` mang duty / góc servo, LED ngoài sáng theo duty, linh kiện `servo`; chi tiết contract §27. Chờ cùng reviewer final freeze check.
 > **Repo:** `stem-demo` @ `4f9f249` (branch `poc-14-local-persistence`). Mô tả hiện trạng đọc từ source ở commit đó.
 > **Input:** `docs/ohstem-yolobit-simulator-investigation.md` (finding; owner decisions ở §0, §18). **Không thay thế** `docs/stem-demo-implementation-plan.md`, vốn là lịch sử của PoC đã xong; boundary B1–B8 và working agreement §15 của nó **vẫn có hiệu lực**, trừ chỗ tài liệu này ghi khác.
 > **Ngôn ngữ:** tài liệu tiếng Việt, giữ thuật ngữ tiếng Anh; UI, identifier, comment trong code tiếng Anh (CLAUDE.md).
@@ -507,7 +507,7 @@ Contract cũng có các phần:
 | C-23 | Digital write | `pin0.write_digital(1)` | R·S | **P0–P2**; 0/1 (tooltip) |
 | C-24 | Digital read | `(pinN.read_digital() == 1)` | R·S | P0–P2; net hở/xung đột → `out-of-domain` |
 | C-25 | Analog read | `int(pinN.read_analog())` | R·S | P0–P2; native **0..4095** theo **tài liệu OhStem** (docs.ohstem.vn: cảm biến góc xoay/rotary); learner dùng đúng thang này (**C-Q6 = A**); UI 0–100 % → `percentToNative(p, 4095)`. Simulator và tài liệu ESP32 chung chỉ là bổ trợ/ngữ cảnh |
-| C-26 | Analog write/PWM | `pin0.write_analog(v)` | X | Khoảng UNKNOWN (owner xác nhận vẫn loại ở C-Q6) |
+| C-26 | Analog write/PWM | `pin0.write_analog(v)` | ~~X~~ R·S (Advanced, N17 B5) | Khoảng UNKNOWN (owner xác nhận vẫn loại ở C-Q6); N17 B5: mở với 0..1023 ghi UNVERIFIED, kẹp + cảnh báo (contract §27) |
 | C-27 | Servo | `pin0.servo_write(angle)` | R·S (Advanced) | 0..180 (tooltip), P0–P2, không chặn |
 | C-28 | Pulse in | `pin0.pulse_in(1)` | X | Timeout/lỗi UNKNOWN → siêu âm X/LATER |
 | C-29 | Print | `print(x)` | E | Ra serial |
@@ -953,7 +953,7 @@ Mọi chuyển đổi nằm ở **một module** `src/core/simulation/conversion
 - `percentToNative(p, N) = floor(clamp(p, 0, 100) × N / 100 + 0.5)` với `N` từ contract;
 - ~~`duty = raw / 1023`~~: không dùng, PWM EXCLUDED (contract C-26).
 
-Analog write/PWM: **không có trong milestone** (C-26 EXCLUDED), nên không có domain ghi analog. Đọc analog: giá trị `0..4095` (net `high` → 4095, `low` → 0, analog-source → `percentToNative(p, 4095)`; net hở/xung đột → `out-of-domain`, §11.1).
+Analog write/PWM: **không có trong milestone** (C-26 EXCLUDED), nên không có domain ghi analog. *(N17 B5: PWM mở ở Advanced: duty 0..1023 trên net, `brightness = duty / 1023` của LED (`dutyToBrightness`), ngoài khoảng kẹp + cảnh báo; contract §27.)* Đọc analog: giá trị `0..4095` (net `high` → 4095, `low` → 0, analog-source → `percentToNative(p, 4095)`; net hở/xung đột → `out-of-domain`, §11.1).
 
 > **YB-0:** PWM/analog write **EXCLUDED** (contract C-26). Analog read có thang native 0–4095 theo tài liệu OhStem; **owner chọn C-Q6 = Option A** (2026-10-14): learner dùng thang native, UI 0–100 %.
 
