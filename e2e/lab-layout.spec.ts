@@ -383,8 +383,15 @@ test.describe('a run warning in a lab (1440 × 620)', () => {
     await expect(page.getByRole('button', { name: 'Đang kiểm tra…', exact: true })).toBeDisabled();
     const checking = await Promise.all(['Chạy', 'Dừng', 'Đang kiểm tra…', 'Đặt lại'].map(async (name) => boxOf(page.getByRole('button', { name, exact: true }))));
     expect(checking).toEqual(before);
+    // N17 c2: the check's note is a strip along the top of the canvas, inside the 24 px the fit leaves above the circuit.
+    const canvas = await boxOf(page.getByTestId('circuit-canvas'));
+    const strip = await boxOf(page.getByTestId('check-overlay'));
+    expect(strip.y).toBeCloseTo(canvas.y, 0);
+    expect(strip.height).toBeLessThanOrEqual(24);
     await expect(page.getByRole('button', { name: 'Kiểm tra', exact: true })).toBeEnabled({ timeout: 10_000 });
     expect(await placesOf()).toEqual(before);
+    await expect(page.getByTestId('check-overlay')).toHaveAttribute('data-state', 'held');
+    expect((await boxOf(page.getByTestId('check-overlay'))).height).toBeLessThanOrEqual(24);
   });
 });
 

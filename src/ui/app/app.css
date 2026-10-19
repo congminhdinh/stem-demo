@@ -1045,34 +1045,41 @@ body {
   border-bottom: 0;
 }
 
-/* How a lab's check is going (N8s), over the top right of the canvas: its progress, then the frame it left. */
+/*
+ * How a lab's check is going (N8s): a strip along the top of the canvas, its progress at its bottom edge, then the frame the check
+ * left. It is 23 px tall, inside the 24 px the fit leaves above the circuit (viewport.ts), so it never covers the board (Fix 6, N17
+ * c2: a box in the corner covered its top edge in a lesson's narrow canvas). A long text ends in "…".
+ */
 .check-overlay {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-width: calc(100% - 16px);
-  padding: 6px 10px;
-  border: 1px solid var(--stem-color-border);
-  border-radius: var(--stem-radius);
+  top: 0;
+  left: 0;
+  right: 0;
+  overflow: hidden;
+  padding: 3px 10px 4px;
+  border-bottom: 1px solid var(--stem-color-border);
   background: var(--stem-color-overlay);
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   pointer-events: none;
 }
 
 .check-overlay[data-state='held'] {
-  border-style: dashed;
+  border-bottom-style: dashed;
   border-color: var(--stem-color-primary);
   color: var(--stem-color-primary);
 }
 
 .check-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: block;
-  height: 4px;
+  height: 3px;
   overflow: hidden;
-  border-radius: 2px;
   background: var(--stem-color-neutral-soft);
 }
 
