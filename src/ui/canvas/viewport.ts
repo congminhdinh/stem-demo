@@ -50,9 +50,18 @@ export function circuitBounds(circuit: Circuit, registry: DeviceRegistry): Bound
 export type FitOptions = {
   /** Room left around the circuit, in screen pixels. */
   margin?: number;
+  /** Room left at the left and the right, in screen pixels, when it differs from `margin` (a narrow canvas, fitSideMargin). */
+  marginX?: number;
   /** Below this the circuit is unreadable: it is cut off instead. */
   minScale?: number;
 };
+
+/**
+ * The room at the sides of a canvas `width` px wide (Fix 6, N17 M1): 24 px in a wide one, less in a narrow one (a lesson's short
+ * frame puts the controls beside the canvas), where every pixel of width is board. The top and the bottom keep 24 px: the check's
+ * note sits in the top one.
+ */
+export const fitSideMargin = (width: number): number => Math.min(24, Math.max(8, Math.round(width * 0.06)));
 
 /**
  * The viewport that shows `bounds` whole, centred in a stage of `size`: shrunk when it does not fit, never
@@ -61,9 +70,9 @@ export type FitOptions = {
 export function fitViewport(
   bounds: Bounds | null,
   size: { width: number; height: number },
-  { margin = 24, minScale = 0.4 }: FitOptions = {},
+  { margin = 24, marginX = margin, minScale = 0.4 }: FitOptions = {},
 ): Viewport {
-  const roomWidth = size.width - 2 * margin;
+  const roomWidth = size.width - 2 * marginX;
   const roomHeight = size.height - 2 * margin;
   if (!bounds || roomWidth <= 0 || roomHeight <= 0) {
     return identityViewport;

@@ -50,9 +50,12 @@ async function boxOf(locator: Locator) {
   return box;
 }
 
-/** Whether `inner` lies inside `outer`, whole. */
-const inside = (inner: { x: number; y: number; width: number; height: number }, outer: { x: number; y: number; width: number; height: number }) =>
-  inner.x >= outer.x && inner.y >= outer.y && inner.x + inner.width <= outer.x + outer.width && inner.y + inner.height <= outer.y + outer.height;
+/** Whether `inner` lies inside `outer`, whole (give or take `slack` px: a box scrolled to an edge can end a fraction past it). */
+const inside = (inner: { x: number; y: number; width: number; height: number }, outer: { x: number; y: number; width: number; height: number }, slack = 0) =>
+  inner.x >= outer.x - slack &&
+  inner.y >= outer.y - slack &&
+  inner.x + inner.width <= outer.x + outer.width + slack &&
+  inner.y + inner.height <= outer.y + outer.height + slack;
 
 /** The block of the workspace (not the flyout) whose label is `label`. */
 const workspaceBlock = (page: Page, label: string) =>
@@ -198,7 +201,8 @@ test.describe('a frame that changes size (a tablet turned)', () => {
 /*
  * The lab layout fix (2026-10-20): the runtime controls of N17 (A, B, A+B, the light and temperature sliders, the tilt pad, the
  * sound switch) under the circuit took the whole height of a lesson's frame and left the board about 10 px tall. The canvas keeps
- * at least 260 px (the board fitted into it); the board panel takes what is left and scrolls on its own.
+ * at least 260 px (the board fitted into it); the board panel takes what is left and scrolls on its own. Fix 6 (N17 M1): in a
+ * frame shorter than 640 px the panel is a column beside the canvas instead (below); the same checks hold.
  */
 const shortFrames = [
   { width: 1440, height: 620 },
@@ -256,7 +260,7 @@ for (const size of shortFrames) {
 test.describe('the night light in the frame the LMS gives it (1022 × 581)', () => {
   test.use({ viewport: { width: 1022, height: 581 } });
 
-  test('runs with the light slider in sight under a board that keeps its size, and lights the display in the dark', async ({ page }) => {
+  test('runs with the light slider in sight beside a board that keeps its size, and lights the display in the dark', async ({ page }) => {
     await openLab(page, 'lab=yolobit&template=ybc-night-light&profile=ybc-advanced');
     await page.evaluate((document) => window.__stem?.loadProject(document), { ...ybcSolutionDocument('ybc-night-light'), profile: 'ybc-advanced' });
     const before = await boxOf(page.getByTestId('circuit-canvas'));
@@ -272,6 +276,69 @@ test.describe('the night light in the frame the LMS gives it (1022 × 581)', () 
     await page.getByRole('button', { name: 'Dừng', exact: true }).click();
   });
 });
+
+/*
+ * Fix 6 (N17 M1): the frames the LMS lesson "Đèn ngủ thông minh" really gives the lab (measured inside its iframe, n17-yolobit.md):
+ * 862 × 402 in a 1280 × 720 window, 948 × 450 at 1366 × 768, 862 × 482 at 1280 × 800 and 670 × 450 at 1024 × 768 (tabs). Frames
+ * shorter than 640 px put the controls in a column beside the canvas: the board keeps the height, and the buttons and both sliders
+ * are in sight without scrolling anything.
+ */
+const lmsFrames = [
+  { width: 862, height: 402, window: '1280 × 720' },
+  { width: 948, height: 450, window: '1366 × 768' },
+  { width: 862, height: 482, window: '1280 × 800' },
+  { width: 670, height: 450, window: '1024 × 768, tabs' },
+  { width: 1022, height: 581, window: '1440 × 900' },
+];
+
+for (const { window: lmsWindow, ...size } of lmsFrames) {
+  test.describe(`the night light in the LMS lesson's frame at ${lmsWindow} (${size.width} × ${size.height})`, () => {
+    test.use({ viewport: size });
+
+    test('runs with the board whole, A, B and both sliders in sight beside it without scrolling, and lights the display in the dark', async ({ page }) => {
+      await openLab(page, 'lab=yolobit&template=ybc-night-light&profile=ybc-advanced');
+      await page.evaluate((document) => window.__stem?.loadProject(document), { ...ybcSolutionDocument('ybc-night-light'), profile: 'ybc-advanced' });
+      const frame = { x: 0, y: 0, ...size };
+      for (const name of ['Chạy', 'Dừng', 'Kiểm tra', 'Đặt lại']) {
+        expect(inside(await boxOf(page.getByRole('button', { name, exact: true })), frame), name).toBe(true);
+      }
+      await page.getByRole('button', { name: 'Chạy', exact: true }).click();
+      // The run brings the circuit into sight (its tab, in a narrow frame).
+      const canvas = await boxOf(page.getByTestId('circuit-canvas'));
+      expect(inside(canvas, frame)).toBe(true);
+      expect(canvas.height).toBeGreaterThanOrEqual(240);
+      await expectBoardInCanvas(page);
+
+      // The controls a lesson needs are in the panel's own box, inside the frame, with nothing scrolled.
+      const panel = page.getByTestId('board-panel');
+      const panelBox = await boxOf(panel);
+      expect(inside(panelBox, frame)).toBe(true);
+      expect(await panel.evaluate((element) => element.scrollTop)).toBe(0);
+      for (const control of ['control-button-a', 'control-button-b', 'control-button-ab', 'control-light', 'control-temperature']) {
+        const box = await boxOf(page.getByTestId(control));
+        expect(inside(box, panelBox), control).toBe(true);
+        expect(inside(box, frame), control).toBe(true);
+      }
+      // Beside the canvas, not under it: the board keeps the whole height below the palette.
+      expect(panelBox.x).toBeGreaterThanOrEqual(canvas.x + canvas.width - 1);
+      expect(await pageScrolls(page)).toBe(false);
+
+      // The light slider works where it is, and the board keeps its size while the program runs.
+      const light = page.getByTestId('control-light');
+      await expect(light).toBeEnabled();
+      await light.fill('10');
+      await expect.poll(async () => (await canvasState(page)).components.find((component) => component.deviceType === 'ybc-board')?.display?.every((cell) => cell !== null)).toBe(true);
+      expect(await boxOf(page.getByTestId('circuit-canvas'))).toEqual(canvas);
+      // The rest of the column (the tilt pad, the sound) is reached by scrolling the column alone.
+      const sound = page.getByRole('button', { name: 'Tắt âm thanh' });
+      await sound.scrollIntoViewIfNeeded();
+      expect(inside(await boxOf(sound), await boxOf(panel), 1)).toBe(true);
+      expect(await boxOf(page.getByTestId('circuit-canvas'))).toEqual(canvas);
+      expect(await pageScrolls(page)).toBe(false);
+      await page.getByRole('button', { name: 'Dừng', exact: true }).click();
+    });
+  });
+}
 
 test.describe('outside a lab', () => {
   test.use({ viewport: { width: 1000, height: 640 } });

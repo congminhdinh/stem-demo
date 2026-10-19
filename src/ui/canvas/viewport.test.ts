@@ -3,7 +3,7 @@ import type { Circuit } from '../../core/circuit/document';
 import { localDeviceDefinitions } from '../../core/devices/local-catalog';
 import { createDeviceRegistry } from '../../core/devices/registry';
 import blink from '../../samples/blink.project.json';
-import { circuitBounds, fitViewport, identityViewport, stageToWorld, stageToWorldDistance } from './viewport';
+import { circuitBounds, fitSideMargin, fitViewport, identityViewport, stageToWorld, stageToWorldDistance } from './viewport';
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
 
@@ -42,6 +42,18 @@ describe('the viewport (B7, N8s)', () => {
 
   it('stops shrinking at the smallest readable scale', () => {
     expect(fitViewport({ left: 0, top: 0, right: 5000, bottom: 100 }, { width: 400, height: 400 }).scale).toBe(0.4);
+  });
+
+  it('leaves less room at the sides of a narrow canvas, and 24 px above and below (Fix 6)', () => {
+    expect(fitSideMargin(1000)).toBe(24);
+    expect(fitSideMargin(400)).toBe(24);
+    expect(fitSideMargin(192)).toBe(12);
+    expect(fitSideMargin(60)).toBe(8);
+    // A tall narrow canvas: the width decides, with 12 px at each side.
+    const viewport = fitViewport({ left: 0, top: 0, right: 224, bottom: 260 }, { width: 192, height: 300 }, { marginX: 12 });
+    expect(viewport.scale).toBeCloseTo(168 / 224);
+    // A short wide one: the height decides, still with 24 px above and below.
+    expect(fitViewport({ left: 0, top: 0, right: 224, bottom: 260 }, { width: 800, height: 248 }, { marginX: 12 }).scale).toBeCloseTo(200 / 260);
   });
 
   it('is the identity without a circuit or without room', () => {

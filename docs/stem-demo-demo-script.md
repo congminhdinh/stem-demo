@@ -100,7 +100,9 @@ mà tab bị ẩn sẽ báo "bị gián đoạn" chứ không chấm (cố ý, �
 
 **1:40–2:20 — Mức Nâng cao: "Nhiệt kế" (tab 2).**
 7. Chuyển sang tab 2. Nói: "Mức Nâng cao có thêm cảm biến nhiệt độ, gia tốc, lắc, giai điệu, servo." Chỉ bảng điều khiển
-   dưới mạch: thanh **Nhiệt độ**, tấm nghiêng, nút **Lắc**.
+   của bo mạch: thanh **Nhiệt độ**, tấm nghiêng, nút **Lắc**. Khung cao từ 640 px trở lên thì bảng nằm dưới mạch; khung thấp
+   hơn (cửa sổ 1280×720 có thanh công cụ trình duyệt, bài học trong LMS ở 1280×720 hay 1366×768) thì bảng là một cột bên phải
+   mạch.
 8. Kéo khối rời `chạy số (nhiệt độ (°C))` vào trong `nếu nút B đang được nhấn`. Bấm **Chạy**.
 9. Kéo thanh **Nhiệt độ** lên **30 °C**: dòng số đo dưới màn hình của bo mạch ghi `30 °C`. Bấm nút **B** trên hình bo mạch:
    màn hình chạy chữ **30**.

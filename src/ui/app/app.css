@@ -542,6 +542,116 @@ body {
   font-weight: 600;
 }
 
+/*
+ * A lab in a short frame (Fix 6, N17 M1): the LMS lesson gives the lab 862 × 402 at 1280 × 720 and 948 × 450 at 1366 × 768, too
+ * short for the circuit and its controls one above the other. The controls go into a column beside the canvas, which keeps the
+ * whole height, and the palette is one row that scrolls sideways. The buttons and the sliders come first in the column, in sight
+ * without scrolling; the tilt pad, the sound switch and the display as text follow, and the column scrolls on its own. The
+ * frame's height decides, not the region's: a warning row in the header must not switch the layout during a run.
+ */
+@media (max-height: 639px) {
+  .app-shell-lab .canvas-region-with-board-panel {
+    --board-canvas-min: 160px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(136px, 34%, 240px);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  /* A shadow at the left or right edge says there is more of the palette to scroll to (as the board panel's, sideways). */
+  .app-shell-lab .canvas-region-with-board-panel .palette {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    background:
+      linear-gradient(to right, var(--stem-color-surface) 40%, transparent) left / 24px 100% no-repeat local,
+      linear-gradient(to left, var(--stem-color-surface) 40%, transparent) right / 24px 100% no-repeat local,
+      radial-gradient(farthest-side at 0 50%, var(--stem-shadow-scroll), transparent) left / 10px 100% no-repeat scroll,
+      radial-gradient(farthest-side at 100% 50%, var(--stem-shadow-scroll), transparent) right / 10px 100% no-repeat scroll,
+      var(--stem-color-surface);
+  }
+
+  .app-shell-lab .canvas-region-with-board-panel .palette button {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .app-shell-lab .board-panel {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 8px;
+    border-top: 0;
+    border-left: 1px solid var(--stem-color-border);
+  }
+
+  .app-shell-lab .board-panel > .runtime-controls,
+  .app-shell-lab .board-panel > .sound-indicator {
+    grid-column: 1;
+  }
+
+  /* The board shows its display already: the text version comes last, after the controls. */
+  .app-shell-lab .board-panel > .display-text {
+    order: 1;
+    grid-row: auto;
+    justify-self: start;
+  }
+
+  .app-shell-lab .board-panel button {
+    padding: 4px 8px;
+    white-space: nowrap;
+  }
+
+  .app-shell-lab .board-panel .control-hold {
+    min-width: 50px;
+  }
+
+  .app-shell-lab .runtime-controls-row {
+    gap: 6px;
+  }
+
+  /* The label and the value on one line, the slider under them as wide as the column. */
+  .app-shell-lab .control-slider {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    gap: 0 8px;
+    max-width: none;
+  }
+
+  .app-shell-lab .control-slider label {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .app-shell-lab .control-slider-value {
+    min-width: 0;
+    text-align: right;
+  }
+
+  .app-shell-lab .control-slider input[type='range'] {
+    flex: 1 1 100%;
+    order: 1;
+  }
+
+  .app-shell-lab .control-tilt {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      'label label'
+      'pad gesture'
+      'actions actions'
+      'hint hint';
+    gap: 4px 8px;
+  }
+
+  .app-shell-lab .sound-indicator {
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+
+  .app-shell-lab .sound-state {
+    min-width: 0;
+  }
+}
+
 .program-region {
   position: relative;
   min-width: 0;

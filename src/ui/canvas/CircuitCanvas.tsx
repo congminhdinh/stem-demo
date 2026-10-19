@@ -26,7 +26,7 @@ import { Palette } from './Palette';
 import { paletteItems, placementPosition } from './palette-model';
 import { rendererFor, type DeviceRendererProps } from './renderers';
 import { useElementSize } from './use-element-size';
-import { circuitBounds, fitViewport, identityViewport, portPickRadiusPx, stageToWorld, stageToWorldDistance } from './viewport';
+import { circuitBounds, fitSideMargin, fitViewport, identityViewport, portPickRadiusPx, stageToWorld, stageToWorldDistance } from './viewport';
 import { canvasPalette } from './colors';
 
 // Renders the design state plus, while running, the simulation snapshot, and
@@ -106,7 +106,7 @@ export function CircuitCanvas({
   const size = useElementSize(containerRef);
   // The canvas is mounted again for every loaded project (App keys it), so this is the circuit as loaded.
   const [loadedBounds] = useState(() => (fit ? circuitBounds(circuit, registry) : null));
-  const viewport = useMemo(() => (fit && size ? fitViewport(loadedBounds, size) : identityViewport), [fit, size, loadedBounds]);
+  const viewport = useMemo(() => (fit && size ? fitViewport(loadedBounds, size, { marginX: fitSideMargin(size.width) }) : identityViewport), [fit, size, loadedBounds]);
   const pickRadius = stageToWorldDistance(portPickRadiusPx, viewport);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [drag, setDrag] = useState<DragPreview | null>(null);
