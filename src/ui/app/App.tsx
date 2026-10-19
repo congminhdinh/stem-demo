@@ -29,7 +29,7 @@ import { ChallengePanel, type CheckView } from './ChallengePanel';
 import { LabWorkspace } from './LabWorkspace';
 import { onPageHidden } from './page-hidden';
 import { PythonPanel } from './PythonPanel';
-import { RunToolbar } from './RunToolbar';
+import { RunOutput, RunToolbar, SteadyLabel } from './RunToolbar';
 import './app.css';
 
 /** What a lab launch (`lab=`, N6a S4) adds to the editor: its title, the template's challenge and Reset. */
@@ -365,7 +365,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
               <>
                 {lab.challenge && (
                   <button type="button" className="lab-check" onClick={startCheck} disabled={checking}>
-                    {checking ? t('lab.checking') : t('lab.check')}
+                    <SteadyLabel shown={checking ? t('lab.checking') : t('lab.check')} labels={[t('lab.check'), t('lab.checking')]} />
                   </button>
                 )}
                 <button type="button" className={resetArmed ? 'lab-reset lab-reset-armed' : 'lab-reset'} onClick={reset}>
@@ -376,6 +376,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
           }
         />
         {lab?.challenge && <ChallengePanel challenge={lab.challenge} check={shownCheck} />}
+        <RunOutput runStore={runStore} />
         {shownNotice && (
           <p className="app-notice" role="status" data-testid="app-notice">
             {shownNotice}

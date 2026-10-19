@@ -1,5 +1,8 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { num, program } from '../src/core/program/__fixtures__/ybc-blocks';
+import { servoWrite } from '../src/core/program/__fixtures__/ybc-pin-blocks';
 import { ybcSolutionDocument } from '../src/samples/ybc-solutions';
+import { ybcStarterDocument } from '../src/samples/ybc-templates';
 import { canvasState, worldToPage } from './helpers';
 
 // N8s: how a lab launch (`lab=`) lays itself out in the frame of a lesson page: the program the wider part, a
@@ -339,6 +342,51 @@ for (const { window: lmsWindow, ...size } of lmsFrames) {
     });
   });
 }
+
+/*
+ * Fix 6 (N17 m1): a run's warning is a row of its own under the goals. Run, Stop, Check and Reset keep their places when it comes,
+ * when the status changes and while Check reads "Đang kiểm tra…".
+ */
+test.describe('a run warning in a lab (1440 × 620)', () => {
+  test.use({ viewport: { width: 1440, height: 620 } });
+
+  test('shows under the goals and moves no button of the toolbar', async ({ page }) => {
+    await openLab(page, 'lab=yolobit&template=ybc-servo-gate&profile=ybc-advanced');
+    // The servo gate's own circuit, with a program that turns the servo past its 180°.
+    const starter = ybcStarterDocument('ybc-servo-gate') as { circuit: unknown };
+    await page.evaluate((document) => window.__stem?.loadProject(document), {
+      schemaVersion: 1,
+      id: 'servo-past-180',
+      name: 'Servo 250',
+      profile: 'ybc-advanced',
+      circuit: starter.circuit,
+      program: { blocks: program([servoWrite('P0', num(250))], []) },
+    });
+    const buttons = ['Chạy', 'Dừng', 'Kiểm tra', 'Đặt lại'];
+    const placesOf = async () => Promise.all(buttons.map(async (name) => boxOf(page.getByRole('button', { name, exact: true }))));
+    const before = await placesOf();
+    const goals = await boxOf(page.getByTestId('challenge-panel'));
+
+    await page.getByRole('button', { name: 'Chạy', exact: true }).click();
+    const warning = page.getByTestId('run-messages');
+    await expect(warning).toContainText('Góc servo 250 của chân P0 nằm ngoài khoảng 0 tới 180');
+    await expect(page.getByTestId('run-status')).toHaveText('Đang chạy');
+    expect(await placesOf()).toEqual(before);
+    expect(await boxOf(page.getByTestId('challenge-panel'))).toEqual(goals);
+    expect((await boxOf(warning)).y).toBeGreaterThanOrEqual(goals.y + goals.height);
+    expect(await pageScrolls(page)).toBe(false);
+
+    // Check: its label changes, the buttons stay where they are.
+    await page.getByRole('button', { name: 'Dừng', exact: true }).click();
+    await expect(page.getByTestId('run-status')).toHaveText('Chưa chạy');
+    await page.getByRole('button', { name: 'Kiểm tra', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Đang kiểm tra…', exact: true })).toBeDisabled();
+    const checking = await Promise.all(['Chạy', 'Dừng', 'Đang kiểm tra…', 'Đặt lại'].map(async (name) => boxOf(page.getByRole('button', { name, exact: true }))));
+    expect(checking).toEqual(before);
+    await expect(page.getByRole('button', { name: 'Kiểm tra', exact: true })).toBeEnabled({ timeout: 10_000 });
+    expect(await placesOf()).toEqual(before);
+  });
+});
 
 test.describe('outside a lab', () => {
   test.use({ viewport: { width: 1000, height: 640 } });

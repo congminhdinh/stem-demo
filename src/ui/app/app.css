@@ -77,6 +77,7 @@ body {
 .run-toolbar {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: 8px;
   margin-left: auto;
@@ -98,11 +99,16 @@ body {
   opacity: 0.5;
 }
 
+/* First in the toolbar, so its width never moves a button; a long one ends in "…" (the whole text is its title). */
 .run-status {
+  max-width: 18em;
+  overflow: hidden;
   padding: 2px 8px;
   border-radius: 10px;
   background: var(--stem-color-neutral-soft);
   color: var(--stem-color-neutral-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .run-status-running,
@@ -129,11 +135,30 @@ body {
   font-size: 13px;
 }
 
+/* A row of the header under the toolbar and the goals (Fix 6, N17 m1); three lines at most, then it scrolls. */
 .run-messages {
   flex-basis: 100%;
+  max-height: 4.5em;
   margin: 0;
+  overflow-y: auto;
   padding-left: 18px;
   color: var(--stem-color-danger);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* A label as wide as the longest of its states (SteadyLabel): the others hold the room, unseen. */
+.steady-label {
+  display: inline-grid;
+  justify-items: center;
+}
+
+.steady-label > span {
+  grid-area: 1 / 1;
+}
+
+.steady-label-room {
+  visibility: hidden;
 }
 
 /* What a Yolo:Bit-compatible program printed: the newest lines, scrolling. */

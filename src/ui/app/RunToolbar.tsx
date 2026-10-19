@@ -20,10 +20,37 @@ type RunToolbarProps = {
   actions?: ReactNode;
 };
 
+/**
+ * Run, Stop and the lab's actions, with the run's status before them (Fix 6, N17 m1). The toolbar sits at the right of the header,
+ * so whatever changes width is on its left: a longer status never moves a button. What the run printed and why it failed or
+ * warns are rows of their own under the header (RunOutput), never inside the toolbar.
+ */
 export function RunToolbar({ runStore, onRun, runDisabled = false, actions }: RunToolbarProps) {
+  const status = useStore(runStore, (state) => state.snapshot.status);
+  const running = useStore(runStore, selectIsRunning);
+  const t = useText();
+  const statusText = t(`run.status.${status}`);
+
+  return (
+    <div className="run-toolbar" role="toolbar" aria-label={t('run.toolbar')}>
+      <span className={`run-status run-status-${status}`} role="status" title={statusText} data-testid="run-status">
+        {statusText}
+      </span>
+      <button type="button" onClick={onRun} disabled={runDisabled}>
+        {t('run.run')}
+      </button>
+      <button type="button" onClick={() => runStore.getState().stop()} disabled={!running}>
+        {t('run.stop')}
+      </button>
+      {actions}
+    </div>
+  );
+}
+
+/** What the run printed (the console) and why it failed or warns: full-width rows of the header, under the toolbar and the goals. */
+export function RunOutput({ runStore }: { runStore: RunStore }) {
   const snapshot = useStore(runStore, (state) => state.snapshot);
   const startFailure = useStore(runStore, (state) => state.startFailure);
-  const running = useStore(runStore, selectIsRunning);
   const t = useText();
   const locale = useLocale();
 
@@ -36,17 +63,7 @@ export function RunToolbar({ runStore, onRun, runDisabled = false, actions }: Ru
       ];
 
   return (
-    <div className="run-toolbar" role="toolbar" aria-label={t('run.toolbar')}>
-      <button type="button" onClick={onRun} disabled={runDisabled}>
-        {t('run.run')}
-      </button>
-      <button type="button" onClick={() => runStore.getState().stop()} disabled={!running}>
-        {t('run.stop')}
-      </button>
-      {actions}
-      <span className={`run-status run-status-${snapshot.status}`} role="status" data-testid="run-status">
-        {t(`run.status.${snapshot.status}`)}
-      </span>
+    <>
       {snapshot.console && <Console console={snapshot.console} />}
       {messages.length > 0 && (
         <ul className="run-messages" data-testid="run-messages">
@@ -55,6 +72,26 @@ export function RunToolbar({ runStore, onRun, runDisabled = false, actions }: Ru
           ))}
         </ul>
       )}
-    </div>
+    </>
+  );
+}
+
+/**
+ * A button's label that keeps the width of the longest of its `labels` (Fix 6, N17 m1): Check becomes "Checking…" while it
+ * checks, and the buttons beside it stay where they are. Only `shown` is visible and named; the others only hold the room.
+ */
+export function SteadyLabel({ shown, labels }: { shown: string; labels: readonly string[] }) {
+  return (
+    <span className="steady-label">
+      {labels.map((label) =>
+        label === shown ? (
+          <span key={label}>{label}</span>
+        ) : (
+          <span key={label} className="steady-label-room" aria-hidden="true">
+            {label}
+          </span>
+        ),
+      )}
+    </span>
   );
 }
