@@ -29,7 +29,7 @@ import {
   temperatureType,
 } from '../constructs/ybc.input';
 import { createPinBlockDefinitions, pinAnalogType, pinConstructs, pinReadType, pinsPackId, pinWriteType, type PinChoices } from '../constructs/ybc.pins';
-import { playNoteType, restType, soundDefinitions } from '../constructs/ybc.sound';
+import { melodyType, musicDefinitions, pitchType, playNoteType, restType, soundDefinitions, soundStopType } from '../constructs/ybc.sound';
 import { usablePins } from '../devices/board-pins';
 import type { DeviceRegistry } from '../devices/registry';
 import {
@@ -274,6 +274,20 @@ const hardwareCategories: Readonly<Record<HardwarePackId, ToolboxCategory[]>> = 
       ],
     },
   ],
+  // N17 B3: the melodies, the tone and stop of the Advanced board join the Sound category, after the note and the rest.
+  'ybc.music': [
+    {
+      kind: 'category',
+      name: 'Sound',
+      colour: '180',
+      contents: [
+        block(melodyType, { fields: { MELODY: 'BIRTHDAY', MODE: 'wait' } }),
+        block(melodyType, { fields: { MELODY: 'JUMP_UP', MODE: 'background' } }),
+        block(pitchType, { inputs: { HZ: shadowNumber(440), MS: shadowNumber(500) } }),
+        block(soundStopType),
+      ],
+    },
+  ],
 };
 
 const hardwareBlocks: Readonly<Record<HardwarePackId, BlockDefinitionJson[]>> = {
@@ -281,9 +295,10 @@ const hardwareBlocks: Readonly<Record<HardwarePackId, BlockDefinitionJson[]>> = 
   'ybc.input': [...inputDefinitions],
   'ybc.sound': [...soundDefinitions],
   'ybc.sensors': [...sensorDefinitions],
+  'ybc.music': [...musicDefinitions],
 };
 
-/** The onboard hardware packs of YB-3: display, buttons and light, sound; and the sensors of the Advanced board (N17 B2). */
+/** The onboard hardware packs of YB-3: display, buttons and light, sound; the sensors (N17 B2) and the music (N17 B3) of the Advanced board. */
 export function createHardwarePacks(): BlockPack[] {
   return (Object.keys(hardwareBlocks) as HardwarePackId[]).map((id) => ({
     id,

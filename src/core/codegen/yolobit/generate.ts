@@ -2,7 +2,7 @@ import { DEFAULT_COLOUR, IMAGE_SIZE, isDisplayText, paletteColourOf, paletteDigi
 import { builtinImageRows, isBuiltinImageName, vendorImageNames } from '../../constructs/ybc.images';
 import { isAxisName, isButtonName, isGestureName } from '../../constructs/ybc.input';
 import { PIN_LEVELS, PIN_NUMBERS } from '../../constructs/ybc.pins';
-import { isNoteName, noteTicks } from '../../constructs/ybc.sound';
+import { isMelodyName, isNoteName, noteTicks, PITCH_MAX_HZ, PITCH_MAX_MS, PITCH_MIN_HZ } from '../../constructs/ybc.sound';
 import { MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_SAFE_INT, MAX_TEXT_CHARS, MAX_WAIT_MS } from '../../program/limits';
 import type { ArithOp, CallStatement, ColourOperand, Expr, ReadExpr, Type, YbcProgramIR, YbcStatement } from '../../program/ybc-ir';
 import { MAX_EXPRESSION_DEPTH, MAX_GENERATED_BYTES, MAX_STATEMENT_DEPTH } from './limits';
@@ -20,11 +20,12 @@ import { defaultTarget, type GenTarget } from './target';
 /**
  * The contract rows the generator can emit: the language layer (YB-5A), the onboard hardware of YB-3 (display C-06…C-09,
  * buttons C-12 and C-13, light C-15, sound C-50 and C-51), the header pins of YB-4 (C-23, C-24, C-25), the RGB display
- * of N17 B1 (built-in pictures C-05, set pixel C-10, clear pixel C-42, set all C-43) and the sensors of N17 B2 (temperature
- * C-16, acceleration C-17, gesture C-18). The other hardware rows arrive with their phases.
+ * of N17 B1 (built-in pictures C-05, set pixel C-10, clear pixel C-42, set all C-43), the sensors of N17 B2 (temperature
+ * C-16, acceleration C-17, gesture C-18) and the buzzer of N17 B3 (melody C-20, tone C-21, stop C-22). The other hardware rows
+ * arrive with their phases.
  */
 export const generatedConstructs = [
-  'C-01', 'C-02', 'C-04', 'C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-12', 'C-13', 'C-15', 'C-16', 'C-17', 'C-18', 'C-23', 'C-24',
+  'C-01', 'C-02', 'C-04', 'C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-12', 'C-13', 'C-15', 'C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22', 'C-23', 'C-24',
   'C-25', 'C-29', 'C-30', 'C-31', 'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-42', 'C-43', 'C-50', 'C-51', 'C-56',
 ] as const;
 
@@ -503,7 +504,7 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
     return literal === null ? null : `, color=${literal}`;
   };
 
-  /** The statements of the onboard hardware, each in the exact form of its contract row (C-05…C-10, C-42, C-43, C-50, C-51). */
+  /** The statements of the onboard hardware, each in the exact form of its contract row (C-05…C-10, C-42, C-43, C-50, C-51, C-20…C-22). */
   const emitCall = (statement: CallStatement, depth: number) => {
     switch (statement.op) {
       case 'display.show': {
@@ -602,6 +603,40 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
         emit(depth, `music.play(['R:${ticks}'], wait=True)`, statement.blockId);
         return;
       }
+      case 'sound.playMelody': {
+        // C-20 (N17 B3): `music.play(music.DADADADUM, wait=False)` is the line of the investigation (§5.3, V·G); the name is the
+        // micro:bit module's, so the board plays its own melody of that name. wait=True and six of the names are UNVERIFIED forms.
+        const { melody, wait } = statement.operand;
+        if (!isMelodyName(melody) || typeof wait !== 'boolean') {
+          report('value-out-of-range', 'A melody is one of the built-in melodies, played until done or in the background.', statement.blockId);
+          return;
+        }
+        emit(depth, `music.play(music.${melody}, wait=${wait ? 'True' : 'False'})`, statement.blockId);
+        return;
+      }
+      case 'sound.pitch': {
+        // C-21 (N17 B3): `music.pitch(hz, ms)`, the call the editor wrote (EVD-03); typed-in values are checked against the domain,
+        // computed ones are the simulator's to refuse when they run.
+        const [hz, ms] = statement.args;
+        if (statement.args.length !== 2 || hz === undefined || ms === undefined) {
+          report('unsupported-node', 'A tone needs its frequency and its length.', statement.blockId);
+          return;
+        }
+        expectType(hz, 'int', 'The frequency');
+        expectType(ms, 'int', 'The length of a tone');
+        if (isLiteralInt(hz) && (hz.value < PITCH_MIN_HZ || hz.value > PITCH_MAX_HZ)) {
+          report('value-out-of-range', `The frequency is ${PITCH_MIN_HZ} to ${PITCH_MAX_HZ} Hz.`, hz.blockId);
+        }
+        if (isLiteralInt(ms) && (ms.value < 0 || ms.value > PITCH_MAX_MS)) {
+          report('value-out-of-range', `The length of a tone is 0 to ${PITCH_MAX_MS} ms.`, ms.blockId);
+        }
+        emit(depth, `music.pitch(${expression(hz)}, ${expression(ms)})`, statement.blockId);
+        return;
+      }
+      case 'sound.stop':
+        // C-22 (N17 B3): `music.stop()`, the call the editor wrote (EVD-03).
+        emit(depth, 'music.stop()', statement.blockId);
+        return;
       default:
         report('unsupported-node', 'The generator does not know this kind of block.', (statement as { blockId?: string }).blockId);
     }

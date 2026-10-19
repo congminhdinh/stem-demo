@@ -5,6 +5,7 @@
 > - r3 áp dụng hai quyết định cuối của owner: **OQ-E APPROVED**, **C-Q6 = Option A** (§22.2).
 > - **N17 B1 (2026-10-19):** owner chọn "Mô phỏng đủ chức năng". Màn hình RGB mở cho cả hai profile: C-05 (hình có sẵn) mở lại, C-10/C-42/C-43 sang cả Basic; màu cho C-06/C-07/C-08. Dạng code mới và nhãn VERIFIED/UNVERIFIED ở **§23**.
 > - **N17 B2 (2026-10-19):** cảm biến của Advanced: C-16 nhiệt độ (domain hỗ trợ −10..50), C-17 gia tốc và C-18 cử chỉ/lắc **mở lại** (RESTRICTED, chỉ Advanced) bằng quyết định owner, với field chưa có evidence ghi rõ **UNVERIFIED** (`unverifiedFields`), không bịa evidence. Chi tiết ở **§24**.
+> - **N17 B3 (2026-10-19):** loa của Advanced: C-20 giai điệu có sẵn (RESTRICTED, 20 tên, chờ xong / không chờ), C-21 `music.pitch` (RESTRICTED, 20..20000 Hz, 0..60000 ms, không chặn) và C-22 `music.stop()` (ELIGIBLE) **mở lại**, chỉ Advanced, với field chưa có evidence ghi **UNVERIFIED**. Nốt của giai điệu trong simulator lấy từ micro:bit MicroPython (MIT), không phải asset OhStem. Chi tiết ở **§25**.
 > - Chưa phải căn cứ implement cho tới khi freeze.
 > **Target snapshot:** editor public `app.ohstem.vn/#!/codes/yolobit`, build marker `?v=20261007130057`, Blockly `8.0.1`; simulator public (Thiết bị ảo → Project Builder, `static/gears/index.html?…&build=658a5…`); trang firmware public `fw.ohstem.vn` liệt kê **"Yolo:Bit v1.12"** và **"Yolo:Bit S3 v1.14"** (đọc 2026-10-14). Ngày quan sát: **2026-10-14**.
 > **Firmware chính xác: UNKNOWN. MicroPython version: UNKNOWN.** Contract này được **pin vào snapshot evidence public ở trên**, không phải bảo đảm tương thích vô thời hạn (§1).
@@ -385,8 +386,8 @@ Mỗi lần gọi đọc giá trị hiện tại; không chặn (V·S `blocking`
 | `:8` | ≈ 500 ms (không phải 1000) → không nhất quán | V·S | EVD-20 → loại |
 | Phân số tick (`0.5`, `0.25`), chuỗi tần số số (`'440:4'` không phát) | — | V·G / V·S | loại |
 | Nốt → Hz | C3 131, D3 147, E3 165, F3 175, G3 196, A3 220, B3 247, C4 262, D4 294, E4 330, F4 349, G4 392, A4 440, B4 494, C5 523 (chỉ báo simulator); C#4/`DB4` 277 | V·S | EVD-08, EVD-21 |
-| `music.pitch(f, d)` | Không chặn; kết thúc tone, `stop`, chồng tone **không quan sát được** | V·G + V·S + D·U | → EXCLUDED |
-| Giai điệu dựng sẵn | 14 identifier | V·G | asset → EXCLUDED |
+| `music.pitch(f, d)` | Không chặn; kết thúc tone, `stop`, chồng tone **không quan sát được** | V·G + V·S + D·U | EXCLUDED → **N17 B3: RESTRICTED (Advanced)**, các field không quan sát được ghi UNVERIFIED (§25) |
+| Giai điệu dựng sẵn | 14 identifier | V·G | asset → EXCLUDED → **N17 B3: RESTRICTED (Advanced)**, Python gọi tên, simulator phát giai điệu micro:bit cùng tên (§25) |
 
 ### 8.2 Contract
 
@@ -394,7 +395,10 @@ Mỗi lần gọi đọc giá trị hiện tại; không chặn (V·S `blocking`
 |---|---|---|---|---|
 | C-50 | Phát nốt (chặn) | `music.play(['<N>:<t>'], wait=True)` | `N` ∈ 15 nốt tự nhiên C3…C5; `t` ∈ {1, 2, 4}; tempo cố định bằng IM-4 → 125 / 250 / 500 ms | **RESTRICTED** |
 | C-51 | Nghỉ (chặn) | `music.play(['R:<t>'], wait=True)` | `t` ∈ {1, 2, 4} | **RESTRICTED** |
-| C-21, C-22, C-20, C-52 | `pitch`, `stop`, giai điệu dựng sẵn, tempo cho learner | — | — | **EXCLUDED** |
+| C-20 | Giai điệu dựng sẵn (N17 B3, Advanced) | `music.play(music.<melody>, wait=False)`; `wait=True` và 6 tên micro:bit là dạng UNVERIFIED | 20 tên của dropdown | **RESTRICTED** (§25) |
+| C-21 | Phát tần số (N17 B3, Advanced) | `music.pitch(<hz>, <ms>)` | 20..20000 Hz, 0..60000 ms; Hz rồi ms, mỗi cái một lần | **RESTRICTED** (§25) |
+| C-22 | Dừng âm thanh (N17 B3, Advanced) | `music.stop()` | — | **ELIGIBLE** (§25) |
+| C-52 | tempo cho learner | — | — | **EXCLUDED** |
 
 Simulator cho C-50: âm `hz(N)` bắt đầu khi gọi, kéo dài `t × 125` ms, statement chặn đúng khoảng đó. Giai điệu tự viết = chuỗi C-50/C-51 (mỗi lệnh một nốt). Âm sắc, âm lượng: `presentation`.
 
@@ -495,7 +499,8 @@ Preamble IM-2 vẫn được sinh (editor luôn sinh); nó không đăng ký han
 |---|---|---|---|---|
 | 13 hình dựng sẵn (`HEART`, `HEART_SMALL`, `HAPPY`, `SMILE`, `SAD`, `CONFUSED`, `ANGRY`, `ASLEEP`, `SURPRISED`, `SILLY`, `FABULOUS`, `YES`, `NO`) | V·G | asset OhStem, không ghi | Không | **N17 B1: mở lại (C-05)** cho 9 tên; nội dung asset OhStem vẫn **không** ghi. Simulator vẽ bảng micro:bit (dòng dưới) |
 | Hình có sẵn trong simulator (N17 B1): 9 tên trên + `ARROW_N/E/S/W` | — | 5×5 của hằng `Image` micro:bit MicroPython (`microbitconstimage.c`) | **MIT License** (micro:bit MicroPython) | `src/core/constructs/ybc.images.ts`; `presentation`: board thật vẽ hình của OhStem (UNVERIFIED). Mũi tên sinh `Image("…")` (C-06) nên board vẽ đúng hình này |
-| 14 giai điệu (`DADADADUM`, `ENTERTAINER`, `PRELUDE`, `ODE`, `NYAN`, `RINGTONE`, `BIRTHDAY`, `WEDDING`, `PYTHON`, `CHASE`, `JUMP_UP`, `JUMP_DOWN`, `POWER_UP`, `POWER_DOWN`) | V·G | asset, không ghi | Không | **EXCLUDED** → chuỗi C-50/C-51 tự viết |
+| 14 giai điệu (`DADADADUM`, `ENTERTAINER`, `PRELUDE`, `ODE`, `NYAN`, `RINGTONE`, `BIRTHDAY`, `WEDDING`, `PYTHON`, `CHASE`, `JUMP_UP`, `JUMP_DOWN`, `POWER_UP`, `POWER_DOWN`) | V·G | asset, không ghi | Không | **N17 B3: mở lại (C-20)**; Python gọi tên (`music.BIRTHDAY`), nên board phát giai điệu của chính nó; nốt asset OhStem vẫn **không** ghi |
+| Giai điệu của simulator (N17 B3): 14 tên trên + `FUNK`, `BLUES`, `FUNERAL`, `PUNCHLINE`, `BADDY`, `BA_DING` | — | Chuỗi nốt của module `music` micro:bit MicroPython (`musictunes.c`), gõ tay; `PRELUDE`, `NYAN`, `PYTHON` chỉ giữ câu mở đầu | **MIT License** (micro:bit MicroPython) | `src/core/simulation/peripherals/melodies.ts`; `presentation`: board thật phát giai điệu của nó (UNVERIFIED) |
 | Font chạy chữ | — | không ghi | Không | Font 5×5 tự vẽ (presentation) |
 | Bảng 8 màu | V·G | mã hex chuẩn | Không phải tác phẩm | Dùng (§4.4) |
 | Bảng nốt → Hz | V·S | 12-TET chuẩn (A4 = 440 Hz) | Kiến thức chung | Dùng (§8) |
@@ -507,6 +512,7 @@ Provenance của mình (plan §6.8): hình, font, giai điệu mẫu trong templ
 | Hình mẫu P1–P11 (`RING`, `CROSS`, `DOT`, `FULL`), giai điệu P5 | STEM Studio (YB-0) | Của dự án |
 | Font 5×5 của display, ASCII 0x20–0x7E, 95 glyph (YB-3a, `src/core/simulation/peripherals/font.ts`) | STEM Studio (YB-3) | Của dự án |
 | 13 hình có sẵn của simulator (N17 B1, `src/core/constructs/ybc.images.ts`) | micro:bit MicroPython (Damien P. George và micro:bit Educational Foundation) | MIT |
+| 20 giai điệu của simulator (N17 B3, `src/core/simulation/peripherals/melodies.ts`) | micro:bit MicroPython (Damien P. George và micro:bit Educational Foundation) | MIT |
 
 ---
 
@@ -537,6 +543,9 @@ Ký hiệu: §0.2. Cột field: `call import module unit range default clamp rou
 | C-16 | nhiệt độ (`int(...)`) | A MUST | V·G+D·M | V·G | V·S | D·U | –ᴰ | – | – | –ᴱ | V·S | – | D·U | – | – | – | – | RESTRICTED | module, block |
 | C-17 | gia tốc x/y/z (N17 B2) | A MUST | V·G (`get_x`) | V·G | V·S | D·U | –ᴰ | – | – | V·S | U→**UNVERIFIED** | – | U→**UNVERIFIED** | – | U→**UNVERIFIED** | – | – | RESTRICTED (owner N17) | module, round |
 | C-18 | cử chỉ / lắc (N17 B2) | A MUST | V·G (`"shake"`) | V·G | V·S | – | –ᴰ | – | – | – | U→**UNVERIFIED** | – | U→**UNVERIFIED** | – | – | – | U→**UNVERIFIED** | RESTRICTED (owner N17) | module |
+| C-20 | giai điệu có sẵn (N17 B3) | A MUST | V·G (`DADADADUM, wait=False`) | V·G | V·S | V·S+D·U | –ᴰ | –ᴱ | –ᴰ | – | U→**UNVERIFIED** | U→**UNVERIFIED** | – | –ᴰ | – | – | U→**UNVERIFIED** | RESTRICTED (owner N17) | module, unit |
+| C-21 | phát tần số `pitch` (N17 B3) | A MUST | V·G | V·G | V·S | U→**UNVERIFIED** | –ᴰ | – | –ᴰ | – | V·S (≈1 ms) | U→**UNVERIFIED** | – | –ᴰ | – | – | U→**UNVERIFIED** | RESTRICTED (owner N17) | module, block |
+| C-22 | dừng âm thanh `stop` (N17 B3) | A MUST | V·G | V·G | V·S | – | – | – | – | – | U→**UNVERIFIED** | – | – | – | – | – | U→**UNVERIFIED** | ELIGIBLE (owner N17) | module |
 | C-50 | phát nốt (chặn) | B MUST / A | V·G | V·G | V·S | V·S+D·U | V·S | –ᴱ | –ᴰ | – | V·S+D·U | – | – | –ᴰ | – | – | V·S | RESTRICTED | module, unit (tick→ms), range, content (Hz) |
 | C-51 | nghỉ (chặn) | B NICE / A | V·G | V·G | V·S | V·S+D·U | V·S | –ᴱ | –ᴰ | – | V·S | – | – | –ᴰ | – | – | – | RESTRICTED | module, unit, range, block |
 | C-23 | digital write | B MUST | V·G | V·G | V·S | – | V·G+D·U | – | –ᴰ | – | V·S | – | – | –ᴰ | – | – | D·U | RESTRICTED (P0–P2) | module, block |
@@ -560,7 +569,7 @@ Ký hiệu: §0.2. Cột field: `call import module unit range default clamp rou
 | C-59 | hàm (FN) | A MUST | V·G | – | – | – | – | – | – | – | – | – | D·M | D·M | – | – | – | RESTRICTED (FN1–FN10) | — |
 
 Ghi chú:
-- `yield`: `–` ở mọi dòng. Trong tập con hỗ trợ không có hoạt động learner thấy được chạy song song: events DEFERRED, âm thanh chỉ dạng chặn, `wait=False` không mở.
+- `yield`: `–` ở mọi dòng trừ C-20 và C-21 (N17 B3): giai điệu `wait=False` và `pitch` phát nền trong khi chương trình chạy tiếp; cách board chia thời gian cho việc đó không quan sát được, nên ghi **UNVERIFIED** (§25). Events vẫn DEFERRED.
 - `event`: `–` (§13).
 - `default`: `–` khi generator truyền đủ đối số; C-03c/C-50/C-51 phụ thuộc tempo → `–ᴱ` (IM-4).
 - C-39 `content` (D·M) = thứ tự đánh giá và giá trị biến đếm theo §3.3, do generator tường minh hoá, không dựa vào thứ tự đối số của MicroPython.
@@ -583,7 +592,8 @@ Ghi chú:
 | C-17, C-18 | gia tốc; cử chỉ/lắc | `accelerometer.get_x()`, `is_gesture` | ~~range/trục/tiêu chí~~ | **N17 B2: RESTRICTED, Advanced** (field thiếu evidence ghi UNVERIFIED, §24) |
 | C-48 | chạm | `is_touched()` | tiêu chí | EXCLUDED |
 | C-49 | timer | `timer.reset()` không import | code không tự đủ | EXCLUDED |
-| C-20, C-21, C-22, C-52, C-60 | giai điệu dựng sẵn; `pitch`; `stop`; tempo learner; tick ≥ 8 / lẻ / tần số số | `music.play(music.ODE)`, `music.pitch(440, 1000)` … | provenance / kết thúc tone / không nhất quán | EXCLUDED |
+| C-20, C-21, C-22 | giai điệu dựng sẵn; `pitch`; `stop` | `music.play(music.DADADADUM, wait=False)`, `music.pitch(440, 1000)`, `music.stop()` | ~~provenance / kết thúc tone~~ | **N17 B3: RESTRICTED / ELIGIBLE, Advanced** (field thiếu evidence ghi UNVERIFIED, §25) |
+| C-52, C-60 | tempo learner; tick ≥ 8 / lẻ / tần số số | `music.set_tempo(ticks, bpm)`, `music.play(['C4:8'], wait=True)` | không nhất quán | EXCLUDED |
 | C-26 | analog write / PWM | `pin0.write_analog(512)` | `OF-range` | EXCLUDED |
 | C-53, C-54 | servo 270/360/release; pull | `servo_write(a, max=270)`, `set_pull` | ngoài tier / thiếu import | EXCLUDED |
 | C-28, C-69 | pulse in; siêu âm | `pin0.pulse_in(1)` | `OF-error`, `OF-block` | EXCLUDED / LATER |
@@ -647,6 +657,7 @@ Sẵn sàng theo phase:
 | hàm | MUST sau gate FN | RESTRICTED | FN1–FN10 DOCUMENTED; test §18.3b ở YB-7 | V·G + D·M |
 | event | có điều kiện | **DEFERRED** | gate EV | — |
 | nốt, giai điệu | MUST | RESTRICTED | chuỗi C-50/C-51 tự viết | V·G + V·S + D·U |
+| giai điệu có sẵn, phát tần số, dừng | MUST | **RESTRICTED / ELIGIBLE (N17 B3)** | 20 giai điệu, chờ xong / không chờ; `pitch` 20..20000 Hz × 0..60000 ms, không chặn; `stop`; kết thúc tone, phát nền, nốt của giai điệu **UNVERIFIED** (§25) | V·G + V·S + D·U |
 | servo | MUST | RESTRICTED | 180°, 0..180, P0–P2 | V·G + D·U + V·S |
 | random (cho xúc xắc, trò chơi) | (từ Basic) | **EXCLUDED** | §3.5 | — |
 | siêu âm / pulse | MUST nếu đo được | EXCLUDED / LATER | — | — |
@@ -739,7 +750,7 @@ Khác biệt: mình chỉ khai báo `global` cho biến toàn cục **bị gán*
 - Servo 0..180.
 - Nhiệt độ: domain hỗ trợ 0..50 °C.
 
-**Loại (owner được báo, không cần duyệt từng mục):** random; thời gian chạy và timer; hình/giai điệu dựng sẵn; độ sáng; biểu đồ; A+B; event; gia tốc, cử chỉ, lắc; chạm; `pitch`/`stop`; tempo cho learner; PWM; servo 270/360; `pulse_in`; siêu âm; pull; float và block toán/text mở rộng; list; chạy nền; Bluetooth; game; block thiết bị.
+**Loại (owner được báo, không cần duyệt từng mục):** random; thời gian chạy và timer; độ sáng; biểu đồ; A+B; event; chạm; tempo cho learner; PWM; servo 270/360; `pulse_in`; siêu âm; pull; float và block toán/text mở rộng; list; chạy nền; Bluetooth; game; block thiết bị.
 
 **Lỗi editor OhStem quan sát được** (để không bắt chước): `say()`, `timer.*`, `set_pull` thiếu import; `translate()` không định nghĩa; `is_pressed_ab()` lỗi trong simulator; số trong ô nốt sinh chuỗi không phát; màu ngoài bảng → `undefined`.
 
@@ -995,7 +1006,8 @@ Còn lại: C-01, C-02, C-03a, C-04, C-29 và ngôn ngữ (C-30…C-39, C-56…C
 | `running_time()` wrap/reset/khoảng | Không chặn (C-19 EXCLUDED) |
 | Độ sáng; biểu đồ; màu chữ số 2–8; A+B | Không chặn (EXCLUDED) |
 | Gia tốc, cử chỉ, lắc, chạm | Không chặn (EXCLUDED) |
-| `pitch` kết thúc/chồng; `stop`; tick ≥ 8 | Không chặn (EXCLUDED) |
+| `pitch` kết thúc/chồng; `stop`; nốt và cách phát nền của giai điệu | Không chặn (N17 B3: mở cho Advanced, ghi **UNVERIFIED**, §25) |
+| tick ≥ 8 | Không chặn (C-60 EXCLUDED) |
 | PWM / analog write | Không chặn (EXCLUDED) |
 | `pulse_in`, siêu âm | Không chặn (EXCLUDED) |
 | Event EV1–EV10 | Không chặn (DEFERRED) |
@@ -1039,6 +1051,7 @@ Còn lại: C-01, C-02, C-03a, C-04, C-29 và ngôn ngữ (C-30…C-39, C-56…C
 | 1.0-draft | 2026-10-14 | Bản đầu tiên (YB-0) |
 | 1.0-draft (r2) | 2026-10-14 | Sửa R1–R3, N1–N3; RV-1 ACCEPT WITH RESTRICTIONS; C-19, C-40 EXCLUDED; P10 viết lại |
 | 1.0-draft (r3) | 2026-10-14 | Áp dụng quyết định owner: OQ-E APPROVED (model display cuối); C-Q6 = Option A (analog native 0–4095, UI 0–100 %, PWM EXCLUDED). Không còn quyết định owner đang chờ |
+| 1.0-draft (r3) + N17 B3 | 2026-10-19 | Owner: "Mô phỏng đủ chức năng". C-20 (giai điệu, RESTRICTED), C-21 (`pitch`, RESTRICTED), C-22 (`stop`, ELIGIBLE) mở lại, chỉ Advanced (pack `ybc.music`), với `unverifiedFields` và `unverifiedForms`; nốt giai điệu của simulator từ micro:bit MicroPython (MIT, §14); §25. Chuỗi version không đổi |
 | 1.0-draft (r3) + N17 B2 | 2026-10-19 | Owner: "Mô phỏng đủ chức năng". C-17, C-18 mở lại (RESTRICTED, Advanced) với `unverifiedFields` (cơ chế mới: field UNKNOWN được owner chấp nhận, ghi rõ lý do; gate chỉ cho qua đúng các field đó); C-16 domain −10..50; `unverifiedForms` cho `get_y/get_z` và 6 tên cử chỉ; §24. Chuỗi version không đổi |
 | 1.0-draft (r3) + N17 B1 | 2026-10-19 | Owner: "Mô phỏng đủ chức năng". C-05 mở lại (RESTRICTED, 13 hình, nội dung micro:bit MIT); C-10/C-42/C-43 sang cả Basic; domain C-10 bỏ `colour`, C-43 thành structural (màu không bao giờ bị từ chối, sai thì đỏ + cảnh báo); thêm `unverifiedForms` cho C-06/C-07/C-08; §23. Chuỗi version của bản máy đọc được **không** đổi để golden cũ giữ nguyên (dòng đầu file Python ghi version) |
 
@@ -1091,3 +1104,26 @@ Ngữ nghĩa simulator (N17 B2; là lựa chọn của môi trường ảo, **kh
 - Kiểm tra (Check): kịch bản `{ part: 'temperature', input: { kind: 'slider', value } }`, `{ part: 'accelerometer', input: { kind: 'tilt', x, y, z? } }` và `{ part: 'accelerometer', input: { kind: 'gesture' } }` (lắc) chạy như ánh sáng (`src/core/challenge/check-run.sensors.test.ts`).
 - Khi chạy, bo mạch trên canvas ghi số đo dưới màn hình (`25 °C   x 0  y 0  z -1024`) và rung nhẹ khi lắc (người dùng bật giảm chuyển động thì chỉ viền gia tốc kế).
 
+
+## 25. N17 B3 — giai điệu có sẵn, phát tần số, dừng: dạng code và nhãn (2026-10-19)
+
+Owner chọn "Mô phỏng đủ chức năng" (plan N17, task B3). Ba block mới, chỉ ở profile **Advanced** (pack `ybc.music`, hiện trong nhóm "Âm thanh"/Sound sau nốt và nghỉ): `ybc_sound_melody` (20 giai điệu; chờ xong / không chờ), `ybc_sound_pitch` (Hz, ms), `ybc_sound_stop`. Basic giữ nốt và nghỉ (C-50, C-51). Bản máy đọc được: `src/core/compat/yolobit-contract.ts` (C-20, C-21, C-22). Golden: `src/core/codegen/yolobit/hardware/__golden__/{melodies-and-tones,every-melody}.py`.
+
+| Block (N17 B3) | Construct | Python sinh ra | Nhãn | Lý do / nguồn |
+|---|---|---|---|---|
+| `ybc_sound_melody`, không chờ, 14 tên của editor | C-20 | `music.play(music.BIRTHDAY, wait=False)` | **VERIFIED** (dạng) | Dòng `music.play(music.DADADADUM, wait=False)` là output editor nguyên văn (investigation §5.3, V·G EVD-03); 14 tên thấy trong output editor (§14, V·G) |
+| `ybc_sound_melody`, chờ xong | C-20 (`unverifiedForms`) | `music.play(music.BIRTHDAY, wait=True)` | **UNVERIFIED** | Với giai điệu chỉ thấy `wait=False`. `wait=True` là keyword editor viết cho nốt (C-50); tooltip "Chờ đến khi hết bài" (§8.1) |
+| `ybc_sound_melody` FUNK, BLUES, FUNERAL, PUNCHLINE, BADDY, BA_DING | C-20 (`unverifiedForms`) | `music.play(music.FUNK, wait=False)` / `wait=True` | **UNVERIFIED** | Tên của module `music` micro:bit, không có trong danh sách editor đã ghi (§14). Board không có tên đó thì lỗi `AttributeError` |
+| `ybc_sound_pitch` | C-21 | `music.pitch(440, 500)` | **VERIFIED** (dạng gọi) | V·G: observedPython `music.pitch(440, 1000)` (EVD-03). **Không chặn**: `pitch` trả về sau ≈1 ms (V·S EVD-06) |
+| `ybc_sound_stop` | C-22 | `music.stop()` | **VERIFIED** (dạng gọi) | V·G: observedPython `music.stop()` (EVD-03) |
+| — | C-20 `block`, `yield`, `content` | — | **UNVERIFIED** (`unverifiedFields`) | Không trace nào đo giai điệu; cách phát nền không thấy; nốt giai điệu của OhStem là asset, không ghi |
+| — | C-21 `unit`, `yield`, `content` | — | **UNVERIFIED** (`unverifiedFields`) | Chữ của block (đơn vị) không ghi lại; tone kết thúc ra sao, tone thứ hai làm gì: không quan sát được (§8.1) |
+| — | C-22 `block`, `content` | — | **UNVERIFIED** (`unverifiedFields`) | Không trace đo `stop`; tone kết thúc ra sao không quan sát được |
+
+Ngữ nghĩa simulator (N17 B3; là lựa chọn của môi trường ảo, **không** phải claim về board thật):
+- Loa phát **một âm tại một thời điểm**, như module `music` micro:bit: nốt, nghỉ, giai điệu, `pitch` và `stop` đều kết thúc âm đang phát trước.
+- **Giai điệu chờ xong**: chương trình chờ tới nốt cuối, mỗi tick 125 ms ở tempo (4, 120) (IM-4); nốt đến hạn theo mốc cố định từ nốt đầu, trễ một tick trở lên thì đi tiếp từ đó.
+- **Giai điệu không chờ** và **`pitch`**: phát nền trên timer của run trong khi chương trình chạy tiếp. Chương trình chạy xong thì giai điệu phát hết; **Stop**, run mới thay thế, hay lỗi thì tắt ngay (Review Focus 1). `pitch` 0 ms không phát gì.
+- Domain `pitch`: 20..20000 Hz và 0..60000 ms, số nguyên; literal ngoài khoảng → `value-out-of-range` khi compile; giá trị tính ra ngoài khoảng → `out-of-domain` tại block của giá trị (Hz tính và kiểm trước, rồi ms).
+- Giai điệu: bảng chuỗi nốt micro:bit (`melodies.ts`, MIT, gõ tay theo trí nhớ; `PRELUDE`, `NYAN`, `PYTHON` chỉ giữ câu mở đầu), đọc như module `music`: quãng tám và độ dài giữ từ nốt trước, mỗi giai điệu bắt đầu lại từ quãng 4 và 4 tick; tần số 12-TET (A4 = 440 Hz) làm tròn như bảng §8.1. Board thật phát giai điệu của chính nó (`presentation`).
+- Trình duyệt chỉ cho âm thanh bắt đầu từ một cử chỉ của người dùng: **click Chạy hoặc Kiểm tra** gọi `AudioContext.resume()` ngay trong handler (cả khi lab nằm trong iframe của LMS: click là cử chỉ của chính iframe). Nút loa chỉ còn là công tắc tắt/bật tiếng, **mặc định bật**, nhớ theo tab (sessionStorage). Âm lượng có trần 0.1. Chữ "Đang phát … Hz" dưới bo mạch luôn nói loa đang phát gì, bật hay tắt tiếng.

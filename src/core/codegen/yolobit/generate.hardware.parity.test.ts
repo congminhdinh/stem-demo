@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  clearDisplay, colour, images, num, playNote, print, program, rest, scrollNumber, scrollText, scrollTextIn, setPixel, showImage, text, wait,
-  type ImageRows, type Json,
+  clearDisplay, colour, images, num, playMelody, playNote, playPitch, print, program, rest, scrollNumber, scrollText, scrollTextIn, setPixel, showImage,
+  text, wait, type ImageRows, type Json,
 } from '../../program/__fixtures__/ybc-blocks';
 import { charactersOf, scrollFrame } from '../../simulation/peripherals/display';
 import { compileBlocks } from './__fixtures__/compile-case';
@@ -301,6 +301,55 @@ const scenarios: Scenario[] = [
     script: { 'accel.x': [0], 'accel.y': [0], 'accel.z': [1024], gesture: [2, 4, 4, 5, 6], temperature: [-10] },
     scrolls: ['-20'],
   },
+  // N17 B3: the built-in melodies, the tone and stop. A note of the contract for whole ticks is `note:`, any other tone `tone:<hz>:<ms>`.
+  {
+    // BIRTHDAY in the background while the heart shows, cut by stop at 1000 ms after C4 (3 ticks), C4 (1) and D4 (4); a tone of 440 Hz
+    // that does not wait, cut at 1500 ms by POWER_UP, which waits: G4, C5, then E5 and G5 (not notes of the contract).
+    name: 'melodies-and-tones',
+    blocks: caseBlocks('melodies-and-tones'),
+    timeline: [
+      [0, frame(['01010', '11111', '11111', '01110', '00100'])],
+      [0, 'note:C4:3'], [375, 'note:C4:1'], [500, 'note:D4:4'],
+      [1000, 'note:A4:4'],
+      [1500, 'note:G4:1'], [1625, 'note:C5:1'], [1750, 'tone:659:125'], [1875, 'tone:784:250'], [2125, 'tone:659:125'], [2250, 'tone:784:375'],
+      [2625, 'end'],
+    ],
+  },
+  {
+    // Twenty melodies, each replacing the one before at once (none is heard), then stop; then a tone on each pass with A held, each
+    // cut 10 ms later by the next pass's tone or by the end.
+    name: 'every-melody (A held twice)',
+    blocks: caseBlocks('every-melody'),
+    script: { 'a.pressed': [1, 1, 0] },
+    passes: 3,
+    timeline: [[0, 'read:a.pressed=1'], [0, 'tone:200:10'], [10, 'read:a.pressed=1'], [10, 'tone:210:10'], [20, 'read:a.pressed=0'], [20, 'end']],
+  },
+  {
+    name: 'a melody in the background cut in the middle of a note, another cut by a tone, the tone cut by a rest',
+    blocks: program([
+      playMelody('ODE', 'background'),
+      wait(num(700)),
+      playMelody('JUMP_UP', 'background'),
+      wait(num(300)),
+      playPitch(num(1000), num(400)),
+      wait(num(100)),
+      rest(1),
+      print(text('done')),
+    ]),
+    timeline: [
+      [0, 'note:E4:4'], [500, 'tone:330:200'], [700, 'note:C5:1'], [825, 'tone:587:125'], [950, 'tone:659:50'], [1000, 'tone:1000:100'],
+      [1100, 'sleep:125'], [1225, 'print:done'], [1225, 'end'],
+    ],
+  },
+  {
+    name: 'DADADADUM until done: its rests are time passing, its notes are notes',
+    blocks: program([playMelody('DADADADUM', 'wait'), print(text('after'))]),
+    timeline: [
+      [0, 'sleep:250'], [250, 'note:G4:2'], [500, 'note:G4:2'], [750, 'note:G4:2'], [1000, 'tone:311:1000'],
+      [2000, 'sleep:250'], [2250, 'note:F4:2'], [2500, 'note:F4:2'], [2750, 'note:F4:2'], [3000, 'note:D4:8'],
+      [4000, 'print:after'], [4000, 'end'],
+    ],
+  },
   {
     // (3, 1) is column 3 of row 1 (EVD-06), and an L shows that rows and columns are not turned the wrong way round.
     name: 'pictures keep their rows and columns: a pixel at (3, 1), an L, a full frame, a clear',
@@ -412,6 +461,13 @@ describe.skipIf(python === null)('the generated Python takes the time and shows 
       ['a pixel at another place', 'pixels-and-colours', 'set_pixel(2, 3,', 'set_pixel(3, 2,'],
       ['a picture in another colour', 'pixels-and-colours', '20002:02020:00200:02020:20002', '30003:03030:00300:03030:30003'],
       ['a scroll in red', 'pixels-and-colours', ", color='#ffff00'", ''],
+      // N17 B3.
+      ['another melody', 'melodies-and-tones', 'music.BIRTHDAY', 'music.ODE'],
+      ['a melody that waits instead', 'melodies-and-tones', 'music.play(music.BIRTHDAY, wait=False)', 'music.play(music.BIRTHDAY, wait=True)'],
+      ['a melody in the background instead', 'melodies-and-tones', 'music.play(music.POWER_UP, wait=True)', 'music.play(music.POWER_UP, wait=False)'],
+      ['a shorter tone', 'melodies-and-tones', 'music.pitch(440, 500)', 'music.pitch(440, 400)'],
+      ['another tone', 'melodies-and-tones', 'music.pitch(440, 500)', 'music.pitch(392, 500)'],
+      ['a stop sooner', 'melodies-and-tones', 'time.sleep_ms(1000)\nmusic.stop()', 'time.sleep_ms(400)\nmusic.stop()\ntime.sleep_ms(600)'],
     ];
     for (const [label, name, from, to] of mutations) {
       const scenario = scenarioNamed(name);
@@ -504,8 +560,19 @@ describe.skipIf(python === null)('the fake modules enforce the forms the contrac
     ['a button that is not there', 'button_c.is_pressed()'],
     ['an API that is not in the module (display.set_brightness, C-11)', 'display.set_brightness(5)'],
     ['an unscripted read', 'light_level()'],
+    // N17 B3.
+    ['a melody without wait written out', 'music.play(music.ODE)'],
+    ['a melody the module does not have', 'music.play(music.GREENSLEEVES, wait=False)'],
+    ['a pitch of a text', "music.pitch('440', 500)"],
   ])('refuses %s', (_label, body) => {
     expect(attempt(body)?.error).not.toBeNull();
+  });
+
+  it('reads a melody with a reader of its own: JUMP_UP until done, then BA_DING in the background, cut by stop (N17 B3)', () => {
+    expect(attempt('music.set_tempo(4, 120)\nmusic.play(music.JUMP_UP, wait=True)\nmusic.play(music.BA_DING, wait=False)\ntime.sleep_ms(200)\nmusic.stop()')?.events).toEqual([
+      [0, 'note:C5:1'], [125, 'tone:587:125'], [250, 'tone:659:125'], [375, 'tone:698:125'], [500, 'tone:784:125'],
+      [625, 'tone:988:125'], [750, 'tone:1319:75'], [825, 'end'],
+    ]);
   });
 
   it('lets the preamble of IM-2 run, and the program that follows it', () => {

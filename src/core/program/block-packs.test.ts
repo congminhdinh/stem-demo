@@ -25,6 +25,7 @@ describe('block packs', () => {
       'ybc.input',
       'ybc.sound',
       'ybc.sensors',
+      'ybc.music',
       'ybc.pins',
       'lang.logic',
       'lang.loops',
@@ -84,6 +85,10 @@ describe('block packs', () => {
       'ybc_temperature',
       'ybc_accel',
       'ybc_gesture_is',
+      // N17 B3: the melodies, the tone and stop of the Advanced board.
+      'ybc_sound_melody',
+      'ybc_sound_pitch',
+      'ybc_sound_stop',
       'ybc_pin_write',
       'ybc_pin_read',
       'ybc_pin_analog',
@@ -107,6 +112,22 @@ describe('block packs', () => {
     expect(packs.get('ybc.input')?.categories[0]?.contents).toHaveLength(5);
     // Alone, the sensors pack shows its own Input category.
     expect(buildToolbox(['ybc.sensors'], packs).contents.map((category) => category.name)).toEqual(['Input']);
+  });
+
+  it('merge the music of N17 B3 into the Sound category, after the note and the rest, with presets inside the contract domain', () => {
+    const toolbox = buildToolbox(['ybc.sound', 'ybc.music'], packs);
+    expect(toolbox.contents.map((category) => category.name)).toEqual(['Sound']);
+    const sound = toolbox.contents[0]?.contents as { type: string; fields?: Record<string, unknown>; inputs?: Record<string, unknown> }[];
+    expect(sound.map((block) => block.type)).toEqual(['ybc_sound_note', 'ybc_sound_rest', 'ybc_sound_melody', 'ybc_sound_melody', 'ybc_sound_pitch', 'ybc_sound_stop']);
+    expect(sound.filter((block) => block.type === 'ybc_sound_melody').map((block) => block.fields)).toEqual([
+      { MELODY: 'BIRTHDAY', MODE: 'wait' },
+      { MELODY: 'JUMP_UP', MODE: 'background' },
+    ]);
+    expect(sound.find((block) => block.type === 'ybc_sound_pitch')?.inputs).toEqual({
+      HZ: { shadow: { type: 'math_number', fields: { NUM: 440 } } },
+      MS: { shadow: { type: 'math_number', fields: { NUM: 500 } } },
+    });
+    expect(packs.get('ybc.sound')?.categories[0]?.contents).toHaveLength(2);
   });
 
   it('tell the types of a pack set, and refuse an unknown pack', () => {

@@ -12,6 +12,7 @@ import type { SimulationResult } from '../../core/simulation/simulate-circuit';
 import type { LabKind } from '../../samples/templates';
 import { SoundIndicator } from '../audio/SoundIndicator';
 import { toneHz } from '../audio/tone';
+import { useBuzzerSound } from '../audio/use-buzzer-sound';
 import { BlocklyPanel, type BlocklyPanelHandle } from '../blockly/BlocklyPanel';
 import { localizeToolbox } from '../i18n/blocks';
 import { useLocale, useText } from '../i18n/text';
@@ -70,6 +71,17 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
     () => resolveBoardContext({ profile, circuit: document.circuit }, registry, profiles),
     [profile, document.circuit, registry, profiles],
   );
+  const isYbc = context.family === 'ybc';
+  const boardId = context.readiness.ok ? context.readiness.board.id : null;
+  // The sound follows every snapshot of the session, not the one a frame shows (see useBuzzerSound).
+  const tones = useCallback(
+    (listener: (hz: number | undefined) => void) =>
+      runStore.getState().onSnapshot((snapshot) => listener(boardId === null ? undefined : toneHz(partStateOf(snapshot.simulation, boardId, buzzerPartId)))),
+    [runStore, boardId],
+  );
+  // N17 B3: the buzzer's sound is on from the start, in the editor and in a lab (also inside the LMS's frame), and is started by
+  // the click of Run or Check (a user gesture, which a browser asks for before it plays). The switch turns it off for the tab.
+  const sound = useBuzzerSound(tones, true);
   // Only a different set of packs is a different toolbox, so circuit edits keep the Blockly workspace.
   const packKey = context.blockPacks.join('|');
   const toolbox = useMemo(() => localizeToolbox(buildToolbox(packKey === '' ? [] : packKey.split('|'), packs), locale), [packKey, packs, locale]);
@@ -89,6 +101,10 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
   const [liveBoard, setLiveBoard] = useState<BoardInputs>(noBoardInputs);
 
   const run = () => {
+    // In the click itself, before anything else: the gesture is what lets the sound start (N17 B3). Only a Yolo:Bit board has a buzzer.
+    if (isYbc) {
+      sound.unlock();
+    }
     // Run compiles the document, so the latest Blockly edits must be in it first.
     blocklyRef.current?.saveNow();
     runStore.getState().run(projectStore.getState().document);
@@ -131,10 +147,9 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
     }
   };
 
-  const isYbc = context.family === 'ybc';
-  const boardId = context.readiness.ok ? context.readiness.board.id : null;
-
   const startCheck = () => {
+    // In the click itself: Check plays the program as Run does, so it starts the sound too (N17 B3).
+    sound.unlock();
     const challenge = lab?.challenge;
     if (!challenge || checkRun.current) {
       return;
@@ -205,12 +220,6 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
         {t('lab.check.held')}
       </div>
     ) : null;
-  // The sound follows every snapshot of the session, not the one a frame shows (see SoundIndicator).
-  const tones = useCallback(
-    (listener: (hz: number | undefined) => void) =>
-      runStore.getState().onSnapshot((snapshot) => listener(boardId === null ? undefined : toneHz(partStateOf(snapshot.simulation, boardId, buzzerPartId)))),
-    [runStore, boardId],
-  );
   // The board the controls, the display text and the sound belong to: the project's one board, when it can run.
   const board = context.readiness.ok ? context.readiness.board : null;
   // What the board draws of its inputs while a run is on: the check's, or the learner's own (N17 B2: the sensors' readings).
@@ -269,7 +278,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
                 }}
                 {...(checking ? { scripted: scripted.inputs, scriptedEvents: scripted.events } : {})}
               />
-              <SoundIndicator buzzer={partStateOf(simulation, board.id, buzzerPartId)} tones={tones} />
+              <SoundIndicator buzzer={partStateOf(simulation, board.id, buzzerPartId)} sound={sound} />
             </div>
           )}
         </>

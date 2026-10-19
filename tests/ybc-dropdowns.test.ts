@@ -50,6 +50,14 @@ const allowed: Record<string, Record<string, string[]>> = {
   // N17 B2, the sensors of Advanced: the three axes (C-17) and the seven gestures (C-18), shake first.
   ybc_accel: { AXIS: ['x', 'y', 'z'] },
   ybc_gesture_is: { GESTURE: ['shake', 'tilt_left', 'tilt_right', 'face_up', 'face_down', 'logo_up', 'logo_down'] },
+  // N17 B3, the buzzer of Advanced: the twenty built-in melodies (C-20) and whether the program waits for them.
+  ybc_sound_melody: {
+    MELODY: [
+      'DADADADUM', 'ENTERTAINER', 'PRELUDE', 'ODE', 'NYAN', 'RINGTONE', 'FUNK', 'BLUES', 'BIRTHDAY', 'WEDDING',
+      'FUNERAL', 'PUNCHLINE', 'PYTHON', 'BADDY', 'CHASE', 'BA_DING', 'JUMP_UP', 'JUMP_DOWN', 'POWER_UP', 'POWER_DOWN',
+    ],
+    MODE: ['wait', 'background'],
+  },
 };
 
 function blockTypesIn(value: unknown, found = new Set<string>()): Set<string> {

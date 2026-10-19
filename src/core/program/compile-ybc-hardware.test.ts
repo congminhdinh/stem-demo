@@ -5,7 +5,7 @@ import {
   showIconType, showImageType,
 } from '../constructs/ybc.display';
 import { accelerationType, buttonNames, buttonPressedType, buttonPressesType, gestureIsType, lightLevelType, temperatureType } from '../constructs/ybc.input';
-import { noteNames, noteTicks, playNoteType, restType } from '../constructs/ybc.sound';
+import { melodyType, noteNames, noteTicks, pitchType, playNoteType, restType, soundStopType } from '../constructs/ybc.sound';
 import { localDeviceDefinitions } from '../devices/local-catalog';
 import { boardTargetOf } from '../devices/board-pins';
 import { createDeviceRegistry } from '../devices/registry';
@@ -137,7 +137,7 @@ describe('the IR of each hardware block', () => {
     expect(result.ok && JSON.parse(JSON.stringify(result.ir))).toEqual(result.ok && result.ir);
   });
 
-  it('compiles a block of every hardware construct of Basic, and of nothing else (the sensors of N17 B2, Advanced only, are in ybc-sensors.test.ts)', () => {
+  it('compiles a block of every hardware construct of Basic, and of nothing else (the sensors of N17 B2 and the music of N17 B3, Advanced only, are in ybc-sensors.test.ts and ybc-music.test.ts)', () => {
     // The colour block is a statement of none: it is in a colour input of set pixel and set all here (N17 B1).
     const everything = [
       showImage(images.CROSS), scrollText(text('x')), scrollNumber(num(1)), clearDisplay(), playNote('C3', 1), rest(1),
@@ -149,6 +149,7 @@ describe('the IR of each hardware block', () => {
       [
         showImageType, scrollTextType, scrollNumberType, clearDisplayType, playNoteType, restType, buttonPressedType, buttonPressesType, lightLevelType,
         showIconType, setPixelType, colourType, clearPixelType, setAllType, temperatureType, accelerationType, gestureIsType,
+        melodyType, pitchType, soundStopType,
       ].sort(),
     );
   });

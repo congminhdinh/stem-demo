@@ -1,11 +1,13 @@
 import { spawnSync } from 'node:child_process';
 import { blankFrame, type Frame, type HexColour } from '../../../capabilities/frame';
 import type { Capabilities } from '../../../capabilities/io';
+import type { RunScheduler } from '../../../capabilities/services';
 import type { Sleep } from '../../../program/interpreter';
 import { runYbc } from '../../../program/__fixtures__/run-ybc';
 import type { YbcProgramIR } from '../../../program/ybc-ir';
 import { gestureNames } from '../../../constructs/ybc.input';
 import { charactersOf, scrollFrame } from '../../../simulation/peripherals/display';
+import { melodyTunes } from '../../../simulation/peripherals/melodies';
 import { python } from './python';
 
 // Simulator <-> generator parity for the onboard hardware (plan §1, §13.9, §18.3 "khớp Python"), tests only.
@@ -18,7 +20,9 @@ import { python } from './python';
 //                                palette digit of the colour (contract §4.1, EVD-05): 1 red … 8 white (N17 B1)
 //   scroll:<text>[@<digit>]      a text or number was scrolled from here; the clock moves on by 1200 ms × n for n ≥ 2 characters;
 //                                `@<digit>` when it is not red (N17 B1)
-//   note:<NAME>:<ticks>          a note sounded for that many ticks
+//   note:<NAME>:<ticks>          a note sounded for that many ticks (one of the 15 of the contract, whole ticks)
+//   tone:<hz>:<ms>               any other tone that sounded (N17 B3: a note of a melody, music.pitch, a note cut short);
+//                                a tone that lasted no time is not an event
 //   sleep:<ms>                   time passed without anything else (a wait, a rest, a pause of a forever that is not the last)
 //   print:<text>                 a line was printed
 //   read:<part>=<n>              a scripted answer was consumed (a.pressed, b.pressed, a.presses, b.presses, light; N17 B2:
@@ -30,6 +34,12 @@ import { python } from './python';
 // character for two characters or more (contract §4.2), the fake `music` takes ticks × 60000 / (bpm × ticks per beat) per element
 // with the default tempo (4, 60) until `music.set_tempo` says otherwise (so a program that forgets `set_tempo(4, 120)` is
 // twice as slow), and `time.sleep_ms` moves the clock by its argument. A rest is silence: both sides show it as time passing.
+// N17 B3: the fake `music` reads the tunes of the built-in melodies (passed in, as the board has its own) with a reader of its own,
+// in the micro:bit notation. A melody with wait=True takes its time; with wait=False, and a pitch (which does not wait, EVD-06), it
+// sounds in the background until the next sound, stop or the end cuts it. Time that passes while a tone sounds is not an event of
+// its own (the tone is), on either side. The simulator side plays the background on a fake scheduler of the fake clock: a task due
+// within a sleep runs at its time, one due exactly when the program goes on is the program's to cut. Both timelines are sorted by
+// time (stably), since a tone is only written down when it ends.
 // This checks that the generated program MEANS what the simulator does; it is not a check on MicroPython or a Yolo:Bit.
 
 export type Timeline = [at: number, event: string][];
@@ -82,15 +92,86 @@ NAMED = {
     'SURPRISED': '01010:00000:00100:01010:00100', 'YES': '00000:00001:00010:10100:01000', 'NO': '10001:01010:00100:01010:10001',
 }
 
+# N17 B3: the tunes of the built-in melodies (simulation/peripherals/melodies.ts melodyTunes, passed in): the board has its own.
+TUNES = json.loads(sys.argv[2])
+# Contract §8.1 (EVD-21): the notes of the 15 natural notes, by Hz, written here again by hand.
+CONTRACT_NOTES = {131: 'C3', 147: 'D3', 165: 'E3', 175: 'F3', 196: 'G3', 220: 'A3', 247: 'B3', 262: 'C4', 294: 'D4', 330: 'E4',
+                  349: 'F4', 392: 'G4', 440: 'A4', 494: 'B4', 523: 'C5'}
+NOTE = re.compile(r'^([a-gr])([#b]?)([0-8]?)(?::([1-9][0-9]*))?$')
+SEMITONES = {'c': 0, 'd': 2, 'e': 4, 'f': 5, 'g': 7, 'a': 9, 'b': 11}
+MISSING = object()
+
+class Tune(tuple):
+    pass
+
+def parse_tune(tune):
+    # The micro:bit notation, read again here: the octave and the length carry on, from 4 and 4 at the start of every tune.
+    octave, ticks, items = 4, 4, []
+    for text in tune:
+        match = NOTE.match(text.lower())
+        if not match:
+            raise AssertionError('not a note: ' + repr(text))
+        letter, accidental, octave_text, ticks_text = match.groups()
+        if octave_text:
+            octave = int(octave_text)
+        if ticks_text:
+            ticks = int(ticks_text)
+        if letter == 'r':
+            items.append((None, ticks))
+            continue
+        semitone = SEMITONES[letter] + (1 if accidental == '#' else -1 if accidental == 'b' else 0)
+        items.append((int(440 * 2 ** ((12 * (octave + 1) + semitone - 69) / 12) + 0.5), ticks))
+    return items
+
 def run(case):
     source, script, passes = case['source'], case['script'], case['passes']
-    state = {'now': 0, 'pauses': 0}
+    state = {'now': 0, 'pauses': 0, 'background': None}
     events = []
     queues = {name: list(script.get(name, [])) for name in PARTS}
     tempo = {'ticks': 4, 'bpm': 60}
 
     def record(event):
         events.append([state['now'], event])
+
+    def tick_ms():
+        return 60000 / (tempo['bpm'] * tempo['ticks'])
+
+    def sound_event(hz, ms):
+        ticks = ms / tick_ms()
+        name = CONTRACT_NOTES.get(hz)
+        if name is not None and ticks == int(ticks):
+            return 'note:%s:%d' % (name, int(ticks))
+        return 'tone:%d:%d' % (hz, ms)
+
+    def cut(at):
+        # The sound in the background ends at that time: what had begun by then is written down, as long as it sounded.
+        background = state['background']
+        state['background'] = None
+        if background is None:
+            return
+        start = background['start']
+        for hz, ms in background['items']:
+            if start >= at:
+                break
+            length = min(start + ms, at) - start
+            if hz is not None and length > 0:
+                events.append([start, sound_event(hz, length)])
+            start += ms
+
+    def sounding(at):
+        background = state['background']
+        if background is None:
+            return False
+        start = background['start']
+        for hz, ms in background['items']:
+            if start <= at < start + ms:
+                return hz is not None
+            start += ms
+        return False
+
+    def finished_at(at):
+        background = state['background']
+        return background is None or background['start'] + sum(ms for _, ms in background['items']) <= at
 
     def take(name):
         queue = queues[name]
@@ -108,7 +189,8 @@ def run(case):
             if state['pauses'] >= passes:
                 record('end')
                 raise Stop()
-        record('sleep:%d' % ms)
+        if not sounding(state['now']):
+            record('sleep:%d' % ms)
         state['now'] += ms
 
     time_module.sleep_ms = sleep_ms
@@ -227,7 +309,21 @@ def run(case):
         tempo['ticks'] = ticks
         tempo['bpm'] = bpm
 
-    def play(notes, wait=False):
+    def play(notes, wait=MISSING):
+        # Any sound ends the one in the background first (one sound at a time, N17 B3).
+        cut(state['now'])
+        if isinstance(notes, Tune):
+            # C-20: a built-in melody, with wait written out (the generator always writes it).
+            if wait is not True and wait is not False:
+                raise AssertionError('the contract writes wait=True or wait=False for a melody')
+            items = [(hz, int(round(ticks * tick_ms()))) for hz, ticks in parse_tune(notes)]
+            if wait is False:
+                state['background'] = {'start': state['now'], 'items': items}
+                return
+            for hz, ms in items:
+                record('sleep:%d' % ms if hz is None else sound_event(hz, ms))
+                state['now'] += ms
+            return
         if wait is not True:
             raise AssertionError('the contract writes wait=True')
         if not isinstance(notes, list):
@@ -239,8 +335,23 @@ def run(case):
             record('sleep:%d' % duration if name == 'R' else 'note:%s:%d' % (name, ticks))
             state['now'] += duration
 
+    def pitch(frequency, duration):
+        # C-21: does not wait (EVD-06); the tone sounds in the background for its ms.
+        if not isinstance(frequency, int) or not isinstance(duration, int):
+            raise AssertionError('pitch takes whole numbers')
+        cut(state['now'])
+        if duration > 0:
+            state['background'] = {'start': state['now'], 'items': [(frequency, duration)]}
+
+    def stop():
+        cut(state['now'])
+
     music.set_tempo = set_tempo
     music.play = play
+    music.pitch = pitch
+    music.stop = stop
+    for name, tune in TUNES.items():
+        setattr(music, name, Tune(tune))
 
     def fake_print(*args):
         record('print:' + ' '.join(str(arg) for arg in args))
@@ -253,6 +364,8 @@ def run(case):
     error = None
     try:
         exec(compile(source, '<generated>', 'exec'), {'__name__': '__main__', 'print': fake_print})
+        if not finished_at(state['now']):
+            raise AssertionError('a sound still plays when the program finished')
     except Stop:
         pass
     except Exception as exc:
@@ -263,6 +376,9 @@ def run(case):
                 sys.modules.pop(name, None)
             else:
                 sys.modules[name] = saved[name]
+    # The end of the program ends the sound in the background (N17 B3); a tone is written down when it ends, so sort by time.
+    cut(state['now'])
+    events.sort(key=lambda event: event[0])
     return {'events': events, 'error': error, 'left': {name: len(queue) for name, queue in queues.items()}}
 
 cases = json.loads(sys.stdin.buffer.read().decode('utf-8'))
@@ -274,7 +390,7 @@ export function runUnderCpythonWithHardware(cases: Record<string, { source: stri
   if (!python) {
     throw new Error('No CPython 3 on this machine');
   }
-  const result = spawnSync(python.command, [...python.prefix, '-c', harness, JSON.stringify(gestureNames)], {
+  const result = spawnSync(python.command, [...python.prefix, '-c', harness, JSON.stringify(gestureNames), JSON.stringify(melodyTunes)], {
     input: JSON.stringify(cases),
     encoding: 'utf8',
     timeout: 120_000,
@@ -313,6 +429,42 @@ export async function simulateWithHardware(ir: YbcProgramIR, script: Script, scr
   let pauses = 0;
   let ended = false;
   let stop = () => {};
+
+  // N17 B3: the run's timers on the fake clock, so a melody in the background plays in the same time as the program.
+  let order = 0;
+  const pending: { due: number; order: number; task: () => void }[] = [];
+  const scheduler: RunScheduler = {
+    schedule(task, ms) {
+      const entry = { due: now + ms, order: (order += 1), task };
+      pending.push(entry);
+      return () => {
+        const index = pending.indexOf(entry);
+        if (index >= 0) {
+          pending.splice(index, 1);
+        }
+      };
+    },
+    dispose() {
+      pending.length = 0;
+    },
+    get disposed() {
+      return false;
+    },
+  };
+  /** Runs, in time order, the tasks due before `limit` (or at it, when `inclusive`), each at its own time. */
+  const runDue = (limit: number, inclusive: boolean) => {
+    for (;;) {
+      const next = pending
+        .filter((entry) => (inclusive ? entry.due <= limit : entry.due < limit))
+        .sort((a, b) => a.due - b.due || a.order - b.order)[0];
+      if (next === undefined) {
+        return;
+      }
+      pending.splice(pending.indexOf(next), 1);
+      now = next.due;
+      next.task();
+    }
+  };
 
   const take = (name: (typeof partNames)[number]): number => {
     const value = queues[name].shift();
@@ -383,12 +535,13 @@ export async function simulateWithHardware(ir: YbcProgramIR, script: Script, scr
           problems.push(`a tone stopped at ${now} that was never started`);
           return;
         }
-        const ticks = (now - tone.at) / TICK_MS;
+        // A note of the contract for whole ticks is a note; any other tone (N17 B3) is its Hz and ms; one of no time is nothing.
+        const ms = now - tone.at;
+        const ticks = ms / TICK_MS;
         const name = contractNotes[tone.hz];
-        if (name === undefined || !Number.isInteger(ticks)) {
-          problems.push(`a tone of ${tone.hz} Hz for ${now - tone.at} ms is not a note of the contract`);
+        if (ms > 0) {
+          events.push([tone.at, name !== undefined && Number.isInteger(ticks) ? `note:${name}:${ticks}` : `tone:${tone.hz}:${ms}`]);
         }
-        events.push([tone.at, `note:${name ?? tone.hz}:${ticks}`]);
         tone = null;
       },
     },
@@ -409,11 +562,16 @@ export async function simulateWithHardware(ir: YbcProgramIR, script: Script, scr
         });
       }
     }
-    // The columns of a scroll and the length of a note are not events of their own: the scroll and the note are.
+    // What was due when the program went on happens before it sleeps (N17 B3).
+    runDue(now, true);
+    // The columns of a scroll and the length of a note are not events of their own: the scroll and the note are. Nor is the time
+    // a tone of the background sounds through (N17 B3).
     if (scroll === null && tone === null) {
       events.push([now, `sleep:${ms}`]);
     }
-    now += ms;
+    const until = now + ms;
+    runDue(until, false);
+    now = until;
     return Promise.resolve();
   };
 
@@ -423,6 +581,7 @@ export async function simulateWithHardware(ir: YbcProgramIR, script: Script, scr
       sleep,
       console: { write: (line) => events.push([now, `print:${line}`]) },
       now: () => now,
+      scheduler,
     },
     capabilities,
   );
@@ -430,6 +589,9 @@ export async function simulateWithHardware(ir: YbcProgramIR, script: Script, scr
   const outcome = await running.done;
   if (outcome.status === 'finished') {
     events.push([now, 'end']);
+    if (pending.length > 0) {
+      problems.push('a sound still plays when the program finished');
+    }
   } else if (outcome.status === 'error') {
     problems.push(`the program failed: ${outcome.code} ${outcome.message}`);
   } else if (!ended) {
@@ -441,6 +603,8 @@ export async function simulateWithHardware(ir: YbcProgramIR, script: Script, scr
   if (expected.length > 0) {
     problems.push(`scrolls never shown: ${expected.join(', ')}`);
   }
+  // A tone is written down when it ends (N17 B3: a note of the background ends while the program does other things): by time.
+  events.sort((a, b) => a[0] - b[0]);
   return {
     events,
     error: null,

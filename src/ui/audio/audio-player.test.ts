@@ -659,3 +659,103 @@ describe('a node that will not stop or disconnect does not keep the rest from be
     expect(browser.gains.map((node) => node.gain.value)).toEqual([GAIN_CEILING]);
   });
 });
+
+// N17 B3: sound starts with Run or Check. The player can be on from the start (the learner's switch, kept for the tab) without
+// an AudioContext, because a context may only start from a user gesture: `unlock`, called in the click handler of Run and of
+// Check, creates the context when there is none and resumes it, at every gesture, so the tones that follow are heard.
+describe('unlock: the gesture of Run or Check starts the sound', () => {
+  function setupOn(enabled = true) {
+    const fake = createFakeContext();
+    let created = 0;
+    const player = createAudioPlayer(() => {
+      created += 1;
+      return fake.context;
+    }, { enabled });
+    return { ...fake, player, created: () => created };
+  }
+
+  it('is on from the start when told so, but makes no context and no sound before a gesture', () => {
+    const { player, oscillators, created } = setupOn();
+
+    player.setTone(440);
+
+    expect(created()).toBe(0);
+    expect(oscillators).toHaveLength(0);
+  });
+
+  it('creates and resumes the context in the gesture, and then plays the tone that sounds and the ones after it', () => {
+    const { player, oscillators, calls, created, gain } = setupOn();
+    player.setTone(440);
+
+    player.unlock();
+
+    expect(created()).toBe(1);
+    expect(calls).toContain('resume');
+    expect(sounding(oscillators).map((oscillator) => oscillator.frequency.value)).toEqual([440]);
+    expect(gain.gain.value).toBe(GAIN_CEILING);
+    player.setTone(523);
+    expect(sounding(oscillators).map((oscillator) => oscillator.frequency.value)).toEqual([523]);
+  });
+
+  it('resumes again at every gesture (a browser may suspend a context), with one context only', () => {
+    const { player, calls, created } = setupOn();
+
+    player.unlock();
+    player.unlock();
+    player.unlock();
+
+    expect(created()).toBe(1);
+    expect(calls.filter((call) => call === 'resume')).toHaveLength(3);
+  });
+
+  it('does nothing while sound is off: no context, no resume, no sound', () => {
+    const { player, oscillators, calls, created } = setupOn(false);
+    player.setTone(440);
+
+    player.unlock();
+
+    expect(created()).toBe(0);
+    expect(calls).toEqual([]);
+    expect(oscillators).toHaveLength(0);
+  });
+
+  it('keeps the context of a switch that was turned on with a click, and resumes it', () => {
+    const { player, calls, created } = setupOn(false);
+    player.setEnabled(true);
+
+    player.unlock();
+
+    expect(created()).toBe(1);
+    expect(calls.filter((call) => call === 'resume')).toHaveLength(2);
+  });
+
+  it('turned off after a gesture, it is silent at once, and a gesture does not bring the sound back', () => {
+    const { player, oscillators } = setupOn();
+    player.unlock();
+    player.setTone(440);
+
+    player.setEnabled(false);
+    player.unlock();
+
+    expect(sounding(oscillators)).toHaveLength(0);
+  });
+
+  it('never throws: not when the browser has no audio, not when the context will not resume, not after dispose', async () => {
+    const none = createAudioPlayer(() => {
+      throw new Error('no audio');
+    }, { enabled: true });
+    expect(() => none.unlock()).not.toThrow();
+
+    const fake = createFakeContext();
+    const refusing = createAudioPlayer(() => ({ ...fake.context, resume: () => Promise.reject(new Error('not allowed')) }), { enabled: true });
+    expect(() => refusing.unlock()).not.toThrow();
+    const throwing = createAudioPlayer(() => ({ ...fake.context, resume: () => { throw new DOMException('no', 'InvalidStateError'); } }), { enabled: true });
+    expect(() => throwing.unlock()).not.toThrow();
+
+    const { player, created } = setupOn();
+    player.dispose();
+    player.unlock();
+    expect(created()).toBe(0);
+    await Promise.resolve();
+  });
+});

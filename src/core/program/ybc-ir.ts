@@ -26,11 +26,14 @@
 //
 // N17 B2 adds the sensors of the Advanced board: the temperature, the acceleration along an axis and whether the board
 // makes a gesture, each a read; the axis and the gesture are operands, as the button is.
+//
+// N17 B3 adds the rest of the buzzer for the Advanced board: a built-in melody (its name and whether the program waits for it
+// are an operand, from the block's fields), a tone whose Hz and ms are expressions, and stop.
 
 import type { HexColour } from '../capabilities/frame';
 import type { BuiltinImageName } from '../constructs/ybc.images';
 import type { AxisName, ButtonName, GestureName } from '../constructs/ybc.input';
-import type { NoteName, NoteTicks } from '../constructs/ybc.sound';
+import type { MelodyName, NoteName, NoteTicks } from '../constructs/ybc.sound';
 
 export type Type = 'int' | 'bool' | 'str';
 
@@ -97,7 +100,19 @@ export type CallStatement =
   /** C-50: the note sounds for `ticks` ticks, and the statement waits that long. */
   | { kind: 'call'; op: 'sound.playNote'; operand: NoteOperand; blockId: string }
   /** C-51: silence for `ticks` ticks, and the statement waits that long. */
-  | { kind: 'call'; op: 'sound.rest'; operand: RestOperand; blockId: string };
+  | { kind: 'call'; op: 'sound.rest'; operand: RestOperand; blockId: string }
+  /**
+   * C-20 (N17 B3): a built-in melody. `wait`: the statement waits until its last note; otherwise it plays in the background, on
+   * timers of the run, while the program goes on. Either way it first ends the sound that plays (one sound at a time).
+   */
+  | { kind: 'call'; op: 'sound.playMelody'; operand: MelodyOperand; blockId: string }
+  /**
+   * C-21 (N17 B3): a tone of `hz` (20..20000, else out-of-domain) for `ms` (0..60000, else out-of-domain), evaluated in that order,
+   * each once. It does not wait (EVD-06): it ends the sound that plays and sounds in the background for `ms`.
+   */
+  | { kind: 'call'; op: 'sound.pitch'; args: [hz: Expr, ms: Expr]; blockId: string }
+  /** C-22 (N17 B3): silence at once, whatever plays in the background. */
+  | { kind: 'call'; op: 'sound.stop'; blockId: string };
 
 /**
  * A header-pin operation with side effects (YB-4, plan §9.1). The arguments are evaluated left to right, each once,
@@ -118,6 +133,7 @@ export type ImageOperand = {
 export type ColourOperand = { kind: 'colour'; colour: HexColour };
 export type NoteOperand = { kind: 'note'; note: NoteName; ticks: NoteTicks };
 export type RestOperand = { kind: 'rest'; ticks: NoteTicks };
+export type MelodyOperand = { kind: 'melody'; melody: MelodyName; wait: boolean };
 export type ButtonOperand = { kind: 'button'; button: ButtonName };
 export type AxisOperand = { kind: 'axis'; axis: AxisName };
 export type GestureOperand = { kind: 'gesture'; gesture: GestureName };

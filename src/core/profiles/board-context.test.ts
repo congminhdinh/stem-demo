@@ -11,8 +11,8 @@ import { productionProfiles } from './index';
 
 /** The block packs of both production profiles: the structure, the YB-3 hardware and the YB-2 language. */
 const ybcPacks = ['ybc.structure', 'ybc.display', 'ybc.input', 'ybc.sound', 'ybc.pins', 'lang.logic', 'lang.loops', 'lang.math', 'lang.text', 'lang.variables'];
-/** N17 B2: Advanced adds the sensors pack (temperature, accelerometer, gestures) after the packs of Basic. */
-const packsOf = (profile: string) => (profile === 'ybc-advanced' ? [...ybcPacks, 'ybc.sensors'] : ybcPacks);
+/** N17 B2 and B3: Advanced adds the sensors pack (temperature, accelerometer, gestures) and the music pack (melodies, tone, stop) after the packs of Basic. */
+const packsOf = (profile: string) => (profile === 'ybc-advanced' ? [...ybcPacks, 'ybc.sensors', 'ybc.music'] : ybcPacks);
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
 const resolve = (document: Parameters<typeof resolveBoardContext>[0]) => resolveBoardContext(document, registry, productionProfiles);

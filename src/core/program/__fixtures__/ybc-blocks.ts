@@ -205,3 +205,12 @@ export const temperature = (): Json => ({ type: 'ybc_temperature', id: id('tempe
 export const acceleration = (axis: string): Json => ({ type: 'ybc_accel', id: id('accel'), fields: { AXIS: axis } });
 /** "gesture is …", as Blockly saves the dropdown: 'shake', 'tilt_left', 'tilt_right', 'face_up', 'face_down', 'logo_up' or 'logo_down'. */
 export const gestureIs = (gesture: string): Json => ({ type: 'ybc_gesture_is', id: id('gesture'), fields: { GESTURE: gesture } });
+
+// --- N17 B3: built-in melodies, tones and stop --------------------------------------------------------------
+
+/** "play melody", as Blockly saves its dropdowns: the melody's name (BIRTHDAY, ODE…) and 'wait' (until done) or 'background'. */
+export const playMelody = (melody: string, mode: string = 'wait'): Json => ({ type: 'ybc_sound_melody', id: id('melody'), fields: { MELODY: melody, MODE: mode } });
+/** "start tone … Hz for … ms", a number block (or any int expression) in each input. */
+export const playPitch = (hz: Json, ms: Json): Json => ({ type: 'ybc_sound_pitch', id: id('pitch'), inputs: { HZ: { block: hz }, MS: { block: ms } } });
+/** "stop sound". */
+export const stopSound = (): Json => ({ type: 'ybc_sound_stop', id: id('sound-stop') });

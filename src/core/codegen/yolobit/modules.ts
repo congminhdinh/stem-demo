@@ -38,6 +38,9 @@ export const moduleOfOp: Readonly<Record<CallStatement['op'] | PinCallStatement[
   'analogIn.read': 'yolobit',
   'sound.playNote': 'music',
   'sound.rest': 'music',
+  'sound.playMelody': 'music',
+  'sound.pitch': 'music',
+  'sound.stop': 'music',
 };
 
 /**

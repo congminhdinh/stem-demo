@@ -1,5 +1,6 @@
 import { expect, test, type Frame, type Page } from '@playwright/test';
 import { projectDocumentSchema } from '../src/core/circuit/document';
+import { playNote, program } from '../src/core/program/__fixtures__/ybc-blocks';
 import { ybcSolutionDocument, type YbcLessonKey } from '../src/samples/ybc-solutions';
 import { ybcStarterDocument, type YbcTemplateKey } from '../src/samples/ybc-templates';
 
@@ -111,6 +112,73 @@ test.describe('a Yolo:Bit lab in a lesson (stem-lab/v1)', () => {
     expect(errors).toEqual([]);
   });
 
+  test('starts the sound with the click of Chạy inside the frame, without another click, and with Kiểm tra too (N17 B3)', async ({ page, baseURL }) => {
+    // Every frame records what it asks of its audio: each resume, with whether it came inside a user gesture of that frame.
+    await page.addInitScript(() => {
+      const record = { resumes: [] as boolean[], started: [] as number[] };
+      const made: AudioContext[] = [];
+      Object.assign(window, { __sound: record, __soundContexts: made });
+      const Real = window.AudioContext;
+      window.AudioContext = class extends Real {
+        constructor(options?: AudioContextOptions) {
+          super(options);
+          made.push(this);
+        }
+        override resume() {
+          record.resumes.push(navigator.userActivation.isActive);
+          return super.resume();
+        }
+        override createOscillator() {
+          const oscillator = super.createOscillator();
+          const start = oscillator.start.bind(oscillator);
+          oscillator.start = (when?: number) => {
+            record.started.push(oscillator.frequency.value);
+            start(when);
+          };
+          return oscillator;
+        }
+      };
+    });
+    const frame = await openInLesson(page, labUrl(baseURL, `lab=yolobit&template=ybc-melody&origin=${encodeURIComponent(lessonOrigin)}`));
+    const sound = () =>
+      frame.evaluate(() => {
+        const { __sound: record, __soundContexts: made } = window as unknown as { __sound: { resumes: boolean[]; started: number[] }; __soundContexts: AudioContext[] };
+        return { ...record, contexts: made.length, state: made.at(-1)?.state ?? null };
+      });
+    // On from the start: the switch says a click turns it off.
+    await expect(frame.getByRole('button', { name: 'Tắt âm thanh' })).toBeVisible();
+    // A program that sounds at once (the template's waits for button A).
+    await frame.evaluate(
+      (document) => window.__stem?.loadProject(document),
+      {
+        schemaVersion: 1,
+        id: 'lab-sound',
+        name: 'Sound',
+        profile: 'ybc-basic',
+        circuit: { components: [{ id: 'ybc-board-1', deviceType: 'ybc-board', position: { x: 300, y: 200 } }], wires: [] },
+        program: { blocks: program([playNote('C4', 4), playNote('E4', 4), playNote('G4', 4)]) },
+      },
+    );
+    const before = await sound();
+
+    await frame.getByRole('button', { name: 'Chạy' }).click();
+
+    await expect.poll(async () => (await sound()).started).toContain(262);
+    const afterRun = await sound();
+    expect(afterRun.contexts).toBe(before.contexts + 1);
+    const runResumes = afterRun.resumes.slice(before.resumes.length);
+    expect(runResumes.length).toBeGreaterThan(0);
+    expect(runResumes.every((active) => active)).toBe(true);
+    expect(afterRun.state).toBe('running');
+    await frame.getByRole('button', { name: 'Dừng' }).click();
+
+    // Check plays the program as Run does: its click resumes the sound the same way.
+    await frame.getByRole('button', { name: 'Kiểm tra' }).click();
+    await expect.poll(async () => (await sound()).resumes.length).toBeGreaterThan(afterRun.resumes.length);
+    expect((await sound()).resumes.slice(afterRun.resumes.length).every((active) => active)).toBe(true);
+    await expect.poll(() => messagesOfType(page, 'check-result'), { timeout: 10_000 }).toHaveLength(1);
+  });
+
   test('a Blockly lab checks the finished Blink and passes', async ({ page, baseURL }) => {
     const frame = await openInLesson(page, labUrl(baseURL, `lab=blockly&template=blink&origin=${encodeURIComponent(lessonOrigin)}`));
 
@@ -216,6 +284,32 @@ test.describe('a lab opened on its own (a new tab)', () => {
     expect(texts).toContain('hiển thị hình | đỏ |');
     expect(texts).toContain('| lục | bật đèn tại cột');
     expect(texts).not.toMatch(/\b(red|green|heart)\b/);
+  });
+
+  test('offers the melodies, the tone and stop of the Advanced board in Vietnamese under "Âm thanh"; a Basic lab does not (N17 B3)', async ({ page }) => {
+    const soundTexts = async () => {
+      const panel = page.getByTestId('blockly-panel');
+      await panel.locator('.blocklyToolboxCategory', { hasText: 'Âm thanh' }).click();
+      await panel.locator('.blocklyFlyout .blocklyText').first().waitFor({ state: 'attached' });
+      await page.waitForTimeout(200);
+      await expect(panel.locator('.blocklyToolboxCategory', { hasText: 'Âm thanh' })).toHaveCount(1);
+      return (await panel.locator('.blocklyFlyout .blocklyText').allTextContents()).join(' | ').replaceAll(String.fromCharCode(0xa0), ' ');
+    };
+    await page.goto('/?embed=1&lab=yolobit&template=ybc-empty&profile=ybc-advanced');
+    await page.waitForFunction(() => window.__stem?.getCanvasState() != null);
+    const advanced = await soundTexts();
+    expect(advanced).toContain('phát nốt');
+    expect(advanced).toContain('phát giai điệu | Chúc mừng sinh nhật | chờ xong');
+    expect(advanced).toContain('phát giai điệu | nhảy lên | không chờ');
+    expect(advanced).toContain('bật âm');
+    expect(advanced).toContain('dừng âm thanh');
+    await expect(page.getByRole('button', { name: 'Tắt âm thanh' })).toBeVisible();
+
+    await page.goto('/?embed=1&lab=yolobit&template=ybc-melody');
+    await page.waitForFunction(() => window.__stem?.getCanvasState() != null);
+    const basic = await soundTexts();
+    expect(basic).toContain('phát nốt');
+    expect(basic).not.toMatch(/giai điệu|bật âm|dừng âm thanh/);
   });
 
   test('offers the sensors of the Advanced board in Vietnamese: the blocks under "Đầu vào", the controls and the gesture (N17 B2)', async ({ page }) => {

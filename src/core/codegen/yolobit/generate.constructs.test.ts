@@ -25,10 +25,10 @@ describe('what the generator covers', () => {
     expect(defaultTarget).toEqual({ id: contract.contractId, contract: contract.version });
   });
 
-  it('is exactly the constructs Advanced lists, and Basic all but the sensors of N17 B2: nothing shown without Python, no Python for what is not shown', () => {
+  it('is exactly the constructs Advanced lists, and Basic all but the sensors of N17 B2 and the music of N17 B3: nothing shown without Python, no Python for what is not shown', () => {
     const [basic, advanced] = profiles;
     expect([...(advanced?.constructs ?? [])].sort()).toEqual([...generatedConstructs].sort());
-    expect([...(basic?.constructs ?? [])].sort()).toEqual([...generatedConstructs].filter((id) => !['C-16', 'C-17', 'C-18'].includes(id)).sort());
+    expect([...(basic?.constructs ?? [])].sort()).toEqual([...generatedConstructs].filter((id) => !['C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22'].includes(id)).sort());
   });
 
   it.each([...generatedConstructs])('%s is a contract row that passes the exposure gate, with a Python form', (id) => {
@@ -62,12 +62,12 @@ describe('what the generator covers', () => {
       expect(row === undefined || row.eligibility === 'EXCLUDED' || row.eligibility === 'DEFERRED', id).toBe(true);
     }
     // Servo (YB-7), text variables, `len` and functions (YB-7); every other hardware row waits for its phase. The onboard
-    // hardware (YB-3), the header pins (YB-4), the RGB display of N17 B1 (C-05, C-10, C-42, C-43) and the sensors of N17 B2
-    // (C-16, C-17, C-18) are generated.
+    // hardware (YB-3), the header pins (YB-4), the RGB display of N17 B1 (C-05, C-10, C-42, C-43), the sensors of N17 B2
+    // (C-16, C-17, C-18) and the melodies, the tone and stop of N17 B3 (C-20, C-21, C-22) are generated.
     for (const id of ['C-27', 'C-57', 'C-58', 'C-59']) {
       expect(generated.has(id), id).toBe(false);
     }
-    for (const id of ['C-05', 'C-10', 'C-42', 'C-43', 'C-16', 'C-17', 'C-18']) {
+    for (const id of ['C-05', 'C-10', 'C-42', 'C-43', 'C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22']) {
       expect(generated.has(id), id).toBe(true);
     }
   });

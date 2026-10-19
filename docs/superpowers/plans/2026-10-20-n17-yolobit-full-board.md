@@ -155,6 +155,11 @@ Giai điệu là dãy nốt của micro:bit `music`, viết tay trong một bả
 - Click **Chạy** hoặc **Kiểm tra** là cử chỉ người dùng, nên `AudioContext.resume()` gọi ngay trong handler đó.
 - Nút "Bật âm thanh" chỉ còn là công tắc tắt/bật tiếng, mặc định **bật** trong lab.
 
+> **Ghi chú B3 (2026-10-19, theo evidence):**
+> - `music.pitch` **không chặn** (EVD-06: `pitch` trả về sau ≈1 ms), nên block tần số không chờ: âm kêu nền trong `ms`, âm mới thay âm cũ.
+> - Công tắc âm thanh mặc định bật ở cả editor lẫn lab, nhớ theo tab.
+> - Chi tiết: contract §25.
+
 - [ ] **Step 1:** test fail.
   - giai điệu không chờ chạy song song với code sau;
   - `stop` dừng ngay;

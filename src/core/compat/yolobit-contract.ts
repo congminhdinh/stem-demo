@@ -706,6 +706,133 @@ const exposed: readonly ConstructContract[] = [
     domain: domain({ ticks: 'int' }, oneOf('ticks', [1, 2, 4])),
     timing: { blocksMs: 'ticks × 125 at tempo (4, 120)', source: 'SIM-observed' },
   },
+  // N17 B3 (owner, 2026-10-19: "Mô phỏng đủ chức năng"): the rest of the buzzer, for the Advanced board. The calls are the editor's
+  // (V·G); what the evidence could not show (how a tone ends, a melody's notes, background playback) is named UNVERIFIED below.
+  {
+    id: 'C-20',
+    capability: 'sound: built-in melody',
+    tier: { 'ybc-advanced': 'MUST' },
+    profiles: ADVANCED,
+    eligibility: 'RESTRICTED',
+    restrictions: [
+      'N17 B3 (owner, 2026-10-19: "Mô phỏng đủ chức năng"): opened with UNVERIFIED fields (unverifiedFields), not by new evidence',
+      'one of 20 names: the 14 of the editor\'s list (§14) and FUNK, BLUES, FUNERAL, PUNCHLINE, BADDY, BA_DING (micro:bit names, an UNVERIFIED form)',
+      'wait=False plays in the background while the program goes on (the verified form); wait=True (an UNVERIFIED form with a melody) waits for its last note',
+      'simulator: the notes of micro:bit MicroPython (MIT, §14), never the vendor\'s asset; one sound at a time: a new sound, stop, Stop or an error ends it',
+    ],
+    modules: ['C-03c'],
+    python: { form: 'music.play(music.<melody>, wait=False)' },
+    observedPython: 'music.play(music.DADADADUM, wait=False)',
+    unverifiedForms: [
+      {
+        form: 'music.play(music.<melody>, wait=True)',
+        reason:
+          'N17 B3. UNVERIFIED: the editor\'s output with a melody was seen with wait=False only (investigation §5.3); wait=True is the keyword the editor writes for a note (C-50), and the tooltip "Chờ đến khi hết bài" is recorded in §8.1.',
+      },
+      {
+        form: 'music.play(music.<extra melody>, wait=False)',
+        reason:
+          'N17 B3. UNVERIFIED: FUNK, BLUES, FUNERAL, PUNCHLINE, BADDY and BA_DING are melodies of the micro:bit music module that the editor\'s list (§14) did not show; a board without them raises AttributeError.',
+      },
+      {
+        form: 'music.play(music.<extra melody>, wait=True)',
+        reason: 'N17 B3. UNVERIFIED: a micro:bit name the editor\'s list did not show, with wait=True (both above).',
+      },
+    ],
+    unverifiedFields: {
+      block: 'N17 B3. UNVERIFIED: no trace timed a melody. The simulator returns at once with wait=False; with wait=True it waits for the last note, ticks × 125 ms at the tempo (4, 120).',
+      yield: 'N17 B3. UNVERIFIED: how a melody in the background shares the board with the program is not shown. The simulator plays it on timers of the run while the program goes on; a new sound, stop, Stop or an error ends it, and it plays out after a program that finished.',
+      content: 'N17 B3. UNVERIFIED: the notes of the vendor\'s melodies are its asset and were not recorded. The simulator plays the micro:bit MicroPython tune of the same name (MIT, §14), three of them shortened to their opening phrase; the board plays its own.',
+    },
+    fields: open({
+      call: field([callShape('music.play(music.DADADADUM, wait=False)')]),
+      import: field([importLine('import music')]),
+      module: field([moduleMusic]),
+      unit: field([
+        claim('sound-indicator', 'EVD-20', 'A length of t ticks lasts t × 60000 / (bpm × ticks per beat) ms; at (4, 120) a tick ≈ 125 ms.'),
+        ui('The tempo is ticks per beat and beats per minute.'),
+      ]),
+      range: byDomain('The melodies are the twenty of the block\'s dropdown.'),
+      default: explicit('The tempo is set explicitly by music.set_tempo(4, 120) (IM-4).'),
+      clamp: byDomain('Names outside the domain are not offered.'),
+      block: unknown('No trace timed a melody.'),
+      yield: unknown('Playback in the background was not traced.'),
+      error: byDomain('Outside the domain there is no behaviour to describe.'),
+      content: unknown('The notes of the vendor\'s melodies are its asset and were not recorded.'),
+    }),
+    domain: domain({ melody: 'str' }, oneOf('melody', [
+      'DADADADUM', 'ENTERTAINER', 'PRELUDE', 'ODE', 'NYAN', 'RINGTONE', 'FUNK', 'BLUES', 'BIRTHDAY', 'WEDDING',
+      'FUNERAL', 'PUNCHLINE', 'PYTHON', 'BADDY', 'CHASE', 'BA_DING', 'JUMP_UP', 'JUMP_DOWN', 'POWER_UP', 'POWER_DOWN',
+    ])),
+    presentation: ['timbre', 'volume'],
+  },
+  {
+    id: 'C-21',
+    capability: 'sound: tone (music.pitch)',
+    tier: { 'ybc-advanced': 'MUST' },
+    profiles: ADVANCED,
+    eligibility: 'RESTRICTED',
+    restrictions: [
+      'N17 B3 (owner, 2026-10-19: "Mô phỏng đủ chức năng"): opened with UNVERIFIED fields (unverifiedFields), not by new evidence',
+      'whole Hz in 20..20000 and whole ms in 0..60000: the contract\'s supported domain (the simulator\'s), not a physical range',
+      'does not wait (EVD-06: pitch returned in ≈1 ms); simulator: the tone sounds for its ms in the background, and a new sound, stop, Stop or an error ends it',
+    ],
+    modules: ['C-03c'],
+    python: { form: 'music.pitch(<hz>, <ms>)' },
+    observedPython: 'music.pitch(440, 1000)',
+    unverifiedFields: {
+      unit: 'N17 B3. UNVERIFIED: the editor\'s text for the block\'s numbers was not recorded. The simulator reads the first as Hz and the second as ms, as micro:bit\'s music.pitch(frequency, duration) does.',
+      yield: 'N17 B3. UNVERIFIED: how a tone goes on after the call is not observable (§8.1). The simulator sounds it in the background for its ms while the program goes on.',
+      content: 'N17 B3. UNVERIFIED: how a tone ends and what a second tone does were not observable (§8.1). The simulator sounds the frequency for the length, and a new sound replaces it at once.',
+    },
+    fields: open({
+      call: field([callShape('music.pitch(440, 1000)')]),
+      import: field([importLine('import music')]),
+      module: field([moduleMusic]),
+      unit: unknown('The block\'s units were not recorded.'),
+      range: byDomain('The physical range is not claimed; the supported domain is 20..20000 Hz and 0..60000 ms.'),
+      clamp: byDomain('Values outside the domain are refused, never clamped.'),
+      block: field([returnsAtOnce('pitch', 'EVD-06')]),
+      yield: unknown('How a tone goes on after the call is not observable.'),
+      error: byDomain('Outside the domain there is no behaviour to describe.'),
+      content: unknown('How a tone ends and what a second one does are not observable.'),
+    }),
+    domain: {
+      args: { hz: 'int', ms: 'int' },
+      evaluation: { order: ['hz', 'ms'], once: true, checkEach: 'after-own-evaluation' },
+      compileTime: [
+        { when: between('hz', 20, 20000), diagnostic: 'value-out-of-range' },
+        { when: between('ms', 0, 60000), diagnostic: 'value-out-of-range' },
+      ],
+      runtime: all(between('hz', 20, 20000), between('ms', 0, 60000)),
+    },
+    presentation: ['timbre', 'volume'],
+  },
+  {
+    id: 'C-22',
+    capability: 'sound: stop',
+    tier: { 'ybc-advanced': 'MUST' },
+    profiles: ADVANCED,
+    eligibility: 'ELIGIBLE',
+    restrictions: [
+      'N17 B3 (owner, 2026-10-19: "Mô phỏng đủ chức năng"): opened with UNVERIFIED fields (unverifiedFields), not by new evidence',
+      'simulator: silences the buzzer at once, a melody in the background or a tone; with nothing playing it changes nothing',
+    ],
+    modules: ['C-03c'],
+    python: { form: 'music.stop()' },
+    observedPython: 'music.stop()',
+    unverifiedFields: {
+      block: 'N17 B3. UNVERIFIED: no trace timed stop. The simulator returns at once.',
+      content: 'N17 B3. UNVERIFIED: how a tone ends is not observable (§8.1). The simulator silences the buzzer at once, whatever plays in the background.',
+    },
+    fields: open({
+      call: field([callShape('music.stop()')]),
+      import: field([importLine('import music')]),
+      module: field([moduleMusic]),
+      block: unknown('No trace timed stop.'),
+      content: unknown('How a tone ends is not observable.'),
+    }),
+  },
   {
     id: 'C-23',
     capability: 'pin: digital write',
@@ -1098,9 +1225,6 @@ const withdrawnConstructs: readonly ConstructContract[] = [
     observedPython: 'running_time()',
     fields: callOnly('running_time()'),
   }),
-  withdrawn('C-20', 'built-in melody', 'EXCLUDED', 'Asset of the vendor (provenance).', { observedPython: 'music.play(music.ODE)' }),
-  withdrawn('C-21', 'music.pitch', 'EXCLUDED', 'How a tone ends and overlapping tones are not observable.', { observedPython: 'music.pitch(440, 1000)' }),
-  withdrawn('C-22', 'music.stop', 'EXCLUDED', 'How a tone ends is not observable.', { observedPython: 'music.stop()' }),
   withdrawn('C-26', 'analog write / PWM', 'EXCLUDED', 'OF-range is UNKNOWN; the owner confirmed it stays excluded (C-Q6).', {
     observedPython: 'pin0.write_analog(512)',
     fields: callOnly('pin0.write_analog(512)'),

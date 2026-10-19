@@ -88,8 +88,8 @@ describe('L-2 profile-compatible: where the pins and the knob belong', () => {
 
   it('shows Advanced exactly what Basic shows of the pins: same pack, same constructs, the same toolbox category', () => {
     const [basic, advanced] = ['ybc-basic', 'ybc-advanced'].map((id) => productionProfiles.get(id));
-    // N17 B2: Advanced has the sensors pack on top; the pins are the same.
-    expect(advanced?.blockPacks).toEqual([...(basic?.blockPacks ?? []), 'ybc.sensors']);
+    // N17 B2 and B3: Advanced has the sensors and the music packs on top; the pins are the same.
+    expect(advanced?.blockPacks).toEqual([...(basic?.blockPacks ?? []), 'ybc.sensors', 'ybc.music']);
     expect(advanced?.constructs.filter((id) => ['C-23', 'C-24', 'C-25'].includes(id))).toEqual(basic?.constructs.filter((id) => ['C-23', 'C-24', 'C-25'].includes(id)));
     const category = (id: string) => buildToolbox(productionProfiles.get(id)?.blockPacks ?? [], packs).contents.find((c) => c.name === 'Pins');
     expect(category('ybc-advanced')).toEqual(category('ybc-basic'));

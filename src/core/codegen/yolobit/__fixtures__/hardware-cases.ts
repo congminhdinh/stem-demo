@@ -1,8 +1,9 @@
 import {
   acceleration, add, and, bool, buttonPressed, buttonPresses, clearDisplay, clearPixel, cmp, colour, countUp, gestureIs, getVar, ifElif, ifThen, images,
-  join, lightLevel, mul, num, or, playNote, print, program, rest, scrollNumber, scrollNumberIn, scrollText, scrollTextIn, setAll, setPixel, setVar,
-  showIcon, showImage, showImageIn, sub, temperature, text, wait, type Json,
+  join, lightLevel, mul, num, or, playMelody, playNote, playPitch, print, program, rest, scrollNumber, scrollNumberIn, scrollText, scrollTextIn, setAll,
+  setPixel, setVar, showIcon, showImage, showImageIn, stopSound, sub, temperature, text, wait, type Json,
 } from '../../../program/__fixtures__/ybc-blocks';
+import { melodyNames } from '../../../constructs/ybc.sound';
 import { noteNames, noteTicks } from '../../../constructs/ybc.sound';
 
 // The programs of YB-3 that use the onboard hardware (display, buttons, light, sound), as Blockly JSON. Like the
@@ -156,5 +157,32 @@ export const hardwareCases: HardwareCase[] = [
       print(gestureIs('logo_down')),
       scrollNumber(sub(temperature(), num(10))),
     ]),
+  },
+  // N17 B3: a built-in melody in the background while a picture shows (the verified form, investigation §5.3), stop, a tone that
+  // does not wait (EVD-06), then a melody that waits until it is done (UNVERIFIED form: wait=True with a melody).
+  {
+    name: 'melodies-and-tones',
+    covers: ['C-20', 'C-21', 'C-22', 'C-05', 'C-04'],
+    profiles: ['ybc-advanced'],
+    blocks: program([
+      playMelody('BIRTHDAY', 'background'),
+      showIcon('HEART'),
+      wait(num(1000)),
+      stopSound(),
+      playPitch(num(440), num(500)),
+      wait(num(500)),
+      playMelody('POWER_UP', 'wait'),
+    ]),
+  },
+  // N17 B3: every melody of the dropdown, each replacing the one before it at once, then stop; and a tone whose pitch is computed,
+  // started on every pass while A is held.
+  {
+    name: 'every-melody',
+    covers: ['C-20', 'C-21', 'C-22', 'C-12', 'C-29', 'C-30', 'C-36'],
+    profiles: ['ybc-advanced'],
+    blocks: program(
+      [...melodyNames.map((name) => playMelody(name, 'background')), stopSound()],
+      [ifThen(buttonPressed('A'), [playPitch(add(mul(x(), num(10)), num(200)), num(100)), setVar('x', add(x(), num(1)))])],
+    ),
   },
 ];

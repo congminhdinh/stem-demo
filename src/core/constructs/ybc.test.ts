@@ -18,7 +18,7 @@ import {
 } from './ybc.display';
 import { accelerationType, axisNames, buttonNames, buttonPressedType, buttonPressesType, gestureIsType, gestureNames, lightLevelType, temperatureType } from './ybc.input';
 import { pinConstructs, pinContractIds } from './ybc.pins';
-import { noteNames, noteTicks, playNoteType, restType } from './ybc.sound';
+import { melodyNames, melodyType, noteNames, noteTicks, pitchType, playNoteType, restType, soundStopType } from './ybc.sound';
 
 // The YB-3 hardware constructs against the frozen machine-readable contract: every block a profile shows for the
 // onboard hardware is a construct, every construct a contract row that passes the exposure gate, each reaches a
@@ -49,26 +49,32 @@ const row = (id: string) => {
 };
 
 /**
- * What YB-3 opens, the RGB display N17 B1 adds to it (C-05, C-10, C-42, C-43) and the sensors of the Advanced board N17 B2 adds
- * (C-16, C-17, C-18), spelled out here and not read from the table under test.
+ * What YB-3 opens, the RGB display N17 B1 adds to it (C-05, C-10, C-42, C-43), the sensors of the Advanced board N17 B2 adds
+ * (C-16, C-17, C-18) and the melodies, the tone and stop N17 B3 adds to it (C-20, C-21, C-22), spelled out here and not read from
+ * the table under test.
  */
 const sensorIds = ['C-16', 'C-17', 'C-18'];
-const hardwareIds = ['C-06', 'C-07', 'C-08', 'C-09', 'C-05', 'C-10', 'C-42', 'C-43', 'C-12', 'C-13', 'C-15', 'C-50', 'C-51', ...sensorIds];
+const musicIds = ['C-20', 'C-21', 'C-22'];
+const advancedOnlyIds = [...sensorIds, ...musicIds];
+const hardwareIds = ['C-06', 'C-07', 'C-08', 'C-09', 'C-05', 'C-10', 'C-42', 'C-43', 'C-12', 'C-13', 'C-15', 'C-50', 'C-51', ...sensorIds, ...musicIds];
 const sensorBlockTypes = [temperatureType, accelerationType, gestureIsType];
+const musicBlockTypes = [melodyType, pitchType, soundStopType];
+const advancedOnlyBlockTypes = [...sensorBlockTypes, ...musicBlockTypes];
 const hardwareBlockTypes = [
   showImageType, scrollTextType, scrollNumberType, clearDisplayType,
   showIconType, setPixelType, colourType, clearPixelType, setAllType,
   buttonPressedType, buttonPressesType, lightLevelType,
   playNoteType, restType,
   ...sensorBlockTypes,
+  ...musicBlockTypes,
 ];
-/** The profiles that show a hardware row: the sensors are Advanced only (contract C-16…C-18), the rest both. */
-const profilesOf = (id: string) => (sensorIds.includes(id) ? [advanced] : profiles);
+/** The profiles that show a hardware row: the sensors (C-16…C-18) and the melodies, tone and stop (C-20…C-22) are Advanced only. */
+const profilesOf = (id: string) => (advancedOnlyIds.includes(id) ? [advanced] : profiles);
 
 /** Rows the onboard hardware does not own that no profile lists yet. The header pins (C-23…C-25) are not its either: they are YB-4's, and listed. */
 const notOwned = [
   'C-27',
-  'C-14', 'C-26', 'C-19', 'C-40', 'C-47', 'C-11', 'C-20', 'C-21', 'C-22', 'C-52',
+  'C-14', 'C-26', 'C-19', 'C-40', 'C-47', 'C-11', 'C-52',
 ];
 
 type Json = Record<string, unknown>;
@@ -105,14 +111,14 @@ const fieldsOf = (block: Json) => (block.fields ?? {}) as Json;
 const toolboxOf = (profile: typeof basic) => buildToolbox(profile.blockPacks, packs);
 
 describe('YB-3 hardware constructs', () => {
-  it('are exactly the rows YB-3, N17 B1 and N17 B2 open, in the order display, input, sound, sensors', () => {
+  it('are exactly the rows YB-3, N17 B1, N17 B2 and N17 B3 open, in the order display, input, sound, sensors, music', () => {
     expect(hardwareContractIds).toEqual(hardwareIds);
     expect(hardwareConstructs.flatMap((construct) => construct.blockTypes)).toEqual(hardwareBlockTypes);
-    expect(hardwarePackIds).toEqual(['ybc.display', 'ybc.input', 'ybc.sound', 'ybc.sensors']);
+    expect(hardwarePackIds).toEqual(['ybc.display', 'ybc.input', 'ybc.sound', 'ybc.sensors', 'ybc.music']);
   });
 
   it.each(hardwareConstructs.map((construct) => [construct.contractId, construct] as const))(
-    '%s is a contract row that passes the exposure gate, for the profiles meant to show it (the sensors: Advanced only)',
+    '%s is a contract row that passes the exposure gate, for the profiles meant to show it (the sensors and the music: Advanced only)',
     (id, construct) => {
       const contractRow = row(id);
       expect(exposureViolations(contractRow, contract)).toEqual([]);
@@ -122,7 +128,7 @@ describe('YB-3 hardware constructs', () => {
       for (const profile of profilesOf(id)) {
         expect(profileConstructViolations(profile.id, [id], contract), `${profile.id}/${id}`).toEqual([]);
       }
-      if (sensorIds.includes(id)) {
+      if (advancedOnlyIds.includes(id)) {
         expect(profileConstructViolations('ybc-basic', [id], contract), id).not.toEqual([]);
       }
       // A restricted row says what it is restricted to: a domain the compiler and the interpreter can check.
@@ -134,13 +140,14 @@ describe('YB-3 hardware constructs', () => {
     },
   );
 
-  it('are RESTRICTED where the contract restricts them (images, text, number, pixels, fill, buttons, notes, rests, sensors) and ELIGIBLE for clear and light', () => {
+  it('are RESTRICTED where the contract restricts them (images, text, number, pixels, fill, buttons, notes, rests, sensors, melodies, tones) and ELIGIBLE for clear, light and stop', () => {
     const eligibility = Object.fromEntries(hardwareIds.map((id) => [id, row(id).eligibility]));
     expect(eligibility).toEqual({
       'C-06': 'RESTRICTED', 'C-07': 'RESTRICTED', 'C-08': 'RESTRICTED', 'C-09': 'ELIGIBLE',
       'C-05': 'RESTRICTED', 'C-10': 'RESTRICTED', 'C-42': 'RESTRICTED', 'C-43': 'RESTRICTED',
       'C-12': 'RESTRICTED', 'C-13': 'RESTRICTED', 'C-15': 'ELIGIBLE', 'C-50': 'RESTRICTED', 'C-51': 'RESTRICTED',
       'C-16': 'RESTRICTED', 'C-17': 'RESTRICTED', 'C-18': 'RESTRICTED',
+      'C-20': 'RESTRICTED', 'C-21': 'RESTRICTED', 'C-22': 'ELIGIBLE',
     });
   });
 
@@ -161,6 +168,7 @@ describe('YB-3 hardware constructs', () => {
       'C-05': 'display', 'C-10': 'display', 'C-42': 'display', 'C-43': 'display',
       'C-12': 'buttons', 'C-13': 'buttons', 'C-15': 'light', 'C-50': 'sound', 'C-51': 'sound',
       'C-16': 'temperature', 'C-17': 'motion', 'C-18': 'motion',
+      'C-20': 'sound', 'C-21': 'sound', 'C-22': 'sound',
     });
   });
 
@@ -256,6 +264,17 @@ describe('the YB-3 block packs', () => {
     expect(argsOf(setAllType)).toEqual([colour]);
   });
 
+  it('type the value inputs of the tone (N17 B3): a number for the Hz and one for the ms; the melody and its mode are dropdowns', () => {
+    const argsOf = (type: string) => (packs.get('ybc.music')?.blocks.find((definition) => definition.type === type)?.args0 as Json[] | undefined) ?? [];
+    expect(argsOf(pitchType)).toEqual([{ type: 'input_value', name: 'HZ', check: 'Number' }, { type: 'input_value', name: 'MS', check: 'Number' }]);
+    const [melody, mode] = argsOf(melodyType);
+    expect(melody?.type).toBe('field_dropdown');
+    expect((melody?.options as string[][]).map(([, value]) => value)).toEqual([...melodyNames]);
+    expect(mode).toMatchObject({ type: 'field_dropdown', name: 'MODE' });
+    expect((mode?.options as string[][]).map(([, value]) => value)).toEqual(['wait', 'background']);
+    expect(argsOf(soundStopType)).toEqual([]);
+  });
+
   it('offer the eight colours of the palette (contract §4.4), red first, in the colour block and the colour field of "show image"', () => {
     const options = [['red', '#ff0000'], ['orange', '#ffa500'], ['yellow', '#ffff00'], ['green', '#00ff00'], ['blue', '#0000ff'], ['indigo', '#4b0082'], ['purple', '#800080'], ['white', '#ffffff']];
     const dropdownOf = (type: string) => (packs.get('ybc.display')?.blocks.find((definition) => definition.type === type)?.args0 as Json[] | undefined)?.[0];
@@ -287,13 +306,13 @@ describe('the YB-3 block packs', () => {
 });
 
 describe('what both profiles list', () => {
-  it('is exactly the hardware rows next to the structure, the language and the header pins of YB-4: Advanced all of them, Basic all but the sensors', () => {
+  it('is exactly the hardware rows next to the structure, the language and the header pins of YB-4: Advanced all of them, Basic all but the sensors and the music', () => {
     for (const profile of profiles) {
-      const shown = profile === advanced ? hardwareIds : hardwareIds.filter((id) => !sensorIds.includes(id));
+      const shown = profile === advanced ? hardwareIds : hardwareIds.filter((id) => !advancedOnlyIds.includes(id));
       expect([...profile.constructs].sort(), profile.id).toEqual(['C-01', 'C-02', ...langContractIds, ...shown, ...pinContractIds].sort());
       expect(profileConstructViolations(profile.id, profile.constructs, contract), profile.id).toEqual([]);
       for (const pack of hardwarePackIds) {
-        if (profile === advanced || pack !== 'ybc.sensors') {
+        if (profile === advanced || (pack !== 'ybc.sensors' && pack !== 'ybc.music')) {
           expect(profile.blockPacks, profile.id).toContain(pack);
         } else {
           expect(profile.blockPacks, profile.id).not.toContain(pack);
@@ -308,7 +327,7 @@ describe('what both profiles list', () => {
     }
   });
 
-  it('do not list the rows YB-3 does not own (temperature, the Advanced display, events, PWM, time, random, A+B, melodies, pitch, stop, tempo), and do not count the pins of YB-4 as YB-3 rows', () => {
+  it('do not list the rows the onboard hardware does not own (events, PWM, time, random, A+B, brightness, tempo), and do not count the pins of YB-4 as its rows', () => {
     for (const id of pinContractIds) {
       expect(hardwareContractIds, id).not.toContain(id);
     }
@@ -321,12 +340,12 @@ describe('what both profiles list', () => {
     }
   });
 
-  it('have a block type for the onboard rows and the three pin rows of YB-4 only: no pitch, stop, brightness, A+B, event, random, elapsed-time or other pin block exists in the YBC packs', () => {
+  it('have a block type for the onboard rows and the three pin rows of YB-4 only: no brightness, tempo, A+B, event, random, elapsed-time or other pin block exists in the YBC packs', () => {
     const ybcTypes = packs.list().filter((pack) => pack.family === 'ybc').flatMap((pack) => pack.blockTypes);
     const pinBlockTypes = pinConstructs.flatMap((construct) => construct.blockTypes);
     const expected = ['stem_on_start', 'stem_forever', ...langConstructs.flatMap((construct) => construct.blockTypes), ...hardwareBlockTypes, ...pinBlockTypes];
     expect([...ybcTypes].sort()).toEqual([...expected].sort());
-    expect(ybcTypes.filter((type) => !pinBlockTypes.includes(type) && !sensorBlockTypes.includes(type)).filter((type) => /pitch|stop|brightness|tempo|melody|event|_ab\b|random|elapsed|running|timer|_pin_|gesture|accel|temperature|servo|pwm|pulse|touch|digital|analog/i.test(type))).toEqual([]);
+    expect(ybcTypes.filter((type) => !pinBlockTypes.includes(type) && !advancedOnlyBlockTypes.includes(type)).filter((type) => /pitch|stop|brightness|tempo|melody|event|_ab\b|random|elapsed|running|timer|_pin_|gesture|accel|temperature|servo|pwm|pulse|touch|digital|analog/i.test(type))).toEqual([]);
     for (const profile of profiles) {
       const shown = typesIn(toolboxOf(profile));
       expect([...shown].filter((type) => !expected.includes(type)), profile.id).toEqual([]);
@@ -344,11 +363,13 @@ describe('the toolbox of both profiles', () => {
     const toolbox = toolboxOf(profile);
     const shown = new Set(blocksIn(toolbox.contents).map((block) => block.type));
     for (const type of hardwareBlockTypes) {
-      expect(shown.has(type), type).toBe(profile === advanced || !sensorBlockTypes.includes(type));
+      expect(shown.has(type), type).toBe(profile === advanced || !advancedOnlyBlockTypes.includes(type));
     }
-    // N17 B2: the sensors of Advanced join the Input category, after the buttons and the light; the category is shown once.
+    // N17 B2: the sensors of Advanced join the Input category, after the buttons and the light; N17 B3: the melodies, the tone
+    // and stop join the Sound category, after the note and the rest. Each category is shown once.
     const input = profile === advanced ? ['ybc.input', 'ybc.sensors'] : ['ybc.input'];
-    for (const [category, packIds] of [['Display', ['ybc.display']], ['Input', input], ['Sound', ['ybc.sound']]] as const) {
+    const sound = profile === advanced ? ['ybc.sound', 'ybc.music'] : ['ybc.sound'];
+    for (const [category, packIds] of [['Display', ['ybc.display']], ['Input', input], ['Sound', sound]] as const) {
       expect(toolbox.contents.filter((candidate) => candidate.name === category), category).toHaveLength(1);
       const contents = toolbox.contents.find((candidate) => candidate.name === category)?.contents;
       expect(new Set(blocksIn(contents).map((block) => block.type)), category).toEqual(new Set(packIds.flatMap((pack) => packs.get(pack)?.blockTypes ?? [])));
@@ -408,6 +429,21 @@ describe('the toolbox of both profiles', () => {
       expect(shadow.type).toBe('math_number');
       expect(Number.isInteger(fieldsOf(shadow).NUM)).toBe(true);
     }
+    // N17 B3 (Advanced): a melody of the twenty, until done or in the background; a tone of 20..20000 Hz for 0..60000 ms.
+    for (const block of ofType(melodyType)) {
+      const { MELODY, MODE } = fieldsOf(block);
+      expect(evaluatePred(domain('C-20')?.runtime ?? { all: [] }, { values: { melody: String(MELODY) } }), String(MELODY)).toBe(true);
+      expect(['wait', 'background']).toContain(MODE);
+    }
+    for (const block of ofType(pitchType)) {
+      const numberIn = (name: string) => {
+        const shadow = ((block.inputs as Json)[name] as Json).shadow as Json;
+        expect(shadow.type).toBe('math_number');
+        return Number(fieldsOf(shadow).NUM);
+      };
+      expect(evaluatePred(domain('C-21')?.runtime ?? { all: [] }, { values: { hz: numberIn('HZ'), ms: numberIn('MS') } })).toBe(true);
+    }
+    expect(ofType(melodyType).length > 0 && ofType(pitchType).length > 0 && ofType(soundStopType).length > 0).toBe(profile === advanced);
   });
 
   it('presets no value for a field the block does not have, and none for a field of another block', () => {
@@ -421,6 +457,7 @@ describe('the toolbox of both profiles', () => {
       [colourType]: ['COLOUR'],
       [accelerationType]: ['AXIS'],
       [gestureIsType]: ['GESTURE'],
+      [melodyType]: ['MELODY', 'MODE'],
     };
     for (const profile of profiles) {
       for (const block of blocksIn(toolboxOf(profile).contents)) {
@@ -486,6 +523,7 @@ describe('the offered values against the domains of the contract', () => {
     expect([...noteTicks]).toEqual(oneOf('C-51', 'ticks'));
     expect([...axisNames]).toEqual(oneOf('C-17', 'axis'));
     expect([...gestureNames]).toEqual(oneOf('C-18', 'gesture'));
+    expect([...melodyNames]).toEqual(oneOf('C-20', 'melody'));
   });
 });
 
@@ -520,7 +558,7 @@ describe('the gate keeps a hardware construct out when its evidence is not enoug
   });
 
   it.each(['UNKNOWN', 'INFERRED'] as const)('a profile cannot list a hardware row whose module is %s: C-03b for the display, buttons and light, C-03c for the sound', (label) => {
-    for (const [module, ids] of [['C-03b', ['C-06', 'C-07', 'C-08', 'C-09', 'C-05', 'C-10', 'C-42', 'C-43', 'C-12', 'C-13', 'C-15', 'C-16', 'C-17', 'C-18']], ['C-03c', ['C-50', 'C-51']]] as const) {
+    for (const [module, ids] of [['C-03b', ['C-06', 'C-07', 'C-08', 'C-09', 'C-05', 'C-10', 'C-42', 'C-43', 'C-12', 'C-13', 'C-15', 'C-16', 'C-17', 'C-18']], ['C-03c', ['C-50', 'C-51', 'C-20', 'C-21', 'C-22']]] as const) {
       for (const field of ['import', 'module'] as const) {
         const broken = mutatedModule(module, field, unsure(label));
         for (const id of ids) {
@@ -549,7 +587,7 @@ describe('the gate keeps a hardware construct out when its evidence is not enoug
   });
 
   it('a profile cannot list the rows YB-3 does not own, whether the contract excludes them, defers them or leaves them to a later phase', () => {
-    for (const id of ['C-14', 'C-26', 'C-19', 'C-40', 'C-47', 'C-11', 'C-20', 'C-21', 'C-22', 'C-52']) {
+    for (const id of ['C-14', 'C-26', 'C-19', 'C-40', 'C-47', 'C-11', 'C-52']) {
       expect(profileConstructViolations('ybc-basic', [id], contract), id).not.toEqual([]);
     }
   });

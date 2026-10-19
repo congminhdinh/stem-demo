@@ -21,8 +21,9 @@ const profiles = ['ybc-basic', 'ybc-advanced'].map((id) => productionProfiles.ge
 /**
  * Rows that must stay out of every profile until their own phase: random, elapsed time, events, PWM and servo (YB-7), text
  * variables and functions. The onboard hardware of YB-3 (display C-06…C-09, buttons C-12 and C-13, light C-15, sound C-50 and
- * C-51), the RGB display of N17 B1 (C-05, C-10, C-42, C-43) and the sensors of N17 B2 (C-16, C-17, C-18: Advanced only) are
- * shown and are tested in ybc.test.ts; C-23, C-24 and C-25 are the header pins of YB-4.
+ * C-51), the RGB display of N17 B1 (C-05, C-10, C-42, C-43), the sensors of N17 B2 (C-16, C-17, C-18) and the melodies, the tone
+ * and stop of N17 B3 (C-20, C-21, C-22), both Advanced only, are shown and are tested in ybc.test.ts; C-23, C-24 and C-25 are the
+ * header pins of YB-4.
  */
 const notYet = [
   'C-40', 'C-19', 'C-14', 'C-26',
@@ -55,18 +56,18 @@ describe('YB-2a language constructs', () => {
   });
 
   it('is, with the hardware and the header pins, exactly what both profiles list next to the structure (C-01, C-02), and passes the gate for each profile', () => {
-    const sensors = ['C-16', 'C-17', 'C-18'];
+    const advancedOnly = ['C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22'];
     for (const profile of profiles) {
-      const hardware = profile?.id === 'ybc-advanced' ? hardwareContractIds : hardwareContractIds.filter((id) => !sensors.includes(id));
+      const hardware = profile?.id === 'ybc-advanced' ? hardwareContractIds : hardwareContractIds.filter((id) => !advancedOnly.includes(id));
       expect([...(profile?.constructs ?? [])].sort()).toEqual(['C-01', 'C-02', ...langContractIds, ...hardware, ...pinContractIds].sort());
       expect(profileConstructViolations(profile?.id ?? '', profile?.constructs ?? [], contract)).toEqual([]);
     }
   });
 
-  it('keeps Advanced a superset of Basic, with no extra language construct: Advanced adds only the sensors of N17 B2 and their pack', () => {
+  it('keeps Advanced a superset of Basic, with no extra language construct: Advanced adds only the sensors of N17 B2, the music of N17 B3 and their packs', () => {
     const [basic, advanced] = profiles;
-    expect(advanced?.constructs).toEqual([...(basic?.constructs ?? []), 'C-16', 'C-17', 'C-18']);
-    expect(advanced?.blockPacks).toEqual([...(basic?.blockPacks ?? []), 'ybc.sensors']);
+    expect(advanced?.constructs).toEqual([...(basic?.constructs ?? []), 'C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22']);
+    expect(advanced?.blockPacks).toEqual([...(basic?.blockPacks ?? []), 'ybc.sensors', 'ybc.music']);
   });
 
   it('exposes none of the rows that are excluded, deferred or belong to a later phase', () => {

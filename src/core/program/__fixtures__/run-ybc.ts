@@ -1,5 +1,5 @@
 import type { Capabilities } from '../../capabilities/io';
-import { createRuntimeServices, type Clock } from '../../capabilities/services';
+import { createRuntimeServices, type Clock, type RunScheduler } from '../../capabilities/services';
 import type { ConsoleSink } from '../../capabilities/services';
 import type { Sleep } from '../interpreter';
 import { runYbcProgram, type YbcProgramRun } from '../ybc-interpreter';
@@ -18,11 +18,13 @@ export function runYbc(
     onPrint?(): void;
     now?(): number;
     yieldNow?(): Promise<void>;
+    /** The run's timers (N17 B3: a melody in the background); the real ones by default. */
+    scheduler?: RunScheduler;
   },
   capabilities: Capabilities = {},
 ): YbcProgramRun & { stop(): void } {
   const controller = new AbortController();
-  const { now, yieldNow, onPrint } = options;
+  const { now, yieldNow, onPrint, scheduler } = options;
   const clock: Clock | undefined = now ? { now } : undefined;
   const services = createRuntimeServices({
     signal: controller.signal,
@@ -37,6 +39,7 @@ export function runYbc(
     sleep: options.sleep,
     ...(clock ? { clock } : {}),
     ...(yieldNow ? { yieldNow } : {}),
+    ...(scheduler ? { scheduler } : {}),
   });
   return { ...runYbcProgram(ir, capabilities, services), stop: () => controller.abort() };
 }

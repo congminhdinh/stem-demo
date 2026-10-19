@@ -44,7 +44,23 @@ import {
   pinReadType,
   pinWriteType,
 } from '../constructs/ybc.pins';
-import { isNoteName, playNoteType, restType, ticksOfOption, type NoteName, type NoteTicks } from '../constructs/ybc.sound';
+import {
+  isMelodyMode,
+  isMelodyName,
+  isNoteName,
+  melodyType,
+  PITCH_MAX_HZ,
+  PITCH_MAX_MS,
+  PITCH_MIN_HZ,
+  pitchType,
+  playNoteType,
+  restType,
+  soundStopType,
+  ticksOfOption,
+  type MelodyName,
+  type NoteName,
+  type NoteTicks,
+} from '../constructs/ybc.sound';
 import { noBoardTarget, type BoardTarget, type HeaderPinCapability } from '../devices/board-pins';
 import { exceedsBlockLimit } from './block-walk';
 import { blockTypes } from './blocks';
@@ -80,6 +96,10 @@ import type { ArithOp, ColourOperand, CompareOp, Expr, Type, YbcProgramIR, YbcSt
 // N17 B1 adds the RGB display (colours, one pixel, all pixels, built-in pictures). A colour is never an error:
 // what is not a colour of the palette is shown red, with a warning (`invalid-colour`), so a stored program with
 // 'red' or '#ff00' in it still runs (Review Focus 3). A block saved before N17 has no colour and stays red.
+//
+// N17 B3 adds the built-in melodies, the tone and stop of the Advanced board: the melody and whether the program waits for it
+// are fields (an operand); the Hz and the ms of a tone are int expressions, refused here when typed in outside 20..20000 Hz and
+// 0..60000 ms, and checked by the interpreter when computed.
 
 export type YbcDiagnosticCode =
   | 'malformed-program'
@@ -853,6 +873,44 @@ export function compileYbcProgram(
     return ticks !== null ? { kind: 'call', op: 'sound.rest', operand: { kind: 'rest', ticks }, blockId: block.id } : null;
   };
 
+  /** C-20 (N17 B3): one of the twenty built-in melodies, until done or in the background. */
+  const compileMelody = (block: RawBlock): YbcStatement | null => {
+    if (!boardHasPartFor(block)) {
+      return null;
+    }
+    const melody = block.fields?.MELODY;
+    const mode = block.fields?.MODE;
+    let named: MelodyName | null = null;
+    let wait: boolean | null = null;
+    if (typeof melody !== 'string') {
+      report('error', 'malformed-program', 'A melody block needs its melody.', block.id);
+    } else if (!isMelodyName(melody)) {
+      report('error', 'value-out-of-range', 'A melody is one of the built-in melodies.', block.id);
+    } else {
+      named = melody;
+    }
+    if (typeof mode !== 'string') {
+      report('error', 'malformed-program', 'A melody block needs to say whether the program waits for it.', block.id);
+    } else if (!isMelodyMode(mode)) {
+      report('error', 'value-out-of-range', 'A melody plays until done or in the background.', block.id);
+    } else {
+      wait = mode === 'wait';
+    }
+    return named !== null && wait !== null ? { kind: 'call', op: 'sound.playMelody', operand: { kind: 'melody', melody: named, wait }, blockId: block.id } : null;
+  };
+
+  /** C-21 (N17 B3): a tone of 20..20000 Hz for 0..60000 ms, each a whole number; typed-in values are checked here. */
+  const compilePitch = (block: RawBlock, depth: number): YbcStatement | null => {
+    if (!boardHasPartFor(block)) {
+      return null;
+    }
+    const hz = operand(block, 'HZ', 'start tone', 'int', 'The frequency', depth);
+    const ms = operand(block, 'MS', 'start tone', 'int', 'The length of a tone', depth);
+    const badHz = outsideLiteral(hz, PITCH_MIN_HZ, PITCH_MAX_HZ, 'The frequency');
+    const badMs = outsideLiteral(ms, 0, PITCH_MAX_MS, 'The length of a tone');
+    return hz && ms && !badHz && !badMs ? { kind: 'call', op: 'sound.pitch', args: [hz, ms], blockId: block.id } : null;
+  };
+
   /** "set pin P to ON / OFF" (C-23): the pin and the level are chosen in the block, so both are literals of the IR. */
   const compilePinWrite = (block: RawBlock): YbcStatement | null => {
     const pin = pinOf(block);
@@ -895,6 +953,12 @@ export function compileYbcProgram(
         return compilePlayNote(block);
       case restType:
         return compileRest(block);
+      case melodyType:
+        return compileMelody(block);
+      case pitchType:
+        return compilePitch(block, depth);
+      case soundStopType:
+        return boardHasPartFor(block) ? { kind: 'call', op: 'sound.stop', blockId: block.id } : null;
       case 'variables_set': {
         const id = variableId(block);
         if (id === null) {

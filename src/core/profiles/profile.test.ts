@@ -61,7 +61,7 @@ describe('the production profiles', () => {
     }
   });
 
-  it('differ in profile data (the id, the extension, the variable types) and in the sensors of N17 B2: their rows, their pack, their controls', () => {
+  it('differ in profile data (the id, the extension, the variable types), in the sensors of N17 B2 (rows, pack, controls) and in the music of N17 B3 (rows, pack)', () => {
     const strip = (profile: typeof basic) => {
       const rest: Record<string, unknown> = { ...profile };
       delete rest.id;
@@ -69,7 +69,7 @@ describe('the production profiles', () => {
       delete rest.variableTypes;
       return { rest, variableTypes: profile?.variableTypes };
     };
-    const sensors = { constructs: ['C-16', 'C-17', 'C-18'], blockPacks: ['ybc.sensors'], controls: ['temperature', 'accelerometer'] };
+    const sensors = { constructs: ['C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22'], blockPacks: ['ybc.sensors', 'ybc.music'], controls: ['temperature', 'accelerometer'] };
     expect(strip(advanced).rest).toEqual({
       ...strip(basic).rest,
       constructs: [...(basic?.constructs ?? []), ...sensors.constructs],
@@ -81,7 +81,7 @@ describe('the production profiles', () => {
     expect(advanced?.extends).toBe('ybc-basic');
   });
 
-  it('expose the structure, the YB-2 language, the YB-3 onboard hardware with the RGB display of N17 B1, and the YB-4 header pins; Advanced the sensors of N17 B2 too: no PWM, function, event, random, elapsed-time or servo block', () => {
+  it('expose the structure, the YB-2 language, the YB-3 onboard hardware with the RGB display of N17 B1, and the YB-4 header pins; Advanced the sensors of N17 B2 and the music of N17 B3 too: no PWM, function, event, random, elapsed-time or servo block', () => {
     const basicPacks = ['ybc.structure', 'ybc.display', 'ybc.input', 'ybc.sound', 'ybc.pins', 'lang.logic', 'lang.loops', 'lang.math', 'lang.text', 'lang.variables'];
     const basicConstructs = [
       'C-01', 'C-02', 'C-04', 'C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-12', 'C-13', 'C-15', 'C-23', 'C-24', 'C-25', 'C-29', 'C-30', 'C-31',
@@ -91,9 +91,10 @@ describe('the production profiles', () => {
     expect(basic?.constructs).toEqual(basicConstructs);
     // The parts that get a runtime control: the two buttons (hold) and the light sensor (slider). Display and buzzer only show.
     expect(basic?.controls).toEqual(['button-a', 'button-b', 'light']);
-    // Advanced, the union with Basic first: the sensors pack (its blocks join the Input category), its rows and its controls.
-    expect(advanced?.blockPacks).toEqual([...basicPacks, 'ybc.sensors']);
-    expect(advanced?.constructs).toEqual([...basicConstructs, 'C-16', 'C-17', 'C-18']);
+    // Advanced, the union with Basic first: the sensors pack (its blocks join the Input category), its rows and its controls; the
+    // music pack of N17 B3 (its blocks join the Sound category) and its rows.
+    expect(advanced?.blockPacks).toEqual([...basicPacks, 'ybc.sensors', 'ybc.music']);
+    expect(advanced?.constructs).toEqual([...basicConstructs, 'C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22']);
     expect(advanced?.controls).toEqual(['button-a', 'button-b', 'light', 'temperature', 'accelerometer']);
   });
 

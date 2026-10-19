@@ -54,6 +54,33 @@ export const viPictureNames: Readonly<Record<string, string>> = {
   ARROW_W: 'mũi tên trái',
 };
 
+/** The built-in melodies (constructs/ybc.sound.ts `melodyNames`) by name (N17 B3); a proper name stays as it is. */
+export const viMelodyNames: Readonly<Record<string, string>> = {
+  DADADADUM: 'đa đa đa đum',
+  ENTERTAINER: 'The Entertainer',
+  PRELUDE: 'khúc dạo đầu',
+  ODE: 'Ode to Joy (Khúc hoan ca)',
+  NYAN: 'Nyan Cat',
+  RINGTONE: 'nhạc chuông',
+  FUNK: 'funk',
+  BLUES: 'blues',
+  BIRTHDAY: 'Chúc mừng sinh nhật',
+  WEDDING: 'hành khúc đám cưới',
+  FUNERAL: 'hành khúc tang lễ',
+  PUNCHLINE: 'kết câu chuyện cười',
+  PYTHON: 'Python',
+  BADDY: 'kẻ xấu',
+  CHASE: 'rượt đuổi',
+  BA_DING: 'ba-ding',
+  JUMP_UP: 'nhảy lên',
+  JUMP_DOWN: 'nhảy xuống',
+  POWER_UP: 'tăng sức mạnh',
+  POWER_DOWN: 'mất sức mạnh',
+};
+
+/** Whether the program waits for a melody (N17 B3), by value. */
+export const viMelodyModes: Readonly<Record<string, string>> = { wait: 'chờ xong', background: 'không chờ' };
+
 export const viBlockText: Readonly<Record<string, BlockText>> = {
   stem_on_start: { message0: 'khi bắt đầu %1 %2', tooltip: 'Chạy một lần khi chương trình bắt đầu.' },
   stem_forever: { message0: 'lặp mãi mãi %1 %2', tooltip: 'Lặp lại cho tới khi chương trình dừng.' },
@@ -97,6 +124,16 @@ export const viBlockText: Readonly<Record<string, BlockText>> = {
   },
   ybc_sound_note: { message0: 'phát nốt %1 trong %2 nhịp', tooltip: 'Phát một nốt rồi chờ nốt kết thúc. Một nhịp dài 125 mili giây.' },
   ybc_sound_rest: { message0: 'nghỉ %1 nhịp', tooltip: 'Im lặng và chờ. Một nhịp dài 125 mili giây.' },
+  ybc_sound_melody: {
+    message0: 'phát giai điệu %1 %2',
+    tooltip: 'Phát một giai điệu có sẵn. "chờ xong": chương trình chờ hết bài; "không chờ": chương trình chạy tiếp trong khi nhạc phát. Âm thanh mới sẽ thay bài đang phát.',
+    options: { MELODY: viMelodyNames, MODE: viMelodyModes },
+  },
+  ybc_sound_pitch: {
+    message0: 'bật âm %1 Hz trong %2 ms',
+    tooltip: 'Bật một âm (20 tới 20000 Hz) kêu trong thời gian cho trước (0 tới 60000 ms). Chương trình chạy tiếp ngay, như trên mạch thật: thêm khối chờ để nghe hết âm trước âm tiếp theo.',
+  },
+  ybc_sound_stop: { message0: 'dừng âm thanh', tooltip: 'Tắt loa ngay: giai điệu đang phát nền hoặc âm đang kêu.' },
   ybc_pin_write: { message0: 'đặt chân %1 thành %2', tooltip: 'Bật hoặc tắt một chân.' },
   ybc_pin_read: { message0: 'đọc số chân %1', tooltip: 'Đúng khi chân đang bật.' },
   ybc_pin_analog: { message0: 'đọc tương tự chân %1', tooltip: `Đọc giá trị tương tự của một chân: từ 0 tới ${ANALOG_MAX}.` },

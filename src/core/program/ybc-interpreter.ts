@@ -5,7 +5,7 @@ import { DEFAULT_COLOUR, IMAGE_SIZE, isDisplayText, paletteColourOf } from '../c
 import { isBuiltinImageName } from '../constructs/ybc.images';
 import { isAxisName, isGestureName } from '../constructs/ybc.input';
 import { runPinCall, runPinRead } from '../constructs/ybc.pins';
-import { noteTicks } from '../constructs/ybc.sound';
+import { isMelodyName, noteTicks, PITCH_MAX_HZ, PITCH_MAX_MS, PITCH_MIN_HZ } from '../constructs/ybc.sound';
 import {
   charactersOf,
   clearPixelFrame,
@@ -20,6 +20,7 @@ import {
 import { ACCELERATION_LIMIT_MG } from '../simulation/peripherals/accelerometer';
 import { LIGHT_LEVEL_MAX, LIGHT_LEVEL_MIN } from '../simulation/peripherals/light';
 import { TEMPERATURE_MAX, TEMPERATURE_MIN } from '../simulation/peripherals/temperature';
+import { melodySteps } from '../simulation/peripherals/melodies';
 import { NOTE_TICK_MS, noteHz } from '../simulation/peripherals/sound';
 import type { RunOutcome } from './interpreter';
 import { MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_TEXT_CHARS, MAX_WAIT_MS } from './limits';
@@ -54,6 +55,14 @@ import type { ButtonOperand, CallStatement, ColourOperand, Expr, ImageOperand, R
 //
 // N17 B2: the temperature, the acceleration and the gesture are reads of the `temperature` and `motion` capabilities at the
 // moment of the call; a reading outside its domain (a broken capability) is an internal error, never a crash.
+//
+// N17 B3: the buzzer plays one sound at a time, as the micro:bit `music` module does. A note, a rest, a melody that waits, a
+// melody in the background, a tone and stop each end the sound that plays first. What sounds in the background (a melody that
+// does not wait, a tone: music.pitch does not wait, EVD-06) plays on the run's scheduler while the program goes on; it plays out
+// after a program that finished, and ends at once with a program that is stopped, replaced or ends in an error (Review Focus 1).
+
+/** One note or rest of a melody (or a tone), for `ms`; `hz` null is silence. */
+type Sounding = { hz: number | null; ms: number };
 
 /** E3, as in the legacy interpreter: every forever iteration ends with at least this pause. */
 const foreverYieldMs = 10;
@@ -327,6 +336,128 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
     show(blankFrame());
   };
 
+  /**
+   * N17 B3: the one tone of the buzzer. `toneOn` says whether this run has a tone on, so a tone is stopped before the next one
+   * starts (two notes of one pitch stay two notes) and stopping stops only what plays. It is on before the capability is told, so a
+   * report that fails after it stored the tone still has it stopped.
+   */
+  let toneOn = false;
+  const startTone = (hz: number) => {
+    const sound = part('sound');
+    if (toneOn) {
+      toneOn = false;
+      sound.stopTone();
+    }
+    toneOn = true;
+    sound.startTone(hz);
+  };
+  const stopTone = () => {
+    if (toneOn) {
+      toneOn = false;
+      part('sound').stopTone();
+    }
+  };
+
+  /** What plays in the background (a melody that does not wait, a tone), until it ends or something ends it. */
+  let background: { cancel(): void } | null = null;
+
+  /** Ends the sound that plays in the background, at once: its timer is cancelled and its tone stopped. */
+  const endBackground = () => {
+    const playing = background;
+    background = null;
+    playing?.cancel();
+    stopTone();
+  };
+
+  /**
+   * Plays the steps one after the other on the run's scheduler, the first one now, while the program goes on. The steps are due at
+   * fixed times from the first one, as the columns of a scroll are; one that comes a tick or more late (a hidden tab) is played from
+   * then on, not caught up with a burst. A buzzer that fails here is silence, never a throw into a timer.
+   */
+  const playInBackground = (steps: readonly Sounding[]) => {
+    let index = 0;
+    let due = services.clock.now();
+    let cancelTimer: (() => void) | null = null;
+    const handle = {
+      cancel() {
+        cancelTimer?.();
+        cancelTimer = null;
+      },
+    };
+    const next = () => {
+      cancelTimer = null;
+      if (background !== handle) {
+        return;
+      }
+      try {
+        const step = steps[index];
+        index += 1;
+        if (step === undefined) {
+          background = null;
+          stopTone();
+          return;
+        }
+        if (step.hz === null) {
+          stopTone();
+        } else {
+          startTone(step.hz);
+        }
+        const now = services.clock.now();
+        if (now - due >= NOTE_TICK_MS) {
+          due = now;
+        }
+        due += step.ms;
+        cancelTimer = services.scheduler.schedule(next, Math.max(0, due - now));
+      } catch {
+        background = null;
+        try {
+          stopTone();
+        } catch {
+          // Nothing more can be done for a buzzer that will not stop; the run's end drops its state.
+        }
+      }
+    };
+    background = handle;
+    next();
+  };
+
+  /**
+   * C-20 until done: the steps one after the other, the statement waiting for each, at fixed times from the first (a late wake-up
+   * shortens the next wait; one a tick or more late goes on from there). Each step is a budget step, and Stop ends the wait; the tone
+   * never outlives the melody.
+   */
+  const playUntilDone = async (steps: readonly Sounding[]): Promise<void> => {
+    let due = services.clock.now();
+    try {
+      for (const step of steps) {
+        await budget.step();
+        if (step.hz === null) {
+          stopTone();
+        } else {
+          startTone(step.hz);
+        }
+        const now = services.clock.now();
+        if (now - due >= NOTE_TICK_MS) {
+          due = now;
+        }
+        due += step.ms;
+        await services.sleep(Math.max(0, due - now), signal);
+        budget.startSlice();
+      }
+    } finally {
+      stopTone();
+    }
+  };
+
+  /** Whatever sounds when the program ends by Stop, a replacement or an error: silence, never a throw on the way out. */
+  const silence = () => {
+    try {
+      endBackground();
+    } catch {
+      // The outcome of the program is what matters here; the run's end drops the buzzer's state.
+    }
+  };
+
   /** The length of a note or a rest in ticks, from a program that may not be the compiler's own. */
   const waitTicks = (ticks: number): number => {
     if (!noteTicks.some((allowed) => allowed === ticks)) {
@@ -377,25 +508,66 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
         show(setAllFrame(colourOf(statement.operand)));
         return;
       case 'sound.playNote': {
-        const sound = part('sound');
+        part('sound');
         const { note, ticks } = statement.operand;
         if (!Object.hasOwn(noteHz, note)) {
           throw new RuntimeFault('internal-error', 'A note block names a note that does not exist.');
         }
         const ms = waitTicks(ticks);
+        endBackground();
         try {
-          sound.startTone(noteHz[note]);
+          startTone(noteHz[note]);
           await services.sleep(ms, signal);
         } finally {
           // Also when Stop ends the wait, or the report of the tone failed after it was stored: the tone never outlives its note.
-          sound.stopTone();
+          stopTone();
         }
         budget.startSlice();
         return;
       }
-      case 'sound.rest':
-        await services.sleep(waitTicks(statement.operand.ticks), signal);
+      case 'sound.rest': {
+        const ms = waitTicks(statement.operand.ticks);
+        // A rest is a sound of the module too (music.play(['R:t'])): it ends the one that plays.
+        endBackground();
+        await services.sleep(ms, signal);
         budget.startSlice();
+        return;
+      }
+      case 'sound.playMelody': {
+        part('sound');
+        const { melody, wait } = statement.operand;
+        if (!isMelodyName(melody) || typeof wait !== 'boolean') {
+          throw new RuntimeFault('internal-error', 'A melody block names a melody that does not exist.');
+        }
+        const steps = melodySteps(melody).map(({ hz, ticks }) => ({ hz, ms: ticks * NOTE_TICK_MS }));
+        endBackground();
+        if (wait) {
+          await playUntilDone(steps);
+          budget.startSlice();
+        } else {
+          playInBackground(steps);
+        }
+        return;
+      }
+      case 'sound.pitch': {
+        const [hzExpr, msExpr] = statement.args;
+        if (statement.args.length !== 2 || hzExpr === undefined || msExpr === undefined) {
+          throw new RuntimeFault('internal-error', 'A tone block was given the wrong number of values.');
+        }
+        // The Hz, then the ms, each evaluated once and checked against the domain of C-21; a fault names the value's block.
+        const hz = intWithin(hzExpr, PITCH_MIN_HZ, PITCH_MAX_HZ, 'The frequency');
+        const ms = intWithin(msExpr, 0, PITCH_MAX_MS, 'The length of a tone');
+        blockId = statement.blockId;
+        part('sound');
+        endBackground();
+        if (ms > 0) {
+          playInBackground([{ hz, ms }]);
+        }
+        return;
+      }
+      case 'sound.stop':
+        part('sound');
+        endBackground();
         return;
       default:
         // The compiler writes only the ops above; a program that is not its own must not be skipped without a word.
@@ -509,6 +681,8 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
     signal.throwIfAborted();
     return { status: 'finished' };
   } catch (error) {
+    // Stop, a replacing run or an error: the sound ends with the program. A program that finished lets its melody play out.
+    silence();
     if (signal.aborted) {
       return { status: 'stopped' };
     }

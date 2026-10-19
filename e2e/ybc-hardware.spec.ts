@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
   acceleration, add, buttonPresses, buttonPressed, clearDisplay, clearPixel, cmp, colour, gestureIs, getVar, ifElif, ifThen, images, legacyShowImage,
-  lightLevel, num, playNote, print, program, rest, scrollNumber, scrollText, scrollTextIn, setAll, setPixel, setVar, showIcon, showImage, showImageIn,
-  temperature, text, wait, type ImageRows,
+  lightLevel, num, playMelody, playNote, playPitch, print, program, rest, scrollNumber, scrollText, scrollTextIn, setAll, setPixel, setVar, showIcon, showImage,
+  showImageIn, stopSound, temperature, text, wait, type ImageRows,
 } from '../src/core/program/__fixtures__/ybc-blocks';
 import { canvasState, currentProject, expectSaved, openApp, openProject } from './helpers';
 
@@ -252,53 +252,67 @@ test.describe('get_presses (C-13)', () => {
   });
 });
 
+type AudioLog = { contexts: number; started: number[]; stopped: number; resumes: boolean[]; state: string | null };
+
+/**
+ * Counts what the page asks of the browser's audio, without replacing it (N17 B3: and every resume, with whether it came inside a
+ * user gesture, and the state of the newest context). Blockly makes contexts of its own when it starts, so tests compare with what
+ * the log says once the page is up.
+ */
+async function watchAudio(page: Page) {
+  await page.addInitScript(() => {
+    const log = { contexts: 0, started: [] as number[], stopped: 0, resumes: [] as boolean[] };
+    const made: AudioContext[] = [];
+    Object.assign(window, { __audioLog: log, __audioContexts: made });
+    const Real = window.AudioContext;
+    window.AudioContext = class extends Real {
+      constructor(options?: AudioContextOptions) {
+        super(options);
+        log.contexts += 1;
+        made.push(this);
+      }
+      override resume() {
+        log.resumes.push(navigator.userActivation.isActive);
+        return super.resume();
+      }
+      override createOscillator() {
+          const oscillator = super.createOscillator();
+          const start = oscillator.start.bind(oscillator);
+          const stopNode = oscillator.stop.bind(oscillator);
+        oscillator.start = (when?: number) => {
+          log.started.push(oscillator.frequency.value);
+          start(when);
+        };
+        oscillator.stop = (when?: number) => {
+          log.stopped += 1;
+          stopNode(when);
+        };
+        return oscillator;
+      }
+    };
+  });
+}
+const audioLog = (page: Page): Promise<AudioLog> =>
+  page.evaluate(() => {
+    const { __audioLog: log, __audioContexts: made } = window as unknown as { __audioLog: Omit<AudioLog, 'state'>; __audioContexts: AudioContext[] };
+    return { ...log, state: made.at(-1)?.state ?? null };
+  });
+
 test.describe('sound (C-50, C-51)', () => {
   // Each sound lasts long enough (250-500 ms) for the polling of the assertions to see it.
   const melody = program([playNote('C4', 4), rest(2), playNote('A4', 4), wait(num(100))]);
 
-  /** Counts what the page asks of the browser's audio, without replacing it. */
-  async function watchAudio(page: Page) {
-    await page.addInitScript(() => {
-      const log = { contexts: 0, started: [] as number[], stopped: 0 };
-      Object.assign(window, { __audioLog: log });
-      const Real = window.AudioContext;
-      window.AudioContext = class extends Real {
-        constructor(options?: AudioContextOptions) {
-          super(options);
-          log.contexts += 1;
-        }
-        override createOscillator() {
-          const oscillator = super.createOscillator();
-          const start = oscillator.start.bind(oscillator);
-          const stopNode = oscillator.stop.bind(oscillator);
-          oscillator.start = (when?: number) => {
-            log.started.push(oscillator.frequency.value);
-            start(when);
-          };
-          oscillator.stop = (when?: number) => {
-            log.stopped += 1;
-            stopNode(when);
-          };
-          return oscillator;
-        }
-      };
-    });
-  }
-  const audioLog = (page: Page) =>
-    page.evaluate(() => (window as unknown as { __audioLog: { contexts: number; started: number[]; stopped: number } }).__audioLog);
-
-  test('plays the note as text first, is silent between and after, and stays off until it is turned on', async ({ page }) => {
+  test('is on from the start and starts with the click of Run, in that gesture: no other click; the text says each note, silent between and after', async ({ page }) => {
     await watchAudio(page);
     await openProject(page, project(melody));
     const indicator = page.getByTestId('sound-indicator');
     await expect(indicator).toHaveText('Silent');
-    // Off until a click; the label says what a click does and changes with the state, so there is no aria-pressed as well.
-    const toggle = page.getByRole('button', { name: 'Turn sound on' });
+    // On from the start (N17 B3); the label says what a click does and changes with the state, so there is no aria-pressed as well.
+    const toggle = page.getByRole('button', { name: 'Turn sound off' });
+    await expect(toggle).toBeVisible();
     await expect(toggle).not.toHaveAttribute('aria-pressed');
+    const before = await audioLog(page);
 
-    // Blockly makes AudioContexts of its own when it starts (its sound engine, which the editor keeps silent), so what
-    // counts is what happens after the page is up: sound off means no new context and not one oscillator.
-    const contextsBefore = (await audioLog(page)).contexts;
     await run(page);
 
     // The visual sign does not depend on sound being on: C4 is 262 Hz, then a rest, then A4 is 440 Hz.
@@ -308,18 +322,45 @@ test.describe('sound (C-50, C-51)', () => {
     await expectSounding(page, 'Playing 440 Hz');
     await expect(runStatus(page)).toHaveText('Program finished — board powered', { timeout: 10_000 });
     await expect(indicator).toHaveText('Silent');
-    // Sound was never turned on: no audio context was made for it, and no oscillator ever started.
-    expect((await audioLog(page)).contexts).toBe(contextsBefore);
-    expect((await audioLog(page)).started).toEqual([]);
+    // One context for the buzzer, made and resumed inside the click of Run (the user activation the browser asks for), running,
+    // and the two notes heard.
+    const after = await audioLog(page);
+    expect(after.contexts).toBe(before.contexts + 1);
+    const resumes = after.resumes.slice(before.resumes.length);
+    expect(resumes.length).toBeGreaterThan(0);
+    expect(resumes.every((active) => active)).toBe(true);
+    expect(after.state).toBe('running');
+    expect(after.started).toEqual(expect.arrayContaining([262, 440]));
     await stop(page);
   });
 
-  test('plays only after a click, at the tone of the note, and Stop silences it at once', async ({ page }) => {
+  test('turned off with the switch, Run makes no sound while the text still says what plays; the choice stays for the tab', async ({ page }) => {
+    await watchAudio(page);
+    await openProject(page, project(melody));
+    await page.getByRole('button', { name: 'Turn sound off' }).click();
+    await expect(page.getByRole('button', { name: 'Turn sound on' })).toBeVisible();
+    const before = await audioLog(page);
+
+    await run(page);
+    await expectSounding(page, 'Playing 262 Hz');
+    await expectSounding(page, 'Playing 440 Hz');
+    await expect(runStatus(page)).toHaveText('Program finished — board powered', { timeout: 10_000 });
+    const after = await audioLog(page);
+    expect(after.contexts).toBe(before.contexts);
+    expect(after.started).toEqual([]);
+    await stop(page);
+
+    // A reload of the tab keeps the choice (sessionStorage).
+    await page.reload();
+    await page.waitForFunction(() => window.__stem?.getCanvasState() != null);
+    await page.evaluate((document) => window.__stem?.loadProject(document), project(melody));
+    await expect(page.getByRole('button', { name: 'Turn sound on' })).toBeVisible();
+  });
+
+  test('plays at the tone of the note, and Stop silences it at once', async ({ page }) => {
     await watchAudio(page);
     await openProject(page, project(program([playNote('C4', 4), playNote('C4', 4), playNote('C4', 4)])));
 
-    await page.getByRole('button', { name: 'Turn sound on' }).click();
-    await expect(page.getByRole('button', { name: 'Turn sound off' })).toBeVisible();
     await run(page);
     await expect(page.getByTestId('sound-indicator')).toHaveText('Playing 262 Hz');
     await expect.poll(async () => (await audioLog(page)).started.at(-1)).toBe(262);
@@ -389,7 +430,17 @@ test.describe('the toolbox and the dropdowns', () => {
       const sound = await flyoutTexts(page, 'Sound');
       expect(sound).toMatch(/play note/);
       expect(sound).toMatch(/rest for/);
-      expect(sound).not.toMatch(/pitch|stop|melody|tempo/i);
+      expect(sound).not.toMatch(/tempo/i);
+      // N17 B3: the melodies, the tone and stop of Advanced join its Sound category; Basic has none of them.
+      if (profile === 'ybc-advanced') {
+        expect(sound).toMatch(/play melody \| Happy Birthday \| until done/);
+        expect(sound).toMatch(/play melody \| jump up \| in the background/);
+        expect(sound).toMatch(/start tone/);
+        expect(sound).toMatch(/Hz for/);
+        expect(sound).toMatch(/stop sound/);
+      } else {
+        expect(sound).not.toMatch(/pitch|tone|stop|melody/i);
+      }
     });
   }
 
@@ -604,6 +655,65 @@ test.describe('the sensors of the Advanced board (N17 B2)', () => {
   });
 });
 
+// N17 B3: the built-in melodies, the tone and stop of the Advanced board. The text under the board says what the buzzer plays; the
+// sound is heard (sound is on from the start, Run starts it), and Stop silences everything at once (Review Focus 1).
+test.describe('the melodies, the tone and stop of the Advanced board (N17 B3)', () => {
+  const advanced = (blocks: unknown) => project(blocks, 'ybc-advanced');
+
+  test('a melody in the background plays while the program goes on, is heard, and Stop silences it at once', async ({ page }) => {
+    await watchAudio(page);
+    await openProject(page, advanced(program([playMelody('BIRTHDAY', 'background'), showImage(images.FULL), print(text('after')), wait(num(20_000))])));
+    await run(page);
+    await expect(consoleLines(page)).toContainText('after');
+    await expectDisplay(page, images.FULL);
+    // Happy birthday: C4, C4, then D4 at 500 ms, while the program has long gone on to its wait.
+    await expectSounding(page, 'Playing 262 Hz');
+    await expectSounding(page, 'Playing 294 Hz');
+    await expect.poll(async () => (await audioLog(page)).started).toEqual(expect.arrayContaining([262, 294]));
+
+    const before = await audioLog(page);
+    await stop(page);
+    await expect(page.getByTestId('sound-indicator')).toHaveText('Silent');
+    await expect(runStatus(page)).toHaveText('Idle');
+    await expect.poll(async () => (await audioLog(page)).stopped).toBeGreaterThanOrEqual(before.started.length);
+    const after = await audioLog(page);
+    await page.waitForTimeout(800);
+    expect((await audioLog(page)).started).toEqual(after.started);
+    await expect(page.getByTestId('sound-indicator')).toHaveText('Silent');
+  });
+
+  test('a melody that waits holds the program until its last note; a tone does not wait, and stop silences it', async ({ page }) => {
+    await openProject(
+      page,
+      advanced(program([playMelody('JUMP_UP', 'wait'), print(text('done')), playPitch(num(880), num(60_000)), wait(num(600)), stopSound(), print(text('quiet')), wait(num(5_000))])),
+    );
+    await run(page);
+    await expectSounding(page, 'Playing 523 Hz');
+    // JUMP_UP lasts 625 ms: the line after it is not printed yet.
+    expect(await consoleLines(page).textContent()).not.toContain('done');
+    await expectSounding(page, 'Playing 880 Hz');
+    await expect(consoleLines(page)).toContainText('done');
+    await expectSounding(page, 'Silent');
+    await expect(consoleLines(page)).toContainText('quiet');
+    await stop(page);
+  });
+
+  test('writes the Python of the melodies, the tone and stop', async ({ page }) => {
+    await openProject(page, advanced(program([playMelody('BIRTHDAY', 'background'), playPitch(num(440), num(500)), stopSound(), playMelody('ODE', 'wait')])));
+    const source = page.getByTestId('python-source');
+    await expect(source).toContainText('music.play(music.BIRTHDAY, wait=False)');
+    await expect(source).toContainText('music.pitch(440, 500)');
+    await expect(source).toContainText('music.stop()');
+    await expect(source).toContainText('music.play(music.ODE, wait=True)');
+  });
+
+  test('a Basic board has no melody, tone or stop: a melody block in a Basic project does not run', async ({ page }) => {
+    await openProject(page, project(program([playMelody('ODE', 'wait')]), 'ybc-basic'));
+    await run(page);
+    await expect(page.getByTestId('run-messages')).toContainText('not available in the ybc-basic profile');
+  });
+});
+
 test.describe('Python (YB-3 owns the Python of its constructs)', () => {
   test('shows the headers and the exact forms of the contract', async ({ page }) => {
     await openProject(
@@ -702,7 +812,7 @@ test('fits the lesson frame: the board, its controls and the sound switch are al
     page.getByTestId('control-button-b'),
     page.getByTestId('control-light'),
     page.getByTestId('sound-indicator'),
-    page.getByRole('button', { name: 'Turn sound on' }),
+    page.getByRole('button', { name: 'Turn sound off' }),
   ]) {
     const box = await locator.boundingBox();
     expect(box, 'a control is visible').not.toBeNull();

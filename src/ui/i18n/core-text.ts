@@ -34,6 +34,7 @@ const terms: Readonly<Record<string, string>> = {
   'analog read': 'đọc tương tự',
   'set light': 'bật đèn',
   'turn off light': 'tắt đèn',
+  'start tone': 'bật âm',
 };
 
 /** Blockly's own blocks that the core may name by type; the custom blocks are named by their Vietnamese text. */
@@ -74,6 +75,8 @@ const quantities: Readonly<Record<string, string>> = {
   'The remainder': 'Số dư',
   'The column': 'Cột',
   'The row': 'Hàng',
+  'The frequency': 'Tần số',
+  'The length of a tone': 'Độ dài âm',
 };
 
 /** The capabilities a board may lack (constructs' `capability`). */
@@ -172,6 +175,11 @@ export const coreMessageRules: readonly Rule[] = [
   [/^An acceleration block needs its axis\.$/, () => 'Khối gia tốc cần chọn trục.'],
   [/^An axis is x, y or z\.$/, () => 'Trục là x, y hoặc z.'],
   [/^A gesture block needs its gesture\.$/, () => 'Khối cử chỉ cần chọn cử chỉ.'],
+  // N17 B3: the melodies and the tone.
+  [/^A melody block needs its melody\.$/, () => 'Khối giai điệu cần chọn giai điệu.'],
+  [/^A melody is one of the built-in melodies\.$/, () => 'Giai điệu là một trong các giai điệu có sẵn.'],
+  [/^A melody block needs to say whether the program waits for it\.$/, () => 'Khối giai điệu cần chọn "chờ xong" hoặc "không chờ".'],
+  [/^A melody plays until done or in the background\.$/, () => 'Giai điệu phát "chờ xong" hoặc "không chờ".'],
   [/^A gesture is one of shake, tilted left or right, face up or down, logo up or down\.$/, () => 'Cử chỉ là lắc, nghiêng trái hoặc phải, ngửa hoặc úp mặt, logo hướng lên hoặc xuống.'],
   [/^A note or rest needs its length\.$/, () => 'Khối nốt hoặc nghỉ cần độ dài.'],
   [/^A length is 1, 2 or 4 ticks\.$/, () => 'Độ dài là 1, 2 hoặc 4 nhịp.'],
@@ -241,6 +249,8 @@ export const coreMessageRules: readonly Rule[] = [
   [/^An acceleration block names an axis that does not exist\.$/, () => 'Khối gia tốc gọi một trục không tồn tại.'],
   [/^The acceleration is not a whole number from (.+) to (.+)\.$/, (low, high) => `Gia tốc không phải số nguyên từ ${low} tới ${high}.`],
   [/^A gesture block names a gesture that does not exist\.$/, () => 'Khối cử chỉ gọi một cử chỉ không tồn tại.'],
+  [/^A melody block names a melody that does not exist\.$/, () => 'Khối giai điệu gọi một giai điệu không tồn tại.'],
+  [/^A tone block was given the wrong number of values\.$/, () => 'Khối âm nhận sai số giá trị.'],
   [/^The board cannot tell its gesture\.$/, () => 'Bo mạch không cho biết cử chỉ của nó.'],
   [/^A variable has no value\.$/, () => 'Một biến chưa có giá trị.'],
   [/^A read gave another type than its block says\.$/, () => 'Một lần đọc trả về loại khác với khối của nó.'],

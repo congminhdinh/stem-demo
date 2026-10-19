@@ -34,6 +34,10 @@ const phaseList: Allowlist = {
 /** The names of the vendor's pictures C-05 writes as `Image.<NAME>` (N17 B1); the arrows are written as an own picture. */
 const pictureNames = ['HEART', 'HEART_SMALL', 'HAPPY', 'SAD', 'CONFUSED', 'ANGRY', 'SURPRISED', 'YES', 'NO'];
 
+/** N17 B3: the 14 melodies of the vendor editor's list (contract §14) and the 6 micro:bit names it did not show, written here by hand. */
+const vendorMelodies = ['DADADADUM', 'ENTERTAINER', 'PRELUDE', 'ODE', 'NYAN', 'RINGTONE', 'BIRTHDAY', 'WEDDING', 'PYTHON', 'CHASE', 'JUMP_UP', 'JUMP_DOWN', 'POWER_UP', 'POWER_DOWN'];
+const extraMelodies = ['FUNK', 'BLUES', 'FUNERAL', 'PUNCHLINE', 'BADDY', 'BA_DING'];
+
 /** The 15 natural notes and the 3 lengths of C-50 (contract §8.2), which the `<note>` and `<ticks>` placeholders stand for. */
 const notes = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
 
@@ -63,6 +67,10 @@ const placeholderPatterns: Record<string, string> = {
   name: `(?:${pictureNames.join('|')})`,
   // N17 B2: the seven gestures of C-18's block (the names other than shake are an UNVERIFIED form).
   gesture: '(?:shake|tilt_left|tilt_right|face_up|face_down|logo_up|logo_down)',
+  // N17 B3: the built-in melodies of C-20: the 14 of the editor's list (contract §14), and the 6 micro:bit names it did not show
+  // (an UNVERIFIED form).
+  melody: `(?:${vendorMelodies.join('|')})`,
+  'extra melody': `(?:${extraMelodies.join('|')})`,
 };
 
 /** One line of a form as a pattern. A placeholder is its domain where the contract names one, and any expression otherwise. */
@@ -293,6 +301,13 @@ describe('the allowlist this phase may generate is part of the contract allowlis
       'accelerometer.get_z()',
       'accelerometer.is_gesture("shake")',
       'accelerometer.is_gesture("<gesture>")',
+      // N17 B3: the buzzer of the Advanced board, the verified form of C-20 and the UNVERIFIED ones it names; C-21 and C-22.
+      'music.play(music.<melody>, wait=False)',
+      'music.play(music.<melody>, wait=True)',
+      'music.play(music.<extra melody>, wait=False)',
+      'music.play(music.<extra melody>, wait=True)',
+      'music.pitch(<hz>, <ms>)',
+      'music.stop()',
     ]) {
       expect(phaseList.forms, form).toContain(form);
       expect(contractList.forms, form).toContain(form);
@@ -427,6 +442,14 @@ describe('the audit would notice what the hardware must not use (it is not vacuo
       'if int(temperature()) > 30:',
       'x = accelerometer.get_x() + accelerometer.get_y() - accelerometer.get_z()',
       'if accelerometer.is_gesture("shake") or accelerometer.is_gesture("logo_down"):',
+      // N17 B3.
+      'music.play(music.DADADADUM, wait=False)',
+      'music.play(music.BIRTHDAY, wait=True)',
+      'music.play(music.BA_DING, wait=False)',
+      'music.play(music.FUNK, wait=True)',
+      'music.pitch(440, 500)',
+      'music.pitch(x * 10 + 200, x)',
+      'music.stop()',
     ]) {
       expect(audit(around(line), phaseList, learner), line).toEqual(clean);
     }
@@ -434,7 +457,8 @@ describe('the audit would notice what the hardware must not use (it is not vacuo
 
   const refused: [label: string, line: string, header?: string[]][] = [
     ['pin0.read_analog written without int() (YB-4)', 'x = pin0.read_analog()'],
-    ['music.pitch (EXCLUDED, C-21)', 'music.pitch(440, 100)'],
+    ['music.reset (not offered)', 'music.reset()'],
+    ['music.get_tempo (not offered)', 'x = music.get_tempo()'],
     ['random (EXCLUDED, C-40)', 'x = random.randint(1, 6)', ['import time', 'import random']],
     ['an import of random', 'x = 1', ['import time', 'import random']],
     ['button_a.is_pressed_ab (A+B, EXCLUDED, C-47)', 'if button_a.is_pressed_ab():'],
@@ -446,7 +470,11 @@ describe('the audit would notice what the hardware must not use (it is not vacuo
     ['a built-in image the block does not offer', 'display.show(Image.SMILE)'],
     ['an arrow by name (the generator writes it as an own picture)', 'display.show(Image.ARROW_N)'],
     ['a name read off Image that is no picture', 'x = Image.HEART'],
-    ['a built-in melody', 'music.play(music.DADADADUM)'],
+    ['a built-in melody without wait written out', 'music.play(music.DADADADUM)'],
+    ['a melody the block does not offer', 'music.play(music.GREENSLEEVES, wait=False)'],
+    ['a melody in lower case', 'music.play(music.birthday, wait=False)'],
+    ['a melody that loops (not offered)', 'music.play(music.ODE, wait=False, loop=True)'],
+    ['a tone with wait (not written)', 'music.pitch(440, 100, wait=False)'],
     ['an image with a digit beyond the palette', 'display.show(Image("90000:00000:00000:00000:00000"))'],
     ['a colour keyword on clear', "display.clear(color='#ff0000')"],
     ['a colour name on a scroll', "display.scroll('Hi', color='red')"],
@@ -499,7 +527,7 @@ describe('the audit would notice what the hardware must not use (it is not vacuo
   });
 
   it('names what it found: the call, the import or the word', () => {
-    expect(audit(around('music.pitch(440, 100)'), phaseList, learner).names).toEqual(['music.pitch']);
+    expect(audit(around('music.reset()'), phaseList, learner).names).toEqual(['music.reset']);
     expect(audit(around('x = 1', ['import time', 'import random']), phaseList, learner).imports).toEqual(['import random']);
     expect(audit(around("music.play(['C6:4'], wait=True)"), phaseList, learner).calls).toEqual(["music.play(['C6:4'], wait=True)"]);
     expect(audit(around('x = secret + 1'), phaseList, learner).identifiers).toEqual(['secret']);

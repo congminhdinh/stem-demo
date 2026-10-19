@@ -15,8 +15,8 @@ import type { Frame } from '../capabilities/frame';
 import type { Capabilities } from '../capabilities/io';
 import { DISPLAY_CHAR_FROM, DISPLAY_CHAR_TO, IMAGE_SIZE, isDisplayText } from '../constructs/ybc.display';
 import { buttonNames, isButtonName } from '../constructs/ybc.input';
-import { noteNames, noteTicks } from '../constructs/ybc.sound';
-import { buttonPressed, buttonPresses, playNote, rest, scrollText, text } from '../program/__fixtures__/ybc-blocks';
+import { noteNames, noteTicks, PITCH_MAX_HZ, PITCH_MAX_MS, PITCH_MIN_HZ } from '../constructs/ybc.sound';
+import { buttonPressed, buttonPresses, playNote, playPitch, rest, scrollText, text } from '../program/__fixtures__/ybc-blocks';
 import type { Expr, YbcProgramIR, YbcStatement } from '../program/ybc-ir';
 import type { Pred } from './contract-types';
 
@@ -350,5 +350,39 @@ describe('rests (C-51): compiler and interpreter agree with the contract predica
     expect(outcome.status === 'finished').toBe(allowed);
     expect(tones).toEqual([]);
     expect(sleeps).toEqual(allowed ? [ticks * 125] : []);
+  });
+});
+
+describe('a tone (C-21, N17 B3): compiler and interpreter agree with the contract predicate', () => {
+  const advanced = packs.typesOf(productionProfiles.get('ybc-advanced')?.blockPacks ?? []);
+  // A buzzer that hears everything and a scheduler that keeps nothing: the tone itself is the session tests' (run-session.music).
+  const silent: Capabilities = { sound: { startTone: () => undefined, stopTone: () => undefined } };
+  const noTimers = { schedule: () => () => undefined, dispose: () => undefined, disposed: false };
+  const compilesTone = (hz: number, ms: number) => compileYbcProgram(prog([playPitch(num(hz), num(ms))]), advanced).ok;
+  async function runsTone(hz: number, ms: number) {
+    const compiled = compileYbcProgram(prog([playPitch(add(num(hz), num(0)), add(num(ms), num(0)))]), advanced);
+    if (!compiled.ok) {
+      throw new Error(`Does not compile: ${JSON.stringify(compiled.diagnostics)}`);
+    }
+    const outcome = await runYbc(
+      compiled.ir,
+      { sleep: () => Promise.resolve(), console: createRunConsole(), yieldNow: () => Promise.resolve(), scheduler: noTimers },
+      silent,
+    ).done;
+    return outcome.status === 'finished';
+  }
+  const hzValues = [19, 20, 21, 19_999, 20_000, 20_001];
+  const msValues = [-1, 0, 1, 59_999, 60_000, 60_001];
+
+  it('pins the limits: 20..20000 Hz and 0..60000 ms', () => {
+    expect(hzValues.filter((hz) => evaluatePred(row('C-21').runtime, { values: { hz, ms: 100 } }))).toEqual([20, 21, 19_999, 20_000]);
+    expect(msValues.filter((ms) => evaluatePred(row('C-21').runtime, { values: { hz: 440, ms } }))).toEqual([0, 1, 59_999, 60_000]);
+    expect([PITCH_MIN_HZ, PITCH_MAX_HZ, PITCH_MAX_MS]).toEqual([20, 20_000, 60_000]);
+  });
+
+  it.each([...hzValues.map((hz) => [hz, 100] as const), ...msValues.map((ms) => [440, ms] as const)])('%d Hz for %d ms', async (hz, ms) => {
+    const allowed = evaluatePred(row('C-21').runtime, { values: { hz, ms } });
+    expect(compilesTone(hz, ms)).toBe(allowed);
+    expect(await runsTone(hz, ms)).toBe(allowed);
   });
 });

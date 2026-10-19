@@ -1,7 +1,8 @@
 // The sound of the buzzer, as a UI adapter (plan §11.5, §20): the core reports a frequency in the snapshot
 // and this plays it. It holds no meaning of its own: the tone it is given is the tone it plays, one
-// oscillator at a time, and silence is the default in every sense. Sound is off until a click turns it on
-// (the browser lets an AudioContext start only from a user gesture), the volume has a ceiling, and a tone
+// oscillator at a time. The browser lets an AudioContext start only from a user gesture, so the player makes and
+// resumes its context only in one: the switch (`setEnabled`) or, since N17 B3, the click of Run or Check (`unlock`),
+// which lets sound be on from the start without a separate click to unlock it. The volume has a ceiling, and a tone
 // that ends, a sound that is turned off or a player that is disposed is silenced at once, not faded (a new note, on
 // the other hand, begins a few milliseconds late: START_LEAD_S).
 // Sound only presents the run: a Web Audio call that fails makes the player silent and never throws, because the
@@ -46,6 +47,12 @@ export type AudioPlayer = {
    * has no audio to give.
    */
   setEnabled(enabled: boolean): boolean;
+  /**
+   * N17 B3: called in the handler of a user gesture (the click of Run or Check). When sound is on, it creates the AudioContext if
+   * there is none and resumes it (a browser may have suspended it since), so the tones that follow are heard. Off, it does
+   * nothing. It never throws.
+   */
+  unlock(): void;
   /** The tone to play, in Hz; undefined is silence. Remembered while sound is off, played when it is turned on. */
   setTone(hz: number | undefined): void;
   /** Stops everything and closes the context. Safe to call twice; the player does nothing afterwards. */
@@ -92,11 +99,15 @@ const release = (gain: GainLike | null | undefined, owner: AudioContextLike | nu
   });
 };
 
-export function createAudioPlayer(createContext: () => AudioContextLike = defaultContext): AudioPlayer {
+/**
+ * `enabled` (N17 B3): whether sound is on from the start, the learner's choice kept for the tab. On, the player still makes no
+ * context until a gesture (`unlock` or `setEnabled`); until then a tone is only remembered.
+ */
+export function createAudioPlayer(createContext: () => AudioContextLike = defaultContext, options: { enabled?: boolean } = {}): AudioPlayer {
   let context: AudioContextLike | null = null;
   let master: GainLike | null = null;
   let oscillator: OscillatorLike | null = null;
-  let enabled = false;
+  let enabled = options.enabled ?? false;
   let tone: number | undefined;
   let disposed = false;
 
@@ -161,29 +172,44 @@ export function createAudioPlayer(createContext: () => AudioContextLike = defaul
     }
   };
 
+  // In a gesture: the context, made now if there is none, and resumed. False when the browser has no audio to give.
+  const start = (): boolean => {
+    if (!context) {
+      const opened = open();
+      if (!opened) {
+        return false;
+      }
+      context = opened.context;
+      master = opened.gain;
+    }
+    try {
+      context.resume().catch(() => undefined);
+    } catch {
+      // A context that cannot resume stays silent; the text indicator still tells what the buzzer does.
+    }
+    return true;
+  };
+
   return {
     setEnabled(next) {
       if (disposed) {
         return false;
       }
-      if (next && !context) {
-        const opened = open();
-        if (!opened) {
-          return false;
-        }
-        context = opened.context;
-        master = opened.gain;
+      if (next && !start()) {
+        enabled = false;
+        refresh();
+        return false;
       }
       enabled = next;
-      if (next) {
-        try {
-          context?.resume().catch(() => undefined);
-        } catch {
-          // A context that cannot resume stays silent; the text indicator still tells what the buzzer does.
-        }
-      }
       refresh();
       return enabled;
+    },
+    unlock() {
+      if (disposed || !enabled) {
+        return;
+      }
+      start();
+      refresh();
     },
     setTone(hz) {
       if (disposed) {

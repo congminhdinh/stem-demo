@@ -11,7 +11,8 @@ import { capabilityKeys } from '../src/core/capabilities/io';
 
 // Where YB-3 and YB-4 end (YB plan §21 YB-3, YB-4, §6.2 R4, the frozen exclusions). Whatever is not the onboard parts
 // of YB-3 (display, buttons, light, sound), the RGB display of N17 B1, the sensors of N17 B2 (temperature, accelerometer,
-// gestures: Advanced only), the header pins and the potentiometer of YB-4 must not have appeared: the Advanced hardware of
+// gestures: Advanced only), the melodies, the tone and stop of N17 B3 (Advanced only), the header pins and the potentiometer of
+// YB-4 must not have appeared: the Advanced hardware of
 // YB-7 (servo, the drawing blocks), and the rows the contract excludes or defers (PWM, random, elapsed time, events). These tests are meant to be updated deliberately by the phase that opens a
 // construct, together with its contract row, never as a side effect of another change.
 
@@ -41,6 +42,10 @@ const onboardBlockTypes = [
   'ybc_temperature',
   'ybc_accel',
   'ybc_gesture_is',
+  // N17 B3: the melodies, the tone and stop of the Advanced board (C-20, C-21, C-22).
+  'ybc_sound_melody',
+  'ybc_sound_pitch',
+  'ybc_sound_stop',
 ];
 
 describe('the blocks a Yolo:Bit-compatible project has', () => {
@@ -83,10 +88,10 @@ describe('the contract rows a profile shows', () => {
     'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-42', 'C-43', 'C-50', 'C-51', 'C-56',
   ];
 
-  it('are the language of YB-2, the onboard hardware of YB-3 with the RGB display of N17 B1, and the pins of YB-4, in both profiles; Advanced adds the sensors of N17 B2', () => {
+  it('are the language of YB-2, the onboard hardware of YB-3 with the RGB display of N17 B1, and the pins of YB-4, in both profiles; Advanced adds the sensors of N17 B2 and the music of N17 B3', () => {
     const [basic, advanced] = profiles;
     expect([...(basic?.constructs ?? [])].sort()).toEqual([...exposed].sort());
-    expect([...(advanced?.constructs ?? [])].sort()).toEqual([...exposed, 'C-16', 'C-17', 'C-18'].sort());
+    expect([...(advanced?.constructs ?? [])].sort()).toEqual([...exposed, 'C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22'].sort());
   });
 
   it.each([

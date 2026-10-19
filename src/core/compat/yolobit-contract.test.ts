@@ -96,14 +96,15 @@ describe('rows and eligibility (contract §15)', () => {
   const eligibleOrRestricted: [string, 'ELIGIBLE' | 'RESTRICTED'][] = [
     ['C-01', 'ELIGIBLE'], ['C-02', 'ELIGIBLE'], ['C-04', 'ELIGIBLE'], ['C-05', 'RESTRICTED'], ['C-06', 'RESTRICTED'], ['C-07', 'RESTRICTED'],
     ['C-08', 'RESTRICTED'], ['C-09', 'ELIGIBLE'], ['C-10', 'RESTRICTED'], ['C-42', 'RESTRICTED'], ['C-43', 'RESTRICTED'],
-    ['C-12', 'RESTRICTED'], ['C-13', 'RESTRICTED'], ['C-15', 'ELIGIBLE'], ['C-16', 'RESTRICTED'], ['C-17', 'RESTRICTED'], ['C-18', 'RESTRICTED'], ['C-50', 'RESTRICTED'],
+    ['C-12', 'RESTRICTED'], ['C-13', 'RESTRICTED'], ['C-15', 'ELIGIBLE'], ['C-16', 'RESTRICTED'], ['C-17', 'RESTRICTED'], ['C-18', 'RESTRICTED'],
+    ['C-20', 'RESTRICTED'], ['C-21', 'RESTRICTED'], ['C-22', 'ELIGIBLE'], ['C-50', 'RESTRICTED'],
     ['C-51', 'RESTRICTED'], ['C-23', 'RESTRICTED'], ['C-24', 'RESTRICTED'], ['C-25', 'RESTRICTED'], ['C-27', 'RESTRICTED'],
     ['C-29', 'ELIGIBLE'], ['C-30', 'ELIGIBLE'], ['C-31', 'ELIGIBLE'], ['C-32', 'ELIGIBLE'], ['C-33', 'ELIGIBLE'],
     ['C-34', 'ELIGIBLE'], ['C-35', 'ELIGIBLE'], ['C-36', 'ELIGIBLE'], ['C-37', 'RESTRICTED'], ['C-38', 'ELIGIBLE'],
     ['C-39', 'RESTRICTED'], ['C-56', 'ELIGIBLE'], ['C-57', 'ELIGIBLE'], ['C-58', 'RESTRICTED'], ['C-59', 'RESTRICTED'],
   ];
   const excluded = [
-    'C-11', 'C-19', 'C-20', 'C-21', 'C-22', 'C-26', 'C-28', 'C-40', 'C-41', 'C-44', 'C-45',
+    'C-11', 'C-19', 'C-26', 'C-28', 'C-40', 'C-41', 'C-44', 'C-45',
     'C-46', 'C-47', 'C-48', 'C-49', 'C-52', 'C-53', 'C-54', 'C-55', 'C-60', 'C-69', 'C-70',
   ];
 
@@ -157,6 +158,9 @@ describe('rows and eligibility (contract §15)', () => {
     expect(row('C-16').profiles).toEqual(['ybc-advanced']);
     expect(row('C-17').profiles).toEqual(['ybc-advanced']);
     expect(row('C-18').profiles).toEqual(['ybc-advanced']);
+    expect(row('C-20').profiles).toEqual(['ybc-advanced']);
+    expect(row('C-21').profiles).toEqual(['ybc-advanced']);
+    expect(row('C-22').profiles).toEqual(['ybc-advanced']);
     expect(row('C-27').profiles).toEqual(['ybc-advanced']);
     expect(row('C-06').profiles).toEqual(['ybc-basic', 'ybc-advanced']);
   });
@@ -167,7 +171,7 @@ describe('rows and eligibility (contract §15)', () => {
     }
   });
 
-  it('names the UNVERIFIED forms of N17 B1 on the rows that write them, each with a reason, and on no other row', () => {
+  it('names the UNVERIFIED forms of N17 (B1, B2, B3) on the rows that write them, each with a reason, and on no other row', () => {
     const named = contract.constructs.filter((c) => (c.unverifiedForms?.length ?? 0) > 0);
     expect(named.map((c) => [c.id, c.unverifiedForms?.map((extra) => extra.form)])).toEqual([
       ['C-06', ['display.show(Image("<c0>:<c1>:<c2>:<c3>:<c4>"))']],
@@ -175,6 +179,7 @@ describe('rows and eligibility (contract §15)', () => {
       ['C-08', ["display.scroll(<n>, color='<#rrggbb>')"]],
       ['C-17', ['accelerometer.get_y()', 'accelerometer.get_z()']],
       ['C-18', ['accelerometer.is_gesture("<gesture>")']],
+      ['C-20', ['music.play(music.<melody>, wait=True)', 'music.play(music.<extra melody>, wait=False)', 'music.play(music.<extra melody>, wait=True)']],
     ]);
     for (const construct of named) {
       for (const extra of construct.unverifiedForms ?? []) {
@@ -194,11 +199,14 @@ describe('rows and eligibility (contract §15)', () => {
     }
   });
 
-  it('names the fields N17 B2 opened without evidence on the rows that have them, each UNKNOWN in the data and UNVERIFIED with a reason', () => {
+  it('names the fields N17 B2 and B3 opened without evidence on the rows that have them, each UNKNOWN in the data and UNVERIFIED with a reason', () => {
     const named = contract.constructs.filter((c) => Object.keys(c.unverifiedFields ?? {}).length > 0);
     expect(named.map((c) => [c.id, Object.keys(c.unverifiedFields ?? {}).sort()])).toEqual([
       ['C-17', ['block', 'coord', 'return']],
       ['C-18', ['block', 'content', 'return']],
+      ['C-20', ['block', 'content', 'yield']],
+      ['C-21', ['content', 'unit', 'yield']],
+      ['C-22', ['block', 'content']],
     ]);
     for (const construct of named) {
       for (const [field, reason] of Object.entries(construct.unverifiedFields ?? {})) {
@@ -225,6 +233,21 @@ describe('rows and eligibility (contract §15)', () => {
     expect(validateContract(onExcluded).join('\n')).toContain('C-19 is EXCLUDED but has UNVERIFIED fields');
     const onVerified = { ...contract, constructs: contract.constructs.map((c) => (c.id === 'C-17' ? { ...c, unverifiedFields: { ...c.unverifiedFields, call: 'UNVERIFIED' } } : c)) };
     expect(validateContract(onVerified).join('\n')).toContain('C-17 names call as UNVERIFIED, but it is VERIFIED');
+  });
+
+  it('opens the melodies, the tone and stop to Advanced (N17 B3) in the forms the editor writes: the melody line of investigation §5.3, pitch and stop', () => {
+    expect(row('C-20').python).toEqual({ form: 'music.play(music.<melody>, wait=False)' });
+    expect(row('C-20').fields.call).toMatchObject({ label: 'VERIFIED' });
+    expect(JSON.stringify(row('C-20').fields.call)).toContain('music.play(music.DADADADUM, wait=False)');
+    expect(row('C-21').python).toEqual({ form: 'music.pitch(<hz>, <ms>)' });
+    expect(row('C-21').fields.block).toMatchObject({ label: 'VERIFIED' });
+    expect(row('C-22').python).toEqual({ form: 'music.stop()' });
+    for (const id of ['C-20', 'C-21', 'C-22']) {
+      expect(row(id).modules, id).toEqual(['C-03c']);
+      expect(isExposable(row(id), contract), id).toBe(true);
+      expect(profileConstructViolations('ybc-advanced', [id], contract), id).toEqual([]);
+      expect(profileConstructViolations('ybc-basic', [id], contract), id).not.toEqual([]);
+    }
   });
 
   it('refuses UNVERIFIED forms on an excluded row: they are never a way around the gate', () => {
@@ -657,6 +680,21 @@ describe('relational restrictions (contract §21 invariant 10)', () => {
     }
   });
 
+  it('allows the twenty built-in melodies, and tones of 20..20000 Hz for 0..60000 ms (N17 B3)', () => {
+    const melody = row('C-20').domain;
+    const named = (name: string) => melody !== undefined && evaluatePred(melody.runtime, { values: { melody: name } });
+    for (const name of ['DADADADUM', 'BIRTHDAY', 'BA_DING', 'POWER_DOWN', 'FUNK']) {
+      expect(named(name), name).toBe(true);
+    }
+    for (const name of ['GREENSLEEVES', 'birthday', '', 'WAWAWAWAA']) {
+      expect(named(name), name).toBe(false);
+    }
+    const tone = row('C-21').domain;
+    const ok = (hz: number, ms: number) => tone !== undefined && evaluatePred(tone.runtime, { values: { hz, ms } });
+    expect([ok(20, 0), ok(20000, 60000), ok(440, 500), ok(19, 100), ok(20001, 100), ok(440, -1), ok(440, 60001)]).toEqual([true, true, true, false, false, false, false]);
+    expect(tone?.evaluation?.order).toEqual(['hz', 'ms']);
+  });
+
   it('allows the thirteen built-in pictures of N17 B1 and no other name', () => {
     const domain = row('C-05').domain;
     const ok = (name: string) => domain !== undefined && evaluatePred(domain.runtime, { values: { name } });
@@ -685,7 +723,7 @@ describe('the generator allowlist (contract §21 invariant 9)', () => {
 
   it('has nothing from an excluded or deferred row, nor the random module', () => {
     const text = JSON.stringify(allowlist);
-    for (const word of ['random', 'running_time', 'on_pressed = f', 'write_analog', 'show_graph', 'set_brightness', 'pitch', 'is_pressed_ab']) {
+    for (const word of ['random', 'running_time', 'on_pressed = f', 'write_analog', 'show_graph', 'set_brightness', 'set_tempo(ticks', 'music.reset', 'is_pressed_ab']) {
       expect(text, word).not.toContain(word);
     }
     // The verified form of every exposable row, and the UNVERIFIED forms that N17 rows name.
