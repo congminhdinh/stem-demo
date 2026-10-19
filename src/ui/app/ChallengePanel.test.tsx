@@ -77,6 +77,19 @@ describe('ChallengePanel (N6a S4)', () => {
     });
   });
 
+  // Review Focus 4 of N17 (task B6): a check that was interrupted (the tab was hidden, the computer stalled) has no verdict: not
+  // passed, and the learner is told to check again with the tab open. No goal is marked, neither met nor failed.
+  it('says an interrupted check did not pass and asks to check again, marking no goal', async () => {
+    expect(await render({ state: 'interrupted' })).toEqual({
+      goals: [
+        ['goal-heart', 'todo', '○Màn hình hiện hình trái tim, chưa kiểm tra'],
+        ['goal-show', 'todo', '○Dùng khối hiển thị hình, chưa kiểm tra'],
+      ],
+      status: 'Chưa đạt: lần kiểm tra bị gián đoạn (tab bị ẩn hoặc máy chạy chậm). Hãy để tab này mở và bấm Kiểm tra lại.',
+    });
+    expect(container.querySelector('[role="status"]')?.className).toBe('challenge-status challenge-status-failed');
+  });
+
   it('says the program did not run when the check could not start it', async () => {
     const result = { passed: false, goals: challenge.goals.map(({ id, label }) => ({ id, label, passed: false })) };
     expect((await render({ state: 'done', result, started: false })).status).toBe(

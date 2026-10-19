@@ -100,6 +100,7 @@ export const en = {
   'lab.result.passed': 'Passed! Every goal is met.',
   'lab.result.failed': 'Not yet: look at the goals that are not met, change the program and check again.',
   'lab.result.notStarted': 'The program could not run: fix what the toolbar says, then check again.',
+  'lab.result.interrupted': 'Not passed: the check was interrupted (the tab was hidden or the computer was too slow). Keep this tab open and press Check again.',
 } as const satisfies Record<string, string>;
 
 export type MessageKey = keyof typeof en;
@@ -199,6 +200,7 @@ export const vi: Readonly<Record<MessageKey, string>> = {
   'lab.result.passed': 'Đạt! Bạn đã hoàn thành mọi mục tiêu.',
   'lab.result.failed': 'Chưa đạt: xem các mục tiêu chưa đạt, sửa chương trình rồi kiểm tra lại.',
   'lab.result.notStarted': 'Chương trình chưa chạy được: sửa lỗi được báo ở thanh trên rồi kiểm tra lại.',
+  'lab.result.interrupted': 'Chưa đạt: lần kiểm tra bị gián đoạn (tab bị ẩn hoặc máy chạy chậm). Hãy để tab này mở và bấm Kiểm tra lại.',
 };
 
 const dictionaries: Readonly<Record<Locale, Readonly<Record<MessageKey, string>>>> = { en, vi };

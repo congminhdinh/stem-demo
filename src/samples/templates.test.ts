@@ -25,12 +25,26 @@ describe('templates (S1)', () => {
       'ybc-night-light',
       'ybc-melody',
       'ybc-empty',
+      'ybc-rainbow',
+      'ybc-thermometer',
+      'ybc-dice',
+      'ybc-servo-gate',
     ]);
   });
 
   it('opens the ybc-* templates in a Yolo:Bit lab and every other one in a Blockly lab', () => {
     expect(templateKeysOf('blockly')).toEqual(['blink', 'led-on', 'button-direct', 'button-led', 'empty']);
-    expect(templateKeysOf('yolobit')).toEqual(['ybc-heart', 'ybc-button-ab', 'ybc-night-light', 'ybc-melody', 'ybc-empty']);
+    expect(templateKeysOf('yolobit')).toEqual([
+      'ybc-heart',
+      'ybc-button-ab',
+      'ybc-night-light',
+      'ybc-melody',
+      'ybc-empty',
+      'ybc-rainbow',
+      'ybc-thermometer',
+      'ybc-dice',
+      'ybc-servo-gate',
+    ]);
     expect(labOfTemplate('blink')).toBe('blockly');
     expect(labOfTemplate('ybc-empty')).toBe('yolobit');
   });

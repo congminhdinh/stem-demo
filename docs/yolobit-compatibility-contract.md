@@ -8,6 +8,7 @@
 > - **N17 B3 (2026-10-19):** loa của Advanced: C-20 giai điệu có sẵn (RESTRICTED, 20 tên, chờ xong / không chờ), C-21 `music.pitch` (RESTRICTED, 20..20000 Hz, 0..60000 ms, không chặn) và C-22 `music.stop()` (ELIGIBLE) **mở lại**, chỉ Advanced, với field chưa có evidence ghi **UNVERIFIED**. Nốt của giai điệu trong simulator lấy từ micro:bit MicroPython (MIT), không phải asset OhStem. Chi tiết ở **§25**.
 > - **N17 B4 (2026-10-19):** A+B là lựa chọn thứ ba của C-12 (`button_a.is_pressed() and button_b.is_pressed()`; `is_pressed_ab()` của editor, C-47, vẫn EXCLUDED); C-19 thời gian chạy (ELIGIBLE) và C-40 `random.randint` (RESTRICTED, hai đầu theo thứ tự nào cũng được) **mở lại** cho cả hai profile (B6 chốt), module C-03d `random` ELIGIBLE với field `module` INFERRED ghi **UNVERIFIED**; C-24: chân thả nổi đọc **0** kèm cảnh báo, chương trình không dừng (B9 cũ); dropdown giai điệu chỉ còn 14 tên VERIFIED. Chi tiết ở **§26**.
 > - **N17 B5 (2026-10-19):** chân của Advanced: C-26 ghi analog / PWM (`pin0.write_analog(512)`, giá trị 0..1023) **mở lại** (RESTRICTED, chỉ Advanced) thay cho quyết định loại ở C-Q6, với khoảng, tác dụng của duty và thời gian gọi ghi **UNVERIFIED**; C-27 servo 180° (`pin1.servo_write(90)`) được sinh code. Giá trị ngoài khoảng (0..1023, 0..180) **bị kẹp** kèm cảnh báo một lần mỗi chân mỗi lần chạy, và generator viết sẵn giá trị đã kẹp nên board không bao giờ nhận giá trị ngoài khoảng. Linh kiện servo mới (chỉ Advanced). Chi tiết ở **§27**.
+> - **N17 B6 (2026-10-19):** chốt hai mức. **Cơ bản** = block cũ + màn hình RGB (màu, điểm, đặt tất cả, hình có sẵn) + A+B + thời gian chạy + số ngẫu nhiên; **Nâng cao** = tất cả, thêm nhiệt độ, gia tốc/cử chỉ, giai điệu, tần số, dừng, ghi analog, servo (và linh kiện servo, điều khiển cảm biến, dòng số đo dưới màn hình). Không có biến chữ ở mức nào (`variableTypes` chỉ `int`; §17 sửa lại dòng "biến `str`"). B6 không thêm dạng code nào; **bảng tổng hợp mọi dạng code N17 với nhãn VERIFIED/UNVERIFIED ở §28**, cùng dạng code các lab mới dùng.
 > - Chưa phải căn cứ implement cho tới khi freeze.
 > **Target snapshot:** editor public `app.ohstem.vn/#!/codes/yolobit`, build marker `?v=20261007130057`, Blockly `8.0.1`; simulator public (Thiết bị ảo → Project Builder, `static/gears/index.html?…&build=658a5…`); trang firmware public `fw.ohstem.vn` liệt kê **"Yolo:Bit v1.12"** và **"Yolo:Bit S3 v1.14"** (đọc 2026-10-14). Ngày quan sát: **2026-10-14**.
 > **Firmware chính xác: UNKNOWN. MicroPython version: UNKNOWN.** Contract này được **pin vào snapshot evidence public ở trên**, không phải bảo đảm tương thích vô thời hạn (§1).
@@ -635,7 +636,7 @@ Ghi chú:
 | số lần nhấn A/B | NICE | RESTRICTED | A, B; reset khi đọc | D·U + V·S |
 | âm thanh | MUST | RESTRICTED | nốt chặn C3…C5, 1/2/4 tick @ (4,120); nghỉ; không `pitch`/`stop` | V·G + V·S + D·U |
 | ánh sáng | MUST | ELIGIBLE | `int` 0..100 (tooltip) | V·G + D·U + V·S |
-| thời gian chạy | NICE | **ELIGIBLE (N17 B4, B6 chốt profile)** | ms nguyên từ lúc chạy (simulator); gốc/wrap/kiểu **UNVERIFIED** (§26) | V·G + D·U |
+| thời gian chạy | NICE | **ELIGIBLE (N17 B4; B6 chốt: có ở Cơ bản)** | ms nguyên từ lúc chạy (simulator); gốc/wrap/kiểu **UNVERIFIED** (§26) | V·G + D·U |
 | chân digital | MUST | RESTRICTED | P0–P2; ghi 0/1; đọc `== 1`; net xung đột → `out-of-domain`; N17 B4: net hở đọc 0 + cảnh báo | V·G + D·W + D·U |
 | chân analog (đọc) | MUST | RESTRICTED | P0–P2; native 0..4095 (tài liệu OhStem; C-Q6 = A); slider 0–100 %; `int(...)` | V·G + D·W + D·M |
 | PWM / analog write | MUST | **EXCLUDED ở Basic** (N17 B5: Advanced, §17) | khoảng UNKNOWN | — |
@@ -660,7 +661,7 @@ Sẵn sàng theo phase:
 | gia tốc, nghiêng, lắc | MUST | **RESTRICTED (N17 B2)** | x/y/z số nguyên −2048..2048 mg; 7 cử chỉ; trục, tiêu chí, timing **UNVERIFIED** (§24) | V·G (`get_x`, `"shake"`) + D·U (mg) + V·S |
 | nhiệt độ | MUST | RESTRICTED | `int(temperature())`, °C; domain hỗ trợ −10..50 (N17 B2; không phải khoảng vật lý) | V·G + D·U + V·S + D·M |
 | thời gian chạy | MUST | **ELIGIBLE (N17 B4)** | §7, §26; timer (C-49) vẫn EXCLUDED | V·G + D·U |
-| biến `str`, nối, `str()` | MUST | ELIGIBLE | plan §6.7 | V·G + D·M |
+| biến `str` | MUST (plan cũ) | **KHÔNG CÓ (N17 B6)** | Không làm ở mức nào: biến chỉ giữ số nguyên (`variableTypes: ["int"]`). Nối chữ (`text_join`) và in có ở cả hai mức; không hứa biến chữ | — |
 | độ dài text | MUST | RESTRICTED | chỉ ASCII | D·M |
 | hàm | MUST sau gate FN | RESTRICTED | FN1–FN10 DOCUMENTED; test §18.3b ở YB-7 | V·G + D·M |
 | event | có điều kiện | **DEFERRED** | gate EV | — |
@@ -1059,6 +1060,7 @@ Còn lại: C-01, C-02, C-03a, C-04, C-29 và ngôn ngữ (C-30…C-39, C-56…C
 | Version | Ngày | Nội dung |
 |---|---|---|
 | 1.0-draft | 2026-10-14 | Bản đầu tiên (YB-0) |
+| 1.0-draft (r3) + N17 B6 | 2026-10-19 | Chốt Cơ bản / Nâng cao (§28.1, test `tests/ybc-profile-table.test.ts`); bỏ `str` khỏi `variableTypes` của Advanced (§17); bảng tổng hợp mọi dạng code N17 (§28.2); bốn lab mới không thêm dạng code (§28.3). Chuỗi version không đổi |
 | 1.0-draft (r2) | 2026-10-14 | Sửa R1–R3, N1–N3; RV-1 ACCEPT WITH RESTRICTIONS; C-19, C-40 EXCLUDED; P10 viết lại |
 | 1.0-draft (r3) | 2026-10-14 | Áp dụng quyết định owner: OQ-E APPROVED (model display cuối); C-Q6 = Option A (analog native 0–4095, UI 0–100 %, PWM EXCLUDED). Không còn quyết định owner đang chờ |
 | 1.0-draft (r3) + N17 B5 | 2026-10-19 | Owner: "Mô phỏng đủ chức năng". C-26 (`write_analog`, RESTRICTED, Advanced, pack `ybc.pwm`) mở lại với `unverifiedFields` range/content/block; C-27 sinh code, `default` UNVERIFIED; C-26/C-27 `clamp` thành `–ᴱ` (generator viết giá trị đã kẹp: số gõ tay kẹp sẵn, giá trị tính ra `max(0, min(top, v))`), domain chỉ còn chân; builtin `min`/`max` trên hai row; linh kiện `servo`; §27. Chuỗi version không đổi |
@@ -1190,4 +1192,58 @@ Ngữ nghĩa simulator (N17 B5; là lựa chọn của môi trường ảo, **kh
 - **Hình servo trên canvas:** cánh tay quay tới góc với tốc độ khoảng **60° mỗi 0,1 s**, góc hiện bằng chữ (0° chỉ sang phải, 90° lên, 180° sang trái); người dùng bật "giảm chuyển động" (`prefers-reduced-motion`) thấy cánh tay nhảy thẳng tới góc. Chuyển động là trình bày: lời gọi trả về ngay (EVD-16).
 - **Stop / chạy lại (Review Focus 1):** Stop dừng ngay, servo vẽ ở **90°** ngay lập tức (không quay về từ từ), LED tắt; lần chạy mới (hay lần chạy thay thế) bắt đầu với mọi chân không điều khiển: servo 90°, LED tắt.
 - **Basic** không có hai block và không có linh kiện servo; project Basic có servo bị đánh dấu "không dùng được" và không chạy.
+
+## 28. N17 B6 — hai mức, bảng tổng hợp mọi dạng code N17 (2026-10-19)
+
+B6 không thêm block hay dạng Python nào. Mục này gom lại, ở một chỗ, những gì B1–B5 mở (§23–§27 giữ chi tiết, lý do và evidence), và chốt mức của từng block. Bản máy đọc được không đổi (`src/core/compat/yolobit-contract.ts`); mức của từng block nằm ở `src/core/profiles/{ybc-basic,ybc-advanced}.json` và được test khoá ở `tests/ybc-profile-table.test.ts`.
+
+### 28.1 Hai mức
+
+- **Cơ bản** (`ybc-basic`): block trước N17 (cấu trúc, ngôn ngữ, hình tự vẽ, chạy chữ, nút A/B, số lần nhấn, ánh sáng, nốt, nghỉ, chân P0–P2 ghi/đọc/đọc analog) + màn hình RGB của B1 (màu, điểm, tắt điểm, đặt tất cả, hình có sẵn) + A+B, thời gian chạy và số ngẫu nhiên của B4.
+- **Nâng cao** (`ybc-advanced`): mọi thứ của Cơ bản + nhiệt độ, gia tốc, cử chỉ (B2) + giai điệu, tần số, dừng (B3) + ghi analog, servo (B5); bảng linh kiện có thêm **servo**; bảng điều khiển có thêm thanh nhiệt độ, tấm nghiêng và nút "Lắc"; khi chạy, bo mạch ghi số đo nhiệt độ và gia tốc dưới màn hình. Bo mạch Cơ bản **không** có dòng số đo đó (không có điều khiển cảm biến nào).
+- **A+B ở cả hai mức:** A+B là lựa chọn thứ ba của khối "nút … đang được nhấn" (C-12), và dropdown của Blockly là chung cho mọi mức; dạng code là hai lời gọi VERIFIED nối bằng `and`, không có rủi ro riêng.
+- **Biến:** chỉ số nguyên ở cả hai mức. Không có biến chữ.
+
+### 28.2 Mọi dạng code N17
+
+Cột "Mức" là mức thấp nhất có block. "Dạng" là chữ Python generator viết ra; "VERIFIED" ở đây là **dạng** (text) đã thấy trong output editor OhStem hoặc ghép từ dạng đã thấy, không phải bảo đảm board thật chạy đúng (§0.4).
+
+| Block | Construct | Mức | Python sinh ra | Nhãn | Chi tiết |
+|---|---|---|---|---|---|
+| `ybc_display_show_icon` (9 tên của editor) | C-05 | Cơ bản | `display.show(Image.HEART)` | **VERIFIED** (dạng); hình board vẽ cho mỗi tên **UNVERIFIED** | §23 |
+| `ybc_display_show_icon` mũi tên | C-05 → dạng C-06 | Cơ bản | `display.show(Image("00100:01110:10101:00100:00100"))` | **VERIFIED** (dạng C-06) | §23 |
+| `ybc_display_set_pixel` | C-10 | Cơ bản | `display.set_pixel(2, 3, '#00ff00')` | **VERIFIED** | §23 |
+| `ybc_display_clear_pixel` | C-42 | Cơ bản | `display.clear_pixel(0, 0)` | **VERIFIED** | §23 |
+| `ybc_display_set_all` | C-43 | Cơ bản | `display.set_all('#0000ff')` | **VERIFIED** | §23 |
+| `ybc_display_show_image`, màu khác đỏ | C-06 | Cơ bản | `display.show(Image("20002:02020:00200:02020:20002"))` | dạng **VERIFIED**, màu board hiển thị **UNVERIFIED** | §23 |
+| `ybc_display_scroll_text` / `number`, màu khác đỏ | C-07 / C-08 | Cơ bản | `display.scroll('Hi', color='#ffff00')` | **UNVERIFIED** | §23 |
+| `ybc_temperature` | C-16 | Nâng cao | `int(temperature())` | **VERIFIED** (dạng) | §24 |
+| `ybc_accel` x | C-17 | Nâng cao | `accelerometer.get_x()` | **VERIFIED** | §24 |
+| `ybc_accel` y, z | C-17 | Nâng cao | `accelerometer.get_y()`, `accelerometer.get_z()` | **UNVERIFIED** | §24 |
+| `ybc_gesture_is` shake | C-18 | Nâng cao | `accelerometer.is_gesture("shake")` | **VERIFIED** | §24 |
+| `ybc_gesture_is` 6 cử chỉ khác | C-18 | Nâng cao | `accelerometer.is_gesture("tilt_left")`… | **UNVERIFIED** | §24 |
+| `ybc_sound_melody` không chờ, 14 tên của editor | C-20 | Nâng cao | `music.play(music.BIRTHDAY, wait=False)` | **VERIFIED** | §25 |
+| `ybc_sound_melody` chờ xong | C-20 | Nâng cao | `music.play(music.BIRTHDAY, wait=True)` | **UNVERIFIED** | §25 |
+| `ybc_sound_melody` 6 tên micro:bit (chỉ project đã lưu) | C-20 | Nâng cao | `music.play(music.FUNK, wait=False)` | **UNVERIFIED** | §25, §26 |
+| `ybc_sound_pitch` | C-21 | Nâng cao | `music.pitch(440, 500)` | **VERIFIED** (dạng gọi) | §25 |
+| `ybc_sound_stop` | C-22 | Nâng cao | `music.stop()` | **VERIFIED** (dạng gọi) | §25 |
+| `ybc_button_pressed` A+B | C-12 | Cơ bản | `button_a.is_pressed() and button_b.is_pressed()` | **VERIFIED** (ghép) | §26 |
+| `ybc_running_time` | C-19 | Cơ bản | `running_time()` | **VERIFIED** (dạng gọi) | §26 |
+| `ybc_random_int` hai đầu gõ tay | C-40 | Cơ bản | `import random` + `random.randint(1, 6)` | **VERIFIED** (dạng gọi); module trên firmware **UNVERIFIED** | §26 |
+| `ybc_random_int` đầu tính ra, không đọc gì | C-40 | Cơ bản | `random.randint(min(a, b), max(a, b))` | dạng gọi **VERIFIED**, `min`/`max` D·M | §26 |
+| `ybc_pin_write_analog` | C-26 | Nâng cao | `pin0.write_analog(512)`; tính ra: `pin0.write_analog(max(0, min(1023, v)))` | dạng gọi **VERIFIED**; khoảng 0..1023 **UNVERIFIED** | §27 |
+| `ybc_servo_write` | C-27 | Nâng cao | `pin1.servo_write(90)`; tính ra: `pin1.servo_write(max(0, min(180, a)))` | dạng gọi **VERIFIED**; góc lúc đầu **UNVERIFIED** | §27 |
+
+Field ghi **UNVERIFIED** (không phải dạng code, mà là hành vi chưa thấy): C-17 block/return/coord; C-18 block/return/content; C-19 return/range/round/block; C-20 block/yield/content; C-21 unit/yield/content; C-22 block/content; C-24 default (chân thả nổi); C-26 range/content/block; C-27 default; C-03d / C-40 module; C-40 content. Lý do từng cái ở §24–§27.
+
+### 28.3 Dạng code các lab mới dùng (template key mới)
+
+Bốn template mới (`src/samples/ybc-templates.ts`, mục tiêu ở `src/samples/challenges.ts`, key trong `docs/lab-embed-contract.md`) chỉ dùng dạng đã có ở trên hoặc trước N17:
+
+| Template | Mức cần | Python của lời giải (thân vòng `while True:`) | Nhãn |
+|---|---|---|---|
+| `ybc-rainbow` | Cơ bản | `if button_a.get_presses() > 0: mau = mau + 1`; `display.set_all('#ff0000')` / `'#00ff00'` / `'#0000ff'` theo `mau % 3` | **VERIFIED** (C-13, C-43, ngôn ngữ D·M) |
+| `ybc-thermometer` | Nâng cao | `if button_b.is_pressed(): display.scroll(int(temperature()))` | **VERIFIED** (C-12, C-08, C-16) |
+| `ybc-dice` | Nâng cao | `if accelerometer.is_gesture("shake"): display.scroll(random.randint(1, 6))` | **VERIFIED** dạng; module `random` trên firmware **UNVERIFIED** (C-03d) |
+| `ybc-servo-gate` | Nâng cao | `if light_level() < 30: pin0.servo_write(0)` / `else: pin0.servo_write(90)` | **VERIFIED** dạng gọi; góc lúc đầu **UNVERIFIED** (C-27) |
 

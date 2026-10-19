@@ -1,5 +1,5 @@
 import { isTemplateKey, labOfTemplate, type LabKind, type TemplateKey } from '../../samples/templates';
-import { ybcLabProfiles, type YbcLabProfile } from '../../samples/ybc-templates';
+import { isYbcTemplateKey, templateProfileProblem, ybcLabProfiles, type YbcLabProfile } from '../../samples/ybc-templates';
 
 // The launch contract (S1, plan §9.2; N6a S0): how the app is told, by its URL, to run as the standalone
 // editor or as an embedded lab. The URL is read once, at startup (main.tsx); nothing past this module knows
@@ -9,7 +9,9 @@ import { ybcLabProfiles, type YbcLabProfile } from '../../samples/ybc-templates'
 //   ?embed=1&template=<key>                             legacy S1 lab: any key, no host bridge, legacy chrome
 //   ?embed=1&lab=blockly&template=<key>[&origin=<o>]    Blockly lab: a generic template
 //   ?embed=1&lab=yolobit&template=<key>[&profile=<p>][&origin=<o>]
-//                                                       Yolo:Bit lab: a ybc-* template, profile ybc-basic|ybc-advanced
+//                                                       Yolo:Bit lab: a ybc-* template, profile ybc-basic|ybc-advanced, at
+//                                                       least the one the template needs (N17 B6: the thermometer, the
+//                                                       dice and the servo gate need ybc-advanced)
 //
 // `origin` is the embedding page's origin, the only one the lab talks to (stem-lab/v1, host-bridge.ts); without
 // it the lab works but talks to nobody. Anything else that names embed, template or lab is a broken launch,
@@ -76,6 +78,11 @@ export function parseLaunch(search: string): Launch {
   const profile = readProfile(params.getAll('profile'), kind);
   if (typeof profile === 'object' && profile !== null) {
     return profile;
+  }
+  // N17 B6: a lab whose program uses what only the Advanced board has does not open on the Basic one: it could not run there.
+  const tooLow = profile !== null && isYbcTemplateKey(key) ? templateProfileProblem(key, profile) : null;
+  if (tooLow !== null) {
+    return invalid(tooLow, kind);
   }
   const hostOrigin = readOrigin(params.getAll('origin'), kind);
   if (typeof hostOrigin === 'object' && hostOrigin !== null) {

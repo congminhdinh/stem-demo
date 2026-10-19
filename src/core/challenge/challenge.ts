@@ -3,6 +3,11 @@ import type { ComponentInput } from '../simulation/simulate-circuit';
 // A challenge (N6a S2): what a lab asks of the learner's program, checked by running it. It is plain data
 // of the template (src/samples/challenges.ts), never of the project document, and it knows nothing of a
 // host, a lesson or a score: the standalone lab checks with it as an embedded one does (spec §7).
+//
+// N17 B6: a goal "at a moment" (`atMs`) reads what the run showed at that moment, the last snapshot at or before it, so a state set
+// earlier that stayed counts and one that came and went between two moments does not. The labs of N17 B6 put each moment more than
+// CHECK_LATE_LIMIT_MS (check-run.ts) after the scripted input it waits for: a check whose input came later than that is interrupted,
+// never judged, so none of their goals is judged before its input has come (Review Focus 4).
 
 /** What one goal looks for in the run, or in the program. */
 export type GoalSpec =
@@ -11,6 +16,20 @@ export type GoalSpec =
    * every lit light must also be that colour; without it only lit and dark are compared, as before.
    */
   | { kind: 'display-shows'; frame: string; fromMs?: number; colour?: string }
+  /**
+   * N17 B6: at each of the moments `atMs` (two or more, in order) the whole display is lit in one colour, and no two of those
+   * colours are the same: a rainbow that turns on every press. Colours are compared as '#rrggbb' codes.
+   */
+  | { kind: 'display-colours-differ'; atMs: readonly number[] }
+  /**
+   * N17 B6: at or after `fromMs` the display shows every character of `text` in full, one after the other, as a scrolling text (or
+   * a still character) shows it; lit and dark only. A character is counted when the display turns to it, so "00" needs two.
+   */
+  | { kind: 'display-scrolls'; text: string; fromMs?: number }
+  /** N17 B6: at the moment `atMs` at least one light of the display is on (the number a dice shows, whatever it is). */
+  | { kind: 'display-lit'; atMs: number }
+  /** N17 B6: at the moment `atMs` the servo `componentId` (a circuit component) stands at `angle` degrees. */
+  | { kind: 'servo-angle'; componentId: string; angle: number; atMs: number }
   /** The circuit component `componentId` (an LED) is lit at some moment. */
   | { kind: 'led-lit'; componentId: string }
   /** The LED `componentId` changes between lit and dark at least `minToggles` times (dark is where it starts). */

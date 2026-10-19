@@ -64,6 +64,16 @@ describe('parseLaunch: lab, profile and origin (N6a S0)', () => {
     });
   });
 
+  it('opens a lab of the Advanced board with profile=ybc-advanced, or without a profile (the template’s own: Advanced) (N17 B6)', () => {
+    expect(parseLaunch(`?embed=1&lab=yolobit&template=ybc-thermometer&profile=ybc-advanced&origin=${host}`)).toEqual({
+      mode: 'embed',
+      template: 'ybc-thermometer',
+      lab: lab('yolobit', 'ybc-advanced'),
+    });
+    expect(parseLaunch(`?embed=1&lab=yolobit&template=ybc-rainbow&profile=ybc-basic&origin=${host}`)).toEqual({ mode: 'embed', template: 'ybc-rainbow', lab: lab('yolobit', 'ybc-basic') });
+    expect(parseLaunch('?embed=1&template=ybc-servo-gate')).toEqual({ mode: 'embed', template: 'ybc-servo-gate' });
+  });
+
   it('reads the URL the learn app builds (lab-launch.ts), percent-encoded origin included', () => {
     expect(parseLaunch('?embed=1&lab=yolobit&template=ybc-heart&origin=http%3A%2F%2Flocalhost%3A3000&profile=ybc-basic')).toEqual({
       mode: 'embed',
@@ -115,6 +125,12 @@ describe('parseLaunch: lab, profile and origin (N6a S0)', () => {
     ['?embed=1&lab=yolobit&template=ybc-heart&profile=ybc-basic&profile=ybc-basic', 'profile must be given once.', 'yolobit'],
     ['?embed=1&lab=blockly&template=blink&profile=ybc-basic', 'profile is only for lab=yolobit.', 'blockly'],
     [`?embed=1&lab=blockly&template=blink&origin=${host}&origin=${host}`, 'origin must be given once.', 'blockly'],
+    // N17 B6: a lab that uses what only the Advanced board has does not open on the Basic one.
+    ...(['ybc-thermometer', 'ybc-dice', 'ybc-servo-gate'] as const).map((key) => [
+      `?embed=1&lab=yolobit&template=${key}&profile=ybc-basic&origin=${host}`,
+      `The template "${key}" needs profile=ybc-advanced: it uses blocks or parts that ybc-basic does not have.`,
+      'yolobit',
+    ]),
   ])('refuses the lab launch %j', (search, problem, kind) => {
     expect(parseLaunch(search)).toEqual({ mode: 'invalid', problem, lab: kind });
   });

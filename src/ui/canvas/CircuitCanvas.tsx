@@ -336,6 +336,8 @@ export function CircuitCanvas({
                     partStates={partStatesOf(simulation, component.id, registry.get(component.deviceType))}
                     partInputs={partInputsOf(inputs, component.id, registry.get(component.deviceType))}
                     partEvents={partInputsOf(events, component.id, registry.get(component.deviceType))}
+                    // N17 B6: what the profile gives a control, so a board writes the readings of those sensors only.
+                    {...(registry.get(component.deviceType).board?.onboard && context.profile ? { controls: context.profile.controls } : {})}
                     {...(onPartPress
                       ? { onPartPress: (partId: string, pointerId: number, pressed: boolean) => onPartPress(peripheralComponentId(component.id, partId), pointerId, pressed) }
                       : {})}
@@ -454,7 +456,7 @@ export function partInputsOf<Value>(
 }
 
 type ComponentBodyProps = ComponentProps &
-  Pick<DeviceRendererProps, 'runtimeState' | 'partStates' | 'partInputs' | 'partEvents' | 'onPartPress'> & {
+  Pick<DeviceRendererProps, 'runtimeState' | 'partStates' | 'partInputs' | 'partEvents' | 'onPartPress' | 'controls'> & {
     selected: boolean;
     /** The device does not belong to this kind of project (R-F4). */
     incompatible: boolean;
@@ -474,6 +476,7 @@ function ComponentBody({
   partInputs,
   partEvents,
   onPartPress,
+  controls,
   selected,
   incompatible,
   ...interaction
@@ -496,6 +499,7 @@ function ComponentBody({
         partInputs={partInputs}
         partEvents={partEvents}
         {...(onPartPress ? { onPartPress } : {})}
+        {...(controls ? { controls } : {})}
       />
       {incompatible && (
         <Rect

@@ -24,6 +24,8 @@ import { canvasPalette } from './colors';
 // pointer is down on one, and let go on pointerup, pointerleave, pointercancel, a lost capture, a release anywhere on the page, and
 // when presses stop being taken, so a button never sticks (Review Focus 2). They are drawn pressed from what the run is given, as
 // the panel's buttons are: the two share one state (src/ui/runtime-controls/board-buttons.ts). Keyboard presses are the panel's.
+// N17 B6: the line under the display reads only the sensors the profile gives a control (`controls`), so the Basic board, which has
+// no temperature or accelerometer control, writes no readings.
 
 const {
   shell: shellFill,
@@ -130,7 +132,7 @@ function usePartPresses(onPartPress: PressOf | undefined) {
   return { pressable, press, release, hover };
 }
 
-export function YbcBoardRenderer({ definition, partStates, partInputs, partEvents, onPartPress }: DeviceRendererProps) {
+export function YbcBoardRenderer({ definition, partStates, partInputs, partEvents, onPartPress, controls }: DeviceRendererProps) {
   const { width, height } = definition.body;
   const presses = usePartPresses(onPartPress);
   const onboard = definition.board?.onboard ?? [];
@@ -139,8 +141,9 @@ export function YbcBoardRenderer({ definition, partStates, partInputs, partEvent
     partStates && Object.hasOwn(partStates, partId) ? partStates[partId] : undefined;
   const inputOf = (partId: string): ComponentInput | undefined =>
     partInputs && Object.hasOwn(partInputs, partId) ? partInputs[partId] : undefined;
-  const temperaturePart = onboard.find((part) => part.model === 'temperature-sensor');
-  const accelerometerPart = onboard.find((part) => part.model === 'accelerometer');
+  const controlled = (part: OnboardPeripheral | undefined) => (part && controls?.includes(part.id) ? part : undefined);
+  const temperaturePart = controlled(onboard.find((part) => part.model === 'temperature-sensor'));
+  const accelerometerPart = controlled(onboard.find((part) => part.model === 'accelerometer'));
   const shakes = accelerometerPart && partEvents && Object.hasOwn(partEvents, accelerometerPart.id) ? (partEvents[accelerometerPart.id] ?? 0) : 0;
   const shaking = useShaking(shakes);
   const jiggle = useJiggle(shakes);

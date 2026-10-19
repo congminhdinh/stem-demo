@@ -248,6 +248,13 @@ Giai điệu là dãy nốt của micro:bit `music`, viết tay trong một bả
 - [ ] **Step 4:** `pnpm verify && pnpm e2e` PASS; ghi số test.
 - [ ] **Step 5:** commit `feat(ybc): Basic and Advanced boards differ, four new graded labs (rainbow, thermometer, dice, servo gate), contract and demo script`.
 
+> **Ghi chú B6 (2026-10-19, theo code và quyết định đã chốt):**
+> - **Cơ bản** giữ cả A+B và thời gian chạy (B4 đặt chúng ở hai mức; dropdown của Blockly là chung). Bảng block → mức: `tests/ybc-profile-table.test.ts`, contract §28.1.
+> - `ybc-dice` cần **Nâng cao**: "lắc" là cử chỉ của gia tốc kế, mà gia tốc kế chỉ có ở Nâng cao (B2). `ybc-rainbow` chạy ở Cơ bản; `ybc-thermometer`, `ybc-servo-gate` cần Nâng cao. Mức mỗi template cần: `ybcTemplateProfiles`; launch thấp hơn bị từ chối bằng tiếng Việt.
+> - Mục tiêu mới: `display-colours-differ`, `display-scrolls`, `display-lit`, `servo-angle` (lab-embed-contract §3). Mục tiêu của xúc xắc không phụ thuộc con số của seed.
+> - Review Focus 4: kiểm tra có tab bị ẩn, hoặc timer trễ hơn 250 ms, kết thúc "bị gián đoạn" (không có kết quả, không gửi `check-result`).
+> - `e2e/ybc-full-board.spec.ts` mở cầu vồng với `profile=ybc-basic` (và cả `ybc-advanced`).
+
 ### Task B7 (repo STEMLearning, sau N16): LMS biết board mới
 
 **Files:**

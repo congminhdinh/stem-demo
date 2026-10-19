@@ -637,7 +637,7 @@ type CurriculumProfile = {
   blockPacks: string[];          // toolbox categories, ordered
   palette: string[];             // device types allowed in the circuit (includes 'ybc-board')
   controls: string[];            // onboard peripherals whose runtime controls are shown
-  variableTypes: ('int' | 'str')[];   // basic: ['int']; advanced: ['int', 'str']
+  variableTypes: 'int'[];             // N17 B6: ['int'] ở cả hai mức; 'str' (biến chữ) chưa từng làm nên đã bỏ, không hứa
 };
 ```
 

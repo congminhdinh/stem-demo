@@ -293,6 +293,9 @@ export const coreMessageRules: readonly Rule[] = [
   [/^Unexpected runtime error\.$/, () => 'Lỗi không mong đợi khi chạy.'],
 ];
 
+/** A board profile by the name of its level, as the LMS shows it: Cơ bản (Basic), Nâng cao (Advanced). */
+const levelName = (profile: string): string => (profile === 'ybc-basic' ? 'Cơ bản' : profile === 'ybc-advanced' ? 'Nâng cao' : profile);
+
 /** The rules for the launch parser's problems (src/ui/app/launch.ts), most specific first. Exported for its tests. */
 export const launchProblemRules: readonly Rule[] = [
   [/^A template opens only in an embedded lab: add embed=1\.$/, () => 'Mẫu bài chỉ mở trong lab nhúng: thêm embed=1.'],
@@ -306,6 +309,11 @@ export const launchProblemRules: readonly Rule[] = [
   [/^profile must be given once\.$/, () => 'Tham số profile chỉ được có một lần.'],
   [/^profile is only for lab=yolobit\.$/, () => 'Tham số profile chỉ dùng với lab=yolobit.'],
   [/^Unknown profile "(.*)": use (.+) or (.+)\.$/, (profile, a, b) => `Không có cấp độ "${profile}": dùng ${a} hoặc ${b}.`],
+  // N17 B6: the levels by the names the LMS shows them by.
+  [
+    /^The template "(.*)" needs profile=(.+): it uses blocks or parts that (.+) does not have\.$/,
+    (key, needed, given) => `Mẫu bài "${key}" cần mức ${levelName(needed)} (profile=${needed}): bài dùng khối hoặc linh kiện mà mức ${levelName(given)} không có.`,
+  ],
   [/^origin must be given once\.$/, () => 'Tham số origin chỉ được có một lần.'],
   [/^origin "(.*)" is not a page origin such as (.+)\.$/, (origin, example) => `origin "${origin}" không phải origin của một trang, ví dụ ${example}.`],
 ];

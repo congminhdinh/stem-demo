@@ -18,7 +18,12 @@ export const curriculumProfileSchema = z.object({
   palette: z.array(z.string()),
   /** Onboard parts whose runtime controls are shown. */
   controls: z.array(z.string()),
-  variableTypes: z.array(z.enum(['int', 'str'])),
+  /**
+   * What a learner's variable holds: whole numbers, at every level. Data only, read by no code: the dialect has no text variables.
+   * The YB plan (§8.2) listed 'str' for Advanced; it was never built, so N17 B6 took it out rather than promise it. A profile that
+   * names none takes its parent's.
+   */
+  variableTypes: z.array(z.literal('int')).default([]),
 });
 
 export type CurriculumProfile = z.infer<typeof curriculumProfileSchema>;

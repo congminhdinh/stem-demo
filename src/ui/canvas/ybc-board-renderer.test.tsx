@@ -272,6 +272,18 @@ describe('the readings of the sensors on the board while a run is on (N17 B2)', 
     expect(readouts()).toBeUndefined();
   });
 
+  // N17 B6: the line reads only the sensors the profile gives a control. The Basic board has none, so it draws no line, though its
+  // run has the inputs (`{}`) and the board still has the parts.
+  it('draws no reading on the Basic board, which has no control for the temperature or the accelerometer', async () => {
+    await render(ybcCircuit, 'ybc-basic', simulation({}), {});
+    expect(readouts()).toBeUndefined();
+    expect(board().temperature).toBeUndefined();
+    expect(board().acceleration).toBeUndefined();
+
+    await render(ybcCircuit, 'ybc-basic', simulation({}), { 'ybc-board-1/temperature': { kind: 'slider', value: 31 } });
+    expect(readouts()).toBeUndefined();
+  });
+
   it('reads 25 °C and lying flat while a run is on and the controls were not touched, in a quiet line under the display', async () => {
     await render(ybcCircuit, 'ybc-advanced', simulation({}), {});
     expect(board().temperature).toBe(25);

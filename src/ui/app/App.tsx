@@ -27,6 +27,7 @@ import type { ProjectStore } from '../state/project-store';
 import { checkSessionOf, selectIsRunning, type RunStore } from '../state/run-store';
 import { ChallengePanel, type CheckView } from './ChallengePanel';
 import { LabWorkspace } from './LabWorkspace';
+import { onPageHidden } from './page-hidden';
 import { PythonPanel } from './PythonPanel';
 import { RunToolbar } from './RunToolbar';
 import './app.css';
@@ -183,7 +184,10 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
     });
     const started = runCheck({ session, document: checked, challenge, boardId });
     checkRun.current = started;
+    // N17 B6 (Review Focus 4): a check whose page is hidden is not to be trusted; it ends as interrupted, never as a pass.
+    const stopWatching = onPageHidden(window.document, () => started.interrupt());
     void started.done.then((outcome) => {
+      stopWatching();
       if (checkRun.current !== started) {
         return;
       }
@@ -191,6 +195,11 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
       setScripted(noBoardInputs);
       if (outcome.status === 'cancelled') {
         setCheck({ state: 'idle' });
+        return;
+      }
+      // No verdict, so nothing for the host either (as a cancelled check): the learner checks again.
+      if (outcome.status === 'interrupted') {
+        setCheck({ state: 'interrupted', document: checked });
         return;
       }
       setCheck({ state: 'done', result: outcome.result, started: outcome.started, document: checked, final });
@@ -218,7 +227,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
   };
 
   const checking = check.state === 'checking';
-  const shownCheck: CheckView = check.state === 'done' && check.document !== document ? { state: 'idle' } : check;
+  const shownCheck: CheckView = (check.state === 'done' || check.state === 'interrupted') && check.document !== document ? { state: 'idle' } : check;
   // After a check, the board keeps its last frame until the next run or edit (N8s): what the goals were judged on.
   const heldSimulation = !running && check.state === 'done' && check.document === document ? (check.final ?? null) : null;
   const shownSimulation = simulation ?? heldSimulation;

@@ -2,10 +2,18 @@ import { projectDocumentSchema, type ProjectDocument } from '../core/circuit/doc
 import {
   buttonPressed,
   clearDisplay,
+  diceRoll,
   ifBlock,
   lightBelow,
   melodyNotes,
+  rainbowProgram,
+  rainbowStep,
+  servoGateCircuit,
+  servoGateClose,
+  servoGateParts,
+  shaken,
   showImage,
+  thermometerShow,
   ybcImages,
   ybcProgram,
   ybcProject,
@@ -48,6 +56,12 @@ const solutions: Readonly<Record<YbcLessonKey, () => unknown>> = {
       'Giai điệu',
       ybcProgram({ onStart: [], forever: [ifBlock('if-a', [[buttonPressed('pressed-a', 'A'), melodyNotes('melody')]])] }),
     ),
+  // N17 B6.
+  'ybc-rainbow': () => ybcProject('ybc-rainbow', 'Cầu vồng', ybcProgram(rainbowProgram([rainbowStep()]))),
+  'ybc-thermometer': () =>
+    ybcProject('ybc-thermometer', 'Nhiệt kế', ybcProgram({ onStart: [], forever: [ifBlock('if-b', [[buttonPressed('pressed-b', 'B'), [thermometerShow()]]])] })),
+  'ybc-dice': () => ybcProject('ybc-dice', 'Xúc xắc', ybcProgram({ onStart: [], forever: [ifBlock('if-shaken', [[shaken('shaken'), [diceRoll()]]])] })),
+  'ybc-servo-gate': () => ybcProject('ybc-servo-gate', 'Cổng servo', ybcProgram(servoGateParts([servoGateClose()])), servoGateCircuit()),
 };
 
 /** The finished project of a Yolo:Bit lesson template, new on every call. */

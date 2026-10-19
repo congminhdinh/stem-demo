@@ -38,7 +38,7 @@ export const testProfileData: readonly unknown[] = [
     blockPacks: ['test.extended'],
     palette: ['test-device'],
     controls: [],
-    variableTypes: ['int', 'str'],
+    variableTypes: ['int'],
   },
 ];
 

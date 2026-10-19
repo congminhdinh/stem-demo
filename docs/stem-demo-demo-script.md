@@ -66,6 +66,59 @@ Cũng có thể tự dựng hai mạch này như ở Demo M2, vì palette đã c
 
 Project được tự lưu khoảng 0,3 s sau mỗi thay đổi; một lần sửa trong Blockly cần thêm khoảng 0,3 s để vào project. Vì vậy reload ngay sau khi sửa có thể mất lần sửa cuối.
 
+## Demo Yolo:Bit — 3 phút cho Sở GD&ĐT (N17 B6)
+
+> Người xem: lãnh đạo và chuyên viên Sở/Phòng GD&ĐT, giáo viên tin học. Thông điệp: **học sinh lập trình bo mạch Yolo:Bit
+> thật mà không cần có mạch**; mỗi bài có mục tiêu và tự chấm; code Python sinh ra đúng dạng API Yolo:Bit. Mỗi bước ghi
+> thời gian nói gợi ý. Lab mở bằng đúng URL mà LMS nhúng (tiếng Việt).
+
+**Chuẩn bị (trước giờ trình bày):** `pnpm dev` đang chạy ở cổng 5173; Chrome mở sẵn hai tab:
+- Tab 1: `http://localhost:5173/?embed=1&lab=yolobit&template=ybc-rainbow&profile=ybc-basic`
+- Tab 2: `http://localhost:5173/?embed=1&lab=yolobit&template=ybc-thermometer&profile=ybc-advanced`
+
+Bật loa máy chiếu. Màn hình rộng từ 800 px để thấy mạch và chương trình cạnh nhau. Đóng các tab khác: một lần **Kiểm tra**
+mà tab bị ẩn sẽ báo "bị gián đoạn" chứ không chấm (cố ý, để không bao giờ báo đạt sai).
+
+**0:00–0:40 — Bài "Cầu vồng", mức Cơ bản (tab 1).**
+1. Nói: "Đây là bài học sinh nhận từ LMS: bo mạch Yolo:Bit ảo bên trái, chương trình khối bên phải, mục tiêu ở trên."
+   Chỉ mục tiêu: *Bấm A hai lần thì cả màn hình sáng hai màu khác nhau*.
+2. Chương trình gần xong, thiếu một khối nằm rời bên phải: `cho mau bằng mau + 1`. Kéo nó vào trong
+   `nếu số lần nhấn nút A > 0`.
+3. Bấm **Chạy**. Cả màn hình 5×5 sáng **đỏ**.
+
+**0:40–1:10 — Bấm A ngay trên hình bo mạch.**
+4. Bấm chuột vào nút **A vẽ trên bo mạch** (không phải nút ở bảng điều khiển): màn hình chuyển **lục**; bấm lần nữa: **lam**;
+   lần nữa: lại đỏ. Nói: "Nút trên hình bấm được như mạch thật; học sinh nhà không có mạch vẫn học được."
+5. Bấm **Dừng**.
+
+**1:10–1:40 — Xem Python.**
+6. Mở khung **Python** (thanh tiêu đề "Python" dưới khối, bấm **Hiện**). Chỉ các dòng:
+   `if button_a.get_presses() > 0:`, `mau = mau + 1`, `display.set_all('#ff0000')`.
+   Nói: "Cùng chương trình đó, viết bằng MicroPython theo đúng API Yolo:Bit (`display`, `button_a`), bấm **Sao chép** là
+   nạp được lên mạch thật." Nếu được hỏi: dạng code nào đã đối chiếu với editor OhStem thì ghi VERIFIED, còn lại ghi rõ
+   UNVERIFIED (bảng ở `docs/yolobit-compatibility-contract.md` §28); bài này chỉ dùng dạng VERIFIED.
+
+**1:40–2:20 — Mức Nâng cao: "Nhiệt kế" (tab 2).**
+7. Chuyển sang tab 2. Nói: "Mức Nâng cao có thêm cảm biến nhiệt độ, gia tốc, lắc, giai điệu, servo." Chỉ bảng điều khiển
+   dưới mạch: thanh **Nhiệt độ**, tấm nghiêng, nút **Lắc**.
+8. Kéo khối rời `chạy số (nhiệt độ (°C))` vào trong `nếu nút B đang được nhấn`. Bấm **Chạy**.
+9. Kéo thanh **Nhiệt độ** lên **30 °C**: dòng số đo dưới màn hình của bo mạch ghi `30 °C`. Bấm nút **B** trên hình bo mạch:
+   màn hình chạy chữ **30**.
+10. Bấm **Dừng**.
+
+**2:20–3:00 — Tự chấm bằng Kiểm tra.**
+11. Bấm **Kiểm tra**. Nói trong lúc thanh tiến độ chạy: "Hệ thống tự đặt nhiệt độ 30 °C, tự bấm B, rồi xem màn hình có chạy
+    chữ 30 không; học sinh nhìn thấy từng thao tác trên bo mạch."
+12. Kết quả: **Đạt! Bạn đã hoàn thành mọi mục tiêu.**, hai mục tiêu có dấu ✓. Nói: "Trong LMS, kết quả này được gửi về bài
+    học; bài mà giáo viên đặt 'cần Kiểm tra đạt' chỉ hoàn thành khi đạt."
+
+**Nếu có sự cố:**
+- Kéo khối hụt: bấm **Đặt lại** hai lần để mở lại bài, hoặc kéo lại.
+- Không nghe tiếng: âm thanh bật khi bấm Chạy/Kiểm tra; nút loa dưới mạch là công tắc tắt/bật.
+- Mở nhầm `profile=ybc-basic` cho bài Nhiệt kế: lab báo bằng tiếng Việt rằng bài cần mức Nâng cao, sửa URL thành
+  `profile=ybc-advanced`.
+- Hai bài Nâng cao khác để hỏi đáp: `ybc-dice` (lắc thì hiện số 1–6) và `ybc-servo-gate` (trời tối thì servo về 0°).
+
 ## Nhận xét (L8)
 
 L8: *Flow có cảm giác giống một sản phẩm STEM thực tế không?*

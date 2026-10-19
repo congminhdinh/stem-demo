@@ -61,7 +61,7 @@ describe('the production profiles', () => {
     }
   });
 
-  it('differ in profile data (the id, the extension, the variable types), in the sensors of N17 B2 (rows, pack, controls), in the music of N17 B3 (rows, pack) and in analog write and the servo of N17 B5 (rows, pack, part)', () => {
+  it('differ in profile data (the id, the extension), in the sensors of N17 B2 (rows, pack, controls), in the music of N17 B3 (rows, pack) and in analog write and the servo of N17 B5 (rows, pack, part)', () => {
     const strip = (profile: typeof basic) => {
       const rest: Record<string, unknown> = { ...profile };
       delete rest.id;
@@ -82,8 +82,9 @@ describe('the production profiles', () => {
       controls: [...(basic?.controls ?? []), ...sensors.controls],
       palette: [...(basic?.palette ?? []), ...sensors.palette],
     });
+    // N17 B6: no text variables at either level; Advanced takes Basic's whole numbers and adds nothing.
     expect(strip(basic).variableTypes).toEqual(['int']);
-    expect(strip(advanced).variableTypes).toEqual(['int', 'str']);
+    expect(strip(advanced).variableTypes).toEqual(['int']);
     expect(advanced?.extends).toBe('ybc-basic');
   });
 

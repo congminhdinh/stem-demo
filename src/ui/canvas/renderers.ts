@@ -31,6 +31,11 @@ export type DeviceRendererProps = {
   /** A board with onboard parts only (N17 B2): how many one-shot events (shakes) a part had in the run, by part id. */
   partEvents?: Readonly<Record<string, number>>;
   /**
+   * A board with onboard parts only (N17 B6): the parts the project's profile gives a control (profile `controls`, by part id). The
+   * board writes the readings of those sensors only: the Basic board has no temperature or accelerometer control, so no readings.
+   */
+  controls?: readonly string[];
+  /**
    * A board with onboard parts only, while a run takes the learner's presses (N17 B4): a button part of the drawing is pressed or let
    * go by a pointer. Absent, the drawing takes no press.
    */

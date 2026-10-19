@@ -4,14 +4,16 @@ import { generateForDocument } from '../core/codegen/yolobit/generate-document';
 import type { ProjectDocument } from '../core/circuit/document';
 import { localDeviceDefinitions } from '../core/devices/local-catalog';
 import { createDeviceRegistry } from '../core/devices/registry';
+import { boardTargetOf } from '../core/devices/board-pins';
 import { productionProfiles } from '../core/profiles';
+import { capabilitiesOf } from '../core/profiles/board-context';
 import { createBlockPackCatalog } from '../core/program/block-packs';
 import { listBlocks } from '../core/program/block-walk';
 import { compileYbcProgram } from '../core/program/compile-ybc-program';
 import { canOpenProgram, registerBlocks } from '../ui/blockly/editor-blocks';
 import { createTemplateProject } from './templates';
 import { ybcSolutionDocument, type YbcLessonKey } from './ybc-solutions';
-import { ybcLabProfiles, ybcTemplateBoardId, ybcTemplateKeys } from './ybc-templates';
+import { ybcLabProfiles, ybcTemplateBoardId, ybcTemplateKeys, ybcTemplateProfiles, type YbcTemplateKey } from './ybc-templates';
 
 // The Yolo:Bit templates (N6a S1) are starters: the board and the lesson's program with one loose, disabled
 // block. They reach the expectation level of a lesson template (YB plan §8.6, §17.2: L-4, Python generated), and
@@ -19,11 +21,18 @@ import { ybcLabProfiles, ybcTemplateBoardId, ybcTemplateKeys } from './ybc-templ
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
 const packs = createBlockPackCatalog(registry);
-const lessonKeys: YbcLessonKey[] = ['ybc-heart', 'ybc-button-ab', 'ybc-night-light', 'ybc-melody'];
+const lessonKeys: YbcLessonKey[] = ['ybc-heart', 'ybc-button-ab', 'ybc-night-light', 'ybc-melody', 'ybc-rainbow', 'ybc-thermometer', 'ybc-dice', 'ybc-servo-gate'];
 
 const pythonOf = (document: ProjectDocument) => generateForDocument(document, registry, productionProfiles, packs);
+/** Compiled as Run compiles it: for the ybc-board, with the blocks of the document's own profile (a template's is the one it needs, N17 B6). */
+const ybcBoard = registry.get('ybc-board');
 const compile = (document: ProjectDocument) =>
-  compileYbcProgram(document.program.blocks, packs.typesOf(productionProfiles.get('ybc-basic')?.blockPacks ?? []));
+  compileYbcProgram(
+    document.program.blocks,
+    packs.typesOf(productionProfiles.get(document.profile ?? '')?.blockPacks ?? []),
+    undefined,
+    boardTargetOf(ybcBoard, capabilitiesOf(ybcBoard)),
+  );
 /** What the editor saves after opening `blocks` untouched (real Blockly, headless). */
 function savedByEditor(blocks: unknown) {
   registerBlocks(packs);
@@ -39,19 +48,54 @@ const topBlocks = (document: ProjectDocument) =>
   (document.program.blocks as { blocks: { blocks: { type: string; disabledReasons?: string[] }[] } }).blocks.blocks;
 
 describe('Yolo:Bit templates (N6a S1)', () => {
-  it.each(ybcTemplateKeys)('%s is a Basic project of one Yolo:Bit-compatible board', (key) => {
+  it.each(ybcTemplateKeys.filter((key) => key !== 'ybc-servo-gate'))('%s is a project of one Yolo:Bit-compatible board, with the profile it needs', (key) => {
     const document = createTemplateProject(key);
 
     expect(document.id).toBe(`template-${key}`);
-    expect(document.profile).toBe('ybc-basic');
+    expect(document.profile).toBe(ybcTemplateProfiles[key]);
     expect(document.circuit).toEqual({
       components: [{ id: ybcTemplateBoardId, deviceType: 'ybc-board', position: { x: 300, y: 220 } }],
       wires: [],
     });
   });
 
+  // N17 B6: the labs of the Basic board, and the ones that use what only the Advanced board has (the sensors, the servo).
+  it('records the profile each template needs: the four new labs, two on each board', () => {
+    expect(ybcTemplateProfiles).toEqual({
+      'ybc-heart': 'ybc-basic',
+      'ybc-button-ab': 'ybc-basic',
+      'ybc-night-light': 'ybc-basic',
+      'ybc-melody': 'ybc-basic',
+      'ybc-empty': 'ybc-basic',
+      'ybc-rainbow': 'ybc-basic',
+      'ybc-thermometer': 'ybc-advanced',
+      'ybc-dice': 'ybc-advanced',
+      'ybc-servo-gate': 'ybc-advanced',
+    });
+  });
+
+  it('ybc-servo-gate is the board and a servo: signal on P0, powered from 3V3 and GND (Advanced palette)', () => {
+    const { circuit, profile } = createTemplateProject('ybc-servo-gate');
+    expect(profile).toBe('ybc-advanced');
+    expect(circuit.components.map(({ id, deviceType }) => [id, deviceType])).toEqual([
+      [ybcTemplateBoardId, 'ybc-board'],
+      ['servo-1', 'servo'],
+    ]);
+    expect(circuit.wires.map(({ from, to }) => [`${from.componentId}.${from.portId}`, `${to.componentId}.${to.portId}`])).toEqual([
+      ['servo-1.signal', `${ybcTemplateBoardId}.p0`],
+      ['servo-1.vcc', `${ybcTemplateBoardId}.3v3`],
+      ['servo-1.gnd', `${ybcTemplateBoardId}.gnd`],
+    ]);
+  });
+
   it.each(ybcLabProfiles)('opens with the launch profile %s', (profile) => {
     expect(createTemplateProject('ybc-heart', { profile }).profile).toBe(profile);
+    expect(createTemplateProject('ybc-rainbow', { profile }).profile).toBe(profile);
+  });
+
+  it.each<YbcTemplateKey>(['ybc-thermometer', 'ybc-dice', 'ybc-servo-gate'])('%s opens with the Advanced profile and refuses the Basic one, which lacks its blocks', (key) => {
+    expect(createTemplateProject(key, { profile: 'ybc-advanced' }).profile).toBe('ybc-advanced');
+    expect(() => createTemplateProject(key, { profile: 'ybc-basic' })).toThrow(`The template "${key}" needs profile=ybc-advanced`);
   });
 
   it('ignores a profile for a generic template', () => {

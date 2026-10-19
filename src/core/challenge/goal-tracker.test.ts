@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RunSnapshot } from '../run/run-session';
+import { scrollFrame } from '../simulation/peripherals/display';
 import type { ComponentState } from '../simulation/simulate-circuit';
 import { parseFrame, type Challenge, type Goal } from './challenge';
 import { createGoalTracker } from './goal-tracker';
@@ -119,6 +120,108 @@ describe('display-shows with a colour', () => {
   it('keeps a goal without a colour as it was: lit and dark only', () => {
     const plain: Goal = { id: green.id, label: green.label, kind: 'display-shows', frame: heart };
     expect(verdicts(challengeOf(plain), [[shows(tinted(heart, '#4B0082')), 0]]).passed).toBe(true);
+  });
+});
+
+// N17 B6: the goals of the new labs. A goal "at a moment" reads what the run showed at that moment: the last snapshot at or
+// before it (a state that was set earlier and stayed counts), never one that came after.
+const filled = (colour: string) => snapshot({ [`${board}/display`]: { frame: { pixels: Array.from({ length: 25 }, () => colour) } as never } });
+const showing = (rows: string) => snapshot({ [`${board}/display`]: { frame: frameOf(rows) as never } });
+
+describe('display-colours-differ (N17 B6)', () => {
+  const goal: Goal = { id: 'rainbow', label: 'Rainbow', kind: 'display-colours-differ', atMs: [700, 1400] };
+
+  it('passes when, at each moment, the whole display is lit in one colour, and the colours differ', () => {
+    expect(verdicts(challengeOf(goal), [[filled('#FF0000'), 0], [filled('#00FF00'), 210], [filled('#0000FF'), 910], [filled('#0000FF'), 1600]]).passed).toBe(true);
+  });
+
+  it('reads the display as it is at each moment: a state set long before, and nothing after the moment', () => {
+    // Green from 200 is still on at 700; blue at 1500 comes after 1400, so at 1400 it is still green.
+    expect(verdicts(challengeOf(goal), [[filled('#00FF00'), 200], [filled('#0000FF'), 1500]]).passed).toBe(false);
+    expect(verdicts(challengeOf(goal), [[filled('#00FF00'), 200], [filled('#0000FF'), 1400]]).passed).toBe(true);
+    // A colour that comes and goes between the moments is not seen.
+    expect(verdicts(challengeOf(goal), [[filled('#FF0000'), 0], [filled('#00FF00'), 900], [filled('#FF0000'), 1100], [filled('#FF0000'), 1600]]).passed).toBe(false);
+  });
+
+  it('fails when the colour is the same at two moments (a colour that only shows while the button is held)', () => {
+    expect(verdicts(challengeOf(goal), [[filled('#FF0000'), 0], [filled('#00FF00'), 200], [filled('#FF0000'), 400], [filled('#00FF00'), 900], [filled('#FF0000'), 1100], [filled('#FF0000'), 1600]]).passed).toBe(false);
+  });
+
+  it('fails when the display is not lit all over in one colour at a moment', () => {
+    const mixed = filled('#00FF00');
+    (mixed.simulation?.components[`${board}/display`]?.frame?.pixels as (string | null)[])[3] = '#FF0000';
+    expect(verdicts(challengeOf(goal), [[filled('#FF0000'), 0], [mixed, 900], [mixed, 1600]]).passed).toBe(false);
+    expect(verdicts(challengeOf(goal), [[showing(heart), 0], [filled('#00FF00'), 900], [filled('#00FF00'), 1600]]).passed).toBe(false);
+    // A display that never showed anything is dark.
+    expect(verdicts(challengeOf(goal), [[snapshot({}), 0], [filled('#00FF00'), 900], [filled('#00FF00'), 1600]]).passed).toBe(false);
+  });
+
+  it('fails a moment the check never reached, and on a generic run', () => {
+    expect(verdicts(challengeOf(goal), [[filled('#FF0000'), 0], [filled('#00FF00'), 900], [filled('#00FF00'), 1300]]).passed).toBe(false);
+    expect(verdicts(challengeOf(goal), [[filled('#FF0000'), 0], [filled('#00FF00'), 900], [filled('#00FF00'), 1600]], null, null).passed).toBe(false);
+  });
+});
+
+describe('display-scrolls (N17 B6)', () => {
+  const goal: Goal = { id: 'thirty', label: '30', kind: 'display-scrolls', text: '30', fromMs: 300 };
+  // The frames of a scrolling text, as the display shows them: step 0 is the first character in full, step 6 the second.
+  const scrolled = (text: string, step: number) => snapshot({ [`${board}/display`]: { frame: scrollFrame([...text], step) as never } });
+  const scroll = (text: string, from: number): [RunSnapshot, number][] => Array.from({ length: text.length * 6 + 1 }, (_, step) => [scrolled(text, step), from + step * 200]);
+
+  it('passes when the display shows the characters in full, one after the other, as a scroll shows them', () => {
+    expect(verdicts(challengeOf(goal), scroll('30', 300)).passed).toBe(true);
+    expect(verdicts(challengeOf(goal), scroll('t=30C', 300)).passed).toBe(true);
+    // Two still characters, one after the other, show it as well; the colour does not matter.
+    const blue = (character: string) => snapshot({ [`${board}/display`]: { frame: scrollFrame([character], 0, '#0000FF') as never } });
+    expect(verdicts(challengeOf(goal), [[blue('3'), 400], [blue('0'), 600]]).passed).toBe(true);
+  });
+
+  it('fails on another number, on the characters in the other order, and on half of it', () => {
+    expect(verdicts(challengeOf(goal), scroll('25', 300)).passed).toBe(false);
+    expect(verdicts(challengeOf(goal), scroll('03', 300)).passed).toBe(false);
+    expect(verdicts(challengeOf(goal), scroll('3', 300)).passed).toBe(false);
+    expect(verdicts(challengeOf(goal), scroll('30', 300).slice(0, 6)).passed).toBe(false);
+  });
+
+  it('counts only what is shown at or after fromMs, and a character twice only when it is shown twice', () => {
+    expect(verdicts(challengeOf(goal), scroll('30', 0)).passed).toBe(false);
+    const double: Goal = { ...goal, text: '00' };
+    expect(verdicts(challengeOf(double), [[scrolled('0', 0), 300], [scrolled('0', 0), 500]]).passed).toBe(false);
+    expect(verdicts(challengeOf(double), scroll('100', 300)).passed).toBe(true);
+  });
+
+  it('never passes with an empty text or on a generic run', () => {
+    expect(verdicts(challengeOf({ ...goal, text: '' }), scroll('30', 300)).passed).toBe(false);
+    expect(verdicts(challengeOf(goal), scroll('30', 300), null, null).passed).toBe(false);
+  });
+});
+
+describe('display-lit (N17 B6)', () => {
+  const goal: Goal = { id: 'number', label: 'Number', kind: 'display-lit', atMs: 1300 };
+
+  it('passes when a light of the display is on at the moment', () => {
+    expect(verdicts(challengeOf(goal), [[snapshot({}), 0], [showing('00100:00000:00000:00000:00000'), 350], [snapshot({}), 1500]]).passed).toBe(true);
+  });
+
+  it('fails on a dark display at the moment, whatever it showed before or after', () => {
+    expect(verdicts(challengeOf(goal), [[showing(heart), 0], [showing(dark), 400], [showing(heart), 1400]]).passed).toBe(false);
+    expect(verdicts(challengeOf(goal), [[snapshot({}), 0], [snapshot({}), 1500]]).passed).toBe(false);
+    expect(verdicts(challengeOf(goal), [[showing(heart), 0], [showing(heart), 1500]], null, null).passed).toBe(false);
+  });
+});
+
+describe('servo-angle (N17 B6)', () => {
+  const closed: Goal = { id: 'closed', label: 'Closed', kind: 'servo-angle', componentId: 'servo-1', angle: 0, atMs: 700 };
+  const servo = (angle: number, at: number): [RunSnapshot, number] => [snapshot({ 'servo-1': { angle } }), at];
+
+  it('passes when the servo is at the angle at the moment', () => {
+    expect(verdicts(challengeOf(closed), [servo(90, 0), servo(0, 310), servo(90, 910)]).passed).toBe(true);
+  });
+
+  it('fails on another angle at the moment, on an angle reached only before or after it, and on another component', () => {
+    expect(verdicts(challengeOf(closed), [servo(90, 0), servo(45, 310), servo(0, 910)]).passed).toBe(false);
+    expect(verdicts(challengeOf(closed), [servo(0, 0), servo(90, 310), servo(0, 910)]).passed).toBe(false);
+    expect(verdicts(challengeOf({ ...closed, componentId: 'servo-2' }), [servo(0, 0), servo(0, 910)]).passed).toBe(false);
   });
 });
 

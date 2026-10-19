@@ -93,6 +93,60 @@ const challenges: Readonly<Record<TemplateKey, ChallengeData | null>> = {
     goals: [{ id: 'a-plays-notes', kind: 'buzzer-played', minNotes: 3, label: { vi: 'Nhấn nút A thì phát ít nhất 3 nốt nhạc', en: 'Button A plays at least 3 notes' } }],
   },
   'ybc-empty': null,
+  // N17 B6: the labs of the full board. Each moment a goal reads (`atMs`) is more than CHECK_LATE_LIMIT_MS after the input it waits
+  // for, so a check whose inputs came late is interrupted rather than judged (Review Focus 4).
+  'ybc-rainbow': {
+    durationMs: 1600,
+    inputScript: [
+      { atMs: 200, part: 'button-a', input: hold(true) },
+      { atMs: 400, part: 'button-a', input: hold(false) },
+      { atMs: 900, part: 'button-a', input: hold(true) },
+      { atMs: 1100, part: 'button-a', input: hold(false) },
+    ],
+    goals: [
+      {
+        id: 'a-changes-colour',
+        kind: 'display-colours-differ',
+        // After the first press (released at 400) and after the second (released at 1100): a colour that lasts only while A is held fails.
+        atMs: [700, 1400],
+        label: { vi: 'Bấm A hai lần thì cả màn hình sáng hai màu khác nhau', en: 'Pressing A twice lights the whole display in two different colours' },
+      },
+    ],
+  },
+  'ybc-thermometer': {
+    // "30" scrolls for 2.4 s; the check sees its two characters, the 0 about 1.2 s after B.
+    durationMs: 2000,
+    inputScript: [
+      { atMs: 100, part: 'temperature', input: slider(30) },
+      { atMs: 300, part: 'button-b', input: hold(true) },
+      { atMs: 500, part: 'button-b', input: hold(false) },
+    ],
+    goals: [
+      { id: 'b-scrolls-30', kind: 'display-scrolls', text: '30', fromMs: 300, label: { vi: 'Ở 30 °C, bấm B thì màn hình chạy chữ 30', en: 'At 30 °C, button B scrolls 30 across the display' } },
+      { id: 'uses-temperature', kind: 'uses-block', blockType: 'ybc_temperature', label: { vi: 'Dùng khối nhiệt độ', en: 'Uses the temperature block' } },
+    ],
+  },
+  'ybc-dice': {
+    // The check is seeded (N17 B4), and its goals ask for no particular number: any number shown after the shake passes.
+    durationMs: 1500,
+    inputScript: [{ atMs: 300, part: 'accelerometer', input: { kind: 'gesture' } }],
+    goals: [
+      // The shake lasts 1 s: at 1400 it is over, and the number it left is still shown.
+      { id: 'shake-shows-number', kind: 'display-lit', atMs: 1400, label: { vi: 'Lắc mạch thì màn hình hiện số', en: 'Shaking the board shows a number' } },
+      { id: 'uses-random', kind: 'uses-block', blockType: 'ybc_random_int', label: { vi: 'Dùng khối số ngẫu nhiên', en: 'Uses the random number block' } },
+    ],
+  },
+  'ybc-servo-gate': {
+    durationMs: 1500,
+    inputScript: [
+      { atMs: 300, part: 'light', input: slider(10) },
+      { atMs: 900, part: 'light', input: slider(80) },
+    ],
+    goals: [
+      { id: 'dark-closes', kind: 'servo-angle', componentId: 'servo-1', angle: 0, atMs: 700, label: { vi: 'Trời tối (ánh sáng dưới 30) thì servo quay về 0°', en: 'In the dark (light below 30) the servo turns to 0°' } },
+      { id: 'bright-opens', kind: 'servo-angle', componentId: 'servo-1', angle: 90, atMs: 1400, label: { vi: 'Trời sáng thì servo quay tới 90°', en: 'In bright light the servo turns to 90°' } },
+    ],
+  },
 };
 
 /** The challenge of `key` with its labels in `language`, or null when the template has none. */

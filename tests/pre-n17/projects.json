@@ -1,0 +1,1634 @@
+[
+ {
+  "name": "template-solution-ybc-heart",
+  "document": {
+   "schemaVersion": 1,
+   "id": "template-ybc-heart",
+   "name": "Trái tim",
+   "profile": "ybc-basic",
+   "circuit": {
+    "components": [
+     {
+      "id": "ybc-board-1",
+      "deviceType": "ybc-board",
+      "position": {
+       "x": 300,
+       "y": 220
+      }
+     }
+    ],
+    "wires": []
+   },
+   "program": {
+    "blocks": {
+     "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+       {
+        "type": "stem_on_start",
+        "id": "on-start",
+        "x": 40,
+        "y": 40,
+        "inputs": {
+         "DO": {
+          "block": {
+           "type": "ybc_display_show_image",
+           "id": "heart",
+           "fields": {
+            "R0C0": false,
+            "R0C1": true,
+            "R0C2": false,
+            "R0C3": true,
+            "R0C4": false,
+            "R1C0": true,
+            "R1C1": true,
+            "R1C2": true,
+            "R1C3": true,
+            "R1C4": true,
+            "R2C0": true,
+            "R2C1": true,
+            "R2C2": true,
+            "R2C3": true,
+            "R2C4": true,
+            "R3C0": false,
+            "R3C1": true,
+            "R3C2": true,
+            "R3C3": true,
+            "R3C4": false,
+            "R4C0": false,
+            "R4C1": false,
+            "R4C2": true,
+            "R4C3": false,
+            "R4C4": false
+           }
+          }
+         }
+        }
+       },
+       {
+        "type": "stem_forever",
+        "id": "forever",
+        "x": 40,
+        "y": 220
+       }
+      ]
+     }
+    }
+   }
+  },
+  "inputs": [],
+  "durationMs": 1050
+ },
+ {
+  "name": "template-solution-ybc-button-ab",
+  "document": {
+   "schemaVersion": 1,
+   "id": "template-ybc-button-ab",
+   "name": "Nút A/B",
+   "profile": "ybc-basic",
+   "circuit": {
+    "components": [
+     {
+      "id": "ybc-board-1",
+      "deviceType": "ybc-board",
+      "position": {
+       "x": 300,
+       "y": 220
+      }
+     }
+    ],
+    "wires": []
+   },
+   "program": {
+    "blocks": {
+     "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+       {
+        "type": "stem_on_start",
+        "id": "on-start",
+        "x": 40,
+        "y": 40
+       },
+       {
+        "type": "stem_forever",
+        "id": "forever",
+        "x": 40,
+        "y": 220,
+        "inputs": {
+         "DO": {
+          "block": {
+           "type": "controls_if",
+           "id": "if-buttons",
+           "extraState": {
+            "elseIfCount": 1
+           },
+           "inputs": {
+            "IF0": {
+             "block": {
+              "type": "ybc_button_pressed",
+              "id": "pressed-a",
+              "fields": {
+               "BUTTON": "A"
+              }
+             }
+            },
+            "DO0": {
+             "block": {
+              "type": "ybc_display_show_image",
+              "id": "show-check",
+              "fields": {
+               "R0C0": false,
+               "R0C1": false,
+               "R0C2": false,
+               "R0C3": false,
+               "R0C4": false,
+               "R1C0": false,
+               "R1C1": false,
+               "R1C2": false,
+               "R1C3": false,
+               "R1C4": true,
+               "R2C0": false,
+               "R2C1": false,
+               "R2C2": false,
+               "R2C3": true,
+               "R2C4": false,
+               "R3C0": true,
+               "R3C1": false,
+               "R3C2": true,
+               "R3C3": false,
+               "R3C4": false,
+               "R4C0": false,
+               "R4C1": true,
+               "R4C2": false,
+               "R4C3": false,
+               "R4C4": false
+              }
+             }
+            },
+            "IF1": {
+             "block": {
+              "type": "ybc_button_pressed",
+              "id": "pressed-b",
+              "fields": {
+               "BUTTON": "B"
+              }
+             }
+            },
+            "DO1": {
+             "block": {
+              "type": "ybc_display_show_image",
+              "id": "show-cross",
+              "fields": {
+               "R0C0": true,
+               "R0C1": false,
+               "R0C2": false,
+               "R0C3": false,
+               "R0C4": true,
+               "R1C0": false,
+               "R1C1": true,
+               "R1C2": false,
+               "R1C3": true,
+               "R1C4": false,
+               "R2C0": false,
+               "R2C1": false,
+               "R2C2": true,
+               "R2C3": false,
+               "R2C4": false,
+               "R3C0": false,
+               "R3C1": true,
+               "R3C2": false,
+               "R3C3": true,
+               "R3C4": false,
+               "R4C0": true,
+               "R4C1": false,
+               "R4C2": false,
+               "R4C3": false,
+               "R4C4": true
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   }
+  },
+  "inputs": [
+   {
+    "atMs": 200,
+    "componentId": "ybc-board-1/button-a",
+    "input": {
+     "kind": "hold",
+     "closed": true
+    }
+   },
+   {
+    "atMs": 500,
+    "componentId": "ybc-board-1/button-a",
+    "input": {
+     "kind": "hold",
+     "closed": false
+    }
+   },
+   {
+    "atMs": 800,
+    "componentId": "ybc-board-1/button-b",
+    "input": {
+     "kind": "hold",
+     "closed": true
+    }
+   },
+   {
+    "atMs": 1100,
+    "componentId": "ybc-board-1/button-b",
+    "input": {
+     "kind": "hold",
+     "closed": false
+    }
+   }
+  ],
+  "durationMs": 1550
+ },
+ {
+  "name": "template-solution-ybc-night-light",
+  "document": {
+   "schemaVersion": 1,
+   "id": "template-ybc-night-light",
+   "name": "Đèn ngủ",
+   "profile": "ybc-basic",
+   "circuit": {
+    "components": [
+     {
+      "id": "ybc-board-1",
+      "deviceType": "ybc-board",
+      "position": {
+       "x": 300,
+       "y": 220
+      }
+     }
+    ],
+    "wires": []
+   },
+   "program": {
+    "blocks": {
+     "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+       {
+        "type": "stem_on_start",
+        "id": "on-start",
+        "x": 40,
+        "y": 40
+       },
+       {
+        "type": "stem_forever",
+        "id": "forever",
+        "x": 40,
+        "y": 220,
+        "inputs": {
+         "DO": {
+          "block": {
+           "type": "controls_if",
+           "id": "if-dark",
+           "extraState": {
+            "hasElse": true
+           },
+           "inputs": {
+            "IF0": {
+             "block": {
+              "type": "logic_compare",
+              "id": "dark",
+              "fields": {
+               "OP": "LT"
+              },
+              "inputs": {
+               "A": {
+                "block": {
+                 "type": "ybc_light_level",
+                 "id": "dark-light"
+                }
+               },
+               "B": {
+                "block": {
+                 "type": "math_number",
+                 "id": "dark-threshold",
+                 "fields": {
+                  "NUM": 30
+                 }
+                }
+               }
+              }
+             }
+            },
+            "DO0": {
+             "block": {
+              "type": "ybc_display_show_image",
+              "id": "show-full",
+              "fields": {
+               "R0C0": true,
+               "R0C1": true,
+               "R0C2": true,
+               "R0C3": true,
+               "R0C4": true,
+               "R1C0": true,
+               "R1C1": true,
+               "R1C2": true,
+               "R1C3": true,
+               "R1C4": true,
+               "R2C0": true,
+               "R2C1": true,
+               "R2C2": true,
+               "R2C3": true,
+               "R2C4": true,
+               "R3C0": true,
+               "R3C1": true,
+               "R3C2": true,
+               "R3C3": true,
+               "R3C4": true,
+               "R4C0": true,
+               "R4C1": true,
+               "R4C2": true,
+               "R4C3": true,
+               "R4C4": true
+              }
+             }
+            },
+            "ELSE": {
+             "block": {
+              "type": "ybc_display_clear",
+              "id": "clear"
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   }
+  },
+  "inputs": [
+   {
+    "atMs": 300,
+    "componentId": "ybc-board-1/light",
+    "input": {
+     "kind": "slider",
+     "value": 10
+    }
+   },
+   {
+    "atMs": 1000,
+    "componentId": "ybc-board-1/light",
+    "input": {
+     "kind": "slider",
+     "value": 80
+    }
+   }
+  ],
+  "durationMs": 1550
+ },
+ {
+  "name": "template-solution-ybc-melody",
+  "document": {
+   "schemaVersion": 1,
+   "id": "template-ybc-melody",
+   "name": "Giai điệu",
+   "profile": "ybc-basic",
+   "circuit": {
+    "components": [
+     {
+      "id": "ybc-board-1",
+      "deviceType": "ybc-board",
+      "position": {
+       "x": 300,
+       "y": 220
+      }
+     }
+    ],
+    "wires": []
+   },
+   "program": {
+    "blocks": {
+     "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+       {
+        "type": "stem_on_start",
+        "id": "on-start",
+        "x": 40,
+        "y": 40
+       },
+       {
+        "type": "stem_forever",
+        "id": "forever",
+        "x": 40,
+        "y": 220,
+        "inputs": {
+         "DO": {
+          "block": {
+           "type": "controls_if",
+           "id": "if-a",
+           "inputs": {
+            "IF0": {
+             "block": {
+              "type": "ybc_button_pressed",
+              "id": "pressed-a",
+              "fields": {
+               "BUTTON": "A"
+              }
+             }
+            },
+            "DO0": {
+             "block": {
+              "type": "ybc_sound_note",
+              "id": "melody-c4",
+              "fields": {
+               "NOTE": "C4",
+               "TICKS": "2"
+              },
+              "next": {
+               "block": {
+                "type": "ybc_sound_note",
+                "id": "melody-e4",
+                "fields": {
+                 "NOTE": "E4",
+                 "TICKS": "2"
+                },
+                "next": {
+                 "block": {
+                  "type": "ybc_sound_note",
+                  "id": "melody-g4",
+                  "fields": {
+                   "NOTE": "G4",
+                   "TICKS": "2"
+                  },
+                  "next": {
+                   "block": {
+                    "type": "ybc_sound_note",
+                    "id": "melody-c5",
+                    "fields": {
+                     "NOTE": "C5",
+                     "TICKS": "2"
+                    }
+                   }
+                  }
+                 }
+                }
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   }
+  },
+  "inputs": [
+   {
+    "atMs": 200,
+    "componentId": "ybc-board-1/button-a",
+    "input": {
+     "kind": "hold",
+     "closed": true
+    }
+   },
+   {
+    "atMs": 400,
+    "componentId": "ybc-board-1/button-a",
+    "input": {
+     "kind": "hold",
+     "closed": false
+    }
+   }
+  ],
+  "durationMs": 2050
+ },
+ {
+  "name": "pictures-and-buttons",
+  "document": {
+   "schemaVersion": 1,
+   "id": "pre-n17-pictures-and-buttons",
+   "name": "pictures-and-buttons",
+   "profile": "ybc-basic",
+   "circuit": {
+    "components": [
+     {
+      "id": "ybc-board-1",
+      "deviceType": "ybc-board",
+      "position": {
+       "x": 300,
+       "y": 220
+      }
+     }
+    ],
+    "wires": []
+   },
+   "program": {
+    "blocks": {
+     "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+       {
+        "type": "stem_on_start",
+        "id": "on-start",
+        "x": 40,
+        "y": 40,
+        "inputs": {
+         "DO": {
+          "block": {
+           "type": "variables_set",
+           "id": "set-4",
+           "fields": {
+            "VAR": {
+             "id": "x"
+            }
+           },
+           "inputs": {
+            "VALUE": {
+             "block": {
+              "type": "ybc_arith",
+              "id": "ybc_arith-3",
+              "fields": {
+               "OP": "MULTIPLY"
+              },
+              "inputs": {
+               "A": {
+                "block": {
+                 "type": "math_number",
+                 "id": "num-1",
+                 "fields": {
+                  "NUM": 7
+                 }
+                }
+               },
+               "B": {
+                "block": {
+                 "type": "math_number",
+                 "id": "num-2",
+                 "fields": {
+                  "NUM": 3
+                 }
+                }
+               }
+              }
+             }
+            }
+           },
+           "next": {
+            "block": {
+             "type": "ybc_display_scroll_number",
+             "id": "scroll-number-6",
+             "inputs": {
+              "NUM": {
+               "block": {
+                "type": "variables_get",
+                "id": "get-5",
+                "fields": {
+                 "VAR": {
+                  "id": "x"
+                 }
+                }
+               }
+              }
+             },
+             "next": {
+              "block": {
+               "type": "ybc_display_show_image",
+               "id": "show-image-7",
+               "fields": {
+                "R0C0": false,
+                "R0C1": true,
+                "R0C2": false,
+                "R0C3": true,
+                "R0C4": false,
+                "R1C0": true,
+                "R1C1": true,
+                "R1C2": true,
+                "R1C3": true,
+                "R1C4": true,
+                "R2C0": true,
+                "R2C1": true,
+                "R2C2": true,
+                "R2C3": true,
+                "R2C4": true,
+                "R3C0": false,
+                "R3C1": true,
+                "R3C2": true,
+                "R3C3": true,
+                "R3C4": false,
+                "R4C0": false,
+                "R4C1": false,
+                "R4C2": true,
+                "R4C3": false,
+                "R4C4": false
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       },
+       {
+        "type": "stem_forever",
+        "id": "forever",
+        "x": 40,
+        "y": 260,
+        "inputs": {
+         "DO": {
+          "block": {
+           "type": "controls_if",
+           "id": "if-13",
+           "extraState": {
+            "elseIfCount": 1
+           },
+           "inputs": {
+            "IF0": {
+             "block": {
+              "type": "ybc_button_pressed",
+              "id": "pressed-8",
+              "fields": {
+               "BUTTON": "A"
+              }
+             }
+            },
+            "DO0": {
+             "block": {
+              "type": "ybc_display_show_image",
+              "id": "show-image-9",
+              "fields": {
+               "R0C0": false,
+               "R0C1": false,
+               "R0C2": false,
+               "R0C3": false,
+               "R0C4": false,
+               "R1C0": false,
+               "R1C1": false,
+               "R1C2": false,
+               "R1C3": false,
+               "R1C4": true,
+               "R2C0": false,
+               "R2C1": false,
+               "R2C2": false,
+               "R2C3": true,
+               "R2C4": false,
+               "R3C0": true,
+               "R3C1": false,
+               "R3C2": true,
+               "R3C3": false,
+               "R3C4": false,
+               "R4C0": false,
+               "R4C1": true,
+               "R4C2": false,
+               "R4C3": false,
+               "R4C4": false
+              }
+             }
+            },
+            "IF1": {
+             "block": {
+              "type": "ybc_button_pressed",
+              "id": "pressed-10",
+              "fields": {
+               "BUTTON": "B"
+              }
+             }
+            },
+            "DO1": {
+             "block": {
+              "type": "ybc_display_scroll_text",
+              "id": "scroll-text-12",
+              "inputs": {
+               "TEXT": {
+                "block": {
+                 "type": "text",
+                 "id": "text-11",
+                 "fields": {
+                  "TEXT": "OK"
+                 }
+                }
+               }
+              }
+             }
+            }
+           },
+           "next": {
+            "block": {
+             "type": "ybc_wait_ms",
+             "id": "wait-14",
+             "inputs": {
+              "MS": {
+               "block": {
+                "type": "math_number",
+                "id": "num-15",
+                "fields": {
+                 "NUM": 50
+                }
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      ]
+     },
+     "variables": [
+      {
+       "name": "x",
+       "id": "x"
+      }
+     ]
+    }
+   }
+  },
+  "inputs": [
+   {
+    "atMs": 2700,
+    "componentId": "ybc-board-1/button-a",
+    "input": {
+     "kind": "hold",
+     "closed": true
+    }
+   },
+   {
+    "atMs": 2900,
+    "componentId": "ybc-board-1/button-a",
+    "input": {
+     "kind": "hold",
+     "closed": false
+    }
+   },
+   {
+    "atMs": 3300,
+    "componentId": "ybc-board-1/button-b",
+    "input": {
+     "kind": "hold",
+     "closed": true
+    }
+   },
+   {
+    "atMs": 3500,
+    "componentId": "ybc-board-1/button-b",
+    "input": {
+     "kind": "hold",
+     "closed": false
+    }
+   }
+  ],
+  "durationMs": 6200
+ },
+ {
+  "name": "night-light-notes",
+  "document": {
+   "schemaVersion": 1,
+   "id": "pre-n17-night-light-notes",
+   "name": "night-light-notes",
+   "profile": "ybc-advanced",
+   "circuit": {
+    "components": [
+     {
+      "id": "ybc-board-1",
+      "deviceType": "ybc-board",
+      "position": {
+       "x": 300,
+       "y": 220
+      }
+     }
+    ],
+    "wires": []
+   },
+   "program": {
+    "blocks": {
+     "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+       {
+        "type": "stem_on_start",
+        "id": "on-start",
+        "x": 40,
+        "y": 40
+       },
+       {
+        "type": "stem_forever",
+        "id": "forever",
+        "x": 40,
+        "y": 260,
+        "inputs": {
+         "DO": {
+          "block": {
+           "type": "controls_if",
+           "id": "if-24",
+           "extraState": {
+            "hasElse": true
+           },
+           "inputs": {
+            "IF0": {
+             "block": {
+              "type": "logic_compare",
+              "id": "logic_compare-18",
+              "fields": {
+               "OP": "LT"
+              },
+              "inputs": {
+               "A": {
+                "block": {
+                 "type": "ybc_light_level",
+                 "id": "light-16"
+                }
+               },
+               "B": {
+                "block": {
+                 "type": "math_number",
+                 "id": "num-17",
+                 "fields": {
+                  "NUM": 30
+                 }
+                }
+               }
+              }
+             }
+            },
+            "DO0": {
+             "block": {
+              "type": "ybc_display_show_image",
+              "id": "show-image-19",
+              "fields": {
+               "R0C0": true,
+               "R0C1": true,
+               "R0C2": true,
+               "R0C3": true,
+               "R0C4": true,
+               "R1C0": true,
+               "R1C1": true,
+               "R1C2": true,
+               "R1C3": true,
+               "R1C4": true,
+               "R2C0": true,
+               "R2C1": true,
+               "R2C2": true,
+               "R2C3": true,
+               "R2C4": true,
+               "R3C0": true,
+               "R3C1": true,
+               "R3C2": true,
+               "R3C3": true,
+               "R3C4": true,
+               "R4C0": true,
+               "R4C1": true,
+               "R4C2": true,
+               "R4C3": true,
+               "R4C4": true
+              },
+              "next": {
+               "block": {
+                "type": "ybc_sound_note",
+                "id": "note-20",
+                "fields": {
+                 "NOTE": "C4",
+                 "TICKS": "2"
+                },
+                "next": {
+                 "block": {
+                  "type": "ybc_sound_rest",
+                  "id": "rest-21",
+                  "fields": {
+                   "TICKS": "1"
+                  },
+                  "next": {
+                   "block": {
+                    "type": "ybc_sound_note",
+                    "id": "note-22",
+                    "fields": {
+                     "NOTE": "E4",
+                     "TICKS": "2"
+                    }
+                   }
+                  }
+                 }
+                }
+               }
+              }
+             }
+            },
+            "ELSE": {
+             "block": {
+              "type": "ybc_display_clear",
+              "id": "clear-23"
+             }
+            }
+           },
+           "next": {
+            "block": {
+             "type": "text_print",
+             "id": "print-26",
+             "inputs": {
+              "TEXT": {
+               "block": {
+                "type": "ybc_light_level",
+                "id": "light-25"
+               }
+              }
+             },
+             "next": {
+              "block": {
+               "type": "ybc_wait_ms",
+               "id": "wait-27",
+               "inputs": {
+                "MS": {
+                 "block": {
+                  "type": "math_number",
+                  "id": "num-28",
+                  "fields": {
+                   "NUM": 100
+                  }
+                 }
+                }
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   }
+  },
+  "inputs": [
+   {
+    "atMs": 300,
+    "componentId": "ybc-board-1/light",
+    "input": {
+     "kind": "slider",
+     "value": 10
+    }
+   },
+   {
+    "atMs": 1300,
+    "componentId": "ybc-board-1/light",
+    "input": {
+     "kind": "slider",
+     "value": 80
+    }
+   }
+  ],
+  "durationMs": 2000
+ },
+ {
+  "name": "knob-and-led",
+  "document": {
+   "schemaVersion": 1,
+   "id": "pre-n17-knob-and-led",
+   "name": "knob-and-led",
+   "profile": "ybc-basic",
+   "circuit": {
+    "components": [
+     {
+      "id": "ybc-board-1",
+      "deviceType": "ybc-board",
+      "position": {
+       "x": 300,
+       "y": 220
+      }
+     },
+     {
+      "id": "knob-1",
+      "deviceType": "potentiometer",
+      "position": {
+       "x": 520,
+       "y": 120
+      }
+     },
+     {
+      "id": "resistor-1",
+      "deviceType": "resistor",
+      "position": {
+       "x": 520,
+       "y": 300
+      }
+     },
+     {
+      "id": "led-1",
+      "deviceType": "led",
+      "position": {
+       "x": 640,
+       "y": 300
+      }
+     }
+    ],
+    "wires": [
+     {
+      "id": "w1",
+      "from": {
+       "componentId": "knob-1",
+       "portId": "vcc"
+      },
+      "to": {
+       "componentId": "ybc-board-1",
+       "portId": "3v3"
+      }
+     },
+     {
+      "id": "w2",
+      "from": {
+       "componentId": "knob-1",
+       "portId": "gnd"
+      },
+      "to": {
+       "componentId": "ybc-board-1",
+       "portId": "gnd"
+      }
+     },
+     {
+      "id": "w3",
+      "from": {
+       "componentId": "knob-1",
+       "portId": "out"
+      },
+      "to": {
+       "componentId": "ybc-board-1",
+       "portId": "p2"
+      }
+     },
+     {
+      "id": "w4",
+      "from": {
+       "componentId": "ybc-board-1",
+       "portId": "p0"
+      },
+      "to": {
+       "componentId": "resistor-1",
+       "portId": "a"
+      }
+     },
+     {
+      "id": "w5",
+      "from": {
+       "componentId": "resistor-1",
+       "portId": "b"
+      },
+      "to": {
+       "componentId": "led-1",
+       "portId": "anode"
+      }
+     },
+     {
+      "id": "w6",
+      "from": {
+       "componentId": "led-1",
+       "portId": "cathode"
+      },
+      "to": {
+       "componentId": "ybc-board-1",
+       "portId": "gnd"
+      }
+     }
+    ]
+   },
+   "program": {
+    "blocks": {
+     "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+       {
+        "type": "stem_on_start",
+        "id": "on-start",
+        "x": 40,
+        "y": 40
+       },
+       {
+        "type": "stem_forever",
+        "id": "forever",
+        "x": 40,
+        "y": 260,
+        "inputs": {
+         "DO": {
+          "block": {
+           "type": "controls_if",
+           "id": "if-34",
+           "extraState": {
+            "hasElse": true
+           },
+           "inputs": {
+            "IF0": {
+             "block": {
+              "type": "logic_compare",
+              "id": "logic_compare-31",
+              "fields": {
+               "OP": "GT"
+              },
+              "inputs": {
+               "A": {
+                "block": {
+                 "type": "ybc_pin_analog",
+                 "id": "pin-analog-29",
+                 "fields": {
+                  "PIN": "P2"
+                 }
+                }
+               },
+               "B": {
+                "block": {
+                 "type": "math_number",
+                 "id": "num-30",
+                 "fields": {
+                  "NUM": 2000
+                 }
+                }
+               }
+              }
+             }
+            },
+            "DO0": {
+             "block": {
+              "type": "ybc_pin_write",
+              "id": "pin-write-32",
+              "fields": {
+               "PIN": "P0",
+               "LEVEL": "1"
+              }
+             }
+            },
+            "ELSE": {
+             "block": {
+              "type": "ybc_pin_write",
+              "id": "pin-write-33",
+              "fields": {
+               "PIN": "P0",
+               "LEVEL": "0"
+              }
+             }
+            }
+           },
+           "next": {
+            "block": {
+             "type": "ybc_wait_ms",
+             "id": "wait-35",
+             "inputs": {
+              "MS": {
+               "block": {
+                "type": "math_number",
+                "id": "num-36",
+                "fields": {
+                 "NUM": 20
+                }
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   }
+  },
+  "inputs": [
+   {
+    "atMs": 300,
+    "componentId": "knob-1",
+    "input": {
+     "kind": "slider",
+     "value": 80
+    }
+   },
+   {
+    "atMs": 900,
+    "componentId": "knob-1",
+    "input": {
+     "kind": "slider",
+     "value": 10
+    }
+   }
+  ],
+  "durationMs": 1500
+ },
+ {
+  "name": "loops-and-presses",
+  "document": {
+   "schemaVersion": 1,
+   "id": "pre-n17-loops-and-presses",
+   "name": "loops-and-presses",
+   "profile": "ybc-advanced",
+   "circuit": {
+    "components": [
+     {
+      "id": "ybc-board-1",
+      "deviceType": "ybc-board",
+      "position": {
+       "x": 300,
+       "y": 220
+      }
+     }
+    ],
+    "wires": []
+   },
+   "program": {
+    "blocks": {
+     "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+       {
+        "type": "stem_on_start",
+        "id": "on-start",
+        "x": 40,
+        "y": 40,
+        "inputs": {
+         "DO": {
+          "block": {
+           "type": "variables_set",
+           "id": "set-38",
+           "fields": {
+            "VAR": {
+             "id": "n"
+            }
+           },
+           "inputs": {
+            "VALUE": {
+             "block": {
+              "type": "math_number",
+              "id": "num-37",
+              "fields": {
+               "NUM": 0
+              }
+             }
+            }
+           },
+           "next": {
+            "block": {
+             "type": "ybc_count_up",
+             "id": "count-up-45",
+             "fields": {
+              "VAR": {
+               "id": "i"
+              },
+              "STEP": 1
+             },
+             "inputs": {
+              "FROM": {
+               "block": {
+                "type": "math_number",
+                "id": "num-39",
+                "fields": {
+                 "NUM": 1
+                }
+               }
+              },
+              "TO": {
+               "block": {
+                "type": "math_number",
+                "id": "num-40",
+                "fields": {
+                 "NUM": 5
+                }
+               }
+              },
+              "DO": {
+               "block": {
+                "type": "variables_set",
+                "id": "set-44",
+                "fields": {
+                 "VAR": {
+                  "id": "n"
+                 }
+                },
+                "inputs": {
+                 "VALUE": {
+                  "block": {
+                   "type": "ybc_arith",
+                   "id": "ybc_arith-43",
+                   "fields": {
+                    "OP": "ADD"
+                   },
+                   "inputs": {
+                    "A": {
+                     "block": {
+                      "type": "variables_get",
+                      "id": "get-41",
+                      "fields": {
+                       "VAR": {
+                        "id": "n"
+                       }
+                      }
+                     }
+                    },
+                    "B": {
+                     "block": {
+                      "type": "variables_get",
+                      "id": "get-42",
+                      "fields": {
+                       "VAR": {
+                        "id": "i"
+                       }
+                      }
+                     }
+                    }
+                   }
+                  }
+                 }
+                }
+               }
+              }
+             },
+             "next": {
+              "block": {
+               "type": "text_print",
+               "id": "print-49",
+               "inputs": {
+                "TEXT": {
+                 "block": {
+                  "type": "text_join",
+                  "id": "join-48",
+                  "extraState": {
+                   "itemCount": 2
+                  },
+                  "inputs": {
+                   "ADD0": {
+                    "block": {
+                     "type": "text",
+                     "id": "text-46",
+                     "fields": {
+                      "TEXT": "n="
+                     }
+                    }
+                   },
+                   "ADD1": {
+                    "block": {
+                     "type": "variables_get",
+                     "id": "get-47",
+                     "fields": {
+                      "VAR": {
+                       "id": "n"
+                      }
+                     }
+                    }
+                   }
+                  }
+                 }
+                }
+               },
+               "next": {
+                "block": {
+                 "type": "controls_repeat_ext",
+                 "id": "repeat-57",
+                 "inputs": {
+                  "TIMES": {
+                   "block": {
+                    "type": "math_number",
+                    "id": "num-50",
+                    "fields": {
+                     "NUM": 2
+                    }
+                   }
+                  },
+                  "DO": {
+                   "block": {
+                    "type": "ybc_display_show_image",
+                    "id": "show-image-51",
+                    "fields": {
+                     "R0C0": true,
+                     "R0C1": false,
+                     "R0C2": false,
+                     "R0C3": false,
+                     "R0C4": true,
+                     "R1C0": false,
+                     "R1C1": true,
+                     "R1C2": false,
+                     "R1C3": true,
+                     "R1C4": false,
+                     "R2C0": false,
+                     "R2C1": false,
+                     "R2C2": true,
+                     "R2C3": false,
+                     "R2C4": false,
+                     "R3C0": false,
+                     "R3C1": true,
+                     "R3C2": false,
+                     "R3C3": true,
+                     "R3C4": false,
+                     "R4C0": true,
+                     "R4C1": false,
+                     "R4C2": false,
+                     "R4C3": false,
+                     "R4C4": true
+                    },
+                    "next": {
+                     "block": {
+                      "type": "ybc_wait_ms",
+                      "id": "wait-52",
+                      "inputs": {
+                       "MS": {
+                        "block": {
+                         "type": "math_number",
+                         "id": "num-53",
+                         "fields": {
+                          "NUM": 100
+                         }
+                        }
+                       }
+                      },
+                      "next": {
+                       "block": {
+                        "type": "ybc_display_clear",
+                        "id": "clear-54",
+                        "next": {
+                         "block": {
+                          "type": "ybc_wait_ms",
+                          "id": "wait-55",
+                          "inputs": {
+                           "MS": {
+                            "block": {
+                             "type": "math_number",
+                             "id": "num-56",
+                             "fields": {
+                              "NUM": 100
+                             }
+                            }
+                           }
+                          }
+                         }
+                        }
+                       }
+                      }
+                     }
+                    }
+                   }
+                  }
+                 }
+                }
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       },
+       {
+        "type": "stem_forever",
+        "id": "forever",
+        "x": 40,
+        "y": 260,
+        "inputs": {
+         "DO": {
+          "block": {
+           "type": "controls_if",
+           "id": "if-66",
+           "inputs": {
+            "IF0": {
+             "block": {
+              "type": "logic_compare",
+              "id": "logic_compare-60",
+              "fields": {
+               "OP": "GT"
+              },
+              "inputs": {
+               "A": {
+                "block": {
+                 "type": "ybc_button_presses",
+                 "id": "presses-58",
+                 "fields": {
+                  "BUTTON": "A"
+                 }
+                }
+               },
+               "B": {
+                "block": {
+                 "type": "math_number",
+                 "id": "num-59",
+                 "fields": {
+                  "NUM": 0
+                 }
+                }
+               }
+              }
+             }
+            },
+            "DO0": {
+             "block": {
+              "type": "ybc_sound_note",
+              "id": "note-61",
+              "fields": {
+               "NOTE": "G4",
+               "TICKS": "1"
+              },
+              "next": {
+               "block": {
+                "type": "text_print",
+                "id": "print-65",
+                "inputs": {
+                 "TEXT": {
+                  "block": {
+                   "type": "math_modulo",
+                   "id": "math_modulo-64",
+                   "fields": {},
+                   "inputs": {
+                    "DIVIDEND": {
+                     "block": {
+                      "type": "variables_get",
+                      "id": "get-62",
+                      "fields": {
+                       "VAR": {
+                        "id": "n"
+                       }
+                      }
+                     }
+                    },
+                    "DIVISOR": {
+                     "block": {
+                      "type": "math_number",
+                      "id": "num-63",
+                      "fields": {
+                       "NUM": 4
+                      }
+                     }
+                    }
+                   }
+                  }
+                 }
+                }
+               }
+              }
+             }
+            }
+           },
+           "next": {
+            "block": {
+             "type": "ybc_wait_ms",
+             "id": "wait-67",
+             "inputs": {
+              "MS": {
+               "block": {
+                "type": "math_number",
+                "id": "num-68",
+                "fields": {
+                 "NUM": 20
+                }
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      ]
+     },
+     "variables": [
+      {
+       "name": "n",
+       "id": "n"
+      },
+      {
+       "name": "i",
+       "id": "i"
+      }
+     ]
+    }
+   }
+  },
+  "inputs": [
+   {
+    "atMs": 700,
+    "componentId": "ybc-board-1/button-a",
+    "input": {
+     "kind": "hold",
+     "closed": true
+    }
+   },
+   {
+    "atMs": 800,
+    "componentId": "ybc-board-1/button-a",
+    "input": {
+     "kind": "hold",
+     "closed": false
+    }
+   }
+  ],
+  "durationMs": 1400
+ }
+]

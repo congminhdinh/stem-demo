@@ -3,7 +3,7 @@ import blinkSample from './blink.project.json';
 import buttonDirectSample from './button-direct.project.json';
 import buttonLedSample from './button-led.project.json';
 import ledOnSample from './led-on.project.json';
-import { isYbcTemplateKey, ybcStarterDocument, ybcTemplateKeys, type YbcLabProfile } from './ybc-templates';
+import { isYbcTemplateKey, templateProfileProblem, ybcStarterDocument, ybcTemplateKeys, type YbcLabProfile } from './ybc-templates';
 
 // The labs an embedding page can launch by key (S1, plan §9.2; N6a S1 adds the Yolo:Bit keys). The keys are
 // a public contract: lesson content stores them, so a key is never renamed or reused. The documents stay
@@ -44,7 +44,10 @@ export function templateKeysOf(lab: LabKind): TemplateKey[] {
 }
 
 export type TemplateOptions = {
-  /** The board profile of a Yolo:Bit template (the launch's `profile=`); ignored for a generic template. */
+  /**
+   * The board profile of a Yolo:Bit template (the launch's `profile=`); ignored for a generic template. Without it a template opens
+   * with the profile it needs (N17 B6); one lower than that is refused, here and by the launch (launch.ts) before it gets here.
+   */
   profile?: YbcLabProfile;
 };
 
@@ -56,7 +59,14 @@ export type TemplateOptions = {
 export function createTemplateProject(key: TemplateKey, options: TemplateOptions = {}): ProjectDocument {
   if (isYbcTemplateKey(key)) {
     const document = projectDocumentSchema.parse(ybcStarterDocument(key));
-    return options.profile ? { ...document, profile: options.profile } : document;
+    if (!options.profile) {
+      return document;
+    }
+    const problem = templateProfileProblem(key, options.profile);
+    if (problem !== null) {
+      throw new RangeError(problem);
+    }
+    return { ...document, profile: options.profile };
   }
   return key === 'empty'
     ? createNewProject('template-empty')

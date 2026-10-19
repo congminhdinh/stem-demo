@@ -141,6 +141,7 @@ describe('a broken launch in Vietnamese (N8s)', () => {
     '?embed=1&lab=yolobit&template=ybc-heart&profile=ybc-basic&profile=ybc-basic',
     '?embed=1&lab=blockly&template=blink&profile=ybc-basic',
     '?embed=1&lab=yolobit&template=ybc-heart&profile=ybc-pro',
+    '?embed=1&lab=yolobit&template=ybc-dice&profile=ybc-basic',
     '?embed=1&lab=blockly&template=blink&origin=http://a.example&origin=http://a.example',
     `?embed=1&lab=blockly&template=blink&origin=${encodeURIComponent('http://localhost:3000/')}`,
   ];
@@ -163,6 +164,12 @@ describe('a broken launch in Vietnamese (N8s)', () => {
       }),
     );
     expect(launchProblemRules.map((_, index) => index).filter((index) => !reached.has(index))).toEqual([]);
+  });
+
+  it('says which level a lab of the Advanced board needs (N17 B6)', () => {
+    expect(localizeLaunchProblem('The template "ybc-thermometer" needs profile=ybc-advanced: it uses blocks or parts that ybc-basic does not have.', 'vi')).toBe(
+      'Mẫu bài "ybc-thermometer" cần mức Nâng cao (profile=ybc-advanced): bài dùng khối hoặc linh kiện mà mức Cơ bản không có.',
+    );
   });
 
   it('keeps the key and the lab it names', () => {

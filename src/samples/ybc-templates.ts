@@ -5,19 +5,55 @@
 // The challenge of the template (challenges.ts) fails on the starter and passes once that block is in place
 // (ybc-solutions.ts holds the finished programs the tests and the E2E use).
 //
-// Only the 5×5 display, buttons A/B, the light sensor and the buzzer are used: reading a header pin that is
-// not driven stops the program (`out-of-domain`, YB plan §14 B9), so no template reads a pin.
+// No template reads a header pin: the onboard parts are enough for every lesson. The labs of N17 B6 use the full board: the RGB
+// display and A's presses (rainbow), the temperature (thermometer), a shake and a random number (dice), and a servo on P0 driven
+// by the light (servo gate). The last three need the Advanced board, which `ybcTemplateProfiles` records.
 
 type Json = Record<string, unknown>;
 
-export const ybcTemplateKeys = ['ybc-heart', 'ybc-button-ab', 'ybc-night-light', 'ybc-melody', 'ybc-empty'] as const;
+export const ybcTemplateKeys = [
+  'ybc-heart',
+  'ybc-button-ab',
+  'ybc-night-light',
+  'ybc-melody',
+  'ybc-empty',
+  // N17 B6: the labs of the full board.
+  'ybc-rainbow',
+  'ybc-thermometer',
+  'ybc-dice',
+  'ybc-servo-gate',
+] as const;
 
 export type YbcTemplateKey = (typeof ybcTemplateKeys)[number];
 
-/** The board profiles a Yolo:Bit lab can be launched with (`profile=`); a template opens with the first one. */
+/** The board profiles a Yolo:Bit lab can be launched with (`profile=`), from the Basic board up: each one has all of the one before. */
 export const ybcLabProfiles = ['ybc-basic', 'ybc-advanced'] as const;
 
 export type YbcLabProfile = (typeof ybcLabProfiles)[number];
+
+/**
+ * The profile each template needs (N17 B6), which it opens with when the launch names none: the lowest board that has every block
+ * and part of its program. A launch with a lower profile is refused (launch.ts), since the program would not run there.
+ */
+export const ybcTemplateProfiles: Readonly<Record<YbcTemplateKey, YbcLabProfile>> = {
+  'ybc-heart': 'ybc-basic',
+  'ybc-button-ab': 'ybc-basic',
+  'ybc-night-light': 'ybc-basic',
+  'ybc-melody': 'ybc-basic',
+  'ybc-empty': 'ybc-basic',
+  'ybc-rainbow': 'ybc-basic',
+  'ybc-thermometer': 'ybc-advanced',
+  'ybc-dice': 'ybc-advanced',
+  'ybc-servo-gate': 'ybc-advanced',
+};
+
+/** Why `profile` cannot open `key` (English, for the page that built the launch URL), or null when it can: it has all the template needs. */
+export function templateProfileProblem(key: YbcTemplateKey, profile: YbcLabProfile): string | null {
+  const needed = ybcTemplateProfiles[key];
+  return ybcLabProfiles.indexOf(profile) >= ybcLabProfiles.indexOf(needed)
+    ? null
+    : `The template "${key}" needs profile=${needed}: it uses blocks or parts that ${profile} does not have.`;
+}
 
 /** The board of every Yolo:Bit template; challenges address its parts as `<board id>/<part>`. */
 export const ybcTemplateBoardId = 'ybc-board-1';
@@ -98,6 +134,46 @@ export function ifBlock(id: string, branches: [Json, Json[]][], otherwise?: Json
   return { type: 'controls_if', id, ...(Object.keys(extraState).length > 0 ? { extraState } : {}), inputs };
 }
 
+/** A number typed into a block. */
+const numberBlock = (id: string, value: number): Json => ({ type: 'math_number', id, fields: { NUM: value } });
+
+/** "<a> <op> <b>", Blockly's comparison. */
+const compare = (id: string, op: 'EQ' | 'GT' | 'LT', a: Json, b: Json): Json => ({ type: 'logic_compare', id, fields: { OP: op }, inputs: { A: { block: a }, B: { block: b } } });
+
+/** The variable of a template program (N17 B6): Blockly saves a variable field by the variable's id. */
+const getVariable = (id: string, variableId: string): Json => ({ type: 'variables_get', id, fields: { VAR: { id: variableId } } });
+const setVariable = (id: string, variableId: string, value: Json): Json => ({ type: 'variables_set', id, fields: { VAR: { id: variableId } }, inputs: { VALUE: { block: value } } });
+const plus = (id: string, a: Json, b: Json): Json => ({ type: 'ybc_arith', id, fields: { OP: 'ADD' }, inputs: { A: { block: a }, B: { block: b } } });
+const remainder = (id: string, a: Json, b: Json): Json => ({ type: 'math_modulo', id, inputs: { DIVIDEND: { block: a }, DIVISOR: { block: b } } });
+
+/** "number of presses of <button>" (C-13): the presses since it was last asked. */
+const buttonPresses = (id: string, button: 'A' | 'B'): Json => ({ type: 'ybc_button_presses', id, fields: { BUTTON: button } });
+
+/** "fill the display with <colour>" (C-43, N17 B1), the colour block inside it; `colour` is one of the palette's lower-case codes. */
+const fillDisplay = (id: string, colour: string): Json => ({
+  type: 'ybc_display_set_all',
+  id,
+  inputs: { COLOUR: { block: { type: 'ybc_colour', id: `${id}-colour`, fields: { COLOUR: colour } } } },
+});
+
+/** "scroll the number <value>" in red (no colour block: red, as before N17). */
+const scrollNumber = (id: string, value: Json): Json => ({ type: 'ybc_display_scroll_number', id, inputs: { NUM: { block: value } } });
+
+/** The Advanced board's temperature (C-16), a shake (C-18), a random number (C-40) and the servo (C-27). */
+const temperatureBlock = (id: string): Json => ({ type: 'ybc_temperature', id });
+export const shaken = (id: string): Json => ({ type: 'ybc_gesture_is', id, fields: { GESTURE: 'shake' } });
+const randomNumber = (id: string, from: number, to: number): Json => ({
+  type: 'ybc_random_int',
+  id,
+  inputs: { FROM: { block: numberBlock(`${id}-from`, from) }, TO: { block: numberBlock(`${id}-to`, to) } },
+});
+const turnServo = (id: string, pin: 'P0' | 'P1' | 'P2', angle: number): Json => ({
+  type: 'ybc_servo_write',
+  id,
+  fields: { PIN: pin },
+  inputs: { ANGLE: { block: numberBlock(`${id}-angle`, angle) } },
+});
+
 export const lightBelow = (id: string, threshold: number): Json => ({
   type: 'logic_compare',
   id,
@@ -122,33 +198,91 @@ export const melodyNotes = (prefix: string): Json[] => [
  */
 export const loose = ({ type, id, ...rest }: Json): Json => ({ type, id, x: 230, y: 40, ...orphaned, ...rest });
 
-/** The parts of a Yolo:Bit program: what `on start` and `forever` hold, and the loose blocks beside them. */
-export type YbcProgramParts = { onStart: Json[]; forever: Json[]; loose?: Json[] };
+/** The parts of a Yolo:Bit program: what `on start` and `forever` hold, the loose blocks beside them and its variables. */
+export type YbcProgramParts = { onStart: Json[]; forever: Json[]; loose?: Json[]; variables?: { name: string; id: string }[] };
 
-/** The blocks of a program, as Blockly saves a workspace (no variables: no template uses one). */
+/** The blocks of a program, as Blockly saves a workspace: its variables after the blocks, when it has any. */
 export function ybcProgram(parts: YbcProgramParts): Json {
   return {
     blocks: {
       languageVersion: 0,
       blocks: [hat('stem_on_start', 'on-start', 40, parts.onStart), hat('stem_forever', 'forever', 220, parts.forever), ...(parts.loose ?? [])],
     },
+    ...(parts.variables && parts.variables.length > 0 ? { variables: parts.variables } : {}),
   };
 }
 
-/** A project of one Yolo:Bit-compatible board and `program`, in the shape the schema parses. */
-export function ybcProject(key: YbcTemplateKey, name: string, program: Json): Json {
+type Circuit = { components: Json[]; wires: Json[] };
+
+/** The board alone, where every template puts it. */
+const boardOnly = (): Circuit => ({ components: [{ id: ybcTemplateBoardId, deviceType: 'ybc-board', position: { x: 300, y: 220 } }], wires: [] });
+
+const wire = (id: string, from: [string, string], to: [string, string]): Json => ({
+  id,
+  from: { componentId: from[0], portId: from[1] },
+  to: { componentId: to[0], portId: to[1] },
+});
+
+/** The servo gate's circuit (N17 B6): the board and a servo above its header pins, its signal on P0, powered from 3V3 and GND. */
+const boardAndServo = (): Circuit => ({
+  components: [...boardOnly().components, { id: 'servo-1', deviceType: 'servo', position: { x: 520, y: 100 } }],
+  wires: [
+    wire('wire-servo-signal', ['servo-1', 'signal'], [ybcTemplateBoardId, 'p0']),
+    wire('wire-servo-power', ['servo-1', 'vcc'], [ybcTemplateBoardId, '3v3']),
+    wire('wire-servo-ground', ['servo-1', 'gnd'], [ybcTemplateBoardId, 'gnd']),
+  ],
+});
+
+/** A project of one Yolo:Bit-compatible board (and the parts of `circuit`) and `program`, with the profile the template needs. */
+export function ybcProject(key: YbcTemplateKey, name: string, program: Json, circuit: Circuit = boardOnly()): Json {
   return {
     schemaVersion: 1,
     id: `template-${key}`,
     name,
-    profile: ybcLabProfiles[0],
-    circuit: {
-      components: [{ id: ybcTemplateBoardId, deviceType: 'ybc-board', position: { x: 300, y: 220 } }],
-      wires: [],
-    },
+    profile: ybcTemplateProfiles[key],
+    circuit,
     program: { blocks: program },
   };
 }
+
+/**
+ * N17 B6: the rainbow's variable, the colour it is on: red, green, blue, red… by the remainder of a division by 3. A variable starts
+ * at 0 (the Python declares it so), so "on start" stays empty.
+ */
+const colourVariable = { name: 'mau', id: 'var-mau' };
+
+/** The rainbow without the step it lacks: the colour of the display follows the variable. */
+export const rainbowProgram = (onPress: Json[]): YbcProgramParts => ({
+  onStart: [],
+  forever: [
+    ifBlock('if-pressed', [[compare('pressed', 'GT', buttonPresses('presses-a', 'A'), numberBlock('pressed-zero', 0)), onPress]]),
+    ifBlock(
+      'if-colour',
+      [
+        [compare('is-red', 'EQ', remainder('red-left', getVariable('red-mau', colourVariable.id), numberBlock('red-three', 3)), numberBlock('red-zero', 0)), [fillDisplay('fill-red', '#ff0000')]],
+        [compare('is-green', 'EQ', remainder('green-left', getVariable('green-mau', colourVariable.id), numberBlock('green-three', 3)), numberBlock('green-one', 1)), [fillDisplay('fill-green', '#00ff00')]],
+      ],
+      [fillDisplay('fill-blue', '#0000ff')],
+    ),
+  ],
+  variables: [colourVariable],
+});
+
+/** The step the rainbow lacks: one more for every press of A. */
+export const rainbowStep = (): Json => setVariable('next-colour', colourVariable.id, plus('next-sum', getVariable('next-mau', colourVariable.id), numberBlock('next-one', 1)));
+/** The thermometer's step: the temperature, scrolled. */
+export const thermometerShow = (): Json => scrollNumber('show-temperature', temperatureBlock('temperature'));
+/** The dice's step: a number from 1 to 6, shown (one character stays still). */
+export const diceRoll = (): Json => scrollNumber('show-number', randomNumber('dice', 1, 6));
+/** The servo gate: in the dark (light below 30) what `dark` says, otherwise the servo on P0 turns to 90°. */
+export const servoGateParts = (dark: Json[]): YbcProgramParts => ({
+  onStart: [],
+  forever: [ifBlock('if-dark', [[lightBelow('dark', 30), dark]], [turnServo('gate-open', 'P0', 90)])],
+});
+/** The servo gate's step: the servo on P0 turns to 0°. */
+export const servoGateClose = (): Json => turnServo('gate-close', 'P0', 0);
+/** The servo gate's circuit, for its solution. */
+export const servoGateCircuit = (): Circuit => boardAndServo();
 
 const starters: Readonly<Record<YbcTemplateKey, () => Json>> = {
   // Drag "show image" (the heart) into "on start".
@@ -193,6 +327,21 @@ const starters: Readonly<Record<YbcTemplateKey, () => Json>> = {
       }),
     ),
   'ybc-empty': () => ybcProject('ybc-empty', 'Untitled', ybcProgram({ onStart: [], forever: [] })),
+  // N17 B6. Each press of A turns the whole display to the next colour: drag "set mau to mau + 1" into "if presses of A > 0".
+  'ybc-rainbow': () => ybcProject('ybc-rainbow', 'Cầu vồng', ybcProgram({ ...rainbowProgram([]), loose: [loose(rainbowStep())] })),
+  // B shows the temperature: drag "scroll the number (temperature)" into "if B is pressed".
+  'ybc-thermometer': () =>
+    ybcProject(
+      'ybc-thermometer',
+      'Nhiệt kế',
+      ybcProgram({ onStart: [], forever: [ifBlock('if-b', [[buttonPressed('pressed-b', 'B'), []]])], loose: [loose(thermometerShow())] }),
+    ),
+  // A shake shows a random number from 1 to 6: drag "scroll the number (random 1 to 6)" into "if shaken".
+  'ybc-dice': () =>
+    ybcProject('ybc-dice', 'Xúc xắc', ybcProgram({ onStart: [], forever: [ifBlock('if-shaken', [[shaken('shaken'), []]])], loose: [loose(diceRoll())] })),
+  // Bright: the servo turns to 90°. Drag "servo P0 turn to 0" into "if light level < 30".
+  'ybc-servo-gate': () =>
+    ybcProject('ybc-servo-gate', 'Cổng servo', ybcProgram({ ...servoGateParts([]), loose: [loose(servoGateClose())] }), boardAndServo()),
 };
 
 /** The starter of `key` as plain JSON, new on every call (templates.ts parses it). */
