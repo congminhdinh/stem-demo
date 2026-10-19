@@ -10,6 +10,7 @@ import { capabilitiesOf } from '../core/profiles/board-context';
 import { createBlockPackCatalog } from '../core/program/block-packs';
 import { listBlocks } from '../core/program/block-walk';
 import { compileYbcProgram } from '../core/program/compile-ybc-program';
+import { COLOUR_NAME, scrollNumberType, scrollTextType, setAllType, setPixelType } from '../core/constructs/ybc.display';
 import { canOpenProgram, registerBlocks } from '../ui/blockly/editor-blocks';
 import { createTemplateProject } from './templates';
 import { ybcSolutionDocument, type YbcLessonKey } from './ybc-solutions';
@@ -44,6 +45,31 @@ function savedByEditor(blocks: unknown) {
     workspace.dispose();
   }
 }
+/** Every block of a saved workspace (shadows too), as the JSON holds it. */
+function blockRecords(value: unknown, found: Record<string, unknown>[] = []): Record<string, unknown>[] {
+  if (Array.isArray(value)) {
+    value.forEach((item) => blockRecords(item, found));
+  } else if (value !== null && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    if (typeof record.type === 'string') {
+      found.push(record);
+    }
+    Object.values(record).forEach((item) => blockRecords(item, found));
+  }
+  return found;
+}
+/** The blocks of the display that take a colour (N17 B1). */
+const colouredTypes = new Set([scrollTextType, scrollNumberType, setPixelType, setAllType]);
+/** `blocks` with the colour input of every scroll taken out: the templates as they were before they filled it. */
+const withoutScrollColours = (blocks: unknown): unknown =>
+  JSON.parse(JSON.stringify(blocks), (_key, value: unknown) => {
+    const record = value as { type?: unknown; inputs?: Record<string, unknown> } | null;
+    if (record && (record.type === scrollNumberType || record.type === scrollTextType) && record.inputs && COLOUR_NAME in record.inputs) {
+      const inputs = Object.fromEntries(Object.entries(record.inputs).filter(([name]) => name !== COLOUR_NAME));
+      return { ...record, inputs };
+    }
+    return value;
+  });
 const topBlocks = (document: ProjectDocument) =>
   (document.program.blocks as { blocks: { blocks: { type: string; disabledReasons?: string[] }[] } }).blocks.blocks;
 
@@ -129,6 +155,25 @@ describe('Yolo:Bit templates (N6a S1)', () => {
 
     expect(loose).toHaveLength(1);
     expect(loose[0]?.disabledReasons).toEqual(['ORPHANED_BLOCK']);
+  });
+
+  // A colour socket left empty looks broken in the editor (an empty purple socket), so every one holds a colour.
+  it.each(lessonKeys)('%s and its solution leave no colour socket empty', (key) => {
+    for (const document of [createTemplateProject(key), ybcSolutionDocument(key)]) {
+      for (const block of blockRecords(document.program.blocks).filter((record) => colouredTypes.has(String(record.type)))) {
+        const colour = (block.inputs as Record<string, { block?: { type: string }; shadow?: { type: string } }> | undefined)?.[COLOUR_NAME];
+        expect((colour?.block ?? colour?.shadow)?.type, `${key}: ${String(block.id)}`).toBe('ybc_colour');
+      }
+    }
+  });
+
+  it.each(['ybc-thermometer', 'ybc-dice'] as const)('%s scrolls in red with the colour block: the program and its Python are as they were without it', (key) => {
+    for (const document of [createTemplateProject(key), ybcSolutionDocument(key)]) {
+      const bare: ProjectDocument = { ...document, program: { blocks: withoutScrollColours(document.program.blocks) } };
+      expect(JSON.stringify(bare.program.blocks)).not.toBe(JSON.stringify(document.program.blocks));
+      expect(compile(document)).toEqual(compile(bare));
+      expect(pythonOf(document)).toEqual(pythonOf(bare));
+    }
   });
 
   it('ybc-empty holds only the two hats', () => {

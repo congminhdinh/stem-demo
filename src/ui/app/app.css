@@ -34,6 +34,7 @@
   --stem-color-pressed-border: #0c6b58;
   --stem-color-overlay: rgba(255, 255, 255, 0.95);
   --stem-shadow-pressed: rgba(0, 0, 0, 0.4);
+  --stem-shadow-scroll: rgba(15, 23, 42, 0.18);
 
   color-scheme: light;
   font-family: var(--stem-font);
@@ -202,6 +203,17 @@ body {
   opacity: 0.5;
 }
 
+/* A lab's palette is compact: a lesson's frame is short, and the circuit's canvas needs the height. */
+.app-shell-lab .palette {
+  gap: 4px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.app-shell-lab .palette button {
+  padding: 2px 8px;
+}
+
 .circuit-canvas-area {
   position: relative;
   min-height: 0;
@@ -265,31 +277,69 @@ body {
   pointer-events: none;
 }
 
-/* A Yolo:Bit-compatible project shows what its board shows and takes under the circuit (YB plan §19). */
+/*
+ * A Yolo:Bit-compatible project shows what its board shows and takes under the circuit (YB plan §19). The circuit's canvas never
+ * gets less than --board-canvas-min of height: in a short frame (a lesson's, about 550–620 px) the board panel takes what is left
+ * and scrolls on its own, so the board stays in sight while its controls are used. In a tall frame the panel takes what it needs
+ * and the circuit the rest.
+ */
 .canvas-region-with-board-panel {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  --board-canvas-min: 260px;
+  display: flex;
+  flex-direction: column;
 }
 
-/* The box the circuit editor fills, as the whole region is in a generic project. */
+/* The box the circuit editor fills. Its height is at least the editor's: the palette plus the canvas's minimum. */
 .circuit-stage {
   position: relative;
-  min-height: 0;
+  display: grid;
+  flex: 1 1 0;
 }
 
+/* In the stage the editor is in flow, so the canvas's minimum counts in the stage's height (elsewhere it fills its region). */
+.circuit-stage > .circuit-editor {
+  position: relative;
+  inset: auto;
+  grid-template-rows: auto minmax(var(--board-canvas-min), 1fr);
+}
+
+/*
+ * The display as text on the left, the controls and the sound beside it. A shadow at the top or bottom edge says there is more to
+ * scroll to (the backgrounds that scroll with the content cover it at either end).
+ */
 .board-panel {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 16px;
-  padding: 8px 12px;
+  display: grid;
+  flex: 0 1 auto;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: start;
+  align-items: start;
+  gap: 6px 12px;
+  min-height: 0;
+  padding: 6px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border-top: 1px solid var(--stem-color-border);
+  background:
+    linear-gradient(var(--stem-color-surface) 40%, transparent) top / 100% 24px no-repeat local,
+    linear-gradient(transparent, var(--stem-color-surface) 60%) bottom / 100% 24px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, var(--stem-shadow-scroll), transparent) top / 100% 10px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, var(--stem-shadow-scroll), transparent) bottom / 100% 10px no-repeat scroll,
+    var(--stem-color-surface);
   font-size: 13px;
 }
 
+.board-panel > .display-text {
+  grid-row: span 2;
+}
+
+.board-panel > .runtime-controls,
+.board-panel > .sound-indicator {
+  grid-column: 2;
+}
+
 .board-panel button {
-  min-height: 36px;
-  padding: 4px 14px;
+  min-height: 32px;
+  padding: 4px 12px;
   font: inherit;
   border: 1px solid var(--stem-color-border-strong);
   border-radius: var(--stem-radius);
@@ -322,14 +372,25 @@ body {
 
 .runtime-controls {
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* A row of controls of one kind: the buttons, the sliders (two side by side when there is room), the tilt pad. */
+.runtime-controls-row {
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 16px;
 }
 
+.runtime-controls-buttons {
+  gap: 8px;
+}
+
 /* No panning or zooming on a button that is held; no text selection or callout on a long press. */
 .control-hold {
-  min-width: 88px;
+  min-width: 64px;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -346,31 +407,42 @@ body {
 
 .control-slider {
   display: flex;
+  flex: 1 1 250px;
   align-items: center;
   gap: 8px;
+  max-width: 360px;
 }
 
+/* One width for the labels, so the sliders line up when they stack. */
+.control-slider label {
+  min-width: 6.5em;
+  white-space: nowrap;
+}
+
+/* A width of its own (not the browser's), so two sliders sit side by side where there is room; it grows into the room there is. */
 .control-slider input[type='range'] {
-  width: 140px;
+  flex: 1 1 60px;
+  width: 60px;
+  margin: 0;
 }
 
 .control-slider-value {
-  min-width: 3ch;
-  text-align: right;
+  min-width: 3.5em;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
-/* N17 B2: the accelerometer. A small square pad with a dot (where the board tips down to), the gesture it makes, and two buttons. */
+/* N17 B2: the accelerometer. A small square pad with a dot (where the board tips down to); beside it the gesture it makes, two buttons and the hint. */
 .control-tilt {
   display: grid;
-  grid-template-columns: auto auto;
+  flex: 1 1 100%;
+  grid-template-columns: auto auto minmax(0, 1fr);
   grid-template-areas:
-    'label label'
-    'pad gesture'
-    'pad actions'
-    'hint hint';
+    'pad label gesture'
+    'pad actions actions'
+    'pad hint hint';
   align-items: center;
-  gap: 4px 12px;
+  gap: 4px 10px;
 }
 
 .control-tilt-label {
@@ -379,9 +451,10 @@ body {
 
 .tilt-pad {
   grid-area: pad;
+  align-self: start;
   position: relative;
-  width: 84px;
-  height: 84px;
+  width: 72px;
+  height: 72px;
   border: 1px solid var(--stem-color-border-strong);
   border-radius: var(--stem-radius);
   background: var(--stem-color-surface-muted);
@@ -426,7 +499,6 @@ body {
 
 .control-tilt-gesture {
   grid-area: gesture;
-  min-width: 16ch;
   font-weight: 600;
 }
 
@@ -442,9 +514,10 @@ body {
 
 .control-tilt-hint {
   grid-area: hint;
-  max-width: 34ch;
+  max-width: 52ch;
   color: var(--stem-color-text-muted);
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .board-panel .control-tilt-actions button[aria-pressed='true'] {

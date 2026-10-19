@@ -5,6 +5,7 @@ import type { ComponentInput } from '../../core/simulation/simulate-circuit';
 import { isMessageKey } from '../i18n/messages';
 import { useText } from '../i18n/text';
 import {
+  controlRowsOf,
   controlsOf,
   flatTilt,
   padPointOfTilt,
@@ -68,24 +69,30 @@ export function RuntimeControls({ boardId, definition, controls, active, onInput
   if (specs.length === 0) {
     return null;
   }
+  const control = (spec: (typeof specs)[number]) => {
+    if (spec.kind === 'hold-both') {
+      const both = scripted ? spec.componentIds.every((id) => Object.hasOwn(scripted, id) && scripted[id]?.kind === 'hold' && scripted[id].closed) : undefined;
+      return <HoldButton key={spec.partId} spec={spec} componentIds={spec.componentIds} active={active && !scripted} holds={holds} scripted={both} />;
+    }
+    const shown = scripted ? { input: Object.hasOwn(scripted, spec.componentId) ? scripted[spec.componentId] : undefined } : undefined;
+    if (spec.kind === 'hold') {
+      const held = shown ? shown.input?.kind === 'hold' && shown.input.closed : undefined;
+      return <HoldButton key={spec.partId} spec={spec} componentIds={[spec.componentId]} active={active && !shown} holds={holds} scripted={held} />;
+    }
+    if (spec.kind === 'tilt') {
+      const shakes = scriptedEvents && Object.hasOwn(scriptedEvents, spec.componentId) ? (scriptedEvents[spec.componentId] ?? 0) : 0;
+      return <TiltControl key={spec.partId} spec={spec} active={active && !shown} onInput={onInput} scripted={shown} scriptedShakes={shakes} />;
+    }
+    return <RangeControl key={spec.partId} spec={spec} active={active && !shown} onInput={onInput} scripted={shown} />;
+  };
+  // In rows (the buttons, the sliders, the tilt pad), so the panel stays compact under the circuit in a lesson's short frame.
   return (
     <div className="runtime-controls" role="group" aria-label={t('controls.label')} data-testid="runtime-controls">
-      {specs.map((spec) => {
-        if (spec.kind === 'hold-both') {
-          const both = scripted ? spec.componentIds.every((id) => Object.hasOwn(scripted, id) && scripted[id]?.kind === 'hold' && scripted[id].closed) : undefined;
-          return <HoldButton key={spec.partId} spec={spec} componentIds={spec.componentIds} active={active && !scripted} holds={holds} scripted={both} />;
-        }
-        const shown = scripted ? { input: Object.hasOwn(scripted, spec.componentId) ? scripted[spec.componentId] : undefined } : undefined;
-        if (spec.kind === 'hold') {
-          const held = shown ? shown.input?.kind === 'hold' && shown.input.closed : undefined;
-          return <HoldButton key={spec.partId} spec={spec} componentIds={[spec.componentId]} active={active && !shown} holds={holds} scripted={held} />;
-        }
-        if (spec.kind === 'tilt') {
-          const shakes = scriptedEvents && Object.hasOwn(scriptedEvents, spec.componentId) ? (scriptedEvents[spec.componentId] ?? 0) : 0;
-          return <TiltControl key={spec.partId} spec={spec} active={active && !shown} onInput={onInput} scripted={shown} scriptedShakes={shakes} />;
-        }
-        return <RangeControl key={spec.partId} spec={spec} active={active && !shown} onInput={onInput} scripted={shown} />;
-      })}
+      {controlRowsOf(specs).map((row) => (
+        <div key={row.specs[0]?.partId} className={`runtime-controls-row runtime-controls-${row.kind}`}>
+          {row.specs.map(control)}
+        </div>
+      ))}
     </div>
   );
 }

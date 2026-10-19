@@ -38,7 +38,7 @@ test('shows the Python of the program, with only the claims that are true', asyn
       '',
     ].join('\n'),
   );
-  await expect(page.getByTestId('python-claim')).toHaveText('Generated for Yolo:Bit MicroPython. MicroPython syntax validation: pending. Physical-board verification: pending.');
+  await expect(page.getByTestId('python-claim')).toHaveText('MicroPython for the yolobit library of Yolo:Bit · not yet run on a physical board');
 });
 
 test('shows loops, count up with its bounds taken once, and text', async ({ page }) => {

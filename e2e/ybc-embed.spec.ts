@@ -197,6 +197,52 @@ test.describe('a Yolo:Bit lab in a lesson (stem-lab/v1)', () => {
   });
 });
 
+// The lab layout fix (2026-10-20): in a lesson's frame of 1440 × 620 the Advanced board's runtime controls (N17) left the board
+// about 10 px tall. The board keeps at least 240 px and is drawn whole; the controls scroll on their own; nothing else scrolls.
+test.describe('a Yolo:Bit lab with every runtime control in a lesson frame of 1440 × 620', () => {
+  test.use({ viewport: { width: 1480, height: 720 } });
+
+  test('keeps the board in sight, at least 240 px tall, with the toolbar, and scrolls only the controls', async ({ page, baseURL }) => {
+    const errors = collectErrors(page);
+    const frame = await openInLesson(page, labUrl(baseURL, `lab=yolobit&template=ybc-thermometer&origin=${encodeURIComponent(lessonOrigin)}&profile=ybc-advanced`));
+    await page.locator('iframe').evaluate((iframe: HTMLIFrameElement) => {
+      iframe.width = '1440';
+      iframe.height = '620';
+    });
+    await expect.poll(() => frame.evaluate(() => [window.innerWidth, window.innerHeight])).toEqual([1440, 620]);
+
+    const frameBox = await page.locator('iframe').boundingBox();
+    const canvas = frame.getByTestId('circuit-canvas');
+    await expect.poll(async () => (await canvas.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(240);
+    const canvasBox = await canvas.boundingBox();
+    if (!frameBox || !canvasBox) {
+      throw new Error('The lab or its canvas is not on screen');
+    }
+    expect(canvasBox.y + canvasBox.height).toBeLessThanOrEqual(frameBox.y + frameBox.height);
+    // The board is fitted into the canvas: every port of it is inside.
+    const { ports, viewport } = await frame.evaluate(() => window.__stem?.getCanvasState() ?? { ports: [], viewport: { scale: 1, x: 0, y: 0 } });
+    expect(ports.length).toBeGreaterThan(0);
+    for (const port of ports) {
+      const x = viewport.x + port.x * viewport.scale;
+      const y = viewport.y + port.y * viewport.scale;
+      expect(x >= 0 && x <= canvasBox.width && y >= 0 && y <= canvasBox.height, `${port.componentId}/${port.portId}`).toBe(true);
+    }
+
+    for (const name of ['Chạy', 'Dừng', 'Kiểm tra', 'Đặt lại']) {
+      await expect(frame.getByRole('button', { name, exact: true })).toBeInViewport();
+    }
+    await expect(frame.getByTestId('challenge-panel')).toBeInViewport();
+    await expect(frame.getByTestId('control-temperature')).toBeInViewport();
+    expect(await frame.evaluate(() => document.scrollingElement !== null && document.scrollingElement.scrollHeight > window.innerHeight)).toBe(false);
+    // The last control is reached by scrolling the board panel; the board stays where it is.
+    const panel = frame.getByTestId('board-panel');
+    await panel.evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
+    await expect(frame.getByRole('button', { name: 'Tắt âm thanh' })).toBeInViewport();
+    expect((await canvas.boundingBox())?.height).toBe(canvasBox.height);
+    expect(errors).toEqual([]);
+  });
+});
+
 test.describe('a lab opened on its own (a new tab)', () => {
   for (const key of ['ybc-heart', 'ybc-button-ab', 'ybc-night-light', 'ybc-melody'] as const satisfies readonly YbcLessonKey[]) {
     test(`checks ${key}: the starter does not pass, the finished program does`, async ({ page }) => {

@@ -80,6 +80,30 @@ export function controlsOf(boardId: string, definition: DeviceDefinition, profil
   return specs;
 }
 
+/** Which row of the panel a control sits in: the buttons share one, the sliders another, the tilt pad has its own. */
+export type ControlRowKind = 'buttons' | 'sliders' | 'tilt';
+export type ControlRow = { kind: ControlRowKind; specs: ControlSpec[] };
+
+const rowKindOf = (spec: ControlSpec): ControlRowKind => (spec.kind === 'hold' || spec.kind === 'hold-both' ? 'buttons' : spec.kind === 'slider' ? 'sliders' : 'tilt');
+
+/**
+ * The controls in rows (the lab layout fix of N17): each run of controls of one kind is a row, in the order given, so the panel
+ * stays compact under the circuit and the order of the controls (and of Tab) is the order of `controlsOf`.
+ */
+export function controlRowsOf(specs: readonly ControlSpec[]): ControlRow[] {
+  const rows: ControlRow[] = [];
+  for (const spec of specs) {
+    const kind = rowKindOf(spec);
+    const last = rows.at(-1);
+    if (last && last.kind === kind && kind !== 'tilt') {
+      last.specs.push(spec);
+    } else {
+      rows.push({ kind, specs: [spec] });
+    }
+  }
+  return rows;
+}
+
 /** The integer a range input's value says, kept inside the range; null when it is not a number. */
 export function sliderValueOf(raw: string, range: SliderRange): number | null {
   const value = Math.round(Number(raw));

@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { ybcSolutionDocument } from '../src/samples/ybc-solutions';
 import { canvasState, worldToPage } from './helpers';
 
 // N8s: how a lab launch (`lab=`) lays itself out in the frame of a lesson page: the program the wider part, a
@@ -191,6 +192,84 @@ test.describe('a frame that changes size (a tablet turned)', () => {
     await expect(page.getByTestId('circuit-canvas')).toBeVisible();
     await expect(workspaceBlock(page, 'hiển thị hình')).toBeVisible();
     expect(await pageScrolls(page)).toBe(false);
+  });
+});
+
+/*
+ * The lab layout fix (2026-10-20): the runtime controls of N17 (A, B, A+B, the light and temperature sliders, the tilt pad, the
+ * sound switch) under the circuit took the whole height of a lesson's frame and left the board about 10 px tall. The canvas keeps
+ * at least 260 px (the board fitted into it); the board panel takes what is left and scrolls on its own.
+ */
+const shortFrames = [
+  { width: 1440, height: 620 },
+  { width: 1280, height: 600 },
+  { width: 1024, height: 700 },
+  // What the LMS gives the lab of the lesson "Đèn ngủ thông minh" in a 1440 × 900 window.
+  { width: 1022, height: 581 },
+];
+
+/** The whole board is drawn inside its canvas: every port of the circuit, at the fitted scale. */
+async function expectBoardInCanvas(page: Page) {
+  const { box, at } = await worldToPage(page);
+  for (const port of (await canvasState(page)).ports) {
+    expect(inside({ ...at(port.x, port.y), width: 0, height: 0 }, box), `${port.componentId}/${port.portId}`).toBe(true);
+  }
+}
+
+for (const size of shortFrames) {
+  test.describe(`a Yolo:Bit lab with every runtime control in a short frame (${size.width} × ${size.height})`, () => {
+    test.use({ viewport: size });
+
+    test('keeps the board at least 240 px tall and whole, the goals and the toolbar in sight, and scrolls the controls on their own', async ({ page }) => {
+      await openLab(page, 'lab=yolobit&template=ybc-thermometer&profile=ybc-advanced');
+      const frame = { x: 0, y: 0, ...size };
+      const canvas = await boxOf(page.getByTestId('circuit-canvas'));
+      expect(canvas.height).toBeGreaterThanOrEqual(240);
+      expect(inside(canvas, frame)).toBe(true);
+      await expectBoardInCanvas(page);
+
+      for (const name of ['Chạy', 'Dừng', 'Kiểm tra', 'Đặt lại']) {
+        expect(inside(await boxOf(page.getByRole('button', { name, exact: true })), frame), name).toBe(true);
+      }
+      expect(inside(await boxOf(page.getByTestId('challenge-panel')), frame)).toBe(true);
+
+      // The panel is inside the frame and the page never scrolls; the last control is reached by scrolling the panel alone.
+      const panel = page.getByTestId('board-panel');
+      expect(inside(await boxOf(panel), frame)).toBe(true);
+      expect(await pageScrolls(page)).toBe(false);
+      const sound = page.getByRole('button', { name: 'Tắt âm thanh' });
+      await sound.scrollIntoViewIfNeeded();
+      expect(inside(await boxOf(sound), await boxOf(panel))).toBe(true);
+      expect(await pageScrolls(page)).toBe(false);
+      expect((await boxOf(page.getByTestId('circuit-canvas'))).height).toBe(canvas.height);
+
+      // Blockly was resized to its panel (svgResize), and the blocks are in sight.
+      const blocks = await boxOf(page.getByTestId('blockly-panel'));
+      const svg = await boxOf(page.getByTestId('blockly-panel').locator('svg.blocklySvg').first());
+      expect(Math.abs(svg.width - blocks.width)).toBeLessThanOrEqual(1);
+      expect(Math.abs(svg.height - blocks.height)).toBeLessThanOrEqual(1);
+      await expect(workspaceBlock(page, 'lặp mãi mãi')).toBeVisible();
+    });
+  });
+}
+
+test.describe('the night light in the frame the LMS gives it (1022 × 581)', () => {
+  test.use({ viewport: { width: 1022, height: 581 } });
+
+  test('runs with the light slider in sight under a board that keeps its size, and lights the display in the dark', async ({ page }) => {
+    await openLab(page, 'lab=yolobit&template=ybc-night-light&profile=ybc-advanced');
+    await page.evaluate((document) => window.__stem?.loadProject(document), { ...ybcSolutionDocument('ybc-night-light'), profile: 'ybc-advanced' });
+    const before = await boxOf(page.getByTestId('circuit-canvas'));
+    await page.getByRole('button', { name: 'Chạy', exact: true }).click();
+    const light = page.getByTestId('control-light');
+    await expect(light).toBeEnabled();
+    expect(inside(await boxOf(light), await boxOf(page.getByTestId('board-panel')))).toBe(true);
+    await light.fill('10');
+    await expect.poll(async () => (await canvasState(page)).components.find((component) => component.deviceType === 'ybc-board')?.display?.every((cell) => cell !== null)).toBe(true);
+    expect(await boxOf(page.getByTestId('circuit-canvas'))).toEqual(before);
+    expect(before.height).toBeGreaterThanOrEqual(240);
+    await expectBoardInCanvas(page);
+    await page.getByRole('button', { name: 'Dừng', exact: true }).click();
   });
 });
 

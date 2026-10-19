@@ -22,9 +22,12 @@ describe('UI messages (N6a S5)', () => {
 
   it('keeps the English of the standalone editor as it was', () => {
     expect(translate('en', 'run.status.finished')).toBe('Program finished — board powered');
-    expect(translate('en', 'python.claim')).toBe(
-      'Generated for Yolo:Bit MicroPython. MicroPython syntax validation: pending. Physical-board verification: pending.',
-    );
+  });
+
+  // Only what is true (YB plan §13.7): code for the yolobit library, not yet run on a real board; no claim of a syntax check.
+  it('says what the Python is for and that it has not run on a physical board, in both languages', () => {
+    expect(translate('en', 'python.claim')).toBe('MicroPython for the yolobit library of Yolo:Bit · not yet run on a physical board');
+    expect(translate('vi', 'python.claim')).toBe('Mã MicroPython theo thư viện yolobit của Yolo:Bit · chưa chạy thử trên bo mạch thật');
   });
 
   it.each(['device.led', 'control.light'])('knows %s', (key) => {

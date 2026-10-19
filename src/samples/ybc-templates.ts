@@ -156,8 +156,15 @@ const fillDisplay = (id: string, colour: string): Json => ({
   inputs: { COLOUR: { block: { type: 'ybc_colour', id: `${id}-colour`, fields: { COLOUR: colour } } } },
 });
 
-/** "scroll the number <value>" in red (no colour block: red, as before N17). */
-const scrollNumber = (id: string, value: Json): Json => ({ type: 'ybc_display_scroll_number', id, inputs: { NUM: { block: value } } });
+/**
+ * "scroll the number <value>" in red. The colour input holds a red colour block as a shadow, as the toolbox gives it, so the block
+ * never shows an empty socket; red is the colour without one too, so the program and its Python are the same as before.
+ */
+const scrollNumber = (id: string, value: Json): Json => ({
+  type: 'ybc_display_scroll_number',
+  id,
+  inputs: { NUM: { block: value }, COLOUR: { shadow: { type: 'ybc_colour', id: `${id}-colour`, fields: { COLOUR: '#ff0000' } } } },
+});
 
 /** The Advanced board's temperature (C-16), a shake (C-18), a random number (C-40) and the servo (C-27). */
 const temperatureBlock = (id: string): Json => ({ type: 'ybc_temperature', id });

@@ -5,7 +5,7 @@ import { productionProfiles } from '../../core/profiles';
 import { accelerationOf, gestureOf } from '../../core/simulation/peripherals/accelerometer';
 import { LIGHT_LEVEL_INITIAL, LIGHT_LEVEL_MAX, LIGHT_LEVEL_MIN } from '../../core/simulation/peripherals/light';
 import {
-  controlsOf, flatTilt, padPointOfTilt, sliderValueOf, TILT_KEY_STEP_MG, tiltAfterKey, tiltInputOf, tiltOfPadPoint, tiltStateOf,
+  controlRowsOf, controlsOf, flatTilt, padPointOfTilt, sliderValueOf, TILT_KEY_STEP_MG, tiltAfterKey, tiltInputOf, tiltOfPadPoint, tiltStateOf,
 } from './controls-model';
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
@@ -108,6 +108,47 @@ describe('controlsOf', () => {
       'button-ab',
       'light',
     ]);
+  });
+});
+
+// The lab layout fix (2026-10-20): the panel under the circuit shows its controls in rows, so it stays compact in a lesson's frame.
+describe('controlRowsOf', () => {
+  const rowsOf = (specs: ReturnType<typeof controlsOf>) => controlRowsOf(specs).map((row) => [row.kind, row.specs.map((spec) => spec.partId)]);
+
+  it('puts the buttons in one row, the sliders in the next and the tilt pad in its own (ybc-advanced)', () => {
+    expect(rowsOf(controlsOf('b', ybcBoard, profileControls('ybc-advanced')))).toEqual([
+      ['buttons', ['button-a', 'button-b', 'button-ab']],
+      ['sliders', ['light', 'temperature']],
+      ['tilt', ['accelerometer']],
+    ]);
+  });
+
+  it('gives ybc-basic a row of buttons and a row with the light slider', () => {
+    expect(rowsOf(controlsOf('b', ybcBoard, profileControls('ybc-basic')))).toEqual([
+      ['buttons', ['button-a', 'button-b', 'button-ab']],
+      ['sliders', ['light']],
+    ]);
+  });
+
+  it('keeps the order it is given: a run of one kind is a row, and controls of one kind apart are rows apart', () => {
+    const board = withOnboard([
+      { id: 'light', model: 'light-sensor', label: 'Light' },
+      { id: 'left', model: 'button', label: 'L' },
+      { id: 'tilt', model: 'accelerometer', label: 'Tilt' },
+      { id: 'heat', model: 'temperature-sensor', label: 'Heat' },
+    ]);
+    const specs = controlsOf('b', board, ['light', 'left', 'tilt', 'heat']);
+    expect(rowsOf(specs)).toEqual([
+      ['sliders', ['light']],
+      ['buttons', ['left']],
+      ['tilt', ['tilt']],
+      ['sliders', ['heat']],
+    ]);
+    expect(controlRowsOf(specs).flatMap((row) => row.specs)).toEqual(specs);
+  });
+
+  it('has no rows without controls', () => {
+    expect(controlRowsOf([])).toEqual([]);
   });
 });
 
