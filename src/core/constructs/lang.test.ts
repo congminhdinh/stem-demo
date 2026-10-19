@@ -19,14 +19,14 @@ const packs = createBlockPackCatalog(createDeviceRegistry(localDeviceDefinitions
 const profiles = ['ybc-basic', 'ybc-advanced'].map((id) => productionProfiles.get(id));
 
 /**
- * Rows that must stay out of every profile until their own phase: random, elapsed time, events, PWM and servo (YB-7), text
- * variables and functions. The onboard hardware of YB-3 (display C-06…C-09, buttons C-12 and C-13, light C-15, sound C-50 and
+ * Rows that must stay out of every profile until their own phase: events, PWM and servo (YB-7), text variables and functions.
+ * N17 B4 opened random (C-40) and the running time (C-19) as language rows of both profiles. The onboard hardware of YB-3 (display C-06…C-09, buttons C-12 and C-13, light C-15, sound C-50 and
  * C-51), the RGB display of N17 B1 (C-05, C-10, C-42, C-43), the sensors of N17 B2 (C-16, C-17, C-18) and the melodies, the tone
  * and stop of N17 B3 (C-20, C-21, C-22), both Advanced only, are shown and are tested in ybc.test.ts; C-23, C-24 and C-25 are the
  * header pins of YB-4.
  */
 const notYet = [
-  'C-40', 'C-19', 'C-14', 'C-26',
+  'C-14', 'C-26',
   'C-27',
   'C-57', 'C-58', 'C-59',
 ];
@@ -105,7 +105,7 @@ describe('YB-2a language constructs', () => {
     }
   });
 
-  it('shows no random, hardware, change-by, function, until-loop, for-loop or generic block', () => {
+  it('shows no Blockly random (N17 B4: the dialect has its own), hardware, change-by, function, until-loop, for-loop or generic block', () => {
     const forbidden = [
       'controls_whileUntil', 'controls_for', 'controls_forEach', 'controls_flow_statements', 'stem_wait', 'math_random_int', 'math_change',
       'stem_digital_write', 'stem_digital_read', 'procedures_defnoreturn', 'math_single', 'math_round',
@@ -145,7 +145,7 @@ describe('YB-2a language constructs', () => {
     });
 
     it('a profile cannot list an excluded or deferred row', () => {
-      for (const id of ['C-40', 'C-19', 'C-26', 'C-14']) {
+      for (const id of ['C-26', 'C-14', 'C-47']) {
         expect(profileConstructViolations('ybc-basic', [id], contract), id).not.toEqual([]);
       }
     });

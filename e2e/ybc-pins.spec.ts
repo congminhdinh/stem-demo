@@ -119,8 +119,19 @@ test('offers the parts of the pins in the palette and the three blocks in the Pi
   await expect(panel.locator('.blocklyFlyout .blocklyText', { hasText: /pwm|servo|pulse|analog write/i })).toHaveCount(0);
 });
 
-test('a pin the circuit leaves open stops the program at that block, and says so in words', async ({ page }) => {
-  await openProject(page, project(program([print(num(1)), print(pinRead('P1'))], []), { components: [board], wires: [] }));
+test('a pin the circuit leaves open reads off (0) on/off, says so once as a warning, and the program goes on (N17 B4)', async ({ page }) => {
+  await openProject(page, project(program([print(num(1)), print(pinRead('P1')), print(pinRead('P1')), print(num(2))]), { components: [board], wires: [] }));
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect(status(page)).toHaveText('Program finished — board powered');
+  await expect(page.getByTestId('console-lines')).toHaveText('1\nFalse\nFalse\n2');
+  const messages = page.getByTestId('run-messages').locator('li');
+  await expect(messages).toHaveText(['Warning: Pin P1 is floating, so it reads 0. Connect the button to 3V3 or GND.']);
+  await page.getByRole('button', { name: 'Stop' }).click();
+  await expect(status(page)).toHaveText('Idle');
+});
+
+test('a pin the circuit leaves open still stops an analog read at that block, and says so in words', async ({ page }) => {
+  await openProject(page, project(program([print(num(1)), print(pinAnalog('P1'))], []), { components: [board], wires: [] }));
   await page.getByRole('button', { name: 'Run' }).click();
   await expect(status(page)).toHaveText('Error');
   await expect(page.getByTestId('run-messages')).toContainText('Pin P1 is not connected to anything, so it cannot be read.');

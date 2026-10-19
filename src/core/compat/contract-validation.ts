@@ -167,21 +167,21 @@ export function entrySemanticProblems(name: string, field: OfField, entry: Field
 // --- Exposure eligibility gate (EG, plan §6.2) -------------------------------------------
 
 /**
- * What a field may rest on to count: UNKNOWN and INFERRED never do, except an UNKNOWN field the row names as UNVERIFIED by the
- * owner's N17 decision (`unverifiedFields`): that one is let through, and only that one.
+ * What a field may rest on to count: UNKNOWN and INFERRED never do, except a field the row (or the module, N17 B4) names as
+ * UNVERIFIED by the owner's N17 decision (`unverifiedFields`): that one is let through, and only that one.
  */
 function fieldProblems(
   name: string,
   field: OfField,
   entry: FieldEntry,
-  owner: { python?: ConstructContract['python']; domain?: Domain; preamble?: readonly string[]; unverifiedFields?: ConstructContract['unverifiedFields'] },
+  owner: { python?: ConstructContract['python']; domain?: Domain; preamble?: readonly string[]; unverifiedFields?: Readonly<Partial<Record<OfField, string>>> },
   contract: YolobitContract,
   rv1: Rv1Mode,
 ): string[] {
   switch (entry.label) {
     case 'INFERRED':
     case 'UNKNOWN':
-      if (entry.label === 'UNKNOWN' && owner.unverifiedFields !== undefined && Object.hasOwn(owner.unverifiedFields, field)) {
+      if (owner.unverifiedFields !== undefined && Object.hasOwn(owner.unverifiedFields, field)) {
         return [];
       }
       return [`field ${name} is ${entry.label}: ${entry.note}`];
@@ -211,7 +211,9 @@ export function moduleViolations(module: ModuleContract, contract: YolobitContra
     problems.push(`module ${module.id} is ${module.eligibility}`);
   }
   for (const field of ['import', 'module'] as const) {
-    problems.push(...fieldProblems(`${module.id}.${field}`, field, module.fields[field], { preamble: module.preamble }, contract, rv1));
+    problems.push(
+      ...fieldProblems(`${module.id}.${field}`, field, module.fields[field], { preamble: module.preamble, ...(module.unverifiedFields ? { unverifiedFields: module.unverifiedFields } : {}) }, contract, rv1),
+    );
   }
   return problems;
 }
@@ -334,6 +336,15 @@ export function validateContract(contract: YolobitContract): string[] {
     if ((module.eligibility === 'EXCLUDED' || module.eligibility === 'DEFERRED') && !module.exclusionReason) {
       problems.push(`${module.id} is ${module.eligibility} without a reason`);
     }
+    // As for a construct: the owner's list names only fields no evidence establishes, and only on a module that is relied on.
+    for (const field of Object.keys(module.unverifiedFields ?? {}) as ('import' | 'module')[]) {
+      const label = module.fields[field]?.label;
+      if (module.eligibility !== 'ELIGIBLE') {
+        problems.push(`${module.id} is ${module.eligibility} but has UNVERIFIED fields`);
+      } else if (label !== 'UNKNOWN' && label !== 'INFERRED') {
+        problems.push(`${module.id} names ${field} as UNVERIFIED, but it is ${label ?? 'not a field'}`);
+      }
+    }
   }
 
   for (const construct of contract.constructs) {
@@ -353,14 +364,15 @@ export function validateContract(contract: YolobitContract): string[] {
       const unverified = construct.unverifiedFields ?? {};
       for (const field of ofFields) {
         const label = construct.fields[field].label;
-        if ((label === 'INFERRED' || label === 'UNKNOWN') && !(label === 'UNKNOWN' && Object.hasOwn(unverified, field))) {
+        if ((label === 'INFERRED' || label === 'UNKNOWN') && !Object.hasOwn(unverified, field)) {
           problems.push(`${construct.id}.${field} is ${label} on an ${construct.eligibility} construct (EG)`);
         }
       }
-      // The owner's N17 list names only fields that no evidence establishes: a field with evidence is not UNVERIFIED.
+      // The owner's N17 list names only fields that no evidence establishes (UNKNOWN, or INFERRED since N17 B4): a field with
+      // evidence is not UNVERIFIED.
       for (const field of Object.keys(unverified) as OfField[]) {
         const label = construct.fields[field]?.label;
-        if (label !== 'UNKNOWN') {
+        if (label !== 'UNKNOWN' && label !== 'INFERRED') {
           problems.push(`${construct.id} names ${field} as UNVERIFIED, but it is ${label ?? 'not a field'}`);
         }
       }

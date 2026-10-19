@@ -29,6 +29,9 @@
 //
 // N17 B3 adds the rest of the buzzer for the Advanced board: a built-in melody (its name and whether the program waits for it
 // are an operand, from the block's fields), a tone whose Hz and ms are expressions, and stop.
+//
+// N17 B4 adds the running time (a read of the run's clock) and a random number, whose two ends are expressions, evaluated in
+// their order, each once. "A+B is pressed" needs no node of its own: the compiler writes the `and` of the two button reads.
 
 import type { HexColour } from '../capabilities/frame';
 import type { BuiltinImageName } from '../constructs/ybc.images';
@@ -154,6 +157,7 @@ export type Expr = { type: Type; blockId: string } & (
   | { kind: 'join'; parts: Expr[] }
   | ReadExpr
   | PinReadExpr
+  | RandomExpr
 );
 
 /**
@@ -172,7 +176,15 @@ export type ReadExpr =
   /** C-17 (N17 B2): the acceleration along the axis, whole mg in −2048..2048. */
   | { kind: 'read'; op: 'motion.acceleration'; operand: AxisOperand }
   /** C-18 (N17 B2): true while the board makes the gesture (shake: for 1 s after it). */
-  | { kind: 'read'; op: 'motion.isGesture'; operand: GestureOperand };
+  | { kind: 'read'; op: 'motion.isGesture'; operand: GestureOperand }
+  /** C-19 (N17 B4): the whole milliseconds since the program started, on the run's clock. */
+  | { kind: 'read'; op: 'time.runningTime' };
+
+/**
+ * C-40 (N17 B4): a whole number from one end to the other, both included. The ends are evaluated in their order, each once, and
+ * checked (each within ±MAX_RANDOM_ABS, at most MAX_RANDOM_SPAN apart); they may come in either order. An int.
+ */
+export type RandomExpr = { kind: 'read'; op: 'random.int'; args: [from: Expr, to: Expr] };
 
 /**
  * A header-pin read (YB-4, plan §9.1). `digital.read` is a bool (the pin is high), `analogIn.read` an int on the

@@ -399,10 +399,10 @@ describe('notes, rests and buttons: the values of the contract domain (C-50, C-5
   });
 
   it.each([
-    ['button is pressed', buttonPressed],
-    ['presses of button', buttonPresses],
-  ])('refuses a button of %s that is not A or B: value-out-of-range, at the block', (_name, make) => {
-    for (const button of ['AB', 'A+B', 'C', 'a', 'b', '', 'A ', ' B', 'AA', '0', 'button_a']) {
+    ['button is pressed', buttonPressed, ['AB', 'C', 'a', 'b', '', 'A ', ' B', 'AA', '0', 'button_a', 'a+b', 'A + B', 'B+A']],
+    ['presses of button', buttonPresses, ['AB', 'A+B', 'C', 'a', 'b', '', 'A ', ' B', 'AA', '0', 'button_a']],
+  ] as const)('refuses a button of %s that is not A or B (N17 B4: or A+B for "is pressed"): value-out-of-range, at the block', (_name, make, refused) => {
+    for (const button of refused) {
       const block = buttonBlock(make, button);
       expect(diagnostics(compile(inside(block))), JSON.stringify(button)).toEqual([{ code: 'value-out-of-range', blockId: idOf(block) }]);
     }

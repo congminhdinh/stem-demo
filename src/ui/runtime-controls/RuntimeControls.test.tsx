@@ -7,6 +7,7 @@ import { localDeviceDefinitions } from '../../core/devices/local-catalog';
 import { createDeviceRegistry } from '../../core/devices/registry';
 import { LIGHT_LEVEL_INITIAL, LIGHT_LEVEL_MAX, LIGHT_LEVEL_MIN } from '../../core/simulation/peripherals/light';
 import type { ComponentInput } from '../../core/simulation/simulate-circuit';
+import { createButtonHolds } from './board-buttons';
 import { DisplayText } from './DisplayText';
 import { RuntimeControls } from './RuntimeControls';
 
@@ -578,5 +579,109 @@ describe('the sensors of the Advanced board (N17 B2)', () => {
     await render(true, undefined, undefined, 'run-2');
     expect(gesture()).toBe('Face up');
     expect(pad().dataset.x).toBe('0');
+  });
+});
+
+describe('A+B, and the holds the controls share with the board (N17 B4)', () => {
+  const buttonB = () => byTestId<HTMLButtonElement>('control-button-b');
+  const buttonAB = () => byTestId<HTMLButtonElement>('control-button-ab');
+
+  it('has a hold button "Button A+B" after A and B, disabled while no run is active', async () => {
+    const { render, ready } = setup(false);
+    await ready;
+    const buttons = [...container.querySelectorAll('button')].map((button) => button.dataset.testid);
+    expect(buttons).toEqual(['control-button-a', 'control-button-b', 'control-button-ab']);
+    expect(buttonAB().textContent).toBe('Button A+B');
+    expect(buttonAB().disabled).toBe(true);
+    await render(true);
+    expect(buttonAB().disabled).toBe(false);
+  });
+
+  it('holds A and B together with one pointer, shows all three pressed, and lets both go', async () => {
+    const { sent, ready } = setup();
+    await ready;
+
+    await fire(buttonAB(), pointer('pointerdown'));
+    expect(sent).toEqual([
+      ['board-1/button-a', hold(true)],
+      ['board-1/button-b', hold(true)],
+    ]);
+    for (const button of [buttonA(), buttonB(), buttonAB()]) {
+      expect(button.getAttribute('aria-pressed')).toBe('true');
+    }
+
+    await fire(buttonAB(), pointer('pointerup'));
+    expect(sent.slice(2)).toEqual([
+      ['board-1/button-a', hold(false)],
+      ['board-1/button-b', hold(false)],
+    ]);
+    for (const button of [buttonA(), buttonB(), buttonAB()]) {
+      expect(button.getAttribute('aria-pressed')).toBe('false');
+    }
+  });
+
+  it('is held by the keyboard too, and lets go on blur', async () => {
+    const { sent, ready } = setup();
+    await ready;
+    await act(async () => buttonAB().focus());
+    await fire(buttonAB(), key('keydown', { key: 'Enter' }));
+    expect(buttonAB().getAttribute('aria-pressed')).toBe('true');
+    await act(async () => buttonAB().blur());
+    expect(sent.map(([, input]) => input)).toEqual([hold(true), hold(true), hold(false), hold(false)]);
+  });
+
+  it('shares each button with the other hands: A held by its own button stays held when A+B lets go', async () => {
+    const { sent, ready } = setup();
+    await ready;
+    await fire(buttonA(), pointer('pointerdown', { pointerId: 1 }));
+    await fire(buttonAB(), pointer('pointerdown', { pointerId: 2 }));
+    await fire(buttonAB(), pointer('pointerup', { pointerId: 2 }));
+    expect(sent).toEqual([
+      ['board-1/button-a', hold(true)],
+      ['board-1/button-b', hold(true)],
+      ['board-1/button-b', hold(false)],
+    ]);
+    expect(buttonA().getAttribute('aria-pressed')).toBe('true');
+    expect(buttonAB().getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('shows a press on the drawing of the board as pressed, through the holds it is given, and sends it once', async () => {
+    const changes: [string, boolean][] = [];
+    const holds = createButtonHolds((componentId, closed) => changes.push([componentId, closed]));
+    const sent: Sent[] = [];
+    await act(async () =>
+      root.render(
+        <RuntimeControls boardId="board-1" definition={definition} controls={controls} active holds={holds} onInput={(componentId, input) => sent.push([componentId, input])} />,
+      ),
+    );
+    await act(async () => holds.hold('board-1/button-a', 'board/pointer:9'));
+    expect(buttonA().getAttribute('aria-pressed')).toBe('true');
+    expect(buttonAB().getAttribute('aria-pressed')).toBe('false');
+    // The panel's own press joins the board's: still one press, and A stays pressed until both let go.
+    await fire(buttonA(), pointer('pointerdown'));
+    await act(async () => holds.release('board-1/button-a', 'board/pointer:9'));
+    expect(buttonA().getAttribute('aria-pressed')).toBe('true');
+    await fire(buttonA(), pointer('pointerup'));
+    expect(buttonA().getAttribute('aria-pressed')).toBe('false');
+    expect(changes).toEqual([['board-1/button-a', true], ['board-1/button-a', false]]);
+    // What the holds report is the owner's to send (the run and the drawing); the controls do not send it again.
+    expect(sent).toEqual([]);
+  });
+
+  it('shows A+B pressed while a check holds both', async () => {
+    await act(async () =>
+      root.render(
+        <RuntimeControls
+          boardId="board-1"
+          definition={definition}
+          controls={controls}
+          active
+          onInput={() => undefined}
+          scripted={{ 'board-1/button-a': hold(true), 'board-1/button-b': hold(true) }}
+        />,
+      ),
+    );
+    expect(buttonAB().getAttribute('aria-pressed')).toBe('true');
+    expect(buttonAB().disabled).toBe(true);
   });
 });

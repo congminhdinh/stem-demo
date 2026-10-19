@@ -80,6 +80,9 @@ function recordingEnvironment(
     drivePin() {
       throw new Error('The onboard parts must not drive a pin');
     },
+    warn() {
+      throw new Error('The onboard parts have no warning of their own');
+    },
   };
   const environment = new Proxy(target, {
     get(object, property, receiver) {
@@ -140,7 +143,7 @@ describe('what the factory reaches of the environment', () => {
     // The stand-in throws if simulation() or drivePin() is called, so a call would fail this test at once.
     exerciseAll(createOnboardCapabilities(environment));
     expect([...read].sort()).toEqual(['board', 'input', 'report', 'sinceEvent', 'takePresses']);
-    for (const untouched of ['simulation', 'drivePin', 'services', 'capabilitySet']) {
+    for (const untouched of ['simulation', 'drivePin', 'warn', 'services', 'capabilitySet']) {
       expect(read.has(untouched), untouched).toBe(false);
     }
   });

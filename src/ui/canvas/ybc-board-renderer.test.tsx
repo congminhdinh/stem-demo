@@ -327,6 +327,95 @@ describe('the readings of the sensors on the board while a run is on (N17 B2)', 
   });
 });
 
+describe('pressing A and B on the drawing of the board (N17 B4)', () => {
+  type Press = [componentId: string, pointerId: number, pressed: boolean];
+
+  function renderPressable(pressable: boolean, inputs: Record<string, ComponentInput> = {}) {
+    const presses: Press[] = [];
+    const context = resolveBoardContext({ profile: 'ybc-basic', circuit: ybcCircuit }, registry, productionProfiles);
+    const element = (canPress: boolean, given = inputs) => (
+      <CircuitCanvas
+        circuit={ybcCircuit}
+        registry={registry}
+        context={context}
+        simulation={simulation({})}
+        locked
+        onCircuitChange={() => undefined}
+        onContactChange={() => undefined}
+        inputs={given}
+        {...(canPress ? { onPartPress: (componentId: string, pointerId: number, pressed: boolean) => void presses.push([componentId, pointerId, pressed]) } : {})}
+      />
+    );
+    return { presses, ready: act(async () => root.render(element(pressable))), rerender: (canPress: boolean, given = inputs) => act(async () => root.render(element(canPress, given))) };
+  }
+  const part = (id: string) => groupNamed(`.ybc-part-${id}`) as Konva.Group;
+  const fire = (node: Konva.Node, type: string, evt: Partial<PointerEvent> = {}) =>
+    act(async () => void node.fire(type, { evt: { button: 0, pointerId: 1, ...evt } as PointerEvent }, true));
+
+  it('holds A while the pointer is down on it, for the part of the board, and lets go on pointerup', async () => {
+    const { presses, ready } = renderPressable(true);
+    await ready;
+    await fire(part('button-a'), 'pointerdown');
+    expect(presses).toEqual([['ybc-board-1/button-a', 1, true]]);
+    await fire(part('button-a'), 'pointerup');
+    expect(presses).toEqual([['ybc-board-1/button-a', 1, true], ['ybc-board-1/button-a', 1, false]]);
+  });
+
+  it.each(['pointerleave', 'pointercancel', 'lostpointercapture'])('lets go on %s, so a press that leaves the button never sticks (Review Focus 2)', async (type) => {
+    const { presses, ready } = renderPressable(true);
+    await ready;
+    await fire(part('button-b'), 'pointerdown', { pointerId: 4 });
+    await fire(part('button-b'), type, { pointerId: 4 });
+    // What comes after (the release outside the board) changes nothing more.
+    await fire(part('button-b'), 'pointerup', { pointerId: 4 });
+    expect(presses).toEqual([['ybc-board-1/button-b', 4, true], ['ybc-board-1/button-b', 4, false]]);
+  });
+
+  it('lets go when the pointer is released anywhere on the page, and when the run stops taking presses', async () => {
+    const { presses, ready, rerender } = renderPressable(true);
+    await ready;
+    await fire(part('button-a'), 'pointerdown', { pointerId: 2 });
+    await act(async () => void window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 2 })));
+    expect(presses).toEqual([['ybc-board-1/button-a', 2, true], ['ybc-board-1/button-a', 2, false]]);
+
+    await fire(part('button-b'), 'pointerdown', { pointerId: 3 });
+    await rerender(false);
+    expect(presses.slice(2)).toEqual([['ybc-board-1/button-b', 3, true], ['ybc-board-1/button-b', 3, false]]);
+  });
+
+  it('takes no press of a secondary button, nor on a part that is not a button', async () => {
+    const { presses, ready } = renderPressable(true);
+    await ready;
+    await fire(part('button-a'), 'pointerdown', { button: 2 });
+    await fire(part('light'), 'pointerdown');
+    await fire(groupNamed('.ybc-display') as Konva.Group, 'pointerdown');
+    expect(presses).toEqual([]);
+  });
+
+  it('listens on the buttons only while a run takes presses, and shows a hand over them then', async () => {
+    const { ready, rerender } = renderPressable(false);
+    await ready;
+    expect(part('button-a').listening()).toBe(false);
+    expect(part('button-a').getAttr('pressable')).toBe(false);
+
+    await rerender(true);
+    expect(part('button-a').listening()).toBe(true);
+    expect(part('button-b').getAttr('pressable')).toBe(true);
+    expect(part('light').listening()).toBe(false);
+    await fire(part('button-a'), 'pointerenter');
+    expect(stage().container().style.cursor).toBe('pointer');
+    await fire(part('button-a'), 'pointerleave');
+    expect(stage().container().style.cursor).toBe('');
+  });
+
+  it('draws a pressed button pressed, whichever hand pressed it: what the run is given', async () => {
+    const { ready } = renderPressable(true, { 'ybc-board-1/button-a': { kind: 'hold', closed: true } });
+    await ready;
+    expect(board().pressedParts).toEqual(['button-a']);
+    expect(part('button-a').getAttr('pressed')).toBe(true);
+  });
+});
+
 describe('a generic project is drawn as before', () => {
   it('gives its board no display and no tone, whatever the snapshot holds', async () => {
     await render(genericCircuit, undefined, simulation({ 'board/display': { frame: frameOf(0) }, 'board/buzzer': { hz: 262 } }));

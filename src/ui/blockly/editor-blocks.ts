@@ -1,8 +1,9 @@
 import * as Blockly from 'blockly';
+import { isExtraMelodyName, melodyType, type MelodyName } from '../../core/constructs/ybc.sound';
 import { builtInBlockTypes } from '../../core/program/blocks';
 import type { BlockPackCatalog } from '../../core/program/block-packs';
 import { MAX_PROGRAM_BLOCKS, MAX_TEXT_JOIN_PARTS } from '../../core/program/limits';
-import { localizeBlockDefinitions } from '../i18n/blocks';
+import { localizeBlockDefinitions, melodyLabel } from '../i18n/blocks';
 import type { Locale } from '../i18n/messages';
 
 // The editor's blocks, as Blockly knows them: registered once, and used to
@@ -30,7 +31,50 @@ export function registerBlocks(packs: BlockPackCatalog) {
   if (fresh.length > 0) {
     Blockly.common.defineBlocksWithJsonArray(fresh);
     fresh.forEach((definition) => registeredTypes.add(definition.type));
+    if (fresh.some((definition) => definition.type === melodyType)) {
+      keepSavedMelodies();
+    }
   }
+}
+
+/**
+ * N17 B4 (the B3 ruling): the melody block offers the 14 melodies of the vendor's editor (its definition's options), but a program
+ * saved with one of the six micro:bit names B3 offered (FUNK, BLUES…) must open with it, not with the first melody: Blockly refuses
+ * a value its dropdown does not offer. So the dropdown of every melody block offers, besides the 14, the one of the six it holds or
+ * is being loaded with, and nothing more: once another melody is chosen, the six are gone from it.
+ */
+function keepSavedMelodies() {
+  const definition = Blockly.Blocks[melodyType] as { init(this: Blockly.Block): void } | undefined;
+  if (!definition) {
+    return;
+  }
+  const init = definition.init;
+  definition.init = function (this: Blockly.Block) {
+    init.call(this);
+    const field = this.getField('MELODY');
+    if (field instanceof Blockly.FieldDropdown) {
+      offerSavedMelody(field);
+    }
+  };
+}
+
+function offerSavedMelody(field: Blockly.FieldDropdown) {
+  const offered = field.getOptions(false);
+  // The value a saved program is being loaded with: Blockly asks for the options before it takes the value.
+  let loading: unknown = null;
+  field.setOptions(() => {
+    const value = loading ?? field.getValue();
+    return isExtraMelodyName(value) ? [...offered, [melodyLabel(value as MelodyName, blockLocale), value as string]] : offered;
+  });
+  const loadState = field.loadState.bind(field);
+  field.loadState = (state: unknown) => {
+    loading = state;
+    try {
+      loadState(state);
+    } finally {
+      loading = null;
+    }
+  };
 }
 
 /**

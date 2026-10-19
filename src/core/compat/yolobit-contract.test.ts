@@ -97,6 +97,7 @@ describe('rows and eligibility (contract §15)', () => {
     ['C-01', 'ELIGIBLE'], ['C-02', 'ELIGIBLE'], ['C-04', 'ELIGIBLE'], ['C-05', 'RESTRICTED'], ['C-06', 'RESTRICTED'], ['C-07', 'RESTRICTED'],
     ['C-08', 'RESTRICTED'], ['C-09', 'ELIGIBLE'], ['C-10', 'RESTRICTED'], ['C-42', 'RESTRICTED'], ['C-43', 'RESTRICTED'],
     ['C-12', 'RESTRICTED'], ['C-13', 'RESTRICTED'], ['C-15', 'ELIGIBLE'], ['C-16', 'RESTRICTED'], ['C-17', 'RESTRICTED'], ['C-18', 'RESTRICTED'],
+    ['C-19', 'ELIGIBLE'], ['C-40', 'RESTRICTED'],
     ['C-20', 'RESTRICTED'], ['C-21', 'RESTRICTED'], ['C-22', 'ELIGIBLE'], ['C-50', 'RESTRICTED'],
     ['C-51', 'RESTRICTED'], ['C-23', 'RESTRICTED'], ['C-24', 'RESTRICTED'], ['C-25', 'RESTRICTED'], ['C-27', 'RESTRICTED'],
     ['C-29', 'ELIGIBLE'], ['C-30', 'ELIGIBLE'], ['C-31', 'ELIGIBLE'], ['C-32', 'ELIGIBLE'], ['C-33', 'ELIGIBLE'],
@@ -104,7 +105,7 @@ describe('rows and eligibility (contract §15)', () => {
     ['C-39', 'RESTRICTED'], ['C-56', 'ELIGIBLE'], ['C-57', 'ELIGIBLE'], ['C-58', 'RESTRICTED'], ['C-59', 'RESTRICTED'],
   ];
   const excluded = [
-    'C-11', 'C-19', 'C-26', 'C-28', 'C-40', 'C-41', 'C-44', 'C-45',
+    'C-11', 'C-26', 'C-28', 'C-41', 'C-44', 'C-45',
     'C-46', 'C-47', 'C-48', 'C-49', 'C-52', 'C-53', 'C-54', 'C-55', 'C-60', 'C-69', 'C-70',
   ];
 
@@ -125,24 +126,40 @@ describe('rows and eligibility (contract §15)', () => {
     expect(row('C-55').alsoCovers).toEqual(['C-61', 'C-62', 'C-63', 'C-64', 'C-65', 'C-66']);
   });
 
-  it('keeps the frozen YB-0 decisions: random, running time, PWM excluded; events deferred', () => {
-    expect(row('C-40')).toMatchObject({ eligibility: 'EXCLUDED', observedPython: 'random.randint(1, 6)' });
-    expect(row('C-19').eligibility).toBe('EXCLUDED');
+  it('keeps the frozen YB-0 decisions on PWM (excluded) and events (deferred); N17 B4 reopens random and the running time', () => {
+    expect(row('C-40')).toMatchObject({ eligibility: 'RESTRICTED', observedPython: 'random.randint(1, 6)', profiles: ['ybc-basic', 'ybc-advanced'] });
+    expect(row('C-19')).toMatchObject({ eligibility: 'ELIGIBLE', observedPython: 'running_time()', profiles: ['ybc-basic', 'ybc-advanced'] });
     expect(row('C-26').eligibility).toBe('EXCLUDED');
-    expect(contract.modules.find((m) => m.id === 'C-03d')?.eligibility).toBe('EXCLUDED');
+    expect(contract.modules.find((m) => m.id === 'C-03d')?.eligibility).toBe('ELIGIBLE');
     expect(row('C-14').eligibility).toBe('DEFERRED');
+    // A+B is C-12's third button (the `and` of two C-12 calls); the editor's is_pressed_ab() stays excluded (C-47).
+    expect(row('C-47')).toMatchObject({ eligibility: 'EXCLUDED', observedPython: 'button_a.is_pressed_ab()' });
   });
 
-  it('carries the random domain, inactive, for the day it is reopened', () => {
-    const { preSpecifiedDomain } = row('C-40');
-    expect(preSpecifiedDomain?.evaluation?.order).toEqual(['a', 'b']);
-    expect(row('C-40').domain).toBeUndefined();
-    const inDomain = (a: number, b: number) =>
-      preSpecifiedDomain ? evaluatePred(preSpecifiedDomain.runtime, { values: { a, b } }) : false;
+  it('gives random (N17 B4) the domain it was specified with, the ends in either order: each within ±1000000, at most 1000000 apart', () => {
+    const { domain } = row('C-40');
+    expect(row('C-40').preSpecifiedDomain).toBeUndefined();
+    expect(domain?.evaluation?.order).toEqual(['a', 'b']);
+    const inDomain = (a: number, b: number) => (domain ? evaluatePred(domain.runtime, { values: { a, b } }) : false);
     expect(inDomain(1, 6)).toBe(true);
+    expect(inDomain(6, 1)).toBe(true);
     expect(inDomain(-1_000_000, 0)).toBe(true);
-    expect(inDomain(6, 1)).toBe(false);
+    expect(inDomain(0, -1_000_000)).toBe(true);
     expect(inDomain(0, 1_000_001)).toBe(false);
+    expect(inDomain(-1_000_001, 0)).toBe(false);
+    expect(inDomain(-600_000, 600_000)).toBe(false);
+    expect(inDomain(600_000, -600_000)).toBe(false);
+    expect(row('C-40').python).toEqual({ form: 'random.randint(<a>, <b>)', builtins: ['min', 'max'] });
+    expect(row('C-19').python).toEqual({ form: 'running_time()' });
+    for (const id of ['C-19', 'C-40']) {
+      expect(isExposable(row(id), contract), id).toBe(true);
+      expect(profileConstructViolations('ybc-basic', [id], contract), id).toEqual([]);
+      expect(profileConstructViolations('ybc-advanced', [id], contract), id).toEqual([]);
+    }
+    // A+B joins C-12's domain, never C-13's: a press count of A+B means nothing.
+    const buttons = (id: string) => ['A', 'B', 'A+B', 'AB', 'C'].filter((button) => evaluatePred(row(id).domain?.runtime ?? { all: [] }, { values: { button } }));
+    expect(buttons('C-12')).toEqual(['A', 'B', 'A+B']);
+    expect(buttons('C-13')).toEqual(['A', 'B']);
     expect(inDomain(-1_000_000, 1_000_000)).toBe(false); // span 2 000 000 > MAX_RANDOM_SPAN
   });
 
@@ -199,21 +216,30 @@ describe('rows and eligibility (contract §15)', () => {
     }
   });
 
-  it('names the fields N17 B2 and B3 opened without evidence on the rows that have them, each UNKNOWN in the data and UNVERIFIED with a reason', () => {
+  it('names the fields N17 B2, B3 and B4 opened without evidence on the rows that have them, each UNKNOWN (or INFERRED) in the data and UNVERIFIED with a reason', () => {
     const named = contract.constructs.filter((c) => Object.keys(c.unverifiedFields ?? {}).length > 0);
     expect(named.map((c) => [c.id, Object.keys(c.unverifiedFields ?? {}).sort()])).toEqual([
       ['C-17', ['block', 'coord', 'return']],
       ['C-18', ['block', 'content', 'return']],
+      ['C-19', ['block', 'range', 'return', 'round']],
+      ['C-40', ['content', 'module']],
       ['C-20', ['block', 'content', 'yield']],
       ['C-21', ['content', 'unit', 'yield']],
       ['C-22', ['block', 'content']],
+      ['C-24', ['default']],
     ]);
     for (const construct of named) {
       for (const [field, reason] of Object.entries(construct.unverifiedFields ?? {})) {
-        expect(construct.fields[field as OfField].label, `${construct.id}.${field}`).toBe('UNKNOWN');
+        // N17 B4: an INFERRED field (C-40's module) may be named too: it counts as UNKNOWN at the gate (contract §0.2).
+        expect(['UNKNOWN', 'INFERRED'], `${construct.id}.${field}`).toContain(construct.fields[field as OfField].label);
         expect(reason, `${construct.id}.${field}`).toMatch(/UNVERIFIED/);
       }
     }
+    // The random module itself is opened the same way: its module field stays INFERRED, named UNVERIFIED (N17 B4).
+    const random = contract.modules.find((m) => m.id === 'C-03d');
+    expect(random?.fields.module.label).toBe('INFERRED');
+    expect(Object.keys(random?.unverifiedFields ?? {})).toEqual(['module']);
+    expect(random?.unverifiedFields?.module).toMatch(/UNVERIFIED/);
   });
 
   it('lets an UNVERIFIED field through the gate only where the row names it: the same field of another row still keeps that row out', () => {
@@ -229,8 +255,8 @@ describe('rows and eligibility (contract §15)', () => {
   });
 
   it('refuses a list of UNVERIFIED fields on an excluded row, and one that names a field that is not UNKNOWN', () => {
-    const onExcluded = { ...contract, constructs: contract.constructs.map((c) => (c.id === 'C-19' ? { ...c, unverifiedFields: { range: 'UNVERIFIED' } } : c)) };
-    expect(validateContract(onExcluded).join('\n')).toContain('C-19 is EXCLUDED but has UNVERIFIED fields');
+    const onExcluded = { ...contract, constructs: contract.constructs.map((c) => (c.id === 'C-26' ? { ...c, unverifiedFields: { range: 'UNVERIFIED' } } : c)) };
+    expect(validateContract(onExcluded).join('\n')).toContain('C-26 is EXCLUDED but has UNVERIFIED fields');
     const onVerified = { ...contract, constructs: contract.constructs.map((c) => (c.id === 'C-17' ? { ...c, unverifiedFields: { ...c.unverifiedFields, call: 'UNVERIFIED' } } : c)) };
     expect(validateContract(onVerified).join('\n')).toContain('C-17 names call as UNVERIFIED, but it is VERIFIED');
   });
@@ -251,8 +277,8 @@ describe('rows and eligibility (contract §15)', () => {
   });
 
   it('refuses UNVERIFIED forms on an excluded row: they are never a way around the gate', () => {
-    const broken = { ...contract, constructs: contract.constructs.map((c) => (c.id === 'C-40' ? { ...c, unverifiedForms: [{ form: 'random.randint(<a>, <b>)', reason: 'UNVERIFIED' }] } : c)) };
-    expect(validateContract(broken).join('\n')).toContain('C-40 is EXCLUDED but has UNVERIFIED forms');
+    const broken = { ...contract, constructs: contract.constructs.map((c) => (c.id === 'C-26' ? { ...c, unverifiedForms: [{ form: 'pin<N>.write_analog(<v>)', reason: 'UNVERIFIED' }] } : c)) };
+    expect(validateContract(broken).join('\n')).toContain('C-26 is EXCLUDED but has UNVERIFIED forms');
   });
 });
 
@@ -266,6 +292,7 @@ describe('simDependent, derived per field (contract §15.1 last column)', () => 
     'C-09': ['module', 'block'], 'C-10': ['module', 'block'], 'C-42': ['module', 'block'], 'C-43': ['module', 'block'],
     'C-12': ['module', 'block', 'return'], 'C-13': ['module', 'block', 'return'],
     'C-15': ['module', 'round', 'block'], 'C-16': ['module', 'block'], 'C-17': ['module', 'round'], 'C-18': ['module'],
+    'C-19': ['module'], 'C-40': [],
     'C-50': ['module', 'unit', 'range', 'content'], 'C-51': ['module', 'unit', 'range', 'block'],
     'C-23': ['module', 'block'], 'C-24': ['module', 'block'], 'C-25': ['module', 'block'], 'C-27': ['module', 'block'],
     'C-29': [], 'C-30': [], 'C-31': [], 'C-32': [], 'C-33': [], 'C-34': [], 'C-35': [], 'C-36': [], 'C-37': [],
@@ -334,15 +361,16 @@ describe('RV-1: what the simulator may establish', () => {
   });
 
   it('would drop every hardware construct, and keep the language, if RV-1 were rejected (contract §22.3)', () => {
-    const hardware = ['C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-42', 'C-43', 'C-12', 'C-13', 'C-15', 'C-16', 'C-17', 'C-18', 'C-23', 'C-24', 'C-25', 'C-27', 'C-50', 'C-51'];
+    const hardware = ['C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-42', 'C-43', 'C-12', 'C-13', 'C-15', 'C-16', 'C-17', 'C-18', 'C-19', 'C-23', 'C-24', 'C-25', 'C-27', 'C-50', 'C-51'];
     for (const id of hardware) {
       expect(isExposable(row(id), contract, 'REJECTED'), id).toBe(false);
     }
-    for (const id of ['C-01', 'C-02', 'C-04', 'C-29', 'C-30', 'C-31', 'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-56']) {
+    // N17 B4: random rests on no simulator observation (its module is an owner-opened INFERRED field), so it stays too.
+    for (const id of ['C-01', 'C-02', 'C-04', 'C-29', 'C-30', 'C-31', 'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-40', 'C-56']) {
       expect(isExposable(row(id), contract, 'REJECTED'), id).toBe(true);
     }
     const moduleStates = contract.modules.map((m) => [m.id, m.eligibility === 'ELIGIBLE' && simDependentFields(m, contract).length === 0]);
-    expect(moduleStates).toEqual([['C-03a', true], ['C-03b', false], ['C-03c', false], ['C-03d', false], ['C-03e', true]]);
+    expect(moduleStates).toEqual([['C-03a', true], ['C-03b', false], ['C-03c', false], ['C-03d', true], ['C-03e', true]]);
   });
 });
 
@@ -361,7 +389,7 @@ describe('the exposure eligibility gate (EG)', () => {
 
   it('shows no excluded or deferred row to either profile', () => {
     const shown = new Set([...exposableConstructs(contract, 'ybc-basic'), ...exposableConstructs(contract, 'ybc-advanced')].map((c) => c.id));
-    for (const id of ['C-14', 'C-19', 'C-26', 'C-40', 'C-47', 'C-70']) {
+    for (const id of ['C-14', 'C-26', 'C-47', 'C-70']) {
       expect(shown.has(id), id).toBe(false);
     }
   });
@@ -384,27 +412,23 @@ describe('the exposure eligibility gate (EG)', () => {
     expect(validateContract(broken).join('\n')).toContain(`C-04.unit is ${label}`);
   });
 
-  it('treats INFERRED as UNKNOWN: random.randint stays out while its module field is INFERRED', () => {
+  it('treats INFERRED as UNKNOWN: random.randint stays out while its INFERRED module field is not named UNVERIFIED (N17 B4 names it)', () => {
     expect(row('C-40').fields.module.label).toBe('INFERRED');
-    expect(isExposable(row('C-40'), contract)).toBe(false);
+    expect(isExposable(row('C-40'), contract)).toBe(true);
+    const bare: ConstructContract = { ...row('C-40'), unverifiedFields: { content: row('C-40').unverifiedFields?.content ?? '' } };
+    expect(exposureViolations(bare, contract).join('\n')).toContain('C-40.module is INFERRED');
+    // And the random module itself, without its own UNVERIFIED name, is refused, which keeps C-40 out too.
+    const withoutModule: YolobitContract = { ...contract, modules: contract.modules.map((m) => (m.id === 'C-03d' ? { ...m, unverifiedFields: undefined } : m)) };
+    expect(exposureViolations(row('C-40'), withoutModule).join('\n')).toContain('C-03d.module is INFERRED');
   });
 
   it('refuses a row whose module is not itself eligible (random)', () => {
-    const lifted: YolobitContract = {
+    const excludedModule: YolobitContract = {
       ...contract,
-      constructs: contract.constructs.map((c) =>
-        c.id === 'C-40'
-          ? {
-              ...c,
-              eligibility: 'ELIGIBLE',
-              python: { form: 'random.randint(<a>, <b>)' },
-              fields: { ...c.fields, ...Object.fromEntries(ofFields.map((f) => [f, { label: 'n/a', reason: 'not-applicable', note: 'x' }])) },
-            }
-          : c,
-      ),
+      modules: contract.modules.map((m) => (m.id === 'C-03d' ? { ...m, eligibility: 'EXCLUDED', exclusionReason: 'test' } : m)),
     };
-    const lifted40 = lifted.constructs.find((c) => c.id === 'C-40');
-    expect(lifted40 && exposureViolations(lifted40, lifted).join('\n')).toContain('module C-03d is EXCLUDED');
+    expect(exposureViolations(row('C-40'), excludedModule).join('\n')).toContain('module C-03d is EXCLUDED');
+    expect(ofFields.length).toBeGreaterThan(0);
   });
 
   it('refuses a row blocked by an unresolved gate', () => {
@@ -584,7 +608,7 @@ describe('OF-block evidence (review R2)', () => {
 describe('profiles against the contract', () => {
   it('rejects a profile that lists a construct the contract does not know, excludes, or meant for the other profile', () => {
     expect(profileConstructViolations('ybc-basic', ['C-99'], contract)).not.toEqual([]);
-    expect(profileConstructViolations('ybc-basic', ['C-40'], contract)).not.toEqual([]);
+    expect(profileConstructViolations('ybc-basic', ['C-26'], contract)).not.toEqual([]);
     expect(profileConstructViolations('ybc-basic', ['C-14'], contract)).not.toEqual([]);
     expect(profileConstructViolations('ybc-basic', ['C-16'], contract)).not.toEqual([]);
     expect(profileConstructViolations('ybc-advanced', ['C-16'], contract)).toEqual([]);
@@ -711,19 +735,19 @@ describe('the generator allowlist (contract §21 invariant 9)', () => {
   const allowlist = generatorAllowlist(contract);
 
   it('is exactly what the exposable rows and modules list', () => {
-    expect(allowlist.imports).toEqual(['import time', 'from yolobit import *', 'import music']);
+    expect(allowlist.imports).toEqual(['import time', 'from yolobit import *', 'import music', 'import random']);
     expect(allowlist.preamble).toEqual([
       'button_a.on_pressed = None',
       'button_b.on_pressed = None',
       'button_a.on_pressed_ab = button_b.on_pressed_ab = -1',
       'music.set_tempo(4, 120)',
     ]);
-    expect(allowlist.builtins.sort()).toEqual(['int', 'len', 'print', 'range', 'str']);
+    expect(allowlist.builtins.sort()).toEqual(['int', 'len', 'max', 'min', 'print', 'range', 'str']);
   });
 
-  it('has nothing from an excluded or deferred row, nor the random module', () => {
+  it('has nothing from an excluded or deferred row', () => {
     const text = JSON.stringify(allowlist);
-    for (const word of ['random', 'running_time', 'on_pressed = f', 'write_analog', 'show_graph', 'set_brightness', 'set_tempo(ticks', 'music.reset', 'is_pressed_ab']) {
+    for (const word of ['on_pressed = f', 'write_analog', 'show_graph', 'set_brightness', 'set_tempo(ticks', 'music.reset', 'is_pressed_ab', 'random.choice', 'ticks_ms']) {
       expect(text, word).not.toContain(word);
     }
     // The verified form of every exposable row, and the UNVERIFIED forms that N17 rows name.

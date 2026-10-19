@@ -23,10 +23,10 @@ import { TEMPERATURE_MAX, TEMPERATURE_MIN } from '../simulation/peripherals/temp
 import { melodySteps } from '../simulation/peripherals/melodies';
 import { NOTE_TICK_MS, noteHz } from '../simulation/peripherals/sound';
 import type { RunOutcome } from './interpreter';
-import { MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_TEXT_CHARS, MAX_WAIT_MS } from './limits';
+import { MAX_RANDOM_ABS, MAX_RANDOM_SPAN, MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_TEXT_CHARS, MAX_WAIT_MS } from './limits';
 import * as values from './values';
 import { RuntimeFault, type Value } from './values';
-import type { ButtonOperand, CallStatement, ColourOperand, Expr, ImageOperand, ReadExpr, YbcProgramIR, YbcStatement } from './ybc-ir';
+import type { ButtonOperand, CallStatement, ColourOperand, Expr, ImageOperand, RandomExpr, ReadExpr, YbcProgramIR, YbcStatement } from './ybc-ir';
 
 // The YBC interpreter (YB plan §9.0, §9.3): runs a `YbcProgramIR`. It reaches
 // the world only through `services` and knows nothing about circuits or UI.
@@ -60,6 +60,10 @@ import type { ButtonOperand, CallStatement, ColourOperand, Expr, ImageOperand, R
 // melody in the background, a tone and stop each end the sound that plays first. What sounds in the background (a melody that
 // does not wait, a tone: music.pitch does not wait, EVD-06) plays on the run's scheduler while the program goes on; it plays out
 // after a program that finished, and ends at once with a program that is stopped, replaced or ends in an error (Review Focus 1).
+//
+// N17 B4: the running time is the whole milliseconds on the run's clock since the program started. A random number evaluates its
+// ends in their order, each once, checks each as soon as it is known, then their distance, and draws from the run's `randomInt`
+// with the lower end first (the ends may come in either order); a number outside them is an internal error, never a crash.
 
 /** One note or rest of a melody (or a tone), for `ms`; `hz` null is silence. */
 type Sounding = { hz: number | null; ms: number };
@@ -90,6 +94,8 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
   const { budget, signal } = services;
   // The slice of a run starts when the program does, not when its services were built.
   budget.startSlice();
+  // N17 B4: what the running time counts from.
+  const startedAt = services.clock.now();
   let blockId: string | undefined;
   const variables = new Map<string, Value>(ir.variables.map((variable) => [variable.id, values.int(0)]));
 
@@ -200,7 +206,30 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
         }
         return values.bool(motion.gesture() === gesture);
       }
+      case 'time.runningTime':
+        return values.checkedInt(Math.max(0, Math.floor(services.clock.now() - startedAt)), 'The running time');
     }
+  };
+
+  /** C-40 (N17 B4): the ends in their order, each once and checked when it is known, then their distance; low first to the service. */
+  const randomNumber = (expr: Expr & RandomExpr): Value => {
+    const [fromExpr, toExpr] = expr.args;
+    if (expr.args.length !== 2 || fromExpr === undefined || toExpr === undefined) {
+      throw new RuntimeFault('internal-error', 'A random block was given the wrong number of values.');
+    }
+    const first = intWithin(fromExpr, -MAX_RANDOM_ABS, MAX_RANDOM_ABS, 'A bound of a random number');
+    const second = intWithin(toExpr, -MAX_RANDOM_ABS, MAX_RANDOM_ABS, 'A bound of a random number');
+    blockId = expr.blockId;
+    const low = Math.min(first, second);
+    const high = Math.max(first, second);
+    if (high - low > MAX_RANDOM_SPAN) {
+      throw new RuntimeFault('out-of-domain', `The bounds of a random number must be at most ${MAX_RANDOM_SPAN} apart, not ${high - low}.`);
+    }
+    const drawn = services.randomInt(low, high);
+    if (!Number.isSafeInteger(drawn) || drawn < low || drawn > high) {
+      throw new RuntimeFault('internal-error', 'The random number is not between its bounds.');
+    }
+    return values.int(drawn === 0 ? 0 : drawn);
   };
 
   const evaluate = (expr: Expr): Value => {
@@ -279,6 +308,9 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
             throw new RuntimeFault('internal-error', 'A read gave another type than its block says.');
           }
           return value;
+        }
+        if (expr.op === 'random.int') {
+          return randomNumber(expr);
         }
         return readPart(expr);
       }

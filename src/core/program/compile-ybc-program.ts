@@ -1,6 +1,6 @@
 import { missingCapabilities } from '../capabilities/compose';
 import type { HexColour } from '../capabilities/frame';
-import { arithType, countUpType, intDivideType, langConstructs, waitType, whileType } from '../constructs/lang';
+import { arithType, countUpType, intDivideType, langConstructs, randomIntType, runningTimeType, waitType, whileType } from '../constructs/lang';
 import { hardwareConstructOf } from '../constructs/ybc';
 import {
   clearDisplayType,
@@ -23,17 +23,20 @@ import {
 import { isBuiltinImageName } from '../constructs/ybc.images';
 import {
   accelerationType,
+  BOTH_BUTTONS,
   buttonPressedType,
   buttonPressesType,
   gestureIsType,
   isAxisName,
   isButtonName,
   isGestureName,
+  isPressedButtonName,
   lightLevelType,
   temperatureType,
   type AxisName,
   type ButtonName,
   type GestureName,
+  type PressedButtonName,
 } from '../constructs/ybc.input';
 import {
   PIN_LEVELS,
@@ -66,6 +69,8 @@ import { exceedsBlockLimit } from './block-walk';
 import { blockTypes } from './blocks';
 import {
   MAX_PROGRAM_BLOCKS,
+  MAX_RANDOM_ABS,
+  MAX_RANDOM_SPAN,
   MAX_RANGE_VALUE,
   MAX_REPEAT_ABS,
   MAX_SAFE_INT,
@@ -100,6 +105,10 @@ import type { ArithOp, ColourOperand, CompareOp, Expr, Type, YbcProgramIR, YbcSt
 // N17 B3 adds the built-in melodies, the tone and stop of the Advanced board: the melody and whether the program waits for it
 // are fields (an operand); the Hz and the ms of a tone are int expressions, refused here when typed in outside 20..20000 Hz and
 // 0..60000 ms, and checked by the interpreter when computed.
+//
+// N17 B4: "button A+B is pressed" is the `and` of the reads of A and B, so it means exactly what the generator writes for it; the
+// running time is a read; a random number has two int ends, each typed-in one checked against ±1000000 and two typed-in ones
+// against being more than 1000000 apart (contract C-40). The ends may come in either order: no descending error.
 
 export type YbcDiagnosticCode =
   | 'malformed-program'
@@ -148,8 +157,10 @@ const maxNesting = 100;
 /** Statements in one chain; a loop in `next` links is reported, not followed. */
 const maxChain = 10_000;
 
-/** Blocks Blockly has that this dialect refuses on purpose, and the contract row that excludes them (C-40, random). */
-const notEligible: Readonly<Record<string, string>> = { math_random_int: 'C-40' };
+/** Blocks Blockly has that this dialect refuses on purpose, and the contract row that excludes them. None since N17 B4 opened C-40. */
+const notEligible: Readonly<Record<string, string>> = {};
+/** Blockly's own blocks the dialect has a block of its own for (N17 B4: random, whose ends it takes in either order). */
+const replacedBy: Readonly<Record<string, string>> = { math_random_int: randomIntType };
 
 const arithOps: Readonly<Record<string, ArithOp>> = { ADD: '+', MINUS: '-', MULTIPLY: '*' };
 const floatOps = new Set(['DIVIDE', 'POWER']);
@@ -218,8 +229,11 @@ export function compileYbcProgram(
     if (exposedBlockTypes.has(block.type)) {
       return true;
     }
-    const row = notEligible[block.type];
-    if (block.type === foreignArithmetic) {
+    const row = Object.hasOwn(notEligible, block.type) ? notEligible[block.type] : undefined;
+    const replacement = Object.hasOwn(replacedBy, block.type) ? replacedBy[block.type] : undefined;
+    if (replacement !== undefined) {
+      report('error', 'not-eligible', `"${block.type}" is not available here; use "${replacement}".`, block.id);
+    } else if (block.type === foreignArithmetic) {
       const op = block.fields?.OP;
       if (typeof op === 'string' && floatOps.has(op)) {
         report('error', 'float-not-supported', 'Only +, − and × are supported; use // for whole-number division.', block.id);
@@ -283,7 +297,7 @@ export function compileYbcProgram(
     return false;
   };
 
-  /** The button a button block names: A or B (contract C-12, C-13; A+B is excluded). */
+  /** The button a press count names: A or B (contract C-13). */
   const buttonOf = (block: RawBlock): ButtonName | null => {
     const button = block.fields?.BUTTON;
     if (typeof button !== 'string') {
@@ -292,6 +306,20 @@ export function compileYbcProgram(
     }
     if (!isButtonName(button)) {
       report('error', 'value-out-of-range', 'A button is A or B.', block.id);
+      return null;
+    }
+    return button;
+  };
+
+  /** The button "is pressed" names: A, B or (N17 B4) A+B (contract C-12). */
+  const pressedButtonOf = (block: RawBlock): PressedButtonName | null => {
+    const button = block.fields?.BUTTON;
+    if (typeof button !== 'string') {
+      report('error', 'malformed-program', 'A button block needs its button.', block.id);
+      return null;
+    }
+    if (!isPressedButtonName(button)) {
+      report('error', 'value-out-of-range', 'A button is A, B or A+B.', block.id);
       return null;
     }
     return button;
@@ -382,17 +410,23 @@ export function compileYbcProgram(
     }
     const base = { blockId: block.id };
     switch (block.type) {
-      case buttonPressedType:
-      case buttonPressesType: {
-        const button = boardHasPartFor(block) ? buttonOf(block) : null;
+      case buttonPressedType: {
+        const button = boardHasPartFor(block) ? pressedButtonOf(block) : null;
         if (button === null) {
           return null;
         }
-        const operand = { kind: 'button', button } as const;
-        return block.type === buttonPressedType
-          ? { ...base, type: 'bool', kind: 'read', op: 'button.isPressed', operand }
-          : { ...base, type: 'int', kind: 'read', op: 'button.getPresses', operand };
+        const isPressed = (one: ButtonName): Expr => ({ ...base, type: 'bool', kind: 'read', op: 'button.isPressed', operand: { kind: 'button', button: one } });
+        // A+B (N17 B4): true while both are held, A read first and B only when A is held, as the Python's `and` does.
+        return button === BOTH_BUTTONS ? { ...base, type: 'bool', kind: 'logic', op: 'and', left: isPressed('A'), right: isPressed('B') } : isPressed(button);
       }
+      case buttonPressesType: {
+        const button = boardHasPartFor(block) ? buttonOf(block) : null;
+        return button === null ? null : { ...base, type: 'int', kind: 'read', op: 'button.getPresses', operand: { kind: 'button', button } };
+      }
+      case runningTimeType:
+        return { ...base, type: 'int', kind: 'read', op: 'time.runningTime' };
+      case randomIntType:
+        return compileRandom(block, depth);
       case lightLevelType:
         return boardHasPartFor(block) ? { ...base, type: 'int', kind: 'read', op: 'light.level' } : null;
       case temperatureType:
@@ -542,6 +576,25 @@ export function compileYbcProgram(
         report('error', 'unsupported-construct', `"${block.type}" cannot be used as a value.`, block.id);
         return null;
     }
+  };
+
+  /**
+   * C-40 (N17 B4): the two ends, each an int; a typed-in one outside ±MAX_RANDOM_ABS, and two typed-in ones more than
+   * MAX_RANDOM_SPAN apart, are refused here. Computed ones are the interpreter's to check. The order of the ends does not matter.
+   */
+  const compileRandom = (block: RawBlock, depth: number): Expr | null => {
+    const what = '"random number"';
+    const from = operand(block, 'FROM', 'random number', 'int', what, depth);
+    const to = operand(block, 'TO', 'random number', 'int', what, depth);
+    const badFrom = outsideLiteral(from, -MAX_RANDOM_ABS, MAX_RANDOM_ABS, 'A bound of a random number');
+    const badTo = outsideLiteral(to, -MAX_RANDOM_ABS, MAX_RANDOM_ABS, 'A bound of a random number');
+    const low = literal(from);
+    const high = literal(to);
+    const apart = low !== null && high !== null && !badFrom && !badTo && Math.abs(high - low) > MAX_RANDOM_SPAN;
+    if (apart) {
+      report('error', 'value-out-of-range', `The bounds of a random number must be at most ${MAX_RANDOM_SPAN} apart.`, block.id);
+    }
+    return from && to && !badFrom && !badTo && !apart ? { blockId: block.id, type: 'int', kind: 'read', op: 'random.int', args: [from, to] } : null;
   };
 
   const arithmetic = (block: RawBlock, op: ArithOp, leftName: string, rightName: string, depth: number): Expr | null => {

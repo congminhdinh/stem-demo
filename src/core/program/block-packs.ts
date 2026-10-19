@@ -1,5 +1,23 @@
 import { deviceFamily } from '../devices/device-definition';
-import { arithDefinition, arithType, countUpDefinition, countUpType, intDivideDefinition, intDivideType, waitDefinition, waitType, whileDefinition, whileType, langConstructs, langPackIds, type LangPackId } from '../constructs/lang';
+import {
+  arithDefinition,
+  arithType,
+  countUpDefinition,
+  countUpType,
+  intDivideDefinition,
+  intDivideType,
+  langConstructs,
+  langPackIds,
+  randomIntDefinition,
+  randomIntType,
+  runningTimeDefinition,
+  runningTimeType,
+  waitDefinition,
+  waitType,
+  whileDefinition,
+  whileType,
+  type LangPackId,
+} from '../constructs/lang';
 import { hardwareConstructs, type HardwarePackId } from '../constructs/ybc';
 import {
   clearDisplayType,
@@ -151,7 +169,8 @@ const langCategories: Readonly<Record<LangPackId, ToolboxCategory[]>> = {
       kind: 'category',
       name: 'Time',
       colour: '120',
-      contents: [block(waitType, { inputs: { MS: shadowNumber(1000) } })],
+      // N17 B4: the running time after wait.
+      contents: [block(waitType, { inputs: { MS: shadowNumber(1000) } }), block(runningTimeType)],
     },
   ],
   'lang.math': [
@@ -166,6 +185,8 @@ const langCategories: Readonly<Record<LangPackId, ToolboxCategory[]>> = {
         arithmetic('MULTIPLY'),
         block(intDivideType, { inputs: { A: shadowNumber(7), B: shadowNumber(2) } }),
         block('math_modulo', { inputs: { DIVIDEND: shadowNumber(7), DIVISOR: shadowNumber(2) } }),
+        // N17 B4: a dice.
+        block(randomIntType, { inputs: { FROM: shadowNumber(1), TO: shadowNumber(6) } }),
       ],
     },
   ],
@@ -188,8 +209,8 @@ const langCategories: Readonly<Record<LangPackId, ToolboxCategory[]>> = {
 
 const langBlocks: Readonly<Record<LangPackId, BlockDefinitionJson[]>> = {
   'lang.logic': [],
-  'lang.loops': [whileDefinition, countUpDefinition, waitDefinition],
-  'lang.math': [arithDefinition, intDivideDefinition],
+  'lang.loops': [whileDefinition, countUpDefinition, waitDefinition, runningTimeDefinition],
+  'lang.math': [arithDefinition, intDivideDefinition, randomIntDefinition],
   'lang.text': [],
   'lang.variables': [],
 };

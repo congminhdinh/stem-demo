@@ -29,6 +29,11 @@ export type DeviceRendererProps = {
   partInputs?: Readonly<Record<string, ComponentInput>>;
   /** A board with onboard parts only (N17 B2): how many one-shot events (shakes) a part had in the run, by part id. */
   partEvents?: Readonly<Record<string, number>>;
+  /**
+   * A board with onboard parts only, while a run takes the learner's presses (N17 B4): a button part of the drawing is pressed or let
+   * go by a pointer. Absent, the drawing takes no press.
+   */
+  onPartPress?(partId: string, pointerId: number, pressed: boolean): void;
 };
 
 // A Map, not an object literal: ids come from data, and names such as

@@ -3,8 +3,8 @@ import { builtinImageRows, isBuiltinImageName, vendorImageNames } from '../../co
 import { isAxisName, isButtonName, isGestureName } from '../../constructs/ybc.input';
 import { PIN_LEVELS, PIN_NUMBERS } from '../../constructs/ybc.pins';
 import { isMelodyName, isNoteName, noteTicks, PITCH_MAX_HZ, PITCH_MAX_MS, PITCH_MIN_HZ } from '../../constructs/ybc.sound';
-import { MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_SAFE_INT, MAX_TEXT_CHARS, MAX_WAIT_MS } from '../../program/limits';
-import type { ArithOp, CallStatement, ColourOperand, Expr, ReadExpr, Type, YbcProgramIR, YbcStatement } from '../../program/ybc-ir';
+import { MAX_RANDOM_ABS, MAX_RANDOM_SPAN, MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_SAFE_INT, MAX_TEXT_CHARS, MAX_WAIT_MS } from '../../program/limits';
+import type { ArithOp, CallStatement, ColourOperand, Expr, RandomExpr, ReadExpr, Type, YbcProgramIR, YbcStatement } from '../../program/ybc-ir';
 import { MAX_EXPRESSION_DEPTH, MAX_GENERATED_BYTES, MAX_STATEMENT_DEPTH } from './limits';
 import { moduleOfOp, yolobitModuleLines } from './modules';
 import { assignNames } from './names';
@@ -21,12 +21,12 @@ import { defaultTarget, type GenTarget } from './target';
  * The contract rows the generator can emit: the language layer (YB-5A), the onboard hardware of YB-3 (display C-06…C-09,
  * buttons C-12 and C-13, light C-15, sound C-50 and C-51), the header pins of YB-4 (C-23, C-24, C-25), the RGB display
  * of N17 B1 (built-in pictures C-05, set pixel C-10, clear pixel C-42, set all C-43), the sensors of N17 B2 (temperature
- * C-16, acceleration C-17, gesture C-18) and the buzzer of N17 B3 (melody C-20, tone C-21, stop C-22). The other hardware rows
- * arrive with their phases.
+ * C-16, acceleration C-17, gesture C-18), the buzzer of N17 B3 (melody C-20, tone C-21, stop C-22) and N17 B4's running time
+ * (C-19) and random number (C-40); A+B is C-12 twice with C-35's `and`. The other hardware rows arrive with their phases.
  */
 export const generatedConstructs = [
-  'C-01', 'C-02', 'C-04', 'C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-12', 'C-13', 'C-15', 'C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22', 'C-23', 'C-24',
-  'C-25', 'C-29', 'C-30', 'C-31', 'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-42', 'C-43', 'C-50', 'C-51', 'C-56',
+  'C-01', 'C-02', 'C-04', 'C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-12', 'C-13', 'C-15', 'C-16', 'C-17', 'C-18', 'C-19', 'C-20', 'C-21', 'C-22', 'C-23',
+  'C-24', 'C-25', 'C-29', 'C-30', 'C-31', 'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-40', 'C-42', 'C-43', 'C-50', 'C-51', 'C-56',
 ] as const;
 
 export type GenDiagnosticCode =
@@ -100,7 +100,8 @@ type Rendered = { text: string; prec: number };
 
 // The modules of the hardware (contract §2.3). IM-2: `from yolobit import *` and exactly three lines of preamble,
 // right after `import time` (`yolobitModuleLines`). IM-3 / IM-4: `import music` and, because the generator fixes the
-// tempo, `music.set_tempo(4, 120)`. The order is fixed: time, yolobit with its preamble, music. They are written here
+// tempo, `music.set_tempo(4, 120)`. The order is fixed: time, yolobit with its preamble, music, then (N17 B4) `import random` once
+// when a random number is used. They are written here
 // and in modules.ts, not read from the contract data, so that the large contract stays out of the app bundle;
 // generate.constructs.test.ts keeps them equal to the contract.
 const musicHeader = ['import music', 'music.set_tempo(4, 120)'] as const;
@@ -109,8 +110,8 @@ const musicHeader = ['import music', 'music.set_tempo(4, 120)'] as const;
  * Which modules the program needs. An explicit stack, not recursion: the IR may be nested as deep as a hostile document
  * asks, and the generator never throws (it reports the depth later, when it writes the nesting).
  */
-function modulesUsed(ir: YbcProgramIR): { yolobit: boolean; music: boolean } {
-  const used = { yolobit: false, music: false };
+function modulesUsed(ir: YbcProgramIR): { yolobit: boolean; music: boolean; random: boolean } {
+  const used = { yolobit: false, music: false, random: false };
   const pending: unknown[] = [ir.onStart, ir.forever];
   for (let node = pending.pop(); node !== undefined; node = pending.pop()) {
     if (typeof node !== 'object' || node === null) {
@@ -127,6 +128,22 @@ function modulesUsed(ir: YbcProgramIR): { yolobit: boolean; music: boolean } {
 
 /** A literal int is a whole number inside the safe range (plan §6.4); NaN, Infinity and 1.5 are not. */
 const isValidIntLiteral = (value: number) => Number.isSafeInteger(value) && Math.abs(value) <= MAX_SAFE_INT;
+
+/**
+ * Whether an int expression reads nothing (N17 B4): literals, variables and arithmetic of them, whose value is the same however
+ * often it is evaluated. A read of the board, the running time or another random number is not. An explicit stack, never recursion.
+ */
+function readsNothing(expr: Expr): boolean {
+  const pending: Expr[] = [expr];
+  for (let node = pending.pop(); node !== undefined; node = pending.pop()) {
+    if (node.kind === 'arith') {
+      pending.push(node.left, node.right);
+    } else if (node.kind !== 'int' && node.kind !== 'variable') {
+      return false;
+    }
+  }
+  return true;
+}
 
 /** The size of the file as written: UTF-8 bytes, not the UTF-16 units of a JavaScript string. */
 const utf8Bytes = (text: string) => new TextEncoder().encode(text).byteLength;
@@ -283,6 +300,9 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
           expectType(expr, 'int', 'An analog read');
           return { text: `int(pin${pin}.read_analog())`, prec: precAtom };
         }
+        if (expr.op === 'random.int') {
+          return { text: renderRandom(expr, depth), prec: precAtom };
+        }
         return { text: renderRead(expr), prec: precAtom };
       }
       case 'join': {
@@ -340,6 +360,10 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
         }
         return `accelerometer.get_${axis}()`;
       }
+      case 'time.runningTime':
+        // C-19 (N17 B4): the call the editor wrote (EVD-03).
+        expectType(expr, 'int', 'A running time');
+        return 'running_time()';
       case 'motion.isGesture': {
         expectType(expr, 'bool', 'A gesture check');
         const gesture = (expr.operand as { gesture?: unknown }).gesture;
@@ -353,6 +377,45 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
         report('unsupported-node', 'The generator does not know this kind of value.', (expr as { blockId?: string }).blockId);
         return '';
     }
+  };
+
+  /**
+   * C-40 (N17 B4): `random.randint(a, b)`, the call the editor wrote (EVD-03). The simulator takes the ends in either order, and
+   * the board's randint refuses them high first, so the Python puts them low first: typed-in ends sorted now, computed ends that
+   * read nothing as `min(a, b), max(a, b)` (evaluated twice, which changes nothing for them). Computed ends that read the board or
+   * draw a random number would be read twice that way, so they cannot be said faithfully (K4).
+   */
+  const renderRandom = (expr: Expr & RandomExpr, depth: number): string => {
+    const [from, to] = expr.args;
+    if (expr.args.length !== 2 || from === undefined || to === undefined) {
+      report('unsupported-node', 'A random number needs its two ends.', expr.blockId);
+      return '';
+    }
+    expectType(expr, 'int', 'A random number');
+    expectType(from, 'int', 'An end of a random number');
+    expectType(to, 'int', 'An end of a random number');
+    let ends = true;
+    for (const end of [from, to]) {
+      if (isLiteralInt(end) && Math.abs(end.value) > MAX_RANDOM_ABS) {
+        report('value-out-of-range', `An end of a random number is -${MAX_RANDOM_ABS} to ${MAX_RANDOM_ABS}.`, end.blockId);
+        ends = false;
+      }
+    }
+    if (isLiteralInt(from) && isLiteralInt(to)) {
+      if (ends && Math.abs(to.value - from.value) > MAX_RANDOM_SPAN) {
+        report('value-out-of-range', `The ends of a random number are at most ${MAX_RANDOM_SPAN} apart.`, expr.blockId);
+      }
+      const low = renderExpr(from.value <= to.value ? from : to, depth + 1).text;
+      const high = renderExpr(from.value <= to.value ? to : from, depth + 1).text;
+      return `random.randint(${low}, ${high})`;
+    }
+    if (!readsNothing(from) || !readsNothing(to)) {
+      report('unsupported-node', 'The ends of a random number must not read the board or draw a random number; put that value in a variable first.', expr.blockId);
+      return '';
+    }
+    const a = renderExpr(from, depth + 1).text;
+    const b = renderExpr(to, depth + 1).text;
+    return `random.randint(min(${a}, ${b}), max(${a}, ${b}))`;
   };
 
   const expression = (expr: Expr) => renderExpr(expr, 1).text;
@@ -692,6 +755,9 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
   }
   if (modules.music) {
     lines.push(...musicHeader);
+  }
+  if (modules.random) {
+    lines.push('import random');
   }
   if (ir.variables.length > 0) {
     lines.push('');

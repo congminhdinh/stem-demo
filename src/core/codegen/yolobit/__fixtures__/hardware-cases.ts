@@ -1,7 +1,7 @@
 import {
   acceleration, add, and, bool, buttonPressed, buttonPresses, clearDisplay, clearPixel, cmp, colour, countUp, gestureIs, getVar, ifElif, ifThen, images,
-  join, lightLevel, mul, num, or, playMelody, playNote, playPitch, print, program, rest, scrollNumber, scrollNumberIn, scrollText, scrollTextIn, setAll,
-  setPixel, setVar, showIcon, showImage, showImageIn, stopSound, sub, temperature, text, wait, type Json,
+  join, lightLevel, mul, num, or, playMelody, playNote, playPitch, print, program, randomInt, rest, runningTime, scrollNumber, scrollNumberIn, scrollText,
+  scrollTextIn, setAll, setPixel, setVar, showIcon, showImage, showImageIn, stopSound, sub, temperature, text, wait, type Json,
 } from '../../../program/__fixtures__/ybc-blocks';
 import { melodyNames } from '../../../constructs/ybc.sound';
 import { noteNames, noteTicks } from '../../../constructs/ybc.sound';
@@ -183,6 +183,26 @@ export const hardwareCases: HardwareCase[] = [
     blocks: program(
       [...melodyNames.map((name) => playMelody(name, 'background')), stopSound()],
       [ifThen(buttonPressed('A'), [playPitch(add(mul(x(), num(10)), num(200)), num(100)), setVar('x', add(x(), num(1)))])],
+    ),
+  },
+  // N17 B4: A+B (the `and` of the two C-12 reads, never the editor's is_pressed_ab()) before A alone, and the running time since the
+  // program started, kept at the start and taken from the running time while A+B is held.
+  {
+    name: 'both-buttons-and-running-time',
+    covers: ['C-12', 'C-19', 'C-06', 'C-09', 'C-29', 'C-30', 'C-36'],
+    blocks: program(
+      [setVar('x', runningTime())],
+      [ifElif([[buttonPressed('A+B'), [showImage(images.FULL), print(sub(runningTime(), x()))]], [buttonPressed('A'), [showImage(images.CROSS)]]], [clearDisplay()])],
+    ),
+  },
+  // N17 B4: a dice. Typed-in ends are written low first (6 to 1 is 1 to 6), computed ends that read nothing as min and max; A rolls
+  // one from 1 to 6 and shows it. `import random` once, after the other imports.
+  {
+    name: 'dice',
+    covers: ['C-40', 'C-08', 'C-12', 'C-04', 'C-29', 'C-30', 'C-36'],
+    blocks: program(
+      [setVar('y', randomInt(num(6), num(1))), setVar('z', randomInt(getVar('y'), num(10))), print(getVar('z'))],
+      [ifThen(buttonPressed('A'), [scrollNumber(randomInt(num(1), num(6))), wait(num(500))])],
     ),
   },
 ];

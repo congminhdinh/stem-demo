@@ -3,7 +3,7 @@ import { createNewProject } from '../circuit/document';
 import type { RunSnapshot, StartResult } from '../run/run-session';
 import type { ComponentInput } from '../simulation/simulate-circuit';
 import type { Challenge } from './challenge';
-import { runCheck, type CheckSession } from './check-run';
+import { CHECK_RANDOM_SEED, runCheck, type CheckSession } from './check-run';
 
 // The check against a fake session (N6a S2): when it starts and stops the run, when it gives inputs, and how it
 // ends. Real runs of real templates are in src/samples/challenges.test.ts.
@@ -28,13 +28,15 @@ function fakeSession(startResult: StartResult = { ok: true }) {
   let current: RunSnapshot = idle;
   const calls: string[] = [];
   const inputs: [number, string, ComponentInput][] = [];
+  const options: unknown[] = [];
   const publish = (next: RunSnapshot) => {
     current = next;
     [...listeners].forEach((listener) => listener(next));
   };
   const session: CheckSession = {
-    start() {
+    start(_project, given) {
       calls.push('start');
+      options.push(given);
       if (!startResult.ok) {
         publish(idle);
         return startResult;
@@ -55,7 +57,7 @@ function fakeSession(startResult: StartResult = { ok: true }) {
       inputs.push([Date.now(), componentId, input]);
     },
   };
-  return { session, publish, calls, inputs, listeners };
+  return { session, publish, calls, inputs, listeners, options };
 }
 
 const document = createNewProject('p');
@@ -69,6 +71,14 @@ const challenge: Challenge = {
 };
 
 describe('runCheck (N6a S2)', () => {
+  it('starts its run with the seed of a check, so its random numbers are the same every time (N17 B4)', async () => {
+    const fake = fakeSession();
+    runCheck({ session: fake.session, document, challenge, boardId: 'board' });
+    expect(fake.options).toEqual([{ seed: CHECK_RANDOM_SEED }]);
+    expect(Number.isSafeInteger(CHECK_RANDOM_SEED)).toBe(true);
+    await vi.advanceTimersByTimeAsync(1000);
+  });
+
   it('runs the program for the duration, then stops it and gives the verdict', async () => {
     const fake = fakeSession();
     const check = runCheck({ session: fake.session, document, challenge, boardId: 'board' });

@@ -94,8 +94,13 @@ test('offers the language blocks, a variables category without "change by", and 
   expect(logic).toMatch(/not/);
   const math = await flyoutTexts('Math');
   expect(math).toContain('//');
-  // "remainder of a ÷ b" is Blockly's own wording for %; there is no division or power block.
-  expect(math).not.toMatch(/\^|sqrt|round|random/);
+  // "remainder of a ÷ b" is Blockly's own wording for %; there is no division or power block. N17 B4: the dialect's own random
+  // number (both ends included, in either order), never Blockly's random integer or fraction.
+  expect(math).toMatch(/random\snumber\sfrom/);
+  expect(math).not.toMatch(/\^|sqrt|round|random\sinteger|random\sfraction/);
+  const time = await flyoutTexts('Time');
+  expect(time).toMatch(/wait/);
+  expect(time).toMatch(/running\stime\s\(ms\)/);
   const variables = await flyoutTexts('Variables');
   expect(variables).toMatch(/Create variable/);
   expect(variables).toMatch(/set/);

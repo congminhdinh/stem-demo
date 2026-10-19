@@ -561,8 +561,8 @@ describe('what Blockly does with a value outside the domain', () => {
     }
   });
 
-  it.each(['AB', 'A+B', 'C', 'a', ''])('replaces the button %j by the first option, A, when it loads', (button) => {
-    for (const make of [buttonPressed, buttonPresses]) {
+  it.each(['AB', 'A+B', 'C', 'a', ''])('replaces the button %j by the first option, A, when it loads (N17 B4: but A+B is an option of "is pressed")', (button) => {
+    for (const make of button === 'A+B' ? [buttonPresses] : [buttonPressed, buttonPresses]) {
       const raw = hostile(print({ ...make('B'), fields: { BUTTON: button } }));
       expect(compileRaw(raw).diagnostics.map((d) => d.code)).toEqual(['value-out-of-range']);
       const saved = reload(raw);
@@ -570,6 +570,16 @@ describe('what Blockly does with a value outside the domain', () => {
       expect(read.fields).toEqual({ BUTTON: 'A' });
       expect(compileRaw(saved as Json).ok).toBe(true);
     }
+  });
+
+  it('keeps "A+B" of "is pressed" as it was (N17 B4), and runs it as A and B both held', async () => {
+    const raw = hostile(print({ ...buttonPressed('A'), fields: { BUTTON: 'A+B' } }));
+    expect(compileRaw(raw).ok).toBe(true);
+    const saved = reload(raw);
+    const read = asRecord(asRecord(asRecord(asRecord(savedBlock(saved)).inputs).TEXT).block);
+    expect(read.fields).toEqual({ BUTTON: 'A+B' });
+    expect((await compileAndRun(saved as Json, { held: { a: true, b: true } })).lines).toEqual(['True']);
+    expect((await compileAndRun(saved as Json, { held: { a: true, b: false } })).lines).toEqual(['False']);
   });
 
   it('keeps a value that is inside the domain exactly as it was: the replacement is only for what the dropdown does not offer', () => {

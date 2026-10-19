@@ -267,7 +267,7 @@ describe('the Python of a hardware program is a text of the document and nothing
     }
     expect(Object.keys(generated).sort()).toEqual(['diagnostics', 'lineMap', 'names', 'ok', 'source']);
     expect(generated.diagnostics).toEqual([]);
-    expect(JSON.stringify(generated)).not.toMatch(/console|simulation|status|"frame"|"hz"|pixels|running/);
+    expect(JSON.stringify(generated)).not.toMatch(/console|simulation|status|"frame"|"hz"|pixels|running(?!_time\(\))/);
     expect(typeof generated.source).toBe('string');
     // It is plain data: it survives a round trip through JSON unchanged.
     expect(JSON.parse(JSON.stringify(generated))).toEqual(generated);

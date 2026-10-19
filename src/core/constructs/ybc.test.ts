@@ -10,15 +10,15 @@ import { capabilitiesOf } from '../profiles/board-context';
 import { buildToolbox, createBlockPackCatalog } from '../program/block-packs';
 import { images, showImage } from '../program/__fixtures__/ybc-blocks';
 import { inputKindOfModel } from '../simulation/simulate-circuit';
-import { langConstructs, langContractIds } from './lang';
+import { langConstructs, langContractIds, randomIntType, runningTimeType } from './lang';
 import { hardwareConstructOf, hardwareConstructs, hardwareContractIds, hardwarePackIds } from './ybc';
 import {
   clearDisplayType, clearPixelType, colourType, IMAGE_SIZE, isDisplayText, paletteColours, pixelFieldName, scrollNumberType, scrollTextType, setAllType,
   setPixelType, showIconType, showImageDefinition, showImageType,
 } from './ybc.display';
-import { accelerationType, axisNames, buttonNames, buttonPressedType, buttonPressesType, gestureIsType, gestureNames, lightLevelType, temperatureType } from './ybc.input';
+import { accelerationType, axisNames, buttonNames, buttonPressedType, buttonPressesType, gestureIsType, gestureNames, lightLevelType, pressedButtonNames, temperatureType } from './ybc.input';
 import { pinConstructs, pinContractIds } from './ybc.pins';
-import { melodyNames, melodyType, noteNames, noteTicks, pitchType, playNoteType, restType, soundStopType } from './ybc.sound';
+import { editorMelodyNames, melodyNames, melodyType, noteNames, noteTicks, pitchType, playNoteType, restType, soundStopType } from './ybc.sound';
 
 // The YB-3 hardware constructs against the frozen machine-readable contract: every block a profile shows for the
 // onboard hardware is a construct, every construct a contract row that passes the exposure gate, each reaches a
@@ -71,10 +71,13 @@ const hardwareBlockTypes = [
 /** The profiles that show a hardware row: the sensors (C-16…C-18) and the melodies, tone and stop (C-20…C-22) are Advanced only. */
 const profilesOf = (id: string) => (advancedOnlyIds.includes(id) ? [advanced] : profiles);
 
-/** Rows the onboard hardware does not own that no profile lists yet. The header pins (C-23…C-25) are not its either: they are YB-4's, and listed. */
+/**
+ * Rows the onboard hardware does not own that no profile lists yet. The header pins (C-23…C-25) are not its either: they are YB-4's,
+ * and listed; nor are the running time (C-19) and random numbers (C-40) of N17 B4, which are language rows (constructs/lang.ts).
+ */
 const notOwned = [
   'C-27',
-  'C-14', 'C-26', 'C-19', 'C-40', 'C-47', 'C-11', 'C-52',
+  'C-14', 'C-26', 'C-47', 'C-11', 'C-52',
 ];
 
 type Json = Record<string, unknown>;
@@ -269,7 +272,9 @@ describe('the YB-3 block packs', () => {
     expect(argsOf(pitchType)).toEqual([{ type: 'input_value', name: 'HZ', check: 'Number' }, { type: 'input_value', name: 'MS', check: 'Number' }]);
     const [melody, mode] = argsOf(melodyType);
     expect(melody?.type).toBe('field_dropdown');
-    expect((melody?.options as string[][]).map(([, value]) => value)).toEqual([...melodyNames]);
+    // N17 B4: the editor's 14 only; the six micro:bit names stay in the domain (melodyNames) for programs saved with one.
+    expect((melody?.options as string[][]).map(([, value]) => value)).toEqual([...editorMelodyNames]);
+    expect(melodyNames.length).toBe(20);
     expect(mode).toMatchObject({ type: 'field_dropdown', name: 'MODE' });
     expect((mode?.options as string[][]).map(([, value]) => value)).toEqual(['wait', 'background']);
     expect(argsOf(soundStopType)).toEqual([]);
@@ -345,7 +350,9 @@ describe('what both profiles list', () => {
     const pinBlockTypes = pinConstructs.flatMap((construct) => construct.blockTypes);
     const expected = ['stem_on_start', 'stem_forever', ...langConstructs.flatMap((construct) => construct.blockTypes), ...hardwareBlockTypes, ...pinBlockTypes];
     expect([...ybcTypes].sort()).toEqual([...expected].sort());
-    expect(ybcTypes.filter((type) => !pinBlockTypes.includes(type) && !advancedOnlyBlockTypes.includes(type)).filter((type) => /pitch|stop|brightness|tempo|melody|event|_ab\b|random|elapsed|running|timer|_pin_|gesture|accel|temperature|servo|pwm|pulse|touch|digital|analog/i.test(type))).toEqual([]);
+    // N17 B4: the running time and random numbers are language rows of both profiles (constructs/lang.ts), so they are not counted here.
+    const logicBlockTypes = [runningTimeType, randomIntType];
+    expect(ybcTypes.filter((type) => !pinBlockTypes.includes(type) && !advancedOnlyBlockTypes.includes(type) && !logicBlockTypes.includes(type)).filter((type) => /pitch|stop|brightness|tempo|melody|event|_ab\b|random|elapsed|running|timer|_pin_|gesture|accel|temperature|servo|pwm|pulse|touch|digital|analog/i.test(type))).toEqual([]);
     for (const profile of profiles) {
       const shown = typesIn(toolboxOf(profile));
       expect([...shown].filter((type) => !expected.includes(type)), profile.id).toEqual([]);
@@ -516,7 +523,8 @@ describe('the offered values against the domains of the contract', () => {
       const rule = row(id).domain?.compileTime.find((candidate) => 'oneOf' in candidate.when && candidate.when.oneOf.arg === arg)?.when;
       return rule && 'oneOf' in rule ? rule.oneOf.values : undefined;
     };
-    expect([...buttonNames]).toEqual(oneOf('C-12', 'button'));
+    // N17 B4: "is pressed" offers A+B too; a press count only A and B.
+    expect([...pressedButtonNames]).toEqual(oneOf('C-12', 'button'));
     expect([...buttonNames]).toEqual(oneOf('C-13', 'button'));
     expect([...noteNames]).toEqual(oneOf('C-50', 'note'));
     expect([...noteTicks]).toEqual(oneOf('C-50', 'ticks'));
@@ -542,10 +550,10 @@ describe('the gate keeps a hardware construct out when its evidence is not enoug
       .filter(([, entry]) => entry.label !== 'n/a')
       .map(([field]) => field as keyof YolobitContract['constructs'][number]['fields']);
 
-  it.each(['UNKNOWN', 'INFERRED'] as const)('a profile cannot list a hardware row whose required field is %s: every field of every row (but the UNKNOWN ones the owner opened as UNVERIFIED, N17 B2)', (label) => {
+  it.each(['UNKNOWN', 'INFERRED'] as const)('a profile cannot list a hardware row whose required field is %s: every field of every row (but the ones the owner opened as UNVERIFIED, N17 B2 and B4)', (label) => {
     for (const id of hardwareIds) {
       const named = Object.keys(row(id).unverifiedFields ?? {});
-      const fields = requiredFields(id).filter((field) => !(label === 'UNKNOWN' && named.includes(field)));
+      const fields = requiredFields(id).filter((field) => !named.includes(field));
       expect(fields.length, id).toBeGreaterThan(0);
       for (const field of fields) {
         const broken = mutatedRow(id, field, unsure(label));
@@ -580,14 +588,15 @@ describe('the gate keeps a hardware construct out when its evidence is not enoug
     }
   });
 
-  it('would keep the language rows if RV-1 were rejected: only the hardware depends on the simulator', () => {
-    for (const id of ['C-01', 'C-02', ...langContractIds]) {
+  it('would keep the language rows if RV-1 were rejected: only the hardware depends on the simulator, and the running time (N17 B4), a call of the yolobit module', () => {
+    for (const id of ['C-01', 'C-02', ...langContractIds.filter((candidate) => candidate !== 'C-19')]) {
       expect(isExposable(row(id), contract, 'REJECTED'), id).toBe(true);
     }
+    expect(isExposable(row('C-19'), contract, 'REJECTED')).toBe(false);
   });
 
   it('a profile cannot list the rows YB-3 does not own, whether the contract excludes them, defers them or leaves them to a later phase', () => {
-    for (const id of ['C-14', 'C-26', 'C-19', 'C-40', 'C-47', 'C-11', 'C-52']) {
+    for (const id of ['C-14', 'C-26', 'C-47', 'C-11', 'C-52']) {
       expect(profileConstructViolations('ybc-basic', [id], contract), id).not.toEqual([]);
     }
   });

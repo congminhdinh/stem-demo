@@ -95,8 +95,11 @@ describe('block packs', () => {
       'ybc_while',
       'ybc_count_up',
       'ybc_wait_ms',
+      // N17 B4: the running time (Time) and random numbers (Math).
+      'ybc_running_time',
       'ybc_arith',
       'ybc_int_divide',
+      'ybc_random_int',
     ]);
   });
 

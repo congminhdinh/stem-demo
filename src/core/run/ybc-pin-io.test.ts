@@ -30,6 +30,7 @@ function simulationOf(levels: Partial<Record<'p0' | 'p1' | 'p2' | 'p3' | 'p16', 
 
 function fakeEnvironment(simulation: () => SimulationResult | null = () => null) {
   const drivePin = vi.fn<(pin: string, level: 0 | 1) => void>();
+  const warn = vi.fn<RunEnvironment['warn']>();
   const environment: RunEnvironment = {
     board,
     capabilitySet: ['digital', 'analogIn'],
@@ -40,14 +41,15 @@ function fakeEnvironment(simulation: () => SimulationResult | null = () => null)
     report: () => {},
     simulation,
     drivePin,
+    warn,
   };
-  return { environment, drivePin };
+  return { environment, drivePin, warn };
 }
 
 function pinsOver(simulation: () => SimulationResult | null, boards: DeviceRegistry = registry) {
-  const { environment, drivePin } = fakeEnvironment(simulation);
+  const { environment, drivePin, warn } = fakeEnvironment(simulation);
   const capabilities = createPinCapabilities(boards)(environment);
-  return { digital: capabilities.digital as DigitalIO, analogIn: capabilities.analogIn as AnalogInIO, drivePin };
+  return { digital: capabilities.digital as DigitalIO, analogIn: capabilities.analogIn as AnalogInIO, drivePin, warn };
 }
 
 const fault = (action: () => unknown) => {
@@ -96,16 +98,39 @@ describe('the pin factory', () => {
     expect(analogIn.analogRead('P2')).toBe(2048);
   });
 
-  it('stops the program for a signal it must not read: floating, a conflict, an analog level read as on/off', () => {
-    const { digital, analogIn } = pinsOver(() => simulationOf({ p1: 'conflict', p2: { analog: 10 } }));
-    expect(fault(() => digital.digitalRead('P0'))).toEqual({ code: 'out-of-domain', message: 'Pin P0 is not connected to anything, so it cannot be read.' });
-    expect(fault(() => analogIn.analogRead('P0'))).toMatchObject({ code: 'out-of-domain' });
+  it('reads a floating pin on/off as 0 (a pull-down), says so once per pin and run as a warning, and goes on (N17 B4)', () => {
+    const { digital, warn } = pinsOver(() => simulationOf({ p2: 'high' }));
+    expect(digital.digitalRead('P0')).toBe(0);
+    expect(digital.digitalRead('P0')).toBe(0);
+    expect(digital.digitalRead('P1')).toBe(0);
+    expect(digital.digitalRead('P0')).toBe(0);
+    expect(digital.digitalRead('P2')).toBe(1);
+    expect(warn.mock.calls).toEqual([
+      [{ code: 'floating-pin', message: 'Pin P0 is floating, so it reads 0. Connect the button to 3V3 or GND.' }],
+      [{ code: 'floating-pin', message: 'Pin P1 is floating, so it reads 0. Connect the button to 3V3 or GND.' }],
+    ]);
+    // Another run (another set of capabilities) warns again.
+    const next = pinsOver(() => simulationOf({}));
+    expect(next.digital.digitalRead('P0')).toBe(0);
+    expect(next.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('warns about a floating pin only while the run is on: once it is over, a read is 0 and says nothing', () => {
+    const { digital, warn } = pinsOver(() => null);
+    expect(digital.digitalRead('P0')).toBe(0);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('stops the program for a signal it must not read: a floating pin read as analog, a conflict, an analog level read as on/off', () => {
+    const { digital, analogIn, warn } = pinsOver(() => simulationOf({ p1: 'conflict', p2: { analog: 10 } }));
+    expect(fault(() => analogIn.analogRead('P0'))).toEqual({ code: 'out-of-domain', message: 'Pin P0 is not connected to anything, so it cannot be read.' });
     expect(fault(() => digital.digitalRead('P1'))).toEqual({ code: 'out-of-domain', message: 'Pin P1 is driven by two things at once, so it cannot be read.' });
     expect(fault(() => analogIn.analogRead('P1'))).toMatchObject({ code: 'out-of-domain' });
     expect(fault(() => digital.digitalRead('P2'))).toEqual({
       code: 'out-of-domain',
       message: 'Pin P2 carries an analog level, which is neither on nor off. Use "analog read".',
     });
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it('cannot read a pin this program has set, and keeps that to the capabilities of the run that wrote it', () => {

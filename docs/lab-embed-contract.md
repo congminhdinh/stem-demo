@@ -53,6 +53,7 @@ hợp lệ và lab nằm trong một frame.
 
 - Tối đa 50 mục tiêu, nhãn 1–200 ký tự (host bỏ qua nguyên message nếu vượt). Nhãn theo ngôn ngữ của lab.
 - Lab không có khái niệm XP, lớp, tiến độ hay hoàn thành: host tự quyết `requiresCheck` và lúc nào activity xong.
+- Lượt chạy của Kiểm tra dùng **seed cố định** cho số ngẫu nhiên (N17 B4, khối "số ngẫu nhiên"): cùng chương trình cho cùng `check-result`. Chạy thường thì ngẫu nhiên thật.
 
 ### Host → lab
 

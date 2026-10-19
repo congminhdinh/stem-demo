@@ -75,7 +75,7 @@ describe('the interpreter boundary: runYbcProgram(ir, capabilities, services)', 
     session.start(ybc());
     const [, capabilities, services] = lastCall();
     expect(capabilities).toEqual({});
-    expect(Object.keys(services).sort()).toEqual(['budget', 'clock', 'console', 'scheduler', 'signal', 'sleep']);
+    expect(Object.keys(services).sort()).toEqual(['budget', 'clock', 'console', 'randomInt', 'scheduler', 'signal', 'sleep']);
     await vi.advanceTimersByTimeAsync(0);
     expect(session.getSnapshot()).toMatchObject({ status: 'finished', console: { lines: ['1'] } });
   });

@@ -5,8 +5,8 @@ import { productionProfiles } from '../profiles';
 import { createBlockPackCatalog } from '../program/block-packs';
 import { compileYbcProgram } from '../program/compile-ybc-program';
 import { createRunConsole } from '../program/console';
-import { MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_WAIT_MS } from '../program/limits';
-import { add, countUp, num, program, repeat, wait, type Json } from '../program/__fixtures__/ybc-blocks';
+import { MAX_RANDOM_ABS, MAX_RANDOM_SPAN, MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_WAIT_MS } from '../program/limits';
+import { add, countUp, num, print, program, randomInt, repeat, wait, type Json } from '../program/__fixtures__/ybc-blocks';
 import { runYbc } from '../program/__fixtures__/run-ybc';
 import { evaluatePred } from './contract-validation';
 import { yolobitContract } from './yolobit-contract';
@@ -14,7 +14,7 @@ import { yolobitContract } from './yolobit-contract';
 import type { Frame } from '../capabilities/frame';
 import type { Capabilities } from '../capabilities/io';
 import { DISPLAY_CHAR_FROM, DISPLAY_CHAR_TO, IMAGE_SIZE, isDisplayText } from '../constructs/ybc.display';
-import { buttonNames, isButtonName } from '../constructs/ybc.input';
+import { buttonNames, isButtonName, isPressedButtonName, pressedButtonNames } from '../constructs/ybc.input';
 import { noteNames, noteTicks, PITCH_MAX_HZ, PITCH_MAX_MS, PITCH_MIN_HZ } from '../constructs/ybc.sound';
 import { buttonPressed, buttonPresses, playNote, playPitch, rest, scrollText, text } from '../program/__fixtures__/ybc-blocks';
 import type { Expr, YbcProgramIR, YbcStatement } from '../program/ybc-ir';
@@ -199,7 +199,7 @@ describe('the constants of the hardware constructs are the contract constants', 
   });
 
   it('offers the buttons, the notes and the lengths that the predicates list, in the same order', () => {
-    expect([...buttonNames]).toEqual(oneOfValues('C-12', 'button'));
+    expect([...pressedButtonNames]).toEqual(oneOfValues('C-12', 'button'));
     expect([...buttonNames]).toEqual(oneOfValues('C-13', 'button'));
     expect([...noteNames]).toEqual(oneOfValues('C-50', 'note'));
     expect([...noteTicks]).toEqual(oneOfValues('C-50', 'ticks'));
@@ -270,25 +270,25 @@ describe('display text (C-07): compiler and interpreter agree with the contract 
 describe('buttons (C-12, C-13): compiler and interpreter agree with the contract predicate', () => {
   const buttons = ['A', 'B', 'AB', 'A+B', 'C', 'a', 'b', '', ' A', 'B ', 'AA', '0'];
 
-  it('pins the domain: the predicate allows exactly A and B', () => {
-    for (const id of ['C-12', 'C-13']) {
-      expect(buttons.filter((button) => evaluatePred(row(id).runtime, { values: { button } })), id).toEqual(['A', 'B']);
-    }
+  it('pins the domain: the predicate allows exactly A and B, and A+B for "is pressed" (N17 B4)', () => {
+    expect(buttons.filter((button) => evaluatePred(row('C-12').runtime, { values: { button } }))).toEqual(['A', 'B', 'A+B']);
+    expect(buttons.filter((button) => evaluatePred(row('C-13').runtime, { values: { button } }))).toEqual(['A', 'B']);
   });
 
   it.each(buttons)('the button %j', async (button) => {
-    for (const [id, make, op] of [['C-12', buttonPressed, 'button.isPressed'], ['C-13', buttonPresses, 'button.getPresses']] as const) {
+    for (const [id, make, op, isName] of [['C-12', buttonPressed, 'button.isPressed', isPressedButtonName], ['C-13', buttonPresses, 'button.getPresses', isButtonName]] as const) {
       const allowed = evaluatePred(row(id).runtime, { values: { button } });
-      expect(isButtonName(button), id).toBe(allowed);
+      expect(isName(button), id).toBe(allowed);
       expect(compileTimeAllows(id, { button }), id).toBe(allowed);
 
       // Typed in: the field of the block, as Blockly would save the text of an option.
       expect(compiles({ type: 'text_print', id: 'p', inputs: { TEXT: { block: { ...make('A'), fields: { BUTTON: button } } } } }), `${id} ${JSON.stringify(button)}`).toBe(allowed);
 
-      // The interpreter's own check on the IR it is given: it reads only A and B.
+      // The interpreter's own check on the IR it is given: a read is of A or B only. A+B never reaches it as one button: the
+      // compiler writes the `and` of the reads of A and B (N17 B4).
       const read = { ...where, kind: 'read', op, type: op === 'button.isPressed' ? 'bool' : 'int', operand: { kind: 'button', button } } as unknown as Expr;
       const { outcome } = await runForged({ ...where, kind: 'print', value: read });
-      expect(outcome.status === 'finished', `${id} ${JSON.stringify(button)}`).toBe(allowed);
+      expect(outcome.status === 'finished', `${id} ${JSON.stringify(button)}`).toBe(allowed && isButtonName(button));
     }
   });
 });
@@ -384,5 +384,26 @@ describe('a tone (C-21, N17 B3): compiler and interpreter agree with the contrac
     const allowed = evaluatePred(row('C-21').runtime, { values: { hz, ms } });
     expect(compilesTone(hz, ms)).toBe(allowed);
     expect(await runsTone(hz, ms)).toBe(allowed);
+  });
+});
+
+describe('a random number (C-40, N17 B4): compiler and interpreter agree with the contract predicate', () => {
+  const pairs: [number, number][] = [
+    [1, 6], [6, 1], [-3, -3], [-1_000_000, 0], [0, -1_000_000], [1_000_000, 0], [-1_000_001, 0], [0, 1_000_001],
+    [-500_000, 500_000], [500_000, -500_000], [-500_000, 500_001], [500_001, -500_000],
+  ];
+
+  it('pins the limits: each end within ±1000000, the two at most 1000000 apart, in either order', () => {
+    expect([MAX_RANDOM_ABS, MAX_RANDOM_SPAN]).toEqual([yolobitContract.constants.MAX_RANDOM_ABS, yolobitContract.constants.MAX_RANDOM_SPAN]);
+    expect(pairs.filter(([a, b]) => evaluatePred(row('C-40').runtime, { values: { a, b } }))).toEqual([
+      [1, 6], [6, 1], [-3, -3], [-1_000_000, 0], [0, -1_000_000], [1_000_000, 0], [-500_000, 500_000], [500_000, -500_000],
+    ]);
+  });
+
+  it.each(pairs)('from %d to %d', async (a, b) => {
+    const allowed = evaluatePred(row('C-40').runtime, { values: { a, b } });
+    expect(compileTimeAllows('C-40', { a, b })).toBe(allowed);
+    expect(compiles(print(randomInt(num(a), num(b))))).toBe(allowed);
+    expect(await runs(print(randomInt(computed(a), computed(b))))).toBe(allowed);
   });
 });

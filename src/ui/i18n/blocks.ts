@@ -1,4 +1,5 @@
 import { ANALOG_MAX } from '../../core/constructs/ybc.pins';
+import { melodyLabels, type MelodyName } from '../../core/constructs/ybc.sound';
 import type { Toolbox, ToolboxCategory } from '../../core/program/block-packs';
 import type { BlockDefinitionJson } from '../../core/program/blocks';
 import type { Locale } from './messages';
@@ -54,7 +55,10 @@ export const viPictureNames: Readonly<Record<string, string>> = {
   ARROW_W: 'mũi tên trái',
 };
 
-/** The built-in melodies (constructs/ybc.sound.ts `melodyNames`) by name (N17 B3); a proper name stays as it is. */
+/**
+ * The built-in melodies (constructs/ybc.sound.ts `melodyNames`) by name (N17 B3); a proper name stays as it is. All 20: the block
+ * offers the editor's 14, and shows one of the six others when a saved program has it (N17 B4, src/ui/blockly/editor-blocks.ts).
+ */
 export const viMelodyNames: Readonly<Record<string, string>> = {
   DADADADUM: 'đa đa đa đum',
   ENTERTAINER: 'The Entertainer',
@@ -109,7 +113,7 @@ export const viBlockText: Readonly<Record<string, BlockText>> = {
   ybc_display_clear_pixel: { message0: 'tắt đèn tại cột %1 hàng %2', tooltip: 'Tắt một đèn. Cột và hàng đánh số từ 0 tới 4, bắt đầu ở góc trên bên trái.' },
   ybc_display_set_all: { message0: 'bật tất cả đèn màu %1', tooltip: 'Bật cả 25 đèn bằng một màu.' },
   ybc_colour: { message0: '%1', tooltip: 'Một màu của màn hình: một trong tám màu của bảng màu.', options: { COLOUR: viColourNames } },
-  ybc_button_pressed: { message0: 'nút %1 đang được nhấn', tooltip: 'Đúng khi nút đang được giữ ở thời điểm này.' },
+  ybc_button_pressed: { message0: 'nút %1 đang được nhấn', tooltip: 'Đúng khi nút đang được giữ ở thời điểm này; A+B: khi cả hai nút cùng được giữ.' },
   ybc_button_presses: { message0: 'số lần nhấn nút %1', tooltip: 'Số lần nút được nhấn kể từ lần đọc trước (bởi bất kỳ khối nào); đọc xong thì đếm lại từ 0.' },
   ybc_light_level: { message0: 'mức ánh sáng', tooltip: 'Độ sáng, một số nguyên từ 0 (tối nhất) tới 100 (sáng nhất).' },
   ybc_temperature: { message0: 'nhiệt độ (°C)', tooltip: 'Nhiệt độ theo độ C, một số nguyên.' },
@@ -142,6 +146,11 @@ export const viBlockText: Readonly<Record<string, BlockText>> = {
   ybc_while: { message0: 'lặp khi %1 %2', tooltip: 'Lặp lại khi điều kiện còn đúng.' },
   ybc_count_up: { message0: 'đếm lên với %1 từ %2 tới %3 bước %4 %5', tooltip: 'Đếm từ số thứ nhất lên số thứ hai, theo bước.' },
   ybc_wait_ms: { message0: 'chờ %1 ms', tooltip: 'Tạm dừng chương trình trong một số mili giây.' },
+  ybc_running_time: { message0: 'thời gian chạy (ms)', tooltip: 'Thời gian từ khi chương trình bắt đầu chạy, tính bằng mili giây (số nguyên).' },
+  ybc_random_int: {
+    message0: 'số ngẫu nhiên từ %1 tới %2',
+    tooltip: 'Một số nguyên ngẫu nhiên từ số thứ nhất tới số thứ hai, gồm cả hai đầu. Số nào lớn hơn cũng được.',
+  },
 };
 
 /** The toolbox categories, by the core's English name. */
@@ -207,4 +216,9 @@ export function localizeToolbox(toolbox: Toolbox, locale: Locale): Toolbox {
   const localize = (category: ToolboxCategory): ToolboxCategory =>
     category.name !== undefined && Object.hasOwn(viCategoryNames, category.name) ? { ...category, name: viCategoryNames[category.name] } : category;
   return { ...toolbox, contents: toolbox.contents.map(localize) };
+}
+
+/** The label of a melody in `locale` (N17 B4: for one of the six the block no longer offers, kept by a saved program). */
+export function melodyLabel(name: MelodyName, locale: Locale): string {
+  return locale === 'vi' && Object.hasOwn(viMelodyNames, name) ? (viMelodyNames[name] ?? name) : melodyLabels[name];
 }

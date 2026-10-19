@@ -61,6 +61,11 @@ type CircuitCanvasProps = {
   inputs?: Readonly<Record<string, ComponentInput>>;
   /** N17 B2: how many one-shot events (shakes) each part had in the run, by component id; the board is drawn shaken after each. */
   events?: Readonly<Record<string, number>>;
+  /**
+   * N17 B4, while a run takes the learner's presses: a button drawn on a board (`<board>/<part>`) is pressed or let go by a pointer.
+   * Absent (idle, a check), the buttons on the drawing take no press.
+   */
+  onPartPress?(componentId: string, pointerId: number, pressed: boolean): void;
   /** Shown over the top of the canvas, e.g. how a lab's check is going (N8s). */
   overlay?: ReactNode;
 };
@@ -94,6 +99,7 @@ export function CircuitCanvas({
   fit = false,
   inputs,
   events,
+  onPartPress,
   overlay,
 }: CircuitCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -330,6 +336,9 @@ export function CircuitCanvas({
                     partStates={partStatesOf(simulation, component.id, registry.get(component.deviceType))}
                     partInputs={partInputsOf(inputs, component.id, registry.get(component.deviceType))}
                     partEvents={partInputsOf(events, component.id, registry.get(component.deviceType))}
+                    {...(onPartPress
+                      ? { onPartPress: (partId: string, pointerId: number, pressed: boolean) => onPartPress(peripheralComponentId(component.id, partId), pointerId, pressed) }
+                      : {})}
                     selected={selected?.kind === 'component' && selected.id === component.id}
                     // Off while drawing a wire too, so a click there never starts a drag (R5).
                     draggable={!locked && !draft}
@@ -445,7 +454,7 @@ export function partInputsOf<Value>(
 }
 
 type ComponentBodyProps = ComponentProps &
-  Pick<DeviceRendererProps, 'runtimeState' | 'partStates' | 'partInputs' | 'partEvents'> & {
+  Pick<DeviceRendererProps, 'runtimeState' | 'partStates' | 'partInputs' | 'partEvents' | 'onPartPress'> & {
     selected: boolean;
     /** The device does not belong to this kind of project (R-F4). */
     incompatible: boolean;
@@ -464,6 +473,7 @@ function ComponentBody({
   partStates,
   partInputs,
   partEvents,
+  onPartPress,
   selected,
   incompatible,
   ...interaction
@@ -479,7 +489,14 @@ function ComponentBody({
       y={component.position.y}
       {...interaction}
     >
-      <Renderer definition={definition} runtimeState={runtimeState} partStates={partStates} partInputs={partInputs} partEvents={partEvents} />
+      <Renderer
+        definition={definition}
+        runtimeState={runtimeState}
+        partStates={partStates}
+        partInputs={partInputs}
+        partEvents={partEvents}
+        {...(onPartPress ? { onPartPress } : {})}
+      />
       {incompatible && (
         <Rect
           name="incompatible"

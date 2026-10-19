@@ -153,8 +153,8 @@ describe('the display frame (contract §4.3)', () => {
 });
 
 describe('the runtime services of a run (one canonical shape, plan §10)', () => {
-  it('has the five services of the plan and the cancellation of the run, budget included', () => {
-    expectTypeOf<keyof RuntimeServices>().toEqualTypeOf<'clock' | 'console' | 'budget' | 'sleep' | 'scheduler' | 'signal'>();
+  it('has the five services of the plan and the cancellation of the run, budget included, and (N17 B4) the run’s random numbers', () => {
+    expectTypeOf<keyof RuntimeServices>().toEqualTypeOf<'clock' | 'console' | 'budget' | 'sleep' | 'scheduler' | 'signal' | 'randomInt'>();
     expectTypeOf<RuntimeServices['budget']>().toEqualTypeOf<ExecutionBudget>();
   });
 

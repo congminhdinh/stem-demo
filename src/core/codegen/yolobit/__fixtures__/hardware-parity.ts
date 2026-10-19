@@ -28,6 +28,8 @@ import { python } from './python';
 //   read:<part>=<n>              a scripted answer was consumed (a.pressed, b.pressed, a.presses, b.presses, light; N17 B2:
 //                                temperature, accel.x, accel.y, accel.z, and gesture: the index in `gestureNames` of the
 //                                gesture the board makes, −1 for none, asked once by every is_gesture)
+//   random:<low>..<high>=<n>     N17 B4: a random number was drawn over those ends (low first, both included); the scripted
+//                                answer `random` is the number
 //   end                          the program reached its last pause: the `passes`-th 10 ms pause of a forever, or the idle loop
 //
 // The Python side is told by the CONTRACT, not by the simulator: the fake `display.scroll(x)` moves its clock by 1200 ms per
@@ -40,6 +42,9 @@ import { python } from './python';
 // its own (the tone is), on either side. The simulator side plays the background on a fake scheduler of the fake clock: a task due
 // within a sleep runs at its time, one due exactly when the program goes on is the program's to cut. Both timelines are sorted by
 // time (stably), since a tone is only written down when it ends.
+// N17 B4: the fake `yolobit.running_time()` is the fake clock since the program started (0 at the start), and the fake `random`
+// module's `randint(a, b)` refuses ends that are not whole numbers, and ends given high first with the ValueError MicroPython raises
+// (an empty range), so a program that forgets to put the ends in order fails here as it would on the board.
 // This checks that the generated program MEANS what the simulator does; it is not a check on MicroPython or a Yolo:Bit.
 
 export type Timeline = [at: number, event: string][];
@@ -49,7 +54,7 @@ export type Script = Partial<Record<(typeof partNames)[number], number[]>>;
 
 export type RunResult = { events: Timeline; error: string | null; left: Record<string, number> };
 
-const partNames = ['a.pressed', 'b.pressed', 'a.presses', 'b.presses', 'light', 'temperature', 'accel.x', 'accel.y', 'accel.z', 'gesture'] as const;
+const partNames = ['a.pressed', 'b.pressed', 'a.presses', 'b.presses', 'light', 'temperature', 'accel.x', 'accel.y', 'accel.z', 'gesture', 'random'] as const;
 
 /** Contract §8.1 (EVD-21): the note of a frequency, as the contract writes the table (not read back from the code). */
 const contractNotes: Record<number, string> = {
@@ -80,7 +85,7 @@ class Stop(BaseException):
 
 IMAGE = re.compile(r'^[0-8]{5}(:[0-8]{5}){4}$')
 BLANK = ':'.join(['00000'] * 5)
-PARTS = ['a.pressed', 'b.pressed', 'a.presses', 'b.presses', 'light', 'temperature', 'accel.x', 'accel.y', 'accel.z', 'gesture']
+PARTS = ['a.pressed', 'b.pressed', 'a.presses', 'b.presses', 'light', 'temperature', 'accel.x', 'accel.y', 'accel.z', 'gesture', 'random']
 # N17 B2: the gestures of C-18, in the order of the block's dropdown (constructs/ybc.input.ts gestureNames, passed in).
 GESTURES = json.loads(sys.argv[1])
 # Contract §4.4 / EVD-05: the palette and its digits, as the generator writes a colour (lower case).
@@ -302,6 +307,27 @@ def run(case):
             return index >= 0 and GESTURES[index] == name
 
     yolobit.accelerometer = Accelerometer()
+    # N17 B4: the time since the program started, on the fake clock.
+    yolobit.running_time = lambda: state['now']
+
+    random_module = types.ModuleType('random')
+
+    def randint(a, b):
+        if isinstance(a, bool) or isinstance(b, bool) or not isinstance(a, int) or not isinstance(b, int):
+            raise AssertionError('randint takes whole numbers')
+        if a > b:
+            # What MicroPython raises for an empty range.
+            raise ValueError('empty range for randrange')
+        queue = queues['random']
+        if not queue:
+            raise AssertionError('unscripted random number')
+        value = queue.pop(0)
+        if not a <= value <= b:
+            raise AssertionError('the scripted random number %d is not in %d..%d' % (value, a, b))
+        record('random:%d..%d=%d' % (a, b, value))
+        return value
+
+    random_module.randint = randint
 
     music = types.ModuleType('music')
 
@@ -356,11 +382,12 @@ def run(case):
     def fake_print(*args):
         record('print:' + ' '.join(str(arg) for arg in args))
 
-    names = ('time', 'yolobit', 'music')
+    names = ('time', 'yolobit', 'music', 'random')
     saved = {name: sys.modules.get(name) for name in names}
     sys.modules['time'] = time_module
     sys.modules['yolobit'] = yolobit
     sys.modules['music'] = music
+    sys.modules['random'] = random_module
     error = None
     try:
         exec(compile(source, '<generated>', 'exec'), {'__name__': '__main__', 'print': fake_print})
@@ -474,6 +501,15 @@ export async function simulateWithHardware(ir: YbcProgramIR, script: Script, scr
     events.push([now, `read:${name}=${value}`]);
     return value;
   };
+  /** N17 B4: the run's random numbers are the script's, written down with the ends they were drawn over. */
+  const randomInt = (low: number, high: number): number => {
+    const value = queues.random.shift();
+    if (value === undefined) {
+      throw new Error('unscripted random number');
+    }
+    events.push([now, `random:${low}..${high}=${value}`]);
+    return value;
+  };
 
   const capabilities: Capabilities = {
     display: {
@@ -582,6 +618,7 @@ export async function simulateWithHardware(ir: YbcProgramIR, script: Script, scr
       console: { write: (line) => events.push([now, `print:${line}`]) },
       now: () => now,
       scheduler,
+      randomInt,
     },
     capabilities,
   );

@@ -157,8 +157,12 @@ const modules: readonly ModuleContract[] = [
         'randint() exists only if MICROPY_PY_RANDOM_EXTRA_FUNCS is enabled (DOC-M2); no public OhStem page shows it on the Yolo:Bit, and the simulator\'s random is CPython (a "language" claim, which the simulator cannot support).',
       ),
     },
-    eligibility: 'EXCLUDED',
-    exclusionReason: 'OF-module of random.randint on the firmware is INFERRED (contract §2.2, §3.5).',
+    // N17 B4 (owner, 2026-10-19: "Mô phỏng đủ chức năng"): opened with its module field named UNVERIFIED, not by new evidence.
+    eligibility: 'ELIGIBLE',
+    unverifiedFields: {
+      module:
+        'N17 B4. UNVERIFIED: whether the Yolo:Bit firmware is built with random.randint (MICROPY_PY_RANDOM_EXTRA_FUNCS, DOC-M2) is not shown; the editor writes import random and random.randint(1, 6) (EVD-03). A board without it raises AttributeError.',
+    },
   },
   {
     id: 'C-03e',
@@ -166,7 +170,7 @@ const modules: readonly ModuleContract[] = [
     importForm: null,
     fields: {
       import: na('Builtins need no import.'),
-      module: field([lang('print, range, str, int and len are builtins of the MicroPython language core.')]),
+      module: field([lang('print, range, str, int, len, min and max are builtins of the MicroPython language core.')]),
     },
     eligibility: 'ELIGIBLE',
   },
@@ -483,7 +487,11 @@ const exposed: readonly ConstructContract[] = [
     tier: { 'ybc-basic': 'MUST' },
     profiles: BOTH,
     eligibility: 'RESTRICTED',
-    restrictions: ['button A or B', 'not A+B (unsupported in the accepted simulator snapshot)', 'True while held at the call; not latched'],
+    restrictions: [
+      'button A, B or (N17 B4) A+B',
+      'A+B is the `and` of the two reads, written button_a.is_pressed() and button_b.is_pressed() (two C-12 calls and C-35): true while both are held, B read only when A is held; never the editor\'s button_a.is_pressed_ab(), which the accepted simulator snapshot does not have (C-47, EVD-19)',
+      'True while held at the call; not latched',
+    ],
     modules: ['C-03b'],
     python: { form: 'button_<a|b>.is_pressed()' },
     fields: open({
@@ -496,7 +504,7 @@ const exposed: readonly ConstructContract[] = [
         ui('Tooltip: checks whether the button is pressed.'),
       ]),
     }),
-    domain: domain({ button: 'str' }, oneOf('button', ['A', 'B'])),
+    domain: domain({ button: 'str' }, oneOf('button', ['A', 'B', 'A+B'])),
   },
   {
     id: 'C-13',
@@ -645,6 +653,82 @@ const exposed: readonly ConstructContract[] = [
     }),
     domain: domain({ gesture: 'str' }, oneOf('gesture', ['shake', 'tilt_left', 'tilt_right', 'face_up', 'face_down', 'logo_up', 'logo_down'])),
   },
+  // N17 B4 (owner, 2026-10-19: "Mô phỏng đủ chức năng"): the running time and random numbers, in both profiles for now (B6 decides
+  // the split). The calls are the editor's (V·G); what the evidence could not show is named UNVERIFIED below.
+  {
+    id: 'C-19',
+    capability: 'running time',
+    tier: { 'ybc-advanced': 'MUST' },
+    profiles: BOTH,
+    eligibility: 'ELIGIBLE',
+    restrictions: [
+      'N17 B4 (owner, 2026-10-19: "Mô phỏng đủ chức năng"): opened with UNVERIFIED fields (unverifiedFields), not by new evidence',
+      'simulator: the whole milliseconds since this run started (the tooltip\'s "since the program started"); it does not wrap',
+      'a difference of two running times is the learner\'s own arithmetic; no ticks_diff (DOC-M4 does not apply)',
+    ],
+    modules: ['C-03b'],
+    python: { form: 'running_time()' },
+    observedPython: 'running_time()',
+    unverifiedFields: {
+      return: 'N17 B4. UNVERIFIED: the tooltip says the milliseconds since the program started (D·U), but the accepted simulator snapshot returned an epoch-like value (EVD-11), so what the board counts from is not established. The simulator counts from the start of each run.',
+      range: 'N17 B4. UNVERIFIED: whether and when running_time() wraps, and the range of a difference of two (R3), are not documented. The simulator counts up without wrapping.',
+      round: 'N17 B4. UNVERIFIED: the type of the value on the board is not shown. The simulator gives whole milliseconds (an int).',
+      block: 'N17 B4. UNVERIFIED: no trace timed running_time(). The simulator returns at once.',
+    },
+    fields: open({
+      call: field([callShape('running_time()')]),
+      import: field([importLine('from yolobit import *')]),
+      module: field([moduleYolobit]),
+      unit: field([ui('Tooltip: the total time in milliseconds since the program started running.')]),
+      range: unknown('Wrap and the range of a difference are not documented (R3).'),
+      round: unknown('The type of the value is not shown.'),
+      block: unknown('No trace timed running_time().'),
+      return: unknown('The origin is contradictory: the tooltip says the program\'s start, the simulator printed epoch-like values (EVD-11).'),
+    }),
+  },
+  {
+    id: 'C-40',
+    capability: 'random integer',
+    tier: { 'ybc-basic': 'MUST', 'ybc-advanced': 'MUST' },
+    profiles: BOTH,
+    eligibility: 'RESTRICTED',
+    restrictions: [
+      'N17 B4 (owner, 2026-10-19: "Mô phỏng đủ chức năng"): opened with UNVERIFIED fields (unverifiedFields), its module (C-03d) too, not by new evidence',
+      'both ends included; the ends may come in either order: the simulator draws from the lower to the higher, and the generator writes them low first (typed-in ends sorted, computed ends that read nothing as min(a, b), max(a, b)); computed ends that read the board are refused by the generator',
+      'each end within ±1 000 000 and the two at most 1 000 000 apart (contract §3.5, written for the day it was reopened)',
+      'simulator: Math.random in a normal run; a fixed seed in a lab\'s check, so its goals are the same every time',
+    ],
+    modules: ['C-03d'],
+    python: { form: 'random.randint(<a>, <b>)', builtins: ['min', 'max'] },
+    observedPython: 'random.randint(1, 6)',
+    unverifiedFields: {
+      module: 'N17 B4. UNVERIFIED: randint() exists only if the firmware enables MICROPY_PY_RANDOM_EXTRA_FUNCS (DOC-M2), which no public page shows for the Yolo:Bit (C-03d).',
+      content: 'N17 B4. UNVERIFIED: the board\'s generator and its seed are not shown. The simulator draws with Math.random in a normal run and from a fixed seed in a lab\'s check; the numbers on the board differ.',
+    },
+    fields: open({
+      call: field([callShape('random.randint(1, 6)')]),
+      import: field([importLine('import random')]),
+      module: inferred('Not shown to exist on the Yolo:Bit firmware (C-03d).'),
+      range: field([claim('documented', 'DOC-M3', 'randint returns an integer in [a, b], at most the native word size.')]),
+      error: explicit('The generator writes the ends low first, so randint never meets an empty range (the ValueError a board raises for one).'),
+      content: unknown('The board\'s generator and its seed are not shown.'),
+    }),
+    domain: {
+      args: { a: 'int', b: 'int' },
+      evaluation: { order: ['a', 'b'], once: true, checkEach: 'after-own-evaluation' },
+      compileTime: [
+        { when: between('a', -MAX, MAX), diagnostic: 'value-out-of-range' },
+        { when: between('b', -MAX, MAX), diagnostic: 'value-out-of-range' },
+        { when: all({ le: [{ sub: [arg('b'), arg('a')] }, num(MAX)] }, { le: [{ sub: [arg('a'), arg('b')] }, num(MAX)] }), diagnostic: 'value-out-of-range' },
+      ],
+      runtime: all(
+        between('a', -MAX, MAX),
+        between('b', -MAX, MAX),
+        { le: [{ sub: [arg('b'), arg('a')] }, num(MAX)] },
+        { le: [{ sub: [arg('a'), arg('b')] }, num(MAX)] },
+      ),
+    },
+  },
   {
     id: 'C-50',
     capability: 'sound: play a note (blocking)',
@@ -717,6 +801,7 @@ const exposed: readonly ConstructContract[] = [
     restrictions: [
       'N17 B3 (owner, 2026-10-19: "Mô phỏng đủ chức năng"): opened with UNVERIFIED fields (unverifiedFields), not by new evidence',
       'one of 20 names: the 14 of the editor\'s list (§14) and FUNK, BLUES, FUNERAL, PUNCHLINE, BADDY, BA_DING (micro:bit names, an UNVERIFIED form)',
+      'N17 B4: the block offers the 14 of the editor\'s list only; a program saved with one of the six micro:bit names still opens, runs and writes it (the UNVERIFIED form)',
       'wait=False plays in the background while the program goes on (the verified form); wait=True (an UNVERIFIED form with a melody) waits for its last note',
       'simulator: the notes of micro:bit MicroPython (MIT, §14), never the vendor\'s asset; one sound at a time: a new sound, stop, Stop or an error ends it',
     ],
@@ -864,9 +949,18 @@ const exposed: readonly ConstructContract[] = [
     tier: { 'ybc-basic': 'MUST' },
     profiles: BOTH,
     eligibility: 'RESTRICTED',
-    restrictions: ['pins P0, P1, P2', 'always compared `== 1`', 'an open or conflicting net stops the run (out-of-domain)'],
+    restrictions: [
+      'pins P0, P1, P2',
+      'always compared `== 1`',
+      'N17 B4 (owner, 2026-10-19; the old B9): an open net reads 0, as with a pull-down, and the run says so once per pin as a warning ("Chân P1 đang thả nổi — đọc là 0"); the program goes on',
+      'a conflicting net, and a pin the program itself sets, stop the run (out-of-domain)',
+    ],
     modules: ['C-03b'],
     python: { form: '(pin<N>.read_digital() == 1)' },
+    unverifiedFields: {
+      default:
+        'N17 B4. UNVERIFIED: the pull of a pin nothing drives is not shown (set_pull is EXCLUDED, C-54); the board may read 0, 1 or noise. The simulator reads it as 0, a pull-down, and warns once per pin and run.',
+    },
     fields: open({
       call: field([callShape('(pin0.read_digital() == 1)')]),
       import: field([importLine('from yolobit import *')]),
@@ -874,7 +968,8 @@ const exposed: readonly ConstructContract[] = [
       range: field([ui('Tooltip: reads an on/off value.')]),
       block: field([returnsAtOnce('read_digital', 'EVD-16')]),
       return: field([ui('Tooltip: reads an on/off value.'), lang('True == 1, so the generated comparison is a bool whether the API returns int or bool.')]),
-      error: byDomain('An open or conflicting net is outside the domain (out-of-domain); the pull default is unknown.'),
+      default: unknown('The pull of a pin nothing drives is not shown.'),
+      error: byDomain('A conflicting net, and a pin the program itself sets, are outside the domain (out-of-domain).'),
     }),
     domain: domain({ pin: 'int' }, pins012),
   },
@@ -1200,18 +1295,6 @@ const withdrawn = (
 
 const callOnly = (statement: string) => ({ call: field([callShape(statement)]) });
 
-const randomDomain: Domain = {
-  args: { a: 'int', b: 'int' },
-  evaluation: { order: ['a', 'b'], once: true, checkEach: 'after-own-evaluation' },
-  compileTime: [],
-  runtime: all(
-    { le: [num(-MAX), arg('a')] },
-    { le: [arg('a'), arg('b')] },
-    { le: [arg('b'), num(MAX)] },
-    { le: [{ sub: [arg('b'), arg('a')] }, num(MAX)] },
-  ),
-};
-
 const withdrawnConstructs: readonly ConstructContract[] = [
   withdrawn('C-11', 'display: brightness', 'EXCLUDED', 'The behaviour cannot be observed (EVD-13).', {
     observedPython: 'display.set_brightness(n)',
@@ -1221,31 +1304,16 @@ const withdrawnConstructs: readonly ConstructContract[] = [
     observedPython: 'button_a.on_pressed = f',
     fields: callOnly('button_a.on_pressed = f'),
   }),
-  withdrawn('C-19', 'running time', 'EXCLUDED', 'Wrap, reset and the range of a difference are UNKNOWN; the origin is contradictory (R3). LATER.', {
-    observedPython: 'running_time()',
-    fields: callOnly('running_time()'),
-  }),
   withdrawn('C-26', 'analog write / PWM', 'EXCLUDED', 'OF-range is UNKNOWN; the owner confirmed it stays excluded (C-Q6).', {
     observedPython: 'pin0.write_analog(512)',
     fields: callOnly('pin0.write_analog(512)'),
   }),
   withdrawn('C-28', 'pulse in', 'EXCLUDED', 'OF-error and OF-block are UNKNOWN; the simulator\'s reply is an electrical claim.', { observedPython: 'pin0.pulse_in(1)' }),
-  withdrawn('C-40', 'random integer', 'EXCLUDED', 'OF-module of random.randint is INFERRED (C-03d); the domain below is specified for the day it is reopened.', {
-    observedPython: 'random.randint(1, 6)',
-    modules: ['C-03d'],
-    fields: {
-      call: field([callShape('random.randint(1, 6)')]),
-      import: field([importLine('import random')]),
-      module: inferred('Not shown to exist on the Yolo:Bit firmware (C-03d).'),
-      range: field([claim('documented', 'DOC-M3', 'randint returns an integer in [a, b], at most the native word size.')]),
-    },
-    preSpecifiedDomain: randomDomain,
-  }),
   withdrawn('C-41', 'program end', 'EXCLUDED', 'Not a construct: the end of a program is avoided by the idle loop (IM-6).'),
   withdrawn('C-44', 'display: graph', 'EXCLUDED', 'OF-content is UNKNOWN.', { observedPython: 'display.show_graph(v, max)' }),
   withdrawn('C-45', 'make an RGB colour', 'EXCLUDED', 'Needs floats and round.', { observedPython: 'colour_rgb(...)' }),
   withdrawn('C-46', 'show information', 'EXCLUDED', 'The editor\'s code does not stand alone (no import).', { observedPython: "say('Hello')" }),
-  withdrawn('C-47', 'buttons A+B', 'EXCLUDED', 'Unsupported in the accepted simulator snapshot (AttributeError); no claim about the physical board.', {
+  withdrawn('C-47', 'buttons A+B', 'EXCLUDED', 'The editor\'s button_a.is_pressed_ab() is unsupported in the accepted simulator snapshot (AttributeError); no claim about the physical board. N17 B4 offers A+B as C-12\'s third button instead, written button_a.is_pressed() and button_b.is_pressed().', {
     observedPython: 'button_a.is_pressed_ab()',
   }),
   withdrawn('C-48', 'touch pin', 'EXCLUDED', 'Criteria are UNKNOWN.', { observedPython: 'pin0.is_touched()' }),

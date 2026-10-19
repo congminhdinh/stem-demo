@@ -13,6 +13,10 @@ export type LangConstruct = { contractId: string; pack: LangPackId; blockTypes: 
 export const whileType = 'ybc_while';
 export const countUpType = 'ybc_count_up';
 export const waitType = 'ybc_wait_ms';
+/** N17 B4: "running time (ms)", C-19: `running_time()`, the whole ms since the program started. */
+export const runningTimeType = 'ybc_running_time';
+/** N17 B4: "random number from … to …", C-40: `random.randint(a, b)`, both ends included, in either order. */
+export const randomIntType = 'ybc_random_int';
 
 /** Blockly's own blocks, plus the ones whose operators the dialect fixes or that Blockly has no block for. */
 export const langConstructs: readonly LangConstruct[] = [
@@ -20,12 +24,16 @@ export const langConstructs: readonly LangConstruct[] = [
   { contractId: 'C-29', pack: 'lang.text', blockTypes: ['text_print'] },
   { contractId: 'C-56', pack: 'lang.text', blockTypes: ['text', 'text_join'] },
   { contractId: 'C-04', pack: 'lang.loops', blockTypes: [waitType] },
+  // N17 B4 (owner, 2026-10-19: "Mô phỏng đủ chức năng"): the running time joins the Time category, a random number the Math one.
+  // Both profiles show them for now; B6 decides the split.
+  { contractId: 'C-19', pack: 'lang.loops', blockTypes: [runningTimeType] },
   { contractId: 'C-37', pack: 'lang.loops', blockTypes: ['controls_repeat_ext'] },
   { contractId: 'C-38', pack: 'lang.loops', blockTypes: [whileType] },
   { contractId: 'C-39', pack: 'lang.loops', blockTypes: [countUpType] },
   { contractId: 'C-31', pack: 'lang.math', blockTypes: ['math_number', 'ybc_arith'] },
   { contractId: 'C-32', pack: 'lang.math', blockTypes: ['ybc_int_divide'] },
   { contractId: 'C-33', pack: 'lang.math', blockTypes: ['math_modulo'] },
+  { contractId: 'C-40', pack: 'lang.math', blockTypes: [randomIntType] },
   { contractId: 'C-34', pack: 'lang.logic', blockTypes: ['logic_compare'] },
   { contractId: 'C-35', pack: 'lang.logic', blockTypes: ['logic_operation', 'logic_negate', 'logic_boolean'] },
   { contractId: 'C-36', pack: 'lang.logic', blockTypes: ['controls_if'] },
@@ -117,4 +125,27 @@ export const waitDefinition: BlockDefinitionJson = {
   nextStatement: null,
   colour: 120,
   tooltip: 'Pauses the program for some milliseconds.',
+};
+
+/** N17 B4, C-19: the whole milliseconds since the program started (in the simulator: since this run started). */
+export const runningTimeDefinition: BlockDefinitionJson = {
+  type: runningTimeType,
+  message0: 'running time (ms)',
+  output: 'Number',
+  colour: 120,
+  tooltip: 'The time since the program started, in whole milliseconds.',
+};
+
+/** N17 B4, C-40: a whole number from the first to the second, both included; the ends may come in either order. */
+export const randomIntDefinition: BlockDefinitionJson = {
+  type: randomIntType,
+  message0: 'random number from %1 to %2',
+  args0: [
+    { type: 'input_value', name: 'FROM', check: 'Number' },
+    { type: 'input_value', name: 'TO', check: 'Number' },
+  ],
+  inputsInline: true,
+  output: 'Number',
+  colour: 230,
+  tooltip: 'A random whole number from the first number to the second, both included. Either may be the larger.',
 };

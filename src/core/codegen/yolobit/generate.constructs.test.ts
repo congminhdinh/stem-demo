@@ -56,7 +56,8 @@ describe('what the generator covers', () => {
   it('does not cover what the contract excludes or defers, nor the hardware rows of the later phases', () => {
     const notGenerated = contract.constructs.filter((row) => !generated.has(row.id));
     expect(notGenerated.length).toBeGreaterThan(0);
-    for (const id of ['C-40', 'C-19', 'C-26', 'C-14']) {
+    // N17 B4 opened random (C-40) and the running time (C-19); A+B is C-12 written twice, C-47 stays excluded.
+    for (const id of ['C-26', 'C-14', 'C-47']) {
       const row = contract.constructs.find((candidate) => candidate.id === id);
       expect(generated.has(id), id).toBe(false);
       expect(row === undefined || row.eligibility === 'EXCLUDED' || row.eligibility === 'DEFERRED', id).toBe(true);

@@ -7,7 +7,11 @@ import { createGoalTracker } from './goal-tracker';
 // One check (N6a S2): runs the learner's program for the challenge's duration, gives it the challenge's inputs
 // on time, evaluates the goals on every snapshot (RunSession.subscribe), then stops the run. A run that does not
 // start is a failed check, with the reasons the session gave. A run that goes idle meanwhile (the learner pressed
-// Stop) or a cancel ends the check without a result: nothing was checked.
+// Stop) or a cancel ends the check without a result: nothing was checked. N17 B4: the run of a check is seeded, so a
+// program that draws random numbers draws the same ones in every check, and its goals are deterministic.
+
+/** The seed of every check's random numbers (N17 B4). */
+export const CHECK_RANDOM_SEED = 20261019;
 
 /** What a check needs of a run session; RunSession is one, and so is the UI's run store adapter. */
 export type CheckSession = Pick<RunSession, 'start' | 'stop' | 'subscribe' | 'getSnapshot' | 'setComponentInput'>;
@@ -84,7 +88,7 @@ export function runCheck({ session, document, challenge, boardId, timers = defau
   });
 
   startedAt = timers.now();
-  const start = session.start(document);
+  const start = session.start(document, { seed: CHECK_RANDOM_SEED });
   starting = false;
   if (!start.ok) {
     finish(false);

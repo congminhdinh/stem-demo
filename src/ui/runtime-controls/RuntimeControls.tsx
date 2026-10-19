@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent } from 'react';
 import type { DeviceDefinition } from '../../core/devices/device-definition';
 import { accelerationOf, gestureOf } from '../../core/simulation/peripherals/accelerometer';
 import type { ComponentInput } from '../../core/simulation/simulate-circuit';
@@ -16,7 +16,8 @@ import {
   type ControlSpec,
   type TiltState,
 } from './controls-model';
-import { createHoldTracker, isHoldKey } from './hold-tracker';
+import { createButtonHolds, type ButtonHolds } from './board-buttons';
+import { isHoldKey } from './hold-tracker';
 import { useShaking } from './use-shaking';
 
 // The inputs of a running board: its buttons and its light sensor. These are input adapters and nothing
@@ -26,7 +27,9 @@ import { useShaking } from './use-shaking';
 // gives the controls a new key for each run, so every run starts from their initial place. While a lab's
 // check drives the run (N8s), the controls only show what the check gives the board (`scripted`): pressed
 // buttons, the light's level; the learner cannot press them then. N17 B2 adds the temperature (a slider in °C) and the
-// accelerometer: a tilt pad (drag the dot, or the arrow keys) with the gesture it makes, "Úp mặt" and "Lắc".
+// accelerometer: a tilt pad (drag the dot, or the arrow keys) with the gesture it makes, "Úp mặt" and "Lắc". N17 B4: the buttons
+// share their state with the buttons drawn on the board (`holds`): pressing either shows pressed on both, and one press is one; an
+// "A+B" button holds both at once, since one mouse cannot press two buttons on the drawing.
 
 type RuntimeControlsProps = {
   /** The id of the board component of the circuit. */
@@ -41,10 +44,22 @@ type RuntimeControlsProps = {
   scripted?: Readonly<Record<string, ComponentInput>>;
   /** While a lab's check drives the run: how many shakes it gave each part (N17 B2), shown as the gesture for 1 s. */
   scriptedEvents?: Readonly<Record<string, number>>;
+  /**
+   * N17 B4: the holds of the board's buttons the run shares with the drawing of the board; their owner tells the run of a change.
+   * Absent, the controls keep holds of their own and send each change through `onInput`.
+   */
+  holds?: ButtonHolds;
 };
 
-export function RuntimeControls({ boardId, definition, controls, active, onInput, scripted, scriptedEvents }: RuntimeControlsProps) {
+export function RuntimeControls({ boardId, definition, controls, active, onInput, scripted, scriptedEvents, holds: given }: RuntimeControlsProps) {
   const t = useText();
+  // The latest onInput, for the holds of their own (made once): a change of a button is sent through it.
+  const latestOnInput = useRef(onInput);
+  useEffect(() => {
+    latestOnInput.current = onInput;
+  });
+  const [own] = useState(() => createButtonHolds((componentId, closed) => latestOnInput.current(componentId, { kind: 'hold', closed })));
+  const holds = given ?? own;
   // A part the dictionary does not know keeps the label the model gives it.
   const specs = controlsOf(boardId, definition, controls).map((spec) => {
     const key = `control.${spec.partId}`;
@@ -56,9 +71,14 @@ export function RuntimeControls({ boardId, definition, controls, active, onInput
   return (
     <div className="runtime-controls" role="group" aria-label={t('controls.label')} data-testid="runtime-controls">
       {specs.map((spec) => {
+        if (spec.kind === 'hold-both') {
+          const both = scripted ? spec.componentIds.every((id) => Object.hasOwn(scripted, id) && scripted[id]?.kind === 'hold' && scripted[id].closed) : undefined;
+          return <HoldButton key={spec.partId} spec={spec} componentIds={spec.componentIds} active={active && !scripted} holds={holds} scripted={both} />;
+        }
         const shown = scripted ? { input: Object.hasOwn(scripted, spec.componentId) ? scripted[spec.componentId] : undefined } : undefined;
         if (spec.kind === 'hold') {
-          return <HoldButton key={spec.partId} spec={spec} active={active && !shown} onInput={onInput} scripted={shown} />;
+          const held = shown ? shown.input?.kind === 'hold' && shown.input.closed : undefined;
+          return <HoldButton key={spec.partId} spec={spec} componentIds={[spec.componentId]} active={active && !shown} holds={holds} scripted={held} />;
         }
         if (spec.kind === 'tilt') {
           const shakes = scriptedEvents && Object.hasOwn(scriptedEvents, spec.componentId) ? (scriptedEvents[spec.componentId] ?? 0) : 0;
@@ -81,18 +101,27 @@ type ControlProps<Kind extends ControlSpec['kind']> = {
 const keySource = (key: string) => `key:${key}`;
 const pointerSource = (pointerId: number) => `pointer:${pointerId}`;
 
-/** Closed while a pointer or a key holds it, open when nothing does, also when it is disabled, loses focus or goes away. */
-function HoldButton({ spec, active, onInput, scripted }: ControlProps<'hold'>) {
-  const [tracker] = useState(createHoldTracker);
-  // Only for how the button looks (aria-pressed, styling); what the run sees is the tracker's changes.
-  const [pressed, setPressed] = useState(false);
-  const send = (closed: boolean | undefined) => {
-    if (closed !== undefined) {
-      setPressed(closed);
-      onInput(spec.componentId, { kind: 'hold', closed });
-    }
-  };
-  const releaseAll = useEffectEvent(() => send(tracker.releaseAll()));
+type HoldButtonProps = {
+  spec: Extract<ControlSpec, { kind: 'hold' | 'hold-both' }>;
+  /** The buttons of the board it holds: its own, or both for A+B (N17 B4). */
+  componentIds: readonly string[];
+  active: boolean;
+  holds: ButtonHolds;
+  /** Set while a check drives the run: whether the check holds its button(s), shown instead of the holds. */
+  scripted: boolean | undefined;
+};
+
+/**
+ * Closed while a pointer or a key holds it, open when nothing does, also when it is disabled, loses focus or goes away. Its hands are
+ * sources of the shared holds (`panel:<part>/pointer:<id>`, `panel:<part>/key:<key>`), so it shows pressed whenever its button is
+ * held, by it or by the drawing of the board (N17 B4); A+B holds both buttons and shows pressed while both are.
+ */
+function HoldButton({ spec, componentIds, active, holds, scripted }: HoldButtonProps) {
+  const owner = `panel:${spec.partId}`;
+  const held = useSyncExternalStore(holds.subscribe, () => componentIds.every((componentId) => holds.isClosed(componentId)));
+  const hold = (source: string) => componentIds.forEach((componentId) => holds.hold(componentId, `${owner}/${source}`));
+  const release = (source: string) => componentIds.forEach((componentId) => holds.release(componentId, `${owner}/${source}`));
+  const releaseAll = useEffectEvent(() => holds.releaseOwner(owner));
   // A disabled button gets no pointerup and may get no blur, so ending the run (or removing the control) releases it here.
   useEffect(() => {
     if (active) {
@@ -109,19 +138,19 @@ function HoldButton({ spec, active, onInput, scripted }: ControlProps<'hold'>) {
     } catch {
       // No capture for a pointer that is not active: the release events below still end the hold.
     }
-    send(tracker.hold(pointerSource(event.pointerId)));
+    hold(pointerSource(event.pointerId));
   };
-  const onPointerEnd = (event: PointerEvent<HTMLButtonElement>) => send(tracker.release(pointerSource(event.pointerId)));
+  const onPointerEnd = (event: PointerEvent<HTMLButtonElement>) => release(pointerSource(event.pointerId));
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (isHoldKey(event.key)) {
       event.preventDefault();
-      // A repeating key holds what it already holds: the tracker answers with no change.
-      send(tracker.hold(keySource(event.key)));
+      // A repeating key holds what it already holds: the holds answer with no change.
+      hold(keySource(event.key));
     }
   };
   const onKeyUp = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (isHoldKey(event.key)) {
-      send(tracker.release(keySource(event.key)));
+      release(keySource(event.key));
     }
   };
 
@@ -130,13 +159,13 @@ function HoldButton({ spec, active, onInput, scripted }: ControlProps<'hold'>) {
       type="button"
       className="control-hold"
       data-testid={`control-${spec.partId}`}
-      aria-pressed={scripted ? scripted.input?.kind === 'hold' && scripted.input.closed : pressed}
+      aria-pressed={scripted ?? held}
       disabled={!active}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerEnd}
       onPointerCancel={onPointerEnd}
       onLostPointerCapture={onPointerEnd}
-      onBlur={() => send(tracker.releaseAll())}
+      onBlur={() => holds.releaseOwner(owner)}
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
     >

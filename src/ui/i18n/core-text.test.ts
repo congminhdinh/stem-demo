@@ -91,6 +91,13 @@ describe('the core’s messages in Vietnamese (N8s)', () => {
     ['The column must be between 0 and 4, not 5.', 'Cột phải nằm trong khoảng 0 tới 4, không phải 5.'],
     ['The row must be between 0 and 4.', 'Hàng phải nằm trong khoảng 0 tới 4.'],
     ['"set light" needs a value.', 'Khối "bật đèn" cần một giá trị.'],
+    // N17 B4: the floating pin, in the words of the owner's ruling, A+B and random numbers.
+    ['Pin P1 is floating, so it reads 0. Connect the button to 3V3 or GND.', 'Chân P1 đang thả nổi — đọc là 0. Hãy nối nút với 3V3 hoặc GND.'],
+    ['A button is A, B or A+B.', 'Nút là A, B hoặc A+B.'],
+    ['A bound of a random number must be between -1000000 and 1000000, not 1000001.', 'Một đầu của số ngẫu nhiên phải nằm trong khoảng -1000000 tới 1000000, không phải 1000001.'],
+    ['The bounds of a random number must be at most 1000000 apart.', 'Hai đầu của số ngẫu nhiên chỉ được cách nhau tối đa 1000000.'],
+    ['"random number" needs a value.', 'Khối "số ngẫu nhiên" cần một giá trị.'],
+    ['"math_random_int" is not available here; use "ybc_random_int".', 'Khối "số ngẫu nhiên (của Blockly)" không dùng ở đây; hãy dùng khối "số ngẫu nhiên từ tới".'],
   ])('says %j as %j', (english, vietnamese) => {
     expect(localizeCoreMessage(english, 'vi')).toBe(vietnamese);
   });

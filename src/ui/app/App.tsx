@@ -8,7 +8,7 @@ import { resolveBoardContext } from '../../core/profiles/board-context';
 import type { ProfileCatalog } from '../../core/profiles/profile';
 import { buildToolbox, type BlockPackCatalog } from '../../core/program/block-packs';
 import { buzzerPartId, displayPartId } from '../../core/simulation/peripherals/onboard-capabilities';
-import type { SimulationResult } from '../../core/simulation/simulate-circuit';
+import type { ComponentInput, SimulationResult } from '../../core/simulation/simulate-circuit';
 import type { LabKind } from '../../samples/templates';
 import { SoundIndicator } from '../audio/SoundIndicator';
 import { toneHz } from '../audio/tone';
@@ -18,6 +18,7 @@ import { localizeToolbox } from '../i18n/blocks';
 import { useLocale, useText } from '../i18n/text';
 import { CircuitCanvas } from '../canvas/CircuitCanvas';
 import { PotentiometerControls } from '../canvas/PotentiometerControls';
+import { createButtonHolds } from '../runtime-controls/board-buttons';
 import { noBoardInputs, withBoardInput, type BoardInputs } from '../runtime-controls/board-inputs';
 import { DisplayText } from '../runtime-controls/DisplayText';
 import { partStateOf } from '../runtime-controls/display-view';
@@ -99,6 +100,20 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
   // What the learner's controls gave this run (N17 B2), so the board draws it: the readings of the sensors, a held button,
   // a shake. Runtime state of the run (B2): every run starts without any.
   const [liveBoard, setLiveBoard] = useState<BoardInputs>(noBoardInputs);
+  /** An input of the learner's to the run, which the board then draws. */
+  const giveInput = useCallback(
+    (componentId: string, input: ComponentInput) => {
+      runStore.getState().setComponentInput(componentId, input);
+      setLiveBoard((given) => withBoardInput(given, componentId, input));
+    },
+    [runStore],
+  );
+  // N17 B4: the board's buttons, held by the panel's buttons, its A+B and the buttons drawn on the board, as one state per button:
+  // a press on either shows on both and is one press. New for every run, as its inputs are (B2).
+  const holds = useMemo(() => {
+    void runEpoch;
+    return createButtonHolds((componentId, closed) => giveInput(componentId, { kind: 'hold', closed }));
+  }, [runEpoch, giveInput]);
 
   const run = () => {
     // In the click itself, before anything else: the gesture is what lets the sound start (N17 B3). Only a Yolo:Bit board has a buzzer.
@@ -236,6 +251,13 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
       locked={running}
       fit={lab !== null}
       {...(drawnInputs ? { inputs: drawnInputs.inputs, events: drawnInputs.events } : {})}
+      // N17 B4: A and B drawn on the board are pressed with the pointer while the learner's run is on (not a check's).
+      {...(running && !checking
+        ? {
+            onPartPress: (componentId: string, pointerId: number, pressed: boolean) =>
+              pressed ? holds.hold(componentId, `board/pointer:${pointerId}`) : holds.release(componentId, `board/pointer:${pointerId}`),
+          }
+        : {})}
       overlay={checkOverlay}
       onCircuitChange={editCircuit}
       // Runtime input, not an edit: the session ignores it unless running.
@@ -272,10 +294,8 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
                 definition={registry.get(board.deviceType)}
                 controls={context.profile?.controls ?? []}
                 active={running}
-                onInput={(componentId, input) => {
-                  runStore.getState().setComponentInput(componentId, input);
-                  setLiveBoard((given) => withBoardInput(given, componentId, input));
-                }}
+                holds={holds}
+                onInput={giveInput}
                 {...(checking ? { scripted: scripted.inputs, scriptedEvents: scripted.events } : {})}
               />
               <SoundIndicator buzzer={partStateOf(simulation, board.id, buzzerPartId)} sound={sound} />

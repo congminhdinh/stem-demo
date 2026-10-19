@@ -1,4 +1,4 @@
-import type { CallStatement, Expr, PinCallStatement, PinReadExpr, ReadExpr, YbcProgramIR, YbcStatement } from '../../program/ybc-ir';
+import type { CallStatement, Expr, PinCallStatement, PinReadExpr, RandomExpr, ReadExpr, YbcProgramIR, YbcStatement } from '../../program/ybc-ir';
 
 // The modules a generated file imports (contract §2, IM-1…IM-3). `import time` is always there; the lines below
 // are the `yolobit` module's: its import and the three preamble lines that follow it (IM-2), exactly as the
@@ -17,9 +17,12 @@ export const yolobitModuleLines: readonly string[] = [
 
 /**
  * Which module each hardware operation needs: the onboard parts of YB-3 and the header pins of YB-4 are the `yolobit`
- * module's, the sound is `music`'s (IM-3). Typed by the ops, so an op without an entry does not compile.
+ * module's, the sound is `music`'s (IM-3). N17 B4: the running time is the `yolobit` module's, a random number the `random`
+ * module's. Typed by the ops, so an op without an entry does not compile.
  */
-export const moduleOfOp: Readonly<Record<CallStatement['op'] | PinCallStatement['op'] | ReadExpr['op'] | PinReadExpr['op'], 'yolobit' | 'music'>> = {
+export const moduleOfOp: Readonly<
+  Record<CallStatement['op'] | PinCallStatement['op'] | ReadExpr['op'] | PinReadExpr['op'] | RandomExpr['op'], 'yolobit' | 'music' | 'random'>
+> = {
   'display.show': 'yolobit',
   'display.scrollText': 'yolobit',
   'display.scrollNumber': 'yolobit',
@@ -33,6 +36,8 @@ export const moduleOfOp: Readonly<Record<CallStatement['op'] | PinCallStatement[
   'temperature.read': 'yolobit',
   'motion.acceleration': 'yolobit',
   'motion.isGesture': 'yolobit',
+  'time.runningTime': 'yolobit',
+  'random.int': 'random',
   'digital.write': 'yolobit',
   'digital.read': 'yolobit',
   'analogIn.read': 'yolobit',
@@ -68,6 +73,10 @@ export function usesYolobitModule(ir: YbcProgramIR): boolean {
       case 'read':
         if (moduleOfOp[node.op] === 'yolobit') {
           return true;
+        }
+        // The ends of a random number (N17 B4) are expressions that may use the module.
+        if (node.kind === 'read' && node.op === 'random.int') {
+          push(node.args);
         }
         break;
       case 'set':

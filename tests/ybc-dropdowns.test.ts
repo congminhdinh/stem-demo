@@ -7,7 +7,7 @@ import { createDeviceRegistry } from '../src/core/devices/registry';
 import { productionProfiles } from '../src/core/profiles';
 import { buildToolbox, createBlockPackCatalog } from '../src/core/program/block-packs';
 import { noteNames, noteTicks } from '../src/core/constructs/ybc.sound';
-import { buttonNames } from '../src/core/constructs/ybc.input';
+import { buttonNames, pressedButtonNames } from '../src/core/constructs/ybc.input';
 import { compileYbcProgram } from '../src/core/program/compile-ybc-program';
 import { program, print, num, foreignArith } from '../src/core/program/__fixtures__/ybc-blocks';
 
@@ -27,9 +27,10 @@ const allowed: Record<string, Record<string, string[]>> = {
   logic_compare: { OP: ['EQ', 'NEQ', 'LT', 'LTE', 'GT', 'GTE'] },
   logic_operation: { OP: ['AND', 'OR'] },
   logic_boolean: { BOOL: ['TRUE', 'FALSE'] },
-  // YB-3, the onboard hardware: the buttons are A and B and nothing else (A+B is EXCLUDED, C-47), a note is one of the 15
-  // natural notes C3…C5 (C-50) and a length is 1, 2 or 4 ticks (C-50, C-51). Spelled out here, not read from the constants.
-  ybc_button_pressed: { BUTTON: ['A', 'B'] },
+  // YB-3, the onboard hardware: the buttons are A and B (N17 B4: and A+B for "is pressed", C-12's `and` of the two; the editor's
+  // is_pressed_ab() stays EXCLUDED, C-47), a note is one of the 15 natural notes C3…C5 (C-50) and a length is 1, 2 or 4 ticks (C-50,
+  // C-51). Spelled out here, not read from the constants.
+  ybc_button_pressed: { BUTTON: ['A', 'B', 'A+B'] },
   ybc_button_presses: { BUTTON: ['A', 'B'] },
   ybc_sound_note: {
     NOTE: ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'],
@@ -50,12 +51,10 @@ const allowed: Record<string, Record<string, string[]>> = {
   // N17 B2, the sensors of Advanced: the three axes (C-17) and the seven gestures (C-18), shake first.
   ybc_accel: { AXIS: ['x', 'y', 'z'] },
   ybc_gesture_is: { GESTURE: ['shake', 'tilt_left', 'tilt_right', 'face_up', 'face_down', 'logo_up', 'logo_down'] },
-  // N17 B3, the buzzer of Advanced: the twenty built-in melodies (C-20) and whether the program waits for them.
+  // N17 B3, the buzzer of Advanced: the built-in melodies (C-20; N17 B4: the 14 of the vendor's editor, VERIFIED) and whether the
+  // program waits for them.
   ybc_sound_melody: {
-    MELODY: [
-      'DADADADUM', 'ENTERTAINER', 'PRELUDE', 'ODE', 'NYAN', 'RINGTONE', 'FUNK', 'BLUES', 'BIRTHDAY', 'WEDDING',
-      'FUNERAL', 'PUNCHLINE', 'PYTHON', 'BADDY', 'CHASE', 'BA_DING', 'JUMP_UP', 'JUMP_DOWN', 'POWER_UP', 'POWER_DOWN',
-    ],
+    MELODY: ['DADADADUM', 'ENTERTAINER', 'PRELUDE', 'ODE', 'NYAN', 'RINGTONE', 'BIRTHDAY', 'WEDDING', 'PYTHON', 'CHASE', 'JUMP_UP', 'JUMP_DOWN', 'POWER_UP', 'POWER_DOWN'],
     MODE: ['wait', 'background'],
   },
 };
@@ -107,13 +106,13 @@ describe('dropdowns of the YBC toolbox', () => {
     try {
       const options = (type: string, name: string) =>
         (workspace.newBlock(type).getField(name) as Blockly.FieldDropdown).getOptions(false).map(([, value]) => value);
-      expect(options('ybc_button_pressed', 'BUTTON')).toEqual([...buttonNames]);
+      expect(options('ybc_button_pressed', 'BUTTON')).toEqual([...pressedButtonNames]);
       expect(options('ybc_button_presses', 'BUTTON')).toEqual([...buttonNames]);
       expect(options('ybc_sound_note', 'NOTE')).toEqual([...noteNames]);
       expect(options('ybc_sound_note', 'TICKS')).toEqual(noteTicks.map(String));
       expect(options('ybc_sound_rest', 'TICKS')).toEqual(noteTicks.map(String));
-      // No A+B, no sharps or flats, no octave beyond C3…C5, no length of 8 ticks.
-      expect(options('ybc_button_pressed', 'BUTTON')).not.toContain('A+B');
+      // No A+B for a press count, no sharps or flats, no octave beyond C3…C5, no length of 8 ticks.
+      expect(options('ybc_button_presses', 'BUTTON')).not.toContain('A+B');
       expect(options('ybc_sound_note', 'NOTE')).toHaveLength(15);
       expect(options('ybc_sound_note', 'TICKS')).not.toContain('8');
     } finally {

@@ -1,7 +1,7 @@
 import type { Circuit, ComponentInstance, ProjectDocument } from '../circuit/document';
 import { composeCapabilities } from '../capabilities/compose';
 import type { Capabilities } from '../capabilities/io';
-import { createRuntimeServices, type Clock, type RunScheduler, type RuntimeServices } from '../capabilities/services';
+import { createRuntimeServices, createSeededRandomInt, type Clock, type RunScheduler, type RuntimeServices } from '../capabilities/services';
 import { boardTargetOf } from '../devices/board-pins';
 import type { DeviceRegistry } from '../devices/registry';
 import { resolveBoardContext, type BoardContext } from '../profiles/board-context';
@@ -55,7 +55,7 @@ export type StartFailureReason = 'no-board' | 'multiple-boards' | 'incompatible-
 /** Plain JSON; a new object on every change. */
 export type RunSnapshot = {
   status: RunStatus;
-  /** Compile warnings of the current run. */
+  /** Compile warnings of the current run, then (N17 B4) the warnings its board gave while it ran (a floating pin), each once. */
   diagnostics: RunDiagnostic[];
   error: { message: string; blockId?: string; /** A YBC fault's diagnostic code. */ code?: string } | null;
   /** null while idle; otherwise the powered board and the pins written so far. */
@@ -68,9 +68,18 @@ export type StartResult =
   | { ok: true }
   | { ok: false; reason: StartFailureReason; diagnostics: RunDiagnostic[] };
 
+/** How a run is started (N17 B4). */
+export type StartOptions = {
+  /**
+   * The seed of the run's random numbers: the same seed, the same numbers (a lab's check, so its goals are deterministic).
+   * Absent: Math.random, a new draw every run.
+   */
+  seed?: number;
+};
+
 export type RunSession = {
   /** Replaces any current run. A failed start stops it and leaves the session idle. */
-  start(project: ProjectDocument): StartResult;
+  start(project: ProjectDocument, options?: StartOptions): StartResult;
   /** Ends the run and drops all runtime state (E5). */
   stop(): void;
   /**
@@ -203,6 +212,11 @@ export type RunEnvironment = {
   simulation(): SimulationResult | null;
   /** Drives a pin of this run's board and simulates again. A name that is not a pin of the board is ignored. */
   drivePin(pin: string, level: 0 | 1): void;
+  /**
+   * N17 B4: a warning of the board for this run (a floating pin that reads 0), added to the snapshot's diagnostics after the compile
+   * warnings and published. A warning the run already has (the same code and message) is not added again.
+   */
+  warn(warning: { code: string; message: string }): void;
 };
 
 export type CapabilityFactory = (environment: RunEnvironment) => Capabilities;
@@ -340,6 +354,13 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
         run.pinOutputs = { ...run.pinOutputs, [pin]: level };
         publish({ ...fresh(), simulation: simulate(run) });
       },
+      warn({ code, message }) {
+        const now = fresh();
+        if (!live() || now.diagnostics.some((known) => known.code === code && known.message === message)) {
+          return;
+        }
+        publish({ ...now, diagnostics: [...now.diagnostics, { severity: 'warning', code, message }] });
+      },
     };
   };
 
@@ -358,7 +379,7 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
     }
   };
 
-  const start = (project: ProjectDocument): StartResult => {
+  const start = (project: ProjectDocument, startOptions: StartOptions = {}): StartResult => {
     const fail = (reason: StartFailureReason, diagnostics: RunDiagnostic[] = []): StartResult => {
       stop();
       return { ok: false, reason, diagnostics };
@@ -404,6 +425,8 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
       const runConsole = compiled.console;
       const services = createRuntimeServices({
         signal: controller.signal,
+        // A seeded run (a lab's check, N17 B4) draws the same random numbers every time.
+        ...(startOptions.seed === undefined ? {} : { randomInt: createSeededRandomInt(startOptions.seed) }),
         // What the program or a capability writes shows in the snapshot, and a run that lost ownership notices nothing.
         console: {
           write(line) {

@@ -30,11 +30,27 @@ export type ControlSpec =
   | (ControlBase & { kind: 'hold' })
   | (ControlBase & { kind: 'slider'; range: SliderRange })
   /** N17 B2: the accelerometer, a tilt pad and a "Lắc" button. */
-  | (ControlBase & { kind: 'tilt' });
+  | (ControlBase & { kind: 'tilt' })
+  /**
+   * N17 B4: one button that holds both buttons of the board at once (A+B), since one mouse cannot press two buttons on the drawing.
+   * It is no part of the board: `partId` names it after the two, and `componentIds` are theirs.
+   */
+  | (Omit<ControlBase, 'componentId'> & { kind: 'hold-both'; componentIds: readonly [string, string] });
 
-/** The controls of a board, in the order of its onboard parts. */
+/** The name of the A+B control after its two buttons: `button-a` and `button-b` make `button-ab`; ids with nothing in common, `a+b`. */
+function bothId(first: string, second: string): string {
+  let shared = 0;
+  while (shared < first.length && first[shared] === second[shared]) {
+    shared += 1;
+  }
+  const prefix = first.slice(0, first.lastIndexOf('-', shared - 1) + 1);
+  return prefix === '' ? `${first}+${second}` : `${prefix}${first.slice(prefix.length)}${second.slice(prefix.length)}`;
+}
+
+/** The controls of a board, in the order of its onboard parts; with two buttons, A+B right after the second (N17 B4). */
 export function controlsOf(boardId: string, definition: DeviceDefinition, profileControls: readonly string[]): ControlSpec[] {
   const specs: ControlSpec[] = [];
+  const buttons: { partId: string; componentId: string; label: string }[] = [];
   for (const part of definition.board?.onboard ?? []) {
     if (!profileControls.includes(part.id)) {
       continue;
@@ -45,6 +61,16 @@ export function controlsOf(boardId: string, definition: DeviceDefinition, profil
     const range = sliderRanges.get(part.model);
     if (kind === 'hold') {
       specs.push({ ...base, kind, label: `Button ${part.label}` });
+      buttons.push({ ...base, label: part.label });
+      const [first, second] = buttons;
+      if (buttons.length === 2 && first && second) {
+        specs.push({
+          kind: 'hold-both',
+          partId: bothId(first.partId, second.partId),
+          componentIds: [first.componentId, second.componentId],
+          label: `Button ${first.label}+${second.label}`,
+        });
+      }
     } else if (kind === 'slider' && range) {
       specs.push({ ...base, kind, label: `${part.label} level`, range });
     } else if (kind === 'tilt') {

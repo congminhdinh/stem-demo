@@ -29,6 +29,8 @@ describe('controlsOf', () => {
     expect(specs).toEqual([
       { kind: 'hold', partId: 'button-a', componentId: 'board-1/button-a', label: 'Button A' },
       { kind: 'hold', partId: 'button-b', componentId: 'board-1/button-b', label: 'Button B' },
+      // N17 B4: one hold button for both, after them, since one mouse cannot press two buttons on the drawing at once.
+      { kind: 'hold-both', partId: 'button-ab', componentIds: ['board-1/button-a', 'board-1/button-b'], label: 'Button A+B' },
       {
         kind: 'slider',
         partId: 'light',
@@ -41,24 +43,33 @@ describe('controlsOf', () => {
 
   it('gives ybc-advanced the temperature slider (−10..50 °C, from 25) and the tilt pad of the accelerometer too (N17 B2)', () => {
     const specs = controlsOf('board-1', ybcBoard, profileControls('ybc-advanced'));
-    expect(specs.map((spec) => spec.partId)).toEqual(['button-a', 'button-b', 'light', 'temperature', 'accelerometer']);
-    expect(specs[3]).toEqual({
+    expect(specs.map((spec) => spec.partId)).toEqual(['button-a', 'button-b', 'button-ab', 'light', 'temperature', 'accelerometer']);
+    expect(specs[4]).toEqual({
       kind: 'slider',
       partId: 'temperature',
       componentId: 'board-1/temperature',
       label: 'Temp level',
       range: { min: -10, max: 50, initial: 25, unit: '°C' },
     });
-    expect(specs[4]).toEqual({ kind: 'tilt', partId: 'accelerometer', componentId: 'board-1/accelerometer', label: 'Accel' });
+    expect(specs[5]).toEqual({ kind: 'tilt', partId: 'accelerometer', componentId: 'board-1/accelerometer', label: 'Accel' });
   });
 
   it('keeps the component id of a board whose own id has a slash', () => {
-    expect(controlsOf('saved/board', ybcBoard, ['button-a'])[0]?.componentId).toBe('saved/board/button-a');
+    expect(controlsOf('saved/board', ybcBoard, ['button-a'])[0]).toMatchObject({ componentId: 'saved/board/button-a' });
   });
 
   it('shows only the parts the profile lists', () => {
     expect(controlsOf('b', ybcBoard, ['light']).map((spec) => spec.partId)).toEqual(['light']);
     expect(controlsOf('b', ybcBoard, [])).toEqual([]);
+  });
+
+  it('gives A+B only with both buttons listed, and names it after the parts the data has (N17 B4)', () => {
+    expect(controlsOf('b', ybcBoard, ['button-a', 'light']).map((spec) => spec.partId)).toEqual(['button-a', 'light']);
+    const other = withOnboard([
+      { id: 'left', model: 'button', label: 'L' },
+      { id: 'right', model: 'button', label: 'R' },
+    ]);
+    expect(controlsOf('b', other, ['left', 'right']).at(-1)).toEqual({ kind: 'hold-both', partId: 'left+right', componentIds: ['b/left', 'b/right'], label: 'Button L+R' });
   });
 
   it('has no control for a part that takes no input (display, buzzer), even when the profile lists it', () => {
@@ -94,6 +105,7 @@ describe('controlsOf', () => {
     expect(controlsOf('b', ybcBoard, ['light', 'button-b', 'button-a']).map((spec) => spec.partId)).toEqual([
       'button-a',
       'button-b',
+      'button-ab',
       'light',
     ]);
   });

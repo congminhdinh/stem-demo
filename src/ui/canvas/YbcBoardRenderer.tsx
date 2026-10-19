@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import type { KonvaEventObject } from 'konva/lib/Node';
+import { useEffect, useRef, useState } from 'react';
 import { Group, Rect, Text } from 'react-konva';
 import type { OnboardPeripheral } from '../../core/devices/device-definition';
 import { accelerationOf } from '../../core/simulation/peripherals/accelerometer';
 import { temperatureOf } from '../../core/simulation/peripherals/temperature';
-import type { ComponentInput, ComponentState } from '../../core/simulation/simulate-circuit';
+import { inputKindOfModel, type ComponentInput, type ComponentState } from '../../core/simulation/simulate-circuit';
 import { formatHz, toneHz } from '../audio/tone';
 import { renderedPixels } from '../runtime-controls/display-view';
 import { prefersReducedMotion, useShaking } from '../runtime-controls/use-shaking';
@@ -18,7 +19,11 @@ import { canvasPalette } from './colors';
 // while a lab's check presses them (N8s), its inputs (`partInputs`) are drawn: a held button filled and ringed,
 // the light's level as text beside it. N17 B2: while a run is on, a quiet line under the display reads what the temperature
 // sensor and the accelerometer sense (25 °C and x 0 y 0 z −1024 until the controls say otherwise), and a shake jiggles the
-// board for a moment (only marked, the accelerometer ringed, when the person asked for less motion).
+// board for a moment (only marked, the accelerometer ringed, when the person asked for less motion). N17 B4: while a run takes the
+// learner's presses (`onPartPress`), the buttons drawn on the board are pressed with the pointer: a hand over them, held while the
+// pointer is down on one, and let go on pointerup, pointerleave, pointercancel, a lost capture, a release anywhere on the page, and
+// when presses stop being taken, so a button never sticks (Review Focus 2). They are drawn pressed from what the run is given, as
+// the panel's buttons are: the two share one state (src/ui/runtime-controls/board-buttons.ts). Keyboard presses are the panel's.
 
 const {
   shell: shellFill,
@@ -62,8 +67,72 @@ function useJiggle(count: number): number {
   return offset;
 }
 
-export function YbcBoardRenderer({ definition, partStates, partInputs, partEvents }: DeviceRendererProps) {
+type PressOf = NonNullable<DeviceRendererProps['onPartPress']>;
+
+/**
+ * N17 B4: which button each pointer holds on the drawing, and what to tell when it lets go. Each press keeps the callback that made
+ * it, so a press is let go through the same one even after the run stopped taking presses. A release anywhere on the page and the
+ * end of taking presses (no callback any more, or the drawing goes away) let go of everything.
+ */
+function usePartPresses(onPartPress: PressOf | undefined) {
+  const held = useRef(new Map<number, { partId: string; press: PressOf }>());
+  // The canvas the hand is shown on, so it is taken away again when presses stop being taken while the pointer is over a button.
+  const hovered = useRef<HTMLElement | null>(null);
+  const release = (pointerId: number) => {
+    const holding = held.current.get(pointerId);
+    if (holding) {
+      held.current.delete(pointerId);
+      holding.press(holding.partId, pointerId, false);
+    }
+  };
+  const pressable = onPartPress !== undefined;
+  useEffect(() => {
+    if (!pressable) {
+      return;
+    }
+    const holding = held.current;
+    const onRelease = (event: PointerEvent) => {
+      const press = holding.get(event.pointerId);
+      if (press) {
+        holding.delete(event.pointerId);
+        press.press(press.partId, event.pointerId, false);
+      }
+    };
+    window.addEventListener('pointerup', onRelease);
+    window.addEventListener('pointercancel', onRelease);
+    return () => {
+      window.removeEventListener('pointerup', onRelease);
+      window.removeEventListener('pointercancel', onRelease);
+      for (const [pointerId, press] of [...holding]) {
+        holding.delete(pointerId);
+        press.press(press.partId, pointerId, false);
+      }
+      if (hovered.current) {
+        hovered.current.style.cursor = '';
+        hovered.current = null;
+      }
+    };
+  }, [pressable]);
+  /** The hand over a button that can be pressed, and the default cursor again when the pointer leaves it. */
+  const hover = (event: KonvaEventObject<PointerEvent>, over: boolean) => {
+    const container = event.target.getStage()?.container() ?? null;
+    if (container) {
+      container.style.cursor = over ? 'pointer' : '';
+    }
+    hovered.current = over ? container : null;
+  };
+  const press = (partId: string, pointerId: number) => {
+    if (onPartPress && !held.current.has(pointerId)) {
+      held.current.set(pointerId, { partId, press: onPartPress });
+      onPartPress(partId, pointerId, true);
+    }
+  };
+  return { pressable, press, release, hover };
+}
+
+export function YbcBoardRenderer({ definition, partStates, partInputs, partEvents, onPartPress }: DeviceRendererProps) {
   const { width, height } = definition.body;
+  const presses = usePartPresses(onPartPress);
   const onboard = definition.board?.onboard ?? [];
   // Part ids are data: "constructor" must not find a member of Object.prototype.
   const stateOf = (partId: string): ComponentState | undefined =>
@@ -118,6 +187,7 @@ export function YbcBoardRenderer({ definition, partStates, partInputs, partEvent
             hz={part.model === 'buzzer' ? toneHz(stateOf(part.id)) : undefined}
             input={inputOf(part.id)}
             shaken={part === accelerometerPart && shaking}
+            presses={presses.pressable && Object.hasOwn(inputKindOfModel, part.model) && inputKindOfModel[part.model] === 'hold' ? presses : undefined}
           />
         ),
       )}
@@ -181,16 +251,58 @@ function DisplayGrid({ part, state }: { part: OnboardPeripheral; state: Componen
  * and the frequency as text (a colour is never the only sign); it is also set on the group for tests. `input` is
  * what the run is given for the part: a held button is filled and ringed, a light level is written beside it;
  * both are set on the group too (`pressed`, `level`). `shaken`: the accelerometer is ringed while the board is shaken (N17 B2).
+ * `presses`: a button the learner can press with the pointer now (N17 B4), set on the group as `pressable`.
  */
-function PartFootprint({ part, hz, input, shaken = false }: { part: OnboardPeripheral; hz?: number; input?: ComponentInput; shaken?: boolean }) {
+function PartFootprint({
+  part,
+  hz,
+  input,
+  shaken = false,
+  presses,
+}: {
+  part: OnboardPeripheral;
+  hz?: number;
+  input?: ComponentInput;
+  shaken?: boolean;
+  presses?: Pick<ReturnType<typeof usePartPresses>, 'press' | 'release' | 'hover'>;
+}) {
   const { x, y, width, height } = part.at;
   const sounding = hz !== undefined;
   const pressed = input?.kind === 'hold' && input.closed;
   // Only the light's level is written beside the part: the temperature has the line under the display (N17 B2).
   const level = input?.kind === 'slider' && part.model === 'light-sensor' ? input.value : undefined;
   const ring = sounding || shaken ? soundingStroke : pressed ? labelFill : undefined;
+  const release = (event: KonvaEventObject<PointerEvent>) => presses?.release(event.evt.pointerId);
   return (
-    <Group name={`ybc-part-${part.id}`} hz={hz} pressed={pressed} level={level} shaken={shaken} listening={false}>
+    <Group
+      name={`ybc-part-${part.id}`}
+      hz={hz}
+      pressed={pressed}
+      level={level}
+      shaken={shaken}
+      pressable={presses !== undefined}
+      listening={presses !== undefined}
+      {...(presses
+        ? {
+            onPointerDown: (event: KonvaEventObject<PointerEvent>) => {
+              if (event.evt.button !== 0) {
+                return;
+              }
+              // The press is the button's: the board under it is not selected or dragged (it is locked while running anyway).
+              event.cancelBubble = true;
+              presses.press(part.id, event.evt.pointerId);
+            },
+            onPointerUp: release,
+            onPointerCancel: release,
+            onLostPointerCapture: release,
+            onPointerEnter: (event: KonvaEventObject<PointerEvent>) => presses.hover(event, true),
+            onPointerLeave: (event: KonvaEventObject<PointerEvent>) => {
+              release(event);
+              presses.hover(event, false);
+            },
+          }
+        : {})}
+    >
       <Rect
         x={x}
         y={y}
@@ -201,9 +313,9 @@ function PartFootprint({ part, hz, input, shaken = false }: { part: OnboardPerip
         stroke={ring}
         strokeWidth={ring === undefined ? 0 : 3}
       />
-      <Text text={part.label} x={x} y={y + height / 2 - 5} width={width} align="center" fontSize={10} fill={labelFill} />
-      {sounding && <Text text={formatHz(hz)} x={x + width + 6} y={y + height / 2 - 6} fontSize={12} fill={soundingStroke} />}
-      {level !== undefined && <Text text={String(level)} x={x + width + 6} y={y + height / 2 - 6} fontSize={12} fill={soundingStroke} />}
+      <Text text={part.label} x={x} y={y + height / 2 - 5} width={width} align="center" fontSize={10} fill={labelFill} listening={false} />
+      {sounding && <Text text={formatHz(hz)} x={x + width + 6} y={y + height / 2 - 6} fontSize={12} fill={soundingStroke} listening={false} />}
+      {level !== undefined && <Text text={String(level)} x={x + width + 6} y={y + height / 2 - 6} fontSize={12} fill={soundingStroke} listening={false} />}
     </Group>
   );
 }

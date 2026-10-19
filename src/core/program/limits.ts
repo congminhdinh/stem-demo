@@ -29,6 +29,13 @@ export const MAX_WAIT_MS = 60_000;
 export const MAX_RANGE_VALUE = 1_000_000;
 export const MAX_REPEAT_ABS = 1_000_000;
 
+/**
+ * N17 B4, contract §3.5 (C-40): the ends of a random number are each within ±MAX_RANDOM_ABS and at most MAX_RANDOM_SPAN apart,
+ * so the width of the range stays below 2^21, inside the 32 bits getrandbits gives at a time (DOC-M3).
+ */
+export const MAX_RANDOM_ABS = 1_000_000;
+export const MAX_RANDOM_SPAN = 1_000_000;
+
 /** Text parts one `join` takes; matches the preflight of the join mutator. */
 export const MAX_TEXT_JOIN_PARTS = 50;
 

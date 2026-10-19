@@ -211,7 +211,15 @@ export type ModuleContract = {
   fields: { import: FieldEntry; module: FieldEntry };
   eligibility: Eligibility;
   exclusionReason?: string;
+  /**
+   * N17 B4 (owner, 2026-10-19): the fields of the module no evidence establishes that the owner opened anyway, each with why it is
+   * UNVERIFIED (C-03d: whether the firmware has `random.randint`). As for a construct (`ConstructContract.unverifiedFields`).
+   */
+  unverifiedFields?: Readonly<Partial<Record<'import' | 'module', string>>>;
 };
+
+/** The builtins a generated program may call (IM-9; N17 B4: min and max, for the ends of a random number). */
+export const generatorBuiltins = ['print', 'range', 'str', 'int', 'len', 'min', 'max'] as const;
 
 export type Profiles = readonly ('ybc-basic' | 'ybc-advanced')[];
 
@@ -231,7 +239,7 @@ export type ConstructContract = {
   /** Ids of the modules the construct needs; it is only eligible if every one is. */
   modules: readonly ModuleId[];
   /** What the generator emits. Absent for EXCLUDED and DEFERRED: they have no mapping. */
-  python?: { form: string; builtins?: readonly ('print' | 'range' | 'str' | 'int' | 'len')[] };
+  python?: { form: string; builtins?: readonly (typeof generatorBuiltins)[number][] };
   /** What the public editor generated for it, kept as a note; never an allowlist entry. */
   observedPython?: string;
   /**
@@ -242,9 +250,10 @@ export type ConstructContract = {
   unverifiedForms?: readonly { form: string; reason: string }[];
   /**
    * N17 B2 (owner, 2026-10-19: "Mô phỏng đủ chức năng"): fields of this row that no evidence establishes and that the owner opened
-   * anyway, each with why it is UNVERIFIED and what the simulator does instead. The field stays UNKNOWN in `fields`: this is the
-   * recorded decision, never a claim. Only an ELIGIBLE or RESTRICTED row may name them, only fields labelled UNKNOWN, and the gate
-   * lets exactly these through; every other field of the row is held to EG as before.
+   * anyway, each with why it is UNVERIFIED and what the simulator does instead. The field stays UNKNOWN (or, since N17 B4, INFERRED,
+   * which counts as UNKNOWN at the gate) in `fields`: this is the recorded decision, never a claim. Only an ELIGIBLE or RESTRICTED
+   * row may name them, only fields labelled UNKNOWN or INFERRED, and the gate lets exactly these through; every other field of the
+   * row is held to EG as before.
    */
   unverifiedFields?: Readonly<Partial<Record<OfField, string>>>;
   fields: Readonly<Record<OfField, FieldEntry>>;
@@ -365,6 +374,7 @@ const moduleSchema = z.object({
   fields: z.object({ import: fieldEntrySchema, module: fieldEntrySchema }).strict(),
   eligibility: z.enum(eligibilities),
   exclusionReason: z.string().optional(),
+  unverifiedFields: z.partialRecord(z.enum(['import', 'module']), z.string().min(1)).optional(),
 });
 
 const constructSchema = z.object({
@@ -377,7 +387,7 @@ const constructSchema = z.object({
   restrictions: z.array(z.string()),
   modules: z.array(z.enum(moduleIds)),
   python: z
-    .object({ form: z.string().min(1), builtins: z.array(z.enum(['print', 'range', 'str', 'int', 'len'])).optional() })
+    .object({ form: z.string().min(1), builtins: z.array(z.enum(generatorBuiltins)).optional() })
     .optional(),
   observedPython: z.string().optional(),
   unverifiedForms: z.array(z.object({ form: z.string().min(1), reason: z.string().min(1) })).optional(),

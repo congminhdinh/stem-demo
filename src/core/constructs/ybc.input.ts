@@ -5,7 +5,9 @@ import type { HardwareConstruct } from './ybc';
 //   C-12 button held   button_a.is_pressed()    True while the button is held at the call; not latched
 //   C-13 press count   button_a.get_presses()   the presses since the last read, then 0 again (NICE)
 //   C-15 light level   light_level()            an int, 0 (darkest) to 100 (brightest), as the tooltip states
-// A+B (C-47) is EXCLUDED: the dropdown offers A and B and nothing else. Button events (C-14) are DEFERRED.
+// N17 B4: "is pressed" offers A+B too, true while both are held. It is the `and` of the two C-12 reads, written
+// `button_a.is_pressed() and button_b.is_pressed()`; the editor's own `button_a.is_pressed_ab()` (C-47) stays EXCLUDED: the
+// accepted simulator snapshot has no such attribute. A press count is of A or B only. Button events (C-14) are DEFERRED.
 
 export const buttonPressedType = 'ybc_button_pressed';
 export const buttonPressesType = 'ybc_button_presses';
@@ -17,16 +19,23 @@ export type ButtonName = (typeof buttonNames)[number];
 
 export const isButtonName = (value: unknown): value is ButtonName => buttonNames.some((name) => name === value);
 
+/** N17 B4: "both buttons" in the dropdown of "is pressed" (contract C-12's domain), as Blockly saves it. */
+export const BOTH_BUTTONS = 'A+B';
+/** What "button … is pressed" offers (C-12): A, B, and A+B, which is true while both are held. */
+export const pressedButtonNames = [...buttonNames, BOTH_BUTTONS] as const;
+export type PressedButtonName = (typeof pressedButtonNames)[number];
+export const isPressedButtonName = (value: unknown): value is PressedButtonName => pressedButtonNames.some((name) => name === value);
+
 const buttonDropdown = { type: 'field_dropdown', name: 'BUTTON', options: buttonNames.map((name) => [name, name]) };
 
 export const buttonPressedDefinition: BlockDefinitionJson = {
   type: buttonPressedType,
   message0: 'button %1 is pressed',
-  args0: [buttonDropdown],
+  args0: [{ type: 'field_dropdown', name: 'BUTTON', options: pressedButtonNames.map((name) => [name, name]) }],
   // Boolean, so it fits the conditions of "if", "while", "and", "or" and "not".
   output: 'Boolean',
   colour: 20,
-  tooltip: 'True while the button is held down at this moment.',
+  tooltip: 'True while the button is held down at this moment; A+B: while both are held.',
 };
 
 export const buttonPressesDefinition: BlockDefinitionJson = {

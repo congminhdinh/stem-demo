@@ -12,7 +12,8 @@ import { createPinCapabilities } from './ybc-pin-io';
 
 // The header pins through the production RunSession (YB-4): a program's pin writes drive the circuit and the
 // snapshot shows it, a read sees what the circuit puts on the pin, a potentiometer is moved by a runtime input,
-// and a pin that cannot be read stops the program at its block. Real compiler, real interpreter, real simulation;
+// and a pin that cannot be read stops the program at its block (N17 B4: a floating pin read on/off reads 0 with a warning instead).
+// Real compiler, real interpreter, real simulation;
 // only the clock is fake.
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
@@ -153,8 +154,9 @@ describe('a pin sees what the circuit puts on it (C-24, C-25)', () => {
     const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
     session.start(document(program([print(pinRead('P1')), pinWrite('P0', true), print(pinRead('P1')), print(pinAnalog('P1')), pinWrite('P0', false), print(pinAnalog('P1'))]), loop));
     await settle();
-    // Undriven at first: that is the floating read, and it stops the program (below). Here P0 is written first.
-    expect(session.getSnapshot()).toMatchObject({ status: 'error', error: { code: 'out-of-domain' } });
+    // Undriven at first: that is the floating read, which reads 0 with a warning (N17 B4, below), and the program goes on.
+    expect(lines(session)).toEqual(['False', 'True', '4095', '0']);
+    expect(session.getSnapshot().status).toBe('finished');
     session.start(document(program([pinWrite('P0', true), print(pinRead('P1')), print(pinAnalog('P1')), pinWrite('P0', false), print(pinRead('P1')), print(pinAnalog('P1'))]), loop));
     await settle();
     expect(lines(session)).toEqual(['True', '4095', 'False', '0']);
@@ -212,12 +214,29 @@ describe('a pin the program must not read stops it at the reading block (domain 
     return { snapshot, session };
   };
 
-  it('stops on a pin nothing drives, naming the pin and the block; the board stays powered (E7)', async () => {
-    const read = pinRead('P1');
+  it('reads a pin nothing drives as off (0), says so once as a warning of the run, and goes on (N17 B4)', async () => {
+    const { snapshot, session } = await failed(program([print(text('before')), print(pinRead('P1')), print(pinRead('P1')), print(pinRead('P2')), print(text('after'))]), { components: [board], wires: [] });
+    expect(snapshot.status).toBe('finished');
+    expect(snapshot.error).toBeNull();
+    expect(snapshot.console?.lines).toEqual(['before', 'False', 'False', 'False', 'after']);
+    expect(snapshot.diagnostics).toEqual([
+      { severity: 'warning', code: 'floating-pin', message: 'Pin P1 is floating, so it reads 0. Connect the button to 3V3 or GND.' },
+      { severity: 'warning', code: 'floating-pin', message: 'Pin P2 is floating, so it reads 0. Connect the button to 3V3 or GND.' },
+    ]);
+    // The next run starts without them, and warns again.
+    session.start(document(program([print(pinRead('P1'))]), { components: [board], wires: [] }));
+    expect(session.getSnapshot().diagnostics).toEqual([]);
+    await settle();
+    expect(session.getSnapshot().diagnostics).toHaveLength(1);
+    session.stop();
+    expect(session.getSnapshot().diagnostics).toEqual([]);
+  });
+
+  it('still stops on an analog read of a pin nothing drives: an analog level of nothing is not 0', async () => {
+    const read = pinAnalog('P1');
     const { snapshot, session } = await failed(program([print(text('before')), print(read), print(text('never'))]), { components: [board], wires: [] });
     expect(snapshot.status).toBe('error');
-    expect(snapshot.error).toEqual({ message: 'Pin P1 is not connected to anything, so it cannot be read.', blockId: expect.any(String), code: 'out-of-domain' });
-    expect(snapshot.error?.blockId).toBe(read.id);
+    expect(snapshot.error).toEqual({ message: 'Pin P1 is not connected to anything, so it cannot be read.', blockId: read.id, code: 'out-of-domain' });
     expect(snapshot.console?.lines).toEqual(['before']);
     expect(snapshot.simulation).not.toBeNull();
     session.stop();
@@ -514,15 +533,19 @@ describe('Stop, replacement and reentrancy with pins', () => {
       wires: [
         wire('b1', ['ybc-board-1', '3v3'], ['push-button-1', 'a']),
         wire('b2', ['push-button-1', 'b'], ['ybc-board-1', 'p2']),
-        // P2 also sits on GND through a second wire to the board's GND: an always-driven pin needs a pull, and
-        // there is none, so this circuit is the case the plan warns about (B9). It is a conflict while pressed.
+        // A button to 3V3 and no pull: the case the plan warned about (the old B9). N17 B4: released, P2 floats and reads 0.
       ],
     };
     const session = createRunSession(registry, { capabilities: createPinCapabilities(registry) });
-    session.start(document(program([whileLoop(and(not(pinRead('P2')), not(pinRead('P2'))), [wait(num(10))])]), circuit));
+    session.start(document(program([whileLoop(and(not(pinRead('P2')), not(pinRead('P2'))), [wait(num(10))]), print(text('pressed'))]), circuit));
     await settle();
-    // Released: P2 floats, so the first read stops the program (it is not a logic level).
-    expect(session.getSnapshot()).toMatchObject({ status: 'error', error: { code: 'out-of-domain' } });
+    // Released: P2 floats, reads 0 with a warning, and the loop goes on.
+    await vi.advanceTimersByTimeAsync(50);
+    expect(session.getSnapshot()).toMatchObject({ status: 'running', error: null, diagnostics: [{ code: 'floating-pin' }] });
+    // Pressed: P2 is high, and the loop ends.
+    session.setContactInput('push-button-1', true);
+    await vi.advanceTimersByTimeAsync(20);
+    expect(session.getSnapshot()).toMatchObject({ status: 'finished', console: { lines: ['pressed'] } });
     session.stop();
   });
 });

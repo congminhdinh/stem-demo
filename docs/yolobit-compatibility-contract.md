@@ -6,6 +6,7 @@
 > - **N17 B1 (2026-10-19):** owner chọn "Mô phỏng đủ chức năng". Màn hình RGB mở cho cả hai profile: C-05 (hình có sẵn) mở lại, C-10/C-42/C-43 sang cả Basic; màu cho C-06/C-07/C-08. Dạng code mới và nhãn VERIFIED/UNVERIFIED ở **§23**.
 > - **N17 B2 (2026-10-19):** cảm biến của Advanced: C-16 nhiệt độ (domain hỗ trợ −10..50), C-17 gia tốc và C-18 cử chỉ/lắc **mở lại** (RESTRICTED, chỉ Advanced) bằng quyết định owner, với field chưa có evidence ghi rõ **UNVERIFIED** (`unverifiedFields`), không bịa evidence. Chi tiết ở **§24**.
 > - **N17 B3 (2026-10-19):** loa của Advanced: C-20 giai điệu có sẵn (RESTRICTED, 20 tên, chờ xong / không chờ), C-21 `music.pitch` (RESTRICTED, 20..20000 Hz, 0..60000 ms, không chặn) và C-22 `music.stop()` (ELIGIBLE) **mở lại**, chỉ Advanced, với field chưa có evidence ghi **UNVERIFIED**. Nốt của giai điệu trong simulator lấy từ micro:bit MicroPython (MIT), không phải asset OhStem. Chi tiết ở **§25**.
+> - **N17 B4 (2026-10-19):** A+B là lựa chọn thứ ba của C-12 (`button_a.is_pressed() and button_b.is_pressed()`; `is_pressed_ab()` của editor, C-47, vẫn EXCLUDED); C-19 thời gian chạy (ELIGIBLE) và C-40 `random.randint` (RESTRICTED, hai đầu theo thứ tự nào cũng được) **mở lại** cho cả hai profile (B6 chốt), module C-03d `random` ELIGIBLE với field `module` INFERRED ghi **UNVERIFIED**; C-24: chân thả nổi đọc **0** kèm cảnh báo, chương trình không dừng (B9 cũ); dropdown giai điệu chỉ còn 14 tên VERIFIED. Chi tiết ở **§26**.
 > - Chưa phải căn cứ implement cho tới khi freeze.
 > **Target snapshot:** editor public `app.ohstem.vn/#!/codes/yolobit`, build marker `?v=20261007130057`, Blockly `8.0.1`; simulator public (Thiết bị ảo → Project Builder, `static/gears/index.html?…&build=658a5…`); trang firmware public `fw.ohstem.vn` liệt kê **"Yolo:Bit v1.12"** và **"Yolo:Bit S3 v1.14"** (đọc 2026-10-14). Ngày quan sát: **2026-10-14**.
 > **Firmware chính xác: UNKNOWN. MicroPython version: UNKNOWN.** Contract này được **pin vào snapshot evidence public ở trên**, không phải bảo đảm tương thích vô thời hạn (§1).
@@ -141,7 +142,7 @@ button_a.on_pressed_ab = button_b.on_pressed_ab = -1
 | C-03a | `time` (`time.sleep_ms`) | `import time` · V·G | DOCUMENTED | D·M DOC-M10 (ESP32 port: "Use the time module: … time.sleep_ms(500)") + D·W DOC-W5 (Yolo:Bit lập trình bằng MicroPython) | **không** | ELIGIBLE |
 | C-03b | `yolobit` (+ preamble) | `from yolobit import *` + 3 dòng preamble · V·G | VERIFIED (`sim-module`) | V·S EVD-06…EVD-17: import, preamble và các API dùng ở §4–§11 chạy được trong snapshot simulator | **có** | ELIGIBLE (sim-scoped) |
 | C-03c | `music` | `import music` · V·G | VERIFIED (`sim-module`) | V·S EVD-08/20/21 | **có** | ELIGIBLE (sim-scoped) |
-| C-03d | `random` (`random.randint`) | `import random` · V·G | **INFERRED** | D·M DOC-M2: "`randint()` … only available if the MICROPY_PY_RANDOM_EXTRA_FUNCS configuration option is enabled"; không trang public nào của OhStem cho thấy `random.randint` trên Yolo:Bit (khoá MicroPython của OhStem cần đăng nhập); `random` trong simulator là CPython → claim `language`, không được dùng. Chuỗi "bài học 2021 + generator 2026" là INFERRED (§0.2) | — | **EXCLUDED** (kéo theo C-40) |
+| C-03d | `random` (`random.randint`) | `import random` · V·G | **INFERRED** → **UNVERIFIED** (N17 B4) | D·M DOC-M2: "`randint()` … only available if the MICROPY_PY_RANDOM_EXTRA_FUNCS configuration option is enabled"; không trang public nào của OhStem cho thấy `random.randint` trên Yolo:Bit (khoá MicroPython của OhStem cần đăng nhập); `random` trong simulator là CPython → claim `language`, không được dùng. Chuỗi "bài học 2021 + generator 2026" là INFERRED (§0.2) | — | ~~EXCLUDED~~ **ELIGIBLE (owner N17 B4)**: field `module` vẫn INFERRED trong data, ghi `unverifiedFields`; board không có `randint` thì `AttributeError` (§26) |
 | C-03e | builtin `print`, `range`, `str`, `int`, `len` | — | DOCUMENTED | D·M (builtin của lõi ngôn ngữ, DOC-M8) | không | ELIGIBLE |
 
 ### 2.3 Contract cho generator của mình
@@ -150,13 +151,13 @@ button_a.on_pressed_ab = button_b.on_pressed_ab = -1
 |---|---|---|
 | IM-1 | Dòng đầu tiên sau comment cố định: `import time` (luôn có) | V·G (text) |
 | IM-2 | Khi program dùng construct thuộc `yolobit`: `from yolobit import *` + **đúng ba dòng preamble**, ngay sau `import time` | V·G (text) |
-| IM-3 | `import music` khi dùng C-50/C-51. Thứ tự cố định: `time`, `yolobit`+preamble, `music`. (`import random`: không sinh, C-40 EXCLUDED) | V·G (text) |
+| IM-3 | `import music` khi dùng C-50/C-51. Thứ tự cố định: `time`, `yolobit`+preamble, `music`, rồi (N17 B4) `import random` **một lần** khi dùng C-40 | V·G (text) |
 | IM-4 | Khi dùng C-50/C-51: thêm `music.set_tempo(4, 120)` sau import, trước code của learner (explicit-parameter, §8) | V·G (text), V·S (`sound-indicator`) |
 | IM-5 | `on start` sinh ở top level (editor bọc `if True:`; tương đương ngữ nghĩa Python) | V·G, D·M |
 | IM-6 | `forever`: `while True:` + thân + `time.sleep_ms(10)`. Không có `forever`: vòng chờ rảnh `while True:` + `time.sleep_ms(10)` (plan §13.3; editor dùng 100 ms: khác biệt không quan sát được khi không có event) | V·G |
 | IM-7 | `None` chỉ xuất hiện trong preamble IM-2 (plan §6.4) | V·G |
 | IM-8 | Tên file tải về: `program.py` | quyết định an toàn của plan §13.7 |
-| IM-9 | Builtin được phép trong output: `print`, `range`, `str`, `int`, `len` (allowlist, plan §13.9) | D·M |
+| IM-9 | Builtin được phép trong output: `print`, `range`, `str`, `int`, `len`, và (N17 B4) `min`, `max` cho hai đầu của số ngẫu nhiên (allowlist, plan §13.9) | D·M |
 | IM-10 | Tên tạm của generator bắt đầu bằng `_` (plan §13.5); không bao giờ xuất hiện trong `global`; dùng cho bộ đếm `repeat` và cận count up (C-39) | — |
 
 ---
@@ -181,7 +182,7 @@ MicroPython version UNKNOWN (§1). Contract chỉ dựa vào **lõi ngôn ngữ*
 | text, nối, `str()` | `'a' + str(n)` | `'n=' + str(5)`; ≥ 3 phần: comprehension | | D·M | plan §6.7 |
 | `len(s)` | `len(s)` | `len('abc')` | Số ký tự | D·M (ASCII) | chỉ chuỗi ASCII (`–ᴰ`) |
 | Hàm | `def` / `global` / `return` | `def`, `global` cho **mọi** biến workspace, `return expr` | Python 3.4 | D·M | FN1–FN10 (§3.4) |
-| `random.randint` | — | `import random` + `random.randint(1, 6)` | `[a, b]` (DOC-M3) | `OF-module` **INFERRED** | **EXCLUDED** (C-40, §3.5) |
+| `random.randint` | `random.randint(1, 6)`; đầu tính ra: `random.randint(min(a, b), max(a, b))` | `import random` + `random.randint(1, 6)` | `[a, b]` (DOC-M3) | `OF-module` **INFERRED** → UNVERIFIED | **RESTRICTED** (N17 B4, C-40, §3.5, §26) |
 | `/`, `**`, `round`, float | — | có | Float | — | EXCLUDED (plan §6.4) |
 | `break`/`continue`, list, `_thread`, `lambda` | — | có | — | — | EXCLUDED |
 
@@ -198,7 +199,7 @@ Tài liệu **không** nói ngưỡng chính xác ("large … misbehave"; số b
 |---|---|---|
 | `MAX_RANGE_VALUE` | **1 000 000** | count up: `start`, `end`, `step` |
 | `MAX_REPEAT_ABS` | **1 000 000** | `repeat N`: `abs(N)` |
-| `MAX_RANDOM_ABS`, `MAX_RANDOM_SPAN` | 1 000 000, 1 000 000 | **Đặc tả sẵn** cho C-40, **không hoạt động** khi C-40 bị loại (§3.5) |
+| `MAX_RANDOM_ABS`, `MAX_RANDOM_SPAN` | 1 000 000, 1 000 000 | C-40 (N17 B4: đang hoạt động, §3.5) |
 
 **Lập luận cận:**
 - Với các domain dưới đây, **mọi** giá trị và kết quả trung gian mà MicroPython có thể phải biểu diễn (đối số, `end + 1`, giá trị kế tiếp `i + step`, độ dài dãy, độ rộng khoảng random) đều ≤ **2 000 001 < 2^21**.
@@ -252,14 +253,16 @@ Không có vòng nào wrap. **Không có count up âm** trong milestone này: kh
 
 FN1–FN10 chỉ dùng `def`, tham số vị trí, `global`, `return <expr>` ở cuối, gọi hàm: lõi Python 3.4, không có mục nào trong danh sách khác biệt của MicroPython (DOC-M8). Editor sinh đúng các dạng này (V·G, EVD-03, EVD-23). → **FN1–FN10 = DOCUMENTED (D·M)**. Test §18.3b của plan vẫn bắt buộc ở YB-7. Biến tạm của generator (IM-10) không vi phạm FN4: chúng không phải tên của learner.
 
-### 3.5 `random.randint` (C-40) — EXCLUDED, domain đặc tả sẵn
+### 3.5 `random.randint` (C-40) — N17 B4: RESTRICTED (trước đó EXCLUDED, domain đặc tả sẵn)
 
-- **Lý do loại:** `OF-module` INFERRED (C-03d). MicroPython tài liệu hoá `randint` là tuỳ chọn khi build; không có evidence chấp nhận được rằng firmware Yolo:Bit bật nó.
+> **N17 B4 (owner, 2026-10-19):** C-40 mở lại cho cả hai profile bằng quyết định owner, **không** bằng evidence mới: `OF-module` vẫn INFERRED, ghi **UNVERIFIED** (`unverifiedFields`, cả ở C-03d). Domain dưới đây có hiệu lực, với một thay đổi: hai đầu **theo thứ tự nào cũng được** (simulator rút số từ đầu nhỏ tới đầu lớn; generator viết đầu nhỏ trước), nên `a ≤ b` được thay bằng `|b − a| ≤ MAX_RANDOM_SPAN`. Chi tiết §26.
+
+- **Lý do loại (r2, trước N17 B4):** `OF-module` INFERRED (C-03d). MicroPython tài liệu hoá `randint` là tuỳ chọn khi build; không có evidence chấp nhận được rằng firmware Yolo:Bit bật nó.
 - **Cách mở lại:** một trang public của OhStem cho thấy `random.randint` trên Yolo:Bit, **hoặc** kiểm chứng vật lý (YB-P). Khi đó domain đã đặc tả sẵn sau đây có hiệu lực, không cần thiết kế lại:
 
   `−MAX_RANDOM_ABS ≤ a ≤ b ≤ MAX_RANDOM_ABS` **và** `b − a ≤ MAX_RANDOM_SPAN` (độ rộng `b − a + 1 ≤ 1 000 001 < 2^20`, dưới giới hạn 32 bit của `getrandbits`, DOC-M3). Literal vi phạm → lỗi compile. Động → `out-of-domain`, kiểm sau khi đánh giá `a` rồi `b`.
 
-- Không có construct nào được mở phụ thuộc vào `random`.
+- (r2) Không có construct nào được mở phụ thuộc vào `random`. **N17 B4:** C-40 phụ thuộc, §26.
 
 ---
 
@@ -340,6 +343,7 @@ N17 B1: block chọn màu bằng dropdown 8 màu này (Blockly 13 không còn co
 | Dạng gọi | `button_a.is_pressed()`, `button_b.is_pressed()` | V·G | EVD-03 |
 | `OF-return` `is_pressed` | `True` khi nút **đang được giữ lúc gọi**, ngược lại `False`; **không chốt**; A, B độc lập | V·S + D·U | EVD-09 (`return-reset`). Tooltip: "Kiểm tra xem nút nhấn có được nhấn hay không." |
 | A+B | `button_a.is_pressed_ab()` (editor sinh). **A+B unsupported in the accepted simulator-backed contract snapshot**: thư viện trong simulator ném `AttributeError`. **Không** có claim nào về khả năng nhấn A+B của board vật lý | V·G / V·S | EVD-19 → **EXCLUDED** (C-47) |
+| A+B (N17 B4) | Lựa chọn thứ ba của block "nút … đang được nhấn" (C-12): `button_a.is_pressed() and button_b.is_pressed()`, đúng khi cả hai đang giữ; B chỉ đọc khi A đang giữ (`and` ngắn mạch). Hai lời gọi C-12 (V·G) và `and` của C-35 (D·M); **không** viết `is_pressed_ab()` | V·G + D·M (ghép) | C-12 (§26) |
 | `get_presses()` | Trả về số lần nhấn kể từ lần đọc trước (hoặc từ đầu program), rồi **đếm lại từ 0**; trong simulator đếm ở **cạnh nhấn xuống**, nhấn trong lúc `sleep` vẫn được đếm | D·U (reset) + V·S (`return-reset`) | Tooltip: "Đếm số lần mà nút nhấn được nhấn, và đếm lại từ 0."; EVD-09, EVD-17. Debounce/cạnh trên board thật: L3 |
 | Event `on_pressed` | `button_a.on_pressed = on_button_a_pressed` | V·G | §13: **DEFERRED** |
 
@@ -365,7 +369,7 @@ Mỗi lần gọi đọc giá trị hiện tại; không chặn (V·S `blocking`
 |---|---|---|---|---|
 | Chờ (C-04) | `time.sleep_ms(n)` | Chặn **ít nhất** `n` ms (DOC-M1: "This function will delay for at least the given number of milliseconds, but may take longer…"); đơn vị ms (D·U); "should be positive or 0" | V·G + D·M + D·U (V·S 993–1002 ms chỉ bổ trợ) | **ELIGIBLE**, `int` 0..60000 |
 | Nhường cuối `forever` | `time.sleep_ms(10)` | như trên | V·G + D·M | ELIGIBLE |
-| **Thời gian chạy (C-19)** | `running_time()` | Tooltip: "tổng thời gian milli giây kể từ khi chương trình bắt đầu chạy" (gốc + đơn vị). **Không** có tài liệu public về wrap, reset, điều chỉnh, hay khoảng hợp lệ của phép trừ. Simulator trả giá trị kiểu epoch, mâu thuẫn với gốc trong tooltip. Không thể dùng `ticks_diff()` (DOC-M4): code sinh ra của Yolo:Bit không dùng `ticks_*`, và không tài liệu nào nối `running_time()` với chúng | V·G + D·U; wrap/khoảng **UNKNOWN** | **EXCLUDED** (R3, phương án C). LATER |
+| **Thời gian chạy (C-19)** | `running_time()` | Tooltip: "tổng thời gian milli giây kể từ khi chương trình bắt đầu chạy" (gốc + đơn vị). **Không** có tài liệu public về wrap, reset, điều chỉnh, hay khoảng hợp lệ của phép trừ. Simulator trả giá trị kiểu epoch, mâu thuẫn với gốc trong tooltip. Không thể dùng `ticks_diff()` (DOC-M4): code sinh ra của Yolo:Bit không dùng `ticks_*`, và không tài liệu nào nối `running_time()` với chúng | V·G + D·U; wrap/khoảng/gốc **UNVERIFIED** (N17 B4) | ~~EXCLUDED (R3)~~ **ELIGIBLE (owner N17 B4)**: simulator đếm ms nguyên từ lúc **mỗi lần chạy** bắt đầu, không wrap (§26) |
 | Timer (C-49) | `timer.reset()`, `timer.get()` | Editor sinh không kèm import | V·G | **EXCLUDED** |
 
 ---
@@ -421,7 +425,7 @@ Simulator cho C-50: âm `hz(N)` bắt đầu khi gọi, kéo dài `t × 125` ms,
 | ID | Construct | Python | Ngữ nghĩa | Domain | Kết luận |
 |---|---|---|---|---|---|
 | C-23 | Digital write | `pinN.write_digital(v)` | `1` = bật (mức cao), `0` = tắt (D·U: "Đổi trạng thái bật tắt"; block BẬT=`1`/TẮT=`0`); không chặn (V·S `blocking`). **Không** dùng việc "ghi rồi đọc lại" của simulator làm evidence (claim `electrical` bị cấm) | `N` ∈ {0,1,2}; `v` ∈ {0,1} | **RESTRICTED** |
-| C-24 | Digital read | `(pinN.read_digital() == 1)` | `1`/bật = mức cao (D·U "Đọc giá trị bật tắt"). Generator luôn so `== 1`, nên dù API trả `int` 0/1 (V·S) hay `bool` thì biểu thức vẫn là `bool` xác định (D·M: `True == 1`) | `N` ∈ {0,1,2}; net `floating`/`conflict` → `out-of-domain` | **RESTRICTED** |
+| C-24 | Digital read | `(pinN.read_digital() == 1)` | `1`/bật = mức cao (D·U "Đọc giá trị bật tắt"). Generator luôn so `== 1`, nên dù API trả `int` 0/1 (V·S) hay `bool` thì biểu thức vẫn là `bool` xác định (D·M: `True == 1`) | `N` ∈ {0,1,2}; net `conflict` hay chân chương trình tự ghi → `out-of-domain`; **N17 B4:** net `floating` đọc **0** (như có pull-down) + cảnh báo một lần mỗi chân mỗi lần chạy, chương trình chạy tiếp (pull của board: **UNVERIFIED**) | **RESTRICTED** |
 
 ---
 
@@ -537,7 +541,7 @@ Ký hiệu: §0.2. Cột field: `call import module unit range default clamp rou
 | C-10 | đặt điểm | A MUST | V·G | V·G | V·S | – | D·W+V·S | – | –ᴰ | – | V·S | – | – | –ᴰ | D·W+V·S | – | V·G+V·S | RESTRICTED | module, block |
 | C-42 | tắt điểm | A MUST | V·G | V·G | V·S | – | D·W+V·S | – | –ᴰ | – | V·S | – | – | –ᴰ | D·W+V·S | – | D·U+V·S | RESTRICTED | module, block |
 | C-43 | đặt tất cả (8 màu) | A | V·G | V·G | V·S | – | V·G | – | –ᴰ | – | V·S | – | – | – | – | – | D·U+V·S | RESTRICTED | module, block |
-| C-12 | nút A/B đang giữ | B MUST | V·G | V·G | V·S | – | – | – | – | – | V·S | – | V·S+D·U | – | – | – | – | RESTRICTED | module, block, return (giữ-lúc-gọi, không chốt) |
+| C-12 | nút A/B (N17 B4: và A+B) đang giữ | B MUST | V·G | V·G | V·S | – | – | – | – | – | V·S | – | V·S+D·U | – | – | – | – | RESTRICTED | module, block, return (giữ-lúc-gọi, không chốt) |
 | C-13 | số lần nhấn A/B | B NICE | V·G | V·G | V·S | – | – | – | – | – | V·S | – | D·U+V·S | – | – | – | – | RESTRICTED | module, block, return (cạnh nhấn) |
 | C-15 | ánh sáng | B MUST | V·G | V·G | V·S | D·U | D·U | – | – | V·S | V·S | – | D·U | – | – | – | – | ELIGIBLE | module, round, block |
 | C-16 | nhiệt độ (`int(...)`) | A MUST | V·G+D·M | V·G | V·S | D·U | –ᴰ | – | – | –ᴱ | V·S | – | D·U | – | – | – | – | RESTRICTED | module, block |
@@ -546,10 +550,12 @@ Ký hiệu: §0.2. Cột field: `call import module unit range default clamp rou
 | C-20 | giai điệu có sẵn (N17 B3) | A MUST | V·G (`DADADADUM, wait=False`) | V·G | V·S | V·S+D·U | –ᴰ | –ᴱ | –ᴰ | – | U→**UNVERIFIED** | U→**UNVERIFIED** | – | –ᴰ | – | – | U→**UNVERIFIED** | RESTRICTED (owner N17) | module, unit |
 | C-21 | phát tần số `pitch` (N17 B3) | A MUST | V·G | V·G | V·S | U→**UNVERIFIED** | –ᴰ | – | –ᴰ | – | V·S (≈1 ms) | U→**UNVERIFIED** | – | –ᴰ | – | – | U→**UNVERIFIED** | RESTRICTED (owner N17) | module, block |
 | C-22 | dừng âm thanh `stop` (N17 B3) | A MUST | V·G | V·G | V·S | – | – | – | – | – | U→**UNVERIFIED** | – | – | – | – | – | U→**UNVERIFIED** | ELIGIBLE (owner N17) | module |
+| C-19 | thời gian chạy (N17 B4) | A MUST | V·G | V·G | V·S | D·U | U→**UNVERIFIED** | – | – | U→**UNVERIFIED** | U→**UNVERIFIED** | – | U→**UNVERIFIED** | – | – | – | – | ELIGIBLE (owner N17) | module |
+| C-40 | số ngẫu nhiên `randint` (N17 B4) | B MUST | V·G | V·G | I→**UNVERIFIED** | – | D·M + –ᴰ | – | – | – | – | – | – | –ᴱ | – | – | U→**UNVERIFIED** | RESTRICTED (owner N17, §3.5) | — |
 | C-50 | phát nốt (chặn) | B MUST / A | V·G | V·G | V·S | V·S+D·U | V·S | –ᴱ | –ᴰ | – | V·S+D·U | – | – | –ᴰ | – | – | V·S | RESTRICTED | module, unit (tick→ms), range, content (Hz) |
 | C-51 | nghỉ (chặn) | B NICE / A | V·G | V·G | V·S | V·S+D·U | V·S | –ᴱ | –ᴰ | – | V·S | – | – | –ᴰ | – | – | – | RESTRICTED | module, unit, range, block |
 | C-23 | digital write | B MUST | V·G | V·G | V·S | – | V·G+D·U | – | –ᴰ | – | V·S | – | – | –ᴰ | – | – | D·U | RESTRICTED (P0–P2) | module, block |
-| C-24 | digital read | B MUST | V·G | V·G | V·S | – | D·U | – | – | – | V·S | – | D·U+D·M | –ᴰ | – | – | – | RESTRICTED (P0–P2, guard) | module, block |
+| C-24 | digital read | B MUST | V·G | V·G | V·S | – | D·U | U→**UNVERIFIED** (N17 B4: pull) | – | – | V·S | – | D·U+D·M | –ᴰ | – | – | – | RESTRICTED (P0–P2, guard; hở → 0 + cảnh báo) | module, block |
 | C-25 | analog read | B MUST | V·G | V·G | V·S | – | D·W | – | – | –ᴱ | V·S | – | D·W | –ᴰ | – | – | – | RESTRICTED | module, block |
 | C-27 | servo 180° | A MUST | V·G | V·G | V·S | D·U | D·U | – | –ᴰ | – | V·S | – | – | –ᴰ | – | – | D·U | RESTRICTED (P0–P2) | module, block |
 | C-29 | print | B MUST | V·G | – | D·M | – | – | – | – | – | – | – | – | – | – | – | D·M+D·U | ELIGIBLE | — |
@@ -579,15 +585,15 @@ Ghi chú:
 
 | ID | Capability | Python (V·G) | Field thiếu / lý do | Kết luận |
 |---|---|---|---|---|
-| C-03d / C-40 | `random` / `random.randint` | `import random`, `random.randint(1, 6)` | `OF-module` INFERRED (§2.2, §3.5) | **EXCLUDED** (domain đặc tả sẵn để mở lại) |
-| C-19 | thời gian chạy | `running_time()` | wrap/reset/khoảng phép trừ UNKNOWN; gốc mâu thuẫn | **EXCLUDED** (LATER) |
+| C-03d / C-40 | `random` / `random.randint` | `import random`, `random.randint(1, 6)` | ~~`OF-module` INFERRED~~ | **N17 B4: ELIGIBLE / RESTRICTED, cả hai profile** (module ghi UNVERIFIED, §26) |
+| C-19 | thời gian chạy | `running_time()` | ~~wrap/reset/khoảng phép trừ UNKNOWN; gốc mâu thuẫn~~ | **N17 B4: ELIGIBLE, cả hai profile** (field thiếu evidence ghi UNVERIFIED, §26) |
 | C-05 | hình dựng sẵn | `display.show(Image.HEART)` | ~~provenance~~ | **N17 B1: RESTRICTED, cả hai profile** (§23) |
 | C-70 | chữ số màu 2–8 trong `Image` | `Image("2…")` | `OF-content` mâu thuẫn | EXCLUDED như construct riêng; N17 B1 viết chữ số 2–8 qua field màu của C-06 như dạng **UNVERIFIED** (§23) |
 | C-11 | độ sáng | `display.set_brightness(n)` | không quan sát được | EXCLUDED |
 | C-44 | biểu đồ | `display.show_graph(v, max)` | `OF-content` | EXCLUDED |
 | C-45 | tạo màu RGB | helper `colour_rgb` + `round` | float | EXCLUDED |
 | C-46 | "hiện thông tin" | `say('Hello')` không import | code không tự đủ | EXCLUDED |
-| C-47 | nút A+B | `button_a.is_pressed_ab()` | không được hỗ trợ trong snapshot simulator đã chấp nhận | EXCLUDED |
+| C-47 | nút A+B | `button_a.is_pressed_ab()` | không được hỗ trợ trong snapshot simulator đã chấp nhận | EXCLUDED (N17 B4: A+B có qua C-12, viết bằng hai `is_pressed()`, §26) |
 | C-14 | event nhấn nút | `button_a.on_pressed = f` | gate EV | **DEFERRED** |
 | C-17, C-18 | gia tốc; cử chỉ/lắc | `accelerometer.get_x()`, `is_gesture` | ~~range/trục/tiêu chí~~ | **N17 B2: RESTRICTED, Advanced** (field thiếu evidence ghi UNVERIFIED, §24) |
 | C-48 | chạm | `is_touched()` | tiêu chí | EXCLUDED |
@@ -616,19 +622,19 @@ Ghi chú:
 | repeat | MUST | RESTRICTED | `−10⁶ ≤ N ≤ 10⁶` | D·M |
 | while | MUST | ELIGIBLE | | V·G + D·M |
 | count up | MUST | RESTRICTED | start rồi end, mỗi cái một lần; `0 ≤ start, end ≤ 10⁶`; step literal 1..10⁶ (§3.3) | D·M (+ V·G parity) |
-| random int | MUST | **EXCLUDED** | `random.randint` không có evidence trên firmware (§3.5) | — |
+| random int | MUST | **RESTRICTED (N17 B4)** | hai đầu gồm cả hai, theo thứ tự nào cũng được, mỗi đầu trong ±10⁶, cách nhau ≤ 10⁶; module **UNVERIFIED** (§3.5, §26) | V·G + D·M |
 | print | MUST | ELIGIBLE | | V·G + D·M + D·U |
 | text literal / nối | MUST | ELIGIBLE | chạy chữ: ASCII | V·G + D·M |
 | display: hình | MUST | RESTRICTED | hình tự vẽ `0`/`1` | V·G + D·W + V·S |
 | display: chạy chữ / số | MUST | RESTRICTED | ASCII; 1 ký tự tĩnh; n ≥ 2: 1200 ms × n (simulator) | V·S + D·U |
 | display: xoá | MUST | ELIGIBLE | | V·G + D·U + V·S |
 | display: hình có sẵn, đặt/tắt điểm, đặt tất cả, màu (N17 B1) | MUST | RESTRICTED | 13 hình; x, y 0..4; 8 màu, sai → đỏ + cảnh báo; chạy chữ có màu UNVERIFIED (§23) | V·G + D·W + V·S |
-| nút A/B đang giữ | MUST | RESTRICTED | A, B; không A+B | V·G + V·S + D·U |
+| nút A/B đang giữ | MUST | RESTRICTED | A, B; N17 B4: A+B = `and` của hai lần đọc (không `is_pressed_ab()`) | V·G + V·S + D·U + D·M |
 | số lần nhấn A/B | NICE | RESTRICTED | A, B; reset khi đọc | D·U + V·S |
 | âm thanh | MUST | RESTRICTED | nốt chặn C3…C5, 1/2/4 tick @ (4,120); nghỉ; không `pitch`/`stop` | V·G + V·S + D·U |
 | ánh sáng | MUST | ELIGIBLE | `int` 0..100 (tooltip) | V·G + D·U + V·S |
-| thời gian chạy | NICE | **EXCLUDED** | §7 | — |
-| chân digital | MUST | RESTRICTED | P0–P2; ghi 0/1; đọc `== 1`; net hở/xung đột → `out-of-domain` | V·G + D·W + D·U |
+| thời gian chạy | NICE | **ELIGIBLE (N17 B4, B6 chốt profile)** | ms nguyên từ lúc chạy (simulator); gốc/wrap/kiểu **UNVERIFIED** (§26) | V·G + D·U |
+| chân digital | MUST | RESTRICTED | P0–P2; ghi 0/1; đọc `== 1`; net xung đột → `out-of-domain`; N17 B4: net hở đọc 0 + cảnh báo | V·G + D·W + D·U |
 | chân analog (đọc) | MUST | RESTRICTED | P0–P2; native 0..4095 (tài liệu OhStem; C-Q6 = A); slider 0–100 %; `int(...)` | V·G + D·W + D·M |
 | PWM / analog write | MUST | **EXCLUDED** | khoảng UNKNOWN | — |
 | event nút | → Advanced | **DEFERRED** | gate EV | — |
@@ -651,7 +657,7 @@ Sẵn sàng theo phase:
 | độ sáng | MUST nếu EG đạt | EXCLUDED | không quan sát được | — |
 | gia tốc, nghiêng, lắc | MUST | **RESTRICTED (N17 B2)** | x/y/z số nguyên −2048..2048 mg; 7 cử chỉ; trục, tiêu chí, timing **UNVERIFIED** (§24) | V·G (`get_x`, `"shake"`) + D·U (mg) + V·S |
 | nhiệt độ | MUST | RESTRICTED | `int(temperature())`, °C; domain hỗ trợ −10..50 (N17 B2; không phải khoảng vật lý) | V·G + D·U + V·S + D·M |
-| thời gian chạy / timer | MUST | **EXCLUDED** | §7 (R3) | — |
+| thời gian chạy | MUST | **ELIGIBLE (N17 B4)** | §7, §26; timer (C-49) vẫn EXCLUDED | V·G + D·U |
 | biến `str`, nối, `str()` | MUST | ELIGIBLE | plan §6.7 | V·G + D·M |
 | độ dài text | MUST | RESTRICTED | chỉ ASCII | D·M |
 | hàm | MUST sau gate FN | RESTRICTED | FN1–FN10 DOCUMENTED; test §18.3b ở YB-7 | V·G + D·M |
@@ -659,7 +665,7 @@ Sẵn sàng theo phase:
 | nốt, giai điệu | MUST | RESTRICTED | chuỗi C-50/C-51 tự viết | V·G + V·S + D·U |
 | giai điệu có sẵn, phát tần số, dừng | MUST | **RESTRICTED / ELIGIBLE (N17 B3)** | 20 giai điệu, chờ xong / không chờ; `pitch` 20..20000 Hz × 0..60000 ms, không chặn; `stop`; kết thúc tone, phát nền, nốt của giai điệu **UNVERIFIED** (§25) | V·G + V·S + D·U |
 | servo | MUST | RESTRICTED | 180°, 0..180, P0–P2 | V·G + D·U + V·S |
-| random (cho xúc xắc, trò chơi) | (từ Basic) | **EXCLUDED** | §3.5 | — |
+| random (cho xúc xắc, trò chơi) | (từ Basic) | **RESTRICTED (N17 B4)** | §3.5, §26 | V·G + D·M |
 | siêu âm / pulse | MUST nếu đo được | EXCLUDED / LATER | — | — |
 | chạm, list, biểu đồ | NICE | EXCLUDED | — | — |
 
@@ -742,15 +748,15 @@ Khác biệt: mình chỉ khai báo `global` cho biến toàn cục **bị gán*
 **Thu hẹp domain (YB-2 trở đi):**
 - `MAX_RANGE_VALUE = 10⁶` cho count up: `0 ≤ start`, `end ≤ 10⁶`; `1 ≤ step ≤ 10⁶`. Thứ tự start → end, mỗi cái một lần (§3.3).
 - `MAX_REPEAT_ABS = 10⁶`.
-- `random` không mở; domain đặc tả sẵn (§3.5).
+- `random` (N17 B4): mỗi đầu trong ±10⁶, hai đầu cách nhau ≤ 10⁶, theo thứ tự nào cũng được (§3.5).
 - Charset chạy chữ ASCII `0x20`–`0x7E`; `len()` chỉ chuỗi ASCII.
-- Chân P0–P2; đọc chân hở/xung đột → `out-of-domain`.
+- Chân P0–P2; đọc chân xung đột → `out-of-domain`; N17 B4: đọc on/off chân hở → 0 + cảnh báo (đọc analog chân hở vẫn `out-of-domain`).
 - Toạ độ 0..4; 8 màu.
 - 15 nốt × {1, 2, 4} tick.
 - Servo 0..180.
 - Nhiệt độ: domain hỗ trợ 0..50 °C.
 
-**Loại (owner được báo, không cần duyệt từng mục):** random; thời gian chạy và timer; độ sáng; biểu đồ; A+B; event; chạm; tempo cho learner; PWM; servo 270/360; `pulse_in`; siêu âm; pull; float và block toán/text mở rộng; list; chạy nền; Bluetooth; game; block thiết bị.
+**Loại (owner được báo, không cần duyệt từng mục):** timer; độ sáng; biểu đồ; `is_pressed_ab()`; event; chạm; tempo cho learner; PWM; servo 270/360; `pulse_in`; siêu âm; pull; float và block toán/text mở rộng; list; chạy nền; Bluetooth; game; block thiết bị.
 
 **Lỗi editor OhStem quan sát được** (để không bắt chước): `say()`, `timer.*`, `set_pull` thiếu import; `translate()` không định nghĩa; `is_pressed_ab()` lỗi trong simulator; số trong ô nốt sinh chuỗi không phát; màu ngoài bảng → `undefined`.
 
@@ -1002,16 +1008,16 @@ Còn lại: C-01, C-02, C-03a, C-04, C-29 và ngôn ngữ (C-30…C-39, C-56…C
 
 | UNKNOWN | Loại |
 |---|---|
-| `random.randint` trên firmware | Không chặn (C-40 EXCLUDED; mở lại khi có evidence) |
-| `running_time()` wrap/reset/khoảng | Không chặn (C-19 EXCLUDED) |
-| Độ sáng; biểu đồ; màu chữ số 2–8; A+B | Không chặn (EXCLUDED) |
+| `random.randint` trên firmware | Không chặn (N17 B4: mở, ghi **UNVERIFIED**, §26) |
+| `running_time()` wrap/reset/khoảng/gốc | Không chặn (N17 B4: mở, ghi **UNVERIFIED**, §26) |
+| Độ sáng; biểu đồ; màu chữ số 2–8; `is_pressed_ab()` | Không chặn (EXCLUDED) |
 | Gia tốc, cử chỉ, lắc, chạm | Không chặn (EXCLUDED) |
 | `pitch` kết thúc/chồng; `stop`; nốt và cách phát nền của giai điệu | Không chặn (N17 B3: mở cho Advanced, ghi **UNVERIFIED**, §25) |
 | tick ≥ 8 | Không chặn (C-60 EXCLUDED) |
 | PWM / analog write | Không chặn (EXCLUDED) |
 | `pulse_in`, siêu âm | Không chặn (EXCLUDED) |
 | Event EV1–EV10 | Không chặn (DEFERRED) |
-| Vai trò P3–P20; pull mặc định | Không chặn (P0–P2; net hở → `out-of-domain`) |
+| Vai trò P3–P20; pull mặc định | Không chặn (P0–P2; N17 B4: net hở đọc 0 + cảnh báo, pull **UNVERIFIED**) |
 | Toạ độ ngoài 0..4; ngưỡng machine-word chính xác | Không chặn (`–ᴰ`; cận 10⁶) |
 | `main.py`; firmware chính xác; MicroPython version | Không chặn (`program.py`; snapshot pin) |
 | Module `yolobit`/`music` trên firmware vật lý; mọi timing simulator (200 ms/cột, 1200 ms/ký tự, 125 ms/tick); hướng toạ độ trên board thật; `light_level` `int`; nhiệt độ float; analog trên board; debounce/cạnh nút; khác biệt ESP32 / ESP32-S3; độ chính xác `sleep_ms` | **Cần kiểm vật lý** (L3, YB-P) |
@@ -1051,6 +1057,7 @@ Còn lại: C-01, C-02, C-03a, C-04, C-29 và ngôn ngữ (C-30…C-39, C-56…C
 | 1.0-draft | 2026-10-14 | Bản đầu tiên (YB-0) |
 | 1.0-draft (r2) | 2026-10-14 | Sửa R1–R3, N1–N3; RV-1 ACCEPT WITH RESTRICTIONS; C-19, C-40 EXCLUDED; P10 viết lại |
 | 1.0-draft (r3) | 2026-10-14 | Áp dụng quyết định owner: OQ-E APPROVED (model display cuối); C-Q6 = Option A (analog native 0–4095, UI 0–100 %, PWM EXCLUDED). Không còn quyết định owner đang chờ |
+| 1.0-draft (r3) + N17 B4 | 2026-10-19 | Owner: "Mô phỏng đủ chức năng". A+B qua C-12 (domain A, B, A+B; dạng `and` của hai `is_pressed()`); C-19 (ELIGIBLE) và C-40 (RESTRICTED, hai đầu theo thứ tự nào cũng được) mở cho cả hai profile; C-03d ELIGIBLE; `unverifiedFields` nhận cả field INFERRED và có trên module; C-24 `default` (pull) UNVERIFIED, net hở đọc 0 + cảnh báo; builtin `min`, `max`; dropdown giai điệu chỉ 14 tên VERIFIED; §26. Chuỗi version không đổi |
 | 1.0-draft (r3) + N17 B3 | 2026-10-19 | Owner: "Mô phỏng đủ chức năng". C-20 (giai điệu, RESTRICTED), C-21 (`pitch`, RESTRICTED), C-22 (`stop`, ELIGIBLE) mở lại, chỉ Advanced (pack `ybc.music`), với `unverifiedFields` và `unverifiedForms`; nốt giai điệu của simulator từ micro:bit MicroPython (MIT, §14); §25. Chuỗi version không đổi |
 | 1.0-draft (r3) + N17 B2 | 2026-10-19 | Owner: "Mô phỏng đủ chức năng". C-17, C-18 mở lại (RESTRICTED, Advanced) với `unverifiedFields` (cơ chế mới: field UNKNOWN được owner chấp nhận, ghi rõ lý do; gate chỉ cho qua đúng các field đó); C-16 domain −10..50; `unverifiedForms` cho `get_y/get_z` và 6 tên cử chỉ; §24. Chuỗi version không đổi |
 | 1.0-draft (r3) + N17 B1 | 2026-10-19 | Owner: "Mô phỏng đủ chức năng". C-05 mở lại (RESTRICTED, 13 hình, nội dung micro:bit MIT); C-10/C-42/C-43 sang cả Basic; domain C-10 bỏ `colour`, C-43 thành structural (màu không bao giờ bị từ chối, sai thì đỏ + cảnh báo); thêm `unverifiedForms` cho C-06/C-07/C-08; §23. Chuỗi version của bản máy đọc được **không** đổi để golden cũ giữ nguyên (dòng đầu file Python ghi version) |
@@ -1113,7 +1120,7 @@ Owner chọn "Mô phỏng đủ chức năng" (plan N17, task B3). Ba block mớ
 |---|---|---|---|---|
 | `ybc_sound_melody`, không chờ, 14 tên của editor | C-20 | `music.play(music.BIRTHDAY, wait=False)` | **VERIFIED** (dạng) | Dòng `music.play(music.DADADADUM, wait=False)` là output editor nguyên văn (investigation §5.3, V·G EVD-03); 14 tên thấy trong output editor (§14, V·G) |
 | `ybc_sound_melody`, chờ xong | C-20 (`unverifiedForms`) | `music.play(music.BIRTHDAY, wait=True)` | **UNVERIFIED** | Với giai điệu chỉ thấy `wait=False`. `wait=True` là keyword editor viết cho nốt (C-50); tooltip "Chờ đến khi hết bài" (§8.1) |
-| `ybc_sound_melody` FUNK, BLUES, FUNERAL, PUNCHLINE, BADDY, BA_DING | C-20 (`unverifiedForms`) | `music.play(music.FUNK, wait=False)` / `wait=True` | **UNVERIFIED** | Tên của module `music` micro:bit, không có trong danh sách editor đã ghi (§14). Board không có tên đó thì lỗi `AttributeError` |
+| `ybc_sound_melody` FUNK, BLUES, FUNERAL, PUNCHLINE, BADDY, BA_DING | C-20 (`unverifiedForms`) | `music.play(music.FUNK, wait=False)` / `wait=True` | **UNVERIFIED** | Tên của module `music` micro:bit, không có trong danh sách editor đã ghi (§14). Board không có tên đó thì lỗi `AttributeError`. **N17 B4:** dropdown không còn mời 6 tên này; chỉ project đã lưu có chúng mới sinh dạng này (§26) |
 | `ybc_sound_pitch` | C-21 | `music.pitch(440, 500)` | **VERIFIED** (dạng gọi) | V·G: observedPython `music.pitch(440, 1000)` (EVD-03). **Không chặn**: `pitch` trả về sau ≈1 ms (V·S EVD-06) |
 | `ybc_sound_stop` | C-22 | `music.stop()` | **VERIFIED** (dạng gọi) | V·G: observedPython `music.stop()` (EVD-03) |
 | — | C-20 `block`, `yield`, `content` | — | **UNVERIFIED** (`unverifiedFields`) | Không trace nào đo giai điệu; cách phát nền không thấy; nốt giai điệu của OhStem là asset, không ghi |
@@ -1127,3 +1134,29 @@ Ngữ nghĩa simulator (N17 B3; là lựa chọn của môi trường ảo, **kh
 - Domain `pitch`: 20..20000 Hz và 0..60000 ms, số nguyên; literal ngoài khoảng → `value-out-of-range` khi compile; giá trị tính ra ngoài khoảng → `out-of-domain` tại block của giá trị (Hz tính và kiểm trước, rồi ms).
 - Giai điệu: bảng chuỗi nốt micro:bit (`melodies.ts`, MIT, gõ tay theo trí nhớ; `PRELUDE`, `NYAN`, `PYTHON` chỉ giữ câu mở đầu), đọc như module `music`: quãng tám và độ dài giữ từ nốt trước, mỗi giai điệu bắt đầu lại từ quãng 4 và 4 tick; tần số 12-TET (A4 = 440 Hz) làm tròn như bảng §8.1. Board thật phát giai điệu của chính nó (`presentation`).
 - Trình duyệt chỉ cho âm thanh bắt đầu từ một cử chỉ của người dùng: **click Chạy hoặc Kiểm tra** gọi `AudioContext.resume()` ngay trong handler (cả khi lab nằm trong iframe của LMS: click là cử chỉ của chính iframe). Nút loa chỉ còn là công tắc tắt/bật tiếng, **mặc định bật**, nhớ theo tab (sessionStorage). Âm lượng có trần 0.1. Chữ "Đang phát … Hz" dưới bo mạch luôn nói loa đang phát gì, bật hay tắt tiếng.
+
+
+## 26. N17 B4 — A+B, thời gian chạy, số ngẫu nhiên, chân thả nổi: dạng code và nhãn (2026-10-19)
+
+Owner chọn "Mô phỏng đủ chức năng" (plan N17, task B4). Hai block mới, ở **cả hai profile** cho tới khi B6 chốt phân chia Cơ bản / Nâng cao: `ybc_running_time` (nhóm "Thời gian", pack `lang.loops`) và `ybc_random_int` (nhóm "Toán", pack `lang.math`; ô `FROM`, `TO`). Block `ybc_button_pressed` có thêm lựa chọn `A+B`; `ybc_button_presses` vẫn chỉ A, B. Bản máy đọc được: `src/core/compat/yolobit-contract.ts` (C-12, C-19, C-24, C-40, C-03d, C-03e, C-47). Golden: `src/core/codegen/yolobit/hardware/__golden__/{both-buttons-and-running-time,dice}.py`.
+
+**Cơ chế `unverifiedFields` mở rộng (N17 B4).** Field **INFERRED** (tính như UNKNOWN ở EG, §0.2) giờ cũng được owner nêu tên là UNVERIFIED, và **module** cũng có `unverifiedFields` (C-03d). Audit vẫn từ chối nêu tên field VERIFIED/DOCUMENTED/n/a, và `unverifiedFields` trên row/module không được mở. Nhãn INFERRED giữ nguyên trong data: quyết định owner không phải evidence.
+
+| Block (N17 B4) | Construct | Python sinh ra | Nhãn | Lý do / nguồn |
+|---|---|---|---|---|
+| `ybc_button_pressed` A+B | C-12 | `button_a.is_pressed() and button_b.is_pressed()` | **VERIFIED** (ghép) | Hai lời gọi C-12 đều V·G (EVD-03), `and` là C-35 (D·M). Không viết `button_a.is_pressed_ab()` của editor: snapshot simulator ném `AttributeError` (EVD-19, C-47 vẫn EXCLUDED). IR là `and` của hai lần đọc, nên simulator và Python cùng nghĩa: B chỉ đọc khi A đang giữ |
+| `ybc_running_time` | C-19 | `running_time()` | **VERIFIED** (dạng gọi) | V·G EVD-03 (observedPython của C-19); đơn vị ms D·U (tooltip) |
+| — | C-19 `return`, `range`, `round`, `block` | — | **UNVERIFIED** (`unverifiedFields`) | Gốc mâu thuẫn (tooltip "từ khi chương trình bắt đầu" vs giá trị kiểu epoch của simulator, EVD-11); wrap và khoảng của phép trừ không có tài liệu (R3); kiểu và thời gian gọi không thấy |
+| `ybc_random_int` hai đầu gõ tay | C-40 | `random.randint(1, 6)` (đầu nhỏ trước: 6 tới 1 cũng viết `1, 6`) | **VERIFIED** (dạng gọi) | V·G EVD-03 (observedPython); `import random` V·G, **một lần**, sau các import khác |
+| `ybc_random_int` đầu tính ra, không đọc gì | C-40 | `random.randint(min(a, b), max(a, b))` | dạng gọi **VERIFIED**, `min`/`max` D·M | Board ném `ValueError` khi hai đầu ngược; simulator nhận thứ tự nào cũng được, nên Python đặt đầu nhỏ trước. Biểu thức chỉ gồm số, biến, `+ − × // %` được tính hai lần mà không đổi gì |
+| `ybc_random_int` đầu đọc bo mạch / số ngẫu nhiên khác | — | **không sinh** (lỗi generator `unsupported-node`) | — | Viết `min`/`max` sẽ đọc hai lần (K4: không viết sai); học sinh đặt giá trị vào biến trước. Simulator vẫn chạy được |
+| — | C-03d / C-40 `module` | — | **UNVERIFIED** (`unverifiedFields`, field vẫn INFERRED) | `randint()` chỉ có khi firmware bật `MICROPY_PY_RANDOM_EXTRA_FUNCS` (DOC-M2); không trang public nào cho thấy với Yolo:Bit. Board thiếu thì `AttributeError` |
+| — | C-40 `content` | — | **UNVERIFIED** | Bộ sinh số và seed của board không thấy |
+| — | C-24 `default` (pull của chân hở) | — | **UNVERIFIED** | Pull mặc định của chân không thấy (`set_pull` EXCLUDED, C-54); board có thể đọc 0, 1 hoặc nhiễu |
+| `ybc_sound_melody` | C-20 | — | — | Dropdown chỉ còn **14 tên VERIFIED** của editor (§14, §25). 6 tên micro:bit (FUNK, BLUES, FUNERAL, PUNCHLINE, BADDY, BA_DING) rời dropdown; project cũ có chúng vẫn mở (editor giữ giá trị khi tải), chạy trong simulator, và generator vẫn viết chúng như dạng **UNVERIFIED** |
+
+Ngữ nghĩa simulator (N17 B4; là lựa chọn của môi trường ảo, **không** phải claim về board thật):
+- **A+B:** đúng khi cả hai nút đang giữ. Bảng điều khiển có nút giữ "Nút A+B" (một chuột không bấm được hai nút trên hình bo mạch cùng lúc). Bấm A/B **trên hình bo mạch** khi đang chạy (không khi Kiểm tra): con trỏ bàn tay, nút vẽ "đang nhấn"; nhả khi pointerup, pointerleave (kéo ra khỏi nút), pointercancel, mất pointer capture, nhả ở bất kỳ đâu trên trang, hoặc khi chương trình dừng, nên nút không bao giờ kẹt (Review Focus 2). Nút trên hình và nút trên bảng điều khiển **chung một trạng thái**: bấm bên nào cũng hiện "đang nhấn" ở cả hai, và `get_presses` đếm là **một** lần nhấn. Bàn phím vẫn ở nút của bảng điều khiển.
+- **Thời gian chạy:** số ms nguyên tính từ lúc **mỗi lần chạy** bắt đầu (theo đồng hồ của run), không wrap.
+- **Số ngẫu nhiên:** gồm cả hai đầu; hai đầu được tính theo thứ tự của chúng, mỗi đầu một lần, kiểm ±1 000 000 ngay khi biết, rồi kiểm cách nhau ≤ 1 000 000; ngoài domain → `out-of-domain` tại block của giá trị (literal → `value-out-of-range` khi compile). Khi chạy thường: `Math.random`. Khi **Kiểm tra**: seed cố định (`CHECK_RANDOM_SEED`), nên cùng chương trình cho cùng dãy số và goal xác định.
+- **Chân thả nổi (B9 cũ):** đọc on/off một chân không gì điều khiển trả **0** (như có pull-down) và chương trình chạy tiếp; lần đầu trong mỗi lần chạy, mỗi chân, thêm cảnh báo vào vùng thông báo dưới thanh chạy: "Chân P1 đang thả nổi — đọc là 0. Hãy nối nút với 3V3 hoặc GND." Xung đột (hai thứ cùng điều khiển), chân chương trình tự ghi, và đọc **analog** chân hở vẫn dừng chương trình (`out-of-domain`) như trước.

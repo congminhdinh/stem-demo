@@ -9,6 +9,12 @@ import { timerSleep, type Sleep } from '../program/interpreter';
 /** Milliseconds from an arbitrary origin; monotonic. The execution budget and timed peripherals read it. */
 export type Clock = { now(): number };
 
+/**
+ * N17 B4: a whole number from `low` to `high`, both included (`low <= high`, both safe integers). The program's random numbers come
+ * from here, so a run can be given a seeded one (a lab's check: the same numbers every time, so its goals are deterministic).
+ */
+export type RandomInt = (low: number, high: number) => number;
+
 /** Where `print` writes. The run console (500 lines / 256 KB, plan §6.7) is one; it is runtime state, never the document. */
 export type ConsoleSink = Pick<RunConsole, 'write'>;
 
@@ -41,9 +47,32 @@ export type RuntimeServices = {
   sleep: Sleep;
   scheduler: RunScheduler;
   signal: AbortSignal;
+  /** N17 B4: the run's random numbers (`random.randint`): Math.random's, or a seeded run's own. */
+  randomInt: RandomInt;
 };
 
 const performanceClock: Clock = { now: () => performance.now() };
+
+/** A whole number from `low` to `high` out of a fraction in [0, 1), every number equally likely. */
+const between = (low: number, high: number, fraction: number) => low + Math.min(high - low, Math.floor(fraction * (high - low + 1)));
+
+/** The random numbers of a normal run: Math.random's. */
+export const mathRandomInt: RandomInt = (low, high) => between(low, high, Math.random());
+
+/**
+ * The random numbers of a seeded run (N17 B4: a lab's check): the same seed gives the same numbers, in the same order. Mulberry32,
+ * a small 32-bit generator; fine for dice and games, not for anything that must be unpredictable.
+ */
+export function createSeededRandomInt(seed: number): RandomInt {
+  let state = seed >>> 0;
+  return (low, high) => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return between(low, high, ((t ^ (t >>> 14)) >>> 0) / 4294967296);
+  };
+}
 
 /**
  * Builds the services of a run. The budget is the YB-2 one (`createExecutionBudget`), on the run's signal
@@ -58,6 +87,8 @@ export function createRuntimeServices(options: {
   /** How the budget hands control back to the browser. Defaults to a zero-delay timer. */
   yieldNow?: () => Promise<void>;
   scheduler?: RunScheduler;
+  /** N17 B4: where the random numbers come from; Math.random by default. */
+  randomInt?: RandomInt;
 }): RuntimeServices {
   const { signal, console } = options;
   const clock = options.clock ?? performanceClock;
@@ -68,6 +99,7 @@ export function createRuntimeServices(options: {
     sleep: options.sleep ?? timerSleep,
     scheduler: options.scheduler ?? createRunScheduler(),
     signal,
+    randomInt: options.randomInt ?? mathRandomInt,
   };
 }
 

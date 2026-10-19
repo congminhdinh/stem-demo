@@ -9,7 +9,8 @@ import type { HardwareConstruct } from './ybc';
 // learner's and ticks beyond 4 are EXCLUDED (C-52, C-60).
 //
 // N17 B3 opens the rest of the buzzer for the Advanced board, in a pack of its own (`ybc.music`, Advanced only):
-//   C-20 built-in melody  music.play(music.BIRTHDAY, wait=False)   20 names; until done (wait=True) or in the background
+//   C-20 built-in melody  music.play(music.BIRTHDAY, wait=False)   20 names (N17 B4: the block offers the editor's 14); until done
+//                                                                  (wait=True) or in the background
 //   C-21 tone             music.pitch(440, 500)                     20..20000 Hz, 0..60000 ms; does not wait (EVD-06)
 //   C-22 stop             music.stop()                              silences the buzzer at once
 // The buzzer plays one sound at a time: any of these, a note or a rest ends the one that plays.
@@ -72,6 +73,16 @@ export const melodyNames = [
 export type MelodyName = (typeof melodyNames)[number];
 export const isMelodyName = (value: unknown): value is MelodyName => melodyNames.some((name) => name === value);
 
+/**
+ * N17 B4 (the B3 ruling): the micro:bit names the vendor's editor does not show (contract §14). The block no longer offers them, so
+ * a new program never writes a melody a board may not have; a program saved with one (B3 offered them) still opens, runs and
+ * writes it, as an UNVERIFIED form of C-20.
+ */
+export const extraMelodyNames = ['FUNK', 'BLUES', 'FUNERAL', 'PUNCHLINE', 'BADDY', 'BA_DING'] as const satisfies readonly MelodyName[];
+export const isExtraMelodyName = (value: unknown): boolean => extraMelodyNames.some((name) => name === value);
+/** The 14 melodies of the vendor's editor (contract §14, VERIFIED in §25): what the block offers, in the order of `melodyNames`. */
+export const editorMelodyNames: readonly MelodyName[] = melodyNames.filter((name) => !isExtraMelodyName(name));
+
 /** How a melody plays: the program waits until it is done (`wait=True`), or goes on while it plays (`wait=False`). */
 export const melodyModes = ['wait', 'background'] as const;
 export type MelodyMode = (typeof melodyModes)[number];
@@ -83,7 +94,7 @@ export const PITCH_MAX_HZ = 20_000;
 export const PITCH_MAX_MS = 60_000;
 
 /** English labels of the melodies; the values are the names the Python writes. Vietnamese labels are the UI's (i18n/blocks.ts). */
-const melodyLabels: Readonly<Record<MelodyName, string>> = {
+export const melodyLabels: Readonly<Record<MelodyName, string>> = {
   DADADADUM: 'da da da dum',
   ENTERTAINER: 'The Entertainer',
   PRELUDE: 'prelude',
@@ -110,7 +121,8 @@ export const melodyDefinition: BlockDefinitionJson = {
   type: melodyType,
   message0: 'play melody %1 %2',
   args0: [
-    { type: 'field_dropdown', name: 'MELODY', options: melodyNames.map((name) => [melodyLabels[name], name]) },
+    // The editor's 14 (N17 B4); the editor's registration keeps a saved one of the six others (src/ui/blockly/editor-blocks.ts).
+    { type: 'field_dropdown', name: 'MELODY', options: editorMelodyNames.map((name) => [melodyLabels[name], name]) },
     { type: 'field_dropdown', name: 'MODE', options: [['until done', 'wait'], ['in the background', 'background']] },
   ],
   previousStatement: null,

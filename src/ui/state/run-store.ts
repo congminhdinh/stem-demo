@@ -1,7 +1,7 @@
 import { createStore } from 'zustand/vanilla';
 import type { CheckSession } from '../../core/challenge';
 import type { ProjectDocument } from '../../core/circuit/document';
-import type { RunSession, RunSnapshot, StartResult } from '../../core/run/run-session';
+import type { RunSession, RunSnapshot, StartOptions, StartResult } from '../../core/run/run-session';
 import type { ComponentInput } from '../../core/simulation/simulate-circuit';
 
 // Thin UI wrapper around the core RunSession (plan POC-08). The session may
@@ -20,8 +20,8 @@ export type RunState = {
   running: boolean;
   /** Why the last Run did not start; cleared by the next Run that starts, or by `clearStartFailure`. */
   startFailure: Extract<StartResult, { ok: false }> | null;
-  /** Starts a run of `project`; what the session answered (N6a: a check needs to know whether its run started). */
-  run(project: ProjectDocument): StartResult;
+  /** Starts a run of `project`; what the session answered (N6a: a check needs to know whether its run started). A check seeds it (N17 B4). */
+  run(project: ProjectDocument, options?: StartOptions): StartResult;
   stop(): void;
   /** Holds a push button of the running circuit closed or lets it open (no-op while idle). */
   setContactInput(componentId: string, closed: boolean): void;
@@ -70,8 +70,8 @@ export function createRunStore(
       snapshot: session.getSnapshot(),
       running: session.getSnapshot().status !== 'idle',
       startFailure: null,
-      run(project) {
-        const result = session.start(project);
+      run(project, options) {
+        const result = session.start(project, options);
         set({ startFailure: result.ok ? null : result });
         return result;
       },
@@ -101,7 +101,7 @@ export type CheckObserver = {
  */
 export function checkSessionOf(runStore: RunStore, observer: CheckObserver = {}): CheckSession {
   return {
-    start: (project) => runStore.getState().run(project),
+    start: (project, options) => runStore.getState().run(project, options),
     stop: () => {
       observer.beforeStop?.(runStore.getState().latestSnapshot());
       runStore.getState().stop();

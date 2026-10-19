@@ -13,7 +13,8 @@ import { capabilityKeys } from '../src/core/capabilities/io';
 // of YB-3 (display, buttons, light, sound), the RGB display of N17 B1, the sensors of N17 B2 (temperature, accelerometer,
 // gestures: Advanced only), the melodies, the tone and stop of N17 B3 (Advanced only), the header pins and the potentiometer of
 // YB-4 must not have appeared: the Advanced hardware of
-// YB-7 (servo, the drawing blocks), and the rows the contract excludes or defers (PWM, random, elapsed time, events). These tests are meant to be updated deliberately by the phase that opens a
+// YB-7 (servo, the drawing blocks), and the rows the contract excludes or defers (PWM, events). N17 B4 opened the running time
+// (C-19) and random numbers (C-40) as language blocks of both profiles. These tests are meant to be updated deliberately by the phase that opens a
 // construct, together with its contract row, never as a side effect of another change.
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
@@ -62,6 +63,9 @@ describe('the blocks a Yolo:Bit-compatible project has', () => {
         'ybc_int_divide',
         'ybc_wait_ms',
         'ybc_while',
+        // N17 B4
+        'ybc_running_time',
+        'ybc_random_int',
         // YB-3
         ...onboardBlockTypes,
         // YB-4
@@ -72,23 +76,24 @@ describe('the blocks a Yolo:Bit-compatible project has', () => {
     );
     // The registered definitions say the same: nothing hides in a pack with a block that is not listed.
     expect(packs.definitions().map((d) => d.type).filter((type) => type.startsWith('ybc_')).sort()).toEqual(
-      ['ybc_arith', 'ybc_count_up', 'ybc_int_divide', ...onboardBlockTypes, 'ybc_pin_analog', 'ybc_pin_read', 'ybc_pin_write', 'ybc_wait_ms', 'ybc_while'].sort(),
+      ['ybc_arith', 'ybc_count_up', 'ybc_int_divide', ...onboardBlockTypes, 'ybc_pin_analog', 'ybc_pin_read', 'ybc_pin_write', 'ybc_wait_ms', 'ybc_while', 'ybc_running_time', 'ybc_random_int'].sort(),
     );
   });
 
-  it('have no block for PWM, servo, pulse, events, random or elapsed time, and none for the display, the buttons, light, sound or the sensors but the onboard ones', () => {
-    const everything = packs.list().flatMap((pack) => pack.blockTypes).filter((type) => !onboardBlockTypes.includes(type)).join(' ');
+  it('have no block for PWM, servo, pulse, events, a timer or Blockly\'s random, and none for the display, the buttons, light, sound or the sensors but the onboard ones (N17 B4: the running time and the dialect\'s random number)', () => {
+    const logic = ['ybc_running_time', 'ybc_random_int'];
+    const everything = packs.list().flatMap((pack) => pack.blockTypes).filter((type) => !onboardBlockTypes.includes(type) && !logic.includes(type)).join(' ');
     expect(everything).not.toMatch(/pwm|servo|pulse|temperature|display|image|scroll|button|light|sound|music|note|tone|event|random|timer|running|elapsed|shake|accel|gesture/i);
   });
 });
 
 describe('the contract rows a profile shows', () => {
   const exposed = [
-    'C-01', 'C-02', 'C-04', 'C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-12', 'C-13', 'C-15', 'C-23', 'C-24', 'C-25', 'C-29', 'C-30', 'C-31',
-    'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-42', 'C-43', 'C-50', 'C-51', 'C-56',
+    'C-01', 'C-02', 'C-04', 'C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-12', 'C-13', 'C-15', 'C-19', 'C-23', 'C-24', 'C-25', 'C-29', 'C-30', 'C-31',
+    'C-32', 'C-33', 'C-34', 'C-35', 'C-36', 'C-37', 'C-38', 'C-39', 'C-40', 'C-42', 'C-43', 'C-50', 'C-51', 'C-56',
   ];
 
-  it('are the language of YB-2, the onboard hardware of YB-3 with the RGB display of N17 B1, and the pins of YB-4, in both profiles; Advanced adds the sensors of N17 B2 and the music of N17 B3', () => {
+  it('are the language of YB-2 with the running time and random numbers of N17 B4, the onboard hardware of YB-3 with the RGB display of N17 B1, and the pins of YB-4, in both profiles; Advanced adds the sensors of N17 B2 and the music of N17 B3', () => {
     const [basic, advanced] = profiles;
     expect([...(basic?.constructs ?? [])].sort()).toEqual([...exposed].sort());
     expect([...(advanced?.constructs ?? [])].sort()).toEqual([...exposed, 'C-16', 'C-17', 'C-18', 'C-20', 'C-21', 'C-22'].sort());
@@ -96,7 +101,7 @@ describe('the contract rows a profile shows', () => {
 
   it.each([
     ['YB-7: text variables, functions, servo', ['C-57', 'C-58', 'C-59', 'C-27']],
-    ['excluded: PWM / analog write, pulse in, random, elapsed time', ['C-26', 'C-28', 'C-40', 'C-19']],
+    ['excluded: PWM / analog write, pulse in, the editor\'s A+B', ['C-26', 'C-28', 'C-47']],
     ['deferred: events', ['C-14']],
   ])('keep out %s', (_, ids) => {
     for (const profile of profiles) {
@@ -112,7 +117,9 @@ describe('the contract rows a profile shows', () => {
   it('keep the eligibility the contract gave them: nothing was upgraded to make a pin work', () => {
     const eligibility = (id: string) => yolobitContract.constructs.find((row) => row.id === id)?.eligibility;
     expect(['C-23', 'C-24', 'C-25'].map(eligibility)).toEqual(['RESTRICTED', 'RESTRICTED', 'RESTRICTED']);
-    expect(['C-26', 'C-28', 'C-40', 'C-19'].map(eligibility)).toEqual(['EXCLUDED', 'EXCLUDED', 'EXCLUDED', 'EXCLUDED']);
+    expect(['C-26', 'C-28', 'C-47'].map(eligibility)).toEqual(['EXCLUDED', 'EXCLUDED', 'EXCLUDED']);
+    // N17 B4 opened these by the owner's decision, with UNVERIFIED fields, not to make a pin work.
+    expect(['C-19', 'C-40'].map(eligibility)).toEqual(['ELIGIBLE', 'RESTRICTED']);
     expect(eligibility('C-14')).toBe('DEFERRED');
     expect(yolobitContract.analog.nativeMax).toBe(4095);
   });

@@ -1,10 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
   acceleration, add, buttonPresses, buttonPressed, clearDisplay, clearPixel, cmp, colour, gestureIs, getVar, ifElif, ifThen, images, legacyShowImage,
-  lightLevel, num, playMelody, playNote, playPitch, print, program, rest, scrollNumber, scrollText, scrollTextIn, setAll, setPixel, setVar, showIcon, showImage,
-  showImageIn, stopSound, temperature, text, wait, type ImageRows,
+  lightLevel, num, playMelody, playNote, playPitch, print, program, randomInt, rest, runningTime, scrollNumber, scrollText, scrollTextIn, setAll, setPixel,
+  setVar, showIcon, showImage, showImageIn, stopSound, temperature, text, wait, type ImageRows,
 } from '../src/core/program/__fixtures__/ybc-blocks';
-import { canvasState, currentProject, expectSaved, openApp, openProject } from './helpers';
+import { canvasState, currentProject, expectSaved, openApp, openProject, readJson } from './helpers';
 
 // YB-3 (YB plan §14 lessons B1-B4, §18.4): a Yolo:Bit-compatible project drives the onboard display, buttons, light sensor
 // and buzzer. The tests read what the canvas RENDERED (the Konva nodes, plan §11.4) and what the controls show, never the
@@ -444,7 +444,7 @@ test.describe('the toolbox and the dropdowns', () => {
     });
   }
 
-  test('offers only the buttons A and B, the 15 natural notes and the lengths 1, 2 and 4', async ({ page }) => {
+  test('offers the buttons A, B and (N17 B4) A+B, the 15 natural notes and the lengths 1, 2 and 4', async ({ page }) => {
     // Blockly does not open a dropdown inside the flyout, so the blocks are placed in the workspace.
     await openProject(page, project(program([ifThen(buttonPressed('A'), [playNote('C4', 4), rest(2)])])));
     const panel = page.getByTestId('blockly-panel');
@@ -455,7 +455,7 @@ test.describe('the toolbox and the dropdowns', () => {
       return options;
     };
 
-    expect(await optionsOf(/^A$/)).toEqual(['A', 'B']);
+    expect(await optionsOf(/^A$/)).toEqual(['A', 'B', 'A+B']);
     expect(await optionsOf(/^C4$/)).toEqual(['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5']);
     expect(await optionsOf(/^4$/)).toEqual(['1', '2', '4']);
     expect(await optionsOf(/^2$/)).toEqual(['1', '2', '4']);
@@ -810,6 +810,7 @@ test('fits the lesson frame: the board, its controls and the sound switch are al
   for (const locator of [
     page.getByTestId('control-button-a'),
     page.getByTestId('control-button-b'),
+    page.getByTestId('control-button-ab'),
     page.getByTestId('control-light'),
     page.getByTestId('sound-indicator'),
     page.getByRole('button', { name: 'Turn sound off' }),
@@ -834,4 +835,121 @@ test('touch: a tap on a button holds it for the tap and releases it', async ({ b
   } finally {
     await context.close();
   }
+});
+
+// N17 B4: A and B pressed on the drawing of the board (they share one state with the panel's buttons), A+B, the running time and
+// random numbers. The board's parts are where the board's data puts them, around the middle of its body.
+test.describe('pressing the board, A+B, the running time and random numbers (N17 B4)', () => {
+  const parts = readJson('../src/core/devices/definitions/ybc-board.json').board.onboard as { id: string; at: { x: number; y: number; width: number; height: number } }[];
+  const buttons = program([], [ifElif([[buttonPressed('A+B'), [showImage(images.FULL)]], [buttonPressed('A'), [showImage(images.CROSS)]], [buttonPressed('B'), [showImage(images.RING)]]], [clearDisplay()])]);
+
+  /** The middle of a part drawn on the board, in page pixels: the board's place and the part's, through the canvas's viewport. */
+  async function partCentre(page: Page, partId: string) {
+    const state = await canvasState(page);
+    const board = state.components.find((component) => component.deviceType === 'ybc-board');
+    const at = parts.find((part) => part.id === partId)?.at;
+    const canvas = await page.getByTestId('circuit-canvas').boundingBox();
+    if (!board || !at || !canvas) {
+      throw new Error(`No ${partId} on the board`);
+    }
+    const { scale, x, y } = state.viewport;
+    return { x: canvas.x + x + (board.x + at.x + at.width / 2) * scale, y: canvas.y + y + (board.y + at.y + at.height / 2) * scale };
+  }
+  const pressedParts = async (page: Page) => (await canvasState(page)).components.find((component) => component.deviceType === 'ybc-board')?.pressedParts;
+
+  test('A held on the drawing: the program sees it and both A buttons show it; dragged off the board before the release, it does not stick', async ({ page }) => {
+    await openProject(page, project(buttons));
+    await run(page);
+    await expectDisplay(page, blank);
+
+    const a = await partCentre(page, 'button-a');
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await expectDisplay(page, images.CROSS);
+    await expect(page.getByTestId('control-button-a')).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => pressedParts(page)).toEqual(['button-a']);
+
+    // Review Focus 2: the pointer leaves the board while still down, and is released far away.
+    await page.mouse.move(a.x - 400, a.y - 300, { steps: 8 });
+    await expectDisplay(page, blank);
+    await expect(page.getByTestId('control-button-a')).toHaveAttribute('aria-pressed', 'false');
+    await page.mouse.up();
+    await expect.poll(() => pressedParts(page)).toEqual([]);
+
+    // B pressed and released on the drawing.
+    const b = await partCentre(page, 'button-b');
+    await page.mouse.move(b.x, b.y);
+    await page.mouse.down();
+    await expectDisplay(page, images.RING);
+    await page.mouse.up();
+    await expectDisplay(page, blank);
+    await stop(page);
+  });
+
+  test('the drawing takes no press before Run, and after Stop', async ({ page }) => {
+    await openProject(page, project(buttons));
+    const a = await partCentre(page, 'button-a');
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await page.mouse.up();
+    await run(page);
+    await stop(page);
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await expect.poll(() => pressedParts(page)).toEqual([]);
+    await page.mouse.up();
+  });
+
+  test('A+B: the panel button holds both; A on the drawing with B held on the panel is A+B too', async ({ page }) => {
+    await openProject(page, project(buttons));
+    await run(page);
+
+    const releaseBoth = await holdWithMouse(page, 'control-button-ab');
+    await expectDisplay(page, images.FULL);
+    for (const id of ['control-button-a', 'control-button-b', 'control-button-ab']) {
+      await expect(page.getByTestId(id)).toHaveAttribute('aria-pressed', 'true');
+    }
+    await releaseBoth();
+    await expectDisplay(page, blank);
+
+    // A held on the drawing by the mouse, then B by the keyboard on the panel. (Pressing the drawing focuses the canvas, so a
+    // panel button held by a key lets go first, as it does whenever it loses focus: that is why the mouse comes first here.)
+    const a = await partCentre(page, 'button-a');
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await expectDisplay(page, images.CROSS);
+    await page.getByTestId('control-button-b').focus();
+    await page.keyboard.down('Space');
+    await expectDisplay(page, images.FULL);
+    await expect(page.getByTestId('control-button-ab')).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.up('Space');
+    await expectDisplay(page, images.CROSS);
+    await page.mouse.up();
+    await expectDisplay(page, blank);
+    await stop(page);
+  });
+
+  test('the running time and a random number: printed, in range, in both profiles', async ({ page }) => {
+    for (const profile of ['ybc-basic', 'ybc-advanced']) {
+      await openProject(page, project(program([wait(num(300)), print(runningTime()), ...Array.from({ length: 12 }, () => print(randomInt(num(6), num(1))))]), profile));
+      await run(page);
+      await expect(runStatus(page)).toHaveText('Program finished — board powered');
+      const lines = ((await consoleLines(page).textContent()) ?? '').split('\n').map(Number);
+      expect(lines, profile).toHaveLength(13);
+      expect(lines[0], profile).toBeGreaterThanOrEqual(300);
+      expect(lines[0], profile).toBeLessThan(5000);
+      expect(lines.slice(1).every((value) => Number.isInteger(value) && value >= 1 && value <= 6), profile).toBe(true);
+      await stop(page);
+    }
+  });
+
+  test('writes the Python of A+B, the running time and a random number, with import random once', async ({ page }) => {
+    await openProject(page, project(program([setVar('x', randomInt(num(6), num(1))), print(runningTime())], [ifThen(buttonPressed('A+B'), [scrollNumber(getVar('x'))])])));
+    const source = page.getByTestId('python-source');
+    await expect(source).toContainText('button_a.on_pressed_ab = button_b.on_pressed_ab = -1\nimport random\n');
+    await expect(source).toContainText('x = random.randint(1, 6)');
+    await expect(source).toContainText('print(running_time())');
+    await expect(source).toContainText('if button_a.is_pressed() and button_b.is_pressed():');
+    expect(((await source.textContent()) ?? '').match(/import random/g)).toHaveLength(1);
+  });
 });

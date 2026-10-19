@@ -151,7 +151,8 @@ export const scrollText = (value: Json): Json => ({ type: 'ybc_display_scroll_te
 export const scrollNumber = (value: Json): Json => ({ type: 'ybc_display_scroll_number', id: id('scroll-number'), inputs: { NUM: { block: value } } });
 export const clearDisplay = (): Json => ({ type: 'ybc_display_clear', id: id('clear-display') });
 
-export const buttonPressed = (button: 'A' | 'B'): Json => ({ type: 'ybc_button_pressed', id: id('button-pressed'), fields: { BUTTON: button } });
+/** "button … is pressed", as Blockly saves the dropdown: 'A', 'B' or (N17 B4) 'A+B'. */
+export const buttonPressed = (button: 'A' | 'B' | 'A+B'): Json => ({ type: 'ybc_button_pressed', id: id('button-pressed'), fields: { BUTTON: button } });
 export const buttonPresses = (button: 'A' | 'B'): Json => ({ type: 'ybc_button_presses', id: id('button-presses'), fields: { BUTTON: button } });
 export const lightLevel = (): Json => ({ type: 'ybc_light_level', id: id('light-level') });
 
@@ -214,3 +215,10 @@ export const playMelody = (melody: string, mode: string = 'wait'): Json => ({ ty
 export const playPitch = (hz: Json, ms: Json): Json => ({ type: 'ybc_sound_pitch', id: id('pitch'), inputs: { HZ: { block: hz }, MS: { block: ms } } });
 /** "stop sound". */
 export const stopSound = (): Json => ({ type: 'ybc_sound_stop', id: id('sound-stop') });
+
+// --- N17 B4: A+B, the running time and random numbers ----------------------------------------------------------
+
+/** "running time (ms)". */
+export const runningTime = (): Json => ({ type: 'ybc_running_time', id: id('running-time') });
+/** "random number from … to …", a number block (or any int expression) in each input. */
+export const randomInt = (from: Json, to: Json): Json => ({ type: 'ybc_random_int', id: id('random'), inputs: { FROM: { block: from }, TO: { block: to } } });

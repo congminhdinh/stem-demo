@@ -35,6 +35,7 @@ const terms: Readonly<Record<string, string>> = {
   'set light': 'bật đèn',
   'turn off light': 'tắt đèn',
   'start tone': 'bật âm',
+  'random number': 'số ngẫu nhiên',
 };
 
 /** Blockly's own blocks that the core may name by type; the custom blocks are named by their Vietnamese text. */
@@ -48,6 +49,7 @@ const builtinBlockNames: Readonly<Record<string, string>> = {
   math_number: 'số',
   math_arithmetic: 'phép tính',
   math_modulo: 'chia lấy dư',
+  math_random_int: 'số ngẫu nhiên (của Blockly)',
   text: 'chữ',
   text_join: 'nối chữ',
   text_print: 'in',
@@ -77,6 +79,8 @@ const quantities: Readonly<Record<string, string>> = {
   'The row': 'Hàng',
   'The frequency': 'Tần số',
   'The length of a tone': 'Độ dài âm',
+  'A bound of a random number': 'Một đầu của số ngẫu nhiên',
+  'The running time': 'Thời gian chạy',
 };
 
 /** The capabilities a board may lack (constructs' `capability`). */
@@ -153,6 +157,7 @@ export const coreMessageRules: readonly Rule[] = [
   [/^Unknown condition block "(.+)"\.$/, (type) => `Không biết khối điều kiện "${blockName(type)}".`],
   [/^Unknown block "(.+)"\.$/, (type) => `Không biết khối "${blockName(type)}".`],
   [/^"(.+)" is not available: it is excluded \((.+)\)\.$/, (type, row) => `Khối "${blockName(type)}" không dùng được: đã bị loại (${row}).`],
+  [/^"(.+)" is not available here; use "(.+)"\.$/, (type, replacement) => `Khối "${blockName(type)}" không dùng ở đây; hãy dùng khối "${blockName(replacement)}".`],
   [/^"(.+)" is not supported by the compiler\.$/, (type) => `Trình dịch chưa hỗ trợ khối "${blockName(type)}".`],
   [/^"(.+)" cannot be used as a value\.$/, (type) => `Khối "${blockName(type)}" không dùng làm giá trị được.`],
   [/^"(.+)" cannot be used as a statement\.$/, (type) => `Khối "${blockName(type)}" không dùng làm câu lệnh được.`],
@@ -172,6 +177,7 @@ export const coreMessageRules: readonly Rule[] = [
   [/^wait needs a number of seconds\.$/, () => 'Khối "chờ" cần số giây.'],
   [/^A button block needs its button\.$/, () => 'Khối nút cần chọn nút.'],
   [/^A button is A or B\.$/, () => 'Nút là A hoặc B.'],
+  [/^A button is A, B or A\+B\.$/, () => 'Nút là A, B hoặc A+B.'],
   [/^An acceleration block needs its axis\.$/, () => 'Khối gia tốc cần chọn trục.'],
   [/^An axis is x, y or z\.$/, () => 'Trục là x, y hoặc z.'],
   [/^A gesture block needs its gesture\.$/, () => 'Khối cử chỉ cần chọn cử chỉ.'],
@@ -216,6 +222,9 @@ export const coreMessageRules: readonly Rule[] = [
   [/^"join" takes at most (.+) parts\.$/, (count) => `Khối "nối chữ" có tối đa ${count} phần.`],
   [/^The step must be between 1 and (.+)\.$/, (high) => `Bước phải nằm trong khoảng 1 tới ${high}.`],
   [/^The display shows only the characters from space to ~ \(ASCII\)\.$/, () => 'Màn hình chỉ hiện được ký tự từ dấu cách tới ~ (ASCII): chữ không dấu, chữ số và ký hiệu.'],
+  // N17 B4: a random number.
+  [/^The bounds of a random number must be at most (.+) apart, not (.+)\.$/, (span, value) => `Hai đầu của số ngẫu nhiên chỉ được cách nhau tối đa ${span}, không phải ${value}.`],
+  [/^The bounds of a random number must be at most (.+) apart\.$/, (span) => `Hai đầu của số ngẫu nhiên chỉ được cách nhau tối đa ${span}.`],
   [/^(.+) must be between (.+) and (.+), not (.+)\.$/, (what, low, high, value) => `${capitalize(subject(what))} phải nằm trong khoảng ${low} tới ${high}, không phải ${value}.`],
   [/^(.+) must be between (.+) and (.+)\.$/, (what, low, high) => `${capitalize(subject(what))} phải nằm trong khoảng ${low} tới ${high}.`],
   [/^(.+) is outside the supported integer range \(±(.+)\)\.$/, (what, max) => `${capitalize(subject(what))} vượt quá khoảng số nguyên được hỗ trợ (±${max}).`],
@@ -231,6 +240,8 @@ export const coreMessageRules: readonly Rule[] = [
   [/^An analog reading is between 0 and (.+), not (.+)\.$/, (max, raw) => `Giá trị đọc tương tự nằm trong khoảng 0 tới ${max}, không phải ${raw}.`],
   [/^Pin (.+) is set by this program, so it cannot be read as well\.$/, (pin) => `Chân ${pin} đang được chương trình này đặt, nên không đọc được nữa.`],
   [/^Pin (.+) is not connected to anything, so it cannot be read\.$/, (pin) => `Chân ${pin} chưa nối với gì, nên không đọc được.`],
+  // N17 B4: an on/off read of a pin nothing drives reads 0, and says so once.
+  [/^Pin (.+) is floating, so it reads 0\. Connect the button to 3V3 or GND\.$/, (pin) => `Chân ${pin} đang thả nổi — đọc là 0. Hãy nối nút với 3V3 hoặc GND.`],
   [/^Pin (.+) is driven by two things at once, so it cannot be read\.$/, (pin) => `Chân ${pin} bị hai thứ cùng điều khiển, nên không đọc được.`],
   [/^Pin (.+) carries an analog level, which is neither on nor off\. Use "analog read"\.$/, (pin) => `Chân ${pin} mang mức tương tự, không phải bật hay tắt. Dùng "đọc tương tự".`],
   [/^Pin (.+) could not be read\.$/, (pin) => `Không đọc được chân ${pin}.`],
@@ -251,6 +262,8 @@ export const coreMessageRules: readonly Rule[] = [
   [/^A gesture block names a gesture that does not exist\.$/, () => 'Khối cử chỉ gọi một cử chỉ không tồn tại.'],
   [/^A melody block names a melody that does not exist\.$/, () => 'Khối giai điệu gọi một giai điệu không tồn tại.'],
   [/^A tone block was given the wrong number of values\.$/, () => 'Khối âm nhận sai số giá trị.'],
+  [/^A random block was given the wrong number of values\.$/, () => 'Khối số ngẫu nhiên nhận sai số giá trị.'],
+  [/^The random number is not between its bounds\.$/, () => 'Số ngẫu nhiên không nằm giữa hai đầu của nó.'],
   [/^The board cannot tell its gesture\.$/, () => 'Bo mạch không cho biết cử chỉ của nó.'],
   [/^A variable has no value\.$/, () => 'Một biến chưa có giá trị.'],
   [/^A read gave another type than its block says\.$/, () => 'Một lần đọc trả về loại khác với khối của nó.'],

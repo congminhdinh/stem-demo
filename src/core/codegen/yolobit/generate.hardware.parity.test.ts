@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  clearDisplay, colour, images, num, playMelody, playNote, playPitch, print, program, rest, scrollNumber, scrollText, scrollTextIn, setPixel, showImage,
-  text, wait, type ImageRows, type Json,
+  clearDisplay, colour, getVar, images, num, playMelody, playNote, playPitch, print, program, randomInt, rest, runningTime, scrollNumber, scrollText,
+  scrollTextIn, setPixel, setVar, showImage, text, wait, type ImageRows, type Json,
 } from '../../program/__fixtures__/ybc-blocks';
 import { charactersOf, scrollFrame } from '../../simulation/peripherals/display';
 import { compileBlocks } from './__fixtures__/compile-case';
@@ -367,6 +367,43 @@ const scenarios: Scenario[] = [
       [0, 'end'],
     ],
   },
+  // N17 B4: A+B reads A first and B only when A is held (the `and` short-circuits, on both sides); the running time is the clock
+  // since the program started, on both sides; a random number is a scripted answer, drawn over the same ends, low first.
+  {
+    name: 'both-buttons-and-running-time (A+B, then only A, then A+B again)',
+    blocks: caseBlocks('both-buttons-and-running-time'),
+    script: { 'a.pressed': [1, 1, 1, 1], 'b.pressed': [1, 0, 1] },
+    passes: 3,
+    timeline: [
+      [0, 'read:a.pressed=1'], [0, 'read:b.pressed=1'], [0, FULL], [0, 'print:0'], [0, 'sleep:10'],
+      [10, 'read:a.pressed=1'], [10, 'read:b.pressed=0'], [10, 'read:a.pressed=1'], [10, CROSS], [10, 'sleep:10'],
+      [20, 'read:a.pressed=1'], [20, 'read:b.pressed=1'], [20, FULL], [20, 'print:20'], [20, 'end'],
+    ],
+  },
+  {
+    name: 'both-buttons-and-running-time (none held: B is never asked)',
+    blocks: caseBlocks('both-buttons-and-running-time'),
+    script: { 'a.pressed': [0, 0] },
+    timeline: [[0, 'read:a.pressed=0'], [0, 'read:a.pressed=0'], [0, BLANK], [0, 'end']],
+  },
+  {
+    name: 'dice (A held once)',
+    blocks: caseBlocks('dice'),
+    script: { random: [3, 7, 5], 'a.pressed': [1, 0] },
+    scrolls: ['5'],
+    passes: 2,
+    timeline: [
+      [0, 'random:1..6=3'], [0, 'random:3..10=7'], [0, 'print:7'],
+      [0, 'read:a.pressed=1'], [0, 'random:1..6=5'], [0, 'scroll:5'], [0, 'sleep:500'], [500, 'sleep:10'],
+      [510, 'read:a.pressed=0'], [510, 'end'],
+    ],
+  },
+  {
+    name: 'a random number between two computed ends given high first: min and max make it low first on the board too',
+    blocks: program([setVar('x', num(9)), setVar('y', num(2)), print(randomInt(getVar('x'), getVar('y'))), print(runningTime())]),
+    script: { random: [4] },
+    timeline: [[0, 'random:2..9=4'], [0, 'print:4'], [0, 'print:0'], [0, 'end']],
+  },
 ];
 
 const scenarioNamed = (name: string): Scenario => {
@@ -521,6 +558,43 @@ describe.skipIf(python === null)('the sensors of N17 B2 in the Python: what the 
     const header = 'import time\nfrom yolobit import *\n';
     const result = python ? runUnderCpythonWithHardware({ attempt: { source: `${header}${body}\ntime.sleep_ms(10)\n`, script: { gesture: [0] }, passes: 1 } })['attempt'] : undefined;
     expect(result?.error).not.toBeNull();
+  });
+});
+
+describe.skipIf(python === null)('A+B, the running time and random numbers of N17 B4 in the Python', () => {
+  it('would notice A or B instead of A+B, a running time taken at another moment, and the ends of a random number not swapped', async () => {
+    const mutations: [label: string, scenario: string, from: string, to: string][] = [
+      ['A or B', 'both-buttons-and-running-time (A+B, then only A, then A+B again)', 'button_a.is_pressed() and button_b.is_pressed()', 'button_a.is_pressed() or button_b.is_pressed()'],
+      ['the running time of another moment', 'both-buttons-and-running-time (A+B, then only A, then A+B again)', 'print(running_time() - x)', 'print(running_time() - x - 10)'],
+      ['another range', 'dice (A held once)', 'random.randint(1, 6))', 'random.randint(1, 5))'],
+      ['the computed ends not swapped', 'a random number between two computed ends given high first: min and max make it low first on the board too', 'random.randint(min(x, y), max(x, y))', 'random.randint(x, y)'],
+    ];
+    for (const [label, name, from, to] of mutations) {
+      const scenario = scenarioNamed(name);
+      const original = sourceOf(scenario);
+      expect(original, label).toContain(from);
+      const script = scenario.script ?? {};
+      const mutated = python ? runUnderCpythonWithHardware({ mutated: { source: original.replace(from, to), script, passes: scenario.passes ?? 1 } })['mutated'] : undefined;
+      const simulated = await simulateWithHardware(irOf(scenario), script, scenario.scrolls ?? [], scenario.passes ?? 1);
+      expect(simulated.problems, label).toEqual([]);
+      expect([mutated?.error ?? null, mutated?.events], label).not.toEqual([null, simulated.events]);
+    }
+  });
+
+  it.each([
+    ['random.randint with the ends the other way round, as the board refuses it', 'x = random.randint(6, 1)', /ValueError/],
+    ['random.randint of a text', "x = random.randint('1', 6)", /whole numbers/],
+  ])('refuses %s', (_label, body, error) => {
+    const result = python
+      ? runUnderCpythonWithHardware({ attempt: { source: `import time\nimport random\n${body}\ntime.sleep_ms(10)\n`, script: { random: [1] }, passes: 1 } })['attempt']
+      : undefined;
+    expect(result?.error).toMatch(error);
+  });
+
+  it('gives the running time of the fake clock: 0 at the start, then what the program waited', () => {
+    const source = 'import time\nfrom yolobit import *\nprint(running_time())\ntime.sleep_ms(250)\nprint(running_time())\ntime.sleep_ms(10)\n';
+    const result = python ? runUnderCpythonWithHardware({ clock: { source, script: {}, passes: 1 } })['clock'] : undefined;
+    expect(result?.events).toEqual([[0, 'print:0'], [0, 'sleep:250'], [250, 'print:250'], [250, 'end']]);
   });
 });
 

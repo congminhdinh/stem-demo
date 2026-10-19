@@ -308,6 +308,9 @@ describe('the allowlist this phase may generate is part of the contract allowlis
       'music.play(music.<extra melody>, wait=True)',
       'music.pitch(<hz>, <ms>)',
       'music.stop()',
+      // N17 B4: the running time (C-19) and a random number (C-40); A+B is two C-12 forms joined by C-35's `and`.
+      'running_time()',
+      'random.randint(<a>, <b>)',
     ]) {
       expect(phaseList.forms, form).toContain(form);
       expect(contractList.forms, form).toContain(form);
@@ -324,15 +327,15 @@ describe('the allowlist this phase may generate is part of the contract allowlis
     }
   });
 
-  it('has the three imports, the four preamble lines (IM-2, IM-4) and the five builtins of IM-9', () => {
-    expect(phaseList.imports).toEqual(['import time', 'from yolobit import *', 'import music']);
+  it('has the four imports (N17 B4: random), the four preamble lines (IM-2, IM-4) and the builtins of IM-9 with min and max (N17 B4)', () => {
+    expect(phaseList.imports).toEqual(['import time', 'from yolobit import *', 'import music', 'import random']);
     expect(phaseList.preamble).toEqual([
       'button_a.on_pressed = None',
       'button_b.on_pressed = None',
       'button_a.on_pressed_ab = button_b.on_pressed_ab = -1',
       'music.set_tempo(4, 120)',
     ]);
-    expect([...phaseList.builtins].sort()).toEqual(['int', 'len', 'print', 'range', 'str']);
+    expect([...phaseList.builtins].sort()).toEqual(['int', 'len', 'max', 'min', 'print', 'range', 'str']);
   });
 });
 
@@ -361,10 +364,11 @@ describe('every generated hardware program stays inside the allowlist', () => {
       const header = lines.slice(1, lines.indexOf(''));
       const expected = [
         'import time',
-        ...(/\b(display|button_[ab]|light_level|temperature|accelerometer)\b/.test(body)
+        ...(/\b(display|button_[ab]|light_level|temperature|accelerometer|running_time)\b/.test(body)
           ? ['from yolobit import *', 'button_a.on_pressed = None', 'button_b.on_pressed = None', 'button_a.on_pressed_ab = button_b.on_pressed_ab = -1']
           : []),
         ...(/\bmusic\.play\(/.test(body) ? ['import music', 'music.set_tempo(4, 120)'] : []),
+        ...(/\brandom\.randint\(/.test(body) ? ['import random'] : []),
       ];
       expect(header, file).toEqual(expected);
     }
@@ -406,6 +410,10 @@ describe('every generated hardware program stays inside the allowlist', () => {
     for (const ticks of [1, 2, 4]) {
       expect(text).toContain(`'R:${ticks}'`);
     }
+    // N17 B4: A+B, the running time, and a random number with typed-in ends and with computed ones.
+    expect(text).toContain('button_a.is_pressed() and button_b.is_pressed()');
+    expect(covered(/running_time\(\)/)).toBe(true);
+    expect(covered(/random\.randint\(\d+, \d+\)/) && covered(/random\.randint\(min\(.+\), max\(.+\)\)/)).toBe(true);
   });
 });
 
@@ -450,8 +458,16 @@ describe('the audit would notice what the hardware must not use (it is not vacuo
       'music.pitch(440, 500)',
       'music.pitch(x * 10 + 200, x)',
       'music.stop()',
+      // N17 B4.
+      'if button_a.is_pressed() and button_b.is_pressed():',
+      'x = running_time() - x',
     ]) {
       expect(audit(around(line), phaseList, learner), line).toEqual(clean);
+    }
+    // N17 B4: a random number needs its import in the header.
+    const withRandom = ['import time', 'from yolobit import *', ...contractList.preamble.slice(0, 3), 'import random'];
+    for (const line of ['x = random.randint(1, 6)', 'x = random.randint(min(1, x), max(1, x))', 'display.scroll(random.randint(-5, x * 2))']) {
+      expect(audit(around(line, withRandom), phaseList, learner), line).toEqual(clean);
     }
   });
 
@@ -459,8 +475,9 @@ describe('the audit would notice what the hardware must not use (it is not vacuo
     ['pin0.read_analog written without int() (YB-4)', 'x = pin0.read_analog()'],
     ['music.reset (not offered)', 'music.reset()'],
     ['music.get_tempo (not offered)', 'x = music.get_tempo()'],
-    ['random (EXCLUDED, C-40)', 'x = random.randint(1, 6)', ['import time', 'import random']],
-    ['an import of random', 'x = 1', ['import time', 'import random']],
+    ['random with a keyword the form does not write', 'x = random.randint(1, 6, step=2)', ['import time', 'import random']],
+    ['another function of random (not offered)', 'x = random.choice(x)', ['import time', 'import random']],
+    ['a builtin the contract does not list', 'x = abs(x)'],
     ['button_a.is_pressed_ab (A+B, EXCLUDED, C-47)', 'if button_a.is_pressed_ab():'],
     ['an axis the block does not offer', 'x = accelerometer.get_w()'],
     ['a gesture the block does not offer', 'x = accelerometer.is_gesture("freefall")'],
@@ -490,7 +507,7 @@ describe('the audit would notice what the hardware must not use (it is not vacuo
     ['a graph', 'display.show_graph(x)'],
     ['a temperature without int()', 'x = temperature()'],
     ['a tempo of the learner’s', 'music.set_tempo(4, 60)'],
-    ['running_time (EXCLUDED, C-19)', 'x = running_time()'],
+    ['the ticks of time (not offered)', 'x = time.ticks_ms()'],
     ['an import after the header', 'import random', undefined],
   ];
 
@@ -528,7 +545,7 @@ describe('the audit would notice what the hardware must not use (it is not vacuo
 
   it('names what it found: the call, the import or the word', () => {
     expect(audit(around('music.reset()'), phaseList, learner).names).toEqual(['music.reset']);
-    expect(audit(around('x = 1', ['import time', 'import random']), phaseList, learner).imports).toEqual(['import random']);
+    expect(audit(around('x = 1', ['import time', 'import os']), phaseList, learner).imports).toEqual(['import os']);
     expect(audit(around("music.play(['C6:4'], wait=True)"), phaseList, learner).calls).toEqual(["music.play(['C6:4'], wait=True)"]);
     expect(audit(around('x = secret + 1'), phaseList, learner).identifiers).toEqual(['secret']);
   });
