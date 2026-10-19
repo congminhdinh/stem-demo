@@ -395,6 +395,25 @@ test.describe('a run warning in a lab (1440 × 620)', () => {
   });
 });
 
+test.describe('the toolbar of a narrow lab (670 × 450, a lesson at 1024 × 768)', () => {
+  test.use({ viewport: { width: 670, height: 450 } });
+
+  test('stays on the title\'s line, and keeps its buttons in place while Check reads "Đang kiểm tra…"', async ({ page }) => {
+    await openLab(page, 'lab=yolobit&template=ybc-night-light&profile=ybc-advanced');
+    const title = await boxOf(page.getByRole('heading', { name: 'Mạch Yolo:Bit' }));
+    const buttons = ['Chạy', 'Dừng', 'Đặt lại'];
+    const placesOf = async () => Promise.all(buttons.map(async (name) => boxOf(page.getByRole('button', { name, exact: true }))));
+    const before = await placesOf();
+    for (const place of before) {
+      expect(place.y).toBeLessThan(title.y + title.height);
+    }
+    await page.getByRole('button', { name: 'Kiểm tra', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Đang kiểm tra…', exact: true })).toBeDisabled();
+    expect(await placesOf()).toEqual(before);
+    await expect(page.getByRole('button', { name: 'Kiểm tra', exact: true })).toBeEnabled({ timeout: 10_000 });
+  });
+});
+
 /*
  * Fix 6 (N17 m3): no loose starter block lies on the program, in any template, in the LMS lesson's frames (a tall picture used to
  * cover the "if" of the night light and of the A/B lab, and the melody's notes the "if" under them).

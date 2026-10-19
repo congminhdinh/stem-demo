@@ -147,6 +147,16 @@ body {
   line-height: 1.5;
 }
 
+/*
+ * A narrow lab (a lesson at 1024 × 768 gives it 670 px): the toolbar keeps the title's line, at its full width (Check holds the room
+ * of "Đang kiểm tra…"); the "STEM Studio" under the title gives it the room.
+ */
+@media (max-width: 719px) {
+  .app-shell-lab .app-header > p {
+    display: none;
+  }
+}
+
 /* A label as wide as the longest of its states (SteadyLabel): the others hold the room, unseen. */
 .steady-label {
   display: inline-grid;
