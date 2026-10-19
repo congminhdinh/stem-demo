@@ -36,13 +36,22 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-async function check(key: TemplateKey, document: ProjectDocument, options: { session?: RunSession | CheckSession; timers?: CheckTimers } = {}): Promise<CheckOutcome> {
+/** `hiddenAfterMs`: the page becomes hidden that long after the check starts (the UI then calls `interrupt`, see page-hidden.ts). */
+async function check(
+  key: TemplateKey,
+  document: ProjectDocument,
+  options: { session?: RunSession | CheckSession; timers?: CheckTimers; hiddenAfterMs?: number } = {},
+): Promise<CheckOutcome> {
   const challenge = templateChallenge(key, 'en');
   if (!challenge) {
     throw new Error(`${key} has no challenge`);
   }
   const session = options.session ?? newSession();
   const run = runCheck({ session, document, challenge, boardId: document.profile ? ybcTemplateBoardId : null, ...(options.timers ? { timers: options.timers } : {}) });
+  if (options.hiddenAfterMs !== undefined) {
+    await vi.advanceTimersByTimeAsync(options.hiddenAfterMs);
+    run.interrupt();
+  }
   await vi.advanceTimersByTimeAsync(challenge.durationMs + 2000);
   const outcome = await run.done;
   expect(session.getSnapshot().status).toBe('idle');
@@ -171,7 +180,7 @@ describe('template challenges (N6a S2)', () => {
   });
 
   // Review Focus 4 of N17 (task B6): in a hidden tab the browser runs timers about once a second, so a check gives its presses late
-  // and judges the wrong moments. Such a check is interrupted (not passed, check again); it never passes falsely.
+  // and judges the wrong moments. The page going hidden interrupts the check (not passed, check again); it never passes falsely.
   describe('a hidden tab never passes a check falsely (Review Focus 4)', () => {
     const hiddenTabTimers = (): CheckTimers => {
       const start = Date.now();
@@ -191,12 +200,16 @@ describe('template challenges (N6a S2)', () => {
       expect(await check('ybc-rainbow', holdColour())).toMatchObject({ status: 'checked', result: { passed: false } });
     });
 
-    it('a wrong rainbow in a hidden tab is interrupted, not passed', async () => {
-      expect(await check('ybc-rainbow', holdColour(), { timers: hiddenTabTimers() })).toEqual({ status: 'interrupted', reason: 'late' });
+    it('a wrong rainbow in a tab that becomes hidden is interrupted, not passed', async () => {
+      expect(await check('ybc-rainbow', holdColour(), { timers: hiddenTabTimers(), hiddenAfterMs: 300 })).toEqual({ status: 'interrupted', reason: 'hidden' });
+    });
+
+    it('a wrong rainbow in a tab that is hidden from the start is interrupted, not passed', async () => {
+      expect(await check('ybc-rainbow', holdColour(), { timers: hiddenTabTimers(), hiddenAfterMs: 0 })).toEqual({ status: 'interrupted', reason: 'hidden' });
     });
 
     it.each(['ybc-rainbow', 'ybc-button-ab', 'ybc-night-light', 'ybc-servo-gate'] as const)('the solution of %s in a hidden tab is interrupted: not passed, check again', async (key) => {
-      expect(await check(key, ybcSolutionDocument(key), { timers: hiddenTabTimers() })).toEqual({ status: 'interrupted', reason: 'late' });
+      expect(await check(key, ybcSolutionDocument(key), { timers: hiddenTabTimers(), hiddenAfterMs: 300 })).toEqual({ status: 'interrupted', reason: 'hidden' });
     });
   });
 

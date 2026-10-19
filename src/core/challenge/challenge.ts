@@ -5,9 +5,10 @@ import type { ComponentInput } from '../simulation/simulate-circuit';
 // host, a lesson or a score: the standalone lab checks with it as an embedded one does (spec §7).
 //
 // N17 B6: a goal "at a moment" (`atMs`) reads what the run showed at that moment, the last snapshot at or before it, so a state set
-// earlier that stayed counts and one that came and went between two moments does not. The labs of N17 B6 put each moment more than
-// CHECK_LATE_LIMIT_MS (check-run.ts) after the scripted input it waits for: a check whose input came later than that is interrupted,
-// never judged, so none of their goals is judged before its input has come (Review Focus 4).
+// earlier that stayed counts and one that came and went between two moments does not. The labs of N17 B6 put each moment after the
+// scripted input it waits for. A check whose page is hidden is interrupted, never judged; one whose timers come more than
+// CHECK_LATENESS_LIMIT_MS (check-run.ts) late is too. A visible tab late by less than that is judged, and an input that came late
+// can move what a goal reads (an accepted cost of not interrupting a busy but visible tab; Review Focus 4).
 
 /** What one goal looks for in the run, or in the program. */
 export type GoalSpec =

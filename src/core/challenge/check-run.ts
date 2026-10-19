@@ -10,16 +10,21 @@ import { createGoalTracker } from './goal-tracker';
 // Stop) or a cancel ends the check without a result: nothing was checked. N17 B4: the run of a check is seeded, so a
 // program that draws random numbers draws the same ones in every check, and its goals are deterministic.
 //
-// N17 B6 (Review Focus 4): a check is judged on time. When one of its timers (an input, the end) comes more than
-// CHECK_LATE_LIMIT_MS late, the check is not to be trusted: a hidden tab runs timers about once a second, a stalled machine runs
-// them late, and the inputs then reach the run after the moments its goals read. Such a check, and one whose page was hidden
-// (`interrupt`, told by the UI), ends as interrupted: no verdict, so it never passes falsely; the learner checks again.
+// N17 B6 (Review Focus 4): a check is judged on time, and a hidden tab is not to be trusted: the browser runs its timers about once a
+// second, so the inputs reach the run after the moments its goals read. A check whose page is or becomes hidden at any point
+// (`interrupt`, told by the UI on `visibilitychange`) ends as interrupted: no verdict, so it never passes falsely; the learner checks
+// again. A timer (an input, the end) more than CHECK_LATENESS_LIMIT_MS late ends it the same way: the second guard, for a machine so
+// stalled that the check is meaningless. A visible tab that is merely busy is judged, and below the limit it is not interrupted.
 
 /** The seed of every check's random numbers (N17 B4). */
 export const CHECK_RANDOM_SEED = 20261019;
 
-/** How late a timer of a check may come and the check still be judged (N17 B6). A goal's moments leave more room than this. */
-export const CHECK_LATE_LIMIT_MS = 250;
+/**
+ * How late a timer of a check may come and the check still be judged. N17 B6 first set it to 250 ms, which a slow laptop can exceed
+ * with the tab visible; it is 1000 ms because a hidden tab throttles timers to once a second at least, and the hidden page is caught
+ * by `interrupt` anyway.
+ */
+export const CHECK_LATENESS_LIMIT_MS = 1000;
 
 /** What a check needs of a run session; RunSession is one, and so is the UI's run store adapter. */
 export type CheckSession = Pick<RunSession, 'start' | 'stop' | 'subscribe' | 'getSnapshot' | 'setComponentInput'>;
@@ -30,7 +35,7 @@ export type CheckTimers = {
   now(): number;
 };
 
-/** Why a check was interrupted (N17 B6): its page was hidden, or one of its timers came too late. */
+/** Why a check was interrupted (N17 B6): its page was hidden, or one of its timers came more than CHECK_LATENESS_LIMIT_MS late. */
 export type InterruptReason = 'hidden' | 'late';
 
 export type CheckOutcome =
@@ -92,7 +97,7 @@ export function runCheck({ session, document, challenge, boardId, timers = defau
     session.stop();
   };
   /** Whether a timer due `dueMs` after the start came too late to judge the check by (N17 B6). */
-  const tooLate = (dueMs: number) => timers.now() - startedAt - dueMs > CHECK_LATE_LIMIT_MS;
+  const tooLate = (dueMs: number) => timers.now() - startedAt - dueMs > CHECK_LATENESS_LIMIT_MS;
 
   const unsubscribe = session.subscribe((snapshot) => {
     if (settled) {

@@ -1,6 +1,6 @@
 export { parseFrame, type Challenge, type CheckResult, type Goal, type GoalResult, type GoalSpec, type InputStep } from './challenge';
 export {
-  CHECK_LATE_LIMIT_MS,
+  CHECK_LATENESS_LIMIT_MS,
   runCheck,
   type CheckOptions,
   type CheckOutcome,

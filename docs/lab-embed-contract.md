@@ -94,8 +94,9 @@ hợp lệ và lab nằm trong một frame.
   - `servo-angle` (`componentId`, `angle`, `atMs`): tại thời điểm đó servo đứng ở góc `angle`.
 - Kịch bản input của Kiểm tra có thêm (N17 B2): nhiệt độ (`temperature`, slider), nghiêng và lắc (`accelerometer`).
   Kiểm tra dùng **seed cố định** cho số ngẫu nhiên; mục tiêu của `ybc-dice` không phụ thuộc con số nào.
-- **Kiểm tra bị gián đoạn** (N17 B6): nếu tab bị ẩn trong lúc kiểm tra (trình duyệt chỉ chạy timer khoảng một lần mỗi giây),
-  hoặc một input / điểm kết thúc của kịch bản đến trễ hơn 250 ms (`CHECK_LATE_LIMIT_MS`, máy bị treo), lần kiểm tra dừng
+- **Kiểm tra bị gián đoạn** (N17 B6): nếu tab đang ẩn hoặc trở nên ẩn bất cứ lúc nào trong lúc kiểm tra (`visibilitychange`;
+  trình duyệt chỉ chạy timer khoảng một lần mỗi giây), hoặc một input / điểm kết thúc của kịch bản đến trễ hơn 1000 ms
+  (`CHECK_LATENESS_LIMIT_MS`, máy bị treo; tab vẫn hiện mà chỉ bận thì dưới 1000 ms vẫn được chấm), lần kiểm tra dừng
   ngay, **không có kết quả**: lab hiện "Chưa đạt: lần kiểm tra bị gián đoạn (tab bị ẩn hoặc máy chạy chậm). Hãy để tab này
   mở và bấm Kiểm tra lại.", không đánh dấu mục tiêu nào, và **không gửi `check-result`**. Không bao giờ có "đạt giả".
 - Template Yolo:Bit là **bài khởi đầu**: board và chương trình, cùng một khối (hoặc chuỗi khối) đặt rời, bị vô hiệu
