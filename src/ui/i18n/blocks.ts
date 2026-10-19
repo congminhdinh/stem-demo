@@ -12,6 +12,14 @@ import type { Locale } from './messages';
 // saved program reads the same in both languages. Blockly's own blocks (if, compare, numbers, variables…) get
 // their Vietnamese from `blockly/msg/vi` (src/ui/blockly/locale.ts).
 
+/**
+ * Corrections to Blockly's own Vietnamese (`blockly/msg/vi`), set over it (src/ui/blockly/locale.ts). Fix 6 (N17 c3): its print
+ * block reads "in lên màng hình"; the word is "màn hình".
+ */
+export const viBlocklyCorrections: Readonly<Record<string, string>> = {
+  TEXT_PRINT_TITLE: 'in lên màn hình %1',
+};
+
 /** `options`: for a dropdown field (by name), the label shown for each option value. */
 type BlockText = { message0: string; tooltip: string; options?: Readonly<Record<string, Readonly<Record<string, string>>>> };
 
