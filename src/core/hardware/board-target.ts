@@ -2,6 +2,7 @@ import { capabilityKeys } from '../capabilities/io';
 import type { BoardTarget } from '../devices/board-pins';
 import type { BoardContext, CapabilitySet } from '../profiles/board-context';
 import { boardPin, reservedPins, type BoardProfile } from './board';
+import { DRIVE_ROLE, roleOps } from './drivers';
 import { driverPortSpecs, robotRoles, type Kit, type KitRef, type RobotRole } from './kit';
 
 // What the compiler knows of a kit (N18 R1.2, robot plan §4.2): the roles present (a role the kit lacks is
@@ -17,6 +18,11 @@ export type KitBoardTarget = BoardTarget & {
   readonly board: string;
   /** The roles of the kit, in vocabulary order. */
   readonly roles: readonly RobotRole[];
+  /**
+   * The module ops each role offers (`line.raw` only on an analog pin), and `drive` with the drive ops when both motors are
+   * there. An op a block needs that is missing here is capability-unavailable.
+   */
+  readonly ops: Readonly<Record<string, readonly string[]>>;
   /** The board pins a raw op (U-31…U-34) may name, in board order. */
   readonly raw: {
     /** Pins no port uses: digital.write and pwm.write. */
@@ -79,13 +85,18 @@ export function kitBoardTarget(kit: Kit, board: BoardProfile): KitBoardTarget {
   const pwm = free.filter((id) => pwmTimers[id] !== undefined && !claimedTimers.has(pwmTimers[id]));
   const raw = { free, pwm, read: inBoardOrder(read), analogRead: inBoardOrder(analogRead), serial: reservedPins(board, 'serial') };
   const present = new Set(kit.modules.map((module) => module.role));
+  const roles = robotRoles.filter((role) => present.has(role));
+  const ops = Object.fromEntries(
+    [...roles, DRIVE_ROLE].map((role) => [role, roleOps(kit, board, role)] as const).filter(([, list]) => list.length > 0),
+  );
 
   return {
     capabilities: kitCapabilities(boardCapabilities(board), kit),
     pins: { digital: raw.free, analogIn: raw.analogRead, pwm: raw.pwm, servo: [] },
     kit: { id: kit.id, version: kit.version },
     board: board.id,
-    roles: robotRoles.filter((role) => present.has(role)),
+    roles,
+    ops,
     raw,
     usedBy,
     pwmTimers,

@@ -24,6 +24,26 @@ describe('kitBoardTarget', () => {
     expect(target.roles).toEqual(['motorLeft', 'motorRight', 'ultrasonic', 'lineLeft', 'lineCenter', 'lineRight', 'servo1', 'led1', 'buzzer', 'button1']);
   });
 
+  it('gives the ops each role offers, and the drive when both motors are there', () => {
+    expect(target.ops).toEqual({
+      motorLeft: ['motor.set'],
+      motorRight: ['motor.set'],
+      ultrasonic: ['ultrasonic.cm'],
+      lineLeft: ['line.dark', 'line.raw'],
+      lineCenter: ['line.dark', 'line.raw'],
+      lineRight: ['line.dark', 'line.raw'],
+      servo1: ['servo.set'],
+      led1: ['led.set'],
+      buzzer: ['buzzer.tone', 'buzzer.stop'],
+      button1: ['button.pressed'],
+      drive: ['drive.move', 'drive.stop'],
+    });
+    const oneMotor: Kit = { ...rover, ports: rover.ports.slice(0, 1), modules: rover.modules.slice(0, 1) };
+    expect(kitBoardTarget(oneMotor, board).ops).toEqual({ motorLeft: ['motor.set'] });
+    const digitalLine: Kit = { ...rover, ports: rover.ports.map((port) => (port.id === 'LN1' ? { ...port, pins: { PIN: 'D0' } } : port)) };
+    expect(kitBoardTarget(digitalLine, board).ops.lineLeft).toEqual(['line.dark']);
+  });
+
   it('has the board’s capabilities plus modules', () => {
     expect(target.capabilities).toEqual(['digital', 'pwm', 'analogIn', 'modules']);
     expect(kitBoardTarget({ ...rover, ports: [], modules: [] }, board).capabilities).toEqual(['digital', 'pwm', 'analogIn']);
