@@ -1,8 +1,17 @@
 import react from '@vitejs/plugin-react';
 import { cpSync } from 'node:fs';
-import { join } from 'node:path';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
+
+// Rapier's split .wasm package (ADR 0001 §5.2) has only a `module` field, which Vitest's SSR resolve does not
+// read, and its wasm must go through Vite's own wasm handling. So the tests alone alias the bare name to its
+// entry and inline the package; the app build resolves it natively and is left untouched.
+const rapierEntry = join(
+  dirname(createRequire(import.meta.url).resolve('@dimforge/rapier3d-deterministic/package.json')),
+  'rapier.js',
+);
 
 // Cross-origin isolation is optional in the PoC (plan §5.2, AD-17). It is only
 // required later by the Pyodide track (SharedArrayBuffer). If these headers
@@ -49,5 +58,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.{ts,tsx}', 'tests/**/*.test.ts'],
+    alias: [{ find: /^@dimforge\/rapier3d-deterministic$/, replacement: rapierEntry }],
+    server: { deps: { inline: [/[\\/]@dimforge[\\/]rapier3d-deterministic[\\/]/] } },
   },
 });
