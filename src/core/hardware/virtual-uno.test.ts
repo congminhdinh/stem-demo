@@ -327,6 +327,18 @@ describe('onChange', () => {
     expect(changes).toEqual(['D5 OUTPUT 0 @4.375', 'D5 OUTPUT 128 @12.0625', 'D9 OUTPUT 0 @169.25']);
   });
 
+  it('tells a PWM pin that a servo or a tone stops, and gives it back when the tone ends with noTone', () => {
+    const { uno, io } = setup();
+    io.pwmWrite('D10', 200);
+    io.pwmWrite('D3', 50);
+    const changes: string[] = [];
+    uno.onChange((pin) => changes.push(`${pin.pin} ${String(pin.duty)} ${String(pin.toneHz ?? pin.servoDeg ?? '')}`));
+    io.servoWrite('D9', 90);
+    io.tone('D12', 1000);
+    io.noTone('D12');
+    expect(changes).toEqual(['D9 0 90', 'D10 0 ', 'D12 0 1000', 'D3 0 ', 'D12 0 ', 'D3 50 ']);
+  });
+
   it('tells diagnostics as they come, once each', () => {
     const { uno, io } = setup();
     const told: string[] = [];

@@ -48,8 +48,10 @@ describe('createModuleIO', () => {
     expect(drive.changed).toEqual(['D5', 'D7', 'D8', 'D6', 'D4', 'D2']);
   });
 
-  it('refuses a use the kit does not have', () => {
+  it('refuses a use the kit does not have, and a kit for another board', () => {
     expect(() => robot([{ role: 'servo1', op: 'motor.set' }])).toThrow(/no motor\.set on servo1/);
+    const uno = createVirtualUno({ ...board, id: 'nano' }, { now: () => 0, charge: () => {} });
+    expect(() => createModuleIO(rover, uno)).toThrow(/is for uno-r3, not nano/);
   });
 });
 

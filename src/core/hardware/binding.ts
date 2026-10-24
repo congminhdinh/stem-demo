@@ -1,6 +1,6 @@
 import type { ModuleIO } from '../capabilities/io';
 import { allUses, clampTo, driveDirections, DRIVE_ROLE, drivers, moduleUses, roleOps, runSetup, type DriverOp, type ModuleUse } from './drivers';
-import { kitModule, kitPort, type Kit, type KitPort } from './kit';
+import { kitPort, type Kit, type KitPort } from './kit';
 import type { VirtualUno } from './virtual-uno';
 
 // The module binding (N18 R1.4, robot plan §4.3): the `modules` capability of a robot program. `call(role, op, args)` and
@@ -20,16 +20,26 @@ export type ModuleBinding = ModuleIO & {
 };
 
 export function createModuleIO(kit: Kit, uno: VirtualUno, uses: readonly ModuleUse[] = allUses(kit, uno.board)): ModuleBinding {
+  if (kit.board !== uno.board.id) {
+    throw new Error(`Kit ${kit.id}@${kit.version} is for ${kit.board}, not ${uno.board.id}`);
+  }
   const io = uno.io;
 
+  /** role → its port and the ops it offers, resolved once: a call or read in a tight loop only looks them up. */
+  const offered = new Map<string, { port: KitPort; ops: ReadonlySet<string> }>(
+    kit.modules.flatMap((module) => {
+      const port = kitPort(kit, module.port);
+      return port ? [[module.role, { port, ops: new Set(roleOps(kit, uno.board, module.role)) }] as const] : [];
+    }),
+  );
   const resolve = (role: string, op: string, kind: DriverOp['kind']): { port: KitPort; driverOp: DriverOp } => {
-    const module = kitModule(kit, role);
-    const port = module ? kitPort(kit, module.port) : undefined;
-    if (!port) {
+    const entry = offered.get(role);
+    if (!entry) {
       throw new Error(`Kit ${kit.id}@${kit.version} has no ${role}`);
     }
+    const { port } = entry;
     const driverOp = drivers[port.driver].ops[op];
-    if (!driverOp || !roleOps(kit, uno.board, role).includes(op)) {
+    if (!driverOp || !entry.ops.has(op)) {
       throw new Error(`${role} (${port.driver}) has no op ${op}`);
     }
     if (driverOp.kind !== kind) {

@@ -169,23 +169,30 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
     const playing = toneNow();
     return [pin.mode, pin.mode === 'OUTPUT' ? pin.port : '', dutyOf(pin), playing?.pin === pin.spec.id ? playing.hz : '', pin.servoDeg ?? ''].join('|');
   };
-  let keys = new Map([...pins.values()].map((pin) => [pin.spec.id, keyOf(pin)]));
-  /** Runs a call that may change pins, then tells each change. */
-  const changing = <T>(run: () => T): T => {
+  /** The last told key of each pin; filled when the first listener subscribes. */
+  const keys = new Map<string, string>();
+  const timerPins = (timer: string | undefined) => board.pins.filter((pin) => timer !== undefined && pin.pwmTimer === timer).map((pin) => pin.id);
+  /**
+   * Runs a call that may change the `touched` pins (its own pin, and a timer's pins when it takes or frees the timer), then
+   * tells each change. Only those pins are compared, and nothing when nobody listens: a read in a tight loop stays cheap.
+   */
+  const changing = <T>(touched: readonly string[], run: () => T): T => {
     const result = run();
-    const next = new Map([...pins.values()].map((pin) => [pin.spec.id, keyOf(pin)]));
-    if (changeListeners.size > 0) {
-      const atMs = clock.now();
-      for (const pin of pins.values()) {
-        if (next.get(pin.spec.id) !== keys.get(pin.spec.id)) {
-          const state = stateOf(pin);
-          for (const listener of changeListeners) {
-            listener(state, atMs);
-          }
+    if (changeListeners.size === 0) {
+      return result;
+    }
+    const atMs = clock.now();
+    for (const id of new Set(touched)) {
+      const pin = pins.get(id);
+      const key = pin ? keyOf(pin) : undefined;
+      if (pin && key !== keys.get(id)) {
+        keys.set(id, key ?? '');
+        const state = stateOf(pin);
+        for (const listener of changeListeners) {
+          listener(state, atMs);
         }
       }
     }
-    keys = next;
     return result;
   };
 
@@ -255,7 +262,7 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
   const io: DriverIO = {
     costsUs: costs,
     pinMode: (id, mode) =>
-      changing(() => {
+      changing([id], () => {
         const pin = record(id);
         charge(mode === 'INPUT_PULLUP' ? 'pinModeInputPullup' : 'pinMode');
         pin.mode = mode;
@@ -264,7 +271,7 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
         }
       }),
     digitalWrite: (id, level) =>
-      changing(() => {
+      changing([id], () => {
         const pin = record(id);
         timerCall(pin, 'digitalWrite', 'digitalWriteTimerPin');
         pin.pwm = null;
@@ -274,7 +281,7 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
         }
       }),
     digitalRead: (id) =>
-      changing(() => {
+      changing([id], () => {
         const pin = record(id);
         timerCall(pin, 'digitalRead', 'digitalReadTimerPin');
         pin.pwm = null;
@@ -294,7 +301,7 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
       return Math.floor(Math.min(board.adcMax, Math.max(0, value)));
     },
     pwmWrite: (id, value) =>
-      changing(() => {
+      changing([id], () => {
         const pin = record(id);
         // The pwmWrite helper of contract U-32: clamp to 0..pwmMax, then analogWrite((int)value).
         const clamped = Math.trunc(Math.min(board.pwmMax, Math.max(0, value)));
@@ -304,7 +311,7 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
         analogWrite(pin, clamped);
       }),
     servoWrite: (id, angle) =>
-      changing(() => {
+      changing([id, ...timerPins(board.timerClaims.servo)], () => {
         const pin = record(id);
         charge('servoWrite');
         if (pin.servoDeg === null) {
@@ -339,7 +346,7 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
       return Math.trunc(widthUs);
     },
     tone: (id, hz, ms) =>
-      changing(() => {
+      changing([id, ...timerPins(board.timerClaims.tone)], () => {
         const pin = record(id);
         charge('tone');
         const playing = toneNow();
@@ -355,7 +362,7 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
         }
       }),
     noTone: (id) =>
-      changing(() => {
+      changing([id, ...timerPins(board.timerClaims.tone)], () => {
         const pin = record(id);
         charge('noTone');
         if (toneNow()?.pin === id) {
@@ -399,6 +406,11 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
       wire.set(address, device);
     },
     onChange: (listener) => {
+      if (changeListeners.size === 0) {
+        for (const pin of pins.values()) {
+          keys.set(pin.spec.id, keyOf(pin));
+        }
+      }
       changeListeners.add(listener);
       return () => changeListeners.delete(listener);
     },
