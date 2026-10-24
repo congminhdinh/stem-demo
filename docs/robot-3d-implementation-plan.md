@@ -397,7 +397,7 @@ Mỗi task ghi **Files**, **Interfaces**, **Tests** (tên + assertion chính), *
   - thêm `src/core/run/virtual-clock.ts`: `createVirtualScheduler(): { programClock: ProgramClock; sleep: Sleep; park(): Promise<void>; yieldNow(): Promise<void>; timers: Timers; budget(signal): ExecutionBudget; advanceTo(tWorldMs: number): Promise<void>; whenBlocked(): Promise<void> }`.
 - `valuesFor(numeric)`:
   - `python` giữ nguyên `values.ts`;
-  - `cxx-int32` dùng phép `| 0`, chia cắt về 0, `%` theo dấu số bị chia, bool in `1/0`.
+  - `cxx-int32` dùng phép `| 0` cho `+ −` và `Math.imul` cho `×` (contract UNO §3.1), chia cắt về 0, `%` theo dấu số bị chia, bool in `1/0`.
 - Interpreter đọc `ir.numeric` và `ir.loopPauseUs`.
 - Tests:
   - `cxx-int32: 2147483647+1 wraps to -2147483648`;

@@ -170,7 +170,7 @@ Placeholder `<…>` như dạng Python của contract Yolo:Bit; `<ROLE>_PIN` là
 | Float | **không có** (Basic lẫn Advanced v0, U-40) | — | — |
 | Chuỗi | chỉ để in, `F("…")` trong flash (U-16); không biến chữ (U-41) | D·A | ARD-14 |
 
-Simulator (`valuesFor('cxx-int32')`, R2.3): `| 0` sau `+ − ×` và đổi dấu, `Math.trunc` cho `/`, `%` của JS (đã theo dấu số bị chia), `-0 → 0`; `b === -1` và `b === 0` theo bảng trên. Cùng kết quả với helper trên mọi cặp int32 (EMU-10/11/13 so với mô hình JS trong `run-lang.mjs`).
+Simulator (`valuesFor('cxx-int32')`, R2.3): `(a + b) | 0`, `(a - b) | 0`, `(-a) | 0`, và **`Math.imul(a, b)`** cho `×` (không phải `(a * b) | 0`: tích vượt 2⁵³ mất bit thấp, `(2147483647 * 2147483647) | 0` ra 0 trong khi board ra 1), `Math.trunc` cho `/`, `%` của JS (đã theo dấu số bị chia), `-0 → 0`; `b === -1` và `b === 0` theo bảng trên. Cùng kết quả với helper trên mọi cặp int32 (EMU-10/11/13 so với mô hình JS trong `run-lang.mjs`).
 
 ### 3.2 Vì sao luôn dùng helper (evidence R0.4)
 

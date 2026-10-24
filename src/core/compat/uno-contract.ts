@@ -346,6 +346,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: [
       'Never a plain + - * on a learner value: avr-gcc 7.3 folds signed overflow as impossible (x + 1L > x is 1 at INT32_MAX), so the board would not wrap.',
       'The helpers compute in unsigned long and convert back: every pair of longs has a result, and it wraps.',
+      'The simulator multiplies with Math.imul: (a * b) | 0 loses the low bits of a product beyond 2^53 ((2147483647 * 2147483647) | 0 is 0, the board gives 1).',
     ],
     modules: ['U-M1'],
     cpp: cpp('add32(<a>, <b>) · sub32(<a>, <b>) · mul32(<a>, <b>)', { helpers: ['int32'] }),
