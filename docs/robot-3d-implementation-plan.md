@@ -143,6 +143,7 @@ type BoardProfile = {
 };
 type PinCap = 'digital'|'pwm'|'analogIn'|'interrupt'|'i2c'|'serial'|'spi';
 ```
+*Bổ sung khi làm R1.1 (dữ liệu, contract §4.3, §5.1):* `nonPwmThreshold: number` (128: `analogWrite` trên chân không PWM ≥ 128 là HIGH) và `millis: { overflowUs, fractPerOverflow, fractMax }` (mô hình Timer0 của `millis()`). `uno-r3` chỉ ghi `serial` trên D0/D1; `interrupt`, `i2c`, `spi` chờ dòng contract (U-43, U-46 DEFERRED).
 
 ### 4.2 Kit — `src/core/hardware/kit.ts` + `kits/ref-uno-rover.kit.json`
 ```ts
@@ -162,6 +163,8 @@ type Kit = { id: string; version: string; board: string; chassis?: ChassisSpec; 
 
 Không PWM nào nằm trên timer bị chiếm.
 
+*Bổ sung khi làm R1.1:* `KitPort.pins` dùng đúng tên chân của driver (`EN`/`IN1`/`IN2`, `TRIG`/`ECHO`, `PIN`: là `<ROLE>_<chân>` của dạng C++ trong contract §2.3). `ModuleSpec`, `ChassisSpec` là record số/bool/chuỗi mà world (R3.3, R3.4) sở hữu khoá; R1 chỉ kiểm hình dạng. Không có `kit` thì dùng `referenceKitRef` của `src/core/hardware/catalog.ts`. Thay kit của nhà cung cấp: `src/core/hardware/kits/README.md`.
+
 ### 4.3 Driver — `src/core/hardware/drivers/<id>.ts`
 ```ts
 type Driver<A> = {
@@ -173,6 +176,7 @@ type Driver<A> = {
 type UnoPinIO = DigitalIO & AnalogInIO & PwmIO & ServoIO & PulseIO & { pinMode(pin, mode): void; tone(pin, hz, ms?): void; noTone(pin): void; wire: WireIO };
 type WireIO = { write(addr: number, bytes: number[]): void; read(addr: number, count: number): number[] };   // device model gắn theo địa chỉ
 ```
+*Điều chỉnh khi làm R1.4 (evidence: contract §2.3 có một dòng cho mỗi op, và còi có `buzzer.tone`/`buzzer.stop`, line có `line.dark`/`line.raw`):* một driver giữ cặp `{ sim, cpp }` của §4.3 **cho từng op** (khoá là tên op IR, `ops['motor.set']`), cùng `row` (dòng contract), `args` (khoảng kẹp), `setup` (bước setup dùng chung cho TS và C++). `cpp` = `{ libraries, includes, helper: { id, text } | null, globals(port, role), setup(port, role), call(port, role, argExprs) }`: role cần cho tên `#define` (`MOTOR_LEFT_EN`) và `Servo <role>;`. `sim` nhận `DriverIO` = `UnoPinIO` + `delayMicroseconds` + `compute(us)` (thời gian của chính helper mà contract đo, chỉ HC-SR04 dùng) + `costsUs`. Drive (U-21, U-22) là hai motor trong binding, role `drive`, op `drive.move` (args `[direction, speed]`) / `drive.stop`.
 
 ### 4.4 IR (family `uno`) — `src/core/program/ybc-ir.ts`
 - IR mới có thêm: `numeric: 'python'|'cxx-int32'`, `loopPauseUs: number`.
@@ -344,6 +348,7 @@ Mỗi task ghi **Files**, **Interfaces**, **Tests** (tên + assertion chính), *
   - `attachAnalogSource(pin, () => number)`, `attachPulseSource(pin, (level, timeoutUs) => number)`;
   - `attachWireDevice(addr, model)`, `onChange(listener)`.
   - Mỗi lệnh `charge(costsUs[call])`.
+  - *Bổ sung khi làm (R1.3):* `attachDigitalSource(pin, () => 0|1)` (nút, line digital: không đoán ngưỡng điện áp từ nguồn analog); nguồn pulse trả `number` (độ rộng, chờ 0) **hoặc** `{ waitUs, widthUs }` để charge cả thời gian chờ echo (§3); `millis()` theo mô hình Timer0; `report`/`diagnostics()`/`onDiagnostic` (cảnh báo `not-pwm`, `timer-claimed`, `value-clamped`, `wire-nack`, mỗi code một lần mỗi chân/role/địa chỉ). `PinState = { pin, mode, level, duty (0..pwmMax), toneHz, servoDeg }` là thứ world đọc. Không mô hình tải ngắt (contract §13).
 - Tests:
   - `analogWrite(D7,100) → LOW and warns not-pwm`;
   - `analogRead clamps to 0..adcMax and charges 105.8125 µs` (contract UNO §4.4, đo ở R0.4; lần đầu 201.8125 µs);
@@ -353,6 +358,7 @@ Mỗi task ghi **Files**, **Interfaces**, **Tests** (tên + assertion chính), *
 **R1.4 Driver + binding (24h).**
 - Files: `src/core/hardware/drivers/{index,hbridge,servo-lib,hcsr04,line-sensor,led,buzzer,button}.ts`, `src/core/hardware/binding.ts`.
 - Interface: `createModuleIO(kit, uno: VirtualUno): ModuleIO`, với `call(role, op, args)` / `read(role, op)`. Đây là capability mới `modules`.
+  - *Bổ sung khi làm (R1.4):* tham số thứ ba `uses` (các `{ role, op }` program dùng; mặc định: mọi op của kit): tạo binding là đầu `setup()`, chạy bước setup của các op được dùng theo thứ tự port của kit, như sketch sinh ra. `modules` vào capability set qua kit: `kitBoardContext(context, kit)` thêm `modules` vào board context đã resolve (board `uno-r3` một mình chỉ có `digital`, `pwm`, `analogIn`). `kitCpp(kit, uses)` cho C1 phần C++ module của sketch theo thứ tự port.
 - Tests:
   - `motor.set(motorLeft, 50) → D5 duty 128, D7 HIGH, D8 LOW`;
   - `motor.set(-100) → D7 LOW, D8 HIGH, duty 255`;

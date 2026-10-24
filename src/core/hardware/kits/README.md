@@ -1,0 +1,50 @@
+# Kit robot (`*.kit.json`)
+
+Một kit mô tả robot dưới dạng **dữ liệu**: role → port → driver → chân của board (plan `docs/robot-3d-implementation-plan.md`
+§4.2). Program chỉ gọi role (`motorLeft`, `ultrasonic`…); kit nói role đó cắm ở port nào, port đó chạy driver nào và nối vào
+chân nào của board. Driver là code TS/C++ đã review, tham chiếu bằng id (`src/core/hardware/drivers/`), nên **đổi kit không
+đổi code**.
+
+## `ref-uno-rover@0` là kit tham chiếu, chân là PLACEHOLDER
+
+Đến khi nhà cung cấp trả lời bộ câu hỏi `docs/uno-vendor-questions.md`, mọi project robot không ghi `kit` đều dùng
+`ref-uno-rover@0` (`catalog.ts`, `referenceKitRef`). Chân của nó lấy nguyên văn từ plan §4.2:
+
+| Role | Port | Driver | Chân |
+|---|---|---|---|
+| `motorLeft` | M1 | `hbridge-en-in1-in2` | EN=D5, IN1=D7, IN2=D8 |
+| `motorRight` | M2 | `hbridge-en-in1-in2` | EN=D6, IN1=D4, IN2=D2 |
+| `ultrasonic` | US1 | `hcsr04-pulsein` | TRIG=D12, ECHO=D11 |
+| `lineLeft`, `lineCenter`, `lineRight` | LN1–LN3 | `line-digital` (`activeLow: false`) | A0, A1, A2 |
+| `led1` | LED1 | `led-digital` | D13 |
+| `button1` | BTN1 | `button-pullup` (INPUT_PULLUP) | D3 |
+| `servo1` | SV1 | `servo-lib` | D9 |
+| `buzzer` | BZ1 | `buzzer-tone` | D10 |
+
+Thứ tự `ports` là thứ tự sketch sinh ra viết `setup()` (sau `Serial.begin` khi program có in), nên kit này giữ đúng thứ tự
+của `spikes/avr8js/sketches/contract-forms/contract-forms.ino`. `chassis` lấy kích thước robot của spike vật lý
+(`docs/adr/0001-robot-physics.md` §2); `mount` là vị trí PLACEHOLDER (cm, khung robot +x phía trước, +y lên, +z bên phải);
+`spec` của module để trống cho tới khi world (R3.3, R3.4) cần tham số và nhà cung cấp gửi số đo.
+
+## Thay bằng kit của nhà cung cấp
+
+1. Lấy câu trả lời của `docs/uno-vendor-questions.md`: §1 (MCU, phải là ATmega328P để giữ board `uno-r3` và kiểm chứng
+   avr8js), §2 (schematic, bảng **cổng → chân**, IC driver motor và kiểu điều khiển), §3 (cực tính cảm biến line, thông số
+   motor/servo/siêu âm), §4 (vị trí gắn module, kích thước thân).
+2. Tạo `src/core/hardware/kits/<vendor-kit>.kit.json`, bản sao của `ref-uno-rover.kit.json`, với `id`, `version` mới và
+   `board: "uno-r3"`. Mỗi port: `id` theo nhãn trên robot, `driver` là một id có sẵn, `pins` dùng đúng tên chân của driver
+   (`EN`/`IN1`/`IN2`, `TRIG`/`ECHO`, `PIN`), `params` nếu driver có (`activeLow` của `line-digital`: vạch đen là LOW thì
+   `true`). Mỗi module: một role của từ vựng chuẩn, đúng loại (`kind`) của role, một port.
+3. Thêm file vào `productionKits` trong `src/core/hardware/catalog.ts`. `loadKit` từ chối kit sai và chỉ đường dẫn của lỗi
+   (`ports.0.pins.EN: D7 has no pwm`): driver không có, chân không có trên board, chân thiếu capability (EN phải là PWM),
+   role ngoài từ vựng, loại module không khớp port, hai module một port.
+4. Chạy `checkKit(kit, board, usage)` với `usage` có servo, tone và in: phải không có diagnostic. Nó báo `pin-conflict`
+   (hai port một chân), `pin-reserved` (D0/D1 khi có in) và `timer-claimed` (driver cần PWM trên timer mà servo giữ: T1 =
+   D9, D10; hoặc tone giữ: T2 = D3, D11 — trace R0.4 cho thấy chân giữ LOW, contract U-48).
+5. Viết test như `kit.test.ts` cho chân của kit mới, rồi chạy `pnpm verify`. Kịch bản (`rb-*`) ghi `kit` mới thì tăng
+   `version` của kịch bản.
+
+**Cần việc engine** (ngoài việc thay dữ liệu, plan VG, khoảng 16–24h mỗi loại) khi kit có: loại module mới (cảm biến màu,
+màn hình…), driver motor điều khiển khác EN+IN1/IN2 (PWM+DIR, I²C như PCA9685, vi điều khiển phụ có protocol riêng), hoặc
+MCU không phải ATmega328P (board profile mới, C2 không áp dụng). Khi đó cần thêm `DriverId`, driver TS + C++ có dòng
+contract và evidence, và test.

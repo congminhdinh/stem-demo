@@ -266,6 +266,8 @@ Virtual UNO (R1.3) `charge(costsUs[call])` cho mỗi lời gọi Arduino mà dri
 | `serialPrintLongSign` | 6,8125 | 109 cycle | dấu trừ |
 | `serialPrintln` | 17,25 | 276 cycle | `\r\n` |
 
+**Virtual UNO (R1.3, `src/core/hardware/virtual-uno.ts`)** charge mỗi lời gọi bằng khoá của bảng này (bản sao trong `uno-r3.board.json`, test so với contract): `digitalWrite`/`digitalRead` lấy biến thể `…TimerPin` trên D3, D5, D6, D9, D10, D11; `analogWrite` giá trị 1…254 trên chân PWM charge `analogWrite`, còn 0, 255 và chân không PWM charge `analogWriteDigital` (core gọi `digitalWrite`; đo 178/186/190 cycle); `pinMode(INPUT)` charge `pinMode` (chỉ OUTPUT được đo); `tone` không duration (2145 cycle) cũng charge `tone`, nhưng helper luôn truyền duration. Không charge tải ngắt (§4.5, §13). Driver `hcsr04-pulsein` (R1.4): có echo thì cả helper = chờ + echo + `ultrasonicCmOverhead` (đúng 1675,5625 µs của EMU-13 ở 450 + 1160); không echo xem §13.
+
 **Độ lệch theo chương trình:** `-flto` inline/gập hằng tuỳ cả chương trình: cùng lời gọi trong sketch nhỏ chỉ có hằng (`costs-const`, EMU-09) rẻ hơn 8…41 %, và `tone(10, 1000)` hằng chỉ còn 94 cycle. Bảng trên là của lời gọi thật; parity thời gian ±1 % chỉ hứa cho khoảng ≥ 1 ms mà `delay`/`pulseIn`/Serial chiếm phần lớn (ADR 0003 §7 điều kiện 1).
 
 ### 4.5 Tải ngắt (đo, simulator v0 **không** charge)
@@ -590,6 +592,9 @@ Không bao giờ ghi "100 % tương thích". Câu trên UI về mức tương th
 |---|---|---|---|---|
 | Số vòng `loop()` mỗi giây | ≥ 50 µs/vòng | 0,3125 µs vòng rỗng | như L2e | không phải observable parity |
 | Tải ngắt | không tính | 0,58 % (+0,16 %/servo, +1,49 % tone 1 kHz) | như L2e | trong ngân sách ±1 % trừ khi có tone cao |
+| `pulseIn` / siêu âm **không echo** (R1) | virtual UNO charge `pulseInNoPulse30000` = 20 752 µs (số đo **không** có Servo); cả helper `ultrasonicCm` = 3 × `digitalWrite` + 2 + 10 µs trigger + 20 752 = **20 777,6875 µs** | `pulseIn` 20 785,44 µs khi có Servo (EMU-03); cả helper 20 812 µs (EMU-13, có Servo) | như L2e | virtual UNO không mô hình tải ngắt (ruling R1): lệch −34,3 µs = tải ngắt Servo trong 20,8 ms (0,163 %); `ultrasonicCmNoEcho` không được charge |
+| `pulseIn` có echo dài hơn timeout | trả 0, charge đúng `timeoutUs` (30 000 µs) | 30 020,63 µs (EMU-03, chờ 450 + echo 30 500, có Servo) | như L2e | lệch 0,07 %; chưa có khoá `costsUs` riêng |
+| `analogWrite` lên timer bị chiếm lúc chạy | chân LOW + cảnh báo `timer-claimed` (checkKit đã từ chối trước khi chạy) | chân LOW; `analogWrite(11, …)` khi tone đang kêu **đổi tần số tone** (EMU-05) | như L2e | simulator không mô hình đổi tần số tone: kit/program như vậy bị từ chối `timer-claimed` trước khi chạy |
 | `pulseIn` đọc ngắn | độ rộng chính xác | −0…1,10 % (−2…3 % khi có tone) | như L2e + sai số cảm biến | dung sai chấm điểm ≥ 3 % + 1 cm |
 | Thời lượng tone | `ms` chính xác | `floor(2·hz·ms/1000)` nửa chu kỳ | như L2e | khác rõ chỉ ở Hz thấp × ms ngắn |
 | Duty D5/D6 | v/255 | v/256 | (v+1)/256 (DS-01) | ≤ 1/256 chu kỳ |
@@ -735,3 +740,4 @@ Tái lập toàn bộ EMU/CC: `node spikes/avr8js/run-all.mjs` (≈ 20 s; cần 
 | Version | Ngày | Nội dung |
 |---|---|---|
 | 0.1.0 | 2026-10-25 | v0 (R0.3), từ evidence R0.4 |
+| 0.1.0 | 2026-10-25 | R1: ghi cách virtual UNO charge (§4.4) và các dòng L1 ≠ L2e của R1 (§13: không echo, echo quá timeout, timer bị chiếm lúc chạy). Không đổi ngữ nghĩa dòng nào, nên giữ version |
