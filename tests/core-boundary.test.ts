@@ -109,6 +109,50 @@ describe('Rapier boundary: only src/core/world loads the physics engine', () => 
     }
   });
 
+  it('rejects the lazy import written as a template literal', async () => {
+    const code = 'export const load = () => import(`@dimforge/rapier3d-deterministic`);';
+    for (const filePath of outsideTheWorld) {
+      expect(await ruleViolations(code, filePath, 'no-restricted-syntax'), filePath).toHaveLength(1);
+    }
+  });
+
+  it.each([
+    "import RAPIER from '@dimforge/rapier3d';",
+    "import RAPIER from '@dimforge/rapier3d-compat';",
+    "import RAPIER from '@dimforge/rapier3d-simd';",
+    "import { World } from '@dimforge/rapier3d/pipeline/world';",
+  ])('rejects the non-deterministic build `%s` everywhere in src, src/core/world included', async (code) => {
+    for (const filePath of [...outsideTheWorld, 'src/core/world/rapier.ts', 'src/core/world/rapier.test.ts']) {
+      expect(await boundaryViolations(code, filePath), filePath).toHaveLength(1);
+    }
+  });
+
+  it.each([
+    "export const load = () => import('@dimforge/rapier3d');",
+    "export const load = () => import('@dimforge/rapier3d-compat');",
+    'export const load = () => import(`@dimforge/rapier3d`);',
+  ])('rejects the lazy non-deterministic build `%s` inside src/core/world too', async (code) => {
+    for (const filePath of ['src/core/world/rapier.ts', 'src/core/world/rapier.test.ts']) {
+      expect(await ruleViolations(code, filePath, 'no-restricted-syntax'), filePath).toHaveLength(1);
+    }
+  });
+
+  it.each([
+    "import { initPhysics } from '../../core/world/rapier';",
+    "import { buildArena } from '../../core/world/arena/build-arena';",
+    "import type { BuiltArena } from '../../core/world/arena/build-arena.ts';",
+  ])('rejects `%s` in src/ui: the UI reads RobotSnapshot and never builds or steps the world', async (code) => {
+    expect(await boundaryViolations(code, 'src/ui/robot3d/Scene.tsx')).toHaveLength(1);
+  });
+
+  it('lets src/ui read the arena data and the snapshot types of the world', async () => {
+    const code = [
+      "import type { Arena } from '../../core/world/arena/arena-schema';",
+      "import type { RobotSnapshot } from '../../core/world/snapshot';",
+    ].join('\n');
+    expect(await boundaryViolations(code, 'src/ui/robot3d/ArenaView.tsx')).toEqual([]);
+  });
+
   it('allows static and lazy Rapier imports inside src/core/world', async () => {
     const code = [
       "import type { World } from '@dimforge/rapier3d-deterministic';",
@@ -120,7 +164,7 @@ describe('Rapier boundary: only src/core/world loads the physics engine', () => 
   });
 });
 
-describe('world determinism (D-R12): src/core/world never uses an inexact Math function', () => {
+describe('world determinism (D-R12): src/core/world never uses an inexact Math function or the wall clock', () => {
   it.each([
     'export const f = (a: number) => Math.sin(a);',
     'export const f = (a: number) => Math.cos(a);',
@@ -140,17 +184,45 @@ describe('world determinism (D-R12): src/core/world never uses an inexact Math f
     expect(await ruleViolations(code, 'src/core/world/robot/example.ts', 'no-restricted-syntax')).toHaveLength(1);
   });
 
-  it('allows + − × ÷ and Math.sqrt/abs/min/max/round/floor/ceil/imul, and Math constants', async () => {
+  it.each([
+    // Math reached some other way: through the global object, an alias, destructuring, a default, a cast, an argument.
+    'export const f = (a: number) => globalThis.Math.sin(a);',
+    "export const f = (a: number) => (globalThis as unknown as { Math: Math })['Math'].sin(a);",
+    "export const M = window['Ma' + 'th'];",
+    'let m: unknown; m = Math; export const f = () => m;',
+    'let sin: unknown; ({ sin } = Math); export const f = () => sin;',
+    'export const f = (m = Math) => m.sin(1);',
+    'export const f = (a: number) => (Math as unknown as { sin(x: number): number }).sin(a);',
+    'declare function g(x: unknown): void; g(Math);',
+    'export const o = { Math };',
+    // Only PI among Math's constants.
+    'export const f = (a: number) => Math.SQRT1_2 * a;',
+    // The wall clock: the world runs on world.t alone.
+    'export const t = Date.now();',
+    'export const d = new Date(0);',
+    'export const t = performance.now();',
+    'export const t = globalThis.performance.now();',
+    'export const o = { performance };',
+    "import { performance as clock } from 'node:perf_hooks'; export const t = clock.now();",
+  ])('rejects the bypass `%s`', async (code) => {
+    expect((await ruleViolations(code, 'src/core/world/robot/example.ts', 'no-restricted-syntax')).length).toBeGreaterThan(0);
+  });
+
+  it('allows + − × ÷, the exact Math functions and Math.PI, and fields that are only named like a global', async () => {
     const code = [
       'export const f = (a: number, b: number) =>',
       '  Math.sqrt(a) + Math.abs(a) + Math.min(a, b) + Math.max(a, b) + Math.round(a) + Math.floor(a) + Math.ceil(b) +',
-      '  Math.imul(a, b) + Math.PI * Math.SQRT1_2 - a / b;',
+      '  Math.imul(a, b) + Math.trunc(a) + Math.sign(b) + Math.fround(a) + Math.PI - a / b;',
+      'const stats = { performance: 1, Date: 2 };',
+      'export const g = () => stats.performance + stats.Date;',
+      'export type Run = { performance: number; Date(): number };',
+      'export class Lap { Date = 0; performance(): number { return this.Date; } }',
     ].join('\n');
     expect(await ruleViolations(code, 'src/core/world/robot/example.ts', 'no-restricted-syntax')).toEqual([]);
   });
 
   it('applies neither to tests of the world nor to code outside it', async () => {
-    const code = 'export const f = (a: number) => Math.sin(a) + 2 ** a;';
+    const code = 'export const f = (a: number) => Math.sin(a) + 2 ** a + Date.now() + performance.now();';
     expect(await ruleViolations(code, 'src/core/world/dmath.test.ts', 'no-restricted-syntax')).toEqual([]);
     expect(await ruleViolations(code, 'src/core/run/example.ts', 'no-restricted-syntax')).toEqual([]);
     expect(await ruleViolations(code, 'src/ui/robot3d/example.ts', 'no-restricted-syntax')).toEqual([]);
