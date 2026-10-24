@@ -98,7 +98,7 @@ Board JSON ┘                                                                  
 ```
 
 **Mô hình thời gian** (`src/core/run/virtual-clock.ts`, `robot-run-session.ts`):
-- `programClock: ProgramClock = Clock & { charge(us: number): void }`. Mỗi lệnh Arduino (theo `costsUs` của board) và mỗi node (mặc định 1 µs) được **charge**. `pulseIn` charge đúng thời gian echo hoặc timeout. Lệnh đọc là đồng bộ và đọc world state tại `world.t`.
+- `programClock: ProgramClock = Clock & { charge(us: number): void }`. Mỗi lệnh Arduino (theo `costsUs` của board) và mỗi node (mặc định 1 µs) được **charge**. `pulseIn` charge thời gian chờ + độ rộng echo + 3,25 µs; không có xung thì charge chi phí đo của contract UNO §4.4 (20 752 µs với timeout 30000, **không phải** 30000: R0.4). Lệnh đọc là đồng bộ và đọc world state tại `world.t`.
 - `VirtualScheduler.advanceTo(tWorld)` resolve timer **từng cái một** theo thứ tự `(deadline, seq)`. Với mỗi timer: đặt `programClock = deadline`, rồi `await whenBlocked()`. Không có lateness: `repeat 100 { wait 10 }` kết thúc đúng 1000 ms ảo.
 - Ở chế độ ảo, `budget.step()` kiểm **mọi** step (bỏ khoảng 256). Khi `programClock ≥ world.t + dt` thì program **park** (một waiter đặc biệt) cho tới tick sau. Nhờ vậy program không bao giờ chạy trước world quá một `dt`.
 - "Blocked" là một trong ba: đăng ký `sleep`, đăng ký `park`, hoặc kết thúc. Yield housekeeping theo wall-clock không bao giờ tính là blocked.
@@ -247,7 +247,7 @@ type RobotGoalSpec = { id: string; label: { vi: string; en: string }; points: nu
 1. **Program không có `wait`** (`forever` dày hoặc `while dist > 20` trong on-start): program không được chạy trước world quá `dt`, sim không đóng băng. *Test ở R2.3:* `pulseIn loop never leads world by more than dt`; `tight forever loop never blocks a tick > 8 ms wall`.
 2. **Tab bị ẩn / máy chậm giữa lúc Kiểm tra**: kết quả **giống hệt**. *Test ở R6.3:* `same score/passed/hash for 1×, 4× and headless`.
 3. **Robot lật, kẹt tường, rơi khỏi sa bàn**: không NaN, không treo, goal trượt kèm giải thích, Reset robot về trạng thái y như mới. *Test ở R3.4/R3.6:* `robot falling off arena yields outOfArena and finite poses`; `resetRobot hash equals fresh start`.
-4. **Xung đột timer/chân** (vd. kit vendor đặt motor PWM ở D10 khi có servo): cho tới khi C2 có trace, sim **từ chối chạy** với `timer-claimed`, không đoán. *Test ở R1.2:* `pwm on D10 with servo is refused with timer-claimed`.
+4. **Xung đột timer/chân** (vd. kit vendor đặt motor PWM ở D10 khi có servo): R0.4 đã có trace (ADR 0003 §3.4–3.5: chân giữ LOW, `tone` đổi tần số), quyết định vẫn là sim **từ chối chạy** với `timer-claimed` (contract UNO §5.3, U-48). *Test ở R1.2:* `pwm on D10 with servo is refused with timer-claimed`.
 5. **WebGL không có hoặc mất context** (máy trường học, iframe): lab vẫn dùng được qua top view 2D, state sim không mất. *Test ở R4.6:* e2e với WebGL tắt.
 
 ---
@@ -346,8 +346,8 @@ Mỗi task ghi **Files**, **Interfaces**, **Tests** (tên + assertion chính), *
   - Mỗi lệnh `charge(costsUs[call])`.
 - Tests:
   - `analogWrite(D7,100) → LOW and warns not-pwm`;
-  - `analogRead clamps to 0..adcMax and charges 112 µs`;
-  - `pulseIn returns 0 on timeout and charges timeoutUs`;
+  - `analogRead clamps to 0..adcMax and charges 105.8125 µs` (contract UNO §4.4, đo ở R0.4; lần đầu 201.8125 µs);
+  - `pulseIn returns 0 on timeout and charges the no-pulse cost` (contract UNO §4.4: 20752 µs với timeout 30000);
   - `wire write to unattached address → wire-nack diagnostic`.
 
 **R1.4 Driver + binding (24h).**
@@ -596,7 +596,7 @@ Test `tests/robot-scenarios.test.ts`:
   - bảng op → include/helper là `Record` có kiểu đầy đủ (như `modules.ts`);
   - `scripts/check-arduino.mjs` (`pnpm check:arduino`): `arduino-cli lib install <name>@<ver>` theo `Driver.cpp.libraries`, rồi `arduino-cli compile --fqbn arduino:avr:uno`. Không có tool thì ghi **L2 = PENDING**, không PASS.
 - Thứ tự cố định: header comment (scenario, kit@version) → `#include` → `#define` chân từ kit → globals → helper driver → hàm của học sinh → `setup()` → `loop()`. Chỉ `Servo.h` của core; không thư viện GPL.
-- Golden **bắt buộc** (không phụ thuộc C2): `300*200 literal emits 300L*200L`; `millis compared as (long)`; `countUp evaluates bounds once and leaves variable at last value`; `INT32 wrap`; `every scenario solution compiles` (L2).
+- Golden **bắt buộc** (không phụ thuộc C2): `300*200 literal emits mul32(300L, 200L)`; `millis compared as (long)`; `countUp evaluates bounds once and leaves variable at last value`; `INT32 wrap` (qua helper `add32…mod32`, không bao giờ toán tử thường: contract UNO §3.2, R0.4); `every scenario solution compiles` (L2).
 
 **C2 avr8js parity harness (24h), nếu R0.4 = go.**
 - Files: `tests/uno-emulator-parity.test.ts`, `scripts/build-parity-hex.mjs`. HEX fixture được commit kèm hash của `.ino` nguồn.
