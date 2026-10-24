@@ -1,12 +1,14 @@
 import { z } from 'zod';
 
 // Curriculum profiles are data (YB plan §8.2, B6). A profile only *chooses*
-// what a project of the Yolo:Bit-compatible family exposes; it defines no
+// what a project of its board family exposes, the Yolo:Bit-compatible one or
+// (N18 R2.1) the UNO-compatible one of the robot lab; it defines no
 // behaviour. Advanced extends Basic by union.
 
 export const curriculumProfileSchema = z.object({
   id: z.string().min(1),
-  family: z.literal('ybc'),
+  /** The board family of every project with this profile (R-F1): the board context reads it, never the boards present. */
+  family: z.enum(['ybc', 'uno']),
   boardType: z.string(),
   /** The profile this one adds to; the effective profile is the union of the chain. */
   extends: z.string().optional(),
@@ -41,7 +43,7 @@ export type ProfileCatalog = {
 /**
  * Builds the catalog from raw data. Invalid data is a programmer error, so
  * this fails fast: a bad schema, a duplicate id, an unknown or circular
- * `extends`, or a different board type than the profile it extends.
+ * `extends`, or a different board type or family than the profile it extends.
  */
 export function createProfileCatalog(rawProfiles: readonly unknown[]): ProfileCatalog {
   const own = new Map<string, CurriculumProfile>();
@@ -71,6 +73,9 @@ export function createProfileCatalog(rawProfiles: readonly unknown[]): ProfileCa
       const parent = resolve(profile.extends, [...chain, id]);
       if (parent.boardType !== profile.boardType) {
         throw new Error(`Profile "${id}" has another board type than "${parent.id}"`);
+      }
+      if (parent.family !== profile.family) {
+        throw new Error(`Profile "${id}" has another family than "${parent.id}"`);
       }
       merged = { ...profile };
       for (const field of profileListFields) {

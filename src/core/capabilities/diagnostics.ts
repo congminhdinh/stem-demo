@@ -41,8 +41,11 @@ export const compileDiagnosticCodes = [...plannedCompileDiagnosticCodes, ...ybc2
 /** Faults of a run: the program stops with one, naming the block (plan §6.3 "Domain guard", §6.7). */
 export const runtimeDiagnosticCodes = ['out-of-domain', 'limit-exceeded', 'zero-division', 'internal-error'] as const;
 
-/** The board context (plan §8.5, R-F5): why a document has no usable board. Run and the Python panel show the same. */
-export const boardContextDiagnosticCodes = ['no-board', 'multiple-boards', 'incompatible-devices'] as const;
+/**
+ * The board context (plan §8.5, R-F5): why a document has no usable board. Run and the Python panel show the same. N18 R2.1:
+ * `unsupported-family`, a context of the uno family, which RunSession never runs (the robot lab's `RobotRunSession` does, B5).
+ */
+export const boardContextDiagnosticCodes = ['no-board', 'multiple-boards', 'incompatible-devices', 'unsupported-family'] as const;
 
 /** What the Python generator reports (YB-5A). */
 export const generatorDiagnosticCodes = [

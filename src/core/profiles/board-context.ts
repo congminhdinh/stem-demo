@@ -10,7 +10,8 @@ import type { CurriculumProfile, ProfileCatalog } from './profile';
 // panel all ask it. Nothing else may derive any of it from the boards that
 // happen to be on the canvas.
 
-export type BoardFamily = 'generic' | 'ybc';
+/** `generic` without a profile; otherwise the profile's family: `ybc` (Yolo:Bit-compatible) or, since N18 R2.1, `uno` (the robot lab). */
+export type BoardFamily = 'generic' | CurriculumProfile['family'];
 
 /** What a board offers to programs: its pin capabilities and onboard parts, as capability ids. */
 export type CapabilitySet = readonly string[];
@@ -20,7 +21,7 @@ export type BoardReadiness =
   | { ok: false; reason: 'no-board' | 'multiple-boards' | 'incompatible-devices'; componentIds: string[] };
 
 export type BoardContext = {
-  /** `ybc` exactly when the document has a profile (R-F1); never from the boards present. */
+  /** The profile's family when the document has a profile, `generic` when it has none (R-F1); never from the boards present. */
   family: BoardFamily;
   /** The effective profile; null for a generic project. */
   profile: CurriculumProfile | null;
@@ -54,7 +55,7 @@ export function resolveBoardContext(
   }
 
   const definitions = new Map(registry.list().map((definition) => [definition.id, definition]));
-  // R-F3: generic = every generic device; ybc = exactly the profile's palette.
+  // R-F3: generic = every generic device; a profile's family (ybc, uno) = exactly the profile's palette.
   const allowedDeviceTypes = profile
     ? profile.palette.filter((deviceType) => definitions.has(deviceType))
     : registry.list().filter((definition) => deviceFamily(definition) === 'generic').map((definition) => definition.id);
@@ -67,7 +68,7 @@ export function resolveBoardContext(
   );
 
   return {
-    family: profile ? 'ybc' : 'generic',
+    family: profile ? profile.family : 'generic',
     profile,
     allowedDeviceTypes,
     blockPacks: profile ? profile.blockPacks : [genericPackId],

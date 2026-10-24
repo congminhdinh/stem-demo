@@ -52,7 +52,11 @@ export type RunDiagnostic = {
   blockId?: string;
 };
 
-export type StartFailureReason = 'no-board' | 'multiple-boards' | 'incompatible-devices' | 'compile-error';
+/**
+ * Why a run did not start. `unsupported-family` (N18 R2.1): a project of the uno family (the robot lab) never runs here; its
+ * program, hardware and world meet in `RobotRunSession` (plan §5.1 B5).
+ */
+export type StartFailureReason = 'no-board' | 'multiple-boards' | 'incompatible-devices' | 'compile-error' | 'unsupported-family';
 
 /** Plain JSON; a new object on every change. */
 export type RunSnapshot = {
@@ -402,6 +406,10 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
     // The family comes from the document's profile, never from the boards on
     // the canvas (R-F1). Only the board context decides what may run.
     const context = resolveBoardContext(project, registry, profiles);
+    // N18 R2.1: this session runs generic and Yolo:Bit-compatible programs only, whatever the board's readiness (B5).
+    if (context.family === 'uno') {
+      return fail('unsupported-family');
+    }
     if (!context.readiness.ok) {
       // no-board and multiple-boards are the reason itself; a device of the wrong family is named.
       return fail(
@@ -539,7 +547,7 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
    * projects go through the legacy compiler and interpreter, unchanged, and `launch`
    * starts the program (it receives the run lazily because the hardware callbacks belong
    * to the run they start); YBC projects give their IR, and `start` composes the run's
-   * services and capabilities and runs it.
+   * services and capabilities and runs it. A uno context never gets here: `start` refuses it.
    */
   const compileFor = (
     context: BoardContext,

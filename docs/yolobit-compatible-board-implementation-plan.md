@@ -880,7 +880,7 @@ type FunctionDef = {                                        // §6.10
 - **Diagnostic mới:**
   - compile: `not-in-profile`, `not-eligible`, `type-mismatch`, `float-not-supported`, `descending-range-not-supported`, `value-out-of-range` (literal), `display-char-unsupported`, `capability-unavailable`, `program-too-large`, `missing-return-value`, `recursion-not-supported`, `wrong-call-arity`;
   - runtime: `out-of-domain`, `limit-exceeded`, `zero-division`, `internal-error`;
-  - board context: `no-board`, `multiple-boards`, `incompatible-devices`.
+  - board context: `no-board`, `multiple-boards`, `incompatible-devices`, `unsupported-family` (N18 R2.1: project family uno, RunSession không chạy; xem plan robot §2, B5).
 
 ---
 

@@ -75,6 +75,8 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
     () => resolveBoardContext({ profile, circuit: document.circuit }, registry, profiles),
     [profile, document.circuit, registry, profiles],
   );
+  // Only a Yolo:Bit-compatible project has the board panel, the buzzer and the Python panel. A generic project has none of them,
+  // and neither has a uno one (N18 R2.1): the robot lab (R4.1) brings its own chrome, and its code is C++ (C1).
   const isYbc = context.family === 'ybc';
   const boardId = context.readiness.ok ? context.readiness.board.id : null;
   // The sound follows every snapshot of the session, not the one a frame shows (see useBuzzerSound).
@@ -337,7 +339,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
       )}
     </section>
   );
-  const pythonShown = context.family === 'ybc';
+  const pythonShown = isYbc;
   const programRegion = (
     <section
       className={
@@ -358,7 +360,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
       >
         <BlocklyPanel ref={blocklyRef} projectStore={projectStore} packs={packs} toolbox={toolbox} fitOnLoad={lab !== null} onLoadFailed={recoverProgram} />
       </ErrorBoundary>
-      {/* Python exists for Yolo:Bit-compatible projects only (R-F5); a generic project has no panel. */}
+      {/* Python exists for Yolo:Bit-compatible projects only (R-F5); a generic or a uno project has no panel. */}
       {pythonShown && (
         <PythonPanel
           key={loadRevision}

@@ -1,4 +1,4 @@
-import { deviceFamily } from '../devices/device-definition';
+import { deviceFamily, type DeviceFamily } from '../devices/device-definition';
 import {
   arithDefinition,
   arithType,
@@ -88,7 +88,8 @@ export type Toolbox = { kind: string; contents: readonly ToolboxCategory[] };
 
 export type BlockPack = {
   id: string;
-  family: 'generic' | 'ybc';
+  /** The board family whose projects show the pack (N18 R2.1: `uno` for the robot lab's packs, R2.2). */
+  family: DeviceFamily;
   /** Definitions this pack registers with Blockly. Packs may share one (the hats); the definitions must then be equal. */
   blocks: readonly BlockDefinitionJson[];
   /** Every block type a project using this pack may contain: its definitions and the Blockly built-ins it uses. */
@@ -343,11 +344,16 @@ export function createHardwarePacks(): BlockPack[] {
   }));
 }
 
-/** The pins each pin block offers: those the Yolo:Bit-compatible boards of the registry allow (reserved ones left out). */
-export function ybcPinChoices(registry: DeviceRegistry): PinChoices {
-  const boards = registry.list().filter((definition) => deviceFamily(definition) === 'ybc' && definition.board !== undefined);
+/** The pins each pin block of `family` offers: those its boards in the registry allow (reserved ones left out), each once. */
+export function boardPinChoices(registry: DeviceRegistry, family: DeviceFamily): PinChoices {
+  const boards = registry.list().filter((definition) => deviceFamily(definition) === family && definition.board !== undefined);
   const names = (capability: keyof PinChoices) => [...new Set(boards.flatMap((definition) => usablePins(definition, capability)))];
   return { digital: names('digital'), analogIn: names('analogIn'), pwm: names('pwm'), servo: names('servo') };
+}
+
+/** The pins each pin block offers: those the Yolo:Bit-compatible boards of the registry allow (reserved ones left out). */
+export function ybcPinChoices(registry: DeviceRegistry): PinChoices {
+  return boardPinChoices(registry, 'ybc');
 }
 
 /** The header pins of a Yolo:Bit-compatible project (YB-4): write, digital read and analog read of P0–P2. */

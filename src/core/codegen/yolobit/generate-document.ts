@@ -28,7 +28,8 @@ export type DocumentGeneration =
 
 /**
  * The Python of a Yolo:Bit-compatible document, or why there is none. Null for a
- * generic document: it has no Python generation (R-F5).
+ * document of another family: a generic one has no Python generation (R-F5), and a
+ * uno one (N18) is C++ for Arduino AVR, which this generator never writes (C1 does).
  */
 export function generateForDocument(
   project: Pick<ProjectDocument, 'profile' | 'circuit' | 'program'>,

@@ -14,8 +14,8 @@ const advanced = productionProfiles.get('ybc-advanced');
 const base = { family: 'ybc', boardType: 'ybc-board', constructs: [], blockPacks: [], palette: [], controls: [], variableTypes: [] };
 
 describe('profile catalog', () => {
-  it('lists the two production profiles', () => {
-    expect(productionProfiles.ids()).toEqual(['ybc-basic', 'ybc-advanced']);
+  it('lists the two production profiles, then the two UNO ones of N18 R2.1', () => {
+    expect(productionProfiles.ids()).toEqual(['ybc-basic', 'ybc-advanced', 'uno-basic', 'uno-advanced']);
   });
 
   it('answers undefined for an unknown id', () => {
