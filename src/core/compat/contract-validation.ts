@@ -1,20 +1,27 @@
 import {
-  EVIDENCE_SCOPE,
-  FIELD_CLAIM_KINDS,
+  claimLevels,
   ofFields,
+  rulesOf,
+  type AnyEvidenceKind,
   type Claim,
+  type CompatContract,
   type ConstructContract,
+  type ContractRules,
   type Domain,
   type FieldEntry,
   type ModuleContract,
   type OfField,
   type Pred,
+  type ProfileId,
   type Term,
+  type UnoContract,
   type YolobitContract,
 } from './contract-types';
 
 // The rules that turn the contract's data into decisions (contract §21 invariants,
 // plan §6.2 exposure eligibility gate EG, RV-1). Pure functions over the data.
+// Since N18 R0.3 they apply to the UNO contract too: every function reads the evidence rules of the contract's
+// target (`rulesOf`), so the Yolo:Bit contract is judged exactly as before and the UNO one by its own scope.
 
 /** `REJECTED` is the hypothetical switch of contract §22.3: claims that rest on the simulator alone stop counting. */
 export type Rv1Mode = 'ACCEPT_WITH_RESTRICTIONS' | 'REJECTED';
@@ -78,18 +85,27 @@ export function evaluatePred(pred: Pred, context: PredContext): boolean {
 
 // --- Evidence ---------------------------------------------------------------------
 
+/** "A or B", "A, B or C": how the messages name a list of evidence kinds. */
+const orList = (kinds: readonly AnyEvidenceKind[]) =>
+  kinds.length > 1 ? `${kinds.slice(0, -1).join(', ')} or ${kinds[kinds.length - 1]}` : (kinds[0] ?? '');
+
+/** The text the generator of a target writes for a row, and that target's name for it. */
+const mappingOf = (construct: ConstructContract, rules: ContractRules) => (rules.mapping === 'python' ? construct.python : construct.cpp);
+const mappingName = (rules: ContractRules) => (rules.mapping === 'python' ? 'Python' : 'C++');
+
 /** Problems with one claim's sources, independent of RV-1 (invariant 2). */
-export function claimProblems(claim: Claim, contract: YolobitContract): string[] {
+export function claimProblems(claim: Claim, contract: CompatContract): string[] {
   if (claim.sources.length === 0) {
     return ['a claim has no source'];
   }
+  const rules = rulesOf(contract);
   return claim.sources.flatMap((id) => {
     const source = contract.evidence[id];
     if (!source) {
       return [`claim "${claim.kind}" cites unknown evidence ${id}`];
     }
     const problems: string[] = [];
-    if (!EVIDENCE_SCOPE[source.kind].includes(claim.kind)) {
+    if (!(rules.evidenceScope[source.kind] ?? []).includes(claim.kind)) {
       problems.push(`${id} (${source.kind}) may not establish a "${claim.kind}" claim`);
     }
     if (!source.supports.includes(claim.kind)) {
@@ -102,23 +118,26 @@ export function claimProblems(claim: Claim, contract: YolobitContract): string[]
 /**
  * A claim counts when its sources are sound. If RV-1 were rejected, sources
  * of kind SIM would not count, so a claim with nothing else behind it fails.
+ * For the UNO contract the same switch withdraws the emulator (EMU).
  */
-export function isClaimEstablished(claim: Claim, contract: YolobitContract, rv1: Rv1Mode = contract.rv1): boolean {
+export function isClaimEstablished(claim: Claim, contract: CompatContract, rv1: Rv1Mode = contract.rv1): boolean {
   if (claimProblems(claim, contract).length > 0) {
     return false;
   }
-  return rv1 === 'REJECTED' ? claim.sources.some((id) => contract.evidence[id]?.kind !== 'SIM') : true;
+  const { emulator } = rulesOf(contract);
+  return rv1 === 'REJECTED' ? claim.sources.some((id) => contract.evidence[id]?.kind !== emulator) : true;
 }
 
-/** True when a claim of the field rests on the public simulator alone (derived, never written by hand). */
-export function isFieldSimDependent(entry: FieldEntry, contract: YolobitContract): boolean {
+/** True when a claim of the field rests on the public simulator (UNO: the emulator) alone (derived, never written by hand). */
+export function isFieldSimDependent(entry: FieldEntry, contract: CompatContract): boolean {
+  const { emulator } = rulesOf(contract);
   return (
     (entry.label === 'VERIFIED' || entry.label === 'DOCUMENTED') &&
-    entry.claims.some((claim) => claim.sources.every((id) => contract.evidence[id]?.kind === 'SIM'))
+    entry.claims.some((claim) => claim.sources.every((id) => contract.evidence[id]?.kind === emulator))
   );
 }
 
-export function simDependentFields(item: ConstructContract | ModuleContract, contract: YolobitContract): string[] {
+export function simDependentFields(item: ConstructContract | ModuleContract, contract: CompatContract): string[] {
   return Object.entries(item.fields)
     .filter(([, entry]) => isFieldSimDependent(entry, contract))
     .map(([field]) => field);
@@ -132,13 +151,14 @@ export function simDependentFields(item: ConstructContract | ModuleContract, con
  * sources that record the observation of THIS field. The label must match the
  * sources it names. Other labels have nothing to check here.
  */
-export function entrySemanticProblems(name: string, field: OfField, entry: FieldEntry, contract: YolobitContract): string[] {
+export function entrySemanticProblems(name: string, field: OfField, entry: FieldEntry, contract: CompatContract): string[] {
   if (entry.label !== 'VERIFIED' && entry.label !== 'DOCUMENTED') {
     return [];
   }
+  const rules = rulesOf(contract);
   const problems: string[] = [];
   for (const claim of entry.claims) {
-    if (!FIELD_CLAIM_KINDS[field].includes(claim.kind)) {
+    if (!rules.fieldClaimKinds[field].includes(claim.kind)) {
       problems.push(`${name}: a "${claim.kind}" claim cannot establish ${field}`);
     }
     problems.push(...claimProblems(claim, contract).map((problem) => `${name}: ${problem}`));
@@ -150,11 +170,11 @@ export function entrySemanticProblems(name: string, field: OfField, entry: Field
     }
   }
   const kinds = entry.claims.flatMap((claim) => claim.sources.map((id) => contract.evidence[id]?.kind));
-  if (entry.label === 'VERIFIED' && !kinds.some((kind) => kind === 'GEN' || kind === 'SIM')) {
-    problems.push(`${name} is VERIFIED without a GEN or SIM source`);
+  if (entry.label === 'VERIFIED' && !kinds.some((kind) => kind !== undefined && rules.verifiedBy.includes(kind))) {
+    problems.push(`${name} is VERIFIED without a ${orList(rules.verifiedBy)} source`);
   }
-  if (entry.label === 'DOCUMENTED' && !kinds.some((kind) => kind === 'UI' || kind === 'WEB' || kind === 'MPY')) {
-    problems.push(`${name} is DOCUMENTED without a UI, WEB or MPY source`);
+  if (entry.label === 'DOCUMENTED' && !kinds.some((kind) => kind !== undefined && rules.documentedBy.includes(kind))) {
+    problems.push(`${name} is DOCUMENTED without a ${orList(rules.documentedBy)} source`);
   }
   for (const id of entry.corroboratedBy ?? []) {
     if (!contract.evidence[id]) {
@@ -174,8 +194,14 @@ function fieldProblems(
   name: string,
   field: OfField,
   entry: FieldEntry,
-  owner: { python?: ConstructContract['python']; domain?: Domain; preamble?: readonly string[]; unverifiedFields?: Readonly<Partial<Record<OfField, string>>> },
-  contract: YolobitContract,
+  owner: {
+    python?: ConstructContract['python'];
+    cpp?: ConstructContract['cpp'];
+    domain?: Domain;
+    preamble?: readonly string[];
+    unverifiedFields?: Readonly<Partial<Record<OfField, string>>>;
+  },
+  contract: CompatContract,
   rv1: Rv1Mode,
 ): string[] {
   switch (entry.label) {
@@ -189,7 +215,7 @@ function fieldProblems(
       if (entry.reason === 'domain-restricted' && !owner.domain) {
         return [`field ${name} is n/a by domain but there is no domain`];
       }
-      if (entry.reason === 'explicit-parameter' && !owner.python && !owner.preamble) {
+      if (entry.reason === 'explicit-parameter' && !owner.python && !owner.cpp && !owner.preamble) {
         return [`field ${name} is n/a by explicit parameter but nothing passes it explicitly`];
       }
       return [];
@@ -205,7 +231,7 @@ function fieldProblems(
 }
 
 /** Why a module may not be relied on yet; empty when it may. */
-export function moduleViolations(module: ModuleContract, contract: YolobitContract, rv1: Rv1Mode = contract.rv1): string[] {
+export function moduleViolations(module: ModuleContract, contract: CompatContract, rv1: Rv1Mode = contract.rv1): string[] {
   const problems: string[] = [];
   if (module.eligibility !== 'ELIGIBLE') {
     problems.push(`module ${module.id} is ${module.eligibility}`);
@@ -226,9 +252,10 @@ export function moduleViolations(module: ModuleContract, contract: YolobitContra
  */
 export function exposureViolations(
   construct: ConstructContract,
-  contract: YolobitContract,
+  contract: CompatContract,
   rv1: Rv1Mode = contract.rv1,
 ): string[] {
+  const rules = rulesOf(contract);
   const problems: string[] = [];
   if (construct.eligibility !== 'ELIGIBLE' && construct.eligibility !== 'RESTRICTED') {
     problems.push(`${construct.id} is ${construct.eligibility}`);
@@ -239,8 +266,8 @@ export function exposureViolations(
   if (construct.eligibility === 'RESTRICTED' && !construct.domain) {
     problems.push(`${construct.id} is RESTRICTED without a domain`);
   }
-  if (!construct.python) {
-    problems.push(`${construct.id} has no Python mapping`);
+  if (!mappingOf(construct, rules)) {
+    problems.push(`${construct.id} has no ${mappingName(rules)} mapping`);
   }
   const preambles = construct.modules.flatMap((id) => contract.modules.find((module) => module.id === id)?.preamble ?? []);
   for (const field of ofFields) {
@@ -255,14 +282,14 @@ export function exposureViolations(
   return problems;
 }
 
-export function isExposable(construct: ConstructContract, contract: YolobitContract, rv1: Rv1Mode = contract.rv1): boolean {
+export function isExposable(construct: ConstructContract, contract: CompatContract, rv1: Rv1Mode = contract.rv1): boolean {
   return exposureViolations(construct, contract, rv1).length === 0;
 }
 
 /** The constructs that pass the gate for a profile. */
 export function exposableConstructs(
-  contract: YolobitContract,
-  profileId: 'ybc-basic' | 'ybc-advanced',
+  contract: CompatContract,
+  profileId: ProfileId,
   rv1: Rv1Mode = contract.rv1,
 ): ConstructContract[] {
   return contract.constructs.filter((construct) => construct.profiles.includes(profileId) && isExposable(construct, contract, rv1));
@@ -276,19 +303,21 @@ export function exposableConstructs(
 export function profileConstructViolations(
   profileId: string,
   constructIds: readonly string[],
-  contract: YolobitContract,
+  contract: CompatContract,
   rv1: Rv1Mode = contract.rv1,
 ): string[] {
+  const rules = rulesOf(contract);
   return constructIds.flatMap((id) => {
     const construct = contract.constructs.find((candidate) => candidate.id === id);
     if (!construct) {
       return [`${profileId} lists ${id}, which is not a contract row`];
     }
     const problems = exposureViolations(construct, contract, rv1).map((problem) => `${profileId}: ${problem}`);
-    if (profileId !== 'ybc-basic' && profileId !== 'ybc-advanced') {
-      return [`${profileId} is not a Yolo:Bit profile`, ...problems];
+    const profile = rules.profiles.find((candidate) => candidate === profileId);
+    if (!profile) {
+      return [`${profileId} is not a ${rules.family} profile`, ...problems];
     }
-    if (!construct.profiles.includes(profileId)) {
+    if (!construct.profiles.includes(profile)) {
       problems.push(`${profileId}: ${id} is not meant for this profile`);
     }
     return problems;
@@ -311,11 +340,108 @@ export function generatorAllowlist(contract: YolobitContract): { forms: string[]
   };
 }
 
+/**
+ * UNO contract §15 invariant 9: the C++ a generator may write is exactly what exposable rows list: their forms, the
+ * includes, globals and setup lines they need, the helpers they name, and the pinned libraries.
+ */
+export function cppAllowlist(contract: UnoContract): { forms: string[]; includes: string[]; libraries: string[]; helpers: string[]; globals: string[]; setup: string[] } {
+  const rows = contract.constructs.filter((construct) => isExposable(construct, contract));
+  const unique = (values: (string | undefined)[]) => [...new Set(values.filter((value): value is string => value !== undefined))];
+  return {
+    forms: unique(rows.map((row) => row.cpp?.form)),
+    includes: unique(rows.flatMap((row) => row.cpp?.includes ?? [])),
+    libraries: unique(rows.flatMap((row) => (row.cpp?.libraries ?? []).map((library) => `${library.name}@${library.version}`))),
+    helpers: unique(rows.flatMap((row) => row.cpp?.helpers ?? [])),
+    globals: unique(rows.flatMap((row) => row.cpp?.globals ?? [])),
+    setup: unique(rows.flatMap((row) => row.cpp?.setup ?? [])),
+  };
+}
+
+/**
+ * What the UNO contract adds to the shared invariants (its §15): no INFERRED label and no owner-opened UNVERIFIED
+ * field or form (an open row has evidence for every field, R0.3 acceptance); every row carries its claim levels, a
+ * PASS names evidence of the right kind (L2 compile, L2e emulator), L3 is never PASS; a C++ mapping names only known
+ * helpers and the libraries of its modules; no Python mapping.
+ */
+function unoProblems(contract: UnoContract): string[] {
+  const problems: string[] = [];
+  const levelKind: Record<'L2' | 'L2e', AnyEvidenceKind> = { L2: 'CC', L2e: 'EMU' };
+  for (const construct of contract.constructs) {
+    for (const [field, entry] of Object.entries(construct.fields)) {
+      if (entry.label === 'INFERRED') {
+        problems.push(`${construct.id}.${field} is INFERRED: the UNO contract uses VERIFIED, DOCUMENTED, UNKNOWN or n/a only`);
+      }
+    }
+    if (construct.unverifiedFields !== undefined || construct.unverifiedForms !== undefined) {
+      problems.push(`${construct.id} names UNVERIFIED fields or forms: the UNO contract opens a row on evidence only`);
+    }
+    if (construct.python) {
+      problems.push(`${construct.id} has a Python mapping in the UNO contract`);
+    }
+    if (!construct.levels) {
+      problems.push(`${construct.id} has no claim levels`);
+    } else {
+      for (const level of claimLevels) {
+        const status = construct.levels[level];
+        if (status.status !== 'PASS') {
+          continue;
+        }
+        if (level === 'L1' || level === 'L3') {
+          problems.push(`${construct.id}.${level} is PASS, but no ${level === 'L1' ? 'simulator test' : 'physical'} evidence exists in contract v0`);
+          continue;
+        }
+        for (const id of status.evidence) {
+          const kind = contract.evidence[id]?.kind;
+          if (kind !== levelKind[level]) {
+            problems.push(`${construct.id}.${level} cites ${id}, which is not ${levelKind[level]} evidence`);
+          }
+        }
+      }
+      const exposed = construct.eligibility === 'ELIGIBLE' || construct.eligibility === 'RESTRICTED';
+      if (exposed && construct.levels.L2.status !== 'PASS') {
+        problems.push(`${construct.id} is ${construct.eligibility} but its C++ form has not compiled (L2)`);
+      }
+    }
+    const libraries = new Set(
+      construct.modules.flatMap((id) => {
+        const library = contract.modules.find((module) => module.id === id)?.library;
+        return library ? [`${library.name}@${library.version}`] : [];
+      }),
+    );
+    for (const library of construct.cpp?.libraries ?? []) {
+      if (!libraries.has(`${library.name}@${library.version}`)) {
+        problems.push(`${construct.id} needs ${library.name}@${library.version}, which none of its modules pins`);
+      }
+    }
+    for (const helper of construct.cpp?.helpers ?? []) {
+      if (!contract.helpers[helper]) {
+        problems.push(`${construct.id} names unknown helper ${helper}`);
+      } else if (!contract.helpers[helper].usedBy.includes(construct.id)) {
+        problems.push(`helper ${helper} does not list ${construct.id} among its users`);
+      }
+    }
+  }
+  for (const [id, helper] of Object.entries(contract.helpers)) {
+    for (const user of helper.usedBy) {
+      if (!contract.constructs.find((construct) => construct.id === user)?.cpp?.helpers?.includes(id)) {
+        problems.push(`helper ${id} lists ${user}, which does not use it`);
+      }
+    }
+  }
+  for (const id of [...contract.costsEvidence, ...contract.millis.evidence]) {
+    if (contract.evidence[id]?.kind !== 'EMU') {
+      problems.push(`${id} is cited for a measured number but is not EMU evidence`);
+    }
+  }
+  return problems;
+}
+
 // --- The invariants of contract §21 (the contract's own consistency) -------------------------
 
 /** Every way the data breaks the frozen invariants; empty when it is consistent. */
-export function validateContract(contract: YolobitContract): string[] {
-  const problems: string[] = [];
+export function validateContract(contract: CompatContract): string[] {
+  const rules = rulesOf(contract);
+  const problems: string[] = contract.contractId === 'uno-arduino-avr' ? unoProblems(contract) : [];
   const check = (owner: string, name: OfField, entry: FieldEntry) => {
     problems.push(...entrySemanticProblems(`${owner}.${name}`, name, entry, contract));
   };
@@ -382,15 +508,15 @@ export function validateContract(contract: YolobitContract): string[] {
           problems.push(`${construct.id} needs module ${id}, which is not ELIGIBLE`);
         }
       }
-      if (!construct.python) {
-        problems.push(`${construct.id} is ${construct.eligibility} without a Python mapping`);
+      if (!mappingOf(construct, rules)) {
+        problems.push(`${construct.id} is ${construct.eligibility} without a ${mappingName(rules)} mapping`);
       }
     } else {
       if (!construct.exclusionReason) {
         problems.push(`${construct.id} is ${construct.eligibility} without a reason`);
       }
-      if (construct.python) {
-        problems.push(`${construct.id} is ${construct.eligibility} but has a Python mapping`);
+      if (mappingOf(construct, rules)) {
+        problems.push(`${construct.id} is ${construct.eligibility} but has a ${mappingName(rules)} mapping`);
       }
       if ((construct.unverifiedForms?.length ?? 0) > 0) {
         problems.push(`${construct.id} is ${construct.eligibility} but has UNVERIFIED forms`);

@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
-// The machine-readable Yolo:Bit contract: shapes (docs/yolobit-compatibility-contract.md §21).
-// The values are in `yolobit-contract.ts`, copied from the frozen contract;
-// the rules that decide what a learner may see are in `contract-validation.ts`.
+// The machine-readable compatibility contracts: shapes (docs/yolobit-compatibility-contract.md §21 and, since N18 R0.3,
+// docs/uno-compatibility-contract.md §15). The values are in `yolobit-contract.ts` and `uno-contract.ts`; the rules that
+// decide what a learner may see are in `contract-validation.ts`, one set per target (`rulesOf`).
 // Pure data and types (B1, B6): nothing here knows about blocks, UI or runtime.
 
 // --- Labels, evidence, claims ---------------------------------------------------
@@ -63,6 +63,11 @@ export const claimKinds = [
   'physical-timing',
   'firmware-identity',
   'firmware-module',
+  // UNO (N18 R0.3): the compiler and the emulator.
+  'compile-ok',
+  'compile-size',
+  'disassembly',
+  'emu-trace',
 ] as const;
 export type ClaimKind = (typeof claimKinds)[number];
 
@@ -120,7 +125,7 @@ export type LedgerSupport = ClaimKind | 'snapshot' | 'method' | 'context';
 export type EvidenceRef = string;
 
 export type EvidenceEntry = {
-  kind: EvidenceKind;
+  kind: AnyEvidenceKind;
   date: string;
   source: string;
   action: string;
@@ -199,13 +204,21 @@ export type Domain = {
 
 export const moduleIds = ['C-03a', 'C-03b', 'C-03c', 'C-03d', 'C-03e'] as const;
 export type ModuleId = (typeof moduleIds)[number];
+/** UNO (N18 R0.3, contract §2): the Arduino AVR core and the Servo library. */
+export const unoModuleIds = ['U-M1', 'U-M2'] as const;
+export type UnoModuleId = (typeof unoModuleIds)[number];
+
+/** A pinned library or core: what `arduino-cli lib install <name>@<version>` (or `core install`) installs. */
+export type CppLibrary = { name: string; version: string; license: string };
 
 /** Availability of a module is separate from the syntax that imports it (contract §2.2, N2). */
 export type ModuleContract = {
-  id: ModuleId;
-  module: 'time' | 'yolobit' | 'music' | 'random' | 'builtins';
-  /** The text a program writes to import it; builtins have none. */
+  id: ModuleId | UnoModuleId;
+  module: 'time' | 'yolobit' | 'music' | 'random' | 'builtins' | 'arduino-core' | 'servo';
+  /** The text a program writes to import it; builtins (and the Arduino core, which the .ino build includes) have none. */
   importForm: string | null;
+  /** UNO: the pinned core or library the module is. */
+  library?: CppLibrary;
   /** Exact lines the generator writes after the import (IM-2, IM-4). */
   preamble?: readonly string[];
   fields: { import: FieldEntry; module: FieldEntry };
@@ -221,7 +234,10 @@ export type ModuleContract = {
 /** The builtins a generated program may call (IM-9; N17 B4: min and max, for the ends of a random number). */
 export const generatorBuiltins = ['print', 'range', 'str', 'int', 'len', 'min', 'max'] as const;
 
-export type Profiles = readonly ('ybc-basic' | 'ybc-advanced')[];
+export const profileIds = ['ybc-basic', 'ybc-advanced', 'uno-basic', 'uno-advanced'] as const;
+export type ProfileId = (typeof profileIds)[number];
+export type Profiles = readonly ProfileId[];
+export type Tier = Partial<Record<ProfileId, 'MUST' | 'NICE'>>;
 
 export type ConstructContract = {
   /** The contract id, e.g. 'C-39'. */
@@ -230,16 +246,20 @@ export type ConstructContract = {
   alsoCovers?: readonly string[];
   capability: string;
   /** Curriculum intent (contract §15.1 "Tier"); whether it is shown is the eligibility's decision. */
-  tier: { 'ybc-basic'?: 'MUST' | 'NICE'; 'ybc-advanced'?: 'MUST' | 'NICE' };
+  tier: Tier;
   /** The profiles that may show the construct once it passes the gate. Empty for EXCLUDED and DEFERRED. */
   profiles: Profiles;
   eligibility: Eligibility;
   /** Human-readable restrictions for RESTRICTED rows (the machine-checkable part is `domain`). */
   restrictions: readonly string[];
   /** Ids of the modules the construct needs; it is only eligible if every one is. */
-  modules: readonly ModuleId[];
+  modules: readonly (ModuleId | UnoModuleId)[];
   /** What the generator emits. Absent for EXCLUDED and DEFERRED: they have no mapping. */
   python?: { form: string; builtins?: readonly (typeof generatorBuiltins)[number][] };
+  /** UNO (N18 R0.3): what the Arduino C++ generator emits. Absent for EXCLUDED and DEFERRED. */
+  cpp?: CppMapping;
+  /** UNO: how far each claim level has got for this row (contract §12). */
+  levels?: ClaimLevels;
   /** What the public editor generated for it, kept as a note; never an allowlist entry. */
   observedPython?: string;
   /**
@@ -309,6 +329,231 @@ export type YolobitContract = {
   modules: readonly ModuleContract[];
   constructs: readonly ConstructContract[];
 };
+
+// --- UNO (N18 R0.3, docs/uno-compatibility-contract.md) -------------------------------------
+
+/**
+ * Where UNO evidence comes from (contract §0.2): EMU an avr8js trace of a HEX we compiled from our own sketch;
+ * CC arduino-cli output for our own sketch (compile, sizes, disassembly); ARD the Arduino reference and library
+ * docs; DS the ATmega328P datasheet; CXX the C++ draft and the GCC manual; PKG release listings (snapshot only).
+ */
+export const unoEvidenceKinds = ['EMU', 'CC', 'ARD', 'DS', 'CXX', 'PKG'] as const;
+export type UnoEvidenceKind = (typeof unoEvidenceKinds)[number];
+export type AnyEvidenceKind = EvidenceKind | UnoEvidenceKind;
+
+/** What each UNO evidence kind may establish (contract §0.4, the emulator boundary). */
+export const UNO_EVIDENCE_SCOPE: Readonly<Record<UnoEvidenceKind, readonly ClaimKind[]>> = {
+  EMU: ['emu-trace'],
+  CC: ['compile-ok', 'compile-size', 'disassembly'],
+  ARD: ['documented'],
+  DS: ['documented'],
+  CXX: ['documented', 'language'],
+  PKG: [],
+};
+
+/** Claims the emulator can never establish: it is not the board (contract §0.4, L3). */
+export const emuForbiddenClaims = ['physical-range', 'electrical', 'physical-timing', 'firmware-identity'] as const satisfies readonly ClaimKind[];
+
+/** Which kinds of claim can establish each observable field of an UNO row (contract §0.4). */
+export const UNO_FIELD_CLAIM_KINDS: Readonly<Record<OfField, readonly ClaimKind[]>> = {
+  call: ['compile-ok', 'documented', 'language'],
+  import: ['compile-ok'],
+  module: ['compile-ok', 'documented'],
+  unit: ['documented', 'emu-trace'],
+  range: ['documented', 'emu-trace', 'language'],
+  default: ['documented', 'emu-trace'],
+  clamp: ['documented', 'emu-trace'],
+  round: ['documented', 'emu-trace', 'language'],
+  block: ['documented', 'emu-trace', 'disassembly'],
+  yield: ['emu-trace'],
+  return: ['documented', 'emu-trace', 'language'],
+  error: ['documented', 'emu-trace', 'language'],
+  coord: ['documented'],
+  event: ['documented'],
+  content: ['documented', 'emu-trace', 'language'],
+};
+
+/**
+ * What the Arduino C++ generator emits for a row (contract §2.3). `form` has <placeholders> as the Python forms do;
+ * `includes`, `globals` and `setup` are written once per sketch (setup lines at the top of `setup()`); `helpers` are
+ * ids of `UnoContract.helpers`, whose text is written once before `setup()`.
+ */
+export type CppMapping = {
+  form: string;
+  includes: readonly string[];
+  libraries: readonly CppLibrary[];
+  helpers?: readonly string[];
+  globals?: readonly string[];
+  setup?: readonly string[];
+};
+
+/** The claim levels of plan D-R11 (contract §12). L3 is never PASS here: no physical evidence exists yet. */
+export const claimLevels = ['L1', 'L2', 'L2e', 'L3'] as const;
+export type ClaimLevel = (typeof claimLevels)[number];
+export type LevelStatus = { status: 'PASS'; evidence: readonly EvidenceRef[] } | { status: 'PENDING'; by: string } | { status: 'n/a'; note: string };
+export type ClaimLevels = Readonly<Record<ClaimLevel, LevelStatus>>;
+
+/** The Arduino calls the virtual UNO charges (`BoardProfile.costsUs`, contract §4.4), in µs. */
+export const arduinoCalls = [
+  'pinMode',
+  'pinModeInputPullup',
+  'digitalWrite',
+  'digitalWriteTimerPin',
+  'digitalRead',
+  'digitalReadTimerPin',
+  'analogRead',
+  'analogReadFirst',
+  'analogWrite',
+  'analogWriteDigital',
+  'millis',
+  'delayOverhead',
+  'servoWrite',
+  'tone',
+  'noTone',
+  'pulseInAfterPulse',
+  'pulseInNoPulse30000',
+  'ultrasonicCmOverhead',
+  'ultrasonicCmNoEcho',
+  'serialWriteByte',
+  'serialQueueByte',
+  'serialLineByte',
+  'serialPrintLongBase',
+  'serialPrintLongDigit',
+  'serialPrintLongSign',
+  'serialPrintln',
+] as const;
+export type ArduinoCall = (typeof arduinoCalls)[number];
+
+export type UnoContract = {
+  contractId: 'uno-arduino-avr';
+  version: string;
+  status: string;
+  /** The toolchain, library and emulator versions the whole contract is pinned to (contract §1). */
+  snapshot: {
+    pinnedOn: string;
+    fqbn: 'arduino:avr:uno';
+    arduinoCli: string;
+    core: CppLibrary & { published: string };
+    toolchain: string;
+    compilerFlags: string;
+    libraries: readonly (CppLibrary & { published: string })[];
+    emulator: CppLibrary & { published: string };
+    mcuAssumed: 'atmega328p';
+    boardIdentity: 'UNKNOWN';
+    statement: string;
+  };
+  /** The emulator boundary (contract §0.4): avr8js evidence is accepted for what EMU may establish, never for L3. */
+  rv1: 'ACCEPT_WITH_RESTRICTIONS';
+  evidence: Readonly<Record<EvidenceRef, EvidenceEntry>>;
+  board: {
+    mcu: 'atmega328p';
+    clockHz: 16_000_000;
+    adcMax: 1023;
+    pwmMax: 255;
+    flashBytes: 32_256;
+    ramBytes: 2048;
+    pwmPins: readonly { pin: string; timer: 'T0' | 'T1' | 'T2'; mode: 'fast' | 'phase-correct'; frequencyHz: number }[];
+    reserved: readonly { pin: string; when: 'serial' }[];
+    timerClaims: Readonly<Record<'servo' | 'tone', 'T1' | 'T2'>>;
+    nonPwmThreshold: 128;
+  };
+  /** The cxx-int32 numeric model (contract §3). */
+  numeric: {
+    model: 'cxx-int32';
+    min: -2_147_483_648;
+    max: 2_147_483_647;
+    overflow: 'wrap';
+    division: 'truncate-toward-zero';
+    remainder: 'sign-of-dividend';
+    int32MinDividedByMinusOne: -2_147_483_648;
+    remainderByMinusOne: 0;
+    divisionByZero: { quotient: 0; remainder: 0; warning: 'division-by-zero' };
+    boolPrints: { true: '1'; false: '0' };
+    literalSuffix: 'L';
+    int32MinLiteral: '(-2147483647L - 1L)';
+    float: 'excluded';
+  };
+  constants: {
+    LOOP_MIN_US: 50;
+    NODE_US: 1;
+    SERIAL_BAUD: 9600;
+    SERIAL_FRAME_US: 1040;
+    SERIAL_TX_QUEUE_BYTES: 64;
+    PULSEIN_TIMEOUT_US: 30_000;
+    ULTRASONIC_US_PER_CM: 58;
+    ULTRASONIC_MIN_CM: 2;
+    ULTRASONIC_MAX_CM: 400;
+    ULTRASONIC_NO_ECHO_CM: 400;
+    MAX_WAIT_MS: 60_000;
+    COUNT_UP_MAX_END: 2_147_483_646;
+    MOTOR_SPEED_MAX: 100;
+    SERVO_ANGLE_MAX: 180;
+    SERVO_START_ANGLE: 90;
+    TONE_MIN_HZ: 31;
+    TONE_MAX_HZ: 4000;
+    TONE_MIN_MS: 1;
+    TONE_MAX_MS: 60_000;
+    PWM_MAX: 255;
+    RAM_SOLUTION_MAX_PERCENT: 75;
+    RAM_WARN_ABOVE_BYTES: 1536;
+  };
+  /** µs per Arduino call, measured (contract §4.4, ADR 0003 §4). Exact binary fractions where the cycle count is exact. */
+  costsUs: Readonly<Record<ArduinoCall, number>>;
+  costsEvidence: readonly EvidenceRef[];
+  /** Interrupt load measured on the emulated board; the simulator v0 does not charge it (contract §4.5). */
+  isrLoad: { timer0: number; perServo: number; tonePerHz: number; charged: false };
+  /** `millis()` as the board computes it (contract §4.3): n = floor(t / 1024 µs) since setup(); n + floor(3n / 125). */
+  millis: { overflowUs: 1024; fractPerOverflow: 3; fractMax: 125; evidence: readonly EvidenceRef[] };
+  /** Helper texts the generator writes verbatim (contract §3.2, §6), by id. */
+  helpers: Readonly<Record<string, { text: string; usedBy: readonly string[] }>>;
+  /** Diagnostics the UNO compiler and simulator give (contract §13). */
+  diagnostics: readonly { id: string; severity: 'error' | 'warning'; when: string }[];
+  modules: readonly ModuleContract[];
+  constructs: readonly ConstructContract[];
+};
+
+/** Either contract: the validation in contract-validation.ts applies to both, with the rules of its target. */
+export type CompatContract = YolobitContract | UnoContract;
+
+/** The evidence rules of one target, as data. */
+export type ContractRules = {
+  family: 'Yolo:Bit' | 'UNO';
+  evidenceScope: Readonly<Partial<Record<AnyEvidenceKind, readonly ClaimKind[]>>>;
+  fieldClaimKinds: Readonly<Record<OfField, readonly ClaimKind[]>>;
+  /** A VERIFIED field rests on at least one source of these kinds; a DOCUMENTED field on one of the other list. */
+  verifiedBy: readonly AnyEvidenceKind[];
+  documentedBy: readonly AnyEvidenceKind[];
+  /** The simulator or emulator whose acceptance could be withdrawn (RV-1): its claims then stop counting. */
+  emulator: AnyEvidenceKind;
+  mapping: 'python' | 'cpp';
+  profiles: readonly ProfileId[];
+};
+
+export const YOLOBIT_RULES: ContractRules = {
+  family: 'Yolo:Bit',
+  evidenceScope: EVIDENCE_SCOPE,
+  fieldClaimKinds: FIELD_CLAIM_KINDS,
+  verifiedBy: ['GEN', 'SIM'],
+  documentedBy: ['UI', 'WEB', 'MPY'],
+  emulator: 'SIM',
+  mapping: 'python',
+  profiles: ['ybc-basic', 'ybc-advanced'],
+};
+
+export const UNO_RULES: ContractRules = {
+  family: 'UNO',
+  evidenceScope: UNO_EVIDENCE_SCOPE,
+  fieldClaimKinds: UNO_FIELD_CLAIM_KINDS,
+  verifiedBy: ['EMU', 'CC'],
+  documentedBy: ['ARD', 'DS', 'CXX'],
+  emulator: 'EMU',
+  mapping: 'cpp',
+  profiles: ['uno-basic', 'uno-advanced'],
+};
+
+export function rulesOf(contract: Pick<CompatContract, 'contractId'>): ContractRules {
+  return contract.contractId === 'uno-arduino-avr' ? UNO_RULES : YOLOBIT_RULES;
+}
 
 // --- Zod schema (shape only; the cross-field invariants are in contract-validation.ts) ---
 
@@ -455,4 +700,134 @@ export const yolobitContractSchema = z.object({
   }),
   modules: z.array(moduleSchema),
   constructs: z.array(constructSchema),
+});
+
+// --- UNO Zod schema (N18 R0.3; shape only, like the Yolo:Bit one) -----------------------------
+
+const libraryShape = { name: z.string().min(1), version: z.string().min(1), license: z.string().min(1) };
+const librarySchema = z.object(libraryShape).strict();
+const publishedLibrarySchema = z.object({ ...libraryShape, published: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).strict();
+
+const levelStatusSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('PASS'), evidence: z.array(z.string()).min(1) }).strict(),
+  z.object({ status: z.literal('PENDING'), by: z.string().min(1) }).strict(),
+  z.object({ status: z.literal('n/a'), note: z.string().min(1) }).strict(),
+]);
+
+const unoModuleSchema = z.object({
+  id: z.enum(unoModuleIds),
+  module: z.enum(['arduino-core', 'servo']),
+  importForm: z.string().nullable(),
+  library: librarySchema,
+  fields: z.object({ import: fieldEntrySchema, module: fieldEntrySchema }).strict(),
+  eligibility: z.enum(eligibilities),
+  exclusionReason: z.string().optional(),
+});
+
+const unoConstructSchema = z.object({
+  id: z.string().regex(/^U-\d{2}$/),
+  capability: z.string().min(1),
+  tier: z.object({ 'uno-basic': z.enum(['MUST', 'NICE']).optional(), 'uno-advanced': z.enum(['MUST', 'NICE']).optional() }).strict(),
+  profiles: z.array(z.enum(['uno-basic', 'uno-advanced'])),
+  eligibility: z.enum(eligibilities),
+  restrictions: z.array(z.string()),
+  modules: z.array(z.enum(unoModuleIds)),
+  cpp: z
+    .object({
+      form: z.string().min(1),
+      includes: z.array(z.string()),
+      libraries: z.array(librarySchema),
+      helpers: z.array(z.string()).optional(),
+      globals: z.array(z.string()).optional(),
+      setup: z.array(z.string()).optional(),
+    })
+    .strict()
+    .optional(),
+  levels: z.object({ L1: levelStatusSchema, L2: levelStatusSchema, L2e: levelStatusSchema, L3: levelStatusSchema }).strict(),
+  fields: fieldsSchema,
+  domain: domainSchema.optional(),
+  presentation: z.array(z.string()).optional(),
+  blockedBy: z.array(z.string()).optional(),
+  exclusionReason: z.string().optional(),
+}).strict();
+
+export const unoContractSchema = z.object({
+  contractId: z.literal('uno-arduino-avr'),
+  version: z.string(),
+  status: z.string(),
+  snapshot: z
+    .object({
+      pinnedOn: z.string(),
+      fqbn: z.literal('arduino:avr:uno'),
+      arduinoCli: z.string(),
+      core: publishedLibrarySchema,
+      toolchain: z.string(),
+      compilerFlags: z.string(),
+      libraries: z.array(publishedLibrarySchema).min(1),
+      emulator: publishedLibrarySchema,
+      mcuAssumed: z.literal('atmega328p'),
+      boardIdentity: z.literal('UNKNOWN'),
+      statement: z.string(),
+    })
+    .strict(),
+  rv1: z.literal('ACCEPT_WITH_RESTRICTIONS'),
+  evidence: z.record(
+    z.string(),
+    z.object({
+      kind: z.enum(unoEvidenceKinds),
+      date: z.string(),
+      source: z.string(),
+      action: z.string(),
+      observed: z.string(),
+      supports: z.array(z.string()),
+      establishes: z.array(z.enum(ofFields)),
+    }),
+  ),
+  board: z
+    .object({
+      mcu: z.literal('atmega328p'),
+      clockHz: z.literal(16_000_000),
+      adcMax: z.literal(1023),
+      pwmMax: z.literal(255),
+      flashBytes: z.literal(32_256),
+      ramBytes: z.literal(2048),
+      pwmPins: z.array(z.object({ pin: z.string(), timer: z.enum(['T0', 'T1', 'T2']), mode: z.enum(['fast', 'phase-correct']), frequencyHz: z.number().positive() }).strict()).length(6),
+      reserved: z.array(z.object({ pin: z.string(), when: z.literal('serial') }).strict()),
+      timerClaims: z.object({ servo: z.enum(['T1', 'T2']), tone: z.enum(['T1', 'T2']) }).strict(),
+      nonPwmThreshold: z.literal(128),
+    })
+    .strict(),
+  numeric: z
+    .object({
+      model: z.literal('cxx-int32'),
+      min: z.literal(-2_147_483_648),
+      max: z.literal(2_147_483_647),
+      overflow: z.literal('wrap'),
+      division: z.literal('truncate-toward-zero'),
+      remainder: z.literal('sign-of-dividend'),
+      int32MinDividedByMinusOne: z.literal(-2_147_483_648),
+      remainderByMinusOne: z.literal(0),
+      divisionByZero: z.object({ quotient: z.literal(0), remainder: z.literal(0), warning: z.literal('division-by-zero') }).strict(),
+      boolPrints: z.object({ true: z.literal('1'), false: z.literal('0') }).strict(),
+      literalSuffix: z.literal('L'),
+      int32MinLiteral: z.literal('(-2147483647L - 1L)'),
+      float: z.literal('excluded'),
+    })
+    .strict(),
+  constants: z.object(Object.fromEntries(
+    Object.entries({
+      LOOP_MIN_US: 50, NODE_US: 1, SERIAL_BAUD: 9600, SERIAL_FRAME_US: 1040, SERIAL_TX_QUEUE_BYTES: 64, PULSEIN_TIMEOUT_US: 30_000,
+      ULTRASONIC_US_PER_CM: 58, ULTRASONIC_MIN_CM: 2, ULTRASONIC_MAX_CM: 400, ULTRASONIC_NO_ECHO_CM: 400, MAX_WAIT_MS: 60_000,
+      COUNT_UP_MAX_END: 2_147_483_646, MOTOR_SPEED_MAX: 100, SERVO_ANGLE_MAX: 180, SERVO_START_ANGLE: 90, TONE_MIN_HZ: 31, TONE_MAX_HZ: 4000,
+      TONE_MIN_MS: 1, TONE_MAX_MS: 60_000, PWM_MAX: 255, RAM_SOLUTION_MAX_PERCENT: 75, RAM_WARN_ABOVE_BYTES: 1536,
+    }).map(([key, value]) => [key, z.literal(value)]),
+  )).strict(),
+  costsUs: z.object(Object.fromEntries(arduinoCalls.map((call) => [call, z.number().positive()]))).strict(),
+  costsEvidence: z.array(z.string()).min(1),
+  isrLoad: z.object({ timer0: z.number().positive(), perServo: z.number().positive(), tonePerHz: z.number().positive(), charged: z.literal(false) }).strict(),
+  millis: z.object({ overflowUs: z.literal(1024), fractPerOverflow: z.literal(3), fractMax: z.literal(125), evidence: z.array(z.string()).min(1) }).strict(),
+  helpers: z.record(z.string(), z.object({ text: z.string().min(1), usedBy: z.array(z.string()).min(1) }).strict()),
+  diagnostics: z.array(z.object({ id: z.string(), severity: z.enum(['error', 'warning']), when: z.string().min(1) }).strict()),
+  modules: z.array(unoModuleSchema),
+  constructs: z.array(unoConstructSchema),
 });
