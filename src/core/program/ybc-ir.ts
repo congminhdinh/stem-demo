@@ -35,6 +35,11 @@
 //
 // N17 B5 adds the two outputs of the Advanced board's pins, pin calls like a digital write: an analog write (a PWM duty) and a
 // servo's angle, whose value is an expression; outside 0..1023 / 0..180 it is clamped when it runs, with a warning.
+//
+// N18 R2.3 (robot plan §4.4) adds what a board family decides about the language: the numeric model (Python's ints on Yolo:Bit,
+// C++'s 32-bit `long` on the UNO) and the pause at the end of every forever iteration (10 ms on Yolo:Bit, none in Arduino's
+// loop()). The compiler writes both for the uno family. A ybc IR leaves them out and means python and 10 000 µs: that is the IR
+// every ybc program has compiled to since YB-2, kept byte for byte.
 
 import type { HexColour } from '../capabilities/frame';
 import type { BuiltinImageName } from '../constructs/ybc.images';
@@ -52,13 +57,33 @@ export type Type = 'int' | 'bool' | 'str';
 export type CallOp = 'digital.write' | 'pwm.write' | 'servo.write';
 export type ReadOp = 'digital.read' | 'analogIn.read';
 
+/**
+ * N18 R2.3: what the ints of a program are. `python`: Python's ints on the safe-integer range, `//` floors, `%` takes the sign of
+ * the divisor, a truth value prints True / False (Yolo:Bit, values.ts). `cxx-int32`: C++'s `long`, every result wrapped to 32
+ * bits, `//` truncates, `%` takes the sign of the dividend, a division by zero gives 0, a truth value prints 1 / 0 (contract UNO §3).
+ */
+export type NumericModel = 'python' | 'cxx-int32';
+
 export type YbcProgramIR = {
   onStart: YbcStatement[];
   /** null when the program has no forever block. */
   forever: YbcStatement[] | null;
   /** Every variable of the workspace; all start at 0 (Basic: int only). */
   variables: { id: string; name: string; type: 'int' }[];
+  /** N18 R2.3: the numeric model of the board family. Absent: `python` (every ybc IR). Read it with `numericOf`. */
+  numeric?: NumericModel;
+  /**
+   * N18 R2.3: the program's own pause after every forever iteration, in µs: YBC_LOOP_PAUSE_US on Yolo:Bit (contract C-02, E3), 0 in
+   * Arduino's loop() (contract UNO §4.1). Absent: YBC_LOOP_PAUSE_US (every ybc IR). Read it with `loopPauseUsOf`.
+   */
+  loopPauseUs?: number;
 };
+
+/** E3, contract C-02: every forever iteration of a Yolo:Bit program ends with a 10 ms sleep (`time.sleep_ms(10)`). */
+export const YBC_LOOP_PAUSE_US = 10_000;
+
+export const numericOf = (ir: Pick<YbcProgramIR, 'numeric'>): NumericModel => ir.numeric ?? 'python';
+export const loopPauseUsOf = (ir: Pick<YbcProgramIR, 'loopPauseUs'>): number => ir.loopPauseUs ?? YBC_LOOP_PAUSE_US;
 
 export type YbcStatement =
   /** A block the profile exposes that has no behaviour (the test-only marker of the profile fixtures). */
