@@ -88,6 +88,7 @@ export function runContractForms() {
     repeat: ['eval=3', '3', '3'],
     countup: ['eval=1', 'eval=4', '4', '10'],
     print: ['Xin chào', 'say "hi" \\ ok', 'x = 4', '-2147483648'],
+    control: ['two', '3'],
     line: ['1', '0', '512'],
     button: ['0', '1'],
     raw: ['0', '512'],

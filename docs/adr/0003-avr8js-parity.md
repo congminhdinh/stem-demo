@@ -30,11 +30,11 @@ avr8js mô phỏng CPU ATmega328P (đếm cycle theo tập lệnh) và các ngo�
 
 ```sh
 cd stem-demo
-node spikes/avr8js/run-all.mjs        # ≈ 20 s: compile 17 sketch + chạy, ghi out/results.json và out/traces/*.txt
+node spikes/avr8js/run-all.mjs        # ≈ 20 s: compile 15 sketch (ram-threshold 8 lần) + chạy, ghi out/results.json và out/traces/*.txt
 node spikes/avr8js/run-servo-pulsein.mjs   # hoặc từng sketch: run-blink, run-motor, run-timer-conflict, run-costs, …
 ```
 
-Tốc độ: 3,1 s ảo của blink chạy trong 490 ms wall (≈ 6,3× thời gian thực) trên máy trên; cả bộ spike 19,7 s, phần lớn là compile (riêng thăm dò RAM 12,5 s).
+Tốc độ: 3,1 s ảo của blink chạy trong 490 ms wall (≈ 6,3× thời gian thực) trên máy trên; cả bộ spike 20,4 s, phần lớn là compile (riêng thăm dò RAM 11,3 s).
 
 ## 3. Trace đo được
 
@@ -111,13 +111,13 @@ Servo D9 (45° → 1007–1008 µs), còi D10 1000 Hz, motor D5 duty 128 / D6 du
 
 ### 3.8 Các dạng C++ của contract (`contractForms`)
 
-Sketch `contract-forms.ino` viết đúng các dạng C++ và helper của contract theo thứ tự C1 (header → `#include` → `#define` chân → global → helper → `setup()` → `loop()`). Compile với `--warnings all`: không có warning nào từ sketch. Chạy với echo/line/nút/ADC kịch bản. **28/28 kiểm tra PASS**, gồm:
+Sketch `contract-forms.ino` viết đúng các dạng C++ và helper của contract theo thứ tự C1 (header → `#include` → `#define` chân → global → helper → `setup()` → `loop()`). Compile với `--warnings all`: không có warning nào từ sketch. Chạy với echo/line/nút/ADC kịch bản. **29/29 kiểm tra PASS**, gồm:
 
-- số học `add32…mod32`, bool in `1/0`, `repeat` đánh giá N một lần, count up start → end mỗi cái một lần, biến giữ giá trị cuối, in chữ UTF-8 (`Xin chào` = 9 byte), escape `"` và `\`;
+- số học `add32…mod32`, bool in `1/0`, `if / else if / else`, `while`, `repeat` đánh giá N một lần, count up start → end mỗi cái một lần, biến giữ giá trị cuối, in chữ UTF-8 (`Xin chào` = 9 byte), escape `"` và `\`;
 - `(long)millis()` khớp mô hình §3.9;
 - `motorSet` (50, −100, tiến 60, xoay trái 40, 150 → kẹp 100, dừng), `servoSet` (90 lúc setup → 1472 µs; 600 → kẹp 180 → 2400 µs; −5 → 0 → 544 µs);
 - `buzzerTone` (440 Hz → 440,141 Hz; gọi lại cùng chân → 880,282 Hz trong 30,22 ms; 10 Hz → kẹp 31 Hz; 9000 → kẹp 4000 Hz; 0 ms → kẹp 1 ms), `noTone`;
-- `ultrasonicCm` (echo 1160 µs → 19 cm, gọi 1675,38 µs; không echo → 400, gọi 20 806,31 µs), line digital hai cực tính, `analogRead` 512, nút pull-up, chân thô A3 (`pwmWrite(A3, 100)` → LOW, `300` → kẹp 255 → HIGH).
+- `ultrasonicCm` (echo 1160 µs → 19 cm, gọi 1675,5625 µs; không echo → 400, gọi 20 812 µs; bản build trước khi thêm phần `if`/`while` đo 1675,375 và 20 806,3125 µs: pha ngắt lệch vài µs giữa hai chương trình), line digital hai cực tính, `analogRead` 512, nút pull-up, chân thô A3 (`pwmWrite(A3, 100)` → LOW, `300` → kẹp 255 → HIGH).
 
 Lượng tử hoá thời lượng tone (quan sát): `tone(pin, f, ms)` đảo chân đúng `floor(2 × f × ms / 1000)` lần rồi giữ LOW. 31 Hz × 40 ms → 2 lần đảo: một xung HIGH 16 ms rồi tắt.
 
@@ -193,7 +193,7 @@ Sketch `lang`, `lang-wrap`, `lang-wrapv`, mọi input là `volatile`:
 
 **Lý do GO:**
 - HEX từ toolchain đã pin chạy trên avr8js trong Node, không cần tool ngoài lúc test (HEX fixture commit kèm hash của `.ino`, như plan C2).
-- Mọi kỳ vọng ở mức trace khớp ±1 %: blink, chu kỳ/duty PWM (v/255), xung servo, tần số tone, cạnh echo, `delay`; 28/28 dạng C++ của contract đúng ngữ nghĩa.
+- Mọi kỳ vọng ở mức trace khớp ±1 %: blink, chu kỳ/duty PWM (v/255), xung servo, tần số tone, cạnh echo, `delay`; 29/29 kiểm tra trên các dạng C++ của contract đúng ngữ nghĩa.
 - Hành vi chưa có tài liệu đầy đủ (PWM trên timer bị chiếm, timeout thật của `pulseIn`, tải ngắt, `millis()` lệch) quan sát được và tái lập được: contract thay UNKNOWN bằng VERIFIED.
 - Đủ nhanh: ≈ 6× thời gian thực trên Node; 60 s ảo ≈ 10 s, nằm trong ngân sách CI nếu chọn fixture ngắn.
 

@@ -181,6 +181,21 @@ void setup() {
   section(F("millis"));
   Serial.println((long)millis());
 
+  section(F("control"));
+  x = 2L;
+  if ((x == 1L)) {
+    Serial.println(F("one"));
+  } else if ((x == 2L)) {
+    Serial.println(F("two"));
+  } else {
+    Serial.println(F("other"));
+  }
+  count = 0L;
+  while ((count < 3L)) {
+    count = add32(count, 1L);
+  }
+  Serial.println(count);
+
   section(F("motor"));
   motorSet(MOTOR_LEFT_EN, MOTOR_LEFT_IN1, MOTOR_LEFT_IN2, 50L);
   motorSet(MOTOR_RIGHT_EN, MOTOR_RIGHT_IN1, MOTOR_RIGHT_IN2, -100L);
