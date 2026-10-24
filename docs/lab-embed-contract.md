@@ -76,7 +76,7 @@ hợp lệ và lab nằm trong một frame.
 
 | `type` | Trường | Lab làm gì |
 |---|---|---|
-| `load-project` | `document` | Mở project này thay template, nếu: editor mở được nó (schema, device, profile, program Blockly nạp được), đúng loại lab (project Yolo:Bit cho lab `yolobit`, generic cho lab `blockly`) và không có lượt chạy nào. Lab `yolobit` có `profile=` thì project mở với profile đó. Không hợp lệ → bỏ qua, không báo lỗi |
+| `load-project` | `document` | Mở project này thay template, nếu: editor mở được nó (schema, device, profile, program Blockly nạp được), đúng family của lab theo bảng lab → family (`blockly`→generic, `yolobit`→ybc, `robot`→uno; `labFamilies` ở `src/ui/app/lab-host.ts`, N18 R2.1; lab `robot` mở được từ R4.1) và không có lượt chạy nào. Lab `yolobit` có `profile=` thì project mở với profile đó. Không hợp lệ → bỏ qua, không báo lỗi |
 
 ## 3. Kiểm tra (challenge)
 

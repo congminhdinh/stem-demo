@@ -268,10 +268,23 @@ Chỉ nâng các version này khi đã nâng Node hoặc khi `typescript-eslint`
 | **B2** | **Document không chứa runtime state.** Mức chân, LED sáng, nút đang nhấn chỉ tồn tại trong `RunSession`/snapshot. Stop là huỷ hết | Tránh lỗi F2 của OhStem (`_broken`, `pinStates` nằm trong `params`) | Review; test "document không đổi sau một lần chạy" (POC-07) |
 | **B3** | **Simulation là hàm thuần** `(circuit, registry, inputs) → result`. Nó không nằm trong component Konva hay trong store | Test được, và thay được bằng solver khác | Đặt trong `src/core`; canvas chỉ đọc kết quả |
 | **B4** | **Blockly là view.** Program lưu ở dạng Blockly serialization JSON. Compiler chỉ đọc JSON, không import Blockly. Định nghĩa block là data nằm ở core. Code dùng Blockly chỉ nằm trong một thư mục UI | Test compiler không cần DOM; nâng Blockly chỉ ảnh hưởng adapter | B1 cộng review |
-| **B5** | **Runtime chỉ nói chuyện với phần cứng ảo qua `HardwareIO`** (cộng status event), không biết gì về mạch, simulation hay UI. `RunSession` là nơi duy nhất nối program với simulation | Đây là seam để sau này thêm Pyodide và phần cứng thật | Contract ở §6.4 |
+| **B5** | **Runtime chỉ nói chuyện với phần cứng ảo qua `HardwareIO`** (cộng status event), không biết gì về mạch, simulation hay UI. `RunSession` là nơi duy nhất nối program với simulation. *(N18 R2.1)* Với lab robot: xem sửa luật bên dưới | Đây là seam để sau này thêm Pyodide và phần cứng thật | Contract ở §6.4 |
 | **B6** | **Device metadata là data.** Definition là file JSON, được validate bằng Zod khi tạo registry. Renderer và simulation model được tham chiếu bằng id dạng chuỗi; id lạ thì dùng generic renderer hoặc model inert, không crash. Không `eval`. Hàm core nhận registry qua tham số; chỉ bootstrap import catalog local | Đường lên API/CMS; tránh `eval` như OhStem | Definition để ở file `.json`; Zod schema |
 | **B7** | **Geometry một nguồn.** Vị trí port trong toạ độ world do **một** hàm core tính. Renderer, wiring, hit-test và test hook đều dùng hàm đó. Mọi chuyển đổi pointer ↔ world đi qua một helper | Tránh Konva và core lệch nhau; thêm xoay/zoom sau chỉ là thay đổi cục bộ | Review; acceptance criteria của POC-03 và POC-10 |
 | **B8** | **Persistence đặt sau interface** (P1). UI và store gọi interface; chỉ bootstrap biết tới Dexie | Đường lên API/backend mà không phải viết lại editor | POC-14: rule ESLint `no-restricted-imports` cho `src/ui/**` (không import `dexie` hay `src/storage`), có test trong `tests/core-boundary.test.ts` |
+
+**Sửa luật N18 (R2.1, 2026-10-25; quyết định ở `docs/robot-3d-implementation-plan.md` §2):**
+- **B5, lab robot:** với lab robot, `RobotRunSession` là nơi duy nhất nối program ↔ hardware ↔ world. `RunSession` không chạy
+  project family `uno`: `start` trả `reason: 'unsupported-family'` trước mọi kiểm tra board (`src/core/run/run-session.ts`). Với
+  project generic và Yolo:Bit, B5 giữ nguyên.
+- **Amendment `io.ts`** (`src/core/capabilities/io.ts`, chỉ type): thêm `modules` (`ModuleIO`: `call(role, op, args)`,
+  `read(role, op)`) vào `Capabilities` và `capabilityKeys`; thêm `WireIO` (I²C mức giao dịch) và `UnoPinIO` (plan robot §4.3).
+  Cùng đợt, `services.ts` export `Timers`, thêm type `ProgramClock = Clock & { charge(us) }` và option `budget?` của
+  `createRuntimeServices` (có thì dùng nguyên, không thì như cũ). Cài đặt do R1 (virtual UNO, driver) và R2.3 (đồng hồ ảo).
+- **Lab → family:** lab mở project nào là một bảng, không còn là phép so boolean: `labFamilies` trong `src/ui/app/lab-host.ts`,
+  `blockly→generic`, `yolobit→ybc`, `robot→uno` (`docs/lab-embed-contract.md` §2). R4.1 chỉ thêm `'robot'` vào `LabKind`.
+- **Board family** (`BoardFamily`) là `generic` khi document không có profile, ngược lại là `profile.family` (`ybc` hoặc `uno`),
+  không bao giờ suy từ board trên canvas (R-F1 giữ nguyên).
 
 **Boundary không phải lý do để tạo thêm abstraction.** Giữ boundary chủ yếu bằng cách đặt code đúng chỗ (đúng thư mục, đúng hướng import). Chỉ thêm interface, registry hay layer mới khi đã có **consumer thực tế** thứ hai, hoặc khi task yêu cầu rõ ràng.
 
@@ -390,6 +403,9 @@ type Point = { x: number; y: number };
 - **I3.** Không có dây nối một port với chính nó. Không có hai dây trùng nhau (kể cả khi đảo chiều). Một port được phép có nhiều dây.
 - **I4.** Xoá component thì xoá luôn các dây nối vào nó.
 - **I5.** Không có runtime state (B2).
+
+*(N18 R2.1)* Field tuỳ chọn `kit: { id: string; version: string }` (plan robot §4.0): kit của project lab robot; không có thì dùng
+`ref-uno-rover@0`. Khai báo trong Zod vì `z.object` bỏ key lạ. Không tăng `schemaVersion`.
 
 **Cố ý chưa có:** rotation, label, properties, bendpoint, màu dây, timestamp. Chúng sẽ được thêm dưới dạng **field tuỳ chọn có default**, nên không cần tăng `schemaVersion`. Chỉ thay đổi phá vỡ tương thích mới tăng version và cần migration (PoC không có migration).
 
@@ -1679,6 +1695,10 @@ thông báo của core vẫn tiếng Anh; `/favicon.ico` 404.
 (family `uno`) → interpreter trên đồng hồ ảo → driver → virtual UNO → world vật lý 3D (Rapier, tất định) → chấm điểm,
 kết quả lưu LMS (`RobotLab`, `LabAttempt`). Track `ybc` đóng băng (vẫn chạy như cũ). Sửa luật B5 và amendment `io.ts`
 được ghi ở plan N18 §2 và cập nhật vào §5.1 ở R2.1.
+
+*R2.1 (2026-10-25):* đã ghi vào §5.1 (B5 cho lab robot, amendment `io.ts`, bảng lab → family). Board family `uno`, device
+`uno-r3` (`codeTarget: 'arduino-avr'`, thang `adcMax 1023`/`pwmMax 255`), profile `uno-basic`/`uno-advanced` (block pack để
+R2.2), field `kit` của document (§6.1). Mã `unsupported-family` được thêm vào danh sách board context của plan Yolo:Bit §9.4.
 
 ---
 
