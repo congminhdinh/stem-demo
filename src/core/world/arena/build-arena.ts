@@ -1,5 +1,5 @@
 import { atan2 } from '../dmath';
-import { getRapier, type Collider, type ColliderDesc, type PhysicsWorld, type RigidBody } from '../rapier';
+import { getRapier, refreshQueries, type Collider, type ColliderDesc, type PhysicsWorld, type RigidBody } from '../rapier';
 import { arenaToWorld, cmToM, degToRad, gToKg, yawToQuaternion, type Quat, type Vec3 } from '../units';
 import type { Arena, ArenaBox, ArenaCylinder, ArenaObject, ArenaWall } from './arena-schema';
 
@@ -44,7 +44,17 @@ export type BuiltArena = {
   infoOf(collider: Collider): ArenaColliderInfo | undefined;
 };
 
-/** Creates the arena in `world` (empty, from `createPhysicsWorld()`); `initPhysics()` must have finished. */
+/**
+ * Creates the arena's bodies and colliders in `world`, converting its centimetres, grams and degrees to SI.
+ *
+ * - `world` is an empty world from `createPhysicsWorld()`, so `initPhysics()` has finished.
+ * - `arena` is validated (`parseArena`). The dynamic bodies start at rest where the arena puts them.
+ * - It ends with `refreshQueries(world)`, so `world.castRay` sees the whole arena at once, before any step.
+ *   Whoever adds bodies afterwards (the robot, R3.3) calls `refreshQueries` again before a sensor reads.
+ *   Settling the robot before t = 0 (ADR 0001 §7.2) is still `createWorld`'s job (R3.5).
+ * - The result names every collider it created (`colliders`, `infoOf`) for the sensors and the goals, and
+ *   lists the dynamic bodies in the order a snapshot hash reads them.
+ */
 export function buildArena(world: PhysicsWorld, arena: Arena): BuiltArena {
   const R = getRapier();
   const colliders = new Map<number, ArenaColliderInfo>();
@@ -111,6 +121,7 @@ export function buildArena(world: PhysicsWorld, arena: Arena): BuiltArena {
     else addDynamic(cylinderDesc(object), standing(object.centerCm, object.heightCm, 0), item, object.massG);
   }
 
+  refreshQueries(world);
   return {
     fixedBody,
     dynamicBodies,

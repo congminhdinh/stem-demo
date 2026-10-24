@@ -111,3 +111,32 @@ describe('createPhysicsWorld', () => {
     WASM_TIMEOUT_MS,
   );
 });
+
+describe('refreshQueries', () => {
+  it(
+    'makes a new collider visible to scene queries without a step, moving nothing and keeping the timestep',
+    async () => {
+      const physics = await freshRapierFile();
+      await physics.initPhysics();
+      const R = physics.getRapier();
+      const world = physics.createPhysicsWorld();
+      try {
+        world.createCollider(R.ColliderDesc.cuboid(0.1, 0.1, 0.1).setTranslation(1, 0, 0));
+        const ball = world.createRigidBody(R.RigidBodyDesc.dynamic().setTranslation(0, 0.5, 0));
+        world.createCollider(R.ColliderDesc.ball(0.05), ball);
+        const ray = new R.Ray({ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 });
+        // Rapier 0.21 updates its broad phase only inside step(): a fresh collider is invisible to a ray.
+        expect(world.castRay(ray, 5, true)).toBeNull();
+        physics.refreshQueries(world);
+        expect(world.castRay(ray, 5, true)?.timeOfImpact).toBeCloseTo(0.9, 6);
+        expect(world.timestep).toBe(Math.fround(1 / 120));
+        // timestep 0: gravity has not acted yet.
+        expect(ball.translation()).toEqual({ x: 0, y: 0.5, z: 0 });
+        expect(ball.linvel()).toEqual({ x: 0, y: 0, z: 0 });
+      } finally {
+        world.free();
+      }
+    },
+    WASM_TIMEOUT_MS,
+  );
+});

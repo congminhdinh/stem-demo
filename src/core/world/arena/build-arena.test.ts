@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type * as RapierNamespace from '@dimforge/rapier3d-deterministic';
-import { createPhysicsWorld, getRapier, initPhysics, type Collider, type PhysicsWorld } from '../rapier';
+import { createPhysicsWorld, getRapier, initPhysics, refreshQueries, type Collider, type PhysicsWorld } from '../rapier';
 import { parseArena, type Arena } from './arena-schema';
 import { buildArena, type BuiltArena } from './build-arena';
 import boxes from './fixtures/boxes.json';
@@ -104,9 +104,18 @@ describe('buildArena', () => {
     });
   });
 
+  it('castRay hits a wall right after buildArena, before any step', () => {
+    withArena(parseArena(emptyWalled), (built, world) => {
+      const R = getRapier();
+      // From the middle of the arena at 5 cm height, along arena +x: the east wall's inner face is at x = 198 cm.
+      const hit = world.castRay(new R.Ray({ x: 1, y: 0.05, z: -1 }, { x: 1, y: 0, z: 0 }), 5, true);
+      expect(built.infoOf(hit!.collider)?.id).toBe('#wall-1');
+      expect(hit!.timeOfImpact).toBeCloseTo(0.98, 5);
+    });
+  });
+
   it('lets a sensor ray skip what does not echo, through the collider lookup', () => {
     withArena(parseArena(boxes), (built, world) => {
-      world.step(); // colliders join the scene queries on the first step
       const R = getRapier();
       // From arena (150, 50) at 5 cm height, looking along arena +y (world −Z): the pole is 49 cm away.
       const ray = new R.Ray({ x: 1.5, y: 0.05, z: -0.5 }, { x: 0, y: 0, z: -1 });
@@ -136,20 +145,33 @@ const PUSHES = [
   { x: 3, y: 0, z: 0 },
 ];
 
-/** Builds the arena with boxes, sets every dynamic body moving and spinning, steps 120 ticks (1 s), returns every pose. */
-function pushAndStep(create: () => PhysicsWorld, build: typeof buildArena): number[] {
+/**
+ * Builds the arena with boxes, sets every dynamic body moving and spinning, steps `ticks` ticks and returns
+ * every pose (and, with `velocities`, every velocity) after the last one. `refreshAgain` refreshes the
+ * scene queries once more before the push.
+ */
+function pushAndStep(
+  create: () => PhysicsWorld,
+  build: typeof buildArena,
+  options: { ticks?: number; velocities?: boolean; refreshAgain?: boolean } = {},
+): number[] {
   const world = create();
   try {
     const built = build(world, parseArena(boxes));
+    if (options.refreshAgain) refreshQueries(world);
     built.dynamicBodies.forEach(({ body }, i) => {
       body.setLinvel(PUSHES[i]!, true);
       body.setAngvel({ x: 0, y: 3, z: 0 }, true);
     });
-    for (let tick = 0; tick < 120; tick++) world.step();
+    for (let tick = 0; tick < (options.ticks ?? 120); tick++) world.step();
     return built.dynamicBodies.flatMap(({ body }) => {
       const t = body.translation();
       const q = body.rotation();
-      return [t.x, t.y, t.z, q.x, q.y, q.z, q.w];
+      const pose = [t.x, t.y, t.z, q.x, q.y, q.z, q.w];
+      if (!options.velocities) return pose;
+      const v = body.linvel();
+      const w = body.angvel();
+      return [...pose, v.x, v.y, v.z, w.x, w.y, w.z];
     });
   } finally {
     world.free();
@@ -166,6 +188,12 @@ describe('determinism smoke', () => {
     // #box-1 (first body) would slide freely to x = 0.6 + 2.5² / (2 · 0.4 · 9.81) = 1.396 m; the crate stopped it.
     expect(first[0]!).toBeGreaterThan(1.1);
     expect(first[0]!).toBeLessThan(1.3);
+  });
+
+  it('refreshing the scene queries again changes nothing: 600 ticks of poses and velocities stay bit-identical', () => {
+    const once = pushAndStep(createPhysicsWorld, buildArena, { ticks: 600, velocities: true });
+    const twice = pushAndStep(createPhysicsWorld, buildArena, { ticks: 600, velocities: true, refreshAgain: true });
+    expect(twice).toEqual(once);
   });
 
   it(

@@ -6,6 +6,10 @@ import type * as RapierNamespace from '@dimforge/rapier3d-deterministic';
 //
 // The world is SI inside (metres, kilograms, seconds), +Y up; arena JSON is in centimetres and degrees
 // and is converted when it is built (units.ts, arena/build-arena.ts).
+//
+// Scene queries (`world.castRay` and the rest) only see what the broad phase knows, and Rapier 0.21 updates
+// the broad phase only inside `world.step()`. Whoever creates colliders or moves bodies by hand calls
+// `refreshQueries(world)` before the next sensor read (see there).
 
 /** The Rapier namespace: the split .wasm package's, or anything with the same API (the -compat build). */
 export type RapierModule = typeof RapierNamespace;
@@ -91,4 +95,32 @@ export function createPhysicsWorld(): PhysicsWorld {
   world.numSolverIterations = SOLVER_ITERATIONS;
   world.numInternalPgsIterations = INTERNAL_PGS_ITERATIONS;
   return world;
+}
+
+/**
+ * Brings the scene queries (`world.castRay` and the other `world` queries) up to date with the colliders,
+ * without advancing the simulation.
+ *
+ * Rapier 0.21 has no query update of its own (no `updateSceneQueries`, no query pipeline object):
+ * `world.step()` alone updates the broad phase that every query walks, and
+ * `propagateModifiedBodyPositionsToColliders()` does not. So a collider created, or a body moved by hand,
+ * since the last step is invisible to a ray until the next step. The tick loop (plan §3) reads the sensors
+ * before it steps, so tick 0 would read nothing.
+ *
+ * This runs one step with `timestep = 0`. Collision detection and the broad phase run, nothing is
+ * integrated, and the timestep is restored bit for bit. Measured (rapier.test.ts, build-arena.test.ts):
+ * poses and velocities are unchanged, and the 600 ticks after an extra refresh are bit-identical, poses and
+ * velocities, to the 600 ticks without one.
+ *
+ * Contact events: a refresh passes no event queue, so a pair that starts touching during it reports no
+ * start event later (it is already touching). Refresh while a world is being built, before t = 0.
+ */
+export function refreshQueries(world: PhysicsWorld): void {
+  const timestep = world.timestep;
+  world.timestep = 0;
+  try {
+    world.step();
+  } finally {
+    world.timestep = timestep;
+  }
 }
