@@ -50,11 +50,9 @@ const stop = (page: Page) => page.getByRole('button', { name: 'Stop' }).click();
 
 /** Holds a control with the mouse until `release` is called. */
 async function holdWithMouse(page: Page, testId: string) {
-  const box = await page.getByTestId(testId).boundingBox();
-  if (!box) {
-    throw new Error(`${testId} is not visible`);
-  }
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  // `hover` waits until the button is stable and would get the pointer: right after Run, the header grows by the console row on
+  // the next animation frame, and a position read before that frame presses the canvas above the button instead.
+  await page.getByTestId(testId).hover();
   await page.mouse.down();
   return () => page.mouse.up();
 }
