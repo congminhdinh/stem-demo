@@ -1,0 +1,41 @@
+{
+  "id": "ref-uno-rover",
+  "version": "0",
+  "board": "uno-r3",
+  "chassis": {
+    "bodyLengthCm": 15,
+    "bodyHeightCm": 5,
+    "bodyWidthCm": 10,
+    "massG": 500,
+    "groundClearanceCm": 1.5,
+    "wheelRadiusCm": 3.3,
+    "trackCm": 14,
+    "axleXCm": -2,
+    "casterXCm": 5.5,
+    "casterRadiusCm": 1
+  },
+  "ports": [
+    { "id": "M1", "driver": "hbridge-en-in1-in2", "pins": { "EN": "D5", "IN1": "D7", "IN2": "D8" } },
+    { "id": "M2", "driver": "hbridge-en-in1-in2", "pins": { "EN": "D6", "IN1": "D4", "IN2": "D2" } },
+    { "id": "US1", "driver": "hcsr04-pulsein", "pins": { "TRIG": "D12", "ECHO": "D11" } },
+    { "id": "LN1", "driver": "line-digital", "pins": { "PIN": "A0" }, "params": { "activeLow": false } },
+    { "id": "LN2", "driver": "line-digital", "pins": { "PIN": "A1" }, "params": { "activeLow": false } },
+    { "id": "LN3", "driver": "line-digital", "pins": { "PIN": "A2" }, "params": { "activeLow": false } },
+    { "id": "LED1", "driver": "led-digital", "pins": { "PIN": "D13" } },
+    { "id": "BTN1", "driver": "button-pullup", "pins": { "PIN": "D3" } },
+    { "id": "SV1", "driver": "servo-lib", "pins": { "PIN": "D9" } },
+    { "id": "BZ1", "driver": "buzzer-tone", "pins": { "PIN": "D10" } }
+  ],
+  "modules": [
+    { "role": "motorLeft", "kind": "dc-motor", "port": "M1", "mount": { "posCm": [-2, 3.3, -7], "yawDeg": 0 }, "spec": {} },
+    { "role": "motorRight", "kind": "dc-motor", "port": "M2", "mount": { "posCm": [-2, 3.3, 7], "yawDeg": 0 }, "spec": {} },
+    { "role": "ultrasonic", "kind": "ultrasonic", "port": "US1", "mount": { "posCm": [7.5, 4, 0], "yawDeg": 0 }, "spec": {} },
+    { "role": "lineLeft", "kind": "line-sensor", "port": "LN1", "mount": { "posCm": [6, 1.5, -1.5], "yawDeg": 0 }, "spec": {} },
+    { "role": "lineCenter", "kind": "line-sensor", "port": "LN2", "mount": { "posCm": [6, 1.5, 0], "yawDeg": 0 }, "spec": {} },
+    { "role": "lineRight", "kind": "line-sensor", "port": "LN3", "mount": { "posCm": [6, 1.5, 1.5], "yawDeg": 0 }, "spec": {} },
+    { "role": "servo1", "kind": "servo", "port": "SV1", "mount": { "posCm": [0, 6.5, 0], "yawDeg": 0 }, "spec": {} },
+    { "role": "led1", "kind": "led", "port": "LED1", "mount": { "posCm": [-5, 6.5, 3], "yawDeg": 0 }, "spec": {} },
+    { "role": "buzzer", "kind": "buzzer", "port": "BZ1", "mount": { "posCm": [-5, 6.5, -3], "yawDeg": 0 }, "spec": {} },
+    { "role": "button1", "kind": "button", "port": "BTN1", "mount": { "posCm": [-6.5, 6.5, 0], "yawDeg": 0 }, "spec": {} }
+  ]
+}
