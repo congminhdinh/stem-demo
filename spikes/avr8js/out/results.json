@@ -1,0 +1,2703 @@
+{
+  "takenOn": "2026-10-24T21:34:45.938Z",
+  "machine": {
+    "cpu": "Apple M4 Pro",
+    "cores": 12
+  },
+  "toolchain": {
+    "arduinoCli": "arduino-cli  Version: 1.5.1 Commit: Homebrew Date: 2026-06-05T09:39:33Z",
+    "cores": "ID          Installed Latest Name\narduino:avr 1.8.8     1.8.8  Arduino AVR Boards",
+    "libs": "Name  Installed     Available         Location Description\nServo 1.3.0         -                 user     -",
+    "avr8js": "0.21.1",
+    "node": "v24.22.1",
+    "platform": "darwin arm64"
+  },
+  "blink": {
+    "sketch": "blink",
+    "size": {
+      "flashBytes": 924,
+      "flashPercent": 2,
+      "flashMax": 32256,
+      "ramBytes": 9,
+      "ramPercent": 0,
+      "ramMax": 2048,
+      "lowMemoryWarning": false,
+      "notEnoughMemory": false
+    },
+    "emulatedUs": 3100000,
+    "wallMs": 492,
+    "trace": [
+      "       11.2500 µs  D13  LOW",
+      "       14.4375 µs  D13  HIGH",
+      "   500022.8750 µs  D13  LOW",
+      "  1000030.9375 µs  D13  HIGH",
+      "  1500043.1250 µs  D13  LOW",
+      "  2000054.0625 µs  D13  HIGH",
+      "  2500063.0000 µs  D13  LOW",
+      "  3000073.8750 µs  D13  HIGH"
+    ],
+    "highUs": [
+      500008.4375,
+      500012.1875,
+      500008.9375
+    ],
+    "lowUs": [
+      500008.0625,
+      500010.9375,
+      500010.875
+    ],
+    "periodUs": [
+      1000016.5,
+      1000023.125,
+      1000019.8125
+    ],
+    "expected": "HIGH 500000 µs, LOW 500000 µs, period 1000000 µs, each ±1 %",
+    "pass": true,
+    "runWallMs": 1020
+  },
+  "motor": {
+    "sketch": "motor",
+    "size": {
+      "flashBytes": 1582,
+      "flashPercent": 4,
+      "flashMax": 32256,
+      "ramBytes": 9,
+      "ramPercent": 0,
+      "ramMax": 2048,
+      "lowMemoryWarning": false,
+      "notEnoughMemory": false
+    },
+    "phases": {
+      "A": {
+        "D5": {
+          "pin": "D5",
+          "fromUs": 2000,
+          "toUs": 99000,
+          "level": "PULSES",
+          "periods": 94,
+          "periodUs": {
+            "min": 1023.8125,
+            "median": 1024,
+            "max": 1024.125
+          },
+          "highUs": {
+            "min": 511.875,
+            "median": 512,
+            "max": 512.125
+          },
+          "frequencyHz": 976.563,
+          "duty": 0.5
+        },
+        "D7": {
+          "pin": "D7",
+          "fromUs": 2000,
+          "toUs": 99000,
+          "level": "HIGH"
+        },
+        "D8": {
+          "pin": "D8",
+          "fromUs": 2000,
+          "toUs": 99000,
+          "level": "LOW"
+        },
+        "D6": {
+          "pin": "D6",
+          "fromUs": 2000,
+          "toUs": 99000,
+          "level": "HIGH"
+        },
+        "D4": {
+          "pin": "D4",
+          "fromUs": 2000,
+          "toUs": 99000,
+          "level": "LOW"
+        },
+        "D2": {
+          "pin": "D2",
+          "fromUs": 2000,
+          "toUs": 99000,
+          "level": "HIGH"
+        }
+      },
+      "B": {
+        "D5": {
+          "pin": "D5",
+          "fromUs": 102000,
+          "toUs": 199000,
+          "level": "PULSES",
+          "periods": 94,
+          "periodUs": {
+            "min": 1023.8125,
+            "median": 1024,
+            "max": 1024.125
+          },
+          "highUs": {
+            "min": 307.8125,
+            "median": 308,
+            "max": 308.1875
+          },
+          "frequencyHz": 976.563,
+          "duty": 0.30078
+        },
+        "D7": {
+          "pin": "D7",
+          "fromUs": 102000,
+          "toUs": 199000,
+          "level": "LOW"
+        },
+        "D8": {
+          "pin": "D8",
+          "fromUs": 102000,
+          "toUs": 199000,
+          "level": "HIGH"
+        },
+        "D6": {
+          "pin": "D6",
+          "fromUs": 102000,
+          "toUs": 199000,
+          "level": "PULSES",
+          "periods": 94,
+          "periodUs": {
+            "min": 1023.8125,
+            "median": 1024,
+            "max": 1024.125
+          },
+          "highUs": {
+            "min": 11.8125,
+            "median": 12,
+            "max": 12.1875
+          },
+          "frequencyHz": 976.563,
+          "duty": 0.01172
+        },
+        "D4": {
+          "pin": "D4",
+          "fromUs": 102000,
+          "toUs": 199000,
+          "level": "HIGH"
+        },
+        "D2": {
+          "pin": "D2",
+          "fromUs": 102000,
+          "toUs": 199000,
+          "level": "LOW"
+        }
+      },
+      "C": {
+        "D5": {
+          "pin": "D5",
+          "fromUs": 202000,
+          "toUs": 260000,
+          "level": "LOW"
+        },
+        "D7": {
+          "pin": "D7",
+          "fromUs": 202000,
+          "toUs": 260000,
+          "level": "LOW"
+        },
+        "D8": {
+          "pin": "D8",
+          "fromUs": 202000,
+          "toUs": 260000,
+          "level": "LOW"
+        },
+        "D6": {
+          "pin": "D6",
+          "fromUs": 202000,
+          "toUs": 260000,
+          "level": "LOW"
+        },
+        "D4": {
+          "pin": "D4",
+          "fromUs": 202000,
+          "toUs": 260000,
+          "level": "LOW"
+        },
+        "D2": {
+          "pin": "D2",
+          "fromUs": 202000,
+          "toUs": 260000,
+          "level": "LOW"
+        }
+      }
+    },
+    "checks": {
+      "A_D5_duty128": {
+        "value": 128,
+        "measuredDuty": 0.5,
+        "contractDuty": 0.50196,
+        "timer0Duty": 0.50391,
+        "periodUs": 1024,
+        "periodWithin1Percent": true,
+        "dutyWithin1PercentOfContract": true,
+        "dutyWithin1PercentOfTimer0": true
+      },
+      "A_levels": true,
+      "B_D5_duty77": {
+        "value": 77,
+        "measuredDuty": 0.30078,
+        "contractDuty": 0.30196,
+        "timer0Duty": 0.30469,
+        "periodUs": 1024,
+        "periodWithin1Percent": true,
+        "dutyWithin1PercentOfContract": true,
+        "dutyWithin1PercentOfTimer0": false
+      },
+      "B_D6_duty3": {
+        "value": 3,
+        "measuredDuty": 0.01172,
+        "contractDuty": 0.01176,
+        "timer0Duty": 0.01563,
+        "periodUs": 1024,
+        "periodWithin1Percent": true,
+        "dutyWithin1PercentOfContract": true,
+        "dutyWithin1PercentOfTimer0": false
+      },
+      "B_levels": true,
+      "C_levels": true
+    },
+    "firstEvents": [
+      "       11.7500 µs  D5   LOW",
+      "       15.0625 µs  D7   LOW",
+      "       18.3750 µs  D8   LOW",
+      "       21.6875 µs  D6   LOW",
+      "       25.0000 µs  D4   LOW",
+      "       28.3125 µs  D2   LOW",
+      "       34.2500 µs  D7   HIGH",
+      "       95.6250 µs  D2   HIGH",
+      "      147.5625 µs  D6   HIGH",
+      "     1029.5000 µs  D5   HIGH",
+      "     1541.5625 µs  D5   LOW",
+      "     2053.5000 µs  D5   HIGH",
+      "     2565.5000 µs  D5   LOW",
+      "     3077.5000 µs  D5   HIGH",
+      "     3589.5000 µs  D5   LOW",
+      "     4101.5000 µs  D5   HIGH",
+      "     4613.5625 µs  D5   LOW",
+      "     5125.5000 µs  D5   HIGH",
+      "     5637.5000 µs  D5   LOW",
+      "     6149.5000 µs  D5   HIGH",
+      "     6661.5000 µs  D5   LOW",
+      "     7173.5000 µs  D5   HIGH",
+      "     7685.5000 µs  D5   LOW",
+      "     8197.5000 µs  D5   HIGH",
+      "     8709.5625 µs  D5   LOW",
+      "     9221.5000 µs  D5   HIGH",
+      "     9733.5000 µs  D5   LOW",
+      "    10245.6250 µs  D5   HIGH",
+      "    10757.5000 µs  D5   LOW",
+      "    11269.5000 µs  D5   HIGH",
+      "    11781.5000 µs  D5   LOW",
+      "    12293.5625 µs  D5   HIGH",
+      "    12805.6875 µs  D5   LOW",
+      "    13317.5000 µs  D5   HIGH",
+      "    13829.5000 µs  D5   LOW",
+      "    14341.5000 µs  D5   HIGH",
+      "    14853.5000 µs  D5   LOW",
+      "    15365.5000 µs  D5   HIGH",
+      "    15877.5000 µs  D5   LOW",
+      "    16389.5000 µs  D5   HIGH"
+    ],
+    "pass": true,
+    "runWallMs": 400
+  },
+  "servoPulseIn": {
+    "sketch": "servo-pulsein",
+    "size": {
+      "flashBytes": 3778,
+      "flashPercent": 11,
+      "flashMax": 32256,
+      "ramBytes": 244,
+      "ramPercent": 11,
+      "ramMax": 2048,
+      "lowMemoryWarning": false,
+      "notEnoughMemory": false
+    },
+    "echoDelayUs": 450,
+    "measurements": [
+      {
+        "echo": "20 cm",
+        "scriptedWidthUs": 1160,
+        "pulseInReturnedUs": 1155,
+        "errorUs": -5,
+        "cm": 19,
+        "expectedCm": 20,
+        "callUs": 1612.8125,
+        "waitBeforeEchoUs": 449.5625,
+        "overheadAfterEchoEndsUs": 3.25,
+        "angleWritten": 90
+      },
+      {
+        "echo": "10 cm",
+        "scriptedWidthUs": 580,
+        "pulseInReturnedUs": 580,
+        "errorUs": 0,
+        "cm": 10,
+        "expectedCm": 10,
+        "callUs": 1032.3125,
+        "waitBeforeEchoUs": 449.6875,
+        "overheadAfterEchoEndsUs": 2.625,
+        "angleWritten": 0
+      },
+      {
+        "echo": "no echo (timeout)",
+        "scriptedWidthUs": null,
+        "pulseInReturnedUs": 0,
+        "errorUs": null,
+        "cm": 400,
+        "expectedCm": 400,
+        "callUs": 20785.4375,
+        "waitBeforeEchoUs": null,
+        "overheadAfterEchoEndsUs": null,
+        "angleWritten": 180
+      },
+      {
+        "echo": "400 cm",
+        "scriptedWidthUs": 23200,
+        "pulseInReturnedUs": 23034,
+        "errorUs": -166,
+        "cm": 397,
+        "expectedCm": 400,
+        "callUs": 23652.9375,
+        "waitBeforeEchoUs": 449.5625,
+        "overheadAfterEchoEndsUs": 3.3125,
+        "angleWritten": 45
+      },
+      {
+        "echo": "2 cm",
+        "scriptedWidthUs": 116,
+        "pulseInReturnedUs": 111,
+        "errorUs": -5,
+        "cm": 2,
+        "expectedCm": 2,
+        "callUs": 568.8125,
+        "waitBeforeEchoUs": 449.5625,
+        "overheadAfterEchoEndsUs": 3.25,
+        "angleWritten": 90
+      },
+      {
+        "echo": "50 cm",
+        "scriptedWidthUs": 2900,
+        "pulseInReturnedUs": 2868,
+        "errorUs": -32,
+        "cm": 49,
+        "expectedCm": 50,
+        "callUs": 3352.3125,
+        "waitBeforeEchoUs": 449.5625,
+        "overheadAfterEchoEndsUs": 2.75,
+        "angleWritten": 135
+      },
+      {
+        "echo": "echo longer than the 30000 µs timeout",
+        "scriptedWidthUs": 30500,
+        "pulseInReturnedUs": 0,
+        "errorUs": null,
+        "cm": 400,
+        "expectedCm": 400,
+        "callUs": 30020.625,
+        "waitBeforeEchoUs": 449.5625,
+        "overheadAfterEchoEndsUs": null,
+        "angleWritten": 90
+      }
+    ],
+    "servo": {
+      "expectedWidthsUs": {
+        "0": 544,
+        "45": 1008,
+        "90": 1472,
+        "135": 1936,
+        "180": 2400
+      },
+      "widthsSeenUs": [
+        1471,
+        544,
+        543,
+        2400,
+        2399,
+        1008,
+        1007,
+        1472,
+        1935,
+        1937,
+        1936
+      ],
+      "firstPulses": [
+        {
+          "atUs": 52935.3125,
+          "widthUs": 1471.4375
+        },
+        {
+          "atUs": 72938.5,
+          "widthUs": 543.75
+        },
+        {
+          "atUs": 92941.3125,
+          "widthUs": 543.4375
+        },
+        {
+          "atUs": 112944.9375,
+          "widthUs": 543.875
+        },
+        {
+          "atUs": 132947.875,
+          "widthUs": 2399.875
+        },
+        {
+          "atUs": 152950.8125,
+          "widthUs": 2399.4375
+        },
+        {
+          "atUs": 172953.8125,
+          "widthUs": 2399.625
+        },
+        {
+          "atUs": 192956.8125,
+          "widthUs": 2399.4375
+        }
+      ],
+      "periodUs": {
+        "min": 20002.8125,
+        "max": 20007.375
+      },
+      "summary50to120ms": {
+        "pin": "D9",
+        "fromUs": 50000,
+        "toUs": 120000,
+        "level": "PULSES",
+        "periods": 3,
+        "periodUs": {
+          "min": 20002.8125,
+          "median": 20003.1875,
+          "max": 20003.625
+        },
+        "highUs": {
+          "min": 543.4375,
+          "median": 543.8125,
+          "max": 1471.4375
+        },
+        "frequencyHz": 49.992,
+        "duty": 0.02719
+      }
+    },
+    "serial": [
+      "90 1155 19",
+      "0 580 10",
+      "180 0 400",
+      "45 23034 397",
+      "90 111 2",
+      "135 2868 49",
+      "90 0 400"
+    ],
+    "deviations": {
+      "note": "pulseIn counts loop iterations, so time spent in interrupts (Timer0 millis, Servo Timer1) during the pulse is not counted: it reads short.",
+      "errorsUs": [
+        {
+          "widthUs": 1160,
+          "errorUs": -5,
+          "errorPercent": -0.43
+        },
+        {
+          "widthUs": 580,
+          "errorUs": 0,
+          "errorPercent": 0
+        },
+        {
+          "widthUs": 23200,
+          "errorUs": -166,
+          "errorPercent": -0.72
+        },
+        {
+          "widthUs": 116,
+          "errorUs": -5,
+          "errorPercent": -4.31
+        },
+        {
+          "widthUs": 2900,
+          "errorUs": -32,
+          "errorPercent": -1.1
+        }
+      ],
+      "noEchoTimeoutUs": 20785.4375,
+      "noEchoModelWithoutInterruptsUs": 20625,
+      "echoBeyondTimeoutCallUs": 30020.625,
+      "cmDifferences": [
+        {
+          "echo": "20 cm",
+          "boardCm": 19,
+          "exactCm": 20
+        },
+        {
+          "echo": "400 cm",
+          "boardCm": 397,
+          "exactCm": 400
+        },
+        {
+          "echo": "50 cm",
+          "boardCm": 49,
+          "exactCm": 50
+        }
+      ]
+    },
+    "checks": {
+      "driverCmFollowsPulseIn": true,
+      "timeoutGives400": true,
+      "echoEdgesAtScriptedTime": true,
+      "pulseInNeverLongAndShortByAtMost5UsOr1_2Percent": true,
+      "servoWidthsWithin1Percent": true,
+      "servoPeriodWithin1Percent": true
+    },
+    "pass": true,
+    "runWallMs": 597
+  },
+  "servoPwm10": {
+    "sketch": "servo-pwm10",
+    "size": {
+      "flashBytes": 2202,
+      "flashPercent": 6,
+      "flashMax": 32256,
+      "ramBytes": 50,
+      "ramPercent": 2,
+      "ramMax": 2048,
+      "lowMemoryWarning": false,
+      "notEnoughMemory": false
+    },
+    "phases": {
+      "A_pwm10_alone": {
+        "D9": {
+          "pin": "D9",
+          "fromUs": 2000,
+          "toUs": 99000,
+          "level": "INPUT"
+        },
+        "D10": {
+          "pin": "D10",
+          "fromUs": 2000,
+          "toUs": 99000,
+          "level": "PULSES",
+          "periods": 46,
+          "periodUs": {
+            "min": 2039.8125,
+            "median": 2040,
+            "max": 2040.1875
+          },
+          "highUs": {
+            "min": 1599.8125,
+            "median": 1600,
+            "max": 1600.1875
+          },
+          "frequencyHz": 490.196,
+          "duty": 0.78431
+        }
+      },
+      "B_after_attach9": {
+        "D9": {
+          "pin": "D9",
+          "fromUs": 102000,
+          "toUs": 199000,
+          "level": "PULSES",
+          "periods": 2,
+          "periodUs": {
+            "min": 20003,
+            "median": 20003.0625,
+            "max": 20003.125
+          },
+          "highUs": {
+            "min": 1471.6875,
+            "median": 1471.8125,
+            "max": 1472.25
+          },
+          "frequencyHz": 49.992,
+          "duty": 0.07358
+        },
+        "D10": {
+          "pin": "D10",
+          "fromUs": 102000,
+          "toUs": 199000,
+          "level": "LOW"
+        }
+      },
+      "C_pwm10_while_servo": {
+        "D9": {
+          "pin": "D9",
+          "fromUs": 202000,
+          "toUs": 299000,
+          "level": "PULSES",
+          "periods": 4,
+          "periodUs": {
+            "min": 20002.9375,
+            "median": 20003,
+            "max": 20003.5
+          },
+          "highUs": {
+            "min": 1471.4375,
+            "median": 1471.625,
+            "max": 1472.125
+          },
+          "frequencyHz": 49.993,
+          "duty": 0.07357
+        },
+        "D10": {
+          "pin": "D10",
+          "fromUs": 202000,
+          "toUs": 299000,
+          "level": "LOW"
+        }
+      },
+      "D_pwm10_after_detach": {
+        "D9": {
+          "pin": "D9",
+          "fromUs": 302000,
+          "toUs": 399000,
+          "level": "LOW"
+        },
+        "D10": {
+          "pin": "D10",
+          "fromUs": 302000,
+          "toUs": 399000,
+          "level": "LOW"
+        }
+      },
+      "E_pwm9_after_detach": {
+        "D9": {
+          "pin": "D9",
+          "fromUs": 402000,
+          "toUs": 499000,
+          "level": "LOW"
+        },
+        "D10": {
+          "pin": "D10",
+          "fromUs": 402000,
+          "toUs": 499000,
+          "level": "LOW"
+        }
+      }
+    },
+    "d10FirstChangesAfter100ms": [
+      {
+        "us": 99186.1875,
+        "state": "HIGH"
+      },
+      {
+        "us": 100063.625,
+        "state": "LOW"
+      }
+    ],
+    "observed": {
+      "A_pwm10_alone_is_490Hz_duty200of255": true,
+      "B_attach_stops_pwm10": true,
+      "B_servo_pulses_on_D9": true,
+      "C_pwm10_while_servo_gives_no_pwm": true,
+      "C_servo_keeps_running": true,
+      "D_pwm10_after_detach": "LOW",
+      "D_pwm10_after_detach_is_490Hz": false,
+      "E_pwm9_after_detach": "LOW"
+    },
+    "trace": [
+      "       31.3750 µs  D10  LOW",
+      "     1266.1875 µs  D10  HIGH",
+      "     2866.1875 µs  D10  LOW",
+      "     3306.1875 µs  D10  HIGH",
+      "     4906.1875 µs  D10  LOW",
+      "     5346.1875 µs  D10  HIGH",
+      "     6946.2500 µs  D10  LOW",
+      "     7386.1875 µs  D10  HIGH",
+      "     8986.1875 µs  D10  LOW",
+      "     9426.2500 µs  D10  HIGH",
+      "    11026.1875 µs  D10  LOW",
+      "    11466.1875 µs  D10  HIGH",
+      "    13066.1875 µs  D10  LOW",
+      "    13506.1875 µs  D10  HIGH",
+      "    15106.1875 µs  D10  LOW",
+      "    15546.1875 µs  D10  HIGH",
+      "    17146.1875 µs  D10  LOW",
+      "    17586.1875 µs  D10  HIGH",
+      "    19186.2500 µs  D10  LOW",
+      "    19626.2500 µs  D10  HIGH",
+      "    21226.1875 µs  D10  LOW",
+      "    21666.1875 µs  D10  HIGH",
+      "    23266.1875 µs  D10  LOW",
+      "    23706.3125 µs  D10  HIGH",
+      "    25306.1875 µs  D10  LOW",
+      "    25746.1875 µs  D10  HIGH",
+      "    27346.1875 µs  D10  LOW",
+      "    27786.1875 µs  D10  HIGH",
+      "    29386.1875 µs  D10  LOW",
+      "    29826.1875 µs  D10  HIGH",
+      "    31426.3750 µs  D10  LOW",
+      "    31866.1875 µs  D10  HIGH",
+      "    33466.1875 µs  D10  LOW",
+      "    33906.1875 µs  D10  HIGH",
+      "    35506.1875 µs  D10  LOW",
+      "    35946.2500 µs  D10  HIGH",
+      "    37546.3125 µs  D10  LOW",
+      "    37986.1875 µs  D10  HIGH",
+      "    39586.1875 µs  D10  LOW",
+      "    40026.1875 µs  D10  HIGH",
+      "    41626.1875 µs  D10  LOW",
+      "    42066.2500 µs  D10  HIGH",
+      "    43666.2500 µs  D10  LOW",
+      "    44106.1875 µs  D10  HIGH",
+      "    45706.1875 µs  D10  LOW",
+      "    46146.2500 µs  D10  HIGH",
+      "    47746.1875 µs  D10  LOW",
+      "    48186.1875 µs  D10  HIGH",
+      "    49786.2500 µs  D10  LOW",
+      "    50226.1875 µs  D10  HIGH",
+      "    51826.1875 µs  D10  LOW",
+      "    52266.1875 µs  D10  HIGH",
+      "    53866.1875 µs  D10  LOW",
+      "    54306.3750 µs  D10  HIGH",
+      "    55906.1875 µs  D10  LOW",
+      "    56346.1875 µs  D10  HIGH",
+      "    57946.3125 µs  D10  LOW",
+      "    58386.3750 µs  D10  HIGH",
+      "    59986.1875 µs  D10  LOW",
+      "    60426.1875 µs  D10  HIGH"
+    ],
+    "runWallMs": 486
+  },
+  "tonePwm11": {
+    "sketch": "tone-pwm11",
+    "size": {
+      "flashBytes": 2148,
+      "flashPercent": 6,
+      "flashMax": 32256,
+      "ramBytes": 28,
+      "ramPercent": 1,
+      "ramMax": 2048,
+      "lowMemoryWarning": false,
+      "notEnoughMemory": false
+    },
+    "phases": {
+      "A_pwm11_pwm3_alone": {
+        "D10": {
+          "pin": "D10",
+          "fromUs": 2000,
+          "toUs": 99000,
+          "level": "INPUT"
+        },
+        "D11": {
+          "pin": "D11",
+          "fromUs": 2000,
+          "toUs": 99000,
+          "level": "PULSES",
+          "periods": 46,
+          "periodUs": {
+            "min": 2039.875,
+            "median": 2040,
+            "max": 2040.125
+          },
+          "highUs": {
+            "min": 799.9375,
+            "median": 800,
+            "max": 800.1875
+          },
+          "frequencyHz": 490.196,
+          "duty": 0.39216
+        },
+        "D3": {
+          "pin": "D3",
+          "fromUs": 2000,
+          "toUs": 99000,
+          "level": "PULSES",
+          "periods": 46,
+          "periodUs": {
+            "min": 2039.875,
+            "median": 2040,
+            "max": 2040.125
+          },
+          "highUs": {
+            "min": 799.9375,
+            "median": 800,
+            "max": 800.1875
+          },
+          "frequencyHz": 490.196,
+          "duty": 0.39216
+        }
+      },
+      "B_tone10": {
+        "D10": {
+          "pin": "D10",
+          "fromUs": 102000,
+          "toUs": 199000,
+          "level": "PULSES",
+          "periods": 96,
+          "periodUs": {
+            "min": 998.875,
+            "median": 1000,
+            "max": 1001.125
+          },
+          "highUs": {
+            "min": 498.875,
+            "median": 500,
+            "max": 505.5
+          },
+          "frequencyHz": 1000,
+          "duty": 0.5
+        },
+        "D11": {
+          "pin": "D11",
+          "fromUs": 102000,
+          "toUs": 199000,
+          "level": "LOW"
+        },
+        "D3": {
+          "pin": "D3",
+          "fromUs": 102000,
+          "toUs": 199000,
+          "level": "LOW"
+        }
+      },
+      "C_pwm11_while_tone": {
+        "D10": {
+          "pin": "D10",
+          "fromUs": 202000,
+          "toUs": 299000,
+          "level": "PULSES",
+          "periods": 239,
+          "periodUs": {
+            "min": 399.1875,
+            "median": 404,
+            "max": 408.8125
+          },
+          "highUs": {
+            "min": 197.25,
+            "median": 202,
+            "max": 204.8125
+          },
+          "frequencyHz": 2475.248,
+          "duty": 0.5
+        },
+        "D11": {
+          "pin": "D11",
+          "fromUs": 202000,
+          "toUs": 299000,
+          "level": "LOW"
+        },
+        "D3": {
+          "pin": "D3",
+          "fromUs": 202000,
+          "toUs": 299000,
+          "level": "LOW"
+        }
+      },
+      "D_pwm3_while_tone": {
+        "D10": {
+          "pin": "D10",
+          "fromUs": 302000,
+          "toUs": 399000,
+          "level": "PULSES",
+          "periods": 239,
+          "periodUs": {
+            "min": 398.5,
+            "median": 404,
+            "max": 409.4375
+          },
+          "highUs": {
+            "min": 196.5,
+            "median": 202,
+            "max": 205.8125
+          },
+          "frequencyHz": 2475.248,
+          "duty": 0.5
+        },
+        "D11": {
+          "pin": "D11",
+          "fromUs": 302000,
+          "toUs": 399000,
+          "level": "LOW"
+        },
+        "D3": {
+          "pin": "D3",
+          "fromUs": 302000,
+          "toUs": 399000,
+          "level": "LOW"
+        }
+      },
+      "E_after_noTone": {
+        "D10": {
+          "pin": "D10",
+          "fromUs": 402000,
+          "toUs": 499000,
+          "level": "LOW"
+        },
+        "D11": {
+          "pin": "D11",
+          "fromUs": 402000,
+          "toUs": 499000,
+          "level": "PULSES",
+          "periods": 46,
+          "periodUs": {
+            "min": 2039.8125,
+            "median": 2040,
+            "max": 2040.1875
+          },
+          "highUs": {
+            "min": 799.8125,
+            "median": 800,
+            "max": 800.1875
+          },
+          "frequencyHz": 490.196,
+          "duty": 0.39216
+        },
+        "D3": {
+          "pin": "D3",
+          "fromUs": 402000,
+          "toUs": 499000,
+          "level": "PULSES",
+          "periods": 46,
+          "periodUs": {
+            "min": 2039.8125,
+            "median": 2040,
+            "max": 2040.1875
+          },
+          "highUs": {
+            "min": 799.8125,
+            "median": 800,
+            "max": 800.1875
+          },
+          "frequencyHz": 490.196,
+          "duty": 0.39216
+        }
+      },
+      "F_tone_with_duration_50ms": {
+        "D10": {
+          "pin": "D10",
+          "fromUs": 502000,
+          "toUs": 599000,
+          "level": "PULSES",
+          "periods": 47,
+          "periodUs": {
+            "min": 999.1875,
+            "median": 1000,
+            "max": 1000.8125
+          },
+          "highUs": {
+            "min": 499.5,
+            "median": 500,
+            "max": 502.1875
+          },
+          "frequencyHz": 1000,
+          "duty": 0.5
+        },
+        "D11": {
+          "pin": "D11",
+          "fromUs": 502000,
+          "toUs": 599000,
+          "level": "LOW"
+        },
+        "D3": {
+          "pin": "D3",
+          "fromUs": 502000,
+          "toUs": 599000,
+          "level": "LOW"
+        }
+      }
+    },
+    "observed": {
+      "A_pwm11_alone_is_490Hz_duty100of255": true,
+      "A_pwm3_alone_is_490Hz_duty100of255": true,
+      "B_tone_is_1000Hz": true,
+      "B_tone_stops_pwm11": "LOW",
+      "B_tone_stops_pwm3": "LOW",
+      "C_tone_frequency_after_pwm11": 2475.248,
+      "C_pwm11_level": "LOW",
+      "D_tone_frequency_after_pwm3": 2475.248,
+      "D_pwm3_level": "LOW",
+      "D_pwm3_summary": {
+        "pin": "D3",
+        "fromUs": 302000,
+        "toUs": 399000,
+        "level": "LOW"
+      },
+      "E_after_noTone_D10": "LOW",
+      "E_pwm11_after_noTone_is_490Hz": true,
+      "E_pwm3_after_noTone_is_490Hz": true,
+      "F_tone_duration_us": 49360.0625,
+      "F_tone_with_duration_frequency": 1000
+    },
+    "runWallMs": 451
+  },
+  "pwmPins": {
+    "sketch": "pwm-pins",
+    "pwm": {
+      "D3": {
+        "value": 64,
+        "frequencyHz": 490.196,
+        "duty": 0.25098,
+        "expectedHz": 490.196,
+        "contractDuty": 0.25098,
+        "frequencyOk": true,
+        "dutyWithin1PercentOfContract": true
+      },
+      "D5": {
+        "value": 64,
+        "frequencyHz": 976.563,
+        "duty": 0.25,
+        "expectedHz": 976.563,
+        "contractDuty": 0.25098,
+        "frequencyOk": true,
+        "dutyWithin1PercentOfContract": true
+      },
+      "D6": {
+        "value": 191,
+        "frequencyHz": 976.563,
+        "duty": 0.74609,
+        "expectedHz": 976.563,
+        "contractDuty": 0.74902,
+        "frequencyOk": true,
+        "dutyWithin1PercentOfContract": true
+      },
+      "D9": {
+        "value": 64,
+        "frequencyHz": 490.196,
+        "duty": 0.25098,
+        "expectedHz": 490.196,
+        "contractDuty": 0.25098,
+        "frequencyOk": true,
+        "dutyWithin1PercentOfContract": true
+      },
+      "D10": {
+        "value": 191,
+        "frequencyHz": 490.196,
+        "duty": 0.74902,
+        "expectedHz": 490.196,
+        "contractDuty": 0.74902,
+        "frequencyOk": true,
+        "dutyWithin1PercentOfContract": true
+      },
+      "D11": {
+        "value": 128,
+        "frequencyHz": 490.196,
+        "duty": 0.50196,
+        "expectedHz": 490.196,
+        "contractDuty": 0.50196,
+        "frequencyOk": true,
+        "dutyWithin1PercentOfContract": true
+      }
+    },
+    "nonPwmLevels": {
+      "D7": "LOW",
+      "D8": "HIGH",
+      "A0": "HIGH",
+      "A1": "LOW"
+    },
+    "pass": true,
+    "runWallMs": 355
+  },
+  "kitRover": {
+    "sketch": "kit-rover",
+    "size": {
+      "flashBytes": 4752,
+      "flashPercent": 14,
+      "flashMax": 32256,
+      "ramBytes": 247,
+      "ramPercent": 12,
+      "ramMax": 2048,
+      "lowMemoryWarning": false,
+      "notEnoughMemory": false
+    },
+    "servoD9WidthsUs": [
+      1007,
+      1008
+    ],
+    "toneD10": {
+      "frequencyHz": 1000,
+      "duty": 0.5
+    },
+    "motorD5": {
+      "frequencyHz": 976.563,
+      "duty": 0.5,
+      "value": 128
+    },
+    "motorD6": {
+      "frequencyHz": 976.563,
+      "duty": 0.79688,
+      "value": 204
+    },
+    "levels": {
+      "D7": "HIGH",
+      "D8": "LOW",
+      "D4": "HIGH",
+      "D2": "LOW",
+      "D13": "HIGH"
+    },
+    "serial": [
+      "1134 1 0 512 1023",
+      "1125 0 0 512 1023",
+      "1134 1 0 512 1023"
+    ],
+    "pass": true,
+    "runWallMs": 467
+  },
+  "costs": {
+    "sketch": "costs",
+    "size": {
+      "flashBytes": 9628,
+      "flashPercent": 29,
+      "flashMax": 32256,
+      "ramBytes": 279,
+      "ramPercent": 13,
+      "ramMax": 2048,
+      "lowMemoryWarning": false,
+      "notEnoughMemory": false
+    },
+    "baselineCycles": 2,
+    "costs": {
+      "baseline": {
+        "samples": 8,
+        "minCycles": 0,
+        "medianCycles": 0,
+        "maxCycles": 0,
+        "minUs": 0,
+        "medianUs": 0,
+        "maxUs": 0
+      },
+      "digitalWrite D7 HIGH (no timer)": {
+        "samples": 8,
+        "minCycles": 73,
+        "medianCycles": 73,
+        "maxCycles": 73,
+        "minUs": 4.5625,
+        "medianUs": 4.5625,
+        "maxUs": 4.5625
+      },
+      "digitalWrite D7 LOW (no timer)": {
+        "samples": 8,
+        "minCycles": 71,
+        "medianCycles": 71,
+        "maxCycles": 71,
+        "minUs": 4.4375,
+        "medianUs": 4.4375,
+        "maxUs": 4.4375
+      },
+      "digitalWrite D13 HIGH (no timer)": {
+        "samples": 8,
+        "minCycles": 73,
+        "medianCycles": 73,
+        "maxCycles": 73,
+        "minUs": 4.5625,
+        "medianUs": 4.5625,
+        "maxUs": 4.5625
+      },
+      "digitalWrite D5 LOW (Timer0 pin)": {
+        "samples": 8,
+        "minCycles": 90,
+        "medianCycles": 90,
+        "maxCycles": 90,
+        "minUs": 5.625,
+        "medianUs": 5.625,
+        "maxUs": 5.625
+      },
+      "digitalRead D4 (no timer)": {
+        "samples": 8,
+        "minCycles": 63,
+        "medianCycles": 63,
+        "maxCycles": 63,
+        "minUs": 3.9375,
+        "medianUs": 3.9375,
+        "maxUs": 3.9375
+      },
+      "digitalRead D11 (Timer2 pin)": {
+        "samples": 8,
+        "minCycles": 81,
+        "medianCycles": 81,
+        "maxCycles": 81,
+        "minUs": 5.0625,
+        "medianUs": 5.0625,
+        "maxUs": 5.0625
+      },
+      "digitalRead A1": {
+        "samples": 8,
+        "minCycles": 63,
+        "medianCycles": 63,
+        "maxCycles": 63,
+        "minUs": 3.9375,
+        "medianUs": 3.9375,
+        "maxUs": 3.9375
+      },
+      "analogRead A0 first": {
+        "samples": 1,
+        "minCycles": 3229,
+        "medianCycles": 3229,
+        "maxCycles": 3229,
+        "minUs": 201.8125,
+        "medianUs": 201.8125,
+        "maxUs": 201.8125
+      },
+      "analogRead A0": {
+        "samples": 8,
+        "minCycles": 1693,
+        "medianCycles": 1693,
+        "maxCycles": 1694,
+        "minUs": 105.8125,
+        "medianUs": 105.8125,
+        "maxUs": 105.875
+      },
+      "analogWrite D5 128 (Timer0)": {
+        "samples": 8,
+        "minCycles": 123,
+        "medianCycles": 123,
+        "maxCycles": 123,
+        "minUs": 7.6875,
+        "medianUs": 7.6875,
+        "maxUs": 7.6875
+      },
+      "analogWrite D9 128 (Timer1)": {
+        "samples": 8,
+        "minCycles": 123,
+        "medianCycles": 123,
+        "maxCycles": 123,
+        "minUs": 7.6875,
+        "medianUs": 7.6875,
+        "maxUs": 7.6875
+      },
+      "analogWrite D3 128 (Timer2)": {
+        "samples": 8,
+        "minCycles": 127,
+        "medianCycles": 127,
+        "maxCycles": 127,
+        "minUs": 7.9375,
+        "medianUs": 7.9375,
+        "maxUs": 7.9375
+      },
+      "analogWrite D5 v=128 (Timer0, run-time value)": {
+        "samples": 8,
+        "minCycles": 125,
+        "medianCycles": 125,
+        "maxCycles": 221,
+        "minUs": 7.8125,
+        "medianUs": 7.8125,
+        "maxUs": 13.8125
+      },
+      "analogWrite D6 0": {
+        "samples": 8,
+        "minCycles": 178,
+        "medianCycles": 178,
+        "maxCycles": 178,
+        "minUs": 11.125,
+        "medianUs": 11.125,
+        "maxUs": 11.125
+      },
+      "analogWrite D6 255": {
+        "samples": 8,
+        "minCycles": 186,
+        "medianCycles": 186,
+        "maxCycles": 186,
+        "minUs": 11.625,
+        "medianUs": 11.625,
+        "maxUs": 11.625
+      },
+      "analogWrite D7 200 (no PWM)": {
+        "samples": 8,
+        "minCycles": 190,
+        "medianCycles": 190,
+        "maxCycles": 190,
+        "minUs": 11.875,
+        "medianUs": 11.875,
+        "maxUs": 11.875
+      },
+      "pinMode D7 OUTPUT": {
+        "samples": 8,
+        "minCycles": 70,
+        "medianCycles": 70,
+        "maxCycles": 70,
+        "minUs": 4.375,
+        "medianUs": 4.375,
+        "maxUs": 4.375
+      },
+      "pinMode D4 INPUT_PULLUP": {
+        "samples": 8,
+        "minCycles": 76,
+        "medianCycles": 76,
+        "maxCycles": 76,
+        "minUs": 4.75,
+        "medianUs": 4.75,
+        "maxUs": 4.75
+      },
+      "millis": {
+        "samples": 8,
+        "minCycles": 19,
+        "medianCycles": 19,
+        "maxCycles": 19,
+        "minUs": 1.1875,
+        "medianUs": 1.1875,
+        "maxUs": 1.1875
+      },
+      "micros": {
+        "samples": 8,
+        "minCycles": 55,
+        "medianCycles": 55,
+        "maxCycles": 55,
+        "minUs": 3.4375,
+        "medianUs": 3.4375,
+        "maxUs": 3.4375
+      },
+      "delayMicroseconds 10": {
+        "samples": 8,
+        "minCycles": 140,
+        "medianCycles": 140,
+        "maxCycles": 140,
+        "minUs": 8.75,
+        "medianUs": 8.75,
+        "maxUs": 8.75
+      },
+      "delay 1": {
+        "samples": 8,
+        "minCycles": 16081,
+        "medianCycles": 16143,
+        "maxCycles": 16148,
+        "minUs": 1005.0625,
+        "medianUs": 1008.9375,
+        "maxUs": 1009.25
+      },
+      "delay 10": {
+        "samples": 8,
+        "minCycles": 160092,
+        "medianCycles": 160137,
+        "maxCycles": 160211,
+        "minUs": 10005.75,
+        "medianUs": 10008.5625,
+        "maxUs": 10013.1875
+      },
+      "delay v=1 (run-time value)": {
+        "samples": 8,
+        "minCycles": 16085,
+        "medianCycles": 16147,
+        "maxCycles": 16147,
+        "minUs": 1005.3125,
+        "medianUs": 1009.1875,
+        "maxUs": 1009.1875
+      },
+      "pulseIn D11 no pulse, timeout 30000, Timer0 only": {
+        "samples": 1,
+        "minCycles": 332032,
+        "medianCycles": 332032,
+        "maxCycles": 332032,
+        "minUs": 20752,
+        "medianUs": 20752,
+        "maxUs": 20752
+      },
+      "pulseIn D11 no pulse, timeout 10000, Timer0 only": {
+        "samples": 1,
+        "minCycles": 110779,
+        "medianCycles": 110779,
+        "maxCycles": 110779,
+        "minUs": 6923.6875,
+        "medianUs": 6923.6875,
+        "maxUs": 6923.6875
+      },
+      "Serial.write 1 char": {
+        "samples": 8,
+        "minCycles": 74,
+        "medianCycles": 74,
+        "maxCycles": 74,
+        "minUs": 4.625,
+        "medianUs": 4.625,
+        "maxUs": 4.625
+      },
+      "Serial.print long 12345": {
+        "samples": 8,
+        "minCycles": 3719,
+        "medianCycles": 3719,
+        "maxCycles": 3815,
+        "minUs": 232.4375,
+        "medianUs": 232.4375,
+        "maxUs": 238.4375
+      },
+      "Serial.print long v=7": {
+        "samples": 8,
+        "minCycles": 873,
+        "medianCycles": 873,
+        "maxCycles": 873,
+        "minUs": 54.5625,
+        "medianUs": 54.5625,
+        "maxUs": 54.5625
+      },
+      "Serial.print long v=12345": {
+        "samples": 8,
+        "minCycles": 3723,
+        "medianCycles": 3723,
+        "maxCycles": 3819,
+        "minUs": 232.6875,
+        "medianUs": 232.6875,
+        "maxUs": 238.6875
+      },
+      "Serial.print long v=1234567890": {
+        "samples": 8,
+        "minCycles": 7376,
+        "medianCycles": 7424,
+        "maxCycles": 7472,
+        "minUs": 461,
+        "medianUs": 464,
+        "maxUs": 467
+      },
+      "Serial.print long v=-2147483648": {
+        "samples": 8,
+        "minCycles": 7485,
+        "medianCycles": 7533,
+        "maxCycles": 7581,
+        "minUs": 467.8125,
+        "medianUs": 470.8125,
+        "maxUs": 473.8125
+      },
+      "Serial.println long v=12345": {
+        "samples": 8,
+        "minCycles": 4004,
+        "medianCycles": 4004,
+        "maxCycles": 4100,
+        "minUs": 250.25,
+        "medianUs": 250.25,
+        "maxUs": 256.25
+      },
+      "Serial.println no args": {
+        "samples": 8,
+        "minCycles": 276,
+        "medianCycles": 276,
+        "maxCycles": 276,
+        "minUs": 17.25,
+        "medianUs": 17.25,
+        "maxUs": 17.25
+      },
+      "Serial.println bool true": {
+        "samples": 8,
+        "minCycles": 1158,
+        "medianCycles": 1158,
+        "maxCycles": 1158,
+        "minUs": 72.375,
+        "medianUs": 72.375,
+        "maxUs": 72.375
+      },
+      "Serial.println F 10 chars": {
+        "samples": 8,
+        "minCycles": 1315,
+        "medianCycles": 1315,
+        "maxCycles": 1411,
+        "minUs": 82.1875,
+        "medianUs": 82.1875,
+        "maxUs": 88.1875
+      },
+      "Serial.print F 64 chars": {
+        "samples": 1,
+        "minCycles": 6434,
+        "medianCycles": 6434,
+        "maxCycles": 6434,
+        "minUs": 402.125,
+        "medianUs": 402.125,
+        "maxUs": 402.125
+      },
+      "Serial.print F 65 chars": {
+        "samples": 1,
+        "minCycles": 16914,
+        "medianCycles": 16914,
+        "maxCycles": 16914,
+        "minUs": 1057.125,
+        "medianUs": 1057.125,
+        "maxUs": 1057.125
+      },
+      "Serial.print F 100 chars": {
+        "samples": 1,
+        "minCycles": 601647,
+        "medianCycles": 601647,
+        "maxCycles": 601647,
+        "minUs": 37602.9375,
+        "medianUs": 37602.9375,
+        "maxUs": 37602.9375
+      },
+      "Serial.print F 200 chars": {
+        "samples": 1,
+        "minCycles": 2272334,
+        "medianCycles": 2272334,
+        "maxCycles": 2272334,
+        "minUs": 142020.875,
+        "medianUs": 142020.875,
+        "maxUs": 142020.875
+      },
+      "spin 1600000 cycles, interrupts off": {
+        "samples": 1,
+        "minCycles": 1600098,
+        "medianCycles": 1600098,
+        "maxCycles": 1600098,
+        "minUs": 100006.125,
+        "medianUs": 100006.125,
+        "maxUs": 100006.125
+      },
+      "spin 1600000 cycles, Timer0 only": {
+        "samples": 1,
+        "minCycles": 1609418,
+        "medianCycles": 1609418,
+        "maxCycles": 1609418,
+        "minUs": 100588.625,
+        "medianUs": 100588.625,
+        "maxUs": 100588.625
+      },
+      "Servo.write 90": {
+        "samples": 8,
+        "minCycles": 790,
+        "medianCycles": 790,
+        "maxCycles": 891,
+        "minUs": 49.375,
+        "medianUs": 49.375,
+        "maxUs": 55.6875
+      },
+      "Servo.write v=90 (run-time value)": {
+        "samples": 8,
+        "minCycles": 792,
+        "medianCycles": 792,
+        "maxCycles": 792,
+        "minUs": 49.5,
+        "medianUs": 49.5,
+        "maxUs": 49.5
+      },
+      "spin 1600000 cycles, Timer0 + Servo": {
+        "samples": 1,
+        "minCycles": 1612019,
+        "medianCycles": 1612019,
+        "maxCycles": 1612019,
+        "minUs": 100751.1875,
+        "medianUs": 100751.1875,
+        "maxUs": 100751.1875
+      },
+      "tone D10 1000 Hz": {
+        "samples": 8,
+        "minCycles": 2143,
+        "medianCycles": 2143,
+        "maxCycles": 2309,
+        "minUs": 133.9375,
+        "medianUs": 133.9375,
+        "maxUs": 144.3125
+      },
+      "tone D10 v=1000 Hz (run-time value)": {
+        "samples": 8,
+        "minCycles": 2145,
+        "medianCycles": 2145,
+        "maxCycles": 2350,
+        "minUs": 134.0625,
+        "medianUs": 134.0625,
+        "maxUs": 146.875
+      },
+      "tone D10 v=1000 Hz, 100 ms (run-time value)": {
+        "samples": 8,
+        "minCycles": 2785,
+        "medianCycles": 2913,
+        "maxCycles": 2913,
+        "minUs": 174.0625,
+        "medianUs": 182.0625,
+        "maxUs": 182.0625
+      },
+      "spin 1600000 cycles, Timer0 + tone 1000 Hz": {
+        "samples": 1,
+        "minCycles": 1633255,
+        "medianCycles": 1633255,
+        "maxCycles": 1633255,
+        "minUs": 102078.4375,
+        "medianUs": 102078.4375,
+        "maxUs": 102078.4375
+      },
+      "noTone D10": {
+        "samples": 8,
+        "minCycles": 102,
+        "medianCycles": 102,
+        "maxCycles": 133,
+        "minUs": 6.375,
+        "medianUs": 6.375,
+        "maxUs": 8.3125
+      }
+    },
+    "isr": {
+      "timer0OverflowCyclesEach": 95.44,
+      "timer0LoadPercent": 0.583,
+      "servoExtraCyclesPer100ms": 2601,
+      "servoLoadPercent": 0.163,
+      "tone1000ExtraCyclesPer100ms": 23837,
+      "tone1000CyclesPerToggle": 119.19,
+      "tone1000LoadPercent": 1.49
+    },
+    "loop": {
+      "iterationCycles": {
+        "n": 399,
+        "min": 5,
+        "median": 5,
+        "max": 5
+      },
+      "iterationUs": {
+        "min": 0.3125,
+        "median": 0.3125,
+        "max": 0.3125
+      }
+    },
+    "serial": {
+      "perCharUsBeyondBuffer_100to200": 1044.1794,
+      "perCharUsBeyondBuffer_65to100": 1044.1661,
+      "nominalUsPerChar": 1040,
+      "first64charsUs": 402.125,
+      "ubrr": 207,
+      "u2x": true,
+      "baudRate": 9615,
+      "usPerFrame": 1040
+    },
+    "groupsSeen": [
+      "baseline",
+      "digitalWrite D7 HIGH (no timer)",
+      "digitalWrite D7 LOW (no timer)",
+      "digitalWrite D13 HIGH (no timer)",
+      "digitalWrite D5 LOW (Timer0 pin)",
+      "digitalRead D4 (no timer)",
+      "digitalRead D11 (Timer2 pin)",
+      "digitalRead A1",
+      "analogRead A0 first",
+      "analogRead A0",
+      "analogWrite D5 128 (Timer0)",
+      "analogWrite D9 128 (Timer1)",
+      "analogWrite D3 128 (Timer2)",
+      "analogWrite D5 v=128 (Timer0, run-time value)",
+      "analogWrite D6 0",
+      "analogWrite D6 255",
+      "analogWrite D7 200 (no PWM)",
+      "pinMode D7 OUTPUT",
+      "pinMode D4 INPUT_PULLUP",
+      "millis",
+      "micros",
+      "delayMicroseconds 10",
+      "delay 1",
+      "delay 10",
+      "delay v=1 (run-time value)",
+      "pulseIn D11 no pulse, timeout 30000, Timer0 only",
+      "pulseIn D11 no pulse, timeout 10000, Timer0 only",
+      "Serial.write 1 char",
+      "Serial.print long 12345",
+      "Serial.print long v=7",
+      "Serial.print long v=12345",
+      "Serial.print long v=1234567890",
+      "Serial.print long v=-2147483648",
+      "Serial.println long v=12345",
+      "Serial.println no args",
+      "Serial.println bool true",
+      "Serial.println F 10 chars",
+      "Serial.print F 64 chars",
+      "Serial.print F 65 chars",
+      "Serial.print F 100 chars",
+      "Serial.print F 200 chars",
+      "spin 1600000 cycles, interrupts off",
+      "spin 1600000 cycles, Timer0 only",
+      "Servo.write 90",
+      "Servo.write v=90 (run-time value)",
+      "spin 1600000 cycles, Timer0 + Servo",
+      "tone D10 1000 Hz",
+      "tone D10 v=1000 Hz (run-time value)",
+      "tone D10 v=1000 Hz, 100 ms (run-time value)",
+      "spin 1600000 cycles, Timer0 + tone 1000 Hz",
+      "noTone D10"
+    ],
+    "runWallMs": 1275
+  },
+  "costsConst": {
+    "sketch": "costs-const",
+    "size": {
+      "flashBytes": 4234,
+      "flashPercent": 13,
+      "flashMax": 32256,
+      "ramBytes": 246,
+      "ramPercent": 12,
+      "ramMax": 2048,
+      "lowMemoryWarning": false,
+      "notEnoughMemory": false
+    },
+    "baselineCycles": 2,
+    "costs": {
+      "baseline": {
+        "samples": 8,
+        "minCycles": 0,
+        "medianCycles": 0,
+        "maxCycles": 0,
+        "minUs": 0,
+        "medianUs": 0,
+        "maxUs": 0
+      },
+      "digitalWrite D7 HIGH (no timer)": {
+        "samples": 8,
+        "minCycles": 58,
+        "medianCycles": 58,
+        "maxCycles": 58,
+        "minUs": 3.625,
+        "medianUs": 3.625,
+        "maxUs": 3.625
+      },
+      "analogWrite D5 128 (Timer0)": {
+        "samples": 8,
+        "minCycles": 73,
+        "medianCycles": 73,
+        "maxCycles": 73,
+        "minUs": 4.5625,
+        "medianUs": 4.5625,
+        "maxUs": 4.5625
+      },
+      "Servo.write 90": {
+        "samples": 8,
+        "minCycles": 726,
+        "medianCycles": 726,
+        "maxCycles": 822,
+        "minUs": 45.375,
+        "medianUs": 45.375,
+        "maxUs": 51.375
+      },
+      "tone D10 1000 Hz": {
+        "samples": 8,
+        "minCycles": 94,
+        "medianCycles": 94,
+        "maxCycles": 260,
+        "minUs": 5.875,
+        "medianUs": 5.875,
+        "maxUs": 16.25
+      }
+    },
+    "runWallMs": 535
+  },
+  "millis": {
+    "sketch": "millis-drift",
+    "model": {
+      "formula": "n = floor((tUs - t0) / 1024); millis = n + floor(3 * n / 125)",
+      "bestT0Us": 459.1,
+      "setupStartUs": 467,
+      "timer0StartBeforeSetupUs": 7.9,
+      "exactMatches": 250,
+      "of": 250,
+      "t0Window": [
+        459.1,
+        467.4
+      ]
+    },
+    "samples": 250,
+    "millisMinusTrueMs": {
+      "min": -2.4517,
+      "max": -0.4674
+    },
+    "millisMinusFloorTrueMs": {
+      "min": -2,
+      "max": 0,
+      "counts": {
+        "0": 34,
+        "-1": 189,
+        "-2": 27
+      }
+    },
+    "first": [
+      {
+        "trueMs": 0.4674375,
+        "millis": 0
+      },
+      {
+        "trueMs": 4.48525,
+        "millis": 3
+      },
+      {
+        "trueMs": 8.5090625,
+        "millis": 7
+      },
+      {
+        "trueMs": 12.532875,
+        "millis": 11
+      },
+      {
+        "trueMs": 16.5566875,
+        "millis": 15
+      }
+    ],
+    "last": [
+      {
+        "trueMs": 994.2483125,
+        "millis": 993
+      },
+      {
+        "trueMs": 998.272125,
+        "millis": 997
+      },
+      {
+        "trueMs": 1002.2959375,
+        "millis": 1001
+      }
+    ],
+    "runWallMs": 941
+  },
+  "lang": {
+    "sketch": "lang",
+    "size": {
+      "flashBytes": 4876,
+      "flashPercent": 15,
+      "flashMax": 32256,
+      "ramBytes": 232,
+      "ramPercent": 11,
+      "ramMax": 2048,
+      "lowMemoryWarning": false,
+      "notEnoughMemory": false
+    },
+    "compilerWarnings": [],
+    "serial": [
+      "int 300*200=-5536",
+      "long 300L*200L=60000",
+      "plain max+1=-2147483648",
+      "helper max+1=-2147483648",
+      "plain (x+1>x)=1",
+      "helper (x+1>x)=1",
+      "plain (h*2)/2=1073741824",
+      "helper (h*2)/2=-1073741824",
+      "plain -min=-2147483648",
+      "helper -min=-2147483648",
+      "plain 65536*65536=0",
+      "helper 65536*65536=0",
+      "-7/2=-3",
+      "-7%2=-1",
+      "7/-2=-3",
+      "7%-2=1",
+      "-7/-2=3",
+      "-7%-2=-1",
+      "helper -7/2=-3",
+      "helper -7%2=-1",
+      "helper 7%-2=1",
+      "plain min/-1=-2147483648",
+      "plain min%-1=0",
+      "plain 7%-1=0",
+      "plain -7%-1=0",
+      "plain 7/0=-1",
+      "plain -7/0=1",
+      "plain 7%0=7",
+      "plain -7%0=-7",
+      "helper min/-1=-2147483648",
+      "helper min%-1=0",
+      "helper -7%-1=0",
+      "helper 7/0=0",
+      "helper 7%0=0",
+      "bool true=1",
+      "bool false=0",
+      "bool 7>2=1",
+      "bool !(7>2)=0",
+      "(-1 < millis())=0",
+      "(-1 < (long)millis())=1",
+      "(long)2147483648UL=-2147483648",
+      "eval=start",
+      "eval=end",
+      "body i=1",
+      "body i=2",
+      "body i=3",
+      "after i=3",
+      "eval=end",
+      "eval=start",
+      "after j=3",
+      "after k (7..2)=42",
+      "count (end read once)=3",
+      "text=Xin chao",
+      "utf8=Xin chÃ o",
+      "done"
+    ],
+    "comparisons": [
+      {
+        "key": "int 300*200",
+        "board": -5536,
+        "sim": -5536
+      },
+      {
+        "key": "long 300L*200L",
+        "board": 60000,
+        "sim": 60000
+      },
+      {
+        "key": "helper max+1",
+        "board": -2147483648,
+        "sim": -2147483648
+      },
+      {
+        "key": "helper (x+1>x)",
+        "board": 1,
+        "sim": 0
+      },
+      {
+        "key": "helper (h*2)/2",
+        "board": -1073741824,
+        "sim": -1073741824
+      },
+      {
+        "key": "helper -min",
+        "board": -2147483648,
+        "sim": -2147483648
+      },
+      {
+        "key": "helper 65536*65536",
+        "board": 0,
+        "sim": 0
+      },
+      {
+        "key": "-7/2",
+        "board": -3,
+        "sim": -3
+      },
+      {
+        "key": "-7%2",
+        "board": -1,
+        "sim": -1
+      },
+      {
+        "key": "7/-2",
+        "board": -3,
+        "sim": -3
+      },
+      {
+        "key": "7%-2",
+        "board": 1,
+        "sim": 1
+      },
+      {
+        "key": "-7/-2",
+        "board": 3,
+        "sim": 3
+      },
+      {
+        "key": "-7%-2",
+        "board": -1,
+        "sim": -1
+      },
+      {
+        "key": "helper -7/2",
+        "board": -3,
+        "sim": -3
+      },
+      {
+        "key": "helper -7%2",
+        "board": -1,
+        "sim": -1
+      },
+      {
+        "key": "helper 7%-2",
+        "board": 1,
+        "sim": 1
+      },
+      {
+        "key": "helper min/-1",
+        "board": -2147483648,
+        "sim": -2147483648
+      },
+      {
+        "key": "helper min%-1",
+        "board": 0,
+        "sim": 0
+      },
+      {
+        "key": "helper -7%-1",
+        "board": 0,
+        "sim": 0
+      },
+      {
+        "key": "bool true",
+        "board": 1,
+        "sim": 1
+      },
+      {
+        "key": "bool false",
+        "board": 0,
+        "sim": 0
+      },
+      {
+        "key": "bool 7>2",
+        "board": 1,
+        "sim": 1
+      },
+      {
+        "key": "bool !(7>2)",
+        "board": 0,
+        "sim": 0
+      },
+      {
+        "key": "(-1 < (long)millis())",
+        "board": 1,
+        "sim": 1
+      },
+      {
+        "key": "(long)2147483648UL",
+        "board": -2147483648,
+        "sim": -2147483648
+      },
+      {
+        "key": "after i",
+        "board": 3,
+        "sim": 3
+      },
+      {
+        "key": "after j",
+        "board": 3,
+        "sim": 3
+      },
+      {
+        "key": "after k (7..2)",
+        "board": 42,
+        "sim": 42
+      },
+      {
+        "key": "count (end read once)",
+        "board": 3,
+        "sim": 3
+      }
+    ],
+    "mismatches": [
+      {
+        "key": "helper (x+1>x)",
+        "board": 1,
+        "sim": 0
+      }
+    ],
+    "mismatchNote": "helper (x+1>x) differs because the plain x + 1L two lines above executes a signed overflow (undefined behaviour) in the same function, and GCC merges the two values; run-lang-wrap.mjs isolates each form (ADR 0003 §4.3).",
+    "evaluationOrder": {
+      "contractForm": [
+        "eval=start",
+        "eval=end"
+      ],
+      "briefForm": [
+        "eval=end",
+        "eval=start"
+      ]
+    },
+    "utf8": {
+      "bytesSent": "58696e206368c3a06f",
+      "expected": "58696e206368c3a06f",
+      "byteCount": 9,
+      "charCount": 8
+    },
+    "done": true,
+    "runWallMs": 602
+  },
+  "langWrap": {
+    "noPragma": {
+      "sketch": "lang-wrap",
+      "size": {
+        "flashBytes": 3054,
+        "flashPercent": 9,
+        "flashMax": 32256,
+        "ramBytes": 200,
+        "ramPercent": 9,
+        "ramMax": 2048,
+        "lowMemoryWarning": false,
+        "notEnoughMemory": false
+      },
+      "values": {
+        "trapA plain x+1": -2147483648,
+        "trapA x+1>x": 1,
+        "trapB plain x+1": -2147483648,
+        "trapB x+1>x": 1,
+        "trapC plain x+1": -2147483648,
+        "trapC x+1>x": 0,
+        "trapD plain x+1": -2147483648,
+        "trapD x+1>x": 0,
+        "plain x+1>x": 1,
+        "A x+1>x": 0,
+        "B x+1>x": 0,
+        "C x+1>x": 0,
+        "D x+1>x": 0,
+        "plain (h*2)/2": 1073741824,
+        "A (h*2)/2": -1073741824,
+        "B (h*2)/2": -1073741824,
+        "C (h*2)/2": -1073741824,
+        "D (h*2)/2": -1073741824,
+        "B steps past max": 2,
+        "A steps past max": 2,
+        "plain steps past max": 2
+      },
+      "verdict": {
+        "plain": {
+          "x+1>x": {
+            "board": 1,
+            "wrap": 0,
+            "ok": false
+          },
+          "(h*2)/2": {
+            "board": 1073741824,
+            "wrap": -1073741824,
+            "ok": false
+          },
+          "steps past max": {
+            "board": 2,
+            "wrap": 2,
+            "ok": true
+          }
+        },
+        "A": {
+          "x+1>x": {
+            "board": 0,
+            "wrap": 0,
+            "ok": true
+          },
+          "(h*2)/2": {
+            "board": -1073741824,
+            "wrap": -1073741824,
+            "ok": true
+          },
+          "steps past max": {
+            "board": 2,
+            "wrap": 2,
+            "ok": true
+          },
+          "x+1>x after a plain x+1 (CSE trap)": {
+            "board": 1,
+            "wrap": 0,
+            "ok": false
+          }
+        },
+        "B": {
+          "x+1>x": {
+            "board": 0,
+            "wrap": 0,
+            "ok": true
+          },
+          "(h*2)/2": {
+            "board": -1073741824,
+            "wrap": -1073741824,
+            "ok": true
+          },
+          "steps past max": {
+            "board": 2,
+            "wrap": 2,
+            "ok": true
+          },
+          "x+1>x after a plain x+1 (CSE trap)": {
+            "board": 1,
+            "wrap": 0,
+            "ok": false
+          }
+        },
+        "C": {
+          "x+1>x": {
+            "board": 0,
+            "wrap": 0,
+            "ok": true
+          },
+          "(h*2)/2": {
+            "board": -1073741824,
+            "wrap": -1073741824,
+            "ok": true
+          },
+          "x+1>x after a plain x+1 (CSE trap)": {
+            "board": 0,
+            "wrap": 0,
+            "ok": true
+          }
+        },
+        "D": {
+          "x+1>x": {
+            "board": 0,
+            "wrap": 0,
+            "ok": true
+          },
+          "(h*2)/2": {
+            "board": -1073741824,
+            "wrap": -1073741824,
+            "ok": true
+          },
+          "x+1>x after a plain x+1 (CSE trap)": {
+            "board": 0,
+            "wrap": 0,
+            "ok": true
+          }
+        }
+      }
+    },
+    "wrapvPragma": {
+      "sketch": "lang-wrapv",
+      "size": {
+        "flashBytes": 3216,
+        "flashPercent": 9,
+        "flashMax": 32256,
+        "ramBytes": 200,
+        "ramPercent": 9,
+        "ramMax": 2048,
+        "lowMemoryWarning": false,
+        "notEnoughMemory": false
+      },
+      "values": {
+        "trapA plain x+1": -2147483648,
+        "trapA x+1>x": 0,
+        "trapB plain x+1": -2147483648,
+        "trapB x+1>x": 0,
+        "trapC plain x+1": -2147483648,
+        "trapC x+1>x": 0,
+        "trapD plain x+1": -2147483648,
+        "trapD x+1>x": 0,
+        "plain x+1>x": 0,
+        "A x+1>x": 0,
+        "B x+1>x": 0,
+        "C x+1>x": 0,
+        "D x+1>x": 0,
+        "plain (h*2)/2": -1073741824,
+        "A (h*2)/2": -1073741824,
+        "B (h*2)/2": -1073741824,
+        "C (h*2)/2": -1073741824,
+        "D (h*2)/2": -1073741824,
+        "B steps past max": 2,
+        "A steps past max": 2,
+        "plain steps past max": 2
+      },
+      "verdict": {
+        "plain": {
+          "x+1>x": {
+            "board": 0,
+            "wrap": 0,
+            "ok": true
+          },
+          "(h*2)/2": {
+            "board": -1073741824,
+            "wrap": -1073741824,
+            "ok": true
+          },
+          "steps past max": {
+            "board": 2,
+            "wrap": 2,
+            "ok": true
+          }
+        },
+        "A": {
+          "x+1>x": {
+            "board": 0,
+            "wrap": 0,
+            "ok": true
+          },
+          "(h*2)/2": {
+            "board": -1073741824,
+            "wrap": -1073741824,
+            "ok": true
+          },
+          "steps past max": {
+            "board": 2,
+            "wrap": 2,
+            "ok": true
+          },
+          "x+1>x after a plain x+1 (CSE trap)": {
+            "board": 0,
+            "wrap": 0,
+            "ok": true
+          }
+        },
+        "B": {
+          "x+1>x": {
+            "board": 0,
+            "wrap": 0,
+            "ok": true
+          },
+          "(h*2)/2": {
+            "board": -1073741824,
+            "wrap": -1073741824,
+            "ok": true
+          },
+          "steps past max": {
+            "board": 2,
+            "wrap": 2,
+            "ok": true
+          },
+          "x+1>x after a plain x+1 (CSE trap)": {
+            "board": 0,
+            "wrap": 0,
+            "ok": true
+          }
+        },
+        "C": {
+          "x+1>x": {
+            "board": 0,
+            "wrap": 0,
+            "ok": true
+          },
+          "(h*2)/2": {
+            "board": -1073741824,
+            "wrap": -1073741824,
+            "ok": true
+          },
+          "x+1>x after a plain x+1 (CSE trap)": {
+            "board": 0,
+            "wrap": 0,
+            "ok": true
+          }
+        },
+        "D": {
+          "x+1>x": {
+            "board": 0,
+            "wrap": 0,
+            "ok": true
+          },
+          "(h*2)/2": {
+            "board": -1073741824,
+            "wrap": -1073741824,
+            "ok": true
+          },
+          "x+1>x after a plain x+1 (CSE trap)": {
+            "board": 0,
+            "wrap": 0,
+            "ok": true
+          }
+        }
+      }
+    },
+    "runWallMs": 956
+  },
+  "contractForms": {
+    "sketch": "contract-forms",
+    "size": {
+      "flashBytes": 7386,
+      "flashPercent": 22,
+      "flashMax": 32256,
+      "ramBytes": 258,
+      "ramPercent": 12,
+      "ramMax": 2048,
+      "lowMemoryWarning": false,
+      "notEnoughMemory": false
+    },
+    "sectionsAtUs": {
+      "arith": 10695.875,
+      "bool": 101540.625,
+      "repeat": 122468,
+      "countup": 149618.125,
+      "print": 184080.8125,
+      "millis": 243599.875,
+      "motor": 259382.0625,
+      "servo": 420439.3125,
+      "led": 654023,
+      "buzzer": 675537.6875,
+      "ultrasonic": 962546,
+      "line": 1004887.3125,
+      "button": 1027907.1875,
+      "raw": 1044529.4375
+    },
+    "sections": {
+      "arith": [
+        "-2147483648",
+        "2147483647",
+        "60000",
+        "0",
+        "-3",
+        "-1",
+        "-2147483648",
+        "0",
+        "0",
+        "0",
+        "-2147483648"
+      ],
+      "bool": [
+        "1",
+        "0",
+        "0"
+      ],
+      "repeat": [
+        "eval=3",
+        "3",
+        "3"
+      ],
+      "countup": [
+        "eval=1",
+        "eval=4",
+        "4",
+        "10"
+      ],
+      "print": [
+        "Xin chào",
+        "say \"hi\" \\ ok",
+        "x = 4",
+        "-2147483648"
+      ],
+      "millis": [
+        "242"
+      ],
+      "motor": [],
+      "servo": [],
+      "led": [],
+      "buzzer": [],
+      "ultrasonic": [
+        "19",
+        "400"
+      ],
+      "line": [
+        "1",
+        "0",
+        "512"
+      ],
+      "button": [
+        "0",
+        "1"
+      ],
+      "raw": [
+        "0",
+        "512"
+      ]
+    },
+    "motor": {
+      "A": {
+        "D5": {
+          "duty": 0.5,
+          "hz": 976.563
+        },
+        "D7": "HIGH",
+        "D8": "LOW",
+        "D6": "HIGH",
+        "D4": "LOW",
+        "D2": "HIGH"
+      },
+      "forward60": {
+        "D5": {
+          "duty": 0.59766,
+          "hz": 976.563
+        },
+        "D7": "HIGH",
+        "D8": "LOW",
+        "D6": {
+          "duty": 0.59766,
+          "hz": 976.563
+        },
+        "D4": "HIGH",
+        "D2": "LOW"
+      },
+      "spinLeft40": {
+        "D5": {
+          "duty": 0.39844,
+          "hz": 976.563
+        },
+        "D7": "LOW",
+        "D8": "HIGH",
+        "D6": {
+          "duty": 0.39844,
+          "hz": 976.563
+        },
+        "D4": "HIGH",
+        "D2": "LOW"
+      },
+      "clamp150": {
+        "D5": "HIGH",
+        "D7": "HIGH",
+        "D8": "LOW",
+        "D6": {
+          "duty": 0.39844,
+          "hz": 976.563
+        },
+        "D4": "HIGH",
+        "D2": "LOW"
+      },
+      "stop": {
+        "D5": "LOW",
+        "D7": "LOW",
+        "D8": "LOW",
+        "D6": "LOW",
+        "D4": "LOW",
+        "D2": "LOW"
+      }
+    },
+    "servoWidths": {
+      "setup": [
+        1471.5,
+        1471.88,
+        1471.94
+      ],
+      "s0": [
+        543
+      ],
+      "s180": [
+        2400,
+        2400
+      ],
+      "s600": [
+        2400
+      ],
+      "sMinus5": [
+        544
+      ]
+    },
+    "buzzer": {
+      "hz440": 440.141,
+      "hz880": 880.282,
+      "hz880LengthMs": 30.218,
+      "hz31LengthMs": 16.023,
+      "hz31HalfPeriodsPlayed": 2,
+      "hz4000": 4000,
+      "hz4000LengthMs": 19.873,
+      "ms0LengthMs": 0.497,
+      "lastToggleAfterNoToneUs": 1335.6
+    },
+    "ultrasonic": {
+      "cm": [
+        "19",
+        "400"
+      ],
+      "callUs": [
+        1675.375,
+        20806.3125
+      ],
+      "echoUs": 1160
+    },
+    "millis": {
+      "printed": 242,
+      "sectionUs": 243599.875
+    },
+    "a3": [
+      {
+        "us": 4.8,
+        "state": "LOW"
+      },
+      {
+        "us": 9.4,
+        "state": "HIGH"
+      },
+      {
+        "us": 2029.1,
+        "state": "LOW"
+      },
+      {
+        "us": 4047.9,
+        "state": "HIGH"
+      },
+      {
+        "us": 6065.8,
+        "state": "LOW"
+      }
+    ],
+    "checks": {
+      "arith": true,
+      "bool": true,
+      "repeat": true,
+      "countup": true,
+      "print": true,
+      "line": true,
+      "button": true,
+      "raw": true,
+      "millisMatchesModel": true,
+      "motorA": true,
+      "forward60": true,
+      "spinLeft40": true,
+      "clamp150": true,
+      "stop": true,
+      "servo90AtSetup": true,
+      "servo0": true,
+      "servo180": true,
+      "servo600clampedTo180": true,
+      "servoMinus5clampedTo0": true,
+      "ledOnOff": true,
+      "tone440": true,
+      "retoneSamePinSets880For30ms": true,
+      "clampedTo31Hz": true,
+      "clampedTo4000Hz": true,
+      "ms0ClampedTo1ms": true,
+      "noToneStops": true,
+      "ultrasonicNoEcho400": true,
+      "a3": true
+    },
+    "pass": true,
+    "runWallMs": 662
+  },
+  "size": {
+    "sketch": "ram-threshold",
+    "points": [
+      {
+        "big": 1000,
+        "compiles": true,
+        "notEnoughMemory": false,
+        "ramBytes": 1009,
+        "ramPercent": 49,
+        "exactPercent": 49.268,
+        "lowMemoryWarning": false,
+        "flashBytes": 466,
+        "message": [
+          "Global variables use 1009 bytes (49%) of dynamic memory, leaving 1039 bytes for local variables. Maximum is 2048 bytes."
+        ]
+      },
+      {
+        "big": 1526,
+        "compiles": true,
+        "notEnoughMemory": false,
+        "ramBytes": 1535,
+        "ramPercent": 74,
+        "exactPercent": 74.951,
+        "lowMemoryWarning": false,
+        "flashBytes": 466,
+        "message": [
+          "Global variables use 1535 bytes (74%) of dynamic memory, leaving 513 bytes for local variables. Maximum is 2048 bytes."
+        ]
+      },
+      {
+        "big": 1527,
+        "compiles": true,
+        "notEnoughMemory": false,
+        "ramBytes": 1536,
+        "ramPercent": 75,
+        "exactPercent": 75,
+        "lowMemoryWarning": false,
+        "flashBytes": 466,
+        "message": [
+          "Global variables use 1536 bytes (75%) of dynamic memory, leaving 512 bytes for local variables. Maximum is 2048 bytes."
+        ]
+      },
+      {
+        "big": 1528,
+        "compiles": true,
+        "notEnoughMemory": false,
+        "ramBytes": 1537,
+        "ramPercent": 75,
+        "exactPercent": 75.049,
+        "lowMemoryWarning": true,
+        "flashBytes": 466,
+        "message": [
+          "Global variables use 1537 bytes (75%) of dynamic memory, leaving 511 bytes for local variables. Maximum is 2048 bytes.",
+          "Low memory available, stability problems may occur."
+        ]
+      },
+      {
+        "big": 1529,
+        "compiles": true,
+        "notEnoughMemory": false,
+        "ramBytes": 1538,
+        "ramPercent": 75,
+        "exactPercent": 75.098,
+        "lowMemoryWarning": true,
+        "flashBytes": 466,
+        "message": [
+          "Global variables use 1538 bytes (75%) of dynamic memory, leaving 510 bytes for local variables. Maximum is 2048 bytes.",
+          "Low memory available, stability problems may occur."
+        ]
+      },
+      {
+        "big": 1530,
+        "compiles": true,
+        "notEnoughMemory": false,
+        "ramBytes": 1539,
+        "ramPercent": 75,
+        "exactPercent": 75.146,
+        "lowMemoryWarning": true,
+        "flashBytes": 466,
+        "message": [
+          "Global variables use 1539 bytes (75%) of dynamic memory, leaving 509 bytes for local variables. Maximum is 2048 bytes.",
+          "Low memory available, stability problems may occur."
+        ]
+      },
+      {
+        "big": 2039,
+        "compiles": true,
+        "notEnoughMemory": false,
+        "ramBytes": 2048,
+        "ramPercent": 100,
+        "exactPercent": 100,
+        "lowMemoryWarning": true,
+        "flashBytes": 466,
+        "message": [
+          "Global variables use 2048 bytes (100%) of dynamic memory, leaving 0 bytes for local variables. Maximum is 2048 bytes.",
+          "Low memory available, stability problems may occur."
+        ]
+      },
+      {
+        "big": 2040,
+        "compiles": false,
+        "notEnoughMemory": true,
+        "ramBytes": null,
+        "ramPercent": null,
+        "exactPercent": 0,
+        "lowMemoryWarning": false,
+        "flashBytes": 466,
+        "message": [
+          "Global variables use 2049 bytes (100%) of dynamic memory, leaving -1 bytes for local variables. Maximum is 2048 bytes.",
+          "Not enough memory; see https://support.arduino.cc/hc/en-us/articles/360013825179 for tips on reducing your footprint.",
+          "Error during build: data section exceeds available space in board"
+        ]
+      }
+    ],
+    "runWallMs": 10601
+  },
+  "totalWallMs": 19688
+}
