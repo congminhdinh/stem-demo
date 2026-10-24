@@ -1,6 +1,7 @@
 import { createExecutionBudget, timerYield, type ExecutionBudget } from '../program/execution-budget';
 import type { RunConsole } from '../program/console';
 import { timerSleep, type Sleep } from '../program/interpreter';
+import { createMulberry32 } from '../random/mulberry32';
 
 // The runtime services (YB plan §10, YB-CP deliverable 1): what RunSession provides to every YBC
 // program, as opposed to hardware. The console, the budget and `Sleep` exist since YB-2 and are FROZEN
@@ -74,18 +75,13 @@ const between = (low: number, high: number, fraction: number) => low + Math.min(
 export const mathRandomInt: RandomInt = (low, high) => between(low, high, Math.random());
 
 /**
- * The random numbers of a seeded run (N17 B4: a lab's check): the same seed gives the same numbers, in the same order. Mulberry32,
- * a small 32-bit generator; fine for dice and games, not for anything that must be unpredictable.
+ * The random numbers of a seeded run (N17 B4: a lab's check): the same seed gives the same numbers, in the same order. Mulberry32
+ * (random/mulberry32.ts, shared with the robot world), a small 32-bit generator; fine for dice and games, not for anything that
+ * must be unpredictable.
  */
 export function createSeededRandomInt(seed: number): RandomInt {
-  let state = seed >>> 0;
-  return (low, high) => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return between(low, high, ((t ^ (t >>> 14)) >>> 0) / 4294967296);
-  };
+  const next = createMulberry32(seed);
+  return (low, high) => between(low, high, next() / 4294967296);
 }
 
 /**

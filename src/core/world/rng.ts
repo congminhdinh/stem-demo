@@ -1,9 +1,9 @@
-import { createSeededRandomInt } from '../capabilities/services';
+import { createMulberry32 } from '../random/mulberry32';
 
 // Seeded random numbers for the robot world (N18 R3.1): sensor noise (R3.4) and scenario variants (R5.1).
-// It is the repo's one generator, the Mulberry32 behind a seeded run's `random.randint` (N17 B4), read
-// 32 bits at a time: the same seed gives the same numbers, in the same order, on every engine (integer
-// operations and a division by 2^32 only).
+// It is the repo's one generator (random/mulberry32.ts), the one behind a seeded run's `random.randint`
+// (N17 B4), read 32 bits at a time: the same seed gives the same numbers, in the same order, on every engine
+// (integer operations and a division by 2^32 only).
 
 /** A seeded stream of numbers. Not for anything that must be unpredictable. */
 export type WorldRng = {
@@ -13,16 +13,14 @@ export type WorldRng = {
   uniform(min: number, max: number): number;
 };
 
-const UINT32_MAX = 0xffffffff;
 const TWO_POW_32 = 4294967296;
 
 export function createWorldRng(seed: number): WorldRng {
   if (!Number.isSafeInteger(seed)) {
     throw new RangeError(`A world seed is a whole number, not ${seed}.`);
   }
-  // A draw over [0, 2^32 − 1] is Mulberry32's raw 32-bit output, unchanged.
-  const draw = createSeededRandomInt(seed);
-  const next = () => draw(0, UINT32_MAX) / TWO_POW_32;
+  const next32 = createMulberry32(seed);
+  const next = () => next32() / TWO_POW_32;
   return {
     next,
     uniform: (min, max) => min + (max - min) * next(),
