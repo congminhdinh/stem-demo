@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type * as RapierNamespace from '@dimforge/rapier3d-deterministic';
 
 type RapierFile = typeof import('./rapier');
@@ -10,16 +10,18 @@ async function freshRapierFile(): Promise<RapierFile> {
   return import('./rapier');
 }
 
-const loadSplit = (): Promise<RapierModule> => import('@dimforge/rapier3d-deterministic');
+/** Stands in for a Rapier build where only the loading rules matter (no 3 MB wasm to compile). */
+function stubBuild(extra: object = {}): RapierModule {
+  return { version: () => 'stub', ...extra } as unknown as RapierModule;
+}
+
+// Compiling the real wasm can take seconds on a loaded machine; those tests get room for it.
+const WASM_TIMEOUT_MS = 30_000;
 
 describe('initPhysics', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it('initPhysics twice is no-op', async () => {
     const physics = await freshRapierFile();
-    const loader = vi.fn(loadSplit);
+    const loader = vi.fn(async () => stubBuild());
     await physics.initPhysics(loader);
     const first = physics.getRapier();
     await physics.initPhysics(loader);
@@ -27,23 +29,18 @@ describe('initPhysics', () => {
     expect(physics.getRapier()).toBe(first);
   });
 
-  it('loads the module once when two calls overlap', async () => {
+  it('loads the module once when two calls overlap, and ignores a later loader', async () => {
     const physics = await freshRapierFile();
-    const loader = vi.fn(loadSplit);
-    await Promise.all([physics.initPhysics(loader), physics.initPhysics(loader)]);
+    const loader = vi.fn(async () => stubBuild());
+    const other = vi.fn(async () => stubBuild());
+    await Promise.all([physics.initPhysics(loader), physics.initPhysics(loader), physics.initPhysics(other)]);
     expect(loader).toHaveBeenCalledTimes(1);
-  });
-
-  it('loads the split .wasm package by default, Rapier 0.21.0', async () => {
-    const physics = await freshRapierFile();
-    expect(physics.isPhysicsReady()).toBe(false);
-    await physics.initPhysics();
-    expect(physics.isPhysicsReady()).toBe(true);
-    expect(physics.getRapier().version()).toBe('0.21.0');
+    expect(other).not.toHaveBeenCalled();
   });
 
   it('refuses to hand out Rapier before initPhysics has finished', async () => {
     const physics = await freshRapierFile();
+    expect(physics.isPhysicsReady()).toBe(false);
     expect(() => physics.getRapier()).toThrow('initPhysics() has not finished');
   });
 
@@ -51,34 +48,66 @@ describe('initPhysics', () => {
     const physics = await freshRapierFile();
     await expect(physics.initPhysics(() => Promise.reject(new Error('offline')))).rejects.toThrow('offline');
     expect(physics.isPhysicsReady()).toBe(false);
-    await physics.initPhysics(loadSplit);
+    await physics.initPhysics(async () => stubBuild());
     expect(physics.isPhysicsReady()).toBe(true);
   });
 
-  it('calls init() of an injected build that has one (the -compat package for plain Node scripts)', async () => {
+  it('awaits the init() of a build that has one before it counts as ready', async () => {
     const physics = await freshRapierFile();
-    const compat = await import('@dimforge/rapier3d-deterministic-compat');
-    const init = vi.fn(compat.init);
-    await physics.initPhysics(async () => ({ ...compat, init }) as unknown as RapierModule);
+    const order: string[] = [];
+    const init = vi.fn(async () => {
+      order.push('init');
+    });
+    await physics.initPhysics(async () => stubBuild({ init }));
+    order.push('ready');
     expect(init).toHaveBeenCalledTimes(1);
-    expect(physics.getRapier().version()).toBe('0.21.0');
+    expect(order).toEqual(['init', 'ready']);
   });
+
+  it(
+    'loads the split .wasm package by default, Rapier 0.21.0',
+    async () => {
+      const physics = await freshRapierFile();
+      await physics.initPhysics();
+      expect(physics.isPhysicsReady()).toBe(true);
+      expect(physics.getRapier().version()).toBe('0.21.0');
+    },
+    WASM_TIMEOUT_MS,
+  );
+
+  it(
+    'runs the injected -compat build (plain Node scripts)',
+    async () => {
+      const physics = await freshRapierFile();
+      await physics.initPhysics(async () => (await import('@dimforge/rapier3d-deterministic-compat')) as unknown as RapierModule);
+      expect(physics.getRapier().version()).toBe('0.21.0');
+      const world = physics.createPhysicsWorld();
+      world.free();
+    },
+    WASM_TIMEOUT_MS,
+  );
 });
 
 describe('createPhysicsWorld', () => {
-  it('applies the ADR 0001 integration parameters', async () => {
-    const physics = await freshRapierFile();
-    await physics.initPhysics();
-    const world = physics.createPhysicsWorld();
-    try {
-      expect(physics.PHYSICS_HZ).toBe(120);
-      expect(world.timestep).toBe(Math.fround(1 / 120));
-      expect(world.lengthUnit).toBe(Math.fround(0.1));
-      expect(world.numSolverIterations).toBe(4);
-      expect(world.numInternalPgsIterations).toBe(1);
-      expect(world.gravity).toEqual({ x: 0, y: -9.81, z: 0 });
-    } finally {
-      world.free();
-    }
-  });
+  it(
+    'applies the ADR 0001 integration parameters',
+    async () => {
+      const physics = await freshRapierFile();
+      await physics.initPhysics();
+      const world = physics.createPhysicsWorld();
+      try {
+        expect(physics.PHYSICS_HZ).toBe(120);
+        expect(physics.PHYSICS_DT_S).toBe(1 / 120);
+        // Rapier keeps its parameters as float32.
+        expect(world.timestep).toBe(Math.fround(1 / 120));
+        expect(world.lengthUnit).toBe(Math.fround(0.1));
+        expect(world.numSolverIterations).toBe(4);
+        expect(world.numInternalPgsIterations).toBe(1);
+        expect(world.gravity).toEqual({ x: 0, y: -9.81, z: 0 });
+      } finally {
+        world.free();
+      }
+    },
+    WASM_TIMEOUT_MS,
+  );
 });
