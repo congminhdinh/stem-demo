@@ -60,21 +60,31 @@ export const generatorDiagnosticCodes = [
   'program-too-large',
 ] as const;
 
+/**
+ * N18 R1: what the robot's hardware layer reports (src/core/hardware): the pin rules of a kit (`checkKit`: two ports on one pin, a
+ * pin Serial holds, PWM on a timer the Servo library or tone holds), the raw pins of a program (`rawPinCheck`), and what the virtual
+ * UNO and the module binding warn about while a program runs (PWM on a pin without it, a clamped value, an I²C write nobody acks).
+ * The codes and severities the UNO contract names (§13) are its own; hardware-contract.test.ts checks them.
+ */
+export const hardwareDiagnosticCodes = ['pin-conflict', 'pin-reserved', 'timer-claimed', 'pin-unavailable', 'not-pwm', 'value-clamped', 'wire-nack'] as const;
+
 export type CompileDiagnosticCode = (typeof compileDiagnosticCodes)[number];
 export type RuntimeDiagnosticCode = (typeof runtimeDiagnosticCodes)[number];
 export type BoardContextDiagnosticCode = (typeof boardContextDiagnosticCodes)[number];
 export type GeneratorDiagnosticCode = (typeof generatorDiagnosticCodes)[number];
+export type HardwareDiagnosticCode = (typeof hardwareDiagnosticCodes)[number];
 
-export type DiagnosticCode = CompileDiagnosticCode | RuntimeDiagnosticCode | BoardContextDiagnosticCode | GeneratorDiagnosticCode;
+export type DiagnosticCode = CompileDiagnosticCode | RuntimeDiagnosticCode | BoardContextDiagnosticCode | GeneratorDiagnosticCode | HardwareDiagnosticCode;
 
 /** Where a code comes from. */
-export type DiagnosticOrigin = 'compile' | 'runtime' | 'board-context' | 'generator';
+export type DiagnosticOrigin = 'compile' | 'runtime' | 'board-context' | 'generator' | 'hardware';
 
 export const diagnosticCodesByOrigin: Readonly<Record<DiagnosticOrigin, readonly DiagnosticCode[]>> = {
   compile: compileDiagnosticCodes,
   runtime: runtimeDiagnosticCodes,
   'board-context': boardContextDiagnosticCodes,
   generator: generatorDiagnosticCodes,
+  hardware: hardwareDiagnosticCodes,
 };
 
 /** A diagnostic as the learner meets it: structured, with the block when there is one, never a stack trace. */

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { arduinoCalls as contractArduinoCalls } from '../compat/contract-types';
 import { unoContract } from '../compat/uno-contract';
+import { hardwareDiagnosticCodes } from '../capabilities/diagnostics';
 import { arduinoCalls } from './board';
 import { unoR3Board as board } from './catalog';
 
@@ -32,5 +33,16 @@ describe('the uno-r3 board profile is the contract’s board (contract §4.4, §
     const { overflowUs, fractPerOverflow, fractMax } = unoContract.millis;
     expect(board.millis).toEqual({ overflowUs, fractPerOverflow, fractMax });
     expect(board.emulator).toBe(unoContract.snapshot.emulator.name);
+  });
+});
+
+describe('the hardware diagnostics are the contract’s where it names them (contract §13)', () => {
+  it('takes timer-claimed, pin-unavailable, not-pwm and value-clamped from the contract, with its severities; the rest are R1’s', () => {
+    const contractCodes = new Map(unoContract.diagnostics.map((diagnostic) => [diagnostic.id, diagnostic.severity]));
+    const shared = hardwareDiagnosticCodes.filter((code) => contractCodes.has(code));
+    expect(shared).toEqual(['timer-claimed', 'pin-unavailable', 'not-pwm', 'value-clamped']);
+    expect(shared.map((code) => contractCodes.get(code))).toEqual(['error', 'error', 'warning', 'warning']);
+    // Named by the robot plan's R1 tests: two ports on one pin, D0 used while serial, a wire write nobody acks.
+    expect(hardwareDiagnosticCodes.filter((code) => !contractCodes.has(code))).toEqual(['pin-conflict', 'pin-reserved', 'wire-nack']);
   });
 });

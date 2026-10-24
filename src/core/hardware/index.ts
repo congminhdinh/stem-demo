@@ -4,6 +4,8 @@
 
 export * from './board';
 export * from './board-schema';
+export * from './board-target';
 export * from './catalog';
 export * from './kit';
 export * from './kit-schema';
+export * from './pin-rules';
