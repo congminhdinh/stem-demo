@@ -2,6 +2,7 @@ import type { Challenge } from '../../core/challenge';
 import type { ProjectDocument } from '../../core/circuit/document';
 import type { DeviceRegistry } from '../../core/devices/registry';
 import { readStoredProject, type ProgramCheck } from '../../core/persistence/project-repository';
+import type { BoardFamily } from '../../core/profiles/board-context';
 import type { ProfileCatalog } from '../../core/profiles/profile';
 import type { LabKind, TemplateKey } from '../../samples/templates';
 import type { YbcLabProfile } from '../../samples/ybc-templates';
@@ -13,8 +14,22 @@ import type { HostBridge } from './host-bridge';
 // lock changes, `project-changed` on every document change (the bridge debounces), and the host's `load-project`
 // opened when it is a project this lab can open. Check results are sent by the lab chrome (App), which runs them.
 
+/**
+ * The board family of the projects each lab opens (N18 R2.1, docs/lab-embed-contract.md §2): a generic project in a Blockly lab,
+ * a Yolo:Bit one in a Yolo:Bit lab, a uno one in a robot lab. `robot` is listed before `LabKind` has it: R4.1 adds the kind to
+ * `LabKind`, and nothing here changes.
+ */
+export const labFamilies = {
+  blockly: 'generic',
+  yolobit: 'ybc',
+  robot: 'uno',
+} as const satisfies Readonly<Record<LabKind, BoardFamily>> & Readonly<Record<string, BoardFamily>>;
+
+/** A lab that reads host projects: a key of `labFamilies`. */
+export type HostLab = keyof typeof labFamilies;
+
 export type HostProjectRules = {
-  lab: LabKind;
+  lab: HostLab;
   /** The launch's board profile, which a Yolo:Bit project opens with; null keeps the project's own. */
   profile: YbcLabProfile | null;
   registry: DeviceRegistry;
@@ -24,8 +39,8 @@ export type HostProjectRules = {
 
 /**
  * The project of a `load-project`, or null when this lab cannot open it: it must be a project the editor opens
- * (the standalone loader's rules: schema, known devices and profile, a program Blockly loads), of this lab's kind
- * (a Yolo:Bit project in a Yolo:Bit lab, a generic one in a Blockly lab).
+ * (the standalone loader's rules: schema, known devices and profile, a program Blockly loads), of this lab's
+ * family (`labFamilies`).
  */
 export function readHostProject(document: unknown, rules: HostProjectRules): ProjectDocument | null {
   const project = readStoredProject(document, rules.registry, rules.canOpenProgram, rules.profiles);
@@ -33,7 +48,7 @@ export function readHostProject(document: unknown, rules: HostProjectRules): Pro
     return null;
   }
   const family = project.profile === undefined ? 'generic' : rules.profiles.get(project.profile)?.family;
-  if ((rules.lab === 'yolobit') !== (family === 'ybc')) {
+  if (family !== labFamilies[rules.lab]) {
     return null;
   }
   return rules.lab === 'yolobit' && rules.profile !== null ? { ...project, profile: rules.profile } : project;

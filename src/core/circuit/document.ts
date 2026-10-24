@@ -24,12 +24,19 @@ export const projectDocumentSchema = z.object({
   id: z.string(),
   name: z.string(),
   /**
-   * The curriculum profile of a Yolo:Bit-compatible project (YB plan §8.3, R-F1). Absent: a
+   * The curriculum profile of a Yolo:Bit-compatible project (YB plan §8.3, R-F1) or, since N18 R2.1, of a robot
+   * project (`uno-basic`, `uno-advanced`); the profile's family is the project's. Absent: a
    * generic project, exactly as before. Only its shape is checked here; whether the id is a
    * known profile is the loader's job (L-1), because the catalog of profiles is data. Not a
    * schema bump: old documents have no profile and mean what they always meant.
    */
   profile: z.string().min(1).optional(),
+  /**
+   * N18 R2.1 (robot plan §4.0): the kit of a robot project, `id@version`: which modules it has and on which ports. Absent:
+   * the reference kit `ref-uno-rover@0`. Declared here because Zod drops keys a schema does not name. Only its shape is
+   * checked; whether the kit is known is the kit catalog's job (R1). Not a schema bump, like `profile`.
+   */
+  kit: z.object({ id: z.string(), version: z.string() }).optional(),
   circuit: z.object({
     components: z.array(componentInstanceSchema),
     wires: z.array(wireSchema),
