@@ -1,5 +1,6 @@
 import { isContractPin, PWM_MAX, SERVO_MAX_ANGLE } from '../constructs/ybc.pins';
 import { usablePins } from '../devices/board-pins';
+import { boardScaleOf } from '../devices/device-definition';
 import type { DeviceRegistry } from '../devices/registry';
 import { RuntimeFault } from '../program/values';
 import { analogValueOf, pinSignal, type PinSignal } from '../simulation/pin-signal';
@@ -36,6 +37,8 @@ export function createPinCapabilities(registry: DeviceRegistry): CapabilityFacto
     const pwmPins = new Set(usablePins(definition, 'pwm').filter(isContractPin));
     const servoPins = new Set(usablePins(definition, 'servo').filter(isContractPin));
     const portOf = (pin: string) => definition.board?.pins.find((candidate) => candidate.name === pin)?.portId;
+    /** N18 R2.1: the top of an analog read is the board's (the Yolo:Bit contract's 4095, C-25, for the ybc board). */
+    const { adcMax } = boardScaleOf(definition);
     /** The pins this program has set: it cannot read them as well. Per run, like the capabilities. */
     const written = new Set<string>();
     /** The pins whose floating read the run was already warned about (N17 B4): once per pin and run. */
@@ -132,7 +135,7 @@ export function createPinCapabilities(registry: DeviceRegistry): CapabilityFacto
           if (signal === null) {
             return 0;
           }
-          const value = analogValueOf(signal);
+          const value = analogValueOf(signal, adcMax);
           if (value === null) {
             throw new RuntimeFault('internal-error', `Pin ${pin} could not be read.`);
           }

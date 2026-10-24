@@ -4,6 +4,10 @@
 // C-Q6 = Option A (owner, 2026-10-14): an analog read is the NATIVE 0..4095 of the board (contract C-25);
 // the UI shows 0..100 %. N17 B5 (owner, 2026-10-19): an analog WRITE is a PWM duty 0..1023 (contract C-26, its range UNVERIFIED);
 // it is not an analog read's scale, and nothing converts one into the other.
+//
+// N18 R2.1: the scale is the board's. A board's definition names its own (`board.scale`; UNO: analogRead 0..1023, analogWrite
+// 0..255) and `boardScaleOf` reads it; one that names none has the Yolo:Bit contract's, which the constants below are. The
+// functions take the board's top as N (`percentToNative`, `rawToPercent`); without one they keep the Yolo:Bit scale.
 
 /** The native range of an analog read (contract C-25). */
 export const ANALOG_NATIVE_MAX = 4095;
@@ -17,22 +21,28 @@ function assertNumber(value: number, what: string): void {
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-/** floor(clamp(p, 0, 100) x N / 100 + 0.5): a percentage of the native range N, rounded half up. N is a positive integer from the contract. */
-export function percentToNative(percent: number, nativeMax: number): number {
-  assertNumber(percent, 'A percentage');
+/** The top of a native scale is a positive whole number: the contract's, or the board's data. */
+function assertNativeMax(nativeMax: number): void {
   if (!Number.isInteger(nativeMax) || nativeMax < 1) {
     throw new RangeError(`The native maximum must be a positive integer, got ${String(nativeMax)}`);
   }
+}
+
+/** floor(clamp(p, 0, 100) x N / 100 + 0.5): a percentage of the native range N, rounded half up. N is a positive integer from the contract. */
+export function percentToNative(percent: number, nativeMax: number): number {
+  assertNumber(percent, 'A percentage');
+  assertNativeMax(nativeMax);
   return Math.floor((clamp(percent, 0, 100) * nativeMax) / 100 + 0.5);
 }
 
 /** The analog read of a slider position: percentToNative(p, 4095). */
 export const percentToRaw = (percent: number): number => percentToNative(percent, ANALOG_NATIVE_MAX);
 
-/** floor(r x 100 / 4095 + 0.5), for display only: the learner reads the native value. */
-export function rawToPercent(raw: number): number {
+/** floor(r x 100 / N + 0.5), for display only: the learner reads the native value. N is the board's top, 4095 unless given. */
+export function rawToPercent(raw: number, nativeMax: number = ANALOG_NATIVE_MAX): number {
   assertNumber(raw, 'A raw reading');
-  return Math.floor((clamp(raw, 0, ANALOG_NATIVE_MAX) * 100) / ANALOG_NATIVE_MAX + 0.5);
+  assertNativeMax(nativeMax);
+  return Math.floor((clamp(raw, 0, nativeMax) * 100) / nativeMax + 0.5);
 }
 
 /** N17 B5: the top of a PWM duty, `write_analog`'s 0..1023 (contract C-26; the range is UNVERIFIED on the board). */

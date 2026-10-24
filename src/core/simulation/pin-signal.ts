@@ -37,16 +37,17 @@ export function pinSignal(result: SimulationResult, componentId: string, portId:
 
 /**
  * The native analog value of a signal (contract C-25, C-Q6 = A): a high net is the top of the scale, a low one
- * 0, a wiper its position converted by `percentToNative(p, 4095)`. Null when the signal has no value.
+ * 0, a wiper its position converted by `percentToNative(p, N)`. N is the board's top (N18 R2.1, `boardScaleOf`),
+ * 4095 unless given. Null when the signal has no value.
  */
-export function analogValueOf(signal: PinSignal): number | null {
+export function analogValueOf(signal: PinSignal, nativeMax: number = ANALOG_NATIVE_MAX): number | null {
   switch (signal.kind) {
     case 'high':
-      return ANALOG_NATIVE_MAX;
+      return nativeMax;
     case 'low':
       return 0;
     case 'analog':
-      return percentToNative(signal.percent, ANALOG_NATIVE_MAX);
+      return percentToNative(signal.percent, nativeMax);
     default:
       return null;
   }

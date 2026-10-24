@@ -45,6 +45,7 @@ describe('device registry', () => {
       'ybc-board',
       'potentiometer',
       'servo',
+      'uno-r3',
     ]);
   });
 
@@ -59,6 +60,7 @@ describe('device registry', () => {
       ['potentiometer', 'ybc'],
       // N17 B5: the servo of the Advanced board.
       ['servo', 'ybc'],
+      ['uno-r3', 'uno'],
     ]);
     expect(registry.get('board')).not.toHaveProperty('family');
   });

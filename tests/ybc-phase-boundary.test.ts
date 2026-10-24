@@ -153,8 +153,8 @@ describe('the devices and capabilities', () => {
     expect(pinCapabilities.has('pulse')).toBe(false);
   });
 
-  it('add one device for YB-4 and one for N17 B5, and no other: the potentiometer and the servo, of the ybc family', () => {
-    expect(registry.list().map((definition) => definition.id)).toEqual(['board', 'led', 'resistor', 'push-button', 'ybc-board', 'potentiometer', 'servo']);
+  it('add one device for YB-4 and one for N17 B5, and no other: the potentiometer and the servo, of the ybc family (N18 R2.1 adds the UNO board, of the uno family)', () => {
+    expect(registry.list().map((definition) => definition.id)).toEqual(['board', 'led', 'resistor', 'push-button', 'ybc-board', 'potentiometer', 'servo', 'uno-r3']);
     expect(registry.get('potentiometer').family).toBe('ybc');
     expect(registry.get('servo').family).toBe('ybc');
   });
