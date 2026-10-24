@@ -10,6 +10,12 @@ import { timerSleep, type Sleep } from '../program/interpreter';
 export type Clock = { now(): number };
 
 /**
+ * N18 R2.1 (type only; R2.3 builds it): the clock of a robot program, which runs on virtual time. Every Arduino call the
+ * program makes is charged its cost in µs (the board profile's `costsUs`), so time moves as the board's would.
+ */
+export type ProgramClock = Clock & { charge(us: number): void };
+
+/**
  * N17 B4: a whole number from `low` to `high`, both included (`low <= high`, both safe integers). The program's random numbers come
  * from here, so a run can be given a seeded one (a lab's check: the same numbers every time, so its goals are deterministic).
  */
@@ -83,8 +89,8 @@ export function createSeededRandomInt(seed: number): RandomInt {
 }
 
 /**
- * Builds the services of a run. The budget is the YB-2 one (`createExecutionBudget`), on the run's signal
- * and clock; nothing about its semantics is decided here. Everything but `signal` and `console` has a
+ * Builds the services of a run. The budget is the given one or the YB-2 one (`createExecutionBudget`), on the
+ * run's signal and clock; nothing about its semantics is decided here. Everything but `signal` and `console` has a
  * default: the real timers, the browser clock, a scheduler of its own.
  */
 export function createRuntimeServices(options: {
@@ -99,13 +105,18 @@ export function createRuntimeServices(options: {
   randomInt?: RandomInt;
   /** N17 B5: where the run's warnings go; nowhere by default. */
   warn?(warning: RunWarning): void;
+  /**
+   * N18 R2.1: the run's execution budget, used as it is (a robot run's budget counts virtual time, R2.3). Absent: the YB-2 one
+   * on `signal`, the clock and `yieldNow`.
+   */
+  budget?: ExecutionBudget;
 }): RuntimeServices {
   const { signal, console } = options;
   const clock = options.clock ?? performanceClock;
   return {
     clock,
     console,
-    budget: createExecutionBudget({ signal, now: () => clock.now(), yieldNow: options.yieldNow ?? timerYield }),
+    budget: options.budget ?? createExecutionBudget({ signal, now: () => clock.now(), yieldNow: options.yieldNow ?? timerYield }),
     sleep: options.sleep ?? timerSleep,
     scheduler: options.scheduler ?? createRunScheduler(),
     signal,
@@ -114,7 +125,8 @@ export function createRuntimeServices(options: {
   };
 }
 
-type Timers = {
+/** The timers a run scheduler uses: the browser's by default, a virtual clock's in the robot lab (N18 R2.3). */
+export type Timers = {
   setTimeout(task: () => void, ms: number): unknown;
   clearTimeout(handle: unknown): void;
 };

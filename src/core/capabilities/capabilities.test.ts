@@ -9,7 +9,7 @@ import { timerSleep, type HardwareIO, type Sleep } from '../program/interpreter'
 import {
   availableCapabilityKeys, blankFrame, capabilityKeys, composeCapabilities, createRunScheduler, createRuntimeServices, DISPLAY_HEIGHT, DISPLAY_WIDTH, frameIndex,
   isFrame, missingCapabilities,
-  type AnalogInIO, type ButtonIO, type Capabilities, type CapabilityKey, type DigitalIO, type DisplayIO, type Frame, type LightIO, type MotionIO,
+  type AnalogInIO, type ButtonIO, type Capabilities, type CapabilityKey, type DigitalIO, type DisplayIO, type Frame, type LightIO, type ModuleIO, type MotionIO,
   type PulseIO, type PwmIO, type RuntimeServices, type ServoIO, type SoundIO, type TemperatureIO,
 } from './index';
 
@@ -19,9 +19,9 @@ const registry = createDeviceRegistry(localDeviceDefinitions);
 const boardSet = (type: string) => capabilitiesOf(registry.get(type));
 
 describe('the capability interfaces', () => {
-  it('has the eleven capabilities of the plan, and `capabilityKeys` names exactly them', () => {
+  it('has the eleven capabilities of the plan and the modules of N18 R2.1, and `capabilityKeys` names exactly them', () => {
     expectTypeOf<(typeof capabilityKeys)[number]>().toEqualTypeOf<CapabilityKey>();
-    expect([...capabilityKeys]).toEqual(['digital', 'analogIn', 'pwm', 'display', 'buttons', 'sound', 'light', 'temperature', 'motion', 'servo', 'pulse']);
+    expect([...capabilityKeys]).toEqual(['digital', 'analogIn', 'pwm', 'display', 'buttons', 'sound', 'light', 'temperature', 'motion', 'servo', 'pulse', 'modules']);
     expect(new Set(capabilityKeys).size).toBe(capabilityKeys.length);
   });
 
@@ -38,6 +38,7 @@ describe('the capability interfaces', () => {
       motion: { acceleration: () => 0 } satisfies MotionIO,
       servo: { servoWrite: () => {} } satisfies ServoIO,
       pulse: { pulseIn: () => 0 } satisfies PulseIO,
+      modules: { call: () => {}, read: () => 0 } satisfies ModuleIO,
     };
     expect(Object.keys(doubles).sort()).toEqual([...capabilityKeys].sort());
     expectTypeOf<DisplayIO['setBrightness']>().toEqualTypeOf<((level: number) => void) | undefined>();

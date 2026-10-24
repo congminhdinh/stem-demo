@@ -6,6 +6,11 @@
 //
 // Nothing here is a learner-visible capability: what a profile exposes is decided by the contract
 // (exposure gate), not by an interface existing.
+//
+// Amendment N18 R2.1 (robot plan §2, recorded in docs/stem-demo-implementation-plan.md §5.1): the UNO-compatible
+// family adds, as types only, `modules` (a program's module-level ops, `motor.set(motorLeft, 50)`, which the kit maps
+// role → port → driver) to `Capabilities` and `capabilityKeys`, `WireIO` (I²C at the transaction level) and `UnoPinIO`
+// (what a driver writes on the virtual UNO, plan §4.3). The virtual UNO (R1) and the drivers implement them.
 
 import type { Frame } from './frame';
 
@@ -18,12 +23,15 @@ export interface DigitalIO {
   digitalRead(pin: string): 0 | 1;
 }
 
-/** 0..4095, the native scale of the board (contract C-25, C-Q6 = Option A). */
+/** The native scale of the board: 0..4095 on the Yolo:Bit-compatible one (contract C-25, C-Q6 = Option A), 0..1023 on UNO (N18). */
 export interface AnalogInIO {
   analogRead(pin: string): number;
 }
 
-/** N17 B5: `write_analog`, a PWM duty 0..1023 on a header pin (contract C-26); run/ybc-pin-io.ts implements it. */
+/**
+ * N17 B5: `write_analog`, a PWM duty 0..1023 on a header pin (contract C-26); run/ybc-pin-io.ts implements it. On UNO (N18) the
+ * duty is `analogWrite`'s 0..255. The scale is the board's (`boardScaleOf`).
+ */
 export interface PwmIO {
   pwmWrite(pin: string, value: number): void;
 }
@@ -65,6 +73,34 @@ export interface PulseIO {
   pulseIn(pin: string, level: 0 | 1, timeoutUs: number): number;
 }
 
+/**
+ * N18 R2.1: the module-level ops of a robot program (plan §4.4), addressed by the kit's role (`motorLeft`, `ultrasonic`, …).
+ * `call` is a statement (`motor.set`, `drive.move`, `servo.set`, …), `read` an expression (`ultrasonic.cm`, `line.dark`, …).
+ */
+export interface ModuleIO {
+  call(role: string, op: string, args: readonly number[]): void;
+  read(role: string, op: string): number | boolean;
+}
+
+/** N18 R2.1: I²C at the transaction level (plan §4.3, D-R5); a device model answers at its address. */
+export interface WireIO {
+  write(addr: number, bytes: readonly number[]): void;
+  read(addr: number, count: number): number[];
+}
+
+/** N18 R2.1: what a driver drives on the virtual UNO (plan §4.3): the pin capabilities above, plus the Arduino calls they lack. */
+export type UnoPinIO = DigitalIO &
+  AnalogInIO &
+  PwmIO &
+  ServoIO &
+  PulseIO & {
+    pinMode(pin: string, mode: 'INPUT' | 'OUTPUT' | 'INPUT_PULLUP'): void;
+    /** `tone(pin, hz)`, or `tone(pin, hz, ms)` for a tone that ends by itself. */
+    tone(pin: string, hz: number, ms?: number): void;
+    noTone(pin: string): void;
+    wire: WireIO;
+  };
+
 /** What a board provides to programs. A board implements only the capabilities it really has. */
 export type Capabilities = {
   digital?: DigitalIO;
@@ -78,6 +114,8 @@ export type Capabilities = {
   motion?: MotionIO;
   servo?: ServoIO;
   pulse?: PulseIO;
+  /** N18 R2.1 amendment: the robot's modules, by kit role. */
+  modules?: ModuleIO;
 };
 
 export type CapabilityKey = keyof Capabilities;
@@ -87,5 +125,5 @@ export type CapabilityKey = keyof Capabilities;
  * `capabilities`) uses exactly these ids, so a `CapabilitySet` from the board context is a set of them.
  */
 export const capabilityKeys = [
-  'digital', 'analogIn', 'pwm', 'display', 'buttons', 'sound', 'light', 'temperature', 'motion', 'servo', 'pulse',
+  'digital', 'analogIn', 'pwm', 'display', 'buttons', 'sound', 'light', 'temperature', 'motion', 'servo', 'pulse', 'modules',
 ] as const satisfies readonly CapabilityKey[];
