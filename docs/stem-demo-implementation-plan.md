@@ -1671,6 +1671,15 @@ thông báo của core vẫn tiếng Anh; `/favicon.ico` 404.
 
 **Không đổi**: `stem-lab/v1` (URL, message), compile → IR → MicroPython, `src/core/challenge`.
 
+### N18 — Robot 3D trên Web cho bộ UNO/Arduino (M04)
+
+`Ngoài roadmap PoC · XL (742h, 720h sau mục ✂) · Spec: docs/uno-robot-direction.md · Plan: docs/robot-3d-implementation-plan.md`
+
+Định hướng phần cứng đổi từ Yolo:Bit sang mạch UNO-compatible + Arduino. Lab kind mới `lab=robot`: Blockly → IR
+(family `uno`) → interpreter trên đồng hồ ảo → driver → virtual UNO → world vật lý 3D (Rapier, tất định) → chấm điểm,
+kết quả lưu LMS (`RobotLab`, `LabAttempt`). Track `ybc` đóng băng (vẫn chạy như cũ). Sửa luật B5 và amendment `io.ts`
+được ghi ở plan N18 §2 và cập nhật vào §5.1 ở R2.1.
+
 ---
 
 ## 10. Dependency và critical path

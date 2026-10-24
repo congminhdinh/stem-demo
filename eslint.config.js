@@ -19,7 +19,7 @@ const frameworkPackages = [
 ];
 
 export default defineConfig([
-  globalIgnores(['dist', 'coverage', 'playwright-report', 'test-results']),
+  globalIgnores(['dist', 'coverage', 'playwright-report', 'test-results', 'spikes']),
   js.configs.recommended,
   tseslint.configs.recommended,
   // Boundary B8 (§5.1): the UI and its stores reach persistence only through
