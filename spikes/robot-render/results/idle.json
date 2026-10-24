@@ -1,0 +1,46 @@
+{
+  "env": {
+    "date": "2026-10-24T22:13:21.813Z",
+    "os": "Darwin 25.5.0 arm64",
+    "cpu": "Apple M4 Pro",
+    "cores": 12,
+    "memGB": 24,
+    "node": "v24.22.1",
+    "playwright": "1.63.0",
+    "chromium": "153.0.8010.12",
+    "three": "0.186.1",
+    "r3f": "9.8.1",
+    "drei": "10.7.9",
+    "power": "Now drawing from 'AC Power'; pmset powermode 2",
+    "loadavgAtStart": [
+      5.04,
+      7.25,
+      8.25
+    ]
+  },
+  "note": "headless shell + SwiftShader, tier high, 1100x640. run -> second rendered frame: the first frame in which the robot has moved",
+  "variants": {
+    "three": {
+      "idleFramesIn3s": 0,
+      "framesAfterOrbitDrag": 103,
+      "framesIn2sAfterSettling": 0,
+      "cameraMoved": true,
+      "runningFramesIn3s": 180,
+      "runToSecondFrameMs": {
+        "1x": 13.5,
+        "4x": 17.6
+      }
+    },
+    "drei": {
+      "idleFramesIn3s": 0,
+      "framesAfterOrbitDrag": 103,
+      "framesIn2sAfterSettling": 0,
+      "cameraMoved": true,
+      "runningFramesIn3s": 180,
+      "runToSecondFrameMs": {
+        "1x": 19.1,
+        "4x": 16.3
+      }
+    }
+  }
+}

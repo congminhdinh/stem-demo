@@ -1,0 +1,109 @@
+{
+  "env": {
+    "date": "2026-10-24T22:30:17.817Z",
+    "os": "Darwin 25.5.0 arm64",
+    "cpu": "Apple M4 Pro",
+    "cores": 12,
+    "memGB": 24,
+    "node": "v24.22.1",
+    "playwright": "1.63.0",
+    "chromium": "153.0.8010.12",
+    "three": "0.186.1",
+    "r3f": "9.8.1",
+    "drei": "10.7.9",
+    "power": "Now drawing from 'AC Power'; pmset powermode 2",
+    "loadavgAtStart": [
+      8.94,
+      7.49,
+      8.57
+    ]
+  },
+  "rows": [
+    {
+      "name": "headless shell, Playwright defaults",
+      "webgl2": true,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loseContextExtension": true,
+      "messages": []
+    },
+    {
+      "name": "headless shell, no --enable-unsafe-swiftshader (ignoreDefaultArgs)",
+      "webgl2": true,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loseContextExtension": true,
+      "messages": []
+    },
+    {
+      "name": "headless shell, --use-angle=swiftshader --enable-unsafe-swiftshader",
+      "webgl2": true,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loseContextExtension": true,
+      "messages": []
+    },
+    {
+      "name": "headless shell, --disable-gpu",
+      "webgl2": true,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loseContextExtension": true,
+      "messages": []
+    },
+    {
+      "name": "headless shell, --disable-3d-apis",
+      "webgl2": false,
+      "messages": []
+    },
+    {
+      "name": "new headless (channel chromium), Playwright defaults",
+      "webgl2": true,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "loseContextExtension": true,
+      "messages": []
+    },
+    {
+      "name": "new headless, --use-angle=swiftshader --enable-unsafe-swiftshader",
+      "webgl2": true,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loseContextExtension": true,
+      "messages": []
+    },
+    {
+      "name": "new headless, --disable-3d-apis",
+      "webgl2": false,
+      "messages": []
+    }
+  ],
+  "labPageConsole": {
+    "headless shell, no --enable-unsafe-swiftshader": [
+      {
+        "text": "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+        "count": 1
+      },
+      {
+        "text": "warning: []Automatic fallback to software WebGL has been deprecated. Please use the --enable-unsafe-swiftshader flag to opt in to lower security guarantees for trusted content.",
+        "count": 1
+      },
+      {
+        "text": "warning: [.WebGL-0x…]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+        "count": 3
+      },
+      {
+        "text": "warning: [.WebGL-0x…]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)",
+        "count": 1
+      }
+    ],
+    "headless shell, --use-angle=swiftshader --enable-unsafe-swiftshader": [
+      {
+        "text": "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+        "count": 1
+      },
+      {
+        "text": "warning: [.WebGL-0x…]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+        "count": 3
+      },
+      {
+        "text": "warning: [.WebGL-0x…]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)",
+        "count": 1
+      }
+    ]
+  }
+}

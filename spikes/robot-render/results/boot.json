@@ -1,0 +1,76 @@
+{
+  "env": {
+    "date": "2026-10-24T22:29:04.186Z",
+    "os": "Darwin 25.5.0 arm64",
+    "cpu": "Apple M4 Pro",
+    "cores": 12,
+    "memGB": 24,
+    "node": "v24.22.1",
+    "playwright": "1.63.0",
+    "chromium": "153.0.8010.12",
+    "three": "0.186.1",
+    "r3f": "9.8.1",
+    "drei": "10.7.9",
+    "power": "Now drawing from 'AC Power'; pmset powermode 2",
+    "loadavgAtStart": [
+      3.67,
+      6.66,
+      8.42
+    ]
+  },
+  "note": "localhost, no network latency: importMs is fetch + parse + evaluate of the lazy chunk; firstFrameMs is import start to the first rendered frame",
+  "rows": [
+    {
+      "controls": "three",
+      "cpuThrottle": 1,
+      "runs": 7,
+      "importMsMedian": 33.3,
+      "suspenseMsMedian": 0.3,
+      "commitDelayMsMedian": 334.1,
+      "rendererMsMedian": 6.1,
+      "glEndToFirstFrameMsMedian": 9.8,
+      "canvasMsMedian": 348.1,
+      "firstFrameMsMedian": 384.1,
+      "firstFrameMsMax": 386.2
+    },
+    {
+      "controls": "three",
+      "cpuThrottle": 4,
+      "runs": 7,
+      "importMsMedian": 94.5,
+      "suspenseMsMedian": 2.6,
+      "commitDelayMsMedian": 273.2,
+      "rendererMsMedian": 23,
+      "glEndToFirstFrameMsMedian": 41.8,
+      "canvasMsMedian": 321.7,
+      "firstFrameMsMedian": 435.4,
+      "firstFrameMsMax": 444.6
+    },
+    {
+      "controls": "drei",
+      "cpuThrottle": 1,
+      "runs": 7,
+      "importMsMedian": 32.1,
+      "suspenseMsMedian": 0.3,
+      "commitDelayMsMedian": 332.1,
+      "rendererMsMedian": 6.2,
+      "glEndToFirstFrameMsMedian": 10,
+      "canvasMsMedian": 345.2,
+      "firstFrameMsMedian": 383.5,
+      "firstFrameMsMax": 390
+    },
+    {
+      "controls": "drei",
+      "cpuThrottle": 4,
+      "runs": 7,
+      "importMsMedian": 82.6,
+      "suspenseMsMedian": 1.9,
+      "commitDelayMsMedian": 284.9,
+      "rendererMsMedian": 18.8,
+      "glEndToFirstFrameMsMedian": 37.5,
+      "canvasMsMedian": 326.1,
+      "firstFrameMsMedian": 424.3,
+      "firstFrameMsMax": 435.7
+    }
+  ]
+}

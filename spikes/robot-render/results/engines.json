@@ -1,0 +1,82 @@
+{
+  "env": {
+    "date": "2026-10-24T22:18:48.563Z",
+    "os": "Darwin 25.5.0 arm64",
+    "cpu": "Apple M4 Pro",
+    "cores": 12,
+    "memGB": 24,
+    "node": "v24.22.1",
+    "playwright": "1.63.0",
+    "three": "0.186.1",
+    "r3f": "9.8.1",
+    "drei": "10.7.9",
+    "power": "Now drawing from 'AC Power'; pmset powermode 2",
+    "loadavgAtStart": [
+      18.04,
+      13.36,
+      10.59
+    ]
+  },
+  "rows": [
+    {
+      "engine": "firefox",
+      "version": "155.0",
+      "renderer": "Apple M1, or similar",
+      "frames": 600,
+      "seconds": 5,
+      "meanFps": 120,
+      "medianFps": 125,
+      "p5Fps": 100,
+      "minFps": 90.9,
+      "intervalMs": {
+        "median": 8,
+        "p95": 10,
+        "p99": 11,
+        "max": 11
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 1,
+        "p95": 1
+      },
+      "messages": [
+        {
+          "text": "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+          "count": 1
+        },
+        {
+          "text": "warning: [JavaScript Warning: \"WebGL warning: drawElementsInstanced: Depth texture comparison requests (e.g. `LINEAR`) Filtering, but behavior is implementation-defined, and so on some systems will sometimes b",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "engine": "webkit",
+      "version": "26.6",
+      "renderer": "Apple GPU",
+      "frames": 300,
+      "seconds": 5,
+      "meanFps": 60,
+      "medianFps": 58.8,
+      "p5Fps": 55.6,
+      "minFps": 52.6,
+      "intervalMs": {
+        "median": 17,
+        "p95": 18,
+        "p99": 19,
+        "max": 19
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 0,
+        "p95": 1
+      },
+      "messages": [
+        {
+          "text": "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+          "count": 1
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,209 @@
+{
+  "env": {
+    "date": "2026-10-24T22:28:57.941Z",
+    "os": "Darwin 25.5.0 arm64",
+    "cpu": "Apple M4 Pro",
+    "cores": 12,
+    "memGB": 24,
+    "node": "v24.22.1",
+    "playwright": "1.63.0",
+    "three": "0.186.1",
+    "r3f": "9.8.1",
+    "drei": "10.7.9",
+    "power": "Now drawing from 'AC Power'; pmset powermode 2",
+    "loadavgAtStart": [
+      3.91,
+      6.75,
+      8.46
+    ]
+  },
+  "adjacent": {
+    "rapierSplitWasm": {
+      "file": "@dimforge/rapier3d-deterministic/rapier_wasm3d_bg.wasm",
+      "bytes": 3105893,
+      "gzip9": 1179524,
+      "brotli11": 855167
+    },
+    "rapierCompatEmbeddedWasmModule": {
+      "file": "@dimforge/rapier3d-deterministic-compat/dist/rapier.mjs",
+      "bytes": 4372012,
+      "gzip9": 1650862,
+      "brotli11": 1202391
+    }
+  },
+  "gzipLevel": "gzip9 = zlib level 9, brotli11 = quality 11; gzipDefault = zlib level 6 (what Vite prints)",
+  "variants": {
+    "three": {
+      "controls": "three",
+      "buildMs": 340,
+      "modulesTransformed": 34,
+      "mainEntryChunk": {
+        "file": "assets/index-D2nY2NG1.js",
+        "bytes": 222213,
+        "gzip9": 68862,
+        "gzipDefault": 69012,
+        "brotli11": 59320
+      },
+      "lazy3dChunks": [
+        {
+          "file": "assets/Lab-CdIIcK7G.js",
+          "bytes": 939906,
+          "gzip9": 245953,
+          "gzipDefault": 246817,
+          "brotli11": 202888
+        }
+      ],
+      "lazy3dTotal": {
+        "bytes": 939906,
+        "gzip9": 245953,
+        "gzipDefault": 246817,
+        "brotli11": 202888
+      },
+      "jsChunkCount": 2,
+      "mediapipe": {
+        "stringInAnyJsChunk": false,
+        "inSourceMap": false,
+        "separateChunk": false
+      },
+      "modulesInSourceMap": 18,
+      "packagesInLazyChunk": [
+        {
+          "name": "three",
+          "renderedBytes": 584166,
+          "modules": 2
+        },
+        {
+          "name": "@react-three/fiber",
+          "renderedBytes": 165567,
+          "modules": 2
+        },
+        {
+          "name": "three/examples",
+          "renderedBytes": 19842,
+          "modules": 1
+        },
+        {
+          "name": "(spike source)",
+          "renderedBytes": 9737,
+          "modules": 4
+        },
+        {
+          "name": "react-use-measure",
+          "renderedBytes": 3134,
+          "modules": 1
+        },
+        {
+          "name": "its-fine",
+          "renderedBytes": 2652,
+          "modules": 1
+        },
+        {
+          "name": "use-sync-external-store",
+          "renderedBytes": 1570,
+          "modules": 4
+        },
+        {
+          "name": "zustand",
+          "renderedBytes": 584,
+          "modules": 2
+        },
+        {
+          "name": "suspend-react",
+          "renderedBytes": 0,
+          "modules": 1
+        }
+      ]
+    },
+    "drei": {
+      "controls": "drei",
+      "buildMs": 316,
+      "modulesTransformed": 572,
+      "mainEntryChunk": {
+        "file": "assets/index-CeD2JbQW.js",
+        "bytes": 222217,
+        "gzip9": 68864,
+        "gzipDefault": 69014,
+        "brotli11": 59412
+      },
+      "lazy3dChunks": [
+        {
+          "file": "assets/Lab-aLRV36FU.js",
+          "bytes": 935320,
+          "gzip9": 246066,
+          "gzipDefault": 246879,
+          "brotli11": 202823
+        }
+      ],
+      "lazy3dTotal": {
+        "bytes": 935320,
+        "gzip9": 246066,
+        "gzipDefault": 246879,
+        "brotli11": 202823
+      },
+      "jsChunkCount": 2,
+      "mediapipe": {
+        "stringInAnyJsChunk": false,
+        "inSourceMap": false,
+        "separateChunk": false
+      },
+      "modulesInSourceMap": 21,
+      "packagesInLazyChunk": [
+        {
+          "name": "three",
+          "renderedBytes": 584209,
+          "modules": 2
+        },
+        {
+          "name": "@react-three/fiber",
+          "renderedBytes": 165570,
+          "modules": 2
+        },
+        {
+          "name": "three-stdlib",
+          "renderedBytes": 14284,
+          "modules": 2
+        },
+        {
+          "name": "(spike source)",
+          "renderedBytes": 9490,
+          "modules": 4
+        },
+        {
+          "name": "react-use-measure",
+          "renderedBytes": 3134,
+          "modules": 1
+        },
+        {
+          "name": "its-fine",
+          "renderedBytes": 2652,
+          "modules": 1
+        },
+        {
+          "name": "use-sync-external-store",
+          "renderedBytes": 1570,
+          "modules": 4
+        },
+        {
+          "name": "@react-three/drei",
+          "renderedBytes": 954,
+          "modules": 1
+        },
+        {
+          "name": "zustand",
+          "renderedBytes": 584,
+          "modules": 2
+        },
+        {
+          "name": "@babel/runtime",
+          "renderedBytes": 219,
+          "modules": 1
+        },
+        {
+          "name": "suspend-react",
+          "renderedBytes": 0,
+          "modules": 1
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "paths": { "@controls": ["./src/controls-three.tsx"] }
+  },
+  "include": ["src", "vite.config.ts"]
+}

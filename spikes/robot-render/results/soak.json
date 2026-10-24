@@ -1,0 +1,456 @@
+{
+  "env": {
+    "date": "2026-10-24T22:19:19.173Z",
+    "os": "Darwin 25.5.0 arm64",
+    "cpu": "Apple M4 Pro",
+    "cores": 12,
+    "memGB": 24,
+    "node": "v24.22.1",
+    "playwright": "1.63.0",
+    "chromium": "153.0.8010.12",
+    "three": "0.186.1",
+    "r3f": "9.8.1",
+    "drei": "10.7.9",
+    "power": "Now drawing from 'AC Power'; pmset powermode 2",
+    "loadavgAtStart": [
+      11.96,
+      12.34,
+      10.32
+    ]
+  },
+  "note": "headless shell, --use-angle=swiftshader --enable-unsafe-swiftshader, dsf 1, 60 s per run after a 2 s warm-up; heap is performance.memory.usedJSHeapSize (Chromium buckets it); loadavg1m is the host load average (1 min) at the start and end of the run",
+  "runs": [
+    {
+      "run": 1,
+      "tier": "high",
+      "cpuThrottle": 1,
+      "frames": 3519,
+      "seconds": 60,
+      "meanFps": 58.6,
+      "medianFps": 59.9,
+      "p5Fps": 55.2,
+      "minFps": 4.2,
+      "intervalMs": {
+        "median": 16.7,
+        "p95": 18.1,
+        "p99": 18.6,
+        "max": 236.1
+      },
+      "framesOver50ms": 14,
+      "renderCallMs": {
+        "median": 0.1,
+        "p95": 0.2
+      },
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": {
+        "start": 12.2,
+        "end": 11.15
+      },
+      "heapMB": {
+        "start": 10,
+        "end": 10
+      },
+      "glMemory": {
+        "start": {
+          "geometries": 27,
+          "textures": 3
+        },
+        "end": {
+          "geometries": 27,
+          "textures": 3
+        }
+      },
+      "programs": {
+        "start": 3,
+        "end": 3
+      },
+      "contextEvents": 0,
+      "crashes": 0,
+      "messages": [
+        {
+          "text": "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+          "count": 1
+        },
+        {
+          "text": "warning: [.WebGL-0x…]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+          "count": 3
+        },
+        {
+          "text": "warning: [.WebGL-0x…]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "tier": "low",
+      "cpuThrottle": 1,
+      "frames": 3601,
+      "seconds": 60,
+      "meanFps": 60,
+      "medianFps": 59.9,
+      "p5Fps": 55.2,
+      "minFps": 46.9,
+      "intervalMs": {
+        "median": 16.7,
+        "p95": 18.1,
+        "p99": 18.6,
+        "max": 21.3
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 0.1,
+        "p95": 0.2
+      },
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": {
+        "start": 11.15,
+        "end": 7.15
+      },
+      "heapMB": {
+        "start": 10,
+        "end": 10
+      },
+      "glMemory": {
+        "start": {
+          "geometries": 27,
+          "textures": 1
+        },
+        "end": {
+          "geometries": 27,
+          "textures": 1
+        }
+      },
+      "programs": {
+        "start": 2,
+        "end": 2
+      },
+      "contextEvents": 0,
+      "crashes": 0,
+      "messages": [
+        {
+          "text": "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "tier": "high",
+      "cpuThrottle": 4,
+      "frames": 3239,
+      "seconds": 60,
+      "meanFps": 54,
+      "medianFps": 59.2,
+      "p5Fps": 35.2,
+      "minFps": 5.9,
+      "intervalMs": {
+        "median": 16.9,
+        "p95": 28.4,
+        "p99": 47.9,
+        "max": 170.5
+      },
+      "framesOver50ms": 28,
+      "renderCallMs": {
+        "median": 0.5,
+        "p95": 1
+      },
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": {
+        "start": 6.98,
+        "end": 12.32
+      },
+      "heapMB": {
+        "start": 10,
+        "end": 10
+      },
+      "glMemory": {
+        "start": {
+          "geometries": 27,
+          "textures": 3
+        },
+        "end": {
+          "geometries": 27,
+          "textures": 3
+        }
+      },
+      "programs": {
+        "start": 3,
+        "end": 3
+      },
+      "contextEvents": 0,
+      "crashes": 0,
+      "messages": [
+        {
+          "text": "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "tier": "low",
+      "cpuThrottle": 4,
+      "frames": 3590,
+      "seconds": 60,
+      "meanFps": 59.8,
+      "medianFps": 59.9,
+      "p5Fps": 54.3,
+      "minFps": 16.3,
+      "intervalMs": {
+        "median": 16.7,
+        "p95": 18.4,
+        "p99": 19,
+        "max": 61.3
+      },
+      "framesOver50ms": 2,
+      "renderCallMs": {
+        "median": 0.1,
+        "p95": 0.8
+      },
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": {
+        "start": 13.98,
+        "end": 8.71
+      },
+      "heapMB": {
+        "start": 10,
+        "end": 10
+      },
+      "glMemory": {
+        "start": {
+          "geometries": 27,
+          "textures": 1
+        },
+        "end": {
+          "geometries": 27,
+          "textures": 1
+        }
+      },
+      "programs": {
+        "start": 2,
+        "end": 2
+      },
+      "contextEvents": 0,
+      "crashes": 0,
+      "messages": [
+        {
+          "text": "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "tier": "high",
+      "cpuThrottle": 1,
+      "frames": 3601,
+      "seconds": 60,
+      "meanFps": 60,
+      "medianFps": 59.9,
+      "p5Fps": 55.2,
+      "minFps": 53.5,
+      "intervalMs": {
+        "median": 16.7,
+        "p95": 18.1,
+        "p99": 18.5,
+        "max": 18.7
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 0.2,
+        "p95": 0.2
+      },
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": {
+        "start": 8.71,
+        "end": 6.77
+      },
+      "heapMB": {
+        "start": 10,
+        "end": 10
+      },
+      "glMemory": {
+        "start": {
+          "geometries": 27,
+          "textures": 3
+        },
+        "end": {
+          "geometries": 27,
+          "textures": 3
+        }
+      },
+      "programs": {
+        "start": 3,
+        "end": 3
+      },
+      "contextEvents": 0,
+      "crashes": 0,
+      "messages": [
+        {
+          "text": "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "tier": "low",
+      "cpuThrottle": 1,
+      "frames": 3590,
+      "seconds": 60,
+      "meanFps": 59.8,
+      "medianFps": 59.9,
+      "p5Fps": 54.9,
+      "minFps": 11.5,
+      "intervalMs": {
+        "median": 16.7,
+        "p95": 18.2,
+        "p99": 18.6,
+        "max": 87.1
+      },
+      "framesOver50ms": 1,
+      "renderCallMs": {
+        "median": 0.1,
+        "p95": 0.2
+      },
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": {
+        "start": 7.27,
+        "end": 5.57
+      },
+      "heapMB": {
+        "start": 10,
+        "end": 10
+      },
+      "glMemory": {
+        "start": {
+          "geometries": 27,
+          "textures": 1
+        },
+        "end": {
+          "geometries": 27,
+          "textures": 1
+        }
+      },
+      "programs": {
+        "start": 2,
+        "end": 2
+      },
+      "contextEvents": 0,
+      "crashes": 0,
+      "messages": [
+        {
+          "text": "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "tier": "high",
+      "cpuThrottle": 4,
+      "frames": 3601,
+      "seconds": 60,
+      "meanFps": 60,
+      "medianFps": 59.9,
+      "p5Fps": 54.3,
+      "minFps": 51.5,
+      "intervalMs": {
+        "median": 16.7,
+        "p95": 18.4,
+        "p99": 18.9,
+        "max": 19.4
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 0.3,
+        "p95": 0.9
+      },
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": {
+        "start": 5.57,
+        "end": 5.17
+      },
+      "heapMB": {
+        "start": 10,
+        "end": 10
+      },
+      "glMemory": {
+        "start": {
+          "geometries": 27,
+          "textures": 3
+        },
+        "end": {
+          "geometries": 27,
+          "textures": 3
+        }
+      },
+      "programs": {
+        "start": 3,
+        "end": 3
+      },
+      "contextEvents": 0,
+      "crashes": 0,
+      "messages": [
+        {
+          "text": "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "tier": "low",
+      "cpuThrottle": 4,
+      "frames": 3601,
+      "seconds": 60,
+      "meanFps": 60,
+      "medianFps": 59.9,
+      "p5Fps": 54.3,
+      "minFps": 51.5,
+      "intervalMs": {
+        "median": 16.7,
+        "p95": 18.4,
+        "p99": 18.8,
+        "max": 19.4
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 0.1,
+        "p95": 0.7
+      },
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": {
+        "start": 5.08,
+        "end": 5.23
+      },
+      "heapMB": {
+        "start": 10,
+        "end": 10
+      },
+      "glMemory": {
+        "start": {
+          "geometries": 27,
+          "textures": 1
+        },
+        "end": {
+          "geometries": 27,
+          "textures": 1
+        }
+      },
+      "programs": {
+        "start": 2,
+        "end": 2
+      },
+      "contextEvents": 0,
+      "crashes": 0,
+      "messages": [
+        {
+          "text": "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+          "count": 1
+        }
+      ]
+    }
+  ]
+}

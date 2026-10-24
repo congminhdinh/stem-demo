@@ -1,0 +1,1010 @@
+{
+  "env": {
+    "date": "2026-10-24T22:08:26.872Z",
+    "os": "Darwin 25.5.0 arm64",
+    "cpu": "Apple M4 Pro",
+    "cores": 12,
+    "memGB": 24,
+    "node": "v24.22.1",
+    "playwright": "1.63.0",
+    "chromium": "153.0.8010.12",
+    "three": "0.186.1",
+    "r3f": "9.8.1",
+    "drei": "10.7.9",
+    "power": "Now drawing from 'AC Power'; pmset powermode 2",
+    "loadavgAtStart": [
+      8.61,
+      7.47,
+      8.45
+    ]
+  },
+  "protocol": "CPU throttle 4x, DPR 2 (drawing buffer 1100x640 x1.5 in the high tier, x1 in the low tier), antialias off vs on",
+  "summary": [
+    {
+      "group": "swiftshader-shell",
+      "tier": "high",
+      "aa": 0,
+      "runs": 3,
+      "medianFps": 59.5,
+      "p5Fps": 54.6,
+      "meanFps": 60
+    },
+    {
+      "group": "swiftshader-shell",
+      "tier": "high",
+      "aa": 1,
+      "runs": 3,
+      "medianFps": 58.5,
+      "p5Fps": 53.8,
+      "meanFps": 58
+    },
+    {
+      "group": "swiftshader-shell",
+      "tier": "low",
+      "aa": 0,
+      "runs": 3,
+      "medianFps": 59.9,
+      "p5Fps": 54.3,
+      "meanFps": 60
+    },
+    {
+      "group": "swiftshader-shell",
+      "tier": "low",
+      "aa": 1,
+      "runs": 3,
+      "medianFps": 59.9,
+      "p5Fps": 54.1,
+      "meanFps": 60
+    },
+    {
+      "group": "gpu-uncapped",
+      "tier": "high",
+      "aa": 0,
+      "runs": 3,
+      "medianFps": 833.3,
+      "p5Fps": 333.3,
+      "meanFps": 744.1
+    },
+    {
+      "group": "gpu-uncapped",
+      "tier": "high",
+      "aa": 1,
+      "runs": 3,
+      "medianFps": 769.2,
+      "p5Fps": 333.3,
+      "meanFps": 728.1
+    },
+    {
+      "group": "gpu-uncapped",
+      "tier": "low",
+      "aa": 0,
+      "runs": 3,
+      "medianFps": 909.1,
+      "p5Fps": 344.8,
+      "meanFps": 759.8
+    },
+    {
+      "group": "gpu-uncapped",
+      "tier": "low",
+      "aa": 1,
+      "runs": 3,
+      "medianFps": 909.1,
+      "p5Fps": 333.3,
+      "meanFps": 751.6
+    }
+  ],
+  "cells": [
+    {
+      "run": 1,
+      "group": "swiftshader-shell",
+      "tier": "high",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 0,
+      "frames": 480,
+      "seconds": 8,
+      "meanFps": 60,
+      "medianFps": 59.9,
+      "p5Fps": 54.6,
+      "minFps": 51.8,
+      "intervalMs": {
+        "median": 16.7,
+        "p95": 18.3,
+        "p99": 19,
+        "max": 19.3
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 0.5,
+        "p95": 1
+      },
+      "drawingBuffer": [
+        1650,
+        960
+      ],
+      "pixelRatio": 1.5,
+      "shadowMapEnabled": true,
+      "drawCalls": 41,
+      "triangles": 2030,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": 8.61,
+      "cpuBenchMs": 66,
+      "consoleErrors": []
+    },
+    {
+      "run": 2,
+      "group": "swiftshader-shell",
+      "tier": "high",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 0,
+      "frames": 230,
+      "seconds": 8,
+      "meanFps": 28.8,
+      "medianFps": 37,
+      "p5Fps": 12.4,
+      "minFps": 9.3,
+      "intervalMs": {
+        "median": 27,
+        "p95": 80.8,
+        "p99": 103.2,
+        "max": 107.2
+      },
+      "framesOver50ms": 50,
+      "renderCallMs": {
+        "median": 0.9,
+        "p95": 1.4
+      },
+      "drawingBuffer": [
+        1650,
+        960
+      ],
+      "pixelRatio": 1.5,
+      "shadowMapEnabled": true,
+      "drawCalls": 41,
+      "triangles": 2030,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": 7.98,
+      "cpuBenchMs": 70,
+      "consoleErrors": []
+    },
+    {
+      "run": 3,
+      "group": "swiftshader-shell",
+      "tier": "high",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 0,
+      "frames": 481,
+      "seconds": 8,
+      "meanFps": 60.1,
+      "medianFps": 59.5,
+      "p5Fps": 54.6,
+      "minFps": 52.1,
+      "intervalMs": {
+        "median": 16.8,
+        "p95": 18.3,
+        "p99": 18.8,
+        "max": 19.2
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 0.5,
+        "p95": 1
+      },
+      "drawingBuffer": [
+        1650,
+        960
+      ],
+      "pixelRatio": 1.5,
+      "shadowMapEnabled": true,
+      "drawCalls": 41,
+      "triangles": 2030,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": 12.01,
+      "cpuBenchMs": 71,
+      "consoleErrors": []
+    },
+    {
+      "run": 1,
+      "group": "swiftshader-shell",
+      "tier": "high",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 1,
+      "frames": 464,
+      "seconds": 8,
+      "meanFps": 58,
+      "medianFps": 58.5,
+      "p5Fps": 53.8,
+      "minFps": 24,
+      "intervalMs": {
+        "median": 17.1,
+        "p95": 18.6,
+        "p99": 20.6,
+        "max": 41.6
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 0.6,
+        "p95": 1.1
+      },
+      "drawingBuffer": [
+        1650,
+        960
+      ],
+      "pixelRatio": 1.5,
+      "shadowMapEnabled": true,
+      "drawCalls": 41,
+      "triangles": 2030,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": 13.06,
+      "cpuBenchMs": 64,
+      "consoleErrors": []
+    },
+    {
+      "run": 2,
+      "group": "swiftshader-shell",
+      "tier": "high",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 1,
+      "frames": 467,
+      "seconds": 8,
+      "meanFps": 58.4,
+      "medianFps": 58.8,
+      "p5Fps": 53.8,
+      "minFps": 40.7,
+      "intervalMs": {
+        "median": 17,
+        "p95": 18.6,
+        "p99": 21,
+        "max": 24.6
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 0.5,
+        "p95": 1.1
+      },
+      "drawingBuffer": [
+        1650,
+        960
+      ],
+      "pixelRatio": 1.5,
+      "shadowMapEnabled": true,
+      "drawCalls": 41,
+      "triangles": 2030,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": 13.91,
+      "cpuBenchMs": 65,
+      "consoleErrors": []
+    },
+    {
+      "run": 3,
+      "group": "swiftshader-shell",
+      "tier": "high",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 1,
+      "frames": 454,
+      "seconds": 8,
+      "meanFps": 56.8,
+      "medianFps": 58.1,
+      "p5Fps": 48.1,
+      "minFps": 24.1,
+      "intervalMs": {
+        "median": 17.2,
+        "p95": 20.8,
+        "p99": 26.2,
+        "max": 41.5
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 0.5,
+        "p95": 1.1
+      },
+      "drawingBuffer": [
+        1650,
+        960
+      ],
+      "pixelRatio": 1.5,
+      "shadowMapEnabled": true,
+      "drawCalls": 41,
+      "triangles": 2030,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": 14.63,
+      "cpuBenchMs": 63,
+      "consoleErrors": []
+    },
+    {
+      "run": 1,
+      "group": "swiftshader-shell",
+      "tier": "low",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 0,
+      "frames": 480,
+      "seconds": 8,
+      "meanFps": 60,
+      "medianFps": 59.9,
+      "p5Fps": 54.3,
+      "minFps": 52.4,
+      "intervalMs": {
+        "median": 16.7,
+        "p95": 18.4,
+        "p99": 18.8,
+        "max": 19.1
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 0.1,
+        "p95": 0.6
+      },
+      "drawingBuffer": [
+        1100,
+        640
+      ],
+      "pixelRatio": 1,
+      "shadowMapEnabled": false,
+      "drawCalls": 27,
+      "triangles": 1354,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": 15.74,
+      "cpuBenchMs": 72,
+      "consoleErrors": []
+    },
+    {
+      "run": 2,
+      "group": "swiftshader-shell",
+      "tier": "low",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 0,
+      "frames": 480,
+      "seconds": 8,
+      "meanFps": 60,
+      "medianFps": 59.9,
+      "p5Fps": 54.6,
+      "minFps": 51.5,
+      "intervalMs": {
+        "median": 16.7,
+        "p95": 18.3,
+        "p99": 18.9,
+        "max": 19.4
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 0.1,
+        "p95": 0.7
+      },
+      "drawingBuffer": [
+        1100,
+        640
+      ],
+      "pixelRatio": 1,
+      "shadowMapEnabled": false,
+      "drawCalls": 27,
+      "triangles": 1354,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": 14.75,
+      "cpuBenchMs": 63,
+      "consoleErrors": []
+    },
+    {
+      "run": 3,
+      "group": "swiftshader-shell",
+      "tier": "low",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 0,
+      "frames": 480,
+      "seconds": 8,
+      "meanFps": 60,
+      "medianFps": 60.2,
+      "p5Fps": 53.8,
+      "minFps": 52.4,
+      "intervalMs": {
+        "median": 16.6,
+        "p95": 18.6,
+        "p99": 19,
+        "max": 19.1
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 0.1,
+        "p95": 0.7
+      },
+      "drawingBuffer": [
+        1100,
+        640
+      ],
+      "pixelRatio": 1,
+      "shadowMapEnabled": false,
+      "drawCalls": 27,
+      "triangles": 1354,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": 13.02,
+      "cpuBenchMs": 68,
+      "consoleErrors": []
+    },
+    {
+      "run": 1,
+      "group": "swiftshader-shell",
+      "tier": "low",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 1,
+      "frames": 480,
+      "seconds": 8,
+      "meanFps": 60,
+      "medianFps": 59.9,
+      "p5Fps": 54.1,
+      "minFps": 52.4,
+      "intervalMs": {
+        "median": 16.7,
+        "p95": 18.5,
+        "p99": 18.8,
+        "max": 19.1
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 0.1,
+        "p95": 0.8
+      },
+      "drawingBuffer": [
+        1100,
+        640
+      ],
+      "pixelRatio": 1,
+      "shadowMapEnabled": false,
+      "drawCalls": 27,
+      "triangles": 1354,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": 11.64,
+      "cpuBenchMs": 63,
+      "consoleErrors": []
+    },
+    {
+      "run": 2,
+      "group": "swiftshader-shell",
+      "tier": "low",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 1,
+      "frames": 480,
+      "seconds": 8,
+      "meanFps": 60,
+      "medianFps": 59.9,
+      "p5Fps": 54.1,
+      "minFps": 52.1,
+      "intervalMs": {
+        "median": 16.7,
+        "p95": 18.5,
+        "p99": 18.9,
+        "max": 19.2
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 0.1,
+        "p95": 0.7
+      },
+      "drawingBuffer": [
+        1100,
+        640
+      ],
+      "pixelRatio": 1,
+      "shadowMapEnabled": false,
+      "drawCalls": 27,
+      "triangles": 1354,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": 10.23,
+      "cpuBenchMs": 74,
+      "consoleErrors": []
+    },
+    {
+      "run": 3,
+      "group": "swiftshader-shell",
+      "tier": "low",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 1,
+      "frames": 481,
+      "seconds": 8,
+      "meanFps": 60.1,
+      "medianFps": 59.9,
+      "p5Fps": 54.6,
+      "minFps": 52.9,
+      "intervalMs": {
+        "median": 16.7,
+        "p95": 18.3,
+        "p99": 18.7,
+        "max": 18.9
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 0.1,
+        "p95": 0.7
+      },
+      "drawingBuffer": [
+        1100,
+        640
+      ],
+      "pixelRatio": 1,
+      "shadowMapEnabled": false,
+      "drawCalls": 27,
+      "triangles": 1354,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "loadavg1m": 10.24,
+      "cpuBenchMs": 64,
+      "consoleErrors": []
+    },
+    {
+      "run": 1,
+      "group": "gpu-uncapped",
+      "tier": "high",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 0,
+      "frames": 5860,
+      "seconds": 8,
+      "meanFps": 732.5,
+      "medianFps": 833.3,
+      "p5Fps": 333.3,
+      "minFps": 74.1,
+      "intervalMs": {
+        "median": 1.2,
+        "p95": 3,
+        "p99": 4.8,
+        "max": 13.5
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 1.1,
+        "p95": 2.8
+      },
+      "drawingBuffer": [
+        1650,
+        960
+      ],
+      "pixelRatio": 1.5,
+      "shadowMapEnabled": true,
+      "drawCalls": 41,
+      "triangles": 2030,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "loadavg1m": 9.7,
+      "cpuBenchMs": 64,
+      "consoleErrors": []
+    },
+    {
+      "run": 2,
+      "group": "gpu-uncapped",
+      "tier": "high",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 0,
+      "frames": 5965,
+      "seconds": 8,
+      "meanFps": 745.6,
+      "medianFps": 833.3,
+      "p5Fps": 344.8,
+      "minFps": 73.5,
+      "intervalMs": {
+        "median": 1.2,
+        "p95": 2.9,
+        "p99": 3.6,
+        "max": 13.6
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 1.1,
+        "p95": 2.8
+      },
+      "drawingBuffer": [
+        1650,
+        960
+      ],
+      "pixelRatio": 1.5,
+      "shadowMapEnabled": true,
+      "drawCalls": 41,
+      "triangles": 2030,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "loadavg1m": 8.6,
+      "cpuBenchMs": 68,
+      "consoleErrors": []
+    },
+    {
+      "run": 3,
+      "group": "gpu-uncapped",
+      "tier": "high",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 0,
+      "frames": 5953,
+      "seconds": 8,
+      "meanFps": 744.1,
+      "medianFps": 833.3,
+      "p5Fps": 333.3,
+      "minFps": 78.1,
+      "intervalMs": {
+        "median": 1.2,
+        "p95": 3,
+        "p99": 3.6,
+        "max": 12.8
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 1.1,
+        "p95": 2.8
+      },
+      "drawingBuffer": [
+        1650,
+        960
+      ],
+      "pixelRatio": 1.5,
+      "shadowMapEnabled": true,
+      "drawCalls": 41,
+      "triangles": 2030,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "loadavg1m": 7.75,
+      "cpuBenchMs": 69,
+      "consoleErrors": []
+    },
+    {
+      "run": 1,
+      "group": "gpu-uncapped",
+      "tier": "high",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 1,
+      "frames": 5861,
+      "seconds": 8,
+      "meanFps": 732.6,
+      "medianFps": 714.3,
+      "p5Fps": 333.3,
+      "minFps": 100,
+      "intervalMs": {
+        "median": 1.4,
+        "p95": 3,
+        "p99": 3.6,
+        "max": 10
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 0.8,
+        "p95": 2.8
+      },
+      "drawingBuffer": [
+        1650,
+        960
+      ],
+      "pixelRatio": 1.5,
+      "shadowMapEnabled": true,
+      "drawCalls": 41,
+      "triangles": 2030,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "loadavg1m": 7.25,
+      "cpuBenchMs": 64,
+      "consoleErrors": []
+    },
+    {
+      "run": 2,
+      "group": "gpu-uncapped",
+      "tier": "high",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 1,
+      "frames": 5802,
+      "seconds": 8,
+      "meanFps": 725.3,
+      "medianFps": 769.2,
+      "p5Fps": 333.3,
+      "minFps": 106.4,
+      "intervalMs": {
+        "median": 1.3,
+        "p95": 3,
+        "p99": 3.7,
+        "max": 9.4
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 1,
+        "p95": 2.8
+      },
+      "drawingBuffer": [
+        1650,
+        960
+      ],
+      "pixelRatio": 1.5,
+      "shadowMapEnabled": true,
+      "drawCalls": 41,
+      "triangles": 2030,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "loadavg1m": 6.94,
+      "cpuBenchMs": 65,
+      "consoleErrors": []
+    },
+    {
+      "run": 3,
+      "group": "gpu-uncapped",
+      "tier": "high",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 1,
+      "frames": 5825,
+      "seconds": 8,
+      "meanFps": 728.1,
+      "medianFps": 833.3,
+      "p5Fps": 333.3,
+      "minFps": 91.7,
+      "intervalMs": {
+        "median": 1.2,
+        "p95": 3,
+        "p99": 3.7,
+        "max": 10.9
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 0.9,
+        "p95": 2.8
+      },
+      "drawingBuffer": [
+        1650,
+        960
+      ],
+      "pixelRatio": 1.5,
+      "shadowMapEnabled": true,
+      "drawCalls": 41,
+      "triangles": 2030,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "loadavg1m": 6.72,
+      "cpuBenchMs": 70,
+      "consoleErrors": []
+    },
+    {
+      "run": 1,
+      "group": "gpu-uncapped",
+      "tier": "low",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 0,
+      "frames": 6157,
+      "seconds": 8,
+      "meanFps": 769.6,
+      "medianFps": 909.1,
+      "p5Fps": 344.8,
+      "minFps": 70.9,
+      "intervalMs": {
+        "median": 1.1,
+        "p95": 2.9,
+        "p99": 3.4,
+        "max": 14.1
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 1,
+        "p95": 2.8
+      },
+      "drawingBuffer": [
+        1100,
+        640
+      ],
+      "pixelRatio": 1,
+      "shadowMapEnabled": false,
+      "drawCalls": 27,
+      "triangles": 1354,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "loadavg1m": 6.13,
+      "cpuBenchMs": 63,
+      "consoleErrors": []
+    },
+    {
+      "run": 2,
+      "group": "gpu-uncapped",
+      "tier": "low",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 0,
+      "frames": 6078,
+      "seconds": 8,
+      "meanFps": 759.8,
+      "medianFps": 909.1,
+      "p5Fps": 344.8,
+      "minFps": 74.1,
+      "intervalMs": {
+        "median": 1.1,
+        "p95": 2.9,
+        "p99": 3.4,
+        "max": 13.5
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 1,
+        "p95": 2.8
+      },
+      "drawingBuffer": [
+        1100,
+        640
+      ],
+      "pixelRatio": 1,
+      "shadowMapEnabled": false,
+      "drawCalls": 27,
+      "triangles": 1354,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "loadavg1m": 6.04,
+      "cpuBenchMs": 68,
+      "consoleErrors": []
+    },
+    {
+      "run": 3,
+      "group": "gpu-uncapped",
+      "tier": "low",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 0,
+      "frames": 6077,
+      "seconds": 8,
+      "meanFps": 759.6,
+      "medianFps": 833.3,
+      "p5Fps": 333.3,
+      "minFps": 77.5,
+      "intervalMs": {
+        "median": 1.2,
+        "p95": 3,
+        "p99": 3.4,
+        "max": 12.9
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 1,
+        "p95": 2.8
+      },
+      "drawingBuffer": [
+        1100,
+        640
+      ],
+      "pixelRatio": 1,
+      "shadowMapEnabled": false,
+      "drawCalls": 27,
+      "triangles": 1354,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "loadavg1m": 5.64,
+      "cpuBenchMs": 67,
+      "consoleErrors": []
+    },
+    {
+      "run": 1,
+      "group": "gpu-uncapped",
+      "tier": "low",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 1,
+      "frames": 5987,
+      "seconds": 8,
+      "meanFps": 748.4,
+      "medianFps": 909.1,
+      "p5Fps": 333.3,
+      "minFps": 53.8,
+      "intervalMs": {
+        "median": 1.1,
+        "p95": 3,
+        "p99": 3.6,
+        "max": 18.6
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 1,
+        "p95": 2.8
+      },
+      "drawingBuffer": [
+        1100,
+        640
+      ],
+      "pixelRatio": 1,
+      "shadowMapEnabled": false,
+      "drawCalls": 27,
+      "triangles": 1354,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "loadavg1m": 6,
+      "cpuBenchMs": 66,
+      "consoleErrors": []
+    },
+    {
+      "run": 2,
+      "group": "gpu-uncapped",
+      "tier": "low",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 1,
+      "frames": 6013,
+      "seconds": 8,
+      "meanFps": 751.6,
+      "medianFps": 833.3,
+      "p5Fps": 333.3,
+      "minFps": 75.2,
+      "intervalMs": {
+        "median": 1.2,
+        "p95": 3,
+        "p99": 3.5,
+        "max": 13.3
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 1,
+        "p95": 2.8
+      },
+      "drawingBuffer": [
+        1100,
+        640
+      ],
+      "pixelRatio": 1,
+      "shadowMapEnabled": false,
+      "drawCalls": 27,
+      "triangles": 1354,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "loadavg1m": 5.84,
+      "cpuBenchMs": 66,
+      "consoleErrors": []
+    },
+    {
+      "run": 3,
+      "group": "gpu-uncapped",
+      "tier": "low",
+      "cpuThrottle": 4,
+      "dsf": 2,
+      "extra": 0,
+      "aa": 1,
+      "frames": 6041,
+      "seconds": 8,
+      "meanFps": 755.1,
+      "medianFps": 909.1,
+      "p5Fps": 333.3,
+      "minFps": 81.3,
+      "intervalMs": {
+        "median": 1.1,
+        "p95": 3,
+        "p99": 3.5,
+        "max": 12.3
+      },
+      "framesOver50ms": 0,
+      "renderCallMs": {
+        "median": 1,
+        "p95": 2.8
+      },
+      "drawingBuffer": [
+        1100,
+        640
+      ],
+      "pixelRatio": 1,
+      "shadowMapEnabled": false,
+      "drawCalls": 27,
+      "triangles": 1354,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "loadavg1m": 5.86,
+      "cpuBenchMs": 66,
+      "consoleErrors": []
+    }
+  ]
+}
