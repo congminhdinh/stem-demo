@@ -1,0 +1,24 @@
+=== SPIKE_VITEST=plain pnpm exec vitest run --config spikes/robot-physics/vitest.config.ts
+ FAIL  vitest/split.test.ts [ vitest/split.test.ts ]
+Error: Failed to resolve entry for package "@dimforge/rapier3d-deterministic". The package may have incorrect main/module/exports specified in its package.json.
+ Test Files  1 failed | 1 passed (2)
+      Tests  3 passed (3)
+=== SPIKE_VITEST=alias pnpm exec vitest run --config spikes/robot-physics/vitest.config.ts
+   × split .wasm package under Vitest reproduces the Node hash (joint) 
+   × split .wasm package under Vitest reproduces the Node hash (raycast) 
+   × split .wasm package under Vitest reproduces the Node hash (velocity) 
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  vitest/split.test.ts > split .wasm package under Vitest reproduces the Node hash (joint)
+ FAIL  vitest/split.test.ts > split .wasm package under Vitest reproduces the Node hash (raycast)
+TypeError: Cannot read properties of undefined (reading '__wbindgen_export')
+ ❯ handleError ../../node_modules/.pnpm/@dimforge+rapier3d-deterministic@0.21.0/node_modules/@dimforge/rapier3d-deterministic/rapier_wasm3d_bg.js:9634:14
+ FAIL  vitest/split.test.ts > split .wasm package under Vitest reproduces the Node hash (velocity)
+TypeError: Cannot set properties of undefined (setting '0')
+ Test Files  1 failed | 1 passed (2)
+      Tests  3 failed | 3 passed (6)
+=== SPIKE_VITEST=inline pnpm exec vitest run --config spikes/robot-physics/vitest.config.ts
+ Test Files  2 passed (2)
+      Tests  6 passed (6)
+=== SPIKE_VITEST=plugin pnpm exec vitest run --config spikes/robot-physics/vitest.config.ts
+ Test Files  2 passed (2)
+      Tests  6 passed (6)

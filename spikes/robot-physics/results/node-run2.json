@@ -1,0 +1,213 @@
+{
+  "label": "run2",
+  "env": {
+    "node": "v24.22.1",
+    "platform": "darwin",
+    "release": "25.5.0",
+    "arch": "arm64",
+    "cpu": "Apple M4 Pro",
+    "cores": 12,
+    "rapier": "0.21.0",
+    "loadavg": [
+      7.84765625,
+      10.4892578125,
+      11.79345703125
+    ]
+  },
+  "init": {
+    "importMs": 18.62,
+    "initMs": 38.8,
+    "totalMs": 57.41,
+    "worldCreateMs": 2.596
+  },
+  "splitPackageInNode": "FAIL: Error: Cannot find package '/Users/hoangminh/Desktop/stem/.worktrees/sd-r01-physics/node_modules/@dimforge/rapier3d-deterministic/index.js' imported from /Users/hoangminh/Desktop/stem/.worktrees/sd-r01-physics/spikes/robot-physics/node-run.ts",
+  "hashTicks": 3000,
+  "hashes": {
+    "joint": {
+      "tuning": {
+        "lengthUnit": 0.1,
+        "solverIterations": 8,
+        "pgsIterations": 2
+      },
+      "run1": {
+        "finalQ6": "b92bef5e",
+        "trajQ6": "e30909cd",
+        "trajBits": "276c062b"
+      },
+      "run2": {
+        "finalQ6": "b92bef5e",
+        "trajQ6": "e30909cd",
+        "trajBits": "276c062b"
+      },
+      "equal": true,
+      "stallMaxSpeedMmS": 0.046,
+      "msPerTickWarm": {
+        "median": 0.0348,
+        "p95": 0.0423,
+        "mean": 0.0322,
+        "batch10Median": 0.0386,
+        "batch10P95": 0.0519
+      },
+      "msPerTickCold": {
+        "median": 0.0413,
+        "p95": 0.0507,
+        "mean": 0.0479,
+        "batch10Median": 0.0447,
+        "batch10P95": 0.0626
+      },
+      "finalPoses": [
+        [
+          -0.8262215256690979,
+          0.039522528648376465,
+          -0.00822637788951397,
+          0.0040933964774012566,
+          0.999990701675415,
+          -0.00003819281846517697,
+          0.0014131165808066726
+        ],
+        [
+          -0.8064775466918945,
+          0.032373230904340744,
+          0.06183046102523804,
+          -0.1687573343515396,
+          0.9856566786766052,
+          -0.0002852358447853476,
+          0.0013853359268978238
+        ],
+        [
+          -0.8060818314552307,
+          0.0323539562523365,
+          -0.07816911488771439,
+          -0.9758082628250122,
+          -0.21862372756004333,
+          -0.001369368634186685,
+          -0.0003518614103086293
+        ],
+        [
+          -0.9502880573272705,
+          0.05007131025195122,
+          -0.0023683060426265,
+          -0.0000026143600280192913,
+          -0.0005933103966526687,
+          0.00020405754912644625,
+          0.9999998807907104
+        ]
+      ]
+    },
+    "raycast": {
+      "tuning": {
+        "lengthUnit": 0.1,
+        "solverIterations": 4,
+        "pgsIterations": 1
+      },
+      "run1": {
+        "finalQ6": "489cfc46",
+        "trajQ6": "fdd8062e",
+        "trajBits": "9b7b80f1"
+      },
+      "run2": {
+        "finalQ6": "489cfc46",
+        "trajQ6": "fdd8062e",
+        "trajBits": "9b7b80f1"
+      },
+      "equal": true,
+      "stallMaxSpeedMmS": 131.2844,
+      "msPerTickWarm": {
+        "median": 0.0062,
+        "p95": 0.0114,
+        "mean": 0.0074,
+        "batch10Median": 0.0075,
+        "batch10P95": 0.0131
+      },
+      "msPerTickCold": {
+        "median": 0.0065,
+        "p95": 0.013,
+        "mean": 0.0086,
+        "batch10Median": 0.008,
+        "batch10P95": 0.0167
+      },
+      "finalPoses": [
+        [
+          -0.9213640093803406,
+          0.03959241881966591,
+          0.36975616216659546,
+          -0.0034783827140927315,
+          0.9999839663505554,
+          0.004165804944932461,
+          0.001659231260418892
+        ],
+        [
+          -0.5500079393386841,
+          0.04993101954460144,
+          -0.000005372753093979554,
+          1.0490409607655238e-7,
+          2.537647314504454e-10,
+          -8.66710507807511e-8,
+          1
+        ]
+      ]
+    },
+    "velocity": {
+      "tuning": {
+        "lengthUnit": 0.1,
+        "solverIterations": 4,
+        "pgsIterations": 1
+      },
+      "run1": {
+        "finalQ6": "37676c78",
+        "trajQ6": "e9c955ec",
+        "trajBits": "656334f0"
+      },
+      "run2": {
+        "finalQ6": "37676c78",
+        "trajQ6": "e9c955ec",
+        "trajBits": "656334f0"
+      },
+      "equal": true,
+      "stallMaxSpeedMmS": 0.0004,
+      "msPerTickWarm": {
+        "median": 0.0224,
+        "p95": 0.0255,
+        "mean": 0.0197,
+        "batch10Median": 0.0237,
+        "batch10P95": 0.0285
+      },
+      "msPerTickCold": {
+        "median": 0.0224,
+        "p95": 0.0266,
+        "mean": 0.0208,
+        "batch10Median": 0.0238,
+        "batch10P95": 0.0357
+      },
+      "finalPoses": [
+        [
+          -0.9179184436798096,
+          0.03987853601574898,
+          -0.09453264623880386,
+          0.0006063033360987902,
+          0.8740788102149963,
+          0.00033713530865497887,
+          0.4857836961746216
+        ],
+        [
+          -0.9443777203559875,
+          0.049930933862924576,
+          -0.2345350682735443,
+          1.2878509370040092e-9,
+          0.013352352194488049,
+          9.199682438065793e-8,
+          0.9999108910560608
+        ]
+      ]
+    }
+  },
+  "trig": {
+    "sin": "efaa4295",
+    "cos": "73eafc1e",
+    "atan2": "127a0356",
+    "pow": "a16b6268",
+    "exp": "8354e1cf",
+    "hypot": "9ee4fe2a",
+    "sqrt": "6c9e1eb3"
+  }
+}

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>R0.1 robot physics spike</title>
+    <style>
+      body { font: 14px/1.4 system-ui, sans-serif; margin: 16px; color: #222; }
+      nav a { margin-right: 12px; }
+      canvas { border: 1px solid #999; margin-top: 8px; }
+      pre { background: #f4f4f4; padding: 8px; max-width: 100%; overflow: auto; }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a href="?pkg=compat&mode=all">compat: hash + perf</a>
+      <a href="?pkg=split&mode=all">split .wasm: hash + perf</a>
+      <a href="?pkg=compat&mode=view&model=velocity">view (c)</a>
+      <a href="?pkg=compat&mode=view&model=joint">view (a)</a>
+      <a href="?pkg=compat&mode=view&model=raycast">view (b)</a>
+    </nav>
+    <p id="status">loading…</p>
+    <canvas id="view" width="400" height="400" hidden></canvas>
+    <pre id="out"></pre>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,1619 @@
+{
+  "date": "2026-10-24T21:45:39.753Z",
+  "loadavgStart": [
+    9.201171875,
+    11.17138671875,
+    12.10595703125
+  ],
+  "builds": [
+    {
+      "name": "plugin",
+      "ok": true,
+      "log": [
+        "spikes/robot-physics/dist/plugin/index.html                                 0.98 kB │ gzip:     0.54 kB",
+        "spikes/robot-physics/dist/plugin/.vite/manifest.json                        1.61 kB │ gzip:     0.32 kB",
+        "spikes/robot-physics/dist/plugin/assets/rapier_wasm3d_bg-DZsYp9WG.wasm  3,105.89 kB │ gzip: 1,192.17 kB",
+        "spikes/robot-physics/dist/plugin/assets/index-CSLrFsl1.js                  13.15 kB │ gzip:     5.53 kB",
+        "spikes/robot-physics/dist/plugin/assets/rapier-CyCt1CgS.js                295.76 kB │ gzip:    51.99 kB",
+        "spikes/robot-physics/dist/plugin/assets/rapier-CG4SaQWi.js              4,366.82 kB │ gzip: 1,677.19 kB",
+        "",
+        "✓ built in 122ms"
+      ]
+    },
+    {
+      "name": "noplugin",
+      "ok": true,
+      "log": [
+        "spikes/robot-physics/dist/noplugin/index.html                                 0.98 kB │ gzip:     0.54 kB",
+        "spikes/robot-physics/dist/noplugin/.vite/manifest.json                        1.61 kB │ gzip:     0.33 kB",
+        "spikes/robot-physics/dist/noplugin/assets/rapier_wasm3d_bg-DZsYp9WG.wasm  3,105.89 kB │ gzip: 1,192.17 kB",
+        "spikes/robot-physics/dist/noplugin/assets/index-ERYAK8jv.js                  13.15 kB │ gzip:     5.54 kB",
+        "spikes/robot-physics/dist/noplugin/assets/rapier-B8j5_aBZ.js                295.95 kB │ gzip:    52.18 kB",
+        "spikes/robot-physics/dist/noplugin/assets/rapier-CG4SaQWi.js              4,366.82 kB │ gzip: 1,677.19 kB",
+        "",
+        "✓ built in 119ms"
+      ]
+    }
+  ],
+  "sizes": {
+    "plugin": {
+      "compat": {
+        "files": [
+          {
+            "file": "assets/rapier-CG4SaQWi.js",
+            "raw": 4366824,
+            "gzip": 1650101,
+            "brotli": 1201709
+          }
+        ],
+        "total": {
+          "raw": 4366824,
+          "gzip": 1650101,
+          "brotli": 1201709
+        }
+      },
+      "split": {
+        "files": [
+          {
+            "file": "assets/rapier-CyCt1CgS.js",
+            "raw": 295764,
+            "gzip": 51672,
+            "brotli": 38421
+          },
+          {
+            "file": "assets/rapier_wasm3d_bg-DZsYp9WG.wasm",
+            "raw": 3105893,
+            "gzip": 1179524,
+            "brotli": 855167
+          }
+        ],
+        "total": {
+          "raw": 3401657,
+          "gzip": 1231196,
+          "brotli": 893588
+        }
+      },
+      "page": {
+        "files": [
+          {
+            "file": "assets/index-CSLrFsl1.js",
+            "raw": 13150,
+            "gzip": 5517,
+            "brotli": 4970
+          }
+        ],
+        "total": {
+          "raw": 13150,
+          "gzip": 5517,
+          "brotli": 4970
+        }
+      }
+    },
+    "noplugin": {
+      "compat": {
+        "files": [
+          {
+            "file": "assets/rapier-CG4SaQWi.js",
+            "raw": 4366824,
+            "gzip": 1650101,
+            "brotli": 1201709
+          }
+        ],
+        "total": {
+          "raw": 4366824,
+          "gzip": 1650101,
+          "brotli": 1201709
+        }
+      },
+      "split": {
+        "files": [
+          {
+            "file": "assets/rapier-B8j5_aBZ.js",
+            "raw": 295951,
+            "gzip": 51866,
+            "brotli": 39760
+          },
+          {
+            "file": "assets/rapier_wasm3d_bg-DZsYp9WG.wasm",
+            "raw": 3105893,
+            "gzip": 1179524,
+            "brotli": 855167
+          }
+        ],
+        "total": {
+          "raw": 3401844,
+          "gzip": 1231390,
+          "brotli": 894927
+        }
+      },
+      "page": {
+        "files": [
+          {
+            "file": "assets/index-ERYAK8jv.js",
+            "raw": 13150,
+            "gzip": 5520,
+            "brotli": 4975
+          }
+        ],
+        "total": {
+          "raw": 13150,
+          "gzip": 5520,
+          "brotli": 4975
+        }
+      }
+    }
+  },
+  "browsers": {
+    "chromium": {
+      "version": "153.0.8010.12",
+      "split": {
+        "full": {
+          "pkg": "split",
+          "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+          "isolated": true,
+          "rapier": "0.21.0",
+          "init": {
+            "mainStartMs": 31.34,
+            "importMs": 18.17,
+            "initMs": 0.01,
+            "importPlusInitMs": 18.19,
+            "fromNavigationMs": 51.89,
+            "worldCreateMs": 2.32,
+            "resources": [
+              {
+                "name": "index-CSLrFsl1.js",
+                "ms": 2.6,
+                "transfer": 13450,
+                "decoded": 13150
+              },
+              {
+                "name": "rapier-CyCt1CgS.js",
+                "ms": 0.8,
+                "transfer": 296064,
+                "decoded": 295764
+              },
+              {
+                "name": "rapier_wasm3d_bg-DZsYp9WG.wasm",
+                "ms": 3,
+                "transfer": 3106193,
+                "decoded": 3105893
+              }
+            ]
+          },
+          "hashTicks": 3000,
+          "hashes": {
+            "joint": {
+              "run1": {
+                "finalQ6": "b92bef5e",
+                "trajQ6": "e30909cd",
+                "trajBits": "276c062b"
+              },
+              "run2": {
+                "finalQ6": "b92bef5e",
+                "trajQ6": "e30909cd",
+                "trajBits": "276c062b"
+              },
+              "equal": true,
+              "msPerTickWarm": {
+                "median": 0.035,
+                "p95": 0.045,
+                "mean": 0.0305,
+                "batch10Median": 0.0365,
+                "batch10P95": 0.0435
+              },
+              "timerResolutionMs": 0.015
+            },
+            "raycast": {
+              "run1": {
+                "finalQ6": "489cfc46",
+                "trajQ6": "fdd8062e",
+                "trajBits": "9b7b80f1"
+              },
+              "run2": {
+                "finalQ6": "489cfc46",
+                "trajQ6": "fdd8062e",
+                "trajBits": "9b7b80f1"
+              },
+              "equal": true,
+              "msPerTickWarm": {
+                "median": 0.005,
+                "p95": 0.015,
+                "mean": 0.0076,
+                "batch10Median": 0.008,
+                "batch10P95": 0.013
+              },
+              "timerResolutionMs": 0.005
+            },
+            "velocity": {
+              "run1": {
+                "finalQ6": "37676c78",
+                "trajQ6": "e9c955ec",
+                "trajBits": "656334f0"
+              },
+              "run2": {
+                "finalQ6": "37676c78",
+                "trajQ6": "e9c955ec",
+                "trajBits": "656334f0"
+              },
+              "equal": true,
+              "msPerTickWarm": {
+                "median": 0.015,
+                "p95": 0.025,
+                "mean": 0.0158,
+                "batch10Median": 0.0195,
+                "batch10P95": 0.0225
+              },
+              "timerResolutionMs": 0.005
+            }
+          },
+          "trig": {
+            "sin": "c814347f",
+            "cos": "fad53ca2",
+            "atan2": "bb70bccb",
+            "pow": "a16b6268",
+            "exp": "131f8b0a",
+            "hypot": "9ee4fe2a",
+            "sqrt": "6c9e1eb3"
+          }
+        },
+        "init": {
+          "samples": 5,
+          "importPlusInitMsMedian": 18.04,
+          "importPlusInitMs": [
+            18.04,
+            18.13,
+            18.52,
+            17.45,
+            17.35
+          ],
+          "importMsMedian": 18.03,
+          "initMsMedian": 0.01,
+          "fromNavigationMsMedian": 49.89,
+          "worldCreateMsMedian": 2.42,
+          "resources": [
+            {
+              "name": "index-CSLrFsl1.js",
+              "ms": 2.3,
+              "transfer": 13450,
+              "decoded": 13150
+            },
+            {
+              "name": "rapier-CyCt1CgS.js",
+              "ms": 0.9,
+              "transfer": 296064,
+              "decoded": 295764
+            },
+            {
+              "name": "rapier_wasm3d_bg-DZsYp9WG.wasm",
+              "ms": 4.7,
+              "transfer": 3106193,
+              "decoded": 3105893
+            }
+          ]
+        },
+        "throttled4x": {
+          "full": {
+            "pkg": "split",
+            "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+            "isolated": true,
+            "rapier": "0.21.0",
+            "init": {
+              "mainStartMs": 39.71,
+              "importMs": 69.88,
+              "initMs": 0.01,
+              "importPlusInitMs": 69.88,
+              "fromNavigationMs": 120.41,
+              "worldCreateMs": 10.77,
+              "resources": [
+                {
+                  "name": "index-CSLrFsl1.js",
+                  "ms": 2.1,
+                  "transfer": 13450,
+                  "decoded": 13150
+                },
+                {
+                  "name": "rapier-CyCt1CgS.js",
+                  "ms": 0.7,
+                  "transfer": 296064,
+                  "decoded": 295764
+                },
+                {
+                  "name": "rapier_wasm3d_bg-DZsYp9WG.wasm",
+                  "ms": 8,
+                  "transfer": 3106193,
+                  "decoded": 3105893
+                }
+              ]
+            },
+            "hashTicks": 3000,
+            "hashes": {
+              "joint": {
+                "run1": {
+                  "finalQ6": "b92bef5e",
+                  "trajQ6": "e30909cd",
+                  "trajBits": "276c062b"
+                },
+                "run2": {
+                  "finalQ6": "b92bef5e",
+                  "trajQ6": "e30909cd",
+                  "trajBits": "276c062b"
+                },
+                "equal": true,
+                "msPerTickWarm": {
+                  "median": 0.035,
+                  "p95": 0.625,
+                  "mean": 0.1131,
+                  "batch10Median": 0.1235,
+                  "batch10P95": 0.198
+                },
+                "timerResolutionMs": 0.01
+              },
+              "raycast": {
+                "run1": {
+                  "finalQ6": "489cfc46",
+                  "trajQ6": "fdd8062e",
+                  "trajBits": "9b7b80f1"
+                },
+                "run2": {
+                  "finalQ6": "489cfc46",
+                  "trajQ6": "fdd8062e",
+                  "trajBits": "9b7b80f1"
+                },
+                "equal": true,
+                "msPerTickWarm": {
+                  "median": 0.005,
+                  "p95": 0.065,
+                  "mean": 0.0261,
+                  "batch10Median": 0.0155,
+                  "batch10P95": 0.086
+                },
+                "timerResolutionMs": 0.005
+              },
+              "velocity": {
+                "run1": {
+                  "finalQ6": "37676c78",
+                  "trajQ6": "e9c955ec",
+                  "trajBits": "656334f0"
+                },
+                "run2": {
+                  "finalQ6": "37676c78",
+                  "trajQ6": "e9c955ec",
+                  "trajBits": "656334f0"
+                },
+                "equal": true,
+                "msPerTickWarm": {
+                  "median": 0.015,
+                  "p95": 0.505,
+                  "mean": 0.0665,
+                  "batch10Median": 0.076,
+                  "batch10P95": 0.1245
+                },
+                "timerResolutionMs": 0.005
+              }
+            },
+            "trig": {
+              "sin": "c814347f",
+              "cos": "fad53ca2",
+              "atan2": "bb70bccb",
+              "pow": "a16b6268",
+              "exp": "131f8b0a",
+              "hypot": "9ee4fe2a",
+              "sqrt": "6c9e1eb3"
+            }
+          },
+          "init": {
+            "samples": 5,
+            "importPlusInitMsMedian": 72.03,
+            "importPlusInitMs": [
+              72.03,
+              75.36,
+              67.52,
+              73.16,
+              71.09
+            ],
+            "importMsMedian": 72.01,
+            "initMsMedian": 0.01,
+            "fromNavigationMsMedian": 124.08,
+            "worldCreateMsMedian": 10.485,
+            "resources": [
+              {
+                "name": "index-CSLrFsl1.js",
+                "ms": 2,
+                "transfer": 13450,
+                "decoded": 13150
+              },
+              {
+                "name": "rapier-CyCt1CgS.js",
+                "ms": 0.9,
+                "transfer": 296064,
+                "decoded": 295764
+              },
+              {
+                "name": "rapier_wasm3d_bg-DZsYp9WG.wasm",
+                "ms": 7.5,
+                "transfer": 3106193,
+                "decoded": 3105893
+              }
+            ]
+          }
+        }
+      },
+      "compat": {
+        "full": {
+          "pkg": "compat",
+          "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+          "isolated": true,
+          "rapier": "0.21.0",
+          "init": {
+            "mainStartMs": 29.03,
+            "importMs": 19.48,
+            "initMs": 23.55,
+            "importPlusInitMs": 43.03,
+            "fromNavigationMs": 74.38,
+            "worldCreateMs": 2.28,
+            "resources": [
+              {
+                "name": "index-CSLrFsl1.js",
+                "ms": 2.1,
+                "transfer": 13450,
+                "decoded": 13150
+              },
+              {
+                "name": "rapier-CG4SaQWi.js",
+                "ms": 9.3,
+                "transfer": 4367124,
+                "decoded": 4366824
+              }
+            ]
+          },
+          "hashTicks": 3000,
+          "hashes": {
+            "joint": {
+              "run1": {
+                "finalQ6": "b92bef5e",
+                "trajQ6": "e30909cd",
+                "trajBits": "276c062b"
+              },
+              "run2": {
+                "finalQ6": "b92bef5e",
+                "trajQ6": "e30909cd",
+                "trajBits": "276c062b"
+              },
+              "equal": true,
+              "msPerTickWarm": {
+                "median": 0.035,
+                "p95": 0.045,
+                "mean": 0.0307,
+                "batch10Median": 0.0375,
+                "batch10P95": 0.0435
+              },
+              "timerResolutionMs": 0.01
+            },
+            "raycast": {
+              "run1": {
+                "finalQ6": "489cfc46",
+                "trajQ6": "fdd8062e",
+                "trajBits": "9b7b80f1"
+              },
+              "run2": {
+                "finalQ6": "489cfc46",
+                "trajQ6": "fdd8062e",
+                "trajBits": "9b7b80f1"
+              },
+              "equal": true,
+              "msPerTickWarm": {
+                "median": 0.005,
+                "p95": 0.015,
+                "mean": 0.0076,
+                "batch10Median": 0.008,
+                "batch10P95": 0.013
+              },
+              "timerResolutionMs": 0.005
+            },
+            "velocity": {
+              "run1": {
+                "finalQ6": "37676c78",
+                "trajQ6": "e9c955ec",
+                "trajBits": "656334f0"
+              },
+              "run2": {
+                "finalQ6": "37676c78",
+                "trajQ6": "e9c955ec",
+                "trajBits": "656334f0"
+              },
+              "equal": true,
+              "msPerTickWarm": {
+                "median": 0.015,
+                "p95": 0.025,
+                "mean": 0.0156,
+                "batch10Median": 0.0195,
+                "batch10P95": 0.0225
+              },
+              "timerResolutionMs": 0.005
+            }
+          },
+          "trig": {
+            "sin": "c814347f",
+            "cos": "fad53ca2",
+            "atan2": "bb70bccb",
+            "pow": "a16b6268",
+            "exp": "131f8b0a",
+            "hypot": "9ee4fe2a",
+            "sqrt": "6c9e1eb3"
+          }
+        },
+        "init": {
+          "samples": 5,
+          "importPlusInitMsMedian": 42.67,
+          "importPlusInitMs": [
+            42.93,
+            42.26,
+            42.62,
+            44.03,
+            42.67
+          ],
+          "importMsMedian": 19.46,
+          "initMsMedian": 23.16,
+          "fromNavigationMsMedian": 74.2,
+          "worldCreateMsMedian": 2.285,
+          "resources": [
+            {
+              "name": "index-CSLrFsl1.js",
+              "ms": 2.3,
+              "transfer": 13450,
+              "decoded": 13150
+            },
+            {
+              "name": "rapier-CG4SaQWi.js",
+              "ms": 9.7,
+              "transfer": 4367124,
+              "decoded": 4366824
+            }
+          ]
+        },
+        "throttled4x": {
+          "full": {
+            "pkg": "compat",
+            "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+            "isolated": true,
+            "rapier": "0.21.0",
+            "init": {
+              "mainStartMs": 39.66,
+              "importMs": 33.29,
+              "initMs": 87.36,
+              "importPlusInitMs": 120.65,
+              "fromNavigationMs": 170.2,
+              "worldCreateMs": 9.845,
+              "resources": [
+                {
+                  "name": "index-CSLrFsl1.js",
+                  "ms": 2.3,
+                  "transfer": 13450,
+                  "decoded": 13150
+                },
+                {
+                  "name": "rapier-CG4SaQWi.js",
+                  "ms": 9.6,
+                  "transfer": 4367124,
+                  "decoded": 4366824
+                }
+              ]
+            },
+            "hashTicks": 3000,
+            "hashes": {
+              "joint": {
+                "run1": {
+                  "finalQ6": "b92bef5e",
+                  "trajQ6": "e30909cd",
+                  "trajBits": "276c062b"
+                },
+                "run2": {
+                  "finalQ6": "b92bef5e",
+                  "trajQ6": "e30909cd",
+                  "trajBits": "276c062b"
+                },
+                "equal": true,
+                "msPerTickWarm": {
+                  "median": 0.035,
+                  "p95": 0.625,
+                  "mean": 0.1125,
+                  "batch10Median": 0.1255,
+                  "batch10P95": 0.1915
+                },
+                "timerResolutionMs": 0.01
+              },
+              "raycast": {
+                "run1": {
+                  "finalQ6": "489cfc46",
+                  "trajQ6": "fdd8062e",
+                  "trajBits": "9b7b80f1"
+                },
+                "run2": {
+                  "finalQ6": "489cfc46",
+                  "trajQ6": "fdd8062e",
+                  "trajBits": "9b7b80f1"
+                },
+                "equal": true,
+                "msPerTickWarm": {
+                  "median": 0.005,
+                  "p95": 0.015,
+                  "mean": 0.0242,
+                  "batch10Median": 0.014,
+                  "batch10P95": 0.0805
+                },
+                "timerResolutionMs": 0.005
+              },
+              "velocity": {
+                "run1": {
+                  "finalQ6": "37676c78",
+                  "trajQ6": "e9c955ec",
+                  "trajBits": "656334f0"
+                },
+                "run2": {
+                  "finalQ6": "37676c78",
+                  "trajQ6": "e9c955ec",
+                  "trajBits": "656334f0"
+                },
+                "equal": true,
+                "msPerTickWarm": {
+                  "median": 0.015,
+                  "p95": 0.48,
+                  "mean": 0.0642,
+                  "batch10Median": 0.0755,
+                  "batch10P95": 0.1205
+                },
+                "timerResolutionMs": 0.005
+              }
+            },
+            "trig": {
+              "sin": "c814347f",
+              "cos": "fad53ca2",
+              "atan2": "bb70bccb",
+              "pow": "a16b6268",
+              "exp": "131f8b0a",
+              "hypot": "9ee4fe2a",
+              "sqrt": "6c9e1eb3"
+            }
+          },
+          "init": {
+            "samples": 5,
+            "importPlusInitMsMedian": 121.63,
+            "importPlusInitMs": [
+              122.86,
+              119.32,
+              122.85,
+              121.63,
+              119.54
+            ],
+            "importMsMedian": 33.14,
+            "initMsMedian": 87.87,
+            "fromNavigationMsMedian": 169.87,
+            "worldCreateMsMedian": 9.985,
+            "resources": [
+              {
+                "name": "index-CSLrFsl1.js",
+                "ms": 2.2,
+                "transfer": 13450,
+                "decoded": 13150
+              },
+              {
+                "name": "rapier-CG4SaQWi.js",
+                "ms": 9.4,
+                "transfer": 4367124,
+                "decoded": 4366824
+              }
+            ]
+          }
+        }
+      },
+      "splitNoPlugin": {
+        "pkg": "split",
+        "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+        "isolated": true,
+        "rapier": "0.21.0",
+        "init": {
+          "mainStartMs": 29.91,
+          "importMs": 18.09,
+          "initMs": 0.01,
+          "importPlusInitMs": 18.09,
+          "fromNavigationMs": 50.41,
+          "worldCreateMs": 2.37,
+          "resources": [
+            {
+              "name": "index-ERYAK8jv.js",
+              "ms": 2.9,
+              "transfer": 13450,
+              "decoded": 13150
+            },
+            {
+              "name": "rapier-B8j5_aBZ.js",
+              "ms": 0.8,
+              "transfer": 296251,
+              "decoded": 295951
+            },
+            {
+              "name": "rapier_wasm3d_bg-DZsYp9WG.wasm",
+              "ms": 3,
+              "transfer": 3106193,
+              "decoded": 3105893
+            }
+          ]
+        },
+        "hashTicks": 3000,
+        "hashes": {
+          "joint": {
+            "run1": {
+              "finalQ6": "b92bef5e",
+              "trajQ6": "e30909cd",
+              "trajBits": "276c062b"
+            },
+            "run2": {
+              "finalQ6": "b92bef5e",
+              "trajQ6": "e30909cd",
+              "trajBits": "276c062b"
+            },
+            "equal": true,
+            "msPerTickWarm": {
+              "median": 0.035,
+              "p95": 0.045,
+              "mean": 0.0305,
+              "batch10Median": 0.037,
+              "batch10P95": 0.0435
+            },
+            "timerResolutionMs": 0.01
+          },
+          "raycast": {
+            "run1": {
+              "finalQ6": "489cfc46",
+              "trajQ6": "fdd8062e",
+              "trajBits": "9b7b80f1"
+            },
+            "run2": {
+              "finalQ6": "489cfc46",
+              "trajQ6": "fdd8062e",
+              "trajBits": "9b7b80f1"
+            },
+            "equal": true,
+            "msPerTickWarm": {
+              "median": 0.005,
+              "p95": 0.015,
+              "mean": 0.0075,
+              "batch10Median": 0.008,
+              "batch10P95": 0.013
+            },
+            "timerResolutionMs": 0.005
+          },
+          "velocity": {
+            "run1": {
+              "finalQ6": "37676c78",
+              "trajQ6": "e9c955ec",
+              "trajBits": "656334f0"
+            },
+            "run2": {
+              "finalQ6": "37676c78",
+              "trajQ6": "e9c955ec",
+              "trajBits": "656334f0"
+            },
+            "equal": true,
+            "msPerTickWarm": {
+              "median": 0.015,
+              "p95": 0.025,
+              "mean": 0.0156,
+              "batch10Median": 0.0195,
+              "batch10P95": 0.022
+            },
+            "timerResolutionMs": 0.005
+          }
+        },
+        "trig": {
+          "sin": "c814347f",
+          "cos": "fad53ca2",
+          "atan2": "bb70bccb",
+          "pow": "a16b6268",
+          "exp": "131f8b0a",
+          "hypot": "9ee4fe2a",
+          "sqrt": "6c9e1eb3"
+        }
+      },
+      "devServer": {
+        "plugin": {
+          "split": "ok (import+init 71.3 ms)",
+          "compat": "ok (import+init 41.96 ms)"
+        },
+        "noPlugin": {
+          "split": "ok (import+init 41.35 ms)",
+          "compat": "ok (import+init 44 ms)"
+        }
+      }
+    },
+    "firefox": {
+      "version": "155.0",
+      "split": {
+        "full": {
+          "pkg": "split",
+          "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:155.0) Gecko/20100101 Firefox/155.0",
+          "isolated": true,
+          "rapier": "0.21.0",
+          "init": {
+            "mainStartMs": 122.18,
+            "importMs": 56.58,
+            "initMs": 0,
+            "importPlusInitMs": 56.58,
+            "fromNavigationMs": 179.34,
+            "worldCreateMs": 0.56,
+            "resources": [
+              {
+                "name": "index-CSLrFsl1.js",
+                "ms": 41.9,
+                "transfer": 13450,
+                "decoded": 13150
+              },
+              {
+                "name": "rapier-CyCt1CgS.js",
+                "ms": 15.5,
+                "transfer": 296064,
+                "decoded": 295764
+              },
+              {
+                "name": "rapier_wasm3d_bg-DZsYp9WG.wasm",
+                "ms": 4.6,
+                "transfer": 3106193,
+                "decoded": 3105893
+              }
+            ]
+          },
+          "hashTicks": 3000,
+          "hashes": {
+            "joint": {
+              "run1": {
+                "finalQ6": "b92bef5e",
+                "trajQ6": "e30909cd",
+                "trajBits": "276c062b"
+              },
+              "run2": {
+                "finalQ6": "b92bef5e",
+                "trajQ6": "e30909cd",
+                "trajBits": "276c062b"
+              },
+              "equal": true,
+              "msPerTickWarm": {
+                "median": 0.04,
+                "p95": 0.06,
+                "mean": 0.0405,
+                "batch10Median": 0.044,
+                "batch10P95": 0.094
+              },
+              "timerResolutionMs": 0.02
+            },
+            "raycast": {
+              "run1": {
+                "finalQ6": "489cfc46",
+                "trajQ6": "fdd8062e",
+                "trajBits": "9b7b80f1"
+              },
+              "run2": {
+                "finalQ6": "489cfc46",
+                "trajQ6": "fdd8062e",
+                "trajBits": "9b7b80f1"
+              },
+              "equal": true,
+              "msPerTickWarm": {
+                "median": 0,
+                "p95": 0.02,
+                "mean": 0.0084,
+                "batch10Median": 0.008,
+                "batch10P95": 0.014
+              },
+              "timerResolutionMs": 0.02
+            },
+            "velocity": {
+              "run1": {
+                "finalQ6": "37676c78",
+                "trajQ6": "e9c955ec",
+                "trajBits": "656334f0"
+              },
+              "run2": {
+                "finalQ6": "37676c78",
+                "trajQ6": "e9c955ec",
+                "trajBits": "656334f0"
+              },
+              "equal": true,
+              "msPerTickWarm": {
+                "median": 0.02,
+                "p95": 0.04,
+                "mean": 0.0207,
+                "batch10Median": 0.024,
+                "batch10P95": 0.028
+              },
+              "timerResolutionMs": 0.02
+            }
+          },
+          "trig": {
+            "sin": "a5a3a08e",
+            "cos": "a11826ac",
+            "atan2": "682cc98c",
+            "pow": "a16b6268",
+            "exp": "c5aa20a3",
+            "hypot": "f43ccdfe",
+            "sqrt": "6c9e1eb3"
+          }
+        },
+        "init": {
+          "samples": 5,
+          "importPlusInitMsMedian": 38.2,
+          "importPlusInitMs": [
+            38.2,
+            45.44,
+            36.26,
+            44.12,
+            37.76
+          ],
+          "importMsMedian": 38.2,
+          "initMsMedian": 0,
+          "fromNavigationMsMedian": 109.42,
+          "worldCreateMsMedian": 0.56,
+          "resources": [
+            {
+              "name": "index-CSLrFsl1.js",
+              "ms": 6.6,
+              "transfer": 13450,
+              "decoded": 13150
+            },
+            {
+              "name": "rapier-CyCt1CgS.js",
+              "ms": 1.1,
+              "transfer": 296064,
+              "decoded": 295764
+            },
+            {
+              "name": "rapier_wasm3d_bg-DZsYp9WG.wasm",
+              "ms": 5.2,
+              "transfer": 3106193,
+              "decoded": 3105893
+            }
+          ]
+        }
+      },
+      "compat": {
+        "full": {
+          "pkg": "compat",
+          "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:155.0) Gecko/20100101 Firefox/155.0",
+          "isolated": true,
+          "rapier": "0.21.0",
+          "init": {
+            "mainStartMs": 66.54,
+            "importMs": 29.66,
+            "initMs": 25.44,
+            "importPlusInitMs": 55.1,
+            "fromNavigationMs": 122.18,
+            "worldCreateMs": 0.52,
+            "resources": [
+              {
+                "name": "index-CSLrFsl1.js",
+                "ms": 4.3,
+                "transfer": 13450,
+                "decoded": 13150
+              },
+              {
+                "name": "rapier-CG4SaQWi.js",
+                "ms": 4.6,
+                "transfer": 4367124,
+                "decoded": 4366824
+              }
+            ]
+          },
+          "hashTicks": 3000,
+          "hashes": {
+            "joint": {
+              "run1": {
+                "finalQ6": "b92bef5e",
+                "trajQ6": "e30909cd",
+                "trajBits": "276c062b"
+              },
+              "run2": {
+                "finalQ6": "b92bef5e",
+                "trajQ6": "e30909cd",
+                "trajBits": "276c062b"
+              },
+              "equal": true,
+              "msPerTickWarm": {
+                "median": 0.04,
+                "p95": 0.06,
+                "mean": 0.0348,
+                "batch10Median": 0.042,
+                "batch10P95": 0.05
+              },
+              "timerResolutionMs": 0.02
+            },
+            "raycast": {
+              "run1": {
+                "finalQ6": "489cfc46",
+                "trajQ6": "fdd8062e",
+                "trajBits": "9b7b80f1"
+              },
+              "run2": {
+                "finalQ6": "489cfc46",
+                "trajQ6": "fdd8062e",
+                "trajBits": "9b7b80f1"
+              },
+              "equal": true,
+              "msPerTickWarm": {
+                "median": 0,
+                "p95": 0.02,
+                "mean": 0.0083,
+                "batch10Median": 0.008,
+                "batch10P95": 0.014
+              },
+              "timerResolutionMs": 0.02
+            },
+            "velocity": {
+              "run1": {
+                "finalQ6": "37676c78",
+                "trajQ6": "e9c955ec",
+                "trajBits": "656334f0"
+              },
+              "run2": {
+                "finalQ6": "37676c78",
+                "trajQ6": "e9c955ec",
+                "trajBits": "656334f0"
+              },
+              "equal": true,
+              "msPerTickWarm": {
+                "median": 0.02,
+                "p95": 0.04,
+                "mean": 0.0208,
+                "batch10Median": 0.024,
+                "batch10P95": 0.03
+              },
+              "timerResolutionMs": 0.02
+            }
+          },
+          "trig": {
+            "sin": "a5a3a08e",
+            "cos": "a11826ac",
+            "atan2": "682cc98c",
+            "pow": "a16b6268",
+            "exp": "c5aa20a3",
+            "hypot": "f43ccdfe",
+            "sqrt": "6c9e1eb3"
+          }
+        },
+        "init": {
+          "samples": 5,
+          "importPlusInitMsMedian": 54.98,
+          "importPlusInitMs": [
+            54.98,
+            58.86,
+            54.6,
+            56.14,
+            53.8
+          ],
+          "importMsMedian": 30.2,
+          "initMsMedian": 25.66,
+          "fromNavigationMsMedian": 125.16,
+          "worldCreateMsMedian": 0.54,
+          "resources": [
+            {
+              "name": "index-CSLrFsl1.js",
+              "ms": 4.7,
+              "transfer": 13450,
+              "decoded": 13150
+            },
+            {
+              "name": "rapier-CG4SaQWi.js",
+              "ms": 4.5,
+              "transfer": 4367124,
+              "decoded": 4366824
+            }
+          ]
+        }
+      },
+      "splitNoPlugin": {
+        "pkg": "split",
+        "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:155.0) Gecko/20100101 Firefox/155.0",
+        "isolated": true,
+        "rapier": "0.21.0",
+        "init": {
+          "mainStartMs": 67.18,
+          "importMs": 40.88,
+          "initMs": 0,
+          "importPlusInitMs": 40.88,
+          "fromNavigationMs": 108.62,
+          "worldCreateMs": 0.52,
+          "resources": [
+            {
+              "name": "index-ERYAK8jv.js",
+              "ms": 6.1,
+              "transfer": 13450,
+              "decoded": 13150
+            },
+            {
+              "name": "rapier-B8j5_aBZ.js",
+              "ms": 1.3,
+              "transfer": 296251,
+              "decoded": 295951
+            },
+            {
+              "name": "rapier_wasm3d_bg-DZsYp9WG.wasm",
+              "ms": 4.3,
+              "transfer": 3106193,
+              "decoded": 3105893
+            }
+          ]
+        },
+        "hashTicks": 3000,
+        "hashes": {
+          "joint": {
+            "run1": {
+              "finalQ6": "b92bef5e",
+              "trajQ6": "e30909cd",
+              "trajBits": "276c062b"
+            },
+            "run2": {
+              "finalQ6": "b92bef5e",
+              "trajQ6": "e30909cd",
+              "trajBits": "276c062b"
+            },
+            "equal": true,
+            "msPerTickWarm": {
+              "median": 0.04,
+              "p95": 0.06,
+              "mean": 0.0345,
+              "batch10Median": 0.042,
+              "batch10P95": 0.05
+            },
+            "timerResolutionMs": 0.02
+          },
+          "raycast": {
+            "run1": {
+              "finalQ6": "489cfc46",
+              "trajQ6": "fdd8062e",
+              "trajBits": "9b7b80f1"
+            },
+            "run2": {
+              "finalQ6": "489cfc46",
+              "trajQ6": "fdd8062e",
+              "trajBits": "9b7b80f1"
+            },
+            "equal": true,
+            "msPerTickWarm": {
+              "median": 0,
+              "p95": 0.02,
+              "mean": 0.0084,
+              "batch10Median": 0.008,
+              "batch10P95": 0.014
+            },
+            "timerResolutionMs": 0.02
+          },
+          "velocity": {
+            "run1": {
+              "finalQ6": "37676c78",
+              "trajQ6": "e9c955ec",
+              "trajBits": "656334f0"
+            },
+            "run2": {
+              "finalQ6": "37676c78",
+              "trajQ6": "e9c955ec",
+              "trajBits": "656334f0"
+            },
+            "equal": true,
+            "msPerTickWarm": {
+              "median": 0.02,
+              "p95": 0.04,
+              "mean": 0.0205,
+              "batch10Median": 0.024,
+              "batch10P95": 0.03
+            },
+            "timerResolutionMs": 0.02
+          }
+        },
+        "trig": {
+          "sin": "a5a3a08e",
+          "cos": "a11826ac",
+          "atan2": "682cc98c",
+          "pow": "a16b6268",
+          "exp": "c5aa20a3",
+          "hypot": "f43ccdfe",
+          "sqrt": "6c9e1eb3"
+        }
+      }
+    },
+    "webkit": {
+      "version": "26.6",
+      "split": {
+        "full": {
+          "pkg": "split",
+          "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.6 Safari/605.1.15",
+          "isolated": true,
+          "rapier": "0.21.0",
+          "init": {
+            "mainStartMs": 129.16,
+            "importMs": 25.64,
+            "initMs": 0,
+            "importPlusInitMs": 25.64,
+            "fromNavigationMs": 158.16,
+            "worldCreateMs": 3.3,
+            "resources": [
+              {
+                "name": "index-CSLrFsl1.js",
+                "ms": 2.3,
+                "transfer": 13463,
+                "decoded": 13150
+              },
+              {
+                "name": "rapier-CyCt1CgS.js",
+                "ms": 1.6,
+                "transfer": 296078,
+                "decoded": 295764
+              },
+              {
+                "name": "rapier_wasm3d_bg-DZsYp9WG.wasm",
+                "ms": 2.4,
+                "transfer": 3106208,
+                "decoded": 3105893
+              }
+            ]
+          },
+          "hashTicks": 3000,
+          "hashes": {
+            "joint": {
+              "run1": {
+                "finalQ6": "b92bef5e",
+                "trajQ6": "e30909cd",
+                "trajBits": "276c062b"
+              },
+              "run2": {
+                "finalQ6": "b92bef5e",
+                "trajQ6": "e30909cd",
+                "trajBits": "276c062b"
+              },
+              "equal": true,
+              "msPerTickWarm": {
+                "median": 0.04,
+                "p95": 0.04,
+                "mean": 0.0313,
+                "batch10Median": 0.038,
+                "batch10P95": 0.044
+              },
+              "timerResolutionMs": 0.02
+            },
+            "raycast": {
+              "run1": {
+                "finalQ6": "489cfc46",
+                "trajQ6": "fdd8062e",
+                "trajBits": "9b7b80f1"
+              },
+              "run2": {
+                "finalQ6": "489cfc46",
+                "trajQ6": "fdd8062e",
+                "trajBits": "9b7b80f1"
+              },
+              "equal": true,
+              "msPerTickWarm": {
+                "median": 0,
+                "p95": 0.02,
+                "mean": 0.0066,
+                "batch10Median": 0.006,
+                "batch10P95": 0.012
+              },
+              "timerResolutionMs": 0.02
+            },
+            "velocity": {
+              "run1": {
+                "finalQ6": "37676c78",
+                "trajQ6": "e9c955ec",
+                "trajBits": "656334f0"
+              },
+              "run2": {
+                "finalQ6": "37676c78",
+                "trajQ6": "e9c955ec",
+                "trajBits": "656334f0"
+              },
+              "equal": true,
+              "msPerTickWarm": {
+                "median": 0.02,
+                "p95": 0.04,
+                "mean": 0.0186,
+                "batch10Median": 0.022,
+                "batch10P95": 0.026
+              },
+              "timerResolutionMs": 0.02
+            }
+          },
+          "trig": {
+            "sin": "60bf26dd",
+            "cos": "df41f9f6",
+            "atan2": "edce921b",
+            "pow": "a16b6268",
+            "exp": "de0e5f35",
+            "hypot": "76626f5e",
+            "sqrt": "6c9e1eb3"
+          }
+        },
+        "init": {
+          "samples": 5,
+          "importPlusInitMsMedian": 23.78,
+          "importPlusInitMs": [
+            24.1,
+            23.78,
+            25.1,
+            22.4,
+            22.66
+          ],
+          "importMsMedian": 23.78,
+          "initMsMedian": 0,
+          "fromNavigationMsMedian": 147.14,
+          "worldCreateMsMedian": 2.46,
+          "resources": [
+            {
+              "name": "index-CSLrFsl1.js",
+              "ms": 1,
+              "transfer": 13463,
+              "decoded": 13150
+            },
+            {
+              "name": "rapier-CyCt1CgS.js",
+              "ms": 1.1,
+              "transfer": 296078,
+              "decoded": 295764
+            },
+            {
+              "name": "rapier_wasm3d_bg-DZsYp9WG.wasm",
+              "ms": 2.6,
+              "transfer": 3106208,
+              "decoded": 3105893
+            }
+          ]
+        }
+      },
+      "compat": {
+        "full": {
+          "pkg": "compat",
+          "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.6 Safari/605.1.15",
+          "isolated": true,
+          "rapier": "0.21.0",
+          "init": {
+            "mainStartMs": 121.24,
+            "importMs": 13.34,
+            "initMs": 17.54,
+            "importPlusInitMs": 30.88,
+            "fromNavigationMs": 154.32,
+            "worldCreateMs": 2.16,
+            "resources": [
+              {
+                "name": "index-CSLrFsl1.js",
+                "ms": 1.1,
+                "transfer": 13463,
+                "decoded": 13150
+              },
+              {
+                "name": "rapier-CG4SaQWi.js",
+                "ms": 4,
+                "transfer": 4367139,
+                "decoded": 4366824
+              }
+            ]
+          },
+          "hashTicks": 3000,
+          "hashes": {
+            "joint": {
+              "run1": {
+                "finalQ6": "b92bef5e",
+                "trajQ6": "e30909cd",
+                "trajBits": "276c062b"
+              },
+              "run2": {
+                "finalQ6": "b92bef5e",
+                "trajQ6": "e30909cd",
+                "trajBits": "276c062b"
+              },
+              "equal": true,
+              "msPerTickWarm": {
+                "median": 0.04,
+                "p95": 0.04,
+                "mean": 0.0318,
+                "batch10Median": 0.04,
+                "batch10P95": 0.046
+              },
+              "timerResolutionMs": 0.02
+            },
+            "raycast": {
+              "run1": {
+                "finalQ6": "489cfc46",
+                "trajQ6": "fdd8062e",
+                "trajBits": "9b7b80f1"
+              },
+              "run2": {
+                "finalQ6": "489cfc46",
+                "trajQ6": "fdd8062e",
+                "trajBits": "9b7b80f1"
+              },
+              "equal": true,
+              "msPerTickWarm": {
+                "median": 0,
+                "p95": 0.02,
+                "mean": 0.0066,
+                "batch10Median": 0.006,
+                "batch10P95": 0.012
+              },
+              "timerResolutionMs": 0.02
+            },
+            "velocity": {
+              "run1": {
+                "finalQ6": "37676c78",
+                "trajQ6": "e9c955ec",
+                "trajBits": "656334f0"
+              },
+              "run2": {
+                "finalQ6": "37676c78",
+                "trajQ6": "e9c955ec",
+                "trajBits": "656334f0"
+              },
+              "equal": true,
+              "msPerTickWarm": {
+                "median": 0.02,
+                "p95": 0.04,
+                "mean": 0.0187,
+                "batch10Median": 0.024,
+                "batch10P95": 0.026
+              },
+              "timerResolutionMs": 0.02
+            }
+          },
+          "trig": {
+            "sin": "60bf26dd",
+            "cos": "df41f9f6",
+            "atan2": "edce921b",
+            "pow": "a16b6268",
+            "exp": "de0e5f35",
+            "hypot": "76626f5e",
+            "sqrt": "6c9e1eb3"
+          }
+        },
+        "init": {
+          "samples": 5,
+          "importPlusInitMsMedian": 30.24,
+          "importPlusInitMs": [
+            30,
+            29.9,
+            30.24,
+            31.76,
+            31.1
+          ],
+          "importMsMedian": 12.6,
+          "initMsMedian": 18,
+          "fromNavigationMsMedian": 152.92,
+          "worldCreateMsMedian": 2.3,
+          "resources": [
+            {
+              "name": "index-CSLrFsl1.js",
+              "ms": 1.1,
+              "transfer": 13463,
+              "decoded": 13150
+            },
+            {
+              "name": "rapier-CG4SaQWi.js",
+              "ms": 3,
+              "transfer": 4367139,
+              "decoded": 4366824
+            }
+          ]
+        }
+      },
+      "splitNoPlugin": {
+        "pkg": "split",
+        "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.6 Safari/605.1.15",
+        "isolated": true,
+        "rapier": "0.21.0",
+        "init": {
+          "mainStartMs": 120.74,
+          "importMs": 25.12,
+          "initMs": 0,
+          "importPlusInitMs": 25.12,
+          "fromNavigationMs": 148.22,
+          "worldCreateMs": 2.32,
+          "resources": [
+            {
+              "name": "index-ERYAK8jv.js",
+              "ms": 1,
+              "transfer": 13463,
+              "decoded": 13150
+            },
+            {
+              "name": "rapier-B8j5_aBZ.js",
+              "ms": 1.3,
+              "transfer": 296265,
+              "decoded": 295951
+            },
+            {
+              "name": "rapier_wasm3d_bg-DZsYp9WG.wasm",
+              "ms": 2.1,
+              "transfer": 3106208,
+              "decoded": 3105893
+            }
+          ]
+        },
+        "hashTicks": 3000,
+        "hashes": {
+          "joint": {
+            "run1": {
+              "finalQ6": "b92bef5e",
+              "trajQ6": "e30909cd",
+              "trajBits": "276c062b"
+            },
+            "run2": {
+              "finalQ6": "b92bef5e",
+              "trajQ6": "e30909cd",
+              "trajBits": "276c062b"
+            },
+            "equal": true,
+            "msPerTickWarm": {
+              "median": 0.04,
+              "p95": 0.04,
+              "mean": 0.0315,
+              "batch10Median": 0.038,
+              "batch10P95": 0.044
+            },
+            "timerResolutionMs": 0.02
+          },
+          "raycast": {
+            "run1": {
+              "finalQ6": "489cfc46",
+              "trajQ6": "fdd8062e",
+              "trajBits": "9b7b80f1"
+            },
+            "run2": {
+              "finalQ6": "489cfc46",
+              "trajQ6": "fdd8062e",
+              "trajBits": "9b7b80f1"
+            },
+            "equal": true,
+            "msPerTickWarm": {
+              "median": 0,
+              "p95": 0.02,
+              "mean": 0.007,
+              "batch10Median": 0.008,
+              "batch10P95": 0.012
+            },
+            "timerResolutionMs": 0.02
+          },
+          "velocity": {
+            "run1": {
+              "finalQ6": "37676c78",
+              "trajQ6": "e9c955ec",
+              "trajBits": "656334f0"
+            },
+            "run2": {
+              "finalQ6": "37676c78",
+              "trajQ6": "e9c955ec",
+              "trajBits": "656334f0"
+            },
+            "equal": true,
+            "msPerTickWarm": {
+              "median": 0.02,
+              "p95": 0.04,
+              "mean": 0.0188,
+              "batch10Median": 0.022,
+              "batch10P95": 0.026
+            },
+            "timerResolutionMs": 0.02
+          }
+        },
+        "trig": {
+          "sin": "60bf26dd",
+          "cos": "df41f9f6",
+          "atan2": "edce921b",
+          "pow": "a16b6268",
+          "exp": "de0e5f35",
+          "hypot": "76626f5e",
+          "sqrt": "6c9e1eb3"
+        }
+      }
+    }
+  },
+  "loadavgEnd": [
+    7.71484375,
+    10.60107421875,
+    11.85595703125
+  ]
+}
