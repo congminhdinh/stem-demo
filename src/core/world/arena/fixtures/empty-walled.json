@@ -1,0 +1,9 @@
+{
+  "ground": { "sizeCm": [200, 200], "color": "#ffffff" },
+  "walls": [
+    { "fromCm": [0, 1], "toCm": [200, 1] },
+    { "fromCm": [199, 0], "toCm": [199, 200] },
+    { "fromCm": [200, 199], "toCm": [0, 199] },
+    { "fromCm": [1, 200], "toCm": [1, 0] }
+  ]
+}

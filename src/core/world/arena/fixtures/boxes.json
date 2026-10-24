@@ -1,0 +1,23 @@
+{
+  "ground": { "sizeCm": [200, 200], "color": "#f2f2f2" },
+  "paint": {
+    "zones": [{ "id": "dock", "kind": "target", "polygonCm": [[160, 160], [190, 160], [190, 190], [160, 190]], "color": "#9fc5e8" }]
+  },
+  "walls": [
+    { "id": "south", "fromCm": [0, 1], "toCm": [200, 1] },
+    { "fromCm": [199, 0], "toCm": [199, 200] },
+    { "fromCm": [200, 199], "toCm": [0, 199] },
+    { "fromCm": [1, 200], "toCm": [1, 0], "tags": ["west"] }
+  ],
+  "boxes": [
+    { "id": "block", "centerCm": [100, 60], "sizeCm": [20, 10, 15], "yawDeg": 30, "tags": ["obstacle"] },
+    { "centerCm": [60, 140], "sizeCm": [10, 10, 10], "body": "dynamic", "massG": 100 }
+  ],
+  "cylinders": [
+    { "id": "pole", "centerCm": [150, 100], "radiusCm": 1, "heightCm": 30, "ultrasonic": false, "tags": ["obstacle"] }
+  ],
+  "objects": [
+    { "id": "crate", "shape": "box", "centerCm": [120, 150], "sizeCm": [10, 10, 10], "massG": 100 },
+    { "id": "puck", "shape": "cylinder", "centerCm": [80, 100], "radiusCm": 4, "heightCm": 3, "massG": 50, "tags": ["pushable"] }
+  ]
+}
