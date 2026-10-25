@@ -2,14 +2,26 @@ import type { ProjectDocument } from '../../circuit/document';
 import { robotProject } from '../../run/__fixtures__/robot-session';
 import { driveMove, driveStop, unoDivide } from '../../program/__fixtures__/uno-blocks';
 import { num, wait } from '../../program/__fixtures__/ybc-blocks';
+import { scenarioCatalog } from '../../../samples/robot-scenarios';
+import { robotSolutions, type BlocklyJson, type RobotScoredKey } from '../../../samples/robot-solutions';
+import { robotStarterDocument } from '../../../samples/robot-templates';
 import { loadScenario, type Scenario, type ScenarioJson } from '../scenario';
 
 // TEST-ONLY (N18 R6.2): robot checks, a scenario and a program each, for the tests of checkRobot and its determinism (Review Focus 2:
-// `same score/passed/hash for 1×, 4× and headless`). The determinism test runs every case of `checkCases`: R5.2b adds the pilot
-// scenarios with their reference solutions (src/samples/robot-solutions.ts) to the list, and the same test runs them.
+// `same score/passed/hash for 1×, 4× and headless`). `checkCases` is the determinism list: the fixtures below, driven every way, and the
+// reference solution of each pilot scenario (src/samples/robot-solutions.ts, R5.2a; R5.2b folded into R6.2), driven headless, at 1× and at
+// 4×, which must pass. `pilotChallenges` are the pilots' blind programs and exploits, which must fail with at most their recorded score.
 
-/** A check case: a scenario with goals, and the learner's program for it. Each call builds them anew (new block ids). */
-export type CheckCase = { readonly name: string; readonly scenario: () => Scenario; readonly project: () => ProjectDocument };
+/** A check case: a scenario with goals, and the learner's program for it. Each call builds them anew. */
+export type CheckCase = {
+  readonly name: string;
+  readonly scenario: () => Scenario;
+  readonly project: () => ProjectDocument;
+  /** How the determinism test drives it: every way (the fixtures), or headless, 1× and 4× (the pilots, whose runs are long). */
+  readonly drives: 'every' | 'speeds';
+  /** What the check must give, when the case says: it passes, or it fails with at most `maxScore`. */
+  readonly expected?: { readonly passed: boolean; readonly maxScore?: number };
+};
 
 const title = { vi: 'Bài thử: đỗ trong vùng', en: 'Fixture: park in the zone' };
 const label = (vi: string, en: string) => ({ vi, en });
@@ -76,9 +88,39 @@ export const faulter = (): ProjectDocument => robotProject([driveMove('forward',
 /** The probe without its fault: full speed for 800 ms, then stop. */
 export const dasher = (): ProjectDocument => robotProject([driveMove('forward', num(100)), wait(num(800)), driveStop()]);
 
+/** A pilot scenario's project with `program`: the scenario's starter document, as the lab opens it, holding the program. */
+const pilotProject = (key: RobotScoredKey, program: BlocklyJson) => (): ProjectDocument => ({ ...robotStarterDocument(key), program: { blocks: structuredClone(program) } });
+const pilotScenario = (key: RobotScoredKey) => (): Scenario => scenarioCatalog.get(key)!;
+const pilotKeys = Object.keys(robotSolutions) as RobotScoredKey[];
+
+/** Each pilot scenario's reference solution: it passes every goal in every variant. */
+export const pilotReferences: readonly CheckCase[] = pilotKeys.map((key) => ({
+  name: `${key}: the reference solution`,
+  scenario: pilotScenario(key),
+  project: pilotProject(key, robotSolutions[key].reference),
+  drives: 'speeds',
+  expected: { passed: true },
+}));
+
+/** Each pilot scenario's blind program (motors and waits, timed for variant 0), which fails a variant, and its exploits, each with its most. */
+export const pilotChallenges: readonly CheckCase[] = pilotKeys.flatMap((key) => {
+  const { blind, exploits = [] } = robotSolutions[key];
+  return [
+    ...(blind === undefined ? [] : [{ name: `${key}: the blind program`, scenario: pilotScenario(key), project: pilotProject(key, blind), drives: 'speeds' as const, expected: { passed: false } }]),
+    ...exploits.map((exploit) => ({
+      name: `${key}: the exploit ${exploit.name}`,
+      scenario: pilotScenario(key),
+      project: pilotProject(key, exploit.program),
+      drives: 'speeds' as const,
+      expected: { passed: false, maxScore: exploit.maxScore },
+    })),
+  ];
+});
+
 export const checkCases: readonly CheckCase[] = [
-  { name: 'park: a program that parks in the zone', scenario: parkScenario, project: parker },
-  { name: 'park: a program that overshoots', scenario: parkScenario, project: overshooter },
-  { name: 'crash: a program that hits the wall that ends the run', scenario: crashScenario, project: rammer },
-  { name: 'wall: a program that faults once its goals have passed', scenario: wallScenario, project: faulter },
+  { name: 'park: a program that parks in the zone', scenario: parkScenario, project: parker, drives: 'every' },
+  { name: 'park: a program that overshoots', scenario: parkScenario, project: overshooter, drives: 'every' },
+  { name: 'crash: a program that hits the wall that ends the run', scenario: crashScenario, project: rammer, drives: 'every' },
+  { name: 'wall: a program that faults once its goals have passed', scenario: wallScenario, project: faulter, drives: 'every' },
+  ...pilotReferences,
 ];
