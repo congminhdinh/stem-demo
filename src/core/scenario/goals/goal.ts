@@ -10,9 +10,9 @@ import type { GoalReasonKey } from './reasons';
 // What every kind follows:
 //   - Pure arithmetic on `GoalFrame`s (frame.ts), no clock, no randomness: the same frames give the same results on every engine.
 //   - `result()` is the judgement of the run so far, as if it ended now, and changes nothing. A goal that passes once stays passed
-//     (reach-zone, checkpoints-in-order, stop-in-zone, servo-angle, with or without a zone). A goal that is about the end
-//     (object-in-zone, stay-on-line) and one that is about not doing something (avoid-contact) follow the run, so they are read
-//     after the last frame.
+//     (reach-zone, checkpoints-in-order, servo-angle, with or without a zone). A goal that is about the end (object-in-zone,
+//     stay-on-line, stop-in-zone since R5.2a fix round 3) and one that is about not doing something (avoid-contact) follow the run, so
+//     they are read after the last frame.
 //   - Points are all or nothing: `points` is the spec's when the goal has passed and 0 otherwise. `progress` (0..1) is for the UI only.
 //   - A goal that has not passed says why with a `reasonKey` (reasons.ts); one that has passed has none. `atS` is the simulated time
 //     of the event that settled it (the pass, or the contact, or the moment the robot left the arena) and is left out when no event did.
