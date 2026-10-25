@@ -49,8 +49,6 @@ export type ReadAllocation = {
   bytes: number;
   /** `bytes` per read. */
   bytesPerRead: number;
-  /** Per read, beyond what a tick allocates by itself (`tickBytes`, when given): the read's own share. */
-  bytesPerReadBeyondTick: number;
 };
 
 /**
@@ -60,7 +58,7 @@ export type ReadAllocation = {
  * echo of `echoUs` (0: none). After `warmupTicks` (the JIT's), what `ticks` more allocate, everything included (the interpreter, the
  * hardware, the virtual clock, the harness's own ticks), and per hardware read: the module reads the program made in those ticks.
  */
-export async function readAllocation(forever: Json[], options: { warmupTicks?: number; ticks?: number; echoUs?: number; tickBytes?: number } = {}): Promise<ReadAllocation> {
+export async function readAllocation(forever: Json[], options: { warmupTicks?: number; ticks?: number; echoUs?: number } = {}): Promise<ReadAllocation> {
   const warmupTicks = options.warmupTicks ?? 600;
   const ticks = options.ticks ?? 1200;
   const echoUs = options.echoUs ?? 0;
@@ -115,15 +113,14 @@ export async function readAllocation(forever: Json[], options: { warmupTicks?: n
   if (outcome !== undefined || measured === 0) {
     throw new Error(`The program did not keep reading: ${JSON.stringify(outcome)}, ${measured} reads.`);
   }
-  const beyond = bytes - (options.tickBytes ?? 0) * ticks;
-  return { ticks, reads: measured, bytes, bytesPerRead: bytes / measured, bytesPerReadBeyondTick: beyond / measured };
+  return { ticks, reads: measured, bytes, bytesPerRead: bytes / measured };
 }
 
 /**
- * What a tick of this harness allocates by itself, in bytes: a loop() that waits 8 ms (no read, no op), so the program blocks and goes
- * on about once a tick (a tick is 8.33 ms), as a reading one does when it parks. It is the virtual clock's (the wait, the tick's wait for
- * the program), the harness's and one iteration's own, the same with a read or without: a program that reads a few times a tick (an
- * ultrasonic read takes 1.2 to 20.8 ms) shares it among few reads.
+ * What a tick of this harness allocates by itself, in bytes (`pnpm bench:robot` tells it): a loop() that waits 8 ms (no read, no op), so
+ * the program blocks and goes on about once a tick (a tick is 8.33 ms), as a reading one does when it parks. It is the virtual clock's
+ * (the wait, the tick's wait for the program), the harness's and one iteration's own, the same with a read or without: a program that
+ * reads a few times a tick (an ultrasonic read takes 1.2 to 20.8 ms) shares it among few reads.
  */
 export async function tickAllocation(options: { warmupTicks?: number; ticks?: number } = {}): Promise<number> {
   const warmupTicks = options.warmupTicks ?? 600;

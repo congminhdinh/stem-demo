@@ -16,13 +16,18 @@ import { everyGoalScorer, robotProject, rover, roverSession, unoR3Board, worldOf
 // workers on the machine (2 ms a tick, 20 s a headless check), these the plan's own.
 //
 //   - a tick with the program in the loop (the interpreter, the virtual UNO, the world, the goal frame, every goal), for the obstacle avoider
-//     and the line follower in the all-goals scenario, variant 1: CPU time of this thread in batches of 10 ticks, the median within 0.5 ms
-//     (plan §5: physics ≤ 0.5 ms/tick on a mid-range machine), the p95 and the JS heap per tick told;
+//     and the line follower in the all-goals scenario, variant 1: CPU time of this thread in batches of 10 ticks. Plan §5's 0.5 ms (physics
+//     ≤ 0.5 ms/tick on a mid-range machine) holds for the median, the p95 and the mean, so a batch with a collection in it counts and the
+//     time the collector takes on this thread too (the M4 Pro of P1 measures a median of 0.13–0.18 ms, a p95 of 0.17–0.23 ms and a mean
+//     of 0.14–0.19 ms, from a load average of 3.5 to one of 12); the JS heap per tick told. The world's own budget (world.cost.test.ts) is inside these: a
+//     tick here is the world's and the program's;
 //   - the headless check (checkRobot, as R6.3 calls it) of 3 variants × 60 s of the avoider with every goal: within 10 s of CPU;
 //   - the headless check of each pilot scenario's reference solution (src/samples/robot-solutions.ts): within the same rate, 10 s per
-//     3 × 60 s of simulated time (variants × the scenario's time limit);
+//     3 × 60 s of simulated time (variants × the scenario's time limit). Each check must run every variant to its time limit, or its time
+//     is not the budget's (a check that ended early fails the bench);
 //   - the JS heap per hardware read on the interpreter's read path (three line reads in every loop(), program/__fixtures__/allocation.ts):
-//     within 64 bytes; the line follower with its drive, and the ultrasonic beyond the tick's own allocation, told.
+//     within 64 bytes, everything the ticks allocate included; the line follower with its drive, the ultrasonic (a few reads a tick, which
+//     share the tick's own allocation) and what a tick allocates by itself, told.
 //
 // `smoke` runs everything for a moment (a few ticks, checks cut to 1 s a variant), to show the tool works: its numbers are not the budgets'.
 
@@ -102,12 +107,20 @@ async function tickCost(project: ProjectDocument, smoke: boolean): Promise<{ med
   }
 }
 
-/** A headless check of `project` in `scenario` (cut to 1 s a variant when `smoke`): CPU s, and the simulated time it covers. */
+/**
+ * A headless check of `project` in `scenario` (cut to 1 s a variant when `smoke`): CPU s, and the simulated time it covers. Every variant
+ * must have run to the time limit: a check that ended early (a crash that ends the run, a fault) took less time than its budget is for.
+ */
 async function checkCost(project: ProjectDocument, scenario: Scenario, smoke: boolean): Promise<{ cpuS: number; simulatedS: number; score: number | null }> {
   const checked = smoke ? { ...scenario, timeLimitS: 1 } : scenario;
   const started = threadCpuMs();
   const result = await checkRobot(project, checked, { mode: 'headless', kit: rover, board: unoR3Board, registry }).result;
   const cpuS = (threadCpuMs() - started) / 1000;
+  const simTimes = result?.variants.map((variant) => variant.simTimeMs) ?? [];
+  const full = Array.from({ length: checked.variants.count }, () => checked.timeLimitS * 1000);
+  if (simTimes.join() !== full.join()) {
+    throw new Error(`The headless check of ${checked.key} ran [${simTimes.join(', ')}] ms of simulated time, not [${full.join(', ')}]: its time is not the budget's.`);
+  }
   return { cpuS, simulatedS: checked.variants.count * checked.timeLimitS, score: result?.score ?? null };
 }
 
@@ -123,7 +136,8 @@ export async function runRobotBench(options: BenchOptions = {}): Promise<BenchRe
     const cost = await tickCost(project(), smoke);
     const detail = `${cost.ticks} ticks of the all-goals scenario, variant 1, every goal; CPU of this thread, batches of 10 ticks`;
     rows.push({ name: `tick, ${name}: median`, value: cost.median, unit: 'ms', budget: TICK_BUDGET_MS, detail });
-    rows.push({ name: `tick, ${name}: p95`, value: cost.p95, unit: 'ms', budget: null, detail: `mean ${cost.mean.toFixed(4)} ms` });
+    rows.push({ name: `tick, ${name}: p95`, value: cost.p95, unit: 'ms', budget: TICK_BUDGET_MS, detail: 'of the batches of 10 ticks: a batch with a collection in it counts' });
+    rows.push({ name: `tick, ${name}: mean`, value: cost.mean, unit: 'ms', budget: TICK_BUDGET_MS, detail: 'every tick measured, the collector\u2019s time on this thread included' });
     rows.push({ name: `tick, ${name}: JS heap`, value: cost.kibPerTick, unit: 'KiB', budget: null, detail: 'per tick: the world, the goals, the program' });
   }
 
@@ -149,30 +163,36 @@ export async function runRobotBench(options: BenchOptions = {}): Promise<BenchRe
   }
 
   const window = smoke ? { warmupTicks: 60, ticks: 60 } : { warmupTicks: 600, ticks: 1200 };
-  const tickBytes = await tickAllocation(window);
-  const reads = await readAllocation([ifElif([[lineDark('lineCenter'), []], [lineDark('lineLeft'), []], [lineDark('lineRight'), []]])], { ...window, tickBytes });
+  const reads = await readAllocation([ifElif([[lineDark('lineCenter'), []], [lineDark('lineLeft'), []], [lineDark('lineRight'), []]])], window);
   rows.push({
     name: 'heap per hardware read: three line reads a loop()',
     value: reads.bytesPerRead,
     unit: 'B',
     budget: READ_BUDGET_BYTES,
-    detail: `${(reads.reads / reads.ticks).toFixed(1)} reads a tick; everything the ticks allocate, the tick's own ${tickBytes.toFixed(0)} B included`,
+    detail: `${(reads.reads / reads.ticks).toFixed(1)} reads a tick; everything the ticks allocate`,
   });
-  const follower = await readAllocation(lineFollowerBlocks(), { ...window, tickBytes });
+  const follower = await readAllocation(lineFollowerBlocks(), window);
   rows.push({
     name: 'heap per hardware read: line follower (three reads, a drive)',
     value: follower.bytesPerRead,
     unit: 'B',
     budget: null,
-    detail: `${(follower.reads / follower.ticks).toFixed(1)} reads a tick; ${follower.bytesPerReadBeyondTick.toFixed(1)} B beyond the tick; the drive's call included`,
+    detail: `${(follower.reads / follower.ticks).toFixed(1)} reads a tick; the drive's call included`,
   });
-  const echo = await readAllocation([setVar('x', ultrasonic())], { ...window, tickBytes, echoUs: 20 * 58 });
+  const echo = await readAllocation([setVar('x', ultrasonic())], { ...window, echoUs: 20 * 58 });
   rows.push({
-    name: 'heap per hardware read: ultrasonic, echo at 20 cm, beyond the tick',
-    value: echo.bytesPerReadBeyondTick,
+    name: 'heap per hardware read: ultrasonic, echo at 20 cm',
+    value: echo.bytesPerRead,
     unit: 'B',
     budget: null,
-    detail: `${(echo.reads / echo.ticks).toFixed(1)} reads a tick, ${echo.bytesPerRead.toFixed(1)} B per read with the tick's own`,
+    detail: `${(echo.reads / echo.ticks).toFixed(1)} reads a tick, which share the tick's own allocation`,
+  });
+  rows.push({
+    name: 'heap a tick allocates by itself (the program waits once a tick)',
+    value: await tickAllocation(window),
+    unit: 'B',
+    budget: null,
+    detail: 'the virtual clock\u2019s wait and the tick\u2019s wait for the program, the harness\u2019s own',
   });
 
   return { machine: machine(), smoke, rows };

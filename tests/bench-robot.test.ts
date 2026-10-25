@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 // N18 P1: scripts/bench-robot.mjs (`pnpm bench:robot`), run as its own Node process for a moment (--smoke: a few ticks, every check cut to
 // 1 s a variant), so `pnpm verify` knows the tool works: it measures every row, prints its table, exits 0 when the budgets hold and 1 when
 // one is missed. The budgets themselves are not held here (--budget-scale): a smoke run's numbers, from a cold JIT on a loaded machine, are
-// not the budgets' numbers.
+// not the budgets' numbers. The two measuring runs go one after the other: each starts a Vite server on the script's one dependency cache.
 
 const root = join(import.meta.dirname, '..');
 const script = join(root, 'scripts', 'bench-robot.mjs');
@@ -32,10 +32,12 @@ const rowsOf = (stdout: string) =>
 
 const measures = [
   ['tick, obstacle avoider: median', 'budget'],
-  ['tick, obstacle avoider: p95', 'told'],
+  ['tick, obstacle avoider: p95', 'budget'],
+  ['tick, obstacle avoider: mean', 'budget'],
   ['tick, obstacle avoider: JS heap', 'told'],
   ['tick, line follower: median', 'budget'],
-  ['tick, line follower: p95', 'told'],
+  ['tick, line follower: p95', 'budget'],
+  ['tick, line follower: mean', 'budget'],
   ['tick, line follower: JS heap', 'told'],
   ['headless check 3 × 60 s, avoider, every goal', 'budget'],
   ['headless check, rb-drive-to-zone reference (1 × 1 s)', 'budget'],
@@ -46,22 +48,24 @@ const measures = [
   ['headless check, rb-mini-mission reference (3 × 1 s)', 'budget'],
   ['heap per hardware read: three line reads a loop()', 'budget'],
   ['heap per hardware read: line follower (three reads, a drive)', 'told'],
-  ['heap per hardware read: ultrasonic, echo at 20 cm, beyond the tick', 'told'],
+  ['heap per hardware read: ultrasonic, echo at 20 cm', 'told'],
+  ['heap a tick allocates by itself (the program waits once a tick)', 'told'],
 ] as const;
 
 describe('scripts/bench-robot.mjs', () => {
   it('measures every row, prints its table and exits 0 when every budget holds, 1 when one is missed', async () => {
-    const [held, missed] = await Promise.all([run('--smoke', '--budget-scale', '1000000'), run('--smoke', '--budget-scale', '0.000001')]);
+    const held = await run('--smoke', '--budget-scale', '1000000');
+    const missed = await run('--smoke', '--budget-scale', '0.000001');
 
     expect(held.status, held.stderr).toBe(0);
     expect(held.stdout).toMatch(/^pnpm bench:robot --smoke \(a moment of each: not the budgets’ numbers\): .+, Node v\d+/);
     expect(held.stdout).toContain('budgets of the robot plan §5 × 1000000\n');
     expect(rowsOf(held.stdout)).toEqual(measures.map(([measure, kind]) => [measure, kind === 'budget' ? 'ok' : 'told']));
-    expect(held.stdout).toMatch(/\n16 measures, 0 budgets missed, \d+\.\d s\.\n$/);
+    expect(held.stdout).toMatch(/\n19 measures, 0 budgets missed, \d+\.\d s\.\n$/);
 
     expect(missed.status).toBe(1);
     expect(rowsOf(missed.stdout)).toEqual(measures.map(([measure, kind]) => [measure, kind === 'budget' ? 'MISSED' : 'told']));
-    expect(missed.stdout).toMatch(/\n16 measures, 10 budgets missed, \d+\.\d s\.\n$/);
+    expect(missed.stdout).toMatch(/\n19 measures, 14 budgets missed, \d+\.\d s\.\n$/);
     expect(missed.stderr).toBe(`Missed: ${measures.filter(([, kind]) => kind === 'budget').map(([measure]) => measure).join('; ')}.\n`);
   }, 120_000);
 
