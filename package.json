@@ -20,6 +20,7 @@
     "check:micropython": "node scripts/check-python-syntax.mjs --require-mpy",
     "check:arduino": "node scripts/check-arduino.mjs src tests",
     "export:robot-manifest": "node scripts/export-robot-manifest.mjs",
+    "build:robot-assets": "node scripts/build-robot-assets.mjs",
     "export:arena-mat": "node scripts/export-arena-mat.mjs",
     "build:parity-hex": "node scripts/build-parity-hex.mjs",
     "bench:robot": "node scripts/bench-robot.mjs",

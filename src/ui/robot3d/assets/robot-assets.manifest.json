@@ -1,0 +1,52 @@
+{
+  "generator": "scripts/build-robot-assets.mjs",
+  "blender": "Blender 5.2.3 LTS",
+  "sources": {
+    "build.py": "b6656b247f32a0bfb1c56eac427ee04f42865da964d6f61ed2094557a011a80c",
+    "lib.py": "234ada0b7ec510a6c373f59266623c03d165b250356e9d3c52556b6eaeafe05b",
+    "parts/board.py": "e43cf678a4bdcfd15601f01cddb0a3ca6e2d56d1e33f7e5528906ddfc2bf5005",
+    "parts/caster.py": "d203ce34b44750f9056fbd591728905b444448449f111d9039bf477a2d4e243c",
+    "parts/chassis.py": "22df52eca2ee19938fdff0d8992754b2472abaca02838a4cce2e4458f8ff6979",
+    "parts/line_bar.py": "98e4ac1491149f6f85df979de41fd6082da4b8701c576023a85b2035010f3172",
+    "parts/modules.py": "8afcd548f5580e3f0b538075ffb035bfb415c9865821aa33a24799791058316f",
+    "parts/servo.py": "07c85383c53dc67a71d37cd7f4b33f24a0db35479feeb09d9bf78c0d54836dab",
+    "parts/tt_motor.py": "251b206504251731533869ad2e8acfb49f0e556ad92d46f79924d0317665a1bb",
+    "parts/ultrasonic.py": "374a0b5cab3284ca1cec5c9332a5d87456aa52c691213749895ca3219c7d245c",
+    "parts/wheel.py": "08eaf7f819dde88321db611f5a9ad6dea855514b027c894d5cefa974f0139421",
+    "props/banner.py": "7609a25e12338f9f7033ad3c2c0150a31d4bdf6a5609f1159ac3cc423dcb088f",
+    "props/barrier.py": "6f93857d777aaf5b5b022fae28189e6983faf7718e1cec6e8d254888f96ab73a",
+    "props/block.py": "09d25302a8e0105b4e0f98f87a960697a7e50fb6ea829dd7eedef8180bf736fd",
+    "props/build_props.py": "938fb89bc2adfbb87d8be616a2033c6091f6af9a352bf694c2582067ac87d98d",
+    "props/cardboard_box.py": "eb1c3c30d8d2e4698f4c9c55e50164df35eaa9c2056089e6231133510fa1f08b",
+    "props/cone.py": "26bf0855e999a8c00dd36c0cd3d5daf0df6bfb3a08ef33187cfb423f59c28841",
+    "props/dock.py": "34ea82e5d9802d53477c39e92b82c447895a0ec8244b477904459959a9c495f9",
+    "props/fence.py": "257924b77b77bae84dd43190d62a1a9797878d30ec8ca413289face43a80da4c",
+    "props/garage.py": "345cd40314619b5d5ce47de30c45df83e661dffc080118619773128c773cdd52",
+    "props/post.py": "14b3355e310f179fe195a63789add22a66b1230cfdf89996c4f90c2ec815b973",
+    "props/studio.py": "90c0e3f09d0be6b23ea0e14e8a06ad30125473daba495d787c4b15d40325953b",
+    "props/table.py": "5332c4cf9fe293690199ee96911412176012b94a5de068734523704182eafcef",
+    "props/table_props.py": "5332bb20312379cb2775d7ab74b3bd0aafbb7141a1f376eb94dafc62dedf25f7",
+    "props/tin_can.py": "9f463024fc5d1e335d7fe3432b6f3ac4e853179623f818ff99495a7ddf6e0957",
+    "props/wall.py": "bf87f32dc9ac007f67779a030339974e271c706991de4e5b8c4eb9ed4d335ef1",
+    "props/wood.py": "e5d68b49b78933938bad76d0f42477d2af29b6aaedf12963226078f6331d0e13",
+    "tex.py": "b32f2a6bc1c21775e84bd7bdbe67dda7ab3a670ee9395b1af29a6f0336ff7f5d"
+  },
+  "assets": {
+    "robot-kit.glb": {
+      "bytes": 805972,
+      "sha256": "d73eda81e10075015ee015af8c9be76efa906c90521a103ab0028c461319b3d3"
+    },
+    "arena-props.glb": {
+      "bytes": 307652,
+      "sha256": "b3c9b5c691aae1e0b048444843e219d64f7926bdea71656592f7adf4336fff82"
+    },
+    "robot-kit-low.glb": {
+      "bytes": 508620,
+      "sha256": "202e41a24ec8a4757d4e676552ed397a89161072d227c52c32e6f6c3f0bbffd5"
+    },
+    "arena-props-low.glb": {
+      "bytes": 216920,
+      "sha256": "72069cd1b49d34e8f09a15c50ecf7c4f6c08099bbb150ce0adf203d228f8aa11"
+    }
+  }
+}
