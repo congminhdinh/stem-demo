@@ -1,6 +1,7 @@
 import { createStore } from 'zustand/vanilla';
 import type { ProjectDocument } from '../../core/circuit/document';
 import type { RobotRunSession, RobotRunSnapshot, RobotStartResult } from '../../core/run/robot-run-session';
+import type { ScoreState } from '../../core/world/snapshot';
 
 // The robot lab's run as the UI drives it (N18 R4.2, R4.4): a thin store over the RobotRunSession of R3.6, like run-store.ts is over the
 // circuit's RunSession.
@@ -21,6 +22,15 @@ import type { RobotRunSession, RobotRunSnapshot, RobotStartResult } from '../../
 //     score and what it printed.
 //     Reset of a run starts it again from t = 0 (`resetRobot`, the same as a new start); with no run, it clears what was held.
 //   - A check (R6.3) holds the lab (`setLocked`): nothing of a run can be started, stepped, reset, paused or pressed meanwhile.
+//   - N18 R6.3: a check at 1× or 4× is shown in this view (`attach`): the store reads the check's own run (checkRobot's session, R6.2) instead
+//     of the lab's, hands React its snapshots, and drives it with every animation frame through the check's `frame` at the check's speed.
+//     The check, not the store, runs its rounds and judges them: the frames only say how much page time went by, so a hidden tab (no frames)
+//     pauses it and the result is the same (Review Focus 2). From `attach` to its detach the lab says one run is on (the host's run-started
+//     and run-stopped), whatever the check's run publishes between its rounds. After a check, the world its last round ended in stays in
+//     view (`held`, with that `round` and its score) until a run or Reset; a fast check (headless) is never shown while it runs, it only
+//     leaves its last round (`hold`).
+//   - Replay (`replay`, "Xem lại"): a round of a check is run again in the lab's session as that variant's check run (its seed, the scenario's
+//     inputs only), at 1× from its start. The same project, scenario, seed and engine give the same run (robot plan §5), so nothing is recorded.
 
 /** The speeds the controls offer. `setSpeed` takes any finite multiplier above 0 (the E2E's hook). */
 export const ROBOT_SPEEDS = [0.5, 1, 2, 4] as const;
@@ -33,6 +43,22 @@ const STEP_FRAMES = 4;
 const MAX_FRAME_MS = 250;
 
 export type RobotStartFailure = Extract<RobotStartResult, { ok: false }>;
+
+/** A check's run as the view shows it (N18 R6.3): checkRobot's `run` and its `frame`. */
+export type CheckRunView = Pick<RobotRunSession, 'getSnapshot' | 'subscribe'> & {
+  /** One animation frame of the page, `wallMs` long, at `speed`. */
+  frame(wallMs: number, speed: number): Promise<void>;
+};
+
+/**
+ * The round of a check the view shows (N18 R6.3): during a check at 1× or 4×, after a check (its last round), in a replay. `score` is the
+ * check's score of that round, which the HUD shows once the round's run is over (a round that ended in an error scores 0, whatever its
+ * live score was); null while the check has not judged it.
+ */
+export type ShownRound = { index: number; count: number; score: ScoreState | null };
+
+/** What a check leaves in view when it ends: the last world of its last round and that round, or nothing (a cancelled check). */
+export type CheckLeft = { held: RobotRunSnapshot | null; round: ShownRound | null } | null;
 
 /** Whether nothing is left to drive: no run, an error, or the scenario's end of the run (its time limit or a crash, N18 R6.2). */
 export function isRunOver(snapshot: RobotRunSnapshot): boolean {
@@ -56,6 +82,8 @@ export type RobotLabState = {
   startFailure: RobotStartFailure | null;
   /** A check holds the lab (R6.3). */
   locked: boolean;
+  /** N18 R6.3: the round of a check the view shows, if it shows one. */
+  round: ShownRound | null;
 
   /** Replaces any run with a run of `project`. */
   run(project: ProjectDocument): Promise<void>;
@@ -68,6 +96,19 @@ export type RobotLabState = {
   /** The kit's button `role`, pressed or let go (pointer or keyboard). */
   press(role: string, down: boolean): void;
   setLocked(locked: boolean): void;
+  /**
+   * N18 R6.3: shows a check's run instead of the lab's (which stops) and drives it with every frame at `speed`, until the returned detach,
+   * which leaves what the check left in view (`CheckLeft`). Nothing of the lab's own run starts meanwhile.
+   */
+  attach(view: CheckRunView, speed: number): (left: CheckLeft) => void;
+  /** N18 R6.3: the round of the attached check the view shows now. */
+  setRound(round: ShownRound | null): void;
+  /** N18 R6.3: what a check that was not shown (a fast check) left: the last world of its last round, in view until a run or Reset. */
+  hold(held: RobotRunSnapshot, round: ShownRound): void;
+  /** N18 R6.3, "Xem lại": runs the round `round.index` of a check of `project` again, as that variant's check run, at 1× from its start. */
+  replay(project: ProjectDocument, round: ShownRound): Promise<void>;
+  /** N18 R6.3: why a check could not be made, said as a start that failed (the message over the view, the warnings on the blocks). */
+  showFailure(failure: RobotStartFailure): void;
   /** The world the view draws now: the run's latest, else what a stopped run left; null shows the start. Not held back to a frame. */
   latestWorld(): RobotRunSnapshot['world'];
   /** Every snapshot the session publishes, at once. Returns the way to stop listening. */
@@ -87,13 +128,20 @@ export type LabStatus = 'idle' | 'starting' | 'running' | 'paused' | 'finished' 
 /** The run's snapshot the lab shows: the running one, or what a stopped run left (null: neither). */
 export const shownRun = (state: RobotLabState): RobotRunSnapshot | null => (state.snapshot.status !== 'idle' ? state.snapshot : state.held);
 
+/** How a run that is over ended, as the lab says it. */
+const endedStatus = (snapshot: RobotRunSnapshot): LabStatus | null =>
+  snapshot.status === 'error' ? 'error' : snapshot.end?.reason === 'contact' ? 'crashed' : snapshot.end?.reason === 'time-limit' ? 'timeUp' : null;
+
 export function labStatus(state: RobotLabState): LabStatus {
   if (state.starting) return 'starting';
   const { snapshot } = state;
-  if (snapshot.status === 'idle') return state.held ? 'stopped' : 'idle';
-  if (snapshot.status === 'error') return 'error';
-  if (snapshot.end?.reason === 'contact') return 'crashed';
-  if (snapshot.end?.reason === 'time-limit') return 'timeUp';
+  if (snapshot.status === 'idle') {
+    if (!state.held) return 'idle';
+    // N18 R6.3: what a check's round left says how that round ended; a run the learner stopped (a replay too) says stopped.
+    return (state.round !== null && endedStatus(state.held)) || 'stopped';
+  }
+  const ended = endedStatus(snapshot);
+  if (ended !== null) return ended;
   if (state.paused) return 'paused';
   return snapshot.status === 'finished' ? 'finished' : 'running';
 }
@@ -120,8 +168,13 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
     /** Counts the starts, so that a start a newer one replaced does not report. */
     let startTicket = 0;
     const listeners = new Set<(snapshot: RobotRunSnapshot) => void>();
+    /** N18 R6.3: the check whose run the view shows, its speed, and the way to stop listening to it. */
+    let attached: { view: CheckRunView; speed: number; unsubscribe: () => void } | null = null;
+    /** The run the view shows: an attached check's, else the lab's session. */
+    const shown = (): Pick<RobotRunSession, 'getSnapshot'> => attached?.view ?? session;
 
-    const shouldDrive = () => !get().paused && !isRunOver(session.getSnapshot());
+    // A check is driven by every frame until it detaches: it runs its rounds itself, and between two of them its run is over for a moment.
+    const shouldDrive = () => (attached !== null ? true : !get().paused && !isRunOver(session.getSnapshot()));
 
     const drive = (now: number) => {
       driveFrame = null;
@@ -131,7 +184,8 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
       }
       const wallMs = lastFrameAt === null ? 0 : Math.min(MAX_FRAME_MS, Math.max(0, now - lastFrameAt));
       lastFrameAt = now;
-      session.advance(wallMs, get().speed).catch((error: unknown) => console.warn('The robot simulation could not advance.', error));
+      const advanced = attached !== null ? attached.view.frame(wallMs, attached.speed) : session.advance(wallMs, get().speed);
+      advanced.catch((error: unknown) => console.warn('The robot simulation could not advance.', error));
       driveFrame = requestFrame(drive);
     };
 
@@ -151,7 +205,8 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
     };
 
     const onSnapshot = (snapshot: RobotRunSnapshot) => {
-      const active = snapshot.status !== 'idle';
+      // An attached check is one run from attach to detach (the host's run-started and run-stopped).
+      const active = attached !== null || snapshot.status !== 'idle';
       if (active !== get().active) {
         set({ active });
       }
@@ -161,8 +216,14 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
       if (commitFrame === null) {
         commitFrame = requestFrame(() => {
           commitFrame = null;
-          set({ snapshot: session.getSnapshot() });
+          set({ snapshot: shown().getSnapshot() });
         });
+      }
+    };
+    /** The session's own snapshots: not shown while a check's run is (the lab's session is stopped then). */
+    const onSessionSnapshot = (snapshot: RobotRunSnapshot) => {
+      if (attached === null) {
+        onSnapshot(snapshot);
       }
     };
 
@@ -171,12 +232,12 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
       lastFrameAt = null;
     };
 
-    /** Starts a run of `project` (Run, or Step from idle), paused or not. */
-    const start = async (project: ProjectDocument, paused: boolean) => {
+    /** Starts a run of `project` (Run, Step from idle, or the replay of a check's `round`), paused or not. */
+    const start = async (project: ProjectDocument, paused: boolean, round: ShownRound | null = null) => {
       const ticket = ++startTicket;
       stopDriving();
-      set({ starting: true, startFailure: null, held: null, paused });
-      const result = await session.start(project);
+      set({ starting: true, startFailure: null, held: null, paused, round });
+      const result = round === null ? await session.start(project) : await session.start(project, round.index, { check: true });
       if (ticket !== startTicket) {
         return false;
       }
@@ -197,15 +258,19 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
       held: null,
       startFailure: null,
       locked: false,
+      round: null,
 
       async run(project) {
-        if (get().locked) {
+        if (get().locked || attached !== null) {
           return;
         }
         await start(project, false);
       },
 
       stop() {
+        if (attached !== null) {
+          return;
+        }
         startTicket++;
         stopDriving();
         const left = session.getSnapshot();
@@ -214,7 +279,7 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
       },
 
       togglePause() {
-        if (get().locked || session.getSnapshot().status === 'idle') {
+        if (get().locked || attached !== null || session.getSnapshot().status === 'idle') {
           return;
         }
         const paused = !get().paused;
@@ -227,7 +292,7 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
       },
 
       async step(project) {
-        if (get().locked || stepping) {
+        if (get().locked || attached !== null || stepping) {
           return;
         }
         stepping = true;
@@ -254,11 +319,11 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
       },
 
       async resetRobot() {
-        if (get().locked) {
+        if (get().locked || attached !== null) {
           return;
         }
         if (session.getSnapshot().status === 'idle') {
-          set({ held: null, startFailure: null });
+          set({ held: null, startFailure: null, round: null });
           return;
         }
         const ticket = ++startTicket;
@@ -280,7 +345,7 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
       },
 
       press(role, down) {
-        if (!get().locked) {
+        if (!get().locked && attached === null) {
           session.pressButton(role, down);
         }
       },
@@ -289,7 +354,58 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
         set({ locked });
       },
 
-      latestWorld: () => session.getSnapshot().world ?? get().held?.world ?? null,
+      attach(view, speed) {
+        if (!(Number.isFinite(speed) && speed > 0)) {
+          throw new RangeError(`A check is driven at a speed above 0, not ${speed}.`);
+        }
+        attached?.unsubscribe();
+        // The lab's own run ends: the check is what the view shows now.
+        startTicket++;
+        stopDriving();
+        session.stop();
+        const unsubscribe = view.subscribe(onSnapshot);
+        const mine = { view, speed, unsubscribe };
+        attached = mine;
+        set({ snapshot: view.getSnapshot(), active: true, starting: false, paused: false, held: null, startFailure: null, round: null });
+        ensureDriving();
+        return (left) => {
+          if (attached !== mine) {
+            return;
+          }
+          stopDriving();
+          unsubscribe();
+          attached = null;
+          set({ snapshot: session.getSnapshot(), active: session.getSnapshot().status !== 'idle', held: left?.held ?? null, round: left?.round ?? null });
+        };
+      },
+
+      setRound(round) {
+        set({ round });
+      },
+
+      hold(held, round) {
+        if (attached !== null) {
+          return;
+        }
+        startTicket++;
+        stopDriving();
+        session.stop();
+        set({ snapshot: session.getSnapshot(), held, round, paused: false, starting: false });
+      },
+
+      async replay(project, round) {
+        if (get().locked || attached !== null) {
+          return;
+        }
+        set({ speed: 1 });
+        await start(project, false, round);
+      },
+
+      showFailure(failure) {
+        set({ startFailure: failure });
+      },
+
+      latestWorld: () => shown().getSnapshot().world ?? get().held?.world ?? null,
 
       onPublish(listener) {
         listeners.add(listener);
@@ -299,7 +415,7 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
       },
 
       connect() {
-        const unsubscribe = session.subscribe(onSnapshot);
+        const unsubscribe = session.subscribe(onSessionSnapshot);
         visibility?.addEventListener('visibilitychange', onVisibility);
         return () => {
           startTicket++;
@@ -309,6 +425,8 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
             commitFrame = null;
           }
           unsubscribe();
+          attached?.unsubscribe();
+          attached = null;
           visibility?.removeEventListener('visibilitychange', onVisibility);
           session.stop();
           set({ snapshot: session.getSnapshot(), active: false, starting: false, paused: false });

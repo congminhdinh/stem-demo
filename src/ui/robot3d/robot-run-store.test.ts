@@ -4,15 +4,17 @@ import { localDeviceDefinitions } from '../../core/devices/local-catalog';
 import { createDeviceRegistry } from '../../core/devices/registry';
 import { productionKits, unoR3Board } from '../../core/hardware/catalog';
 import type { Kit } from '../../core/hardware/kit';
-import { createRobotRunSession, type RobotStartResult } from '../../core/run/robot-run-session';
+import { createRobotRunSession, type RobotRunSnapshot, type RobotStartResult } from '../../core/run/robot-run-session';
+import { checkRobot, type CheckProgress } from '../../core/scenario/check-robot';
+import { scenarioScorer } from '../../core/scenario/scoring';
 import { driveMove, driveStop } from '../../core/program/__fixtures__/uno-blocks';
 import { num, wait } from '../../core/program/__fixtures__/ybc-blocks';
 import { robotProject } from '../../core/run/__fixtures__/robot-session';
-import type { RobotSnapshot } from '../../core/world/snapshot';
+import { hashSnapshot, type RobotSnapshot, type ScoreState } from '../../core/world/snapshot';
 import { robotSolutions } from '../../samples/robot-solutions';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { robotStarterDocument } from '../../samples/robot-templates';
-import { createRobotRunStore, isRunOver, labStatus, ROBOT_SPEEDS, selectRunActive, shownRun } from './robot-run-store';
+import { createRobotRunStore, isRunOver, labStatus, ROBOT_SPEEDS, selectRunActive, shownRun, type CheckRunView } from './robot-run-store';
 import { fakeSession as fakeRobotSession, idleRun } from './__fixtures__/fake-session';
 import { sameView } from './scene-math';
 
@@ -400,4 +402,202 @@ describe('the run store on the real session (N18 R4.2)', () => {
     }
     disconnect();
   });
+});
+
+/** A check's run as the store takes it (N18 R6.3): the snapshots the test publishes, and the frames the store gives it. */
+function fakeCheckView() {
+  let snapshot: RobotRunSnapshot = idleRun;
+  const listeners = new Set<(snapshot: RobotRunSnapshot) => void>();
+  const frames: [number, number][] = [];
+  const view: CheckRunView = {
+    getSnapshot: () => snapshot,
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    frame: async (wallMs, speed) => {
+      frames.push([wallMs, speed]);
+    },
+  };
+  return {
+    view,
+    frames,
+    publish(next: Partial<RobotRunSnapshot>) {
+      snapshot = { ...snapshot, ...next };
+      listeners.forEach((listener) => listener(snapshot));
+    },
+  };
+}
+
+const noPoints: ScoreState = { points: 0, maxScore: 100, goals: [] };
+
+describe('a check’s run in the lab’s view (N18 R6.3)', () => {
+  it('shows a check’s run while it is attached and drives it with every frame at the check’s speed, not the lab’s', async () => {
+    const { store, frames, world, session, advances } = setup();
+    store.getState().setSpeed(2);
+    const check = fakeCheckView();
+    store.getState().attach(check.view, 4);
+    check.publish({ status: 'running', world: world(0) });
+    expect(store.getState().latestWorld()?.t).toBe(0);
+    frames.frame(1000);
+    frames.frame(1016);
+    check.publish({ world: world(0.5, 40) });
+    // The view reads the check's world at once; React gets it with the next frame.
+    expect(store.getState().latestWorld()?.robot.xCm).toBe(40);
+    frames.frame(1032);
+    expect(store.getState().snapshot.world?.t).toBe(0.5);
+    expect(labStatus(store.getState())).toBe('running');
+    // Between its rounds the check's run is over for a moment: the frames go on, the check starts the next round itself.
+    check.publish({ status: 'finished', end: { reason: 'time-limit', atS: 15 } });
+    frames.frame(1048);
+    expect(check.frames).toEqual([
+      [0, 4],
+      [16, 4],
+      [16, 4],
+      [16, 4],
+    ]);
+    expect(advances).toEqual([]);
+    // Nothing of the lab's own run starts meanwhile.
+    await store.getState().run(project);
+    await store.getState().step(project);
+    store.getState().togglePause();
+    expect(session.start).not.toHaveBeenCalled();
+    expect(store.getState().paused).toBe(false);
+  });
+
+  it('is one run for the host from attach to detach, whatever the check’s run publishes between its rounds', () => {
+    const { store, world } = setup();
+    const changes: boolean[] = [];
+    store.subscribe((state, previous) => {
+      if (state.active !== previous.active) changes.push(state.active);
+    });
+    const check = fakeCheckView();
+    const detach = store.getState().attach(check.view, 1);
+    check.publish({ status: 'running', world: world(0) });
+    check.publish({ status: 'finished', world: world(3), end: { reason: 'contact', atS: 3, tag: 'wall' } });
+    check.publish(idleRun);
+    check.publish({ status: 'running', world: world(0) });
+    check.publish(idleRun);
+    expect(changes).toEqual([true]);
+    detach(null);
+    expect(changes).toEqual([true, false]);
+  });
+
+  it('stops the lab’s own run when a check attaches, and drives none of it after', async () => {
+    const { store, frames, session, advances, publish, world } = setup();
+    await store.getState().run(project);
+    publish({ world: world(1, 30) });
+    frames.frame(0);
+    const check = fakeCheckView();
+    const detach = store.getState().attach(check.view, 1);
+    expect(session.stop).toHaveBeenCalledTimes(1);
+    // What the lab's run left is not shown under the check.
+    expect(store.getState().held).toBeNull();
+    expect(store.getState().latestWorld()).toBeNull();
+    frames.frame(16);
+    frames.frame(32);
+    expect(advances).toEqual([[0, 1]]);
+    detach(null);
+    frames.frame(48);
+    expect(advances).toEqual([[0, 1]]);
+    expect(check.frames).toEqual([
+      [0, 1],
+      [16, 1],
+    ]);
+    expect(frames.pending()).toBe(0);
+  });
+
+  it('keeps what a check’s last round left in view after it, with that round and its score, until a run or Reset', async () => {
+    const { store, world } = setup();
+    const check = fakeCheckView();
+    const detach = store.getState().attach(check.view, 4);
+    const ended: RobotRunSnapshot = { ...idleRun, status: 'finished', world: world(3.2, 140), end: { reason: 'contact', atS: 3.2, tag: 'wall' } };
+    check.publish(ended);
+    check.publish(idleRun);
+    detach({ held: ended, round: { index: 2, count: 3, score: noPoints } });
+    expect(store.getState().active).toBe(false);
+    expect(store.getState().latestWorld()?.robot.xCm).toBe(140);
+    expect(store.getState().round).toEqual({ index: 2, count: 3, score: noPoints });
+    // It says how that round ended, not "stopped".
+    expect(labStatus(store.getState())).toBe('crashed');
+    await store.getState().resetRobot();
+    expect(store.getState().latestWorld()).toBeNull();
+    expect(store.getState().round).toBeNull();
+    expect(labStatus(store.getState())).toBe('idle');
+    // A fast check is never shown while it runs: it only leaves its last round.
+    store.getState().hold({ ...ended, status: 'error', end: undefined, error: { message: 'x', code: 'out-of-domain' } }, { index: 0, count: 1, score: noPoints });
+    expect(labStatus(store.getState())).toBe('error');
+    await store.getState().run(project);
+    expect(store.getState().round).toBeNull();
+    expect(store.getState().held).toBeNull();
+  });
+
+  it('says time up for a round a check left at its time limit, and stopped for a replay stopped half-way', async () => {
+    const { store, world } = setup();
+    store.getState().hold({ ...idleRun, status: 'finished', world: world(15), end: { reason: 'time-limit', atS: 15 } }, { index: 0, count: 3, score: noPoints });
+    expect(labStatus(store.getState())).toBe('timeUp');
+    await store.getState().replay(project, { index: 1, count: 3, score: noPoints });
+    store.getState().stop();
+    expect(labStatus(store.getState())).toBe('stopped');
+    expect(store.getState().round).toEqual({ index: 1, count: 3, score: noPoints });
+  });
+
+  it('replays a round of a check: the session starts that variant as a check’s run, at 1×, and the round stays shown', async () => {
+    const { store, session, frames, advances } = setup();
+    store.getState().setSpeed(4);
+    await store.getState().replay(project, { index: 1, count: 3, score: noPoints });
+    expect(session.start).toHaveBeenCalledWith(project, 1, { check: true });
+    expect(store.getState().speed).toBe(1);
+    expect(store.getState().round).toEqual({ index: 1, count: 3, score: noPoints });
+    frames.frame(0);
+    frames.frame(16);
+    expect(advances).toEqual([
+      [0, 1],
+      [16, 1],
+    ]);
+    // Reset during the replay starts the same round again (the session's resetRobot keeps the variant); a Run is the learner's own again.
+    await store.getState().resetRobot();
+    expect(store.getState().round).toEqual({ index: 1, count: 3, score: noPoints });
+    await store.getState().run(project);
+    expect(session.start).toHaveBeenLastCalledWith(project);
+    expect(store.getState().round).toBeNull();
+    // Nothing replays while a check holds the lab.
+    store.getState().setLocked(true);
+    await store.getState().replay(project, { index: 0, count: 3, score: noPoints });
+    expect(session.start).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('a replay on the real session (N18 R6.3)', () => {
+  // Determinism (robot plan §5): the same project, scenario, seed and engine give the same run, so a replay is a run of the round again,
+  // not a recording; it must end in the very world the check ended that round in.
+  it('replays each round of a check at 1× to the world the check ended it in: the same final hash', async () => {
+    const stopAtWall = scenarioCatalog.get('rb-stop-at-wall')!;
+    const exploit = robotSolutions['rb-stop-at-wall'].exploits!.find((candidate) => candidate.name === 'crash-and-back-off')!;
+    const crasher: ProjectDocument = { ...robotStarterDocument('rb-stop-at-wall'), program: { blocks: exploit.program } };
+    const registry = createDeviceRegistry(localDeviceDefinitions);
+    const ended: CheckProgress[] = [];
+    const result = await checkRobot(crasher, stopAtWall, { mode: 'headless', kit, board: unoR3Board, registry, onProgress: (progress) => progress.kind === 'variant-ended' && ended.push(progress) })
+      .result;
+    expect(result?.passed).toBe(false);
+    expect(ended).toHaveLength(3);
+    const session = createRobotRunSession({ scenario: stopAtWall, kit, board: unoR3Board, registry, scorer: scenarioScorer });
+    const frames = fakeFrames();
+    const store = createRobotRunStore(session, { requestFrame: frames.requestFrame, cancelFrame: frames.cancelFrame });
+    const disconnect = store.getState().connect();
+    for (const progress of ended) {
+      if (progress.kind !== 'variant-ended') continue;
+      await store.getState().replay(crasher, { index: progress.index, count: 3, score: null });
+      let now = 0;
+      while (!isRunOver(session.getSnapshot())) {
+        frames.frame((now += 1000 / 60));
+        await flush();
+      }
+      const replayed = store.getState().latestWorld()!;
+      expect(replayed.t).toBe(progress.snapshot.world!.t);
+      expect(hashSnapshot(replayed)).toBe(hashSnapshot(progress.snapshot.world!));
+      expect(session.getSnapshot().end).toEqual(progress.end ?? undefined);
+    }
+    disconnect();
+  }, 60_000);
 });
