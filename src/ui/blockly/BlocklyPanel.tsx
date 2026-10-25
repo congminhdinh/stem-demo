@@ -63,8 +63,47 @@ type BlocklyPanelProps = {
    * the document.
    */
   blockWarnings?: Readonly<Record<string, string>>;
+  /**
+   * N18 R4.2: the program shown when the document has none (`isEmptyProgram`): the robot scenario's starter. It is not written to the
+   * document while it is unchanged, so opening a lab is no edit for the host; the learner's first change writes it with the change, and
+   * so does `saveNow` (Run compiles what the learner sees). Must be stable, like `toolbox`.
+   */
+  emptyProgram?: unknown;
+  /** N18 R4.2: the workspace cannot be edited (a robot check runs). Blocks can still be looked at and scrolled. */
+  readOnly?: boolean;
   ref?: Ref<BlocklyPanelHandle>;
 };
+
+/**
+ * Whether a stored program has nothing in it: what Blockly saves for an empty workspace (`{}`, or nothing at all), or a workspace with
+ * no block and no variable.
+ */
+export function isEmptyProgram(blocks: unknown): boolean {
+  if (typeof blocks !== 'object' || blocks === null) {
+    return true;
+  }
+  const { blocks: top, variables, ...rest } = blocks as { blocks?: { blocks?: unknown }; variables?: unknown };
+  const none = (list: unknown) => list === undefined || (Array.isArray(list) && list.length === 0);
+  return Object.keys(rest).length === 0 && none(top?.blocks) && none(variables);
+}
+
+/**
+ * The block that shows `blockId` on screen: the block itself, or, when it is hidden inside collapsed blocks, the outermost of them
+ * (N18 R4.2). Only blocks that hold it in an input count: a collapsed block before it in a stack does not hide it.
+ */
+function visibleBlockId(workspace: Blockly.WorkspaceSvg, blockId: string | null): string | null {
+  const block = blockId === null ? null : workspace.getBlockById(blockId);
+  if (block === null) {
+    return blockId;
+  }
+  let shown = block;
+  for (let around = block.getSurroundParent(); around !== null; around = around.getSurroundParent()) {
+    if (around.isCollapsed()) {
+      shown = around;
+    }
+  }
+  return shown.id;
+}
 
 /** Shows `blockId` as the highlighted block (or none). Never throws: the block may be gone (Blockly then shows none). */
 function showHighlight(workspace: Blockly.WorkspaceSvg | null, blockId: string | null) {
@@ -72,7 +111,7 @@ function showHighlight(workspace: Blockly.WorkspaceSvg | null, blockId: string |
     return;
   }
   try {
-    workspace.highlightBlock(blockId);
+    workspace.highlightBlock(visibleBlockId(workspace, blockId));
   } catch (error) {
     console.warn('The running block could not be highlighted.', error);
   }
@@ -105,11 +144,23 @@ function syncWarnings(workspace: Blockly.WorkspaceSvg | null, applied: Map<strin
   }
 }
 
-export function BlocklyPanel({ projectStore, packs, toolbox, fitOnLoad = false, onLoadFailed, highlightBlockId = null, blockWarnings, ref }: BlocklyPanelProps) {
+export function BlocklyPanel({
+  projectStore,
+  packs,
+  toolbox,
+  fitOnLoad = false,
+  onLoadFailed,
+  highlightBlockId = null,
+  blockWarnings,
+  emptyProgram,
+  readOnly = false,
+  ref,
+}: BlocklyPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const saveNowRef = useRef<() => void>(() => {});
   const loadRevision = useStore(projectStore, (state) => state.loadRevision);
   const loadFailed = useEffectEvent(() => onLoadFailed?.());
+  const isReadOnly = useEffectEvent(() => readOnly);
   // N18 R2.4: the workspace of the current load (null between loads), what it shows of the run, and what the caller last asked for.
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
   const shownHighlightRef = useRef<string | null>(null);
@@ -142,13 +193,20 @@ export function BlocklyPanel({ projectStore, packs, toolbox, fitOnLoad = false, 
     // that still fails (a check only the drawn editor makes, or one opened another way) must not take the whole page down. Blockly
     // stops in the middle of such a load, so the workspace is emptied and nothing of it is ever saved.
     let loaded = true;
+    // N18 R4.2: what the starter (emptyProgram) saves as, while it is what the workspace shows unchanged; null otherwise.
+    let pristine: string | null = null;
     try {
-      const blocks = projectStore.getState().document.program.blocks;
+      const stored = projectStore.getState().document.program.blocks;
+      const showsStarter = emptyProgram !== undefined && isEmptyProgram(stored);
+      const blocks = showsStarter ? emptyProgram : stored;
       if (typeof blocks === 'object' && blocks !== null) {
         Blockly.serialization.workspaces.load(blocks, workspace);
       }
       if (fitOnLoad) {
         fitBlocksIntoView(workspace);
+      }
+      if (showsStarter) {
+        pristine = JSON.stringify(Blockly.serialization.workspaces.save(workspace));
       }
     } catch (error) {
       loaded = false;
@@ -162,7 +220,8 @@ export function BlocklyPanel({ projectStore, packs, toolbox, fitOnLoad = false, 
     }
 
     let pendingSave: ReturnType<typeof setTimeout> | undefined;
-    const save = () => {
+    /** `explicit`: saveNow (Run), which writes an unchanged starter too; the delayed saves of edits leave it out of the document. */
+    const save = (explicit = false) => {
       clearTimeout(pendingSave);
       pendingSave = undefined;
       const state = projectStore.getState();
@@ -174,7 +233,11 @@ export function BlocklyPanel({ projectStore, packs, toolbox, fitOnLoad = false, 
       }
       const { document, setProgramBlocks } = state;
       const serialized = Blockly.serialization.workspaces.save(workspace);
-      if (JSON.stringify(serialized) !== JSON.stringify(document.program.blocks)) {
+      const text = JSON.stringify(serialized);
+      if (!explicit && pristine !== null && text === pristine && isEmptyProgram(document.program.blocks)) {
+        return;
+      }
+      if (text !== JSON.stringify(document.program.blocks)) {
         setProgramBlocks(serialized);
       }
     };
@@ -188,10 +251,13 @@ export function BlocklyPanel({ projectStore, packs, toolbox, fitOnLoad = false, 
     });
 
     // Reads the workspace itself, so edits whose events are still queued count too.
-    saveNowRef.current = save;
+    saveNowRef.current = () => save(true);
 
     const resizeObserver = new ResizeObserver(() => Blockly.svgResize(workspace));
     resizeObserver.observe(container);
+
+    // N18 R4.2: a workspace loaded while a check runs is locked too.
+    workspace.setIsReadOnly(isReadOnly());
 
     // N18 R2.4: a new workspace has none of the run's marks: put back what the run showed and what the caller asked for.
     workspaceRef.current = workspace;
@@ -212,7 +278,12 @@ export function BlocklyPanel({ projectStore, packs, toolbox, fitOnLoad = false, 
       }
       workspace.dispose();
     };
-  }, [loadRevision, projectStore, packs, toolbox, fitOnLoad]);
+  }, [loadRevision, projectStore, packs, toolbox, fitOnLoad, emptyProgram]);
+
+  // N18 R4.2: a check locks the workspace and its end unlocks it.
+  useEffect(() => {
+    workspaceRef.current?.setIsReadOnly(readOnly);
+  }, [readOnly]);
 
   // N18 R2.4: the block the program is in. Throttled; the workspace is read when a value is shown, so a project loaded meanwhile gets it.
   useEffect(() => {

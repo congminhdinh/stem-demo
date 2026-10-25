@@ -20,10 +20,16 @@ import type { Locale } from './messages';
 
 /**
  * Corrections to Blockly's own Vietnamese (`blockly/msg/vi`), set over it (src/ui/blockly/locale.ts). Fix 6 (N17 c3): its print
- * block reads "in lên màng hình"; the word is "màn hình".
+ * block reads "in lên màng hình"; the word is "màn hình". N18 R4.2: a collapsed block that holds a warned block says so in Blockly's
+ * words ("Các khối bị sập": crashed), and its menu folds "Mảnh" (pieces); the lab says "thu gọn" and "khối".
  */
 export const viBlocklyCorrections: Readonly<Record<string, string>> = {
   TEXT_PRINT_TITLE: 'in lên màn hình %1',
+  COLLAPSED_WARNINGS_WARNING: 'Trong khối đang thu gọn có khối bị cảnh báo.',
+  COLLAPSE_BLOCK: 'Thu gọn khối',
+  COLLAPSE_ALL: 'Thu gọn mọi khối',
+  EXPAND_BLOCK: 'Mở rộng khối',
+  EXPAND_ALL: 'Mở rộng mọi khối',
 };
 
 /** `options`: for a dropdown field (by name), the label shown for each option value. */
