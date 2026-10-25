@@ -121,6 +121,20 @@ export const en = {
   'robot.scenario.rb-servo-gate': 'Open the gate with a servo',
   'robot.scenario.rb-mini-mission': 'Mini mission',
   'robot.scenario.rb-sandbox': 'Free sandbox',
+  // N18 R6.1: why a robot goal is not met (the reasonKey of a goal result, src/core/scenario/goals/reasons.ts).
+  'robot.goal.reason.out-of-arena': 'The robot left the arena.',
+  'robot.goal.reason.contact': 'The robot touched something it had to avoid.',
+  'robot.goal.reason.zone-not-reached': 'The robot did not get to the zone.',
+  'robot.goal.reason.checkpoint-out-of-order': 'A checkpoint was entered before the one that comes first.',
+  'robot.goal.reason.checkpoint-missed': 'The robot did not go through every checkpoint.',
+  'robot.goal.reason.never-moved': 'The robot did not move.',
+  'robot.goal.reason.off-line': 'The robot was off the line too often.',
+  'robot.goal.reason.object-not-in-zone': 'The object is not in the zone.',
+  'robot.goal.reason.not-stopped-in-zone': 'The robot did not stand still in the zone for long enough.',
+  'robot.goal.reason.servo-out-of-range': 'The servo is not at the angle that is asked for.',
+  'robot.goal.reason.servo-not-set-in-zone': 'The servo was not held at the angle that is asked for while the robot was in the zone.',
+  'robot.goal.reason.not-finished-in-time': 'Not every goal was met in time.',
+  'robot.goal.reason.block-not-used': 'The program does not use the block that is asked for.',
 } as const satisfies Record<string, string>;
 
 export type MessageKey = keyof typeof en;
@@ -240,6 +254,20 @@ export const vi: Readonly<Record<MessageKey, string>> = {
   'robot.scenario.rb-servo-gate': 'Mở cổng bằng servo',
   'robot.scenario.rb-mini-mission': 'Nhiệm vụ tổng hợp',
   'robot.scenario.rb-sandbox': 'Sân tập tự do',
+  // N18 R6.1: lý do một mục tiêu của robot chưa đạt (reasonKey trong kết quả mục tiêu, src/core/scenario/goals/reasons.ts).
+  'robot.goal.reason.out-of-arena': 'Robot đã rời khỏi sa bàn.',
+  'robot.goal.reason.contact': 'Robot đã chạm vào vật cần tránh.',
+  'robot.goal.reason.zone-not-reached': 'Robot chưa tới vùng đích.',
+  'robot.goal.reason.checkpoint-out-of-order': 'Robot vào một điểm kiểm tra trước điểm đứng trước nó.',
+  'robot.goal.reason.checkpoint-missed': 'Robot chưa đi qua đủ các điểm kiểm tra.',
+  'robot.goal.reason.never-moved': 'Robot không di chuyển.',
+  'robot.goal.reason.off-line': 'Robot rời khỏi vạch kẻ quá nhiều.',
+  'robot.goal.reason.object-not-in-zone': 'Vật chưa nằm trong vùng yêu cầu.',
+  'robot.goal.reason.not-stopped-in-zone': 'Robot chưa đứng yên đủ lâu trong vùng.',
+  'robot.goal.reason.servo-out-of-range': 'Servo chưa ở đúng góc yêu cầu.',
+  'robot.goal.reason.servo-not-set-in-zone': 'Servo chưa được giữ ở đúng góc yêu cầu khi robot ở trong vùng.',
+  'robot.goal.reason.not-finished-in-time': 'Chưa đạt đủ mọi mục tiêu trong thời gian cho phép.',
+  'robot.goal.reason.block-not-used': 'Chương trình chưa dùng khối lệnh được yêu cầu.',
 };
 
 const dictionaries: Readonly<Record<Locale, Readonly<Record<MessageKey, string>>>> = { en, vi };
