@@ -127,6 +127,12 @@ export const arenaSchema = z
     }
   });
 
+/**
+ * What a collider of a built arena is (build-arena.ts gives each its kind, and the kind is its first tag). Here, with the data, so
+ * that what reads a snapshot's contacts needs nothing of the engine.
+ */
+export type ArenaBodyKind = 'ground' | 'wall' | 'box' | 'cylinder' | 'object';
+
 /** An arena as authored (defaults may be left out). */
 export type ArenaInput = z.input<typeof arenaSchema>;
 /** A validated arena, defaults filled in. */

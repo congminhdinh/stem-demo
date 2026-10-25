@@ -1,7 +1,7 @@
 import { atan2 } from '../dmath';
 import { getRapier, refreshQueries, type Collider, type ColliderDesc, type PhysicsWorld, type RigidBody } from '../rapier';
 import { arenaToWorld, cmToM, degToRad, gToKg, yawToQuaternion, type Quat, type Vec3 } from '../units';
-import type { Arena, ArenaBox, ArenaCylinder, ArenaObject, ArenaWall } from './arena-schema';
+import type { Arena, ArenaBodyKind, ArenaBox, ArenaCylinder, ArenaObject, ArenaWall } from './arena-schema';
 
 // Builds the static part of a robot world from a validated arena (N18 R3.2): the ground, the walls, the
 // boxes and cylinders, and the pushable objects, as Rapier bodies in SI units (units.ts for the frame).
@@ -17,7 +17,7 @@ const GROUND_FRICTION = 1;
 const WALL_FRICTION = 0.3;
 const BODY_FRICTION = 0.4;
 
-export type ArenaBodyKind = 'ground' | 'wall' | 'box' | 'cylinder' | 'object';
+export type { ArenaBodyKind } from './arena-schema';
 
 /** What a collider of the arena is: what the ultrasonic ray (R3.4) and the contact goals (R6.1) ask. */
 export type ArenaColliderInfo = {

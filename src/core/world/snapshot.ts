@@ -1,6 +1,6 @@
 import type { PinState } from '../hardware/virtual-uno';
 import type { GoalResult } from '../scenario/goals/goal';
-import type { ArenaBodyKind } from './arena/build-arena';
+import type { ArenaBodyKind } from './arena/arena-schema';
 
 // What the robot world looks like on one tick (N18 R3.5, robot plan §4.5): the RobotSnapshot the 3D view, the HUD, the 2D top
 // view and a replay read, and the hash that tells whether two runs are the same (plan §5: the same project, scenario@version,
@@ -78,7 +78,11 @@ export type RobotSnapshot = {
   readonly robot: Pose & {
     /** How far each wheel has turned, rad: [left, right], positive rolling forward. */
     readonly wheelRad: readonly [number, number];
-    /** Each servo's arm angle, degrees, by role. */
+    /**
+     * Each servo's arm angle, degrees, by role: the physical angle of the arm on the chassis, for the view. It can be a hair off
+     * where the servo is told and off its range (−1.2e-6° folded at 0°, up to 0.06° past an end while driven there); the goal frame
+     * snaps and clamps it (goal-frame.ts).
+     */
     readonly servoDeg: Readonly<Record<string, number>>;
   };
   readonly objects: readonly SnapshotObject[];
