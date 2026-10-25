@@ -1,6 +1,7 @@
 // L2 compile check of the generated Arduino sketches (N18 C1, robot plan C1; docs/uno-compatibility-contract.md §1, §8, §12). Every
-// golden sketch (`__golden__/*.ino` under src/ and tests/; the scenario solutions' sketches join them as goldens) is compiled for
-// arduino:avr:uno with the toolchain the contract pins, arduino-cli 1.5.1 and arduino:avr@1.8.8:
+// golden sketch (`__golden__/*.ino` under src/ and tests/ by default) is compiled for arduino:avr:uno with the toolchain the contract
+// pins, arduino-cli 1.5.1 and arduino:avr@1.8.8. `pnpm check:arduino` names src and tests, so it compiles every .ino in them: C1's
+// goldens and the sketches of the scenarios' reference solutions (tests/robot-solutions/, N18 R5.2):
 //
 //   - the libraries a sketch names in its header (`// … Libraries: Servo@1.3.0 (LGPL-2.1), …`, written from the drivers'
 //     `cpp.libraries`) are installed at that exact version when they are missing (`arduino-cli lib install Servo@1.3.0`); a GPL
