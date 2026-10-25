@@ -69,9 +69,10 @@ export type RuntimeServices = {
   /** N17 B5: tells the run something it should know and goes on (a value clamped; N18 R2.3: a division by zero, with its block). Inert once the run is over. */
   warn(warning: RunWarning): void;
   /**
-   * N18 R2.4: told the block of every statement as it starts (the interpreter's `blockId`), and, while the program waits, the block it
-   * waits in: a `wait` is its own block, and the pause at the end of a `forever` iteration (Yolo:Bit's 10 ms) is the `forever` hat. Never
-   * `undefined`, never an expression block. The robot lab's highlight reads it (RobotRunSession's `activeBlockId`).
+   * N18 R2.4: told the block of every statement as it starts (the interpreter's `blockId`), and, for a program whose IR names its
+   * `forever` hat (the uno family), the hat at the end of every forever iteration. While the program waits it is the block the last
+   * report named: a `wait` is its own block. Never `undefined`, never an expression block. The robot lab's highlight reads it
+   * (RobotRunSession's `activeBlockId`).
    *
    * Optional, and absent means nothing is told: the interpreter calls `services.trace?.(blockId)`, so a run without one is exactly what
    * it was, and so are the services RunSession builds (their shape is unchanged: `createRuntimeServices` adds the key only when it is

@@ -37,14 +37,14 @@ describe('the IR of a board family', () => {
     expect(compileYbcProgram(prog([]), ybcExposed, undefined, undefined, 'ybc')).toEqual(compileYbcProgram(prog([]), ybcExposed));
   });
 
-  it('compiles the same language to the same statements for both families: only the model and the pause differ', () => {
+  it('compiles the same language to the same statements for both families: only the model, the pause and (N18 R2.4) the name of the forever hat differ', () => {
     const blocks = prog([countUp('i', num(1), num(3), 1, [print(getVar('i'))]), repeat(num(2), [setVar('x', add(getVar('x'), num(1)))])], [wait(num(5))]);
     const uno = compileUno(blocks);
     const ybc = compileYbcProgram(blocks, ybcExposed);
     expect(uno.ok && ybc.ok).toBe(true);
     if (uno.ok && ybc.ok) {
-      const { numeric, loopPauseUs, ...rest } = uno.ir;
-      expect([numeric, loopPauseUs]).toEqual(['cxx-int32', 0]);
+      const { numeric, loopPauseUs, foreverBlockId, ...rest } = uno.ir;
+      expect([numeric, loopPauseUs, foreverBlockId]).toEqual(['cxx-int32', 0, 'forever']);
       expect(rest).toEqual(ybc.ir);
     }
   });

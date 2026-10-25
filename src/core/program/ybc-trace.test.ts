@@ -59,7 +59,7 @@ describe('trace reports blockId of each executed statement in order', () => {
     ]);
   });
 
-  it('a uno program compiled for its kit (compileUnoProject): on start, then the forever body once per loop() iteration', async () => {
+  it('a uno program compiled for its kit (compileUnoProject): on start, then the forever body and the forever hat once per loop() iteration', async () => {
     const setX = setVar('x', num(0));
     const pause = wait(num(20));
     const bump = setVar('x', add(getVar('x'), num(1)));
@@ -75,13 +75,16 @@ describe('trace reports blockId of each executed statement in order', () => {
     }
     run.stop();
     await run.done;
-    // Arduino's loop() has no pause of its own, so no hat is reported between two iterations.
-    expect(traced.slice(0, 8)).toEqual([idOf(setX), idOf(pause), idOf(bump), idOf(show), idOf(bump), idOf(show), idOf(bump), idOf(show)]);
+    // The uno IR names its forever hat, and the end of every loop() iteration is the hat's.
+    const hat = compiled.ir.foreverBlockId;
+    expect(hat).toBe('forever');
+    expect(traced.slice(0, 8)).toEqual([idOf(setX), idOf(pause), idOf(bump), idOf(show), hat, idOf(bump), idOf(show), hat]);
     expect(traced.every((blockId) => typeof blockId === 'string' && blockId !== '')).toBe(true);
-    // Every iteration of loop() is the same two statements, to the end of the run.
+    // Every iteration of loop() is the same two statements and the hat, to the end of the run.
     const iterations = traced.slice(2);
     expect(iterations.length).toBeGreaterThan(8);
-    expect(iterations.filter((blockId, index) => blockId !== (index % 2 === 0 ? idOf(bump) : idOf(show)))).toEqual([]);
+    const pattern = [idOf(bump), idOf(show), hat];
+    expect(iterations.filter((blockId, index) => blockId !== pattern[index % 3])).toEqual([]);
   });
 
   it('names the block that faulted as the last one traced, and the outcome names it too', async () => {
@@ -108,36 +111,65 @@ describe('wait reports the waiting block, forever pause reports the hat', () => 
     return { traced, sleeps, controller, sleep, trace: (blockId: string) => void traced.push(blockId) };
   }
 
-  it('a ybc wait is the block that waits; the pause at the end of each forever iteration is the forever hat', async () => {
+  /** Services that stop the run at its `stopAt`th sleep, with the watching sleep and trace. */
+  function stoppingAt(stopAt: number, watch: ReturnType<typeof watching>) {
+    let sleepsSeen = 0;
+    return createRuntimeServices({
+      signal: watch.controller.signal,
+      console: createRunConsole(),
+      sleep: (ms, signal) => {
+        if (++sleepsSeen === stopAt) {
+          watch.controller.abort();
+        }
+        return watch.sleep(ms, signal);
+      },
+      trace: watch.trace,
+    });
+  }
+
+  it('a ybc wait is the block that waits; its forever pause has no hat name, so the last statement of the body stays the reported one', async () => {
     const pause = wait(num(250));
     const body = print(text('tick'));
     const ir = ybcIr(program([pause], [body]));
-    expect(ir.foreverBlockId).toBe('forever');
+    expect(ir.foreverBlockId).toBeUndefined();
     const watch = watching();
-    let iterations = 0;
-    const runConsole = createRunConsole();
-    const services = createRuntimeServices({
-      signal: watch.controller.signal,
-      console: { write: (line) => { runConsole.write(line); if (++iterations === 2) { watch.controller.abort(); } } },
-      sleep: watch.sleep,
-      trace: watch.trace,
-    });
-    const outcome = await runYbcProgram(ir, {}, services).done;
+    const outcome = await runYbcProgram(ir, {}, stoppingAt(3, watch)).done;
     expect(outcome).toEqual({ status: 'stopped' });
     expect(watch.sleeps).toEqual([
       { ms: 250, active: idOf(pause) },
-      { ms: 10, active: 'forever' },
+      { ms: 10, active: idOf(body) },
+      { ms: 10, active: idOf(body) },
     ]);
-    expect(watch.traced).toEqual([idOf(pause), idOf(body), 'forever', idOf(body)]);
+    expect(watch.traced).toEqual([idOf(pause), idOf(body), idOf(body)]);
   });
 
-  it('a uno wait lights the wait block for as long as the robot waits (the virtual clock), and loop() has no pause to report', async () => {
+  it('the hat is the block of the forever pause when the IR names it: a loop that has a pause tells the hat before it sleeps', async () => {
+    const body = print(text('tick'));
+    const compiled = compileRobot([], [body]);
+    if (!compiled.ok) {
+      throw new Error(`Does not compile: ${JSON.stringify(compiled.diagnostics)}`);
+    }
+    // A uno IR with a pause of its own, as an IR of another family could have.
+    const withPause: YbcProgramIR = { ...compiled.ir, loopPauseUs: 10_000 };
+    expect(withPause.foreverBlockId).toBe('forever');
+    const watch = watching();
+    const outcome = await runYbcProgram(withPause, {}, stoppingAt(2, watch)).done;
+    expect(outcome).toEqual({ status: 'stopped' });
+    expect(watch.sleeps).toEqual([
+      { ms: 10, active: 'forever' },
+      { ms: 10, active: 'forever' },
+    ]);
+    expect(watch.traced).toEqual([idOf(body), 'forever', idOf(body), 'forever']);
+  });
+
+  it('a uno wait lights the wait block for as long as the robot waits (the virtual clock), and the hat has the time between two loop() iterations', async () => {
     const pause = wait(num(500));
     const after = print(text('after'));
     const compiled = compileRobot([pause, after]);
     if (!compiled.ok) {
       throw new Error(`Does not compile: ${JSON.stringify(compiled.diagnostics)}`);
     }
+    // No forever block: no hat to name.
     expect(compiled.ir.foreverBlockId).toBeUndefined();
     const traced: string[] = [];
     const run = startVirtualRun(compiled.ir, { scheduler: { delayOverheadUs: compiled.board.costsUs.delayOverhead }, trace: (blockId) => void traced.push(blockId) });
@@ -153,30 +185,34 @@ describe('wait reports the waiting block, forever pause reports the hat', () => 
     expect(traced).toEqual([idOf(pause), idOf(after)]);
   });
 
-  it('an IR without a hat id (not the compiler\'s) pauses without a report: the last statement stays the active one, nothing is invented', async () => {
+  it('a wait in a uno loop(): the wait block is the active one during each wait, the hat between two waits', async () => {
+    const pause = wait(num(100));
+    const compiled = compileRobot([], [pause]);
+    if (!compiled.ok) {
+      throw new Error(`Does not compile: ${JSON.stringify(compiled.diagnostics)}`);
+    }
+    const traced: string[] = [];
+    const run = startVirtualRun(compiled.ir, { scheduler: { delayOverheadUs: compiled.board.costsUs.delayOverhead }, trace: (blockId) => void traced.push(blockId) });
+    await run.tick(0);
+    await run.tick(6);
+    expect(traced).toEqual([idOf(pause)]);
+    // The wait ends at about 100 ms (tick 12): the loop starts over through the hat.
+    for (let tick = 7; tick <= 30; tick++) {
+      await run.tick(tick);
+    }
+    run.stop();
+    await run.done;
+    expect(traced.slice(0, 4)).toEqual([idOf(pause), 'forever', idOf(pause), 'forever']);
+  });
+
+  it('an IR without a hat name (a ybc IR, or a hand-made one) pauses without a report: nothing is invented, never undefined', async () => {
     const body = print(text('tick'));
-    const withoutHat: YbcProgramIR = { ...ybcIr(program([], [body])) };
-    delete withoutHat.foreverBlockId;
+    const withoutHat = ybcIr(program([], [body]));
     const watch = watching();
-    let sleepsSeen = 0;
-    const services = createRuntimeServices({
-      signal: watch.controller.signal,
-      console: createRunConsole(),
-      sleep: (ms, signal) => {
-        if (++sleepsSeen === 2) {
-          watch.controller.abort();
-        }
-        return watch.sleep(ms, signal);
-      },
-      trace: watch.trace,
-    });
-    const outcome = await runYbcProgram(withoutHat, {}, services).done;
+    const outcome = await runYbcProgram(withoutHat, {}, stoppingAt(2, watch)).done;
     expect(outcome).toEqual({ status: 'stopped' });
-    expect(watch.sleeps).toEqual([
-      { ms: 10, active: idOf(body) },
-      { ms: 10, active: idOf(body) },
-    ]);
     expect(watch.traced).toEqual([idOf(body), idOf(body)]);
+    expect(watch.traced.every((blockId) => typeof blockId === 'string')).toBe(true);
   });
 });
 
@@ -246,13 +282,38 @@ describe('ybc run without trace behaves exactly as before', () => {
     expect(seen).toEqual(['b-block']);
   });
 
-  it('the hat id is a name for tracing, not a key of the IR: the keys, a copy and a comparison of the IR are what they were', () => {
-    const ir = ybcIr(program([print(text('a'))], [print(text('b'))]));
-    expect(ir.foreverBlockId).toBe('forever');
-    expect(Object.keys(ir)).toEqual(['onStart', 'forever', 'variables']);
-    expect(JSON.parse(JSON.stringify(ir))).toEqual({ ...ir });
-    expect(ir).toStrictEqual({ ...ir });
-    // A program without a forever block has no hat to name.
-    expect(ybcIr(program([print(text('a'))])).foreverBlockId).toBeUndefined();
+  it('a ybc IR keeps the exact shape it has had since YB-2: the hat id is written for the uno family only', () => {
+    const ybc = ybcIr(program([print(text('a'))], [print(text('b'))]));
+    expect(Object.keys(ybc)).toEqual(['onStart', 'forever', 'variables']);
+    expect('foreverBlockId' in ybc).toBe(false);
+    const uno = compileRobot([print(text('a'))], [print(text('b'))]);
+    const unoWithoutForever = compileRobot([print(text('a'))]);
+    if (!uno.ok || !unoWithoutForever.ok) {
+      throw new Error('Does not compile');
+    }
+    expect(uno.ir.foreverBlockId).toBe('forever');
+    expect(Object.keys(uno.ir)).toContain('foreverBlockId');
+    // No forever block, no hat to name.
+    expect('foreverBlockId' in unoWithoutForever.ir).toBe(false);
+  });
+
+  it('the hat id of a uno IR is an ordinary field: it survives structuredClone, a spread and JSON, and a cloned IR traces the hat', async () => {
+    const compiled = compileRobot([], [wait(num(10))]);
+    if (!compiled.ok) {
+      throw new Error(`Does not compile: ${JSON.stringify(compiled.diagnostics)}`);
+    }
+    const cloned = structuredClone(compiled.ir);
+    expect(cloned.foreverBlockId).toBe('forever');
+    expect(cloned).toEqual(compiled.ir);
+    expect({ ...compiled.ir }.foreverBlockId).toBe('forever');
+    expect((JSON.parse(JSON.stringify(compiled.ir)) as YbcProgramIR).foreverBlockId).toBe('forever');
+    const traced: string[] = [];
+    const run = startVirtualRun(cloned, { scheduler: { delayOverheadUs: compiled.board.costsUs.delayOverhead }, trace: (blockId) => void traced.push(blockId) });
+    for (let tick = 0; tick < 6; tick++) {
+      await run.tick(tick);
+    }
+    run.stop();
+    await run.done;
+    expect(traced).toContain('forever');
   });
 });

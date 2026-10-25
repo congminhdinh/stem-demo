@@ -6,6 +6,7 @@ import type { BlockPackCatalog, Toolbox } from '../../core/program/block-packs';
 import type { ProjectStore } from '../state/project-store';
 import { registerBlocks, ybcVariablesFlyout } from './editor-blocks';
 import { fitBlocksIntoView } from './fit';
+import { createLatestThrottle, type LatestThrottle } from './latest-throttle';
 import { blocklyMediaUrl } from './media';
 import { stemTheme } from './theme';
 
@@ -16,9 +17,10 @@ import { stemTheme } from './theme';
 const saveDelayMs = 250;
 
 /**
- * N18 R2.4: how long the highlighted block must stay the same before the panel shows it. The robot reports its active block on every
- * tick, a loop of quick statements changes it faster than anyone can read, and a debounce lights the block the program dwells in (a
- * `wait`, a pause) instead of flickering through every statement.
+ * N18 R2.4: the highlight changes at most once in this long. The robot reports its active block on every tick and a loop of quick
+ * statements changes it faster than anyone can read, so the panel throttles it (latest-throttle.ts): the first change is shown at
+ * once, the ones inside the delay are collapsed into the latest, shown when the delay is over. A debounce would never show anything
+ * while a tight loop runs.
  */
 export const highlightDelayMs = 100;
 
@@ -49,7 +51,8 @@ type BlocklyPanelProps = {
   onLoadFailed?(): void;
   /**
    * N18 R2.4: the block the running program is in (`RobotSnapshot.activeBlockId`), shown with Blockly's own block highlight; `null` or
-   * absent shows none. A change is shown after `highlightDelayMs` of staying the same. An id the workspace does not have (a block
+   * absent shows none. The highlight changes at most once every `highlightDelayMs` and always ends on the latest id (a throttle, not
+   * a debounce: a program that never stays in one block still shows where it is). An id the workspace does not have (a block
    * deleted during the run, or one of another program) shows nothing and is not an error. Not part of the document.
    */
   highlightBlockId?: string | null;
@@ -110,6 +113,7 @@ export function BlocklyPanel({ projectStore, packs, toolbox, fitOnLoad = false, 
   // N18 R2.4: the workspace of the current load (null between loads), what it shows of the run, and what the caller last asked for.
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
   const shownHighlightRef = useRef<string | null>(null);
+  const highlightThrottleRef = useRef<LatestThrottle<string | null> | null>(null);
   const appliedWarningsRef = useRef(new Map<string, string>());
   const wantedWarningsRef = useRef<Readonly<Record<string, string>>>({});
   useImperativeHandle(ref, () => ({ saveNow: () => saveNowRef.current() }), []);
@@ -210,16 +214,24 @@ export function BlocklyPanel({ projectStore, packs, toolbox, fitOnLoad = false, 
     };
   }, [loadRevision, projectStore, packs, toolbox, fitOnLoad]);
 
-  // N18 R2.4: the block the program is in. Debounced; the workspace is read when the timer fires, so a project loaded meanwhile gets it.
+  // N18 R2.4: the block the program is in. Throttled; the workspace is read when a value is shown, so a project loaded meanwhile gets it.
   useEffect(() => {
-    if (highlightBlockId === shownHighlightRef.current) {
-      return;
-    }
-    const timer = setTimeout(() => {
-      shownHighlightRef.current = highlightBlockId;
-      showHighlight(workspaceRef.current, highlightBlockId);
-    }, highlightDelayMs);
-    return () => clearTimeout(timer);
+    const throttle = createLatestThrottle<string | null>(
+      (blockId) => {
+        shownHighlightRef.current = blockId;
+        showHighlight(workspaceRef.current, blockId);
+      },
+      highlightDelayMs,
+      shownHighlightRef.current,
+    );
+    highlightThrottleRef.current = throttle;
+    return () => {
+      throttle.dispose();
+      highlightThrottleRef.current = null;
+    };
+  }, []);
+  useEffect(() => {
+    highlightThrottleRef.current?.request(highlightBlockId);
   }, [highlightBlockId]);
 
   // N18 R2.4: the warnings on blocks. Compared with what is shown, so a caller that builds a new record every render costs nothing.

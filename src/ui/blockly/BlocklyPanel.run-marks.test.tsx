@@ -82,45 +82,55 @@ const warningOf = (id: string) => {
 };
 
 describe('BlocklyPanel highlightBlockId (N18 R2.4)', () => {
-  it('highlights the block after 100 ms, moves the highlight to the next block, and null clears it', async () => {
+  it('highlights the first block at once, collapses what changes inside 100 ms into the latest id, and null clears it', async () => {
     await render({ highlightBlockId: null });
     expect(lit()).toEqual([]);
 
+    // Leading edge: nothing was shown for a long time, so the change is shown now.
     await render({ highlightBlockId: firstId });
-    await wait(highlightDelayMs - 1);
-    expect(lit()).toEqual([]);
-    await wait(1);
     expect(lit()).toEqual([firstId]);
 
+    // Inside the delay the next change waits for the end of it (trailing edge).
     await render({ highlightBlockId: secondId });
-    await wait(highlightDelayMs);
+    await wait(highlightDelayMs - 1);
+    expect(lit()).toEqual([firstId]);
+    await wait(1);
     expect(lit()).toEqual([secondId]);
 
-    await render({ highlightBlockId: null });
+    // After a quiet the change is shown at once again, and null is a change like any other.
     await wait(highlightDelayMs);
+    await render({ highlightBlockId: null });
     expect(lit()).toEqual([]);
+    await render({ highlightBlockId: thirdId });
+    expect(lit()).toEqual([]);
+    await wait(highlightDelayMs);
+    expect(lit()).toEqual([thirdId]);
   });
 
-  it('is debounced: ids that change faster than 100 ms are not shown, only the one that stays', async () => {
+  it('is a throttle: a stream of ids every 10 ms updates the highlight about every 100 ms, always to the latest id, and shows the last id when the stream stops', async () => {
     await render({ highlightBlockId: null });
     const highlight = vi.spyOn(Blockly.WorkspaceSvg.prototype, 'highlightBlock');
-    await render({ highlightBlockId: firstId });
-    await wait(60);
-    await render({ highlightBlockId: secondId });
-    await wait(60);
-    // 120 ms after the first change, but the id changed again 60 ms ago: nothing has been shown yet.
-    expect(highlight).not.toHaveBeenCalled();
+    // 30 ids, one every 10 ms (0 to 290 ms). The id of the last step of each 100 ms is the one that differs: second, none, third.
+    const idAt = (step: number): string | null => (step % 10 === 9 ? [secondId, null, thirdId][Math.floor(step / 10)] ?? null : firstId);
+    const litAt: Record<number, (string | null)[]> = {};
+    for (let step = 0; step < 30; step++) {
+      await render({ highlightBlockId: idAt(step) });
+      if (step === 5 || step === 9 || step === 15 || step === 25) {
+        litAt[step] = lit();
+      }
+      if (step < 29) {
+        await wait(10);
+      }
+    }
+    // The tight stream never settled, yet the highlight moved: the first id at once, then the latest one at the end of each 100 ms.
+    expect(litAt).toEqual({ 5: [firstId], 9: [firstId], 15: [secondId], 25: [] });
+    expect(highlight.mock.calls).toEqual([[firstId], [secondId], [null]]);
+    // The stream stopped with the third block, asked for at 290 ms: it is shown when the delay ends at 300 ms, and nothing is shown after.
     expect(lit()).toEqual([]);
-    await render({ highlightBlockId: thirdId });
-    await wait(highlightDelayMs);
-    expect(highlight.mock.calls).toEqual([[thirdId]]);
+    await wait(10);
     expect(lit()).toEqual([thirdId]);
-    // Going back to what is already shown does nothing at all.
-    await render({ highlightBlockId: firstId });
-    await wait(50);
-    await render({ highlightBlockId: thirdId });
-    await wait(200);
-    expect(highlight).toHaveBeenCalledTimes(1);
+    await wait(1000);
+    expect(highlight.mock.calls).toEqual([[firstId], [secondId], [null], [thirdId]]);
     highlight.mockRestore();
   });
 

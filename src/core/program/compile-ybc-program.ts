@@ -81,7 +81,7 @@ import {
 } from './limits';
 import { unoCountUpType, unoIntDivideType } from '../constructs/uno.lang';
 import { createUnoModuleCompiler } from './compile-uno-modules';
-import { withForeverBlockId, type ArithOp, type ColourOperand, type CompareOp, type Expr, type NumericModel, type Type, type YbcProgramIR, type YbcStatement } from './ybc-ir';
+import type { ArithOp, ColourOperand, CompareOp, Expr, NumericModel, Type, YbcProgramIR, YbcStatement } from './ybc-ir';
 
 // The YBC compiler (YB plan §9.4): Blockly serialization JSON to `YbcProgramIR`,
 // with the static types the dialect is defined by (§6.4). Types are known at
@@ -1200,16 +1200,19 @@ export function compileYbcProgram(
   if (diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
     return fail();
   }
-  const ir: YbcProgramIR = {
-    onStart: onStart ?? [],
-    forever,
-    variables: [...variables].map(([id, name]) => ({ id, name, type: 'int' })),
-    // Contract UNO §4.1: Arduino's loop() has no hidden delay. A ybc IR leaves both out (python, 10 ms: ybc-ir.ts).
-    ...(numeric === 'cxx-int32' ? { numeric, loopPauseUs: 0 } : {}),
+  return {
+    ok: true,
+    ir: {
+      onStart: onStart ?? [],
+      forever,
+      variables: [...variables].map(([id, name]) => ({ id, name, type: 'int' })),
+      // Contract UNO §4.1: Arduino's loop() has no hidden delay. A ybc IR leaves both out (python, 10 ms: ybc-ir.ts).
+      // N18 R2.4: the uno family also names its forever hat, the block the trace reports at the end of every loop() iteration. A ybc
+      // IR keeps its shape (ybc-ir.ts).
+      ...(numeric === 'cxx-int32' ? { numeric, loopPauseUs: 0, ...(foreverBlockId === undefined ? {} : { foreverBlockId }) } : {}),
+    },
+    diagnostics,
   };
-  // N18 R2.4: the hat that owns the pause of every forever iteration; the trace reports it while the program waits there. Not a key of
-  // the IR (ybc-ir.ts): the shape of a ybc IR is frozen.
-  return { ok: true, ir: foreverBlockId === undefined ? ir : withForeverBlockId(ir, foreverBlockId), diagnostics };
 }
 
 const describe = (type: Type) => (type === 'int' ? 'a whole number' : type === 'bool' ? 'a true / false value' : 'a text');
