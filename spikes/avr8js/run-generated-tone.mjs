@@ -12,6 +12,7 @@
 //   playing pin) of 75 calls each. With that many call sites -flto keeps one buzzerTone and one tone(): the unfolded cost.
 // - `fold`: the same statement at 1000 Hz (and others) in programs of 1, 2, 3 and 5 call sites, constant and computed: with few
 //   call sites -flto inlines buzzerTone and tone() and folds a constant frequency, so the cost depends on the whole program.
+// - `oneSite`: one literal call site at a frequency of every band: what is left of tone() once folded.
 //
 //   node spikes/avr8js/run-generated-tone.mjs        # ≈ 20 s; prints JSON
 import { spawnSync } from 'node:child_process';
@@ -102,7 +103,13 @@ try {
       fold[`${form}, ${sites} call sites`] = Object.fromEntries(frequencies.map((hz, k) => [hz, (pulses[k + 1] ?? NaN) - (pulses[0] ?? NaN)]));
     }
   }
-  console.log(JSON.stringify({ bands, fold }, null, 2));
+  // One literal call site at a frequency of every band: what the fold leaves of tone() whatever the band.
+  const oneSite = {};
+  for (const hz of [31, 60, 121, 122, 200, 244, 440, 487, 1000, 4000]) {
+    const pulses = pulsesOf(`generated-tone-fold-literal-${hz}`, [...baseline(), ...forms['constant-silent'](hz)], [hz]);
+    oneSite[hz] = (pulses[1] ?? NaN) - (pulses[0] ?? NaN);
+  }
+  console.log(JSON.stringify({ bands, fold, oneSite }, null, 2));
 } finally {
   await server.close();
 }
