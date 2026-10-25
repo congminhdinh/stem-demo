@@ -10,14 +10,14 @@ export default defineConfig({
   reporter: 'list',
   use: { baseURL },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /robot-lab-(scene|check|look)\.spec\.ts$/ },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /robot-lab-(scene|check|tools|look)\.spec\.ts$/ },
     // N18 R4.2 (ADR 0002 §7): the robot lab's 3D scene, drawn by software WebGL (SwiftShader) so that it renders the same on every
     // machine, with a GPU or none (a CI runner). The flags are explicit although Playwright adds the second itself. N18 R6.3: its Kiểm tra too;
-    // N18 R4.7: its 3D look.
+    // N18 R4.8: its view tools; N18 R4.7: its 3D look.
     {
       name: 'chromium-robot',
       use: { ...devices['Desktop Chrome'], launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } },
-      testMatch: /robot-lab-(scene|check|look)\.spec\.ts$/,
+      testMatch: /robot-lab-(scene|check|tools|look)\.spec\.ts$/,
     },
     // N18 R3.5 (robot plan §5): the robot world must hash the same on every engine. Firefox and WebKit run that one spec; Chromium
     // runs it with everything else.

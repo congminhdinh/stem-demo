@@ -11,6 +11,7 @@ import { createTextureSet } from './assets/textures';
 import type { ArenaSpan, CameraMode } from './camera';
 import { CameraRig } from './CameraRig';
 import { freeViewForward, sightWalls, type FreeViewScene } from './camera-studio';
+import { FloorPicker } from './FloorPicker';
 import type { CardEdge, HudCorner } from './hud-corner';
 import { robot3dColors as colors } from './colors';
 import { tierLook } from './lighting/look';
@@ -54,6 +55,8 @@ export type SceneProps = {
   hud?: HudCorner | null;
   /** N18 R4.7: the check's open results card (NDC), which the camera keeps the robot's end spot clear of. */
   card?: CardEdge | null;
+  /** N18 R4.8: the view tools (the ruler, the move tool), which take the pointer on the mat (FloorPicker). */
+  tools?: RobotToolsStore;
 };
 
 /** The camera's vertical field of view, degrees. */
@@ -241,7 +244,7 @@ function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewF
   );
 }
 
-export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored, onFirstFrame, resetKey, hud = null, card = null }: SceneProps) {
+export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored, onFirstFrame, resetKey, hud = null, card = null, tools }: SceneProps) {
   const settings = tierSettings[tier];
   const idle = useMemo(() => idleSnapshot(scenario, kit), [scenario, kit]);
   const view = useCallback(() => store.getState().latestWorld() ?? idle, [store, idle]);
@@ -271,6 +274,7 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
       <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} resetKey={resetKey} hud={hud} card={card} walls={walls} />
       <RedrawOnChange store={store} />
       <ContextWatch onLost={onContextLost} onRestored={onContextRestored} />
+      {tools && <FloorPicker tools={tools} store={store} kit={kit} scenario={scenario} />}
     </Canvas>
   );
 }
