@@ -1,0 +1,44 @@
+import { describe, expect, it } from 'vitest';
+import { logicalStateOf, outputBeforeWaveform, settleTones } from './sim-run';
+import type { PinEvent } from './trace';
+
+// N18 C2: how the simulator's pin changes become the harness's events.
+
+const at = (pin: string, state: PinEvent['state'], fromUs: number, toUs = fromUs): PinEvent => ({ pin, state, fromUs, toUs });
+const state = (partial: Partial<Parameters<typeof logicalStateOf>[0]>) => ({ pin: 'D5', mode: 'OUTPUT' as const, level: 0 as const, duty: 0, toneHz: null, servoDeg: null, ...partial });
+
+describe('the simulator’s events', () => {
+  it('names a pin state as the world reads it: input and pull-up, LOW and HIGH by duty, PWM, a servo, a tone', () => {
+    expect(logicalStateOf(state({ mode: 'INPUT_PULLUP' }), 255)).toEqual({ kind: 'input', pullup: true });
+    expect(logicalStateOf(state({ duty: 0 }), 255)).toEqual({ kind: 'low' });
+    expect(logicalStateOf(state({ duty: 255, level: 1 }), 255)).toEqual({ kind: 'high' });
+    expect(logicalStateOf(state({ duty: 128 }), 255)).toEqual({ kind: 'pwm', duty: 128 });
+    expect(logicalStateOf(state({ servoDeg: 90 }), 255)).toEqual({ kind: 'servo', deg: 90 });
+    expect(logicalStateOf(state({ toneHz: 440 }), 255)).toEqual({ kind: 'tone', hz: 440 });
+  });
+
+  it('puts a tone’s own end at its call + ms, told late, not told before a new tone, or never told', () => {
+    const tone = { kind: 'tone', hz: 1000 } as const;
+    const record = { pin: 'D10', endFromUs: 50_001, endToUs: 50_175.0625, settledByCall: false };
+    // Told at the next call, 70 ms in.
+    expect(settleTones([at('D10', tone, 1, 175.0625), at('D10', { kind: 'low' }, 70_180, 70_190)], [record], 230_000).at(-1)).toEqual(at('D10', { kind: 'low' }, 50_001, 50_175.0625));
+    // The next call is a new tone: the LOW was never told.
+    const retone = settleTones([at('D10', tone, 1, 175.0625), at('D10', { kind: 'tone', hz: 440 }, 70_190, 70_364)], [record], 230_000);
+    expect(retone.map((event) => event.state.kind)).toEqual(['tone', 'low', 'tone']);
+    // No call after it, inside the run; and outside it.
+    expect(settleTones([at('D10', tone, 1, 175.0625)], [record], 230_000).map((event) => event.fromUs)).toEqual([1, 50_001]);
+    expect(settleTones([at('D10', tone, 1, 175.0625)], [record], 40_000)).toHaveLength(1);
+    // Ended by a call (noTone, a new tone): nothing to move.
+    expect(settleTones([at('D10', tone, 1, 175.0625)], [{ ...record, settledByCall: true }], 230_000)).toHaveLength(1);
+  });
+
+  it('gives a waveform started on an input pin the LOW of its pinMode first, in the same call', () => {
+    const events = [at('D9', { kind: 'input', pullup: false }, 0), at('D9', { kind: 'servo', deg: 90 }, 0, 49.5), at('D9', { kind: 'servo', deg: 45 }, 80_061, 80_110.5)];
+    expect(outputBeforeWaveform(events).map((event) => [event.state.kind, event.fromUs, event.toUs])).toEqual([
+      ['input', 0, 0],
+      ['low', 0, 49.5],
+      ['servo', 0, 49.5],
+      ['servo', 80_061, 80_110.5],
+    ]);
+  });
+});

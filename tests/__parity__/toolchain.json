@@ -1,0 +1,94 @@
+{
+  "fqbn": "arduino:avr:uno",
+  "arduinoCli": "1.5.1",
+  "core": "arduino:avr@1.8.8",
+  "libraries": [
+    "Servo@1.3.0"
+  ],
+  "sketches": {
+    "count-up-body-changes-variable": {
+      "flashBytes": 1934,
+      "ramBytes": 192
+    },
+    "count-up-bounds-once": {
+      "flashBytes": 2062,
+      "ramBytes": 196
+    },
+    "deep-nesting": {
+      "flashBytes": 1520,
+      "ramBytes": 188
+    },
+    "division-by-zero": {
+      "flashBytes": 1988,
+      "ramBytes": 192
+    },
+    "driver-button": {
+      "flashBytes": 892,
+      "ramBytes": 9
+    },
+    "driver-buzzer": {
+      "flashBytes": 2360,
+      "ramBytes": 28
+    },
+    "driver-led": {
+      "flashBytes": 968,
+      "ramBytes": 9
+    },
+    "driver-line": {
+      "flashBytes": 2534,
+      "ramBytes": 188
+    },
+    "driver-motor": {
+      "flashBytes": 1730,
+      "ramBytes": 9
+    },
+    "driver-servo": {
+      "flashBytes": 2098,
+      "ramBytes": 50
+    },
+    "driver-ultrasonic": {
+      "flashBytes": 2682,
+      "ramBytes": 188
+    },
+    "empty-program": {
+      "flashBytes": 444,
+      "ramBytes": 9
+    },
+    "int32-wrap": {
+      "flashBytes": 1956,
+      "ramBytes": 192
+    },
+    "logic-reads": {
+      "flashBytes": 2966,
+      "ramBytes": 192
+    },
+    "millis-compare": {
+      "flashBytes": 1900,
+      "ramBytes": 188
+    },
+    "mul-literal": {
+      "flashBytes": 1694,
+      "ramBytes": 188
+    },
+    "names": {
+      "flashBytes": 1520,
+      "ramBytes": 188
+    },
+    "nested-control": {
+      "flashBytes": 2134,
+      "ramBytes": 196
+    },
+    "print-mixed": {
+      "flashBytes": 2200,
+      "ramBytes": 192
+    },
+    "sequenced-reads": {
+      "flashBytes": 4658,
+      "ramBytes": 205
+    },
+    "while-two-reads": {
+      "flashBytes": 1978,
+      "ramBytes": 192
+    }
+  }
+}
