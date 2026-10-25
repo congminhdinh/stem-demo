@@ -267,7 +267,7 @@ Gợi ý cho controller: khi R4 bắt đầu, thêm `no-restricted-imports` cho 
 />
 ```
 
-  Khi mất context: tạm `setFrameloop('never')` (dừng đốt callback vô ích), hiện lớp phủ; nếu 3 s không có `webglcontextrestored` thì chuyển sang `TopView2D` (R4.6); simulation vẫn chạy vì không phụ thuộc GL.
+  Khi mất context: hiện thông báo nhỏ; nếu **2 s** (R4.6, trước đó ADR ghi 3 s) không có `webglcontextrestored` thì `TopView2D` thế chỗ scene, còn `<Canvas>` **vẫn mounted** bên dưới để nghe `webglcontextrestored` và đưa 3D về; simulation vẫn chạy vì không phụ thuộc GL. (Không dùng `setFrameloop('never')`: frameloop đã là `demand`, và R3F vẫn vẽ lại khi context về nhờ `invalidate()`.) Khi thử: `getExtension('WEBGL_lose_context')` trả `null` lúc context đã mất, nên extension phải lấy từ trước, rồi mới gọi `restoreContext()` lên chính đối tượng đó (chạy thật trong Chromium + SwiftShader: sự kiện `webglcontextlost` tới sau khoảng 160 ms, `webglcontextrestored` sau khoảng 170 ms).
 
 ## 7. Playwright cho E2E
 
