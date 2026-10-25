@@ -4,4 +4,4 @@
 
 export type ArduinoTarget = { readonly id: 'arduino-avr'; readonly fqbn: string; readonly contract: string; readonly contractVersion: string };
 
-export const arduinoTarget: ArduinoTarget = { id: 'arduino-avr', fqbn: 'arduino:avr:uno', contract: 'uno-arduino-avr', contractVersion: '0.1.6' };
+export const arduinoTarget: ArduinoTarget = { id: 'arduino-avr', fqbn: 'arduino:avr:uno', contract: 'uno-arduino-avr', contractVersion: '0.1.7' };

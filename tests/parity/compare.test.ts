@@ -157,3 +157,55 @@ describe('compareTraces', () => {
     expect(result.lineChecks[0]).toMatchObject({ anchor: 'millis() = 20', ok: true });
   });
 });
+
+describe('tone() (allowed differences tone-fold, tone-duration)', () => {
+  const toneCall = (pin: string, hz: number, ms: number, fromUs: number, toUs: number): SimCall => ({ name: 'tone', pin, args: [hz, ms], blockId: 'tone', fromUs, toUs });
+  const TONE_1500 = { kind: 'tone', hz: 1500 } as const;
+  // LED ON, tone(10, 1500, 100) on a silent OUTPUT pin (the band 973…3891 Hz: 181.5625 µs), LED OFF. `extraUs`: the simulator's tone()
+  // that long more.
+  const ledTone = (extraUs: number): Sim => ({
+    events: [at('D13', INPUT, 0), at('D13', LOW, 0, 4.375), at('D13', HIGH, 10, 14.5625), at('D10', LOW, 0), at('D10', TONE_1500, 15.5625, 197.125 + extraUs), at('D13', LOW, 198.125 + extraUs, 202.6875 + extraUs)],
+    lines: [],
+    calls: [call('pinMode', 'D13', 0, 4.375), call('digitalWrite', 'D13', 10, 14.5625), toneCall('D10', 1500, 100, 15.5625, 197.125 + extraUs), call('digitalWrite', 'D13', 198.125 + extraUs, 202.6875 + extraUs)],
+    loopStartsUs: [],
+    sleeps: [],
+    nodesUs: [9, 15.5625, 198.125 + extraUs],
+  });
+  // The board: the LED OFF 23.4375 µs after ON (a folded tone()) or 180.6875 µs after (an unfolded one).
+  const ledToneBoard = (offUs: number) => ({ events: [at('D13', INPUT, 0), at('D13', LOW, 2.5), at('D13', HIGH, 9.5625), at('D10', LOW, 0), at('D10', TONE_1500, 34.5625 - 666.67 - 6.67, 34.5625), at('D13', LOW, offUs)] });
+  const forms = (form: 'literal' | 'runtime') => ({ toneForms: new Map([['tone', form]]) });
+
+  it('allows a literal frequency down to the folded floor (17.625 µs) of the band’s contract cost, a computed one 2.80 % of it', () => {
+    const folded = compareTraces(input(ledTone(0), ledToneBoard(33), forms('literal')));
+    expect(folded.problems).toEqual([]);
+    expect(folded.checks.at(-1)).toMatchObject({ what: 'D13 LOW', anchor: 'D13 HIGH', deviationUs: -160.125, applied: ['interval', 'call-costs', 'tone-fold', 'isr-load'] });
+    // 181.5625 − 17.625, with 41 % of the two digitalWrite and the two nodes.
+    expect(folded.checks.at(-1)?.belowUs).toBeCloseTo(181.5625 - 17.625 + 0.41 * 2 * 4.5625 + 2, 9);
+    expect(compareTraces(input(ledTone(0), ledToneBoard(33), forms('runtime'))).problems).toEqual([expect.stringMatching(/^D13 LOW: -160\.13 µs from D13 HIGH .*allowed −10\.82…/)]);
+    expect(compareTraces(input(ledTone(0), ledToneBoard(190.25), forms('runtime'))).problems).toEqual([]);
+  });
+
+  it('refuses a simulator’s tone() 950 µs longer than the band’s cost: the allowance is of the contract, not of the call it charged', () => {
+    expect(compareTraces(input(ledTone(950), ledToneBoard(33), forms('literal'))).problems).toEqual([
+      'D13 LOW: -1110.13 µs from D13 HIGH over 1142.69 µs (waits 0.00, calls 1140.69, nodes 2.00), allowed −169.68…+46.47 (interval, call-costs, tone-fold, isr-load)',
+    ]);
+  });
+
+  it('lets a tone that ends by itself end up to one period early on the board (tone-duration), no more', () => {
+    // tone(10, 31, 40) on a silent OUTPUT pin, then a wait: the simulator's LOW at the call + 40 ms; the board's a range of its own.
+    const sim: Sim = {
+      events: [at('D10', LOW, 0), at('D10', { kind: 'tone', hz: 31 }, 15.5625, 322.125), at('D10', LOW, 40_015.5625, 40_322.125)],
+      lines: [],
+      calls: [toneCall('D10', 31, 40, 15.5625, 322.125)],
+      loopStartsUs: [],
+      sleeps: [{ fromUs: 323, toUs: 60_000 }],
+      nodesUs: [15.5625],
+    };
+    const board = (stopFromUs: number, stopToUs: number) => ({ events: [at('D10', LOW, 0), at('D10', { kind: 'tone', hz: 31 }, 25 - 32_256 - 322.56, 25), at('D10', LOW, stopFromUs, stopToUs)] });
+    const early = compareTraces(input(sim, board(16_153, 32_603.5), { durationUs: 60_000, ...forms('literal') }));
+    expect(early.problems).toEqual([]);
+    expect(early.checks.at(-1)).toMatchObject({ what: 'D10 LOW', deviationUs: -7412.0625 });
+    expect(early.checks.at(-1)?.applied).toContain('tone-duration');
+    expect(compareTraces(input(sim, board(5000, 5500), { durationUs: 60_000, ...forms('literal') })).problems).toEqual([expect.stringMatching(/^D10 LOW: -34515\.56 µs from setup\(\) .*allowed −32947\.99…/)]);
+  });
+});

@@ -53,7 +53,7 @@
     "pulseInNoPulse30000": 20752,
     "ultrasonicCmOverhead": 65.5625,
     "ultrasonicCmNoEcho": 20812,
-    "motorSetOverhead": 43.3125,
+    "motorSetOverhead": 43.6875,
     "serialWriteByte": 4.625,
     "serialQueueByte": 6.28125,
     "serialLineByte": 1040,

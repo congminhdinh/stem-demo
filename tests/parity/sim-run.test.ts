@@ -33,7 +33,8 @@ describe('the simulator’s events', () => {
     expect(settleTones([at('D10', tone, 1, 175.0625)], [{ ...record, settledByCall: true }], 230_000)).toHaveLength(1);
   });
 
-  it('gives an analogWrite, an attach or a first tone on an input pin the LOW of its pinMode first, in the same call (output-low-first)', () => {
+  it('gives an analogWrite, an attach or a first tone on an input pin the LOW of its pinMode first, from the call’s start (output-low-first)', () => {
+    // At most BEFORE_PIN_MODE_US (8.3125 µs) into the call: the call is then timed from its start, the LOW an exact anchor.
     const events = [
       at('D9', { kind: 'input', pullup: false }, 0),
       at('D9', { kind: 'servo', deg: 90 }, 0, 49.5),
@@ -43,6 +44,8 @@ describe('the simulator’s events', () => {
       at('A3', { kind: 'input', pullup: false }, 0),
       at('A3', { kind: 'low' }, 10, 14.375),
       at('A3', { kind: 'high' }, 15, 19.5625),
+      at('D10', { kind: 'input', pullup: false }, 0),
+      at('D10', { kind: 'tone', hz: 700 }, 100, 290.5),
     ];
     const calls = new Map([
       [events[1], 'servoWrite'],
@@ -53,15 +56,18 @@ describe('the simulator’s events', () => {
     ] as const);
     expect(outputLowFirst(events, (event) => calls.get(event) ?? null).map((event) => [event.pin, event.state.kind, event.fromUs, event.toUs])).toEqual([
       ['D9', 'input', 0, 0],
-      ['D9', 'low', 0, 49.5],
+      ['D9', 'low', 0, 8.3125],
       ['D9', 'servo', 0, 49.5],
       ['D9', 'servo', 80_061, 80_110.5],
       ['A4', 'input', 0, 0],
-      ['A4', 'low', 30, 41.875],
+      ['A4', 'low', 30, 38.3125],
       ['A4', 'high', 30, 41.875],
       ['A3', 'input', 0, 0],
       ['A3', 'low', 10, 14.375],
       ['A3', 'high', 15, 19.5625],
+      ['D10', 'input', 0, 0],
+      ['D10', 'low', 100, 108.3125],
+      ['D10', 'tone', 100, 290.5],
     ]);
   });
 
@@ -73,7 +79,8 @@ describe('the simulator’s events', () => {
   it('knows how each tone() frequency is written (tone-fold): literals, a variable set from reads, and sequenced-reads’ read', () => {
     const forms = (name: string) => [...toneFormsOf(compileFixture(parityFixtures.find((fixture) => fixture.name === name) as (typeof parityFixtures)[number]).ir).values()];
     expect(forms('driver-tone-led')).toEqual(['literal', 'literal', 'literal']);
-    expect(forms('driver-tone-computed')).toEqual(['runtime', 'runtime']);
+    expect(forms('driver-tone-computed')).toEqual(['runtime', 'runtime', 'runtime']);
+    expect(forms('driver-tone-loop-31')).toEqual(['literal']);
     expect(forms('sequenced-reads')).toEqual(['runtime']);
   });
 });

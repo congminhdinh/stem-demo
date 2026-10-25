@@ -307,7 +307,7 @@ describe('time, costs and the board (contract §4, §5)', () => {
       pulseInNoPulse30000: 20_752,
       ultrasonicCmOverhead: 65.5625,
       ultrasonicCmNoEcho: 20_812,
-      motorSetOverhead: 43.3125,
+      motorSetOverhead: 43.6875,
       serialWriteByte: 4.625,
       serialQueueByte: 6.28125,
       serialLineByte: 1040,

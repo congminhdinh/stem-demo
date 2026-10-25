@@ -69,7 +69,16 @@ export type CompareInput = {
   readonly toneForms?: ReadonlyMap<string, ToneForm>;
 };
 
-type Pair = { readonly what: string; readonly pin: string; readonly sim: Range & { state: PinLogicalState }; readonly board: Range; readonly exact: boolean; readonly widenedBy?: AllowedDifferenceId };
+type Pair = {
+  readonly what: string;
+  readonly pin: string;
+  readonly sim: Range & { state: PinLogicalState };
+  readonly board: Range;
+  readonly exact: boolean;
+  readonly widenedBy?: AllowedDifferenceId;
+  /** The period of the tone that ended by itself here (allowed difference `tone-duration`). */
+  readonly toneEndPeriodUs?: number;
+};
 type Anchor = { readonly name: string; readonly sim: Range; readonly board: Range };
 
 /** Whether the board shows the state the simulator has (the board's duty is already on its timer's scale, board-trace.ts). */
@@ -133,6 +142,24 @@ export function millisInstantUs(value: number): number {
   return n * overflowUs;
 }
 
+/**
+ * What the contract charges this tone() call (contract §4.4 toneUs, as the virtual UNO does): its frequency's band, on a silent pin or
+ * on the one that plays; a tone() on another pin while one plays (which does nothing, ARD-03) the table's tone cost.
+ */
+function contractToneUs(call: SimCall, events: readonly PinEvent[]): number {
+  const hz = call.args[0] ?? 0;
+  const bands = unoContract.toneUs.bands;
+  const band = bands.filter((candidate) => hz >= candidate.fromHz).at(-1) ?? (bands[0] as (typeof bands)[number]);
+  const lastBefore = new Map<string, PinEvent>();
+  for (const event of events) {
+    if (event.toUs <= call.fromUs) {
+      lastBefore.set(event.pin, event);
+    }
+  }
+  const playing = [...lastBefore.values()].find((event) => event.state.kind === 'tone');
+  return playing === undefined ? band.silentUs : playing.pin === call.pin ? band.playingUs : unoContract.costsUs.tone;
+}
+
 const intersect = (a: Range, b: Range): Range => {
   const from = Math.max(a.fromUs, b.fromUs);
   return { fromUs: from, toUs: Math.max(from, Math.min(a.toUs, b.toUs)) };
@@ -190,6 +217,9 @@ export function compareTraces(input: CompareInput): Comparison {
         range = { fromUs: before.fromUs, toUs: seen.toUs };
         widenedBy = 'servo-first-pulse';
       }
+      // A tone that ran out by itself (no tone() or noTone() call ends it): the board stops after its last whole half period.
+      const previous = own[index - 1]?.state;
+      const byItself = event.state.kind === 'low' && previous?.kind === 'tone' && !sim.calls.some((call) => (call.name === 'tone' || call.name === 'noTone') && call.pin === pin && call.fromUs <= event.toUs && call.toUs >= event.fromUs);
       pairs.push({
         what: `${pin} ${describeState(event.state)}`,
         pin,
@@ -197,6 +227,7 @@ export function compareTraces(input: CompareInput): Comparison {
         board: range,
         exact: isExact(seen) && range === seen,
         ...(widenedBy ? { widenedBy } : {}),
+        ...(byItself && previous?.kind === 'tone' ? { toneEndPeriodUs: 1e6 / previous.hz } : {}),
       });
     });
   }
@@ -246,7 +277,7 @@ export function compareTraces(input: CompareInput): Comparison {
   const checks: IntervalCheck[] = [];
   for (const pair of pairs) {
     const exactBefore = exactAnchors.filter((anchor) => anchor.sim.toUs <= pair.sim.toUs).at(-1) as Anchor;
-    const check = checkInterval(pair.what, pair.sim, pair.board, anchorOf(pair.sim.toUs, exactBefore), context, { exact: pair.exact, widenedBy: pair.widenedBy });
+    const check = checkInterval(pair.what, pair.sim, pair.board, anchorOf(pair.sim.toUs, exactBefore), context, { exact: pair.exact, widenedBy: pair.widenedBy, toneEndPeriodUs: pair.toneEndPeriodUs });
     checks.push(check);
     if (!check.ok) {
       problems.push(describeProblem(check));
@@ -330,7 +361,7 @@ export function checkInterval(
   boardRange: Range,
   anchor: Anchor,
   context: Context,
-  options: { exact: boolean; widenedBy?: AllowedDifferenceId | undefined; ownLine?: number; join?: boolean },
+  options: { exact: boolean; widenedBy?: AllowedDifferenceId | undefined; ownLine?: number; join?: boolean; toneEndPeriodUs?: number | undefined },
 ): IntervalCheck {
   const { input, lineAllowances } = context;
   const sim = { fromUs: simRange.fromUs - anchor.sim.toUs, toUs: simRange.toUs - anchor.sim.fromUs };
@@ -357,14 +388,16 @@ export function checkInterval(
     belowUs += allowed['call-costs'].fasterShare * (callUs - toneUs) + nodeUs;
     applied.push('call-costs');
   }
-  // tone(): its own shares, by how the sketch writes its frequency (a variable may be either).
+  // tone(): by how the sketch writes its frequency (a variable may be either), of the contract's band cost for the call, on a silent
+  // or a playing pin: never of what the simulator charged.
   if (toneCalls.length > 0) {
     const fold = allowed['tone-fold'];
     for (const call of toneCalls) {
       const form = input.toneForms?.get(call.blockId) ?? 'variable';
-      const shares = form === 'variable' ? { fasterShare: fold.literal.fasterShare, slowerShare: fold.runtime.slowerShare } : fold[form];
-      belowUs += shares.fasterShare * inWindow(call);
-      aboveUs += shares.slowerShare * inWindow(call);
+      const expectedUs = contractToneUs(call, input.sim.events);
+      const share = inWindow(call) / Math.max(length(call), Number.EPSILON);
+      belowUs += share * (form === 'runtime' ? expectedUs * fold.runtime.fasterShare : Math.max(0, expectedUs - fold.literal.floorUs));
+      aboveUs += share * expectedUs * (form === 'literal' ? fold.literal.slowerShare : fold.runtime.slowerShare);
     }
     applied.push('tone-fold');
   }
@@ -404,6 +437,11 @@ export function checkInterval(
   }
   if (!options.exact) {
     applied.push('waveform-phase');
+  }
+  if (options.toneEndPeriodUs !== undefined) {
+    // floor(2 · hz · ms / 1000) half periods: the board's tone may end up to one period before the simulator's.
+    belowUs += options.toneEndPeriodUs;
+    applied.push('tone-duration');
   }
   if (options.widenedBy) {
     applied.push(options.widenedBy);

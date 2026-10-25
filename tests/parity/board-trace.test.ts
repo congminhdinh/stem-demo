@@ -94,6 +94,35 @@ describe('decodePin', () => {
     ]);
   });
 
+  it('reads one or two pulses on the buzzer’s pin as a short tone (tone-duration: 31 Hz for 40 ms is one pulse), its frequency twice its pulse or its period', () => {
+    // tone(10, 31, 40): floor(2 · 31 · 40 / 1000) = 2 half periods, one pulse of 16 128 µs; stopped before the rise due a period on
+    // (its jitter 1 %: 322.56 µs).
+    expect(events('D10', [low(9.3125), ...pulses(26.9375, 1, 32_256, 16_128)], 90_000, tone)).toEqual([
+      [{ kind: 'input', pullup: false }, 0, 0],
+      [{ kind: 'low' }, 9.3125, 9.3125],
+      [{ kind: 'tone', hz: 1e6 / 32_256 }, 9.3125, 26.9375],
+      [{ kind: 'low' }, 26.9375 + 16_128, 26.9375 + 32_256 + 322.56],
+    ]);
+    const twoPulses = events('D10', [low(9.3125), ...pulses(26.9375, 2, 16_640, 8_320)], 90_000, tone);
+    expect(twoPulses[2]).toEqual([{ kind: 'tone', hz: 1e6 / 16_640 }, 9.3125, 26.9375]);
+    expect(twoPulses[3]?.slice(0, 2)).toEqual([{ kind: 'low' }, 26.9375 + 16_640 + 8_320]);
+  });
+
+  it('lets a tone follow a tone at once when its first rise comes within half a period of the last fall, else gives the LOW between', () => {
+    // 1000 Hz for 5 ms, then 440 Hz (period 2272 µs) rising 600 µs after the last fall: within 1136 µs, so no LOW between.
+    const lastFallUs = 509.3125 + 4000 + 500;
+    const then = (gapUs: number) => events('D10', [low(9.3125), ...pulses(509.3125, 5, 1000, 500), ...pulses(lastFallUs + gapUs, 6, 2272, 1136)], 90_000, tone);
+    expect(then(600).slice(2, 4)).toEqual([
+      [{ kind: 'tone', hz: 1000 }, 9.3125, 509.3125],
+      [{ kind: 'tone', hz: 1e6 / 2272 }, lastFallUs - 1500, lastFallUs + 600],
+    ]);
+    // 5 ms of LOW between: the first tone stopped after its last fall, the second started within a period (and 1 %) of its first rise.
+    expect(then(5000).slice(3, 5).map((event) => event.slice(0, 2))).toEqual([
+      [{ kind: 'low' }, lastFallUs],
+      [{ kind: 'tone', hz: 1e6 / 2272 }, lastFallUs + 5000 - 2272 - 22.72],
+    ]);
+  });
+
   it('reads a servo pulse as its angle (Servo 1.3.0: 544 + angle · 1856 / 180 µs), its first pulse a frame after attach', () => {
     const changes = [low(2.8125), ...pulses(52_804.8125, 3, 20_003, 1471.4375), ...pulses(52_804.8125 + 3 * 20_003, 3, 20_003, 1007.4375)];
     expect(events('D9', changes, 160_000, servo)).toEqual([

@@ -119,9 +119,13 @@ describe('the allowed differences (ADR 0003 §7 condition 2)', () => {
       'waveform-phase', 'waveform-jitter', 'millis-origin', 'servo-first-pulse', 'tone-frequency', 'tone-duration', 'pulsein-short', 'pulsein-no-echo',
     ]);
     expect(allowedDifferences['servo-first-pulse'].firstPulseAfterAttachUs).toBe(52_768);
-    // tone(): a literal frequency folded to 17.6875 µs at 1000 Hz (one call site), a computed one 213.375 µs (EMU-18).
-    expect(allowedDifferences['tone-fold'].literal.fasterShare).toBeCloseTo(1 - 17.6875 / 181.5625, 12);
+    // tone() (EMU-18): a literal frequency with one call site folds to 17.625…17.75 µs in every band, a floor whatever the band; with
+    // 5 sites 308 µs at most (306.5625 the band). A computed one took 213.375 µs (181.5625 the band), and 134.625 µs on a playing pin
+    // at 3892…4000 Hz (138.5 the band, its row's longest).
+    expect(allowedDifferences['tone-fold'].literal).toEqual({ floorUs: 17.625, slowerShare: 308 / 306.5625 - 1 });
+    expect(allowedDifferences['tone-fold'].runtime.fasterShare).toBeCloseTo(0.028, 3);
     expect(allowedDifferences['tone-fold'].runtime.slowerShare).toBeCloseTo(213.375 / 181.5625 - 1, 12);
+    expect(allowedDifferences['output-low-first'].beforePinModeUs).toBe(8.3125);
     expect(allowedDifferences['waveform-jitter'].pwm).toEqual({ periodUs: 0.5, highUs: 0.5 });
     // The interrupt figures are the contract's isrLoad: one Timer0 overflow 5.97 µs, one Servo 32.6 µs a frame, one tone toggle 7.45 µs.
     expect(allowedDifferences['isr-load'].timer0IsrUs).toBeCloseTo(0.00583 * 1024, 9);
@@ -209,5 +213,24 @@ describe('the harness would notice', () => {
     expect(await against('millis-compare', waitFirst('millis-compare'))).toEqual([expect.stringMatching(/^line 1 "1": -4960\.13 µs from setup\(\)/)]);
     // After the loop that waits for millis() to reach 20: timed from the moment it did.
     expect((await against('millis-compare', waitFirst('millis-compare', 2)))[0]).toMatch(/^line 2 "1": -4958\.35 µs from millis\(\) = 20/);
+  });
+
+  it('950 µs more inside a tone() on the simulator only: the allowance is the band’s contract cost, not what the simulator charged', async () => {
+    // A literal 1500 Hz (silent pin: 181.5625 µs, folded to the floor 17.625 at least), the reviewer’s loop at 200 Hz, a computed 700 Hz.
+    expect(await against('driver-tone-led', { inject: { nth: 2, inToneUs: 950 } })).toEqual([
+      expect.stringMatching(/^D13 LOW: -1030\.75 µs from D13 HIGH over 1145\.69 µs \(waits 0\.00, calls 1140\.69, nodes 6\.00\), allowed −173\.68…\+46\.58 /),
+    ]);
+    expect(await against('driver-tone-loop-200', { inject: { nth: 2, inToneUs: 950 } })).toEqual([expect.stringMatching(/^D13 LOW: -1232\.25 µs from D13 HIGH over 1262\.31 µs /)]);
+    expect(await against('driver-tone-computed', { inject: { nth: 3, inToneUs: 950 } })).toEqual([
+      expect.stringMatching(/^D13 LOW: -947\.13 µs from D13 HIGH over 1183\.81 µs .*allowed −15\.89…\+71\.18 /),
+    ]);
+  });
+
+  it('the first tone() on a pin, timed from its start (output-low-first): 200 µs after it or 2000 µs inside it on the simulator only', async () => {
+    expect(await against('driver-tone-led', { inject: { nth: 1, afterToneUs: 200 } })).toEqual([expect.stringMatching(/^D13 LOW: -280\.56 µs from D10 LOW over 389\.13 µs /)]);
+    expect(await against('driver-tone-led', { inject: { nth: 1, inToneUs: 2000 } })).toEqual([expect.stringMatching(/^D13 LOW: -2080\.56 µs from D10 LOW over 2189\.13 µs /)]);
+    expect(await against('driver-tone-computed', { inject: { nth: 1, afterToneUs: 200 } })).toEqual([expect.stringMatching(/^D13 LOW: -199\.31 µs from D10 LOW over 389\.13 µs /)]);
+    expect(await against('driver-tone-computed', { inject: { nth: 1, inToneUs: 2000 } })).toEqual([expect.stringMatching(/^D13 LOW: -1999\.31 µs from D10 LOW over 2189\.13 µs /)]);
+    expect(await against('driver-tone-loop-31', { inject: { nth: 1, afterToneUs: 200 } })).toEqual([expect.stringMatching(/^D13 LOW: -487\.94 µs from D10 LOW over 514\.13 µs /)]);
   });
 });

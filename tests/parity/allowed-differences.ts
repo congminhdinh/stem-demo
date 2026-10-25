@@ -23,6 +23,14 @@ export type AllowedDifference = {
   readonly refs: readonly string[];
 };
 
+/**
+ * What a call does before the pinMode that makes an input pin an OUTPUT LOW, at most, in µs (allowed difference `output-low-first`):
+ * the board's LOW against the start of the simulator's call, in the parity fixtures (EMU-16): 8.3125 µs for a computed buzzerTone in
+ * driver-tone-computed (its clamps on long, then tone()'s toneBegin), 7.875 in sequenced-reads, 3.75 for a literal one (driver-buzzer,
+ * driver-tone-led), 1 in the folded loops, 2.25 for Servo.attach (driver-servo), none for analogWrite (raw-pins).
+ */
+const BEFORE_PIN_MODE_US = 8.3125;
+
 /** Servo 1.3.0 (contract §6.2, ARD-13): 544 µs at 0°, 2400 µs at 180°, a frame every 20 ms (REFRESH_INTERVAL). */
 export const SERVO_PULSE = { minUs: 544, maxUs: 2400, frameUs: 20_000 } as const;
 
@@ -63,9 +71,10 @@ export const allowedDifferences = {
     releasedLevel: 1,
   },
   'output-low-first': {
-    reason: 'analogWrite(), Servo.attach() and the first tone() on a pin start with pinMode(pin, OUTPUT): on a pin that was an input the board shows LOW first, then the level or the waveform; the simulator goes straight to it. The simulator\'s trace gets that LOW, in the same call (sim-run.ts).',
+    reason: 'analogWrite(), Servo.attach() and the first tone() on a pin start with pinMode(pin, OUTPUT): on a pin that was an input the board shows LOW first, then the level or the waveform; the simulator goes straight to it. The simulator\'s trace gets that LOW at the start of the call (sim-run.ts), within what the call does before its pinMode, so the call itself is timed from it.',
     contractRow: 'Chân thành OUTPUT LOW trước',
     refs: ['contract §5.1', 'contract §6.2', 'contract §6.3', 'EMU-16'],
+    beforePinModeUs: BEFORE_PIN_MODE_US,
   },
   'isr-load': {
     reason: 'The simulator charges no interrupt time; on the board the Timer0 overflow (millis), each Servo and a playing tone take cycles from the program\'s calls and statements (not from a delay(), which runs on micros()). An interval may be longer on the board by that load on its calls and statements, and by one run of each interrupt that is running.',
@@ -95,11 +104,11 @@ export const allowedDifferences = {
     nodeUs: constants.NODE_US,
   },
   'tone-fold': {
-    reason: 'The simulator charges tone() by band the cost of the call -flto does not fold (toneUs, measured with the frequency computed at run time). The board\'s cost depends on the whole program: with few call sites -flto inlines buzzerTone and tone() and folds a literal frequency, down to 17.6875 µs at 1000 Hz with one call site (1 − 17.6875 / 181.5625 faster), while one computed call took 213.375 µs (17.5 % more), tone() inlined in sequenced-reads 9.3 % more, and a literal frequency in a program of 5 call sites at most 0.47 % more (EMU-18, EMU-16). So a tone() call may take the board less or more by these shares of its charge, by how the sketch writes its frequency (a literal, a read of the robot, a variable: both).',
+    reason: 'The simulator charges tone() by band the cost of the call -flto does not fold (toneUs, measured with the frequency computed at run time). The board\'s cost depends on the whole program: with few call sites -flto inlines buzzerTone and tone() and folds a literal frequency, and what is left of a folded tone() is 17.625…17.75 µs in every band (one call site, EMU-18); 2 or 3 sites fold part of it (99.75, 138.9375 µs at 1000 Hz); a literal frequency in a program of 5 call sites took at most 0.47 % more than the band. A frequency read at run time cannot be folded: one computed call took 213.375 µs (17.52 % more than its band), tone() inlined in sequenced-reads 9.3 % more, and inside a band the board may take up to 2.80 % less (3892…4000 Hz on a playing pin, 134.625 against 138.5 µs). The allowance is of the band\'s contract cost for the call (silent or playing pin), not of what the simulator charged: a simulator that overcharges a tone() is not covered.',
     contractRow: 'Chi phí tone theo chương trình',
     refs: ['contract §4.4 (toneUs)', 'contract §6.3', 'EMU-18', 'EMU-16'],
-    literal: { fasterShare: 1 - 17.6875 / 181.5625, slowerShare: 308 / 306.5625 - 1 },
-    runtime: { fasterShare: 1 - 139.4375 / 143.3125, slowerShare: 213.375 / 181.5625 - 1 },
+    literal: { floorUs: 17.625, slowerShare: 308 / 306.5625 - 1 },
+    runtime: { fasterShare: (138.5 - 134.625) / 138.5, slowerShare: 213.375 / 181.5625 - 1 },
   },
   'serial-time': {
     reason: 'The simulator does not charge Serial time yet (contract §7, note of C1 fix round 1); the board spends it. The harness models it by contract §7: each digit at most a whole printed number (serialPrintLongBase + serialPrintLongDigit), a minus sign serialPrintLongSign, any other byte serialQueueByte, serialPrintln per line, Serial.begin once, and the wait for room when the TX queue is full. An interval may be longer on the board by that; a line leaves the USART when its print has queued it, or when the line before it has gone out.',

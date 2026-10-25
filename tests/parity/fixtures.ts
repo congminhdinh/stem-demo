@@ -301,7 +301,8 @@ const toneThenPin: ParityFixture[] = [
     inputs: {},
   },
   {
-    // The frequency is lineLeft · 1000 + lineCenter: 1000 Hz, then 440 Hz on the pin that still plays.
+    // The frequency is lineLeft · 1000 + lineCenter: 1000 Hz on the pin that is still an input, then 440 Hz on the pin that still
+    // plays, then 700 Hz on the pin that is an OUTPUT again and silent.
     name: 'driver-tone-computed',
     covers: ['U-25', 'U-24', 'U-29', 'U-05', 'U-18'],
     profile: 'uno-advanced',
@@ -316,12 +317,32 @@ const toneThenPin: ParityFixture[] = [
       buzzerTone(getVar('x'), num(30)),
       led('OFF'),
       wait(num(50)),
+      setVar('x', add(mul(lineRaw('lineLeft'), num(1000)), lineRaw('lineCenter'))),
+      led('ON'),
+      buzzerTone(getVar('x'), num(30)),
+      led('OFF'),
+      wait(num(40)),
     ],
     variables: [['x', 'x']],
     origin: 'driver',
-    durationMs: 110,
-    inputs: { analog: [{ pins: ['A0', 'A1'], values: [1, 0, 0, 440] }] },
+    durationMs: 160,
+    inputs: { analog: [{ pins: ['A0', 'A1'], values: [1, 0, 0, 440, 0, 700] }] },
   },
+  // The reviewer's loop: one literal call site, which -flto folds to 17.6 µs whatever the band; at 31 Hz a 40 ms tone is one pulse
+  // (tone-duration). The recording ends in the wait after the fourth tone.
+  ...[31, 121, 200].map(
+    (hz): ParityFixture => ({
+      name: `driver-tone-loop-${hz}`,
+      covers: ['U-25', 'U-24', 'U-02', 'U-18'],
+      profile: 'uno-basic',
+      onStart: [],
+      forever: [led('ON'), buzzerTone(num(hz), num(40)), led('OFF'), wait(num(50))],
+      variables: [],
+      origin: 'driver',
+      durationMs: 196,
+      inputs: {},
+    }),
+  ),
 ];
 
 export const parityFixtures: readonly ParityFixture[] = [...goldens, ...drivers, ...toneThenPin, ...language];

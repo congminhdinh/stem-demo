@@ -4,6 +4,7 @@ import { runYbcProgram, type YbcRunOutcome } from '../../src/core/program/ybc-in
 import type { YbcProgramIR } from '../../src/core/program/ybc-ir';
 import type { UnoProgramUses } from '../../src/core/program/uno-uses';
 import { createVirtualScheduler, WORLD_TICK_MS } from '../../src/core/run/virtual-clock';
+import { allowedDifferences } from './allowed-differences';
 import { analogFeed, echoFeed, levelAt, levelTimeline, type ParityInputs } from './inputs';
 import { isWaveform, withoutRepeats, type PinEvent, type PinLogicalState, type PrintedLine } from './trace';
 
@@ -82,7 +83,9 @@ function recording(
   tones: ToneRecord[],
   current: { fromUs: number; name: SimCall['name'] | null },
   statement: { blockId: string },
+  inject: SimInjection,
 ): VirtualUno {
+  let toneCalls = 0;
   /** Wraps an io call: its first argument is the pin, `null` for millis, delayMicroseconds and compute. */
   const record =
     <A extends unknown[], R>(name: SimCall['name'], real: (...args: A) => R) =>
@@ -94,6 +97,9 @@ function recording(
       const pin = typeof args[0] === 'string' ? args[0] : null;
       const numbers = args.filter((arg): arg is number => typeof arg === 'number');
       calls.push({ name, pin, args: numbers, ...(typeof result === 'number' ? { result } : {}), blockId: statement.blockId, fromUs, toUs: nowUs() });
+      if (name === 'tone' && inject.afterToneUs && (!inject.nth || inject.nth === toneCalls)) {
+        uno.io.compute(inject.afterToneUs); // an injected drift right after the call, not part of it
+      }
       return result;
     };
   const playing = (id: string) => tones.find((tone) => tone.pin === id && !tone.settledByCall && tone.endToUs > nowUs());
@@ -110,6 +116,10 @@ function recording(
     delayMicroseconds: record('delayMicroseconds', real.delayMicroseconds),
     compute: record('compute', real.compute),
     tone: record('tone', (id: string, hz: number, ms?: number) => {
+      toneCalls += 1;
+      if (inject.inToneUs && (!inject.nth || inject.nth === toneCalls)) {
+        real.compute(inject.inToneUs); // an injected drift inside the call
+      }
       const before = playing(id);
       const fromUs = nowUs();
       real.tone(id, hz, ms);
@@ -137,7 +147,13 @@ function recording(
  * Runs `program` for `durationUs` of program time (or until it ends) with the scripted `inputs`, and returns its trace. Events after
  * `durationUs` are left out.
  */
-export async function runSimulator(program: SimProgram, inputs: ParityInputs, durationUs: number): Promise<SimRun> {
+/**
+ * A drift put into the simulator only, for the tests that show the harness catches one: `inToneUs` more charged inside the `nth` tone()
+ * call (every one when 0), `afterToneUs` more right after it.
+ */
+export type SimInjection = { readonly nth?: number; readonly inToneUs?: number; readonly afterToneUs?: number };
+
+export async function runSimulator(program: SimProgram, inputs: ParityInputs, durationUs: number, inject: SimInjection = {}): Promise<SimRun> {
   const { ir, kit, board, uses } = program;
   const controller = new AbortController();
   const scheduler = createVirtualScheduler({ signal: controller.signal, delayOverheadUs: board.costsUs.delayOverhead });
@@ -208,7 +224,7 @@ export async function runSimulator(program: SimProgram, inputs: ParityInputs, du
     toldBy.set(event, current.name);
     told.push(event);
   });
-  const capabilities = createProgramIO(kit, recording(uno, nowUs, calls, tones, current, statement), uses);
+  const capabilities = createProgramIO(kit, recording(uno, nowUs, calls, tones, current, statement, inject), uses);
   const { done } = runYbcProgram(ir, capabilities, services);
   let outcome: YbcRunOutcome | undefined;
   void done.then((settled) => void (outcome = settled));
@@ -258,16 +274,17 @@ const OUTPUT_FIRST: ReadonlySet<SimCall['name'] | null> = new Set(['pwmWrite', '
 
 /**
  * Allowed difference `output-low-first`: an analogWrite, a Servo.attach or a first tone() on a pin that was an input makes it an OUTPUT
- * LOW first on the board (their pinMode), then HIGH, PWM or the waveform. The simulator's trace gets that LOW, in the same call, so both
- * sides have it (board-trace.ts).
+ * LOW first on the board (their pinMode), then HIGH, PWM or the waveform. The simulator's trace gets that LOW at the start of the call,
+ * within what the call does before its pinMode, so both sides have it (board-trace.ts) and the call is timed from it.
  */
 export function outputLowFirst(events: readonly PinEvent[], callOf: (event: PinEvent) => SimCall['name'] | null): PinEvent[] {
+  const beforePinModeUs = allowedDifferences['output-low-first'].beforePinModeUs;
   const last = new Map<string, PinLogicalState>();
   const out: PinEvent[] = [];
   for (const event of events) {
     const fromInput = last.get(event.pin)?.kind === 'input';
     if (fromInput && event.state.kind !== 'low' && event.state.kind !== 'input' && (isWaveform(event.state) || OUTPUT_FIRST.has(callOf(event)))) {
-      out.push({ ...event, state: { kind: 'low' } });
+      out.push({ ...event, state: { kind: 'low' }, toUs: Math.min(event.toUs, event.fromUs + beforePinModeUs) });
     }
     last.set(event.pin, event.state);
     out.push(event);

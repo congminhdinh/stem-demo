@@ -123,7 +123,41 @@ export function findRuns(changes: readonly RawChange[], decoding: WaveformDecodi
     chain.push(period);
   }
   close();
-  return runs;
+  return decoding.kind === 'tone' ? [...runs, ...shortTones(changes, runs, decoding)].sort((a, b) => a.first - b.first) : runs;
+}
+
+/**
+ * A tone too short for a run (allowed difference `tone-duration`: floor(2 · hz · ms / 1000) half periods, so 31 Hz for 40 ms is one
+ * pulse): one or two pulses on the buzzer's pin, which nothing but tone() drives HIGH, each a half period long, the second a period
+ * after the first. Its frequency is its period, or twice its pulse.
+ */
+function shortTones(changes: readonly RawChange[], runs: readonly Run[], decoding: Extract<WaveformDecoding, { kind: 'tone' }>): Run[] {
+  const share = wander.tone.share;
+  // A pulse right before a run (its lead-in: an irregular first toggle) or right after one belongs to that run.
+  const inRun = (index: number) => runs.some((run) => (index >= run.first && index <= run.last + 1) || index + 2 === run.first || index - 1 === run.last + 1);
+  const pulses: { rise: number; highUs: number }[] = [];
+  for (let rise = 1; rise + 1 < changes.length; rise++) {
+    const [before, start, fall] = [changes[rise - 1], changes[rise], changes[rise + 1]];
+    const highUs = (fall?.atUs ?? 0) - (start?.atUs ?? 0);
+    const halfUs = (fromHz: number) => 1e6 / (2 * fromHz);
+    if (before?.state === 'LOW' && start?.state === 'HIGH' && fall?.state === 'LOW' && !inRun(rise) && highUs >= halfUs(decoding.maxHz) * (1 - share) && highUs <= halfUs(decoding.minHz) * (1 + share)) {
+      pulses.push({ rise, highUs });
+    }
+  }
+  const found: Run[] = [];
+  for (let k = 0; k < pulses.length; k++) {
+    const first = pulses[k] as (typeof pulses)[number];
+    const second = pulses[k + 1];
+    const periodUs = second ? (changes[second.rise]?.atUs ?? 0) - (changes[first.rise]?.atUs ?? 0) : 0;
+    const wanders = jitterUs(decoding, 2 * first.highUs);
+    if (second && second.rise === first.rise + 2 && Math.abs(periodUs - 2 * first.highUs) <= wanders.period && Math.abs(second.highUs - first.highUs) <= wanders.high) {
+      found.push({ first: first.rise, last: second.rise, periodUs, highUs: (first.highUs + second.highUs) / 2 });
+      k += 1;
+    } else {
+      found.push({ first: first.rise, last: first.rise, periodUs: 2 * first.highUs, highUs: first.highUs });
+    }
+  }
+  return found;
 }
 
 /**
@@ -173,8 +207,15 @@ export function decodePin(pin: string, initial: RawPinState, changes: readonly R
     // The waveform could have changed at any time during its last period.
     settledUs = lastRiseUs - run.periodUs;
     const next = runs[k + 1];
-    if (next && at(next.first) - lastRiseUs <= next.periodUs + run.periodUs + jitter.period) {
-      continue; // the next waveform follows at once: its start is this one's stop
+    // The next waveform follows at once: its start is this one's stop. A tone toggles on, so its next rise comes within half a
+    // period (of either tone) of the last fall; a timer PWM or servo, within a period of each.
+    const follows =
+      next !== undefined &&
+      (decoding.kind === 'tone' && changes[run.last + 1]?.state === 'LOW' && next.first === run.last + 2
+        ? at(next.first) - at(run.last + 1) <= Math.max(run.periodUs, next.periodUs) / 2 + jitter.period
+        : at(next.first) - lastRiseUs <= next.periodUs + run.periodUs + jitter.period);
+    if (follows) {
+      continue;
     }
     settledUs = lastRiseUs;
     const fall = changes[run.last + 1];

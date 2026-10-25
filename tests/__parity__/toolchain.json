@@ -57,14 +57,29 @@
       "hexSha256": "bce4a6f56da94df31749d5034313c378c03566b2ccd2f490961ad03d8ba8cb17"
     },
     "driver-tone-computed": {
-      "flashBytes": 2908,
+      "flashBytes": 3032,
       "ramBytes": 32,
-      "hexSha256": "1addd7e6c182ae8e9b5d48dd0cc724b87a7effbb97ec105cae6b2b5cb1a43e48"
+      "hexSha256": "61522993ec5f7ceff526aa6262ece3907c76c8de34896807111bf1dae9b2e3d5"
     },
     "driver-tone-led": {
       "flashBytes": 2310,
       "ramBytes": 28,
       "hexSha256": "91c0c4a08f78457c5477d73a28e6d9af85a05c6da557249796b7c45839514ea3"
+    },
+    "driver-tone-loop-121": {
+      "flashBytes": 1628,
+      "ramBytes": 28,
+      "hexSha256": "a6cb3db24c413786c837eddf50cfe082d2d098d966c8420e92331fa177221667"
+    },
+    "driver-tone-loop-200": {
+      "flashBytes": 1630,
+      "ramBytes": 28,
+      "hexSha256": "440156f7f431116141b929c99795d2f2ad86c070a074a0ae3444604921574f2c"
+    },
+    "driver-tone-loop-31": {
+      "flashBytes": 1628,
+      "ramBytes": 28,
+      "hexSha256": "73f87c42743d08e597a5cf38f31841f479f61898654f2e7cedcf18bd2a5d7bb4"
     },
     "driver-ultrasonic": {
       "flashBytes": 2682,

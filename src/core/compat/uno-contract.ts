@@ -77,8 +77,8 @@ const evidence: Record<EvidenceRef, EvidenceEntry> = {
   'EMU-16': entry(
     'EMU',
     'avr8js 0.21.1 on Node 24.22.1 (Apple M4 Pro); HEX built by scripts/build-parity-hex.mjs with arduino-cli 1.5.1 for arduino:avr:uno (arduino:avr@1.8.8, Servo 1.3.0), tests/__parity__; pnpm test tests/uno-emulator-parity.test.ts (N18 C2)',
-    'C2 parity: the generated sketch of every C1 language golden, of the raw-pins golden, of one program per driver op of ref-uno-rover@0, of two with an LED right after tone() and of negate-drive (25 fixtures), its HEX on avr8js against the simulator with the same scripted inputs; pin events and Serial lines compared, each timed from the anchor it depends on',
-    '25 of 25 agree: every Serial line and pin state (duty, angle, tone ±1 %); every interval within its waits ±1 % and the allowed differences (largest with no line printed in it 0.276 %, driver-buzzer; lines queued behind the one before ≤ 0.58 µs; an LED right after a computed tone() ≤ 4.38 µs, after a literal one, folded, up to 87.25 µs early); Servo 1.3.0 sends its first pulse 52802 µs after attach(); a PWM, servo or tone change shows within one timer period; tone() inlined in sequenced-reads took ≥ 240.1 µs (224.375 alone)',
+    'C2 parity: the generated sketch of every C1 language golden, of the raw-pins golden, of one program per driver op of ref-uno-rover@0, of five with an LED right after tone() (literal, computed, and a loop of one literal call site at 31, 121 and 200 Hz) and of negate-drive (28 fixtures), its HEX on avr8js against the simulator with the same scripted inputs; pin events and Serial lines compared, each timed from the anchor it depends on',
+    '28 of 28 agree: every Serial line and pin state (duty, angle, tone ±1 %); every interval within its waits ±1 % and the allowed differences (largest with no line printed in it 0.276 %, driver-buzzer, but for the end of a tone that ends by itself: at 31 Hz a 40 ms tone is one pulse, its end 7246 µs early, tone-duration; lines queued behind the one before ≤ 0.58 µs; an LED right after a computed tone() in driver-tone-computed ≤ 5.94 µs, after a literal one, folded, up to 87.25 µs early in driver-tone-led and 290.69 µs in the 121 Hz loop); a simulator 200 µs late after a first tone(), 950 µs inside a literal one or 2000 µs inside a first one fails; Servo 1.3.0 sends its first pulse 52802 µs after attach(); a PWM, servo or tone change shows within one timer period; tone() inlined in sequenced-reads took ≥ 240.1 µs (224.375 alone)',
     ['emu-trace'],
     ['block', 'yield', 'return', 'content'],
   ),
@@ -86,15 +86,15 @@ const evidence: Record<EvidenceRef, EvidenceEntry> = {
     'EMU',
     'avr8js 0.21.1 on Node 24.22.1 (Apple M4 Pro); HEX built by arduino-cli 1.5.1 for arduino:avr:uno (arduino:avr@1.8.8); node spikes/avr8js/run-helper-costs.mjs (N18 C2, not in results.json)',
     'sketches/helper-costs: motorSet with run-time speeds -100..100 against its Arduino calls; tone(10, f, 100) at 31..4000 Hz on a silent pin and on a pin playing 1000 Hz; Serial.begin(9600)',
-    'motorSet(50) 58.875 µs, motorSet(-100) 63.75 µs (42.0625 / 42.75 µs beyond 2 digitalWrite + analogWrite as the simulator charges them); at speeds 1, 30, 60, 70, 99: 59.0625, 59.4375, 59.4375, 59.625, 59.8125 µs; -1, -30, -70: 59.5625, 59.9375, 60.125 µs (43.3125 beyond the calls, the longest); 0 and 100: 61.25, 63.25 µs; tone on a silent pin 308.8125 µs at 31 Hz, 307.125 at 100, 301.6875 at 200, 262.25 at 440, 224.375 at 500, 184.8125 at 1000, 184.625 at 1500, 184.4375 at 3000, 145.625 at 4000; on a playing pin 297.25, 295.5625, 290.125, 250.6875, 212.8125, 173.25, 173.0625, 172.875, 134.0625; Serial.begin(9600) 4.75 µs',
+    'motorSet(50) 58.875 µs, motorSet(-100) 63.75 µs (42.0625 / 42.75 µs beyond 2 digitalWrite + analogWrite as the simulator charges them); at every speed -100..100 on the PWM path 58.875 (50) .. 60.5 µs (-75, -97: 43.6875 beyond the calls, the longest); 0 and 100: 61.25, 63.25 µs; tone on a silent pin 308.8125 µs at 31 Hz, 307.125 at 100, 301.6875 at 200, 262.25 at 440, 224.375 at 500, 184.8125 at 1000, 184.625 at 1500, 184.4375 at 3000, 145.625 at 4000; on a playing pin 297.25, 295.5625, 290.125, 250.6875, 212.8125, 173.25, 173.0625, 172.875, 134.0625; Serial.begin(9600) 4.75 µs',
     ['emu-trace'],
     ['block'],
   ),
   'EMU-18': entry(
     'EMU',
-    'avr8js 0.21.1 on Node 24.22.1 (Apple M4 Pro); HEX built by arduino-cli 1.5.1 for arduino:avr:uno (arduino:avr@1.8.8) from sketches the generator writes; node spikes/avr8js/run-generated-tone.mjs (N18 C2 fix round 2, not in results.json)',
-    'generated sketches: LED on; buzzerTone(BUZZER_PIN, <hz>, 20L); LED off, minus LED on; LED off, at 25 frequencies (the edges and inside of each Timer2 band), the frequency a literal or computed from two analogRead, on a silent pin and on a playing one, 75 call sites a program; and the same at 1000 Hz in programs of 1, 2, 3 and 5 call sites',
-    'computed, silent pin, longest per band: 306.5625 µs (31..121 Hz), 298.1875 (122..243), 258.9375 (244..486), 219.6875 (487..972), 181.5625 (973..3891), 143.3125 (3892..4000); playing pin 300.5625, 293.4375, 254, 214.625, 176.5625, 138.5; up to 5.3125 µs shorter inside a band; a literal frequency 3 µs shorter with 75 call sites; at 1000 Hz with 1, 2, 3, 5 call sites: literal 17.6875, 99.75, 138.9375, 178.5625 µs (folded), computed 213.375, 187.9375, 187.9375, 181.5625',
+    'avr8js 0.21.1 on Node 24.22.1 (Apple M4 Pro); HEX built by arduino-cli 1.5.1 for arduino:avr:uno (arduino:avr@1.8.8) from sketches the generator writes; node spikes/avr8js/run-generated-tone.mjs (N18 C2 fix rounds 2 and 3, not in results.json)',
+    'generated sketches: LED on; buzzerTone(BUZZER_PIN, <hz>, 20L); LED off, minus LED on; LED off, at 25 frequencies (the edges and inside of each Timer2 band), the frequency a literal or computed from two analogRead, on a silent pin and on a playing one, 75 call sites a program; the same at 1000 Hz in programs of 1, 2, 3 and 5 call sites; one literal call site at 10 frequencies (fix round 3)',
+    'computed, silent pin, longest per band: 306.5625 µs (31..121 Hz), 298.1875 (122..243), 258.9375 (244..486), 219.6875 (487..972), 181.5625 (973..3891), 143.3125 (3892..4000); playing pin 300.5625, 293.4375, 254, 214.625, 176.5625, 138.5; inside a band up to 5.3125 µs shorter on a silent pin, 6.5 µs (31..121 Hz) and 5.375 µs (244..486 Hz) on a playing one, 2.80 % at most (3892..4000 Hz, playing); with 75 call sites a literal frequency 0.25..6.25 µs shorter on a silent pin, -5.6875..+0.6875 µs on a playing one (longer at 122, 150, 200 Hz); at 1000 Hz with 1, 2, 3, 5 call sites: literal 17.6875, 99.75, 138.9375, 178.5625 µs (folded), computed 213.375, 187.9375, 187.9375, 181.5625; with 5 call sites at 31 Hz literal 308 µs (0.47 % over the band), computed 311; one literal call site at 31, 60, 121, 122, 200, 244, 440, 487, 1000, 4000 Hz: 17.625..17.75 µs',
     ['emu-trace'],
     ['block'],
   ),
@@ -1087,7 +1087,7 @@ const withParity = (row: ConstructContract): ConstructContract =>
 
 export const unoContract: UnoContract = {
   contractId: 'uno-arduino-avr',
-  version: '0.1.6',
+  version: '0.1.7',
   status: 'v0 (R0.3): every open row is established; L1 waits for R1/R2, L3 for M06.',
   snapshot: {
     pinnedOn: day,
@@ -1186,7 +1186,7 @@ export const unoContract: UnoContract = {
     pulseInNoPulse30000: 20_752,
     ultrasonicCmOverhead: 65.5625,
     ultrasonicCmNoEcho: 20_812,
-    motorSetOverhead: 43.3125,
+    motorSetOverhead: 43.6875,
     serialWriteByte: 4.625,
     serialQueueByte: 6.28125,
     serialLineByte: 1040,
