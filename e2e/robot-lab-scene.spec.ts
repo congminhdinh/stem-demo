@@ -133,6 +133,51 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
     expect(errors).toEqual([]);
   });
 
+  test('draws the run in every frame its snapshot changes, and nothing once the robot rests (the canvas draws on demand)', async ({ page, baseURL }) => {
+    const frame = await openInLesson(page, labUrl(baseURL, 'lab=robot&template=rb-drive-to-zone'));
+    await frame.evaluate((document) => window.__stem?.loadProject(document), solved());
+    // Counts the canvas's draws to the screen: three clears WebGL's default framebuffer once per render.
+    await frame.evaluate(() => {
+      const gl = (document.querySelector('[data-testid=robot-canvas] canvas') as HTMLCanvasElement).getContext('webgl2')!;
+      const counter = window as unknown as { __draws: number };
+      counter.__draws = 0;
+      const clear = gl.clear.bind(gl);
+      gl.clear = (mask: number) => {
+        if (gl.getParameter(gl.FRAMEBUFFER_BINDING) === null) counter.__draws += 1;
+        clear(mask);
+      };
+    });
+    await frame.evaluate(() => window.__stem?.robot.setSpeed(2));
+    await frame.getByTestId('robot-run').click();
+    await expect.poll(async () => (await view(frame))?.t ?? 0).toBeGreaterThan(0.3);
+    const during = await frame.evaluate(
+      () =>
+        new Promise<{ changed: number; draws: number }>((done) => {
+          const counter = window as unknown as { __draws: number };
+          const start = counter.__draws;
+          let last = -1;
+          let changed = 0;
+          let frames = 0;
+          const step = () => {
+            const t = (window.__stem?.robot.getSnapshot() as { t: number } | null)?.t ?? -1;
+            if (t !== last) changed += 1;
+            last = t;
+            if (++frames < 90) requestAnimationFrame(step);
+            else done({ changed, draws: counter.__draws - start });
+          };
+          requestAnimationFrame(step);
+        }),
+    );
+    expect(during.changed).toBeGreaterThan(30);
+    expect(during.draws / during.changed).toBeGreaterThan(0.8);
+    // The program ends after 5 s and the robot rests in the target: the canvas stops drawing.
+    await expect(frame.getByTestId('robot-status')).toHaveText('Chương trình đã chạy xong', { timeout: 10_000 });
+    await page.waitForTimeout(1500);
+    const rested = await frame.evaluate(() => (window as unknown as { __draws: number }).__draws);
+    await page.waitForTimeout(1000);
+    expect(await frame.evaluate(() => (window as unknown as { __draws: number }).__draws)).toBe(rested);
+  });
+
   test('steps 0.1 s of simulated time from idle, paused, then runs on with Tiếp tục', async ({ page, baseURL }) => {
     const frame = await openInLesson(page, labUrl(baseURL, 'lab=robot&template=rb-drive-to-zone'));
     await frame.evaluate((document) => window.__stem?.loadProject(document), solved());

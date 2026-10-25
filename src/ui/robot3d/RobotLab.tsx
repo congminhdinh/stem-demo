@@ -162,10 +162,15 @@ export default function RobotLab({
   const buzzerPin = model.buzzers[0]?.pinIndex ?? -1;
   const tones = useCallback(
     (listener: (hz: number | undefined) => void) => {
+      let told: number | undefined | null = null;
       const emit = () => {
         const state = store.getState();
         const world = state.snapshot.status === 'idle' ? null : store.getState().latestWorld();
-        listener(world === null || state.paused || buzzerPin < 0 ? undefined : (toneHzOf(world, buzzerPin) ?? undefined));
+        const hz = world === null || state.paused || buzzerPin < 0 ? undefined : (toneHzOf(world, buzzerPin) ?? undefined);
+        if (hz !== told) {
+          told = hz;
+          listener(hz);
+        }
       };
       const stopPublishes = store.getState().onPublish(emit);
       const stopState = store.subscribe(emit);
