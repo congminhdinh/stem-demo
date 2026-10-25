@@ -8,12 +8,14 @@ import type { TextureSet } from '../assets/textures';
 import { ArenaView } from '../ArenaView';
 import { robot3dColors as colors } from '../colors';
 import { groundTextureSize } from '../ground-paint';
+import type { CameraMode } from '../camera';
+import type { CardEdge, HudCorner, ToolsCorner } from '../hud-corner';
 import type { TierLook } from '../lighting/look';
 import { arenaToThree, writePose } from '../scene-math';
 import { assembleArena, MAT_THICKNESS_M } from './arena-assembly';
 import { paintMat, paintMatRoughness, paintMatShading, type MatLabels } from './mat-paint';
 import { tapeRibbon } from './tape-ribbon';
-import { ZoneTags } from './ZoneTags';
+import { ZoneTags, type RobotTagBox } from './ZoneTags';
 
 // The arena in the 3D view from the modelled props (N18 R4.7): the mat (a canvas painted from the scenario's vector paint, as the line
 // sensors read it, with its printed borders; the zones' names and numbers float over it as tags, ZoneTags.tsx; its roughness and its baked contact shading painted from the same data; the
@@ -32,6 +34,8 @@ type GltfArenaProps = {
   textures: TextureSet;
   labels: MatLabels;
   viewForward: readonly [number, number];
+  /** The zones' tags (ZoneTags.tsx): shown once the view's first frame is drawn, laid out round the robot and what floats over the view. */
+  tags: { ready: boolean; mode: CameraMode; overlays: { hud: HudCorner | null; card: CardEdge | null; tools: ToolsCorner | null }; robot: RobotTagBox };
 };
 
 type MatTextures = { map: Texture; roughness: Texture; shading: Texture; dispose(): void } | null;
@@ -80,7 +84,7 @@ function useMatTextures(scenario: Scenario, low: boolean): MatTextures {
   return made;
 }
 
-export function GltfArena({ assets, planView, scenario, view, look, shadows, textures, labels, viewForward }: GltfArenaProps) {
+export function GltfArena({ assets, planView, scenario, view, look, shadows, textures, labels, viewForward, tags }: GltfArenaProps) {
   const mat = useMatTextures(scenario, look.detail === 'low');
   const arena = useMemo(() => {
     try {
@@ -160,7 +164,7 @@ export function GltfArena({ assets, planView, scenario, view, look, shadows, tex
       <mesh geometry={surface.top} material={surface.material} position={[centre[0], 0, centre[2]]} receiveShadow={shadows} />
       <mesh geometry={surface.edge} material={surface.edgeMaterial} position={[centre[0], 0, centre[2]]} receiveShadow={shadows} />
       {surface.tape && <mesh geometry={surface.tape} material={surface.tapeMaterial} receiveShadow={shadows} />}
-      <ZoneTags scenario={scenario} labels={labels} />
+      {tags.ready && <ZoneTags scenario={scenario} labels={labels} view={view} mode={tags.mode} overlays={tags.overlays} robot={tags.robot} />}
     </group>
   );
 }

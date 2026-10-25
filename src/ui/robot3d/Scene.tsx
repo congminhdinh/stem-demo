@@ -1,5 +1,5 @@
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Suspense, use, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { addTail, Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Suspense, use, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { NeutralToneMapping, NoToneMapping, type DirectionalLight } from 'three';
 import { useStore } from 'zustand';
 import type { Kit } from '../../core/hardware/kit';
@@ -18,7 +18,8 @@ import { robot3dColors as colors } from './colors';
 import { tierLook } from './lighting/look';
 import { StudioLighting } from './lighting/StudioLighting';
 import { GltfArena } from './parts/GltfArena';
-import { GltfRobot } from './parts/GltfRobot';
+import { flagOf, GltfRobot } from './parts/GltfRobot';
+import type { RobotTagBox } from './parts/ZoneTags';
 import { tierSettings, type QualityTier } from './quality';
 import type { RobotModel } from './robot-model';
 import { isRunOver, type RobotRunStore } from './robot-run-store';
@@ -26,6 +27,7 @@ import { createFrameWatch } from './frame-watch';
 import type { RobotToolsStore } from './robot-tools-store';
 import { RobotView } from './RobotView';
 import { idleSnapshot, sameView } from './scene-math';
+import { sightProps } from './sight-props';
 
 // The robot lab's 3D view (N18 R4.2, ADR 0002): one R3F canvas with the arena, the robot and the camera. It draws on demand
 // (`frameloop="demand"`): a frame is drawn when the picture changes (a run's new snapshot that moves something, a Stop, a Reset), when
@@ -173,15 +175,29 @@ function CompiledDraw({ onDrawn }: { onDrawn?: (() => void) | undefined }) {
   return null;
 }
 
-/** Tells the owner, once, when a run's frames are too slow (frame-watch.ts): frames count while a run moves. */
+/**
+ * Tells the owner, once, when a run's frames are too slow (frame-watch.ts): frames count while a run moves, and only those drawn right
+ * after another one. R3F calls its tail effects when its demand loop stops (nothing asked for the next frame): the frame after that is
+ * not back to back.
+ */
 function SlowFrames({ store, onSlow }: { store: RobotRunStore; onSlow(): void }) {
   const watch = useMemo(createFrameWatch, []);
   const told = useRef(false);
+  const stopped = useRef(true);
+  useEffect(
+    () =>
+      addTail(() => {
+        stopped.current = true;
+      }),
+    [],
+  );
   useFrame((_, delta) => {
+    const backToBack = !stopped.current;
+    stopped.current = false;
     if (told.current) return;
     const state = store.getState();
     const running = state.active && !state.paused && !state.starting && !isRunOver(state.snapshot);
-    if (watch.frame(delta * 1000, running)) {
+    if (watch.frame(delta * 1000, running, backToBack)) {
       told.current = true;
       onSlow();
     }
@@ -221,6 +237,9 @@ type ContentProps = {
   zoneLabel: (zone: PaintZone) => string | null;
   viewForward: readonly [number, number];
   cameraMode: CameraMode;
+  /** The zones' tags: shown from one frame after the first, laid out clear of what floats over the view. */
+  tagsReady: boolean;
+  overlays: { hud: HudCorner | null; card: CardEdge | null; tools: ToolsCorner | null };
 };
 
 /** The parts each of the modelled files must have for the view to use them; without one, the procedural view is drawn. */
@@ -231,7 +250,7 @@ const NEEDED_PROPS = ['prop_wall', 'prop_block', 'prop_cardboard', 'prop_marker'
  * What the canvas shows (N18 R4.7): the modelled robot and arena under the studio light once their files are in (the canvas waits for
  * them under "Đang tải 3D…", Suspense), or R4.2's procedural shapes when the files do not load.
  */
-function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewForward, cameraMode }: ContentProps) {
+function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewForward, cameraMode, tagsReady, overlays }: ContentProps) {
   const look = tierLook[tier];
   const assets = use(loadRobotAssets(look.detail));
   const gl = useThree((state) => state.gl);
@@ -246,6 +265,13 @@ function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewF
     if (look.detail === 'high') assets?.sharpen(Math.min(8, gl.capabilities.getMaxAnisotropy()));
   }, [assets, gl, look]);
   const labels = useMemo(() => ({ zoneLabel }), [zoneLabel]);
+  // The robot's box the zones' tags keep clear of: with the wheels, and up to a raised flag's top (about 21 cm, 10 cm round) if it has one.
+  const robotBox = useMemo<RobotTagBox>(() => {
+    const wheel = model.wheels[0]?.widthM ?? 0;
+    const [halfLength, halfWidth] = [model.body.lengthM / 2 + 0.01, model.body.widthM / 2 + wheel];
+    return flagOf(scenario) ? { halfLength: Math.max(halfLength, 0.1), halfWidth: Math.max(halfWidth, 0.1), height: 0.21 } : { halfLength, halfWidth, height: model.body.bottomM + model.body.heightM + 0.035 };
+  }, [model, scenario]);
+  const tags = useMemo(() => ({ ready: tagsReady, mode: cameraMode, overlays, robot: robotBox }), [tagsReady, cameraMode, overlays, robotBox]);
   const usable = assets !== null && NEEDED_PARTS.every((name) => assets.part(name)) && NEEDED_PROPS.every((name) => assets.prop(name));
   // What the canvas draws, for the E2E and a curious developer: the modelled scene or the simple shapes.
   useEffect(() => {
@@ -269,9 +295,20 @@ function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewF
     <>
       <color attach="background" args={[colors.studioFog]} />
       <StudioLighting span={span} look={look} shadows={shadows} mapSize={settings.shadowMapSize} viewForward={viewForward} />
-      <GltfArena assets={assets} planView={cameraMode === 'top'} scenario={scenario} view={view} look={look} shadows={shadows} textures={textures} labels={labels} viewForward={viewForward} />
+      <GltfArena assets={assets} planView={cameraMode === 'top'} scenario={scenario} view={view} look={look} shadows={shadows} textures={textures} labels={labels} viewForward={viewForward} tags={tags} />
       <GltfRobot assets={assets} kit={kit} model={model} scenario={scenario} view={view} detail={look.detail} shadows={shadows} blob={textures.blob} />
     </>
+  );
+}
+
+/** A box's four top corners (arena cm, its height), turned by its yaw. */
+function boxTopCorners(box: { centerCm: readonly [number, number]; sizeCm: readonly [number, number, number]; yawDeg: number }): [number, number, number][] {
+  const [c, s] = [Math.cos((box.yawDeg * Math.PI) / 180), Math.sin((box.yawDeg * Math.PI) / 180)];
+  return [-1, 1].flatMap((dx) =>
+    [-1, 1].map((dy): [number, number, number] => {
+      const [x, y] = [(dx * box.sizeCm[0]) / 2, (dy * box.sizeCm[1]) / 2];
+      return [box.centerCm[0] + x * c - y * s, box.centerCm[1] + x * s + y * c, box.sizeCm[2]];
+    }),
   );
 }
 
@@ -288,10 +325,22 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
       goals: zones.filter((zone) => zone.kind === 'target' || zone.kind === 'checkpoint').map((zone) => zone.polygonCm),
       startZone: zones.find((zone) => zone.kind === 'start')?.polygonCm,
       route: scenario.arena.paint.lines.flatMap((line) => line.pointsCm),
+      bodies: [
+        ...scenario.arena.boxes.filter((box) => box.body === 'fixed').flatMap((box) => boxTopCorners(box)),
+        ...scenario.arena.cylinders.filter((cylinder) => cylinder.body === 'fixed').map((cylinder): [number, number, number] => [cylinder.centerCm[0], cylinder.centerCm[1], cylinder.heightCm]),
+      ],
     };
   }, [scenario]);
   const viewForward = useMemo(() => freeViewForward(freeView), [freeView]);
   const walls = useMemo(() => sightWalls(scenario.arena.walls), [scenario]);
+  const props = useMemo(() => sightProps(scenario), [scenario]);
+  // The zones' tags come a frame after the first is drawn: their canvases and shader cost that frame nothing.
+  const [tagsReady, setTagsReady] = useState(false);
+  const onDrawn = useCallback(() => {
+    onFirstFrame?.();
+    requestAnimationFrame(() => setTagsReady(true));
+  }, [onFirstFrame]);
+  const overlays = useMemo(() => ({ hud, card, tools: toolsCorner }), [hud, card, toolsCorner]);
   // N18 R4.7: a replay of a check's round ("Xem lại") is under way: the camera goes back to frame its start.
   const replaying = useStore(store, (state) => state.round !== null && state.active && !state.locked);
   return (
@@ -306,10 +355,10 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
       camera={{ fov: FOV_DEG, near: 0.01, far: 60, position: [span.widthM / 2, 1, 1] }}
     >
       <Suspense fallback={null}>
-        <SceneContent scenario={scenario} kit={kit} model={model} view={view} span={span} tier={tier} zoneLabel={zoneLabel} viewForward={viewForward} cameraMode={cameraMode} />
-        <CompiledDraw onDrawn={onFirstFrame} />
+        <SceneContent scenario={scenario} kit={kit} model={model} view={view} span={span} tier={tier} zoneLabel={zoneLabel} viewForward={viewForward} cameraMode={cameraMode} tagsReady={tagsReady} overlays={overlays} />
+        <CompiledDraw onDrawn={onDrawn} />
       </Suspense>
-      <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} resetKey={resetKey} hud={hud} card={card} tools={toolsCorner} walls={walls} replaying={replaying} />
+      <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} resetKey={resetKey} hud={hud} card={card} tools={toolsCorner} walls={walls} props={props} replaying={replaying} />
       <RedrawOnChange store={store} />
       <ContextWatch onLost={onContextLost} onRestored={onContextRestored} />
       {onSlowFrames && <SlowFrames store={store} onSlow={onSlowFrames} />}

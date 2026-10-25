@@ -83,12 +83,12 @@ describe('the printed mat (N18 R4.7)', () => {
     expect(calls.filter((call) => call.op === 'text')).toEqual([]);
   });
 
-  it('tags the zones the lesson sends the robot to over the mat: each checkpoint with its number and name, the target with its name', () => {
+  it('tags the zones the lesson sends the robot to over the mat: each checkpoint with its number alone, the target with its name', () => {
     const scenario = scenarioCatalog.get('rb-mini-mission')!;
     const tags = zoneTags(scenario, { zoneLabel: (zone) => zone.kind });
     expect(tags.map(({ zoneId, text, number }) => [zoneId, text, number])).toEqual([
-      ['cp-1', 'checkpoint', 1],
-      ['cp-2', 'checkpoint', 2],
+      ['cp-1', null, 1],
+      ['cp-2', null, 2],
       ['dock', 'target', null],
     ]);
     // Over the middle of the zone's bounds.

@@ -5,7 +5,8 @@ import { checkpointNumbers, type MatLabels } from './mat-paint';
 // The zones' tags in the 3D view (N18 R4.7 fix round 1): the names of the zones the lesson sends the robot to and the checkpoints'
 // numbers float over their zones as labels of the view (a rounded tag that faces the camera, a thin line down to the zone's middle),
 // readable from any camera, never printed sideways on the mat. They are no part of the world: nothing collides with them, no sensor
-// sees them. The start zone has none (the robot stands on it).
+// sees them. The start zone has none (the robot stands on it). A checkpoint with its number shows the number alone, in a disc (fix
+// round 2: "Điểm kiểm tra" four times over cluttered the view); its name goes on one without a number.
 
 export type ZoneTag = {
   zoneId: string;
@@ -30,8 +31,8 @@ export function zoneTags(scenario: Pick<Scenario, 'arena' | 'goals'>, labels: Ma
   const numbers = checkpointNumbers(scenario);
   return scenario.arena.paint.zones.flatMap((zone) => {
     if (zone.kind !== 'target' && zone.kind !== 'checkpoint') return [];
-    const text = labels.zoneLabel(zone);
     const number = numbers.get(zone.id) ?? null;
+    const text = zone.kind === 'checkpoint' && number !== null ? null : labels.zoneLabel(zone);
     return text === null && number === null ? [] : [{ zoneId: zone.id, text, number, color: zone.color, centerCm: middleOf(zone) }];
   });
 }
