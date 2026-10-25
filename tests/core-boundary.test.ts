@@ -228,3 +228,60 @@ describe('world determinism (D-R12): src/core/world never uses an inexact Math f
     expect(await ruleViolations(code, 'src/ui/robot3d/example.ts', 'no-restricted-syntax')).toEqual([]);
   });
 });
+
+// N18 R3.5: the world engine is the run session's (R3.6); the UI renders RobotSnapshot. src/ui may import the world's data and
+// snapshot types (arena-schema, snapshot, goal-frame, units, dmath), never the engine: createWorld, Rapier, the arena builder, the
+// robot and the sensors, not even their types, and not lazily either.
+describe('world engine boundary: src/ui reads RobotSnapshot and never builds the world', () => {
+  const engineImports = [
+    "import { createWorld } from '../../core/world/world';",
+    "import { createScenarioWorld } from '../../core/world/world.ts';",
+    "import type { World } from '../../core/world/world';",
+    "import { assembleRobot } from '../../core/world/robot/assembly';",
+    "import { robotFootprint } from '../../core/world/robot/footprint';",
+    "import type { ActuatorTargets } from '../../core/world/robot/assembly';",
+    "import { readContacts } from '../../core/world/sensors/contacts';",
+    "import { measureUltrasonic } from '../../core/world/sensors/ultrasonic.ts';",
+    "import { initPhysics } from '../../core/world/rapier';",
+    "import { buildArena } from '../../core/world/arena/build-arena';",
+  ];
+
+  it.each(engineImports)('rejects `%s` in src/ui', async (code) => {
+    expect(await boundaryViolations(code, 'src/ui/robot3d/Scene.tsx')).toHaveLength(1);
+  });
+
+  it.each([
+    "export const load = () => import('../../core/world/world');",
+    'export const load = () => import(`../../core/world/world`);',
+    "export const load = () => import('../../core/world/robot/assembly');",
+    "export const load = () => import('../../core/world/sensors/line.ts');",
+    "export const load = () => import('../../core/world/rapier');",
+    "export const load = () => import('../../core/world/arena/build-arena');",
+  ])('rejects the lazy `%s` in src/ui', async (code) => {
+    expect(await ruleViolations(code, 'src/ui/robot3d/Scene.tsx', 'no-restricted-syntax')).toHaveLength(1);
+  });
+
+  it('still rejects the lazy Rapier import in src/ui', async () => {
+    const code = "export const load = () => import('@dimforge/rapier3d-deterministic');";
+    expect(await ruleViolations(code, 'src/ui/robot3d/Scene.tsx', 'no-restricted-syntax')).toHaveLength(1);
+  });
+
+  it('lets src/ui import the snapshot, the goal frame adapter and the world’s data and arithmetic', async () => {
+    const code = [
+      "import { hashSnapshot, type RobotSnapshot, type SensorReadout } from '../../core/world/snapshot';",
+      "import { toGoalFrame } from '../../core/world/goal-frame';",
+      "import type { Arena } from '../../core/world/arena/arena-schema';",
+      "import { worldToArena } from '../../core/world/units';",
+      "import { cos } from '../../core/world/dmath';",
+      "export const load = () => import('../../core/world/snapshot');",
+    ].join('\n');
+    expect(await boundaryViolations(code, 'src/ui/robot3d/HUD.tsx')).toEqual([]);
+    expect(await ruleViolations(code, 'src/ui/robot3d/HUD.tsx', 'no-restricted-syntax')).toEqual([]);
+  });
+
+  it('lets the run session (src/core/run) build the world', async () => {
+    const code = ["import { createScenarioWorld } from '../world/world';", "export const load = () => import('../world/world');"].join('\n');
+    expect(await boundaryViolations(code, 'src/core/run/robot-run-session.ts')).toEqual([]);
+    expect(await ruleViolations(code, 'src/core/run/robot-run-session.ts', 'no-restricted-syntax')).toEqual([]);
+  });
+});

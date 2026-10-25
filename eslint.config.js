@@ -45,10 +45,15 @@ const lazyImportsOf = (source, message) => [
   { selector: `ImportExpression[source.value=/${source}/]`, message },
   { selector: `ImportExpression[source.type='TemplateLiteral'][source.quasis.0.value.cooked=/${source}/]`, message },
 ];
-// The UI shows the world through RobotSnapshot; it never loads the engine or builds an arena in it.
+// The UI shows the world through RobotSnapshot; it never loads the engine or builds an arena in it (N18 R3.5): not createWorld
+// (world.ts), Rapier, the arena builder, the robot or the sensors, not even their types (whatever the UI needs is a type of
+// snapshot.ts), and not lazily. It may import the snapshot, the goal frame adapter and the world's data and arithmetic
+// (arena-schema, ground-paint, units, dmath, rng). The run session (src/core/run, R3.6) is the one place that builds a world.
+const worldEngineMessage = 'src/ui reads RobotSnapshot; it never loads Rapier or builds the physics world, the robot or its sensors (robot plan §5).';
+const worldEngineSource = '(^|\\/)core\\/world\\/(rapier|world|arena\\/build-arena|robot\\/[^\\/]+|sensors\\/[^\\/]+)(\\.ts)?$';
 const worldEngine = {
-  regex: '(^|/)core/world/(rapier|arena/build-arena)(\\.ts)?$',
-  message: 'src/ui reads RobotSnapshot; it never loads Rapier or builds the physics world (robot plan §5).',
+  regex: '(^|/)core/world/(rapier|world|arena/build-arena|robot/[^/]+|sensors/[^/]+)(\\.ts)?$',
+  message: worldEngineMessage,
 };
 
 // D-R12, made stricter by ADR 0001 §4.6: ECMAScript lets engines approximate Math.sin/cos/tan/atan2/exp/
@@ -123,6 +128,7 @@ export default defineConfig([
           ],
         },
       ],
+      'no-restricted-syntax': ['error', ...lazyImportsOf('^@dimforge\\/', rapierMessage), ...lazyImportsOf(worldEngineSource, worldEngineMessage)],
     },
   },
   {
