@@ -275,11 +275,23 @@ test.describe('the robot lab’s 3D view and its 2D map (N18 R4.6)', () => {
     // to restore it (the scene spec's restore did nothing for that reason, and the lost message went away when the view gave up instead).
     await frame.evaluate(() => {
       const canvas = document.querySelector('[data-testid=robot-canvas] canvas') as HTMLCanvasElement;
-      const gl = (canvas.getContext('webgl2') ?? canvas.getContext('webgl')) as WebGLRenderingContext;
-      (window as unknown as { __loseContext: WEBGL_lose_context | null }).__loseContext = gl.getExtension('WEBGL_lose_context');
+      const gl = (canvas.getContext('webgl2') ?? canvas.getContext('webgl')) as WebGL2RenderingContext;
+      const hooks = window as unknown as { __loseContext: WEBGL_lose_context | null; __draws: number; __isContextLost(): boolean };
+      hooks.__loseContext = gl.getExtension('WEBGL_lose_context');
+      hooks.__isContextLost = () => gl.isContextLost();
+      // The scene's draws to the screen: three clears WebGL's default framebuffer once per render (as the scene spec counts them).
+      hooks.__draws = 0;
+      const clear = gl.clear.bind(gl);
+      gl.clear = (mask: number) => {
+        if (gl.getParameter(gl.FRAMEBUFFER_BINDING) === null) hooks.__draws += 1;
+        clear(mask);
+      };
     });
     return frame;
   }
+
+  const draws = (frame: Frame) => frame.evaluate(() => (window as unknown as { __draws: number }).__draws);
+  const contextLost = (frame: Frame) => frame.evaluate(() => (window as unknown as { __isContextLost(): boolean }).__isContextLost());
 
   const lose = (frame: Frame, action: 'loseContext' | 'restoreContext') =>
     frame.evaluate((which) => {
@@ -321,8 +333,17 @@ test.describe('the robot lab’s 3D view and its 2D map (N18 R4.6)', () => {
     await expect.poll(async () => (await topView(frame))?.robot?.xCm ?? 0, { timeout: 10_000 }).toBeGreaterThan(at.robot.xCm);
     await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
 
+    // While the context is lost the scene draws nothing (it stays mounted, and the run keeps asking it for frames).
+    expect(await contextLost(frame)).toBe(true);
+    const drawnWhileLost = await draws(frame);
+    await page.waitForTimeout(400);
+    expect(await draws(frame)).toBe(drawnWhileLost);
+
     await lose(frame, 'restoreContext');
     await expect(frame.getByTestId('robot-topview')).toHaveCount(0);
+    // And once it is restored the 3D scene draws again: new frames come to the screen, the run still moving the robot in them.
+    expect(await contextLost(frame)).toBe(false);
+    await expect.poll(() => draws(frame), { timeout: 5000 }).toBeGreaterThan(drawnWhileLost);
     await expect(frame.getByTestId('robot-fallback-note')).toHaveCount(0);
     await expect(frame.getByTestId('robot-viewmode')).toHaveText('Xem 2D');
     await expect(frame.getByTestId('robot-camera')).toBeVisible();

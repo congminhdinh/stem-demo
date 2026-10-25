@@ -270,6 +270,36 @@ test.describe('the robot lab at 760 px, narrower than 800 (N18 R4.6)', () => {
   });
 });
 
+test.describe('a frame that changes size under the 2D map (N18 R4.6 fix round 1)', () => {
+  test('shrinks the map’s stage with a shorter and a narrower frame, and grows it with a larger one, never scrolling', async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 640 });
+    await page.goto('/?embed=1&lab=robot&template=rb-line-follow');
+    await installTopViewReader(page);
+    await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 15_000 });
+    await page.getByTestId('robot-viewmode').click();
+    await expect(page.getByTestId('robot-topview')).toBeVisible();
+    const stageIsItsContainer = async () => {
+      const [map, state] = await Promise.all([box(page, '[data-testid=robot-topview]'), topView(page)]);
+      expect(state?.stage.width).toBeCloseTo(map.width, 0);
+      expect(state?.stage.height).toBeCloseTo(map.height, 0);
+      return { map, state: state! };
+    };
+    const first = await stageIsItsContainer();
+    for (const [width, height] of [
+      [1100, 500],
+      [900, 500],
+      [1100, 700],
+    ] as const) {
+      await page.setViewportSize({ width, height });
+      await expect.poll(async () => (await topView(page))?.stage.height).toBeCloseTo((await box(page, '[data-testid=robot-topview]')).height, 0);
+      const now = await stageIsItsContainer();
+      expect(await scrolls(page)).toEqual({ sideways: false, down: false });
+      if (height === 500 && width === 1100) expect(now.map.height).toBeLessThan(first.map.height);
+      if (height === 700) expect(now.map.height).toBeGreaterThan(first.map.height);
+    }
+  });
+});
+
 test.describe('where the robot lab turns to tabs (N18 R4.6)', () => {
   for (const [width, layout] of [
     [800, 'split'],

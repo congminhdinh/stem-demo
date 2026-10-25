@@ -243,11 +243,18 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
     await frame.evaluate((document) => window.__stem?.loadProject(document), solved());
     await frame.getByTestId('robot-run').click();
     await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
+    // N18 R4.6 fix round 1 (controller ruling b): the extension is taken before the loss. A lost context answers `getExtension` with null,
+    // so asking for it again to restore (as this test did) restored nothing, and the message went away because the view gave up.
+    await frame.evaluate(() => {
+      const canvas = document.querySelector('[data-testid=robot-canvas] canvas') as HTMLCanvasElement;
+      const gl = (canvas.getContext('webgl2') ?? canvas.getContext('webgl')) as WebGLRenderingContext;
+      (window as unknown as { __loseContext: WEBGL_lose_context | null }).__loseContext = gl.getExtension('WEBGL_lose_context');
+    });
     const lose = (action: 'loseContext' | 'restoreContext') =>
       frame.evaluate((which) => {
-        const canvas = document.querySelector('[data-testid=robot-canvas] canvas') as HTMLCanvasElement;
-        const gl = (canvas.getContext('webgl2') ?? canvas.getContext('webgl')) as WebGLRenderingContext;
-        gl.getExtension('WEBGL_lose_context')?.[which]();
+        const extension = (window as unknown as { __loseContext: WEBGL_lose_context | null }).__loseContext;
+        if (extension === null) throw new Error('This browser has no WEBGL_lose_context');
+        extension[which]();
       }, action);
     await lose('loseContext');
     await expect(frame.getByTestId('robot-webgl-lost')).toHaveText('Khung nhìn 3D bị mất đồ hoạ. Đang khôi phục…');
@@ -255,6 +262,9 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
     await expect.poll(async () => (await view(frame))?.t ?? 0).toBeGreaterThan(before + 0.2);
     await lose('restoreContext');
     await expect(frame.getByTestId('robot-webgl-lost')).toHaveCount(0);
+    // It came back: the 3D view is still the view (a context that stayed lost would have given way to the 2D map after 2 s).
+    await expect(frame.getByTestId('robot-topview')).toHaveCount(0);
+    await expect(frame.getByTestId('robot-scene')).toBeVisible();
     await expect(frame.getByTestId('blockly-panel').locator('svg.blocklySvg')).toBeVisible();
   });
 });
