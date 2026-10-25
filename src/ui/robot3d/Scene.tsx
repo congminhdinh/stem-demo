@@ -240,8 +240,11 @@ function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewF
   const textures = useMemo(() => createTextureSet(Math.min(8, gl.capabilities.getMaxAnisotropy())), [gl]);
   useEffect(() => () => textures.dispose(), [textures]);
   useEffect(() => () => assets?.releaseGpu(), [assets]);
-  // Before the first frame: the files' textures filtered as sharply as the mat's.
-  useLayoutEffect(() => assets?.sharpen(Math.min(8, gl.capabilities.getMaxAnisotropy())), [assets, gl]);
+  // Before the first frame, on the high tier: the files' textures filtered as sharply as the mat's. Not on the low tier, a software
+  // renderer's: there anisotropic filtering made the first frame 1.2 s slower at 4× CPU (measured, spikes/r47-visual/results/ab-*.json).
+  useLayoutEffect(() => {
+    if (look.detail === 'high') assets?.sharpen(Math.min(8, gl.capabilities.getMaxAnisotropy()));
+  }, [assets, gl, look]);
   const labels = useMemo(() => ({ zoneLabel }), [zoneLabel]);
   const usable = assets !== null && NEEDED_PARTS.every((name) => assets.part(name)) && NEEDED_PROPS.every((name) => assets.prop(name));
   // What the canvas draws, for the E2E and a curious developer: the modelled scene or the simple shapes.
