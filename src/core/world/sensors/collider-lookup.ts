@@ -33,3 +33,8 @@ export type SensorPose = { readonly position: Vec3; readonly rotation: Quat };
 export function isFiniteVector(v: Vec3): boolean {
   return Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z);
 }
+
+/** Whether a position and a rotation are made of finite numbers only. */
+export function isFinitePose(position: Vec3, rotation: Quat): boolean {
+  return isFiniteVector(position) && Number.isFinite(rotation.x) && Number.isFinite(rotation.y) && Number.isFinite(rotation.z) && Number.isFinite(rotation.w);
+}

@@ -17,6 +17,7 @@ export type PhysicsWorld = RapierNamespace.World;
 export type RigidBody = RapierNamespace.RigidBody;
 export type Collider = RapierNamespace.Collider;
 export type ColliderDesc = RapierNamespace.ColliderDesc;
+export type Shape = RapierNamespace.Shape;
 
 /** Fixed physics rate (ADR 0001 §5.5): one `world.step()` per tick. */
 export const PHYSICS_HZ = 120;

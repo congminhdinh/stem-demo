@@ -1,7 +1,12 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { productionKits, referenceKitRef } from '../../hardware/catalog';
+import type { Kit } from '../../hardware/kit';
 import { parseArena, type ArenaInput } from '../arena/arena-schema';
 import { buildArena, type BuiltArena } from '../arena/build-arena';
+import boxes from '../arena/fixtures/boxes.json';
 import { createPhysicsWorld, getRapier, initPhysics, refreshQueries, type Collider, type PhysicsWorld, type RigidBody } from '../rapier';
+import { assembleRobot, stepWorld } from '../robot/assembly';
+import { rotateVector } from '../units';
 import type { ColliderLookup, SensedCollider } from './collider-lookup';
 import { CONTACT_GAP_M, readContacts } from './contacts';
 
@@ -128,6 +133,86 @@ describe('readContacts', () => {
     });
   });
 
+  /** How far a cuboid collider's foremost corner (largest world x) is from the plane x = faceM, m: geometry only. */
+  const gapToPlaneX = (collider: Collider, faceM: number) => {
+    const t = collider.translation();
+    const q = collider.rotation();
+    const h = collider.halfExtents();
+    if (h === null) throw new Error('gapToPlaneX measures a cuboid');
+    let front = Number.NEGATIVE_INFINITY;
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) {
+      front = Math.max(front, t.x + rotateVector(q, { x: sx * h.x, y: sy * h.y, z: sz * h.z }).x);
+    }
+    return faceM - front;
+  };
+  /**
+   * Steps a body (or the robot, through `step`) towards zeta's face, x = 0.99 m, and checks every tick, the start included,
+   * that zeta is a contact exactly when the gap is within CONTACT_GAP_M. Returns the gaps (mm) of the first touching tick.
+   */
+  const checkArrival = (world: PhysicsWorld, built: BuiltArena, bodies: readonly RigidBody[], front: Collider, step: () => void) => {
+    let arrivalMm = Number.NaN;
+    for (let tick = 0; tick <= 12; tick++) {
+      if (tick > 0) step();
+      const gapM = gapToPlaneX(front, 0.99);
+      const touching = ids(readContacts(world, built, bodies)).includes('zeta');
+      // Ticks within 0.01 mm of the threshold could go either way on rounding; none occur in these runs.
+      if (Math.abs(gapM - CONTACT_GAP_M) > 1e-5) expect([tick, gapM, touching]).toEqual([tick, gapM, gapM <= CONTACT_GAP_M]);
+      if (Number.isNaN(arrivalMm) && touching) arrivalMm = gapM * 1000;
+    }
+    return arrivalMm;
+  };
+
+  it('reports a wall on the tick a cube arrives at 0.25 to 1 m/s from 0 to 12 mm away, not a tick later', () => {
+    const R = getRapier();
+    for (const speed of [0.25, 0.5, 0.6, 1]) {
+      for (let gapMm = 0; gapMm <= 12; gapMm++) {
+        withWorld(corner, (world, built) => {
+          const cube = world.createRigidBody(R.RigidBodyDesc.dynamic().setTranslation(0.94 - gapMm / 1000, 0.05, -0.5).setLinvel(speed, 0, 0));
+          const collider = world.createCollider(
+            R.ColliderDesc.cuboid(0.05, 0.05, 0.05).setFriction(0).setFrictionCombineRule(R.CoefficientCombineRule.Min),
+            cube,
+          );
+          refreshQueries(world);
+          const arrivalMm = checkArrival(world, built, [cube], collider, () => world.step());
+          expect([speed, gapMm, arrivalMm <= 1]).toEqual([speed, gapMm, true]);
+        });
+      }
+    }
+  });
+
+  it('reports a wall on the tick the reference rover arrives at 0.6 m/s from 0 to 12 mm away', () => {
+    const kit = productionKits.get(referenceKitRef) as Kit;
+    const full = { duty: 255, dir: 1 as const, brake: false };
+    for (let gapMm = 0; gapMm <= 12; gapMm++) {
+      withWorld(corner, (world, built) => {
+        // The body box is 15 cm long, centred on the robot frame's origin: its front face is 7.5 cm ahead of it.
+        const robot = assembleRobot(world, kit, { xCm: 99 - 7.5 - gapMm / 10, yCm: 50, yawDeg: 0 });
+        const box = robot.chassis.collider(0);
+        expect(box.halfExtents()).toEqual({ x: expect.closeTo(0.075, 6), y: expect.closeTo(0.025, 6), z: expect.closeTo(0.06, 6) });
+        robot.applyActuators({ motors: { motorLeft: full, motorRight: full } });
+        robot.chassis.setLinvel({ x: 0.6, y: 0, z: 0 }, true);
+        const arrivalMm = checkArrival(world, built, robot.bodies, box, () => stepWorld(world, robot));
+        expect([gapMm, arrivalMm <= 1]).toEqual([gapMm, true]);
+      });
+    }
+  });
+
+  it('reads nothing, and never throws, for a body whose pose is not finite', () => {
+    withWorld(corner, (world, built) => {
+      const cube = cubeAt(world, 94, 94);
+      refreshQueries(world);
+      expect(ids(readContacts(world, built, [cube]))).toEqual(['#ground', 'alpha', 'mid', 'zeta']);
+      cube.setTranslation({ x: Number.NaN, y: 0.05, z: -0.94 }, false);
+      expect(readContacts(world, built, [cube])).toEqual([]);
+      world.propagateModifiedBodyPositionsToColliders();
+      expect(readContacts(world, built, [cube])).toEqual([]);
+      cube.setTranslation({ x: 0.94, y: 0.05, z: -0.94 }, false);
+      cube.setRotation({ x: 0, y: Number.POSITIVE_INFINITY, z: 0, w: 1 }, false);
+      world.propagateModifiedBodyPositionsToColliders();
+      expect(readContacts(world, built, [cube])).toEqual([]);
+    });
+  });
+
   it('never reports the robot’s own parts, nor a collider the lookup does not name', () => {
     withWorld(corner, (world, built) => {
       const R = getRapier();
@@ -146,6 +231,22 @@ describe('readContacts', () => {
       // Seen from the arm alone, the chassis is just another collider it touches.
       expect(ids(readContacts(world, lookup, [arm]))).toEqual(['#ground', 'robot-chassis']);
       expect(ids(readContacts(world, built, [stray]))).toEqual(['#ground']);
+    });
+  });
+
+  it('costs a few tens of microseconds per call for the reference rover in the arena with boxes', () => {
+    const kit = productionKits.get(referenceKitRef) as Kit;
+    withWorld(boxes as ArenaInput, (world, built) => {
+      // Against the west wall (inner face x = 2 cm), on the floor: two contacts to confirm, more candidates to reject.
+      const robot = assembleRobot(world, kit, { xCm: 9.5, yCm: 100, yawDeg: 180 });
+      expect(ids(readContacts(world, built, robot.bodies))).toEqual(['#ground', '#wall-3']);
+      for (let i = 0; i < 200; i++) readContacts(world, built, robot.bodies);
+      const count = 2000;
+      const started = performance.now();
+      for (let i = 0; i < count; i++) readContacts(world, built, robot.bodies);
+      const usPerCall = ((performance.now() - started) * 1000) / count;
+      console.info(`readContacts: ${usPerCall.toFixed(2)} µs per call (${count} calls, reference rover, boxes arena)`);
+      expect(usPerCall).toBeLessThan(100);
     });
   });
 
