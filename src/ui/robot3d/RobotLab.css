@@ -1192,9 +1192,9 @@
  * N18 R8: a short window (a browser zoomed to 200 % in a 1100 × 640 window is 550 × 320 CSS px; a phone held sideways): the 3D view and the
  * controls over it keep the room they need and the lab scrolls, as WCAG's reflow asks, instead of the view shrinking to a sliver with its
  * controls clipped. The lab scrolls inside the shell (whose height stays the window's: the map and the view are sized from their boxes, and a
- * shell that grows with its content would be sized by them in turn). From 561 px up nothing changes.
+ * shell that grows with its content would be sized by them in turn). From 481 px up nothing changes (R4.6's frames of 500 px keep their layout).
  */
-@media (max-height: 560px) {
+@media (max-height: 480px) {
   .robot-lab {
     overflow: auto;
   }
