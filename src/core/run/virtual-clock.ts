@@ -98,8 +98,12 @@ export function createVirtualScheduler(options: VirtualSchedulerOptions = {}): V
     throw new RangeError('A virtual scheduler needs a positive tick, and a node cost and a delay overhead of 0 or more.');
   }
 
-  /** The program's clock in µs: charges of multiples of 1/32 µs (the costs table) add up exactly in a double. */
-  let programUs = 0;
+  /**
+   * The program's clock in µs: charges of multiples of 1/32 µs (the costs table) add up exactly in a double. A field, not a `let`: V8
+   * writes a double field in place, while a closure's variable got a new heap number at every charge and every step (N18 P1: about
+   * 33 bytes per hardware read of a uno program).
+   */
+  const time = { programUs: 0 };
   /** Node costs of the statement under way, put on the clock at the next step, sleep or park. */
   let unsettledUs = 0;
   let worldMs = 0;
@@ -118,7 +122,7 @@ export function createVirtualScheduler(options: VirtualSchedulerOptions = {}): V
   let sliceStart = wallNow();
 
   const settle = () => {
-    programUs += unsettledUs;
+    time.programUs += unsettledUs;
     unsettledUs = 0;
   };
 
@@ -204,7 +208,7 @@ export function createVirtualScheduler(options: VirtualSchedulerOptions = {}): V
 
   const park = (signal: AbortSignal | undefined) => {
     settle();
-    return waitUntil(programUs, signal);
+    return waitUntil(time.programUs, signal);
   };
 
   const yieldNow = (): Promise<void> => {
@@ -222,7 +226,7 @@ export function createVirtualScheduler(options: VirtualSchedulerOptions = {}): V
 
   return {
     programClock: {
-      now: () => programUs / 1000,
+      now: () => time.programUs / 1000,
       charge(us) {
         if (!(us >= 0) || !Number.isFinite(us)) {
           throw new RangeError(`A charge is a finite number of µs, 0 or more, not ${us}.`);
@@ -230,17 +234,17 @@ export function createVirtualScheduler(options: VirtualSchedulerOptions = {}): V
         if (program !== 'running') {
           throw new Error('The program clock is charged only while the program runs (its own Arduino calls), never while it is blocked.');
         }
-        programUs += us;
+        time.programUs += us;
       },
     },
     sleep(ms, signal) {
       settle();
-      return waitUntil(programUs + delayOverheadUs + waitUs(ms), signal);
+      return waitUntil(time.programUs + delayOverheadUs + waitUs(ms), signal);
     },
     park: () => park(runSignal),
     yieldNow,
     timers: {
-      setTimeout: (task, ms) => enqueue(programUs + waitUs(ms), task),
+      setTimeout: (task, ms) => enqueue(time.programUs + waitUs(ms), task),
       clearTimeout: dequeue,
     },
     budget(signal) {
@@ -258,7 +262,7 @@ export function createVirtualScheduler(options: VirtualSchedulerOptions = {}): V
           program = 'running';
           unsettledUs += nodeUs;
           settle();
-          if (programUs >= horizonUs) {
+          if (time.programUs >= horizonUs) {
             return park(signal);
           }
           if (++steps < STEP_CHECK_INTERVAL) {
@@ -282,7 +286,7 @@ export function createVirtualScheduler(options: VirtualSchedulerOptions = {}): V
         // it there); it costs nothing itself: the op's own cost is the Arduino call's charge.
         atHardware() {
           signal.throwIfAborted();
-          return programUs >= horizonUs ? park(signal) : undefined;
+          return time.programUs >= horizonUs ? park(signal) : undefined;
         },
       };
     },
@@ -302,7 +306,7 @@ export function createVirtualScheduler(options: VirtualSchedulerOptions = {}): V
         for (let due = queue[0]; due !== undefined && due.deadlineUs < horizonUs; due = queue[0]) {
           queue.shift();
           // A task due while the program was ahead runs at the program's time: the clock never goes back.
-          programUs = Math.max(programUs, due.deadlineUs);
+          time.programUs = Math.max(time.programUs, due.deadlineUs);
           due.fire();
           await whenBlocked();
         }
