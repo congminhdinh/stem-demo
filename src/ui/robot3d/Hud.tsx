@@ -4,13 +4,14 @@ import { scenarioMaxScore, type Scenario } from '../../core/scenario/scenario';
 import type { ScoreState } from '../../core/world/snapshot';
 import { isMessageKey } from '../i18n/messages';
 import { useLocale, useText } from '../i18n/text';
-import { labStatus, shownRun, type LabStatus, type RobotRunStore } from './robot-run-store';
+import { labStatus, shownRun, shownScore, type LabStatus, type RobotRunStore } from './robot-run-store';
 import { formatNumber } from './format';
 
 // The robot lab's HUD (N18 R4.4), over the top left of the 3D view: what the run is doing, its simulated time against the scenario's
 // limit, the badge "slower than real time", and for a scenario with goals its score and each goal, met or not with how far it has got.
 // It reads the store through selectors that change at most ten times a second (the time is shown in tenths), so a run re-renders it
-// little; the 3D view never re-renders for it.
+// little; the 3D view never re-renders for it. N18 R6.3: while the view shows a round of a check (during a check at 1× or 4×, what the last
+// round left, a replay) it says which ("Lượt 2/3"), and once that round's run is over its score is the check's (0 after an error).
 
 type HudProps = {
   store: RobotRunStore;
@@ -49,7 +50,8 @@ export function Hud({ store, scenario }: HudProps) {
   const slower = useStore(store, (state) => state.snapshot.status !== 'idle' && state.snapshot.slowerThanRealtime);
   const outOfArena = useStore(store, (state) => shownRun(state)?.world?.outOfArena === true);
   // The score as text: a new snapshot with the same score renders nothing.
-  const scoreText = useStore(store, (state) => JSON.stringify(shownRun(state)?.world?.score ?? null));
+  const scoreText = useStore(store, (state) => JSON.stringify(shownScore(state)));
+  const round = useStore(store, (state) => (state.round === null ? null : `${state.round.index + 1}/${state.round.count}`));
   const [goalsOpen, setGoalsOpen] = useState(true);
 
   const score = JSON.parse(scoreText) as ScoreState | null;
@@ -64,6 +66,11 @@ export function Hud({ store, scenario }: HudProps) {
   return (
     <section className="robot-hud" aria-label={t('robot.hud')} data-testid="robot-hud" data-status={status}>
       <div className="robot-hud-row">
+        {round !== null && (
+          <span className="robot-badge robot-badge-round" data-testid="robot-round">
+            {t('robot.check.round', { round: round.split('/')[0]!, count: round.split('/')[1]! })}
+          </span>
+        )}
         <span className={`robot-status robot-status-${tone}`} role="status" data-testid="robot-status" data-tone={tone}>
           {t(`robot.status.${status}`)}
         </span>

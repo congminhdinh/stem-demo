@@ -14,7 +14,10 @@ import { robotStarterDocument, robotTemplateKeys, type RobotTemplateKey } from '
 import { installTestHooks } from '../app/test-hooks';
 import { TextProvider } from '../i18n/text';
 import { createProjectStore } from '../state/project-store';
-import { fakeSession } from './__fixtures__/fake-session';
+import { ROBOT_ENGINE, type RobotCheckResult } from '../../core/scenario/check-result';
+import { goalReasons } from '../../core/scenario/goals';
+import { fakeChecks } from './__fixtures__/fake-check';
+import { fakeSession, idleRun } from './__fixtures__/fake-session';
 import RobotLab, { type RobotLabProps, type RobotProgramView } from './RobotLab';
 
 // The robot lab (N18 R4.1 shell, R4.2 scene, R4.4 HUD and controls), rendered in jsdom with a session the test drives. jsdom has no
@@ -392,5 +395,184 @@ describe('RobotLab runs (N18 R4.4)', () => {
     expect(host.querySelector('[data-testid=robot-speed] [aria-checked=true]')?.textContent).toBe('4×');
     await act(async () => host.querySelector<HTMLButtonElement>('[data-testid=robot-speed] [role=radio]')!.click());
     expect(robot.getSpeed()).toBe(0.5);
+  });
+});
+
+describe('RobotLab checks (N18 R6.3)', () => {
+  const crashed: RobotCheckResult = {
+    passed: false,
+    goals: [
+      { id: 'stop-near-wall', label: 'Xe dừng hẳn trong vùng trước tường', passed: false },
+      { id: 'no-crash', label: 'Xe không chạm tường', passed: false },
+    ],
+    score: 0,
+    maxScore: 100,
+    simTimeMs: 20000,
+    variants: [
+      { seed: 1, passed: true, score: 100, simTimeMs: 20000 },
+      { seed: 2, passed: false, score: 0, simTimeMs: 6600 },
+      { seed: 3, passed: true, score: 100, simTimeMs: 20000 },
+    ],
+    engine: ROBOT_ENGINE,
+    scenarioVersion: 1,
+    programHash: 'ab',
+  };
+
+  function checkSetup(template: RobotTemplateKey = 'rb-stop-at-wall') {
+    const lab = setup(template);
+    const checks = fakeChecks();
+    const onCheck = { begin: vi.fn(), result: vi.fn(), end: vi.fn() };
+    const render = () => lab.render({ createCheck: checks.createCheck, onCheck });
+    /** checkRobot's progress for three rounds, the second hitting the wall at 6.6 s. */
+    const tellRounds = () => {
+      const { onProgress } = checks.last();
+      const ended = (index: number, passed: boolean) => {
+        const snapshot = { ...idleRun, status: 'finished' as const, world: lab.world(passed ? 20 : 6.6, passed ? 136 : 150), end: passed ? { reason: 'time-limit' as const, atS: 20 } : { reason: 'contact' as const, atS: 6.6, tag: 'wall' } };
+        onProgress({ kind: 'variant-started', index, count: 3, seed: index + 1 });
+        onProgress({
+          kind: 'variant-ended',
+          index,
+          count: 3,
+          variant: crashed.variants[index]!,
+          goals: passed
+            ? [
+                { id: 'stop-near-wall', passed: true, points: 70, progress: 1, atS: 9 },
+                { id: 'no-crash', passed: true, points: 30, progress: 1, atS: 1 },
+              ]
+            : [
+                { id: 'stop-near-wall', passed: false, points: 0, progress: 0, reasonKey: goalReasons.runEndedContact, atS: 6.6 },
+                { id: 'no-crash', passed: false, points: 0, progress: 0, reasonKey: goalReasons.contact, atS: 6.6 },
+              ],
+          timeBonus: 0,
+          end: snapshot.end,
+          error: null,
+          snapshot,
+        });
+      };
+      ended(0, true);
+      ended(1, false);
+      ended(2, true);
+    };
+    return { ...lab, checks, onCheck, render, tellRounds };
+  }
+
+  const speeds = () => [...host.querySelectorAll('[data-testid=robot-check-speed] [role=radio]')].map((element) => [element.textContent, element.getAttribute('aria-checked')]);
+
+  it('offers Kiểm tra at 1×, 4× or Nhanh for a scenario with a score, next to the run’s controls; the sandbox has nothing to check', async () => {
+    const { render } = checkSetup('rb-drive-to-zone');
+    await render();
+    expect(text('robot-check-start')).toBe('Kiểm tra');
+    expect(speeds()).toEqual([
+      ['1×', 'true'],
+      ['4×', 'false'],
+      ['Nhanh', 'false'],
+    ]);
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid=robot-check-speed] [data-speed=fast]')!.click());
+    expect(speeds()[2]).toEqual(['Nhanh', 'true']);
+    // The run's controls are as they were (R4.4).
+    expect([...host.querySelectorAll('[data-testid=robot-controls] > button')].map((element) => element.textContent)).toEqual(['Chạy', 'Dừng', 'Tạm dừngTiếp tục', 'Bước 0,1 s', 'Đặt lại robot']);
+    // A lab is made for its scenario once (its template never changes): the sandbox is another lab.
+    act(() => root.unmount());
+    root = createRoot(host);
+    await checkSetup('rb-sandbox').render();
+    expect(host.querySelector('[data-testid=robot-check]')).toBeNull();
+  });
+
+  it('saves the blocks and tells the host it begins, holds the lab and says its round; its result says why, and goes to the host', async () => {
+    const { render, checks, onCheck, flushProgram, onRunChange, lastView, tellRounds, projectStore } = checkSetup();
+    await render();
+    await click('robot-check-start');
+    expect(flushProgram).toHaveBeenCalledTimes(1);
+    expect(onCheck.begin).toHaveBeenCalledTimes(1);
+    expect(flushProgram.mock.invocationCallOrder[0]).toBeLessThan(onCheck.begin.mock.invocationCallOrder[0]!);
+    expect(checks.last()).toMatchObject({ project: projectStore.getState().document, mode: 'realtime', speed: 1 });
+    // The lab is held: the blocks, the run's controls, the robot's button.
+    expect(lastView().readOnly).toBe(true);
+    for (const id of ['robot-run', 'robot-stop', 'robot-pause', 'robot-step', 'robot-reset', 'robot-button']) expect(button(id).disabled).toBe(true);
+    expect([...host.querySelectorAll<HTMLButtonElement>('[data-testid=robot-speed] [role=radio]')].every((radio) => radio.disabled)).toBe(true);
+    expect(text('robot-check-round')).toBe('Lượt 1/3');
+    expect(onRunChange.mock.calls).toEqual([[true]]);
+    await act(async () => checks.last().onProgress({ kind: 'variant-started', index: 1, count: 3, seed: 2 }));
+    expect(text('robot-check-round')).toBe('Lượt 2/3');
+    expect(text('robot-round')).toBe('Lượt 2/3');
+    await act(async () => {
+      tellRounds();
+      checks.last().check.settle(crashed);
+    });
+    await frame();
+    expect(onCheck.result).toHaveBeenCalledWith(crashed);
+    expect(onCheck.end).toHaveBeenCalledTimes(1);
+    expect(onCheck.result.mock.invocationCallOrder[0]).toBeLessThan(onCheck.end.mock.invocationCallOrder[0]!);
+    expect(onRunChange.mock.calls).toEqual([[true], [false]]);
+    expect(text('robot-check-verdict')).toBe('Chưa đạt');
+    expect(text('robot-check-score')).toBe('0/100 điểm');
+    const results = host.querySelector('[data-testid=robot-check-results]')!;
+    expect([...results.querySelectorAll('.robot-check-why')].map((element) => element.textContent)).toEqual([
+      'Lượt chạy dừng vì xe đâm vào tường lúc 6,6 s ở lượt 2',
+      'Xe chạm tường lúc 6,6 s ở lượt 2',
+    ]);
+    expect([...results.querySelectorAll('[data-testid=robot-check-rounds] > li')].map((element) => element.getAttribute('data-passed'))).toEqual(['true', 'false', 'true']);
+    // Let go: the lab is the learner's again, and shows the round the check ended with.
+    expect(lastView().readOnly).toBe(false);
+    expect(button('robot-run').disabled).toBe(false);
+    expect(text('robot-check-start')).toBe('Kiểm tra');
+    expect(text('robot-round')).toBe('Lượt 3/3');
+    expect(text('robot-status')).toBe('Lượt chạy kết thúc');
+  });
+
+  it('checks fast without showing the check’s run: its progress stands over the view, and the host hears no run', async () => {
+    const { render, checks, onRunChange, world } = checkSetup();
+    await render();
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid=robot-check-speed] [data-speed=fast]')!.click());
+    await click('robot-check-start');
+    expect(checks.last().mode).toBe('headless');
+    await act(async () => {
+      checks.last().onProgress({ kind: 'variant-started', index: 1, count: 3, seed: 2 });
+      checks.last().onProgress({ kind: 'time', index: 1, tS: 10, timeLimitS: 20 });
+      checks.last().check.publish({ status: 'running', world: world(10, 90) });
+    });
+    expect(text('robot-check-fast')).toContain('Đang kiểm tra nhanh…');
+    expect(text('robot-check-fast')).toContain('Lượt 2/3');
+    expect(host.querySelector('[data-testid=robot-check-fast] [role=progressbar]')?.getAttribute('aria-valuenow')).toBe('50');
+    expect(onRunChange).not.toHaveBeenCalled();
+    await act(async () => checks.last().check.settle(crashed));
+    await frame();
+    expect(host.querySelector('[data-testid=robot-check-fast]')).toBeNull();
+    expect(onRunChange).not.toHaveBeenCalled();
+  });
+
+  it('Dừng kiểm tra ends the check without a result: the host hears only that it began and ended', async () => {
+    const { render, checks, onCheck } = checkSetup();
+    await render();
+    await click('robot-check-start');
+    await click('robot-check-cancel');
+    await frame();
+    expect(checks.last().check.check.cancel).toHaveBeenCalledTimes(1);
+    expect(onCheck.begin).toHaveBeenCalledTimes(1);
+    expect(onCheck.result).not.toHaveBeenCalled();
+    expect(onCheck.end).toHaveBeenCalledTimes(1);
+    expect(host.querySelector('[data-testid=robot-check-results]')).toBeNull();
+    expect(button('robot-run').disabled).toBe(false);
+    expect(text('robot-status')).toBe('Chưa chạy');
+  });
+
+  it('Xem lại replays the round that failed in the view at 1×; an edit of the program closes the result', async () => {
+    const { render, checks, session, projectStore, tellRounds } = checkSetup();
+    await render();
+    await click('robot-check-start');
+    const checked = projectStore.getState().document;
+    await act(async () => {
+      tellRounds();
+      checks.last().check.settle(crashed);
+    });
+    expect(host.querySelector('[data-testid=robot-check-replay-1]')).toBeNull();
+    await click('robot-check-replay-2');
+    expect(session.start).toHaveBeenCalledWith(checked, 1, { check: true });
+    expect(host.querySelector('[data-testid=robot-speed] [aria-checked=true]')?.textContent).toBe('1×');
+    // Folded while it replays, so the arena shows.
+    expect(host.querySelector('[data-testid=robot-check-results]')?.getAttribute('data-open')).toBe('false');
+    expect(text('robot-round')).toBe('Lượt 2/3');
+    await act(async () => projectStore.getState().setProgramBlocks({ blocks: { languageVersion: 0, blocks: [] } }));
+    expect(host.querySelector('[data-testid=robot-check-results]')).toBeNull();
   });
 });

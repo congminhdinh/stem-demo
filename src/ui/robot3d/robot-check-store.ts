@@ -86,6 +86,12 @@ export type RobotCheckStoreOptions = {
   host(): CheckHost | undefined;
 };
 
+/** How far a running check has got, 0..1: the rounds that ended, and the part of the running one its simulated time has reached. */
+export function checkFraction(running: NonNullable<RobotCheckState['running']>): number {
+  const part = running.ended.length > running.index ? 1 : Math.min(1, running.tS / running.timeLimitS);
+  return Math.min(1, (running.index + part) / running.count);
+}
+
 /** The check's score of a round, as the HUD shows it once that round's run is over. */
 const scoreOf = (scenario: Scenario, round: CheckedRound): ScoreState => ({
   points: round.score,

@@ -18,11 +18,12 @@ type RobotDockProps = {
 
 /**
  * The robot's button: down while the pointer holds it or Space / Enter is held on it, up on release, on leaving the page's focus, and when
- * the run can no longer take it (stopped, over, a check). One press per hold: a key's repeats are ignored.
+ * the run can no longer take it (stopped, over, a check or the replay of a round of one). One press per hold: a key's repeats are ignored.
  */
 function HoldButton({ store, role }: { store: RobotRunStore; role: string }) {
   const t = useText();
-  const usable = useStore(store, (state) => state.active && !state.locked && !isRunOver(state.snapshot));
+  // N18 R6.3: a replay of a check's round takes only the scenario's presses, as the check did.
+  const usable = useStore(store, (state) => state.active && !state.locked && state.round === null && !isRunOver(state.snapshot));
   const [down, setDown] = useState(false);
   const downRef = useRef(false);
   const press = (pressed: boolean) => {

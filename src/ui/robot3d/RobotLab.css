@@ -18,11 +18,28 @@
   padding: 8px 12px;
 }
 
+/* N18 R6.3: the lab's name, small, over the scenario's: the header keeps one row for the run's controls and Kiểm tra. */
+.robot-title {
+  display: grid;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.app-header .robot-title h1 {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--stem-color-text-muted);
+}
+
 .app-header .robot-scenario {
   margin: 0;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--stem-color-text-muted);
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--stem-color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .robot-icon {
@@ -638,6 +655,323 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/*
+ * N18 R6.3: Kiểm tra and the speed it checks at, at the right end of the header, joined as one control (the speeds are the check's, not
+ * the run's); while a check runs, its stop, its round and its progress.
+ */
+.robot-check {
+  display: inline-flex;
+  align-items: center;
+  /* The same room while a check runs as before: the header never moves under the learner's pointer. */
+  min-width: 219px;
+  margin-left: 4px;
+  padding-left: 10px;
+  border-left: 1px solid var(--stem-color-border);
+}
+
+.robot-check-running {
+  gap: 8px;
+}
+
+/* The round over its progress bar. */
+.robot-check-progress {
+  display: grid;
+  gap: 3px;
+}
+
+.robot-header .robot-button-check {
+  border-color: var(--stem-color-primary);
+  border-radius: var(--stem-radius) 0 0 var(--stem-radius);
+  color: var(--stem-color-primary);
+  font-weight: 600;
+}
+
+.robot-header .robot-check-speed {
+  border-left: 0;
+  border-radius: 0 var(--stem-radius) var(--stem-radius) 0;
+}
+
+.app-header .robot-check-speed [role='radio']:first-child {
+  border-left-color: var(--stem-color-primary);
+}
+
+/* The 1100 px frame of a lesson holds the run's controls and Kiểm tra on one row: a little tighter, the run speed's name left to its group. */
+@media (max-width: 1279px) {
+  .robot-header-checkable .robot-controls {
+    gap: 4px;
+  }
+
+  .robot-header-checkable .robot-button {
+    padding: 4px 8px;
+  }
+
+  .app-header.robot-header-checkable .robot-speed [role='radio'] {
+    min-width: 34px;
+    padding: 0 7px;
+  }
+
+  .robot-header-checkable .robot-speed-label {
+    display: none;
+  }
+}
+
+.robot-check-round {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.robot-check-bar {
+  display: block;
+  width: 64px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--stem-color-neutral-soft);
+}
+
+.robot-check-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--stem-color-primary);
+}
+
+.robot-check-bar-wide {
+  width: min(260px, 70%);
+  height: 8px;
+  border-radius: 4px;
+}
+
+/* The round of a check the view shows, in the HUD. */
+.robot-badge-round {
+  background: var(--stem-color-primary-soft);
+  color: var(--stem-color-primary);
+}
+
+/* A fast check: its progress stands over the view (the view does not show its run). */
+.robot-check-fast {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 0 24px;
+  background: var(--stem-color-surface-muted);
+  color: var(--stem-color-text);
+  font-size: 14px;
+  text-align: center;
+}
+
+.robot-check-fast p {
+  margin: 0;
+}
+
+.robot-check-fast-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.robot-check-fast-rounds {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--stem-color-text-muted);
+  font-size: 13px;
+}
+
+.robot-check-fast-rounds [data-passed='true'] span {
+  color: var(--stem-color-success);
+}
+
+.robot-check-fast-rounds [data-passed='false'] span {
+  color: var(--stem-color-danger);
+}
+
+/* The result of a check: a card at the right of the view, under the camera's views and above the quality switch; it scrolls inside. */
+.robot-check-panel {
+  position: absolute;
+  top: 52px;
+  right: 10px;
+  z-index: 1;
+  display: grid;
+  gap: 6px;
+  width: min(330px, calc(100% - 20px));
+  max-height: calc(100% - 100px);
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--stem-color-border);
+  border-top: 3px solid var(--stem-color-warning-text);
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-overlay);
+  box-shadow: 0 2px 8px var(--stem-shadow-scroll);
+  font-size: 12px;
+}
+
+.robot-check-panel-passed {
+  border-top-color: var(--stem-color-success);
+}
+
+.robot-check-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.robot-check-panel h3 {
+  margin: 0;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.robot-check-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+}
+
+.robot-check-verdict {
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--stem-color-warning-soft);
+  color: var(--stem-color-warning-text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.robot-check-panel-passed .robot-check-verdict {
+  background: var(--stem-color-success-soft);
+  color: var(--stem-color-success);
+}
+
+.robot-check-score {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.robot-check-icon-button {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--stem-radius);
+  background: transparent;
+  color: var(--stem-color-text-muted);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.robot-check-panel-head .robot-check-icon-button:first-of-type {
+  margin-left: auto;
+}
+
+.robot-check-panel-body {
+  display: grid;
+  gap: 6px;
+}
+
+.robot-check-panel h4 {
+  margin: 2px 0 0;
+  color: var(--stem-color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.robot-check-lowest {
+  flex-basis: 100%;
+  color: var(--stem-color-text-muted);
+}
+
+.robot-check-rounds,
+.robot-check-goals {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.robot-check-rounds > li,
+.robot-check-goals > li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: 6px;
+  line-height: 1.35;
+}
+
+.robot-check-mark {
+  color: var(--stem-color-danger);
+  font-weight: 700;
+  text-align: center;
+}
+
+[data-passed='true'] > .robot-check-mark {
+  color: var(--stem-color-success);
+}
+
+.robot-check-points {
+  color: var(--stem-color-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.robot-check-replay {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--stem-color-border-strong);
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-surface);
+  color: var(--stem-color-text);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.robot-check-replay:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.robot-check-why-list {
+  grid-column: 2 / -1;
+  display: grid;
+  gap: 2px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.robot-check-why {
+  margin: 0;
+  color: var(--stem-color-danger);
+}
+
+.robot-check-rounds > li > .robot-check-why {
+  grid-column: 2 / -1;
+}
+
+.robot-check-bonus {
+  margin: 0;
+  padding-top: 4px;
+  border-top: 1px solid var(--stem-color-border);
 }
 
 /* A narrow frame: the header wraps, the controls take their own row, as tight as their words allow. */

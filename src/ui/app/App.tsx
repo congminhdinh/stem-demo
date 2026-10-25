@@ -6,6 +6,7 @@ import type { DeviceRegistry } from '../../core/devices/registry';
 import type { Notice } from '../../core/persistence/project-repository';
 import { resolveBoardContext } from '../../core/profiles/board-context';
 import type { ProfileCatalog } from '../../core/profiles/profile';
+import type { RobotCheckResult } from '../../core/scenario/check-result';
 import { buildToolbox, type BlockPackCatalog } from '../../core/program/block-packs';
 import { buzzerPartId, displayPartId } from '../../core/simulation/peripherals/onboard-capabilities';
 import type { ComponentInput, SimulationResult } from '../../core/simulation/simulate-circuit';
@@ -53,6 +54,11 @@ export type LabChrome = {
    * own session, not the run store's, so the bridge cannot hear it from the store.
    */
   onRunChange?(running: boolean): void;
+  /**
+   * N18 R6.3: the robot lab's check, for the host bridge: it begins (beginCheck, after the blocks were saved), its result (robotCheckResult),
+   * and it is over (endCheck, in a finally; a cancelled check has no result).
+   */
+  robotCheck?: { begin(): void; result(result: RobotCheckResult): void; end(): void };
 };
 
 /** How long Reset waits for the second click before it forgets the first. */
@@ -409,7 +415,8 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
 
   // The robot lab (N18 R4.1) brings its own chrome, in its own chunk; the block editor, its stores and its notices are App's, so the
   // robot lab opens, saves and recovers a program exactly as the other labs do. It shows the editor with what a robot run puts on it
-  // (N18 R4.2: the scenario's toolbox and starter, the running block, the diagnostics on blocks, a check's lock); Check comes with R6.3.
+  // (N18 R4.2: the scenario's toolbox and starter, the running block, the diagnostics on blocks, a check's lock); its Kiểm tra is its own
+  // (N18 R6.3), and tells the host through `lab.robotCheck`.
   if (lab && lab.kind === 'robot' && isRobotTemplateKey(lab.template)) {
     const robotProgram = (view: RobotProgramView) => (
       <ErrorBoundary
@@ -446,6 +453,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
       packs,
       toolbox,
       ...(lab.onRunChange ? { onRunChange: lab.onRunChange } : {}),
+      ...(lab.robotCheck ? { onCheck: lab.robotCheck } : {}),
     };
     return (
       <div className="app-shell app-shell-lab">

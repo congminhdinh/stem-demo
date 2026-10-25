@@ -14,7 +14,7 @@ import { hashSnapshot, type RobotSnapshot, type ScoreState } from '../../core/wo
 import { robotSolutions } from '../../samples/robot-solutions';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { robotStarterDocument } from '../../samples/robot-templates';
-import { createRobotRunStore, isRunOver, labStatus, ROBOT_SPEEDS, selectRunActive, shownRun, type CheckRunView } from './robot-run-store';
+import { createRobotRunStore, isRunOver, labStatus, ROBOT_SPEEDS, selectRunActive, shownRun, shownScore, type CheckRunView } from './robot-run-store';
 import { fakeSession as fakeRobotSession, idleRun } from './__fixtures__/fake-session';
 import { sameView } from './scene-math';
 
@@ -565,6 +565,26 @@ describe('a check’s run in the lab’s view (N18 R6.3)', () => {
     store.getState().setLocked(true);
     await store.getState().replay(project, { index: 0, count: 3, score: noPoints });
     expect(session.start).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('the score the HUD shows (N18 R6.3)', () => {
+  it('is the run’s live score, and the check’s score of a round once that round’s run is over (0 for a round that ended in an error)', async () => {
+    const { store, publish, world, frames } = setup();
+    const live: ScoreState = { points: 30, maxScore: 100, goals: [{ id: 'no-crash', passed: true, points: 30, progress: 1 }] };
+    expect(shownScore(store.getState())).toBeNull();
+    await store.getState().replay(project, { index: 2, count: 3, score: noPoints });
+    publish({ world: world(0.5, 30, { score: live }) });
+    frames.frame(0);
+    expect(shownScore(store.getState())).toEqual(live);
+    publish({ status: 'error', world: world(0.8, 30, { score: live }), error: { message: 'x', code: 'out-of-domain' } });
+    frames.frame(16);
+    expect(shownScore(store.getState())).toEqual(noPoints);
+    // The learner's own run says its own score, over or not.
+    await store.getState().run(project);
+    publish({ status: 'error', world: world(0.8, 30, { score: live }), error: { message: 'x', code: 'out-of-domain' } });
+    frames.frame(32);
+    expect(shownScore(store.getState())).toEqual(live);
   });
 });
 

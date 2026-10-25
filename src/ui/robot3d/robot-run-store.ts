@@ -128,6 +128,18 @@ export type LabStatus = 'idle' | 'starting' | 'running' | 'paused' | 'finished' 
 /** The run's snapshot the lab shows: the running one, or what a stopped run left (null: neither). */
 export const shownRun = (state: RobotLabState): RobotRunSnapshot | null => (state.snapshot.status !== 'idle' ? state.snapshot : state.held);
 
+/**
+ * The score the HUD shows (N18 R6.3): the shown run's, except a check's round whose run is over, which shows the check's score of it (a
+ * round that ended in an error scores 0 there, whatever its live score was).
+ */
+export const shownScore = (state: RobotLabState): ScoreState | null => {
+  const run = shownRun(state);
+  if (run !== null && state.round?.score && run.status !== 'idle' && isRunOver(run)) {
+    return state.round.score;
+  }
+  return run?.world?.score ?? null;
+};
+
 /** How a run that is over ended, as the lab says it. */
 const endedStatus = (snapshot: RobotRunSnapshot): LabStatus | null =>
   snapshot.status === 'error' ? 'error' : snapshot.end?.reason === 'contact' ? 'crashed' : snapshot.end?.reason === 'time-limit' ? 'timeUp' : null;

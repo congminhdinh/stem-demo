@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { localDeviceDefinitions } from './core/devices/local-catalog';
 import { createDeviceRegistry } from './core/devices/registry';
+import type { RobotCheckResult } from './core/scenario/check-result';
 import { productionProfiles } from './core/profiles';
 import { createBlockPackCatalog } from './core/program/block-packs';
 import { createRunSession } from './core/run/run-session';
@@ -12,7 +13,7 @@ import { createTemplateProject } from './samples/templates';
 import { createDexieProjectRepository } from './storage/dexie-project-repository';
 import { App } from './ui/app/App';
 import { loadUiFont } from './ui/app/fonts';
-import { createHostBridge, type HostBridge } from './ui/app/host-bridge';
+import { createHostBridge, type RobotHostBridge } from './ui/app/host-bridge';
 import { connectLabHost, loadHostProject } from './ui/app/lab-host';
 import { LaunchError } from './ui/app/LaunchError';
 import { parseLaunch } from './ui/app/launch';
@@ -95,7 +96,7 @@ if (started.kind === 'launch-error') {
   // its `origin=` names. Opened on its own (a new tab), the lab works the same and talks to nobody.
   const lab = launch.mode === 'embed' ? (launch.lab ?? null) : null;
   const challenge = launch.mode === 'embed' && lab ? templateChallenge(launch.template, locale) : null;
-  let bridge: HostBridge | null = null;
+  let bridge: RobotHostBridge | null = null;
   if (launch.mode === 'embed' && lab && lab.hostOrigin !== null && window.parent !== window) {
     const rules = { lab: lab.kind, profile: lab.profile, registry, profiles, canOpenProgram: (blocks: unknown) => canOpenProgram(blocks, packs) };
     bridge = createHostBridge({
@@ -133,6 +134,11 @@ if (started.kind === 'launch-error') {
                   onChecked: (result) => bridge?.checkResult(result),
                   // N18 R4.2: the robot lab's runs are its own session's; it says when one starts and ends.
                   ...(lab.kind === 'robot' ? { onRunChange: (running: boolean) => (running ? bridge?.runStarted() : bridge?.runStopped()) } : {}),
+                  // N18 R6.3 (lab-embed-contract §2): beginCheck after the blocks were saved, the scored check-result (the bridge sends the
+                  // pending project-changed first), endCheck in a finally; edits made meanwhile go out after the check-result.
+                  ...(lab.kind === 'robot'
+                    ? { robotCheck: { begin: () => bridge?.beginCheck(), result: (result: RobotCheckResult) => bridge?.robotCheckResult(result), end: () => bridge?.endCheck() } }
+                    : {}),
                 }
               : null
           }

@@ -5,7 +5,7 @@ import { createDeviceRegistry } from '../../core/devices/registry';
 import { productionKits, unoR3Board } from '../../core/hardware/catalog';
 import type { Kit } from '../../core/hardware/kit';
 import { createRobotRunSession, type RobotRunSnapshot } from '../../core/run/robot-run-session';
-import { checkRobot, RobotCheckError, type CheckProgress, type RobotCheck } from '../../core/scenario/check-robot';
+import { checkRobot, RobotCheckError, type CheckProgress } from '../../core/scenario/check-robot';
 import { ROBOT_ENGINE, type RobotCheckResult } from '../../core/scenario/check-result';
 import { goalReasons } from '../../core/scenario/goals';
 import { scenarioScorer } from '../../core/scenario/scoring';
@@ -13,8 +13,9 @@ import { hashSnapshot } from '../../core/world/snapshot';
 import { robotSolutions } from '../../samples/robot-solutions';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { robotStarterDocument } from '../../samples/robot-templates';
+import { fakeCheck } from './__fixtures__/fake-check';
 import { fakeSession, idleRun } from './__fixtures__/fake-session';
-import { createRobotCheckStore, type CheckHost, type CheckSpeed, type CreateCheck } from './robot-check-store';
+import { checkFraction, createRobotCheckStore, type CheckHost, type CheckSpeed, type CreateCheck } from './robot-check-store';
 import { createRobotRunStore, labStatus } from './robot-run-store';
 
 // N18 R6.3: Kiểm tra in the robot lab. The check is R6.2's checkRobot; this store starts it from the saved document, holds the lab while it
@@ -40,44 +41,6 @@ function fakeFrames() {
       const callbacks = [...pending.values()];
       pending.clear();
       callbacks.forEach((callback) => callback(now));
-    },
-  };
-}
-
-/** A check the test drives: it tells the progress the test gives and settles when the test says. */
-function fakeCheck() {
-  let settle: (result: RobotCheckResult | null) => void = () => {};
-  let fail: (error: unknown) => void = () => {};
-  const result = new Promise<RobotCheckResult | null>((resolve, reject) => {
-    settle = resolve;
-    fail = reject;
-  });
-  let snapshot: RobotRunSnapshot = idleRun;
-  const listeners = new Set<(snapshot: RobotRunSnapshot) => void>();
-  const frames: [number, number | undefined][] = [];
-  const check: RobotCheck = {
-    progress: { [Symbol.asyncIterator]: () => ({ next: async () => ({ value: undefined, done: true }) }) },
-    result,
-    cancel: vi.fn(() => settle(null)),
-    frame: vi.fn(async (wallMs: number, speed?: number) => {
-      frames.push([wallMs, speed]);
-    }),
-    run: {
-      getSnapshot: () => snapshot,
-      subscribe: (listener) => {
-        listeners.add(listener);
-        return () => listeners.delete(listener);
-      },
-    },
-  };
-  return {
-    check,
-    frames,
-    settle,
-    fail,
-    publish(next: Partial<RobotRunSnapshot>) {
-      snapshot = { ...snapshot, ...next };
-      listeners.forEach((listener) => listener(snapshot));
     },
   };
 }
@@ -346,6 +309,27 @@ describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
     expect(session.start).toHaveBeenCalledTimes(1);
     store.getState().dismiss();
     expect(store.getState().report).toBeNull();
+  });
+});
+
+describe('how far a check has got (N18 R6.3)', () => {
+  const running = (index: number, tS: number, ended: number) => ({
+    speed: '1x' as const,
+    index,
+    count: 4,
+    tS,
+    timeLimitS: 20,
+    ended: Array.from({ length: ended }, () => ({}) as never),
+  });
+
+  it('counts the rounds that ended and the part of the running one its time has reached', () => {
+    expect(checkFraction(running(0, 0, 0))).toBe(0);
+    expect(checkFraction(running(0, 10, 0))).toBe(0.125);
+    // A round that ended early (a crash) counts whole.
+    expect(checkFraction(running(0, 6, 1))).toBe(0.25);
+    expect(checkFraction(running(2, 5, 2))).toBe(0.5625);
+    expect(checkFraction(running(3, 20, 4))).toBe(1);
+    expect(checkFraction(running(3, 25, 3))).toBe(1);
   });
 });
 

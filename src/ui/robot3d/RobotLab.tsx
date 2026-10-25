@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import type { DeviceRegistry } from '../../core/devices/registry';
 import { productionKits } from '../../core/hardware/catalog';
 import type { Kit } from '../../core/hardware/kit';
@@ -6,7 +6,8 @@ import type { BoardProfile } from '../../core/hardware/board';
 import type { ProfileCatalog } from '../../core/profiles/profile';
 import type { BlockPackCatalog, Toolbox } from '../../core/program/block-packs';
 import { createRobotRunSession, type RobotRunSession, type RobotScorerFactory } from '../../core/run/robot-run-session';
-import type { Scenario } from '../../core/scenario/scenario';
+import { checkRobot } from '../../core/scenario/check-robot';
+import { scenarioMaxScore, type Scenario } from '../../core/scenario/scenario';
 import { scenarioScorer } from '../../core/scenario/scoring';
 import type { PaintZone } from '../../core/world/arena/arena-schema';
 import { hashSnapshot } from '../../core/world/snapshot';
@@ -16,10 +17,13 @@ import { LabWorkspace, type BoardLabels } from '../app/LabWorkspace';
 import type { BoardShares } from '../app/lab-layout';
 import { attachRobotTestTarget } from '../app/test-hooks';
 import { useBuzzerSound } from '../audio/use-buzzer-sound';
-import { useText } from '../i18n/text';
+import { useLocale, useText } from '../i18n/text';
 import type { ProjectStore } from '../state/project-store';
+import { CheckControls } from './CheckControls';
+import { CheckResults, FastCheckView } from './CheckResults';
 import { Hud } from './Hud';
 import { ProgramPane, type RobotProgramView } from './ProgramPane';
+import { createRobotCheckStore, type CheckHost, type CreateCheck, type RobotCheckStore } from './robot-check-store';
 import { robotModel, toneHzOf } from './robot-model';
 import { createRobotRunStore, type RobotRunStore } from './robot-run-store';
 import { RobotControls } from './RobotControls';
@@ -34,7 +38,8 @@ import './RobotLab.css';
 // so that no other lab pays for it: this chunk holds three, react-three-fiber and the run session (whose world loads Rapier lazily on
 // the first Run).
 //
-//   header      the lab's title, the scenario's, the run's controls (Chạy, Dừng, Tạm dừng, Bước 0,1 s, Đặt lại robot, Tốc độ)
+//   header      the lab's title, the scenario's, the run's controls (Chạy, Dừng, Tạm dừng, Bước 0,1 s, Đặt lại robot, Tốc độ), and for a
+//               scenario with a score Kiểm tra with its speeds (N18 R6.3: 1×, 4×, Nhanh)
 //   left ~60 %  the 3D view (SceneHost: the arena and the robot, the camera's views, the quality tier, WebGL's own errors), the HUD over
 //               it, why a run did not start or failed, and under it the robot's button, the sound and the Serial console
 //   right       the program: Khối lệnh (App's block editor with the scenario's toolbox and starter), C++ and Cổng & chân (R4.5)
@@ -43,6 +48,8 @@ import './RobotLab.css';
 // The run is the RobotRunSession of R3.6 on the scenario's kit, driven by the store (robot-run-store.ts) from animation frames. The 3D
 // view reads the world in its own frame callbacks; React renders the HUD and the controls from the store at most once a frame. The
 // program is App's project: the blocks save into it and reach the host through the bridge as in every lab; Run compiles it.
+// Kiểm tra (N18 R6.3, robot-check-store.ts) is R6.2's checkRobot of the saved project: at 1× and 4× this view shows its run, fast it shows
+// its progress; then its result over the view (CheckResults), "Xem lại" of a round that failed, and its check-result for the host.
 
 export type { RobotProgramView } from './ProgramPane';
 
@@ -63,8 +70,12 @@ export type RobotLabProps = {
   toolbox: Toolbox;
   /** A run started (true) or ended (false): the host's run-started and run-stopped (lab-embed-contract §2). */
   onRunChange?(running: boolean): void;
+  /** N18 R6.3: what the host hears of a check (the bridge's beginCheck, robotCheckResult and endCheck). */
+  onCheck?: CheckHost;
   /** The scorer of each run: the scenario's goals and score (R6.2's `scenarioScorer` by default). */
   scorer?: RobotScorerFactory;
+  /** Tests: the check of a project (R6.2's checkRobot on the scenario, its kit and the lab's catalogs by default). */
+  createCheck?: CreateCheck;
   /** Tests: the session of the scenario (the real one by default). */
   createSession?(options: { scenario: Scenario; kit: Kit; board: BoardProfile }): RobotRunSession;
   /** Tests: the WebGL probe (the browser's by default). */
@@ -89,7 +100,7 @@ function useReducedMotion(): boolean {
   );
 }
 
-type Lab = { scenario: Scenario; kit: Kit; board: BoardProfile; store: RobotRunStore };
+type Lab = { scenario: Scenario; kit: Kit; board: BoardProfile; store: RobotRunStore; checks: RobotCheckStore };
 
 export default function RobotLab({
   template,
@@ -102,12 +113,20 @@ export default function RobotLab({
   packs,
   toolbox,
   onRunChange,
+  onCheck,
   scorer = scenarioScorer,
   createSession,
+  createCheck,
   probe,
 }: RobotLabProps) {
   const t = useText();
+  const locale = useLocale();
   const reducedMotion = useReducedMotion();
+  // What the check reads when it starts: the latest props, not the first render's.
+  const latest = useRef({ flushProgram, onCheck });
+  useEffect(() => {
+    latest.current = { flushProgram, onCheck };
+  });
   // Made once: the scenario, its kit and the run. Making them starts nothing (connect, below, does), so StrictMode may make one twice.
   const [lab] = useState<Lab>(() => {
     const scenario = scenarioCatalog.get(template);
@@ -123,9 +142,20 @@ export default function RobotLab({
     const session = createSession
       ? createSession({ scenario, kit, board })
       : createRobotRunSession({ scenario, kit, board, registry, profiles, packs, scorer });
-    return { scenario, kit, board, store: createRobotRunStore(session) };
+    const store = createRobotRunStore(session);
+    const checks = createRobotCheckStore({
+      runStore: store,
+      scenario,
+      createCheck: createCheck ?? ((project, mode, speed, onProgress) => checkRobot(project, scenario, { mode, speed, kit, board, registry, profiles, packs, locale, onProgress })),
+      document: () => projectStore.getState().document,
+      flushProgram: () => latest.current.flushProgram(),
+      host: () => latest.current.onCheck,
+    });
+    return { scenario, kit, board, store, checks };
   });
-  const { scenario, kit, board, store } = lab;
+  const { scenario, kit, board, store, checks } = lab;
+  // The sandbox has no score: nothing to check (as the other labs' templates without a challenge have no Check).
+  const checkable = scenarioMaxScore(scenario) !== undefined;
   const model = useMemo(() => robotModel(kit, board), [kit, board]);
   const buttonRole = kit.modules.find((module) => module.kind === 'button')?.role ?? null;
   const scenarioToolbox = useMemo(() => restrictToolbox(toolbox, scenario.toolbox), [toolbox, scenario]);
@@ -133,6 +163,8 @@ export default function RobotLab({
   const [runEpoch, setRunEpoch] = useState(0);
 
   useEffect(() => store.getState().connect(), [store]);
+  // A check still running when the lab goes away gives no result.
+  useEffect(() => () => checks.getState().cancel(), [checks]);
 
   // The host hears when a run starts and ends.
   useEffect(
@@ -197,6 +229,12 @@ export default function RobotLab({
     setRunEpoch((epoch) => epoch + 1);
     void store.getState().step(projectStore.getState().document);
   };
+  const check = () => {
+    // In the click: a check at 1× or 4× plays the robot's sound as a Run does. The check saves the blocks itself, before it begins.
+    sound.unlock();
+    setRunEpoch((epoch) => epoch + 1);
+    void checks.getState().start();
+  };
 
   const zoneLabel = useCallback(
     (zone: PaintZone) =>
@@ -210,6 +248,12 @@ export default function RobotLab({
         <SceneHost scenario={scenario} kit={kit} model={model} store={store} reducedMotion={reducedMotion} zoneLabel={zoneLabel} {...(probe ? { probe } : {})} />
         <Hud store={store} scenario={scenario} />
         <RunMessages store={store} />
+        {checkable && (
+          <>
+            <CheckResults checks={checks} store={store} projectStore={projectStore} scenario={scenario} />
+            <FastCheckView checks={checks} />
+          </>
+        )}
       </div>
       <RobotDock store={store} buttonRole={buttonRole} sound={sound} />
     </section>
@@ -217,12 +261,16 @@ export default function RobotLab({
 
   return (
     <div className="robot-lab" data-testid="robot-lab" data-scenario={template}>
-      <header className="app-header robot-header">
-        <h1>{t('lab.title.robot')}</h1>
-        <h2 className="robot-scenario" data-testid="robot-scenario">
-          {t(robotTemplates[template].titleKey)}
-        </h2>
+      <header className={checkable ? 'app-header robot-header robot-header-checkable' : 'app-header robot-header'}>
+        {/* N18 R6.3: the lab's name over the scenario's, so that the run's controls and Kiểm tra fit one row of the 1100 px frame. */}
+        <div className="robot-title">
+          <h1>{t('lab.title.robot')}</h1>
+          <h2 className="robot-scenario" data-testid="robot-scenario">
+            {t(robotTemplates[template].titleKey)}
+          </h2>
+        </div>
         <RobotControls store={store} onRun={run} onStep={step} />
+        {checkable && <CheckControls checks={checks} store={store} onCheck={check} />}
         {notices}
       </header>
       <LabWorkspace
