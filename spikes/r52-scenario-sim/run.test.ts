@@ -8,13 +8,33 @@ import { join } from 'node:path';
 import { beforeAll, expect, it } from 'vitest';
 import { initPhysics } from '../../src/core/world/rapier';
 import { scenarioCatalog } from '../../src/samples/robot-scenarios';
-import { robotSolutions } from '../../src/samples/robot-solutions';
+import { closerThan, drive, hat, ifBlock, lineDark, robotSolutions, stop, workspace } from '../../src/samples/robot-solutions';
 import { runVariant, type VariantRun } from './sim';
 
 beforeAll(() => initPhysics(), 30_000);
 
+/**
+ * Programs the spike runs besides the solutions, for the notes (they are not regression cases): the two-sensor follower of lesson 4 (the
+ * centre sensor left out), and lesson 3 with the thresholds a learner might pick instead of 15 cm.
+ */
+const spikeOnly: Record<string, Record<string, unknown>> = {
+  'rb-line-follow': {
+    'two-sensor-follower': workspace(
+      hat('stem_forever', [
+        ifBlock('if-line', [
+          [lineDark('left', 'lineLeft'), [drive('spin-left', 'spinLeft', 50)]],
+          [lineDark('right', 'lineRight'), [drive('spin-right', 'spinRight', 50)]],
+        ], [drive('forward', 'forward', 50)]),
+      ]),
+    ),
+  },
+  'rb-stop-at-wall': Object.fromEntries(
+    [10, 20, 25].map((cm) => [`threshold-${cm}`, workspace(hat('stem_forever', [ifBlock('if-near', [[closerThan('near', cm), [stop('stop')]]], [drive('go', 'forward', 50)])]))]),
+  ),
+};
+
 const only = process.env.SPIKE_ONLY;
-const programs = (process.env.SPIKE_PROGRAM ?? 'reference,blind,starter').split(',');
+const programs = (process.env.SPIKE_PROGRAM ?? 'reference,blind,starter,exploit,spike').split(',');
 
 it('runs the pilot scenarios', async () => {
   const out: Record<string, Record<string, VariantRun[]>> = {};
@@ -24,12 +44,14 @@ it('runs the pilot scenarios', async () => {
     const solution = robotSolutions[scenario.key as keyof typeof robotSolutions];
     const candidates: [string, unknown][] = [
       ['reference', solution.reference],
-      ...('blind' in solution ? [['blind', solution.blind] as [string, unknown]] : []),
+      ...(solution.blind ? [['blind', solution.blind] as [string, unknown]] : []),
       ['starter', scenario.starter],
+      ...(solution.exploits ?? []).map((exploit) => [`exploit:${exploit.name}`, exploit.program] as [string, unknown]),
+      ...Object.entries(spikeOnly[scenario.key] ?? {}).map(([name, program]) => [`spike:${name}`, program] as [string, unknown]),
     ];
     out[scenario.key] = {};
     for (const [name, program] of candidates) {
-      if (!programs.includes(name)) continue;
+      if (!programs.some((wanted) => name === wanted || name.startsWith(`${wanted}:`))) continue;
       const runs: VariantRun[] = [];
       for (let v = 0; v < scenario.variants.count; v++) {
         const t0 = performance.now();
@@ -39,7 +61,7 @@ it('runs the pilot scenarios', async () => {
         const r = (n: number) => n.toFixed(1);
         console.log(
           `${scenario.key} ${name} v${v} start(${r(run.start.xCm)},${r(run.start.yCm)},${r(run.start.yawDeg)}) end(${r(run.end.xCm)},${r(run.end.yCm)},${r(run.end.yawDeg)}) path ${r(run.pathCm)} pts ${run.points}` +
-            `${run.onLine ? ` line ${run.onLine.onTape}/${run.onLine.moving}=${(run.onLine.onTape / Math.max(1, run.onLine.moving)).toFixed(3)}` : ''}` +
+            `${run.onLine ? ` line ${(run.onLine.onTapeCm / Math.max(1e-9, run.onLine.drivenCm)).toFixed(3)}` : ''} reach ${r(run.reachCm)}` +
             `${run.minFrontCm === undefined ? '' : ` minFront ${run.minFrontCm.toFixed(1)}`} contacts [${run.contacts.join(',')}] ${goals} (${((performance.now() - t0) / 1000).toFixed(1)} s wall)`,
         );
       }

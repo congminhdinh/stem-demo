@@ -6,7 +6,7 @@
     "cpu": "Apple M4 Pro",
     "node": "v24.22.1"
   },
-  "wallS": 14.875577208,
+  "wallS": 33.871731958999995,
   "runs": {
     "rb-drive-to-zone": {
       "reference": [
@@ -41,6 +41,7 @@
             "yawDeg": -0.07269665696435268
           },
           "pathCm": 66.84098119583645,
+          "reachCm": 66.83757566421983,
           "contacts": [],
           "minFrontCm": 58.6651,
           "clearanceCm": {},
@@ -80,6 +81,7 @@
             "yawDeg": -0.0010097870441472137
           },
           "pathCm": 0.000623987987001616,
+          "reachCm": 0.0000059604644775390625,
           "contacts": [],
           "minFrontCm": 125.5041,
           "clearanceCm": {},
@@ -127,6 +129,7 @@
             "yawDeg": 1.8257454494190672
           },
           "pathCm": 242.1350155793761,
+          "reachCm": 85.66429847856713,
           "contacts": [],
           "minFrontCm": 20.916,
           "clearanceCm": {},
@@ -173,6 +176,7 @@
             "yawDeg": -0.009082166262927098
           },
           "pathCm": 0.0005003452992383824,
+          "reachCm": 0.00004172325134277344,
           "contacts": [],
           "minFrontCm": 85.5041,
           "clearanceCm": {},
@@ -213,6 +217,7 @@
             "yawDeg": -0.08554573851746465
           },
           "pathCm": 90.8525194934889,
+          "reachCm": 90.84834789184708,
           "contacts": [],
           "minFrontCm": 14.6544,
           "clearanceCm": {},
@@ -249,6 +254,7 @@
             "yawDeg": -4.027519774891771
           },
           "pathCm": 73.46089762405359,
+          "reachCm": 73.4597591761278,
           "contacts": [],
           "minFrontCm": 14.7002,
           "clearanceCm": {},
@@ -285,6 +291,7 @@
             "yawDeg": 1.1236239094637341
           },
           "pathCm": 108.3569297714106,
+          "reachCm": 108.35853540325883,
           "contacts": [],
           "minFrontCm": 14.6743,
           "clearanceCm": {},
@@ -323,6 +330,7 @@
             "yawDeg": -0.08603861295769784
           },
           "pathCm": 91.07333797974968,
+          "reachCm": 91.07048283026982,
           "contacts": [],
           "minFrontCm": 14.4322,
           "clearanceCm": {},
@@ -361,6 +369,7 @@
             "yawDeg": -3.703170257631365
           },
           "pathCm": 87.75188977792135,
+          "reachCm": 87.7776753008061,
           "contacts": [
             "front-wall"
           ],
@@ -399,6 +408,7 @@
             "yawDeg": 1.1231194697464502
           },
           "pathCm": 91.07370862013128,
+          "reachCm": 91.07423808996738,
           "contacts": [],
           "minFrontCm": 31.9586,
           "clearanceCm": {},
@@ -426,7 +436,7 @@
               "id": "no-crash",
               "passed": false,
               "points": 0,
-              "progress": 0.000012445249338504652,
+              "progress": 8.940696716308594e-7,
               "reasonKey": "robot.goal.reason.robot-did-not-move"
             }
           ],
@@ -438,6 +448,7 @@
             "yawDeg": -0.006676992265418981
           },
           "pathCm": 0.00024890498677009303,
+          "reachCm": 0.000017881393432617188,
           "contacts": [],
           "minFrontCm": 105.5041,
           "clearanceCm": {},
@@ -463,7 +474,7 @@
               "id": "no-crash",
               "passed": false,
               "points": 0,
-              "progress": 0.000012217806864739036,
+              "progress": 7.450580596923828e-7,
               "reasonKey": "robot.goal.reason.robot-did-not-move"
             }
           ],
@@ -475,6 +486,7 @@
             "yawDeg": -3.9482069450285007
           },
           "pathCm": 0.00024435613729478073,
+          "reachCm": 0.000014901161193847656,
           "contacts": [],
           "minFrontCm": 88.1504,
           "clearanceCm": {},
@@ -500,7 +512,7 @@
               "id": "no-crash",
               "passed": false,
               "points": 0,
-              "progress": 0.00004056740755208304,
+              "progress": 2.980232238769531e-7,
               "reasonKey": "robot.goal.reason.robot-did-not-move"
             }
           ],
@@ -512,8 +524,348 @@
             "yawDeg": 1.1965973651279622
           },
           "pathCm": 0.0008113481510416608,
+          "reachCm": 0.0000059604644775390625,
           "contacts": [],
           "minFrontCm": 123.0381,
+          "clearanceCm": {},
+          "track": [],
+          "programOutcome": "running"
+        }
+      ],
+      "spike:threshold-10": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 45.001500844955444,
+            "yCm": 50.001758337020874,
+            "yawDeg": -0.004365651184912284
+          },
+          "goals": [
+            {
+              "id": "stop-near-wall",
+              "passed": true,
+              "points": 70,
+              "progress": 1,
+              "atS": 8.2
+            },
+            {
+              "id": "no-crash",
+              "passed": true,
+              "points": 30,
+              "progress": 1
+            }
+          ],
+          "points": 100,
+          "passed": true,
+          "end": {
+            "xCm": 140.8975601196289,
+            "yCm": 49.829861521720886,
+            "yawDeg": -0.08578655989076453
+          },
+          "pathCm": 95.9018069774945,
+          "reachCm": 95.89734638238463,
+          "contacts": [],
+          "minFrontCm": 9.6054,
+          "clearanceCm": {},
+          "track": [],
+          "programOutcome": "running"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 62.58201003074646,
+            "yCm": 35.996147990226746,
+            "yawDeg": -3.9462002091587327
+          },
+          "goals": [
+            {
+              "id": "stop-near-wall",
+              "passed": true,
+              "points": 70,
+              "progress": 1,
+              "atS": 6.908333333333333
+            },
+            {
+              "id": "no-crash",
+              "passed": true,
+              "points": 30,
+              "progress": 1
+            }
+          ],
+          "points": 100,
+          "passed": true,
+          "end": {
+            "xCm": 140.89378118515015,
+            "yCm": 30.45843243598938,
+            "yawDeg": -4.028114996370126
+          },
+          "pathCm": 78.51012297076196,
+          "reachCm": 78.50845598622381,
+          "contacts": [],
+          "minFrontCm": 9.6516,
+          "clearanceCm": {},
+          "track": [],
+          "programOutcome": "running"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 27.495962381362915,
+            "yCm": 32.61492848396301,
+            "yawDeg": 1.19572107154118
+          },
+          "goals": [
+            {
+              "id": "stop-near-wall",
+              "passed": true,
+              "points": 70,
+              "progress": 1,
+              "atS": 9.5
+            },
+            {
+              "id": "no-crash",
+              "passed": true,
+              "points": 30,
+              "progress": 1
+            }
+          ],
+          "points": 100,
+          "passed": true,
+          "end": {
+            "xCm": 140.88186025619507,
+            "yCm": 34.820279479026794,
+            "yawDeg": 1.123435732535518
+          },
+          "pathCm": 113.40614566166776,
+          "reachCm": 113.40847992394283,
+          "contacts": [],
+          "minFrontCm": 9.6244,
+          "clearanceCm": {},
+          "track": [],
+          "programOutcome": "running"
+        }
+      ],
+      "spike:threshold-20": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 45.001500844955444,
+            "yCm": 50.001758337020874,
+            "yawDeg": -0.004365651184912284
+          },
+          "goals": [
+            {
+              "id": "stop-near-wall",
+              "passed": true,
+              "points": 70,
+              "progress": 1,
+              "atS": 7.45
+            },
+            {
+              "id": "no-crash",
+              "passed": true,
+              "points": 30,
+              "progress": 1
+            }
+          ],
+          "points": 100,
+          "passed": true,
+          "end": {
+            "xCm": 130.79957962036133,
+            "yCm": 49.848103523254395,
+            "yawDeg": -0.08530498762868778
+          },
+          "pathCm": 85.80333142975826,
+          "reachCm": 85.79934940669574,
+          "contacts": [],
+          "minFrontCm": 19.7034,
+          "clearanceCm": {},
+          "track": [],
+          "programOutcome": "running"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 62.58201003074646,
+            "yCm": 35.996147990226746,
+            "yawDeg": -3.9462002091587327
+          },
+          "goals": [
+            {
+              "id": "stop-near-wall",
+              "passed": true,
+              "points": 70,
+              "progress": 1,
+              "atS": 6.166666666666667
+            },
+            {
+              "id": "no-crash",
+              "passed": true,
+              "points": 30,
+              "progress": 1
+            }
+          ],
+          "points": 100,
+          "passed": true,
+          "end": {
+            "xCm": 130.93347549438477,
+            "yCm": 31.162923574447632,
+            "yawDeg": -4.027277281334109
+          },
+          "pathCm": 68.52388931190583,
+          "reachCm": 68.52326772531634,
+          "contacts": [],
+          "minFrontCm": 19.6366,
+          "clearanceCm": {},
+          "track": [],
+          "programOutcome": "running"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 27.495962381362915,
+            "yCm": 32.61492848396301,
+            "yawDeg": 1.19572107154118
+          },
+          "goals": [
+            {
+              "id": "stop-near-wall",
+              "passed": true,
+              "points": 70,
+              "progress": 1,
+              "atS": 8.758333333333333
+            },
+            {
+              "id": "no-crash",
+              "passed": true,
+              "points": 30,
+              "progress": 1
+            }
+          ],
+          "points": 100,
+          "passed": true,
+          "end": {
+            "xCm": 130.8931827545166,
+            "yCm": 34.626030921936035,
+            "yawDeg": 1.1226749359614125
+          },
+          "pathCm": 103.41623137453763,
+          "reachCm": 103.4185468022007,
+          "contacts": [],
+          "minFrontCm": 19.6143,
+          "clearanceCm": {},
+          "track": [],
+          "programOutcome": "running"
+        }
+      ],
+      "spike:threshold-25": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 45.001500844955444,
+            "yCm": 50.001758337020874,
+            "yawDeg": -0.004365651184912284
+          },
+          "goals": [
+            {
+              "id": "stop-near-wall",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "no-crash",
+              "passed": true,
+              "points": 30,
+              "progress": 1
+            }
+          ],
+          "points": 30,
+          "passed": false,
+          "end": {
+            "xCm": 125.86278915405273,
+            "yCm": 49.85702037811279,
+            "yawDeg": -0.08506091679379633
+          },
+          "pathCm": 80.86638724616265,
+          "reachCm": 80.86255088257492,
+          "contacts": [],
+          "minFrontCm": 24.6402,
+          "clearanceCm": {},
+          "track": [],
+          "programOutcome": "running"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 62.58201003074646,
+            "yCm": 35.996147990226746,
+            "yawDeg": -3.9462002091587327
+          },
+          "goals": [
+            {
+              "id": "stop-near-wall",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "no-crash",
+              "passed": true,
+              "points": 30,
+              "progress": 1
+            }
+          ],
+          "points": 30,
+          "passed": false,
+          "end": {
+            "xCm": 125.8973479270935,
+            "yCm": 31.519126892089844,
+            "yawDeg": -4.026527238957199
+          },
+          "pathCm": 63.47466504636873,
+          "reachCm": 63.47455902410101,
+          "contacts": [],
+          "minFrontCm": 24.6852,
+          "clearanceCm": {},
+          "track": [],
+          "programOutcome": "running"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 27.495962381362915,
+            "yCm": 32.61492848396301,
+            "yawDeg": 1.19572107154118
+          },
+          "goals": [
+            {
+              "id": "stop-near-wall",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "no-crash",
+              "passed": true,
+              "points": 30,
+              "progress": 1
+            }
+          ],
+          "points": 30,
+          "passed": false,
+          "end": {
+            "xCm": 125.84420442581177,
+            "yCm": 34.527868032455444,
+            "yawDeg": 1.12286930661275
+          },
+          "pathCm": 98.3670211736136,
+          "reachCm": 98.36860233953144,
+          "contacts": [],
+          "minFrontCm": 24.6642,
           "clearanceCm": {},
           "track": [],
           "programOutcome": "running"
@@ -525,39 +877,40 @@
         {
           "variant": 0,
           "start": {
-            "xCm": 60.00153422355652,
-            "yCm": 30.00178635120392,
-            "yawDeg": -0.004366602495291642
+            "xCm": 50.00039339065552,
+            "yCm": 30.00192940235138,
+            "yawDeg": -0.0010572847066294714
           },
           "goals": [
             {
               "id": "follow-line",
               "passed": true,
-              "points": 60,
+              "points": 40,
               "progress": 1
             },
             {
-              "id": "reach-finish",
+              "id": "reach-garage",
               "passed": true,
-              "points": 40,
+              "points": 60,
               "progress": 1,
-              "atS": 15.441666666666666
+              "atS": 19.525
             }
           ],
           "points": 100,
           "passed": true,
           "end": {
-            "xCm": 127.04801559448242,
-            "yCm": 104.27114963531494,
-            "yawDeg": 132.491877521875
+            "xCm": 17.7419513463974,
+            "yCm": 110.96796989440918,
+            "yawDeg": -177.01220127020508
           },
-          "pathCm": 466.7361353079291,
+          "pathCm": 263.3991214907927,
+          "reachCm": 107.081293170826,
           "onLine": {
-            "moving": 4800,
-            "onTape": 4800
+            "drivenCm": 263.3991214907927,
+            "onTapeCm": 263.24403584846533
           },
           "contacts": [],
-          "minFrontCm": 29.9972,
+          "minFrontCm": 8.2667,
           "clearanceCm": {},
           "track": [],
           "programOutcome": "running"
@@ -565,39 +918,40 @@
         {
           "variant": 1,
           "start": {
-            "xCm": 58.93462300300598,
-            "yCm": 30.93143105506897,
-            "yawDeg": -4.951364904101577
+            "xCm": 48.93353283405304,
+            "yCm": 30.931660532951355,
+            "yawDeg": -4.948037621707066
           },
           "goals": [
             {
               "id": "follow-line",
               "passed": true,
-              "points": 60,
+              "points": 40,
               "progress": 1
             },
             {
-              "id": "reach-finish",
+              "id": "reach-garage",
               "passed": true,
-              "points": 40,
+              "points": 60,
               "progress": 1,
-              "atS": 15.616666666666667
+              "atS": 19.708333333333332
             }
           ],
           "points": 100,
           "passed": true,
           "end": {
-            "xCm": 128.5488247871399,
-            "yCm": 102.64608860015869,
-            "yawDeg": 132.05278875647457
+            "xCm": 17.652226984500885,
+            "yCm": 110.78338623046875,
+            "yawDeg": -179.55250391379678
           },
-          "pathCm": 466.05043943297636,
+          "pathCm": 265.05055083725006,
+          "reachCm": 107.39870702599296,
           "onLine": {
-            "moving": 4800,
-            "onTape": 4800
+            "drivenCm": 265.05055083725006,
+            "onTapeCm": 264.71238582583493
           },
           "contacts": [],
-          "minFrontCm": 30.0498,
+          "minFrontCm": 8.156,
           "clearanceCm": {},
           "track": [],
           "programOutcome": "running"
@@ -605,39 +959,40 @@
         {
           "variant": 2,
           "start": {
-            "xCm": 59.44235324859619,
-            "yCm": 29.211604595184326,
-            "yawDeg": 4.856257150673488
+            "xCm": 49.441224336624146,
+            "yCm": 29.211634397506714,
+            "yawDeg": 4.859586774950644
           },
           "goals": [
             {
               "id": "follow-line",
               "passed": true,
-              "points": 60,
+              "points": 40,
               "progress": 1
             },
             {
-              "id": "reach-finish",
+              "id": "reach-garage",
               "passed": true,
-              "points": 40,
+              "points": 60,
               "progress": 1,
-              "atS": 15.483333333333333
+              "atS": 19.583333333333332
             }
           ],
           "points": 100,
           "passed": true,
           "end": {
-            "xCm": 127.42645740509033,
-            "yCm": 103.87566089630127,
-            "yawDeg": 132.22590280814399
+            "xCm": 17.650622129440308,
+            "yCm": 110.85304021835327,
+            "yawDeg": -178.20008464131666
           },
-          "pathCm": 466.12320427642175,
+          "pathCm": 263.4840829361406,
+          "reachCm": 108.01572241634297,
           "onLine": {
-            "moving": 4800,
-            "onTape": 4800
+            "drivenCm": 263.4840829361406,
+            "onTapeCm": 263.1777644950173
           },
           "contacts": [],
-          "minFrontCm": 29.8594,
+          "minFrontCm": 8.1628,
           "clearanceCm": {},
           "track": [],
           "programOutcome": "running"
@@ -647,39 +1002,40 @@
         {
           "variant": 0,
           "start": {
-            "xCm": 60.00153422355652,
-            "yCm": 30.00178635120392,
-            "yawDeg": -0.004366602495291642
+            "xCm": 50.00039339065552,
+            "yCm": 30.00192940235138,
+            "yawDeg": -0.0010572847066294714
           },
           "goals": [
             {
               "id": "follow-line",
               "passed": true,
-              "points": 60,
+              "points": 40,
               "progress": 1
             },
             {
-              "id": "reach-finish",
+              "id": "reach-garage",
               "passed": true,
-              "points": 40,
+              "points": 60,
               "progress": 1,
-              "atS": 14.991666666666667
+              "atS": 19.091666666666665
             }
           ],
           "points": 100,
           "passed": true,
           "end": {
-            "xCm": 74.28269982337952,
-            "yCm": 110.03754138946533,
-            "yawDeg": 176.07224222985315
+            "xCm": 19.534863531589508,
+            "yCm": 109.33098793029785,
+            "yawDeg": 178.79651217518162
           },
-          "pathCm": 194.53319855015056,
+          "pathCm": 259.1528355764492,
+          "reachCm": 106.52998972801579,
           "onLine": {
-            "moving": 1788,
-            "onTape": 1686
+            "drivenCm": 259.1528355764492,
+            "onTapeCm": 249.9747738903843
           },
           "contacts": [],
-          "minFrontCm": 27.5663,
+          "minFrontCm": 10.0415,
           "clearanceCm": {},
           "track": [],
           "programOutcome": "finished"
@@ -687,40 +1043,41 @@
         {
           "variant": 1,
           "start": {
-            "xCm": 58.93462300300598,
-            "yCm": 30.93143105506897,
-            "yawDeg": -4.951364904101577
+            "xCm": 48.93353283405304,
+            "yCm": 30.931660532951355,
+            "yawDeg": -4.948037621707066
           },
           "goals": [
             {
               "id": "follow-line",
               "passed": false,
               "points": 0,
-              "progress": 0.7435188840636926,
+              "progress": 0.6772152231844707,
               "reasonKey": "robot.goal.reason.off-line"
             },
             {
-              "id": "reach-finish",
+              "id": "reach-garage",
               "passed": true,
-              "points": 40,
+              "points": 60,
               "progress": 1,
-              "atS": 15.408333333333333
+              "atS": 19.516666666666666
             }
           ],
-          "points": 40,
+          "points": 60,
           "passed": false,
           "end": {
-            "xCm": 80.07519841194153,
-            "yCm": 109.447181224823,
-            "yawDeg": 171.12609112685612
+            "xCm": 25.42036771774292,
+            "yCm": 112.60625123977661,
+            "yawDeg": 173.84979889885173
           },
-          "pathCm": 194.53296191513522,
+          "pathCm": 259.15278123375396,
+          "reachCm": 106.53396802946175,
           "onLine": {
-            "moving": 1788,
-            "onTape": 1130
+            "drivenCm": 259.15278123375396,
+            "onTapeCm": 149.17687729477905
           },
           "contacts": [],
-          "minFrontCm": 26.1043,
+          "minFrontCm": 16.0586,
           "clearanceCm": {},
           "track": [],
           "programOutcome": "finished"
@@ -728,40 +1085,43 @@
         {
           "variant": 2,
           "start": {
-            "xCm": 59.44235324859619,
-            "yCm": 29.211604595184326,
-            "yawDeg": 4.856257150673488
+            "xCm": 49.441224336624146,
+            "yCm": 29.211634397506714,
+            "yawDeg": 4.859586774950644
           },
           "goals": [
             {
               "id": "follow-line",
               "passed": false,
               "points": 0,
-              "progress": 0.6263982102908278,
+              "progress": 0.56632636735897,
               "reasonKey": "robot.goal.reason.off-line"
             },
             {
-              "id": "reach-finish",
+              "id": "reach-garage",
               "passed": true,
-              "points": 40,
+              "points": 60,
               "progress": 1,
-              "atS": 14.441666666666666
+              "atS": 18.55
             }
           ],
-          "points": 40,
+          "points": 60,
           "passed": false,
           "end": {
-            "xCm": 66.88911318778992,
-            "yCm": 110.16063690185547,
-            "yawDeg": -179.0686399580068
+            "xCm": 12.401212751865387,
+            "yCm": 105.84086179733276,
+            "yawDeg": -177.86895793976777
           },
-          "pathCm": 194.53301641018547,
+          "pathCm": 259.0696757875639,
+          "reachCm": 106.52305775802851,
           "onLine": {
-            "moving": 1788,
-            "onTape": 952
+            "drivenCm": 259.0696757875639,
+            "onTapeCm": 124.71029012439159
           },
-          "contacts": [],
-          "minFrontCm": 24.7585,
+          "contacts": [
+            "garage-south"
+          ],
+          "minFrontCm": 2.9126,
           "clearanceCm": {},
           "track": [],
           "programOutcome": "finished"
@@ -771,9 +1131,9 @@
         {
           "variant": 0,
           "start": {
-            "xCm": 60.00153422355652,
-            "yCm": 30.00178635120392,
-            "yawDeg": -0.004366602495291642
+            "xCm": 50.00039339065552,
+            "yCm": 30.00192940235138,
+            "yawDeg": -0.0010572847066294714
           },
           "goals": [
             {
@@ -784,7 +1144,7 @@
               "reasonKey": "robot.goal.reason.robot-did-not-move"
             },
             {
-              "id": "reach-finish",
+              "id": "reach-garage",
               "passed": false,
               "points": 0,
               "progress": 0,
@@ -794,17 +1154,18 @@
           "points": 0,
           "passed": false,
           "end": {
-            "xCm": 60.00153422355652,
-            "yCm": 30.001747608184814,
-            "yawDeg": -0.008620107748365309
+            "xCm": 50.00039339065552,
+            "yCm": 30.00192940235138,
+            "yawDeg": -0.0010611226136140704
           },
-          "pathCm": 0.0004892478068988911,
+          "pathCm": 0.000039925888029876625,
+          "reachCm": 0,
           "onLine": {
-            "moving": 0,
-            "onTape": 0
+            "drivenCm": 0.000039925888029876625,
+            "onTapeCm": 0.000039925888029876625
           },
           "contacts": [],
-          "minFrontCm": 100.5041,
+          "minFrontCm": 110.5052,
           "clearanceCm": {},
           "track": [],
           "programOutcome": "running"
@@ -812,9 +1173,9 @@
         {
           "variant": 1,
           "start": {
-            "xCm": 58.93462300300598,
-            "yCm": 30.93143105506897,
-            "yawDeg": -4.951364904101577
+            "xCm": 48.93353283405304,
+            "yCm": 30.931660532951355,
+            "yawDeg": -4.948037621707066
           },
           "goals": [
             {
@@ -825,7 +1186,7 @@
               "reasonKey": "robot.goal.reason.robot-did-not-move"
             },
             {
-              "id": "reach-finish",
+              "id": "reach-garage",
               "passed": false,
               "points": 0,
               "progress": 0,
@@ -835,17 +1196,18 @@
           "points": 0,
           "passed": false,
           "end": {
-            "xCm": 58.93462300300598,
-            "yCm": 30.93140721321106,
-            "yawDeg": -4.953499909663657
+            "xCm": 48.93353283405304,
+            "yCm": 30.931660532951355,
+            "yawDeg": -4.948036767073468
           },
-          "pathCm": 0.0004998870700479257,
+          "pathCm": 0.000039726747683511355,
+          "reachCm": 0,
           "onLine": {
-            "moving": 0,
-            "onTape": 0
+            "drivenCm": 0.000039726747683511355,
+            "onTapeCm": 0.000039726747683511355
           },
           "contacts": [],
-          "minFrontCm": 101.9795,
+          "minFrontCm": 112.0175,
           "clearanceCm": {},
           "track": [],
           "programOutcome": "running"
@@ -853,9 +1215,9 @@
         {
           "variant": 2,
           "start": {
-            "xCm": 59.44235324859619,
-            "yCm": 29.211604595184326,
-            "yawDeg": 4.856257150673488
+            "xCm": 49.441224336624146,
+            "yCm": 29.211634397506714,
+            "yawDeg": 4.859586774950644
           },
           "goals": [
             {
@@ -866,7 +1228,7 @@
               "reasonKey": "robot.goal.reason.robot-did-not-move"
             },
             {
-              "id": "reach-finish",
+              "id": "reach-garage",
               "passed": false,
               "points": 0,
               "progress": 0,
@@ -876,17 +1238,402 @@
           "points": 0,
           "passed": false,
           "end": {
-            "xCm": 59.44235324859619,
-            "yCm": 29.211601614952087,
-            "yawDeg": 4.856178392473644
+            "xCm": 49.441224336624146,
+            "yCm": 29.211634397506714,
+            "yawDeg": 4.859577357573208
           },
-          "pathCm": 0.0004827170877807128,
+          "pathCm": 0.000039073739949025565,
+          "reachCm": 0,
           "onLine": {
-            "moving": 0,
-            "onTape": 0
+            "drivenCm": 0.000039073739949025565,
+            "onTapeCm": 0.000039073739949025565
           },
           "contacts": [],
-          "minFrontCm": 101.4544,
+          "minFrontCm": 111.4921,
+          "clearanceCm": {},
+          "track": [],
+          "programOutcome": "running"
+        }
+      ],
+      "exploit:crawl-and-dash": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 50.00039339065552,
+            "yCm": 30.00192940235138,
+            "yawDeg": -0.0010572847066294714
+          },
+          "goals": [
+            {
+              "id": "follow-line",
+              "passed": false,
+              "points": 0,
+              "progress": 0.2955980186289751,
+              "reasonKey": "robot.goal.reason.off-line"
+            },
+            {
+              "id": "reach-garage",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.zone-not-reached"
+            }
+          ],
+          "points": 0,
+          "passed": false,
+          "end": {
+            "xCm": 64.62626457214355,
+            "yCm": 87.71888613700867,
+            "yawDeg": 93.58071056682158
+          },
+          "pathCm": 74.0609929876219,
+          "reachCm": 59.54816805581118,
+          "onLine": {
+            "drivenCm": 74.0609929876219,
+            "onTapeCm": 18.608440367110134
+          },
+          "contacts": [
+            "garage-south"
+          ],
+          "minFrontCm": 12.5416,
+          "clearanceCm": {},
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 48.93353283405304,
+            "yCm": 30.931660532951355,
+            "yawDeg": -4.948037621707066
+          },
+          "goals": [
+            {
+              "id": "follow-line",
+              "passed": false,
+              "points": 0,
+              "progress": 0.2566292323154005,
+              "reasonKey": "robot.goal.reason.off-line"
+            },
+            {
+              "id": "reach-garage",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.zone-not-reached"
+            }
+          ],
+          "points": 0,
+          "passed": false,
+          "end": {
+            "xCm": 67.40168333053589,
+            "yCm": 98.60376119613647,
+            "yawDeg": 128.72370834681706
+          },
+          "pathCm": 85.30684867537794,
+          "reachCm": 70.16219476782021,
+          "onLine": {
+            "drivenCm": 85.30684867537794,
+            "onTapeCm": 18.60839642378704
+          },
+          "contacts": [
+            "garage-south"
+          ],
+          "minFrontCm": 19.6955,
+          "clearanceCm": {},
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 49.441224336624146,
+            "yCm": 29.211634397506714,
+            "yawDeg": 4.859586774950644
+          },
+          "goals": [
+            {
+              "id": "follow-line",
+              "passed": false,
+              "points": 0,
+              "progress": 0.29575615361937385,
+              "reasonKey": "robot.goal.reason.off-line"
+            },
+            {
+              "id": "reach-garage",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.zone-not-reached"
+            }
+          ],
+          "points": 0,
+          "passed": false,
+          "end": {
+            "xCm": 58.972567319869995,
+            "yCm": 87.32705116271973,
+            "yawDeg": 94.38389976569434
+          },
+          "pathCm": 74.02016237422205,
+          "reachCm": 59.107341473081284,
+          "onLine": {
+            "drivenCm": 74.02016237422205,
+            "onTapeCm": 18.6081307369692
+          },
+          "contacts": [
+            "garage-south"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {},
+          "track": [],
+          "programOutcome": "finished"
+        }
+      ],
+      "exploit:short-drive": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 50.00039339065552,
+            "yCm": 30.00192940235138,
+            "yawDeg": -0.0010572847066294714
+          },
+          "goals": [
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 40,
+              "progress": 1
+            },
+            {
+              "id": "reach-garage",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.zone-not-reached"
+            }
+          ],
+          "points": 40,
+          "passed": false,
+          "end": {
+            "xCm": 73.74918460845947,
+            "yCm": 29.959461092948914,
+            "yawDeg": -0.08461639111643028
+          },
+          "pathCm": 23.75015332666058,
+          "reachCm": 23.750492252246037,
+          "onLine": {
+            "drivenCm": 23.75015332666058,
+            "onTapeCm": 23.75015332666058
+          },
+          "contacts": [],
+          "minFrontCm": 86.7533,
+          "clearanceCm": {},
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 48.93353283405304,
+            "yCm": 30.931660532951355,
+            "yawDeg": -4.948037621707066
+          },
+          "goals": [
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 40,
+              "progress": 1
+            },
+            {
+              "id": "reach-garage",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.zone-not-reached"
+            }
+          ],
+          "points": 40,
+          "passed": false,
+          "end": {
+            "xCm": 72.59111404418945,
+            "yCm": 28.842177987098694,
+            "yawDeg": -5.031479994834254
+          },
+          "pathCm": 23.750226030774535,
+          "reachCm": 23.75133849341304,
+          "onLine": {
+            "drivenCm": 23.750226030774535,
+            "onTapeCm": 23.750226030774535
+          },
+          "contacts": [],
+          "minFrontCm": 88.2804,
+          "clearanceCm": {},
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 49.441224336624146,
+            "yCm": 29.211634397506714,
+            "yawDeg": 4.859586774950644
+          },
+          "goals": [
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 40,
+              "progress": 1
+            },
+            {
+              "id": "reach-garage",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.zone-not-reached"
+            }
+          ],
+          "points": 40,
+          "passed": false,
+          "end": {
+            "xCm": 73.10916781425476,
+            "yCm": 31.182578206062317,
+            "yawDeg": 4.77614344336004
+          },
+          "pathCm": 23.750123874562327,
+          "reachCm": 23.751538028338253,
+          "onLine": {
+            "drivenCm": 23.750123874562327,
+            "onTapeCm": 23.750123874562327
+          },
+          "contacts": [],
+          "minFrontCm": 87.7238,
+          "clearanceCm": {},
+          "track": [],
+          "programOutcome": "finished"
+        }
+      ],
+      "spike:two-sensor-follower": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 50.00039339065552,
+            "yCm": 30.00192940235138,
+            "yawDeg": -0.0010572847066294714
+          },
+          "goals": [
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 40,
+              "progress": 1
+            },
+            {
+              "id": "reach-garage",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.zone-not-reached"
+            }
+          ],
+          "points": 40,
+          "passed": false,
+          "end": {
+            "xCm": 113.36065530776978,
+            "yCm": 30.05576729774475,
+            "yawDeg": 3.8928131729864845
+          },
+          "pathCm": 63.55889314155737,
+          "reachCm": 63.554684345704636,
+          "onLine": {
+            "drivenCm": 63.55889314155737,
+            "onTapeCm": 63.55889314155737
+          },
+          "contacts": [],
+          "minFrontCm": 47.0793,
+          "clearanceCm": {},
+          "track": [],
+          "programOutcome": "running"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 48.93353283405304,
+            "yCm": 30.931660532951355,
+            "yawDeg": -4.948037621707066
+          },
+          "goals": [
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 40,
+              "progress": 1
+            },
+            {
+              "id": "reach-garage",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.zone-not-reached"
+            }
+          ],
+          "points": 40,
+          "passed": false,
+          "end": {
+            "xCm": 113.4760856628418,
+            "yCm": 30.058667063713074,
+            "yawDeg": 4.616529263319628
+          },
+          "pathCm": 64.64064393032862,
+          "reachCm": 64.64220477366294,
+          "onLine": {
+            "drivenCm": 64.64064393032862,
+            "onTapeCm": 64.64064393032862
+          },
+          "contacts": [],
+          "minFrontCm": 47.0868,
+          "clearanceCm": {},
+          "track": [],
+          "programOutcome": "running"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 49.441224336624146,
+            "yCm": 29.211634397506714,
+            "yawDeg": 4.859586774950644
+          },
+          "goals": [
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 40,
+              "progress": 1
+            },
+            {
+              "id": "reach-garage",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.zone-not-reached"
+            }
+          ],
+          "points": 40,
+          "passed": false,
+          "end": {
+            "xCm": 113.57176303863525,
+            "yCm": 30.308854579925537,
+            "yawDeg": 3.6050698460537847
+          },
+          "pathCm": 64.19971292711391,
+          "reachCm": 64.34032869933036,
+          "onLine": {
+            "drivenCm": 64.19971292711391,
+            "onTapeCm": 64.19971292711391
+          },
+          "contacts": [],
+          "minFrontCm": 46.8537,
           "clearanceCm": {},
           "track": [],
           "programOutcome": "running"
@@ -906,14 +1653,14 @@
             {
               "id": "flag-at-gate",
               "passed": true,
-              "points": 50,
+              "points": 40,
               "progress": 1,
-              "atS": 6.4
+              "atS": 6.425
             },
             {
               "id": "stop-at-gate",
               "passed": true,
-              "points": 30,
+              "points": 40,
               "progress": 1,
               "atS": 6.858333333333333
             },
@@ -932,6 +1679,7 @@
             "yawDeg": -0.06699007276682867
           },
           "pathCm": 77.8216535968435,
+          "reachCm": 77.82195853706433,
           "contacts": [],
           "minFrontCm": 14.6803,
           "clearanceCm": {
@@ -951,14 +1699,14 @@
             {
               "id": "flag-at-gate",
               "passed": true,
-              "points": 50,
+              "points": 40,
               "progress": 1,
-              "atS": 5.15
+              "atS": 5.175
             },
             {
               "id": "stop-at-gate",
               "passed": true,
-              "points": 30,
+              "points": 40,
               "progress": 1,
               "atS": 5.608333333333333
             },
@@ -977,6 +1725,7 @@
             "yawDeg": -3.1848653133469695
           },
           "pathCm": 60.984488785441435,
+          "reachCm": 60.98814533042833,
           "contacts": [],
           "minFrontCm": 14.702,
           "clearanceCm": {
@@ -996,14 +1745,14 @@
             {
               "id": "flag-at-gate",
               "passed": true,
-              "points": 50,
+              "points": 40,
               "progress": 1,
-              "atS": 7.7
+              "atS": 7.725
             },
             {
               "id": "stop-at-gate",
               "passed": true,
-              "points": 30,
+              "points": 40,
               "progress": 1,
               "atS": 8.158333333333333
             },
@@ -1022,6 +1771,7 @@
             "yawDeg": -2.994613994318153
           },
           "pathCm": 95.31527036084391,
+          "reachCm": 95.31529239081434,
           "contacts": [],
           "minFrontCm": 14.6727,
           "clearanceCm": {
@@ -1043,14 +1793,14 @@
             {
               "id": "flag-at-gate",
               "passed": true,
-              "points": 50,
+              "points": 40,
               "progress": 1,
-              "atS": 6.383333333333334
+              "atS": 6.408333333333333
             },
             {
               "id": "stop-at-gate",
               "passed": true,
-              "points": 30,
+              "points": 40,
               "progress": 1,
               "atS": 6.841666666666667
             },
@@ -1069,6 +1819,7 @@
             "yawDeg": -0.20061197302721454
           },
           "pathCm": 77.61274367835519,
+          "reachCm": 77.61673849078993,
           "contacts": [],
           "minFrontCm": 14.8857,
           "clearanceCm": {
@@ -1116,6 +1867,7 @@
             "yawDeg": -2.6260631108264096
           },
           "pathCm": 75.4049253232778,
+          "reachCm": 75.41643573244359,
           "contacts": [
             "gate"
           ],
@@ -1163,6 +1915,7 @@
             "yawDeg": -3.0813071011331274
           },
           "pathCm": 77.60666339827368,
+          "reachCm": 77.61067495863291,
           "contacts": [],
           "minFrontCm": 32.383,
           "clearanceCm": {
@@ -1199,7 +1952,7 @@
               "id": "no-crash",
               "passed": false,
               "points": 0,
-              "progress": 0.000012456747186227367,
+              "progress": 8.940696716308594e-7,
               "reasonKey": "robot.goal.reason.robot-did-not-move"
             }
           ],
@@ -1211,6 +1964,7 @@
             "yawDeg": -0.006705927862140803
           },
           "pathCm": 0.0002491349437245473,
+          "reachCm": 0.000017881393432617188,
           "contacts": [],
           "minFrontCm": 92.5041,
           "clearanceCm": {
@@ -1245,7 +1999,7 @@
               "id": "no-crash",
               "passed": false,
               "points": 0,
-              "progress": 0.000038193279486779265,
+              "progress": 0,
               "reasonKey": "robot.goal.reason.robot-did-not-move"
             }
           ],
@@ -1257,6 +2011,7 @@
             "yawDeg": -3.091285586405722
           },
           "pathCm": 0.0007638655897355853,
+          "reachCm": 0,
           "contacts": [],
           "minFrontCm": 75.6892,
           "clearanceCm": {
@@ -1291,7 +2046,7 @@
               "id": "no-crash",
               "passed": false,
               "points": 0,
-              "progress": 0.00003563338392509819,
+              "progress": 1.4901161193847656e-7,
               "reasonKey": "robot.goal.reason.robot-did-not-move"
             }
           ],
@@ -1303,6 +2058,7 @@
             "yawDeg": -2.851866241405514
           },
           "pathCm": 0.0007126676785019639,
+          "reachCm": 0.0000029802322387695312,
           "contacts": [],
           "minFrontCm": 109.9864,
           "clearanceCm": {
@@ -1310,6 +2066,158 @@
           },
           "track": [],
           "programOutcome": "running"
+        }
+      ],
+      "exploit:flag-and-crash": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00150263309479,
+            "yCm": 50.001758337020874,
+            "yawDeg": -0.0043677739167642
+          },
+          "goals": [
+            {
+              "id": "flag-at-gate",
+              "passed": true,
+              "points": 40,
+              "progress": 1,
+              "atS": 5.608333333333333
+            },
+            {
+              "id": "stop-at-gate",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "no-crash",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 6.925
+            }
+          ],
+          "points": 40,
+          "passed": false,
+          "end": {
+            "xCm": 132.50607252120972,
+            "yCm": 50.034862756729126,
+            "yawDeg": 0.046213191834165036
+          },
+          "pathCm": 92.47790644454096,
+          "reachCm": 92.50457581161996,
+          "contacts": [
+            "gate"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "gate": 0
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 56.93740248680115,
+            "yCm": 34.27889347076416,
+            "yawDeg": -3.0912590907288955
+          },
+          "goals": [
+            {
+              "id": "flag-at-gate",
+              "passed": true,
+              "points": 40,
+              "progress": 1,
+              "atS": 4.358333333333333
+            },
+            {
+              "id": "stop-at-gate",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "no-crash",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 5.65
+            }
+          ],
+          "points": 40,
+          "passed": false,
+          "end": {
+            "xCm": 132.2454571723938,
+            "yCm": 30.18360733985901,
+            "yawDeg": -2.6198405984223707
+          },
+          "pathCm": 75.40557619057398,
+          "reachCm": 75.41933646834829,
+          "contacts": [
+            "gate"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "gate": 0
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 22.664718329906464,
+            "yCm": 60.9924852848053,
+            "yawDeg": -2.851782066757737
+          },
+          "goals": [
+            {
+              "id": "flag-at-gate",
+              "passed": true,
+              "points": 40,
+              "progress": 1,
+              "atS": 6.908333333333333
+            },
+            {
+              "id": "stop-at-gate",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "no-crash",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 8.2
+            }
+          ],
+          "points": 40,
+          "passed": false,
+          "end": {
+            "xCm": 132.2686791419983,
+            "yCm": 55.51077127456665,
+            "yawDeg": -2.3888021440522644
+          },
+          "pathCm": 109.7383289017969,
+          "reachCm": 109.74095625397004,
+          "contacts": [
+            "gate"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "gate": 0
+          },
+          "track": [],
+          "programOutcome": "finished"
         }
       ]
     },
@@ -1365,9 +2273,10 @@
             "yawDeg": 90.07496725309056
           },
           "pathCm": 165.4121846861354,
+          "reachCm": 132.67390467358004,
           "onLine": {
-            "moving": 1598,
-            "onTape": 1598
+            "drivenCm": 165.4121846861354,
+            "onTapeCm": 165.4121846861354
           },
           "contacts": [],
           "minFrontCm": 14.6754,
@@ -1428,9 +2337,10 @@
             "yawDeg": 90.18341918052137
           },
           "pathCm": 165.5980857417239,
+          "reachCm": 134.007565446823,
           "onLine": {
-            "moving": 1606,
-            "onTape": 1606
+            "drivenCm": 165.5980857417239,
+            "onTapeCm": 165.5980857417239
           },
           "contacts": [],
           "minFrontCm": 14.703,
@@ -1491,9 +2401,10 @@
             "yawDeg": 89.86293436766566
           },
           "pathCm": 166.57459381172137,
+          "reachCm": 132.91765431193767,
           "onLine": {
-            "moving": 1615,
-            "onTape": 1615
+            "drivenCm": 166.57459381172137,
+            "onTapeCm": 166.57459381172137
           },
           "contacts": [],
           "minFrontCm": 14.6798,
@@ -1556,9 +2467,10 @@
             "yawDeg": 89.09836573540484
           },
           "pathCm": 168.3696757505871,
+          "reachCm": 133.146931407733,
           "onLine": {
-            "moving": 1532,
-            "onTape": 1449
+            "drivenCm": 168.3696757505871,
+            "onTapeCm": 160.57888737038883
           },
           "contacts": [],
           "minFrontCm": 12.4371,
@@ -1588,7 +2500,7 @@
               "id": "follow-line",
               "passed": false,
               "points": 0,
-              "progress": 0.47845898922949465,
+              "progress": 0.4705681957661652,
               "reasonKey": "robot.goal.reason.off-line"
             },
             {
@@ -1622,9 +2534,10 @@
             "yawDeg": 94.11143811810004
           },
           "pathCm": 123.98157323270321,
+          "reachCm": 108.2543744839644,
           "onLine": {
-            "moving": 1136,
-            "onTape": 462
+            "drivenCm": 123.98157323270321,
+            "onTapeCm": 49.590517440709256
           },
           "contacts": [
             "cone-2"
@@ -1656,7 +2569,7 @@
               "id": "follow-line",
               "passed": false,
               "points": 0,
-              "progress": 0.2846142599541888,
+              "progress": 0.3041714507896387,
               "reasonKey": "robot.goal.reason.off-line"
             },
             {
@@ -1690,9 +2603,10 @@
             "yawDeg": -0.5370891367167235
           },
           "pathCm": 123.91550031689745,
+          "reachCm": 116.04753609412371,
           "onLine": {
-            "moving": 1207,
-            "onTape": 292
+            "drivenCm": 123.91550031689745,
+            "onTapeCm": 32.037823880707435
           },
           "contacts": [
             "cone-1"
@@ -1726,14 +2640,14 @@
               "id": "follow-line",
               "passed": false,
               "points": 0,
-              "progress": 0,
+              "progress": 0.000001341104507446289,
               "reasonKey": "robot.goal.reason.robot-did-not-move"
             },
             {
               "id": "no-bump",
               "passed": false,
               "points": 0,
-              "progress": 0.00011148854133937861,
+              "progress": 0.000001341104507446289,
               "reasonKey": "robot.goal.reason.robot-did-not-move"
             },
             {
@@ -1759,9 +2673,10 @@
             "yawDeg": -0.007914669617703493
           },
           "pathCm": 0.0022297708267875723,
+          "reachCm": 0.00002682209014892578,
           "onLine": {
-            "moving": 0,
-            "onTape": 0
+            "drivenCm": 0.0022297708267875723,
+            "onTapeCm": 0.0022297708267875723
           },
           "contacts": [],
           "minFrontCm": 54.357,
@@ -1798,7 +2713,7 @@
               "id": "no-bump",
               "passed": false,
               "points": 0,
-              "progress": 0.00011778630094870071,
+              "progress": 0,
               "reasonKey": "robot.goal.reason.robot-did-not-move"
             },
             {
@@ -1824,9 +2739,10 @@
             "yawDeg": 4.967781562931166
           },
           "pathCm": 0.002355726018974014,
+          "reachCm": 0,
           "onLine": {
-            "moving": 0,
-            "onTape": 0
+            "drivenCm": 0.002355726018974014,
+            "onTapeCm": 0.002355726018974014
           },
           "contacts": [],
           "minFrontCm": 131.7769,
@@ -1856,14 +2772,14 @@
               "id": "follow-line",
               "passed": false,
               "points": 0,
-              "progress": 0,
+              "progress": 2.980232238769531e-7,
               "reasonKey": "robot.goal.reason.robot-did-not-move"
             },
             {
               "id": "no-bump",
               "passed": false,
               "points": 0,
-              "progress": 0.0001121069438676822,
+              "progress": 2.980232238769531e-7,
               "reasonKey": "robot.goal.reason.robot-did-not-move"
             },
             {
@@ -1889,15 +2805,222 @@
             "yawDeg": -4.767181403530445
           },
           "pathCm": 0.002242138877353644,
+          "reachCm": 0.0000059604644775390625,
           "onLine": {
-            "moving": 0,
-            "onTape": 0
+            "drivenCm": 0.002242138877353644,
+            "onTapeCm": 0.002242138877353644
           },
           "contacts": [],
           "minFrontCm": 56.6358,
           "clearanceCm": {
             "cone-1": 54.23938766040745,
             "cone-2": 90.32501995486423
+          },
+          "track": [],
+          "programOutcome": "running"
+        }
+      ],
+      "exploit:follower-without-distance": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.1485195159912,
+            "yCm": 130.5023431777954,
+            "yawDeg": 90.08982861345149
+          },
+          "pathCm": 180.10277286548464,
+          "reachCm": 142.5918475424391,
+          "onLine": {
+            "drivenCm": 180.10277286548464,
+            "onTapeCm": 180.10277286548464
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "running"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 39.25188481807709,
+            "yCm": 28.727510571479797,
+            "yawDeg": 4.967781560461989
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.575
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 14.458333333333334
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.0607099533081,
+            "yCm": 130.51034212112427,
+            "yawDeg": 90.00289037895745
+          },
+          "pathCm": 180.29295159419237,
+          "reachCm": 143.96104220822852,
+          "onLine": {
+            "drivenCm": 180.29295159419237,
+            "onTapeCm": 180.29295159419237
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 5.1228507338627125,
+            "cone-2": 3.303936940990238
+          },
+          "track": [],
+          "programOutcome": "running"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 39.23295438289642,
+            "yCm": 30.557551980018616,
+            "yawDeg": -4.767169847601305
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.641666666666667
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 14.533333333333333
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.20266437530518,
+            "yCm": 130.4700493812561,
+            "yawDeg": 90.38692301939753
+          },
+          "pathCm": 181.5870760475972,
+          "reachCm": 142.76179211874893,
+          "onLine": {
+            "drivenCm": 181.5870760475972,
+            "onTapeCm": 181.5870760475972
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 2.8186404888102246,
+            "cone-2": 3.307056594256945
           },
           "track": [],
           "programOutcome": "running"

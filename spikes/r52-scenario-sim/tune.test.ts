@@ -34,7 +34,7 @@ it.runIf(key)('tunes a blind program', async () => {
     let i = 0;
     const legs = shape.map((leg) => leg.map((v) => (v === null ? values[i++]! : v)));
     const run = await runVariant(scenario, blind(legs), Number(process.env.SPIKE_VARIANT ?? 0));
-    rows.push({ legs, points: run.points, ratio: run.onLine ? run.onLine.onTape / Math.max(1, run.onLine.moving) : null, end: run.end, goals: run.goals.map((g) => `${g.id}:${g.passed ? 'ok' : g.reasonKey}`), contacts: run.contacts, minFront: run.minFrontCm });
+    rows.push({ legs, points: run.points, ratio: run.onLine ? run.onLine.onTapeCm / Math.max(1e-9, run.onLine.drivenCm) : null, end: run.end, goals: run.goals.map((g) => `${g.id}:${g.passed ? 'ok' : g.reasonKey}`), contacts: run.contacts, minFront: run.minFrontCm });
   }
   writeFileSync(join(import.meta.dirname, 'results', `tune-${key}.json`), JSON.stringify(rows, null, 1));
 });

@@ -41,8 +41,10 @@ export type VariantRun = {
   /** Where the robot ended, and how far it drove (the guard goals' path: Σ speed · dt, the frame's axle speed). */
   end: { xCm: number; yCm: number; yawDeg: number };
   pathCm: number;
-  /** Ticks moving (speed > 1 cm/s) and ticks moving with a line spot on the tape: stay-on-line's own count, for the report. */
-  onLine?: { moving: number; onTape: number };
+  /** Distance driven and distance driven with a line spot on the tape (Σ speed · dt): stay-on-line's own share, for the report. */
+  onLine?: { drivenCm: number; onTapeCm: number };
+  /** The farthest the middle of the body got from its start (the guard goals' reach). */
+  reachCm: number;
   contacts: string[];
   minFrontCm?: number;
   /** The least gap between the robot's floor footprint (body and wheels) and each box, cm (0 when touching). */
@@ -110,7 +112,9 @@ export async function runVariant(scenario: Scenario, program: unknown, index: nu
   const finishIndex = scenario.goals.findIndex((spec) => spec.kind === 'finish-within');
 
   let pathCm = 0;
-  const onLine = { moving: 0, onTape: 0 };
+  const onLine = { drivenCm: 0, onTapeCm: 0 };
+  let origin: [number, number] | undefined;
+  let reachCm = 0;
   const contacts = new Set<string>();
   let minFrontCm: number | undefined;
   const track: [number, number, number][] = [];
@@ -120,9 +124,13 @@ export async function runVariant(scenario: Scenario, program: unknown, index: nu
     const { xCm, yCm, yawDeg, speedCmS, lineSpotsCm = [] } = frame.robot;
     if (Math.round(frame.tS * PHYSICS_HZ) % 6 === 0) track.push([xCm, yCm, yawDeg]);
     if (!frame.outOfArena) pathCm += speedCmS * dtS;
-    if (speedCmS > 1) {
-      onLine.moving += 1;
-      if (lineSpotsCm.some(([x, y]) => paint.groundReflectanceAt(x, y, 0) <= 0.25)) onLine.onTape += 1;
+    if (!frame.outOfArena && speedCmS > 0) {
+      onLine.drivenCm += speedCmS * dtS;
+      if (lineSpotsCm.some(([x, y]) => paint.groundReflectanceAt(x, y, 0) <= 0.25)) onLine.onTapeCm += speedCmS * dtS;
+    }
+    if (!frame.outOfArena) {
+      origin ??= [xCm, yCm];
+      reachCm = Math.max(reachCm, Math.hypot(xCm - origin[0], yCm - origin[1]));
     }
     for (const contact of frame.contacts) contacts.add(contact.otherId);
     const front = world.sense.ultrasonic('ultrasonic');
@@ -168,6 +176,7 @@ export async function runVariant(scenario: Scenario, program: unknown, index: nu
     passed: results.every((result) => result.passed),
     end: { xCm: end.xCm, yCm: end.yCm, yawDeg: end.yawDeg },
     pathCm,
+    reachCm,
     ...(scenario.arena.paint.lines.length > 0 ? { onLine } : {}),
     contacts: [...contacts].sort(),
     ...(minFrontCm === undefined ? {} : { minFrontCm }),
