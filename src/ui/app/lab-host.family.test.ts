@@ -44,7 +44,8 @@ describe('the lab → family table (N18 R2.1)', () => {
 });
 
 describe('the kit of a robot project (N18 R2.1, plan §4.0)', () => {
-  const kit = { id: 'acme-rover', version: '2' };
+  // N18 R2.2: L-1 refuses a kit the catalog does not know (unknown-kit), so the kit written is a known one.
+  const kit = { id: 'ref-uno-rover', version: '0' };
   const robot = unoDocument('uno-basic', { kit });
 
   /** The LMS host's storage of a lab project (STEMLearning lab-storage.ts): JSON in localStorage, as a string. */

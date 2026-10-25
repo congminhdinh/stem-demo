@@ -1,6 +1,8 @@
 import { createNewProject, projectDocumentSchema, type Circuit, type ProjectDocument } from '../circuit/document';
 import { connectWire } from '../circuit/wires';
 import type { DeviceRegistry } from '../devices/registry';
+import { productionKits, type KitCatalog } from '../hardware/catalog';
+import { kitKey } from '../hardware/kit';
 import { productionProfiles } from '../profiles';
 import type { ProfileCatalog } from '../profiles/profile';
 
@@ -29,7 +31,7 @@ export type ProgramCheck = (blocks: unknown) => boolean;
 
 /** Why a stored document is not loadable (layer L-1, YB plan §8.6). */
 export type LoadProblem = {
-  code: 'invalid-document' | 'unknown-profile' | 'invalid-circuit' | 'unknown-device' | 'program-not-openable';
+  code: 'invalid-document' | 'unknown-profile' | 'unknown-kit' | 'invalid-circuit' | 'unknown-device' | 'program-not-openable';
   message: string;
 };
 
@@ -38,9 +40,13 @@ export type LoadResult = { ok: true; document: ProjectDocument } | { ok: false; 
 /**
  * Layer L-1, loadable: the structure, and nothing else. Besides the schema
  * (which pins `schemaVersion` to 1) it checks what would otherwise break the
- * editor later: a `profile` the catalog knows (R-F2), invariants I1–I3 (plan
- * §6.1), device types the registry knows, and a program the editor can open
- * (with the blocks of every known pack, not only the profile's).
+ * editor later: a `profile` the catalog knows (R-F2), (N18 R2.2) a robot `kit`
+ * the kit catalog knows (`id@version`; a document without one has
+ * ref-uno-rover@0, plan §4.0), invariants I1–I3 (plan §6.1), device types the
+ * registry knows, and a program the editor can open (with the blocks of every
+ * known pack, not only the profile's). An unknown kit falls back as an unknown
+ * profile does: the app opens a new project or the lab's template, with its
+ * notice.
  *
  * It does not look at how many boards there are, at devices or blocks outside
  * the profile, or at compile errors. Those are layers L-2…L-4: the document
@@ -51,6 +57,7 @@ export function inspectStoredProject(
   registry: DeviceRegistry,
   canOpenProgram: ProgramCheck,
   profiles: ProfileCatalog = productionProfiles,
+  kits: KitCatalog = productionKits,
 ): LoadResult {
   const parsed = projectDocumentSchema.safeParse(stored);
   if (!parsed.success) {
@@ -59,6 +66,9 @@ export function inspectStoredProject(
   const document = parsed.data;
   if (document.profile !== undefined && !profiles.get(document.profile)) {
     return fail('unknown-profile', `"${document.profile}" is not a known profile.`);
+  }
+  if (document.kit !== undefined && !kits.get(document.kit)) {
+    return fail('unknown-kit', `The robot kit "${kitKey(document.kit)}" is not one this app knows.`);
   }
   const circuit = checkCircuit(document.circuit, registry);
   if (circuit) {

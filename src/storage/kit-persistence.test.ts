@@ -13,7 +13,8 @@ const registry = createDeviceRegistry(localDeviceDefinitions);
 
 describe('a robot project survives a save and a reload', () => {
   it.each([
-    ['with its kit', unoDocument('uno-advanced', { kit: { id: 'acme-rover', version: '2' } })],
+    // N18 R2.2: L-1 refuses a kit the catalog does not know (unknown-kit), so the kit written is a known one.
+    ['with its kit', unoDocument('uno-advanced', { kit: { id: 'ref-uno-rover', version: '0' } })],
     ['without one', unoDocument('uno-basic')],
   ])('%s, deep-equal', async (name, document) => {
     const database = `stem-studio-kit-${name}`;
