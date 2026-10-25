@@ -43,7 +43,7 @@ export function wallShape(x0: number, y0: number, x1: number, y1: number, thickn
 }
 
 /** cos and sin of a yaw in degrees: exact at the right angles, dmath’s everywhere else. */
-function cosSin(yawDeg: number): [number, number] {
+export function cosSin(yawDeg: number): [number, number] {
   const turn = ((yawDeg % 360) + 360) % 360;
   if (turn === 0) return [1, 0];
   if (turn === 90) return [0, 1];

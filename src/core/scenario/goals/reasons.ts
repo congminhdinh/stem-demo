@@ -30,6 +30,11 @@ export const goalReasons = {
   notFinishedInTime: 'robot.goal.reason.not-finished-in-time',
   /** `uses-block`: the program that runs does not have the block. */
   blockNotUsed: 'robot.goal.reason.block-not-used',
+  /**
+   * N18 R5.2a fix round 2 (controller ruling): the run ended at the robot's first contact with a collider of the scenario's `endOnContact`
+   * before the goal had the hold or the stop it needs (`stop-in-zone`, `servo-angle`). The check (R6.2) gives it; no goal reads contacts for it.
+   */
+  runEndedContact: 'robot.goal.reason.run-ended-contact',
 } as const;
 
 export type GoalReasonKey = (typeof goalReasons)[keyof typeof goalReasons];

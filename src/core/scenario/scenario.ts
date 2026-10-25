@@ -1,4 +1,5 @@
 import { robotSandboxKey } from '../../samples/robot-keys';
+import type { GoalContact } from './goals/frame';
 import { ScenarioError, formatScenarioPath, scenarioSchema, type Scenario, type ScenarioInput } from './scenario-schema';
 
 export * from './scenario-schema';
@@ -31,6 +32,19 @@ export function loadScenario(json: unknown): Scenario {
 export function scenarioMaxScore(scenario: Pick<Scenario, 'key' | 'goals' | 'scoring'>): number | undefined {
   if (scenario.key === robotSandboxKey) return undefined;
   return scenario.goals.reduce((sum, goal) => sum + goal.points, scenario.scoring.timeBonusMax ?? 0);
+}
+
+/**
+ * N18 R5.2a fix round 2 (controller ruling): the tag of `endOnContact` that one of this tick's contacts has, or null: when it is not null,
+ * the run ends at this tick (the frames up to and including it are judged). The first tag of the list that any contact has, so the same tick
+ * names the same tag on every engine. A contact names its collider's tags, its kind among them (build-arena.ts); a whole tag matches, not a
+ * part of one. A scenario without `endOnContact` ends no run on a contact.
+ */
+export function runEndingContact(scenario: Pick<Scenario, 'endOnContact'>, contacts: readonly GoalContact[]): string | null {
+  for (const tag of scenario.endOnContact ?? []) {
+    if (contacts.some((contact) => contact.tags.includes(tag))) return tag;
+  }
+  return null;
 }
 
 /**

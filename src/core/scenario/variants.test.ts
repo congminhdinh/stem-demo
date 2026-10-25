@@ -529,3 +529,57 @@ describe('after a bounded number of draws the authored value is kept', () => {
     }
   });
 });
+
+// N18 R5.2a fix round 2: `startJitterAlongCm` moves the start up to that far along its heading, and `startJitterCm` across it.
+describe('a start that moves farther along its heading than across it', () => {
+  const line = { ground: { sizeCm: [300, 200] as [number, number], color: '#ffffff' } };
+
+  it('moves up to ±along along the heading and ±startJitterCm across it, at any heading', () => {
+    for (const yawDeg of [0, 90, 180, -90, 30]) {
+      const scenario = source(line, { xCm: 150, yCm: 100, yawDeg }, { count: 10, seed: 11, startJitterCm: 1.5, startJitterAlongCm: 15, yawJitterDeg: 0 });
+      const a = (yawDeg * Math.PI) / 180;
+      let farthestAlong = 0;
+      for (let index = 1; index < 10; index++) {
+        const { dxCm, dyCm } = variantOffsets(scenario, index).start;
+        const along = dxCm * Math.cos(a) + dyCm * Math.sin(a);
+        const across = -dxCm * Math.sin(a) + dyCm * Math.cos(a);
+        expect(Math.abs(along)).toBeLessThanOrEqual(15 + 1e-9);
+        expect(Math.abs(across)).toBeLessThanOrEqual(1.5 + 1e-9);
+        farthestAlong = Math.max(farthestAlong, Math.abs(along));
+      }
+      expect(farthestAlong).toBeGreaterThan(5);
+    }
+  });
+
+  it('draws the same numbers as the jitter without it, only scaled: the first draw along, the second across', () => {
+    const plainScenario = source(line, { xCm: 150, yCm: 100, yawDeg: 0 }, { count: 4, seed: 5, startJitterCm: 4, yawJitterDeg: 6 });
+    const alongScenario = source(line, { xCm: 150, yCm: 100, yawDeg: 0 }, { count: 4, seed: 5, startJitterCm: 1, startJitterAlongCm: 12, yawJitterDeg: 6 });
+    for (let index = 1; index < 4; index++) {
+      const before = variantOffsets(plainScenario, index).start;
+      const after = variantOffsets(alongScenario, index).start;
+      expect(after.dxCm).toBeCloseTo((before.dxCm * 12) / 4, 9);
+      expect(after.dyCm).toBeCloseTo(before.dyCm / 4, 9);
+      expect(after.dYawDeg).toBe(before.dYawDeg);
+    }
+  });
+
+  it('is exact at the right angles: a start heading +y moves along y', () => {
+    const scenario = source(line, { xCm: 150, yCm: 100, yawDeg: 90 }, { count: 3, seed: 2, startJitterCm: 0, startJitterAlongCm: 10, yawJitterDeg: 0 });
+    for (let index = 1; index < 3; index++) {
+      const { dxCm, dyCm } = variantOffsets(scenario, index).start;
+      expect(dxCm).toBe(0);
+      expect(Math.abs(dyCm)).toBeGreaterThan(0);
+    }
+  });
+
+  it('jitters a start with only the along jitter set, and keeps one that fits nowhere at its place', () => {
+    const scenario = source(line, { xCm: 150, yCm: 100, yawDeg: 0 }, { count: 3, seed: 2, startJitterCm: 0, startJitterAlongCm: 10, yawJitterDeg: 0 });
+    expect(variantOffsets(scenario, 1).start.dxCm).not.toBe(0);
+    const boxedIn = source(
+      { ...line, walls: [{ fromCm: [138, 80], toCm: [138, 120] }, { fromCm: [162, 80], toCm: [162, 120] }] },
+      { xCm: 150, yCm: 100, yawDeg: 0 },
+      { count: 3, seed: 2, startJitterCm: 0, startJitterAlongCm: 10, yawJitterDeg: 0 },
+    );
+    expect(variantOffsets(boxedIn, 1).start).toEqual({ dxCm: 0, dyCm: 0, dYawDeg: 0 });
+  });
+});

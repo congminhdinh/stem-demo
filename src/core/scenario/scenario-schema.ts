@@ -94,7 +94,13 @@ const variantsSchema = z.strictObject({
   count: wholeFrom(1, `must be a whole number from 1 to ${VARIANTS_MAX}`).max(VARIANTS_MAX, `must be a whole number from 1 to ${VARIANTS_MAX}`),
   /** The seed of the jitter; each variant derives its own from it (variants.ts). */
   seed: wholeFrom(0, `must be a whole number from 0 to ${SEED_MAX}`).max(SEED_MAX, `must be a whole number from 0 to ${SEED_MAX}`),
+  /** How far the start may move, each way, in x and y; across its heading only when `startJitterAlongCm` is given. */
   startJitterCm: z.number().min(0, 'must be 0 or more'),
+  /**
+   * N18 R5.2a fix round 2: how far the start may move, each way, along its heading (the start straight of a line follower), when it may
+   * move farther that way than across it. Left out: the start moves by `startJitterCm` in x and y.
+   */
+  startJitterAlongCm: z.number().min(0, 'must be 0 or more').optional(),
   yawJitterDeg: z.number().min(0, 'must be from 0 to 180').max(180, 'must be from 0 to 180'),
   /** How far the arena boxes and cylinders tagged `jitter` may move, each way along x and y. */
   obstacleJitterCm: z.number().min(0, 'must be 0 or more').optional(),
@@ -130,6 +136,12 @@ const scenarioShape = z.strictObject({
   starter: z.record(z.string(), z.unknown()),
   /** The block types the learner may use; every block when absent. */
   toolbox: z.array(blockTypeSchema).min(1, 'needs at least one block type').optional(),
+  /**
+   * N18 R5.2a fix round 2 (controller ruling): the tags (or kinds) of the colliders whose first contact ends the run, as a crash does in a
+   * robot competition. The run session and the check (R3.6, R6.2) stop at that tick (`runEndingContact`, scenario.ts); the goals are judged on
+   * the frames up to and including it, and a goal that needs a hold or a stop it had not yet had fails with `run-ended-contact`.
+   */
+  endOnContact: z.array(z.string().min(1, 'must not be empty')).min(1, 'needs at least one tag').optional(),
 });
 
 type ScenarioShape = z.output<typeof scenarioShape>;
@@ -188,6 +200,7 @@ function scenarioRuleIssues(scenario: ScenarioShape): RuleIssue[] {
 
   inputIssues(scenario, add);
   goalIssues(scenario, add);
+  endOnContactIssues(scenario, add);
   scoreIssues(scenario, add);
 
   if (scenario.toolbox) {
@@ -238,20 +251,41 @@ function inputIssues(scenario: ScenarioShape, add: Add): void {
   }
 }
 
-function goalIssues(scenario: ScenarioShape, add: Add): void {
-  const { arena } = scenario;
-  const zoneIds = arena.paint.zones.map((zone) => zone.id);
-  const objectIds = arena.objects.map((object) => object.id);
-  const colliders = [...arena.walls, ...arena.boxes, ...arena.cylinders, ...arena.objects];
-  // What `avoid-contact` can name: the kind of a collider (build-arena.ts adds it to its tags) and the tags the arena gives.
+/** What `avoid-contact` and `endOnContact` can name: the kind of a collider (build-arena.ts adds it to its tags) and the tags the arena gives. */
+function colliderTags(arena: ScenarioShape['arena']): Set<string> {
   const tags = new Set<string>();
   if (arena.walls.length > 0) tags.add('wall');
   if (arena.boxes.length > 0) tags.add('box');
   if (arena.cylinders.length > 0) tags.add('cylinder');
   if (arena.objects.length > 0) tags.add('object');
-  for (const collider of colliders) {
+  for (const collider of [...arena.walls, ...arena.boxes, ...arena.cylinders, ...arena.objects]) {
     for (const tag of collider.tags) tags.add(tag);
   }
+  return tags;
+}
+
+/** Each tag of `endOnContact` is one that something in the arena has, and is listed once. */
+function endOnContactIssues(scenario: ScenarioShape, add: Add): void {
+  if (scenario.endOnContact === undefined) return;
+  const tags = colliderTags(scenario.arena);
+  const first = new Map<string, number>();
+  scenario.endOnContact.forEach((tag, i) => {
+    if (tag === '') return; // the shape says it is empty
+    const earlier = first.get(tag);
+    if (earlier !== undefined) {
+      add(['endOnContact', i], `"${tag}" is already listed at endOnContact[${earlier}]`);
+      return;
+    }
+    first.set(tag, i);
+    if (!tags.has(tag)) add(['endOnContact', i], `nothing in the arena has the tag "${tag}" (tags: ${list([...tags], 'none')})`);
+  });
+}
+
+function goalIssues(scenario: ScenarioShape, add: Add): void {
+  const { arena } = scenario;
+  const zoneIds = arena.paint.zones.map((zone) => zone.id);
+  const objectIds = arena.objects.map((object) => object.id);
+  const tags = colliderTags(arena);
   const servoRoles = rolesOfKind('servo');
 
   const zoneAt = (path: (string | number)[], zone: string) => {

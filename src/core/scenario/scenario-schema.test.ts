@@ -392,3 +392,34 @@ describe('ScenarioError', () => {
     }
   });
 });
+
+// N18 R5.2a fix round 2 (controller ruling): the tags whose first contact ends the run, as a crash does in a robot competition.
+describe('endOnContact', () => {
+  it('is optional, and left out when the scenario does not say it', () => {
+    expect(loadScenario(authored()).endOnContact).toBeUndefined();
+  });
+
+  it('takes tags and kinds that something in the arena has, each once', () => {
+    const scenario = loadScenario(edited((s) => (s.endOnContact = ['obstacle', 'wall'])));
+    expect(scenario.endOnContact).toEqual(['obstacle', 'wall']);
+  });
+
+  it('refuses a tag nothing in the arena has, an empty tag, a tag twice, and an empty list', () => {
+    expect(issuesOf(edited((s) => (s.endOnContact = ['lava'])))).toEqual([
+      'endOnContact[0]: nothing in the arena has the tag "lava" (tags: wall, box, cylinder, object, obstacle, jitter, pushable)',
+    ]);
+    expect(issuesOf(edited((s) => (s.endOnContact = ['ground'])))[0]).toMatch(/^endOnContact\[0\]: nothing in the arena has the tag "ground"/);
+    expect(issuesOf(edited((s) => (s.endOnContact = ['wall', 'wall'])))).toEqual(['endOnContact[1]: "wall" is already listed at endOnContact[0]']);
+    expect(issuesOf(edited((s) => (s.endOnContact = [''])))).toEqual(['endOnContact[0]: must not be empty']);
+    expect(issuesOf(edited((s) => (s.endOnContact = [])))).toEqual(['endOnContact: needs at least one tag']);
+  });
+});
+
+// N18 R5.2a fix round 2: a start can move farther along its heading than across it (a line follower's start straight).
+describe('startJitterAlongCm', () => {
+  it('is optional and 0 or more', () => {
+    expect(loadScenario(authored()).variants.startJitterAlongCm).toBeUndefined();
+    expect(loadScenario(edited((s) => (s.variants.startJitterAlongCm = 15))).variants.startJitterAlongCm).toBe(15);
+    expect(issuesOf(edited((s) => (s.variants.startJitterAlongCm = -1)))).toEqual(['variants.startJitterAlongCm: must be 0 or more']);
+  });
+});

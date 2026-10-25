@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import fixture from './__fixtures__/all-goals.scenario.json';
-import { goalKinds, inputsDueBetween, loadScenario, scenarioMaxScore, SCENARIO_MAX_SCORE, type Scenario } from './scenario';
+import { goalKinds, inputsDueBetween, loadScenario, runEndingContact, scenarioMaxScore, SCENARIO_MAX_SCORE, type Scenario } from './scenario';
 import { ScenarioError } from './scenario-schema';
 import type { RobotTemplateKey } from '../../samples/robot-keys';
 
@@ -173,5 +173,30 @@ describe('inputs are applied at atS in every mode', () => {
       expect(window[0]).toBeLessThanOrEqual(atS);
       expect(atS).toBeLessThan(window[1]);
     }
+  });
+});
+
+// N18 R5.2a fix round 2 (controller ruling): the run ends at the first contact with a collider that has one of `endOnContact`'s tags. The
+// run session and the check (R3.6, R6.2) stop there; this is the one test they share of which contact it is.
+describe('runEndingContact', () => {
+  const scenario = { endOnContact: ['wall', 'obstacle'] };
+  const wall = { otherId: '#wall-0', tags: ['wall'] };
+  const cone = { otherId: 'cone-1', tags: ['box', 'obstacle'] };
+  const crate = { otherId: 'crate', tags: ['object', 'pushable'] };
+
+  it('names the first tag of the list that a contact of the tick has, or null', () => {
+    expect(runEndingContact(scenario, [crate])).toBeNull();
+    expect(runEndingContact(scenario, [])).toBeNull();
+    expect(runEndingContact(scenario, [crate, cone])).toBe('obstacle');
+    expect(runEndingContact(scenario, [cone, wall])).toBe('wall');
+  });
+
+  it('ends no run of a scenario that does not say endOnContact', () => {
+    expect(runEndingContact({}, [wall, cone])).toBeNull();
+    expect(runEndingContact({ endOnContact: undefined }, [wall])).toBeNull();
+  });
+
+  it('matches the whole tag, not a part of it', () => {
+    expect(runEndingContact(scenario, [{ otherId: 'x', tags: ['walls', 'obstacles', 'Wall'] }])).toBeNull();
   });
 });

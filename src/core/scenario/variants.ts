@@ -1,13 +1,14 @@
 import type { Arena, ArenaBox, ArenaCylinder } from '../world/arena/arena-schema';
 import { createWorldRng } from '../world/rng';
-import { circleShape, insideGround, rectShape, shapesOverlap, wallShape, type Shape } from './overlap';
+import { circleShape, cosSin, insideGround, rectShape, shapesOverlap, wallShape, type Shape } from './overlap';
 import type { PoseCm, Scenario } from './scenario-schema';
 
 // The variants of a scenario (N18 R5.1, robot plan §4.6, D-R9): the same task from a slightly different start, so that a program
 // that only works for one lucky place fails. A check (R6.2) runs `variants.count` of them and passes when the goals pass in all.
 //
 //   variant 0     the exact start: no offset at all.
-//   variant 1..   the start moves by up to ±startJitterCm in x and y and ±yawJitterDeg of yaw; each arena box and cylinder tagged
+//   variant 1..   the start moves by up to ±startJitterCm in x and y (or, with startJitterAlongCm, by up to ±startJitterAlongCm along its
+//                 authored heading and ±startJitterCm across it) and ±yawJitterDeg of yaw; each arena box and cylinder tagged
 //                 `jitter` moves by up to ±obstacleJitterCm in x and y. Nothing else moves: not the walls, the paint, the objects
 //                 to push, nor an untagged obstacle.
 //
@@ -15,7 +16,8 @@ import type { PoseCm, Scenario } from './scenario-schema';
 // same scenario gives the same variants on every engine: `variantOffsets` is a pure function.
 //
 // The random draws (offsets are `uniform(−j, +j)` of the jitter `j`), in this order, from the stream of `variantJitterSeed`:
-//   1. the start: dx, dy, dYaw (only when startJitterCm or yawJitterDeg is above 0);
+//   1. the start: dx, dy, dYaw (only when startJitterCm, startJitterAlongCm or yawJitterDeg is above 0); with startJitterAlongCm the first two
+//      draws are along and across the heading, turned into dx, dy by the authored yaw (exact at the right angles, dmath elsewhere);
 //   2. each box tagged `jitter` in arena order, then each cylinder: dx, dy (only when obstacleJitterCm is above 0).
 //
 // A draw that does not fit is thrown away and the thing is drawn again, at most VARIANT_MAX_ATTEMPTS times; then it keeps the place the
@@ -119,7 +121,16 @@ export function variantOffsets(scenario: VariantSource, index: number): VariantO
 
   const [width, depth] = arena.ground.sizeCm;
   const obstacleJitter = variants.obstacleJitterCm ?? 0;
-  const jitterStart = variants.startJitterCm > 0 || variants.yawJitterDeg > 0;
+  const along = variants.startJitterAlongCm;
+  const jitterStart = variants.startJitterCm > 0 || (along ?? 0) > 0 || variants.yawJitterDeg > 0;
+  const [headingCos, headingSin] = cosSin(start.yawDeg);
+  /** The start's move of one draw: in x and y, or along and across its heading. */
+  const drawMove = (): [number, number] => {
+    if (along === undefined) return [jitter(variants.startJitterCm), jitter(variants.startJitterCm)];
+    const a = jitter(along);
+    const c = jitter(variants.startJitterCm);
+    return [plain(a * headingCos - c * headingSin), plain(a * headingSin + c * headingCos)];
+  };
   if (!jitterStart && obstacleJitter <= 0) return result();
 
   // What stays where the author put it, and the tagged obstacles in the order they are drawn (boxes, then cylinders).
@@ -153,8 +164,7 @@ export function variantOffsets(scenario: VariantSource, index: number): VariantO
     let firstYawDeg = 0;
     let placed = false;
     for (let attempt = 0; attempt < VARIANT_MAX_ATTEMPTS && !placed; attempt++) {
-      const dxCm = jitter(variants.startJitterCm);
-      const dyCm = jitter(variants.startJitterCm);
+      const [dxCm, dyCm] = drawMove();
       const dYawDeg = jitter(variants.yawJitterDeg);
       if (attempt === 0) firstYawDeg = dYawDeg;
       const moved = circleShape(start.xCm + dxCm, start.yCm + dyCm, ROBOT_FOOTPRINT_RADIUS_CM);
