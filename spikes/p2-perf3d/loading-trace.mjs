@@ -1,5 +1,5 @@
 // N18 P2 spike (evidence for p2-audit.md). Run from the repository root after pnpm bench:robot3d has built its dist:
-//   node spikes/p2-perf3d/loading-trace.mjs [--profile=school|gpu] [--template=rb-line-follow] [--out=trace.json] [--dist=<build>] [--check | --warmup]
+//   node spikes/p2-perf3d/loading-trace.mjs [--profile=school|gpu] [--template=rb-line-follow] [--out=trace.json] [--dist=<build>] [--check | --warmup] [--cold]
 // What the main thread does from the lesson page's navigation to the robot lab's first 3D frame (school PC profile: SwiftShader, CPU 6x,
 // 1366 x 768; or --profile=gpu): a Chromium trace (devtools.timeline), its long tasks on the renderer's main thread with what ran in
 // them (scripts mapped to sources through the bench build's source maps), aligned with the probe's performance marks.
@@ -18,6 +18,8 @@ const checkMode = process.argv.includes('--check');
 // --warmup (Phase B #1b): instead of the loading, trace the 3 s after the host's load-project (the lab's first use: the physics engine
 // is loaded and warmed at idle then) and list its long tasks over 50 ms.
 const warmupMode = process.argv.includes('--warmup');
+// --cold (Phase B #5): trace the loading in the browser's first page, its GPU process fresh (no warming visit before it).
+const coldMode = process.argv.includes('--cold');
 const maps = loadSourceMaps(join(dist, 'assets'));
 const port = 5304;
 const kids = [spawn(process.execPath, [join(root, 'node_modules/vite/bin/vite.js'), 'preview', '--outDir', dist, '--port', String(port), '--strictPort'], { cwd: root, stdio: 'ignore' }), spawn(process.execPath, [join(root, 'e2e/lesson-host.mjs'), String(port + 1)], { cwd: root, stdio: 'ignore' })];
@@ -64,7 +66,7 @@ async function open(trace) {
   await context.close();
   return { first, buffer };
 }
-await open(false); // warm the GPU process and the shader JIT as a second visit would find them
+if (!coldMode) await open(false); // warm the GPU process and the shader JIT as a second visit would find them
 const { first, buffer } = await open(true);
 const events = JSON.parse(buffer.toString()).traceEvents;
 if (out) writeFileSync(out, buffer);

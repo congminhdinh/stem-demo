@@ -296,7 +296,8 @@ function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewF
   const gl = useThree((state) => state.gl);
   const settings = tierSettings[tier];
   const shadows = settings.shadows !== false;
-  const textures = useMemo(() => createTextureSet(Math.min(8, gl.capabilities.getMaxAnisotropy())), [gl]);
+  // N18 P2: the fibre map only where the mat is drawn with it (not on the low tier).
+  const textures = useMemo(() => createTextureSet(Math.min(8, gl.capabilities.getMaxAnisotropy()), { matNormal: look.matNormal }), [gl, look]);
   useEffect(() => () => textures.dispose(), [textures]);
   useEffect(() => () => assets?.releaseGpu(), [assets]);
   // Before the first frame, on the high tier: the files' textures filtered as sharply as the mat's. Not on the low tier, a software

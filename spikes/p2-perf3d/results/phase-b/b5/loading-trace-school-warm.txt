@@ -1,0 +1,156 @@
+== b4 warm, load 3.04 4.06 5.09
+first frame (Node) 2008 ms; marks: parse-begin 900, parse-begin 955, renderer 1013, first-render 1117, first-scene-render 1117, parse-end 1191, parse-end 1194, compile-begin 1366, compile-end 1412
+    98 ms  task  186 ms  blockly/blockly_compressed.js 50 | (unknown) 28 | zod/v4/core/schemas.js 17 | zod/v4/core/doc.js 15 | rolldown-runtime-hePW80VL.js (no map) 9
+           24 ms  blockly/blockly_compressed.js:12 }(this, function() {
+           22 ms  test-hooks-DEejnb95.js:0
+           14 ms  blockly/blockly_compressed.js:4 ;(function(root, factory) {
+           10 ms  zod/v4/core/schemas.js:1171 inst._zod.parse = (payload, ctx) => {
+           9 ms  zod/v4/core/doc.js:32 compile() {
+           9 ms  (garbage collector)
+   385 ms  task   63 ms  zod/v4/core/schemas.js 12 | (unknown) 8 | zod/v4/core/doc.js 7 | three/build/three.core.js 7 | src/core/scenario/scenario-schema.ts 4
+   647 ms  task  185 ms  blockly/blockly_compressed.js 102 | react-use-measure/dist/index.js 45 | react-dom/cjs/react-dom-client.production.js 14 | (browser) 7 | robot3d/hud-corner.ts 4
+           45 ms  react-use-measure/dist/index.js:1 import{useState as T,useRef as p,useEffect as u,useMemo as M}from"reac
+           9 ms  blockly/blockly_compressed.js:28 Za=function(a,b,c,d){var e=document.createElement("span");e.style.font
+           7 ms  (program)
+           6 ms  blockly/blockly_compressed.js:1775 null}getWidth(){return this.width_}getHeight(){return this.height_}get
+           4 ms  src/ui/robot3d/hud-corner.ts:51 const measure = () => {
+           4 ms  blockly/blockly_compressed.js:1523 Jb(y.VARIABLE_MAP,this.options,!0);if(!a)throw Error("No variable map 
+   900 ms  task   53 ms  three/examples/jsm/loaders/GLTFLoader.js 32 | three/build/three.core.js 11 | rapier.wasm 4 | three/examples/jsm/libs/meshopt_decoder.module.js 3
+   986 ms  task  106 ms  @react-three/fiber/dist/events-9ce18a08.esm.js 26 | robot3d/camera-studio.ts 20 | three/build/three.module.js 15 | three/build/three.core.js 11 | robot3d/parts/overlay-geometry.ts 6
+  1092 ms  task   30 ms  three/build/three.module.js 17 | (browser) 4 | three/build/three.core.js 4
+  1127 ms  task   48 ms  (browser) 48
+  1226 ms  task   66 ms  three/build/three.core.js 30 | robot3d/parts/merge.ts 9 | robot3d/parts/GltfArena.tsx 5 | robot3d/zone-pattern.ts 4 | robot3d/ground-paint.ts 3
+  1292 ms  task   40 ms  three/build/three.core.js 22 | robot3d/parts/merge.ts 9 | robot3d/parts/robot-assembly.ts 4
+  1363 ms  task   38 ms  three/build/three.module.js 31
+  1416 ms  task  387 ms  three/build/three.module.js 371 | three/build/three.core.js 13
+           349 ms  three/build/three.module.js:7022 function onFirstUse( self ) {
+           4 ms  three/build/three.module.js:66 function createBuffer( attribute, bufferType ) {
+           4 ms  three/build/three.module.js:11918 function uploadTexture( textureProperties, texture, slot ) {
+           3 ms  three/build/three.module.js:18407 function setProgram( camera, scene, geometry, material, object ) {
+           3 ms  three/build/three.core.js:5997 fromBufferAttribute( attribute, index ) {
+           3 ms  three/build/three.core.js:19079 computeBoundingSphere() {
+  1838 ms  task  156 ms  three/build/three.module.js 149
+           145 ms  three/build/three.module.js:7022 function onFirstUse( self ) {
+           2 ms  three/build/three.core.js:37958 function cloneUniforms( src ) {
+           1 ms  three/build/three.module.js:18165 function renderObjects( renderList, scene, camera ) {
+           1 ms  three/build/three.core.js:7693 updateMatrix() {
+           1 ms  three/build/three.module.js:17674 this.render = function ( scene, camera ) {
+           1 ms  @react-three/fiber/dist/events-9ce18a08.esm.js:17400 function update(timestamp, state, frame) {
+long tasks (> 30 ms) up to 2 s after the first scene render: 1358 ms
+== b5 warm, load 3.17 4.06 5.08
+first frame (Node) 2005 ms; marks: parse-begin 895, parse-begin 949, renderer 1007, first-render 1115, first-scene-render 1115, parse-end 1188, parse-end 1191, compile-begin 1362, compile-end 1407
+    86 ms  task  180 ms  blockly/blockly_compressed.js 53 | (unknown) 26 | zod/v4/core/schemas.js 22 | zod/v4/core/doc.js 15 | rolldown-runtime-hePW80VL.js (no map) 8
+           26 ms  blockly/blockly_compressed.js:12 }(this, function() {
+           23 ms  test-hooks-DEejnb95.js:0
+           15 ms  blockly/blockly_compressed.js:4 ;(function(root, factory) {
+           11 ms  zod/v4/core/schemas.js:1171 inst._zod.parse = (payload, ctx) => {
+           9 ms  blockly/blockly_compressed.js:42 Vb=function(){return $.Ub===0};$.B=function(a){Ob.setGroupInternal(a)}
+           8 ms  zod/v4/core/doc.js:32 compile() {
+   370 ms  task   68 ms  zod/v4/core/schemas.js 12 | zod/v4/core/doc.js 9 | (unknown) 7 | three/build/three.core.js 7 | three/examples/jsm/libs/meshopt_decoder.module.js 4
+   633 ms  task  194 ms  blockly/blockly_compressed.js 108 | react-use-measure/dist/index.js 50 | react-dom/cjs/react-dom-client.production.js 14 | (browser) 5 | robot3d/hud-corner.ts 4
+           50 ms  react-use-measure/dist/index.js:1 import{useState as T,useRef as p,useEffect as u,useMemo as M}from"reac
+           8 ms  blockly/blockly_compressed.js:1775 null}getWidth(){return this.width_}getHeight(){return this.height_}get
+           7 ms  blockly/blockly_compressed.js:28 Za=function(a,b,c,d){var e=document.createElement("span");e.style.font
+           5 ms  (program)
+           4 ms  blockly/blockly_compressed.js:24 r=function(a,b,c){var d=document.createElementNS("http://www.w3.org/20
+           3 ms  src/ui/robot3d/hud-corner.ts:51 const measure = () => {
+   895 ms  task   54 ms  three/examples/jsm/loaders/GLTFLoader.js 20 | three/build/three.core.js 17 | three/examples/jsm/libs/meshopt_decoder.module.js 6 | rapier.wasm 6
+   981 ms  task  107 ms  @react-three/fiber/dist/events-9ce18a08.esm.js 28 | robot3d/camera-studio.ts 22 | three/build/three.module.js 18 | three/build/three.core.js 11 | robot3d/parts/overlay-geometry.ts 5
+  1089 ms  task   31 ms  three/build/three.module.js 21 | (browser) 5
+  1125 ms  task   48 ms  (browser) 46
+  1201 ms  task   63 ms  three/build/three.core.js 37 | robot3d/zone-pattern.ts 4 | robot3d/parts/arena-assembly.ts 4
+  1263 ms  task   40 ms  three/build/three.core.js 23 | robot3d/parts/merge.ts 4 | three/examples/jsm/utils/BufferGeometryUtils.js 4
+  1360 ms  task   37 ms  three/build/three.module.js 29 | (browser) 4 | three/build/three.core.js 3
+  1414 ms  task  389 ms  three/build/three.module.js 371 | three/build/three.core.js 16
+           350 ms  three/build/three.module.js:7022 function onFirstUse( self ) {
+           5 ms  three/build/three.core.js:5997 fromBufferAttribute( attribute, index ) {
+           3 ms  three/build/three.module.js:66 function createBuffer( attribute, bufferType ) {
+           3 ms  three/build/three.core.js:19079 computeBoundingSphere() {
+           2 ms  three/build/three.core.js:17333 getX( index ) {
+           2 ms  three/build/three.module.js:18224 function getProgram( material, scene, object ) {
+  1839 ms  task  152 ms  three/build/three.module.js 145
+           141 ms  three/build/three.module.js:7022 function onFirstUse( self ) {
+           2 ms  three/build/three.module.js:8846 function setupView( lights, camera ) {
+           2 ms  three/build/three.core.js:6769 getPrimaries: function ( colorSpace ) {
+           1 ms  three/build/three.module.js:15043 function refreshMaterialUniforms( uniforms, material, pixelRatio, heig
+           1 ms  (program)
+           1 ms  three/build/three.core.js:19079 computeBoundingSphere() {
+long tasks (> 30 ms) up to 2 s after the first scene render: 1361 ms
+== b4 warm, load 3.08 4.02 5.06
+first frame (Node) 2007 ms; marks: parse-begin 890, parse-begin 940, renderer 995, first-render 1101, first-scene-render 1101, parse-end 1177, parse-end 1178, compile-begin 1352, compile-end 1397
+    90 ms  task  184 ms  blockly/blockly_compressed.js 54 | (unknown) 23 | zod/v4/core/schemas.js 17 | rolldown-runtime-hePW80VL.js (no map) 13 | zod/v4/core/doc.js 10
+           28 ms  blockly/blockly_compressed.js:12 }(this, function() {
+           22 ms  test-hooks-DEejnb95.js:0
+           14 ms  blockly/blockly_compressed.js:4 ;(function(root, factory) {
+           12 ms  zod/v4/core/schemas.js:1171 inst._zod.parse = (payload, ctx) => {
+           11 ms  rolldown-runtime-hePW80VL.js:0
+           8 ms  blockly/blockly_compressed.js:42 Vb=function(){return $.Ub===0};$.B=function(a){Ob.setGroupInternal(a)}
+   378 ms  task   65 ms  zod/v4/core/schemas.js 12 | (unknown) 12 | zod/v4/core/doc.js 4 | three/build/three.core.js 4 | src/core/world/arena/arena-schema.ts 4
+   639 ms  task  180 ms  blockly/blockly_compressed.js 101 | react-use-measure/dist/index.js 48 | react-dom/cjs/react-dom-client.production.js 15 | (browser) 4 | three/build/three.core.js 4
+           48 ms  react-use-measure/dist/index.js:1 import{useState as T,useRef as p,useEffect as u,useMemo as M}from"reac
+           7 ms  blockly/blockly_compressed.js:28 Za=function(a,b,c,d){var e=document.createElement("span");e.style.font
+           6 ms  blockly/blockly_compressed.js:1775 null}getWidth(){return this.width_}getHeight(){return this.height_}get
+           4 ms  blockly/blockly_compressed.js:24 r=function(a,b,c){var d=document.createElementNS("http://www.w3.org/20
+           4 ms  (program)
+           4 ms  react-dom/cjs/react-dom-client.production.js:9011 function commitHookEffectListMount(flags, finishedWork) {
+   890 ms  task   50 ms  three/examples/jsm/loaders/GLTFLoader.js 24 | three/build/three.core.js 12 | three/examples/jsm/libs/meshopt_decoder.module.js 6 | rapier.wasm 4
+   971 ms  task  105 ms  @react-three/fiber/dist/events-9ce18a08.esm.js 26 | robot3d/camera-studio.ts 21 | three/build/three.module.js 17 | three/build/three.core.js 10 | robot3d/parts/overlay-geometry.ts 5
+  1111 ms  task   48 ms  (browser) 49
+  1181 ms  task   34 ms  robot3d/assets/pixels.ts 21 | robot3d/assets/textures.ts 5
+  1215 ms  task   64 ms  three/build/three.core.js 31 | three/examples/jsm/utils/BufferGeometryUtils.js 5 | robot3d/parts/merge.ts 5 | robot3d/zone-pattern.ts 4 | robot3d/ground-paint.ts 3
+  1279 ms  task   40 ms  three/build/three.core.js 22 | robot3d/parts/merge.ts 7 | robot3d/parts/robot-assembly.ts 6
+  1351 ms  task   35 ms  three/build/three.module.js 30
+  1412 ms  task  389 ms  three/build/three.module.js 374 | three/build/three.core.js 12
+           352 ms  three/build/three.module.js:7022 function onFirstUse( self ) {
+           5 ms  three/build/three.core.js:19079 computeBoundingSphere() {
+           3 ms  three/build/three.core.js:15989 setFromBufferAttribute( attribute ) {
+           3 ms  three/build/three.module.js:11918 function uploadTexture( textureProperties, texture, slot ) {
+           2 ms  three/build/three.module.js:66 function createBuffer( attribute, bufferType ) {
+           2 ms  three/build/three.module.js:18407 function setProgram( camera, scene, geometry, material, object ) {
+  1834 ms  task  158 ms  three/build/three.module.js 154
+           148 ms  three/build/three.module.js:7022 function onFirstUse( self ) {
+           2 ms  three/build/three.module.js:6107 setValue( gl, name, value, textures ) {
+           1 ms  three/build/three.module.js:17897 function projectObject( object, camera, groupOrder, sortObjects ) {
+           1 ms  three/build/three.module.js:10659 function texSubImage2D() {
+           1 ms  @react-three/fiber/dist/events-9ce18a08.esm.js:17400 function update(timestamp, state, frame) {
+           1 ms  three/build/three.module.js:6009 function parseUniform( activeInfo, addr, container ) {
+long tasks (> 30 ms) up to 2 s after the first scene render: 1350 ms
+== b5 warm, load 2.84 3.94 5.02
+first frame (Node) 2006 ms; marks: parse-begin 888, parse-begin 942, renderer 997, first-render 1104, first-scene-render 1104, parse-end 1177, parse-end 1181, compile-begin 1351, compile-end 1398
+    88 ms  task  183 ms  blockly/blockly_compressed.js 54 | zod/v4/core/schemas.js 25 | (unknown) 22 | zod/v4/core/core.js 10 | rolldown-runtime-hePW80VL.js (no map) 8
+           25 ms  blockly/blockly_compressed.js:12 }(this, function() {
+           20 ms  test-hooks-DEejnb95.js:0
+           15 ms  blockly/blockly_compressed.js:4 ;(function(root, factory) {
+           13 ms  zod/v4/core/schemas.js:1171 inst._zod.parse = (payload, ctx) => {
+           9 ms  blockly/blockly_compressed.js:42 Vb=function(){return $.Ub===0};$.B=function(a){Ob.setGroupInternal(a)}
+           6 ms  rolldown-runtime-hePW80VL.js:0
+   370 ms  task   66 ms  zod/v4/core/schemas.js 13 | three/build/three.core.js 8 | zod/v4/core/doc.js 8 | (unknown) 7 | (browser) 4
+   632 ms  task  182 ms  blockly/blockly_compressed.js 103 | react-use-measure/dist/index.js 46 | react-dom/cjs/react-dom-client.production.js 13 | (browser) 5 | robot3d/hud-corner.ts 4
+           46 ms  react-use-measure/dist/index.js:1 import{useState as T,useRef as p,useEffect as u,useMemo as M}from"reac
+           7 ms  blockly/blockly_compressed.js:28 Za=function(a,b,c,d){var e=document.createElement("span");e.style.font
+           7 ms  blockly/blockly_compressed.js:1775 null}getWidth(){return this.width_}getHeight(){return this.height_}get
+           5 ms  (program)
+           4 ms  blockly/blockly_compressed.js:1523 Jb(y.VARIABLE_MAP,this.options,!0);if(!a)throw Error("No variable map 
+           3 ms  blockly/blockly_compressed.js:26 Ua=function(){Ra--;Ra||(Sa=null)};Wa=function(a){var b=a.textContent+"
+   888 ms  task   53 ms  three/examples/jsm/loaders/GLTFLoader.js 27 | three/build/three.core.js 11 | (browser) 6 | three/examples/jsm/libs/meshopt_decoder.module.js 5
+   972 ms  task  105 ms  @react-three/fiber/dist/events-9ce18a08.esm.js 27 | robot3d/camera-studio.ts 22 | three/build/three.module.js 17 | three/build/three.core.js 7 | WebGL calls (through the bench probe) 5
+  1077 ms  task   31 ms  three/build/three.module.js 19 | (browser) 4 | @react-three/fiber/dist/events-9ce18a08.esm.js 3
+  1113 ms  task   49 ms  (browser) 48
+  1190 ms  task   61 ms  three/build/three.core.js 29 | robot3d/parts/merge.ts 7 | robot3d/zone-pattern.ts 5 | robot3d/parts/arena-assembly.ts 4 | three/examples/jsm/utils/BufferGeometryUtils.js 3
+  1251 ms  task   39 ms  three/build/three.core.js 18 | robot3d/parts/merge.ts 6 | robot3d/parts/robot-assembly.ts 4 | three/examples/jsm/utils/BufferGeometryUtils.js 4
+  1350 ms  task   38 ms  three/build/three.module.js 32
+  1412 ms  task  389 ms  three/build/three.module.js 376 | three/build/three.core.js 11
+           350 ms  three/build/three.module.js:7022 function onFirstUse( self ) {
+           4 ms  three/build/three.core.js:19079 computeBoundingSphere() {
+           4 ms  three/build/three.module.js:66 function createBuffer( attribute, bufferType ) {
+           3 ms  three/build/three.module.js:11918 function uploadTexture( textureProperties, texture, slot ) {
+           3 ms  three/build/three.module.js:1925 function setupVertexAttributes( object, material, program, geometry ) 
+           2 ms  three/build/three.module.js:10659 function texSubImage2D() {
+  1838 ms  task  154 ms  three/build/three.module.js 151
+           144 ms  three/build/three.module.js:7022 function onFirstUse( self ) {
+           2 ms  three/build/three.module.js:17233 this.renderBufferDirect = function ( camera, scene, geometry, material
+           2 ms  three/build/three.module.js:1869 function enableAttributeAndDivisor( attribute, meshPerAttribute ) {
+           1 ms  src/ui/robot3d/parts/robot-assembly.ts:429 export function applyRobotWorld(handles: RobotHandles, world: RobotSna
+           1 ms  three/build/three.module.js:66 function createBuffer( attribute, bufferType ) {
+           1 ms  src/ui/robot3d/parts/ZoneTags.tsx:203 useFrame(() => {
+long tasks (> 30 ms) up to 2 s after the first scene render: 1350 ms

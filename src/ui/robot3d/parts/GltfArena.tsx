@@ -1,19 +1,19 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
-import { BoxGeometry, CanvasTexture, Color, Float32BufferAttribute, MeshLambertMaterial, MeshStandardMaterial, NoColorSpace, PlaneGeometry, SRGBColorSpace, Vector2, type Texture } from 'three';
+import { BoxGeometry, Color, Float32BufferAttribute, MeshLambertMaterial, MeshStandardMaterial, PlaneGeometry, Vector2 } from 'three';
 import type { Scenario } from '../../../core/scenario/scenario';
 import type { RobotSnapshot } from '../../../core/world/snapshot';
 import type { RobotAssets } from '../assets/robot-assets';
 import type { TextureSet } from '../assets/textures';
 import { ArenaView } from '../ArenaView';
 import { robot3dColors as colors } from '../colors';
-import { groundTextureSize } from '../ground-paint';
 import type { CameraMode } from '../camera';
 import type { CardEdge, HudCorner, ToolsCorner } from '../hud-corner';
 import type { TierLook } from '../lighting/look';
 import { arenaToThree, writePose } from '../scene-math';
 import { assembleArena, MAT_THICKNESS_M } from './arena-assembly';
-import { paintMat, paintMatRoughness, paintMatShading, type MatLabels } from './mat-paint';
+import type { MatLabels } from './mat-paint';
+import { createMatTextures, type MatTextures } from './mat-textures';
 import { tapeRibbon } from './tape-ribbon';
 import { ZoneTags, type RobotTagBox } from './ZoneTags';
 
@@ -38,48 +38,10 @@ type GltfArenaProps = {
   tags: { ready: boolean; mode: CameraMode; overlays: { hud: HudCorner | null; card: CardEdge | null; tools: ToolsCorner | null }; robot: RobotTagBox };
 };
 
-type MatTextures = { map: Texture; roughness: Texture; shading: Texture; dispose(): void } | null;
-
-/** The mat's three canvases, as sharp as the renderer allows; null where a 2D canvas cannot be made. */
-function useMatTextures(scenario: Scenario, low: boolean): MatTextures {
+/** The mat's canvases (mat-textures.ts), as sharp as the renderer allows; null where a 2D canvas cannot be made. */
+function useMatTextures(scenario: Scenario, low: boolean): MatTextures | null {
   const gl = useThree((state) => state.gl);
-  const made = useMemo<MatTextures>(() => {
-    const { arena } = scenario;
-    // The low tier paints 5 px a cm (a 2.5 cm tape is 12 px): a software renderer uploads and mipmaps every pixel.
-    const longest = Math.max(...arena.ground.sizeCm);
-    const { pxPerCm, width, height } = groundTextureSize(arena.ground.sizeCm, Math.min(4096, gl.capabilities.maxTextureSize, low ? longest * 5 : Infinity));
-    const canvas = (scale: number) => {
-      const element = document.createElement('canvas');
-      element.width = Math.max(1, Math.round(width * scale));
-      element.height = Math.max(1, Math.round(height * scale));
-      return element;
-    };
-    const colour = canvas(1);
-    const rough = canvas(0.5);
-    const shade = canvas(0.25);
-    const [c, r, s] = [colour.getContext('2d'), rough.getContext('2d'), shade.getContext('2d')];
-    if (!c || !r || !s) return null;
-    paintMat(c, scenario, { pxPerCm });
-    paintMatRoughness(r, arena, pxPerCm * 0.5);
-    paintMatShading(s, arena, pxPerCm * 0.25);
-    const map = new CanvasTexture(colour);
-    map.colorSpace = SRGBColorSpace;
-    map.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
-    const roughness = new CanvasTexture(rough);
-    roughness.colorSpace = NoColorSpace;
-    const shading = new CanvasTexture(shade);
-    shading.colorSpace = NoColorSpace;
-    return {
-      map,
-      roughness,
-      shading,
-      dispose() {
-        map.dispose();
-        roughness.dispose();
-        shading.dispose();
-      },
-    };
-  }, [scenario, gl, low]);
+  const made = useMemo(() => createMatTextures(scenario, low, { maxTextureSize: gl.capabilities.maxTextureSize, maxAnisotropy: gl.capabilities.getMaxAnisotropy() }), [scenario, gl, low]);
   useEffect(() => () => made?.dispose(), [made]);
   return made;
 }
@@ -114,7 +76,7 @@ export function GltfArena({ assets, planView, scenario, view, look, shadows, tex
       look.detail === 'low'
         ? new MeshLambertMaterial({ name: 'mat-low', color: colour, map: mat?.map ?? null, aoMap: mat?.shading ?? null, aoMapIntensity: 1 })
         : new MeshStandardMaterial({ name: 'mat', color: colour, map: mat?.map ?? null, roughness: 0.97, roughnessMap: mat?.roughness ?? null, aoMap: mat?.shading ?? null, aoMapIntensity: 1, metalness: 0 });
-    if (look.matNormal && material instanceof MeshStandardMaterial) {
+    if (look.matNormal && textures.matNormal && material instanceof MeshStandardMaterial) {
       const fibres = textures.matNormal.clone();
       fibres.repeat.set(widthCm / 7, depthCm / 7);
       material.normalMap = fibres;

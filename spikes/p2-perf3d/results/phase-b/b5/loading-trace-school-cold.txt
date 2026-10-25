@@ -1,0 +1,84 @@
+== b5 cold (a fresh browser), round 1, load 2.36 3.65 4.85
+first frame (Node) 3698 ms; marks: parse-begin 1007, parse-begin 1059, renderer 2276, first-render 2388, first-scene-render 2388, parse-end 2410, parse-end 2413, compile-begin 2630, compile-end 2678
+   106 ms  task  187 ms  blockly/blockly_compressed.js 54 | (unknown) 27 | zod/v4/core/schemas.js 19 | zod/v4/core/doc.js 13 | zod/v4/core/core.js 11
+           26 ms  blockly/blockly_compressed.js:12 }(this, function() {
+           25 ms  test-hooks-DEejnb95.js:0
+           14 ms  blockly/blockly_compressed.js:4 ;(function(root, factory) {
+           11 ms  zod/v4/core/schemas.js:1171 inst._zod.parse = (payload, ctx) => {
+           11 ms  zod/v4/core/doc.js:32 compile() {
+           10 ms  rolldown-runtime-hePW80VL.js:0
+   397 ms  task   66 ms  zod/v4/core/schemas.js 14 | three/build/three.core.js 7 | zod/v4/core/doc.js 7 | (unknown) 7 | three/examples/jsm/libs/meshopt_decoder.module.js 4
+   658 ms  task  275 ms  blockly/blockly_compressed.js 194 | react-use-measure/dist/index.js 49 | react-dom/cjs/react-dom-client.production.js 10 | (browser) 5 | three/build/three.core.js 4
+           75 ms  blockly/blockly_compressed.js:1523 Jb(y.VARIABLE_MAP,this.options,!0);if(!a)throw Error("No variable map 
+           49 ms  react-use-measure/dist/index.js:1 import{useState as T,useRef as p,useEffect as u,useMemo as M}from"reac
+           11 ms  blockly/blockly_compressed.js:28 Za=function(a,b,c,d){var e=document.createElement("span");e.style.font
+           8 ms  blockly/blockly_compressed.js:1775 null}getWidth(){return this.width_}getHeight(){return this.height_}get
+           6 ms  createElementNS
+           5 ms  (program)
+   933 ms  task   31 ms  (browser) 31
+  1007 ms  task   52 ms  three/examples/jsm/loaders/GLTFLoader.js 21 | three/build/three.core.js 17 | three/examples/jsm/libs/meshopt_decoder.module.js 6 | rapier.wasm 4
+  1085 ms  task 1154 ms  (browser) 1154
+           1154 ms  (program)
+  2248 ms  task  112 ms  @react-three/fiber/dist/events-9ce18a08.esm.js 30 | robot3d/camera-studio.ts 22 | three/build/three.module.js 17 | three/build/three.core.js 10 | WebGL calls (through the bench probe) 7
+  2360 ms  task   32 ms  three/build/three.module.js 18 | three/build/three.core.js 4 | (browser) 4 | WebGL calls (through the bench probe) 4
+  2416 ms  task   68 ms  three/build/three.module.js 62
+  2484 ms  task   65 ms  three/build/three.core.js 32 | robot3d/parts/merge.ts 8 | @react-three/fiber/dist/events-9ce18a08.esm.js 4 | robot3d/zone-pattern.ts 4
+  2549 ms  task   39 ms  three/build/three.core.js 26 | three/examples/jsm/utils/BufferGeometryUtils.js 3 | robot3d/parts/robot-assembly.ts 3
+  2628 ms  task   40 ms  three/build/three.module.js 31 | three/build/three.core.js 4 | (gc) 3
+  2680 ms  task  507 ms  three/build/three.module.js 485 | three/build/three.core.js 16 | (browser) 5
+           468 ms  three/build/three.module.js:7022 function onFirstUse( self ) {
+           4 ms  (program)
+           3 ms  three/build/three.module.js:11918 function uploadTexture( textureProperties, texture, slot ) {
+           3 ms  three/build/three.core.js:19079 computeBoundingSphere() {
+           2 ms  three/build/three.module.js:6002 function addUniform( container, uniformObject ) {
+           2 ms  three/build/three.core.js:15989 setFromBufferAttribute( attribute ) {
+  3226 ms  task  287 ms  three/build/three.module.js 282
+           277 ms  three/build/three.module.js:7022 function onFirstUse( self ) {
+           1 ms  three/build/three.module.js:18407 function setProgram( camera, scene, geometry, material, object ) {
+           1 ms  three/build/three.core.js:3704 distanceTo( v ) {
+           1 ms  three/build/three.module.js:18192 function renderObject( object, scene, camera, geometry, material, grou
+           1 ms  zustand/esm/vanilla.mjs:12 const getState = () => state;
+           1 ms  three/build/three.module.js:6123 static upload( gl, seq, values, textures ) {
+long tasks (> 30 ms) up to 2 s after the first scene render: 2914 ms
+== b5 cold (a fresh browser), round 2, load 2.33 3.62 4.83
+first frame (Node) 3723 ms; marks: parse-begin 1009, parse-begin 1062, renderer 2282, first-render 2394, first-scene-render 2394, parse-end 2417, parse-end 2421, compile-begin 2640, compile-end 2688
+   107 ms  task  186 ms  blockly/blockly_compressed.js 55 | (unknown) 30 | zod/v4/core/schemas.js 22 | rolldown-runtime-hePW80VL.js (no map) 12 | zod/v4/core/doc.js 10
+           28 ms  blockly/blockly_compressed.js:12 }(this, function() {
+           27 ms  test-hooks-DEejnb95.js:0
+           17 ms  blockly/blockly_compressed.js:4 ;(function(root, factory) {
+           15 ms  zod/v4/core/schemas.js:1171 inst._zod.parse = (payload, ctx) => {
+           10 ms  rolldown-runtime-hePW80VL.js:0
+           8 ms  zod/v4/core/core.js:50 function init(inst, def) {
+   397 ms  task   69 ms  zod/v4/core/schemas.js 19 | (unknown) 13 | zod/v4/core/doc.js 7 | three/build/three.core.js 5 | (browser) 4
+   659 ms  task  277 ms  blockly/blockly_compressed.js 195 | react-use-measure/dist/index.js 48 | react-dom/cjs/react-dom-client.production.js 14 | (browser) 6 | three/build/three.core.js 3
+           75 ms  blockly/blockly_compressed.js:1523 Jb(y.VARIABLE_MAP,this.options,!0);if(!a)throw Error("No variable map 
+           48 ms  react-use-measure/dist/index.js:1 import{useState as T,useRef as p,useEffect as u,useMemo as M}from"reac
+           12 ms  blockly/blockly_compressed.js:28 Za=function(a,b,c,d){var e=document.createElement("span");e.style.font
+           7 ms  blockly/blockly_compressed.js:1775 null}getWidth(){return this.width_}getHeight(){return this.height_}get
+           6 ms  (program)
+           5 ms  blockly/blockly_compressed.js:24 r=function(a,b,c){var d=document.createElementNS("http://www.w3.org/20
+   936 ms  task   31 ms  (browser) 32
+  1008 ms  task   54 ms  three/examples/jsm/loaders/GLTFLoader.js 27 | three/build/three.core.js 15 | three/examples/jsm/libs/meshopt_decoder.module.js 4 | rapier.wasm 4
+  1091 ms  task 1153 ms  (browser) 1153
+           1152 ms  (program)
+  2253 ms  task  113 ms  @react-three/fiber/dist/events-9ce18a08.esm.js 32 | robot3d/camera-studio.ts 18 | three/build/three.module.js 17 | three/build/three.core.js 11 | (gc) 9
+  2367 ms  task   31 ms  three/build/three.module.js 22 | (browser) 3
+  2424 ms  task   66 ms  three/build/three.module.js 60
+  2489 ms  task   61 ms  three/build/three.core.js 32 | three/examples/jsm/utils/BufferGeometryUtils.js 5 | robot3d/parts/merge.ts 5 | robot3d/parts/GltfArena.tsx 5 | robot3d/zone-pattern.ts 3
+  2552 ms  task   39 ms  three/build/three.core.js 24 | three/examples/jsm/utils/BufferGeometryUtils.js 5 | robot3d/parts/merge.ts 3
+  2638 ms  task   39 ms  three/build/three.module.js 32
+  2697 ms  task  513 ms  three/build/three.module.js 495 | three/build/three.core.js 15
+           471 ms  three/build/three.module.js:7022 function onFirstUse( self ) {
+           6 ms  three/build/three.core.js:19079 computeBoundingSphere() {
+           3 ms  three/build/three.module.js:11918 function uploadTexture( textureProperties, texture, slot ) {
+           3 ms  three/build/three.module.js:66 function createBuffer( attribute, bufferType ) {
+           2 ms  (program)
+           2 ms  three/build/three.module.js:18347 function getUniformList( materialProperties ) {
+  3246 ms  task  267 ms  three/build/three.module.js 261 | three/build/three.core.js 3
+           256 ms  three/build/three.module.js:7022 function onFirstUse( self ) {
+           2 ms  (program)
+           1 ms  three/build/three.module.js:17674 this.render = function ( scene, camera ) {
+           1 ms  @react-three/fiber/dist/events-9ce18a08.esm.js:17400 function update(timestamp, state, frame) {
+           1 ms  three/build/three.module.js:11571 function setTexture2D( texture, slot ) {
+           1 ms  three/build/three.core.js:14686 getRGB( target, colorSpace = ColorManagement.workingColorSpace ) {
+long tasks (> 30 ms) up to 2 s after the first scene render: 2902 ms
