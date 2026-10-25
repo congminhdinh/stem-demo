@@ -19,6 +19,7 @@
     "check:python": "node scripts/check-python-syntax.mjs --require",
     "check:micropython": "node scripts/check-python-syntax.mjs --require-mpy",
     "check:arduino": "node scripts/check-arduino.mjs",
+    "export:robot-manifest": "node scripts/export-robot-manifest.mjs",
     "verify": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
