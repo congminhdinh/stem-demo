@@ -401,6 +401,8 @@
   right: 10px;
   bottom: 10px;
   border: 1px solid var(--stem-color-border);
+  /* N18 R4.7: its own panel, readable over the bright mat (the camera buttons sit on theirs). */
+  background: var(--stem-color-overlay);
 }
 
 @container (max-width: 620px) {
