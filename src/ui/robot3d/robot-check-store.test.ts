@@ -223,6 +223,7 @@ describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
     const started = store.getState().start();
     expect(session.stop).toHaveBeenCalled();
     expect(session.getSnapshot().status).toBe('idle');
+    expect(runStore.getState().held).toBeNull();
     // The learner's run stopped (the host's run-stopped) after the check began, before the lab was held.
     expect(log.slice(0, 4)).toEqual(['run-started', 'flush', 'begin', 'run-stopped']);
     checks[0]!.check.settle(null);

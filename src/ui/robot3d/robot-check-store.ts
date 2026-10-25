@@ -129,8 +129,10 @@ export function createRobotCheckStore({ runStore, scenario, createCheck, documen
         const checked = document();
         const told = host();
         told?.begin?.();
-        // The learner's own run ends here, a fast check's too: nothing of it goes on under the check.
+        // The learner's own run ends here, a fast check's too: nothing of it goes on under the check, and nothing an earlier run or check
+        // left stays in view (with no run, Reset clears what was held).
         runStore.getState().stop();
+        void runStore.getState().resetRobot();
         runStore.getState().setLocked(true);
         const count = scenario.variants.count;
         const ended: CheckedRound[] = [];
