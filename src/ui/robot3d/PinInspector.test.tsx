@@ -9,7 +9,7 @@ import { createVirtualUno, type PinState } from '../../core/hardware/virtual-uno
 import type { RobotSnapshot } from '../../core/world/snapshot';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { TextProvider } from '../i18n/text';
-import { fakeSession } from './__fixtures__/fake-session';
+import { fakeCheckView, fakeSession } from './__fixtures__/fake-session';
 import { PinInspector } from './PinInspector';
 import { createRobotRunStore } from './robot-run-store';
 import { idleSnapshot } from './scene-math';
@@ -201,6 +201,22 @@ describe('PinInspector (N18 R4.5)', () => {
     await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
     expect(text('hub-value-motorLeft')).toBe('—');
     expect(attr('pin-inspector', 'data-live')).toBe('false');
+  });
+
+  it('follows the run of a check the lab shows (the run store attaches it), and lets go of it when the check ends', async () => {
+    const { render, store } = setup();
+    await render();
+    const check = fakeCheckView();
+    const detach = store.getState().attach(check.view, 1);
+    act(() => check.publish({ status: 'running', world: worldAfter((modules) => modules.call('motorRight', 'motor.set', [-40])) }));
+    await frame();
+    expect(attr('pin-inspector', 'data-live')).toBe('true');
+    expect(text('hub-value-motorRight')).toBe('-40 %');
+    expect(text('hub-direction-motorRight')).toBe('lùi');
+    expect(text('hub-value-motorLeft')).toBe('0 %');
+    act(() => detach(null));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
+    expect(text('hub-value-motorRight')).toBe('—');
   });
 
   it('does not follow the run while its tab is not shown, and shows the latest when it is', async () => {

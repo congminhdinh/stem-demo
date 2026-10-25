@@ -3,6 +3,7 @@ import type { Kit } from '../../../core/hardware/kit';
 import type { RobotRunSession, RobotRunSnapshot, RobotStartResult } from '../../../core/run/robot-run-session';
 import type { Scenario } from '../../../core/scenario/scenario';
 import type { RobotSnapshot } from '../../../core/world/snapshot';
+import type { CheckRunView } from '../robot-run-store';
 import { idleSnapshot } from '../scene-math';
 
 // A RobotRunSession that runs nothing by itself (N18 R4.2 tests): the test publishes the snapshots it wants and sees every call.
@@ -50,6 +51,27 @@ export function fakeSession(scenario: Scenario, kit: Kit) {
     world,
     willStart(result: Promise<RobotStartResult>) {
       startResult = result;
+    },
+  };
+}
+
+/** N18 R6.3: a check's run as the lab's view shows it (`store.attach`): the test publishes the snapshots it wants. */
+export function fakeCheckView() {
+  let snapshot = idleRun;
+  const listeners = new Set<(snapshot: RobotRunSnapshot) => void>();
+  const view: CheckRunView = {
+    getSnapshot: () => snapshot,
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    frame: vi.fn(async () => {}),
+  };
+  return {
+    view,
+    publish(next: Partial<RobotRunSnapshot>) {
+      snapshot = { ...snapshot, ...next };
+      listeners.forEach((listener) => listener(snapshot));
     },
   };
 }

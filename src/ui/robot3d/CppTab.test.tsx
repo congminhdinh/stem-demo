@@ -17,7 +17,7 @@ import { robotSolutions } from '../../samples/robot-solutions';
 import { robotStarterDocument, type RobotTemplateKey } from '../../samples/robot-templates';
 import { TextProvider } from '../i18n/text';
 import { createProjectStore } from '../state/project-store';
-import { fakeSession } from './__fixtures__/fake-session';
+import { fakeCheckView, fakeSession } from './__fixtures__/fake-session';
 import { sketchOf } from './cpp-code';
 import { CPP_DEBOUNCE_MS, CppTab } from './CppTab';
 import { createRobotRunStore } from './robot-run-store';
@@ -271,6 +271,19 @@ describe('CppTab: the blocks on their lines (N18 R4.5, C1’s lineMap)', () => {
     expect(stopLines).toEqual([lineOf('  motorSet(MOTOR_LEFT_EN, MOTOR_LEFT_IN1, MOTOR_LEFT_IN2, 0L);'), lineOf('  motorSet(MOTOR_RIGHT_EN, MOTOR_RIGHT_IN1, MOTOR_RIGHT_IN2, 0L);')]);
     await advance(150);
     await runningIn(fake, null);
+    expect(marked('running')).toEqual([]);
+  });
+
+  it('marks the block the robot is in during a check the lab shows (the run store attaches the check’s run)', async () => {
+    const fake = setup();
+    await fake.render();
+    const check = fakeCheckView();
+    const detach = fake.store.getState().attach(check.view, 4);
+    act(() => check.publish({ status: 'running', world: fake.world(0, undefined, { activeBlockId: 'drive-time' }) }));
+    await advance(20);
+    expect(marked('running')).toEqual([lineOf('  delay(5000L);')]);
+    act(() => detach(null));
+    await advance(150);
     expect(marked('running')).toEqual([]);
   });
 
