@@ -3,9 +3,10 @@ import type { DcMotorSpec } from '../../hardware/kit';
 import { createDcMotor, dcMotorModel, driveFraction, motorTorque, torqueRange, type MotorCommand } from './dc-motor';
 
 // N18 R3.3: a DC gear motor as the world drives it. Torque line T = T_s·(u − ω/ω₀) (ADR 0001 §7.3), target wheel speed
-// ω_target = duty/255 × ω₀ × dir, reached through a first-order lag of tauS.
+// ω_target = duty/255 × ω₀ × dir, reached through a first-order lag of tauS (Tustin form). The gearbox's Coulomb friction
+// T_f acts at the wheel's floor contact (assembly.ts); the model carries it.
 
-const spec: DcMotorSpec = { maxRpm: 200, tauS: 0.05, stallTorqueNm: 0.15, wheelRadiusCm: 3.3, wheelWidthCm: 2.6 };
+const spec: DcMotorSpec = { maxRpm: 200, tauS: 0.05, stallTorqueNm: 0.15, gearFrictionNm: 0.02, wheelRadiusCm: 3.3, wheelWidthCm: 2.6 };
 const model = dcMotorModel(spec);
 const DT = 1 / 120;
 const omega0 = (200 * 2 * Math.PI) / 60;
@@ -13,7 +14,7 @@ const forward = (duty: number): MotorCommand => ({ duty, dir: 1, brake: false })
 
 describe('dcMotorModel', () => {
   it('turns the spec into SI: ω₀ from rpm, the wheel radius in metres', () => {
-    expect(model).toEqual({ noLoadRadS: omega0, tauS: 0.05, stallTorqueNm: 0.15, wheelRadiusM: 0.033 });
+    expect(model).toEqual({ noLoadRadS: omega0, tauS: 0.05, stallTorqueNm: 0.15, gearFrictionNm: 0.02, wheelRadiusM: 0.033 });
     expect(model.noLoadRadS).toBeCloseTo(20.943951, 6);
   });
 });
@@ -65,21 +66,26 @@ describe('createDcMotor', () => {
   it('reaches the target through a first-order lag: about 63 % after tauS, 99 % after 5 tauS', () => {
     const motor = createDcMotor(spec);
     motor.setCommand(forward(255));
-    // Backward Euler, ref += (target − ref) · dt / (tauS + dt): exact arithmetic, no exp().
+    // Tustin, ref += (target − ref) · 2dt / (2·tauS + dt): exact arithmetic, no exp().
     motor.advance(DT);
-    expect(motor.referenceRadS).toBe((omega0 * DT) / (0.05 + DT));
+    expect(motor.referenceRadS).toBe((omega0 * 2 * DT) / (2 * 0.05 + DT));
     for (let tick = 1; tick < 6; tick++) motor.advance(DT);
-    expect(motor.referenceRadS / omega0).toBeCloseTo(1 - (6 / 7) ** 6, 12);
-    expect(motor.referenceRadS / omega0).toBeCloseTo(0.6034, 4);
-    for (let tick = 6; tick < 36; tick++) motor.advance(DT);
+    // After tauS = 6 ticks: 1 − ((2τ − dt)/(2τ + dt))⁶ = 1 − (11/13)⁶ ≈ 63.3 % (the continuous lag: 1 − 1/e = 63.2 %).
+    expect(motor.referenceRadS / omega0).toBeCloseTo(1 - (11 / 13) ** 6, 12);
+    expect(motor.referenceRadS / omega0).toBeCloseTo(0.633, 3);
+    for (let tick = 6; tick < 30; tick++) motor.advance(DT);
     expect(motor.referenceRadS / omega0).toBeGreaterThan(0.99);
   });
 
-  it('follows at once when tauS is 0', () => {
-    const motor = createDcMotor({ ...spec, tauS: 0 });
-    motor.setCommand(forward(255));
-    motor.advance(DT);
-    expect(motor.referenceRadS).toBe(omega0);
+  it('follows at once when tauS is 0 or shorter than half a step (the Tustin factor would overshoot)', () => {
+    for (const tauS of [0, 0.004]) {
+      const motor = createDcMotor({ ...spec, tauS });
+      motor.setCommand(forward(255));
+      motor.advance(DT);
+      expect(motor.referenceRadS).toBe(omega0);
+      motor.advance(DT);
+      expect(motor.referenceRadS).toBe(omega0);
+    }
   });
 
   it('coasts down through the lag, but drops its reference to 0 at once when it brakes', () => {
@@ -94,7 +100,8 @@ describe('createDcMotor', () => {
     coasting.advance(DT);
     braking.advance(DT);
     expect(coasting.drive).toBe(0);
-    expect(coasting.referenceRadS).toBeGreaterThan(0.85 * omega0);
+    // One tick of the lag: the reference keeps (2τ − dt)/(2τ + dt) = 11/13 of itself.
+    expect(coasting.referenceRadS / omega0).toBeCloseTo(11 / 13, 6);
     expect(braking.drive).toBe(0);
     expect(braking.referenceRadS).toBe(0);
   });

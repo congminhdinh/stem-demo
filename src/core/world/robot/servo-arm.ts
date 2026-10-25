@@ -48,6 +48,13 @@ export type ServoArm = {
   followChassis(deg: number): void;
 };
 
+/** Throws a RangeError for a servo target that is not a number of degrees. */
+export function checkServoAngle(deg: unknown): asserts deg is number {
+  if (typeof deg !== 'number' || Number.isNaN(deg)) {
+    throw new RangeError(`A servo angle is a number of degrees, not ${String(deg)}.`);
+  }
+}
+
 export function createServoArm(world: PhysicsWorld, chassis: RigidBody, module: KitMechanicalModule<'servo'>): ServoArm {
   const R = getRapier();
   const { spec, mount } = module;
@@ -103,9 +110,7 @@ export function createServoArm(world: PhysicsWorld, chassis: RigidBody, module: 
       return target;
     },
     setTarget(deg) {
-      if (Number.isNaN(deg) || typeof deg !== 'number') {
-        throw new RangeError(`A servo angle is a number of degrees, not ${String(deg)}.`);
-      }
+      checkServoAngle(deg);
       target = Math.min(spec.maxDeg, Math.max(spec.minDeg, deg));
     },
     beforeStep(dt) {

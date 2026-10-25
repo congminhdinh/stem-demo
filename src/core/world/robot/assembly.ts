@@ -2,27 +2,29 @@ import type { Kit, RobotRole } from '../../hardware/kit';
 import { robotMechanics } from '../../hardware/kit-mechanics';
 import { getRapier, GRAVITY_M_S2, refreshQueries, type Collider, type ColliderDesc, type PhysicsWorld, type RigidBody } from '../rapier';
 import { arenaToWorld, cmToM, degToRad, gToKg, yawToQuaternion, type Quat, type Vec3 } from '../units';
-import { createDcMotor, type DcMotor, type MotorCommand } from './dc-motor';
-import { driveImpulse, groundFrame, wheelGroundSpeeds, type DriveGeometry } from './drive';
-import { IDENTITY_ROTATION, robotPointToLocal } from './robot-frame';
-import { createServoArm, type ServoArm } from './servo-arm';
+import { checkMotorCommand, createDcMotor, MOTOR_COAST, type DcMotor, type MotorCommand } from './dc-motor';
+import { driveImpulse, groundFrame, type DriveGeometry, type GroundFrame } from './drive';
+import { conjugate, IDENTITY_ROTATION, localToWorld, multiplyQuaternions, robotPointToLocal } from './robot-frame';
+import { checkServoAngle, createServoArm, type ServoArm } from './servo-arm';
 
 // The physical robot (N18 R3.3): a kit's chassis and modules as Rapier bodies, and the drive and servos that move them.
 //
 // Bodies (ADR 0001 §5.3, model (c)):
 // - The chassis is one dynamic body whose origin is the robot frame's (on the floor under the centre of the body box, kit.ts
 //   `KitModule.mount`), with the kit's mass and centre of mass set explicitly and the inertia of the body box. Its colliders:
-//   the body box; per drive wheel a frictionless support ball under the wheel (radius half the wheel's width, touching the
-//   floor where the wheel does) and a frictionless wheel-shaped cylinder 1 mm off the floor for side contacts; the
-//   frictionless caster ball. Only the three balls carry the robot: a wheel cylinder on the floor drifts sideways (measured
-//   while building this: 90 mm over 1 m against 0 mm for balls), and a ball as large as the wheel would make the robot 4 cm
-//   wider than it is.
+//   the body box; per drive wheel a support ball under the wheel (radius half the wheel's width, touching the floor where
+//   the wheel does; its only friction is the gearbox's, below) and a frictionless wheel-shaped cylinder 1 mm off the floor
+//   for side contacts; the frictionless caster ball. Only the three balls carry the robot: a wheel cylinder on the floor
+//   drifts sideways (measured while building this: 90 mm over 1 m against 0 mm for balls), and a ball as large as the wheel
+//   would make the robot 4 cm wider than it is.
 // - Each servo adds its arm, a light dynamic body on a revolute joint (servo-arm.ts).
 //
-// Drive: the floor never pushes the robot (frictionless supports); each tick the drive gives the chassis an impulse towards
-// the diff-drive velocity of its wheel references (drive.ts), from motors that follow their commands (dc-motor.ts). A wheel
-// pushes only while its support ball stands on something (`isGrounded`): a contact of the narrow phase, read from the
-// contact pair's current state rather than from contact events, which a refresh or a settle step does not report.
+// Drive: the floor never pushes the robot along; each tick the drive gives the chassis the push towards the diff-drive
+// velocity of its wheel references (drive.ts), from motors that follow their commands (dc-motor.ts), as a force over the
+// step. A wheel pushes only while its support ball stands on something (`isGrounded`): a contact of the narrow phase, read
+// from the contact pair's current state rather than from contact events, which a refresh or a settle step does not report.
+// The support balls carry the gearbox's friction (`gearFrictionNm`) as contact friction, so the solver holds a stopped
+// robot against a push and slows a running one, within the same step as the drive.
 //
 // Tick, for whoever steps the world (R3.5's World): applyActuators (when the targets change) → beforeStep() → world.step()
 // → afterStep(). `stepWorld` does the last three.
@@ -44,8 +46,12 @@ const AXLE_ALONG_Z: Quat = { x: Math.sqrt(0.5), y: 0, z: 0, w: Math.sqrt(0.5) };
 export type RobotStart = { readonly xCm: number; readonly yCm: number; readonly yawDeg: number };
 
 /**
- * What the robot's actuators are told this tick (R3.6 computes it from the virtual UNO's pins). Roles left out keep their
- * last target; at first every motor coasts and every servo holds its `restDeg`.
+ * What the robot's actuators are told (R3.6 computes it from the virtual UNO's pins each tick).
+ * - Motors are not sticky: a drive motor left out of `motors` stops (coasts: duty 0, dir 0), so a role the caller forgot can
+ *   never keep running.
+ * - A servo left out of `servos` keeps its last target, as a powered servo holds its angle (at first: its `restDeg`).
+ * - A role named with the value `undefined` is a mistake, not a "leave out": it throws a RangeError, as does a role the kit
+ *   has no motor or servo for, or a bad value. Nothing is applied when anything is refused.
  */
 export type ActuatorTargets = {
   readonly motors?: Partial<Readonly<Record<RobotRole, MotorCommand>>>;
@@ -62,7 +68,7 @@ export type RobotBody = {
   readonly bodies: readonly RigidBody[];
   /** Whether a collider is the robot's own (a sensor ray skips those, R3.4). */
   ownsCollider(collider: Collider): boolean;
-  /** Sets the targets of the roles it names. Throws a RangeError for a role the kit has no motor or servo for, or a bad value. */
+  /** Sets the actuator targets (see `ActuatorTargets`: motors left out stop, servos left out hold). Throws a RangeError for a bad target. */
   applyActuators(targets: ActuatorTargets): void;
   /** Before `world.step()`: moves the motors' references, gives the chassis the drive's impulse, drives the servos. */
   beforeStep(): void;
@@ -76,11 +82,15 @@ export type RobotBody = {
   placeAt(start: RobotStart): void;
   /** The chassis pose: the robot frame's origin (on the floor under the body's centre at rest) and its rotation. */
   pose(): RobotPose;
-  /** Velocity of the chassis' centre of mass, m/s. */
+  /** Velocity of the chassis' centre of mass at the end of the last step, m/s. */
   linvel(): Vec3;
   /** Angular velocity of the chassis, rad/s. */
   angvel(): Vec3;
-  /** How far each wheel has turned since the robot was built, rad: [left, right], positive rolling forward (∑ ω·dt, no atan2). */
+  /**
+   * How far each wheel has turned since the robot was built, rad: [left, right], positive rolling forward. Σ ω·dt, with ω
+   * each step's rolling rate, from how far the wheel's floor contact moved along the heading (no atan2); a wheel off the
+   * floor spins at its motor's reference.
+   */
   wheelAngles(): readonly [number, number];
   /** Each servo's arm angle on the chassis, degrees, by role. */
   servoAngles(): Readonly<Partial<Record<RobotRole, number>>>;
@@ -141,15 +151,35 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
   };
   const frictionless = (desc: ColliderDesc) => desc.setFriction(0).setFrictionCombineRule(R.CoefficientCombineRule.Min);
 
+  // Static load on each wheel (the caster takes the rest), from where the centre of mass is between the axle and the caster.
+  const axleX = motorLeft.mount.posCm[0];
+  const [comX, comY] = spec.comCm;
+  const halfTrackCm = spec.trackCm / 2;
+  const axleLoadN = (gToKg(spec.massG) * GRAVITY_M_S2 * (spec.casterCm[0] - comX)) / (spec.casterCm[0] - axleX);
+  const wheelLoadN: [number, number] = [
+    (axleLoadN * (halfTrackCm + comY)) / (2 * halfTrackCm),
+    (axleLoadN * (halfTrackCm - comY)) / (2 * halfTrackCm),
+  ];
+
   attach(R.ColliderDesc.cuboid(lengthM / 2, heightM / 2, widthM / 2).setTranslation(0, cmToM(spec.clearanceCm) + heightM / 2, 0).setFriction(CHASSIS_FRICTION));
-  const supports = [motorLeft, motorRight].map((motor) => {
+  const supports = [motorLeft, motorRight].map((motor, side) => {
     const centre = robotPointToLocal(motor.mount.posCm);
     const radius = cmToM(motor.spec.wheelRadiusCm);
     const halfWidth = cmToM(motor.spec.wheelWidthCm) / 2;
     const ball = Math.min(halfWidth, radius);
     attach(frictionless(R.ColliderDesc.cylinder(halfWidth, radius - WHEEL_SKIN_M).setRotation(AXLE_ALONG_Z).setTranslation(centre.x, centre.y, centre.z)));
-    return attach(frictionless(R.ColliderDesc.ball(ball).setTranslation(centre.x, ball, centre.z)));
+    // The gearbox friction starts at the coefficient that gives T_f for the static load; beforeStep follows the real load.
+    const gear = gearFriction(motor.spec.gearFrictionNm, radius, wheelLoadN[side]!);
+    return attach(R.ColliderDesc.ball(ball).setTranslation(centre.x, ball, centre.z).setFriction(gear).setFrictionCombineRule(R.CoefficientCombineRule.Min));
   }) as [Collider, Collider];
+  /**
+   * The gearbox's Coulomb friction T_f at a wheel is a force T_f/r at its floor contact, whatever the wheel's load: the
+   * support ball gets the friction coefficient T_f/(r·N) for its load N, never more than the tyre grips (`frictionWheel`).
+   * The solver applies it within the step, so it holds against a push as much as against the drive.
+   */
+  function gearFriction(gearFrictionNm: number, radiusM: number, loadN: number): number {
+    return Math.min(spec.frictionWheel, gearFrictionNm / (radiusM * loadN));
+  }
   const caster = robotPointToLocal(spec.casterCm);
   attach(frictionless(R.ColliderDesc.ball(cmToM(spec.casterRadiusCm)).setTranslation(caster.x, caster.y, caster.z)));
 
@@ -163,27 +193,23 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
   const left = motors.get('motorLeft')!;
   const right = motors.get('motorRight')!;
 
-  // Static load on each wheel (the caster takes the rest), from where the centre of mass is between the axle and the caster.
-  const axleX = motorLeft.mount.posCm[0];
-  const [comX, comY] = spec.comCm;
-  const halfTrackCm = spec.trackCm / 2;
-  const axleLoadN = (gToKg(spec.massG) * GRAVITY_M_S2 * (spec.casterCm[0] - comX)) / (spec.casterCm[0] - axleX);
   const geometry: DriveGeometry = {
     massKg: chassisKg,
     yawInertia: inertia.y,
     halfTrackM: cmToM(halfTrackCm),
     comAheadOfAxleM: cmToM(comX - axleX),
-    gripForceN: [
-      (spec.frictionWheel * axleLoadN * (halfTrackCm + comY)) / (2 * halfTrackCm),
-      (spec.frictionWheel * axleLoadN * (halfTrackCm - comY)) / (2 * halfTrackCm),
-    ],
+    gripForceN: [spec.frictionWheel * wheelLoadN[0], spec.frictionWheel * wheelLoadN[1]],
   };
 
-  /** Whether a support ball stands on a surface that is not the robot's own (contact pair state of the narrow phase). */
-  const supportGrounded = (support: Collider): boolean => {
+  /**
+   * Whether a support ball stands on a surface that is not the robot's own (contact pair state of the narrow phase), and the
+   * normal impulse the last step pushed it up with (N·s).
+   */
+  const supportContact = (support: Collider): { grounded: boolean; normalImpulse: number } => {
     let grounded = false;
+    let normalImpulse = 0;
     world.contactPairsWith(support, (other) => {
-      if (grounded || owned.has(other.handle)) return;
+      if (owned.has(other.handle)) return;
       world.contactPair(support, other, (manifold, flipped) => {
         // The normal points from the manifold's first collider to its second: from `other` to the support when flipped.
         const normalY = manifold.normal().y;
@@ -191,15 +217,36 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
         if (upward < GROUND_NORMAL_MIN_Y) return;
         for (let i = 0; i < manifold.numContacts(); i++) {
           if (manifold.contactDist(i) <= GROUND_CONTACT_GAP_M) grounded = true;
+          normalImpulse += manifold.contactImpulse(i) * upward;
         }
       });
     });
-    return grounded;
+    return { grounded, normalImpulse };
   };
+  const supportGrounded = (support: Collider) => supportContact(support).grounded;
+  const motorSpecs = [motorLeft.spec, motorRight.spec] as const;
 
   let wheelAngles: [number, number] = [0, 0];
   let grounded: [boolean, boolean] = [false, false];
   let stepDt = world.timestep;
+  /** The axle's midpoint in the chassis frame: the point a diff-drive turns about. */
+  const axleLocal = robotPointToLocal([axleX, 0, 0]);
+  /**
+   * The drive's own share of the chassis' user force and torque about +Y (N, N·m). The drive pushes with a force over the
+   * step, not an impulse before it, so the gearbox friction meets it in every solver substep: an impulse before the step
+   * moved a robot the friction should hold by 2.6 mm a second (it stopped only at the end of each step). Other forces on the
+   * chassis (a push) stay: each tick adds the change of the drive's share only.
+   */
+  let driveForce: Vec3 = { x: 0, y: 0, z: 0 };
+  let driveTorque = 0;
+  const setDrive = (force: Vec3, torque: number) => {
+    chassis.addForce({ x: force.x - driveForce.x, y: 0, z: force.z - driveForce.z }, true);
+    chassis.addTorque({ x: 0, y: torque - driveTorque, z: 0 }, true);
+    driveForce = force;
+    driveTorque = torque;
+  };
+  /** Before the step: where the axle's midpoint was, the chassis rotation and its heading on the floor. */
+  let before: { axle: Vec3; rotation: Quat; frame: GroundFrame | null } | null = null;
   /** How far the chassis sank into its supports while it settled: where placeAt puts it. */
   let restHeight = 0;
 
@@ -208,20 +255,34 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
     bodies: [chassis, ...arms.map((arm) => arm.body)],
     ownsCollider: (collider) => owned.has(collider.handle),
     applyActuators(targets) {
-      for (const [role, command] of Object.entries(targets.motors ?? {}) as [RobotRole, MotorCommand][]) {
-        const motor = motors.get(role);
-        if (!motor) throw new RangeError(`The kit has no drive motor ${role}.`);
-        motor.setCommand(command);
+      // Check everything first, so a refused target changes nothing.
+      const named = (targets.motors ?? {}) as Readonly<Record<string, MotorCommand | undefined>>;
+      for (const [role, command] of Object.entries(named)) {
+        if (!motors.has(role as RobotRole)) throw new RangeError(`The kit has no drive motor ${role}.`);
+        if (command === undefined) throw new RangeError(`The target of motor ${role} is undefined: leave the role out to stop it.`);
+        checkMotorCommand(command);
       }
-      for (const [role, deg] of Object.entries(targets.servos ?? {}) as [RobotRole, number][]) {
-        const arm = armsByRole.get(role);
-        if (!arm) throw new RangeError(`The kit has no servo ${role}.`);
-        arm.setTarget(deg);
+      const angles = Object.entries((targets.servos ?? {}) as Readonly<Record<string, number | undefined>>);
+      for (const [role, deg] of angles) {
+        if (!armsByRole.has(role as RobotRole)) throw new RangeError(`The kit has no servo ${role}.`);
+        if (deg === undefined) throw new RangeError(`The target of servo ${role} is undefined: leave the role out to hold it.`);
+        checkServoAngle(deg);
       }
+      for (const [role, motor] of motors) motor.setCommand(named[role] ?? MOTOR_COAST);
+      for (const [role, deg] of angles) armsByRole.get(role as RobotRole)!.setTarget(deg!);
     },
     beforeStep() {
       stepDt = world.timestep;
-      grounded = [supportGrounded(supports[0]), supportGrounded(supports[1])];
+      const contacts = [supportContact(supports[0]), supportContact(supports[1])] as const;
+      grounded = [contacts[0].grounded, contacts[1].grounded];
+      // Gear friction is the motor's, not the load's: follow the load the last step put on each support (the drive pushes at
+      // the centre of mass, the friction acts on the floor, and the couple shifts weight between the wheels and the caster).
+      contacts.forEach((contact, side) => {
+        const loadN = contact.normalImpulse / stepDt;
+        if (contact.grounded && loadN > 0) {
+          supports[side]!.setFriction(gearFriction(motorSpecs[side]!.gearFrictionNm, cmToM(motorSpecs[side]!.wheelRadiusCm), loadN));
+        }
+      });
       left.advance(stepDt);
       right.advance(stepDt);
       const frame = groundFrame(chassis.rotation());
@@ -235,20 +296,33 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
           { motor: right.model, drive: right.drive, referenceRadS: right.referenceRadS, grounded: grounded[1] },
           stepDt,
         );
-        chassis.applyImpulse(impulse.linear, true);
-        chassis.applyTorqueImpulse({ x: 0, y: impulse.yaw, z: 0 }, true);
+        // The step's impulse as a force over the step: the same change of velocity, spread over the solver's substeps.
+        setDrive({ x: impulse.linear.x / stepDt, y: 0, z: impulse.linear.z / stepDt }, impulse.yaw / stepDt);
+      } else {
+        setDrive({ x: 0, y: 0, z: 0 }, 0);
       }
       for (const arm of arms) arm.beforeStep(stepDt);
+      const rotation = chassis.rotation();
+      before = { axle: localToWorld(chassis.translation(), rotation, axleLocal), rotation, frame };
     },
     afterStep() {
-      // A wheel on the floor turns as its contact point moves; one off the floor spins free at its motor's reference.
-      const frame = groundFrame(chassis.rotation());
-      const ground = frame === null ? [0, 0] : wheelGroundSpeeds(geometry, frame, chassis.linvel(), chassis.angvel().y);
-      const omega = [
-        grounded[0] ? ground[0]! / left.model.wheelRadiusM : left.referenceRadS,
-        grounded[1] ? ground[1]! / right.model.wheelRadiusM : right.referenceRadS,
+      // A wheel on the floor turns as its contact point moved along the heading this step: the axle's midpoint went
+      // `forward`, and the chassis turned by `turned` about +Y (twice the twist quaternion's y/w: tan(θ/2)·2, within 1e-7
+      // of θ for a step's turn). One off the floor spins free at its motor's reference.
+      let rolled: [number, number] = [0, 0];
+      if (before !== null && before.frame !== null) {
+        const rotation = chassis.rotation();
+        const axle = localToWorld(chassis.translation(), rotation, axleLocal);
+        const forward = (axle.x - before.axle.x) * before.frame.fx + (axle.z - before.axle.z) * before.frame.fz;
+        const twist = multiplyQuaternions(conjugate(before.rotation), rotation);
+        const turned = twist.w === 0 ? 0 : (2 * twist.y) / twist.w;
+        rolled = [forward - turned * geometry.halfTrackM, forward + turned * geometry.halfTrackM];
+      }
+      wheelAngles = [
+        wheelAngles[0] + (grounded[0] ? rolled[0] / left.model.wheelRadiusM : left.referenceRadS * stepDt),
+        wheelAngles[1] + (grounded[1] ? rolled[1] / right.model.wheelRadiusM : right.referenceRadS * stepDt),
       ];
-      wheelAngles = [wheelAngles[0] + omega[0]! * stepDt, wheelAngles[1] + omega[1]! * stepDt];
+      before = null;
     },
     placeAt(at) {
       const angles = arms.map((arm) => arm.angleDeg());
@@ -257,6 +331,7 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
       chassis.setRotation(pose.rotation, true);
       chassis.setLinvel({ x: 0, y: 0, z: 0 }, true);
       chassis.setAngvel({ x: 0, y: 0, z: 0 }, true);
+      setDrive({ x: 0, y: 0, z: 0 }, 0);
       arms.forEach((arm, i) => arm.followChassis(angles[i]!));
       left.reset();
       right.reset();

@@ -9,7 +9,8 @@ import { driveImpulse, groundFrame, type DriveGeometry, type WheelDrive } from '
 // diff-drive velocity of its wheel references, each wheel's share held between 0 and the motor's torque line and within its
 // grip, and cancels side slip at the axle. Pure arithmetic: these cases need no physics world.
 
-const spec: DcMotorSpec = { maxRpm: 200, tauS: 0.05, stallTorqueNm: 0.15, wheelRadiusCm: 3.3, wheelWidthCm: 2.6 };
+// The gearbox friction is the solver's (assembly.ts), not the drive's: it plays no part in these impulses.
+const spec: DcMotorSpec = { maxRpm: 200, tauS: 0.05, stallTorqueNm: 0.15, gearFrictionNm: 0.02, wheelRadiusCm: 3.3, wheelWidthCm: 2.6 };
 const motor = dcMotorModel(spec);
 const DT = 1 / 120;
 const r = 0.033;

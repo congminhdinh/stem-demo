@@ -27,11 +27,11 @@
   "modules": [
     {
       "role": "motorLeft", "kind": "dc-motor", "port": "M1", "mount": { "posCm": [-2, 7.5, 3.3], "yawDeg": 0 },
-      "spec": { "maxRpm": 200, "tauS": 0.05, "stallTorqueNm": 0.15, "wheelRadiusCm": 3.3, "wheelWidthCm": 2.6 }
+      "spec": { "maxRpm": 200, "tauS": 0.05, "stallTorqueNm": 0.08, "gearFrictionNm": 0.025, "wheelRadiusCm": 3.3, "wheelWidthCm": 2.6 }
     },
     {
       "role": "motorRight", "kind": "dc-motor", "port": "M2", "mount": { "posCm": [-2, -7.5, 3.3], "yawDeg": 0 },
-      "spec": { "maxRpm": 200, "tauS": 0.05, "stallTorqueNm": 0.15, "wheelRadiusCm": 3.3, "wheelWidthCm": 2.6 }
+      "spec": { "maxRpm": 200, "tauS": 0.05, "stallTorqueNm": 0.08, "gearFrictionNm": 0.025, "wheelRadiusCm": 3.3, "wheelWidthCm": 2.6 }
     },
     {
       "role": "ultrasonic", "kind": "ultrasonic", "port": "US1", "mount": { "posCm": [7.5, 0, 4], "yawDeg": 0 },

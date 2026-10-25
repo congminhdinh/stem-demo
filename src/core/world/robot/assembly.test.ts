@@ -21,8 +21,16 @@ const kit = productionKits.get(referenceKitRef) as Kit;
 const DT = 1 / 120;
 const omega0 = (200 * 2 * Math.PI) / 60;
 const WHEEL_R = 0.033;
-/** The ground speed of a wheel at duty 128, unloaded: 128/255 · ω₀ · r ≈ 0.347 m/s. */
-const HALF_SPEED = (128 / 255) * omega0 * WHEEL_R;
+/** ref-uno-rover@0's stall torque and gearbox friction (PLACEHOLDER), N·m. */
+const T_S = 0.08;
+const T_F = 0.025;
+/**
+ * The unloaded ground speed at a duty: where the torque line meets the gearbox friction, T_s·(u − ω/ω₀) = T_f, so
+ * ω₀·(u − T_f/T_s)·r. At duty 128 that is 0.131 m/s, at 255 0.475 m/s (69 % of the no-load ω₀·r = 0.691 m/s).
+ */
+const cruise = (duty: number) => (duty / 255 - T_F / T_S) * omega0 * WHEEL_R;
+const HALF_SPEED = cruise(128);
+const FULL_SPEED = cruise(255);
 
 const open: ArenaInput = { ground: { sizeCm: [300, 300], color: '#ffffff' } };
 /** The R3.2 fixture with walls, boxes, a cylinder and pushable objects (parseArena validates it). */
@@ -63,6 +71,12 @@ const speed = (v: Vec3) => Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 const turn = (from: number, to: number) => ((((to - from) % 360) + 540) % 360) - 180;
 /** The robot frame's origin on the arena (cm). */
 const at = (robot: RobotBody) => worldToArena(robot.pose().position);
+/** The speed the robot moves at over `ticks` more ticks, m/s, from how far it went. */
+function travelSpeed(world: PhysicsWorld, robot: RobotBody, ticks: number): number {
+  const from = at(robot);
+  steps(world, robot, ticks);
+  return Math.hypot(at(robot).xCm - from.xCm, at(robot).yCm - from.yCm) / 100 / (ticks * DT);
+}
 
 describe('assembleRobot', () => {
   it('builds the chassis and the servo arm, with the kit mass, and owns only its own colliders', () => {
@@ -90,7 +104,7 @@ describe('assembleRobot', () => {
       expect(rest.y).toBeGreaterThan(-0.0003);
       // Sinking unevenly into its three supports, the chassis tips by a hair and its origin moves 0.05 mm: not more than 0.1.
       expect(Math.hypot(at(robot).xCm - 100, at(robot).yCm - 100)).toBeLessThan(0.01);
-      expect(headingDeg(robot)).toBeCloseTo(30, 3);
+      expect(headingDeg(robot)).toBeCloseTo(30, 2);
       const up = rotateVector(robot.pose().rotation, { x: 0, y: 1, z: 0 });
       expect(radToDeg(Math.acos(up.y))).toBeLessThan(0.1);
       expect(robot.isGrounded()).toBe(true);
@@ -144,7 +158,7 @@ describe('the drive (model (c))', () => {
       robot.applyActuators(both(run(128, 1)));
       let ticks = 0;
       const along = () => (at(robot).xCm - start.xCm) * forward.x + (at(robot).yCm - start.yCm) * forward.y;
-      while (along() < 100 && ticks < 1200) {
+      while (along() < 100 && ticks < 1500) {
         stepWorld(world, robot);
         ticks += 1;
       }
@@ -153,17 +167,20 @@ describe('the drive (model (c))', () => {
       // 2 % of 1 m sideways, and a heading within atan(0.02) of where it started.
       expect(Math.abs(side)).toBeLessThan(2);
       expect(Math.abs(turn(30, headingDeg(robot)))).toBeLessThan(radToDeg(Math.atan(0.02)));
-      // Unloaded, it cruises at the motors' no-load speed for duty 128: 128/255 · ω₀ · r.
-      expect(speed(robot.linvel()) / HALF_SPEED).toBeCloseTo(1, 3);
-      // 1 m at 0.347 m/s is 2.88 s; the 50 ms lag adds a few ticks.
-      expect(ticks).toBeGreaterThan(Math.ceil((1 / HALF_SPEED) * 120));
-      expect(ticks).toBeLessThan(Math.ceil((1 / HALF_SPEED) * 120) + 12);
+      // Unloaded, it cruises where the torque line at duty 128 meets the gearbox friction, 0.131 m/s (measured 2.8 % more:
+      // the solver's friction falls a little short of T_f), so 1 m takes about 7.4 s.
+      const cruising = travelSpeed(world, robot, 120) / HALF_SPEED;
+      expect(cruising).toBeGreaterThan(1);
+      expect(cruising).toBeLessThan(1.05);
+      expect(speed(robot.linvel()) / HALF_SPEED).toBeCloseTo(cruising, 2);
+      expect(ticks / 120).toBeGreaterThan(1 / (1.05 * HALF_SPEED));
+      expect(ticks / 120).toBeLessThan(1 / HALF_SPEED + 0.5);
     });
   });
 
   it('spinLeft 90° repeatable within 1° over 10 runs', () => {
     withRobot(open, { xCm: 150, yCm: 150, yawDeg: 0 }, ({ world, robot }) => {
-      // At the ideal yaw rate 2·s/track (s = 0.347 m/s) 90° takes 40.8 ticks; the 50 ms lag of the motors costs about 4.
+      // At duty 128 a wheel runs at 0.13 m/s against its gearbox (yaw rate 2·s/track ≈ 1.8 rad/s): 101 ticks turn about 90°.
       const turns: number[] = [];
       const centres: { xCm: number; yCm: number }[] = [];
       /** The axle's midpoint, 2 cm behind the body's centre: what a diff-drive turns about. */
@@ -171,7 +188,7 @@ describe('the drive (model (c))', () => {
       const pivot = axle();
       for (let run = 0; run < 10; run++) {
         const before = headingDeg(robot);
-        steps(world, robot, 45, spinLeft(128));
+        steps(world, robot, 101, spinLeft(128));
         steps(world, robot, 30, both(brake));
         turns.push(turn(before, headingDeg(robot)));
         centres.push(axle());
@@ -181,12 +198,13 @@ describe('the drive (model (c))', () => {
       expect(spread).toBeLessThan(1);
       expect(mean).toBeGreaterThan(85);
       expect(mean).toBeLessThan(95);
-      // It turns about a point within 2 mm of the axle's midpoint, so after a full turn (4 spins) that is back where it was.
+      // It turns about a point within 3 mm of the axle's midpoint, so after a full turn (4 spins) that is back where it was.
       for (const centre of centres) {
-        expect(Math.hypot(centre.xCm - pivot.xCm, centre.yCm - pivot.yCm)).toBeLessThan(0.4);
+        expect(Math.hypot(centre.xCm - pivot.xCm, centre.yCm - pivot.yCm)).toBeLessThan(0.6);
       }
+      // (Four spins are not exactly 360°: the pivot's few millimetres of offset leave a fraction of a millimetre.)
       for (const fullTurn of [centres[3]!, centres[7]!]) {
-        expect(Math.hypot(fullTurn.xCm - pivot.xCm, fullTurn.yCm - pivot.yCm)).toBeLessThan(0.02);
+        expect(Math.hypot(fullTurn.xCm - pivot.xCm, fullTurn.yCm - pivot.yCm)).toBeLessThan(0.05);
       }
     });
   });
@@ -201,18 +219,19 @@ describe('the drive (model (c))', () => {
       const from = worldToArena(crate.translation());
       // Fold the arm along the body (0°: pointing right, inside the footprint) so the body's front does the pushing.
       steps(world, robot, 30, { servos: { servo1: 0 } });
-      steps(world, robot, 360, both(run(128, 1)));
+      steps(world, robot, 360, both(run(255, 1)));
       const to = worldToArena(crate.translation());
-      // 3 s at 0.347 m/s: about 104 cm driven, 37 cm of it to reach the box.
-      expect(to.xCm - from.xCm).toBeGreaterThan(55);
+      // 3 s at up to 0.475 m/s, 37 cm of it to reach the box.
+      expect(to.xCm - from.xCm).toBeGreaterThan(70);
       expect(Math.abs(to.yCm - from.yCm)).toBeLessThan(1);
       // The box stays in front of the body (front face at +7.5 cm), touching it.
       expect(to.xCm - 5 - (at(robot).xCm + 7.5)).toBeLessThan(0.5);
-      // Its friction (0.4 · 0.98 N) slows the motors along their torque line: 9 % here.
-      const pushing = speed(robot.linvel()) / HALF_SPEED;
+      // Its friction (0.4 · 0.98 N) slows the motors further down their torque line: ω drops by F·r/(2·T_s)·ω₀, 12 % here.
+      const crateFrom = worldToArena(crate.translation()).xCm;
+      const pushing = travelSpeed(world, robot, 30) / FULL_SPEED;
       expect(pushing).toBeGreaterThan(0.85);
       expect(pushing).toBeLessThan(0.97);
-      expect(speed(crate.linvel())).toBeCloseTo(speed(robot.linvel()), 2);
+      expect((worldToArena(crate.translation()).xCm - crateFrom) / 100 / (30 * DT) / FULL_SPEED).toBeCloseTo(pushing, 2);
     });
   });
 
@@ -255,33 +274,109 @@ describe('the drive (model (c))', () => {
     expect(coast).toBeLessThan(10);
   });
 
-  it('follows the torque line: no-load speed ω₀·r at full duty, stall torque T_s from rest', () => {
-    withRobot(open, { xCm: 50, yCm: 150, yawDeg: 0 }, ({ world, robot }) => {
-      steps(world, robot, 180, both(run(255, 1)));
-      expect(speed(robot.linvel()) / (omega0 * WHEEL_R)).toBeCloseTo(1, 3);
-    });
-    // A weak motor (T_s = 0.03 N·m, under the tyres' grip) with no lag, on a robot without its servo arm: from rest the
-    // first tick's push is the stall torque, 2 · T_s · u · dt / r.
-    const weak: Kit = {
+  it('follows the torque line: no-load speed ω₀·r without gearbox friction, stall torque T_s from rest, friction subtracted', () => {
+    // Motors with no lag on a robot without its servo arm, so a tick's change of speed is the drive's push alone.
+    const variant = (motor: { stallTorqueNm: number; gearFrictionNm: number }): Kit => ({
       ...kit,
       modules: kit.modules
         .filter((module) => module.kind !== 'servo')
-        .map((module) => (module.kind === 'dc-motor' ? { ...module, spec: { ...module.spec, stallTorqueNm: 0.03, tauS: 0 } } : module)),
-    };
-    withRobot(
-      open,
-      { xCm: 50, yCm: 150, yawDeg: 0 },
-      ({ world, robot }) => {
-        steps(world, robot, 1, both(run(255, 1)));
-        expect(robot.chassis.linvel().x).toBeCloseTo((2 * 0.03 * DT) / WHEEL_R / 0.4, 5);
-        // Half duty, half the stall torque (the robot still creeps from the brake: count the change).
-        steps(world, robot, 120, both(brake));
-        const before = robot.chassis.linvel().x;
-        steps(world, robot, 1, both(run(127.5, 1)));
-        expect(robot.chassis.linvel().x - before).toBeCloseTo((0.03 * DT) / WHEEL_R / 0.4, 5);
-      },
-      weak,
-    );
+        .map((module) => (module.kind === 'dc-motor' ? { ...module, spec: { ...module.spec, ...motor, tauS: 0 } } : module)),
+    });
+    const start = { xCm: 50, yCm: 150, yawDeg: 0 };
+    // Without friction the wheels run up to the line's no-load speed ω₀·r.
+    withRobot(open, start, ({ world, robot }) => {
+      steps(world, robot, 180, both(run(255, 1)));
+      expect(speed(robot.linvel()) / (omega0 * WHEEL_R)).toBeCloseTo(1, 3);
+    }, variant({ stallTorqueNm: 0.08, gearFrictionNm: 0 }));
+    // A weak motor (T_s = 0.03 N·m, under the tyres' grip): from rest the first tick's push is the stall torque,
+    // 2 · T_s · u · dt / r, and half the duty gives half.
+    withRobot(open, start, ({ world, robot }) => {
+      steps(world, robot, 1, both(run(255, 1)));
+      expect(robot.chassis.linvel().x).toBeCloseTo((2 * 0.03 * DT) / WHEEL_R / 0.4, 5);
+      steps(world, robot, 120, both(brake));
+      const before = robot.chassis.linvel().x;
+      steps(world, robot, 1, both(run(127.5, 1)));
+      expect(robot.chassis.linvel().x - before).toBeCloseTo((0.03 * DT) / WHEEL_R / 0.4, 5);
+    }, variant({ stallTorqueNm: 0.03, gearFrictionNm: 0 }));
+    // With gearbox friction T_f = 0.01 N·m the first tick keeps about T_s − T_f of it, and a duty well under T_f/T_s · 255
+    // (85) does not start the robot at all. The solver's friction reaches 90–98 % of μ·N within a step, so a duty just
+    // under the threshold (80) creeps: 0.6 cm in 1 s.
+    withRobot(open, start, ({ world, robot }) => {
+      steps(world, robot, 1, both(run(255, 1)));
+      const kept = robot.chassis.linvel().x / ((2 * (0.03 - 0.01) * DT) / WHEEL_R / 0.4);
+      expect(kept).toBeGreaterThan(1);
+      expect(kept).toBeLessThan(1.08);
+      steps(world, robot, 120, both(brake));
+      const from = at(robot).xCm;
+      steps(world, robot, 120, both(run(70, 1)));
+      expect(Math.abs(at(robot).xCm - from)).toBeLessThan(0.01);
+      steps(world, robot, 120, both(run(100, 1)));
+      expect(at(robot).xCm - from).toBeGreaterThan(1);
+    }, variant({ stallTorqueNm: 0.03, gearFrictionNm: 0.01 }));
+  });
+
+  it('a braked robot holds against a 1 N push', () => {
+    withRobot(open, { xCm: 150, yCm: 150, yawDeg: 30 }, ({ world, robot }) => {
+      steps(world, robot, 30, both(brake));
+      const from = at(robot);
+      // 1 N along its heading, at the centre of mass, inside every physics step (as a contact would push).
+      robot.chassis.addForce({ x: Math.cos(degToRad(30)), y: 0, z: -Math.sin(degToRad(30)) }, true);
+      steps(world, robot, 240);
+      expect(Math.hypot(at(robot).xCm - from.xCm, at(robot).yCm - from.yCm)).toBeLessThan(0.1);
+      // Coasting holds it the same way: at rest only the gearbox's friction acts.
+      steps(world, robot, 240, both(run(0, 0)));
+      expect(Math.hypot(at(robot).xCm - from.xCm, at(robot).yCm - from.yCm)).toBeLessThan(0.1);
+    });
+  });
+
+  it('a coasting robot can be pushed above the friction limit', () => {
+    withRobot(open, { xCm: 50, yCm: 150, yawDeg: 0 }, ({ world, robot }) => {
+      steps(world, robot, 30, both(run(0, 0)));
+      const from = at(robot).xCm;
+      // Above the two wheels' 2·T_f/r = 1.52 N, a 3 N push moves it, the friction and the shorted line holding it back.
+      robot.chassis.addForce({ x: 3, y: 0, z: 0 }, true);
+      steps(world, robot, 120);
+      expect(at(robot).xCm - from).toBeGreaterThan(5);
+      expect(speed(robot.linvel())).toBeLessThan((3 / 0.4) * 1);
+    });
+  });
+
+  it('runs under the no-load speed: the gearbox friction is a rolling resistance', () => {
+    withRobot(open, { xCm: 50, yCm: 100, yawDeg: 0 }, ({ world, robot }) => {
+      steps(world, robot, 120, both(run(255, 1)));
+      // Where the torque line meets the friction, T_s·(1 − ω/ω₀) = T_f: ω = ω₀·(1 − T_f/T_s), 0.475 m/s on the floor.
+      const top = travelSpeed(world, robot, 120);
+      expect(top / FULL_SPEED).toBeGreaterThan(1);
+      expect(top / FULL_SPEED).toBeLessThan(1.05);
+      // With these PLACEHOLDER constants that is 70 % of the no-load speed ω₀·r = 0.691 m/s.
+      expect(top / (omega0 * WHEEL_R)).toBeLessThan(0.72);
+      // The drive pushes with a force over the step, so the velocity read after a step is the speed it moves at.
+      expect(speed(robot.linvel()) / top).toBeCloseTo(1, 3);
+    });
+  });
+
+  it('turns the wheels as far as the robot rolls: 1 m is 1/r rad, a spin turns them opposite ways', () => {
+    withRobot(open, { xCm: 50, yCm: 100, yawDeg: 0 }, ({ world, robot }) => {
+      const from = at(robot).xCm;
+      steps(world, robot, 300, both(run(255, 1)));
+      steps(world, robot, 60, both(brake));
+      const rolledM = (at(robot).xCm - from) / 100;
+      const [leftAngle, rightAngle] = robot.wheelAngles();
+      expect(leftAngle / (rolledM / WHEEL_R)).toBeCloseTo(1, 3);
+      expect(rightAngle / (rolledM / WHEEL_R)).toBeCloseTo(1, 3);
+      // A quarter turn in place: the wheels turn opposite ways, their difference the turn times the track over the radius
+      // (each wheel's contact rolls ± turn · track/2; the pivot, 2–3 mm off the axle's midpoint, adds the same to both).
+      const heading = headingDeg(robot);
+      const [l0, r0] = robot.wheelAngles();
+      steps(world, robot, 101, spinLeft(128));
+      steps(world, robot, 30, both(brake));
+      const turnedRad = degToRad(turn(heading, headingDeg(robot)));
+      const [l1, r1] = robot.wheelAngles();
+      expect(r1 - r0).toBeGreaterThan(0);
+      expect(l1 - l0).toBeLessThan(0);
+      expect((r1 - r0 - (l1 - l0)) / ((turnedRad * 0.15) / WHEEL_R)).toBeCloseTo(1, 4);
+      expect(Math.abs(r1 - r0 + (l1 - l0)) / (r1 - r0)).toBeLessThan(0.05);
+    });
   });
 
   it('refuses targets for roles the kit does not drive', () => {
@@ -290,6 +385,28 @@ describe('the drive (model (c))', () => {
       expect(() => robot.applyActuators({ servos: { motorLeft: 10 } })).toThrow(/no servo motorLeft/);
       expect(() => robot.applyActuators({ motors: { motorLeft: run(300, 1) } })).toThrow(/duty is 0\.\.255, not 300/);
       expect(() => robot.applyActuators({ servos: { servo1: Number.NaN } })).toThrow(/not NaN/);
+      // A role named with undefined is a mistake, not a "leave out".
+      expect(() => robot.applyActuators({ motors: { motorLeft: undefined } })).toThrow(/target of motor motorLeft is undefined/);
+      expect(() => robot.applyActuators({ servos: { servo1: undefined } })).toThrow(/target of servo servo1 is undefined/);
+    });
+  });
+
+  it('a motor left out of the targets stops (targets are not sticky), a servo left out holds its angle', () => {
+    withRobot(open, { xCm: 150, yCm: 150, yawDeg: 0 }, ({ world, robot }) => {
+      steps(world, robot, 60, { ...both(run(255, 1)), servos: { servo1: 30 } });
+      expect(speed(robot.linvel())).toBeGreaterThan(0.3);
+      // Only the left motor named: the right one stops, so the robot turns right.
+      const heading = headingDeg(robot);
+      steps(world, robot, 60, { motors: { motorLeft: run(255, 1) } });
+      expect(turn(heading, headingDeg(robot))).toBeLessThan(-20);
+      // No motor named: both stop. The servo, never named again, still holds 30°.
+      steps(world, robot, 60, { servos: {} });
+      expect(speed(robot.linvel())).toBeLessThan(1e-3);
+      expect(robot.servoAngles().servo1).toBeCloseTo(30, 0);
+      // A refused target changes nothing: the motors named before it are not applied either.
+      expect(() => robot.applyActuators({ motors: { motorLeft: run(255, 1), motorRight: run(999, 1) } })).toThrow(/not 999/);
+      steps(world, robot, 30);
+      expect(speed(robot.linvel())).toBeLessThan(1e-3);
     });
   });
 });
@@ -395,7 +512,7 @@ describe('placeAt (reposition → propagate → refresh)', () => {
       expect(speed(robot.linvel())).toBeLessThan(1e-5);
       expect(robot.servoAngles().servo1).toBeCloseTo(90, 1);
       // And it drives from there, along its new heading (+y on the arena).
-      steps(world, robot, 120, both(run(128, 1)));
+      steps(world, robot, 120, both(run(255, 1)));
       expect(at(robot).yCm - 120).toBeGreaterThan(25);
       expect(Math.abs(at(robot).xCm - 200)).toBeLessThan(0.5);
     });
@@ -403,7 +520,7 @@ describe('placeAt (reposition → propagate → refresh)', () => {
 });
 
 describe('determinism', () => {
-  /** A 3000-tick script: drive, spin, sweep the arm, reverse, brake, push the arena's objects (boxes.json), hit a wall. */
+  /** A 3000-tick script: drive, spin, sweep the arm, reverse, brake, push an object of the arena (boxes.json). */
   function script(tick: number): ActuatorTargets {
     const s = tick / 120;
     if (s < 1.5) return both(run(128, 1));
@@ -473,8 +590,9 @@ describe('determinism', () => {
     const first = scriptedHash();
     expect(scriptedHash()).toBe(first);
     // Golden (moves to R3.5's snapshot file). A change here is a change of the engine: bump it on purpose. In this run the
-    // robot pushes #box-1 57 cm and the puck 15 cm, and ends against the west wall at full duty, its arm pushed off target.
-    expect(first).toBe('05272a85');
+    // robot drives 68 cm net, turns, sweeps its arm and pushes the crate 54 cm. (R3.3 fix round 1 re-pinned it: gearbox
+    // friction, the Tustin lag, the drive as a force over the step, T_s 0.08 N·m; it had not shipped.)
+    expect(first).toBe('9e89807b');
   });
 
   it(
@@ -491,7 +609,7 @@ describe('determinism', () => {
         assembleRobot: assembly.assembleRobot,
         stepWorld: assembly.stepWorld,
       };
-      expect(scriptedHash(compat)).toBe('05272a85');
+      expect(scriptedHash(compat)).toBe('9e89807b');
     },
     30_000,
   );

@@ -97,15 +97,25 @@ export type ModuleSpec = Readonly<Record<string, number | boolean | string>>;
 
 /**
  * A DC gear motor and the wheel on its shaft (N18 R3.3). The world turns it into the torque line T = T_s·(u − ω/ω₀), with
- * u = duty/255 × dir and ω₀ = maxRpm in rad/s, and a first-order lag of `tauS` on the wheel speed it aims at.
+ * u = duty/255 × dir and ω₀ = maxRpm in rad/s, a first-order lag of `tauS` on the wheel speed it aims at, and the gearbox's
+ * Coulomb friction T_f, which holds a stopped wheel and slows a running one: unloaded, the wheel runs at ω₀·(u − T_f/T_s),
+ * a little under ω₀·u.
  */
 export type DcMotorSpec = {
-  /** No-load wheel speed at full duty (ω₀), in rpm. */
+  /**
+   * ω₀ of the torque line, in rpm: the wheel speed at full duty with no load and no gearbox friction. The wheel runs free at
+   * ω₀·(1 − T_f/T_s), so a datasheet's measured no-load speed n₀ is maxRpm = n₀ / (1 − gearFrictionNm/stallTorqueNm).
+   */
   readonly maxRpm: number;
   /** Time constant of the first-order response of the wheel speed to a new command, in s (0: none). */
   readonly tauS: number;
   /** Torque at the wheel when stalled at full duty (T_s), in N·m. */
   readonly stallTorqueNm: number;
+  /**
+   * The gearbox's Coulomb friction at the wheel (T_f), in N·m: it resists the wheel turning either way, and a wheel at rest
+   * stays at rest until more than this turns it. Less than `stallTorqueNm`.
+   */
+  readonly gearFrictionNm: number;
   readonly wheelRadiusCm: number;
   readonly wheelWidthCm: number;
 };

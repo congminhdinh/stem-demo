@@ -49,7 +49,7 @@ describe('ref-uno-rover@0 mechanics (PLACEHOLDER values until the vendor measure
 
   it('drives 6.6 cm wheels with 200 rpm gear motors, the left wheel at +y', () => {
     const [left, right] = [kit.modules[indexOf('motorLeft')], kit.modules[indexOf('motorRight')]];
-    const motorSpec = { maxRpm: 200, tauS: 0.05, stallTorqueNm: 0.15, wheelRadiusCm: 3.3, wheelWidthCm: 2.6 };
+    const motorSpec = { maxRpm: 200, tauS: 0.05, stallTorqueNm: 0.08, gearFrictionNm: 0.025, wheelRadiusCm: 3.3, wheelWidthCm: 2.6 };
     expect(left).toMatchObject({ mount: { posCm: [-2, 7.5, 3.3], yawDeg: 0 }, spec: motorSpec });
     expect(right).toMatchObject({ mount: { posCm: [-2, -7.5, 3.3], yawDeg: 0 }, spec: motorSpec });
   });
@@ -148,6 +148,17 @@ describe('loadKit refuses mechanics that do not fit, naming the path', () => {
     const turned = raw();
     moduleOf(turned, 'motorLeft').mount.yawDeg = 10;
     expect(thrown(() => loadKit(turned, board))).toMatch(/modules\.0\.mount\.yawDeg: a wheel rolls along x: yawDeg is 0/);
+  });
+
+  it('refuses a gearbox whose friction the motor cannot overcome', () => {
+    const stuck = raw();
+    moduleOf(stuck, 'motorRight').spec.gearFrictionNm = 0.08;
+    expect(thrown(() => loadKit(stuck, board))).toMatch(
+      /modules\.1\.spec\.gearFrictionNm: the gearbox friction is less than the stall torque \(0\.08\), or the motor never turns/,
+    );
+    const missing = raw();
+    delete moduleOf(missing, 'motorLeft').spec.gearFrictionNm;
+    expect(thrown(() => loadKit(missing, board))).toMatch(/modules\.0\.spec\.gearFrictionNm: /);
   });
 
   it('refuses a robot that would tip over or float: centre of mass outside the wheels and caster, caster off the floor', () => {

@@ -3,19 +3,23 @@ import { torqueRange, type DcMotorModel } from './dc-motor';
 
 // The drive of a two-wheeled robot, model (c) of ADR 0001 §5.3: velocity-level diff-drive on a dynamic chassis.
 //
-// The chassis rests on frictionless supports (assembly.ts), so the floor never pushes it along. Each tick, before the
-// physics step, this computes the impulse that brings the chassis to the velocity its wheels aim at: forward speed
+// The chassis rests on supports the floor never pushes along (assembly.ts). Each tick, before the physics step, this
+// computes the impulse that brings the chassis to the velocity its wheels aim at (assembly.ts applies it as a force over the
+// step): forward speed
 // v = (s_L + s_R)/2 and yaw rate ω = (s_R − s_L)/track, from each wheel's reference ground speed s = r·ω_ref. The impulse is
 // split between the wheels, and each wheel's share is held
 // - between 0 and the motor's torque line at the speed the wheel rolls at (dc-motor.ts, `torqueRange`), and
 // - within its grip, μ·N·dt, N being the wheel's share of the robot's weight;
 // a wheel off the floor gives nothing. A side impulse then cancels the slip of the axle sideways (the wheels do not skid),
-// within the grip of the wheels on the floor. Collisions with walls and objects stay the physics engine's.
+// within the grip of the wheels on the floor. Collisions with walls and objects stay the physics engine's, and so does the
+// gearbox's friction: assembly.ts gives each wheel's floor support the friction coefficient that makes T_f at the wheel, so
+// it acts within the step, against the drive and against whatever pushes the robot (a pre-step impulse here could not hold
+// a stopped robot against a push that acts during the step: measured 2.7 cm of creep in 2 s under 1 N).
 //
 // Directions are on the floor plane (world +Y up): the chassis' forward axis (its local +X) laid flat, and left = up ×
 // forward. Positive yaw turns left. Only + − × ÷ and Math.sqrt/abs/min/max: no trig in the tick (D-R12, ADR 0001 §4.6).
 // Not modelled: a centre of mass off the centre line (the impulses act at the centre of mass), wheel spin while a wheel
-// skids, rolling resistance.
+// skids, tyre rolling resistance beyond the gearbox's friction.
 
 /** What the drive needs to know about the robot, in SI. */
 export type DriveGeometry = {

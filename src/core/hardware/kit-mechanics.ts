@@ -31,6 +31,7 @@ export const moduleSpecSchemas: { readonly [K in ModuleKind]: z.ZodType<ModuleSp
     maxRpm: positive,
     tauS: z.number().min(0),
     stallTorqueNm: positive,
+    gearFrictionNm: z.number().min(0),
     wheelRadiusCm: positive,
     wheelWidthCm: positive,
   }),
@@ -93,6 +94,9 @@ export function mechanicsIssues(kit: Kit): DataIssue[] {
     if (module.kind === 'dc-motor') {
       const spec = module.spec as unknown as ModuleSpecs['dc-motor'];
       if (module.mount.yawDeg !== 0) add(at('mount', 'yawDeg'), 'a wheel rolls along x: yawDeg is 0');
+      if (spec.gearFrictionNm >= spec.stallTorqueNm) {
+        add(at('spec', 'gearFrictionNm'), `the gearbox friction is less than the stall torque (${spec.stallTorqueNm}), or the motor never turns`);
+      }
       if (!same(z, spec.wheelRadiusCm)) {
         add(at('mount', 'posCm', 2), `a wheel rests on the floor: its centre is wheelRadiusCm = ${spec.wheelRadiusCm} above it, not ${z}`);
       }
