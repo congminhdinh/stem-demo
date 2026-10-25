@@ -7,3 +7,4 @@ blob-report/
 *.local
 *.log
 .DS_Store
+arena-mat/
