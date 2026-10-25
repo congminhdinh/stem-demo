@@ -22,6 +22,8 @@ const probe = vi.hoisted(() => ({
   active: 0,
   maxActive: 0,
   disposed: 0,
+  /** Steps and actuator targets given to a world after it was disposed. */
+  usedAfterDispose: 0,
   /** Each echo the world gives pulseIn: the program clock then, the world's time, the distance. */
   reads: [] as { clockMs: number; worldMs: number; cm: number }[],
   /** Each module op the program starts (`ultrasonic.cm`): the program clock and the world's time. */
@@ -76,17 +78,26 @@ vi.mock('../world/world', async (importOriginal) => {
     ...actual,
     createScenarioWorld: async (...args: Parameters<typeof actual.createScenarioWorld>) => {
       const world = await actual.createScenarioWorld(...args);
+      let disposed = false;
       // The world's getters and methods are closures: a wrapper that inherits them reads the same world.
       const watched = Object.create(world) as World;
       Object.defineProperties(watched, {
         step: {
           value: (dt: number) => {
+            if (disposed) probe.usedAfterDispose += 1;
             probe.onStep?.(world);
             world.step(dt);
           },
         },
+        applyActuators: {
+          value: (targets: Parameters<World['applyActuators']>[0]) => {
+            if (disposed) probe.usedAfterDispose += 1;
+            world.applyActuators(targets);
+          },
+        },
         dispose: {
           value: () => {
+            disposed = true;
             probe.disposed += 1;
             world.dispose();
           },
@@ -119,6 +130,7 @@ beforeEach(() => {
   probe.active = 0;
   probe.maxActive = 0;
   probe.disposed = 0;
+  probe.usedAfterDispose = 0;
   probe.reads.length = 0;
   probe.ops.length = 0;
 });
@@ -137,8 +149,9 @@ describe('one tick at a time', () => {
     const seen = published(session);
     // A frame of 50 ms (6 ticks); two calls while it runs add their time to it; a headless run waits for it; a frame asked for
     // during the headless run adds its time too.
-    // The frame starts after the calls that ask for it in the same turn: all their time (50 + 50 + 66.7 + 20 ms, 22 ticks) is owed
-    // to it, so it runs 8 ticks, drops 14 and says it is slower than real time; then the headless run goes on to 0.5 s.
+    // The frame starts after the calls that ask for it in the same turn: the time of the three before the headless run (50 + 50 +
+    // 66.7 ms, 20 ticks) is owed to it, so it runs 8 ticks, drops 12 and says it is slower than real time. The headless run goes on to
+    // 0.5 s; the advance asked for after it adds no time, and once it ends nothing is owed and the run is not slower than real time.
     const calls = [session.advance(50), session.advance(50), session.advance(1000 / 60, 4), session.runUntil(0.5), session.advance(20)];
     expect(calls[1]).toBe(calls[0]);
     expect(calls[2]).toBe(calls[0]);
@@ -147,9 +160,8 @@ describe('one tick at a time', () => {
     expect(probe.maxActive).toBe(1);
     expect(seen.map((snapshot) => [Math.round(snapshot.world!.t * PHYSICS_HZ), snapshot.slowerThanRealtime])).toEqual([
       [8, true],
-      [60, true],
+      [60, false],
     ]);
-    // Less than a tick is left over.
     await session.advance(0);
     expect([tickOf(session), session.getSnapshot().slowerThanRealtime]).toEqual([60, false]);
     await session.advance(3 * TICK_MS);
@@ -171,9 +183,31 @@ describe('stop and failures inside a tick', () => {
     await session.runUntil(1);
     expect(seen.map((snapshot) => snapshot.status)).toEqual(['idle']);
     // The world stopped at tick 10 and was disposed; nothing ran after the stop.
-    expect([probe.worlds[0]?.tick, probe.disposed]).toEqual([10, 1]);
+    expect([probe.worlds[0]?.tick, probe.disposed, probe.usedAfterDispose]).toEqual([10, 1, 0]);
     await session.advance(100);
     expect(seen).toHaveLength(1);
+  });
+
+  it('a stop from inside the program (its budget step reading the wall clock) during runUntil publishes nothing more and touches no disposed world', async () => {
+    // The virtual budget reads the wall clock every 256 steps of the program: the stop comes from inside the program's statement.
+    let reads = 0;
+    const holder: { session?: ReturnType<typeof roverSession> } = {};
+    const session = roverSession(driveScenario(), {
+      wallNow: () => {
+        reads += 1;
+        if (reads === 400) holder.session?.stop();
+        return reads * 0.01;
+      },
+    });
+    holder.session = session;
+    await session.start(robotProject([], [setVar('x', num(1))]));
+    const seen = published(session);
+    await session.runUntil(5);
+    expect(reads).toBeGreaterThanOrEqual(400);
+    expect(seen.map((snapshot) => snapshot.status)).toEqual(['idle']);
+    expect(probe.disposed).toBe(1);
+    expect(probe.worlds[0]!.tick).toBeLessThan(5 * PHYSICS_HZ);
+    expect(probe.usedAfterDispose).toBe(0);
   });
 
   it('a stop during a headless run’s turn of the event loop publishes nothing more', async () => {

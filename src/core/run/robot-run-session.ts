@@ -37,10 +37,12 @@ import { createVirtualScheduler, type VirtualScheduler } from './virtual-clock';
 // (run/virtual-clock.ts: `createVirtualScheduler({ signal, delayOverheadUs })`, one per run), whose pins read the world through
 // sources (the echo of the ultrasonic, `sense.ultrasonic(role).echoUs`: cm·58, 0 without an echo, which pulseIn reads as no pulse and
 // the HC-SR04 helper as 400 cm (U-27); each line sensor's digital level and ADC value, `sense.line(role)`; each button, pressed LOW).
-// The module binding runs setup(), and the program starts.
+// The module binding runs setup(), the scorer is fed tick 0's frame, and the snapshot of t = 0 is published. The program itself starts
+// in tick 0, after that tick's inputs: when the first tick is driven (at once, a frame later) never changes what it sees.
 //
 // One tick (dt = 1/PHYSICS_HZ), its index k = world.tick:
 //   1. the button inputs due in [k·dt, (k+1)·dt): the UI's presses since the last tick, then the scenario's script (inputsDueBetween);
+//      in tick 0 the program starts here, so it sees tick 0's inputs from its first statement;
 //   2. `advanceTo(k * 1000 / PHYSICS_HZ)`, from the integer index, never a sum: the program runs through its part of the tick until
 //      it is blocked, reading the world at tick k;
 //   3. the hardware has lived through the tick's interval [t, t + dt) (see "The hardware's time" below); the module models read the
@@ -50,13 +52,18 @@ import { createVirtualScheduler, type VirtualScheduler } from './virtual-clock';
 // A snapshot is built only to publish one: at most one per `advance` call (a frame) and one at the end of `runUntil`.
 //
 // Driving it:
-//   - `advance(wallMs, speed)`, the realtime mode (from requestAnimationFrame): the owed virtual time grows by wallMs × speed, a frame
-//     runs the whole ticks it owes, at most MAX_TICKS_PER_FRAME; more is dropped and the snapshot says `slowerThanRealtime`. It is
-//     single-flight: the frame starts in a microtask after the call, so every call of the same turn adds its time to it; a call while
-//     it runs adds its time for the next frame and returns the one in flight. Ticks always run one after the other.
+//   - `advance(wallMs, speed)`, the realtime mode (from requestAnimationFrame): the owed virtual time grows by wallMs × speed, and a
+//     frame runs the whole ticks it owes. A frame may owe one tick more than MAX_TICKS_PER_FRAME without anything lost (JITTER_TICKS:
+//     at 4× a 60 Hz display asks for exactly 8 ticks a frame, and a frame that comes 0.1 ms late owes 8.05): it runs them all. A frame
+//     that owes more than MAX_TICKS_PER_FRAME + JITTER_TICKS runs MAX_TICKS_PER_FRAME, drops the rest (a slow machine or a tab coming
+//     back runs slower, it does not catch up) and the snapshot says `slowerThanRealtime` until a frame fits again. It is single-flight:
+//     the frame starts in a microtask after the call, so every call of the same turn adds its time to it; a call while it runs adds
+//     its time for the next frame and returns the one in flight. Ticks always run one after the other.
 //   - `runUntil(tS)`, the headless mode: ticks until the world's time reaches tS, giving the browser a turn every EXEC_SLICE_MS of wall
 //     time through a fresh MessageChannel (`VirtualScheduler.yieldNow`: never setTimeout(0), clamped and throttled in a hidden tab).
-//     It waits for the frame in flight; an `advance` meanwhile adds its time for the next frame and returns the headless run.
+//     It waits for the frame in flight. From the call until it ends, `advance` adds no time (it returns the headless run); when it
+//     ends, no time is owed and the run is not slower than real time.
+//   Once the ticks have stopped (an error), `advance` adds no time and `pressButton` is ignored: nothing grows.
 //   Neither the frame rate, the speed, a hidden tab nor the mode changes what happens: only the tick index does.
 //
 // The hardware's time. The virtual UNO times what runs by itself (a tone of `ms`, which ends on its own) on the clock it is given. The
@@ -74,10 +81,16 @@ import { createVirtualScheduler, type VirtualScheduler } from './virtual-clock';
 // What ends a run: the program finishing leaves it `finished` and the world goes on (the motors keep what the pins say, as the board
 // does); a program fault (`error`, with its block) and a failure of the simulation itself (a timer task that throws, which rejects
 // advanceTo, the world refusing a step, a scorer that throws: `error`, `internal-error`, with a diagnostic) end the ticks: the world
-// stays at that moment.
+// stays at that moment. A scorer that throws on tick 0 (or whose first score throws) fails the start instead (`scorer-error`).
 
-/** The most ticks one `advance` runs (one frame): 4× speed at 60 frames per second. */
+/** The most ticks one `advance` runs (one frame) on a machine that keeps up: 4× speed at 60 frames per second. */
 export const MAX_TICKS_PER_FRAME = 8;
+
+/**
+ * How many ticks more than MAX_TICKS_PER_FRAME a frame may owe and still run them all, with nothing dropped and no flag: the jitter of
+ * requestAnimationFrame (16.5–16.9 ms frames at 60 Hz) at 4×, where a frame owes 7.9–8.1 ticks.
+ */
+export const JITTER_TICKS = 1;
 
 /** One tick of the world, ms. */
 const TICK_MS = 1000 / PHYSICS_HZ;
@@ -98,7 +111,7 @@ export type RobotRunSnapshot = {
   console: ConsoleSnapshot;
   /** The world on the latest tick with the run's part (pins, LEDs, active block, status, score); null while idle. Frozen. */
   world: RobotSnapshot | null;
-  /** The last frame owed more than MAX_TICKS_PER_FRAME ticks: the simulation runs slower than real time. */
+  /** The last frame owed more than MAX_TICKS_PER_FRAME + JITTER_TICKS ticks and dropped some: the simulation runs slower than real time. */
   slowerThanRealtime: boolean;
 };
 
@@ -109,6 +122,8 @@ export type RobotStartFailureReason =
   | 'compile'
   /** The world could not be built (physics did not load) or the robot not set up. */
   | 'world-error'
+  /** The scorer could not be made, or failed on tick 0's frame or its first score. */
+  | 'scorer-error'
   /** A stop or a newer start came while this one was building its world: the newer state stands. */
   | 'superseded'
   /** `resetRobot` without a run. */
@@ -156,13 +171,16 @@ export type RobotRunSession = {
   start(project: ProjectDocument, variantIndex?: number, options?: RobotStartOptions): Promise<RobotStartResult>;
   /** Ends the run and drops its state: the program, the timers, the world. */
   stop(): void;
-  /** Realtime: `wallMs` of the page's time at `speed` (see the top of this file). Single-flight. */
+  /** Realtime: `wallMs` of the page's time at `speed` (see the top of this file). Single-flight; adds no time during `runUntil` or once the ticks have stopped. */
   advance(wallMs: number, speed?: number): Promise<void>;
   /** Headless: ticks until the world's time is `tS` s or more (or the run ends in an error, or is stopped or replaced). */
   runUntil(tS: number): Promise<void>;
   /** A new world from the start and the program again from t = 0, the same variant and seed: the same as a fresh start. */
   resetRobot(): Promise<RobotStartResult>;
-  /** The UI's button (`button1`), pressed or released, from the next tick on. Ignored while idle, during a check, and for a role that is no button of the kit. */
+  /**
+   * The UI's button (`button1`), pressed or released, from the next tick on (before the program's first statement when no tick ran yet).
+   * Ignored while idle, during a check, once the ticks have stopped (an error), and for a role that is no button of the kit.
+   */
   pressButton(role: string, down: boolean): void;
   getSnapshot(): RobotRunSnapshot;
   subscribe(listener: (snapshot: RobotRunSnapshot) => void): () => void;
@@ -185,11 +203,14 @@ type ActiveRun = {
   readonly controller: AbortController;
   readonly timers: RunScheduler;
   readonly console: RunConsole;
-  readonly scorer: RobotScorer | undefined;
+  /** Made by `startScore`, before the run is published. */
+  scorer: RobotScorer | undefined;
   /** The hardware has lived through tick k's interval: its clock is now at least the tick's end (see the top of this file). */
   readonly livedThrough: (k: number) => void;
-  /** Starts the program (once). */
-  readonly go: () => void;
+  /** Makes the scorer, feeds it tick 0's frame and gives its first score (a copy). Throws what the scorer throws. */
+  readonly startScore: () => ScoreState;
+  /** Starts the program, once: in tick 0, after its inputs. */
+  readonly startProgram: () => void;
   readonly unsubscribe: () => void;
   status: RunStatus;
   error: RobotRunError | null;
@@ -207,6 +228,8 @@ type ActiveRun = {
   /** Realtime: the virtual time owed, ms. */
   owedMs: number;
   slower: boolean;
+  /** Headless runs asked for and not ended yet: while there is one, `advance` adds no time. */
+  headlessRuns: number;
   /** The frame or headless run in flight, if any. */
   driving: Promise<void> | null;
 };
@@ -270,8 +293,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
   const failRun = (run: ActiveRun, error: unknown) => {
     run.controller.abort();
     run.timers.dispose();
-    const detail = error instanceof Error ? error.message : String(error);
-    const message = `The robot simulation stopped: ${detail}`;
+    const message = `The robot simulation stopped: ${detailOf(error)}`;
     run.status = 'error';
     run.activeBlockId = null;
     run.error = { message, code: 'internal-error' };
@@ -281,10 +303,13 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
 
   const ticking = (run: ActiveRun) => current === run && run.status !== 'error';
 
-  /** Publishes the snapshot of `run`, the current run. Its score comes first: the scorer is foreign code, which may stop the run or fail. */
-  const publishRun = (run: ActiveRun) => {
-    let score = noScore;
-    if (run.scorer) {
+  /**
+   * Publishes the snapshot of `run`, the current run, with `given` as its score or the scorer's. The score comes first: the scorer is
+   * foreign code, which may stop the run or fail.
+   */
+  const publishRun = (run: ActiveRun, given?: ScoreState) => {
+    let score = given ?? noScore;
+    if (given === undefined && run.scorer) {
       try {
         score = structuredClone(run.scorer.score());
       } catch (error) {
@@ -339,6 +364,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
   const tick = async (run: ActiveRun): Promise<boolean> => {
     const k = run.world.tick;
     applyInputs(run, k);
+    run.startProgram();
     try {
       await run.scheduler.advanceTo((k * 1000) / PHYSICS_HZ);
     } catch (error) {
@@ -367,18 +393,19 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
     return current === run;
   };
 
-  /** One realtime frame: the whole ticks owed, at most MAX_TICKS_PER_FRAME, then one publish. */
+  /** One realtime frame: the whole ticks owed (see the top of this file for the jitter allowance and the drop), then one publish. */
   const frame = async (run: ActiveRun) => {
     if (ticking(run)) {
       const due = Math.floor((run.owedMs + OWED_EPSILON_MS) / TICK_MS);
-      // Ticks beyond the frame's are dropped, not owed: a slow machine or a tab coming back runs slower, it does not catch up.
       run.owedMs = Math.max(0, run.owedMs - due * TICK_MS);
-      const slower = due > MAX_TICKS_PER_FRAME;
+      const slower = due > MAX_TICKS_PER_FRAME + JITTER_TICKS;
       if (slower !== run.slower) {
         run.slower = slower;
         run.dirty = true;
       }
-      for (let done = 0; done < Math.min(due, MAX_TICKS_PER_FRAME); done++) {
+      // Within the allowance every owed tick runs; beyond it the frame runs its cap and the rest is dropped.
+      const ticks = slower ? MAX_TICKS_PER_FRAME : due;
+      for (let done = 0; done < ticks; done++) {
         if (!(await tick(run))) {
           break;
         }
@@ -400,6 +427,12 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
         await run.scheduler.yieldNow();
         sliceStart = wallNow();
       }
+    }
+    // A headless run owes nothing to real time: no time is left owed, and it is not slower than real time.
+    run.owedMs = 0;
+    if (run.slower) {
+      run.slower = false;
+      run.dirty = true;
     }
     if (current === run && run.dirty) {
       publishRun(run);
@@ -434,7 +467,10 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
     const runConsole = createRunConsole();
     const timers = createRunScheduler(scheduler.timers);
     const holder: { run?: ActiveRun } = {};
-    /** The world of this run while it owns the session; a source of a retired run reads nothing. */
+    /**
+     * Whether this run owns the session. A source of a run that does not reads the neutral value: no echo, 0 on a line pin (level and
+     * ADC), the button released. It is never read in practice: an aborted program throws at its next step or module op, before a read.
+     */
     const live = () => holder.run !== undefined && current === holder.run;
 
     for (const module of kit.modules) {
@@ -447,7 +483,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
         uno.attachAnalogSource(port.pins.PIN, () => (live() ? world.sense.line(role).raw : 0));
       } else if (module.kind === 'button' && port?.pins.PIN !== undefined) {
         // To GND, read through the pull-up the driver sets (U-30): pressed is LOW, released HIGH.
-        uno.attachDigitalSource(port.pins.PIN, () => (holder.run?.buttons.get(role) === true ? 0 : 1));
+        uno.attachDigitalSource(port.pins.PIN, () => (live() && holder.run?.buttons.get(role) === true ? 0 : 1));
       }
     }
     // setup(): the module ops the program uses, then its raw pins (hardware/binding.ts).
@@ -485,7 +521,6 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
         addWarning(holder.run, { code: diagnostic.code, message: diagnostic.message });
       }
     });
-    const scorer = options.scorer?.({ scenario, arena: world.arena, program: prepared.program, variantIndex, check });
     let started = false;
     const run: ActiveRun = {
       prepared,
@@ -497,29 +532,27 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       controller,
       timers,
       console: runConsole,
-      scorer,
+      scorer: undefined,
       unsubscribe,
       livedThrough(k) {
         livedMs = ((k + 1) * 1000) / PHYSICS_HZ;
       },
-      go() {
+      startScore() {
+        const scorer = options.scorer?.({ scenario, arena: world.arena, program: prepared.program, variantIndex, check });
+        run.scorer = scorer;
+        if (!scorer) {
+          return noScore;
+        }
+        // Tick 0 for the goals: the world at t = 0 with the pins setup() left.
+        const pins = uno.pins();
+        scorer.update(world.goalFrame({ leds: models.leds(pins), buzzerHz: models.buzzerHz(pins) }), 0);
+        return structuredClone(scorer.score());
+      },
+      startProgram() {
         if (started) {
           return;
         }
         started = true;
-        // Tick 0 for the goals: the world at t = 0 with the pins setup() left.
-        try {
-          const pins = uno.pins();
-          scorer?.update(world.goalFrame({ leds: models.leds(pins), buzzerHz: models.buzzerHz(pins) }), 0);
-        } catch (error) {
-          if (current === run) {
-            failRun(run, error);
-          }
-          return;
-        }
-        if (current !== run) {
-          return;
-        }
         const { done } = runYbcProgram(prepared.ir, io, services);
         void done.then((outcome) => {
           // A stopped or replaced run, or one the simulation already failed, changes nothing more.
@@ -550,6 +583,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       pendingPresses: [],
       owedMs: 0,
       slower: false,
+      headlessRuns: 0,
       driving: null,
     };
     holder.run = run;
@@ -584,27 +618,39 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
         return superseded;
       }
       pendingStart = null;
-      return failStart('world-error', [{ severity: 'error', code: 'internal-error', message: `The robot world could not be built: ${error instanceof Error ? error.message : String(error)}` }]);
+      return failStart('world-error', [{ severity: 'error', code: 'internal-error', message: `The robot world could not be built: ${detailOf(error)}` }]);
     }
     if (pendingStart !== ticket) {
       world.dispose();
       return superseded;
     }
-    pendingStart = null;
     let run: ActiveRun;
     try {
       run = createRun(prepared, world, variantIndex, check);
     } catch (error) {
+      pendingStart = null;
       world.dispose();
-      return failStart('world-error', [{ severity: 'error', code: 'internal-error', message: `The robot could not be set up: ${error instanceof Error ? error.message : String(error)}` }]);
+      return failStart('world-error', [{ severity: 'error', code: 'internal-error', message: `The robot could not be set up: ${detailOf(error)}` }]);
     }
-    current = run;
-    run.go();
-    // The scorer's first update (foreign code) may have stopped or replaced the run.
-    if (current !== run) {
+    let score: ScoreState;
+    try {
+      score = run.startScore();
+    } catch (error) {
+      retire(run);
+      if (pendingStart !== ticket) {
+        return superseded;
+      }
+      pendingStart = null;
+      return failStart('scorer-error', [{ severity: 'error', code: 'internal-error', message: `The run's scorer failed: ${detailOf(error)}` }]);
+    }
+    // The scorer is foreign code: a stop or a start it made supersedes this one.
+    if (pendingStart !== ticket) {
+      retire(run);
       return superseded;
     }
-    publishRun(run);
+    pendingStart = null;
+    current = run;
+    publishRun(run, score);
     return { ok: true };
   };
 
@@ -644,7 +690,9 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       if (!run) {
         return Promise.resolve();
       }
-      run.owedMs += wallMs * speed;
+      if (ticking(run) && run.headlessRuns === 0) {
+        run.owedMs += wallMs * speed;
+      }
       return run.driving ?? drive(run, () => frame(run));
     },
     runUntil(tS) {
@@ -656,11 +704,16 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
         return Promise.resolve();
       }
       const previous = run.driving;
+      run.headlessRuns += 1;
       return drive(run, async () => {
-        if (previous) {
-          await previous;
+        try {
+          if (previous) {
+            await previous;
+          }
+          await headless(run, tS);
+        } finally {
+          run.headlessRuns -= 1;
         }
-        await headless(run, tS);
       });
     },
     async resetRobot() {
@@ -672,7 +725,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
     },
     pressButton(role, down) {
       const run = current;
-      if (!run || run.check || !buttonRoles.has(role) || typeof down !== 'boolean') {
+      if (!run || !ticking(run) || run.check || !buttonRoles.has(role) || typeof down !== 'boolean') {
         return;
       }
       run.pendingPresses.push([role, down]);
@@ -686,6 +739,9 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
     },
   };
 }
+
+/** What an error says, for a diagnostic. */
+const detailOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 /** A diagnostic of the compile or the validity layers as the run reports it (its code, severity, message and block). */
 function toRunDiagnostic(diagnostic: { severity: 'error' | 'warning'; code: string; message: string; blockId?: string }): RunDiagnostic {

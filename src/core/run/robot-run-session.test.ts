@@ -9,7 +9,7 @@ import { loadScenario } from '../scenario/scenario';
 import { initPhysics, PHYSICS_HZ } from '../world/rapier';
 import { hashSnapshot } from '../world/snapshot';
 import { driveScenario, everyGoalScorer, numbers, published, robotProject, rover, roverSession, sandboxScenario, worldOf } from './__fixtures__/robot-session';
-import { createRobotRunSession, MAX_TICKS_PER_FRAME, type RobotRunSession, type RobotScorerFactory } from './robot-run-session';
+import { createRobotRunSession, JITTER_TICKS, MAX_TICKS_PER_FRAME, type RobotRunSession, type RobotScorerFactory } from './robot-run-session';
 import { registry } from '../program/__fixtures__/uno-blocks';
 
 // N18 R3.6: RobotRunSession, where the learner's program, the virtual UNO and the world meet (robot plan §3). Each test runs the real
@@ -212,6 +212,35 @@ describe('the pins read the world, and the world reads the pins', () => {
     session.stop();
   });
 
+  it('an input due in tick 0 is seen from the program’s first statement: the first tick at once or a frame later, headless or realtime, the same hash', async () => {
+    // The reviewer's probe P7: the button is pressed at t = 0; the program drives while it is pressed.
+    const scenario = sandboxScenario({ inputs: [{ atS: 0, role: 'button1', action: 'press' }] });
+    const project = robotProject([], [ifThen(buttonPressed(), [driveMove('forward', num(100))], [driveStop()])]);
+    const results: Record<string, string> = {};
+    for (const mode of ['headless-at-once', 'realtime-later', 'realtime-at-once', 'headless-later'] as const) {
+      const session = roverSession(scenario);
+      expect(await session.start(project)).toEqual({ ok: true });
+      if (mode.endsWith('later')) await new Promise((resolve) => setTimeout(resolve, 20));
+      if (mode.startsWith('headless')) await session.runUntil(0.5);
+      else while (worldOf(session).t < 0.5) await session.advance(TICK_MS);
+      results[mode] = hashSnapshot(worldOf(session));
+      session.stop();
+    }
+    expect(new Set(Object.values(results)).size).toBe(1);
+    // A press of the UI between the start and the first tick is seen from the first statement too.
+    const pressed: string[] = [];
+    for (const wait of [0, 20]) {
+      const session = roverSession(sandboxScenario());
+      await session.start(project);
+      if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+      session.pressButton('button1', true);
+      await session.runUntil(0.5);
+      pressed.push(hashSnapshot(worldOf(session)));
+      session.stop();
+    }
+    expect(pressed[0]).toBe(pressed[1]);
+  });
+
   it('the scenario’s inputs press the button at their atS; pressButton presses it from the next tick, but not during a check', async () => {
     const scenario = sandboxScenario({ inputs: [{ atS: 0.5, role: 'button1', action: 'press' }, { atS: 1, role: 'button1', action: 'release' }] });
     const program = robotProject([], [ifThen(buttonPressed(), [led('ON')], [led('OFF')])]);
@@ -305,6 +334,78 @@ describe('driving the ticks', () => {
     expect(seen).toHaveLength(5);
     expect(() => session.advance(-1)).toThrow(RangeError);
     expect(() => session.advance(16, 0)).toThrow(RangeError);
+    session.stop();
+  });
+
+  it('4× on a 60 Hz display with its jitter (frames of 16.5–16.9 ms) never says slower than real time and drops no tick; a slow host does', async () => {
+    const session = roverSession(driveScenario());
+    await session.start(avoider());
+    let seed = 1;
+    const random = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+    let wallMs = 0;
+    let flagged = 0;
+    const ticksRun: number[] = [];
+    for (let frame = 0; frame < 600; frame++) {
+      const ms = 16.5 + random() * 0.4;
+      wallMs += ms;
+      const before = Math.round(worldOf(session).t * PHYSICS_HZ);
+      await session.advance(ms, 4);
+      ticksRun.push(Math.round(worldOf(session).t * PHYSICS_HZ) - before);
+      if (session.getSnapshot().slowerThanRealtime) flagged += 1;
+    }
+    expect(flagged).toBe(0);
+    // Every tick owed ran: what is left is less than one tick.
+    expect(Math.round(worldOf(session).t * PHYSICS_HZ)).toBe(Math.floor((wallMs * 4) / TICK_MS + 1e-6));
+    expect(Math.max(...ticksRun)).toBe(MAX_TICKS_PER_FRAME + JITTER_TICKS);
+    // A host that draws a frame every 25 ms at 4× owes 12 ticks a frame: 8 run, the rest is dropped, and it says so.
+    const slow: [number, boolean][] = [];
+    for (let frame = 0; frame < 10; frame++) {
+      const before = Math.round(worldOf(session).t * PHYSICS_HZ);
+      await session.advance(25, 4);
+      slow.push([Math.round(worldOf(session).t * PHYSICS_HZ) - before, session.getSnapshot().slowerThanRealtime]);
+    }
+    expect(slow).toEqual(Array.from({ length: 10 }, () => [MAX_TICKS_PER_FRAME, true]));
+    // One frame owing 9 ticks runs them all; 10 is beyond the allowance.
+    await session.advance(9 * TICK_MS);
+    expect(session.getSnapshot().slowerThanRealtime).toBe(false);
+    const before = Math.round(worldOf(session).t * PHYSICS_HZ);
+    await session.advance(10 * TICK_MS);
+    expect([Math.round(worldOf(session).t * PHYSICS_HZ) - before, session.getSnapshot().slowerThanRealtime]).toEqual([MAX_TICKS_PER_FRAME, true]);
+    session.stop();
+  });
+
+  it('a headless run leaves nothing owed: time owed before it, and asked for during it, is not run afterwards', async () => {
+    const session = roverSession(driveScenario());
+    await session.start(avoider());
+    // Five ms (less than a tick) are owed, then a headless run; four ms more would make a tick if the five were still owed.
+    await session.advance(5);
+    expect(worldOf(session).t).toBe(0);
+    const headless = session.runUntil(0.1);
+    void session.advance(500);
+    await headless;
+    expect(worldOf(session).t).toBe(0.1);
+    await session.advance(4);
+    expect(worldOf(session).t).toBe(0.1);
+    await session.advance(TICK_MS);
+    expect(worldOf(session).t).toBe(13 / PHYSICS_HZ);
+    session.stop();
+  });
+
+  it('once the ticks have stopped (an error), advance and pressButton change nothing and publish nothing', async () => {
+    const session = roverSession(driveScenario());
+    // A wait longer than the contract allows: a fault of the program (out-of-domain) in its first statement.
+    await session.start(robotProject([wait(unoDivide(num(70000), num(1)))]));
+    await session.runUntil(0.1);
+    const ended = session.getSnapshot();
+    expect(ended).toMatchObject({ status: 'error', error: { code: 'out-of-domain' } });
+    const seen = published(session);
+    for (let frame = 0; frame < 100; frame++) {
+      session.pressButton('button1', frame % 2 === 0);
+      await session.advance(1000, 4);
+    }
+    await session.runUntil(10);
+    expect(seen).toEqual([]);
+    expect(session.getSnapshot()).toBe(ended);
     session.stop();
   });
 
@@ -446,19 +547,42 @@ describe('stop and the latest call', () => {
     expect(failing.getSnapshot().diagnostics).toEqual([{ severity: 'error', code: 'internal-error', message }]);
     failing.stop();
 
-    const unscored = roverSession(driveScenario(), {
+    // A score that cannot be read once the run runs ends it the same way.
+    let scores = 0;
+    const unreadable = roverSession(driveScenario(), {
       scorer: () => ({
         update() {},
         score() {
-          throw new Error('No score.');
+          if (++scores === 2) throw new Error('No score.');
+          return { points: 0, maxScore: null, goals: [] };
         },
       }),
     });
-    expect(await unscored.start(avoider())).toEqual({ ok: true });
-    expect(unscored.getSnapshot()).toMatchObject({ status: 'error', error: { code: 'internal-error', message: 'The robot simulation stopped: No score.' }, world: { t: 0, score: { points: 0, maxScore: null, goals: [] } } });
-    await unscored.runUntil(1);
-    expect(worldOf(unscored).t).toBe(0);
-    unscored.stop();
+    expect(await unreadable.start(avoider())).toEqual({ ok: true });
+    await unreadable.runUntil(0.5);
+    expect(unreadable.getSnapshot()).toMatchObject({ status: 'error', error: { code: 'internal-error', message: 'The robot simulation stopped: No score.' } });
+    unreadable.stop();
+  });
+
+  it('a scorer that cannot be made, fails on tick 0 or gives no first score fails the start (scorer-error); the session is idle', async () => {
+    const failure = (message: string) => ({ ok: false, reason: 'scorer-error', diagnostics: [{ severity: 'error', code: 'internal-error', message: `The run's scorer failed: ${message}` }] });
+    const scorers: [RobotScorerFactory, string][] = [
+      [() => { throw new Error('No scorer.'); }, 'No scorer.'],
+      [() => ({ update() { throw new Error('Tick 0 failed.'); }, score: () => ({ points: 0, maxScore: null, goals: [] }) }), 'Tick 0 failed.'],
+      [() => ({ update() {}, score() { throw new Error('No score.'); } }), 'No score.'],
+    ];
+    for (const [scorer, message] of scorers) {
+      const session = roverSession(driveScenario(), { scorer });
+      const seen = published(session);
+      expect(await session.start(avoider())).toEqual(failure(message));
+      expect(session.getSnapshot().status).toBe('idle');
+      expect(seen).toEqual([]);
+      // A start that fails stops the run it would have replaced.
+      const replacing = roverSession(driveScenario(), { scorer: (run) => (run.variantIndex === 1 ? scorer(run) : everyGoalScorer(run)) });
+      expect(await replacing.start(avoider())).toEqual({ ok: true });
+      expect(await replacing.start(avoider(), 1)).toEqual(failure(message));
+      expect(replacing.getSnapshot()).toMatchObject({ status: 'idle', world: null });
+    }
   });
 
   it('a start while another builds its world: the latest wins, the older one is superseded and publishes nothing', async () => {
