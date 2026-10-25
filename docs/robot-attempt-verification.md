@@ -19,7 +19,8 @@ cat attempts.json | pnpm verify:attempt -  # đọc từ stdin
 Chạy từ thư mục `stem-demo` của **đúng bản build** đang phục vụ lab (cùng scenario, cùng engine). Cần Node ≥ 20.19 và `pnpm install`; không
 cần trình duyệt, không cần arduino-cli. Script nạp source TypeScript qua SSR loader của Vite (như `export:robot-manifest`) và dùng bản Rapier
 `-compat` cho Node (cùng wasm với bản của app, cùng kết quả: `tests/robot-determinism.test.ts`). Một lần chấm của scenario dài nhất
-(`rb-line-follow`, 3 × 120 s mô phỏng) mất khoảng 10 s; phần lớn các scenario dưới 2 s.
+(`rb-line-follow`, 3 × 120 s mô phỏng) mất khoảng 10 s; các scenario khác dưới 2 s (đo trong vitest trên máy dev, 2026-10-25), cộng
+khoảng 1–2 s để Vite nạp source.
 
 ### Đầu vào
 
@@ -84,15 +85,19 @@ không phân biệt hoa thường), `passed`, `score` (bằng **chính xác**), 
 | `project-invalid` | Project không phải JSON, không qua schema document, hoặc không compile (L-1 đến L-3, luật chân của kit) | Xem như đáng ngờ |
 | `rerun-failed` | Bản build không dựng được world hoặc scorer: lỗi của bản build, không phải của lần chấm | Báo lỗi |
 
-Ví dụ (văn bản):
+Ví dụ thật (văn bản; bốn lần chấm của lời giải mẫu `rb-mini-mission`: lần 2 không kèm project và bị nâng điểm, lần 3 sửa một seed, lần
+4 không kèm project; exit 1, khoảng 7 s trên máy dev):
 
 ```text
 attempt 1 (id 41, rb-mini-mission): match
-attempt 2 (id 42, rb-mini-mission): MISMATCH
+attempt 2 (id 42, rb-mini-mission): MISMATCH (the project of attempt 1)
   score: attempt 97, re-run 96
 attempt 3 (id 43, rb-mini-mission): UNVERIFIABLE seed-mismatch: the attempt’s variant seeds [3225, 3226, 3228] are not the scenario’s [3225, 3226, 3227]
-attempt 4 (id 44, rb-mini-mission): match (the project of attempt 1)
+attempt 4 (id 44, rb-mini-mission): match (the project of attempt 3)
 ```
+
+Lần 4 lấy project của lần 3: lần 3 hợp lệ (qua schema) và có project cùng hash; seed sai là chuyện kết quả của lần 3, không phải của
+project nó lưu.
 
 Với `--json`: một object cho một lần chấm, một mảng cho một danh sách; mỗi phần tử
 `{ index, id?, templateKey?, status, reason?, detail?, problems?, diffs?: [{ field, attempt, rerun }], projectFrom? }`
