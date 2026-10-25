@@ -19,6 +19,8 @@ import { paintMat, paintMatRoughness, paintMatShading, type MatLabels } from './
 
 type GltfArenaProps = {
   assets: RobotAssets;
+  /** The plan view ("Nhìn từ trên") hides what hangs over the mat. */
+  planView: boolean;
   scenario: Scenario;
   view: () => RobotSnapshot;
   look: TierLook;
@@ -72,10 +74,15 @@ function useMatTextures(scenario: Scenario, labels: MatLabels): MatTextures {
   return made;
 }
 
-export function GltfArena({ assets, scenario, view, look, shadows, textures, labels, viewForward }: GltfArenaProps) {
+export function GltfArena({ assets, planView, scenario, view, look, shadows, textures, labels, viewForward }: GltfArenaProps) {
   const mat = useMatTextures(scenario, labels);
   const arena = useMemo(() => assembleArena(scenario, assets.prop, { shadows, low: look.detail === 'low', blob: textures.blob, viewForward }), [scenario, assets, shadows, look, textures, viewForward]);
   useEffect(() => () => arena.dispose(), [arena]);
+  const invalidate = useThree((state) => state.invalidate);
+  useEffect(() => {
+    arena.overhead.visible = !planView;
+    invalidate();
+  }, [arena, planView, invalidate]);
 
   const [widthCm, depthCm] = scenario.arena.ground.sizeCm;
   const centre = arenaToThree(widthCm / 2, depthCm / 2, 0);

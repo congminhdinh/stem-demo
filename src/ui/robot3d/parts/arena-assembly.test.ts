@@ -19,8 +19,7 @@ beforeAll(async () => {
 
 const build = (key: string, low = false) => {
   const s = scenario(key);
-  const span = { widthM: s.arena.ground.sizeCm[0] / 100, depthM: s.arena.ground.sizeCm[1] / 100 };
-  return assembleArena(s, assets.prop, { shadows: true, low, blob: new Texture(), viewForward: freeViewForward(span, s.start) });
+  return assembleArena(s, assets.prop, { shadows: true, low, blob: new Texture(), viewForward: freeViewForward({ start: s.start, goals: [] }) });
 };
 
 describe('the pilot arenas’ props (N18 R4.7)', () => {
@@ -69,8 +68,7 @@ describe('the pilot arenas’ props (N18 R4.7)', () => {
   it('keeps a node for each body that moves, and frees what it made', () => {
     const s = scenario('rb-sandbox');
     const withMover = { ...s, arena: { ...s.arena, objects: [{ id: 'puck', shape: 'cylinder' as const, centerCm: [60, 60] as [number, number], radiusCm: 3, heightCm: 4, massG: 50, tags: [] as string[] }] } };
-    const span = { widthM: 2, depthM: 1.5 };
-    const arena = assembleArena(withMover as never, assets.prop, { shadows: false, low: true, blob: new Texture(), viewForward: freeViewForward(span, s.start) });
+    const arena = assembleArena(withMover as never, assets.prop, { shadows: false, low: true, blob: new Texture(), viewForward: freeViewForward({ start: s.start, goals: [] }) });
     expect([...arena.movers.keys()]).toEqual(['puck']);
     expect(arena.movers.get('puck')!.heightM).toBeCloseTo(0.04, 9);
     const owned = new Set<BufferGeometry | Material>();

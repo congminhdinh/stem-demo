@@ -101,13 +101,13 @@ export function StudioLighting({ span, look, shadows, mapSize, viewForward }: St
         ref={key}
         position={keyAt}
         color={colors.sun}
-        intensity={2.1}
+        intensity={3}
         castShadow={shadows}
         shadow-mapSize={[mapSize || 512, mapSize || 512]}
         shadow-bias={-0.0002}
         shadow-normalBias={0.0025}
       />
-      <directionalLight ref={rim} position={rimAt} color={colors.rim} intensity={0.7} />
+      <directionalLight ref={rim} position={rimAt} color={colors.rim} intensity={0.8} />
     </>
   );
 }

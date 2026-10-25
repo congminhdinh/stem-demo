@@ -30,7 +30,8 @@ export const TABLE_MARGIN_M = 0.32;
 export const MAT_THICKNESS_M = 0.0015;
 
 export type ArenaMovers = Map<string, { node: Object3D; heightM: number }>;
-export type AssembledArena = { root: Group; movers: ArenaMovers; dispose(): void };
+/** `overhead`: the dressing over the mat (a gantry, a carport roof), which the plan view hides so the floor reads. */
+export type AssembledArena = { root: Group; overhead: Group; movers: ArenaMovers; dispose(): void };
 
 export type ArenaAssemblyOptions = {
   shadows: boolean;
@@ -383,6 +384,7 @@ export function assembleArena(scenario: Pick<Scenario, 'arena'>, source: PropSou
 
   return {
     root,
+    overhead,
     movers,
     dispose() {
       for (const geometry of owned.geometries) geometry.dispose();

@@ -10,7 +10,8 @@ import { loadRobotAssets } from './assets/robot-assets';
 import { createTextureSet } from './assets/textures';
 import type { ArenaSpan, CameraMode } from './camera';
 import { CameraRig } from './CameraRig';
-import { freeViewForward } from './camera-studio';
+import { freeViewForward, sightWalls, type FreeViewScene } from './camera-studio';
+import type { HudCorner } from './hud-corner';
 import { robot3dColors as colors } from './colors';
 import { tierLook } from './lighting/look';
 import { StudioLighting } from './lighting/StudioLighting';
@@ -45,6 +46,8 @@ export type SceneProps = {
   onFirstFrame?(): void;
   /** N18 R4.7: a new value puts the current camera view back where it starts ("đặt lại góc nhìn"). */
   resetKey?: number;
+  /** N18 R4.7: where the HUD covers the view (NDC), which the free view frames the lesson clear of. */
+  hud?: HudCorner | null;
 };
 
 /** The camera's vertical field of view, degrees. */
@@ -162,6 +165,7 @@ type ContentProps = {
   tier: QualityTier;
   zoneLabel: (zone: PaintZone) => string | null;
   viewForward: readonly [number, number];
+  cameraMode: CameraMode;
 };
 
 /** The parts each of the modelled files must have for the view to use them; without one, the procedural view is drawn. */
@@ -172,7 +176,7 @@ const NEEDED_PROPS = ['prop_wall', 'prop_block', 'prop_cardboard', 'prop_cone', 
  * What the canvas shows (N18 R4.7): the modelled robot and arena under the studio light once their files are in (the canvas waits for
  * them under "Đang tải 3D…", Suspense), or R4.2's procedural shapes when the files do not load.
  */
-function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewForward }: ContentProps) {
+function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewForward, cameraMode }: ContentProps) {
   const look = tierLook[tier];
   const assets = use(loadRobotAssets(look.detail));
   const gl = useThree((state) => state.gl);
@@ -202,19 +206,24 @@ function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewF
     <>
       <color attach="background" args={[colors.studioFog]} />
       <StudioLighting span={span} look={look} shadows={shadows} mapSize={settings.shadowMapSize} viewForward={viewForward} />
-      <GltfArena assets={assets} scenario={scenario} view={view} look={look} shadows={shadows} textures={textures} labels={labels} viewForward={viewForward} />
+      <GltfArena assets={assets} planView={cameraMode === 'top'} scenario={scenario} view={view} look={look} shadows={shadows} textures={textures} labels={labels} viewForward={viewForward} />
       <GltfRobot assets={assets} kit={kit} model={model} scenario={scenario} view={view} detail={look.detail} shadows={shadows} blob={textures.blob} />
     </>
   );
 }
 
-export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored, onFirstFrame, resetKey }: SceneProps) {
+export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored, onFirstFrame, resetKey, hud = null }: SceneProps) {
   const settings = tierSettings[tier];
   const idle = useMemo(() => idleSnapshot(scenario, kit), [scenario, kit]);
   const view = useCallback(() => store.getState().latestWorld() ?? idle, [store, idle]);
   const [widthCm, depthCm] = scenario.arena.ground.sizeCm;
   const span = useMemo<ArenaSpan>(() => ({ widthM: widthCm / 100, depthM: depthCm / 100 }), [widthCm, depthCm]);
-  const viewForward = useMemo(() => freeViewForward(span, scenario.start), [span, scenario.start]);
+  const freeView = useMemo<FreeViewScene>(
+    () => ({ start: scenario.start, goals: scenario.arena.paint.zones.filter((zone) => zone.kind === 'target' || zone.kind === 'checkpoint').map((zone) => zone.polygonCm) }),
+    [scenario],
+  );
+  const viewForward = useMemo(() => freeViewForward(freeView), [freeView]);
+  const walls = useMemo(() => sightWalls(scenario.arena.walls), [scenario]);
   return (
     <Canvas
       className="robot-canvas"
@@ -227,10 +236,10 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
       camera={{ fov: FOV_DEG, near: 0.01, far: 60, position: [span.widthM / 2, 1, 1] }}
     >
       <Suspense fallback={null}>
-        <SceneContent scenario={scenario} kit={kit} model={model} view={view} span={span} tier={tier} zoneLabel={zoneLabel} viewForward={viewForward} />
+        <SceneContent scenario={scenario} kit={kit} model={model} view={view} span={span} tier={tier} zoneLabel={zoneLabel} viewForward={viewForward} cameraMode={cameraMode} />
         {onFirstFrame && <FirstFrame onDrawn={onFirstFrame} />}
       </Suspense>
-      <CameraRig mode={cameraMode} span={span} start={scenario.start} view={view} reducedMotion={reducedMotion} resetKey={resetKey} />
+      <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} resetKey={resetKey} hud={hud} walls={walls} />
       <RedrawOnChange store={store} />
       <ContextWatch onLost={onContextLost} onRestored={onContextRestored} />
     </Canvas>

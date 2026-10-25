@@ -22,6 +22,6 @@ export type TierLook = {
 };
 
 export const tierLook: Readonly<Record<QualityTier, Readonly<TierLook>>> = {
-  high: { detail: 'high', environment: 0.85, fill: 0.35, shadowRadius: 2.5, matNormal: true },
+  high: { detail: 'high', environment: 1, fill: 0.3, shadowRadius: 2.5, matNormal: true },
   low: { detail: 'low', environment: 0, fill: 1.6, shadowRadius: 0, matNormal: false },
 };

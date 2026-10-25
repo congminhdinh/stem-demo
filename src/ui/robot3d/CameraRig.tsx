@@ -4,25 +4,31 @@ import { MOUSE, Vector3, type PerspectiveCamera } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { RobotSnapshot } from '../../core/world/snapshot';
 import { cameraLimits, topPose, type ArenaSpan, type CameraMode, type CameraPose } from './camera';
-import { chaseViewPose, freeViewPose } from './camera-studio';
+import { chaseViewPose, clearSight, freeViewPose, VIEW_SAFE_RECT, type FreeViewScene, type SightWall } from './camera-studio';
+import type { HudCorner } from './hud-corner';
 import { arenaToThree } from './scene-math';
 
 // The camera of the robot lab's 3D view (N18 R4.2; R4.7 gives it depth). three's own OrbitControls (ADR 0002 §5: no drei), wired by
 // hand: every change asks for a frame (the canvas draws on demand). Three views: "Tự do" (orbit; it opens low behind and beside the
-// robot's start, the arena receding, camera-studio.ts), "Theo xe" (a chase camera low behind the robot that swings round as it turns;
-// the learner may orbit it, and the chase keeps the angle they leave it at) and "Nhìn từ trên" (straight down, pan and zoom only).
+// robot's start, the arena receding, camera-studio.ts), "Theo xe" (a chase camera low behind the robot that swings round as it turns
+// and rises to look over a wall between them; the learner may orbit it, and the chase keeps the angle they leave it at) and "Nhìn từ
+// trên" (straight down, pan and zoom only).
 // Going from one view to another, and "đặt lại góc nhìn" (a new `resetKey`), glides for a moment, unless the learner asked for reduced
 // motion: then it jumps, and nothing eases, drifts or trails.
 
 type CameraRigProps = {
   mode: CameraMode;
   span: ArenaSpan;
-  /** The robot's start (arena cm, yaw deg): the free view is framed from behind it. */
-  start: { xCm: number; yCm: number; yawDeg: number };
+  /** The robot's start and the lesson's goal zones: the free view is framed from behind the one over to the other. */
+  free: FreeViewScene;
   view: () => RobotSnapshot;
   reducedMotion: boolean;
   /** A new value puts the current view's camera back where the view starts. */
   resetKey?: number;
+  /** Where the HUD covers the view (NDC): the free view frames the lesson clear of it; until it is measured, a default corner. */
+  hud?: HudCorner | null;
+  /** The arena's walls: the chase camera rises to look over any between it and the robot. */
+  walls?: readonly SightWall[];
 };
 
 /** How long the camera glides from one view to the next, s. */
@@ -45,7 +51,7 @@ const defaultChase = (): ChaseOffset => {
   return { forward: pose.position[0] - pose.target[0], up: pose.position[1] - pose.target[1], side: pose.position[2] - pose.target[2], ahead: pose.target[0] };
 };
 
-export function CameraRig({ mode, span, start, view, reducedMotion, resetKey = 0 }: CameraRigProps) {
+export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0, hud = null, walls = [] }: CameraRigProps) {
   const camera = useThree((state) => state.camera) as PerspectiveCamera;
   const dom = useThree((state) => state.gl.domElement);
   const invalidate = useThree((state) => state.invalidate);
@@ -54,17 +60,21 @@ export function CameraRig({ mode, span, start, view, reducedMotion, resetKey = 0
   const glide = useRef<Glide | null>(null);
   const placed = useRef(false);
   const dragging = useRef(false);
+  /** The learner has moved the camera since the view was last placed: a new HUD size then leaves it where it is. */
+  const moved = useRef(false);
   const chase = useRef<ChaseOffset>(defaultChase());
   // Read when the view changes, without being a reason to change it: a new window shape or a switch of reduced motion keeps the camera.
-  const latest = useRef({ aspect, reducedMotion, view, span, start, mode });
+  const safe = useMemo(() => (hud ? { ...VIEW_SAFE_RECT, hud: { right: Math.min(0.9, hud.right), bottom: Math.max(-0.2, hud.bottom) } } : VIEW_SAFE_RECT), [hud]);
+  const latest = useRef({ aspect, reducedMotion, view, span, free, mode, safe, walls });
   useEffect(() => {
-    latest.current = { aspect, reducedMotion, view, span, start, mode };
+    latest.current = { aspect, reducedMotion, view, span, free, mode, safe, walls };
   });
 
   useEffect(() => {
     const onChange = () => invalidate();
     const onStart = () => {
       dragging.current = true;
+      moved.current = true;
     };
     const onEnd = () => {
       dragging.current = false;
@@ -113,15 +123,16 @@ export function CameraRig({ mode, span, start, view, reducedMotion, resetKey = 0
     const [c, s] = [Math.cos(yaw), Math.sin(yaw)];
     const { forward, up, side, ahead } = chase.current;
     const target: [number, number, number] = [px + ahead * c, py + 0.03, pz - ahead * s];
-    return { position: [target[0] + forward * c + side * s, target[1] + up, target[2] - forward * s + side * c], target };
+    return clearSight({ position: [target[0] + forward * c + side * s, target[1] + up, target[2] - forward * s + side * c], target }, latest.current.walls);
   };
 
   // A new view (or a reset): the camera goes to its pose (at once the first time, or with reduced motion), and the controls take its rules.
   useEffect(() => {
-    const { aspect: ratio, reducedMotion: jump, view: now, span: arena, start: from } = latest.current;
+    const { aspect: ratio, reducedMotion: jump, view: now, span: arena, free: scene, safe: rect } = latest.current;
+    moved.current = false;
     const world = now();
     chase.current = defaultChase();
-    const goal = mode === 'top' ? topPose(arena, camera.fov, ratio) : mode === 'follow' ? chaseGoal(world) : freeViewPose(arena, from, camera.fov, ratio);
+    const goal = mode === 'top' ? topPose(arena, camera.fov, ratio) : mode === 'follow' ? chaseGoal(world) : freeViewPose(arena, scene, camera.fov, ratio, rect);
     controls.enableRotate = mode !== 'top';
     controls.mouseButtons.LEFT = mode === 'top' ? MOUSE.PAN : MOUSE.ROTATE;
     // A drag's damped momentum would carry on through the glide and past it: spend it now (without damping, update() applies what is
@@ -141,6 +152,17 @@ export function CameraRig({ mode, span, start, view, reducedMotion, resetKey = 0
     invalidate();
     // chaseGoal reads refs only.
   }, [mode, resetKey, controls, camera, invalidate]);
+
+  // The HUD measured (or grown) before the learner touched the camera: the free view is framed again for it, at once.
+  useEffect(() => {
+    const { aspect: ratio, span: arena, free: scene } = latest.current;
+    if (mode !== 'orbit' || moved.current || !placed.current || glide.current) return;
+    const goal = freeViewPose(arena, scene, camera.fov, ratio, safe);
+    camera.position.set(...goal.position);
+    controls.target.set(...goal.target);
+    controls.update();
+    invalidate();
+  }, [safe, mode, camera, controls, invalidate]);
 
   useFrame((_, delta) => {
     const moving = glide.current;
