@@ -1,0 +1,45 @@
+{
+  "key": "rb-sandbox",
+  "version": 1,
+  "title": { "vi": "Sân tập tự do", "en": "Free sandbox" },
+  "profile": "uno-basic",
+  "kit": "ref-uno-rover",
+  "arena": {
+    "ground": { "sizeCm": [200, 150], "color": "#f2f2f2" },
+    "paint": {
+      "lines": [
+        { "pointsCm": [[60, 30], [150, 30], [170, 50], [170, 100], [150, 120], [60, 120], [40, 100], [40, 50], [60, 30]], "widthCm": 2.5 }
+      ],
+      "zones": [
+        { "id": "start", "kind": "start", "polygonCm": [[66, 18], [94, 18], [94, 42], [66, 42]], "color": "#cfe2f3" },
+        { "id": "garage", "kind": "target", "polygonCm": [[165, 8], [195, 8], [195, 30], [165, 30]], "color": "#d9ead3" }
+      ]
+    },
+    "walls": [
+      { "fromCm": [0, 1], "toCm": [200, 1] },
+      { "fromCm": [0, 149], "toCm": [200, 149] },
+      { "fromCm": [1, 0], "toCm": [1, 150] },
+      { "fromCm": [199, 0], "toCm": [199, 150] }
+    ],
+    "boxes": [
+      { "id": "block", "centerCm": [105, 75], "sizeCm": [20, 20, 10], "tags": [] }
+    ],
+    "cylinders": [
+      { "id": "pole", "centerCm": [20, 130], "radiusCm": 4, "heightCm": 20, "tags": [] }
+    ]
+  },
+  "start": { "xCm": 80, "yCm": 30, "yawDeg": 0 },
+  "variants": { "count": 1, "seed": 0, "startJitterCm": 0, "yawJitterDeg": 0 },
+  "timeLimitS": 300,
+  "goals": [],
+  "scoring": {},
+  "starter": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        { "type": "stem_on_start", "id": "on-start", "x": 40, "y": 40 },
+        { "type": "stem_forever", "id": "forever", "x": 40, "y": 160 }
+      ]
+    }
+  }
+}

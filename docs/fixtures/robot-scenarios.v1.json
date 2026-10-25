@@ -1,4 +1,111 @@
 {
-  "scenarios": [],
+  "scenarios": [
+    {
+      "goalIds": [
+        "reach-target",
+        "stop-in-target"
+      ],
+      "hasGoals": true,
+      "key": "rb-drive-to-zone",
+      "maxScore": 100,
+      "profile": "uno-basic",
+      "title": {
+        "en": "Drive to the zone",
+        "vi": "Chạy tới vùng đích"
+      },
+      "version": 1
+    },
+    {
+      "goalIds": [
+        "half-square",
+        "full-square",
+        "use-repeat"
+      ],
+      "hasGoals": true,
+      "key": "rb-square-route",
+      "maxScore": 100,
+      "profile": "uno-basic",
+      "title": {
+        "en": "Drive a square",
+        "vi": "Đi theo hình vuông"
+      },
+      "version": 1
+    },
+    {
+      "goalIds": [
+        "stop-near-wall",
+        "no-crash"
+      ],
+      "hasGoals": true,
+      "key": "rb-stop-at-wall",
+      "maxScore": 100,
+      "profile": "uno-basic",
+      "title": {
+        "en": "Stop at the wall",
+        "vi": "Dừng trước tường"
+      },
+      "version": 1
+    },
+    {
+      "goalIds": [
+        "follow-line",
+        "reach-finish"
+      ],
+      "hasGoals": true,
+      "key": "rb-line-follow",
+      "maxScore": 100,
+      "profile": "uno-basic",
+      "title": {
+        "en": "Follow the line",
+        "vi": "Bám theo vạch kẻ"
+      },
+      "version": 1
+    },
+    {
+      "goalIds": [
+        "flag-at-gate",
+        "stop-at-gate",
+        "no-crash"
+      ],
+      "hasGoals": true,
+      "key": "rb-servo-gate",
+      "maxScore": 100,
+      "profile": "uno-basic",
+      "title": {
+        "en": "Open the gate with a servo",
+        "vi": "Mở cổng bằng servo"
+      },
+      "version": 1
+    },
+    {
+      "goalIds": [
+        "route",
+        "follow-line",
+        "no-bump",
+        "park",
+        "in-time"
+      ],
+      "hasGoals": true,
+      "key": "rb-mini-mission",
+      "maxScore": 100,
+      "profile": "uno-basic",
+      "title": {
+        "en": "Mini mission",
+        "vi": "Nhiệm vụ tổng hợp"
+      },
+      "version": 1
+    },
+    {
+      "goalIds": [],
+      "hasGoals": false,
+      "key": "rb-sandbox",
+      "profile": "uno-basic",
+      "title": {
+        "en": "Free sandbox",
+        "vi": "Sân tập tự do"
+      },
+      "version": 1
+    }
+  ],
   "schema": "robot-scenarios/v1"
 }

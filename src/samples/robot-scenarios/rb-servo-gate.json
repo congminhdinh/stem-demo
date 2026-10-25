@@ -1,0 +1,83 @@
+{
+  "key": "rb-servo-gate",
+  "version": 1,
+  "title": { "vi": "Mở cổng bằng servo", "en": "Open the gate with a servo" },
+  "profile": "uno-basic",
+  "kit": "ref-uno-rover",
+  "arena": {
+    "ground": { "sizeCm": [160, 100], "color": "#f2f2f2" },
+    "paint": {
+      "zones": [
+        { "id": "start", "kind": "start", "polygonCm": [[25, 30], [55, 30], [55, 70], [25, 70]], "color": "#cfe2f3" },
+        { "id": "gate-zone", "kind": "target", "polygonCm": [[108, 20], [128, 20], [128, 80], [108, 80]], "color": "#d9ead3" }
+      ]
+    },
+    "walls": [
+      { "fromCm": [0, 1], "toCm": [160, 1] },
+      { "fromCm": [0, 99], "toCm": [160, 99] },
+      { "fromCm": [1, 0], "toCm": [1, 100] },
+      { "fromCm": [159, 0], "toCm": [159, 100] }
+    ],
+    "boxes": [
+      { "id": "gate", "centerCm": [143, 50], "sizeCm": [6, 60, 12], "tags": ["gate"] }
+    ]
+  },
+  "start": { "xCm": 40, "yCm": 50, "yawDeg": 0 },
+  "variants": { "count": 3, "seed": 1409, "startJitterCm": 18, "yawJitterDeg": 5 },
+  "timeLimitS": 20,
+  "goals": [
+    {
+      "id": "flag-at-gate",
+      "kind": "servo-angle",
+      "label": { "vi": "Giơ cờ (servo 135°–180°) khi đứng ở cổng", "en": "Raise the flag (servo 135° to 180°) at the gate" },
+      "points": 50,
+      "role": "servo1",
+      "minDeg": 135,
+      "maxDeg": 180,
+      "whenInZone": "gate-zone"
+    },
+    {
+      "id": "stop-at-gate",
+      "kind": "stop-in-zone",
+      "label": { "vi": "Xe dừng hẳn trước cổng", "en": "The robot stops in front of the gate" },
+      "points": 30,
+      "zone": "gate-zone",
+      "maxSpeedCmS": 2,
+      "holdS": 1
+    },
+    {
+      "id": "no-crash",
+      "kind": "avoid-contact",
+      "label": { "vi": "Xe không chạm cổng", "en": "The robot does not touch the gate" },
+      "points": 20,
+      "tag": "gate"
+    }
+  ],
+  "scoring": {},
+  "starter": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        { "type": "stem_forever", "id": "forever", "x": 40, "y": 40 },
+        {
+          "type": "uno_drive_move",
+          "id": "prepared-drive",
+          "fields": { "DIRECTION": "forward" },
+          "inputs": {
+            "SPEED": {
+              "shadow": {
+                "type": "math_number",
+                "id": "prepared-drive-speed",
+                "fields": { "NUM": 50 }
+              }
+            }
+          },
+          "x": 40,
+          "y": 160,
+          "disabledReasons": ["ORPHANED_BLOCK"]
+        }
+      ]
+    }
+  },
+  "toolbox": ["stem_on_start", "stem_forever", "math_number", "ybc_wait_ms", "uno_drive_move", "uno_drive_stop", "uno_motor_set", "controls_repeat_ext", "ybc_while", "controls_if", "logic_compare", "logic_operation", "logic_negate", "logic_boolean", "uno_ultrasonic_cm", "uno_servo_set", "text_print", "text"]
+}

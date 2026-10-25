@@ -1,0 +1,70 @@
+{
+  "key": "rb-stop-at-wall",
+  "version": 1,
+  "title": { "vi": "Dừng trước tường", "en": "Stop at the wall" },
+  "profile": "uno-basic",
+  "kit": "ref-uno-rover",
+  "arena": {
+    "ground": { "sizeCm": [160, 100], "color": "#f2f2f2" },
+    "paint": {
+      "zones": [
+        { "id": "start", "kind": "start", "polygonCm": [[25, 30], [65, 30], [65, 70], [25, 70]], "color": "#cfe2f3" },
+        { "id": "stop-zone", "kind": "target", "polygonCm": [[126, 10], [146, 10], [146, 90], [126, 90]], "color": "#d9ead3" }
+      ]
+    },
+    "walls": [
+      { "fromCm": [0, 1], "toCm": [160, 1] },
+      { "fromCm": [0, 99], "toCm": [160, 99] },
+      { "fromCm": [1, 0], "toCm": [1, 100] },
+      { "id": "front-wall", "fromCm": [159, 0], "toCm": [159, 100] }
+    ]
+  },
+  "start": { "xCm": 45, "yCm": 50, "yawDeg": 0 },
+  "variants": { "count": 3, "seed": 3004, "startJitterCm": 18, "yawJitterDeg": 5 },
+  "timeLimitS": 20,
+  "goals": [
+    {
+      "id": "stop-near-wall",
+      "kind": "stop-in-zone",
+      "label": { "vi": "Xe dừng hẳn trong vùng trước tường", "en": "The robot stops in the zone in front of the wall" },
+      "points": 70,
+      "zone": "stop-zone",
+      "maxSpeedCmS": 2,
+      "holdS": 1
+    },
+    {
+      "id": "no-crash",
+      "kind": "avoid-contact",
+      "label": { "vi": "Xe không chạm tường", "en": "The robot does not touch a wall" },
+      "points": 30,
+      "tag": "wall"
+    }
+  ],
+  "scoring": {},
+  "starter": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        { "type": "stem_forever", "id": "forever", "x": 40, "y": 40 },
+        {
+          "type": "uno_drive_move",
+          "id": "prepared-drive",
+          "fields": { "DIRECTION": "forward" },
+          "inputs": {
+            "SPEED": {
+              "shadow": {
+                "type": "math_number",
+                "id": "prepared-drive-speed",
+                "fields": { "NUM": 50 }
+              }
+            }
+          },
+          "x": 40,
+          "y": 160,
+          "disabledReasons": ["ORPHANED_BLOCK"]
+        }
+      ]
+    }
+  },
+  "toolbox": ["stem_on_start", "stem_forever", "math_number", "ybc_wait_ms", "uno_drive_move", "uno_drive_stop", "uno_motor_set", "controls_repeat_ext", "ybc_while", "controls_if", "logic_compare", "logic_operation", "logic_negate", "logic_boolean", "uno_ultrasonic_cm", "text_print", "text"]
+}

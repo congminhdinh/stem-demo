@@ -1,0 +1,78 @@
+{
+  "key": "rb-square-route",
+  "version": 1,
+  "title": { "vi": "Đi theo hình vuông", "en": "Drive a square" },
+  "profile": "uno-basic",
+  "kit": "ref-uno-rover",
+  "arena": {
+    "ground": { "sizeCm": [130, 130], "color": "#f2f2f2" },
+    "paint": {
+      "zones": [
+        { "id": "start", "kind": "start", "polygonCm": [[22, 22], [48, 22], [48, 48], [22, 48]], "color": "#cfe2f3" },
+        { "id": "cp-1", "kind": "checkpoint", "polygonCm": [[53, 20], [77, 20], [77, 50], [53, 50]], "color": "#fff2cc" },
+        { "id": "cp-2", "kind": "checkpoint", "polygonCm": [[80, 53], [110, 53], [110, 77], [80, 77]], "color": "#fff2cc" },
+        { "id": "cp-3", "kind": "checkpoint", "polygonCm": [[53, 80], [77, 80], [77, 110], [53, 110]], "color": "#fff2cc" },
+        { "id": "cp-4", "kind": "checkpoint", "polygonCm": [[20, 53], [50, 53], [50, 77], [20, 77]], "color": "#fff2cc" }
+      ]
+    },
+    "walls": [
+      { "fromCm": [0, 1], "toCm": [130, 1] },
+      { "fromCm": [0, 129], "toCm": [130, 129] },
+      { "fromCm": [1, 0], "toCm": [1, 130] },
+      { "fromCm": [129, 0], "toCm": [129, 130] }
+    ]
+  },
+  "start": { "xCm": 35, "yCm": 35, "yawDeg": 0 },
+  "variants": { "count": 1, "seed": 2, "startJitterCm": 0, "yawJitterDeg": 0 },
+  "timeLimitS": 40,
+  "goals": [
+    {
+      "id": "half-square",
+      "kind": "checkpoints-in-order",
+      "label": { "vi": "Đi qua điểm 1 rồi điểm 2", "en": "Pass checkpoint 1, then checkpoint 2" },
+      "points": 30,
+      "zones": ["cp-1", "cp-2"]
+    },
+    {
+      "id": "full-square",
+      "kind": "checkpoints-in-order",
+      "label": { "vi": "Đi qua đủ 4 điểm theo thứ tự", "en": "Pass all 4 checkpoints in order" },
+      "points": 50,
+      "zones": ["cp-1", "cp-2", "cp-3", "cp-4"]
+    },
+    {
+      "id": "use-repeat",
+      "kind": "uses-block",
+      "label": { "vi": "Dùng khối lặp lại", "en": "Use a repeat block" },
+      "points": 20,
+      "blockType": "controls_repeat_ext"
+    }
+  ],
+  "scoring": {},
+  "starter": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        { "type": "stem_on_start", "id": "on-start", "x": 40, "y": 40 },
+        {
+          "type": "uno_drive_move",
+          "id": "prepared-drive",
+          "fields": { "DIRECTION": "forward" },
+          "inputs": {
+            "SPEED": {
+              "shadow": {
+                "type": "math_number",
+                "id": "prepared-drive-speed",
+                "fields": { "NUM": 50 }
+              }
+            }
+          },
+          "x": 40,
+          "y": 160,
+          "disabledReasons": ["ORPHANED_BLOCK"]
+        }
+      ]
+    }
+  },
+  "toolbox": ["stem_on_start", "stem_forever", "math_number", "ybc_wait_ms", "uno_drive_move", "uno_drive_stop", "uno_motor_set", "controls_repeat_ext"]
+}
