@@ -27,7 +27,9 @@ function required<K extends keyof Capabilities>(capabilities: Capabilities, key:
   return capability as NonNullable<Capabilities[K]>;
 }
 
-const isRole = (role: unknown): role is RobotRole => robotRoles.some((known) => known === role);
+/** The roles of a robot, for a lookup that allocates nothing (N18 P1: a module op of a tight loop names its role every time). */
+const roles: ReadonlySet<unknown> = new Set<unknown>(robotRoles);
+const isRole = (role: unknown): role is RobotRole => roles.has(role);
 
 function roleOf(operand: RoleOperand | undefined): RobotRole {
   if (operand?.kind !== 'role' || !isRole(operand.role)) {
@@ -53,19 +55,22 @@ function argument(args: readonly Value[], index: number): Value {
   return value;
 }
 
-/** The two motors' speeds of the drive (contract UNO U-21): the speed once, −s as neg32 (`| 0`), each then clamped as U-20. */
-function driveSpeeds(direction: unknown, speed: number): [left: number, right: number] {
+/**
+ * The speed of one motor of the drive (contract UNO U-21): the speed once, −s as neg32 (`| 0`), each then clamped as U-20. N18 P1: one
+ * motor at a time, so a drive in a tight loop makes no pair.
+ */
+function driveSpeed(direction: unknown, speed: number, motor: 'left' | 'right'): number {
   const s = speed | 0;
   const minus = -s | 0;
   switch (direction) {
     case 'forward':
-      return [s, s];
+      return s;
     case 'backward':
-      return [minus, minus];
+      return minus;
     case 'spinLeft':
-      return [minus, s];
+      return motor === 'left' ? minus : s;
     case 'spinRight':
-      return [s, minus];
+      return motor === 'left' ? s : minus;
     default:
       throw new RuntimeFault('internal-error', 'A drive block names a direction that does not exist.');
   }
@@ -82,7 +87,10 @@ export function runModuleCall(statement: ModuleCallStatement, args: readonly Val
     }
     case 'drive.move': {
       // Both motors through their own role: each clamps its own speed and is warned of on its own (U-21).
-      const [left, right] = driveSpeeds(statement.operand.kind === 'drive' ? statement.operand.direction : undefined, asInt(argument(args, 0)));
+      const direction = statement.operand.kind === 'drive' ? statement.operand.direction : undefined;
+      const speed = asInt(argument(args, 0));
+      const left = driveSpeed(direction, speed, 'left');
+      const right = driveSpeed(direction, speed, 'right');
       modules.call('motorLeft', 'motor.set', [clamped(left, SPEED_RANGE, 'motorLeft', roleNames.motorLeft, onClamp)]);
       modules.call('motorRight', 'motor.set', [clamped(right, SPEED_RANGE, 'motorRight', roleNames.motorRight, onClamp)]);
       return;
@@ -121,11 +129,19 @@ function boardInt(value: number | boolean, low: number, high: number, what: stri
   return int(value === 0 ? 0 : value);
 }
 
+/**
+ * N18 P1: the two truth values a read gives, one object each: a loop() reads its sensors some hundred times a tick, and a value is
+ * never written to (a variable, an operation and a comparison each make or take a value, none changes one).
+ */
+const TRUE_VALUE = bool(true);
+const FALSE_VALUE = bool(false);
+const truthValue = (value: boolean): Value => (value ? TRUE_VALUE : FALSE_VALUE);
+
 function boardBool(value: number | boolean): Value {
   if (typeof value !== 'boolean') {
     throw new RuntimeFault('internal-error', 'A sensor gave no true / false value.');
   }
-  return bool(value);
+  return truthValue(value);
 }
 
 /** A module read of a uno program (U-19, U-27…U-30), as the board answers it. */
@@ -177,7 +193,7 @@ export function runBoardPinRead(op: 'digital.read' | 'analogIn.read', operand: B
   const pin = pinOf(operand);
   if (op === 'digital.read') {
     // `(digitalRead(<pin>) == HIGH)`: a truth value whatever the call returns.
-    return bool(required(capabilities, 'digital').digitalRead(pin) === 1);
+    return truthValue(required(capabilities, 'digital').digitalRead(pin) === 1);
   }
   return boardInt(required(capabilities, 'analogIn').analogRead(pin), 0, UNO_ADC_MAX, 'The analog value');
 }

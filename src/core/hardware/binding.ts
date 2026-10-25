@@ -16,6 +16,9 @@ import type { PinMode, VirtualUno } from './virtual-uno';
 // the kit is set up. A role or op the kit lacks is refused by the compiler (capability-unavailable); reaching one here is a
 // programmer error and throws.
 
+/** The arguments of a read (N18 P1: one array for every read, never written). */
+const NO_ARGS: readonly number[] = Object.freeze([]);
+
 export type ModuleBinding = ModuleIO & {
   /** The module uses this binding set up. */
   readonly uses: readonly ModuleUse[];
@@ -34,11 +37,16 @@ export function createModuleIO(kit: Kit, uno: VirtualUno, uses: readonly ModuleU
       return port ? [[module.role, { port, ops: new Set(roleOps(kit, uno.board, module.role)) }] as const] : [];
     }),
   );
-  const resolve = (role: string, op: string, kind: DriverOp['kind']): { port: KitPort; driverOp: DriverOp } => {
+  /** The port of `role` and the ops it offers; throws for a role the kit lacks. (N18 P1: a call or read allocates nothing here.) */
+  const entryOf = (role: string): { port: KitPort; ops: ReadonlySet<string> } => {
     const entry = offered.get(role);
     if (!entry) {
       throw new Error(`Kit ${kit.id}@${kit.version} has no ${role}`);
     }
+    return entry;
+  };
+  /** The driver op `op` of `role` (its `entry`), of `kind`; throws for an op the role lacks or of another kind. */
+  const driverOpOf = (role: string, entry: { port: KitPort; ops: ReadonlySet<string> }, op: string, kind: DriverOp['kind']): DriverOp => {
     const { port } = entry;
     const driverOp = drivers[port.driver].ops[op];
     if (!driverOp || !entry.ops.has(op)) {
@@ -47,10 +55,31 @@ export function createModuleIO(kit: Kit, uno: VirtualUno, uses: readonly ModuleU
     if (driverOp.kind !== kind) {
       throw new Error(`${op} is a ${driverOp.kind}, not a ${kind}`);
     }
-    return { port, driverOp };
+    return driverOp;
   };
 
-  const clampArgs = (role: string, op: string, driverOp: DriverOp, args: readonly number[]): number[] =>
+  /** Whether `args` are what `clampArgs` would give: one per argument, each a truth value or a whole number within its range. */
+  const inRange = (driverOp: DriverOp, args: readonly number[]): boolean => {
+    if (args.length !== driverOp.args.length) {
+      return false;
+    }
+    for (let index = 0; index < args.length; index++) {
+      const range = driverOp.args[index];
+      const value = args[index];
+      if (typeof value !== 'number' || (range !== null && range !== undefined && clampTo(range, value) !== value)) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  /**
+   * The arguments clamped to their ranges, a warning for each one that had to be; `args` itself when none has to be (N18 P1, and the
+   * clamping is a function of its own: a function with a closure over its parameters gets a context on every call).
+   */
+  const clampArgs = (role: string, op: string, driverOp: DriverOp, args: readonly number[]): readonly number[] =>
+    inRange(driverOp, args) ? args : clampedArgs(role, op, driverOp, args);
+  const clampedArgs = (role: string, op: string, driverOp: DriverOp, args: readonly number[]): number[] =>
     driverOp.args.map((range, index) => {
       const value = args[index] ?? 0;
       if (range === null) {
@@ -69,8 +98,9 @@ export function createModuleIO(kit: Kit, uno: VirtualUno, uses: readonly ModuleU
     });
 
   const callOp = (role: string, op: string, args: readonly number[]) => {
-    const { port, driverOp } = resolve(role, op, 'call');
-    driverOp.sim(io, port, clampArgs(role, op, driverOp, args));
+    const entry = entryOf(role);
+    const driverOp = driverOpOf(role, entry, op, 'call');
+    driverOp.sim(io, entry.port, clampArgs(role, op, driverOp, args));
   };
 
   const drive = (op: string, args: readonly number[]) => {
@@ -136,8 +166,9 @@ export function createModuleIO(kit: Kit, uno: VirtualUno, uses: readonly ModuleU
       if (role === CLOCK_ROLE && op === MILLIS_OP) {
         return uno.millis();
       }
-      const { port, driverOp } = resolve(role, op, 'read');
-      const value = driverOp.sim(io, port, []);
+      const entry = entryOf(role);
+      const driverOp = driverOpOf(role, entry, op, 'read');
+      const value = driverOp.sim(io, entry.port, NO_ARGS);
       if (typeof value !== 'number' && typeof value !== 'boolean') {
         throw new Error(`${op} on ${role} gave no value`);
       }
