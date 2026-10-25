@@ -29,6 +29,9 @@ export type MatScenario = Pick<Scenario, 'key' | 'version' | 'title' | 'arena' |
 /** The resolution of the PNG, dots per inch (it is the true-scale mat: 1 cm is 59.06 px). */
 export const MAT_DPI = 150;
 export const CM_PER_INCH = 2.54;
+/** A PDF's unit: 72 points to the inch (a point is 0.3528 mm). */
+export const POINTS_PER_INCH = 72;
+export const POINTS_PER_CM = POINTS_PER_INCH / CM_PER_INCH;
 /** The length of the scale bar of the legend, centimetres: what a printed mat is measured against. */
 export const SCALE_BAR_CM = 10;
 /** A4 portrait, centimetres. */
@@ -320,7 +323,6 @@ function insidePolygon(points: readonly PointCm[], px: number, py: number): bool
   }
   return inside;
 }
-
 
 /**
  * The air around a label of this size centred on (`px`, `py`): the least clearance (see `clearanceAt`) over points a centimetre apart along its

@@ -59,7 +59,7 @@ class Failure extends Error {
 }
 
 const messageOf = (error) => (error instanceof Error ? error.message : String(error));
-const usage = 'Usage: node scripts/export-arena-mat.mjs <rb-key|all> [--out <dir>]';
+const usage = 'Usage: node scripts/export-arena-mat.mjs <rb-key|all> [--out <dir>]   or   node scripts/export-arena-mat.mjs --print-cache-dir';
 
 /** The Vite config of the script's server: the repo's, with the server of a script (no HMR, no watcher) and a cache of its own (see the header). */
 const viteOptions = {
@@ -127,7 +127,6 @@ function embeddedFontCss() {
 const CHROMIUM_MISSING = 'Chromium is not installed for Playwright: run `pnpm exec playwright install chromium` and try again.';
 /** The window of the page one screenshot takes of the PNG, in pixels each way. */
 const TILE_PX = 2048;
-const CM_PER_INCH = 2.54;
 /** How far a PDF page may be from the size asked for, points, once its box is set (the box is written to a thousandth of a point). */
 const MEDIA_BOX_TOLERANCE_PT = 0.005;
 
@@ -158,9 +157,9 @@ async function fontsReady(page, fontCss) {
  * Chromium's PDF page is a point off at most (it rounds the page to device units: scripts/lib/pdf-page-box.ts), so the box is set to the exact
  * size, then read back from the file: the page count and the size of every page are what the file says, not what was asked for.
  */
-function exactPages(file, pdf, pages, expectedPages, widthCm, heightCm) {
-  const widthPt = (widthCm / CM_PER_INCH) * 72;
-  const heightPt = (heightCm / CM_PER_INCH) * 72;
+function exactPages(file, pdf, pages, pointsPerCm, expectedPages, widthCm, heightCm) {
+  const widthPt = widthCm * pointsPerCm;
+  const heightPt = heightCm * pointsPerCm;
   const fitted = pages.fitPageBoxes(pdf, widthPt, heightPt);
   const boxes = pages.mediaBoxesOf(fitted);
   if (boxes.length !== expectedPages) throw new Failure(1, `${file} has ${boxes.length} page(s), not the ${expectedPages} expected.`);
@@ -184,10 +183,10 @@ async function renderMatPdf(page, mat, fontCss) {
 }
 
 /** A4 portrait pages, as many as the tiles need. */
-async function renderTiledPdf(page, sheet, fontCss) {
+async function renderTiledPdf(page, sheet, a4, fontCss) {
   await page.setContent(sheet.html);
   await fontsReady(page, fontCss);
-  return page.pdf({ width: '21cm', height: '29.7cm', printBackground: true, preferCSSPageSize: true });
+  return page.pdf({ width: `${a4.width}cm`, height: `${a4.height}cm`, printBackground: true, preferCSSPageSize: true });
 }
 
 /**
@@ -294,10 +293,10 @@ async function main() {
 
       const page = await browser.newPage();
       try {
-        const pdf = exactPages(`${job.key}.pdf`, await renderMatPdf(page, job.mat, job.fontCss), pages, 1, widthCm, heightCm);
+        const pdf = exactPages(`${job.key}.pdf`, await renderMatPdf(page, job.mat, job.fontCss), pages, matLib.POINTS_PER_CM, 1, widthCm, heightCm);
         writeFileSync(file(`${job.key}.pdf`), pdf);
 
-        const a4 = exactPages(`${job.key}-a4.pdf`, await renderTiledPdf(page, job.sheet, job.fontCss), pages, job.sheet.pages, 21, 29.7);
+        const a4 = exactPages(`${job.key}-a4.pdf`, await renderTiledPdf(page, job.sheet, matLib.A4_CM, job.fontCss), pages, matLib.POINTS_PER_CM, job.sheet.pages, matLib.A4_CM.width, matLib.A4_CM.height);
         writeFileSync(file(`${job.key}-a4.pdf`), a4);
 
         const size = matLib.matPixelSize(widthCm, heightCm);

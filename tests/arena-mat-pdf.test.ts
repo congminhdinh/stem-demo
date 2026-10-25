@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { POINTS_PER_CM } from '../src/core/scenario/arena-mat';
 import { fitPageBoxes, mediaBoxesOf } from '../scripts/lib/pdf-page-box';
 import { pdfWith, xrefProblems } from './arena-mat.fixtures';
 
@@ -16,8 +17,8 @@ describe('fitPageBoxes', () => {
 
   it('sets the page to the exact size, keeping the left and the top of the page where they are', () => {
     // 170 × 140 cm: Chromium's 4818.96 × 3969.12 pt for 4818.8976 × 3968.5039 pt
-    const widthPt = (170 / 2.54) * 72;
-    const heightPt = (140 / 2.54) * 72;
+    const widthPt = 170 * POINTS_PER_CM;
+    const heightPt = 140 * POINTS_PER_CM;
     const fitted = fitPageBoxes(pdfWith('[0 0 4818.96 3969.12]'), widthPt, heightPt);
     const [box] = mediaBoxesOf(fitted);
     expect(box!.x0).toBe(0);

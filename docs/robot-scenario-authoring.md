@@ -108,8 +108,8 @@ xuất phát ≥ 20 cm** (`MIN_GUARD_TRAVEL_CM`, tầm xa ròng: khoảng cách 
 
 ### Điểm của một biến thể và của một Kiểm tra (R6.2)
 
-Phép chấm nằm ở `src/core/scenario/scoring.ts` và `check-robot.ts`; Kiểm tra chạy từng biến thể trên một run session riêng (cùng chỗ
-chạy của nút Chạy) và chấm bằng các goal ở trên. Mọi con số dưới đây lấy từ thời gian mô phỏng, không từ đồng hồ thật, nên giống hệt ở
+Phép chấm nằm ở `src/core/scenario/scoring.ts` và `check-robot.ts`; Kiểm tra tạo **một** `RobotRunSession` của riêng nó (tách khỏi phiên của nút Chạy,
+cùng loại phiên) và chạy lần lượt từng biến thể bằng `start(project, index, { check: true })`, mỗi biến thể có một scorer mới, chấm bằng các goal ở trên. Mọi con số dưới đây lấy từ thời gian mô phỏng, không từ đồng hồ thật, nên giống hệt ở
 headless, 1× và 4×.
 
 - **Điểm một biến thể:** tổng `points` của các goal **qua** (tất cả hoặc không, R6.1) cộng thưởng thời gian, kẹp vào `[0, 100]`.
@@ -259,8 +259,10 @@ Hai file test của tầng thật:
   mọi biến thể**, và ba cách chạy phải cho cùng điểm, verdict, goal, `programHash` và hash của world cuối. Điểm hiện tại: 100, 100, 100, 100, 100,
   96 cho bài 1–6 (bài 6 có biến thể 97, nên điểm check là 96).
 - **`check-robot.pilot-challenges.test.ts`:** lời giải mù (`blind`, bài 3–6) và mọi `exploits` chạy headless. Mỗi chương trình phải **trượt** (≥ 1 biến thể
-  không qua mọi goal) và có điểm check **không quá `maxScore`** ghi cho nó trong `robot-solutions.ts` (luật 10 của mục 5; `maxScore` ≤ 60). Kết quả tới nay:
-  `rb-stop-at-wall` 0 / 0, `rb-line-follow` 0 / 40 / 60, `rb-servo-gate` 40 / 40 / 40, `rb-mini-mission` 45 cho cả bốn; chương trình mù 0, 60, 0, 0.
+  không qua mọi goal). Hai loại khác nhau ở điểm: một **lời giải mù không có `maxScore`** (`check-cases.ts` chỉ đòi nó `passed: false`), còn mỗi **`exploit` phải
+  trượt *và* có điểm check không quá `maxScore`** ghi cho nó trong `robot-solutions.ts` (luật 10 của mục 5; `maxScore` ≤ 60). Điểm exploit đo được tới nay:
+  `rb-stop-at-wall` 0 / 0, `rb-line-follow` 0 / 40 / 60, `rb-servo-gate` 40 / 40 / 40, `rb-mini-mission` 45 cho cả năm. Điểm check đo được của các lời giải mù (bài 3–6): 0, 60, 0, 0;
+  đó là giá trị quan sát, không có test nào ghim chúng.
 
 Cả hai đọc chương trình từ `src/samples/robot-solutions.ts` qua `src/core/scenario/__fixtures__/check-cases.ts`: thêm một `exploit` hay một kịch bản
 có lời giải vào `robot-solutions.ts` là hai file test tự chạy nó, không phải thêm test. Một `exploit` được điểm cao hơn `maxScore` đã ghi nghĩa là
@@ -312,7 +314,8 @@ pnpm export:arena-mat all --out ~/Desktop/mats  # cả bảy, vào thư mục ch
 ```
 
 `--out` mặc định là `./arena-mat` (đã nằm trong `.gitignore`); thư mục được tạo nếu chưa có. Cần Chromium của Playwright
-(`pnpm exec playwright install chromium` nếu máy chưa có). Mỗi sa bàn mất 3–7 s (`all`: 28 s, đo trên Apple M4 Pro). Mã thoát: 0 xong; 1 một thứ
+(`pnpm exec playwright install chromium` nếu máy chưa có). **`pnpm verify` và `pnpm test` cũng cần nó**: `tests/export-arena-mat.test.ts` chạy cả script, nên máy hay CI chưa cài
+Chromium sẽ đỏ ở test đó. Mỗi sa bàn mất 3–7 s (`all`: 28 s, đo trên Apple M4 Pro). Mã thoát: 0 xong; 1 một thứ
 không làm được (kịch bản không hợp lệ, thiếu Chromium, một file ra sai kích thước); 2 gõ sai lệnh (khoá không có, thiếu khoá, tuỳ chọn lạ).
 
 **Bốn file cho mỗi sa bàn** (`<key>` là khoá, ví dụ `rb-line-follow`):

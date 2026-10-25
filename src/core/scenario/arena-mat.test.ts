@@ -6,6 +6,8 @@ import allGoals from './__fixtures__/all-goals.scenario.json';
 import {
   A4_CM,
   MAT_DPI,
+  POINTS_PER_CM,
+  POINTS_PER_INCH,
   SCALE_BAR_CM,
   TILE_MARGIN_CM,
   TILE_OVERLAP_CM,
@@ -324,6 +326,9 @@ describe('print size', () => {
     expect(matPixelSize(170, 140)).toEqual({ width: 10039, height: 8268 });
     expect(matPixelSize(2.54, 2.54)).toEqual({ width: 150, height: 150 });
     expect(matPixelSize(10, 10, 300)).toEqual({ width: 1181, height: 1181 });
+    // A PDF point is 1/72 in: 72 pt to 2.54 cm
+    expect(POINTS_PER_INCH).toBe(72);
+    expect(POINTS_PER_CM * 2.54).toBeCloseTo(72, 12);
   });
 });
 

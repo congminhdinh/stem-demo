@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { scenarioCatalog } from '../src/samples/robot-scenarios';
-import { matPixelSize, matPixelsPerMetre, planTiles } from '../src/core/scenario/arena-mat';
+import { A4_CM, POINTS_PER_CM, matPixelSize, matPixelsPerMetre, planTiles } from '../src/core/scenario/arena-mat';
 import { decodePng } from '../scripts/lib/png';
 import { mediaBoxesOf } from '../scripts/lib/pdf-page-box';
 import { xrefProblems } from './arena-mat.fixtures';
@@ -20,7 +20,6 @@ const ownCache = join(root, 'node_modules', '.vite-export-arena-mat');
 const key = 'rb-drive-to-zone';
 const scenario = scenarioCatalog.get(key)!;
 const [widthCm, heightCm] = scenario.arena.ground.sizeCm;
-const POINTS_PER_CM = 72 / 2.54;
 
 function run(...args: string[]) {
   const result = spawnSync(process.execPath, [script, ...args], { encoding: 'utf8', timeout: 170_000 });
@@ -64,8 +63,8 @@ describe(`pnpm export:arena-mat ${key}`, () => {
     const boxes = mediaBoxesOf(pdf);
     expect(boxes).toHaveLength(planTiles(widthCm, heightCm).tiles.length);
     for (const box of boxes) {
-      expect(Math.abs(box.width - 21 * POINTS_PER_CM)).toBeLessThanOrEqual(0.5);
-      expect(Math.abs(box.height - 29.7 * POINTS_PER_CM)).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(box.width - A4_CM.width * POINTS_PER_CM)).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(box.height - A4_CM.height * POINTS_PER_CM)).toBeLessThanOrEqual(0.5);
     }
     expect(xrefProblems(pdf)).toEqual([]);
   });
@@ -111,7 +110,11 @@ describe('export-arena-mat usage', () => {
   });
 
   it('wants a key or "all", takes one only, and refuses an option it does not know, each with exit 2', () => {
-    expect(run().status).toBe(2);
+    const none = run();
+    expect(none.status).toBe(2);
+    // The usage line names both ways to run it
+    expect(none.stderr).toContain('<rb-key|all> [--out <dir>]');
+    expect(none.stderr).toContain('--print-cache-dir');
     expect(run('rb-line-follow', 'rb-sandbox').status).toBe(2);
     expect(run('rb-line-follow', '--nope').status).toBe(2);
     expect(run('rb-line-follow', '--out').status).toBe(2);
