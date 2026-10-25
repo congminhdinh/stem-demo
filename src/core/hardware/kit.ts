@@ -127,7 +127,10 @@ export type ServoSpec = {
   /** The angles the servo can reach, in degrees. Angle 0 points the arm along the mount's yaw; it grows counter-clockwise. */
   readonly minDeg: number;
   readonly maxDeg: number;
-  /** Where the arm points when the world is built, before any command. */
+  /**
+   * Where the arm points when the world is built, before any command. Keep it inside the body's footprint: an arm that sticks
+   * out at rest is what meets a wall first, and at its height it tips the robot nose-up (ADR 0001 §9).
+   */
   readonly restDeg: number;
   /** The most torque the servo holds or pushes with, in N·m. */
   readonly stallTorqueNm: number;

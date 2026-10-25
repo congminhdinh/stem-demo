@@ -111,7 +111,8 @@ describe('assembleRobot', () => {
       expect(robot.isGrounded()).toBe(true);
       expect(speed(robot.linvel())).toBeLessThan(1e-5);
       expect(robot.wheelAngles()).toEqual([0, 0]);
-      expect(robot.servoAngles().servo1).toBeCloseTo(90, 2);
+      // The arm rests folded inside the footprint (restDeg 0: pointing right along the top).
+      expect(robot.servoAngles().servo1).toBeCloseTo(0, 2);
       // It stays put: 2 s later it has not moved a micrometre.
       let fastest = 0;
       for (let tick = 0; tick < 240; tick++) {
@@ -218,7 +219,7 @@ describe('the drive (model (c))', () => {
     withRobot(arena, { xCm: 50, yCm: 150, yawDeg: 0 }, ({ world, robot, arena: built }) => {
       const crate = built.dynamicBodies[0]!.body;
       const from = worldToArena(crate.translation());
-      // Fold the arm along the body (0°: pointing right, inside the footprint) so the body's front does the pushing.
+      // The arm rests folded along the body (0°: pointing right, inside the footprint): the body's front does the pushing.
       steps(world, robot, 30, { servos: { servo1: 0 } });
       steps(world, robot, 360, both(run(255, 1)));
       const to = worldToArena(crate.translation());
@@ -378,7 +379,8 @@ describe('the drive (model (c))', () => {
       expect(leftAngle / (rolledM / WHEEL_R)).toBeCloseTo(1, 3);
       expect(rightAngle / (rolledM / WHEEL_R)).toBeCloseTo(1, 3);
       // A quarter turn in place: the wheels turn opposite ways, their difference the turn times the track over the radius
-      // (each wheel's contact rolls ± turn · track/2; the pivot, 2–3 mm off the axle's midpoint, adds the same to both).
+      // (each wheel's contact rolls ± turn · track/2; the pivot, a few mm off the axle's midpoint, the folded arm's 5 g
+      // off the centre line among the reasons, adds the same to both).
       const heading = headingDeg(robot);
       const [l0, r0] = robot.wheelAngles();
       steps(world, robot, 101, spinLeft(128));
@@ -388,7 +390,7 @@ describe('the drive (model (c))', () => {
       expect(r1 - r0).toBeGreaterThan(0);
       expect(l1 - l0).toBeLessThan(0);
       expect((r1 - r0 - (l1 - l0)) / ((turnedRad * 0.15) / WHEEL_R)).toBeCloseTo(1, 4);
-      expect(Math.abs(r1 - r0 + (l1 - l0)) / (r1 - r0)).toBeLessThan(0.05);
+      expect(Math.abs(r1 - r0 + (l1 - l0)) / (r1 - r0)).toBeLessThan(0.1);
     });
   });
 
@@ -411,6 +413,28 @@ describe('the drive (model (c))', () => {
       for (const sample of after) expect(Math.abs(sample.deg)).toBeLessThan(5);
       expect(robot.isGrounded()).toBe(true);
       expect(casterLoadN(world, robot)).toBeGreaterThan(0.5);
+    });
+  });
+
+  it('driven into a wall at duty 128 for 5 s, it stays level (pitch under 5°) and its caster keeps contact', () => {
+    // At rest the servo arm lies inside the body's footprint (restDeg), so the body's front meets the wall, not the arm.
+    // (With the arm at rest pointing 3 cm ahead at 7 cm high, the robot tipped nose-up to 15.6° against the wall and stayed
+    // there, caster off the floor and line sensors 3.4 cm up.)
+    const arena: ArenaInput = { ...open, walls: [{ id: 'front', fromCm: [100, 50], toCm: [100, 250] }] };
+    withRobot(arena, { xCm: 70, yCm: 150, yawDeg: 0 }, ({ world, robot }) => {
+      robot.applyActuators(both(run(128, 1)));
+      let steepest = 0;
+      let lightest = Infinity;
+      for (let tick = 0; tick < 600; tick++) {
+        stepWorld(world, robot);
+        steepest = Math.max(steepest, Math.abs(pitchDeg(robot)));
+        if (tick >= 360) lightest = Math.min(lightest, casterLoadN(world, robot));
+      }
+      // It reached the wall (inner face at x 99) and pushes against it.
+      expect(at(robot).xCm + 7.5).toBeGreaterThan(98.9);
+      expect(steepest).toBeLessThan(5);
+      expect(lightest).toBeGreaterThan(0.1);
+      expect(robot.isGrounded()).toBe(true);
     });
   });
 
@@ -531,9 +555,9 @@ describe('the servo arm', () => {
     });
   });
 
-  it('collides: sweeping from 90° to 0° it pushes a 100 g box out of its way', () => {
-    // The arm (6 cm, 6.25–7.75 cm above the floor) points forward at 90° from its axis 4.5 cm ahead of the centre, and
-    // swings to the right as it goes to 0°. A 4 × 4 × 10 cm box stands in that sweep, against the front of the body.
+  it('collides: sweeping from 0° to 90° it pushes a 100 g box in its way', () => {
+    // The arm (6 cm, 6.25–7.75 cm above the floor) rests pointing right from its axis 4.5 cm ahead of the centre, and
+    // swings forward as it goes to 90°. A 4 × 4 × 10 cm box stands in that sweep, against the front of the body.
     const arena: ArenaInput = {
       ...open,
       objects: [{ id: 'crate', shape: 'box', centerCm: [109.6, 96], sizeCm: [4, 4, 10], massG: 100 }],
@@ -541,13 +565,13 @@ describe('the servo arm', () => {
     withRobot(arena, { xCm: 100, yCm: 100, yawDeg: 0 }, ({ world, robot, arena: built }) => {
       const crate = built.dynamicBodies[0]!.body;
       const from = worldToArena(crate.translation());
-      expect(robot.servoAngles().servo1).toBeCloseTo(90, 1);
-      steps(world, robot, 60, { servos: { servo1: 0 } });
+      expect(robot.servoAngles().servo1).toBeCloseTo(0, 1);
+      steps(world, robot, 60, { servos: { servo1: 90 } });
       const to = worldToArena(crate.translation());
-      // Pushed to the right, out of the arc (hit 3 cm below its top, it tips over), and the arm got through to 0°.
-      expect(to.yCm - from.yCm).toBeLessThan(-5);
-      expect(Math.abs(to.xCm - from.xCm)).toBeLessThan(1);
-      expect(robot.servoAngles().servo1).toBeCloseTo(0, 0);
+      // Pushed ahead, out of the arc (hit 3 cm below its top, it tips over onto its side), and the arm got through to 90°.
+      expect(to.xCm - from.xCm).toBeGreaterThan(5);
+      expect(to.heightCm).toBeLessThan(2.5);
+      expect(robot.servoAngles().servo1).toBeCloseTo(90, 0);
     });
   });
 
@@ -559,6 +583,8 @@ describe('the servo arm', () => {
     };
     withRobot(arena, { xCm: 100, yCm: 100, yawDeg: 0 }, ({ world, robot, arena: built }) => {
       const crate = built.dynamicBodies[0]!.body;
+      // Swing the arm out to 90° (forward) first; the box is still clear of it.
+      steps(world, robot, 60, { servos: { servo1: 90 } });
       crate.setLinvel({ x: -1, y: 0, z: 0 }, true);
       steps(world, robot, 60);
       // It stopped at the tip: its near face at 10.5 cm, not at the body's front (7.5 cm).
@@ -592,7 +618,7 @@ describe('placeAt (reposition → propagate → refresh)', () => {
       // At rest: the motors coast from rest, nothing moves.
       steps(world, robot, 60);
       expect(speed(robot.linvel())).toBeLessThan(1e-5);
-      expect(robot.servoAngles().servo1).toBeCloseTo(90, 1);
+      expect(robot.servoAngles().servo1).toBeCloseTo(0, 1);
       // And it drives from there, along its new heading (+y on the arena).
       steps(world, robot, 120, both(run(255, 1)));
       expect(at(robot).yCm - 120).toBeGreaterThan(25);
@@ -673,8 +699,9 @@ describe('determinism', () => {
     expect(scriptedHash()).toBe(first);
     // Golden (moves to R3.5's snapshot file). A change here is a change of the engine: bump it on purpose. It had not
     // shipped when R3.3's fix rounds re-pinned it: round 1 (gearbox friction, the Tustin lag, the drive as a force over the
-    // step, T_s 0.08 N·m), round 2 (the drive at the wheels' floor contacts, coasting motors free, μ along the normal).
-    expect(first).toBe('e6dec6a1');
+    // step, T_s 0.08 N·m), round 2 (the drive at the wheels' floor contacts, coasting motors free, μ along the normal),
+    // round 3 (the servo arm rests folded inside the footprint).
+    expect(first).toBe('feebca85');
   });
 
   it(
@@ -691,7 +718,7 @@ describe('determinism', () => {
         assembleRobot: assembly.assembleRobot,
         stepWorld: assembly.stepWorld,
       };
-      expect(scriptedHash(compat)).toBe('e6dec6a1');
+      expect(scriptedHash(compat)).toBe('feebca85');
     },
     30_000,
   );

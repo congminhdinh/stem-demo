@@ -64,7 +64,8 @@ describe('ref-uno-rover@0 mechanics (PLACEHOLDER values until the vendor measure
       sPer60Deg: 0.1,
       minDeg: 0,
       maxDeg: 180,
-      restDeg: 90,
+      // At rest the arm lies folded to the right along the top, inside the footprint; scenarios swing it out on purpose.
+      restDeg: 0,
       stallTorqueNm: 0.18,
       armLengthCm: 6,
       armWidthCm: 0.8,

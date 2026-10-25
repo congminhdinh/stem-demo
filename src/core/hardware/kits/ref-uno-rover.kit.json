@@ -52,7 +52,7 @@
     {
       "role": "servo1", "kind": "servo", "port": "SV1", "mount": { "posCm": [4.5, 0, 7], "yawDeg": -90 },
       "spec": {
-        "sPer60Deg": 0.1, "minDeg": 0, "maxDeg": 180, "restDeg": 90, "stallTorqueNm": 0.18,
+        "sPer60Deg": 0.1, "minDeg": 0, "maxDeg": 180, "restDeg": 0, "stallTorqueNm": 0.18,
         "armLengthCm": 6, "armWidthCm": 0.8, "armHeightCm": 1.5, "armMassG": 5
       }
     },

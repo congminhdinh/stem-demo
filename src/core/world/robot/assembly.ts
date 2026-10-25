@@ -284,8 +284,8 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
       stepDt = world.timestep;
       const contacts = [supportContact(supports[0]), supportContact(supports[1])] as const;
       grounded = [contacts[0].grounded, contacts[1].grounded];
-      // Gear friction is the motor's, not the load's: follow the load the last step put on each support (the drive pushes at
-      // the centre of mass, the friction acts on the floor, and the couple shifts weight between the wheels and the caster).
+      // Gear friction is the motor's, not the load's: follow the load the last step put on each support, which changes as the
+      // robot accelerates, brakes, pushes something or stands on a slope (weight shifts between the wheels and the caster).
       contacts.forEach((contact, side) => {
         const loadN = contact.normalImpulse / stepDt;
         if (contact.grounded && loadN > 0) {
