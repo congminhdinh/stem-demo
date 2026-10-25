@@ -30,8 +30,8 @@
 // once at its final pixel size (a whole number of pixels, `matPixelSize`), a 2048 × 2048 px window of the page is screenshotted at a time (the SVG
 // is moved under it by whole pixels), and each row of tiles is decoded and stitched into a strip that scripts/lib/png.ts compresses and writes,
 // with the pHYs chunk (5906 px/m). On Chromium 153 a full-page screenshot also works here, up to 30 000 px wide, and gives the same picture to
-// within the anti-aliasing of diagonal tape and the dashed ring (0.015 % of the pixels, none of them along a seam; straight tape is 147.5 px in
-// both for its 2.5 cm). Fonts: Be Vietnam Pro (@fontsource, already a dependency) is embedded in the pages, so that the Vietnamese labels look
+// within the anti-aliasing of diagonal tape, the dashed ring and the hatching (0.015 % of the pixels, not gathered along the seams; straight tape
+// is 147.5 px in both for its 2.5 cm). Fonts: Be Vietnam Pro (@fontsource, already a dependency) is embedded in the pages, so that the Vietnamese labels look
 // the same on every machine.
 //
 // The PDFs. Chromium sizes a page to whole device units after rounding (up to a point off), and Playwright reads a `cm` as 37.8 px, so each file's

@@ -1,11 +1,12 @@
 # Soạn kịch bản robot (`rb-*.json`)
 
-Tài liệu cho người soạn và người sửa kịch bản của lab robot (N18 R5.3, phần 6h). Nó nói một kịch bản gồm những gì, các luật bắt buộc,
-cách thiết kế biến thể để "chạy mù" bị bắt, và cách kiểm tra trên máy trước khi commit. Ví dụ lấy từ sáu kịch bản của khóa pilot
-(R5.2a) trong `src/samples/robot-scenarios/`.
+Tài liệu cho người soạn và người sửa kịch bản của lab robot (N18 R5.3). Nó nói một kịch bản gồm những gì, các luật bắt buộc, cách
+Kiểm tra chấm điểm (R6.2), cách thiết kế biến thể để "chạy mù" bị bắt, cách kiểm tra trên máy trước khi commit, và cách in sa bàn ra
+kích thước thật để thử trên robot thật (mục 10). Ví dụ lấy từ sáu kịch bản của khóa pilot (R5.2a) trong `src/samples/robot-scenarios/`.
 
-Đọc kèm: plan `docs/robot-3d-implementation-plan.md` §4.6 (schema), §R6.1 (ý nghĩa từng goal), `src/core/scenario/scenario-schema.ts`
-(luật schema, thông báo lỗi), `src/core/hardware/kits/README.md` (kit tham chiếu và số cơ khí PLACEHOLDER).
+Đọc kèm: plan `docs/robot-3d-implementation-plan.md` §4.6 (schema), §R6.1 (ý nghĩa từng goal), §R6.2 (chấm điểm và Kiểm tra),
+`docs/lab-embed-contract.md` §3 (kết quả `check-result` gửi host), `src/core/scenario/scenario-schema.ts` (luật schema, thông báo lỗi),
+`src/core/hardware/kits/README.md` (kit tham chiếu và số cơ khí PLACEHOLDER).
 
 ## 1. Một kịch bản nằm ở đâu và ai đọc nó
 
@@ -18,6 +19,8 @@ cách thiết kế biến thể để "chạy mù" bị bắt, và cách kiểm 
 | `src/samples/robot-solutions.ts` | Lời giải chuẩn (`reference`), lời giải chạy mù (`blind`, bài 3–6) và ghi chú (`notes`) của mỗi kịch bản có điểm. |
 | `tests/robot-scenarios.test.ts` | Kiểm tra tĩnh: luật, biến thể, toolbox, compile, Blockly, golden. |
 | `tests/robot-solutions/<key>.ino` | Sketch Arduino của lời giải chuẩn (golden); `pnpm check:arduino --require` compile nó bằng arduino-cli. |
+| `src/core/scenario/{scoring,check-robot}.ts` | Chấm điểm và Kiểm tra thật (R6.2): mục 4 nói luật chấm, mục 8 nói cách chạy sáu bài pilot qua nó. Là **cổng** của mọi thay đổi kịch bản. |
+| `src/core/scenario/arena-mat.ts`, `scripts/export-arena-mat.mjs` | In sa bàn ra kích thước thật (mục 10). Đọc sa bàn từ chính kịch bản, không có bản sao hình học. |
 
 Key `rb-*` là hợp đồng công khai (khóa học lưu nó): **không bao giờ đổi tên hay dùng lại**. Danh sách key ở `src/samples/robot-keys.ts`.
 Đổi hành vi của kịch bản (sa bàn, goal, điểm, biến thể, thời gian, starter, toolbox) thì **tăng `version`**, chạy lại
@@ -41,6 +44,22 @@ Key `rb-*` là hợp đồng công khai (khóa học lưu nó): **không bao gi�
 | `endOnContact` | Các tag (hay loại collider) mà lần chạm đầu tiên **kết thúc lượt chạy**, như đâm xe trong thi robot (mục 4). Bỏ trống: chạm không dừng gì. |
 
 Khoá lạ bị từ chối (không bị bỏ qua), nên gõ sai tên khoá là lỗi ngay khi nạp.
+
+**Giới hạn của schema** (`scenario-schema.ts`; vượt thì kịch bản không nạp được, lỗi nói rõ đường dẫn tới giá trị sai). Hai giới hạn đầu là của
+LMS (STEMLearning lưu kết quả Kiểm tra), không phải của mô phỏng:
+
+| Trường | Giới hạn |
+|---|---|
+| `goals` | **tối đa 20** (`GOALS_MAX`; `LabAttemptRules.MaxGoals` của LearningService lưu 20 goal một lượt) |
+| `version` | số nguyên từ 1 tới **2 147 483 647** (`SCENARIO_VERSION_MAX`; `scenarioVersion` của kết quả Kiểm tra là int 32 bit) |
+| `goals[].id` | `[a-z0-9-]`, ≤ 50 ký tự, không trùng; `label.vi`/`label.en` ≤ 200 ký tự, không rỗng |
+| `title.vi`/`title.en` | ≤ 120 ký tự, không rỗng |
+| `variants.count` | số nguyên 1–10 (`VARIANTS_MAX`); `seed` số nguyên 0–4 294 967 295 |
+| `timeLimitS` | trên 0 và ≤ 600 s; `finish-within.seconds` và `stop-in-zone.holdS` không quá `timeLimitS` |
+| `inputs` | ≤ 100 lần nhấn/nhả, mỗi lần trong `[0, timeLimitS)`, mỗi nút xen kẽ nhấn–nhả bắt đầu từ nhả, một lần một thời điểm |
+| `endOnContact` | mỗi tag phải có trong sa bàn (`wall`, `box`, `cylinder`, `object` hay tag của vật), không trùng, không rỗng |
+| `startJitterAlongCm` | số ≥ 0; có thì dời dọc hướng xuất phát bằng nó và ngang hướng bằng `startJitterCm`; bỏ trống thì dời `startJitterCm` theo x và y |
+| `scoring.penalties` | chỉ nhận mảng rỗng: chưa có loại phạt nào |
 
 ## 3. Sa bàn (`arena`)
 
@@ -86,6 +105,30 @@ không dời theo biến thể.
 Goal canh gác (`avoid-contact`, `stay-on-line`) thoả được bằng cách *không làm gì*, nên chúng **chỉ qua khi robot đã có lúc cách chỗ
 xuất phát ≥ 20 cm** (`MIN_GUARD_TRAVEL_CM`, tầm xa ròng: khoảng cách lớn nhất của giữa thân tới chỗ xuất phát), xét ở cuối run. Không phải
 độ dài quãng đường: quay lệch hay đi tới đi lui tại chỗ cho quãng đường dài mà không đi đâu cả.
+
+### Điểm của một biến thể và của một Kiểm tra (R6.2)
+
+Phép chấm nằm ở `src/core/scenario/scoring.ts` và `check-robot.ts`; Kiểm tra chạy từng biến thể trên một run session riêng (cùng chỗ
+chạy của nút Chạy) và chấm bằng các goal ở trên. Mọi con số dưới đây lấy từ thời gian mô phỏng, không từ đồng hồ thật, nên giống hệt ở
+headless, 1× và 4×.
+
+- **Điểm một biến thể:** tổng `points` của các goal **qua** (tất cả hoặc không, R6.1) cộng thưởng thời gian, kẹp vào `[0, 100]`.
+- **Thưởng thời gian** (`scoring.timeBonusMax`) chỉ có khi **mọi** goal của biến thể đó qua (kể cả `finish-within`), và giảm tuyến tính theo
+  `tFinish`, lúc mà mọi goal bắt đầu cùng qua và giữ qua tới hết run:
+  `thưởng = floor(timeBonusMax × max(0, 1 − tFinish / timeLimitS))`, điểm nguyên. Ví dụ tính: `timeBonusMax 10`, `timeLimitS 45`, `tFinish 20 s`
+  cho `floor(10 × 25/45) = floor(5,56) = 5`. `tFinish` là **đầu chuỗi liên tục cuối cùng** mà mọi goal cùng qua, không phải lần đầu: một goal qua
+  rồi trượt lại (vật bị đẩy ra khỏi vùng, goal canh gác bị chạm) làm chuỗi bắt đầu lại. `finish-within` đo cùng thời điểm đó nhưng chỉ trên các goal
+  *khác* nó: qua khi thời điểm ấy ≤ `seconds` (gồm đúng bằng); một kịch bản chỉ có `finish-within` thì qua từ t = 0.
+- **Biến thể kết thúc vì lỗi chương trình** (một lỗi của chương trình, ví dụ `out-of-domain`, hay lỗi của chính mô phỏng; trạng thái run `error`) được
+  **0 điểm**, trượt, mọi goal trượt với lý do `program-error`, không thưởng: world đứng yên lúc lỗi, nên chấm cảnh bị đóng băng đó sẽ cho điểm
+  một chương trình cố ý lỗi ngay khi goal vừa qua.
+- **Một Kiểm tra** (`checkResultOf`, kết quả gửi host theo `docs/lab-embed-contract.md` §3): `passed` = mọi goal qua ở **mọi** biến thể;
+  `goal.passed` = qua ở mọi biến thể; **`score` = điểm thấp nhất** trong các biến thể (không phải trung bình: một biến thể may mắn không làm điểm
+  cao, nhất quán với `passed`); `simTimeMs` = của biến thể dài nhất; mỗi biến thể có `{ seed, passed, score, simTimeMs }`.
+- **Run kết thúc** khi chạm `timeLimitS` hay khi `endOnContact` (xem trên); hai trường hợp này áp cho cả nút Chạy, nên Chạy giống hệt
+  biến thể 0 của Kiểm tra.
+- Điểm các goal, `timeBonusMax` và giới hạn thời gian là dữ liệu của kịch bản; **đổi bất kỳ số nào trong chúng đổi điểm của người học**, nên tăng
+  `version` (mục 1).
 
 ## 5. Luật bắt buộc (checklist)
 
@@ -143,7 +186,7 @@ Mục đích là bắt chương trình **chạy mù** (chỉ motor và wait, can
 - Test tĩnh trong `tests/robot-scenarios.test.ts` giữ các tính chất này (bài 3, 5: một biến thể tới trước, một biến thể lùi, mỗi cái
   ≥ 4 cm ra ngoài vùng; bài 4, 6: có biến thể quay ≥ 4°; bài 6: chỗ xuất phát dời ≥ 12 cm tới và lùi dọc đường thẳng; điểm canh gác ≤ điểm
   đạt tới; `endOnContact` bằng tag của `avoid-contact`). Kết quả thật (lời giải chuẩn qua mọi biến thể, lời giải mù trượt ≥ 1, `exploits`
-  không qua và không quá điểm tối đa) do R5.2b chạy qua run session và check.
+  không qua và không quá điểm tối đa) do hai file test của Kiểm tra thật giữ (mục 8).
 
 Số của kit placeholder dùng để thiết kế (đo bằng spike `spikes/r52-scenario-sim`, máy M4 Pro, Node 24.22.1):
 
@@ -185,9 +228,15 @@ Số của kit placeholder dùng để thiết kế (đo bằng spike `spikes/r5
 
 ## 8. Kiểm tra trên máy
 
+Hai tầng. **Tĩnh** (vài giây): luật, biến thể, toolbox, golden, manifest. **Thật** (cổng): lời giải chạy qua đúng code của nút Kiểm tra
+(`checkRobot`, R6.2), nên điểm, verdict và lý do trượt là của người học thấy, không phải ước lượng.
+
 ```sh
-# Luật, biến thể (kể cả createScenarioWorld dựng được mọi biến thể), toolbox, compile, Blockly, golden, manifest
+# Tĩnh: luật, biến thể (kể cả createScenarioWorld dựng được mọi biến thể), toolbox, compile, Blockly, golden, manifest
 pnpm exec vitest run tests/robot-scenarios.test.ts src/samples
+
+# Thật (cổng của mọi thay đổi kịch bản, lời giải hay kit): sáu lời giải chuẩn, mọi lời giải mù và exploit qua Kiểm tra thật
+pnpm exec vitest run src/core/scenario/check-robot.pilots.test.ts src/core/scenario/check-robot.pilot-challenges.test.ts
 
 # Manifest cho STEMLearning: sinh lại rồi commit; --check chỉ kiểm
 pnpm export:robot-manifest
@@ -197,12 +246,38 @@ pnpm export:robot-manifest --check
 pnpm exec vitest run tests/robot-scenarios.test.ts -u
 pnpm check:arduino --require
 
-# Chạy thử lời giải trên world thật (spike, thay cho Kiểm tra cho tới khi R3.6/R6.2 có): kết quả ở spikes/r52-scenario-sim/results/
-pnpm exec vitest run --config spikes/r52-scenario-sim/vitest.config.ts run
-SPIKE_ONLY=rb-line-follow SPIKE_PROGRAM=reference,blind pnpm exec vitest run --config spikes/r52-scenario-sim/vitest.config.ts run
+# Xem sa bàn ra kích thước thật (mục 10)
+pnpm export:arena-mat rb-line-follow
 
 # Trước khi commit
 pnpm verify
+```
+
+Hai file test của tầng thật:
+
+- **`check-robot.pilots.test.ts`:** lời giải chuẩn (`reference`) của mỗi kịch bản có điểm chạy qua Kiểm tra headless, ở 1× và ở 4×. Phải **qua mọi goal ở
+  mọi biến thể**, và ba cách chạy phải cho cùng điểm, verdict, goal, `programHash` và hash của world cuối. Điểm hiện tại: 100, 100, 100, 100, 100,
+  96 cho bài 1–6 (bài 6 có biến thể 97, nên điểm check là 96).
+- **`check-robot.pilot-challenges.test.ts`:** lời giải mù (`blind`, bài 3–6) và mọi `exploits` chạy headless. Mỗi chương trình phải **trượt** (≥ 1 biến thể
+  không qua mọi goal) và có điểm check **không quá `maxScore`** ghi cho nó trong `robot-solutions.ts` (luật 10 của mục 5; `maxScore` ≤ 60). Kết quả tới nay:
+  `rb-stop-at-wall` 0 / 0, `rb-line-follow` 0 / 40 / 60, `rb-servo-gate` 40 / 40 / 40, `rb-mini-mission` 45 cho cả bốn; chương trình mù 0, 60, 0, 0.
+
+Cả hai đọc chương trình từ `src/samples/robot-solutions.ts` qua `src/core/scenario/__fixtures__/check-cases.ts`: thêm một `exploit` hay một kịch bản
+có lời giải vào `robot-solutions.ts` là hai file test tự chạy nó, không phải thêm test. Một `exploit` được điểm cao hơn `maxScore` đã ghi nghĩa là
+kịch bản (hay kit) đã đổi và để hở: sửa sa bàn, biến thể hay goal cho tới khi nó trượt lại, **đừng nâng `maxScore` để test xanh** (nâng chỉ khi
+controller ra ruling, như điểm 45 của `timed-follower` sau C2).
+
+Giá (đo ở R5.3: Apple M4 Pro, Node 24.22.1, máy đang chạy nhiều tiến trình khác): hai file mất **65 s** (25 test), trong đó bài 4 (120 s × 3 biến thể) khoảng
+13 s một lần headless. Chạy chúng khi đổi kịch bản, lời giải hay kit, không phải sau mỗi lần sửa chữ.
+
+**Spike `spikes/r52-scenario-sim` vẫn dùng được như công cụ soạn, không phải cổng.** Nó chạy lời giải trên world và goal thật của R3/R6.1 nhưng không qua
+run session, scorer hay Kiểm tra (nối pin tới actuator và thưởng thời gian của nó đơn giản hơn), và có các phép quét thời gian, seed, tốc độ
+mà test không có. Dùng nó để *tìm* con số (vùng, thời gian, seed), rồi để Kiểm tra thật *xác nhận*: khi hai bên khác nhau thì Kiểm tra thật đúng.
+Kết quả ở `spikes/r52-scenario-sim/results/`.
+
+```sh
+pnpm exec vitest run --config spikes/r52-scenario-sim/vitest.config.ts run
+SPIKE_ONLY=rb-line-follow SPIKE_PROGRAM=reference,blind pnpm exec vitest run --config spikes/r52-scenario-sim/vitest.config.ts run
 ```
 
 Các bước sửa hay thêm một kịch bản:
@@ -210,9 +285,10 @@ Các bước sửa hay thêm một kịch bản:
 1. Sửa `src/samples/robot-scenarios/<key>.json` (một kịch bản mới cần key mới trong `robot-keys.ts`, title trong `messages.ts`, một
    dòng import trong `ready-fields.ts`, và lời giải trong `robot-solutions.ts`).
 2. Tăng `version` nếu hành vi đổi.
-3. Chạy spike để chỉnh vùng, thời gian, seed cho tới khi lời giải chuẩn qua mọi biến thể có biên, lời giải mù qua biến thể 0 và
+3. Dùng spike để chỉnh vùng, thời gian, seed cho tới khi lời giải chuẩn qua mọi biến thể có biên, lời giải mù qua biến thể 0 và
    trượt ≥ 1 biến thể; ghi số đo vào `notes`.
-4. `pnpm export:robot-manifest`, cập nhật golden nếu lời giải chuẩn đổi, `pnpm check:arduino --require`, `pnpm verify`.
+4. Chạy hai file test của Kiểm tra thật (trên); xem `pnpm export:arena-mat <key>` để chắc sa bàn đúng như định.
+5. `pnpm export:robot-manifest`, cập nhật golden nếu lời giải chuẩn đổi, `pnpm check:arduino --require`, `pnpm verify`.
 
 ## 9. Sáu kịch bản của khóa pilot
 
@@ -225,3 +301,83 @@ Các bước sửa hay thêm một kịch bản:
 | `rb-servo-gate` | 5. Servo ("Giơ cờ ở cổng") | 160×100, cổng x 140, vùng x 108–128; chạm cổng là hết lượt | servo-angle 150–180° trong vùng 40, stop-in-zone 40, avoid-contact gate 20 | 3, seed 1409, 18 cm, 5° |
 | `rb-mini-mission` | 6. Tổng hợp | 180×140, vạch gấp 45° chạy tới sát tường bến (y 137), 2 cọc; chạm cọc hay tường bến là hết lượt | checkpoints 25, stay-on-line ≥ 0,85: 20, avoid-contact 15, stop-in-zone 20, finish-within 35 s: 10, thưởng thời gian 10 | 3, seed 3225, 1,5 cm ngang, 15 cm dọc, 5° |
 | `rb-sandbox` | Sân tập | 200×150, vòng vạch, hộp, cọc | không goal | 1 |
+
+## 10. In sa bàn
+
+Để thử một bài trên robot thật cần một tấm sa bàn thật đúng kích thước. Script đọc kịch bản và in sa bàn của nó ra kích thước thật:
+
+```sh
+pnpm export:arena-mat rb-line-follow            # một kịch bản
+pnpm export:arena-mat all --out ~/Desktop/mats  # cả bảy, vào thư mục chỉ định
+```
+
+`--out` mặc định là `./arena-mat` (đã nằm trong `.gitignore`); thư mục được tạo nếu chưa có. Cần Chromium của Playwright
+(`pnpm exec playwright install chromium` nếu máy chưa có). Mỗi sa bàn mất 3–7 s (`all`: 28 s, đo trên Apple M4 Pro). Mã thoát: 0 xong; 1 một thứ
+không làm được (kịch bản không hợp lệ, thiếu Chromium, một file ra sai kích thước); 2 gõ sai lệnh (khoá không có, thiếu khoá, tuỳ chọn lạ).
+
+**Bốn file cho mỗi sa bàn** (`<key>` là khoá, ví dụ `rb-line-follow`):
+
+| File | Là gì | Dùng để |
+|---|---|---|
+| `<key>.svg` | Vector, `width="170cm" height="140cm"`, `viewBox="0 0 170 140"` (1 đơn vị = 1 cm). Chỉ có sa bàn, không có gì ngoài mép | Gửi tiệm in bạt/decal; mở bằng Inkscape/Illustrator để sửa |
+| `<key>.pdf` | **Một trang đúng bằng kích thước sa bàn** (170 × 140 cm = 4818,9 × 3968,5 pt), vector | Gửi tiệm in khổ lớn |
+| `<key>-a4.pdf` | Các trang A4 dọc, mỗi trang một cửa sổ 18,6 × 26,7 cm của sa bàn ở 100 %, chồng nhau 1 cm, có dấu cắt và dấu căn, "hàng/cột", và dải chú thích | In ở nhà rồi dán |
+| `<key>.png` | 150 dpi (chunk `pHYs` = 5906 px/m): 170 × 140 cm là **10039 × 8268 px** | Phần mềm không đọc vector |
+
+| Khoá | Kích thước (cm) | PNG 150 dpi (px) | Số trang A4 (cột × hàng) |
+|---|---|---|---|
+| `rb-drive-to-zone` | 160 × 80 | 9449 × 4724 | 40 (10 × 4) |
+| `rb-square-route` | 130 × 130 | 7677 × 7677 | 48 (8 × 6) |
+| `rb-stop-at-wall` | 160 × 100 | 9449 × 5906 | 40 (10 × 4) |
+| `rb-line-follow` | 170 × 140 | 10039 × 8268 | 60 (10 × 6) |
+| `rb-servo-gate` | 160 × 100 | 9449 × 5906 | 40 (10 × 4) |
+| `rb-mini-mission` | 180 × 140 | 10630 × 8268 | 66 (11 × 6) |
+| `rb-sandbox` | 200 × 150 | 11811 × 8858 | 72 (12 × 6) |
+
+**Hình học là của kịch bản, không có bản sao thứ hai.** Script nạp kịch bản bằng đúng `loadScenario` của lab (nên kịch bản sai không in được), rồi
+`buildArenaMat` (`src/core/scenario/arena-mat.ts`, thuần chuỗi, có test) đọc `arena` đã validate: vạch là polyline dày đúng `widthCm` với đầu và khớp
+tròn (đúng hình mà `ground-paint.ts` đọc: một điểm ở trên vạch khi cách một đoạn không quá nửa bề rộng), vùng là đa giác even-odd theo thứ tự
+của sa bàn (vùng sau đè vùng trước, vạch đè lên vùng), sàn là `ground.color`. Trục: y của sa bàn hướng lên trên tờ in.
+
+**Cái gì được vẽ:**
+
+| Thành phần | Cách vẽ | Nhóm trong SVG |
+|---|---|---|
+| Sàn | hình chữ nhật `ground.color` | `mat-ground` |
+| Vùng | đa giác tô `color`, viền mảnh bằng bản tối hơn 20 % của màu đó, nhãn 2 dòng: `id` và loại (`vùng xuất phát`, `vùng đích`, `điểm kiểm tra n`, `vùng`); vùng nằm trong lộ trình dài nhất của một goal `checkpoints-in-order` có thêm thứ tự | `mat-zones`, `mat-zone-labels` |
+| Vạch | polyline đen đúng `widthCm`, đầu và khớp tròn | `mat-tape` |
+| Tường, hộp, trụ, vật đẩy | **dấu chân** (footprint) gạch chéo với viền nét đứt, nhãn `tường`, `vật cản`, `vật đẩy` (cùng `id` nếu có): đây là vật thật phải đặt lên, không phải mực sơn | `mat-obstacles`, `mat-labels` |
+| Chỗ robot xuất phát | vòng tròn bán kính 11 cm (`ROBOT_FOOTPRINT_RADIUS_CM`, chỗ trống mà các biến thể giữ), dấu cộng ở giữa thân, mũi tên theo hướng, và `xuất phát · x 50, y 30 cm · 0°` | `mat-start` |
+
+Nhãn của vùng tự né vạch và chỗ robot đứng (thu nhỏ chữ, tới 40 %, nếu vùng chật) và nằm **dưới** vạch: không gì được vẽ chồng lên vạch.
+
+**Làm tấm sa bàn thật:**
+
+1. **Tiệm in:** gửi `<key>.pdf` (hay `.svg`) và nói in 100 %, không co giãn. Hỏi chất liệu: sàn `#f2f2f2` là xám rất nhạt, nên chọn bạt hay decal trắng mờ, không bóng
+   (bề mặt bóng dễ làm cảm biến hồng ngoại đọc loá).
+2. **In A4 ở nhà:** mở `<key>-a4.pdf`, in với **Actual size / 100 %**, tắt "Fit to page" và "Scale to fit". **Đặt thước lên thanh 10 cm ở chân trang**: đúng 10 cm
+   thì mới tiếp tục (in co giãn sẽ ra sa bàn sai kích thước). Bốn dấu cộng-vòng ở góc giấy cũng cách nhau đúng 19,8 × 28,5 cm. Cắt bỏ lề theo dấu cắt ở bốn góc cửa sổ,
+   xếp trang theo "hàng/cột" (hàng 1 ở trên, cột 1 ở bên trái) chồng 1 cm lên nhau cho khớp nội dung, dán. Đường đứt đỏ ở trang rìa là mép sa bàn.
+3. **Vạch đen:** vạch đã in sẵn là đường đi của băng keo; dán băng keo đen đúng `widthCm` (2,5 cm cho sáu bài pilot) lên trên, hoặc dùng luôn vạch in nếu mực đen đủ tối.
+4. **Vật cản và tường:** đặt hộp, trụ, tường thật đúng chỗ dấu chân gạch chéo, đúng kích thước ghi trong `arena` (`sizeCm`, `radiusCm`, `heightCm`, `thicknessCm`).
+5. **Robot:** đặt giữa thân tại dấu cộng của vòng xuất phát, mũi hướng theo mũi tên.
+
+**Giới hạn cần biết:**
+
+- Sa bàn in **đúng hình học và tỉ lệ**, không bảo đảm độ phản xạ hồng ngoại. Trong mô phỏng sàn và vùng có `reflectance` hay độ sáng (luma) của màu và vạch là 0; mực in và
+  giấy thật khác, nên ngưỡng "thấy vạch" của cảm biến thật phải hiệu chỉnh lại trên tấm sa bàn thật (plan VG, số đo của kit nhà cung cấp).
+- **Mọi thứ in ra đều là mực mà cảm biến đọc được:** viền vùng, nhãn, vòng xuất phát và gạch chéo. Viền vùng chỉ tối hơn màu vùng 20 % (màu vùng sáng, luma > 0,75, nên viền
+  vẫn trên 0,6 và cảm biến đọc như sàn); nhãn nằm ngoài vạch. Nếu cảm biến thật vẫn đọc nhầm, mở `.svg` trong Inkscape hay Illustrator và **tắt các nhóm "dấu"**
+  (`mat-zone-labels`, `mat-obstacles`, `mat-labels`, `mat-start`), chỉ in `mat-ground`, `mat-zones`, `mat-tape`.
+- **Kích thước trang PDF:** Chromium làm tròn khổ trang tới cỡ một điểm (1 pt = 0,35 mm) và `page.pdf` của Playwright đọc `1 cm` là 37,8 px thay vì 37,795; nội dung vẫn đúng tỉ lệ
+  (1 cm = 28,3465 pt), chỉ có khung trang lệch. Script đặt lại `MediaBox` đúng kích thước (`scripts/lib/pdf-page-box.ts`, giữ mép trái và mép trên của trang) rồi **đọc lại từ file**
+  để kiểm; sai quá 0,005 pt hay sai số trang thì script báo lỗi, không ghi file sai.
+- **PNG ghép từ các ô 2048 × 2048 px** (`scripts/lib/png.ts`, chỉ dùng `node:zlib`, không thêm thư viện), nên kích thước ảnh không phụ thuộc giới hạn chụp của Chromium và ảnh không bao giờ
+  nằm trọn trong bộ nhớ. Trên Chromium 153 chụp một lần cả trang cũng được (đo tới 30 000 px bề ngang, 10039 × 8268 px mất 1 s) và cho cùng ảnh, trừ 0,015 % điểm ảnh
+  (12 701 trên 83 triệu): rìa chéo của vạch, vòng nét đứt và gạch chéo, không dồn ở chỗ giáp ô (ở cột và hàng giáp ô có 0–9 điểm khác, trung bình 1,3 một cột); vạch thẳng
+  2,5 cm rộng 147,5 px ở cả hai (đúng 147,6), kể cả chỗ giáp ô.
+- Chữ trên bản in là Be Vietnam Pro (`@fontsource`, đã có sẵn trong dependencies), nhúng thẳng vào trang nên giống nhau trên mọi máy. File `.svg` chỉ ghi tên font: máy mở nó mà không có font
+  này dùng font hệ thống.
+- Một kịch bản mới không cần làm gì thêm: script đọc catalog, nên `pnpm export:arena-mat <key mới>` chạy ngay khi kịch bản nạp được.
+- Test: `src/core/scenario/arena-mat.test.ts` (SVG, viewBox, bề rộng vạch, id vùng, thanh 10 cm, kế hoạch lát trang), `tests/arena-mat-png.test.ts` (PNG: IHDR, pHYs, đọc lại bằng `node:zlib`),
+  `tests/arena-mat-pdf.test.ts` (khung trang), `tests/export-arena-mat.test.ts` (chạy cả script cho `rb-drive-to-zone`, kiểm bốn file, MediaBox ± 0,5 pt và vài điểm ảnh).
