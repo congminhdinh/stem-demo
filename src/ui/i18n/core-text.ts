@@ -38,6 +38,11 @@ const terms: Readonly<Record<string, string>> = {
   'random number': 'số ngẫu nhiên',
   'analog write': 'ghi analog',
   servo: 'servo',
+  // N18 R2.2: the robot's blocks.
+  'robot go': 'robot đi',
+  motor: 'motor',
+  'buzzer tone': 'còi kêu',
+  'PWM write': 'ghi PWM',
 };
 
 /** Blockly's own blocks that the core may name by type; the custom blocks are named by their Vietnamese text. */
@@ -85,6 +90,13 @@ const quantities: Readonly<Record<string, string>> = {
   'The running time': 'Thời gian chạy',
   'An analog value': 'Giá trị analog',
   'A servo angle': 'Góc servo',
+  // N18 R2.2: the robot's blocks, and what the board answers them.
+  'The speed': 'Tốc độ',
+  'The angle': 'Góc',
+  'A PWM value': 'Giá trị PWM',
+  'The ultrasonic distance': 'Khoảng cách siêu âm',
+  'The raw line value': 'Giá trị thô của cảm biến line',
+  'The analog value': 'Giá trị analog',
 };
 
 /** The capabilities a board may lack (constructs' `capability`). */
@@ -101,7 +113,59 @@ const capabilities: Readonly<Record<string, string>> = {
   'digital pin': 'chân số',
   'PWM output': 'đầu ra PWM',
   'servo pin': 'chân servo',
+  // N18 R2.2: the robot's (the kit's modules) and the UNO's PWM.
+  modules: 'mô-đun robot',
+  pwm: 'đầu ra PWM',
 };
+
+/** N18 R2.2: the robot's modules as the core names them (constructs/uno.roles.ts `roleNames`, `DRIVE_NAME`). */
+const robotRoles: Readonly<Record<string, string>> = {
+  'the left motor': 'motor trái',
+  'the right motor': 'motor phải',
+  'the ultrasonic sensor': 'cảm biến siêu âm',
+  'the left line sensor': 'cảm biến line trái',
+  'the center line sensor': 'cảm biến line giữa',
+  'the right line sensor': 'cảm biến line phải',
+  'servo 1': 'servo 1',
+  'the LED': 'đèn',
+  'the buzzer': 'còi',
+  'the button': 'nút',
+  'the left and the right motor': 'motor trái và motor phải',
+};
+
+/** N18 R2.2: what a clamped value is (constructs/uno.roles.ts `clampWarning`). */
+const clampWords: Readonly<Record<string, string>> = { speed: 'Tốc độ', angle: 'Góc', frequency: 'Tần số', length: 'Độ dài', 'PWM value': 'Giá trị PWM' };
+
+/** N18 R2.2: the raw pin ops (hardware/pin-rules.ts `RawPinOp`) by the robot's blocks. */
+const rawPinOps: Readonly<Record<string, string>> = { 'digital.write': 'ghi số', 'pwm.write': 'ghi PWM', 'digital.read': 'đọc số', 'analogIn.read': 'đọc analog' };
+
+/** N18 R2.2: what holds a timer (the board's `timerClaims`). */
+const claimers: Readonly<Record<string, string>> = { servo: 'servo', tone: 'còi (tone)' };
+
+const pinList = (pins: string) => pins.replace(/ and /g, ' và ');
+
+/** N18 R2.2: why a raw pin cannot be used (hardware/pin-rules.ts `rawPinCheck`). */
+function pinReason(why: string): string {
+  const notOnBoard = /^it is not a pin of (.+)$/.exec(why);
+  if (notOnBoard) {
+    return `${notOnBoard[1] ?? ''} không có chân này`;
+  }
+  const serial = /^the program prints, and Serial holds (.+)$/.exec(why);
+  if (serial) {
+    return `chương trình có in, và Serial giữ ${pinList(serial[1] ?? '')}`;
+  }
+  const used = /^port (.+) of the kit uses it$/.exec(why);
+  if (used) {
+    return `cổng ${used[1] ?? ''} của bộ robot đang dùng chân này`;
+  }
+  if (why === 'no input module is wired to it, and a floating pin reads at random') {
+    return 'không có mô-đun đầu vào nào nối với chân này, và chân thả nổi đọc ra giá trị ngẫu nhiên';
+  }
+  if (why === 'no module read as analog is wired to it') {
+    return 'không có mô-đun analog nào nối với chân này';
+  }
+  return why;
+}
 
 const own = <Value>(table: Readonly<Record<string, Value>>, key: string): Value | undefined => (Object.hasOwn(table, key) ? table[key] : undefined);
 const term = (label: string) => own(terms, label) ?? label;
@@ -258,9 +322,40 @@ export const coreMessageRules: readonly Rule[] = [
   [/^The servo angle (.+) for (.+) is outside 0 to (.+), so it is clamped to (.+)\.$/, (value, pin, max, clamped) => `Góc servo ${value} của chân ${pin} nằm ngoài khoảng 0 tới ${max}, nên được kẹp về ${clamped}.`],
   [/^An analog value is between 0 and (.+), not (.+)\.$/, (max, value) => `Giá trị analog nằm trong khoảng 0 tới ${max}, không phải ${value}.`],
   [/^A servo angle is between 0 and (.+), not (.+)\.$/, (max, value) => `Góc servo nằm trong khoảng 0 tới ${max}, không phải ${value}.`],
+  // N18 R2.2: a robot's value outside its range is clamped, and the run says so once per module (a raw pin: per pin).
+  [
+    /^The (.+?) (\S+) for (.+) is outside (\S+) to (\S+), so it is clamped to (\S+)\.$/,
+    (word, value, who, low, high, clamped) =>
+      `${own(clampWords, word) ?? word} ${value} của ${own(robotRoles, who) ?? who} nằm ngoài khoảng ${low} tới ${high}, nên được kẹp về ${clamped}.`,
+  ],
   [/^Pin (.+) is driven by two things at once, so it cannot be read\.$/, (pin) => `Chân ${pin} bị hai thứ cùng điều khiển, nên không đọc được.`],
   [/^Pin (.+) carries an analog level, which is neither on nor off\. Use "analog read"\.$/, (pin) => `Chân ${pin} mang mức tương tự, không phải bật hay tắt. Dùng "đọc tương tự".`],
   [/^Pin (.+) could not be read\.$/, (pin) => `Không đọc được chân ${pin}.`],
+  // N18 R2.2: the robot's blocks against the kit, and the kit's pin rules (contract UNO §9, §13).
+  [/^"(.+)" needs (.+), which the kit (.+) does not have\.$/, (type, role, kit) => `Khối "${blockName(type)}" cần ${own(robotRoles, role) ?? role}, mà bộ robot ${kit} không có.`],
+  [/^The kit (.+) has (.+), but not for "(.+)"\.$/, (kit, role, type) => `Bộ robot ${kit} có ${own(robotRoles, role) ?? role}, nhưng không dùng được cho khối "${blockName(type)}".`],
+  [/^"(.+)" needs the robot's kit, to know which pins are free\.$/, (type) => `Khối "${blockName(type)}" cần biết bộ robot để biết chân nào còn trống.`],
+  [/^A robot block needs its module\.$/, () => 'Khối robot cần chọn mô-đun.'],
+  [/^"(.+)" is not one of the modules this block offers\.$/, (role) => `Khối này không có mô-đun "${role}".`],
+  [/^A drive block needs its direction\.$/, () => 'Khối robot đi cần chọn hướng.'],
+  [/^A direction is forward, backward, spin left or spin right\.$/, () => 'Hướng là tới, lùi, xoay trái hoặc xoay phải.'],
+  [/^An LED block needs on or off\.$/, () => 'Khối đèn cần chọn bật hoặc tắt.'],
+  [/^An LED is on or off\.$/, () => 'Đèn chỉ bật hoặc tắt.'],
+  [/^A digital write needs HIGH or LOW\.$/, () => 'Khối ghi số cần mức HIGH hoặc LOW.'],
+  [/^A pin is written HIGH or LOW\.$/, () => 'Chân chỉ ghi được mức HIGH hoặc LOW.'],
+  [/^(.+) cannot use (.+): (.+)\.$/, (op, pin, why) => `Khối ${own(rawPinOps, op) ?? op} không dùng được chân ${pin}: ${pinReason(why)}.`],
+  [/^(.+) has no PWM: pwm\.write drives it HIGH from 128 up and LOW below\.$/, (pin) => `Chân ${pin} không có PWM: ghi PWM từ 128 trở lên là HIGH, dưới 128 là LOW.`],
+  [
+    /^PWM on (.+) is not possible: the (.+) holds timer (.+) there, so the pin would stay LOW \(contract U-48\)\.$/,
+    (pin, claimer, timer) => `Không ghi PWM được ở chân ${pin}: ${own(claimers, claimer) ?? claimer} đang giữ timer ${timer} ở đó, nên chân sẽ luôn ở mức LOW (contract U-48).`,
+  ],
+  [
+    /^Port (.+) needs PWM on (.+), but the (.+) holds timer (.+) there: the pin would stay LOW \(contract U-48\)\.$/,
+    (port, pin, claimer, timer) => `Cổng ${port} cần PWM ở chân ${pin}, nhưng ${own(claimers, claimer) ?? claimer} đang giữ timer ${timer} ở đó: chân sẽ luôn ở mức LOW (contract U-48).`,
+  ],
+  [/^Port (.+) uses (.+), but the program prints: Serial holds (.+)\.$/, (port, pin, pins) => `Cổng ${port} dùng chân ${pin}, nhưng chương trình có in: Serial giữ ${pinList(pins)}.`],
+  [/^Pin (.+) is wired to more than one port: (.+)\.$/, (pin, ports) => `Chân ${pin} được nối với nhiều hơn một cổng: ${ports}.`],
+  [/^The robot kit "(.+)" is not one this app knows\.$/, (kit) => `Ứng dụng này chưa có bộ robot "${kit}".`],
   [/^The circuit needs a board\.$/, () => 'Mạch cần có một bo mạch.'],
   [/^The circuit can have only one board\.$/, () => 'Mạch chỉ được có một bo mạch.'],
   [/^(.+) cannot be used in (.+)\.$/, (ids, where) => `Không dùng được ${ids} trong ${place(where)}.`],
@@ -276,6 +371,14 @@ export const coreMessageRules: readonly Rule[] = [
   [/^The temperature is not a whole number from (.+) to (.+)\.$/, (low, high) => `Nhiệt độ không phải số nguyên từ ${low} tới ${high}.`],
   [/^An acceleration block names an axis that does not exist\.$/, () => 'Khối gia tốc gọi một trục không tồn tại.'],
   [/^The acceleration is not a whole number from (.+) to (.+)\.$/, (low, high) => `Gia tốc không phải số nguyên từ ${low} tới ${high}.`],
+  // N18 R2.2: what the robot's board answered is outside the contract's domain (a broken capability).
+  [/^(.+) is not a whole number from (.+) to (.+)\.$/, (what, low, high) => `${capitalize(subject(what))} không phải số nguyên từ ${low} tới ${high}.`],
+  [/^A sensor gave no true \/ false value\.$/, () => 'Cảm biến không trả về giá trị đúng / sai.'],
+  [/^The time since the start is not a whole number of ms\.$/, () => 'Thời gian từ lúc bắt đầu không phải một số nguyên mili giây.'],
+  [/^A robot block names a module that does not exist\.$/, () => 'Khối robot gọi một mô-đun không tồn tại.'],
+  [/^A robot block was given the wrong number of values\.$/, () => 'Khối robot nhận sai số giá trị.'],
+  [/^A drive block names a direction that does not exist\.$/, () => 'Khối robot đi gọi một hướng không tồn tại.'],
+  [/^A pin block names a pin that does not exist\.$/, () => 'Khối chân gọi một chân không tồn tại.'],
   [/^A gesture block names a gesture that does not exist\.$/, () => 'Khối cử chỉ gọi một cử chỉ không tồn tại.'],
   [/^A melody block names a melody that does not exist\.$/, () => 'Khối giai điệu gọi một giai điệu không tồn tại.'],
   [/^A tone block was given the wrong number of values\.$/, () => 'Khối âm nhận sai số giá trị.'],

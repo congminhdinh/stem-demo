@@ -79,6 +79,7 @@ import {
   MAX_WAIT_MS,
   numericDomains,
 } from './limits';
+import { createUnoModuleCompiler } from './compile-uno-modules';
 import type { ArithOp, ColourOperand, CompareOp, Expr, NumericModel, Type, YbcProgramIR, YbcStatement } from './ybc-ir';
 
 // The YBC compiler (YB plan §9.4): Blockly serialization JSON to `YbcProgramIR`,
@@ -117,6 +118,9 @@ import type { ArithOp, ColourOperand, CompareOp, Expr, NumericModel, Type, YbcPr
 // N18 R2.3: the board family decides the numeric model and the loop pause (robot plan §4.4). For the uno family the IR says
 // `cxx-int32` and 0 µs, a literal is a `long`, `repeat` takes any `long`, a count up ends at 2147483646 at most and counts by 1,
 // and a text is only printed, never compared (contract UNO §3). A ybc IR has neither field (python, 10 ms), as since YB-2.
+//
+// N18 R2.2: in the uno family the robot's blocks compile to the module ops of the IR (compile-uno-modules.ts), against the kit's
+// board target the caller passes as `target` (compile-uno-program.ts: kitBoardTarget with the capabilities of kitBoardContext).
 
 export type YbcDiagnosticCode =
   | 'malformed-program'
@@ -137,7 +141,15 @@ export type YbcDiagnosticCode =
   | 'program-too-large'
   | 'capability-unavailable'
   | 'display-char-unsupported'
-  | 'invalid-colour';
+  | 'invalid-colour'
+  // N18 R2.2: the robot's blocks against the kit (contract UNO §13): a raw pin the kit's pin rules refuse or warn about, a typed-in
+  // value written clamped, and the kit's own rules for what the program uses (compile-uno-program.ts).
+  | 'pin-unavailable'
+  | 'timer-claimed'
+  | 'not-pwm'
+  | 'value-clamped'
+  | 'pin-conflict'
+  | 'pin-reserved';
 
 export type YbcDiagnostic = {
   severity: 'error' | 'warning';
@@ -201,7 +213,9 @@ const hasControlCharacter = (text: string) => [...text].some((char) => {
  *   checked: only the unit tests of the language and of single blocks leave it out; every caller that has a board
  *   passes it.
  * @param family N18 R2.3: the board family of the context (`BoardContext.family`), which decides the numeric model and the loop
- *   pause the IR carries, and the domains of typed-in values. `ybc` by default.
+ *   pause the IR carries, and the domains of typed-in values. `ybc` by default. N18 R2.2: for `uno`, `target` is the kit's board
+ *   target (`KitBoardTarget`, with the capabilities of `kitBoardContext`): compile-uno-program.ts passes it. Without one, every
+ *   robot block is capability-unavailable.
  */
 export function compileYbcProgram(
   blocksJson: unknown,
@@ -306,6 +320,10 @@ export function compileYbcProgram(
     const block = inputBlock(owner, name, label);
     return block ? requireType(compileExpr(block, depth + 1), wanted, owner, what) : null;
   };
+
+  /** N18 R2.2: the robot's blocks, in the uno family only. */
+  const uno =
+    family === 'uno' ? createUnoModuleCompiler({ report, operand: (owner, name, label, wanted, what, depth) => operand(owner, name, label, wanted, what, depth), target }) : null;
 
   /** Whether the board has the part a hardware block reaches; says so when it has not. */
   const boardHasPartFor = (block: RawBlock): boolean => {
@@ -594,6 +612,9 @@ export function compileYbcProgram(
         return value ? { ...base, type: 'bool', kind: 'not', value } : null;
       }
       default:
+        if (uno?.isValue(block.type)) {
+          return uno.compileValue(block, depth);
+        }
         report('error', 'unsupported-construct', `"${block.type}" cannot be used as a value.`, block.id);
         return null;
     }
@@ -1067,6 +1088,7 @@ export function compileYbcProgram(
         return value ? { kind: 'set', variable: id, value, blockId: block.id } : null;
       }
       case 'text_print': {
+        uno?.notePrint();
         const valueBlock = inputBlock(block, 'TEXT', 'print');
         const value = valueBlock && compileExpr(valueBlock, depth + 1);
         return value ? { kind: 'print', value, blockId: block.id } : null;
@@ -1087,7 +1109,10 @@ export function compileYbcProgram(
       case servoWriteType:
         return compilePinOutput(block, depth);
       default:
-        if (languageBlockTypes.has(block.type) || hardwareValueBlockTypes.has(block.type)) {
+        if (uno?.isStatement(block.type)) {
+          return uno.compileStatement(block, depth);
+        }
+        if (languageBlockTypes.has(block.type) || hardwareValueBlockTypes.has(block.type) || uno?.isValue(block.type)) {
           report('error', 'unsupported-construct', `"${block.type}" cannot be used as a statement.`, block.id);
           return null;
         }
@@ -1153,6 +1178,7 @@ export function compileYbcProgram(
     }
   }
 
+  uno?.finish();
   if (diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
     return fail();
   }

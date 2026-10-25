@@ -16,6 +16,11 @@ const messageSources = [
   'core/run/ybc-pin-io.ts',
   'core/profiles/validity.ts',
   'core/run/run-session.ts',
+  // N18 R2.2: the robot's blocks, their runs, and the kit's pin rules the compiler reports on a block.
+  'core/program/compile-uno-modules.ts',
+  'core/constructs/uno.roles.ts',
+  'core/constructs/uno.run.ts',
+  'core/hardware/pin-rules.ts',
 ];
 
 /**
@@ -48,6 +53,15 @@ const handWritten = [
   'This board has no analog input, so this block cannot be used.',
   'This board has no PWM output, so this block cannot be used.',
   'This board has no servo pin, so this block cannot be used.',
+  // N18 R2.2: a field's messages, passed to the module compiler's `choice`; a kit's pin conflict (a nested template); L-1's kit.
+  'A drive block needs its direction.',
+  'A direction is forward, backward, spin left or spin right.',
+  'An LED block needs on or off.',
+  'An LED is on or off.',
+  'A digital write needs HIGH or LOW.',
+  'A pin is written HIGH or LOW.',
+  'Pin D5 is wired to more than one port: M1 (EN), M3 (PIN).',
+  'The robot kit "acme-rover@2" is not one this app knows.',
 ];
 
 describe('the core’s messages in Vietnamese (N8s)', () => {
@@ -124,6 +138,31 @@ describe('the core’s messages in Vietnamese (N8s)', () => {
     ['constructor', 'constructor'],
   ])('names the block %s "%s"', (type, name) => {
     expect(blockName(type)).toBe(name);
+  });
+});
+
+describe('the robot’s messages in Vietnamese (N18 R2.2, lab=robot)', () => {
+  it.each([
+    ['"uno_servo_set" needs servo 1, which the kit acme-rover@2 does not have.', 'Khối "servo góc °" cần servo 1, mà bộ robot acme-rover@2 không có.'],
+    ['"uno_drive_move" needs the left and the right motor, which the kit k@1 does not have.', 'Khối "robot đi tốc độ %" cần motor trái và motor phải, mà bộ robot k@1 không có.'],
+    ['The kit k@1 has the left line sensor, but not for "uno_line_raw".', 'Bộ robot k@1 có cảm biến line trái, nhưng không dùng được cho khối "giá trị thô cảm biến line".'],
+    ['This board has no modules for "uno_led_set".', 'Bo mạch này không có mô-đun robot cho khối "đèn".'],
+    ['The speed 150 for the left motor is outside -100 to 100, so it is clamped to 100.', 'Tốc độ 150 của motor trái nằm ngoài khoảng -100 tới 100, nên được kẹp về 100.'],
+    ['The frequency 10 for the buzzer is outside 31 to 4000, so it is clamped to 31.', 'Tần số 10 của còi nằm ngoài khoảng 31 tới 4000, nên được kẹp về 31.'],
+    ['The PWM value 300 for D10 is outside 0 to 255, so it is clamped to 255.', 'Giá trị PWM 300 của D10 nằm ngoài khoảng 0 tới 255, nên được kẹp về 255.'],
+    ['The speed needs a whole number, not a true / false value.', 'Tốc độ cần một số nguyên, không phải một giá trị đúng / sai.'],
+    ['"robot go" needs a value.', 'Khối "robot đi" cần một giá trị.'],
+    ['pwm.write cannot use D5: port M1 of the kit uses it.', 'Khối ghi PWM không dùng được chân D5: cổng M1 của bộ robot đang dùng chân này.'],
+    ['digital.write cannot use D0: the program prints, and Serial holds D0 and D1.', 'Khối ghi số không dùng được chân D0: chương trình có in, và Serial giữ D0 và D1.'],
+    ['digital.read cannot use A3: no input module is wired to it, and a floating pin reads at random.', 'Khối đọc số không dùng được chân A3: không có mô-đun đầu vào nào nối với chân này, và chân thả nổi đọc ra giá trị ngẫu nhiên.'],
+    ['digital.read cannot use D99: it is not a pin of uno-r3.', 'Khối đọc số không dùng được chân D99: uno-r3 không có chân này.'],
+    ['A3 has no PWM: pwm.write drives it HIGH from 128 up and LOW below.', 'Chân A3 không có PWM: ghi PWM từ 128 trở lên là HIGH, dưới 128 là LOW.'],
+    ['PWM on D10 is not possible: the servo holds timer T1 there, so the pin would stay LOW (contract U-48).', 'Không ghi PWM được ở chân D10: servo đang giữ timer T1 ở đó, nên chân sẽ luôn ở mức LOW (contract U-48).'],
+    ['Port M1 needs PWM on D10, but the servo holds timer T1 there: the pin would stay LOW (contract U-48).', 'Cổng M1 cần PWM ở chân D10, nhưng servo đang giữ timer T1 ở đó: chân sẽ luôn ở mức LOW (contract U-48).'],
+    ['The ultrasonic distance is not a whole number from 2 to 400.', 'Khoảng cách siêu âm không phải số nguyên từ 2 tới 400.'],
+    ['The robot kit "acme-rover@2" is not one this app knows.', 'Ứng dụng này chưa có bộ robot "acme-rover@2".'],
+  ])('says %j as %j', (english, vietnamese) => {
+    expect(localizeCoreMessage(english, 'vi')).toBe(vietnamese);
   });
 });
 

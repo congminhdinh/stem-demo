@@ -36,7 +36,13 @@ export const ybc2CompileDiagnosticCodes = [
 /** Compile codes N17 added: a colour that is not one of the palette, shown red with a warning (B1, Review Focus 3). */
 export const n17CompileDiagnosticCodes = ['invalid-colour'] as const;
 
-export const compileDiagnosticCodes = [...plannedCompileDiagnosticCodes, ...ybc2CompileDiagnosticCodes, ...n17CompileDiagnosticCodes] as const;
+/**
+ * Compile codes N18 R2.2 added: the robot's blocks against the kit (contract UNO §13). The hardware layer names them too
+ * (`hardwareDiagnosticCodes`): its pin rules (`rawPinCheck`, `checkKit`) decide them, and the compiler reports them on the block.
+ */
+export const n18CompileDiagnosticCodes = ['pin-unavailable', 'timer-claimed', 'not-pwm', 'value-clamped', 'pin-conflict', 'pin-reserved'] as const;
+
+export const compileDiagnosticCodes = [...plannedCompileDiagnosticCodes, ...ybc2CompileDiagnosticCodes, ...n17CompileDiagnosticCodes, ...n18CompileDiagnosticCodes] as const;
 
 /** Faults of a run: the program stops with one, naming the block (plan §6.3 "Domain guard", §6.7). */
 export const runtimeDiagnosticCodes = ['out-of-domain', 'limit-exceeded', 'zero-division', 'internal-error'] as const;
