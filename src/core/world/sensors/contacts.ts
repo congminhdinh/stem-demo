@@ -12,6 +12,11 @@ import type { ColliderLookup, SensedCollider } from './collider-lookup';
 // from the pair's manifold: the narrow phase computes a manifold at the start of a step, before the solver moves the
 // bodies, so it lags one step, and it is not updated at all while a body sleeps (measured: a cube asleep on the floor,
 // 0.07 mm into it, keeps the manifold of 1.7 mm above it from the step it landed in).
+//
+// The robot's own grounding check (robot/assembly.ts, `isGrounded` and the drive's push) does read the manifold's
+// contact distances. That is sound there: the chassis and the servo arms never sleep (`setCanSleep(false)`), so their
+// manifolds are recomputed every step, and lagging one step only delays the drive by one tick (8.3 ms) when a wheel lands
+// or lifts. A contact goal must not lag or freeze, and arena bodies may sleep, hence the measurement here.
 
 /** Two colliders touch when they are this close, m, or overlap. */
 export const CONTACT_GAP_M = 0.001;
