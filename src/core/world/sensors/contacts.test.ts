@@ -198,6 +198,28 @@ describe('readContacts', () => {
     }
   });
 
+  it('reports a box 0.05 mm into a wall that contactCollider misses: when it finds no contact, an intersection test decides', () => {
+    withWorld(corner, (world, built) => {
+      // The reference rover's body box on the 7th tick of driving into zeta from 3 mm at 0.6 m/s (measured in R3.5): its front
+      // corner is 0.054 mm into the wall. From the box, Rapier 0.21's contactCollider finds no contact at all, even with a 1 cm
+      // prediction; from the wall, the same pair is −0.054 mm.
+      const R = getRapier();
+      const body = world.createRigidBody(
+        R.RigidBodyDesc.kinematicPositionBased()
+          .setTranslation(0.9149761199951172, 0.03989134728908539, -0.49998778104782104)
+          .setRotation({ x: 0.000026017691197921522, y: -0.0002131032815668732, z: 0.0010453163413330913, w: 0.9999994039535522 }),
+      );
+      const box = world.createCollider(R.ColliderDesc.cuboid(0.075, 0.025, 0.06), body);
+      refreshQueries(world);
+      const zeta = colliderNamed(world, built, 'zeta');
+      expect(gapToPlaneX(box, 0.99)).toBeCloseTo(-0.000054, 6);
+      expect(box.contactCollider(zeta, CONTACT_GAP_M)).toBeNull();
+      expect(zeta.contactCollider(box, CONTACT_GAP_M)?.distance).toBeCloseTo(-0.000054, 6);
+      // The body box rides at the chassis' clearance, 1.5 cm over the floor.
+      expect(ids(readContacts(world, built, [body]))).toEqual(['zeta']);
+    });
+  });
+
   it('reads nothing, and never throws, for a body whose pose is not finite', () => {
     withWorld(corner, (world, built) => {
       const cube = cubeAt(world, 94, 94);
@@ -263,3 +285,12 @@ describe('readContacts', () => {
     });
   });
 });
+
+function colliderNamed(world: PhysicsWorld, built: BuiltArena, id: string): Collider {
+  let found: Collider | undefined;
+  world.forEachCollider((collider) => {
+    if (built.infoOf(collider)?.id === id) found = collider;
+  });
+  if (!found) throw new Error(`no collider ${id}`);
+  return found;
+}

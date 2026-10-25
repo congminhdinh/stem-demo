@@ -21,8 +21,8 @@ import { isFinitePose, type ColliderLookup, type SensedCollider } from './collid
 //   moved more than about 2 mm towards the robot within the last step can still be found one tick late (not reproduced;
 //   reasoned from the tree's margins). Walls, fixed boxes and cylinders never move, and are exact.
 //
-// Whether a candidate touches is measured where the colliders are now (`Collider.contactCollider`), not read from the
-// pair's manifold: the manifold is computed at the start of a step too, so it lags one step, and it is not updated at
+// Whether a candidate touches is measured where the colliders are now (`Collider.contactCollider`, and an intersection test
+// where that query finds nothing: see `touches`), not read from the pair's manifold: the manifold is computed at the start of a step too, so it lags one step, and it is not updated at
 // all while a body sleeps (measured: a cube asleep on the floor, 0.07 mm into it, keeps the manifold of 1.7 mm above it
 // from the step it landed in).
 //
@@ -77,12 +77,25 @@ export function readContacts<I extends SensedCollider>(world: PhysicsWorld, look
         if (parent !== null && own.has(parent.handle)) continue;
         const info = lookup.infoOf(other);
         if (info === undefined || touched.has(info.id)) continue;
-        const contact = collider.contactCollider(other, CONTACT_GAP_M);
-        if (contact !== null && contact.distance <= CONTACT_GAP_M) touched.set(info.id, info);
+        if (touches(collider, other)) touched.set(info.id, info);
       }
     }
   }
   return [...touched.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+/**
+ * Whether `collider` is within CONTACT_GAP_M of `other` or overlaps it, measured where both are now. `contactCollider` gives the
+ * distance. When it finds no contact at all, the pair is either farther apart than the gap or it overlaps and the query failed:
+ * Rapier 0.21's contact query can miss a pair that overlaps by a hair (measured in R3.5: the reference rover's body box 0.054 mm
+ * into a wall, at a yaw of 0.02°, has no contact from the box, even with a 1 cm prediction, and −0.054 mm from the wall). The
+ * boolean intersection test of the shapes as they are, which needs no penetration depth, tells the two apart. (Not the grown
+ * shape's: the test of a round shape is looser, it took a cube 1.07 mm from a wall for one within 1 mm.)
+ */
+function touches(collider: Collider, other: Collider): boolean {
+  const contact = collider.contactCollider(other, CONTACT_GAP_M);
+  if (contact !== null) return contact.distance <= CONTACT_GAP_M;
+  return collider.intersectsShape(other.shape, other.translation(), other.rotation());
 }
 
 /**
