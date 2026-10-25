@@ -1,5 +1,4 @@
 import {
-  AdditiveBlending,
   CatmullRomCurve3,
   Color,
   DoubleSide,
@@ -271,9 +270,10 @@ export function assembleRobot(model: RobotModel, reference: ReferenceSizes, sour
     board.position.set(body.lengthM / 2 - LINE_LEDS_INSET_M, deck, middle);
     board.scale.set(1, 1, spacing / reference.lineSpacingM);
     root.add(board);
-    // What a dark eye lights: a halo round its LED, a spot on the mat under the eye (both added light, drawn over what is there).
-    const haloMaterial = new SpriteMaterial({ name: 'line-halo', color: colors.lineSensorDark, map: options.blob, blending: AdditiveBlending, transparent: true, depthWrite: false, toneMapped: false });
-    const spotMaterial = new MeshBasicMaterial({ name: 'line-spot', color: colors.lineSensorDark, map: options.blob, blending: AdditiveBlending, transparent: true, depthWrite: false, toneMapped: false });
+    // What a dark eye lights: a halo round its LED, a spot on the mat under the eye (a soft red, untoned, so it stays red on the white
+    // mat and on the black tape alike).
+    const haloMaterial = new SpriteMaterial({ name: 'line-halo', color: colors.lineSensorDark, alphaMap: options.blob, transparent: true, opacity: 0.7, depthWrite: false, toneMapped: false });
+    const spotMaterial = new MeshBasicMaterial({ name: 'line-spot', color: colors.lineSensorDark, alphaMap: options.blob, transparent: true, opacity: 0.75, depthWrite: false, toneMapped: false });
     const spotGeometry = new PlaneGeometry(LINE_SPOT_M, LINE_SPOT_M).rotateX(-Math.PI / 2);
     owned.materials.push(haloMaterial, spotMaterial);
     owned.geometries.push(spotGeometry);
@@ -443,7 +443,7 @@ export function applyRobotWorld(handles: RobotHandles, world: RobotSnapshot, led
   for (const lamp of handles.lineLamps) {
     const dark = lineSeesDark(world, lamp.sensorIndex);
     lamp.material.emissive.set(dark ? colors.lineSensorDark : '#000000');
-    lamp.material.emissiveIntensity = dark ? 6 : 0;
+    lamp.material.emissiveIntensity = dark ? 2.5 : 0;
     lamp.glow.visible = dark;
     lamp.spot.visible = dark;
   }
