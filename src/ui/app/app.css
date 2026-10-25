@@ -11,7 +11,7 @@
   --stem-color-surface: #ffffff;
   --stem-color-surface-muted: #f1f4f9;
   --stem-color-text: #1e293b;
-  --stem-color-text-muted: #64748b;
+  --stem-color-text-muted: #5a687d;
   --stem-color-text-subtle: #94a3b8;
   --stem-color-border: #dbe2ec;
   --stem-color-border-strong: #a3b1c6;
@@ -33,7 +33,7 @@
   --stem-color-display-text: #e6f4f7;
   --stem-color-pressed: #147d64;
   --stem-color-pressed-border: #0c6b58;
-  --stem-color-overlay: rgba(255, 255, 255, 0.95);
+  --stem-color-overlay: rgba(255, 255, 255, 0.97);
   --stem-shadow-pressed: rgba(0, 0, 0, 0.4);
   --stem-shadow-scroll: rgba(15, 23, 42, 0.18);
 

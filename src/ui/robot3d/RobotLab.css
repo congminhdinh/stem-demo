@@ -672,7 +672,7 @@
   padding: 0 10px;
   border-radius: var(--stem-radius);
   background: var(--stem-color-surface-muted);
-  color: var(--stem-color-text-subtle);
+  color: var(--stem-color-text-muted);
   font-size: 12px;
 }
 

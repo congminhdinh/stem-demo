@@ -87,7 +87,7 @@
   display: inline-block;
   width: 4ch;
   margin: 0 1.5ch 0 0.5ch;
-  color: var(--stem-color-text-subtle);
+  color: var(--stem-color-text-muted);
   text-align: right;
   content: counter(cpp-line);
   user-select: none;

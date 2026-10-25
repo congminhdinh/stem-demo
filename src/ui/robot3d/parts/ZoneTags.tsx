@@ -11,7 +11,7 @@ import { arenaToThree } from '../scene-math';
 import { labelBoxes } from '../sensor-label-boxes';
 import type { MatLabels } from './mat-paint';
 import { boxOf, inPolygon, placeTags, TAG_LIFTS_M, TAG_PLACES, type ScreenBox, type TagPlace, type TagToPlace } from './zone-tag-layout';
-import { zoneTags, type ZoneTag } from './zone-tags';
+import { tagBadgeColor, zoneTags, type ZoneTag } from './zone-tags';
 
 // The zones' tags over the mat (N18 R4.7 fix round 1, zone-tags.ts): each a rounded tag drawn on a canvas (a checkpoint's number in a
 // disc of the zone's colour, or a target's dot and name), a sprite that faces the camera and keeps its size on the screen, over the
@@ -67,7 +67,7 @@ function drawTag(tag: ZoneTag): DrawnTag | null {
   const badgeX = MARGIN_PX + pad + badge / 2;
   ctx.beginPath();
   ctx.arc(badgeX, middle, badge / 2, 0, Math.PI * 2);
-  ctx.fillStyle = shade(tag.color, tag.number === null ? 0.18 : 0.42);
+  ctx.fillStyle = tagBadgeColor(tag.color, tag.number !== null);
   ctx.fill();
   ctx.textBaseline = 'middle';
   if (tag.number !== null) {

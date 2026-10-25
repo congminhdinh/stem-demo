@@ -400,7 +400,7 @@
 }
 
 .hub-chip-signal {
-  color: var(--stem-color-text-subtle);
+  color: var(--stem-color-text-muted);
   font-size: 10px;
 }
 

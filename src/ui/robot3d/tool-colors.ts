@@ -3,7 +3,7 @@
 // zones; the red is the app's danger hue.
 
 export const toolColors = {
-  ruler: '#e07b00',
+  ruler: '#cc6a00',
   rulerPoint: '#ffffff',
   rulerEdge: '#8a4b00',
   labelBackground: 'rgba(32, 33, 36, 0.86)',
