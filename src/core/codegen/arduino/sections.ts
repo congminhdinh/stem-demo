@@ -8,15 +8,20 @@ import type { ArithOp, UnoCallOp, UnoReadOp } from '../../program/ybc-ir';
 
 /** The helpers of the language (contract §3.2) and of the raw pins (§9), by the contract's id. The drivers' are their `cpp.helper`. */
 export const languageHelpers = {
-  int32: [
-    'long add32(long a, long b) { return (long)((unsigned long)a + (unsigned long)b); }',
-    'long sub32(long a, long b) { return (long)((unsigned long)a - (unsigned long)b); }',
-    'long mul32(long a, long b) { return (long)((unsigned long)a * (unsigned long)b); }',
-    'long neg32(long a) { return (long)(0UL - (unsigned long)a); }',
-    'long div32(long a, long b) { return b == -1L ? neg32(a) : (b == 0L ? 0L : a / b); }',
+  // Literals joined with +, not [...].join: the bundler can drop a constant it never needs (the app shows no sketch outside the robot lab).
+  int32:
+    'long add32(long a, long b) { return (long)((unsigned long)a + (unsigned long)b); }\n' +
+    'long sub32(long a, long b) { return (long)((unsigned long)a - (unsigned long)b); }\n' +
+    'long mul32(long a, long b) { return (long)((unsigned long)a * (unsigned long)b); }\n' +
+    'long neg32(long a) { return (long)(0UL - (unsigned long)a); }\n' +
+    'long div32(long a, long b) { return b == -1L ? neg32(a) : (b == 0L ? 0L : a / b); }\n' +
     'long mod32(long a, long b) { return (b == -1L || b == 0L) ? 0L : a % b; }',
-  ].join('\n'),
-  'pwm-write': ['void pwmWrite(uint8_t pin, long value) {', '  if (value < 0L) value = 0L;', '  if (value > 255L) value = 255L;', '  analogWrite(pin, (int)value);', '}'].join('\n'),
+  'pwm-write':
+    'void pwmWrite(uint8_t pin, long value) {\n' +
+    '  if (value < 0L) value = 0L;\n' +
+    '  if (value > 255L) value = 255L;\n' +
+    '  analogWrite(pin, (int)value);\n' +
+    '}',
 } as const;
 
 export type LanguageHelperId = keyof typeof languageHelpers;
