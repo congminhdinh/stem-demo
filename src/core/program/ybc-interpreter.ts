@@ -34,6 +34,7 @@ import {
   loopPauseUsOf,
   numericOf,
   type ArithOp,
+  type BoardPinOperand,
   type ButtonOperand,
   type CallStatement,
   type ColourOperand,
@@ -41,6 +42,7 @@ import {
   type ImageOperand,
   type ModuleCallStatement,
   type NumericModel,
+  type PinCallStatement,
   type RandomExpr,
   type ReadExpr,
   type YbcProgramIR,
@@ -107,10 +109,47 @@ import {
 // and every read of one inside an expression, first gives the budget its `atHardware()`: the virtual budget parks a program whose
 // clock has reached world.t + dt, so the op happens inside the tick of its time even after an earlier read of the same statement
 // took the clock past it (an ultrasonic read without an echo charges 20.8 ms). An expression with such a read is evaluated by
-// `evaluateReading`, which awaits there; every other expression, and every expression of a ybc program, as before.
+// `evaluateReading`, which waits there; every other expression, and every expression of a ybc program, as before.
+//
+// N18 P1: a uno program runs some 100 to 300 statements and hardware reads in every tick of the robot lab (120 Hz), so its path
+// allocates nothing unless it really waits. Its statements run in `runUno`, one async function over an explicit stack of frames (a
+// block, a loop), instead of an async call per block and an `await` per statement: what each statement does, in what order, with which
+// budget steps, block names and traces, is `runStatements`'s, and the program awaits only a promise it is given (a step that parks or
+// yields, a read or an op that waits for the world, a wait). Only the turns of the event loop between statements are gone, and nothing
+// observes them: a robot run's clock moves by what is charged to it alone (run/virtual-clock.ts), and a run waits for the program to be
+// blocked. `evaluateReading` and `runModule` give their result at once when nothing waits, and a promise of it when something does. A
+// ybc program keeps `runStatements`, as it was.
 
 /** One note or rest of a melody (or a tone), for `ms`; `hz` null is silence. */
 type Sounding = { hz: number | null; ms: number };
+
+/**
+ * N18 P1: a block of statements or a loop under way in `runUno`'s stack, reused from one push at its depth to the next (a frame per
+ * depth, made once). Each kind reads its own fields.
+ */
+type StackFrame = {
+  kind: 'block' | 'repeat' | 'while' | 'countUp';
+  /** A block's statements; a loop's body. */
+  statements: readonly YbcStatement[];
+  /** block: the next statement. */
+  index: number;
+  /** repeat: the iterations begun; countUp: the counter. */
+  count: number;
+  /** repeat: the number of repetitions; countUp: the end. */
+  limit: number;
+  /** while: its condition. */
+  condition: Expr | null;
+  /** countUp: its variable and step, and whether the first iteration has begun (the counter moves before each one after it). */
+  variable: string;
+  step: number;
+  started: boolean;
+};
+
+/** The arguments of an op that has none. */
+const NO_VALUES: readonly Value[] = Object.freeze([]);
+
+/** N18 R2.2: a raw pin op of a uno program, its pin an operand. */
+type BoardPinCall = PinCallStatement & { operand: BoardPinOperand };
 
 const isNumericModel = (numeric: unknown): numeric is NumericModel => numeric === 'python' || numeric === 'cxx-int32';
 
@@ -191,12 +230,13 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
     }
   };
 
-  /** N18 R2.2: the program reaches the hardware; the virtual budget may first hold it until the world is at its time. */
-  const atHardware = async () => {
+  /**
+   * N18 R2.2: the program reaches the hardware; the virtual budget may first hold it until the world is at its time. N18 P1: undefined
+   * when it goes on at once, else the promise to await first.
+   */
+  const atHardware = (): Promise<void> | undefined => {
     const wait = budget.atHardware?.();
-    if (wait) {
-      await wait;
-    }
+    return wait ? Promise.resolve(wait) : undefined;
   };
 
   /** N18 R2.2: the expressions of a uno program that read the hardware, at any depth: what `evaluateReading` evaluates. */
@@ -370,53 +410,95 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
   /**
    * N18 R2.2: `evaluate` for an expression of a uno program that reads the hardware: the same nodes, the same order, the same budget
    * work and block names, with a wait for the world (`atHardware`) before each read. A part without a read is `evaluate`'s.
+   *
+   * N18 P1: the value at once when no read waits; else a promise of it, the rest of the expression evaluated once the wait is over (a
+   * node goes on from where it was: its left side is not evaluated again). What comes after a wait is a function of its own (`after`,
+   * `binaryAfter`, …): a function with a closure over its parameters gets a context on every call, a wait or not.
    */
-  const evaluateReading = async (expr: Expr): Promise<Value> => {
+  const evaluateReading = (expr: Expr): Value | Promise<Value> => {
     if (!reading.has(expr)) {
       return evaluate(expr);
     }
     budget.work();
     blockId = expr.blockId;
     switch (expr.kind) {
-      case 'arith': {
-        const left = await evaluateReading(expr.left);
-        const right = await evaluateReading(expr.right);
-        blockId = expr.blockId;
-        return arithmetic(expr.op, left, right);
-      }
+      case 'arith':
       case 'compare': {
-        const left = await evaluateReading(expr.left);
-        const right = await evaluateReading(expr.right);
-        blockId = expr.blockId;
-        return values.compare(expr.op, left, right);
+        const left = evaluateReading(expr.left);
+        return left instanceof Promise ? after(left, expr, withRight) : withRight(expr, left);
       }
       case 'logic': {
-        const left = values.asBool(await evaluateReading(expr.left));
-        if (expr.op === 'and' ? !left : left) {
-          return values.bool(left);
-        }
-        return values.bool(values.asBool(await evaluateReading(expr.right)));
+        const left = evaluateReading(expr.left);
+        return left instanceof Promise ? after(left, expr, logicWith) : logicWith(expr, left);
       }
       case 'not': {
-        const inner = await evaluateReading(expr.value);
-        blockId = expr.blockId;
-        return values.not(inner);
+        const inner = evaluateReading(expr.value);
+        return inner instanceof Promise ? after(inner, expr, negated) : negated(expr, inner);
       }
-      case 'join': {
-        const parts: string[] = [];
-        for (const piece of expr.parts) {
-          parts.push(ops.toText(await evaluateReading(piece)));
-        }
-        blockId = expr.blockId;
-        return joined(parts);
+      case 'join':
+        return joinFrom(expr, [], 0);
+      case 'read': {
+        const wait = atHardware();
+        return wait ? readAfter(wait, expr) : readHardware(expr);
       }
-      case 'read':
-        await atHardware();
-        return readHardware(expr);
       default:
         throw new RuntimeFault('internal-error', 'Unexpected runtime error.');
     }
   };
+
+  /** N18 P1: what comes after a wait in `evaluateReading`: `next` of the node, given the value the wait gave. */
+  const after = <Node extends Expr>(waiting: Promise<Value>, expr: Node, next: (expr: Node, known: Value) => Value | Promise<Value>): Promise<Value> =>
+    waiting.then((known) => next(expr, known));
+  const readAfter = (wait: Promise<void>, expr: Expr): Promise<Value> => wait.then(() => readHardware(expr));
+  const binaryAfter = (waiting: Promise<Value>, expr: Extract<Expr, { kind: 'arith' | 'compare' }>, left: Value): Promise<Value> =>
+    waiting.then((right) => binary(expr, left, right));
+
+  /** N18 P1: an arith or compare node of `evaluateReading` whose left side is known: its right side, then the operation. */
+  const withRight = (expr: Extract<Expr, { kind: 'arith' | 'compare' }>, left: Value): Value | Promise<Value> => {
+    const right = evaluateReading(expr.right);
+    return right instanceof Promise ? binaryAfter(right, expr, left) : binary(expr, left, right);
+  };
+  const binary = (expr: Extract<Expr, { kind: 'arith' | 'compare' }>, left: Value, right: Value): Value => {
+    blockId = expr.blockId;
+    return expr.kind === 'arith' ? arithmetic(expr.op, left, right) : values.compare(expr.op, left, right);
+  };
+
+  /** N18 P1: a logic node of `evaluateReading` whose left side is known; the right side is not evaluated when the left decides. */
+  const logicWith = (expr: Extract<Expr, { kind: 'logic' }>, known: Value): Value | Promise<Value> => {
+    const left = values.asBool(known);
+    if (expr.op === 'and' ? !left : left) {
+      return values.bool(left);
+    }
+    const right = evaluateReading(expr.right);
+    return right instanceof Promise ? right.then(truthOf) : truthOf(right);
+  };
+  const truthOf = (value: Value): Value => values.bool(values.asBool(value));
+
+  const negated = (expr: Extract<Expr, { kind: 'not' }>, inner: Value): Value => {
+    blockId = expr.blockId;
+    return values.not(inner);
+  };
+
+  /** N18 P1: a join node of `evaluateReading` from its part `index` on, `parts` the texts of the parts before it. */
+  const joinFrom = (expr: Extract<Expr, { kind: 'join' }>, parts: string[], index: number): Value | Promise<Value> => {
+    for (let next = index; next < expr.parts.length; next++) {
+      const piece = evaluateReading(expr.parts[next] as Expr);
+      if (piece instanceof Promise) {
+        return joinAfter(piece, expr, parts, next + 1);
+      }
+      parts.push(ops.toText(piece));
+    }
+    blockId = expr.blockId;
+    return joined(parts);
+  };
+  const joinAfter = (waiting: Promise<Value>, expr: Extract<Expr, { kind: 'join' }>, parts: string[], next: number): Promise<Value> =>
+    waiting.then((known) => {
+      parts.push(ops.toText(known));
+      return joinFrom(expr, parts, next);
+    });
+
+  /** N18 P1: the value of an expression of a uno program (`evaluateReading` when it reads the hardware); a promise only when it waits. */
+  const valueOf = (expr: Expr): Value | Promise<Value> => (reading.has(expr) ? evaluateReading(expr) : evaluate(expr));
 
   const evaluate = (expr: Expr): Value => {
     // An expression node is a step too (it only counts; the checkpoint is the next statement or iteration).
@@ -784,22 +866,86 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
     }
   };
 
-  /** N18 R2.2: the arguments of a uno op, left to right, each once (awaited when one reads the hardware). */
-  const evaluatedArgs = async (args: readonly Expr[]): Promise<Value[]> => {
-    const evaluated: Value[] = [];
-    for (const arg of args) {
-      evaluated.push(reading.has(arg) ? await evaluateReading(arg) : evaluate(arg));
+  /**
+   * N18 R2.2: the arguments of a uno op, left to right, each once (waited for when one reads the hardware). N18 P1: at once when none
+   * waits, else a promise of them.
+   */
+  const evaluatedArgs = (args: readonly Expr[]): Value[] | Promise<Value[]> => {
+    // As long as the arguments (N18 P1: an empty array that grows on its first push takes room for 17).
+    const evaluated = new Array<Value>(args.length);
+    for (let index = 0; index < args.length; index++) {
+      const value = valueOf(args[index] as Expr);
+      if (value instanceof Promise) {
+        return restOfArgs(args, evaluated, value, index);
+      }
+      evaluated[index] = value;
+    }
+    return evaluated;
+  };
+  const restOfArgs = async (args: readonly Expr[], evaluated: Value[], waiting: Promise<Value>, at: number): Promise<Value[]> => {
+    evaluated[at] = await waiting;
+    for (let index = at + 1; index < args.length; index++) {
+      const value = valueOf(args[index] as Expr);
+      evaluated[index] = value instanceof Promise ? await value : value;
     }
     return evaluated;
   };
 
-  /** N18 R2.2: a module op (contract UNO U-20…U-26): its arguments, then the wait for the world, then the one call into the robot. */
-  const runModule = async (statement: ModuleCallStatement): Promise<void> => {
-    const args = 'args' in statement ? await evaluatedArgs(statement.args) : [];
+  /**
+   * N18 R2.2: a module op (contract UNO U-20…U-26): its arguments, then the wait for the world, then the one call into the robot. N18 P1:
+   * undefined when it ran at once, else the promise of it.
+   */
+  const runModule = (statement: ModuleCallStatement): Promise<void> | undefined => {
+    const args = 'args' in statement ? evaluatedArgs(statement.args) : NO_VALUES;
+    return args instanceof Promise ? moduleAfterArgs(args, statement) : moduleCall(statement, args);
+  };
+  const moduleCall = (statement: ModuleCallStatement, args: readonly Value[]): Promise<void> | undefined => {
     blockId = statement.blockId;
-    await atHardware();
+    const wait = atHardware();
+    if (wait) {
+      return moduleAfterWait(wait, statement, args);
+    }
     blockId = statement.blockId;
     runModuleCall(statement, args, capabilities, warnUnoClamp);
+    return undefined;
+  };
+  const moduleAfterArgs = (waiting: Promise<Value[]>, statement: ModuleCallStatement): Promise<void> =>
+    waiting.then((args) => moduleCall(statement, args));
+  const moduleAfterWait = (wait: Promise<void>, statement: ModuleCallStatement, args: readonly Value[]): Promise<void> =>
+    wait.then(() => {
+      blockId = statement.blockId;
+      runModuleCall(statement, args, capabilities, warnUnoClamp);
+    });
+
+  /** N18 R2.2: a raw pin op of a uno program, its pin an operand: as a module op. N18 P1: undefined when it ran at once. */
+  const runBoardPin = (statement: BoardPinCall): Promise<void> | undefined => {
+    const args = evaluatedArgs(statement.args);
+    return args instanceof Promise ? boardPinAfterArgs(args, statement) : boardPinCall(statement, args);
+  };
+  const boardPinCall = (statement: BoardPinCall, args: readonly Value[]): Promise<void> | undefined => {
+    blockId = statement.blockId;
+    const wait = atHardware();
+    if (wait) {
+      return boardPinAfterWait(wait, statement, args);
+    }
+    blockId = statement.blockId;
+    runBoardPinCall(statement.op, statement.operand, args, capabilities, warnUnoClamp);
+    return undefined;
+  };
+  const boardPinAfterArgs = (waiting: Promise<Value[]>, statement: BoardPinCall): Promise<void> =>
+    waiting.then((args) => boardPinCall(statement, args));
+  const boardPinAfterWait = (wait: Promise<void>, statement: BoardPinCall, args: readonly Value[]): Promise<void> =>
+    wait.then(() => {
+      blockId = statement.blockId;
+      runBoardPinCall(statement.op, statement.operand, args, capabilities, warnUnoClamp);
+    });
+
+  /** A header pin call (YB-4; N17 B5: PWM and servo): the arguments first, left to right, each once; then the one call into the board. */
+  const runHeaderPin = (statement: PinCallStatement): void => {
+    // A PWM duty or an angle outside its range is clamped and the run warned.
+    const args = statement.args.map((arg) => values.asInt(evaluate(arg)));
+    blockId = statement.blockId;
+    runPinCall(statement.op, args, capabilities, warnClamped);
   };
 
   const runStatements = async (statements: readonly YbcStatement[]): Promise<void> => {
@@ -886,18 +1032,10 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
           if (statement.op === 'digital.write' || statement.op === 'pwm.write' || statement.op === 'servo.write') {
             if (isBoardPinOp(statement)) {
               // N18 R2.2: a raw pin of a uno program, its pin an operand.
-              const args = await evaluatedArgs(statement.args);
-              blockId = statement.blockId;
-              await atHardware();
-              blockId = statement.blockId;
-              runBoardPinCall(statement.op, statement.operand, args, capabilities, warnUnoClamp);
+              await runBoardPin(statement);
               break;
             }
-            // A header pin (YB-4; N17 B5: PWM and servo): the arguments first, left to right, each once; then the one call into the
-            // board, with a PWM duty or an angle outside its range clamped and the run warned.
-            const args = statement.args.map((arg) => values.asInt(evaluate(arg)));
-            blockId = statement.blockId;
-            runPinCall(statement.op, args, capabilities, warnClamped);
+            runHeaderPin(statement);
             break;
           }
           await runCall(statement);
@@ -907,9 +1045,249 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
     }
   };
 
+  /** N18 P1: a call of a uno program (`runStatements`' own branches): undefined when it ran at once, else the promise of it. */
+  const unoCall = (statement: Extract<YbcStatement, { kind: 'call' }>): Promise<void> | undefined => {
+    if (isModuleCall(statement)) {
+      return runModule(statement);
+    }
+    if (statement.op === 'digital.write' || statement.op === 'pwm.write' || statement.op === 'servo.write') {
+      if (isBoardPinOp(statement)) {
+        return runBoardPin(statement);
+      }
+      runHeaderPin(statement);
+      return undefined;
+    }
+    return runCall(statement);
+  };
+
+  /**
+   * N18 P1: a uno program, `onStart` then `forever`, as `runStatements` and the forever loop below run a ybc program: the same steps in
+   * the same order, over an explicit stack of frames (a frame per depth, reused), awaiting only a promise it is given (see the top of
+   * this file). One async call for the whole run: a statement, an iteration and a read that do not wait allocate nothing here.
+   */
+  const runUno = async (): Promise<void> => {
+    const frames: StackFrame[] = [];
+    let depth = 0;
+    const push = (kind: StackFrame['kind'], statements: readonly YbcStatement[]): StackFrame => {
+      let frame = frames[depth];
+      if (frame === undefined) {
+        frame = { kind, statements, index: 0, count: 0, limit: 0, condition: null, variable: '', step: 0, started: false };
+        frames.push(frame);
+      } else {
+        frame.kind = kind;
+        frame.statements = statements;
+        frame.index = 0;
+        frame.count = 0;
+        frame.limit = 0;
+        frame.condition = null;
+        frame.variable = '';
+        frame.step = 0;
+        frame.started = false;
+      }
+      depth += 1;
+      return frame;
+    };
+    const { forever } = ir;
+    let iterating = false;
+    push('block', ir.onStart);
+    for (;;) {
+      if (depth === 0) {
+        // `onStart` has run, or an iteration of `forever` has.
+        if (!forever) {
+          return;
+        }
+        if (iterating) {
+          blockId = undefined;
+          signal.throwIfAborted();
+          // N18 R2.4: the end of an iteration is the forever hat's own.
+          if (ir.foreverBlockId !== undefined) {
+            services.trace?.(ir.foreverBlockId);
+          }
+          if (loopPauseUs > 0) {
+            await services.sleep(loopPauseUs / 1000, signal);
+            budget.startSlice();
+          }
+        }
+        iterating = true;
+        budget.loopIteration();
+        const step = budget.step();
+        if (step !== undefined) {
+          await step;
+        }
+        push('block', forever);
+        continue;
+      }
+      const frame = frames[depth - 1] as StackFrame;
+      switch (frame.kind) {
+        case 'block': {
+          const statement = frame.statements[frame.index];
+          if (statement === undefined) {
+            depth -= 1;
+            break;
+          }
+          frame.index += 1;
+          // One budget step per statement; it throws when Stop was pressed.
+          const step = budget.step();
+          if (step !== undefined) {
+            await step;
+          }
+          blockId = statement.blockId;
+          services.trace?.(statement.blockId);
+          switch (statement.kind) {
+            case 'noop':
+              break;
+            case 'set': {
+              let value = valueOf(statement.value);
+              if (value instanceof Promise) {
+                value = await value;
+              }
+              if (value.t !== 'int') {
+                throw new RuntimeFault('internal-error', 'An int variable was given another type.');
+              }
+              variables.set(statement.variable, value);
+              break;
+            }
+            case 'if': {
+              // Top to bottom; the first true condition wins and the ones after it are not evaluated.
+              let chosen: readonly YbcStatement[] = statement.else;
+              for (let index = 0; index < statement.branches.length; index++) {
+                const branch = statement.branches[index] as (typeof statement.branches)[number];
+                let condition = valueOf(branch.condition);
+                if (condition instanceof Promise) {
+                  condition = await condition;
+                }
+                if (values.asBool(condition)) {
+                  chosen = branch.body;
+                  break;
+                }
+              }
+              push('block', chosen);
+              break;
+            }
+            case 'print': {
+              let value = valueOf(statement.value);
+              if (value instanceof Promise) {
+                value = await value;
+              }
+              const text = ops.toText(value);
+              blockId = statement.blockId;
+              services.console.write(text);
+              break;
+            }
+            case 'repeat': {
+              // Evaluated once. Zero or less runs zero times (C++'s `_r < _n`).
+              let times = valueOf(statement.times);
+              if (times instanceof Promise) {
+                times = await times;
+              }
+              const limit = within(times, statement.times, domains.repeat[0], domains.repeat[1], 'The number of repetitions');
+              push('repeat', statement.body).limit = limit;
+              break;
+            }
+            case 'while':
+              push('while', statement.body).condition = statement.condition;
+              break;
+            case 'countUp': {
+              // Contract §3.3: the start is evaluated and checked, then the end, each once, before the loop.
+              let start = valueOf(statement.from);
+              if (start instanceof Promise) {
+                start = await start;
+              }
+              const from = within(start, statement.from, domains.countUpFrom[0], domains.countUpFrom[1], 'The start');
+              let end = valueOf(statement.to);
+              if (end instanceof Promise) {
+                end = await end;
+              }
+              const to = within(end, statement.to, domains.countUpTo[0], domains.countUpTo[1], 'The end');
+              const loop = push('countUp', statement.body);
+              loop.count = from;
+              loop.limit = to;
+              loop.variable = statement.variable;
+              loop.step = statement.step;
+              break;
+            }
+            case 'waitMs': {
+              let wait = valueOf(statement.ms);
+              if (wait instanceof Promise) {
+                wait = await wait;
+              }
+              const ms = within(wait, statement.ms, 0, MAX_WAIT_MS, 'A wait');
+              blockId = statement.blockId;
+              await services.sleep(ms, signal);
+              budget.startSlice();
+              break;
+            }
+            case 'call': {
+              const pending = unoCall(statement);
+              if (pending !== undefined) {
+                await pending;
+              }
+              break;
+            }
+          }
+          break;
+        }
+        case 'repeat': {
+          if (frame.count >= frame.limit) {
+            depth -= 1;
+            break;
+          }
+          frame.count += 1;
+          const step = budget.step();
+          if (step !== undefined) {
+            await step;
+          }
+          push('block', frame.statements);
+          break;
+        }
+        case 'while': {
+          const step = budget.step();
+          if (step !== undefined) {
+            await step;
+          }
+          let condition = valueOf(frame.condition as Expr);
+          if (condition instanceof Promise) {
+            condition = await condition;
+          }
+          if (!values.asBool(condition)) {
+            depth -= 1;
+            break;
+          }
+          push('block', frame.statements);
+          break;
+        }
+        case 'countUp': {
+          // The variable is set at the start of every iteration, so a change made in the body does not move the count; after the
+          // loop it keeps the last value, or is untouched when the loop did not run.
+          if (frame.started) {
+            frame.count += frame.step;
+          }
+          frame.started = true;
+          if (!(frame.count <= frame.limit)) {
+            depth -= 1;
+            break;
+          }
+          const step = budget.step();
+          if (step !== undefined) {
+            await step;
+          }
+          variables.set(frame.variable, values.int(frame.count));
+          push('block', frame.statements);
+          break;
+        }
+      }
+    }
+  };
+
   try {
     if (!isNumericModel(numeric) || !Number.isFinite(loopPauseUs) || loopPauseUs < 0) {
       throw new RuntimeFault('internal-error', 'The program asks for a number model or a loop pause that does not exist.');
+    }
+    if (ops.model === 'cxx-int32') {
+      // N18 P1: a uno program.
+      await runUno();
+      signal.throwIfAborted();
+      return { status: 'finished' };
     }
     await runStatements(ir.onStart);
     const { forever } = ir;
