@@ -133,7 +133,7 @@ describe('decodePin', () => {
     ]);
   });
 
-  it('joins the first servo pulse after attach to its run when it is up to 6 µs longer (servo-first-pulse); a later pulse keeps the 4 µs', () => {
+  it('joins the first servo pulse after attach to its run when its width is within 6 µs of the next (servo-first-pulse); a later pulse keeps the 4 µs', () => {
     // N18 R8a: Servo 1.3.0 on D10 sends its first pulse 4.5625 µs longer than the next (1476.0625 against 1471.5 µs).
     // As driver-servo: two pulses of 90° (the first after attach), then 45° from the third frame on.
     const attached = (firstUs: number) => [low(6.625), ...pulses(52_809.4375, 1, 20_003, firstUs), ...pulses(72_812.4375, 1, 20_003, 1471.5), ...pulses(92_815.4375, 3, 20_003, 1007.5)];
@@ -141,6 +141,16 @@ describe('decodePin', () => {
     expect(events('D10', attached(1477.5), 150_000, servo).slice(1).map(([state]) => state)).toEqual([{ kind: 'low' }, { kind: 'servo', deg: 90 }, { kind: 'servo', deg: 45 }]);
     // 6.5 µs longer is more than the allowance: that pulse stays exact edges, and the 90° has no run (what the C2 comparison refuses).
     expect(events('D10', attached(1478), 150_000, servo).slice(1).map(([state]) => state)).toEqual([{ kind: 'low' }, { kind: 'high' }, { kind: 'low' }, { kind: 'servo', deg: 45 }]);
+    // Rises at 52.8 ms (attach's pulse), then every frame; `widths` are the pulses' HIGH times, µs.
+    const train = (widths: readonly number[]) => [low(6.625), ...widths.flatMap((width, k) => pulses(52_809.4375 + k * 20_003, 1, 20_003, width))];
+    const spans = (changes: RawChange[]) => findRuns(changes, servo, 'INPUT').map((run) => [run.first, run.last]);
+    // (a) Only the first pulse gets 6 µs: in a run that began at attach, a third pulse 5 µs longer than the second splits it (4 µs).
+    expect(spans(train([1476.0625, 1471.5, 1476.5, 1476.5, 1476.5]))).toEqual([
+      [1, 5],
+      [5, 9],
+    ]);
+    // (b) The steady pulses are held to the second pulse, not the first: 90° for 5 frames after a first pulse 4.5625 µs longer is one run.
+    expect(spans(train([1476.0625, 1471.5, 1471.5, 1471.5, 1471.5, 1471.5]))).toEqual([[1, 11]]);
     // Not after attach (the pin was an output already, a LOW before the pulses): 4.5625 µs longer splits the run, as waveform-jitter says.
     const steady = [low(6.625), ...pulses(20_000, 1, 20_003, 1471.5), ...pulses(40_003, 1, 20_003, 1476.0625), ...pulses(60_006, 2, 20_003, 1471.5)];
     expect(findRuns(steady, servo, 'LOW').map((run) => run.first)).not.toContain(1);

@@ -101,8 +101,9 @@ bộ đọc trace của board không ghép xung đầu vào run 90° trên D10: 
 
 Đây là dung sai của harness, không phải lỗi của simulator hay của kit. **Quyết định của controller** (R8a fix round 1): harness có một luật
 riêng, có ghi lại, cho xung đầu sau `attach()`: allowed difference `servo-first-pulse` thêm `firstWidthUs: 6` (thời gian ngắt Timer0
-5,97 µs làm tròn lên). Xung đầu được ghép vào run của góc khi độ rộng lệch xung sau nó ≤ 6 µs; các xung ổn định vẫn giữ 4 µs
-(`tests/parity/board-trace.ts` `findRuns`, test `joins the first servo pulse after attach…` của `board-trace.test.ts`). Số đo 4,5625 µs
+5,97 µs làm tròn lên). Xung đầu được ghép vào run của góc khi độ rộng của nó lệch xung sau nó tới 6 µs (dài hơn hoặc ngắn hơn); các
+xung ổn định vẫn giữ 4 µs (`tests/parity/board-trace.ts` `findRuns`, test `joins the first servo pulse after attach…` của
+`board-trace.test.ts`). Số đo 4,5625 µs
 trên D10 được ghi làm evidence ở dòng "Xung servo đầu tiên sau attach" của contract §13. Với luật đó `rehearsal-driver-servo` khớp, và bộ
 fixture của kit tham chiếu vẫn khớp như trước.
 

@@ -134,8 +134,12 @@ async function main() {
     }
     return { outcome: verified, lines: core.describeReports(verified.reports), code: core.verifyExitCode(verified.reports) };
   });
-  // JSON escapes every control character of the input; the text lines are escaped by describeReports.
-  process.stdout.write(options.json ? `${JSON.stringify(outcome.many ? outcome.reports : outcome.reports[0])}\n` : `${lines.join('\n')}\n`);
+  // The text lines are escaped by describeReports. JSON.stringify escapes only C0 (U+0000…U+001F) of a string: the C1 controls, the line
+  // separators and the bidirectional controls the input may hold are escaped here too (they only occur inside JSON strings, where \uXXXX is
+  // the same character to a JSON reader).
+  const json = () =>
+    JSON.stringify(outcome.many ? outcome.reports : outcome.reports[0]).replace(/[\u0080-\u009f\u200e\u200f\u2028-\u202e\u2066-\u2069]/g, (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`);
+  process.stdout.write(options.json ? `${json()}\n` : `${lines.join('\n')}\n`);
   process.exitCode = code;
 }
 

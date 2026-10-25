@@ -412,6 +412,15 @@ describe('scripts/verify-attempt.mjs (pnpm verify:attempt), as its own Node proc
     expect(one.status, one.stderr).toBe(0);
     expect(one.stdout).toBe(`attempt 1 (id 41, ${key}): match\n`);
 
+    // --json escapes every control character of the input, C1, line separators and bidirectional controls too (JSON.stringify escapes C0).
+    const hostileKey = 'x\u0085\u2028\u202e\u001by';
+    writeFileSync(file, JSON.stringify(honest({ templateKey: hostileKey })));
+    const escaped = run(file, '--json');
+    expect(escaped.status).toBe(2);
+    expect(escaped.stdout).toContain('"templateKey":"x\\u0085\\u2028\\u202e\\u001by"');
+    expect([...escaped.stdout].filter((char) => char.charCodeAt(0) < 0x20 || char.charCodeAt(0) >= 0x7f)).toEqual(['\n']);
+    expect(JSON.parse(escaped.stdout)).toMatchObject({ templateKey: hostileKey, reason: 'unknown-key' });
+
     writeFileSync(file, '{ not json');
     const bad = run(file, '--json');
     expect(bad.status).toBe(2);
