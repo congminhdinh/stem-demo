@@ -12,6 +12,7 @@ import { createWorldRng } from '../rng';
 import { arenaToWorld, degToRad, yawToQuaternion } from '../units';
 import type { ColliderLookup, SensedCollider, SensorPose } from './collider-lookup';
 import { measureUltrasonic, ULTRASONIC_MAX_INCIDENCE_DEG, ultrasonicRayDirections, ULTRASONIC_RAY_COUNT } from './ultrasonic';
+import { threadCpuMs } from '../__fixtures__/cpu-time';
 
 // Compiling the real wasm can take seconds on a loaded machine.
 beforeAll(() => initPhysics(), 30_000);
@@ -328,10 +329,11 @@ describe('measureUltrasonic', () => {
       const pose = poseAt(100, 100, 4, 30);
       for (let i = 0; i < 200; i++) measureUltrasonic(world, built, pose, HC_SR04);
       const count = 5000;
-      const started = performance.now();
+      // CPU time of this thread, so that other processes on a loaded machine (parallel test workers, a build) do not count.
+      const started = threadCpuMs();
       for (let i = 0; i < count; i++) measureUltrasonic(world, built, pose, HC_SR04);
-      const usPerMeasure = ((performance.now() - started) * 1000) / count;
-      console.info(`measureUltrasonic: ${usPerMeasure.toFixed(2)} µs per measure (${count} measures, boxes arena)`);
+      const usPerMeasure = ((threadCpuMs() - started) * 1000) / count;
+      console.info(`measureUltrasonic: ${usPerMeasure.toFixed(2)} µs of CPU per measure (${count} measures, boxes arena)`);
       // Budget: physics ≤ 0.5 ms per tick for everything (plan §5); one ultrasonic per tick must stay a small part of it.
       expect(usPerMeasure).toBeLessThan(50);
     });
