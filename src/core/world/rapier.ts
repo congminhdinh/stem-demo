@@ -107,18 +107,24 @@ export function createPhysicsWorld(): PhysicsWorld {
  * since the last step is invisible to a ray until the next step. The tick loop (plan §3) reads the sensors
  * before it steps, so tick 0 would read nothing.
  *
- * This runs one step with `timestep = 0`. Collision detection and the broad phase run, nothing is
- * integrated, and the timestep is restored bit for bit. Measured (rapier.test.ts, build-arena.test.ts):
- * poses and velocities are unchanged, and the 600 ticks after an extra refresh are bit-identical, poses and
- * velocities, to the 600 ticks without one.
+ * This runs a step with `timestep = 0`, twice. Collision detection and the broad phase run, nothing is integrated, and the
+ * timestep is restored bit for bit. Measured (rapier.test.ts, build-arena.test.ts): poses and velocities are unchanged, and
+ * the 600 ticks after an extra refresh are bit-identical, poses and velocities, to the 600 ticks without one.
  *
- * Contact events: a refresh passes no event queue, so a pair that starts touching during it reports no
- * start event later (it is already touching). Refresh while a world is being built, before t = 0.
+ * Why twice (N18 R3.3, rapier.test.ts): a collider created since the last step shows after one zero-length step, but a body
+ * moved by hand (`setTranslation`, a reset) does not always. In a world of up to ~10 colliders it stays invisible to ray
+ * casts, where it was and where it is, until a second one; with 100 or more, one is enough. Two always were (1 to 1000
+ * colliders; dynamic and kinematic bodies, fixed colliders). Whoever moves bodies by hand calls
+ * `world.propagateModifiedBodyPositionsToColliders()` and then this.
+ *
+ * Contact events: a refresh passes no event queue, so a pair that starts touching during it reports no start event later
+ * (it is already touching). Refresh while a world is being built, before t = 0.
  */
 export function refreshQueries(world: PhysicsWorld): void {
   const timestep = world.timestep;
   world.timestep = 0;
   try {
+    world.step();
     world.step();
   } finally {
     world.timestep = timestep;

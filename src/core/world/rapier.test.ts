@@ -139,4 +139,38 @@ describe('refreshQueries', () => {
     },
     WASM_TIMEOUT_MS,
   );
+
+  it(
+    'makes a body moved by hand visible where it now is and gone from where it was, in a world of few colliders as of many',
+    async () => {
+      const physics = await freshRapierFile();
+      await physics.initPhysics();
+      const R = physics.getRapier();
+      // N18 R3.3, measured: after a body is moved by hand, one zero-length step brings it back to ray casts in a world of 100
+      // or more colliders, but only a second one does in a world of up to ~10 (Rapier 0.21's BVH); with one, the body is
+      // invisible both where it was and where it is.
+      for (const statics of [0, 3, 10, 100]) {
+        const world = physics.createPhysicsWorld();
+        try {
+          const fixed = world.createRigidBody(R.RigidBodyDesc.fixed());
+          for (let i = 0; i < statics; i++) {
+            world.createCollider(R.ColliderDesc.cuboid(0.01, 0.01, 0.01).setTranslation(i * 0.05, -1, -2), fixed);
+          }
+          const body = world.createRigidBody(R.RigidBodyDesc.dynamic().setGravityScale(0));
+          world.createCollider(R.ColliderDesc.cuboid(0.05, 0.05, 0.05), body);
+          for (let tick = 0; tick < 10; tick++) world.step();
+          const seen = (x: number) => world.castRay(new R.Ray({ x, y: 1, z: 0 }, { x: 0, y: -1, z: 0 }), 5, true) !== null;
+          expect(seen(0)).toBe(true);
+          body.setTranslation({ x: 2, y: 0, z: 0 }, true);
+          world.propagateModifiedBodyPositionsToColliders();
+          physics.refreshQueries(world);
+          expect([seen(0), seen(2)], `${statics} other colliders`).toEqual([false, true]);
+          expect(body.translation()).toEqual({ x: 2, y: 0, z: 0 });
+        } finally {
+          world.free();
+        }
+      }
+    },
+    WASM_TIMEOUT_MS,
+  );
 });
