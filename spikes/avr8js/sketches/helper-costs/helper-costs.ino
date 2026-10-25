@@ -1,5 +1,6 @@
 // N18 C2 cost sketch (evidence for the parity harness's allowed differences): what a driver helper costs beyond the Arduino calls
-// the simulator charges, and what tone() costs at each frequency (costsUs.tone was measured at 1000 Hz only).
+// the simulator charges, what tone() costs at each frequency on a silent pin and on a pin that already plays (costsUs.tone was
+// measured at 1000 Hz on a playing pin only), and what Serial.begin(9600) costs.
 // Same method as costs.ino: D8 (PB0) marks the call (so no measured call may touch D8) by direct port writes; the shortest of N samples minus the empty baseline.
 #define MARK_ON() (PORTB |= _BV(PB0))
 #define MARK_OFF() (PORTB &= ~_BV(PB0))
@@ -40,6 +41,7 @@ void group(const __FlashStringHelper *name) {
   } while (0)
 
 #define TONE_AT(hz) MEASURE("tone D10 fresh " #hz " Hz", (noTone(10), vHz = hz), tone(10, vHz, vMs))
+#define RETONE_AT(hz) MEASURE("tone D10 replacing " #hz " Hz", (noTone(10), tone(10, 1000, 100UL), vHz = hz), tone(10, vHz, vMs))
 
 void setup() {
   Serial.begin(9600);
@@ -64,7 +66,17 @@ void setup() {
   TONE_AT(3000);
   TONE_AT(4000);
   MEASURE("tone D10 replacing 1000 by 1500 Hz", (noTone(10), tone(10, 1000, 100UL), vHz = 1500), tone(10, vHz, vMs));
+  RETONE_AT(31);
+  RETONE_AT(100);
+  RETONE_AT(200);
+  RETONE_AT(440);
+  RETONE_AT(500);
+  RETONE_AT(1000);
+  RETONE_AT(1500);
+  RETONE_AT(3000);
+  RETONE_AT(4000);
   noTone(10);
+  MEASURE("Serial.begin 9600", Serial.flush(), Serial.begin(9600));
   group(F("loop"));
 }
 

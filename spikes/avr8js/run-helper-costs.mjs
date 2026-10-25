@@ -1,5 +1,5 @@
 // N18 C2: what motorSet costs beyond its Arduino calls and what tone() costs per frequency, from emulated cycle counts (the
-// evidence of the parity harness's `helper-compute` and `tone-call-cost`). node spikes/avr8js/run-helper-costs.mjs
+// evidence of the board profile's motorSetOverhead and toneUs, contract 0.1.5 §4.4). node spikes/avr8js/run-helper-costs.mjs
 import { runCosts } from './run-costs.mjs';
 import { round } from './lib/uno.mjs';
 
@@ -13,6 +13,8 @@ export function runHelperCosts() {
     costs: measured.costs,
     motorSetBeyondCallsUs: { 'v=50': round(us('motorSet v=50') - parts, 4), 'v=-100': round(us('motorSet v=-100') - parts, 4) },
     toneFreshUs: Object.fromEntries(Object.keys(measured.costs).filter((name) => name.startsWith('tone D10 fresh')).map((name) => [name.replace('tone D10 fresh ', ''), us(name)])),
+    toneReplacingUs: Object.fromEntries(Object.keys(measured.costs).filter((name) => /^tone D10 replacing \d+ Hz$/.test(name)).map((name) => [name.replace('tone D10 replacing ', ''), us(name)])),
+    serialBeginUs: us('Serial.begin 9600'),
   };
 }
 
