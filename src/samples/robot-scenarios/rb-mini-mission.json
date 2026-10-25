@@ -8,10 +8,10 @@
     "ground": { "sizeCm": [180, 140], "color": "#f2f2f2" },
     "paint": {
       "lines": [
-        { "pointsCm": [[30, 30], [110, 30], [140, 60], [140, 137]], "widthCm": 2.5 }
+        { "pointsCm": [[14, 30], [110, 30], [140, 60], [140, 137]], "widthCm": 2.5 }
       ],
       "zones": [
-        { "id": "start", "kind": "start", "polygonCm": [[28, 18], [52, 18], [52, 42], [28, 42]], "color": "#cfe2f3" },
+        { "id": "start", "kind": "start", "polygonCm": [[22, 18], [58, 18], [58, 42], [22, 42]], "color": "#cfe2f3" },
         { "id": "cp-1", "kind": "checkpoint", "polygonCm": [[70, 15], [90, 15], [90, 45], [70, 45]], "color": "#fff2cc" },
         { "id": "cp-2", "kind": "checkpoint", "polygonCm": [[125, 65], [155, 65], [155, 85], [125, 85]], "color": "#fff2cc" },
         { "id": "dock", "kind": "target", "polygonCm": [[125, 105], [155, 105], [155, 128], [125, 128]], "color": "#d9ead3" }
@@ -29,7 +29,7 @@
     ]
   },
   "start": { "xCm": 40, "yCm": 30, "yawDeg": 0 },
-  "variants": { "count": 3, "seed": 1229, "startJitterCm": 1.5, "yawJitterDeg": 5 },
+  "variants": { "count": 3, "seed": 3225, "startJitterCm": 1.5, "startJitterAlongCm": 15, "yawJitterDeg": 5 },
   "timeLimitS": 45,
   "goals": [
     {
@@ -96,5 +96,6 @@
       ]
     }
   },
-  "toolbox": ["stem_on_start", "stem_forever", "math_number", "ybc_wait_ms", "uno_drive_move", "uno_drive_stop", "uno_motor_set", "controls_repeat_ext", "ybc_while", "controls_if", "logic_compare", "logic_operation", "logic_negate", "logic_boolean", "uno_ultrasonic_cm", "uno_line_dark", "uno_servo_set", "text_print", "text"]
+  "toolbox": ["stem_on_start", "stem_forever", "math_number", "ybc_wait_ms", "uno_drive_move", "uno_drive_stop", "uno_motor_set", "controls_repeat_ext", "ybc_while", "controls_if", "logic_compare", "logic_operation", "logic_negate", "logic_boolean", "uno_ultrasonic_cm", "uno_line_dark", "uno_servo_set", "text_print", "text"],
+  "endOnContact": ["obstacle"]
 }

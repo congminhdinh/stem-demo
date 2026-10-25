@@ -7,8 +7,8 @@ import type { robotSandboxKey, RobotTemplateKey } from './robot-keys';
 //              variant, with a margin (R5.2b runs it through the check; R5.2a compiles it and turns its sketch into a golden of C1).
 //   blind      (lessons 3-6) a "blind" program: motors and waits only, no sensor, timed so that it solves variant 0. It must fail at least
 //              one variant, which is the proof that the variants of the scenario mean something.
-//   exploits   programs that try to score without doing the lesson (from the R5.2a review), each with the most it may score in any variant:
-//              regression cases for R5.2b's check, which must keep them at or under that score.
+//   exploits   programs that try to score without doing the lesson (from the R5.2a reviews), each with the most the check may give it:
+//              regression cases for R5.2b's check, which must fail every one of them and give it at most that score.
 //   notes      what the timings rest on.
 //
 // Every program is a Blockly workspace as `Blockly.serialization.workspaces.save` writes it (tests/robot-scenarios.test.ts loads it into
@@ -25,14 +25,20 @@ type Json = Record<string, unknown>;
 /** A Blockly workspace in JSON, as Blockly saves it. */
 export type BlocklyJson = Json;
 
-/** A program that tries to score without doing what the lesson asks, and the most it may score (time bonus included) in any variant. */
+/**
+ * A program that tries to score without doing what the lesson asks (an open-loop program, or one that skips the lesson's sensor), which the
+ * check must not pass (rule 10 of docs/robot-scenario-authoring.md), and the most the check may give it.
+ */
 export type RobotExploit = {
   /** A name for the test that runs it, `[a-z0-9-]`. */
   readonly name: string;
   /** What it does, and why it must not score more. */
   readonly description: string;
   readonly program: BlocklyJson;
-  /** The highest score of any variant: measured by the spike, under half of the 100. */
+  /**
+   * The most the check may give it, time bonus included: its score, the lowest of its variants' (R6.2's rule), as the spike measured it.
+   * At most 60 (rule 10).
+   */
   readonly maxScore: number;
 };
 
@@ -148,7 +154,7 @@ export const workspace = (...top: readonly Json[]): BlocklyJson => ({ blocks: { 
 export const CRUISE = 50;
 
 /** The three-sensor line follower of lessons 4 and 6: forward on the line, spin towards it when only a side sensor sees it. */
-const followLine = (prefix: string): readonly (readonly [Json, readonly Json[]])[] => [
+export const followLine = (prefix: string): readonly (readonly [Json, readonly Json[]])[] => [
   [lineDark(`${prefix}-center`, 'lineCenter'), [drive(`${prefix}-forward`, 'forward', CRUISE)]],
   [lineDark(`${prefix}-left`, 'lineLeft'), [drive(`${prefix}-spin-left`, 'spinLeft', CRUISE)]],
   [lineDark(`${prefix}-right`, 'lineRight'), [drive(`${prefix}-spin-right`, 'spinRight', CRUISE)]],
@@ -192,9 +198,21 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
       'Reference: stop once the echo reads under 15 cm, the threshold the lesson\'s theory gives. The middle stops at x = 135.8..135.9 ' +
       'in all three variants (the front 14.7 cm from the wall; zone x 126..146), whatever the start, since coasting from 13.4 cm/s ' +
       'takes under 1 cm. The kit enters through that stopping distance and the sensor 7.5 cm ahead of the middle. Measured: a threshold ' +
-      'of 10 cm stops at x 140.9 and one of 20 cm at 130.8, both in the zone; 25 cm stops at 125.9, short of it. Blind: 50 % for 6800 ' +
-      'ms (91.1 cm) stops at x = 136.1 from the authored start. The seed (3004) moves variant 1 17.6 cm further on, where the blind ' +
-      'program hits the wall (6.6 s), and variant 2 17.5 cm back, where it stops 7.4 cm short of the zone.',
+      'of 10 cm stops at x 140.9 and one of 20 cm at 130.8, both in the zone; 25 cm stops at 125.9, short of it. A touch of a wall ends ' +
+      'the run (endOnContact), as a crash does in a competition, so driving into the wall and backing off parks nowhere (exploit ' +
+      'below). Blind: 50 % for 6800 ms (91.1 cm) stops at x = 136.1 from the authored start. The seed (3004) moves variant 1 17.6 cm ' +
+      'further on, where the blind program hits the wall at 6.6 s and the run ends, and variant 2 17.5 cm back, where it stops 7.4 cm ' +
+      'short of the zone.',
+    exploits: [
+      {
+        name: 'crash-and-back-off',
+        description:
+          'Forward until it runs into the wall, back for 1.1 s, stop: the wall is the same in every variant, so backing off a fixed time ' +
+          'parks in the zone wherever it started. The run ends at the crash (endOnContact), so it parks nowhere.',
+        program: workspace(hat('stem_on_start', [drive('go', 'forward', CRUISE), wait('drive-time', 10000), drive('back', 'backward', CRUISE), wait('back-time', 1100), stop('stop')])),
+        maxScore: 0,
+      },
+    ],
   },
   'rb-line-follow': {
     reference: workspace(hat('stem_forever', [ifBlock('if-line', followLine('line'), [stop('lost')])])),
@@ -204,14 +222,16 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
     notes:
       'Reference: the centre-sensor follower: forward while the centre sensor sees the line, spin towards it (50 %) while only a side ' +
       'sensor does, stop when none does, which is where the tape ends, in the garage. The share on the tape is 0.999 of the distance in ' +
-      'all three variants; the robot enters the garage at 19.5..19.7 s of 45 and stops at x 17.7, 8 cm before its back wall. Lesson 4 ' +
-      'must teach this follower: one on the two side sensors only (forward while neither sees the line) stalls at the first 45° corner ' +
-      '(x 113.5 in every variant) with the placeholder kit\'s sensors 1.5 cm apart. The kit enters through the sensor bar (three sensors ' +
-      '1.5 cm apart, 7 cm ahead of the middle): a start whose bar lies within 2.75 cm of the line finds it, which the jitter (1.5 cm, ' +
-      '5°) keeps. Blind: five legs at 50 % (5150, 2050, 2850, 1950, 7300 ms) with spins of 415 ms, found by a grid search on variant 0: ' +
-      'share 0.965, in the garage at 19.1 s. The seed (485) turns variants 1 and 2 by −4.9° and +4.9°: share 0.576 and 0.481, so the ' +
-      'line goal fails; it still gets into the garage (60), since turning the start moves the garage end of the route along the ' +
-      'corridor more than across it. The garage stops a dash: its mouth faces the way the tape comes in, so any straight line from the ' +
+      'all three variants; the robot enters the garage at 19.5..19.7 s and stops at x 17.7, 8 cm before its back wall. The same ' +
+      'follower at 40 % enters at 40.9..41.2 s and at 35 % (just over the dead band) at 93.1..93.7 s, hence the time limit of 120 s. ' +
+      'Lesson 4 must teach this follower: one on the two side sensors only (forward while neither sees the line) stalls at the first ' +
+      '45° corner (x 113.5 in every variant) with the placeholder kit\'s sensors 1.5 cm apart. The kit enters through the sensor bar ' +
+      '(three sensors 1.5 cm apart, 7 cm ahead of the middle): a start whose bar lies within 2.75 cm of the line finds it, which the ' +
+      'jitter (1.5 cm, 5°) keeps. Blind: five legs at 50 % (5150, 2050, 2850, 1950, 7300 ms) with spins of 415 ms, found by a grid ' +
+      'search on variant 0: share 0.965, in the garage at 19.1 s. The seed (485) turns variants 1 and 2 by −4.9° and +4.9°: share 0.576 ' +
+      'and 0.481, so the line goal fails; it still gets into the garage (60), since turning the start moves the garage end of the route ' +
+      'along the corridor more than across it, so the check gives it 60 and does not pass it; so does a three-leg route that keeps away ' +
+      'from the tape (exploit below). The garage stops a dash: its mouth faces the way the tape comes in, so any straight line from the ' +
       'start into it crosses its south wall.',
     exploits: [
       {
@@ -231,6 +251,14 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
         program: workspace(hat('stem_on_start', [drive('go', 'forward', CRUISE), wait('drive-time', 1800), stop('stop')])),
         maxScore: 40,
       },
+      {
+        name: 'three-leg-route',
+        description:
+          'East 6750 ms, a spin left of 820 ms, north 5900 ms, a spin left of 820 ms, west 8600 ms, at 50 %: three legs across the arena ' +
+          'into the garage, timed on variant 0, away from the tape at the corners. It gets the garage and not the line.',
+        program: workspace(hat('stem_on_start', [...leg('east', 6750, 820), ...leg('north', 5900, 820), ...leg('west', 8600), stop('stop')])),
+        maxScore: 60,
+      },
     ],
   },
   'rb-servo-gate': {
@@ -243,9 +271,9 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
       'variants (zone x 108..128) and the flag holds in range from 5.2..7.7 s. The servo starts at 90° (the Servo library writes 90 ' +
       'when attached), outside the goal range 150..180°, so only a program that turns it passes. flag-at-gate (whenInZone) does not ask ' +
       'the robot to stop: a robot that crosses the zone with the flag up meets it, which is why stop-at-gate (40) and no-crash (20) ' +
-      'carry the rest. Blind: 50 % for 5800 ms stops at x = 117.6 from the authored start. The seed (1409, jitter 18 cm) moves variant ' +
-      '1 16.9 cm further on, where the body runs into the gate (5.65 s), 4.2 cm past the zone, and variant 2 17.3 cm back, where it ' +
-      'stops 7.8 cm short.',
+      'carry the rest, and a touch of the gate ends the run (endOnContact), so backing off it parks nowhere (exploits below). Blind: 50 ' +
+      '% for 5800 ms stops at x = 117.6 from the authored start. The seed (1409, jitter 18 cm) moves variant 1 16.9 cm further on, ' +
+      'where the body runs into the gate at 5.65 s and the run ends, and variant 2 17.3 cm back, where it stops 7.8 cm short.',
     exploits: [
       {
         name: 'flag-and-crash',
@@ -255,6 +283,16 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
         program: workspace(hat('stem_on_start', [servo('flag-up', 160), drive('go', 'forward', CRUISE)])),
         maxScore: 40,
       },
+      {
+        name: 'flag-crash-and-back-off',
+        description:
+          'The flag up, forward into the gate, back for 1.1 s, stop: the gate is the same in every variant, so backing off a fixed time ' +
+          'parks in the zone. The run ends at the crash (endOnContact), so it keeps only the flag it showed crossing the zone.',
+        program: workspace(
+          hat('stem_on_start', [servo('flag-up', 160), drive('go', 'forward', CRUISE), wait('drive-time', 9000), drive('back', 'backward', CRUISE), wait('back-time', 1100), stop('stop')]),
+        ),
+        maxScore: 40,
+      },
     ],
   },
   'rb-mini-mission': {
@@ -262,20 +300,33 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
     blind: workspace(hat('stem_on_start', [...leg('leg-1', 5200, 415), ...leg('leg-2', 3150, 415), ...leg('leg-3', 4200), stop('stop')])),
     notes:
       'Reference: the follower of lesson 4 under the stop of lesson 3. Share on the tape 1.000 in all three variants; it parks at x ' +
-      '141.2, y 115.8 by 14.3..14.5 s (finish-within 30 s, so the time bonus has room) and passes the cones at 2.8 cm (cone-1) and 3.3 ' +
-      'cm (cone-2) from its footprint. The tape runs on to y 137, 1 cm before the dock wall, so a follower that stops only when it ' +
-      'loses the tape reaches the wall first (exploit below): only the distance check parks in the dock. The cones are placed for this ' +
-      'kit: a wider robot (track, wheel width) needs them moved out. Blind: three legs at 50 % (5200, 3150, 4200 ms) with spins of 415 ' +
-      'ms, found by a grid search on variant 0: share 0.954, parked at 14.4 s, 1.5 cm from cone-2. The seed (1229) turns variants 1 and ' +
-      '2 by +5.0° and −4.8°: the robot leaves the line (share 0.40 and 0.26) and hits cone-2 and cone-1.',
+      '141.2, y 115.8..115.9 by 13.3..15.4 s (finish-within 30 s, so the time bonus has room) and passes the cones at 2.9 cm (cone-1) ' +
+      'and 3.3 cm (cone-2) from its footprint. A touch of a cone or the dock wall ends the run (endOnContact). Two ways round the ' +
+      'distance check fail: the tape runs on to y 137, 1 cm before the dock wall, so a follower that stops when it loses the tape meets ' +
+      'the wall first; and the start moves up to 15 cm along the start straight (startJitterAlongCm; the seed 3225 puts variant 1 13.8 ' +
+      'cm back and variant 2 14.2 cm on), farther than the dock is long (23 cm), so a follower stopped after a fixed time misses the ' +
+      'dock in some variant whatever the time (exploits below; the spike swept the count of a timed follower from 240 000 to 380 000 ' +
+      'loops and none passed). The cones are placed for this kit: a wider robot (track, wheel width) needs them moved out. Blind: three ' +
+      'legs at 50 % (5200, 3150, 4200 ms) with spins of 415 ms, found by a grid search on variant 0: share 0.954, parked at 14.4 s, 1.5 ' +
+      'cm from cone-2. In variant 1 (turned −3.2°, 13.8 cm back) it hits cone-2 and the run ends (0); in variant 2 (turned +4.7°, 14.2 ' +
+      'cm on) it leaves the line (share 0.28) but parks (60): the check gives it 0.',
     exploits: [
       {
         name: 'follower-without-distance',
         description:
           'The follower of lesson 4 ("else stop") with no ultrasonic: it stops only when it loses the tape, and the tape runs on to the dock ' +
-          'wall, so it reaches the wall first. Only a stop on the distance parks in the dock.',
+          'wall, so it meets the wall first and the run ends there (endOnContact). It keeps the route and the line.',
         program: workspace(hat('stem_forever', [ifBlock('if-line', followLine('line'), [stop('lost')])])),
         maxScore: 45,
+      },
+      {
+        name: 'timed-follower',
+        description:
+          'The follower of lesson 4 repeated 300 000 times, then stop: the loop takes about 13.9 s, which parks in the dock in variant 0. ' +
+          'The start moves up to 15 cm along the start straight, farther than the dock is long, so no count parks in every variant (the ' +
+          'spike swept 240 000 to 380 000 by 5 000: none passed, the best scored 45).',
+        program: workspace(hat('stem_on_start', [repeat('timed', 300000, [ifBlock('if-line', followLine('line'))]), stop('stop')])),
+        maxScore: 35,
       },
     ],
   },

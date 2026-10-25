@@ -190,6 +190,8 @@ describe('the robot scenarios of this build (N18 R5.2)', () => {
     });
     expect(scenarioOf('rb-mini-mission').scoring.timeBonusMax).toBe(10);
     expect(scenarioOf('rb-line-follow').goals[0]).toMatchObject({ minRatio: 0.85 });
+    // A correct follower at 35 %, just over the placeholder kit's dead band, enters the garage at about 94 s (spike).
+    expect(scenarioOf('rb-line-follow').timeLimitS).toBe(120);
   });
 
   it('give a guard goal no more points than the goals that ask the robot to get somewhere (R5.2a fix round 1)', () => {
@@ -321,6 +323,21 @@ describe('the variants of every scenario (N18 R5.2)', () => {
     }
   });
 
+  it('lesson 6 moves one jittered start 12 cm or more on along the start straight and one back, farther apart than the dock is long', () => {
+    // A follower stopped after a fixed time stops a fixed distance along the route from where it started: with starts this far apart, the
+    // stops are farther apart than the dock (23 cm along the last straight), so one of them misses it whatever the time.
+    const scenario = scenarioOf('rb-mini-mission');
+    expect(scenario.variants).toMatchObject({ startJitterCm: 1.5, startJitterAlongCm: 15 });
+    expect(scenario.start.yawDeg).toBe(0);
+    const along = [0, 1, 2].map((index) => variantOffsets(scenario, index).start.dxCm);
+    const across = [1, 2].map((index) => Math.abs(variantOffsets(scenario, index).start.dyCm));
+    const dockYs = scenario.arena.paint.zones.find((zone) => zone.id === 'dock')!.polygonCm.map(([, y]) => y);
+    expect(Math.max(...along)).toBeGreaterThanOrEqual(12);
+    expect(Math.min(...along)).toBeLessThanOrEqual(-12);
+    expect(Math.max(...along) - Math.min(...along)).toBeGreaterThan(Math.max(...dockYs) - Math.min(...dockYs) + 2);
+    expect(Math.max(...across)).toBeLessThanOrEqual(1.5);
+  });
+
   it('lessons 4 and 6 turn a jittered start by 4° or more: an open-loop robot is 2.75 cm off the line within 40 cm', () => {
     for (const key of ['rb-line-follow', 'rb-mini-mission'] as const) {
       const scenario = scenarioOf(key);
@@ -437,21 +454,43 @@ describe('the programs of every scenario (N18 R5.2)', () => {
     expect(runningBlockTypes(scenarioOf('rb-square-route').starter).has('controls_repeat_ext')).toBe(false);
   });
 
-  it('lessons 4-6 have exploits from the review, each named, each held under half of the score', () => {
+  it('lessons 3-6 have the exploits of the reviews, each named, each held to at most 60 (rule 10)', () => {
     expect(exploits.map(([key, exploit]) => `${key} ${exploit.name} ${exploit.maxScore}`)).toEqual([
+      'rb-stop-at-wall crash-and-back-off 0',
       'rb-line-follow crawl-and-dash 0',
       'rb-line-follow short-drive 40',
+      'rb-line-follow three-leg-route 60',
       'rb-servo-gate flag-and-crash 40',
+      'rb-servo-gate flag-crash-and-back-off 40',
       'rb-mini-mission follower-without-distance 45',
+      'rb-mini-mission timed-follower 35',
     ]);
     for (const [key, exploit] of exploits) {
       expect(exploit.name, key).toMatch(/^[a-z0-9-]+$/);
-      expect(exploit.maxScore, `${key} ${exploit.name}`).toBeLessThan(SCENARIO_MAX_SCORE / 2);
+      expect(exploit.maxScore, `${key} ${exploit.name}`).toBeLessThanOrEqual(60);
       expect(exploit.description.length).toBeGreaterThan(40);
+    }
+    expect(new Set(exploits.map(([key, exploit]) => `${key} ${exploit.name}`)).size).toBe(exploits.length);
+  });
+
+  it('end the run at the first touch of what the avoid-contact goal names, in lessons 3, 5 and 6 (endOnContact)', () => {
+    const ending = Object.fromEntries(scenarioCatalog.scenarios.map((scenario) => [scenario.key, scenario.endOnContact]));
+    expect(ending).toEqual({
+      'rb-drive-to-zone': undefined,
+      'rb-square-route': undefined,
+      'rb-stop-at-wall': ['wall'],
+      'rb-line-follow': undefined,
+      'rb-servo-gate': ['gate'],
+      'rb-mini-mission': ['obstacle'],
+      'rb-sandbox': undefined,
+    });
+    for (const scenario of scenarioCatalog.scenarios.filter((candidate) => candidate.endOnContact !== undefined)) {
+      const avoided = scenario.goals.flatMap((goal) => (goal.kind === 'avoid-contact' ? [goal.tag] : []));
+      expect(scenario.endOnContact, scenario.key).toEqual(avoided);
     }
   });
 
-  it('the tape of lesson 6 runs on to the dock wall, so only a stop on the distance parks in the dock', () => {
+  it('the tape of lesson 6 runs on to the dock wall, so a follower that stops when it loses the tape meets the wall first', () => {
     const scenario = scenarioOf('rb-mini-mission');
     const end = scenario.arena.paint.lines[0]!.pointsCm.at(-1)!;
     const wall = scenario.arena.walls.find((candidate) => candidate.id === 'dock-wall')!;

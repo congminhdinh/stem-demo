@@ -26,7 +26,7 @@
   },
   "start": { "xCm": 50, "yCm": 30, "yawDeg": 0 },
   "variants": { "count": 3, "seed": 485, "startJitterCm": 1.5, "yawJitterDeg": 5 },
-  "timeLimitS": 45,
+  "timeLimitS": 120,
   "goals": [
     {
       "id": "follow-line",
@@ -38,7 +38,7 @@
     {
       "id": "reach-garage",
       "kind": "reach-zone",
-      "label": { "vi": "Theo vạch vào gara", "en": "Follow the line into the garage" },
+      "label": { "vi": "Vào gara", "en": "Enter the garage" },
       "points": 60,
       "zone": "garage"
     }
