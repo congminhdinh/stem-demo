@@ -43,7 +43,7 @@ Vì vậy z là độ cao so với sàn. `mount.yawDeg` quay module quanh z, ng�
 | | `frictionWheel` | hệ số ma sát lốp–sàn: độ bám giới hạn lực đẩy của bánh |
 | `dc-motor` | `maxRpm`, `tauS`, `stallTorqueNm`, `gearFrictionNm` | ω₀ của đường mô-men (duty 255, không tải, chưa trừ ma sát hộp số), hằng số thời gian bậc 1, mô-men kẹt T_s, ma sát Coulomb của hộp số T_f (< T_s); đường mô-men T = T_s·(u − ω/ω₀) |
 | | `wheelRadiusCm`, `wheelWidthCm` | bánh trên trục motor; `mount` là tâm bánh, z = bán kính, `yawDeg` = 0 |
-| `servo` | `sPer60Deg`, `minDeg`, `maxDeg`, `restDeg`, `stallTorqueNm` | tốc độ (s cho 60°), dải góc, góc lúc dựng world, mô-men giữ tối đa |
+| `servo` | `sPer60Deg`, `minDeg`, `maxDeg`, `restDeg`, `stallTorqueNm` | tốc độ (s cho 60°), dải góc, góc lúc dựng world (để tay nằm trong khung thân), mô-men giữ tối đa |
 | | `armLengthCm`, `armWidthCm`, `armHeightCm`, `armMassG` | tay servo: thanh quay trong mặt phẳng ngang quanh trục z của `mount`; góc 0 chỉ theo `yawDeg`, tăng ngược chiều kim đồng hồ |
 | `ultrasonic` | `coneHalfDeg`, `minCm`, `maxCm` | nửa góc chùm, khoảng đo (R3.4 dùng) |
 | `line-sensor` | `heightCm`, `spotRadiusCm`, `darkBelow` | độ cao so với sàn (phải bằng z của `mount`), bán kính vùng đọc, ngưỡng phản xạ coi là "tối" (R3.4 dùng) |
@@ -55,8 +55,9 @@ biến line bằng độ cao gắn, dải góc servo hợp lệ và tay servo kh
 
 **Mọi số cơ khí của `ref-uno-rover@0` là PLACEHOLDER** cho một rover UNO nhỏ, tới khi nhà cung cấp gửi số đo (§3, §4 của
 `docs/uno-vendor-questions.md`): thân 15 × 12 × 5 cm, 400 g, bánh 6,6 cm, motor giảm tốc TT 1:48 với ω₀ = 200 rpm,
-T_s = 0,08 N·m (0,8 kgf·cm), T_f = 0,025 N·m, τ = 0,05 s; servo cỡ SG90 (0,1 s/60°, 0–180°, 0,18 N·m). `mount` của LED,
-còi, nút chỉ để vẽ.
+T_s = 0,08 N·m (0,8 kgf·cm), T_f = 0,025 N·m, τ = 0,05 s; servo cỡ SG90 (0,1 s/60°, 0–180°, 0,18 N·m), tay nghỉ ở 0° (gập sang phải dọc mặt
+trên, nằm trong khung thân: một tay nhô ra trước lúc nghỉ chạm tường trước và làm robot chúi ngửa, ADR 0001 §9). `mount`
+của LED, còi, nút chỉ để vẽ.
 
 **Ma sát hộp số** (`gearFrictionNm`): giữ robot đứng yên khi bị đẩy và là lực cản lăn khi chạy. Đo với số trên (lực đẩy
 tác dụng trong bước, 2 s): robot phanh hay thả trôi giữ **sạch tới khoảng 1,1 N** (lệch < 0,1 mm); 1,2 N làm nó nhích
