@@ -10,6 +10,7 @@ import { ArenaView } from './ArenaView';
 import { loadRobotAssets } from './assets/robot-assets';
 import { createTextureSet } from './assets/textures';
 import type { ArenaSpan, CameraMode } from './camera';
+import type { CameraCommands } from './camera-commands';
 import { CameraRig } from './CameraRig';
 import { freeViewForward, sightWalls, type FreeViewScene } from './camera-studio';
 import { FloorPicker } from './FloorPicker';
@@ -67,6 +68,8 @@ export type SceneProps = {
   onSlowFrames?(): void;
   /** N18 R4.8: the view tools (the ruler, the move tool), which take the pointer on the mat (FloorPicker). */
   tools?: RobotToolsStore;
+  /** N18 R8: the keyboard's camera steps (camera-keys.ts); the rig takes the zoom and the orbit. */
+  commands?: CameraCommands;
 };
 
 /** The camera's vertical field of view, degrees. */
@@ -324,7 +327,7 @@ function boxTopCorners(box: { centerCm: readonly [number, number]; sizeCm: reado
   );
 }
 
-export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored, onFirstFrame, resetKey, hud = null, card = null, toolsCorner = null, tools, onSlowFrames }: SceneProps) {
+export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored, onFirstFrame, resetKey, hud = null, card = null, toolsCorner = null, tools, onSlowFrames, commands }: SceneProps) {
   const settings = tierSettings[tier];
   const idle = useMemo(() => idleSnapshot(scenario, kit), [scenario, kit]);
   const view = useCallback(() => store.getState().latestWorld() ?? idle, [store, idle]);
@@ -374,7 +377,7 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
         <SceneContent scenario={scenario} kit={kit} model={model} view={view} span={span} tier={tier} zoneLabel={zoneLabel} viewForward={viewForward} cameraMode={cameraMode} tagsReady={tagsReady} overlays={overlays} />
         <CompiledDraw onDrawn={onDrawn} />
       </Suspense>
-      <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} resetKey={resetKey} hud={hud} card={card} tools={toolsCorner} walls={walls} props={props} replaying={replaying} />
+      <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} resetKey={resetKey} hud={hud} card={card} tools={toolsCorner} walls={walls} props={props} replaying={replaying} {...(commands ? { commands } : {})} />
       <RedrawOnChange store={store} />
       <ContextWatch onLost={onContextLost} onRestored={onContextRestored} />
       {onSlowFrames && <SlowFrames store={store} onSlow={onSlowFrames} />}

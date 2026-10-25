@@ -13,6 +13,8 @@ import { formatNumber } from './format';
 // It reads the store through selectors that change at most ten times a second (the time is shown in tenths), so a run re-renders it
 // little; the 3D view never re-renders for it. N18 R6.3: while the view shows a round of a check (during a check at 1× or 4×, what the last
 // round left, a replay) it says which ("Lượt 2/3"), and once that round's run is over its score is the check's (0 after an error).
+// N18 R8: the status is no live region (it would speak every change of state, twice): the lab's announcer says the events of a run once,
+// with the reason it ended.
 
 type HudProps = {
   store: RobotRunStore;
@@ -75,7 +77,7 @@ export function Hud({ store, scenario }: HudProps) {
             {t('robot.check.round', { round: round.split('/')[0]!, count: round.split('/')[1]! })}
           </span>
         )}
-        <span className={`robot-status robot-status-${tone}`} role="status" data-testid="robot-status" data-tone={tone}>
+        <span className={`robot-status robot-status-${tone}`} data-testid="robot-status" data-tone={tone}>
           {t(`robot.status.${status}`)}
         </span>
         <span className="robot-hud-time" data-testid="robot-time" title={t('robot.hud.time')}>

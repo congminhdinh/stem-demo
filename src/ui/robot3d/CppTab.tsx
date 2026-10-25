@@ -16,7 +16,8 @@ import './CppTab.css';
 // numbers, the way the Python panel shows a Yolo:Bit project's MicroPython. It follows the project after a pause in the editing; Copy and
 // "Tải .ino" never use the shown text but flush the blocks into the project and generate once more (the freshness rule of PythonPanel), so
 // they export what the blocks are now. A program that does not compile shows why instead of an older sketch. The block the robot is in
-// and the block the learner selected are marked on their lines (C1's `lineMap`), and scrolled into sight.
+// and the block the learner selected are marked on their lines (C1's `lineMap`), and scrolled into sight. N18 R8: nothing here is a live
+// region (the lab has one polite and one assertive); a refused Copy is said to the lab's announcer (`announce`) as well as written.
 
 /** The project is regenerated this long after the learner stops editing, so that no block drag generates. */
 export const CPP_DEBOUNCE_MS = 250;
@@ -44,6 +45,8 @@ type CppTabProps = {
   selectedIds: readonly string[];
   /** The tab is in sight: nothing is generated or scrolled while it is not. */
   active: boolean;
+  /** N18 R8: says something politely to the lab's announcer. */
+  announce?(text: string): void;
 };
 
 /** What the editor shows is what Run compiles: a project with no program shows the scenario's starter (BlocklyPanel `emptyProgram`). */
@@ -74,7 +77,7 @@ const sameSketch = (a: SketchView, b: SketchView): boolean => JSON.stringify(a) 
 
 const inside = (range: LineRange | null, line: number) => range !== null && line >= range.from && line <= range.to;
 
-export function CppTab({ projectStore, rules, scenario, flush, store, selectedIds, active }: CppTabProps) {
+export function CppTab({ projectStore, rules, scenario, flush, store, selectedIds, active, announce }: CppTabProps) {
   const t = useText();
   const locale = useLocale();
   // A tab that is not shown follows nothing: no change of the project or of the robot's block renders its list of lines.
@@ -177,6 +180,7 @@ export function CppTab({ projectStore, rules, scenario, flush, store, selectedId
       copyTimers.current.feedback = setTimeout(() => setCopy('idle'), 1500);
     } catch {
       setCopy('failed');
+      announce?.(t('robot.cpp.copyFailed', { key: copyKey() }));
       // The shown sketch is the one just generated; select it once React has rendered it.
       clearTimeout(copyTimers.current.select);
       copyTimers.current.select = setTimeout(selectSource, 0);
@@ -208,7 +212,7 @@ export function CppTab({ projectStore, rules, scenario, flush, store, selectedId
           {t('robot.cpp.download')}
         </button>
       </header>
-      <p className="cpp-copy-status" role="status" data-testid="cpp-copy-status">
+      <p className="cpp-copy-status" data-testid="cpp-copy-status">
         {copy === 'failed' && ok ? t('robot.cpp.copyFailed', { key: copyKey() }) : ''}
       </p>
       {sketch?.ok ? (
@@ -220,7 +224,7 @@ export function CppTab({ projectStore, rules, scenario, flush, store, selectedId
       ) : sketch === null ? (
         <div className="cpp-source cpp-source-empty" />
       ) : (
-        <div className="cpp-blocked" role="status" data-testid="cpp-diagnostics">
+        <div className="cpp-blocked" data-testid="cpp-diagnostics">
           <p>{t(`robot.cpp.layer.${sketch.layer}`)}</p>
           <ul>
             {sketch.diagnostics.map((diagnostic, index) => (

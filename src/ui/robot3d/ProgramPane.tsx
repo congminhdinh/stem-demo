@@ -51,6 +51,8 @@ export type ProgramPaneLab = {
   scenario: Scenario;
   kit: Kit;
   board: BoardProfile;
+  /** N18 R8: says something politely to the lab's announcer. */
+  announce?(text: string): void;
 };
 
 type ProgramPaneProps = {
@@ -113,7 +115,7 @@ export function ProgramPane({ store, toolbox, lab, program }: ProgramPaneProps) 
       </div>
       <div {...pane('blocks')}>{program({ toolbox, emptyProgram: lab.scenario.starter, highlightBlockId, blockWarnings, readOnly, onSelectBlock: selectBlock })}</div>
       <div {...pane('cpp')}>
-        <CppTab projectStore={lab.projectStore} rules={lab.rules} scenario={lab.scenario} flush={lab.flushEdits} store={store} selectedIds={selectedIds} active={tab === 'cpp'} />
+        <CppTab projectStore={lab.projectStore} rules={lab.rules} scenario={lab.scenario} flush={lab.flushEdits} store={store} selectedIds={selectedIds} active={tab === 'cpp'} {...(lab.announce ? { announce: lab.announce } : {})} />
       </div>
       <div {...pane('pins')}>
         <PinInspector store={store} kit={lab.kit} board={lab.board} active={tab === 'pins'} />

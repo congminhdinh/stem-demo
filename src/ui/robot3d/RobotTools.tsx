@@ -22,6 +22,9 @@ import './RobotTools.css';
 // A key typed into a field or the block editor is never taken. During Kiểm tra (the run store's lock) the tools are off and hidden; during
 // a replay of a round they are off and disabled, and the move tool also while a run goes on. Without the drive (both motors) Lái tay is
 // disabled and says why. Every target is 44 px or more.
+// N18 R8: none of the panels is a live region (the lab has one polite and one assertive): what they used to say as they changed is said
+// once to the lab's announcer (`announce`) when it happens: the ruler's reading, that the robot cannot stand where the ghost is, where it
+// was placed, that a teleop run is over. Esc ends teleop when no tool is on (the pad is then closed with it), as it clears the ruler.
 
 type RobotToolsProps = {
   store: RobotRunStore;
@@ -31,6 +34,8 @@ type RobotToolsProps = {
   drivable: boolean;
   /** The view the keys are read in (RobotLab's stage): focusable, it takes the keys of everything in it. */
   stage: RefObject<HTMLElement | null>;
+  /** N18 R8: says something politely to the lab's announcer. */
+  announce?(text: string): void;
 };
 
 type ToolIconName = 'teleop' | 'ruler' | 'move' | 'turnLeft' | 'turnRight' | 'up' | 'down' | 'left' | 'right' | 'stop' | 'fold' | 'points' | 'clear' | 'home';
@@ -58,6 +63,15 @@ function ToolIcon({ name }: { name: ToolIconName }) {
       <path d={toolIcons[name]} fill="currentColor" />
     </svg>
   );
+}
+
+/** Says `words` to the announcer when they change to something (not when the panel first shows them, nor when they go). */
+function useSaid(words: string, announce: ((text: string) => void) | undefined): void {
+  const before = useRef(words);
+  useEffect(() => {
+    if (words !== before.current && words !== '') announce?.(words);
+    before.current = words;
+  }, [words, announce]);
 }
 
 /** A toggle of the strip: its icon, its name as its label; a disabled one stays focusable and says why in its tooltip. */
@@ -133,6 +147,12 @@ function useViewKeys(stage: RefObject<HTMLElement | null>, store: RobotRunStore,
         void tools.getState().escape();
         return;
       }
+      // N18 R8: with no tool on, Esc closes the pad: teleop ends, as Dừng ends it.
+      if (event.key === 'Escape' && store.getState().teleop) {
+        event.preventDefault();
+        store.getState().stopTeleop();
+        return;
+      }
       if (tool === 'move') {
         const nudge = nudges[event.key];
         if (nudge !== undefined) {
@@ -153,6 +173,8 @@ function useViewKeys(stage: RefObject<HTMLElement | null>, store: RobotRunStore,
         }
       }
       if (!store.getState().teleop) return;
+      // N18 R8: Shift with an arrow orbits the camera (camera-keys.ts); a plain arrow drives.
+      if (event.shiftKey && event.key.startsWith('Arrow')) return;
       const action = driveKeyOf(event);
       // Space on a button is the button's (a D-pad arrow holds its way, the stop stops, a toggle toggles): this listener comes before
       // React's, so the button cannot keep it from here.
@@ -268,7 +290,7 @@ function PadButton({ direction, icon, label, area, tools, usable }: { direction:
 }
 
 /** Lái tay: the D-pad (4 arrows and a stop, 44 px each, its fold in a corner) and the speed under it; folded, one button that shows it. */
-function TeleopPad({ store, tools, stage }: { store: RobotRunStore; tools: RobotToolsStore; stage: RefObject<HTMLElement | null> }) {
+function TeleopPad({ store, tools, stage, announce }: { store: RobotRunStore; tools: RobotToolsStore; stage: RefObject<HTMLElement | null>; announce: ((text: string) => void) | undefined }) {
   const t = useText();
   const locale = useLocale();
   const [folded, setFolded] = useState(false);
@@ -278,8 +300,9 @@ function TeleopPad({ store, tools, stage }: { store: RobotRunStore; tools: Robot
   const ready = useStore(store, (state) => !state.starting && state.snapshot.status !== 'idle');
   const usable = ready && !over;
   const speedText = t('robot.teleop.speed.value', { value: formatNumber(speed, locale) });
+  useSaid(over ? t('robot.teleop.over') : '', announce);
   const note = over && (
-    <p className="robot-tool-note" role="status" data-testid="robot-teleop-over">
+    <p className="robot-tool-note" data-testid="robot-teleop-over">
       {t('robot.teleop.over')}
     </p>
   );
@@ -349,7 +372,7 @@ const headingOf = (scenario: Pick<Scenario, 'start'>) => (state: ReturnType<Robo
   Math.round((state.latestWorld()?.robot.yawDeg ?? scenario.start.yawDeg) * 10) / 10 + 0;
 
 /** Thước đo: what to do next, or the distance (cm) and the angle of the segment to the robot's heading; the two points fold out. */
-function RulerReadout({ store, tools, scenario }: { store: RobotRunStore; tools: RobotToolsStore; scenario: Pick<Scenario, 'start'> }) {
+function RulerReadout({ store, tools, scenario, announce }: { store: RobotRunStore; tools: RobotToolsStore; scenario: Pick<Scenario, 'start'>; announce: ((text: string) => void) | undefined }) {
   const t = useText();
   const locale = useLocale();
   const [showPoints, setShowPoints] = useState(false);
@@ -362,6 +385,7 @@ function RulerReadout({ store, tools, scenario }: { store: RobotRunStore; tools:
   };
   const [from, to] = ruler;
   let reading = null;
+  let said = '';
   if (from !== undefined && to !== undefined) {
     const { distanceCm, angleDeg } = measure(from.point, to.point, heading);
     const angle = Math.round(angleDeg * 10) / 10;
@@ -371,8 +395,9 @@ function RulerReadout({ store, tools, scenario }: { store: RobotRunStore; tools:
         : Math.abs(angle) === 180
           ? t('robot.ruler.angle.behind')
           : t(angle > 0 ? 'robot.ruler.angle.left' : 'robot.ruler.angle.right', { value: formatNumber(Math.abs(angle), locale, 1) });
+    said = t('robot.announce.ruler', { distance: t('robot.ruler.cm', { value: cm(distanceCm) }), angle: angleText });
     reading = (
-      <p className="robot-ruler-reading" aria-live="polite">
+      <p className="robot-ruler-reading">
         <strong data-testid="robot-ruler-distance" title={t('robot.ruler.distance')}>
           {t('robot.ruler.cm', { value: cm(distanceCm) })}
         </strong>
@@ -383,6 +408,14 @@ function RulerReadout({ store, tools, scenario }: { store: RobotRunStore; tools:
       </p>
     );
   }
+  // Said when the second point is picked, once: not again as the robot's heading moves under a ruler that stays.
+  const measured = from !== undefined && to !== undefined ? `${from.point.xCm},${from.point.yCm},${to.point.xCm},${to.point.yCm}` : '';
+  const spoken = useRef(measured);
+  useEffect(() => {
+    if (measured === spoken.current) return;
+    spoken.current = measured;
+    if (measured !== '' && said !== '') announce?.(said);
+  }, [measured, said, announce]);
   return (
     <section className="robot-tool-panel robot-ruler" aria-label={t('robot.ruler.readout')} data-testid="robot-ruler">
       <div className="robot-tool-row">
@@ -417,7 +450,7 @@ function RulerReadout({ store, tools, scenario }: { store: RobotRunStore; tools:
 }
 
 /** Di chuyển robot: where the robot stands (or why it cannot), Q/E as buttons, and the way back to the lesson's start. */
-function MovePanel({ store, tools, scenario }: { store: RobotRunStore; tools: RobotToolsStore; scenario: Pick<Scenario, 'start'> }) {
+function MovePanel({ store, tools, scenario, announce }: { store: RobotRunStore; tools: RobotToolsStore; scenario: Pick<Scenario, 'start'>; announce: ((text: string) => void) | undefined }) {
   const t = useText();
   const locale = useLocale();
   const ghost = useStore(tools, (state) => state.ghost);
@@ -429,9 +462,19 @@ function MovePanel({ store, tools, scenario }: { store: RobotRunStore; tools: Ro
   const [x, y, yaw] = JSON.parse(poseText) as [number, number, number];
   const shown = ghost?.pose ?? { xCm: x, yCm: y, yawDeg: yaw };
   const blocked = ghost !== null && !ghost.clear;
+  // Said once each time it happens: the ghost goes where the robot cannot stand, the robot is placed, it is sent back to the start.
+  useSaid(blocked ? t('robot.move.blocked') : '', announce);
+  const placement = useStore(store, (state) => (state.placement === null ? 'start' : `${state.placement.xCm},${state.placement.yCm},${state.placement.yawDeg}`));
+  const placedWords = placement === 'start' ? t('robot.announce.move.toStart') : t('robot.announce.move.placed', { pose: t('robot.move.pose', { x: formatNumber(x, locale, 1), y: formatNumber(y, locale, 1), yaw: formatNumber(Math.round(yaw), locale) }) });
+  const placedBefore = useRef(placement);
+  useEffect(() => {
+    if (placement === placedBefore.current) return;
+    placedBefore.current = placement;
+    announce?.(placedWords);
+  }, [placement, placedWords, announce]);
   return (
     <section className="robot-tool-panel robot-move" aria-label={t('robot.move')} title={t('robot.move.keys')} data-testid="robot-move">
-      <p className={blocked ? 'robot-tool-note robot-tool-warning' : 'robot-tool-note'} role="status" data-testid="robot-move-status">
+      <p className={blocked ? 'robot-tool-note robot-tool-warning' : 'robot-tool-note'} data-testid="robot-move-status">
         {blocked ? t('robot.move.blocked') : t('robot.move.drag')}
       </p>
       <div className="robot-tool-row">
@@ -446,7 +489,7 @@ function MovePanel({ store, tools, scenario }: { store: RobotRunStore; tools: Ro
   );
 }
 
-export function RobotTools({ store, tools, scenario, drivable, stage }: RobotToolsProps) {
+export function RobotTools({ store, tools, scenario, drivable, stage, announce }: RobotToolsProps) {
   const t = useText();
   const locked = useStore(store, (state) => state.locked);
   const teleop = useStore(store, (state) => state.teleop);
@@ -505,9 +548,9 @@ export function RobotTools({ store, tools, scenario, drivable, stage }: RobotToo
       </div>
       {(teleop || tool !== null) && (
         <div className="robot-tools-panels">
-          {teleop && <TeleopPad store={store} tools={tools} stage={stage} />}
-          {tool === 'ruler' && <RulerReadout store={store} tools={tools} scenario={scenario} />}
-          {tool === 'move' && <MovePanel store={store} tools={tools} scenario={scenario} />}
+          {teleop && <TeleopPad store={store} tools={tools} stage={stage} announce={announce} />}
+          {tool === 'ruler' && <RulerReadout store={store} tools={tools} scenario={scenario} announce={announce} />}
+          {tool === 'move' && <MovePanel store={store} tools={tools} scenario={scenario} announce={announce} />}
         </div>
       )}
     </div>

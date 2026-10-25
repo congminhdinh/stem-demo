@@ -290,7 +290,9 @@ describe('SceneHost on a slow renderer (N18 R4.7 fix round 1)', () => {
     expect(byId('scene-stand-in')?.getAttribute('data-tier')).toBe('low');
     expect(byId('robot-quality')?.getAttribute('data-tier')).toBe('low');
     expect(text('robot-quality-note')).toBe('Đã chuyển sang đồ hoạ nhẹ cho mượt hơn');
-    expect(byId('robot-quality-note')?.getAttribute('role')).toBe('status');
+    // N18 R8 (ruled): the note is no live region of its own, the lab has one polite region and SceneHost says the note to it
+    // (SceneHost.a11y.test.tsx). It was role=status.
+    expect(byId('robot-quality-note')?.getAttribute('role')).toBeNull();
     // The low tier is not watched.
     expect(scenes.props?.onSlowFrames).toBeUndefined();
     advance(7999);

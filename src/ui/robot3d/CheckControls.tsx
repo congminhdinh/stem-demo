@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent } from 'react';
+import { useRef, type KeyboardEvent, type RefObject } from 'react';
 import { useStore } from 'zustand';
 import { useLocale, useText } from '../i18n/text';
 import { formatNumber } from './format';
@@ -14,9 +14,11 @@ type CheckControlsProps = {
   checks: RobotCheckStore;
   store: RobotRunStore;
   onCheck(): void;
+  /** N18 R8: the Kiểm tra button, for the focus to return to when the result is closed (CheckResults). */
+  startButton?: RefObject<HTMLButtonElement | null>;
 };
 
-export function CheckControls({ checks, store, onCheck }: CheckControlsProps) {
+export function CheckControls({ checks, store, onCheck, startButton }: CheckControlsProps) {
   const t = useText();
   const locale = useLocale();
   const speed = useStore(checks, (state) => state.speed);
@@ -68,7 +70,7 @@ export function CheckControls({ checks, store, onCheck }: CheckControlsProps) {
 
   return (
     <div className="robot-check" role="group" aria-label={t('robot.check')} data-testid="robot-check">
-      <button type="button" className="robot-button robot-button-check" onClick={onCheck} disabled={starting} title={t('robot.check.hint')} data-testid="robot-check-start">
+      <button ref={startButton} type="button" className="robot-button robot-button-check" onClick={onCheck} disabled={starting} title={t('robot.check.hint')} data-testid="robot-check-start">
         <Icon name="check" />
         {t('robot.check')}
       </button>

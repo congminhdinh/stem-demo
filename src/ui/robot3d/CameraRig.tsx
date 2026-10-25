@@ -4,6 +4,8 @@ import { MOUSE, Vector3, type PerspectiveCamera } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { RobotSnapshot } from '../../core/world/snapshot';
 import { cameraLimits, topPose, type ArenaSpan, type CameraMode, type CameraPose } from './camera';
+import type { CameraCommands } from './camera-commands';
+import { orbitedOffset, ORBIT_STEP_RAD, zoomedOffset } from './camera-keys';
 import { chaseViewPose, clearSight, freeViewPose, keepOutOfProps, MIN_ROBOT_PX, VIEW_SAFE_RECT, type FreeViewScene, type SafeRect, type SightProp, type SightWall } from './camera-studio';
 import type { CardEdge, HudCorner, ToolsCorner } from './hud-corner';
 import { arenaToThree, type Vec3Tuple } from './scene-math';
@@ -16,6 +18,8 @@ import { arenaToThree, type Vec3Tuple } from './scene-math';
 // Going from one view to another, "đặt lại góc nhìn" (a new `resetKey`) and the start of a replay glide for a moment, unless the
 // learner asked for reduced motion: then it jumps, and nothing eases, drifts or trails. A check's results card turns the camera to the
 // robot's end spot; when the card folds or closes, the camera glides back to where it was, unless the learner moved it meanwhile.
+// N18 R8: the keyboard zooms (+ and −) and orbits (Shift with the arrows; in the top view, where nothing turns, it pans) in steps that jump
+// to their place, for a learner who cannot drag (camera-keys.ts; the lab reads the keys and sends them as `commands`).
 
 type CameraRigProps = {
   mode: CameraMode;
@@ -39,6 +43,8 @@ type CameraRigProps = {
   tools?: ToolsCorner | null;
   /** A replay of a check's round is under way: when one starts, the camera goes back to frame the view's start. */
   replaying?: boolean;
+  /** N18 R8: the keyboard's zoom and orbit steps. */
+  commands?: CameraCommands;
 };
 
 /** How long the camera glides from one view to the next, s. */
@@ -61,7 +67,7 @@ const defaultChase = (): ChaseOffset => {
   return { forward: pose.position[0] - pose.target[0], up: pose.position[1] - pose.target[1], side: pose.position[2] - pose.target[2], ahead: pose.target[0] };
 };
 
-export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0, hud = null, walls = [], props = [], card = null, tools = null, replaying = false }: CameraRigProps) {
+export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0, hud = null, walls = [], props = [], card = null, tools = null, replaying = false, commands }: CameraRigProps) {
   const camera = useThree((state) => state.camera) as PerspectiveCamera;
   const dom = useThree((state) => state.gl.domElement);
   const size = useThree((state) => state.size);
@@ -96,6 +102,21 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
     latest.current = { aspect, reducedMotion, view, span, free, mode, safe, walls, props, minRobot };
   });
 
+  /** "Theo xe": keeps the angle the learner left the chase at, in the robot's frame (the chase carries on from there). */
+  const rememberChase = () => {
+    if (latest.current.mode !== 'follow') return;
+    const world = latest.current.view();
+    const yaw = robotYaw(world);
+    const offset = new Vector3().subVectors(camera.position, controls.target);
+    const [c, s] = [Math.cos(yaw), Math.sin(yaw)];
+    // Three's rotation about +Y by yaw maps the robot's (forward, side) to (x, z) = (f c + s·side, −f s + c·side).
+    const forward = offset.x * c - offset.z * s;
+    const side = offset.x * s + offset.z * c;
+    const [px, , pz] = robotPoint(world);
+    const ahead = (controls.target.x - px) * c - (controls.target.z - pz) * s;
+    chase.current = { forward, up: offset.y, side, ahead };
+  };
+
   useEffect(() => {
     const onChange = () => invalidate();
     const onStart = () => {
@@ -105,18 +126,7 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
     };
     const onEnd = () => {
       dragging.current = false;
-      if (latest.current.mode !== 'follow') return;
-      // Keep the angle the learner left the chase at, in the robot's frame.
-      const world = latest.current.view();
-      const yaw = robotYaw(world);
-      const offset = new Vector3().subVectors(camera.position, controls.target);
-      const [c, s] = [Math.cos(yaw), Math.sin(yaw)];
-      // Three's rotation about +Y by yaw maps the robot's (forward, side) to (x, z) = (f c + s·side, −f s + c·side).
-      const forward = offset.x * c - offset.z * s;
-      const side = offset.x * s + offset.z * c;
-      const [px, , pz] = robotPoint(world);
-      const ahead = (controls.target.x - px) * c - (controls.target.z - pz) * s;
-      chase.current = { forward, up: offset.y, side, ahead };
+      rememberChase();
     };
     controls.addEventListener('change', onChange);
     controls.addEventListener('start', onStart);
@@ -127,7 +137,40 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
       controls.removeEventListener('end', onEnd);
       controls.dispose();
     };
+    // rememberChase reads refs and the camera and controls this effect depends on.
   }, [controls, invalidate, camera]);
+
+  // N18 R8: the keyboard's steps. A step jumps to its place (no glide, no damping): it is the learner's own, and a held key repeats it. An
+  // unfinished glide gives way. The camera counts as moved by the learner, and the chase remembers where they put it.
+  useEffect(() => {
+    if (!commands) return undefined;
+    return commands.subscribe((command) => {
+      if (command.kind !== 'zoom' && command.kind !== 'orbit') return;
+      glide.current = null;
+      const offset = new Vector3().subVectors(camera.position, controls.target);
+      if (command.kind === 'zoom') {
+        offset.set(...zoomedOffset([offset.x, offset.y, offset.z], command.direction, controls.minDistance, controls.maxDistance));
+        camera.position.copy(controls.target).add(offset);
+      } else if (latest.current.mode === 'top') {
+        // Nothing turns in the top view: the steps pan it, a tenth of what the view shows across each.
+        const shown = 2 * offset.length() * Math.tan((camera.fov * Math.PI) / 360);
+        const [right, up] = [new Vector3(), new Vector3()];
+        camera.matrixWorld.extractBasis(right, up, new Vector3());
+        const move = right.multiplyScalar(command.dx * shown * 0.1).add(up.multiplyScalar(command.dy * shown * 0.1));
+        controls.target.add(move);
+        camera.position.add(move);
+      } else {
+        offset.set(...orbitedOffset([offset.x, offset.y, offset.z], command.dx, command.dy, ORBIT_STEP_RAD, controls.maxPolarAngle));
+        camera.position.copy(controls.target).add(offset);
+      }
+      moved.current = true;
+      movedSinceCard.current = true;
+      controls.update();
+      rememberChase();
+      invalidate();
+    });
+    // rememberChase reads refs and the camera and controls this effect depends on.
+  }, [commands, controls, camera, invalidate]);
 
   useEffect(() => {
     const limits = cameraLimits(span, camera.fov, aspect);

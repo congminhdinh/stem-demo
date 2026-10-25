@@ -7,7 +7,7 @@ import { Icon } from './icons';
 import { isRunOver, shownRun, type RobotRunStore } from './robot-run-store';
 
 // Under the robot lab's 3D view (N18 R4.4): the robot's button ("Nút", held with the pointer or the keyboard while a run goes on), the
-// sound switch, and what the program printed on Serial, in the console the other labs use.
+// sound switch, and what the program printed on Serial, in the console the other labs use (N18 R8: quiet, not read out line by line).
 
 type RobotDockProps = {
   store: RobotRunStore;
@@ -106,7 +106,7 @@ export function RobotDock({ store, buttonRole, sound }: RobotDockProps) {
       <section className="robot-serial" aria-label={t('robot.serial')}>
         <h3>{t('robot.serial')}</h3>
         {output !== null && (output.lines.length > 0 || output.hidden > 0) ? (
-          <Console console={output} />
+          <Console console={output} quiet />
         ) : (
           <p className="robot-serial-empty" data-testid="robot-serial-empty">
             {t('robot.serial.empty')}

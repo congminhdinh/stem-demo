@@ -1,16 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from '../app/ErrorBoundary';
 import { useText } from '../i18n/text';
 import type { CameraMode } from './camera';
 import { useViewOverlays } from './hud-corner';
 import { forgetFailedRobotAssets, loadRobotAssets } from './assets/robot-assets';
+import { viewAnnouncement } from './lab-announcements';
 import { tierLook } from './lighting/look';
 import { Icon } from './icons';
 import { probeWebgl, tierForRenderer, type QualityTier, type WebglProbe } from './quality';
 import Scene, { type SceneProps } from './Scene';
 import { SensorToggle } from './SensorToggle';
 import { ViewFallback } from './ViewFallback';
-import { CONTEXT_RESTORE_WAIT_MS, fallbackReason, viewToggleAction, viewToggleText, type ContextState } from './webgl-support';
+import { CONTEXT_RESTORE_WAIT_MS, fallbackReason, viewToggleAction, viewToggleText, type ContextState, type ViewFallbackReason } from './webgl-support';
 
 // Where the robot lab's 3D view lives (N18 R4.2, the R4.1 carry): its own error handling, apart from the chunk loader's. Before the canvas
 // is made, WebGL is probed: without it the 2D top view (TopView2D, N18 R4.6) stands in for the scene, with a note saying why. So it does
@@ -21,6 +22,11 @@ import { CONTEXT_RESTORE_WAIT_MS, fallbackReason, viewToggleAction, viewToggleTe
 // resets the simulation.
 // The view's own controls float over it: the camera's three views, and the quality tier (a new tier is a new canvas). Until a canvas
 // has drawn its first frame (about 2 s on a software renderer), "Đang tải 3D…" stands over it instead of the empty page behind.
+// N18 R8: the 3D view is the lab's one stop for the camera's keys (1 2 3, 0, Home, + −, Shift and the arrows: camera-keys.ts): it takes
+// the focus (Tab, or a click), has a name and a hint that lists the keys, and shows the hint while the keyboard has the focus on it. The
+// keys arrive as `commands`: the mode and the reset are taken here, the zoom and the orbit by the camera's rig. The switch to the 2D map
+// and its reason, and the light graphics the view chose by itself, are said to the lab's announcer (`announce`); the camera buttons' tooltips
+// name their keys.
 
 /** N18 R4.7: how long the note that the view went to light graphics by itself stays, ms. */
 const AUTO_LOW_NOTE_MS = 8000;
@@ -34,9 +40,20 @@ const cameraModes: readonly { mode: CameraMode; label: 'robot.camera.orbit' | 'r
 type SceneHostProps = Omit<SceneProps, 'tier' | 'cameraMode' | 'onContextLost' | 'onContextRestored' | 'hud' | 'card' | 'toolsCorner' | 'onSlowFrames'> & {
   /** Tests: whether WebGL is there and what draws it (the browser's own probe by default). */
   probe?: () => WebglProbe;
+  /** N18 R8: says something politely to the lab's announcer. */
+  announce?(text: string): void;
+  /** N18 R8: says something at once, for an error, to the lab's assertive region. */
+  alert?(text: string): void;
+  /** N18 R8: the keys of the 3D view, said to whoever focuses it (the camera's and, when the robot can be driven, teleop's). */
+  hint?: string;
+  /** N18 R8: the id of the hint element, for the lab to point at. */
+  hintId?: string;
 };
 
-export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps) {
+/** The camera buttons' keys, as the tooltips and the shortcut attributes say them. */
+const cameraKeys: Readonly<Record<CameraMode, string>> = { orbit: '1', follow: '2', top: '3' };
+
+export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, ...sceneProps }: SceneHostProps) {
   const t = useText();
   const [probed, setProbed] = useState(probe);
   const [tier, setTier] = useState<QualityTier>(() => tierForRenderer(probed.ok ? probed.renderer : null));
@@ -98,7 +115,36 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
   const fallback = fallbackReason({ webgl: probed.ok, context, chosen2d, canvasFailed: failedAttempt === attempt });
   const { scenario, kit, model, store, zoneLabel, tools } = sceneProps;
   const toggle = viewToggleAction(fallback);
-  const fallbackView = fallback !== null && <ViewFallback reason={fallback} scenario={scenario} kit={kit} model={model} store={store} zoneLabel={zoneLabel} {...(tools ? { tools } : {})} />;
+  const fallbackView = fallback !== null && <ViewFallback reason={fallback} scenario={scenario} kit={kit} model={model} store={store} zoneLabel={zoneLabel} {...(tools ? { tools } : {})} {...(alert ? { alert } : {})} />;
+
+  // N18 R8: the switch to the 2D map (and why), and back, are said once; so is the light graphics the view chose for itself.
+  const latestWords = useRef({ t, announce });
+  useEffect(() => {
+    latestWords.current = { t, announce };
+  });
+  const shownView = useRef<ViewFallbackReason | null>(null);
+  useEffect(() => {
+    const key = viewAnnouncement(shownView.current, fallback);
+    shownView.current = fallback;
+    if (key !== null) latestWords.current.announce?.(latestWords.current.t(key));
+  }, [fallback]);
+  useEffect(() => {
+    if (autoLow === 'shown') latestWords.current.announce?.(latestWords.current.t('robot.quality.autoLow'));
+  }, [autoLow]);
+  // N18 R8: the keyboard's views and reset (the zoom and the orbit are the rig's). Only while the 3D view is up.
+  const commands = sceneProps.commands;
+  useEffect(() => {
+    if (!commands || fallback !== null) return undefined;
+    return commands.subscribe((command) => {
+      if (command.kind === 'mode') {
+        setCameraMode(command.mode);
+        latestWords.current.announce?.(latestWords.current.t('robot.announce.camera', { name: latestWords.current.t(cameraModes.find((entry) => entry.mode === command.mode)!.label) }));
+      } else if (command.kind === 'reset') {
+        setResetKey((count) => count + 1);
+        latestWords.current.announce?.(latestWords.current.t('robot.announce.camera.reset'));
+      }
+    });
+  }, [commands, fallback]);
   const viewButton = (
     <button
       type="button"
@@ -124,7 +170,18 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
   return (
     <>
       {!chosen2d && (
-        <div className="robot-scene" data-testid="robot-scene" data-drawn={drawn} ref={sceneBox}>
+        <div
+          className="robot-scene"
+          data-testid="robot-scene"
+          data-drawn={drawn}
+          ref={sceneBox}
+          data-view-focus=""
+          tabIndex={0}
+          role="group"
+          aria-label={t('robot.view.name')}
+          aria-keyshortcuts="1 2 3 0 Home + - Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown"
+          {...(hintId ? { 'aria-describedby': hintId } : {})}
+        >
           <ErrorBoundary
             key={attempt}
             onError={(error) => {
@@ -149,27 +206,48 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
             />
           </ErrorBoundary>
           {!drawn && failedAttempt !== attempt && context === 'ok' && (
-            <div className="robot-scene-loading" role="status" data-testid="robot-3d-loading">
+            <div className="robot-scene-loading" data-testid="robot-3d-loading">
               <span className="robot-scene-spinner" aria-hidden="true" />
               {t('robot.loading3d')}
             </div>
           )}
         </div>
       )}
+      {!chosen2d && hintId && hint && (
+        <p className="robot-view-hint" id={hintId} data-testid="robot-view-hint">
+          {hint}
+        </p>
+      )}
       {fallbackView}
       {context === 'lost' && !chosen2d && (
-        <div className="robot-viewport-message robot-viewport-message-soft" role="status" data-testid="robot-webgl-lost">
+        <div className="robot-viewport-message robot-viewport-message-soft" data-testid="robot-webgl-lost">
           <p>{t('robot.webgl.lost')}</p>
         </div>
       )}
       <div className="robot-camera" role="group" aria-label={t('robot.camera')} data-testid="robot-camera" hidden={fallback !== null}>
         {cameraModes.map(({ mode, label, icon }) => (
-          <button key={mode} type="button" aria-pressed={cameraMode === mode} onClick={() => setCameraMode(mode)} title={t(label)} data-mode={mode}>
+          <button
+            key={mode}
+            type="button"
+            aria-pressed={cameraMode === mode}
+            onClick={() => setCameraMode(mode)}
+            title={t('robot.camera.shortcut', { name: t(label), key: cameraKeys[mode] })}
+            aria-keyshortcuts={cameraKeys[mode]}
+            data-mode={mode}
+          >
             <Icon name={icon} />
             <span>{t(label)}</span>
           </button>
         ))}
-        <button type="button" className="robot-camera-reset" onClick={() => setResetKey((count) => count + 1)} title={t('robot.camera.reset')} aria-label={t('robot.camera.reset')} data-testid="robot-camera-reset">
+        <button
+          type="button"
+          className="robot-camera-reset"
+          onClick={() => setResetKey((count) => count + 1)}
+          title={t('robot.camera.shortcut', { name: t('robot.camera.reset'), key: '0 / Home' })}
+          aria-label={t('robot.camera.reset')}
+          aria-keyshortcuts="0 Home"
+          data-testid="robot-camera-reset"
+        >
           <Icon name="recenter" />
         </button>
         {tools && fallback === null && <SensorToggle tools={tools} variant="camera" />}
@@ -190,7 +268,7 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
         {t(tier === 'high' ? 'robot.quality.high' : 'robot.quality.low')}
       </button>
       {autoLow === 'shown' && fallback === null && (
-        <p className="robot-quality-note" role="status" data-testid="robot-quality-note">
+        <p className="robot-quality-note" data-testid="robot-quality-note">
           {t('robot.quality.autoLow')}
         </p>
       )}

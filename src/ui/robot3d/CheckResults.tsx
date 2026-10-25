@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import { useStore } from 'zustand';
 import type { Scenario } from '../../core/scenario/scenario';
 import { hashSnapshot } from '../../core/world/snapshot';
@@ -12,43 +12,37 @@ import type { RobotRunStore } from './robot-run-store';
 // What a check shows over the robot lab's 3D view (N18 R6.3).
 //
 //   - A fast check (headless) is not shown while it runs: a progress view stands over the view instead (the round, a progress bar, the
-//     rounds scored so far), never a frozen scene. It is not a live region (its bar moves every second): `CheckAnnouncer` says, politely and
-//     in a few words, that a check started, how each round ended and the result, at every speed.
-//   - A check that did not complete for a reason other than the learner's program (`failure`) says so, and that nothing reached the lesson.
+//     rounds scored so far), never a frozen scene. It is not a live region (its bar moves every second): the lab's announcer (LabAnnouncer,
+//     fed by use-announcements.ts) says, politely and in a few words, that a check started, how each round ended and the result, at every
+//     speed.
+//   - A check that did not complete for a reason other than the learner's program (`failure`) says so, and that nothing reached the lesson;
+//     the lab's assertive region says it too (N18 R8).
 //   - After a check, its result: passed or not with the score (the lowest round's), each round's verdict and score (the check's: 0 for a
 //     round that ended in an error) with "Xem lại" for a round that failed, each goal (passed in every round) with why not in each round it
 //     failed ("Xe chạm tường lúc 12,4 s ở lượt 2"), and the time bonus line. It belongs to the program it checked: an edit closes it, as
 //     the other labs' results go back to "not checked yet". It folds to its first line while a round is replayed, so the arena shows.
+//   - N18 R8, focus: when a check ends, the focus goes to the card's heading (only if the page has it and it is in the lab or nowhere: the
+//     host's focus is never taken), and closing the card (its ×, or Esc in it) gives the focus back to the Kiểm tra button.
 
 type CheckResultsProps = {
   checks: RobotCheckStore;
   store: RobotRunStore;
   projectStore: ProjectStore;
   scenario: Scenario;
+  /** N18 R8: the Kiểm tra button, which the focus returns to when the card is closed. */
+  startButton?: RefObject<HTMLElement | null>;
+  /** N18 R8: says a check that did not finish to the lab's assertive region. */
+  alert?(text: string): void;
 };
 
-/** What a screen reader hears of a check: that it started, how each round ended, the result. Short, polite, and only when one of them changes. */
-export function CheckAnnouncer({ checks }: { checks: RobotCheckStore }) {
-  const t = useText();
-  const text = useStore(checks, (state) => {
-    const verdict = (passed: boolean) => t(passed ? 'robot.check.passed' : 'robot.check.failed');
-    const { running, report } = state;
-    if (running !== null) {
-      const last = running.ended.at(-1);
-      return last === undefined
-        ? t(running.speed === 'fast' ? 'robot.check.fastRunning' : 'robot.check.running')
-        : t('robot.check.announce.round', { round: last.index + 1, verdict: verdict(last.passed), points: last.score });
-    }
-    return report === null ? '' : t('robot.check.announce.result', { verdict: verdict(report.result.passed), score: report.result.score, max: report.result.maxScore });
-  });
-  return (
-    <p className="visually-hidden" aria-live="polite" data-testid="robot-check-announce">
-      {text}
-    </p>
-  );
+/** Whether the lab may take the focus now: the page has it and it is on the lab or nowhere, so that the host's own focus is never taken. */
+function mayTakeFocus(lab: Element | null): boolean {
+  if (typeof document === 'undefined' || !document.hasFocus()) return false;
+  const active = document.activeElement;
+  return active === null || active === document.body || (lab !== null && lab.contains(active));
 }
 
-/** The progress of a fast check, over the 3D view (not a live region: CheckAnnouncer speaks for it). */
+/** The progress of a fast check, over the 3D view (not a live region: the lab's announcer speaks for it). */
 export function FastCheckView({ checks }: { checks: RobotCheckStore }) {
   const t = useText();
   const running = useStore(checks, (state) => state.running);
@@ -77,21 +71,44 @@ export function FastCheckView({ checks }: { checks: RobotCheckStore }) {
   );
 }
 
-export function CheckResults({ checks, store, projectStore, scenario }: CheckResultsProps) {
+/** Closes the card and gives the focus back to the Kiểm tra button (when the focus was in the card, or lost with it). */
+function closeCard(checks: RobotCheckStore, startButton: RefObject<HTMLElement | null> | undefined, from: Element | null) {
+  const inCard = from !== null && from.closest('.robot-check-panel') !== null;
+  checks.getState().dismiss();
+  if (inCard || document.activeElement === document.body) startButton?.current?.focus({ preventScroll: true });
+}
+
+export function CheckResults({ checks, store, projectStore, scenario, startButton, alert }: CheckResultsProps) {
   const t = useText();
   const report = useStore(checks, (state) => state.report);
   const failure = useStore(checks, (state) => state.failure);
   // The result belongs to the program it checked: once the learner edits, it is no longer about what the blocks say.
   const current = useStore(projectStore, (state) => report !== null && state.document === report.document);
+  // A check that did not finish is said to the assertive region (the card has no live role of its own: one region says it).
+  const failed = failure !== null;
+  const said = t('robot.check.error');
+  useEffect(() => {
+    if (failed) alert?.(said);
+  }, [failed, said, alert]);
   if (failure !== null) {
     return (
-      <section className="robot-check-panel robot-check-failure" role="alert" aria-label={t('robot.check.results')} data-testid="robot-check-failure">
+      <section
+        className="robot-check-panel robot-check-failure"
+        aria-label={t('robot.check.results')}
+        data-testid="robot-check-failure"
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            closeCard(checks, startButton, event.target as Element);
+          }
+        }}
+      >
         <div className="robot-check-panel-head">
-          <p className="robot-check-why">{t('robot.check.error')}</p>
+          <p className="robot-check-why">{said}</p>
           <button
             type="button"
             className="robot-check-icon-button"
-            onClick={() => checks.getState().dismiss()}
+            onClick={(event) => closeCard(checks, startButton, event.currentTarget)}
             title={t('robot.check.close')}
             aria-label={t('robot.check.close')}
           >
@@ -108,10 +125,12 @@ export function CheckResults({ checks, store, projectStore, scenario }: CheckRes
   if (report === null || !current) {
     return null;
   }
-  return <CheckPanel checks={checks} store={store} scenario={scenario} record={report} />;
+  return <CheckPanel checks={checks} store={store} scenario={scenario} record={report} startButton={startButton} />;
 }
 
-function CheckPanel({ checks, store, scenario, record }: { checks: RobotCheckStore; store: RobotRunStore; scenario: Scenario; record: CheckRecord }) {
+type CheckPanelProps = { checks: RobotCheckStore; store: RobotRunStore; scenario: Scenario; record: CheckRecord; startButton: RefObject<HTMLElement | null> | undefined };
+
+function CheckPanel({ checks, store, scenario, record, startButton }: CheckPanelProps) {
   const t = useText();
   const locale = useLocale();
   const locked = useStore(store, (state) => state.locked);
@@ -119,20 +138,36 @@ function CheckPanel({ checks, store, scenario, record }: { checks: RobotCheckSto
   const [folded, setFolded] = useState<CheckRecord | null>(null);
   const open = folded !== record;
   const report = useMemo(() => checkReport(scenario, record.result, record.variants, t, locale), [scenario, record, t, locale]);
+  // N18 R8: a check just ended: the focus goes to the card's heading (a new result is a new card). Not a card that comes back, and not
+  // when the learner is elsewhere on the page.
+  const heading = useRef<HTMLHeadingElement>(null);
+  const card = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (mayTakeFocus(card.current?.closest('.robot-lab') ?? null)) heading.current?.focus({ preventScroll: true });
+  }, [record]);
   const replay = (index: number) => {
     setFolded(record);
     void checks.getState().replay(index);
   };
   return (
     <section
+      ref={card}
       className={report.passed ? 'robot-check-panel robot-check-panel-passed' : 'robot-check-panel'}
       aria-label={t('robot.check.results')}
       data-testid="robot-check-results"
       data-passed={report.passed}
       data-open={open}
+      onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          closeCard(checks, startButton, event.target as Element);
+        }
+      }}
     >
       <div className="robot-check-panel-head">
-        <h3>{t('robot.check.results')}</h3>
+        <h3 ref={heading} tabIndex={-1} data-testid="robot-check-heading">
+          {t('robot.check.results')}
+        </h3>
         <button
           type="button"
           className="robot-check-icon-button"
@@ -147,7 +182,7 @@ function CheckPanel({ checks, store, scenario, record }: { checks: RobotCheckSto
         <button
           type="button"
           className="robot-check-icon-button"
-          onClick={() => checks.getState().dismiss()}
+          onClick={(event) => closeCard(checks, startButton, event.currentTarget)}
           title={t('robot.check.close')}
           aria-label={t('robot.check.close')}
           data-testid="robot-check-close"

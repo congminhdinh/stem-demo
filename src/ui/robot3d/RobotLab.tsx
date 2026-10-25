@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useStore } from 'zustand';
 import type { DeviceRegistry } from '../../core/devices/registry';
 import { productionKits } from '../../core/hardware/catalog';
@@ -21,9 +21,12 @@ import { attachRobotTestTarget } from '../app/test-hooks';
 import { useBuzzerSound } from '../audio/use-buzzer-sound';
 import { useLocale, useText } from '../i18n/text';
 import type { ProjectStore } from '../state/project-store';
+import { createAnnouncer } from './announcer';
+import { createCameraCommands } from './camera-commands';
 import { CheckControls } from './CheckControls';
-import { CheckAnnouncer, CheckResults, FastCheckView } from './CheckResults';
+import { CheckResults, FastCheckView } from './CheckResults';
 import { Hud } from './Hud';
+import { LabAnnouncer } from './LabAnnouncer';
 import { ProgramPane, type ProgramPaneLab, type RobotProgramView } from './ProgramPane';
 import { createRobotCheckStore, type CheckHost, type CreateCheck, type RobotCheckStore } from './robot-check-store';
 import { robotModel, toneHzOf } from './robot-model';
@@ -37,6 +40,8 @@ import { idleSnapshot } from './scene-math';
 import { SceneHost } from './SceneHost';
 import type { WebglProbe } from './quality';
 import { restrictToolbox } from './toolbox';
+import { useCheckAnnouncements, useRunAnnouncements } from './use-announcements';
+import { useCameraKeys } from './use-camera-keys';
 import './RobotLab.css';
 
 // The robot lab (`lab=robot`, N18 R4.1 shell, R4.2 scene, R4.4 HUD and controls), loaded on its own with React.lazy (RobotLabLoader.tsx)
@@ -57,6 +62,13 @@ import './RobotLab.css';
 // program is App's project: the blocks save into it and reach the host through the bridge as in every lab; Run compiles it.
 // Kiểm tra (N18 R6.3, robot-check-store.ts) is R6.2's checkRobot of the saved project: at 1× and 4× this view shows its run, fast it shows
 // its progress; then its result over the view (CheckResults), "Xem lại" of a round that failed, and its check-result for the host.
+//
+// N18 R8, accessibility: the lab owns the page's only two live regions (LabAnnouncer): a polite one that says what happened (a run
+// started or over and why, a check's start, rounds and result, teleop on or off, the view switched to the 2D map, the graphics lowered)
+// and an assertive one for errors; the stores feed them (use-announcements.ts) and the pieces that know an event say it (`announce`,
+// `alert`). Tab goes header, the 3D view (a stop of its own, named, with its keys as its description), the controls over it, the dock, the
+// program's tabs; the 3D view takes the camera's keys (use-camera-keys.ts). When a check ends the focus goes to the result's heading,
+// and closing the result gives it back to Kiểm tra. Nothing takes the focus when the lab opens: the host page keeps its own.
 
 export type { RobotProgramView } from './ProgramPane';
 
@@ -173,12 +185,21 @@ export default function RobotLab({
   });
   const { scenario, kit, board, store, checks, tools } = lab;
   const drivable = useMemo(() => canTeleop(kit, board), [kit, board]);
+  // N18 R8: what the lab tells a screen reader, and the camera's keys.
+  const [announcer] = useState(createAnnouncer);
+  const [commands] = useState(createCameraCommands);
+  const { say, alert } = announcer;
+  const hintId = useId();
+  const startButton = useRef<HTMLButtonElement>(null);
   // N18 R4.8: the 3D view takes the keys of the view tools (RobotTools); a click on it gives it the focus. While teleop is on, its name
   // says which keys drive (fix round 1).
   const stageRef = useRef<HTMLDivElement>(null);
   const teleopOn = useStore(store, (state) => state.teleop);
   // The sandbox has no score: nothing to check (as the other labs' templates without a challenge have no Check).
   const checkable = scenarioMaxScore(scenario) !== undefined;
+  useRunAnnouncements(store, checkable ? checks : null, announcer, scenarioMaxScore(scenario));
+  useCheckAnnouncements(checkable ? checks : null, announcer);
+  useCameraKeys(stageRef, commands);
   const model = useMemo(() => robotModel(kit, board), [kit, board]);
   const buttonRole = kit.modules.find((module) => module.kind === 'button')?.role ?? null;
   const scenarioToolbox = useMemo(() => restrictToolbox(toolbox, scenario.toolbox), [toolbox, scenario]);
@@ -186,7 +207,7 @@ export default function RobotLab({
   // are made apart from the rest, so that the C++ tab (which writes its sketch again when they change) never sees new ones for a new
   // `flushEdits`, which App makes anew on each of its renders.
   const rules = useMemo(() => ({ registry, profiles, packs, kits: productionKits }), [registry, profiles, packs]);
-  const paneLab: ProgramPaneLab = { projectStore, flushEdits, rules, scenario, kit, board };
+  const paneLab: ProgramPaneLab = { projectStore, flushEdits, rules, scenario, kit, board, announce: say };
   // A Run or a Step brings the robot's tab into sight in a narrow frame.
   const [runEpoch, setRunEpoch] = useState(0);
 
@@ -290,18 +311,33 @@ export default function RobotLab({
     [t],
   );
 
+  // The keys of the 3D view, said to whoever focuses it: the camera's, and teleop's when the robot can be driven.
+  const viewHint = [t('robot.camera.keys', { orbit: t('robot.camera.orbit'), follow: t('robot.camera.follow'), top: t('robot.camera.top') }), ...(drivable ? [t('robot.teleop.keys')] : [])].join(' ');
   const viewport = (
     <section className="robot-viewport" aria-label={t('robot.viewport')} data-testid="robot-viewport">
       <div className="robot-stage" ref={stageRef} tabIndex={-1} {...(teleopOn ? { role: 'group', 'aria-label': t('robot.view.keys') } : {})}>
-        <SceneHost scenario={scenario} kit={kit} model={model} store={store} reducedMotion={reducedMotion} zoneLabel={zoneLabel} tools={tools} {...(probe ? { probe } : {})} />
+        <SceneHost
+          scenario={scenario}
+          kit={kit}
+          model={model}
+          store={store}
+          reducedMotion={reducedMotion}
+          zoneLabel={zoneLabel}
+          tools={tools}
+          commands={commands}
+          announce={say}
+          alert={alert}
+          hint={viewHint}
+          hintId={hintId}
+          {...(probe ? { probe } : {})}
+        />
         <Hud store={store} scenario={scenario} />
-        <RobotTools store={store} tools={tools} scenario={scenario} drivable={drivable} stage={stageRef} />
-        <RunMessages store={store} />
+        <RobotTools store={store} tools={tools} scenario={scenario} drivable={drivable} stage={stageRef} announce={say} />
+        <RunMessages store={store} alert={alert} />
         {checkable && (
           <>
-            <CheckResults checks={checks} store={store} projectStore={projectStore} scenario={scenario} />
+            <CheckResults checks={checks} store={store} projectStore={projectStore} scenario={scenario} startButton={startButton} alert={alert} />
             <FastCheckView checks={checks} />
-            <CheckAnnouncer checks={checks} />
           </>
         )}
       </div>
@@ -320,7 +356,7 @@ export default function RobotLab({
           </h2>
         </div>
         <RobotControls store={store} onRun={run} onStep={step} />
-        {checkable && <CheckControls checks={checks} store={store} onCheck={check} />}
+        {checkable && <CheckControls checks={checks} store={store} onCheck={check} startButton={startButton} />}
         {notices}
       </header>
       <LabWorkspace
@@ -331,6 +367,7 @@ export default function RobotLab({
         labels={viewLabels}
         className="robot-workspace"
       />
+      <LabAnnouncer announcer={announcer} />
     </div>
   );
 }
