@@ -1,14 +1,21 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import type { DirectionalLight } from 'three';
+import { Suspense, use, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { NeutralToneMapping, type DirectionalLight } from 'three';
 import type { Kit } from '../../core/hardware/kit';
 import type { Scenario } from '../../core/scenario/scenario';
 import type { PaintZone } from '../../core/world/arena/arena-schema';
+import type { RobotSnapshot } from '../../core/world/snapshot';
 import { ArenaView } from './ArenaView';
+import { loadRobotAssets } from './assets/robot-assets';
+import { createTextureSet } from './assets/textures';
 import type { ArenaSpan, CameraMode } from './camera';
 import { CameraRig } from './CameraRig';
-import { FloorPicker } from './FloorPicker';
+import { freeViewForward } from './camera-studio';
 import { robot3dColors as colors } from './colors';
+import { tierLook } from './lighting/look';
+import { StudioLighting } from './lighting/StudioLighting';
+import { GltfArena } from './parts/GltfArena';
+import { GltfRobot } from './parts/GltfRobot';
 import { tierSettings, type QualityTier } from './quality';
 import type { RobotModel } from './robot-model';
 import type { RobotRunStore } from './robot-run-store';
@@ -36,12 +43,14 @@ export type SceneProps = {
   onContextRestored(): void;
   /** The canvas has drawn its first frame (until then the page shows what is behind it). */
   onFirstFrame?(): void;
-  /** N18 R4.8: the view tools (the ruler, the move tool), which take the pointer on the mat (FloorPicker). */
-  tools?: RobotToolsStore;
+  /** N18 R4.7: a new value puts the current camera view back where it starts ("đặt lại góc nhìn"). */
+  resetKey?: number;
 };
 
 /** The camera's vertical field of view, degrees. */
 const FOV_DEG = 40;
+/** N18 R4.7: the exposure of the tone mapping (Khronos PBR Neutral: base colours stay as authored, highlights roll off), set for the studio light. */
+const TONE_EXPOSURE = 1.0;
 
 /** The sun: high, from the back left of the learner, its shadows framed on the arena. */
 function Sun({ span, shadows, mapSize }: { span: ArenaSpan; shadows: boolean; mapSize: number }) {
@@ -144,35 +153,86 @@ function ContextWatch({ onLost, onRestored }: { onLost(): void; onRestored(): vo
   return null;
 }
 
-export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored, onFirstFrame, tools }: SceneProps) {
+type ContentProps = {
+  scenario: Scenario;
+  kit: Kit;
+  model: RobotModel;
+  view: () => RobotSnapshot;
+  span: ArenaSpan;
+  tier: QualityTier;
+  zoneLabel: (zone: PaintZone) => string | null;
+  viewForward: readonly [number, number];
+};
+
+/** The parts each of the modelled files must have for the view to use them; without one, the procedural view is drawn. */
+const NEEDED_PARTS = ['part_chassis', 'part_board', 'part_tt_motor', 'part_wheel', 'part_caster', 'part_ultrasonic', 'part_line_bar', 'part_servo', 'part_led', 'part_buzzer', 'part_button'];
+const NEEDED_PROPS = ['prop_wall', 'prop_block', 'prop_cardboard', 'prop_cone', 'prop_barrier', 'prop_tin', 'prop_post', 'prop_table_top', 'prop_table_leg', 'prop_fence_post', 'prop_fence_rail', 'prop_studio'];
+
+/**
+ * What the canvas shows (N18 R4.7): the modelled robot and arena under the studio light once their files are in (the canvas waits for
+ * them under "Đang tải 3D…", Suspense), or R4.2's procedural shapes when the files do not load.
+ */
+function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewForward }: ContentProps) {
+  const look = tierLook[tier];
+  const assets = use(loadRobotAssets(look.detail));
+  const gl = useThree((state) => state.gl);
   const settings = tierSettings[tier];
   const shadows = settings.shadows !== false;
+  const textures = useMemo(() => createTextureSet(Math.min(8, gl.capabilities.getMaxAnisotropy())), [gl]);
+  useEffect(() => () => textures.dispose(), [textures]);
+  useEffect(() => () => assets?.releaseGpu(), [assets]);
+  const labels = useMemo(() => ({ zoneLabel }), [zoneLabel]);
+  const usable = assets !== null && NEEDED_PARTS.every((name) => assets.part(name)) && NEEDED_PROPS.every((name) => assets.prop(name));
+  // What the canvas draws, for the E2E and a curious developer: the modelled scene or the simple shapes.
+  useEffect(() => {
+    gl.domElement.dataset.models = usable ? 'modelled' : 'simple';
+  }, [gl, usable]);
+  if (!usable) {
+    return (
+      <>
+        <color attach="background" args={[colors.background]} />
+        <hemisphereLight args={[colors.sky, colors.ground, 1.5]} />
+        <Sun span={span} shadows={shadows} mapSize={settings.shadowMapSize} />
+        <ArenaView arena={scenario.arena} view={view} shadows={shadows} zoneLabel={zoneLabel} />
+        <RobotView model={model} view={view} shadows={shadows} />
+      </>
+    );
+  }
+  return (
+    <>
+      <color attach="background" args={[colors.studioFog]} />
+      <StudioLighting span={span} look={look} shadows={shadows} mapSize={settings.shadowMapSize} viewForward={viewForward} />
+      <GltfArena assets={assets} scenario={scenario} view={view} look={look} shadows={shadows} textures={textures} labels={labels} viewForward={viewForward} />
+      <GltfRobot assets={assets} kit={kit} model={model} scenario={scenario} view={view} detail={look.detail} shadows={shadows} blob={textures.blob} />
+    </>
+  );
+}
+
+export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored, onFirstFrame, resetKey }: SceneProps) {
+  const settings = tierSettings[tier];
   const idle = useMemo(() => idleSnapshot(scenario, kit), [scenario, kit]);
   const view = useCallback(() => store.getState().latestWorld() ?? idle, [store, idle]);
   const [widthCm, depthCm] = scenario.arena.ground.sizeCm;
   const span = useMemo<ArenaSpan>(() => ({ widthM: widthCm / 100, depthM: depthCm / 100 }), [widthCm, depthCm]);
+  const viewForward = useMemo(() => freeViewForward(span, scenario.start), [span, scenario.start]);
   return (
     <Canvas
       className="robot-canvas"
       data-testid="robot-canvas"
       data-tier={tier}
       frameloop="demand"
-      flat
       shadows={settings.shadows}
       dpr={settings.dpr}
-      gl={{ antialias: settings.antialias, powerPreference: 'high-performance' }}
+      gl={{ antialias: settings.antialias, powerPreference: 'high-performance', toneMapping: NeutralToneMapping, toneMappingExposure: TONE_EXPOSURE }}
       camera={{ fov: FOV_DEG, near: 0.01, far: 60, position: [span.widthM / 2, 1, 1] }}
     >
-      <color attach="background" args={[colors.background]} />
-      <hemisphereLight args={[colors.sky, colors.ground, 1.5]} />
-      <Sun span={span} shadows={shadows} mapSize={settings.shadowMapSize} />
-      <ArenaView arena={scenario.arena} view={view} shadows={shadows} zoneLabel={zoneLabel} />
-      <RobotView model={model} view={view} shadows={shadows} />
-      <CameraRig mode={cameraMode} span={span} view={view} reducedMotion={reducedMotion} />
+      <Suspense fallback={null}>
+        <SceneContent scenario={scenario} kit={kit} model={model} view={view} span={span} tier={tier} zoneLabel={zoneLabel} viewForward={viewForward} />
+        {onFirstFrame && <FirstFrame onDrawn={onFirstFrame} />}
+      </Suspense>
+      <CameraRig mode={cameraMode} span={span} start={scenario.start} view={view} reducedMotion={reducedMotion} resetKey={resetKey} />
       <RedrawOnChange store={store} />
       <ContextWatch onLost={onContextLost} onRestored={onContextRestored} />
-      {onFirstFrame && <FirstFrame onDrawn={onFirstFrame} />}
-      {tools && <FloorPicker tools={tools} store={store} kit={kit} scenario={scenario} />}
     </Canvas>
   );
 }

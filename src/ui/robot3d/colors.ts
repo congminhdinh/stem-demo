@@ -42,6 +42,10 @@ export const robot3dColors = {
   sky: '#ffffff',
   ground: '#aab4c3',
   sun: '#fffaf0',
+  /** N18 R4.7: the studio's rim light, its fog (the floor's colour where the studio fades it) and the mat's edge. */
+  rim: '#d6e4ff',
+  studioFog: '#333c47',
+  matEdge: '#e4e4e0',
 } as const;
 
 export type Robot3dColor = keyof typeof robot3dColors;

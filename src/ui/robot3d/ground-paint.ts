@@ -67,14 +67,23 @@ export function paintGround(ctx: PaintContext, arena: Pick<Arena, 'ground' | 'pa
     }
   }
 
-  if (arena.paint.lines.length > 0) {
-    ctx.strokeStyle = robot3dColors.tape;
-    for (const line of arena.paint.lines) {
-      ctx.lineWidth = line.widthCm * pxPerCm;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      trace(line.pointsCm);
-      ctx.stroke();
-    }
+  paintTape(ctx, arena, pxPerCm);
+}
+
+/**
+ * Paints `arena`'s tape alone, as paintGround does last (round ends and joins, each line its width), in `colour`: the 3D view paints the
+ * mat's own decorations under it (N18 R4.7), and the tape's gloss into the mat's roughness map with the same strokes.
+ */
+export function paintTape(ctx: PaintContext, arena: Pick<Arena, 'ground' | 'paint'>, pxPerCm: number, colour: string = robot3dColors.tape): void {
+  if (arena.paint.lines.length === 0) return;
+  const depthCm = arena.ground.sizeCm[1];
+  ctx.strokeStyle = colour;
+  for (const line of arena.paint.lines) {
+    ctx.lineWidth = line.widthCm * pxPerCm;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    line.pointsCm.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x * pxPerCm, (depthCm - y) * pxPerCm) : ctx.lineTo(x * pxPerCm, (depthCm - y) * pxPerCm)));
+    ctx.stroke();
   }
 }

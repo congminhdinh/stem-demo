@@ -65,7 +65,16 @@ export default defineConfig({
   // e2e/robot-lab.spec.ts's chunk test when a cache predated them).
   optimizeDeps: {
     exclude: ['@dimforge/rapier3d-deterministic'],
-    include: ['three', 'three/examples/jsm/controls/OrbitControls.js', '@react-three/fiber'],
+    include: [
+      'three',
+      'three/examples/jsm/controls/OrbitControls.js',
+      '@react-three/fiber',
+      // N18 R4.7: the modelled parts' loader and the studio light.
+      'three/examples/jsm/loaders/GLTFLoader.js',
+      'three/examples/jsm/libs/meshopt_decoder.module.js',
+      'three/examples/jsm/environments/RoomEnvironment.js',
+      'three/examples/jsm/utils/BufferGeometryUtils.js',
+    ],
   },
   server: { headers: crossOriginIsolationHeaders },
   preview: { headers: crossOriginIsolationHeaders },

@@ -1,0 +1,127 @@
+import { useFrame, useThree } from '@react-three/fiber';
+import { useEffect, useMemo } from 'react';
+import { BoxGeometry, CanvasTexture, MeshLambertMaterial, MeshStandardMaterial, NoColorSpace, PlaneGeometry, SRGBColorSpace, Vector2, type Texture } from 'three';
+import type { Scenario } from '../../../core/scenario/scenario';
+import type { RobotSnapshot } from '../../../core/world/snapshot';
+import type { RobotAssets } from '../assets/robot-assets';
+import type { TextureSet } from '../assets/textures';
+import { robot3dColors as colors } from '../colors';
+import { groundTextureSize } from '../ground-paint';
+import type { TierLook } from '../lighting/look';
+import { arenaToThree, writePose } from '../scene-math';
+import { assembleArena, MAT_THICKNESS_M } from './arena-assembly';
+import { paintMat, paintMatRoughness, paintMatShading, type MatLabels } from './mat-paint';
+
+// The arena in the 3D view from the modelled props (N18 R4.7): the mat (a canvas painted from the scenario's vector paint, as the line
+// sensors read it, with its printed borders and names; its roughness and its baked contact shading painted from the same data; the
+// paper's fibres as a tiled normal map on the high tier), on a thin board whose edge shows, and the props of arena-assembly.ts. The
+// moving bodies' poses are read from the world in the frame callback.
+
+type GltfArenaProps = {
+  assets: RobotAssets;
+  scenario: Scenario;
+  view: () => RobotSnapshot;
+  look: TierLook;
+  shadows: boolean;
+  textures: TextureSet;
+  labels: MatLabels;
+  viewForward: readonly [number, number];
+};
+
+type MatTextures = { map: Texture; roughness: Texture; shading: Texture; dispose(): void } | null;
+
+/** The mat's three canvases, as sharp as the renderer allows; null where a 2D canvas cannot be made. */
+function useMatTextures(scenario: Scenario, labels: MatLabels): MatTextures {
+  const gl = useThree((state) => state.gl);
+  const made = useMemo<MatTextures>(() => {
+    const { arena } = scenario;
+    const { pxPerCm, width, height } = groundTextureSize(arena.ground.sizeCm, Math.min(4096, gl.capabilities.maxTextureSize));
+    const canvas = (scale: number) => {
+      const element = document.createElement('canvas');
+      element.width = Math.max(1, Math.round(width * scale));
+      element.height = Math.max(1, Math.round(height * scale));
+      return element;
+    };
+    const colour = canvas(1);
+    const rough = canvas(0.5);
+    const shade = canvas(0.25);
+    const [c, r, s] = [colour.getContext('2d'), rough.getContext('2d'), shade.getContext('2d')];
+    if (!c || !r || !s) return null;
+    paintMat(c, scenario, { pxPerCm, labels });
+    paintMatRoughness(r, arena, pxPerCm * 0.5);
+    paintMatShading(s, arena, pxPerCm * 0.25);
+    const map = new CanvasTexture(colour);
+    map.colorSpace = SRGBColorSpace;
+    map.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
+    const roughness = new CanvasTexture(rough);
+    roughness.colorSpace = NoColorSpace;
+    const shading = new CanvasTexture(shade);
+    shading.colorSpace = NoColorSpace;
+    return {
+      map,
+      roughness,
+      shading,
+      dispose() {
+        map.dispose();
+        roughness.dispose();
+        shading.dispose();
+      },
+    };
+  }, [scenario, labels, gl]);
+  useEffect(() => () => made?.dispose(), [made]);
+  return made;
+}
+
+export function GltfArena({ assets, scenario, view, look, shadows, textures, labels, viewForward }: GltfArenaProps) {
+  const mat = useMatTextures(scenario, labels);
+  const arena = useMemo(() => assembleArena(scenario, assets.prop, { shadows, low: look.detail === 'low', blob: textures.blob, viewForward }), [scenario, assets, shadows, look, textures, viewForward]);
+  useEffect(() => () => arena.dispose(), [arena]);
+
+  const [widthCm, depthCm] = scenario.arena.ground.sizeCm;
+  const centre = arenaToThree(widthCm / 2, depthCm / 2, 0);
+  const surface = useMemo(() => {
+    const top = new PlaneGeometry(widthCm / 100, depthCm / 100);
+    top.rotateX(-Math.PI / 2);
+    const edge = new BoxGeometry(widthCm / 100 + 0.004, MAT_THICKNESS_M, depthCm / 100 + 0.004);
+    edge.translate(0, -MAT_THICKNESS_M / 2 - 0.0001, 0);
+    const colour = mat ? '#ffffff' : scenario.arena.ground.color;
+    const material =
+      look.detail === 'low'
+        ? new MeshLambertMaterial({ name: 'mat-low', color: colour, map: mat?.map ?? null, aoMap: mat?.shading ?? null, aoMapIntensity: 1 })
+        : new MeshStandardMaterial({ name: 'mat', color: colour, map: mat?.map ?? null, roughness: 0.97, roughnessMap: mat?.roughness ?? null, aoMap: mat?.shading ?? null, aoMapIntensity: 1, metalness: 0 });
+    if (look.matNormal && material instanceof MeshStandardMaterial) {
+      const fibres = textures.matNormal.clone();
+      fibres.repeat.set(widthCm / 7, depthCm / 7);
+      material.normalMap = fibres;
+      material.normalScale = new Vector2(0.05, 0.05);
+    }
+    const edgeMaterial = look.detail === 'low' ? new MeshLambertMaterial({ name: 'mat-edge-low', color: colors.matEdge }) : new MeshStandardMaterial({ name: 'mat-edge', color: colors.matEdge, roughness: 0.8 });
+    return { top, edge, material, edgeMaterial };
+  }, [widthCm, depthCm, mat, scenario, look, textures]);
+  useEffect(
+    () => () => {
+      surface.top.dispose();
+      surface.edge.dispose();
+      surface.material.normalMap?.dispose();
+      surface.material.dispose();
+      surface.edgeMaterial.dispose();
+    },
+    [surface],
+  );
+
+  useFrame(() => {
+    const world = view();
+    for (const object of world.objects) {
+      const mover = arena.movers.get(object.id);
+      if (mover) writePose(mover.node, object.pose);
+    }
+  });
+
+  return (
+    <group name="arena-gltf">
+      <primitive object={arena.root} />
+      <mesh geometry={surface.top} material={surface.material} position={[centre[0], 0, centre[2]]} receiveShadow={shadows} />
+      <mesh geometry={surface.edge} material={surface.edgeMaterial} position={[centre[0], 0, centre[2]]} receiveShadow={shadows} />
+    </group>
+  );
+}
