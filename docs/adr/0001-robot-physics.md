@@ -358,3 +358,23 @@ Mô hình (c) đã vào production với các điểm §7 yêu cầu (kiểm *gr
 - **Chi phí:** robot (chassis + tay) trong sa bàn `boxes.json` (3 vật dynamic), kịch bản 3 000 tick, đo trong test (`-t budget` in dòng ms/tick): **0,045–0,051 ms/tick median, 0,055–0,091 ms p95** (trước fix round 1: 3 lần chạy, load average 3,4–3,9; sau fix round 1: 0,0450 / 0,0550 ms). Ngân sách 0,5 ms; máy này là máy cao cấp, chưa đo máy tầm trung.
 - **Tất định:** kịch bản 3 000 tick (chạy, quay, quét tay, lùi, phanh, đẩy hộp, kẹt tường), FNV-1a trên bit float32 của pose mọi body dynamic và bit float64 của góc bánh/servo ở mọi tick: hai lần chạy bằng nhau và bản `-compat` ra cùng golden. Golden ban đầu `05272a85`; fix round 1 (ma sát hộp số, Tustin, drive bằng lực, T_s 0,08) đổi nó thành `9e89807b`; fix round 2 (drive tại chỗ bánh chạm sàn, thả trôi tự do, μ theo pháp tuyến) thành `e6dec6a1`; fix round 3 (tay servo nghỉ trong khung thân) thành **`feebca85`** (chưa phát hành nên đổi được).
 
+
+## 10. Bổ sung khi làm R3.5 (`src/core/world/{world.ts,snapshot.ts}`)
+
+Đo trên cùng máy §3 (Apple M4 Pro, Node v24.22.1, Vitest 4.1.11), có agent khác chạy song song (load average 5–9). Số có test thì tái lập bằng `pnpm exec vitest run src/core/world tests/robot-determinism.test.ts`; số ghi *(khám phá)* đến từ test tạm, không giữ trong repo.
+
+- **Tay servo nằm trong khung thân ở mọi góc (ruling).** Thư viện Servo bắt đầu ở 90° (`SERVO_START_DEG`), nên `restDeg` gập tay (fix round 3 của R3.3) chỉ đúng tới lệnh servo đầu tiên. `ref-uno-rover@0` nay đặt trục servo ở x = 1,5 cm, tay 5,5 × 0,8 cm: xa nhất 7,01 cm phía trước (mép thân 7,5) và 5,51 cm sang hai bên (mép 6). Tay 6 cm không làm được điều này ở bất kỳ vị trí trục nào trên đường giữa: góc tay cách trục √(6² + 0,4²) = 6,013 cm, thò ra 0,13 mm. Chạy vào tường ở duty 128 với servo 90°: chúi lớn nhất **0,13°** (trước: 15,85°), caster cách sàn < 0,1 mm (test).
+- **Tải caster khi ép vào tường là bất định.** Ép vào tường, robot đứng trên hai bánh, caster và ma sát của tường cùng lúc; solver có thể dồn phần của caster sang ma sát tường. Tải nhỏ nhất của caster sau 3 s ép (N, *khám phá*, mọi trường hợp chúi ≤ 0,26°):
+
+  | duty | 0° | 30° | 60° | 80° | 90° | 100° | 120° | 150° | 180° |
+  |---|---|---|---|---|---|---|---|---|---|
+  | 100 | 0,23 | 0 | 0,16 | 0,13 | 0 | 0 | 0,33 | 0 | 0,20 |
+  | 128 | 0,49 | 0,97 | 0,50 | 0,82 | 0 | 0,40 | 0,45 | 0 | 0 |
+  | 180 | 0,53 | 0,41 | 0,42 | 0,38 | 0 | 0 | 0 | 0 | 0 |
+  | 255 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+  Không phụ thuộc tay servo (cả ở 0°, duty 255 cũng ra 0), robot vẫn phẳng. Test tường với servo 90° vì thế kiểm caster **còn chạm sàn** (khoảng cách tới sàn < 0,1 mm) thay vì tải > 0,1 N; test cũ (servo 0°, duty 128) giữ nguyên.
+- **`contactCollider` có khi bỏ sót cặp chồng lên nhau một chút.** Rover vào tường từ 3 mm ở 0,6 m/s, tick 7: góc trước của thân lún 0,054 mm vào tường, nhưng `box.contactCollider(wall, 1 mm)` trả null, kể cả prediction 1 cm; `wall.contactCollider(box)` cho −0,054 mm và `box.intersectsShape(wall)` là true. Dời servo làm lộ ra (cùng test của R3.4). `readContacts` nay hỏi `intersectsShape` của shape gốc khi `contactCollider` trả null (không dùng shape đã nở 1 mm: test giao của round shape lỏng hơn, nhận một khối cách tường 1,07 mm là chạm). Test tĩnh giữ đúng pose đó.
+- **Dev server.** Vite 8.3.2 pre-bundle gói `.wasm` tách riêng kèm bản glue wasm-bindgen riêng, còn wasm helper nạp `.wasm` với file glue gốc, nên Rapier không chạy ở dev (`wasm.memory` undefined, Chromium, Firefox, WebKit, mọi lần tải). Spike R0.1 đo dev server bằng config riêng của spike (root và trang khác) và không gặp lỗi này; chưa tìm vì sao hai cách khác nhau. `vite.config.ts` thêm `optimizeDeps.exclude: ['@dimforge/rapier3d-deterministic']` (chỉ dev).
+- **Tất định cả world:** ba fixture 3000 tick (`tests/robot-determinism.fixtures.ts`), hash mỗi tick gồm snapshot (lượng tử 1e-6) và contacts/tốc độ/outline của goal frame, trùng nhau trên Node (split và `-compat`), Chromium 153, Firefox 155, WebKit 26.6. Trong đó hai fixture là vòng kín (bám vạch, né vật có nhiễu seeded), nên cảm biến lệch một bit cũng làm lệch đường đi.
+- **Chi phí:** cả world 0,099–0,155 ms CPU/tick (mean, 3 lần; median theo lô 10 tick 0,088–0,108, p95 0,15–0,34), trong đó bước + đo ~96 µs (physics ~50, `readContacts` ~25). Headless 3 × 60 s với đủ 9 goal: 2,26–2,76 s CPU. Cao hơn số "chỉ vật lý" của §4.5 (280 ms) khoảng 8–10 lần vì có cảm biến, contacts, snapshot và goal mỗi tick. Vẫn dưới ngân sách (0,5 ms, 10 s), nhưng máy này là máy cao cấp; trên máy tầm trung và thêm interpreter (R3.6) thì headless có thể tới vài giây, cần đo lại ở R3.6.
