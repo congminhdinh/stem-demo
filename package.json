@@ -22,6 +22,7 @@
     "export:robot-manifest": "node scripts/export-robot-manifest.mjs",
     "export:arena-mat": "node scripts/export-arena-mat.mjs",
     "build:parity-hex": "node scripts/build-parity-hex.mjs",
+    "bench:robot": "node scripts/bench-robot.mjs",
     "verify": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {

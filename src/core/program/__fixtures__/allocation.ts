@@ -3,7 +3,7 @@ import { runInNewContext } from 'node:vm';
 import { createProgramIO, createVirtualUno, kitPort } from '../../hardware';
 import { startVirtualRun } from '../../run/__fixtures__/virtual-run';
 import { compileRobot } from './uno-blocks';
-import type { Json } from './ybc-blocks';
+import { num, wait, type Json } from './ybc-blocks';
 
 // TEST-ONLY (N18 P1): how many bytes of JS heap a piece of work allocates, and what a uno program allocates per hardware read.
 //
@@ -120,14 +120,15 @@ export async function readAllocation(forever: Json[], options: { warmupTicks?: n
 }
 
 /**
- * What a tick of this harness allocates by itself, in bytes: an empty loop() (no read, no op), whose program parks once a tick as a
- * reading one does. It is the virtual clock's (the park, the tick's wait for the program) and the harness's own, the same with a read
- * or without: a program that reads a few times a tick (an ultrasonic read takes 1.2 to 20.8 ms) shares it among few reads.
+ * What a tick of this harness allocates by itself, in bytes: a loop() that waits 8 ms (no read, no op), so the program blocks and goes
+ * on about once a tick (a tick is 8.33 ms), as a reading one does when it parks. It is the virtual clock's (the wait, the tick's wait for
+ * the program), the harness's and one iteration's own, the same with a read or without: a program that reads a few times a tick (an
+ * ultrasonic read takes 1.2 to 20.8 ms) shares it among few reads.
  */
 export async function tickAllocation(options: { warmupTicks?: number; ticks?: number } = {}): Promise<number> {
   const warmupTicks = options.warmupTicks ?? 600;
   const ticks = options.ticks ?? 1200;
-  const compiled = compileRobot([], [], { variables: ['x'] });
+  const compiled = compileRobot([], [wait(num(8))], { variables: ['x'] });
   if (!compiled.ok) {
     throw new Error(`Does not compile: ${JSON.stringify(compiled.diagnostics)}`);
   }
