@@ -438,6 +438,34 @@ describe('the drive (model (c))', () => {
     });
   });
 
+  it('driven into a wall at duty 128 for 5 s with the servo at 90° (where the Servo library starts), it stays level and its caster on the floor', () => {
+    // A servo program's first Servo.write is 90° (servo-lib.ts SERVO_START_DEG): the arm points forward. It stays inside the
+    // body's footprint at every angle, so the body's front still meets the wall first. (With the arm 3 cm ahead of the body at
+    // 7 cm high, the robot tipped nose-up to 15.6° against the wall, its caster 2 cm off the floor.)
+    // The caster stays on the floor, within 0.1 mm. How much of the weight it carries there is not fixed: pressed against a wall,
+    // the robot stands on its wheels, its caster and the wall's friction at once, and the solver may hand the caster's share to
+    // the wall (measured: 0 N here, 0.49 N with the arm at 0°; 0 N at duty 255 with the arm at any angle).
+    const arena: ArenaInput = { ...open, walls: [{ id: 'front', fromCm: [100, 50], toCm: [100, 250] }] };
+    withRobot(arena, { xCm: 70, yCm: 150, yawDeg: 0 }, ({ world, robot, arena: built }) => {
+      robot.applyActuators({ ...both(run(128, 1)), servos: { servo1: 90 } });
+      const ground = colliderOf(world, built, '#ground');
+      const caster = ownBalls(world, robot, 0.0075)[0]!;
+      let steepest = 0;
+      let highestMm = 0;
+      for (let tick = 0; tick < 600; tick++) {
+        stepWorld(world, robot);
+        steepest = Math.max(steepest, Math.abs(pitchDeg(robot)));
+        if (tick >= 360) highestMm = Math.max(highestMm, 1000 * caster.contactCollider(ground, 0.01)!.distance);
+      }
+      expect(robot.servoAngles().servo1).toBeCloseTo(90, 0);
+      // It reached the wall (inner face at x 99) with its front and pushes against it.
+      expect(at(robot).xCm + 7.5).toBeGreaterThan(98.9);
+      expect(steepest).toBeLessThan(5);
+      expect(highestMm).toBeLessThan(0.1);
+      expect(robot.isGrounded()).toBe(true);
+    });
+  });
+
   it('keeps the caster loaded while driving: in reverse and forward its load stays within 20 % of the static load', () => {
     withRobot(open, { xCm: 150, yCm: 150, yawDeg: 0 }, ({ world, robot }) => {
       const restN = casterLoadN(world, robot);
@@ -555,41 +583,90 @@ describe('the servo arm', () => {
     });
   });
 
-  it('collides: sweeping from 0° to 90° it pushes a 100 g box in its way', () => {
-    // The arm (6 cm, 6.25–7.75 cm above the floor) rests pointing right from its axis 4.5 cm ahead of the centre, and
-    // swings forward as it goes to 90°. A 4 × 4 × 10 cm box stands in that sweep, against the front of the body.
+  it('stays inside the body’s footprint at every angle: from 0° to 180°, no corner of the arm passes the body box seen from above', () => {
+    // The servo is a flag or a barrier on the robot's top, not a pusher: a servo program starts at 90° (the Servo library), and an arm
+    // that sticks out meets a wall first and tips the robot (ADR 0001 §9). Pushing is the body's job ('pushes 100 g box').
+    withRobot(open, { xCm: 150, yCm: 150, yawDeg: 30 }, ({ world, robot }) => {
+      let farthest = { x: 0, z: 0 };
+      for (let deg = 0; deg <= 180; deg++) {
+        steps(world, robot, 2, { servos: { servo1: deg } });
+        expect(Math.abs(robot.servoAngles().servo1! - deg), `servo at ${deg}°`).toBeLessThan(1);
+        for (const corner of armCornersOnChassis(robot)) {
+          farthest = { x: Math.max(farthest.x, corner.x), z: Math.max(farthest.z, Math.abs(corner.z)) };
+        }
+      }
+      // The body box is 15 cm long and 12 cm wide: |x| ≤ 7.5 cm ahead, |z| ≤ 6 cm to the sides. The arm (5.5 × 0.8 cm on an axis
+      // 1.5 cm ahead of the centre) reaches √(5.5² + 0.4²) = 5.51 cm from it: 7.01 cm ahead, 5.51 cm to a side.
+      expect(farthest.x).toBeLessThan(0.0705);
+      expect(farthest.x).toBeGreaterThan(0.0698);
+      expect(farthest.z).toBeLessThan(0.0555);
+      expect(farthest.z).toBeGreaterThan(0.0548);
+    });
+  });
+
+  it('sweeping from 0° to 180° and back, it never touches boxes standing against the body’s front and sides', () => {
+    // 4 × 4 × 10 cm boxes, 1 mm off the body: ahead of its front (x 7.5), right of its right side (y −6) and left of its left side
+    // (y 6), where the arm swings above the body's edges.
     const arena: ArenaInput = {
       ...open,
-      objects: [{ id: 'crate', shape: 'box', centerCm: [109.6, 96], sizeCm: [4, 4, 10], massG: 100 }],
+      objects: [
+        { id: 'ahead', shape: 'box', centerCm: [109.6, 100], sizeCm: [4, 4, 10], massG: 100 },
+        { id: 'right', shape: 'box', centerCm: [103, 91.9], sizeCm: [4, 4, 10], massG: 100 },
+        { id: 'left', shape: 'box', centerCm: [103, 108.1], sizeCm: [4, 4, 10], massG: 100 },
+      ],
     };
     withRobot(arena, { xCm: 100, yCm: 100, yawDeg: 0 }, ({ world, robot, arena: built }) => {
-      const crate = built.dynamicBodies[0]!.body;
-      const from = worldToArena(crate.translation());
-      expect(robot.servoAngles().servo1).toBeCloseTo(0, 1);
+      const where = () => built.dynamicBodies.map((dynamic) => worldToArena(dynamic.body.translation()));
+      const before = where();
+      steps(world, robot, 60, { servos: { servo1: 180 } });
+      expect(robot.servoAngles().servo1).toBeCloseTo(180, 0);
+      steps(world, robot, 60, { servos: { servo1: 0 } });
+      expect(robot.servoAngles().servo1).toBeCloseTo(0, 0);
+      where().forEach((now, i) => {
+        expect(Math.hypot(now.xCm - before[i]!.xCm, now.yCm - before[i]!.yCm), built.dynamicBodies[i]!.id).toBeLessThan(0.01);
+      });
+    });
+  });
+
+  it('collides: sweeping from 0° to 90° it knocks a light box along the robot’s top', () => {
+    // The arm (6.25–7.75 cm above the floor) swings 1.25 cm above the body's top (6.5 cm): a 2 cm cube of 10 g resting on the top
+    // 3.5 cm ahead of the axis and 2.5 cm to the right is in its sweep.
+    withRobot(open, { xCm: 100, yCm: 100, yawDeg: 0 }, ({ world, robot }) => {
+      const R = getRapier();
+      const onTop = arenaToWorld(105, 97.5, 7.5);
+      const cube = world.createRigidBody(R.RigidBodyDesc.dynamic().setTranslation(onTop.x, onTop.y, onTop.z));
+      world.createCollider(R.ColliderDesc.cuboid(0.01, 0.01, 0.01).setMass(0.01), cube);
+      refreshQueries(world);
+      steps(world, robot, 30);
+      const from = worldToArena(cube.translation());
+      expect(from.heightCm).toBeGreaterThan(7.4);
       steps(world, robot, 60, { servos: { servo1: 90 } });
-      const to = worldToArena(crate.translation());
-      // Pushed ahead, out of the arc (hit 3 cm below its top, it tips over onto its side), and the arm got through to 90°.
-      expect(to.xCm - from.xCm).toBeGreaterThan(5);
-      expect(to.heightCm).toBeLessThan(2.5);
+      const to = worldToArena(cube.translation());
+      expect(Math.hypot(to.xCm - from.xCm, to.yCm - from.yCm)).toBeGreaterThan(1);
       expect(robot.servoAngles().servo1).toBeCloseTo(90, 0);
     });
   });
 
-  it('blocks: held at 90°, the arm stops a box pushed against it, and the robot feels it', () => {
-    // A box slides at 1 m/s from ahead onto the arm's tip (10.5 cm ahead of the centre, 1.5 cm high blade at 7 cm).
+  it('blocks nothing ahead of the body: a box slid at the robot stops at the body’s front, and the arm at 90° keeps its angle', () => {
+    // A box slides at 1 m/s from 5.5 cm ahead of the body at the robot (the floor slows it to 0.75 m/s), the arm held at 90°:
+    // forward, its tip 7 cm ahead of the centre, inside the body's front at 7.5 cm.
     const arena: ArenaInput = {
       ...open,
-      objects: [{ id: 'crate', shape: 'box', centerCm: [125, 100], sizeCm: [4, 4, 10], massG: 100 }],
+      objects: [{ id: 'crate', shape: 'box', centerCm: [115, 100], sizeCm: [4, 4, 10], massG: 100 }],
     };
     withRobot(arena, { xCm: 100, yCm: 100, yawDeg: 0 }, ({ world, robot, arena: built }) => {
       const crate = built.dynamicBodies[0]!.body;
-      // Swing the arm out to 90° (forward) first; the box is still clear of it.
       steps(world, robot, 60, { servos: { servo1: 90 } });
       crate.setLinvel({ x: -1, y: 0, z: 0 }, true);
-      steps(world, robot, 60);
-      // It stopped at the tip: its near face at 10.5 cm, not at the body's front (7.5 cm).
-      expect(worldToArena(crate.translation()).xCm - 2).toBeGreaterThan(110);
-      expect(robot.servoAngles().servo1).toBeCloseTo(90, 0);
+      for (let tick = 0; tick < 60; tick++) {
+        stepWorld(world, robot);
+        expect(Math.abs(robot.servoAngles().servo1! - 90)).toBeLessThan(1);
+      }
+      // It rests against the body's front (within 1 mm), half a centimetre ahead of the arm's tip, and the robot felt it.
+      const gapCm = worldToArena(crate.translation()).xCm - 2 - (at(robot).xCm + 7.5);
+      expect(gapCm).toBeGreaterThan(-0.01);
+      expect(gapCm).toBeLessThan(0.1);
+      expect(robot.isGrounded()).toBe(true);
       expect(at(robot).xCm).toBeLessThan(100);
     });
   });
@@ -700,8 +777,9 @@ describe('determinism', () => {
     // Golden (moves to R3.5's snapshot file). A change here is a change of the engine: bump it on purpose. It had not
     // shipped when R3.3's fix rounds re-pinned it: round 1 (gearbox friction, the Tustin lag, the drive as a force over the
     // step, T_s 0.08 N·m), round 2 (the drive at the wheels' floor contacts, coasting motors free, μ along the normal),
-    // round 3 (the servo arm rests folded inside the footprint).
-    expect(first).toBe('feebca85');
+    // round 3 (the servo arm rests folded inside the footprint), and R3.5 (the servo moved back and its arm shortened to 5.5 cm,
+    // so that it stays inside the footprint at every angle).
+    expect(first).toBe('a9395d3a');
   });
 
   it(
@@ -718,7 +796,7 @@ describe('determinism', () => {
         assembleRobot: assembly.assembleRobot,
         stepWorld: assembly.stepWorld,
       };
-      expect(scriptedHash(compat)).toBe('feebca85');
+      expect(scriptedHash(compat)).toBe('a9395d3a');
     },
     30_000,
   );
@@ -744,6 +822,34 @@ describe('determinism', () => {
 /** The chassis' pitch, degrees, nose up positive. */
 function pitchDeg(robot: RobotBody): number {
   return radToDeg(Math.asin(rotateVector(robot.pose().rotation, { x: 1, y: 0, z: 0 }).y));
+}
+
+/** The eight corners of the servo arm's box, in the chassis' local frame (m: +X forward, +Y up, +Z right). */
+function armCornersOnChassis(robot: RobotBody): Vec3[] {
+  const arm = robot.bodies[1]!.collider(0);
+  const half = (arm.shape as RapierNamespace.Cuboid).halfExtents;
+  const from = robot.chassis.translation();
+  const unturn = conjugate(robot.chassis.rotation());
+  const corners: Vec3[] = [];
+  for (const sx of [-1, 1]) {
+    for (const sy of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        const p = localToWorld(arm.translation(), arm.rotation(), { x: sx * half.x, y: sy * half.y, z: sz * half.z });
+        corners.push(rotateVector(unturn, { x: p.x - from.x, y: p.y - from.y, z: p.z - from.z }));
+      }
+    }
+  }
+  return corners;
+}
+
+/** The arena's collider with an id. */
+function colliderOf(world: PhysicsWorld, built: BuiltArena, id: string): Collider {
+  let found: Collider | undefined;
+  world.forEachCollider((collider) => {
+    if (built.infoOf(collider)?.id === id) found = collider;
+  });
+  if (found === undefined) throw new Error(`no collider ${id}`);
+  return found;
 }
 
 /** The robot's own ball colliders of a radius, m. */

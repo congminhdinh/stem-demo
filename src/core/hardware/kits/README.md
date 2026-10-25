@@ -56,8 +56,12 @@ biến line bằng độ cao gắn, dải góc servo hợp lệ và tay servo kh
 **Mọi số cơ khí của `ref-uno-rover@0` là PLACEHOLDER** cho một rover UNO nhỏ, tới khi nhà cung cấp gửi số đo (§3, §4 của
 `docs/uno-vendor-questions.md`): thân 15 × 12 × 5 cm, 400 g, bánh 6,6 cm, motor giảm tốc TT 1:48 với ω₀ = 200 rpm,
 T_s = 0,08 N·m (0,8 kgf·cm), T_f = 0,025 N·m, τ = 0,05 s; servo cỡ SG90 (0,1 s/60°, 0–180°, 0,18 N·m), tay nghỉ ở 0° (gập sang phải dọc mặt
-trên, nằm trong khung thân: một tay nhô ra trước lúc nghỉ chạm tường trước và làm robot chúi ngửa, ADR 0001 §9). `mount`
-của LED, còi, nút chỉ để vẽ.
+trên). Trục servo đặt 1,5 cm trước tâm thân, tay dài 5,5 cm (rộng 0,8 cm): xa nhất √(5,5² + 0,4²) = 5,51 cm từ trục, nên tay
+nằm trong khung thân 15 × 12 cm nhìn từ trên ở **mọi** góc 0–180° (7,01 cm phía trước, 5,51 cm sang hai bên; R3.5). Lý do:
+thư viện Servo bắt đầu ở 90° (`SERVO_START_DEG`), tức là tay chĩa ra trước ngay khi chương trình dùng servo, và một tay nhô ra
+trước chạm tường trước, làm robot chúi ngửa (ADR 0001 §9). Servo vì thế là cờ hay thanh chắn trên nóc robot, không phải tay đẩy;
+đẩy vật là việc của thân robot. Kit của nhà cung cấp nên giữ đúng điều này (kiểm bằng test `stays inside the body's footprint at
+every angle` của `assembly.test.ts`). `mount` của LED, còi, nút chỉ để vẽ.
 
 **Ma sát hộp số** (`gearFrictionNm`): giữ robot đứng yên khi bị đẩy và là lực cản lăn khi chạy. Đo với số trên (lực đẩy
 tác dụng trong bước, 2 s): robot phanh hay thả trôi giữ **sạch tới khoảng 1,1 N** (lệch < 0,1 mm); 1,2 N làm nó nhích

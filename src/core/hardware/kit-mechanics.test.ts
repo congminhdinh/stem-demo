@@ -64,10 +64,11 @@ describe('ref-uno-rover@0 mechanics (PLACEHOLDER values until the vendor measure
       sPer60Deg: 0.1,
       minDeg: 0,
       maxDeg: 180,
-      // At rest the arm lies folded to the right along the top, inside the footprint; scenarios swing it out on purpose.
+      // At rest the arm lies folded to the right along the top. It stays inside the body's footprint at every angle (a flag, not a
+      // pusher): a servo program starts at 90°, pointing it forward.
       restDeg: 0,
       stallTorqueNm: 0.18,
-      armLengthCm: 6,
+      armLengthCm: 5.5,
       armWidthCm: 0.8,
       armHeightCm: 1.5,
       armMassG: 5,
@@ -85,7 +86,9 @@ describe('ref-uno-rover@0 mechanics (PLACEHOLDER values until the vendor measure
       { posCm: [7, 0, 1], yawDeg: 0 },
       { posCm: [7, -1.5, 1], yawDeg: 0 },
     ]);
-    expect(mountOf('servo1')).toEqual({ posCm: [4.5, 0, 7], yawDeg: -90 });
+    // 1.5 cm ahead of the centre: with its 5.5 × 0.8 cm arm, √(5.5² + 0.4²) = 5.51 cm from the axis, it stays inside the
+    // 15 × 12 cm body seen from above at every angle 0..180° (7.01 cm ahead, 5.51 cm to a side).
+    expect(mountOf('servo1')).toEqual({ posCm: [1.5, 0, 7], yawDeg: -90 });
   });
 
   it('is a drivable robot: robotMechanics names its two motors and its servo with typed specs', () => {
