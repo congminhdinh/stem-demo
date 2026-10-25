@@ -4,7 +4,7 @@
 // (`data-drawn`) before the project and the Run, and also records firstFrameMs (the lesson page's navigation to the scene's first
 // frame) and runToMovingMs (a second Run, the physics loaded: the click to the first frame drawn after the clock moved).
 //
-// Fix round 1: autoLowMs, the first Run's click to the note that the view went to light graphics by itself (null: it did not), and
+// N18 R4.3: --sensors=off (the sensor overlays off, for the A/B of what they cost). Fix round 1: autoLowMs, the first Run's click to the note that the view went to light graphics by itself (null: it did not), and
 // endTier, the tier at the end of the cell. results/fix1-*.json: fix round 1's code and master 1211347 (R4.8) run the same way.
 // results/: fps-after-gpu.json, fps-after-swiftshader.json, fps-after-gpu-dpr2.json (R4.7's first round); fps-master-97adda4-*.json
 // (master before R4.7, the same harness, run from a `git archive` of it); fps-before-*.json (master d9ab65b, R4.2's scene alone);
@@ -165,6 +165,8 @@ async function cell(browser, project, { group, tier, rate }) {
   await page.evaluate(([document, origin]) => window.__sendToLab({ protocol: 'stem-lab/v1', type: 'load-project', document }, origin), [project, `http://localhost:${LAB_PORT}`]);
   // The reference's own blocks (the starter has no `if`): the project is in the editor.
   await frame.locator('[data-testid=blockly-panel] .blocklyText', { hasText: /^nếu$/ }).first().waitFor();
+  // N18 R4.3: --sensors=off turns the sensor overlays off with the lab's own "Hiện cảm biến" switch before the Run (the A/B of their cost).
+  if (args.sensors === 'off' && (await frame.getByTestId('robot-sensors').getAttribute('aria-pressed')) === 'true') await frame.getByTestId('robot-sensors').click();
   // N18 R4.7 fix round 1: when (if) the view goes to the light graphics by itself, from the first Run's click.
   await frame.evaluate(() => {
     window.__autoLow = null;
