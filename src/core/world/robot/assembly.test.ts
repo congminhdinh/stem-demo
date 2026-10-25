@@ -774,7 +774,8 @@ describe('determinism', () => {
   it('same inputs → bit-identical poses: a 3000-tick scripted run hashes the same twice, and the golden hash', () => {
     const first = scriptedHash();
     expect(scriptedHash()).toBe(first);
-    // Golden (moves to R3.5's snapshot file). A change here is a change of the engine: bump it on purpose. It had not
+    // Golden of the robot alone (the whole world's are R3.5's, tests/__snapshots__/robot-determinism.json). A change here is a
+    // change of the engine: bump it on purpose, and ROBOT_ENGINE_VERSION with the world's. It had not
     // shipped when R3.3's fix rounds re-pinned it: round 1 (gearbox friction, the Tustin lag, the drive as a force over the
     // step, T_s 0.08 N·m), round 2 (the drive at the wheels' floor contacts, coasting motors free, μ along the normal),
     // round 3 (the servo arm rests folded inside the footprint), and R3.5 (the servo moved back and its arm shortened to 5.5 cm,

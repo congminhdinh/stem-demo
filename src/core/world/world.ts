@@ -131,7 +131,7 @@ export async function createScenarioWorld(scenario: Scenario, kit: Kit, variantI
   const offsets = variantOffsets(scenario, variantIndex);
   const { start, arena } = applyVariant(scenario, offsets);
   await initPhysics();
-  return buildWorld({ arena, start, kit, seed: offsets.seed, variant: offsets, ...options }, scenario.key);
+  return buildWorld({ ...options, arena, start, kit, seed: offsets.seed, variant: offsets }, scenario.key);
 }
 
 /**
