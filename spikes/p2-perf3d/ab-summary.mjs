@@ -28,6 +28,11 @@ const columns = {
   'Run→moving': [(c) => c.runToMovingMs, 0],
   'tag changes/s': [(c, w) => (w && w.tagSpotChanges !== undefined ? w.tagSpotChanges / w.seconds : null), 1],
   'check s': [(c, w) => (w?.checkMs ? w.checkMs / 1000 : null), 1],
+  'switch 2D↔3D heap MB': [(c) => (c.switch ? c.switch.views.heapGrowthB / 2 ** 20 : null), 2],
+  'switch 2D↔3D listeners': [(c) => c.switch?.views.listenersGrowth ?? null, 0],
+  'switch tiers heap MB': [(c) => (c.switch ? c.switch.tiers.heapGrowthB / 2 ** 20 : null), 2],
+  'switch tiers listeners': [(c) => c.switch?.tiers.listenersGrowth ?? null, 0],
+  'switch GPU res (geo/tex/prog/ctx)': [(c) => (c.switch ? ['views', 'tiers'].map((k) => { const g = c.switch[k]; return `${g.geometriesGrowth}/${g.texturesGrowth}/${g.programsGrowth}/${g.liveContextsGrowth}`; }).join(' · ') : null), 0],
   'CPU loop': [(c) => c.cpuBenchMs, 0],
   load: [(c) => c.loadavg1m, 2],
 };

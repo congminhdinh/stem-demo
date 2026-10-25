@@ -1,13 +1,13 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import { MOUSE, Vector3, type PerspectiveCamera } from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { RobotSnapshot } from '../../core/world/snapshot';
 import { cameraLimits, topPose, type ArenaSpan, type CameraMode, type CameraPose } from './camera';
 import type { CameraCommands } from './camera-commands';
 import { orbitedOffset, ORBIT_STEP_RAD, zoomedOffset } from './camera-keys';
 import { chaseViewPose, clearSight, keepOutOfProps, keptFreeViewPose, MIN_ROBOT_PX, VIEW_SAFE_RECT, type FreeViewScene, type SafeRect, type SightProp, type SightWall } from './camera-studio';
 import type { CardEdge, HudCorner, ToolsCorner } from './hud-corner';
+import { RigControls } from './rig-controls';
 import { arenaToThree, type Vec3Tuple } from './scene-math';
 
 // The camera of the robot lab's 3D view (N18 R4.2; R4.7 gives it depth). three's own OrbitControls (ADR 0002 §5: no drei), wired by
@@ -75,7 +75,8 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
   const size = useThree((state) => state.size);
   const invalidate = useThree((state) => state.invalidate);
   const aspect = useThree((state) => state.size.width / Math.max(1, state.size.height));
-  const controls = useMemo(() => new OrbitControls(camera, dom), [camera, dom]);
+  // N18 P2: OrbitControls that leave no listener on the document when the view goes (rig-controls.ts).
+  const controls = useMemo(() => new RigControls(camera, dom), [camera, dom]);
   const glide = useRef<Glide | null>(null);
   const placed = useRef(false);
   const dragging = useRef(false);
