@@ -991,4 +991,20 @@
   .robot-speed-label {
     display: none;
   }
+
+  /* N18 R6.3: Kiểm tra goes up to the title's row, at its right; the run's controls keep the row under it. */
+  .robot-header-checkable .robot-check {
+    order: 1;
+    margin-left: auto;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .robot-header-checkable .robot-controls {
+    order: 2;
+  }
+
+  .robot-header-checkable > :not(.robot-title, .robot-check, .robot-controls) {
+    order: 3;
+  }
 }
