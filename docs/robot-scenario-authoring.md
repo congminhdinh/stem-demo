@@ -178,7 +178,7 @@ Số của kit placeholder dùng để thiết kế (đo bằng spike `spikes/r5
   | `rb-servo-gate` | `flag-crash-and-back-off`: servo 160°, chạy tới đâm cổng, lùi 1,1 s, dừng | 40 |
   | `rb-servo-gate` | `flag-dash-then-creep`: servo 160°, chạy 50 % 5300 ms rồi bò 33 % tới hết lượt | 40 |
   | `rb-mini-mission` | `follower-without-distance`: bộ bám vạch có "else dừng", không đo khoảng cách | 45 |
-  | `rb-mini-mission` | `timed-follower`: lặp bộ bám vạch 300 000 lần rồi dừng (không số lần nào qua) | 35 |
+  | `rb-mini-mission` | `timed-follower`: lặp bộ bám vạch 300 000 lần rồi dừng (không số lần nào qua) | 45 (trước C2 là 35: contract 0.1.7 tính motorSet 43,6875 µs nên vòng đếm dài hơn và đâm vật cản ở mọi biến thể) |
   | `rb-mini-mission` | `timed-follower-creep`: như trên, rồi bò 33 % 6 s và dừng | 45 |
   | `rb-mini-mission` | `timed-follower-creep-forever`: như trên, rồi bò 33 % tới hết lượt | 45 |
   | `rb-mini-mission` | `follower-bump-and-back`: bộ bám vạch 40 %, mất vạch thì lùi 500 ms và dừng | 45 |

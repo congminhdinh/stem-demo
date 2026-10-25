@@ -102,15 +102,6 @@ export const pilotReferences: readonly CheckCase[] = pilotKeys.map((key) => ({
   expected: { passed: true },
 }));
 
-/**
- * The exploits whose check score moved past the most R5.2a recorded for them once C2 merged (contract 0.1.7 charges motorSet 43.6875 µs, so a
- * loop of motor calls counted to a time runs longer): by case name, the score measured on the merged master (28600ae). The programs and the
- * scenarios are unchanged; R6.2 reports the move and does not retune them (controller ruling). Each still fails, under rule 10's 60.
- * `timed-follower` counts 300 000 follower loops to stop in the dock after about 13.9 s; it now drives on into the obstacle and the run ends
- * there in every variant (14.392 / 15.475 / 13.342 s), as `follower-without-distance` does: 45, where R5.2a measured 96 / 35 / 96.
- */
-export const exploitScoresSinceC2: Readonly<Record<string, number>> = { 'rb-mini-mission: the exploit timed-follower': 45 };
-
 /** Each pilot scenario's blind program (motors and waits, timed for variant 0), which fails a variant, and its exploits, each with its most. */
 export const pilotChallenges: readonly CheckCase[] = pilotKeys.flatMap((key) => {
   const { blind, exploits = [] } = robotSolutions[key];
@@ -121,7 +112,7 @@ export const pilotChallenges: readonly CheckCase[] = pilotKeys.flatMap((key) => 
       scenario: pilotScenario(key),
       project: pilotProject(key, exploit.program),
       drives: 'speeds' as const,
-      expected: { passed: false, maxScore: exploitScoresSinceC2[`${key}: the exploit ${exploit.name}`] ?? exploit.maxScore },
+      expected: { passed: false, maxScore: exploit.maxScore },
     })),
   ];
 });

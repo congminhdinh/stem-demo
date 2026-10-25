@@ -477,7 +477,7 @@ describe('the programs of every scenario (N18 R5.2)', () => {
       'rb-servo-gate flag-crash-and-back-off 40',
       'rb-servo-gate flag-dash-then-creep 40',
       'rb-mini-mission follower-without-distance 45',
-      'rb-mini-mission timed-follower 35',
+      'rb-mini-mission timed-follower 45',
       'rb-mini-mission timed-follower-creep 45',
       'rb-mini-mission timed-follower-creep-forever 45',
       'rb-mini-mission follower-bump-and-back 45',

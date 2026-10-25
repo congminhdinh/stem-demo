@@ -345,7 +345,8 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
           'The start moves up to 15 cm along the start straight, farther than the dock is long, so no count parks in every variant (the ' +
           'spike swept 240 000 to 380 000 by 5 000: none passed, the best scored 45).',
         program: workspace(hat('stem_on_start', [repeat('timed', 300000, [ifBlock('if-line', followLine('line'))]), stop('stop')])),
-        maxScore: 35,
+        // 45 since C2 (was 35): contract 0.1.7 charges motorSet 43.6875 µs, so the counted loop runs longer and hits the obstacle in every variant.
+        maxScore: 45,
       },
       {
         name: 'timed-follower-creep',
