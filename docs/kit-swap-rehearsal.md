@@ -5,7 +5,8 @@ một kit "của nhà cung cấp khác" làm **chỉ bằng dữ liệu**, rồi
 
 **Kết quả:** đổi kit là thay dữ liệu. Không có thay đổi nào dưới `src/core/world/**`, `src/core/run/**`, `src/core/program/**`,
 `src/core/hardware/drivers/**`, `virtual-uno.ts`, `binding.ts`, `src/core/codegen/**`. Sáu lời giải mẫu đạt **đúng** điểm như với kit tham
-chiếu, sketch chỉ khác ở chân, cực tính line và thứ tự IN, sketch compile được (L2), và C2 khớp trên avr8js. Hai phát hiện ở §4.
+chiếu, sketch chỉ khác ở chân, cực tính line và thứ tự IN, sketch compile được (L2), và C2 khớp trên avr8js (cả 7 fixture driver, sau
+quyết định ở §4.2). Hai phát hiện ở §4.
 
 Test: `tests/kit-rehearsal.test.ts`.
 
@@ -49,7 +50,7 @@ File: `src/core/hardware/kits/rehearsal.kit.json`. Là bản sao của `ref-uno-
 | 6 lời giải mẫu qua `checkRobot` headless, kit đổi trong document và trong scenario | **cùng** `RobotCheckResult` (điểm, `passed`, variant, `simTimeMs`, `programHash`, goal), cùng kết quả từng goal, cùng cách kết thúc, cùng hash world cuối của từng variant (bỏ phần `pins` của snapshot, vốn ghi tên chân) |
 | Sketch C1 (`generateUnoSketch`) của 6 lời giải, so từng dòng với sketch của kit tham chiếu | chỉ khác: dòng 1 (tên kit), các `#define` chân, và `digitalRead(LINE_…) == HIGH` thành `== LOW` (line-follow, mini-mission: 3 dòng mỗi bài). Thứ tự IN nằm trong giá trị `#define` |
 | L2: `pnpm check:arduino` (golden ở `tests/kit-rehearsal/rehearsal-rb-*.ino`) | xem §3 |
-| C2: 7 fixture driver chạy trên kit diễn tập (`tests/__parity-rehearsal__`) | motor, ultrasonic, line, LED, button, buzzer: simulator và board khớp (không còn vấn đề nào của harness), in **cùng** dòng Serial như trên kit tham chiếu (cả hai phía), và trên simulator mỗi chân của kit đi qua **cùng** chuỗi trạng thái như chân tương ứng của kit tham chiếu; servo: phát hiện ở §4.2 |
+| C2: 7 fixture driver chạy trên kit diễn tập (`tests/__parity-rehearsal__`) | motor, servo, ultrasonic, line, LED, button, buzzer: simulator và board khớp (harness không báo vấn đề nào), in **cùng** dòng Serial như trên kit tham chiếu (cả hai phía), và trên simulator mỗi chân của kit đi qua **cùng** chuỗi trạng thái như chân tương ứng của kit tham chiếu; servo khớp nhờ luật xung đầu sau `attach()` (§4.2) |
 
 Điểm của 6 bài (giống hệt trên hai kit): `rb-drive-to-zone` 100 (1 variant, 15 000 ms), `rb-square-route` 100 (1, 40 000 ms),
 `rb-stop-at-wall` 100 (3, 20 000 ms), `rb-line-follow` 100 (3, 120 000 ms), `rb-servo-gate` 100 (3, 20 000 ms), `rb-mini-mission` 96
@@ -90,19 +91,20 @@ Schema scenario buộc mỗi key `rb-*` dùng `robotKitId` của `src/samples/ro
 kit: "rehearsal-rover" }`), đúng như việc một kit thật thay `robotKitId`. Với kit thật của nhà cung cấp, đây là thay **dữ liệu**:
 `robotKitId`/`robotKitVersion` trong `robot-keys.ts`, `kit` của mọi `rb-*.json`, và tăng `version` của từng scenario (kits/README.md bước 5).
 
-### 4.2 C2: servo trên D10, harness tách xung đầu tiên sau `attach()`
+### 4.2 C2: servo trên D10, xung đầu tiên sau `attach()` dài hơn (đã xử lý ở harness)
 
 Board (avr8js chạy HEX thật) gửi đúng góc mà simulator có: xung 90° hai lần rồi 45°… (Servo 1.3.0: 544 + góc · 1856 / 180 µs). Nhưng
-trên D10, xung **đầu tiên** sau `attach()` dài hơn xung thứ hai **4,5625 µs** (trên D9 của kit tham chiếu: 3,5625 µs). Allowed difference
-`waveform-jitter` cho độ rộng xung servo trong một run chỉ lệch **4 µs** (`servo.highUs`), nên bộ đọc trace của board không ghép xung đầu
-vào run 90°: nó đọc thành HIGH rồi LOW, và so sánh báo
+xung **đầu tiên** sau `attach()` dài hơn xung ổn định ngay sau nó: **4,5625 µs** trên D10 (`rehearsal-driver-servo`), 3,5625 µs trên D9
+của kit tham chiếu (`driver-servo`). Allowed difference `waveform-jitter` cho độ rộng xung servo trong một run lệch **4 µs**, nên lúc đầu
+bộ đọc trace của board không ghép xung đầu vào run 90° trên D10: nó đọc thành HIGH rồi LOW, và so sánh báo
 `D10: the simulator went INPUT, LOW, servo 90°, …; the board INPUT, LOW, HIGH, LOW, servo 45°, …`.
 
-Đây là **dung sai của harness**, không phải lỗi của simulator hay của kit: lý do của chính `waveform-jitter` nói xung servo do ngắt đặt và
-phải chờ ngắt đang chạy (ngắt Timer0 mất khoảng 6 µs), tức độ rộng có thể lệch tới cỡ đó. Không nới dung sai ở đây, vì nó là một dòng
-của contract (§13, "Rung xung servo, tone") và là bằng chứng C2 của mọi fixture. Test `rehearsal-driver-servo` ghim đúng phát hiện này
-(thông báo, góc của từng xung, hai độ lệch 4,5625 và 3,5625 µs). Cần controller quyết: nới `servo.highUs` (chẳng hạn tới thời gian ngắt
-Timer0) hoặc thêm luật riêng cho xung đầu sau `attach()`, rồi cập nhật contract.
+Đây là dung sai của harness, không phải lỗi của simulator hay của kit. **Quyết định của controller** (R8a fix round 1): harness có một luật
+riêng, có ghi lại, cho xung đầu sau `attach()`: allowed difference `servo-first-pulse` thêm `firstWidthUs: 6` (thời gian ngắt Timer0
+5,97 µs làm tròn lên). Xung đầu được ghép vào run của góc khi độ rộng lệch xung sau nó ≤ 6 µs; các xung ổn định vẫn giữ 4 µs
+(`tests/parity/board-trace.ts` `findRuns`, test `joins the first servo pulse after attach…` của `board-trace.test.ts`). Số đo 4,5625 µs
+trên D10 được ghi làm evidence ở dòng "Xung servo đầu tiên sau attach" của contract §13. Với luật đó `rehearsal-driver-servo` khớp, và bộ
+fixture của kit tham chiếu vẫn khớp như trước.
 
 ## 5. Thêm kit thật của nhà cung cấp
 
