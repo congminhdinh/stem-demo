@@ -77,6 +77,15 @@ export type YbcProgramIR = {
   onStart: YbcStatement[];
   /** null when the program has no forever block. */
   forever: YbcStatement[] | null;
+  /**
+   * N18 R2.4: the id of the `forever` hat block, when the program has one. The pause at the end of every forever iteration (Yolo:Bit's
+   * 10 ms) is that block's, so it is the block the trace reports while the program waits there (`services.trace`). The compiler sets it
+   * NON-ENUMERABLE (`withForeverBlockId`): the shape of a ybc IR is frozen since YB-2 (its keys are asserted by name, and a uno IR is
+   * that IR plus the two keys of its family), and this is a name for tracing, not a part of the program. So it is not in `Object.keys`,
+   * a spread, `toEqual` or JSON; an IR that lost it (a copy, a hand-made one) is paused with no report of its own, and the last
+   * statement stays the one reported.
+   */
+  foreverBlockId?: string;
   /** Every variable of the workspace; all start at 0 (Basic: int only). */
   variables: { id: string; name: string; type: 'int' }[];
   /** N18 R2.3: the numeric model of the board family. Absent: `python` (every ybc IR). Read it with `numericOf`. */
@@ -90,6 +99,11 @@ export type YbcProgramIR = {
 
 /** E3, contract C-02: every forever iteration of a Yolo:Bit program ends with a 10 ms sleep (`time.sleep_ms(10)`). */
 export const YBC_LOOP_PAUSE_US = 10_000;
+
+/** N18 R2.4: `ir` with its `foreverBlockId` set, the way the type says: a property of the object that no enumeration sees. */
+export function withForeverBlockId(ir: YbcProgramIR, blockId: string): YbcProgramIR {
+  return Object.defineProperty(ir, 'foreverBlockId', { value: blockId, enumerable: false });
+}
 
 export const numericOf = (ir: Pick<YbcProgramIR, 'numeric'>): NumericModel => ir.numeric ?? 'python';
 export const loopPauseUsOf = (ir: Pick<YbcProgramIR, 'loopPauseUs'>): number => ir.loopPauseUs ?? YBC_LOOP_PAUSE_US;

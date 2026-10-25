@@ -28,7 +28,12 @@ export type VirtualRun = {
 
 export function startVirtualRun(
   ir: YbcProgramIR,
-  options: { capabilities?(run: { scheduler: VirtualScheduler; worldMs(): number }): Capabilities; scheduler?: Omit<VirtualSchedulerOptions, 'signal'> } = {},
+  options: {
+    capabilities?(run: { scheduler: VirtualScheduler; worldMs(): number }): Capabilities;
+    scheduler?: Omit<VirtualSchedulerOptions, 'signal'>;
+    /** N18 R2.4: told the block of every statement as it starts. */
+    trace?(blockId: string): void;
+  } = {},
 ): VirtualRun {
   const controller = new AbortController();
   const scheduler = createVirtualScheduler({ ...options.scheduler, signal: controller.signal });
@@ -44,6 +49,7 @@ export function startVirtualRun(
     scheduler: createRunScheduler(scheduler.timers),
     budget: scheduler.budget(controller.signal),
     warn: (warning) => void warnings.push(warning),
+    ...(options.trace ? { trace: options.trace } : {}),
   });
   const capabilities = options.capabilities?.({ scheduler, worldMs: () => worldMs }) ?? {};
   const { done } = runYbcProgram(ir, capabilities, services);

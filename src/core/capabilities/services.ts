@@ -68,6 +68,17 @@ export type RuntimeServices = {
   randomInt: RandomInt;
   /** N17 B5: tells the run something it should know and goes on (a value clamped; N18 R2.3: a division by zero, with its block). Inert once the run is over. */
   warn(warning: RunWarning): void;
+  /**
+   * N18 R2.4: told the block of every statement as it starts (the interpreter's `blockId`), and, while the program waits, the block it
+   * waits in: a `wait` is its own block, and the pause at the end of a `forever` iteration (Yolo:Bit's 10 ms) is the `forever` hat. Never
+   * `undefined`, never an expression block. The robot lab's highlight reads it (RobotRunSession's `activeBlockId`).
+   *
+   * Optional, and absent means nothing is told: the interpreter calls `services.trace?.(blockId)`, so a run without one is exactly what
+   * it was, and so are the services RunSession builds (their shape is unchanged: `createRuntimeServices` adds the key only when it is
+   * given one). It is called on the hot path of the program, once per statement: it must be cheap (no allocation here, the interpreter
+   * passes the id it already holds), must not throw, and must not touch the clock or the world.
+   */
+  trace?: (blockId: string) => void;
 };
 
 const performanceClock: Clock = { now: () => performance.now() };
@@ -110,6 +121,8 @@ export function createRuntimeServices(options: {
    * on `signal`, the clock and `yieldNow`.
    */
   budget?: ExecutionBudget;
+  /** N18 R2.4: where the block of each statement is told as it starts (and the waiting block in a pause); nowhere by default (the services have no `trace`). */
+  trace?: (blockId: string) => void;
 }): RuntimeServices {
   const { signal, console } = options;
   const clock = options.clock ?? performanceClock;
@@ -122,6 +135,7 @@ export function createRuntimeServices(options: {
     signal,
     randomInt: options.randomInt ?? mathRandomInt,
     warn: options.warn ?? (() => {}),
+    ...(options.trace === undefined ? {} : { trace: options.trace }),
   };
 }
 

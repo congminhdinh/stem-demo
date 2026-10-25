@@ -94,6 +94,11 @@ import {
 // every iteration is a `budget.loopIteration()`, which the virtual budget of a robot run charges (run/virtual-clock.ts). Every
 // statement still begins with its budget step, then names its block: the one place a per-statement hook belongs.
 //
+// N18 R2.4: that hook is `services.trace(blockId)`, called right after the statement names its block (so a Stop that the step sees
+// reports nothing), and once more with the `forever` hat when the program waits in the pause at the end of an iteration (Yolo:Bit's
+// 10 ms; a uno loop() has none). A `wait`, a scrolling text or a note is its own statement, so while it waits it is the block the
+// last report named. `trace` is optional and only ever told a block id: a run without it is what it was.
+//
 // N18 R2.2: the module ops of a uno program (robot plan §4.4) reach the robot through `capabilities.modules` (role → port → driver,
 // hardware/binding.ts), its raw pins through the virtual UNO's `digital`, `pwm` and `analogIn`. An int argument outside its range is
 // clamped and the run warned once per role (a raw pin: per pin) in a run, with the block (constructs/uno.run.ts). Every module op,
@@ -800,6 +805,7 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
       // One budget step per statement; it throws when Stop was pressed.
       await budget.step();
       blockId = statement.blockId;
+      services.trace?.(statement.blockId);
       switch (statement.kind) {
         case 'noop':
           break;
@@ -914,6 +920,10 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
         signal.throwIfAborted();
         // E3 (Yolo:Bit): 10 ms at the end of every iteration. Arduino's loop() has none (contract UNO §4.1).
         if (loopPauseUs > 0) {
+          // N18 R2.4: the program waits in the forever hat's own pause, not in the last statement it ran.
+          if (ir.foreverBlockId !== undefined) {
+            services.trace?.(ir.foreverBlockId);
+          }
           await services.sleep(loopPauseUs / 1000, signal);
           budget.startSlice();
         }

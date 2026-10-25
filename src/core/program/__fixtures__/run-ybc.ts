@@ -24,11 +24,13 @@ export function runYbc(
     randomInt?: RandomInt;
     /** Where the run's warnings go (N17 B5: a value clamped); nowhere by default. */
     warn?(warning: RunWarning): void;
+    /** N18 R2.4: told the block of every statement as it starts. */
+    trace?(blockId: string): void;
   },
   capabilities: Capabilities = {},
 ): YbcProgramRun & { stop(): void } {
   const controller = new AbortController();
-  const { now, yieldNow, onPrint, scheduler, randomInt, warn } = options;
+  const { now, yieldNow, onPrint, scheduler, randomInt, warn, trace } = options;
   const clock: Clock | undefined = now ? { now } : undefined;
   const services = createRuntimeServices({
     signal: controller.signal,
@@ -46,6 +48,7 @@ export function runYbc(
     ...(scheduler ? { scheduler } : {}),
     ...(randomInt ? { randomInt } : {}),
     ...(warn ? { warn } : {}),
+    ...(trace ? { trace } : {}),
   });
   return { ...runYbcProgram(ir, capabilities, services), stop: () => controller.abort() };
 }
