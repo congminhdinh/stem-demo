@@ -4,7 +4,7 @@ import { MOUSE, Vector3, type PerspectiveCamera } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { RobotSnapshot } from '../../core/world/snapshot';
 import { cameraLimits, topPose, type ArenaSpan, type CameraMode, type CameraPose } from './camera';
-import { chaseViewPose, clearSight, freeViewPose, VIEW_SAFE_RECT, type FreeViewScene, type SafeRect, type SightWall } from './camera-studio';
+import { chaseViewPose, clearSight, freeViewPose, keepOutOfProps, MIN_ROBOT_PX, VIEW_SAFE_RECT, type FreeViewScene, type SafeRect, type SightProp, type SightWall } from './camera-studio';
 import type { CardEdge, HudCorner, ToolsCorner } from './hud-corner';
 import { arenaToThree, type Vec3Tuple } from './scene-math';
 
@@ -28,8 +28,10 @@ type CameraRigProps = {
   resetKey?: number;
   /** Where the HUD covers the view (NDC): the free view frames the lesson clear of it; until it is measured, a default corner. */
   hud?: HudCorner | null;
-  /** The arena's walls: the chase camera rises to look over any between it and the robot. */
+  /** The arena's walls: the chase camera stays inside them. */
   walls?: readonly SightWall[];
+  /** The arena's fixed bodies and hanging dressing: the chase camera never goes into one, even orbited low (fix round 2). */
+  props?: readonly SightProp[];
   /** The check's open results card (NDC): while it is open, the camera looks at the robot and its picture slides left, so the
    * robot's end spot shows in the part of the view the card leaves. */
   card?: CardEdge | null;
@@ -43,9 +45,6 @@ type CameraRigProps = {
 const GLIDE_S = 0.45;
 /** How fast "Theo xe" catches up with the robot and swings behind it: the share of the gap closed per second, as a rate. */
 const FOLLOW_RATE = 5;
-
-/** The robot is never narrower than this on the screen in the free view's first frame (px across its wheels). */
-const MIN_ROBOT_PX = 40;
 
 const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2);
 
@@ -62,7 +61,7 @@ const defaultChase = (): ChaseOffset => {
   return { forward: pose.position[0] - pose.target[0], up: pose.position[1] - pose.target[1], side: pose.position[2] - pose.target[2], ahead: pose.target[0] };
 };
 
-export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0, hud = null, walls = [], card = null, tools = null, replaying = false }: CameraRigProps) {
+export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0, hud = null, walls = [], props = [], card = null, tools = null, replaying = false }: CameraRigProps) {
   const camera = useThree((state) => state.camera) as PerspectiveCamera;
   const dom = useThree((state) => state.gl.domElement);
   const size = useThree((state) => state.size);
@@ -92,9 +91,9 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
     [hud, tools],
   );
   const minRobot = (2 * MIN_ROBOT_PX) / Math.max(1, size.width);
-  const latest = useRef({ aspect, reducedMotion, view, span, free, mode, safe, walls, minRobot });
+  const latest = useRef({ aspect, reducedMotion, view, span, free, mode, safe, walls, props, minRobot });
   useEffect(() => {
-    latest.current = { aspect, reducedMotion, view, span, free, mode, safe, walls, minRobot };
+    latest.current = { aspect, reducedMotion, view, span, free, mode, safe, walls, props, minRobot };
   });
 
   useEffect(() => {
@@ -151,7 +150,8 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
     const [c, s] = [Math.cos(yaw), Math.sin(yaw)];
     const { forward, up, side, ahead } = chase.current;
     const target: Vec3Tuple = [px + ahead * c, py + 0.03, pz - ahead * s];
-    return clearSight({ position: [target[0] + forward * c + side * s, target[1] + up, target[2] - forward * s + side * c], target }, latest.current.walls, [px, py + 0.03, pz]);
+    const inside = clearSight({ position: [target[0] + forward * c + side * s, target[1] + up, target[2] - forward * s + side * c], target }, latest.current.walls, [px, py + 0.03, pz]);
+    return { position: keepOutOfProps(inside.position, latest.current.props), target: inside.target };
   };
 
   /** Where the view `mode` starts. */
@@ -292,6 +292,11 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
       }
     }
     controls.update();
+    // "Theo xe" orbited low by the learner: never inside a prop (the gate, a block, the gantry's beam).
+    if (mode === 'follow') {
+      const [x, y, z] = keepOutOfProps([camera.position.x, camera.position.y, camera.position.z], props);
+      if (y !== camera.position.y) camera.position.set(x, y, z);
+    }
   }, -1);
 
   return null;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
-import { CHASE_AHEAD_M, CHASE_BACK_M, CHASE_INSIDE_M, CHASE_UP_M, chaseViewPose, clearSight, FREE_ELEVATION_DEG, freeViewForward, freeViewPose, projectToScreen, robotScreenWidth, safeBottom, safeTop, sightWalls, VIEW_SAFE_RECT, type FreeViewScene, type SafeRect } from './camera-studio';
+import { CHASE_AHEAD_M, CHASE_BACK_M, CHASE_INSIDE_M, CHASE_UP_M, chaseViewPose, clearSight, FREE_ELEVATION_DEG, freeViewForward, keepOutOfProps, MIN_ROBOT_PX, freeViewPose, projectToScreen, robotScreenWidth, safeBottom, safeTop, sightWalls, VIEW_SAFE_RECT, type FreeViewScene, type SafeRect } from './camera-studio';
 
 // N18 R4.7: the 3D view's camera reads as 3D: "Tự do" opens 34° above the floor behind and beside the robot's start, the arena
 // receding in front of it, the start, the route and the goals inside the part of the view the HUD, the buttons and the view tools leave
@@ -106,12 +106,20 @@ describe('the free view of a pilot lesson (N18 R4.7 fix round 1)', () => {
   ];
   const rectFor = (width: number, height: number, hudBottom: number): SafeRect => ({ ...VIEW_SAFE_RECT, hud: { right: -1 + (2 * 308) / width, bottom: hudBottom }, tools: { right: -1 + (2 * 68) / width, top: -1 + (2 * 160) / height } });
 
-  it('frames the start zone and the whole route of the tape clear of the HUD and of the view tools (rb-line-follow)', () => {
+  it('frames the start zone and the tape’s route within 80 cm of the start clear of the HUD and of the view tools, and the whole route on the screen at 1100 (rb-line-follow)', () => {
     const scene = sceneOf('rb-line-follow');
+    const near = (scene.route ?? []).flatMap((point, i, all) => {
+      const next = all[i + 1];
+      if (!next) return [point];
+      return Array.from({ length: 10 }, (_, k): [number, number] => [point[0] + ((next[0] - point[0]) * k) / 10, point[1] + ((next[1] - point[1]) * k) / 10]);
+    }).filter(([x, y]) => Math.hypot(x - scene.start.xCm, y - scene.start.yCm) <= 80);
     for (const { width, height } of views) {
       const rect = rectFor(width, height, 0.27);
-      const pose = freeViewPose(spanOf('rb-line-follow'), scene, fov, width / height, rect, (2 * 48) / width);
-      for (const [x, y] of [...scene.route!, ...scene.startZone!, ...scene.goals.flat()]) expect(inside(projectToScreen([x / 100, 0, -y / 100], pose, fov, width / height), rect)).toBe(true);
+      const pose = freeViewPose(spanOf('rb-line-follow'), scene, fov, width / height, rect, (2 * MIN_ROBOT_PX) / width);
+      for (const [x, y] of [...near, ...scene.startZone!]) expect(inside(projectToScreen([x / 100, 0, -y / 100], pose, fov, width / height), rect)).toBe(true);
+      if (width !== 660) continue;
+      // The far end may lie under a tall HUD's lower part (the learner can fold it), never off the screen.
+      for (const [x, y] of scene.route!) for (const v of projectToScreen([x / 100, 0, -y / 100], pose, fov, width / height)) expect(Math.abs(v)).toBeLessThanOrEqual(1);
     }
   });
 
@@ -132,7 +140,7 @@ describe('the free view of a pilot lesson (N18 R4.7 fix round 1)', () => {
     const rect = rectFor(760, 415, -0.11);
     const aspect = 760 / 415;
     const wide = freeViewPose(spanOf('rb-mini-mission'), scene, fov, aspect, rect);
-    const min = (2 * 48) / 760;
+    const min = (2 * MIN_ROBOT_PX) / 760;
     expect(robotScreenWidth(wide, scene.start, fov, aspect)).toBeLessThan(min);
     const pose = freeViewPose(spanOf('rb-mini-mission'), scene, fov, aspect, rect, min);
     expect(robotScreenWidth(pose, scene.start, fov, aspect)).toBeGreaterThanOrEqual(min);
@@ -140,13 +148,14 @@ describe('the free view of a pilot lesson (N18 R4.7 fix round 1)', () => {
     for (const [x, y] of [...scene.startZone!, ...scene.goals[0]!]) expect(inside(projectToScreen([x / 100, 0, -y / 100], pose, fov, aspect), rect)).toBe(true);
   });
 
-  it('frames every pilot lesson at 1100 and 760 px with the robot at least 48 px wide', () => {
+  it('frames every pilot lesson at 1100 and 760 px with the robot at least MIN_ROBOT_PX (60 px) wide', () => {
+    expect(MIN_ROBOT_PX).toBe(60);
     for (const scenario of scenarioCatalog.scenarios) {
       const key = scenario.key;
       for (const { width, height } of views) {
         const aspect = width / height;
-        const pose = freeViewPose(spanOf(key), sceneOf(key), fov, aspect, rectFor(width, height, 0.1), (2 * 48) / width);
-        expect((robotScreenWidth(pose, scenario.start, fov, aspect) * width) / 2).toBeGreaterThanOrEqual(48 - 1e-6);
+        const pose = freeViewPose(spanOf(key), sceneOf(key), fov, aspect, rectFor(width, height, 0.1), (2 * MIN_ROBOT_PX) / width);
+        expect((robotScreenWidth(pose, scenario.start, fov, aspect) * width) / 2).toBeGreaterThanOrEqual(MIN_ROBOT_PX - 1e-6);
       }
     }
   });
@@ -225,3 +234,29 @@ function segmentsCross(a: readonly [number, number], b: readonly [number, number
   const side = (p: readonly [number, number], q: readonly [number, number], r: readonly [number, number]) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
   return side(a, b, c) * side(a, b, d) < 0 && side(c, d, a) * side(c, d, b) < 0;
 }
+
+describe('the chase camera and the arena’s props (N18 R4.7 fix round 2, N3)', () => {
+  // rb-servo-gate's gate: 6 × 60 × 12 cm at (143, 50) cm, along arena y (three z); a gantry beam over (118, 50), 25–35 cm up.
+  const gate = { centre: [1.43, -0.5] as const, half: [0.03, 0.3] as const, yawRad: 0, bottom: 0, top: 0.12 };
+  const beam = { centre: [1.18, -0.5] as const, half: [0.02, 0.62] as const, yawRad: 0, bottom: 0.25, top: 0.35 };
+
+  it('lifts a camera orbited low into a prop on the floor over its top, 3 cm to spare', () => {
+    expect(keepOutOfProps([1.43, 0.06, -0.4], [gate])).toEqual([1.43, 0.12 + CHASE_INSIDE_M, -0.4]);
+    // Within 3 cm of its face counts: the near plane would cut into it.
+    expect(keepOutOfProps([1.43 - 0.03 - 0.02, 0.06, -0.4], [gate])[1]).toBeCloseTo(0.15, 9);
+  });
+
+  it('moves a camera in a hanging prop to the nearer side of it, over or under', () => {
+    expect(keepOutOfProps([1.18, 0.27, -0.5], [beam])[1]).toBeCloseTo(0.25 - CHASE_INSIDE_M, 9);
+    expect(keepOutOfProps([1.18, 0.34, -0.5], [beam])[1]).toBeCloseTo(0.35 + CHASE_INSIDE_M, 9);
+  });
+
+  it('leaves a camera clear of every prop where it is, and reads a turned prop in its own frame', () => {
+    const position = [1.2, 0.06, -0.4] as const;
+    expect(keepOutOfProps(position, [gate, beam])).toBe(position);
+    // The gate turned 90°: now 60 cm along three x, 6 cm along z.
+    const turned = { ...gate, yawRad: Math.PI / 2 };
+    expect(keepOutOfProps([1.43 + 0.25, 0.06, -0.5], [turned])[1]).toBeCloseTo(0.15, 9);
+    expect(keepOutOfProps([1.43, 0.06, -0.5 + 0.25], [turned])[1]).toBe(0.06);
+  });
+});

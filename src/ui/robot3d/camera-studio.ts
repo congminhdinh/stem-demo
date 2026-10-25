@@ -36,8 +36,9 @@ const CHASE_LOOK_UP_M = 0.03;
 export const ZONE_TAG_M = 0.13;
 /** How low a tall HUD's corner may cut into what the free view frames before the robot would be too small (NDC). */
 const RELAXED_HUD_BOTTOM = 0.45;
-/** The room a zone's tag takes over its line's top, as the free view frames it (m). */
-const TAG_ROOM_M = { up: 0.09, across: 0.12 };
+/** The room a zone's tag takes over its line's top, as the free view frames it (m): up, a little left of the line and well right of it
+ * (the layout reaches a tag right of its line where the HUD is on its left, zone-tag-layout.ts). */
+const TAG_ROOM_M = { up: 0.12, left: 0.06, right: 0.28 };
 /** The chase camera stays this far inside every wall's face (m). */
 export const CHASE_INSIDE_M = 0.03;
 
@@ -135,6 +136,8 @@ export type FreeViewScene = {
   goals: readonly (readonly (readonly [number, number])[])[];
   startZone?: readonly (readonly [number, number])[] | undefined;
   route?: readonly (readonly [number, number])[] | undefined;
+  /** The lesson's fixed bodies (the gate, obstacles, a pole): points of their tops, arena cm and their height (cm). */
+  bodies?: readonly (readonly [number, number, number])[] | undefined;
 };
 
 /**
@@ -153,8 +156,12 @@ export function freeViewForward(scene: FreeViewScene): [number, number] {
   return [Math.cos(yaw), -Math.sin(yaw)];
 }
 
+/** How far from the start the tape's route is always framed (cm). */
+const NEAR_ROUTE_CM = 80;
 /** How much of the floor round the robot's start the free view keeps in sight (m, each way). */
 const START_MARGIN_M = 0.16;
+/** The robot is never narrower than this on the screen in the free view's first frame (px across its wheels, ROBOT_SPAN_M). */
+export const MIN_ROBOT_PX = 60;
 /** The span across the robot whose size on the screen `robotScreenWidth` measures (m): about its width with the wheels. */
 export const ROBOT_SPAN_M = 0.16;
 
@@ -170,11 +177,13 @@ export function robotScreenWidth(pose: CameraPose, start: FreeViewScene['start']
 
 /**
  * "Tự do": 34° up behind the robot's start, looking over it to where the lesson sends it. What it frames, in the part of the view the
- * controls leave (`rect`): the floor round the start (the robot large near the bottom of the view), the start zone, every goal zone,
- * the tape's route, the zones' tags, and the two corners of the arena farthest along the view, so the arena recedes from the robot to
+ * controls leave (`rect`): the floor round the start (the robot large near the bottom of the view), the start zone and the tape's route
+ * within 80 cm of it, every goal zone and
+ * the lesson's fixed bodies (the gate, the obstacles), the tape's route, the zones' tags, and the two corners of the arena farthest along the view, so the arena recedes from the robot to
  * its far walls. When that leaves the robot narrower than `minRobot` (NDC; a small view, a tall HUD), the far corners are let go first,
  * then the tags' room (a tag may then reach under the HUD), then a tall HUD's lower part (the arena's far side may lie under it), then
- * the route, then the goals farthest from the start, one by one (orbit and zoom reach them); the start and its zone always stay.
+ * the route and the bodies, then the goals farthest from the start, one by one (orbit and zoom reach them); the start and its zone
+ * always stay.
  */
 export function freeViewPose(span: ArenaSpan, scene: FreeViewScene, fovDeg: number, aspect: number, rect: SafeRect = VIEW_SAFE_RECT, minRobot = 0): CameraPose {
   const [fx, fz] = freeViewForward(scene);
@@ -187,22 +196,33 @@ export function freeViewPose(span: ArenaSpan, scene: FreeViewScene, fovDeg: numb
   const around: Vec3Tuple[] = [];
   for (const dx of [-1, 1]) for (const dz of [-1, 1]) around.push([origin[0] + dx * START_MARGIN_M, 0, origin[2] + dz * START_MARGIN_M]);
   around.push([origin[0], 0.08, origin[2]]);
-  const kept = [...around, ...(scene.startZone ?? []).map(floor)];
-  const route = (scene.route ?? []).map(floor);
-  // The goals, nearest to the start first, each with its tag over its middle: the room its pill takes over the line's top (about
-  // TAG_ROOM_M up and either way across the view, at the distances the view frames from).
+  // The route near the start (sampled every 5 cm, within NEAR_ROUTE_CM) is always framed: the robot drives along it first.
+  const near: Vec3Tuple[] = [];
+  const path = scene.route ?? [];
+  for (let i = 0; i + 1 < path.length; i++) {
+    const [a, b] = [path[i]!, path[i + 1]!];
+    const steps = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 5));
+    for (let k = 0; k <= steps; k++) {
+      const p: [number, number] = [a[0] + ((b[0] - a[0]) * k) / steps, a[1] + ((b[1] - a[1]) * k) / steps];
+      if (Math.hypot(p[0] - scene.start.xCm, p[1] - scene.start.yCm) <= NEAR_ROUTE_CM) near.push(floor(p));
+    }
+  }
+  const kept = [...around, ...(scene.startZone ?? []).map(floor), ...near];
+  const route = path.map(floor);
+  // The goals, nearest to the start first, each with its tag over its middle: the room its pill takes over the line's top (TAG_ROOM_M,
+  // at the distances the view frames from).
   const [rx, rz] = [-fz, fx];
   const tagRoom = (zone: readonly (readonly [number, number])[]): Vec3Tuple[] => {
     const xs = zone.map(([x]) => x);
     const ys = zone.map(([, y]) => y);
     const [cx, , cz] = arenaToThree((Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2, 0);
     const top = ZONE_TAG_M + TAG_ROOM_M.up;
-    return [-1, 1].map((side): Vec3Tuple => [cx + rx * side * TAG_ROOM_M.across, top, cz + rz * side * TAG_ROOM_M.across]);
+    return [-TAG_ROOM_M.left, TAG_ROOM_M.right].map((along): Vec3Tuple => [cx + rx * along, top, cz + rz * along]);
   };
   const goals = [...scene.goals]
     .map((zone) => ({ points: zone.map(floor), tags: tagRoom(zone), away: Math.min(...zone.map(([x, y]) => Math.hypot(x - scene.start.xCm, y - scene.start.yCm))) }))
     .sort((a, b) => a.away - b.away);
-  const floors = goals.flatMap(({ points }) => points);
+  const floors = [...goals.flatMap(({ points }) => points), ...(scene.bodies ?? []).map(([x, y, z]) => arenaToThree(x, y, z))];
   const tags = goals.flatMap(({ tags: room }) => room);
   // What to frame, most first; each in the view's free part, then with a HUD that reaches low held back to RELAXED_HUD_BOTTOM (the
   // far part of the arena may then lie under the HUD, which the learner can fold).
@@ -215,6 +235,7 @@ export function freeViewPose(span: ArenaSpan, scene: FreeViewScene, fovDeg: numb
     [[...kept, ...floors], relaxed],
   ];
   for (let count = goals.length - 1; count >= 0; count--) choices.push([[...kept, ...goals.slice(0, count).flatMap(({ points }) => points)], relaxed]);
+  // (The bodies go with the route: the last choices keep only the nearest goals' zones.)
   let pose: CameraPose | null = null;
   for (const [points, room] of choices) {
     pose = framePoints(points, toCamera, fovDeg, aspect, room);
@@ -292,4 +313,35 @@ export function clearSight(pose: CameraPose, walls: readonly SightWall[], subjec
   const y = subject[1] + Math.max(pose.position[1] - subject[1], Math.sqrt(Math.max(0, reach * reach - across * across)));
   const back = (i: 0 | 1 | 2) => subject[i] + (pose.target[i] - subject[i]) * share;
   return { position: [x, y, z], target: [back(0), pose.target[1], back(2)] };
+}
+
+/**
+ * A fixed body of the arena, or a piece of dressing over the mat, as the chase camera keeps out of it (fix round 2, review N3): a box
+ * on the floor plan (three's x, z of its middle, its half sizes along its own axes, its turn about +Y as three's `rotation.y`) between
+ * two heights (m).
+ */
+export type SightProp = { centre: readonly [number, number]; half: readonly [number, number]; yawRad: number; bottom: number; top: number };
+
+/**
+ * The camera at `position` moved out of every prop it is in or within `margin` of: up over one that stands on the floor (a gate, a
+ * marker block, a tin, a post), and over or under one that hangs (a gantry's beam and banner, a carport roof), whichever is nearer.
+ * A learner who orbits the chase camera low never puts it inside a prop; twice round, for a move that lands in another.
+ */
+export function keepOutOfProps(position: Vec3Tuple, props: readonly SightProp[], margin = CHASE_INSIDE_M): Vec3Tuple {
+  const [x, , z] = position;
+  let y = position[1];
+  for (let round = 0; round < 2; round++) {
+    for (const prop of props) {
+      const [dx, dz] = [x - prop.centre[0], z - prop.centre[1]];
+      const [c, s] = [Math.cos(prop.yawRad), Math.sin(prop.yawRad)];
+      // Into the prop's own frame: the inverse of three's turn about +Y (x' = x c + z s, z' = −x s + z c).
+      const [lx, lz] = [dx * c - dz * s, dx * s + dz * c];
+      if (Math.abs(lx) > prop.half[0] + margin || Math.abs(lz) > prop.half[1] + margin) continue;
+      if (y < prop.bottom - margin || y > prop.top + margin) continue;
+      const over = prop.top + margin;
+      const under = prop.bottom - margin;
+      y = under <= 0 || over - y <= y - under ? over : under;
+    }
+  }
+  return y === position[1] ? position : [x, y, z];
 }
