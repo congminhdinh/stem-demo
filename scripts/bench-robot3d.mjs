@@ -409,6 +409,9 @@ async function cell(browser, profileName, scenarioName, run, options, shared) {
     measured.frameOffsetMs = round(lab.frameOffsetMs, 1);
     if (lab.loadingCpu) measured.loadingCpu = lab.loadingCpu;
     measured.loading = await p2(frame, 'window.__p2.loading()');
+    // The lab's main thread as fast as this cell had it: a fixed loop (3·10⁷ steps) in the frame, after the CPU throttle. The host's
+    // scheduler (performance or efficiency cores, other work) moves it between cells; a row's numbers scale with it.
+    measured.cpuBenchMs = await p2(frame, '(() => { const s = performance.now(); let x = 0; for (let i = 0; i < 3e7; i += 1) x += i % 7; return Math.round(performance.now() - s + x * 0); })()');
     await loadProject(page, frame, scenario.program ? shared.projects[scenario.program] : null, options.port);
     await sleep(1500);
     const opts = { profiled: false, maps: shared.maps, browser };
@@ -692,6 +695,7 @@ function rowOf(measured) {
     busyPerFrameMsCpu: w?.cpu ? round(w.cpu.busyPerFrameMs, 2) : null,
     checkMs: w?.checkMs ?? null,
     endTier: measured.endTier,
+    cpuBenchMs: measured.cpuBenchMs ?? null,
     load: measured.loadavg1m,
   };
 }
@@ -758,15 +762,15 @@ function markdown(report) {
   lines.push('## Budgets and targets', '', '| kind | measure | worst | limit | result | n | detail |', '|---|---|---|---|---|---|---|');
   for (const row of verdicts) lines.push(`| ${row.kind} | ${row.name} | ${round(row.value, 1)} ${row.unit} | ${row.limit} ${row.unit} | ${row.ok ? 'ok' : row.kind === 'budget' ? 'MISSED' : 'not met'} | ${row.n} | ${row.detail} |`);
   lines.push('', '## Frames (fps pass): ranges over the repeats', '');
-  lines.push('| profile · scenario | fps | p5 fps | frame p50 / p95 / p99 ms | main thread p50 / p95 ms | render call ms | draws screen + shadow | long tasks (>100) max ms | commits/s run (idle) | tasks (script) ms/s | GPU process ms/frame (cores) | renderer process ms/frame (cores) | load |');
-  lines.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|');
+  lines.push('| profile · scenario | fps | p5 fps | frame p50 / p95 / p99 ms | main thread p50 / p95 ms | render call ms | draws screen + shadow | long tasks (>100) max ms | commits/s run (idle) | tasks (script) ms/s | GPU process ms/frame (cores) | renderer process ms/frame (cores) | CPU loop ms | load |');
+  lines.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|');
   for (const [key, entries] of groups(cells, 'fps')) {
     const rows = entries.map((entry) => entry.row);
     const pick = (name, digits) => range(rows.map((row) => row[name]), digits);
     const dom = rows.map((row) => row.commitsRun?.['react-dom'] ?? null);
     const domIdle = rows.map((row) => row.commitsIdle?.['react-dom'] ?? null);
     lines.push(
-      `| ${key} | ${pick('fps')} | ${pick('p5fps')} | ${pick('frameP50')} / ${pick('frameP95')} / ${pick('frameP99')} | ${pick('busyP50')} / ${pick('busyP95')} | ${pick('renderCallP50', 2)} | ${pick('drawsScreen', 0)} + ${pick('drawsOffscreen', 0)} | ${pick('longTasks', 0)} (${pick('longOver100', 0)}) ${pick('longMaxMs', 0)} | ${range(dom)} (${range(domIdle)}) | ${pick('taskPerS', 0)} (${pick('scriptPerS', 0)}) | ${pick('gpuProcMsPerFrame')} (${pick('gpuProcCores', 2)}) | ${pick('rendererProcMsPerFrame')} (${pick('rendererProcCores', 2)}) | ${range(rows.flatMap((row) => row.load ?? []), 2)} |`,
+      `| ${key} | ${pick('fps')} | ${pick('p5fps')} | ${pick('frameP50')} / ${pick('frameP95')} / ${pick('frameP99')} | ${pick('busyP50')} / ${pick('busyP95')} | ${pick('renderCallP50', 2)} | ${pick('drawsScreen', 0)} + ${pick('drawsOffscreen', 0)} | ${pick('longTasks', 0)} (${pick('longOver100', 0)}) ${pick('longMaxMs', 0)} | ${range(dom)} (${range(domIdle)}) | ${pick('taskPerS', 0)} (${pick('scriptPerS', 0)}) | ${pick('gpuProcMsPerFrame')} (${pick('gpuProcCores', 2)}) | ${pick('rendererProcMsPerFrame')} (${pick('rendererProcCores', 2)}) | ${pick('cpuBenchMs', 0)} | ${range(rows.flatMap((row) => row.load ?? []), 2)} |`,
     );
   }
   lines.push('', '## Loading and rest (fps pass)', '');
@@ -782,13 +786,13 @@ function markdown(report) {
   }
   if (cells.some((entry) => entry.pass === 'profile')) {
     lines.push('', '## Where the main thread goes (profile pass, ms per animation frame, ranges over the repeats)', '');
-    lines.push('| profile · scenario | busy | sim | render (shadow map) | React | Blockly | scene callbacks | GC | browser (style, layout, paint, GL) | alloc/frame KB | load |');
-    lines.push('|---|---|---|---|---|---|---|---|---|---|---|');
+    lines.push('| profile · scenario | busy | sim | render (shadow map) | React | Blockly | scene callbacks | GC | browser (style, layout, paint, GL) | alloc/frame KB | CPU loop ms | load |');
+    lines.push('|---|---|---|---|---|---|---|---|---|---|---|---|');
     for (const [key, entries] of groups(cells, 'profile')) {
       const rows = entries.map((entry) => entry.row);
       const pick = (name) => range(rows.map((row) => row[name]), 2);
       const alloc = entries.map((entry) => (entry.measured.window?.alloc?.perFrameB ?? null) / 1024);
-      lines.push(`| ${key} | ${pick('busyPerFrameMsCpu')} | ${pick('simPerFrameMs')} | ${pick('renderPerFrameMs')} (${pick('shadowPerFrameMs')}) | ${pick('reactPerFrameMs')} | ${pick('blocklyPerFrameMs')} | ${pick('scenePerFrameMs')} | ${pick('gcPerFrameMs')} | ${pick('browserPerFrameMs')} | ${range(alloc)} | ${range(rows.flatMap((row) => row.load ?? []), 2)} |`);
+      lines.push(`| ${key} | ${pick('busyPerFrameMsCpu')} | ${pick('simPerFrameMs')} | ${pick('renderPerFrameMs')} (${pick('shadowPerFrameMs')}) | ${pick('reactPerFrameMs')} | ${pick('blocklyPerFrameMs')} | ${pick('scenePerFrameMs')} | ${pick('gcPerFrameMs')} | ${pick('browserPerFrameMs')} | ${range(alloc)} | ${pick('cpuBenchMs')} | ${range(rows.flatMap((row) => row.load ?? []), 2)} |`);
     }
   }
   if (cells.some((entry) => entry.pass === 'profile')) {
