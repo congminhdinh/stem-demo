@@ -56,11 +56,12 @@ test.describe('a robot lab in a lesson (stem-lab/v1)', () => {
     await expect(frame.getByRole('heading', { level: 1, name: 'Robot 3D' })).toBeVisible();
     await expect(frame.getByRole('heading', { level: 2, name: 'Chạy tới vùng đích' })).toBeVisible();
     await expect(frame.getByRole('region', { name: 'Khung nhìn robot' })).toBeVisible();
-    await expect(frame.getByRole('region', { name: 'Khung nhìn robot' })).toContainText('Khung nhìn 3D của robot sẽ hiện ở đây.');
+    // N18 R4.2: the view holds the 3D scene (R4.1 held a placeholder sentence here).
+    await expect(frame.getByRole('region', { name: 'Khung nhìn robot' }).getByTestId('robot-canvas').locator('canvas')).toBeVisible();
     await expect(frame.getByRole('region', { name: 'Chương trình' })).toBeVisible();
     await expect(frame.getByTestId('blockly-panel').locator('svg.blocklySvg')).toBeVisible();
     await expect(frame.getByTestId('robot-loading')).toHaveCount(0);
-    // A lab never offers New; the robot has no Run or Check until R4.2 and R6.
+    // A lab never offers New; the robot lab's Run is its own (R4.2), its Check comes with R6.3.
     await expect(frame.getByRole('button', { name: 'Mới' })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.lang)).toBe('en'); // the lesson page itself
     expect(await frame.evaluate(() => document.documentElement.lang)).toBe('vi');

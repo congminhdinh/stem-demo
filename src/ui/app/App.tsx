@@ -32,6 +32,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { LabWorkspace } from './LabWorkspace';
 import { onPageHidden } from './page-hidden';
 import { PythonPanel } from './PythonPanel';
+import type { RobotProgramView } from '../robot3d/RobotLab';
 import { RobotLabLoader } from './RobotLabLoader';
 import { RunOutput, RunToolbar, SteadyLabel } from './RunToolbar';
 import './app.css';
@@ -47,6 +48,11 @@ export type LabChrome = {
   createTemplate(): ProjectDocument;
   /** Every finished check (the host bridge's `check-result`). */
   onChecked?(result: CheckResult): void;
+  /**
+   * N18 R4.2: the robot lab's run started (true) or ended (false), for the host bridge's run-started / run-stopped. The robot lab runs its
+   * own session, not the run store's, so the bridge cannot hear it from the store.
+   */
+  onRunChange?(running: boolean): void;
 };
 
 /** How long Reset waits for the second click before it forgets the first. */
@@ -402,12 +408,49 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
   );
 
   // The robot lab (N18 R4.1) brings its own chrome, in its own chunk; the block editor, its stores and its notices are App's, so the
-  // robot lab opens, saves and recovers a program exactly as the other labs do. Run, Check and Reset come with R4.2 and R6.
+  // robot lab opens, saves and recovers a program exactly as the other labs do. It shows the editor with what a robot run puts on it
+  // (N18 R4.2: the scenario's toolbox and starter, the running block, the diagnostics on blocks, a check's lock); Check comes with R6.3.
   if (lab && lab.kind === 'robot' && isRobotTemplateKey(lab.template)) {
+    const robotProgram = (view: RobotProgramView) => (
+      <ErrorBoundary
+        key={`blocks-${loadRevision}`}
+        onError={recoverProgram}
+        fallback={
+          <p className="program-failed" role="alert" data-testid="program-failed">
+            {t('program.failed')}
+          </p>
+        }
+      >
+        <BlocklyPanel
+          ref={blocklyRef}
+          projectStore={projectStore}
+          packs={packs}
+          toolbox={view.toolbox}
+          fitOnLoad
+          onLoadFailed={recoverProgram}
+          emptyProgram={view.emptyProgram}
+          highlightBlockId={view.highlightBlockId}
+          blockWarnings={view.blockWarnings}
+          readOnly={view.readOnly}
+        />
+      </ErrorBoundary>
+    );
+    const robotLab = {
+      template: lab.template,
+      program: robotProgram,
+      notices,
+      projectStore,
+      flushProgram: () => blocklyRef.current?.saveNow(),
+      registry,
+      profiles,
+      packs,
+      toolbox,
+      ...(lab.onRunChange ? { onRunChange: lab.onRunChange } : {}),
+    };
     return (
       <div className="app-shell app-shell-lab">
         {/* The robot lab's own chunk, loaded here and nowhere else (RobotLabLoader). */}
-        <RobotLabLoader template={lab.template} program={programRegion} notices={notices} />
+        <RobotLabLoader {...robotLab} />
       </div>
     );
   }

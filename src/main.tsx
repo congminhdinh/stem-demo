@@ -131,6 +131,8 @@ if (started.kind === 'launch-error') {
                   challenge,
                   createTemplate: () => createTemplateProject(launch.template, lab.profile === null ? {} : { profile: lab.profile }),
                   onChecked: (result) => bridge?.checkResult(result),
+                  // N18 R4.2: the robot lab's runs are its own session's; it says when one starts and ends.
+                  ...(lab.kind === 'robot' ? { onRunChange: (running: boolean) => (running ? bridge?.runStarted() : bridge?.runStopped()) } : {}),
                 }
               : null
           }

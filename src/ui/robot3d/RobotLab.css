@@ -1,7 +1,23 @@
 /*
- * The shell of the robot lab (N18 R4.1): the viewport beside the program, one under the other in a narrow frame. R4.2 replaces this
- * layout (tabs under 800 px, the toolbar, the goals); it only has to hold a place for each part until then.
+ * The robot lab (N18 R4.1 shell, R4.2 scene, R4.4 HUD and controls). Its layout is a lab's (LabWorkspace: the view on the left, about
+ * 60 %, the program on the right, tabs under 800 px); its colours are the app's tokens (app.css :root), never colours of its own. The
+ * 3D view's own colours are in colors.ts.
  */
+
+/* The lab fills the app shell's two rows itself: its header, then the workspace. */
+.robot-lab {
+  grid-row: 1 / -1;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+}
+
+.robot-header {
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+}
+
 .app-header .robot-scenario {
   margin: 0;
   font-size: 14px;
@@ -9,27 +25,591 @@
   color: var(--stem-color-text-muted);
 }
 
-.robot-lab {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+.robot-icon {
+  flex: none;
 }
 
-.robot-viewport {
-  display: grid;
-  place-items: center;
+/* The run's controls, at the right of the header like the other labs' Run and Stop. */
+.robot-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.robot-header .robot-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid var(--stem-color-border-strong);
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-surface);
+  color: var(--stem-color-text);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.robot-header .robot-button:hover:not(:disabled) {
   background: var(--stem-color-surface-muted);
 }
 
-.robot-viewport-placeholder {
+.robot-header .robot-button-primary,
+.robot-header .robot-button-primary:hover:not(:disabled) {
+  border-color: var(--stem-color-primary);
+  background: var(--stem-color-primary);
+  color: var(--stem-color-on-primary);
+  font-weight: 600;
+}
+
+.robot-header .robot-button[aria-pressed='true'] {
+  border-color: var(--stem-color-warning-text);
+  background: var(--stem-color-warning-soft);
+  color: var(--stem-color-warning-text);
+}
+
+.robot-header button:focus-visible,
+.robot-viewport button:focus-visible,
+.robot-program button:focus-visible {
+  outline: 3px solid var(--stem-color-primary);
+  outline-offset: 2px;
+}
+
+/* The speed: one control of four choices. */
+.robot-speed {
+  display: inline-flex;
+  align-items: stretch;
+  min-height: 32px;
+  border: 1px solid var(--stem-color-border-strong);
+  border-radius: var(--stem-radius);
+  overflow: hidden;
+  background: var(--stem-color-surface);
+  font-size: 13px;
+}
+
+.robot-speed-label {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  color: var(--stem-color-text-muted);
+  font-size: 12px;
+}
+
+.app-header .robot-speed [role='radio'] {
+  min-width: 38px;
+  padding: 0 8px;
+  border: 0;
+  border-left: 1px solid var(--stem-color-border);
+  border-radius: 0;
+  background: transparent;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-header .robot-speed [role='radio'][aria-checked='true'] {
+  background: var(--stem-color-primary);
+  color: var(--stem-color-on-primary);
+  font-weight: 600;
+}
+
+/* The left side: the 3D view (with what floats over it), then the dock under it. */
+.robot-viewport {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+  background: var(--stem-color-surface-muted);
+}
+
+.robot-stage {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  container-type: inline-size;
+}
+
+.robot-canvas {
+  position: absolute !important;
+  inset: 0;
+  touch-action: none;
+}
+
+/* What floats over the view: a card, readable over any arena. */
+.robot-hud,
+.robot-camera,
+.robot-quality,
+.robot-messages {
+  position: absolute;
+  border: 1px solid var(--stem-color-border);
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-overlay);
+  box-shadow: 0 2px 8px var(--stem-shadow-scroll);
+  font-size: 12px;
+}
+
+.robot-hud {
+  top: 10px;
+  left: 10px;
+  display: grid;
+  gap: 6px;
+  width: min(290px, calc(100% - 20px));
+  box-sizing: border-box;
+  padding: 8px 10px;
+}
+
+.robot-hud-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.robot-hud-label {
+  color: var(--stem-color-text-muted);
+}
+
+.robot-hud-time,
+.robot-hud-score {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.robot-hud-score strong {
+  font-size: 14px;
+}
+
+.robot-status,
+.robot-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.robot-status {
+  background: var(--stem-color-neutral-soft);
+  color: var(--stem-color-neutral-text);
+}
+
+.robot-status-running {
+  background: var(--stem-color-success-soft);
+  color: var(--stem-color-success);
+}
+
+.robot-status-finished {
+  background: var(--stem-color-primary-soft);
+  color: var(--stem-color-primary);
+}
+
+.robot-status-paused,
+.robot-status-timeUp,
+.robot-badge-slow {
+  background: var(--stem-color-warning-soft);
+  color: var(--stem-color-warning-text);
+}
+
+.robot-status-crashed,
+.robot-status-error,
+.robot-badge-out {
+  background: var(--stem-color-danger-soft);
+  color: var(--stem-color-danger);
+}
+
+.robot-badge-slow {
+  cursor: help;
+}
+
+.robot-hud .robot-hud-toggle {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--stem-radius);
+  background: transparent;
+  color: var(--stem-color-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.robot-goals {
+  display: grid;
+  gap: 4px;
+  max-height: 132px;
   margin: 0;
-  padding: 0 16px;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.robot-goal {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 6px;
+  line-height: 1.35;
+}
+
+.robot-goal-mark {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--stem-color-border-strong);
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.robot-goal-passed .robot-goal-mark {
+  border-color: var(--stem-color-success);
+  background: var(--stem-color-success);
+  color: var(--stem-color-on-primary);
+}
+
+.robot-goal-passed .robot-goal-label {
+  color: var(--stem-color-success);
+}
+
+.robot-goal-points {
+  color: var(--stem-color-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.robot-goal-progress {
+  grid-column: 2 / 4;
+  height: 3px;
+  margin-top: 2px;
+  border-radius: 2px;
+  background: var(--stem-color-neutral-soft);
+  overflow: hidden;
+}
+
+.robot-goal-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--stem-color-primary);
+}
+
+/* The camera's three views, top right; only their icons in a narrow view. */
+.robot-camera {
+  top: 10px;
+  right: 10px;
+  display: flex;
+  padding: 2px;
+  gap: 2px;
+}
+
+.robot-camera button,
+.robot-quality {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--stem-color-text);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.robot-camera button[aria-pressed='true'] {
+  background: var(--stem-color-primary);
+  color: var(--stem-color-on-primary);
+}
+
+.robot-quality {
+  right: 10px;
+  bottom: 10px;
+  border: 1px solid var(--stem-color-border);
+}
+
+@container (max-width: 620px) {
+  .robot-camera button span {
+    display: none;
+  }
+
+  .robot-hud {
+    width: min(250px, calc(100% - 130px));
+  }
+}
+
+/* Why a run did not start or what went wrong in it: over the bottom of the view. */
+.robot-messages {
+  left: 10px;
+  right: 140px;
+  bottom: 10px;
+  max-height: 40%;
+  overflow-y: auto;
+  padding: 8px 30px 8px 12px;
+  border-color: var(--stem-color-danger);
+  background: var(--stem-color-danger-soft);
+  color: var(--stem-color-danger);
+  font-size: 13px;
+}
+
+.robot-messages ul {
+  margin: 0;
+  padding-left: 16px;
+  line-height: 1.5;
+}
+
+.robot-messages details {
+  margin-top: 4px;
+  color: var(--stem-color-text-muted);
+  font-size: 12px;
+}
+
+.robot-messages pre {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  font-family: var(--stem-font-mono);
+}
+
+.robot-messages .robot-messages-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* The 3D view could not be drawn: a message in its place, the rest of the lab as it was. */
+.robot-viewport-message {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 0 24px;
+  background: var(--stem-color-surface-muted);
   color: var(--stem-color-text-muted);
   font-size: 14px;
   text-align: center;
 }
 
+.robot-viewport-message p {
+  max-width: 40em;
+  margin: 0;
+}
+
+.robot-viewport-message-soft {
+  background: var(--stem-color-overlay);
+}
+
+.robot-viewport-message button {
+  min-height: 32px;
+  padding: 4px 14px;
+  border: 1px solid var(--stem-color-border-strong);
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-surface);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* Under the view: the robot's button, the sound, and the Serial console. */
+.robot-dock {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 10px;
+  height: 92px;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border-top: 1px solid var(--stem-color-border);
+  background: var(--stem-color-surface);
+}
+
+.robot-dock-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.robot-hold-button {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 4px;
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--stem-color-border-strong);
+  border-radius: 12px;
+  background: var(--stem-color-surface-muted);
+  color: var(--stem-color-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+
+.robot-hold-cap {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--stem-color-primary);
+  box-shadow: 0 3px 0 var(--stem-shadow-pressed);
+  transition: transform 60ms, box-shadow 60ms;
+}
+
+.robot-hold-button[aria-pressed='true'] {
+  border-color: var(--stem-color-pressed-border);
+  background: var(--stem-color-primary-soft);
+}
+
+.robot-hold-button[aria-pressed='true'] .robot-hold-cap {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 var(--stem-shadow-pressed);
+}
+
+.robot-hold-button:disabled,
+.robot-sound:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.robot-sound {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--stem-color-border-strong);
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-surface);
+  color: var(--stem-color-text);
+  cursor: pointer;
+}
+
+.robot-serial {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+}
+
+.robot-serial h3 {
+  margin: 0 0 4px;
+  color: var(--stem-color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.robot-serial .run-console {
+  max-height: none;
+  min-height: 0;
+  font-family: var(--stem-font-mono);
+}
+
+.robot-serial-empty {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0 10px;
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-surface-muted);
+  color: var(--stem-color-text-subtle);
+  font-size: 12px;
+}
+
+/* The right side: the program, in three tabs that share one cell (the blocks stay laid out while another tab is shown). */
+.robot-program {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+  background: var(--stem-color-surface);
+}
+
+.robot-program-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 4px 8px 0;
+  border-bottom: 1px solid var(--stem-color-border);
+  background: var(--stem-color-surface);
+}
+
+.robot-program-tabs [role='tab'] {
+  min-height: 34px;
+  padding: 4px 14px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--stem-color-text-muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.robot-program-tabs [role='tab'][aria-selected='true'] {
+  border-bottom-color: var(--stem-color-primary);
+  color: var(--stem-color-text);
+  font-weight: 600;
+}
+
+.robot-program-pane {
+  position: relative;
+  grid-row: 2;
+  grid-column: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.robot-program-pane[data-shown='false'] {
+  visibility: hidden;
+}
+
+.robot-program-soon {
+  margin: 0;
+  padding: 32px 24px;
+  color: var(--stem-color-text-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* A narrow frame: the header wraps, the controls take their own row, as tight as their words allow. */
 @media (max-width: 799px) {
-  .robot-lab {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(120px, 35%) minmax(0, 1fr);
+  .robot-controls {
+    flex-basis: 100%;
+    justify-content: flex-start;
+    gap: 4px;
+    margin-left: 0;
+  }
+
+  .robot-header .robot-button {
+    padding: 4px 8px;
+  }
+
+  /* The speed's own name stays the group's accessible name. */
+  .robot-speed-label {
+    display: none;
   }
 }

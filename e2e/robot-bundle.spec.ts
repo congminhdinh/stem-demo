@@ -42,8 +42,12 @@ test.describe('bundle isolation of the robot lab', () => {
     await expect(page.getByTestId('robot-lab')).toBeVisible();
     await page.waitForLoadState('networkidle');
     expect(requests.robotLab()).toHaveLength(1);
-    // The watcher does see a robot module as a heavy one (the lab's code and its style): it is not blind to what the other tests say
-    // is absent. The shell loads no 3D yet; R4.2 changes this line when the scene comes in.
-    expect(requests.heavy().map((url) => new URL(url).pathname)).toEqual(['/src/ui/robot3d/RobotLab.tsx', '/src/ui/robot3d/RobotLab.css']);
+    // The watcher does see a robot module as a heavy one: it is not blind to what the other tests say is absent. Since R4.2 the lab
+    // brings its 3D scene (three and react-three-fiber) with it, and the physics engine (the Rapier package and its wasm, which
+    // core/world/rapier.ts imports lazily) only with the first Run.
+    const heavy = requests.heavy().map((url) => new URL(url).pathname);
+    expect(heavy).toEqual(expect.arrayContaining(['/src/ui/robot3d/RobotLab.tsx', '/src/ui/robot3d/RobotLab.css', '/src/ui/robot3d/Scene.tsx']));
+    expect(heavy.some((path) => /\/(three|@react-three_fiber)\.js$/.test(path))).toBe(true);
+    expect(heavy.filter((path) => /@dimforge|\.wasm$/i.test(path))).toEqual([]);
   });
 });

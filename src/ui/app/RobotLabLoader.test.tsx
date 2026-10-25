@@ -27,13 +27,15 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
+// N18 R4.2: the lab's program is App's block editor, built for the view of the lab (a render prop); the loader only hands every prop on.
+const view = { toolbox: { kind: 'categoryToolbox', contents: [] }, emptyProgram: {}, highlightBlockId: null, blockWarnings: {}, readOnly: false };
 const Lab: ComponentType<RobotLabProps> = ({ template, program }) => (
   <main data-testid="lab">
     {template}
-    {program}
+    {program(view)}
   </main>
 );
-const props: RobotLabProps = { template: 'rb-sandbox', program: <p>chương trình</p> };
+const props = { template: 'rb-sandbox', program: () => <p>chương trình</p> } as Partial<RobotLabProps> as RobotLabProps;
 
 const reloadPage = vi.fn();
 beforeEach(() => reloadPage.mockClear());
