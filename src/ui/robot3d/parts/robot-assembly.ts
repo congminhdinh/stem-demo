@@ -290,6 +290,8 @@ export function assembleRobot(model: RobotModel, reference: ReferenceSizes, sour
       glow.position.y = 0.0028;
       glow.visible = false;
       glow.userData.moves = true;
+      // Compiled with the scene though hidden (Scene.tsx): its program is needed the moment an eye sees dark.
+      glow.userData.compileWithScene = true;
       node.add(glow);
       const spot = new Mesh(spotGeometry, spotMaterial);
       spot.name = `line_spot_${i}`;

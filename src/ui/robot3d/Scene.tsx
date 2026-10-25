@@ -1,6 +1,6 @@
 import { addTail, Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Suspense, use, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { NeutralToneMapping, NoToneMapping, type DirectionalLight } from 'three';
+import { NeutralToneMapping, NoToneMapping, type DirectionalLight, type Object3D } from 'three';
 import { useStore } from 'zustand';
 import type { Kit } from '../../core/hardware/kit';
 import type { Scenario } from '../../core/scenario/scenario';
@@ -152,8 +152,18 @@ function CompiledDraw({ onDrawn }: { onDrawn?: (() => void) | undefined }) {
   // An effect, after the scene's own (the studio's environment map is set by then: every shader is compiled once, with it).
   useEffect(() => {
     let live = true;
-    void gl
-      .compileAsync(scene, camera)
+    // What is hidden until a run lights it but must not compile a program then (a line lamp's glow: its sprite program is the zones'
+    // tags', and they come after the first frame): shown for the compile, which gathers the scene's materials at once, then hidden again.
+    const hidden: Object3D[] = [];
+    scene.traverse((node) => {
+      if (!node.visible && node.userData.compileWithScene) {
+        node.visible = true;
+        hidden.push(node);
+      }
+    });
+    const compiled = gl.compileAsync(scene, camera);
+    for (const node of hidden) node.visible = false;
+    void compiled
       .catch(() => undefined)
       .then(() => {
         if (!live) return;
