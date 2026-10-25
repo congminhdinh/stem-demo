@@ -77,12 +77,22 @@ const inside = (range: LineRange | null, line: number) => range !== null && line
 export function CppTab({ projectStore, rules, scenario, flush, store, selectedIds, active }: CppTabProps) {
   const t = useText();
   const locale = useLocale();
-  const document = useStore(projectStore, (state) => state.document);
+  // A tab that is not shown follows nothing: no change of the project or of the robot's block renders its list of lines.
+  const document = useStore(projectStore, (state) => (active ? state.document : null));
   const [sketch, setSketch] = useState<SketchView | null>(null);
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle');
   const sourceRef = useRef<HTMLPreElement>(null);
   /** The project the shown sketch was made from. */
   const shownFor = useRef<ProjectDocument | null>(null);
+  /** The timers of Copy: the "Đã chép" that goes after a moment, and the selection of the code after a refusal. */
+  const copyTimers = useRef<{ feedback?: ReturnType<typeof setTimeout>; select?: ReturnType<typeof setTimeout> }>({});
+  useEffect(() => {
+    const timers = copyTimers.current;
+    return () => {
+      clearTimeout(timers.feedback);
+      clearTimeout(timers.select);
+    };
+  }, []);
   const fileName = sketchFileName(scenario);
 
   /** The sketch of the project as it is NOW, shown and returned. */
@@ -102,7 +112,7 @@ export function CppTab({ projectStore, rules, scenario, flush, store, selectedId
 
   // Follows the project once the learner pauses.
   useEffect(() => {
-    if (!active || shownFor.current === document) {
+    if (!active || document === null || shownFor.current === document) {
       return undefined;
     }
     const timer = setTimeout(generate, CPP_DEBOUNCE_MS);
@@ -111,7 +121,7 @@ export function CppTab({ projectStore, rules, scenario, flush, store, selectedId
 
   // The block the robot is in, as the world says it (the store hands React a snapshot at most once a frame).
   const running = useThrottled(
-    useStore(store, (state) => state.snapshot.world?.activeBlockId ?? null),
+    useStore(store, (state) => (active ? (state.snapshot.world?.activeBlockId ?? null) : null)),
     RUNNING_DELAY_MS,
   );
   const { running: runningRange, selected: selectedRange } = sketch?.ok ? highlightedLines(sketch.lineMap, running, selectedIds) : { running: null, selected: null };
@@ -163,11 +173,13 @@ export function CppTab({ projectStore, rules, scenario, flush, store, selectedId
     try {
       await window.navigator.clipboard.writeText(source);
       setCopy('copied');
-      setTimeout(() => setCopy('idle'), 1500);
+      clearTimeout(copyTimers.current.feedback);
+      copyTimers.current.feedback = setTimeout(() => setCopy('idle'), 1500);
     } catch {
       setCopy('failed');
       // The shown sketch is the one just generated; select it once React has rendered it.
-      setTimeout(selectSource, 0);
+      clearTimeout(copyTimers.current.select);
+      copyTimers.current.select = setTimeout(selectSource, 0);
     }
   };
 

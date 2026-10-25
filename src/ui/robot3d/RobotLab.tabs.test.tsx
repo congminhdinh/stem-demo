@@ -41,6 +41,7 @@ afterEach(() => {
   act(() => root.unmount());
   host.remove();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   delete window.__stem;
 });
 
@@ -57,6 +58,7 @@ async function setup(locale: 'vi' | 'en' = 'vi') {
   const projectStore = createProjectStore({ ...robotStarterDocument('rb-drive-to-zone'), program: { blocks: robotSolutions['rb-drive-to-zone'].reference } });
   const views: RobotProgramView[] = [];
   const flushProgram = vi.fn();
+  const flushEdits = vi.fn();
   const program = (view: RobotProgramView): ReactNode => {
     views.push(view);
     return <div data-testid="blocks">khối lệnh</div>;
@@ -69,6 +71,7 @@ async function setup(locale: 'vi' | 'en' = 'vi') {
           program={program}
           projectStore={projectStore}
           flushProgram={flushProgram}
+          flushEdits={flushEdits}
           registry={registry}
           profiles={productionProfiles}
           packs={packs}
@@ -79,7 +82,7 @@ async function setup(locale: 'vi' | 'en' = 'vi') {
       </TextProvider>,
     ),
   );
-  return { ...fake, projectStore, flushProgram, lastView: () => views[views.length - 1]! };
+  return { ...fake, projectStore, flushProgram, flushEdits, lastView: () => views[views.length - 1]! };
 }
 
 describe('the C++ and Cổng & chân tabs of the robot lab (N18 R4.5)', () => {
@@ -101,6 +104,34 @@ describe('the C++ and Cổng & chân tabs of the robot lab (N18 R4.5)', () => {
     await act(async () => lab.lastView().onSelectBlock(['drive-time-ms', 'drive-time']));
     const selected = [...host.querySelectorAll('[data-testid=cpp-source] [data-selected=true]')];
     expect(selected.map((line) => line.textContent)).toEqual(['  delay(5000L);']);
+  });
+
+  it('keeps marking the last block the learner selected when the editor says nothing is selected, as it does when the focus goes to a tab, and changes to the next one', async () => {
+    const lab = await setup();
+    await act(async () => tab('C++').click());
+    const marked = () => [...host.querySelectorAll('[data-testid=cpp-source] [data-selected=true]')].map((line) => line.textContent);
+    await act(async () => lab.lastView().onSelectBlock(['drive-time']));
+    expect(marked()).toEqual(['  delay(5000L);']);
+    // Blockly 13 deselects a block when the focus leaves the editor, which clicking the C++ tab does.
+    await act(async () => lab.lastView().onSelectBlock([]));
+    expect(marked()).toEqual(['  delay(5000L);']);
+    await act(async () => lab.lastView().onSelectBlock(['stop']));
+    expect(marked()).toHaveLength(2);
+  });
+
+  it('flushes with flushEdits, which leaves an unchanged starter out of the project, on Copy and Tải .ino, and with flushProgram only on Chạy', async () => {
+    vi.stubGlobal('navigator', { ...window.navigator, clipboard: { writeText: vi.fn(async () => {}) } });
+    Object.assign(URL, { createObjectURL: () => 'blob:sketch', revokeObjectURL: vi.fn() });
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const lab = await setup();
+    await act(async () => tab('C++').click());
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid=cpp-copy]')!.click());
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid=cpp-download]')!.click());
+    expect(lab.flushEdits).toHaveBeenCalledTimes(2);
+    expect(lab.flushProgram).not.toHaveBeenCalled();
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid=robot-run]')!.click());
+    expect(lab.flushProgram).toHaveBeenCalledTimes(1);
+    expect(lab.flushEdits).toHaveBeenCalledTimes(2);
   });
 
   it('shows the hub panel of the run in the Cổng & chân tab: the mapping before a run, then the live values', async () => {

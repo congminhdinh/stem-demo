@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useId, useMemo, useState, type ReactNode } from 'react';
 import { useStore } from 'zustand';
 import type { BoardProfile } from '../../core/hardware/board';
 import type { Kit } from '../../core/hardware/kit';
@@ -31,7 +31,7 @@ export type RobotProgramView = {
   blockWarnings: Readonly<Record<string, string>>;
   /** A check holds the lab: the blocks cannot be edited. */
   readOnly: boolean;
-  /** The learner selected a block (N18 R4.5): its id and the blocks around it, innermost first; empty for none. The editor reports it here. */
+  /** The learner selected a block (N18 R4.5): its id and the blocks around it, innermost first. The editor reports it here; the pane keeps the last one. */
   onSelectBlock(blockIds: readonly string[]): void;
 };
 
@@ -45,8 +45,8 @@ const tabs: readonly { tab: Tab; label: 'robot.tab.blocks' | 'robot.tab.cpp' | '
 /** What the C++ and the ports & pins tabs read: the project, the lab's rules for compiling it, and the robot. */
 export type ProgramPaneLab = {
   projectStore: ProjectStore;
-  /** Writes the latest edits of the blocks into the project (BlocklyPanel `saveNow`). */
-  flushProgram(): void;
+  /** Writes the learner's latest edits of the blocks into the project, never an unchanged starter (BlocklyPanel `saveEdits`). */
+  flushEdits(): void;
   rules: UnoProjectRules;
   scenario: Scenario;
   kit: Kit;
@@ -80,6 +80,13 @@ export function ProgramPane({ store, toolbox, lab, program }: ProgramPaneProps) 
   const id = useId();
   const [tab, setTab] = useState<Tab>('blocks');
   const [selectedIds, setSelectedIds] = useState<readonly string[]>([]);
+  // The editor drops its selection the moment the focus leaves it (a click on the C++ tab is that: Blockly 13 deselects a block when it
+  // loses focus), so the C++ tab, which is shown instead of the editor, could never see one. It marks the last block the learner
+  // selected: an empty report (a click on bare workspace, the focus going away, a project being loaded) keeps it, and a block the program
+  // no longer has marks nothing.
+  const selectBlock = useCallback((blockIds: readonly string[]) => {
+    if (blockIds.length > 0) setSelectedIds(blockIds);
+  }, []);
   const highlightBlockId = useStore(store, (state) => state.snapshot.world?.activeBlockId ?? null);
   const readOnly = useStore(store, (state) => state.locked);
   const diagnosticsText = useStore(store, blockDiagnosticsText);
@@ -104,9 +111,9 @@ export function ProgramPane({ store, toolbox, lab, program }: ProgramPaneProps) 
           </button>
         ))}
       </div>
-      <div {...pane('blocks')}>{program({ toolbox, emptyProgram: lab.scenario.starter, highlightBlockId, blockWarnings, readOnly, onSelectBlock: setSelectedIds })}</div>
+      <div {...pane('blocks')}>{program({ toolbox, emptyProgram: lab.scenario.starter, highlightBlockId, blockWarnings, readOnly, onSelectBlock: selectBlock })}</div>
       <div {...pane('cpp')}>
-        <CppTab projectStore={lab.projectStore} rules={lab.rules} scenario={lab.scenario} flush={lab.flushProgram} store={store} selectedIds={selectedIds} active={tab === 'cpp'} />
+        <CppTab projectStore={lab.projectStore} rules={lab.rules} scenario={lab.scenario} flush={lab.flushEdits} store={store} selectedIds={selectedIds} active={tab === 'cpp'} />
       </div>
       <div {...pane('pins')}>
         <PinInspector store={store} kit={lab.kit} board={lab.board} active={tab === 'pins'} />

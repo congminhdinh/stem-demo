@@ -63,6 +63,11 @@ export type RobotLabProps = {
   projectStore: ProjectStore;
   /** Writes the latest edits of the blocks into the project (BlocklyPanel `saveNow`): Run compiles the project. */
   flushProgram(): void;
+  /**
+   * Writes what the learner changed into the project, and leaves an unchanged starter out of it (BlocklyPanel `saveEdits`): for what looks
+   * at the program without running it (the C++ tab's Copy and download), so that the host hears of no change nobody made.
+   */
+  flushEdits(): void;
   registry: DeviceRegistry;
   profiles: ProfileCatalog;
   packs: BlockPackCatalog;
@@ -110,6 +115,7 @@ export default function RobotLab({
   notices = null,
   projectStore,
   flushProgram,
+  flushEdits,
   registry,
   profiles,
   packs,
@@ -164,9 +170,9 @@ export default function RobotLab({
   const scenarioToolbox = useMemo(() => restrictToolbox(toolbox, scenario.toolbox), [toolbox, scenario]);
   // What the C++ and the ports & pins tabs read (N18 R4.5): the project and how the lab compiles it, the scenario and its robot. The rules
   // are made apart from the rest, so that the C++ tab (which writes its sketch again when they change) never sees new ones for a new
-  // `flushProgram`, which App makes anew on each of its renders.
+  // `flushEdits`, which App makes anew on each of its renders.
   const rules = useMemo(() => ({ registry, profiles, packs, kits: productionKits }), [registry, profiles, packs]);
-  const paneLab: ProgramPaneLab = { projectStore, flushProgram, rules, scenario, kit, board };
+  const paneLab: ProgramPaneLab = { projectStore, flushEdits, rules, scenario, kit, board };
   // A Run or a Step brings the robot's tab into sight in a narrow frame.
   const [runEpoch, setRunEpoch] = useState(0);
 

@@ -121,6 +121,64 @@ describe('BlocklyPanel emptyProgram (N18 R4.2)', () => {
   });
 });
 
+describe('BlocklyPanel saveEdits (N18 R4.5 fix round 1)', () => {
+  /** What the project store is told, one entry for each change of the document. */
+  const changes = () => {
+    const seen: unknown[] = [];
+    store.subscribe((state, previous) => {
+      if (state.document !== previous.document) seen.push(state.document.program.blocks);
+    });
+    return seen;
+  };
+  const addPrint = () =>
+    act(async () => {
+      const block = workspace().newBlock('text_print');
+      block.initSvg();
+      block.render();
+      // Blockly fires its events from an animation frame, which the fake timers do not run: hand the panel the event now.
+      workspace().fireChangeListener(new Blockly.Events.BlockCreate(block));
+    });
+
+  it('leaves an untouched starter out of the document, where saveNow writes it (Run)', async () => {
+    store = createProjectStore(documentOf({}));
+    const seen = changes();
+    await render({ emptyProgram: starter });
+    act(() => panel.current?.saveEdits());
+    expect(store.getState().document.program.blocks).toEqual({});
+    expect(seen).toEqual([]);
+    act(() => panel.current?.saveNow());
+    expect(JSON.stringify(store.getState().document.program.blocks)).toContain('"starter"');
+    expect(seen).toHaveLength(1);
+  });
+
+  it('writes what the learner changed at once, not after the pause, the starter with it', async () => {
+    store = createProjectStore(documentOf({}));
+    await render({ emptyProgram: starter });
+    await addPrint();
+    // The delayed save has not run yet.
+    expect(store.getState().document.program.blocks).toEqual({});
+    act(() => panel.current?.saveEdits());
+    const saved = JSON.stringify(store.getState().document.program.blocks);
+    expect(saved).toContain('"starter"');
+    expect(saved.match(/"text_print"/g)).toHaveLength(2);
+  });
+
+  it('writes the edits of a project that has its own program, and nothing when nothing changed since', async () => {
+    store = createProjectStore(documentOf(program([after])));
+    await render({ emptyProgram: starter });
+    // The fixture is not in the form Blockly saves (it has no coordinates): the first save writes it in that form, as Run's does.
+    act(() => panel.current?.saveEdits());
+    const seen = changes();
+    act(() => panel.current?.saveEdits());
+    expect(seen).toEqual([]);
+    await addPrint();
+    act(() => panel.current?.saveEdits());
+    expect(seen).toHaveLength(1);
+    act(() => panel.current?.saveEdits());
+    expect(seen).toHaveLength(1);
+  });
+});
+
 describe('BlocklyPanel readOnly (N18 R4.2)', () => {
   it('locks and unlocks the workspace, and a project loaded while locked opens locked', async () => {
     store = createProjectStore(documentOf(program([after])));

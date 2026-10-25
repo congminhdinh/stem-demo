@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { act } from 'react';
+import { act, Profiler } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProjectDocument } from '../../core/circuit/document';
@@ -73,15 +73,19 @@ function setup(options: Setup = {}) {
   const store = createRobotRunStore(fake.session, { requestFrame: (callback) => setTimeout(() => callback(0), 0) as unknown as number, cancelFrame: (handle) => clearTimeout(handle) });
   store.getState().connect();
   const flush = options.flush ?? vi.fn();
+  /** How many times the tab has committed to the screen (a render that changed it). */
+  const commits = { count: 0 };
   const render = (changes: Partial<Setup> = {}) =>
     act(() =>
       root.render(
         <TextProvider locale={changes.locale ?? options.locale ?? 'vi'}>
-          <CppTab projectStore={projectStore} rules={rules} scenario={shown} flush={flush} store={store} selectedIds={changes.selectedIds ?? options.selectedIds ?? []} active={changes.active ?? options.active ?? true} />
+          <Profiler id="cpp" onRender={() => void commits.count++}>
+            <CppTab projectStore={projectStore} rules={rules} scenario={shown} flush={flush} store={store} selectedIds={changes.selectedIds ?? options.selectedIds ?? []} active={changes.active ?? options.active ?? true} />
+          </Profiler>
         </TextProvider>,
       ),
     );
-  return { ...fake, scenario, projectStore, store, flush, render };
+  return { ...fake, scenario, projectStore, store, flush, render, commits };
 }
 
 /** The block the robot is in, as the world says it; the store hands it to the tab within a frame. */
@@ -139,6 +143,63 @@ describe('CppTab: the code (N18 R4.5)', () => {
     await render({ locale: 'en' });
     expect(text('cpp-footer')).toBe('Built from forms that are compiled and checked with arduino-cli (level L2). It has not run on a real board yet.');
     expect(text('cpp-footer')).not.toMatch(/100|compatible|tương thích/i);
+  });
+});
+
+describe('CppTab: a tab that is not shown (N18 R4.5 fix round 1)', () => {
+  it('does not render for the robot’s block or for the project, and does when it is shown', async () => {
+    const fake = setup({ active: false });
+    await fake.render();
+    const before = fake.commits.count;
+    await runningIn(fake, 'drive-time');
+    await advance(150);
+    await runningIn(fake, 'stop');
+    act(() => fake.projectStore.getState().setProgramBlocks(robotSolutions['rb-square-route'].reference));
+    await advance(CPP_DEBOUNCE_MS * 2);
+    expect(fake.commits.count).toBe(before);
+    // The same events, with the tab shown, are what it renders for.
+    await fake.render({ active: true });
+    const shown = fake.commits.count;
+    await advance(150);
+    await runningIn(fake, 'drive-time');
+    expect(fake.commits.count).toBeGreaterThan(shown);
+  });
+});
+
+describe('CppTab: its timers (N18 R4.5 fix round 1)', () => {
+  it('leaves none behind when it unmounts a moment after Copy, and none after a refused Copy either', async () => {
+    const writeText = vi.fn(async () => {});
+    vi.stubGlobal('navigator', { ...window.navigator, clipboard: { writeText } });
+    const { render } = setup();
+    await render();
+    await act(async () => button('cpp-copy').click());
+    expect(text('cpp-copy')).toBe('Đã chép');
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
+    act(() => root.unmount());
+    expect(vi.getTimerCount()).toBe(0);
+    root = createRoot(host);
+
+    writeText.mockImplementation(async () => Promise.reject(new Error('denied')));
+    await render();
+    await act(async () => button('cpp-copy').click());
+    expect(text('cpp-copy-status')).not.toBe('');
+    act(() => root.unmount());
+    expect(vi.getTimerCount()).toBe(0);
+    root = createRoot(host);
+  });
+
+  it('Copy twice in a row keeps one feedback timer, so that the first does not end the second’s', async () => {
+    vi.stubGlobal('navigator', { ...window.navigator, clipboard: { writeText: vi.fn(async () => {}) } });
+    const { render } = setup();
+    await render();
+    await act(async () => button('cpp-copy').click());
+    await advance(1000);
+    await act(async () => button('cpp-copy').click());
+    await advance(1000);
+    // 2 s since the first, 1 s since the second: still said.
+    expect(text('cpp-copy')).toBe('Đã chép');
+    await advance(600);
+    expect(text('cpp-copy')).toBe('Sao chép');
   });
 });
 

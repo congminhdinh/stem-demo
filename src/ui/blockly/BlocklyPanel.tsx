@@ -34,6 +34,12 @@ export type BlocklyPanelHandle = {
    * Run calls this first to never compile a program older than the screen.
    */
   saveNow(): void;
+  /**
+   * N18 R4.5: writes what the learner changed to the document right away, as the delayed save of an edit does, but leaves out a scenario
+   * starter (`emptyProgram`) that is still unchanged, which `saveNow` writes. For what only looks at the program (the C++ tab's Copy
+   * and download) and so must not make the host hear of a project change that nobody made.
+   */
+  saveEdits(): void;
 };
 
 type BlocklyPanelProps = {
@@ -177,6 +183,7 @@ export function BlocklyPanel({
 }: BlocklyPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const saveNowRef = useRef<() => void>(() => {});
+  const saveEditsRef = useRef<() => void>(() => {});
   const loadRevision = useStore(projectStore, (state) => state.loadRevision);
   const loadFailed = useEffectEvent(() => onLoadFailed?.());
   const isReadOnly = useEffectEvent(() => readOnly);
@@ -187,7 +194,7 @@ export function BlocklyPanel({
   const highlightThrottleRef = useRef<LatestThrottle<string | null> | null>(null);
   const appliedWarningsRef = useRef(new Map<string, string>());
   const wantedWarningsRef = useRef<Readonly<Record<string, string>>>({});
-  useImperativeHandle(ref, () => ({ saveNow: () => saveNowRef.current() }), []);
+  useImperativeHandle(ref, () => ({ saveNow: () => saveNowRef.current(), saveEdits: () => saveEditsRef.current() }), []);
 
   // Rebuilt whenever a project is loaded (even one with the same id) or the
   // toolbox changes (another profile), but not on the panel's own saves or any
@@ -279,6 +286,7 @@ export function BlocklyPanel({
 
     // Reads the workspace itself, so edits whose events are still queued count too.
     saveNowRef.current = () => save(true);
+    saveEditsRef.current = () => save(false);
 
     const resizeObserver = new ResizeObserver(() => Blockly.svgResize(workspace));
     resizeObserver.observe(container);
@@ -299,6 +307,7 @@ export function BlocklyPanel({
     return () => {
       workspaceRef.current = null;
       saveNowRef.current = () => {};
+      saveEditsRef.current = () => {};
       blockSelected([]);
       resizeObserver.disconnect();
       if (pendingSave !== undefined) {

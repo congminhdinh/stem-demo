@@ -57,6 +57,7 @@ function setup(template: RobotTemplateKey = 'rb-drive-to-zone', options: { local
   const projectStore = createProjectStore(robotStarterDocument(template));
   const views: RobotProgramView[] = [];
   const flushProgram = vi.fn();
+  const flushEdits = vi.fn();
   const onRunChange = vi.fn();
   const program = (view: RobotProgramView): ReactNode => {
     views.push(view);
@@ -67,6 +68,7 @@ function setup(template: RobotTemplateKey = 'rb-drive-to-zone', options: { local
     program,
     projectStore,
     flushProgram,
+    flushEdits,
     registry,
     profiles: productionProfiles,
     packs,
