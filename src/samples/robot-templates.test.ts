@@ -83,6 +83,19 @@ describe('the profile a robot scenario needs (N18 R4.1)', () => {
     expect(robotTemplates['rb-servo-gate'].profile).toBe('uno-basic');
     expect(robotTemplateProfileProblem('rb-servo-gate', 'uno-basic')).toBeNull();
   });
+
+  it('opens no project on a profile lower than the one the scenario needs: a RangeError with the same words', () => {
+    // The branch of robotStarterDocument that no real scenario reaches yet (every one needs uno-basic): the level needed is given.
+    expect(() => robotStarterDocument('rb-servo-gate', 'uno-basic', 'uno-advanced')).toThrow(
+      new RangeError('The template "rb-servo-gate" needs profile=uno-advanced: it uses blocks or parts that uno-basic does not have.'),
+    );
+    expect(robotStarterDocument('rb-servo-gate', 'uno-advanced', 'uno-advanced').profile).toBe('uno-advanced');
+    // With no profile asked for, the scenario opens with the one it needs, whichever that is.
+    expect(robotStarterDocument('rb-servo-gate', undefined, 'uno-advanced').profile).toBe('uno-advanced');
+    expect(robotStarterDocument('rb-servo-gate', undefined, 'uno-basic').profile).toBe('uno-basic');
+    // And nothing is changed in the table of scenarios by any of it.
+    expect(robotTemplates['rb-servo-gate'].profile).toBe('uno-basic');
+  });
 });
 
 describe('the project a robot scenario opens (N18 R4.1, plan §4.0)', () => {

@@ -8,9 +8,10 @@ import { ErrorBoundary } from './ErrorBoundary';
 // keeps it so. A chunk can fail to load (the network, a deploy that replaced it): the page then says so and offers another attempt,
 // instead of the blank page React leaves when a lazy component rejects.
 //
-// Another attempt is first an import() again. That is enough in Firefox and WebKit, which fetch the chunk anew; Chromium keeps the failed
-// fetch of a module for the life of the document, so there the import rejects again without a request (measured, see the R4.1 report).
-// So when the attempt after the first failure has failed as well, the button reloads the page, which starts the module map afresh.
+// One click on Reload is one attempt: import() the chunk again. That is enough in Firefox and WebKit, which fetch the chunk anew;
+// Chromium keeps the failed fetch of a module for the life of the document, so there the import rejects again without a request
+// (measured, see the R4.1 report). So when the import fails again, the same click reloads the page, which starts the module map afresh.
+// The page is only ever reloaded by a click: a failure alone shows the message and waits.
 
 type RobotLabModule = { default: ComponentType<RobotLabProps> };
 
@@ -27,13 +28,19 @@ export function RobotLabLoader({ load = loadRobotLab, reloadPage = () => window.
   const t = useText();
   // React.lazy keeps the promise it was given, rejected or not, so another attempt needs another lazy component (and a new boundary).
   const [attempt, setAttempt] = useState(() => ({ number: 0, Lab: lazy(load) }));
-  const retry = () => {
-    if (attempt.number > 0) {
-      // The import has been tried again and has failed again: only a new page can fetch the chunk.
+  const [importing, setImporting] = useState(false);
+  const retry = async () => {
+    setImporting(true);
+    try {
+      const loaded = await load();
+      // The chunk is in: the new lazy component hands it over as it is, so nothing is fetched twice.
+      setAttempt(({ number }) => ({ number: number + 1, Lab: lazy(() => Promise.resolve(loaded)) }));
+    } catch {
+      // The import failed again: only a new page can fetch the chunk.
       reloadPage();
-      return;
+    } finally {
+      setImporting(false);
     }
-    setAttempt(({ number }) => ({ number: number + 1, Lab: lazy(load) }));
   };
   const { Lab } = attempt;
   return (
@@ -49,7 +56,7 @@ export function RobotLabLoader({ load = loadRobotLab, reloadPage = () => window.
             <p role="alert" data-testid="robot-load-failed">
               {t('robot.loadFailed')}
             </p>
-            <button type="button" onClick={retry}>
+            <button type="button" disabled={importing} onClick={() => void retry()}>
               {t('robot.reload')}
             </button>
           </main>

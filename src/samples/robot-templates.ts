@@ -74,12 +74,13 @@ export function robotReadyFields(key: RobotTemplateKey): { scenarioVersion: numb
  * The project of a robot scenario (plan §4.0), new on every call: the UNO board alone (a robot's wiring is its kit's, not wires),
  * the profile, the kit, and an empty program until the robot blocks of R2.2 give the learner something to place. Schema version
  * stays 1. The empty program is `{}`, which is what Blockly itself saves for an empty workspace: written so, opening the lab changes
- * nothing in the project, and the host is sent no project-changed.
+ * nothing in the project, and the host is sent no project-changed. `profile` is the launch's, refused (RangeError) when lower than
+ * `needed`, the level the scenario needs (its own by default, as in `robotTemplateProfileProblem`); a project opens with `profile`, or
+ * with `needed` when the launch gave none.
  */
-export function robotStarterDocument(key: RobotTemplateKey, profile?: RobotLabProfile): ProjectDocument {
-  const needed = robotTemplates[key].profile;
+export function robotStarterDocument(key: RobotTemplateKey, profile?: RobotLabProfile, needed: RobotLabProfile = robotTemplates[key].profile): ProjectDocument {
   if (profile !== undefined) {
-    const problem = robotTemplateProfileProblem(key, profile);
+    const problem = robotTemplateProfileProblem(key, profile, needed);
     if (problem !== null) {
       throw new RangeError(problem);
     }

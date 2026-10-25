@@ -76,7 +76,7 @@ describe('RobotLabLoader (N18 R4.1 fix 1)', () => {
     expect(button()?.textContent).toBe('Reload');
   });
 
-  it('Reload imports the chunk again, and the lab replaces the message when it loads', async () => {
+  it('one click on Reload imports the chunk again, and the lab replaces the message when it loads, without reloading the page', async () => {
     const load = vi.fn<() => Promise<{ default: ComponentType<RobotLabProps> }>>().mockRejectedValueOnce(new TypeError('offline')).mockResolvedValue({ default: Lab });
     await render(load);
     expect(load).toHaveBeenCalledTimes(1);
@@ -87,24 +87,44 @@ describe('RobotLabLoader (N18 R4.1 fix 1)', () => {
     expect(text('lab')).toBe('rb-sandboxchương trình');
     expect(container.querySelector('[data-testid=robot-load-failed]')).toBeNull();
     expect(button()).toBeNull();
+    expect(reloadPage).not.toHaveBeenCalled();
   });
 
-  it('keeps the message, and the button, while the chunk still does not load; then the button reloads the page (Chromium keeps a failed import)', async () => {
+  it('one click on Reload reloads the page when the import fails again (Chromium keeps a failed import), and only a click does', async () => {
     const load = vi.fn<() => Promise<{ default: ComponentType<RobotLabProps> }>>().mockRejectedValue(new TypeError('offline'));
     await render(load);
+    // Nothing reloads the page by itself: not the failure, not the time that passes.
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 50)));
+    expect(load).toHaveBeenCalledTimes(1);
     expect(reloadPage).not.toHaveBeenCalled();
 
-    // First click: the chunk is imported again, and fails again.
-    await act(async () => button()?.click());
-    expect(load).toHaveBeenCalledTimes(2);
-    expect(reloadPage).not.toHaveBeenCalled();
-    expect(text('robot-load-failed')).toContain('Không hiện được bài thực hành robot.');
-    expect(button()?.textContent).toBe('Tải lại');
-
-    // Second click: another import cannot help, a new page can.
+    // One click: the chunk is imported again, the import fails again, and the page is reloaded in that same click.
     await act(async () => button()?.click());
     expect(load).toHaveBeenCalledTimes(2);
     expect(reloadPage).toHaveBeenCalledTimes(1);
+    // (Where the page would be gone; here, the message and the button stay for another click.)
+    expect(text('robot-load-failed')).toContain('Không hiện được bài thực hành robot.');
     expect(button()?.textContent).toBe('Tải lại');
+    expect(button()?.disabled).toBe(false);
+
+    await act(async () => button()?.click());
+    expect(reloadPage).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the button from being pressed again while the chunk is being imported', async () => {
+    let settle: (module: { default: ComponentType<RobotLabProps> }) => void = () => {};
+    const load = vi
+      .fn<() => Promise<{ default: ComponentType<RobotLabProps> }>>()
+      .mockRejectedValueOnce(new TypeError('offline'))
+      .mockImplementation(() => new Promise((done) => (settle = done)));
+    await render(load);
+    await act(async () => button()?.click());
+    expect(button()?.disabled).toBe(true);
+    await act(async () => button()?.click());
+    expect(load).toHaveBeenCalledTimes(2);
+
+    await act(async () => settle({ default: Lab }));
+    expect(text('lab')).toBe('rb-sandboxchương trình');
+    expect(reloadPage).not.toHaveBeenCalled();
   });
 });

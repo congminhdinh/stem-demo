@@ -178,9 +178,7 @@ test.describe('a robot lab on its own', () => {
 });
 
 test.describe('a robot lab whose chunk does not load', () => {
-  test('says so, with a Reload button, instead of a blank page; Reload loads the lab once the chunk can be fetched', async ({ page }) => {
-    // Chromium keeps a module that failed to load for the life of the page: the first Reload imports again and fails without a request,
-    // so the next one reloads the page (RobotLabLoader). Firefox and WebKit fetch again at the first Reload.
+  test('says so, with a Reload button, instead of a blank page; one click on Reload brings the lab once the chunk can be fetched', async ({ page }) => {
     // The chunk (in the dev server: the module of the lab) is refused, as a network that failed would.
     await page.route('**/src/ui/robot3d/RobotLab.tsx*', (route) => route.abort());
     await page.goto('/?embed=1&lab=robot&template=rb-drive-to-zone');
@@ -191,11 +189,18 @@ test.describe('a robot lab whose chunk does not load', () => {
     await expect(page.getByRole('button', { name: 'Tải lại' })).toBeVisible();
     await expect(page.getByTestId('robot-lab')).toHaveCount(0);
 
-    // An attempt that fails leaves the message in place.
+    // The page never reloads by itself: a marker left on it is still there after a while.
+    await page.evaluate(() => ((window as unknown as { __marker: number }).__marker = 1));
+    await page.waitForTimeout(1000);
+    expect(await page.evaluate(() => (window as unknown as { __marker?: number }).__marker)).toBe(1);
+
+    // One click while the chunk still cannot be fetched: Chromium keeps the failed import, so the same click reloads the page (the marker
+    // is gone), which fails again the same way and shows the message again.
     await page.getByRole('button', { name: 'Tải lại' }).click();
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __marker?: number }).__marker)).toBeUndefined();
     await expect(page.getByTestId('robot-load-failed')).toBeVisible();
 
-    // The chunk can be fetched again: Reload brings the lab.
+    // The chunk can be fetched again: ONE click brings the lab.
     await page.unroute('**/src/ui/robot3d/RobotLab.tsx*');
     await page.getByRole('button', { name: 'Tải lại' }).click();
     await expect(page.getByTestId('robot-lab')).toBeVisible();
