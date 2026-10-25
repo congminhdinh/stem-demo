@@ -1,5 +1,5 @@
 import type { Material, Object3D, Texture } from 'three';
-import { Mesh } from 'three';
+import { DoubleSide, Mesh } from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import type { Detail } from '../lighting/look';
@@ -56,6 +56,10 @@ export function gpuResources(roots: Iterable<Object3D>): { geometries: Set<{ dis
 export function robotAssetsOf(kit: GLTF, props: GLTF): RobotAssets {
   const parts = rootsOf(kit);
   const propRoots = rootsOf(props);
+  // A clear double-sided sheet (the carport's roof) in one pass: two would be two shader programs to compile, for no visible difference.
+  for (const material of gpuResources([...parts.values(), ...propRoots.values()]).materials) {
+    if (material.transparent && material.side === DoubleSide) material.forceSinglePass = true;
+  }
   return {
     part: (name) => parts.get(name) ?? null,
     prop: (name) => propRoots.get(name) ?? null,

@@ -126,17 +126,40 @@ function RedrawOnChange({ store }: { store: RobotRunStore }) {
 }
 
 /**
- * Tells the owner once the canvas has drawn its first frame: R3F draws right after its frame callbacks, so the owner is told in a
- * microtask after the first one, when the frame is on the canvas. A software renderer takes about 2 s to get there (shader compiles).
+ * Draws the canvas (N18 R4.7: in place of R3F's own draw, a frame callback of priority 1), but only once every shader the scene needs
+ * is compiled: `compileAsync` asks for all of them at once (KHR_parallel_shader_compile, where the browser has it) instead of one after
+ * the other in the first frame, which a software renderer pays for with tens of milliseconds each. Then it tells the owner once the
+ * canvas has drawn its first frame, in a microtask after it, when the frame is on the canvas (until then "Đang tải 3D…" stands over it).
  */
-function FirstFrame({ onDrawn }: { onDrawn(): void }) {
+function CompiledDraw({ onDrawn }: { onDrawn?: (() => void) | undefined }) {
+  const gl = useThree((state) => state.gl);
+  const scene = useThree((state) => state.scene);
+  const camera = useThree((state) => state.camera);
+  const invalidate = useThree((state) => state.invalidate);
+  const ready = useRef(false);
   const told = useRef(false);
+  useLayoutEffect(() => {
+    let live = true;
+    void gl
+      .compileAsync(scene, camera)
+      .catch(() => undefined)
+      .then(() => {
+        if (!live) return;
+        ready.current = true;
+        invalidate();
+      });
+    return () => {
+      live = false;
+    };
+  }, [gl, scene, camera, invalidate]);
   useFrame(() => {
-    if (!told.current) {
+    if (!ready.current) return;
+    gl.render(scene, camera);
+    if (!told.current && onDrawn) {
       told.current = true;
       queueMicrotask(onDrawn);
     }
-  });
+  }, 1);
   return null;
 }
 
@@ -243,7 +266,7 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
     >
       <Suspense fallback={null}>
         <SceneContent scenario={scenario} kit={kit} model={model} view={view} span={span} tier={tier} zoneLabel={zoneLabel} viewForward={viewForward} cameraMode={cameraMode} />
-        {onFirstFrame && <FirstFrame onDrawn={onFirstFrame} />}
+        <CompiledDraw onDrawn={onFirstFrame} />
       </Suspense>
       <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} resetKey={resetKey} hud={hud} card={card} walls={walls} />
       <RedrawOnChange store={store} />

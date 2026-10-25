@@ -25,7 +25,7 @@ import type { Detail } from '../lighting/look';
 import { robot3dColors as colors } from '../colors';
 import { buttonPressed, lineSeesDark, toneHzOf, type RobotModel } from '../robot-model';
 import { servoArmYawRad, wheelSpin, type Vec3Tuple } from '../scene-math';
-import { lambertOf, lowTierMaterials, mergeStatic, swapMaterials } from './merge';
+import { bakeMovingPlain, lambertOf, lowTierMaterials, mergeStatic, swapMaterials } from './merge';
 
 // The robot of the 3D view built from the modelled parts (N18 R4.7): each part of robot-kit.glb (assets-src/robot3d/parts/) cloned,
 // put at its kit mount (RobotModel, the same numbers the physics builds the robot from) and scaled from the kit's spec where it differs
@@ -355,6 +355,8 @@ export function assembleRobot(model: RobotModel, reference: ReferenceSizes, sour
   const merged = mergeStatic(root, { castShadow: options.shadows, receiveShadow: options.shadows, plain: low?.plain ?? null, ...(low ? { swap: low.swap } : {}) });
   for (const mesh of merged) owned.geometries.push(mesh.geometry);
   if (low) {
+    const glows = new Set<Material>([...handles.leds.map((led) => led.material), ...handles.lineLamps.map((lamp) => lamp.material), ...(handles.boardLed ? [handles.boardLed.material] : [])]);
+    bakeMovingPlain(root, low.plain, glows, owned.geometries);
     swapMaterials(root, low.swap);
     owned.materials.push(...lowCache.values());
   } else {

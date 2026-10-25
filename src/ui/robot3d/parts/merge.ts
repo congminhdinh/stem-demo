@@ -1,4 +1,4 @@
-import { BufferAttribute, BufferGeometry, Color, Float32BufferAttribute, Group, Matrix4, Mesh, MeshLambertMaterial, MeshStandardMaterial, type Material, type Object3D } from 'three';
+import { BufferAttribute, BufferGeometry, Color, Float32BufferAttribute, FrontSide, Group, Matrix4, Mesh, MeshLambertMaterial, MeshStandardMaterial, type Material, type Object3D } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 // Merging the 3D view's static parts (N18 R4.7): a robot of a dozen modelled parts, each a few meshes, draws in one call per material
@@ -48,7 +48,7 @@ function moves(node: Object3D, root: Object3D): boolean {
 
 /** A material the low tier bakes into vertex colours: opaque, one colour, no texture, no light of its own. */
 function isPlain(material: Material): material is MeshStandardMaterial {
-  if (!(material instanceof MeshStandardMaterial)) return false;
+  if (!(material instanceof MeshStandardMaterial) || material.side !== FrontSide) return false;
   return !material.map && !material.transparent && material.alphaTest === 0 && (material.emissiveIntensity === 0 || material.emissive.getHex() === 0);
 }
 
@@ -138,7 +138,35 @@ export function lambertOf(material: MeshStandardMaterial): MeshLambertMaterial {
     transparent: material.transparent,
     opacity: material.opacity,
     side: material.side,
+    forceSinglePass: material.forceSinglePass,
     depthWrite: material.depthWrite,
+  });
+}
+
+/**
+ * The low tier's moving parts (a wheel, the servo's arm, an LED…) drawn with the plain material too: each plain mesh gets its own copy
+ * of its geometry with its colour baked into three-channel vertex colours, so it shares the merged parts' shader program; a part whose
+ * glow the view sets (`glows`, its own Lambert copy) keeps its material, turned white over the baked colour. A software renderer compiles
+ * every program on its first frame, measured at tens of milliseconds each. The new geometries go into `owned`.
+ */
+export function bakeMovingPlain(root: Object3D, plain: MeshLambertMaterial, glows: ReadonlySet<Material>, owned: BufferGeometry[]): void {
+  const identity = new Matrix4();
+  root.traverse((node) => {
+    if (!(node instanceof Mesh) || node.userData.merged || Array.isArray(node.material)) return;
+    const material = node.material as Material;
+    const glow = glows.has(material);
+    if (!glow && !isPlain(material)) return;
+    if (!(material instanceof MeshStandardMaterial || material instanceof MeshLambertMaterial) || material.side !== FrontSide || material.map || material.transparent) return;
+    const geometry = prepared(node.geometry, identity, material.color.clone());
+    owned.push(geometry);
+    node.geometry = geometry;
+    if (glow) {
+      material.color.set('#ffffff');
+      material.vertexColors = true;
+      material.needsUpdate = true;
+    } else {
+      node.material = plain;
+    }
   });
 }
 

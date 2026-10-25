@@ -2,7 +2,7 @@ import { Group, Mesh, MeshBasicMaterial, PlaneGeometry, type BufferGeometry, typ
 import type { Scenario } from '../../../core/scenario/scenario';
 import type { Arena, ArenaWall, PaintZone } from '../../../core/world/arena/arena-schema';
 import { arenaToThree, boxBody, cylinderBody, dynamicBodyIds, wallBox } from '../scene-math';
-import { lowTierMaterials, mergeStatic, swapMaterials } from './merge';
+import { bakeMovingPlain, lowTierMaterials, mergeStatic, swapMaterials } from './merge';
 
 // The arena of the 3D view built from the modelled props (N18 R4.7, arena-props.glb): every body the scenario defines drawn as what it
 // is, at its exact place and size (a wall as a plywood strip, the gate as a road barricade, a small obstacle as a traffic cone, a
@@ -378,7 +378,10 @@ export function assembleArena(scenario: Pick<Scenario, 'arena'>, source: PropSou
   });
 
   if (low) {
-    for (const { node } of movers.values()) swapMaterials(node, low.swap);
+    for (const { node } of movers.values()) {
+      bakeMovingPlain(node, low.plain, new Set(), owned.geometries);
+      swapMaterials(node, low.swap);
+    }
     owned.materials.push(...lowCache.values());
   }
 

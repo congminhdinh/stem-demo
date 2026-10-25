@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
-import { BoxGeometry, CanvasTexture, MeshLambertMaterial, MeshStandardMaterial, NoColorSpace, PlaneGeometry, SRGBColorSpace, Vector2, type Texture } from 'three';
+import { BoxGeometry, CanvasTexture, Color, Float32BufferAttribute, MeshLambertMaterial, MeshStandardMaterial, NoColorSpace, PlaneGeometry, SRGBColorSpace, Vector2, type Texture } from 'three';
 import type { Scenario } from '../../../core/scenario/scenario';
 import type { RobotSnapshot } from '../../../core/world/snapshot';
 import type { RobotAssets } from '../assets/robot-assets';
@@ -33,11 +33,13 @@ type GltfArenaProps = {
 type MatTextures = { map: Texture; roughness: Texture; shading: Texture; dispose(): void } | null;
 
 /** The mat's three canvases, as sharp as the renderer allows; null where a 2D canvas cannot be made. */
-function useMatTextures(scenario: Scenario, labels: MatLabels): MatTextures {
+function useMatTextures(scenario: Scenario, labels: MatLabels, low: boolean): MatTextures {
   const gl = useThree((state) => state.gl);
   const made = useMemo<MatTextures>(() => {
     const { arena } = scenario;
-    const { pxPerCm, width, height } = groundTextureSize(arena.ground.sizeCm, Math.min(4096, gl.capabilities.maxTextureSize));
+    // The low tier paints 5 px a cm (a 2.5 cm tape is 12 px): a software renderer uploads and mipmaps every pixel.
+    const longest = Math.max(...arena.ground.sizeCm);
+    const { pxPerCm, width, height } = groundTextureSize(arena.ground.sizeCm, Math.min(4096, gl.capabilities.maxTextureSize, low ? longest * 5 : Infinity));
     const canvas = (scale: number) => {
       const element = document.createElement('canvas');
       element.width = Math.max(1, Math.round(width * scale));
@@ -69,13 +71,13 @@ function useMatTextures(scenario: Scenario, labels: MatLabels): MatTextures {
         shading.dispose();
       },
     };
-  }, [scenario, labels, gl]);
+  }, [scenario, labels, gl, low]);
   useEffect(() => () => made?.dispose(), [made]);
   return made;
 }
 
 export function GltfArena({ assets, planView, scenario, view, look, shadows, textures, labels, viewForward }: GltfArenaProps) {
-  const mat = useMatTextures(scenario, labels);
+  const mat = useMatTextures(scenario, labels, look.detail === 'low');
   const arena = useMemo(() => assembleArena(scenario, assets.prop, { shadows, low: look.detail === 'low', blob: textures.blob, viewForward }), [scenario, assets, shadows, look, textures, viewForward]);
   useEffect(() => () => arena.dispose(), [arena]);
   const invalidate = useThree((state) => state.invalidate);
@@ -102,7 +104,12 @@ export function GltfArena({ assets, planView, scenario, view, look, shadows, tex
       material.normalMap = fibres;
       material.normalScale = new Vector2(0.05, 0.05);
     }
-    const edgeMaterial = look.detail === 'low' ? new MeshLambertMaterial({ name: 'mat-edge-low', color: colors.matEdge }) : new MeshStandardMaterial({ name: 'mat-edge', color: colors.matEdge, roughness: 0.8 });
+    // On the low tier the edge's colour is in its vertices: the one shader program of every plain part.
+    if (look.detail === 'low') {
+      const tint = new Color(colors.matEdge);
+      edge.setAttribute('color', new Float32BufferAttribute(Array.from({ length: edge.getAttribute('position').count }, () => [tint.r, tint.g, tint.b]).flat(), 3));
+    }
+    const edgeMaterial = look.detail === 'low' ? new MeshLambertMaterial({ name: 'mat-edge-low', vertexColors: true }) : new MeshStandardMaterial({ name: 'mat-edge', color: colors.matEdge, roughness: 0.8 });
     return { top, edge, material, edgeMaterial };
   }, [widthCm, depthCm, mat, scenario, look, textures]);
   useEffect(
