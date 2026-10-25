@@ -215,6 +215,20 @@ describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
     expect(runStore.getState().round).toMatchObject({ index: 1, count: 2 });
   });
 
+  it.each<CheckSpeed>(['1x', 'fast'])('stops the learner’s run before a check at %s, so that nothing of it goes on under the check', async (speed) => {
+    const { store, runStore, session, checks, log } = setup();
+    await runStore.getState().run(document);
+    expect(runStore.getState().active).toBe(true);
+    store.getState().setSpeed(speed);
+    const started = store.getState().start();
+    expect(session.stop).toHaveBeenCalled();
+    expect(session.getSnapshot().status).toBe('idle');
+    // The learner's run stopped (the host's run-stopped) after the check began, before the lab was held.
+    expect(log.slice(0, 4)).toEqual(['run-started', 'flush', 'begin', 'run-stopped']);
+    checks[0]!.check.settle(null);
+    await started;
+  });
+
   it('tells the round and the progress as the check tells them, and the HUD the round a check at 1× is in', async () => {
     const { store, runStore, checks, world } = setup();
     const started = store.getState().start();

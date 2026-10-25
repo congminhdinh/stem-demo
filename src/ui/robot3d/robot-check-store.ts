@@ -23,6 +23,7 @@ import type { CheckLeft, RobotRunStore, ShownRound } from './robot-run-store';
 //     the document it checked) is kept for the panel and "Xem lại"; the result goes to the host (`host.result`: the bridge's
 //     robotCheckResult, which sends the pending project-changed first), then, in a finally, `host.end` (endCheck: the edits held during the
 //     check go out after the check-result) and the lab is let go. A check at 1× or 4× says its run stopped before its result is sent.
+//     A run the learner had going is stopped when the check begins (what it left is shown under a fast check's progress).
 //   - Cancel: no result, nothing kept in view, nothing for the host but the end (as a cancelled check of App.tsx sends nothing).
 //   - A check that cannot be made (the program does not compile, a world that cannot be built: RobotCheckError) says why as a Run that cannot
 //     start does (the run store's start failure: the message over the view, the warnings on the blocks), and sends no result.
@@ -128,6 +129,8 @@ export function createRobotCheckStore({ runStore, scenario, createCheck, documen
         const checked = document();
         const told = host();
         told?.begin?.();
+        // The learner's own run ends here, a fast check's too: nothing of it goes on under the check.
+        runStore.getState().stop();
         runStore.getState().setLocked(true);
         const count = scenario.variants.count;
         const ended: CheckedRound[] = [];
