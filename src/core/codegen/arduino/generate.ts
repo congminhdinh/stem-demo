@@ -430,17 +430,24 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
     }
   };
 
-  /** U-15…U-17: a number or truth value, a text, or a join whose parts are printed one after another, the last with println. */
+  /**
+   * U-15…U-17: a number or truth value, a text, or a join whose parts are printed one after another, the last with println. In the line
+   * map a join, and each join inside it, takes every line of its own parts; a join with no part takes the line of the next part (the
+   * println of an empty print).
+   */
   const emitPrint = (value: Expr, depth: number) => {
     const parts: Expr[] = [];
+    /** Each join, with the parts it holds: `parts[from]` up to, not including, `parts[to]`. */
+    const joins: { blockId: string; from: number; to: number }[] = [];
     const flatten = (expr: Expr, level: number) => {
       if (level > MAX_EXPRESSION_DEPTH) {
         deepExpression(expr.blockId);
         return;
       }
       if (expr.kind === 'join') {
-        pending.push(expr.blockId);
+        const from = parts.length;
         expr.parts.forEach((part) => flatten(part, level + 1));
+        joins.push({ blockId: expr.blockId, from, to: parts.length });
       } else {
         parts.push(expr);
       }
@@ -448,8 +455,12 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
     flatten(value, 1);
     if (parts.length === 0) {
       emit(depth, 'Serial.println(F(""));');
+      const line = bodies[section].length - 1;
+      joins.forEach((join) => mark(join.blockId, line, line));
       return;
     }
+    /** The body line of each part, once it is written. */
+    const partLines: number[] = [];
     parts.forEach((part, index) => {
       const call = index === parts.length - 1 ? 'Serial.println' : 'Serial.print';
       if (part.kind === 'str') {
@@ -464,14 +475,21 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
           return;
         }
         emit(depth, `${call}(F("${literal}"));`);
-        return;
-      }
-      if (part.type === 'str') {
+      } else if (part.type === 'str') {
         report('unsupported-node', 'The generator does not know this kind of text.', part.blockId);
         return;
+      } else {
+        emit(depth, `${call}(${expression(part)});`);
       }
-      emit(depth, `${call}(${expression(part)});`);
+      partLines[index] = bodies[section].length - 1;
     });
+    for (const join of joins) {
+      const first = partLines[Math.min(join.from, parts.length - 1)];
+      const last = partLines[Math.max(join.to - 1, Math.min(join.from, parts.length - 1))];
+      if (first !== undefined && last !== undefined) {
+        mark(join.blockId, first, last);
+      }
+    }
   };
 
   const emitStatement = (statement: YbcStatement, depth: number, level: number) => {

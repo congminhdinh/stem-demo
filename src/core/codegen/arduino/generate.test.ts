@@ -157,6 +157,26 @@ describe('the line map (plan R4.5)', () => {
     expect(generated.lineMap.map((entry) => entry.from)).toEqual([...generated.lineMap.map((entry) => entry.from)].sort((a, b) => a - b));
   });
 
+  it('maps a join, and each join inside it, to every line of its own Serial.print parts; an empty join to its println', () => {
+    const at = (generated: Extract<UnoSketchResult, { ok: true }>, blockId: string) => {
+      const range = generated.lineMap.find((entry) => entry.blockId === blockId);
+      return range ? lines(generated.source).slice(range.from - 1, range.to).map((line) => line.trim()) : undefined;
+    };
+    const inner: Expr = { blockId: 'inner', type: 'str', kind: 'join', parts: [str('b'), { blockId: 'xv', type: 'int', kind: 'variable', variable: 'x' }] };
+    const empty: Expr = { blockId: 'empty', type: 'str', kind: 'join', parts: [] };
+    const outer: Expr = { blockId: 'outer', type: 'str', kind: 'join', parts: [str('a'), inner, empty, { blockId: 'f', type: 'bool', kind: 'bool', value: false }] };
+    const statement = printIt(outer);
+    const alone = printIt({ blockId: 'alone', type: 'str', kind: 'join', parts: [] });
+    const generated = ok(generateUnoSketch(uno([statement, alone]), { kit, board }));
+    const all = ['Serial.print(F("a"));', 'Serial.print(F("b"));', 'Serial.print(x);', 'Serial.println(false);'];
+    expect(at(generated, statement.blockId)).toEqual(all);
+    expect(at(generated, 'outer')).toEqual(all);
+    expect(at(generated, 'inner')).toEqual(['Serial.print(F("b"));', 'Serial.print(x);']);
+    // A join with no parts inside another has no line of its own: it is where the next part is.
+    expect(at(generated, 'empty')).toEqual(['Serial.println(false);']);
+    expect(at(generated, 'alone')).toEqual(['Serial.println(F(""));']);
+  });
+
   it('puts the loop’s blocks in loop() and the drive’s speed on the line of _s', () => {
     const speed = getVar('x');
     const generated = sketch([], [driveMove('spinLeft', speed)]);

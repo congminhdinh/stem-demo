@@ -29,7 +29,7 @@ const parityCases = sketchCases.filter((c) => c.console !== undefined);
 describe('the interpreter prints what the contract says the sketch prints', () => {
   it('runs the language goldens, the names golden, the deepest nesting and the sequenced reads (contract §3.5)', () => {
     expect(parityCases.map((c) => c.name)).toEqual([
-      'empty-program', 'mul-literal', 'int32-wrap', 'division-by-zero', 'count-up-bounds-once', 'millis-compare', 'print-mixed', 'nested-control', 'names', 'deep-nesting',
+      'empty-program', 'mul-literal', 'int32-wrap', 'division-by-zero', 'count-up-bounds-once', 'count-up-body-changes-variable', 'millis-compare', 'print-mixed', 'nested-control', 'names', 'deep-nesting',
       'sequenced-reads', 'while-two-reads', 'logic-reads',
     ]);
   });

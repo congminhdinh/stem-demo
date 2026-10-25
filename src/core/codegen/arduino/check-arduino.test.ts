@@ -78,6 +78,14 @@ describe.skipIf(process.platform === 'win32')('pnpm check:arduino (stand-in ardu
     expect(other.report).toMatchObject({ status: 'pending', reason: 'arduino-cli is 1.4.0, the contract pins 1.5.1' });
   });
 
+  it('never passes when it compiles nothing: no sketch is PENDING, and a FAIL under --require, with or without the toolchain', () => {
+    const empty = mkdtempSync(join(dir, 'empty-'));
+    const reason = 'no sketch to compile (no __golden__/*.ino, or none in the files and folders given)';
+    expect(check([empty])).toEqual({ report: { status: 'pending', reason, toolchain: null, files: 0, results: [] }, exit: 0 });
+    expect(check([empty], { flags: ['--require'] })).toEqual({ report: { status: 'fail', reason, toolchain: null, files: 0, results: [] }, exit: 1 });
+    expect(check([empty], { cli: join(dir, 'no-such-cli'), flags: ['--require'] })).toMatchObject({ report: { status: 'fail', reason }, exit: 1 });
+  });
+
   it('passes a sketch that compiles with no warning of its own, and reports its sizes', () => {
     const { report, exit } = check([sketchDir({ ok: header() })], { flags: ['--require'] });
     expect(exit).toBe(0);

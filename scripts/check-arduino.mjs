@@ -10,11 +10,12 @@
 //     reported as arduino-cli measures them.
 //
 // Without arduino-cli 1.5.1 or arduino:avr@1.8.8 the result is L2 = PENDING, never a pass. The tools are detected, never installed.
+// Finding no sketch at all is never a pass either: PENDING, and a FAIL under --require.
 //
 //   node scripts/check-arduino.mjs [--require] [--json] [file-or-directory ...]
 //
 // ARDUINO_CLI names the arduino-cli to run (default: the one on PATH). Exit codes: 0 every sketch passes (or PENDING without
-// --require), 1 a sketch fails, 2 --require and the check is PENDING.
+// --require), 1 a sketch fails or --require found no sketch, 2 --require and the toolchain is missing (PENDING).
 
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
@@ -196,9 +197,13 @@ function check(file, scratch) {
   return result;
 }
 
-const missing = missingToolchain();
+const missing = files.length === 0 ? null : missingToolchain();
 let report;
-if (missing) {
+if (files.length === 0) {
+  // Compiling nothing proves nothing: never a PASS. PENDING, and a FAIL under --require (C1 fix round 1).
+  const reason = 'no sketch to compile (no __golden__/*.ino, or none in the files and folders given)';
+  report = { status: flags.has('--require') ? 'fail' : 'pending', reason, toolchain: null, files: 0, results: [] };
+} else if (missing) {
   report = { status: 'pending', reason: missing, toolchain: null, files: files.length, results: [] };
 } else {
   const scratch = mkdtempSync(join(tmpdir(), 'arduino-check-'));
@@ -221,6 +226,9 @@ if (flags.has('--json')) {
 } else if (report.status === 'pending') {
   log(`PENDING: ${report.reason}; ${files.length} sketches not compiled.`);
   log('L2 = PENDING');
+} else if (report.files === 0) {
+  log(`FAIL: ${report.reason}.`);
+  log('L2 = FAIL');
 } else {
   for (const result of report.results) {
     const size = result.ramBytes === null ? 'no sizes' : `flash ${result.flashBytes} B (${result.flashPercent} %), RAM ${result.ramBytes} B (${result.ramPercent} %)`;

@@ -149,6 +149,21 @@ export const sketchCases: SketchCase[] = [
     console: ['1', '2', '3', '3', '6', '99', '-1'],
   },
   {
+    // The body changes the count up's own variable (contract §3.3, U-14): the next turn still takes its value from _c, so the loop runs
+    // its five turns, and after the loop the variable keeps what the last body left (5 + 10), as the interpreter's counter does.
+    name: 'count-up-body-changes-variable',
+    covers: ['U-05', 'U-14', 'U-15'],
+    profile: 'uno-basic',
+    onStart: [
+      unoCountUp('i', num(1), num(5), [setVar('i', add(i(), num(10))), print(i())]),
+      print(i()),
+      unoCountUp('i', num(1), num(3), [print(i()), setVar('i', num(100))]),
+      print(i()),
+    ],
+    variables: [['i', 'i']],
+    console: [...[1, 2, 3, 4, 5].map((k) => printed(add32(k, 10))), printed(add32(5, 10)), '1', '2', '3', '100'],
+  },
+  {
     name: 'millis-compare',
     covers: ['U-09', 'U-11', 'U-13', 'U-16', 'U-19'],
     profile: 'uno-advanced',
