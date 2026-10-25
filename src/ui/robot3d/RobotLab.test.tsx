@@ -17,6 +17,7 @@ import { createProjectStore } from '../state/project-store';
 import { ROBOT_ENGINE, type RobotCheckResult } from '../../core/scenario/check-result';
 import { goalReasons } from '../../core/scenario/goals';
 import { fakeChecks } from './__fixtures__/fake-check';
+import { CANCEL_GUARD_MS } from './robot-check-store';
 import { fakeSession, idleRun } from './__fixtures__/fake-session';
 import RobotLab, { type RobotLabProps, type RobotProgramView } from './RobotLab';
 
@@ -422,7 +423,7 @@ describe('RobotLab checks (N18 R6.3)', () => {
     const lab = setup(template);
     const checks = fakeChecks();
     const onCheck = { begin: vi.fn(), result: vi.fn(), end: vi.fn() };
-    const render = () => lab.render({ createCheck: checks.createCheck, onCheck });
+    const render = (changes: Partial<RobotLabProps> = {}) => lab.render({ createCheck: checks.createCheck, onCheck, ...changes });
     /** checkRobot's progress for three rounds, the second hitting the wall at 6.6 s. */
     const tellRounds = () => {
       const { onProgress } = checks.last();
@@ -479,9 +480,12 @@ describe('RobotLab checks (N18 R6.3)', () => {
   });
 
   it('saves the blocks and tells the host it begins, holds the lab and says its round; its result says why, and goes to the host', async () => {
-    const { render, checks, onCheck, flushProgram, onRunChange, lastView, tellRounds, projectStore } = checkSetup();
+    const { render, checks, onCheck, flushProgram, onRunChange, lastView, tellRounds, projectStore, world } = checkSetup();
     await render();
     await click('robot-check-start');
+    // Its run is shown (and the host hears it) once its first round has a world.
+    expect(onRunChange).not.toHaveBeenCalled();
+    await act(async () => checks.last().check.publish({ status: 'running', world: world(0) }));
     expect(flushProgram).toHaveBeenCalledTimes(1);
     expect(onCheck.begin).toHaveBeenCalledTimes(1);
     expect(flushProgram.mock.invocationCallOrder[0]).toBeLessThan(onCheck.begin.mock.invocationCallOrder[0]!);
@@ -521,7 +525,7 @@ describe('RobotLab checks (N18 R6.3)', () => {
   });
 
   it('checks fast without showing the check’s run: its progress stands over the view, and the host hears no run', async () => {
-    const { render, checks, onRunChange, world } = checkSetup();
+    const { render, checks, onRunChange, world, tellRounds } = checkSetup();
     await render();
     await act(async () => host.querySelector<HTMLButtonElement>('[data-testid=robot-check-speed] [data-speed=fast]')!.click());
     await click('robot-check-start');
@@ -535,18 +539,37 @@ describe('RobotLab checks (N18 R6.3)', () => {
     expect(text('robot-check-fast')).toContain('Lượt 2/3');
     expect(host.querySelector('[data-testid=robot-check-fast] [role=progressbar]')?.getAttribute('aria-valuenow')).toBe('50');
     expect(onRunChange).not.toHaveBeenCalled();
+    // A screen reader hears the start, each round's end and the result, politely; not the progress, which is no live region.
+    const fast = host.querySelector('[data-testid=robot-check-fast]')!;
+    expect([fast.getAttribute('role'), fast.getAttribute('aria-live'), fast.querySelector('[aria-live], [role=status], [role=alert]')]).toEqual([null, null, null]);
+    const announce = host.querySelector('[data-testid=robot-check-announce]')!;
+    expect(announce.getAttribute('aria-live')).toBe('polite');
+    expect(announce.textContent).toBe('Đang kiểm tra nhanh…');
+    await act(async () => checks.last().onProgress({ kind: 'time', index: 1, tS: 11, timeLimitS: 20 }));
+    expect(announce.textContent).toBe('Đang kiểm tra nhanh…');
+    await act(async () => tellRounds());
+    expect(announce.textContent).toBe('Lượt 3: Đạt, 100 điểm');
     await act(async () => checks.last().check.settle(crashed));
     await frame();
     expect(host.querySelector('[data-testid=robot-check-fast]')).toBeNull();
+    expect(announce.textContent).toBe('Kết quả kiểm tra: Chưa đạt, 0/100 điểm');
     expect(onRunChange).not.toHaveBeenCalled();
   });
 
   it('Dừng kiểm tra ends the check without a result: the host hears only that it began and ended', async () => {
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(1000);
     const { render, checks, onCheck } = checkSetup();
     await render();
     await click('robot-check-start');
+    // The second click of a double click on Kiểm tra lands on Dừng kiểm tra, which stands where it was: it is not a cancel.
+    clock.mockReturnValue(1000 + CANCEL_GUARD_MS - 1);
+    await click('robot-check-cancel');
+    expect(checks.last().check.check.cancel).not.toHaveBeenCalled();
+    expect(text('robot-check-round')).toBe('Lượt 1/3');
+    clock.mockReturnValue(1000 + CANCEL_GUARD_MS);
     await click('robot-check-cancel');
     await frame();
+    clock.mockRestore();
     expect(checks.last().check.check.cancel).toHaveBeenCalledTimes(1);
     expect(onCheck.begin).toHaveBeenCalledTimes(1);
     expect(onCheck.result).not.toHaveBeenCalled();
@@ -574,5 +597,46 @@ describe('RobotLab checks (N18 R6.3)', () => {
     expect(text('robot-round')).toBe('Lượt 2/3');
     await act(async () => projectStore.getState().setProgramBlocks({ blocks: { languageVersion: 0, blocks: [] } }));
     expect(host.querySelector('[data-testid=robot-check-results]')).toBeNull();
+  });
+
+  it('ends a check the lab leaves (unmounted): no result, the host told it ended, nothing more afterwards', async () => {
+    const { render, checks, onCheck, onRunChange, session, world } = checkSetup();
+    await render();
+    await click('robot-check-start');
+    await act(async () => checks.last().check.publish({ status: 'running', world: world(1, 40) }));
+    expect(onRunChange.mock.calls).toEqual([[true]]);
+    const stops = session.stop.mock.calls.length;
+    act(() => root.unmount());
+    await act(() => new Promise((resolve) => setTimeout(resolve, 40)));
+    expect(checks.last().check.check.cancel).toHaveBeenCalledTimes(1);
+    expect(session.stop.mock.calls.length).toBeGreaterThan(stops);
+    expect(onCheck.result).not.toHaveBeenCalled();
+    expect(onCheck.end).toHaveBeenCalledTimes(1);
+    expect(onRunChange.mock.calls).toEqual([[true], [false]]);
+    // A frame or a late publish of the check's run changes nothing.
+    await act(async () => checks.last().check.publish({ status: 'running', world: world(2, 50) }));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 40)));
+    expect(onRunChange.mock.calls).toEqual([[true], [false]]);
+    expect(onCheck.end).toHaveBeenCalledTimes(1);
+    root = createRoot(host);
+  });
+
+  it('says it is busy while a check holds it or a run goes on, so that a host’s load-project waits', async () => {
+    const lab = checkSetup();
+    const onBusyChange = vi.fn();
+    await lab.render({ onBusyChange });
+    expect(onBusyChange.mock.calls).toEqual([[false]]);
+    await click('robot-check-start');
+    expect(onBusyChange.mock.calls).toEqual([[false], [true]]);
+    await act(async () => lab.checks.last().check.settle(null));
+    await frame();
+    expect(onBusyChange.mock.calls).toEqual([[false], [true], [false]]);
+    await click('robot-run');
+    await frame();
+    expect(onBusyChange.mock.calls.at(-1)).toEqual([true]);
+    // A run the scenario ended (its time limit) is no longer going on.
+    await act(async () => lab.publish({ status: 'finished', world: lab.world(15), end: { reason: 'time-limit', atS: 15 } }));
+    await frame();
+    expect(onBusyChange.mock.calls.at(-1)).toEqual([false]);
   });
 });

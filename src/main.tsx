@@ -14,7 +14,7 @@ import { createDexieProjectRepository } from './storage/dexie-project-repository
 import { App } from './ui/app/App';
 import { loadUiFont } from './ui/app/fonts';
 import { createHostBridge, type RobotHostBridge } from './ui/app/host-bridge';
-import { connectLabHost, loadHostProject } from './ui/app/lab-host';
+import { connectLabHost, createHostLoader, createLabBusy } from './ui/app/lab-host';
 import { LaunchError } from './ui/app/LaunchError';
 import { parseLaunch } from './ui/app/launch';
 import { openAtStartup } from './ui/app/startup';
@@ -97,13 +97,16 @@ if (started.kind === 'launch-error') {
   const lab = launch.mode === 'embed' ? (launch.lab ?? null) : null;
   const challenge = launch.mode === 'embed' && lab ? templateChallenge(launch.template, locale) : null;
   let bridge: RobotHostBridge | null = null;
+  // N18 R6.3: the robot lab says when it is busy (a check, or a run of its own); a load-project from the host waits for it.
+  const robotBusy = launch.mode === 'embed' && lab?.kind === 'robot' ? createLabBusy() : null;
   if (launch.mode === 'embed' && lab && lab.hostOrigin !== null && window.parent !== window) {
     const rules = { lab: lab.kind, profile: lab.profile, registry, profiles, canOpenProgram: (blocks: unknown) => canOpenProgram(blocks, packs) };
+    const loader = createHostLoader({ ...rules, projectStore, runStore, ...(robotBusy === null ? {} : { busy: robotBusy }) });
     bridge = createHostBridge({
       host: window.parent,
       hostOrigin: lab.hostOrigin,
       window,
-      onLoadProject: (document) => void loadHostProject(document, { ...rules, projectStore, runStore }),
+      onLoadProject: (document) => loader.load(document),
       // N18 R4.1 (plan §4.7): the robot lab says so in every message.
       ...(lab.kind === 'robot' ? { lab: 'robot' as const } : {}),
     });
@@ -137,7 +140,10 @@ if (started.kind === 'launch-error') {
                   // N18 R6.3 (lab-embed-contract §2): beginCheck after the blocks were saved, the scored check-result (the bridge sends the
                   // pending project-changed first), endCheck in a finally; edits made meanwhile go out after the check-result.
                   ...(lab.kind === 'robot'
-                    ? { robotCheck: { begin: () => bridge?.beginCheck(), result: (result: RobotCheckResult) => bridge?.robotCheckResult(result), end: () => bridge?.endCheck() } }
+                    ? {
+                        robotCheck: { begin: () => bridge?.beginCheck(), result: (result: RobotCheckResult) => bridge?.robotCheckResult(result), end: () => bridge?.endCheck() },
+                        onBusyChange: (busy: boolean) => robotBusy?.set(busy),
+                      }
                     : {}),
                 }
               : null

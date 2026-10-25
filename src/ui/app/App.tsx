@@ -59,6 +59,8 @@ export type LabChrome = {
    * and it is over (endCheck, in a finally; a cancelled check has no result).
    */
   robotCheck?: { begin(): void; result(result: RobotCheckResult): void; end(): void };
+  /** N18 R6.3: the robot lab is busy (a check, or a run of its own) or not: a host's load-project waits while it is (lab-host.ts `LabBusy`). */
+  onBusyChange?(busy: boolean): void;
 };
 
 /** How long Reset waits for the second click before it forgets the first. */
@@ -454,6 +456,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
       toolbox,
       ...(lab.onRunChange ? { onRunChange: lab.onRunChange } : {}),
       ...(lab.robotCheck ? { onCheck: lab.robotCheck } : {}),
+      ...(lab.onBusyChange ? { onBusyChange: lab.onBusyChange } : {}),
     };
     return (
       <div className="app-shell app-shell-lab">

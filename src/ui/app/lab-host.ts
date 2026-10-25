@@ -12,7 +12,8 @@ import type { HostBridge } from './host-bridge';
 
 // Connects a lab's stores to its host bridge (N6a S3): `ready` once, `run-started` / `run-stopped` as the run
 // lock changes, `project-changed` on every document change (the bridge debounces), and the host's `load-project`
-// opened when it is a project this lab can open. Check results are sent by the lab chrome (App), which runs them.
+// opened when it is a project this lab can open. Check results are sent by the lab chrome (App), which runs them. The robot lab runs its
+// own session, which the run store does not see: it says when it is busy (`LabBusy`, N18 R6.3), and a load-project waits for it.
 
 /**
  * The board family of the projects each lab opens (N18 R2.1, docs/lab-embed-contract.md §2): a generic project in a Blockly lab,
@@ -107,4 +108,63 @@ export function loadHostProject(document: unknown, options: HostProjectRules & {
   options.projectStore.getState().loadProject(project);
   options.runStore.getState().clearStartFailure();
   return true;
+}
+
+/**
+ * N18 R6.3: whether the robot lab is busy, a check or a run of its own going on (its session is not the run store's, so loadHostProject
+ * cannot see it): the robot lab says so (`set`), the host's loader waits for it (`subscribe`).
+ */
+export type LabBusy = { isBusy(): boolean; set(busy: boolean): void; subscribe(listener: () => void): () => void };
+
+export function createLabBusy(): LabBusy {
+  let busy = false;
+  const listeners = new Set<() => void>();
+  return {
+    isBusy: () => busy,
+    set(next) {
+      if (next !== busy) {
+        busy = next;
+        [...listeners].forEach((listener) => listener());
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+}
+
+/**
+ * The host's `load-project`, opened as `loadHostProject` opens it. While `busy` says the robot lab is busy (a check, or a robot run), the
+ * project is not refused: the last one waits and opens as soon as the lab is not busy (N18 R6.3), after the check's result was sent, so the
+ * host hears the check-result first, then the project-changed of what it loaded. Without `busy`, it is `loadHostProject` as it was.
+ */
+export function createHostLoader(options: HostProjectRules & { projectStore: ProjectStore; runStore: RunStore; busy?: LabBusy }): {
+  load(document: unknown): void;
+  dispose(): void;
+} {
+  const { busy } = options;
+  let waiting: { document: unknown } | null = null;
+  const stop = busy?.subscribe(() => {
+    if (waiting !== null && !busy.isBusy()) {
+      const { document } = waiting;
+      waiting = null;
+      loadHostProject(document, options);
+    }
+  });
+  return {
+    load(document) {
+      if (busy?.isBusy()) {
+        waiting = { document };
+        return;
+      }
+      loadHostProject(document, options);
+    },
+    dispose() {
+      waiting = null;
+      stop?.();
+    },
+  };
 }

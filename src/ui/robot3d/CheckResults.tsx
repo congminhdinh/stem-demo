@@ -12,7 +12,9 @@ import type { RobotRunStore } from './robot-run-store';
 // What a check shows over the robot lab's 3D view (N18 R6.3).
 //
 //   - A fast check (headless) is not shown while it runs: a progress view stands over the view instead (the round, a progress bar, the
-//     rounds scored so far), never a frozen scene.
+//     rounds scored so far), never a frozen scene. It is not a live region (its bar moves every second): `CheckAnnouncer` says, politely and
+//     in a few words, that a check started, how each round ended and the result, at every speed.
+//   - A check that did not complete for a reason other than the learner's program (`failure`) says so, and that nothing reached the lesson.
 //   - After a check, its result: passed or not with the score (the lowest round's), each round's verdict and score (the check's: 0 for a
 //     round that ended in an error) with "Xem lại" for a round that failed, each goal (passed in every round) with why not in each round it
 //     failed ("Xe chạm tường lúc 12,4 s ở lượt 2"), and the time bonus line. It belongs to the program it checked: an edit closes it, as
@@ -25,7 +27,28 @@ type CheckResultsProps = {
   scenario: Scenario;
 };
 
-/** The progress of a fast check, over the 3D view. */
+/** What a screen reader hears of a check: that it started, how each round ended, the result. Short, polite, and only when one of them changes. */
+export function CheckAnnouncer({ checks }: { checks: RobotCheckStore }) {
+  const t = useText();
+  const text = useStore(checks, (state) => {
+    const verdict = (passed: boolean) => t(passed ? 'robot.check.passed' : 'robot.check.failed');
+    const { running, report } = state;
+    if (running !== null) {
+      const last = running.ended.at(-1);
+      return last === undefined
+        ? t(running.speed === 'fast' ? 'robot.check.fastRunning' : 'robot.check.running')
+        : t('robot.check.announce.round', { round: last.index + 1, verdict: verdict(last.passed), points: last.score });
+    }
+    return report === null ? '' : t('robot.check.announce.result', { verdict: verdict(report.result.passed), score: report.result.score, max: report.result.maxScore });
+  });
+  return (
+    <p className="visually-hidden" aria-live="polite" data-testid="robot-check-announce">
+      {text}
+    </p>
+  );
+}
+
+/** The progress of a fast check, over the 3D view (not a live region: CheckAnnouncer speaks for it). */
 export function FastCheckView({ checks }: { checks: RobotCheckStore }) {
   const t = useText();
   const running = useStore(checks, (state) => state.running);
@@ -34,7 +57,7 @@ export function FastCheckView({ checks }: { checks: RobotCheckStore }) {
   }
   const percent = Math.round(checkFraction(running) * 100);
   return (
-    <div className="robot-check-fast" role="status" data-testid="robot-check-fast">
+    <div className="robot-check-fast" data-testid="robot-check-fast">
       <p className="robot-check-fast-title">{t('robot.check.fastRunning')}</p>
       <p>{t('robot.check.round', { round: running.index + 1, count: running.count })}</p>
       <span className="robot-check-bar robot-check-bar-wide" role="progressbar" aria-label={t('robot.check.progress')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
@@ -55,9 +78,33 @@ export function FastCheckView({ checks }: { checks: RobotCheckStore }) {
 }
 
 export function CheckResults({ checks, store, projectStore, scenario }: CheckResultsProps) {
+  const t = useText();
   const report = useStore(checks, (state) => state.report);
+  const failure = useStore(checks, (state) => state.failure);
   // The result belongs to the program it checked: once the learner edits, it is no longer about what the blocks say.
   const current = useStore(projectStore, (state) => report !== null && state.document === report.document);
+  if (failure !== null) {
+    return (
+      <section className="robot-check-panel robot-check-failure" role="alert" aria-label={t('robot.check.results')} data-testid="robot-check-failure">
+        <div className="robot-check-panel-head">
+          <p className="robot-check-why">{t('robot.check.error')}</p>
+          <button
+            type="button"
+            className="robot-check-icon-button"
+            onClick={() => checks.getState().dismiss()}
+            title={t('robot.check.close')}
+            aria-label={t('robot.check.close')}
+          >
+            ×
+          </button>
+        </div>
+        <details>
+          <summary>{t('robot.error.detail')}</summary>
+          <pre>{failure.detail}</pre>
+        </details>
+      </section>
+    );
+  }
   if (report === null || !current) {
     return null;
   }

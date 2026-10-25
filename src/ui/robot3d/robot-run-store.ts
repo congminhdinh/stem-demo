@@ -140,6 +140,12 @@ export const shownScore = (state: RobotLabState): ScoreState | null => {
   return run?.world?.score ?? null;
 };
 
+/**
+ * N18 R6.3: the lab is busy: a check holds it, a start builds its world, or a run is going on (one that is over, a time limit, a crash or an
+ * error, is not). A host's load-project waits while it is.
+ */
+export const labBusy = (state: RobotLabState): boolean => state.locked || state.starting || (state.active && !isRunOver(state.snapshot));
+
 /** How a run that is over ended, as the lab says it. */
 const endedStatus = (snapshot: RobotRunSnapshot): LabStatus | null =>
   snapshot.status === 'error' ? 'error' : snapshot.end?.reason === 'contact' ? 'crashed' : snapshot.end?.reason === 'time-limit' ? 'timeUp' : null;
@@ -378,7 +384,8 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
         const unsubscribe = view.subscribe(onSnapshot);
         const mine = { view, speed, unsubscribe };
         attached = mine;
-        set({ snapshot: view.getSnapshot(), active: true, starting: false, paused: false, held: null, startFailure: null, round: null });
+        // The round is the check's to say (`setRound`): it is told before its run has a world to show.
+        set({ snapshot: view.getSnapshot(), active: true, starting: false, paused: false, held: null, startFailure: null });
         ensureDriving();
         return (left) => {
           if (attached !== mine) {

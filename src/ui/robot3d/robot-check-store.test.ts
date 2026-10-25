@@ -15,7 +15,7 @@ import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { robotStarterDocument } from '../../samples/robot-templates';
 import { fakeCheck } from './__fixtures__/fake-check';
 import { fakeSession, idleRun } from './__fixtures__/fake-session';
-import { checkFraction, createRobotCheckStore, type CheckHost, type CheckSpeed, type CreateCheck } from './robot-check-store';
+import { CANCEL_GUARD_MS, checkFraction, createRobotCheckStore, type CheckHost, type CheckSpeed, type CreateCheck } from './robot-check-store';
 import { createRobotRunStore, labStatus } from './robot-run-store';
 
 // N18 R6.3: Kiểm tra in the robot lab. The check is R6.2's checkRobot; this store starts it from the saved document, holds the lab while it
@@ -64,6 +64,8 @@ const twoRounds: RobotCheckResult = {
 };
 
 function setup(options: { host?: CheckHost } = {}) {
+  // The cancel guard's clock: a cancel counts once the test has let CANCEL_GUARD_MS go by (`later`).
+  let clock = 1000;
   const fake = fakeSession(stopAtWall, kit);
   const frames = fakeFrames();
   const runStore = createRobotRunStore(fake.session, { requestFrame: frames.requestFrame, cancelFrame: frames.cancelFrame });
@@ -96,8 +98,12 @@ function setup(options: { host?: CheckHost } = {}) {
       current = { ...current, name: 'saved' };
     },
     host: () => host,
+    now: () => clock,
   });
-  return { ...fake, runStore, store, frames, log, checks, saved: () => current };
+  const later = (ms = CANCEL_GUARD_MS) => {
+    clock += ms;
+  };
+  return { ...fake, runStore, store, frames, log, checks, later, saved: () => current };
 }
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -177,12 +183,16 @@ describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
     ]);
   });
 
-  it('checks at 4× through the view with the check’s speed', async () => {
-    const { store, checks, frames } = setup();
+  it('checks at 4× through the view with the check’s speed, once its first round has a world', async () => {
+    const { store, checks, frames, world } = setup();
     store.getState().setSpeed('4x');
     const started = store.getState().start();
     const [{ check, mode, speed }] = checks as [(typeof checks)[number]];
     expect([mode, speed]).toEqual(['realtime', 4]);
+    // Not shown, not driven, while the first round builds its world.
+    frames.frame(-20);
+    expect(check.frames).toEqual([]);
+    check.publish({ status: 'running', world: world(0) });
     frames.frame(0);
     frames.frame(20);
     expect(check.frames).toEqual([
@@ -246,11 +256,12 @@ describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
   });
 
   it('cancels: no result, nothing for the host but begin and end (the edit kept meanwhile goes out after), nothing kept in view, unlocked', async () => {
-    const { store, runStore, log, checks, world } = setup();
+    const { store, runStore, log, checks, world, later } = setup();
     const started = store.getState().start();
     const [{ check, onProgress }] = checks as [(typeof checks)[number]];
     onProgress({ kind: 'variant-started', index: 0, count: 2, seed: 11 });
     check.publish({ status: 'running', world: world(2, 60) });
+    later();
     store.getState().cancel();
     expect(check.check.cancel).toHaveBeenCalledTimes(1);
     await started;
@@ -262,21 +273,22 @@ describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
     expect(labStatus(runStore.getState())).toBe('idle');
   });
 
-  it('a check that cannot be made says why, as a Run that cannot start does, and the host is told only begin and end', async () => {
+  it('a check that cannot be made says why, as a Run that cannot start does: no run for the host, only begin and end', async () => {
     const { store, runStore, log, checks } = setup();
     const started = store.getState().start();
     const diagnostics = [{ severity: 'error' as const, code: 'empty-input', message: 'An input is empty.', blockId: 'go' }];
     checks[0]!.check.fail(new RobotCheckError('compile', diagnostics, null));
     await started;
-    expect(log).toEqual(['flush', 'begin', 'locked', 'check:realtime:1', 'run-started', 'run-stopped', 'end', 'unlocked']);
+    // N18 R6.3 fix round 1 (ruled): a check whose program does not compile has no run, as a Run that cannot start.
+    expect(log).toEqual(['flush', 'begin', 'locked', 'check:realtime:1', 'end', 'unlocked']);
     expect(runStore.getState().startFailure).toEqual({ ok: false, reason: 'compile', diagnostics });
     expect(store.getState().report).toBeNull();
   });
 
-  it('ends the check for the host even when sending its result throws, and keeps the report', async () => {
-    const warn = vi.spyOn(console, 'error').mockImplementation(() => {});
+  it('says the check did not complete when sending its result throws, and shows no result as if the lesson had it', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const calls: string[] = [];
-    const { store, checks } = setup({
+    const { store, runStore, checks } = setup({
       host: {
         begin: () => calls.push('begin'),
         result: () => {
@@ -289,9 +301,51 @@ describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
     checks[0]!.check.settle(twoRounds);
     await started;
     expect(calls).toEqual(['begin', 'end']);
-    expect(store.getState().report?.result).toBe(twoRounds);
-    expect(warn).toHaveBeenCalledTimes(1);
-    warn.mockRestore();
+    expect(store.getState().report).toBeNull();
+    expect(store.getState().failure).toEqual({ detail: 'Error: the host would not read it' });
+    expect(runStore.getState().locked).toBe(false);
+    expect(error).toHaveBeenCalledTimes(1);
+    // The next check starts afresh.
+    const again = store.getState().start();
+    expect(store.getState().failure).toBeNull();
+    checks[1]!.check.settle(null);
+    await again;
+    error.mockRestore();
+  });
+
+  it('ends the check for the host and lets the lab go when anything throws after it began', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { store, runStore, log, checks } = setup();
+    vi.spyOn(runStore.getState(), 'stop').mockImplementation(() => {
+      throw new Error('the run would not stop');
+    });
+    await store.getState().start();
+    expect(checks).toHaveLength(0);
+    expect(log).toEqual(['flush', 'begin', 'end']);
+    expect(runStore.getState().locked).toBe(false);
+    expect(store.getState().running).toBeNull();
+    expect(store.getState().failure).toEqual({ detail: 'Error: the run would not stop' });
+    error.mockRestore();
+  });
+
+  it('takes a cancel within CANCEL_GUARD_MS of the start for the second click of a double click; abort ends it at once', async () => {
+    const { store, checks, later } = setup();
+    expect(CANCEL_GUARD_MS).toBe(400);
+    const started = store.getState().start();
+    const [{ check }] = checks as [(typeof checks)[number]];
+    later(CANCEL_GUARD_MS - 1);
+    store.getState().cancel();
+    expect(check.check.cancel).not.toHaveBeenCalled();
+    later(1);
+    store.getState().cancel();
+    expect(check.check.cancel).toHaveBeenCalledTimes(1);
+    await started;
+    // The lab going away does not wait.
+    const again = store.getState().start();
+    store.getState().abort();
+    expect(checks[1]!.check.check.cancel).toHaveBeenCalledTimes(1);
+    await again;
+    expect(store.getState().report).toBeNull();
   });
 
   it('runs one check at a time, none while the lab is held, and refuses a speed it does not offer', async () => {

@@ -20,12 +20,12 @@ import { useBuzzerSound } from '../audio/use-buzzer-sound';
 import { useLocale, useText } from '../i18n/text';
 import type { ProjectStore } from '../state/project-store';
 import { CheckControls } from './CheckControls';
-import { CheckResults, FastCheckView } from './CheckResults';
+import { CheckAnnouncer, CheckResults, FastCheckView } from './CheckResults';
 import { Hud } from './Hud';
 import { ProgramPane, type RobotProgramView } from './ProgramPane';
 import { createRobotCheckStore, type CheckHost, type CreateCheck, type RobotCheckStore } from './robot-check-store';
 import { robotModel, toneHzOf } from './robot-model';
-import { createRobotRunStore, type RobotRunStore } from './robot-run-store';
+import { createRobotRunStore, labBusy, type RobotRunStore } from './robot-run-store';
 import { RobotControls } from './RobotControls';
 import { RobotDock } from './RobotDock';
 import { RunMessages } from './RunMessages';
@@ -72,6 +72,8 @@ export type RobotLabProps = {
   onRunChange?(running: boolean): void;
   /** N18 R6.3: what the host hears of a check (the bridge's beginCheck, robotCheckResult and endCheck). */
   onCheck?: CheckHost;
+  /** N18 R6.3: the lab is busy (a check, or a run going on) or not; a host's load-project waits while it is. */
+  onBusyChange?(busy: boolean): void;
   /** The scorer of each run: the scenario's goals and score (R6.2's `scenarioScorer` by default). */
   scorer?: RobotScorerFactory;
   /** Tests: the check of a project (R6.2's checkRobot on the scenario, its kit and the lab's catalogs by default). */
@@ -114,6 +116,7 @@ export default function RobotLab({
   toolbox,
   onRunChange,
   onCheck,
+  onBusyChange,
   scorer = scenarioScorer,
   createSession,
   createCheck,
@@ -164,7 +167,27 @@ export default function RobotLab({
 
   useEffect(() => store.getState().connect(), [store]);
   // A check still running when the lab goes away gives no result.
-  useEffect(() => () => checks.getState().cancel(), [checks]);
+  useEffect(() => () => checks.getState().abort(), [checks]);
+
+  // The host's load-project waits while the lab is busy: a check holds it, or a run is going on (one that is over, or stopped, is not).
+  useEffect(() => {
+    if (onBusyChange === undefined) {
+      return undefined;
+    }
+    let told = labBusy(store.getState());
+    onBusyChange(told);
+    const stop = store.subscribe((state) => {
+      const busy = labBusy(state);
+      if (busy !== told) {
+        told = busy;
+        onBusyChange(busy);
+      }
+    });
+    return () => {
+      stop();
+      onBusyChange(false);
+    };
+  }, [store, onBusyChange]);
 
   // The host hears when a run starts and ends.
   useEffect(
@@ -252,6 +275,7 @@ export default function RobotLab({
           <>
             <CheckResults checks={checks} store={store} projectStore={projectStore} scenario={scenario} />
             <FastCheckView checks={checks} />
+            <CheckAnnouncer checks={checks} />
           </>
         )}
       </div>

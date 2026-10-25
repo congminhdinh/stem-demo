@@ -968,6 +968,16 @@
   grid-column: 2 / -1;
 }
 
+.robot-check-failure details {
+  color: var(--stem-color-text-muted);
+}
+
+.robot-check-failure pre {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  font-family: var(--stem-font-mono);
+}
+
 .robot-check-bonus {
   margin: 0;
   padding-top: 4px;
