@@ -1,4 +1,5 @@
 import { MAX_CM, MIN_CM, NO_ECHO_CM, US_PER_CM } from '../../hardware/drivers/hcsr04';
+import type { UltrasonicSpec } from '../../hardware/kit';
 import { cos, sin } from '../dmath';
 import { getRapier, type Collider, type PhysicsWorld } from '../rapier';
 import type { WorldRng } from '../rng';
@@ -13,18 +14,15 @@ import { isFiniteVector, type ColliderLookup, type SensedCollider, type SensorPo
 // as the first echo is what a real sensor times. Only colliders the lookup names with `ultrasonic: true` echo: never
 // the floor, never a collider the lookup does not know (the robot's own), never what `exclude` refuses.
 //
+// A surface met too steeply sends the sound away instead of back, as a real HC-SR04 misses a wall it meets at a grazing
+// angle: a ray whose first echoing surface has its normal more than ULTRASONIC_MAX_INCIDENCE_DEG (60°) from the ray
+// hears nothing, and that surface still hides what is behind it. The angle is each ray's own, so with a ±15° cone a wall
+// turned up to 75° from the axis is still heard by the edge ray nearer its normal. A ray that starts inside a collider
+// (time of impact 0, no normal) hears it, at the near end of the range.
+//
 // Distances follow the UNO contract (U-27, §6.6; hcsr04.ts): an echo of w µs is w / 58 cm, the helper reads 2..400 cm,
 // and no echo is 400. A sensor hears from max(minCm, 2) to min(maxCm, 400): nearer is that near end (the contract
 // clamps to 2 and a 0 µs pulse would mean "no echo"), farther is no echo.
-
-/** The kit's ultrasonic module spec (kit.modules[].spec, R3.3), in degrees and centimetres. */
-export type UltrasonicSpec = {
-  /** Half the opening angle of the beam, 0 ≤ coneHalfDeg < 90. */
-  readonly coneHalfDeg: number;
-  /** Nearest and farthest distance it measures. */
-  readonly minCm: number;
-  readonly maxCm: number;
-};
 
 /** Uniform noise on an echo's distance: one draw in [−amplitudeCm, amplitudeCm) per measure. */
 export type UltrasonicNoise = { readonly rng: WorldRng; readonly amplitudeCm: number };
@@ -46,6 +44,10 @@ export type UltrasonicReading<I extends SensedCollider = SensedCollider> = {
 };
 
 export const ULTRASONIC_RAY_COUNT = 5;
+/** The steepest incidence, between a ray and the normal of the surface it meets, that still echoes back. */
+export const ULTRASONIC_MAX_INCIDENCE_DEG = 60;
+/** cos(ULTRASONIC_MAX_INCIDENCE_DEG), exactly: the cutoff compares cosines, from dot products, so no acos is needed. */
+const MIN_INCIDENCE_COS = 0.5;
 /** The echo width of "no echo": pulseIn sees no pulse, so the helper returns 400 (contract §6.6). */
 export const NO_ECHO_US = 0;
 
@@ -77,7 +79,7 @@ export function ultrasonicRayDirections(coneHalfDeg: number): readonly Vec3[] {
 }
 
 /**
- * What the ultrasonic sensor at `pose` hears now.
+ * What the ultrasonic sensor at `pose` hears now. `spec` is the kit module's (kit.ts `UltrasonicSpec`, checked by loadKit).
  *
  * - The scene queries must be up to date (rapier.ts, `refreshQueries`): the world reads what the last step or refresh saw.
  * - A pose that is not finite, or a rotation of length 0, hears no echo (Rapier would report a hit at 0 for a NaN ray).
@@ -117,10 +119,11 @@ export function measureUltrasonic<I extends SensedCollider>(
   let nearest: Collider | null = null;
   let nearestToi = Number.POSITIVE_INFINITY;
   for (const direction of directions) {
-    ray.dir = rotateVector(rotation, direction);
-    const hit = world.castRay(ray, maxToi, true, undefined, undefined, undefined, undefined, echoes);
+    const dir = rotateVector(rotation, direction);
+    ray.dir = dir;
+    const hit = world.castRayAndGetNormal(ray, maxToi, true, undefined, undefined, undefined, undefined, echoes);
     // Strictly shorter: on a tie the earlier ray in the fixed order wins.
-    if (hit !== null && hit.timeOfImpact < nearestToi) {
+    if (hit !== null && hit.timeOfImpact < nearestToi && echoesBack(dir, hit.timeOfImpact, hit.normal)) {
       nearest = hit.collider;
       nearestToi = hit.timeOfImpact;
     }
@@ -130,6 +133,18 @@ export function measureUltrasonic<I extends SensedCollider>(
   const cm = Math.min(farCm, Math.max(nearCm, nearestToi * CM_PER_M + offsetCm));
   // `echoes` accepted it, so the lookup names it.
   return { cm, echoUs: cm * US_PER_CM, hit: lookup.infoOf(nearest) as I };
+}
+
+/**
+ * Whether a ray along the unit `dir` that meets a surface with outward `normal` gets its echo back: the incidence, the
+ * angle between the ray reversed and the normal, is at most ULTRASONIC_MAX_INCIDENCE_DEG. Rapier's normal is a float32
+ * unit vector, so it is normalised first. A ray that starts inside the collider (toi 0) has no normal and hears it.
+ */
+function echoesBack(dir: Vec3, toi: number, normal: Vec3): boolean {
+  if (toi === 0) return true;
+  const facing = 0 - (dir.x * normal.x + dir.y * normal.y + dir.z * normal.z);
+  const length = Math.sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+  return facing >= MIN_INCIDENCE_COS * length;
 }
 
 function noEcho(): UltrasonicReading<never> {

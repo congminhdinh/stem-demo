@@ -1,5 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { productionKits, referenceKitRef } from '../../hardware/catalog';
 import { echoToCm } from '../../hardware/drivers/hcsr04';
+import type { Kit, UltrasonicSpec } from '../../hardware/kit';
+import { modulesOfKind } from '../../hardware/kit-mechanics';
 import { cos, sin } from '../dmath';
 import { parseArena, type ArenaInput } from '../arena/arena-schema';
 import { buildArena, type BuiltArena } from '../arena/build-arena';
@@ -8,13 +11,13 @@ import { createPhysicsWorld, getRapier, initPhysics, refreshQueries, type Collid
 import { createWorldRng } from '../rng';
 import { arenaToWorld, degToRad, yawToQuaternion } from '../units';
 import type { ColliderLookup, SensedCollider, SensorPose } from './collider-lookup';
-import { measureUltrasonic, ultrasonicRayDirections, ULTRASONIC_RAY_COUNT, type UltrasonicSpec } from './ultrasonic';
+import { measureUltrasonic, ULTRASONIC_MAX_INCIDENCE_DEG, ultrasonicRayDirections, ULTRASONIC_RAY_COUNT } from './ultrasonic';
 
 // Compiling the real wasm can take seconds on a loaded machine.
 beforeAll(() => initPhysics(), 30_000);
 
-/** The reference kit's HC-SR04 (ref-uno-rover@0). */
-const HC_SR04: UltrasonicSpec = { coneHalfDeg: 15, minCm: 2, maxCm: 400 };
+/** The reference kit's HC-SR04 (ref-uno-rover@0), as the kit gives it to the world. */
+const HC_SR04: UltrasonicSpec = modulesOfKind(productionKits.get(referenceKitRef) as Kit, 'ultrasonic')[0]!.spec;
 
 /** A white 200 × 200 cm floor with the walls given, nothing else. */
 function arenaWith(walls: ArenaInput['walls'] = [], extra: Partial<ArenaInput> = {}): ArenaInput {
@@ -39,6 +42,10 @@ function poseAt(xCm: number, yCm: number, heightCm: number, yawDeg = 0): SensorP
 const eastWallAt = (faceCm: number) => ({ id: 'east', fromCm: [faceCm + 1, 0] as [number, number], toCm: [faceCm + 1, 200] as [number, number] });
 /** The same along y: inner face (towards smaller y) at y = `faceCm`. */
 const northWallAt = (faceCm: number) => ({ id: 'north', fromCm: [0, faceCm + 1] as [number, number], toCm: [200, faceCm + 1] as [number, number] });
+
+it('reads the reference kit’s spec: a ±15° cone over 2..400 cm', () => {
+  expect(HC_SR04).toEqual({ coneHalfDeg: 15, minCm: 2, maxCm: 400 });
+});
 
 describe('ultrasonicRayDirections', () => {
   it('casts five fixed unit rays: the axis, then the cone edge left, right, up and down', () => {
@@ -181,6 +188,71 @@ describe('measureUltrasonic', () => {
     withWorld(arenaWith(), (world, built) => {
       expect(() => measureUltrasonic(world, built, poseAt(100, 100, 4), { ...HC_SR04, minCm: 50, maxCm: 40 })).toThrow(RangeError);
       expect(() => measureUltrasonic(world, built, poseAt(100, 100, 4), { ...HC_SR04, maxCm: Number.NaN })).toThrow(RangeError);
+    });
+  });
+
+  /**
+   * A 120 cm wall, 1 cm thick, whose face crosses the beam axis 60 cm ahead of a sensor at (100, 100) facing arena +x, with
+   * the face's normal turned `incidenceDeg` from the axis (towards arena +y). A ray at bearing φ meets the face's plane at
+   * 60 · cos a / cos(a + φ), at an incidence of a + φ: the right edge ray (φ = −15°) meets it 15° less steeply than the axis.
+   */
+  const tiltedWall = (incidenceDeg: number) => {
+    const a = degToRad(incidenceDeg);
+    const [nx, ny] = [0 - cos(a), sin(a)];
+    const [tx, ty] = [sin(a), cos(a)];
+    const [cx, cy] = [160 - 0.5 * nx, 100 - 0.5 * ny];
+    return {
+      id: 'tilted',
+      fromCm: [cx - 60 * tx, cy - 60 * ty] as [number, number],
+      toCm: [cx + 60 * tx, cy + 60 * ty] as [number, number],
+      thicknessCm: 1,
+    };
+  };
+  const wideArena = (walls: ArenaInput['walls']) => ({ ...arenaWith(walls), ground: { sizeCm: [300, 200] as [number, number], color: '#ffffff' } });
+  const AXIS_ONLY: UltrasonicSpec = { ...HC_SR04, coneHalfDeg: 0 };
+  const expectedCm = (incidenceDeg: number, bearingDeg: number) => (60 * cos(degToRad(incidenceDeg))) / cos(degToRad(incidenceDeg + bearingDeg));
+
+  it('a wall at 70° incidence reads 400, and a wall at 30° incidence reads its distance', () => {
+    expect(ULTRASONIC_MAX_INCIDENCE_DEG).toBe(60);
+    // One ray direction (a cone of 0°): the incidence is the wall's tilt.
+    withWorld(wideArena([tiltedWall(70)]), (world, built) => {
+      expect(measureUltrasonic(world, built, poseAt(100, 100, 4), AXIS_ONLY)).toEqual({ cm: 400, echoUs: 0, hit: null });
+    });
+    withWorld(wideArena([tiltedWall(30)]), (world, built) => {
+      const reading = measureUltrasonic(world, built, poseAt(100, 100, 4), AXIS_ONLY);
+      expect(reading.hit?.id).toBe('tilted');
+      expect(reading.cm).toBeCloseTo(60, 4);
+    });
+    // The cutoff is sharp at 60°.
+    withWorld(wideArena([tiltedWall(59)]), (world, built) => {
+      expect(measureUltrasonic(world, built, poseAt(100, 100, 4), AXIS_ONLY).cm).toBeCloseTo(60, 4);
+    });
+    withWorld(wideArena([tiltedWall(61)]), (world, built) => {
+      expect(measureUltrasonic(world, built, poseAt(100, 100, 4), AXIS_ONLY).cm).toBe(400);
+    });
+  });
+
+  it('a steep wall sends the sound away: it hides what stands behind it', () => {
+    withWorld(wideArena([tiltedWall(70), eastWallAt(250)]), (world, built) => {
+      expect(measureUltrasonic(world, built, poseAt(100, 100, 4), AXIS_ONLY).cm).toBe(400);
+    });
+    withWorld(wideArena([eastWallAt(250)]), (world, built) => {
+      expect(measureUltrasonic(world, built, poseAt(100, 100, 4), AXIS_ONLY).cm).toBeCloseTo(150, 4);
+    });
+  });
+
+  it('with the ±15° cone the incidence is each ray’s: an edge ray hears a 70° wall at 55°, none hears an 80° wall', () => {
+    withWorld(wideArena([tiltedWall(30)]), (world, built) => {
+      const reading = measureUltrasonic(world, built, poseAt(100, 100, 4), HC_SR04);
+      expect(reading.cm).toBeCloseTo(expectedCm(30, -15), 3);
+    });
+    withWorld(wideArena([tiltedWall(70)]), (world, built) => {
+      const reading = measureUltrasonic(world, built, poseAt(100, 100, 4), HC_SR04);
+      expect(reading.hit?.id).toBe('tilted');
+      expect(reading.cm).toBeCloseTo(expectedCm(70, -15), 3);
+    });
+    withWorld(wideArena([tiltedWall(80)]), (world, built) => {
+      expect(measureUltrasonic(world, built, poseAt(100, 100, 4), HC_SR04)).toEqual({ cm: 400, echoUs: 0, hit: null });
     });
   });
 
