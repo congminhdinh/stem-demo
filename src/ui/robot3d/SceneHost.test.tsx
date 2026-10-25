@@ -68,14 +68,14 @@ afterEach(() => {
 const gpu: WebglProbe = { ok: true, renderer: 'ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)' };
 const none: WebglProbe = { ok: false };
 
-function render(probe: () => WebglProbe, options: { onViewUp?: () => void } = {}) {
+function render(probe: () => WebglProbe, options: { onViewUp?: () => void; announce?: (text: string) => void } = {}) {
   const fake = fakeSession(scenario, kit);
   const store = createRobotRunStore(fake.session);
   store.getState().connect();
   act(() =>
     root.render(
       <TextProvider locale="vi">
-        <SceneHost scenario={scenario} kit={kit} model={model} store={store} reducedMotion={false} zoneLabel={() => null} probe={probe} {...(options.onViewUp ? { onViewUp: options.onViewUp } : {})} />
+        <SceneHost scenario={scenario} kit={kit} model={model} store={store} reducedMotion={false} zoneLabel={() => null} probe={probe} {...(options.onViewUp ? { onViewUp: options.onViewUp } : {})} {...(options.announce ? { announce: options.announce } : {})} />
       </TextProvider>,
     ),
   );
@@ -399,5 +399,17 @@ describe('SceneHost on a computer too slow for the low tier (N18 P2)', () => {
     expect(scenes.props?.drawCap).toBe(true);
     act(() => scenes.props!.onLowStep!('cap'));
     expect(byId('robot-quality-note')).toBeNull();
+  });
+});
+
+describe('what the low tier’s chain says to a screen reader (N18 P2)', () => {
+  it('says the 2D offer, which asks for an answer, and not the 30 fps note, which is about the picture only', () => {
+    const announce = vi.fn();
+    render(() => ({ ok: true, renderer: 'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)' }), { announce });
+    act(() => scenes.props!.onLowStep!('cap'));
+    expect(byId('robot-quality-note')).not.toBeNull();
+    expect(announce).not.toHaveBeenCalledWith('Đang vẽ 30 hình mỗi giây cho mượt hơn');
+    act(() => scenes.props!.onLowStep!('offer'));
+    expect(announce).toHaveBeenCalledWith('3D chạy chậm trên máy này: bản đồ 2D mượt hơn.');
   });
 });

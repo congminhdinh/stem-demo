@@ -163,9 +163,8 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, o
   useEffect(() => {
     if (autoLow === 'shown') latestWords.current.announce?.(latestWords.current.t('robot.quality.autoLow'));
   }, [autoLow]);
-  useEffect(() => {
-    if (capNote === 'shown') latestWords.current.announce?.(latestWords.current.t('robot.quality.capped'));
-  }, [capNote]);
+  // The 30 fps note is not said: it is about the picture only, and a screen reader's user loses nothing by it. The offer is said: it
+  // asks for an answer.
   useEffect(() => {
     if (offer === 'shown') latestWords.current.announce?.(latestWords.current.t('robot.quality.offer2d'));
   }, [offer]);
