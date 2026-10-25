@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { unoContract } from '../compat/uno-contract';
+import type { Capabilities } from '../capabilities/io';
 import type { PinState } from '../hardware';
+import { createRunConsole } from './console';
+import { runYbc } from './__fixtures__/run-ybc';
+import type { Expr, YbcProgramIR } from './ybc-ir';
 import type { VirtualRun } from '../run/__fixtures__/virtual-run';
 import { WORLD_TICK_MS } from '../run/virtual-clock';
 import {
@@ -195,6 +199,21 @@ describe('raw pins (Advanced) through the virtual UNO’s pins', () => {
     expect(run.lines()).toEqual(['1', '512']);
   });
 
+  it('reads the button pin raw with no button block as the board does: HIGH released (its INPUT_PULLUP in setup), LOW pressed (fix round 1)', async () => {
+    // No source attached: the pin is the pull-up's, not a floating INPUT.
+    const released = robot([print(digitalRead('D3'))]);
+    expect(released.pin('D3').mode).toBe('INPUT_PULLUP');
+    await finished(released.run);
+    expect(released.run.lines()).toEqual(['1']);
+    const pressed = robot([print(digitalRead('D3'))], undefined, { setup: (uno) => uno.attachDigitalSource('D3', () => 0) });
+    await finished(pressed.run);
+    expect(pressed.run.lines()).toEqual(['0']);
+    // The same read beside a button block reads the same: the setup does not depend on the other blocks.
+    const beside = robot([print(buttonPressed()), print(digitalRead('D3'))]);
+    await finished(beside.run);
+    expect(beside.run.lines()).toEqual(['0', '1']);
+  });
+
   it('clamps a computed PWM value to 0..255 and warns once per pin', async () => {
     const { run, pin } = robot([setVar('x', num(300)), pwmWrite('D10', getVar('x'), 'pwm'), pwmWrite('D10', getVar('x'))], undefined, { kit: kitWithout('buzzer') });
     await finished(run);
@@ -225,5 +244,42 @@ describe('the virtual-clock invariant holds for every read (robot plan §3)', ()
     expect(reads.length).toBeGreaterThan(80);
     expect(reads.filter((read) => !insideTick(read))).toEqual([]);
     expect(run.lines().slice(0, 3)).toEqual(['800', '800', '800']);
+  });
+});
+
+describe('a read of the robot outside evaluateReading (fix round 1, a defensive guard)', () => {
+  const read: Expr = { blockId: 'cm', type: 'int', kind: 'read', op: 'ultrasonic.cm', operand: { kind: 'role', role: 'ultrasonic' } };
+  const reads: string[] = [];
+  const capabilities: Capabilities = {
+    modules: {
+      call: () => {},
+      read: (role) => {
+        reads.push(role);
+        return 400;
+      },
+    },
+    display: { setFrame: () => {} },
+  };
+  const outcomeOf = async (ir: YbcProgramIR) => {
+    const runConsole = createRunConsole();
+    return runYbc(ir, { sleep: () => Promise.resolve(), console: runConsole, yieldNow: () => Promise.resolve() }, capabilities).done;
+  };
+  const error = { status: 'error', code: 'internal-error', message: 'A read of the robot came without its wait for the world.', blockId: 'cm' };
+
+  it('refuses a module read in a ybc program (no numeric model: no wait for it is planned), and never reads', async () => {
+    expect(await outcomeOf({ onStart: [{ kind: 'print', value: read, blockId: 'print' }], forever: null, variables: [] })).toEqual(error);
+    expect(reads).toEqual([]);
+  });
+
+  it('refuses one in the argument of an op that evaluates synchronously (a ybc display op in a uno IR)', async () => {
+    const ir: YbcProgramIR = {
+      onStart: [{ kind: 'call', op: 'display.scrollNumber', args: [read], blockId: 'scroll' }],
+      forever: null,
+      variables: [],
+      numeric: 'cxx-int32',
+      loopPauseUs: 0,
+    };
+    expect(await outcomeOf(ir)).toEqual(error);
+    expect(reads).toEqual([]);
   });
 });

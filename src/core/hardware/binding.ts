@@ -1,7 +1,7 @@
 import type { Capabilities, ModuleIO } from '../capabilities/io';
 import { allUses, clampTo, CLOCK_ROLE, driveDirections, DRIVE_ROLE, drivers, MILLIS_OP, moduleUses, roleOps, runSetup, type DriverOp, type ModuleUse } from './drivers';
 import { kitPort, type Kit, type KitPort } from './kit';
-import type { VirtualUno } from './virtual-uno';
+import type { PinMode, VirtualUno } from './virtual-uno';
 
 // The module binding (N18 R1.4, robot plan §4.3): the `modules` capability of a robot program. `call(role, op, args)` and
 // `read(role, op)` take the IR's module ops (plan §4.4: `motor.set`, `servo.set`, `led.set`, `buzzer.tone`, `buzzer.stop`,
@@ -149,11 +149,23 @@ export function createModuleIO(kit: Kit, uno: VirtualUno, uses: readonly ModuleU
 /**
  * N18 R2.2: the capabilities of a uno program on the virtual UNO. Its module ops go through the binding (whose creation is the start
  * of setup(): the setup steps of `uses.modules`), its raw pins through the virtual UNO's pins (UnoPinIO as `digital`, `pwm`,
- * `analogIn`, contract UNO §9). Then each pin a digital write of the program sets is made OUTPUT, as the generated setup() writes
- * `pinMode(<pin>, OUTPUT);` (U-31), in the order the program meets them.
+ * `analogIn`, contract UNO §9). Then setup() goes on with the raw pins, in the order the program meets them: each module-wired pin
+ * a raw digital read names gets the pinMode its driver gives it (`pinMode(<pin>, <mode>);`, U-33: a released button reads HIGH
+ * through its INPUT_PULLUP), then each pin a digital write sets is made OUTPUT (`pinMode(<pin>, OUTPUT);`, U-31).
  */
-export function createProgramIO(kit: Kit, uno: VirtualUno, uses: { readonly modules: readonly ModuleUse[]; readonly outputPins: readonly string[] }): Capabilities & { modules: ModuleBinding } {
+export function createProgramIO(
+  kit: Kit,
+  uno: VirtualUno,
+  uses: {
+    readonly modules: readonly ModuleUse[];
+    readonly inputPins: readonly { readonly pin: string; readonly mode: PinMode }[];
+    readonly outputPins: readonly string[];
+  },
+): Capabilities & { modules: ModuleBinding } {
   const modules = createModuleIO(kit, uno, uses.modules);
+  for (const { pin, mode } of uses.inputPins) {
+    uno.io.pinMode(pin, mode);
+  }
   for (const pin of uses.outputPins) {
     uno.io.pinMode(pin, 'OUTPUT');
   }

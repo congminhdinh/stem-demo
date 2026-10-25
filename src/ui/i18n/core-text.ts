@@ -379,6 +379,7 @@ export const coreMessageRules: readonly Rule[] = [
   [/^A robot block was given the wrong number of values\.$/, () => 'Khối robot nhận sai số giá trị.'],
   [/^A drive block names a direction that does not exist\.$/, () => 'Khối robot đi gọi một hướng không tồn tại.'],
   [/^A pin block names a pin that does not exist\.$/, () => 'Khối chân gọi một chân không tồn tại.'],
+  [/^A read of the robot came without its wait for the world\.$/, () => 'Một lần đọc của robot không chờ thế giới mô phỏng theo kịp.'],
   [/^A gesture block names a gesture that does not exist\.$/, () => 'Khối cử chỉ gọi một cử chỉ không tồn tại.'],
   [/^A melody block names a melody that does not exist\.$/, () => 'Khối giai điệu gọi một giai điệu không tồn tại.'],
   [/^A tone block was given the wrong number of values\.$/, () => 'Khối âm nhận sai số giá trị.'],

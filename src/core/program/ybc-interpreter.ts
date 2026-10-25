@@ -462,8 +462,10 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
       }
       case 'read': {
         if (isModuleRead(expr) || ((expr.op === 'digital.read' || expr.op === 'analogIn.read') && isBoardPinOp(expr))) {
-          // N18 R2.2: a read of the robot (`evaluateReading` waits for the world first; here it reads at once).
-          return readHardware(expr);
+          // N18 R2.2: a read of the robot is `evaluateReading`'s, after its wait for the world. Reading here would read ahead of the
+          // world (the virtual-clock invariant): only an IR that is not the compiler's gets here (a uno read in a ybc program, or in
+          // an argument of a ybc op), and it is refused.
+          throw new RuntimeFault('internal-error', 'A read of the robot came without its wait for the world.');
         }
         if (expr.op === 'digital.read' || expr.op === 'analogIn.read') {
           // A header pin (YB-4): the arguments first, left to right, each once; then the one call into the board.

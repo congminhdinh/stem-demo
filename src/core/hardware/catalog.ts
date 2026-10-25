@@ -46,6 +46,9 @@ export const referenceKitRef: KitRef = { id: 'ref-uno-rover', version: '0' };
 
 export const productionKits: KitCatalog = createKitCatalog([refUnoRoverJson], [unoR3Board]);
 
+/** N18 R2.2: what a learner is told of a kit the catalog does not know (L-1 `unknown-kit`; the compile of such a project says the same). */
+export const unknownKitMessage = (ref: KitRef): string => `The robot kit "${kitKey(ref)}" is not one this app knows.`;
+
 /** The kit a project uses: its own, or the reference kit. */
 export function kitRefOf(document: { readonly kit?: KitRef }): KitRef {
   return document.kit ? { id: document.kit.id, version: document.kit.version } : { ...referenceKitRef };

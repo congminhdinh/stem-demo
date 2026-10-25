@@ -22,11 +22,15 @@ import {
   packs,
   pwmWrite,
   registry,
+  unoCountUp,
+  unoDivide,
   servoSet,
   ultrasonic,
 } from './__fixtures__/uno-blocks';
 import { add, getVar, num, print, setVar, text, type Json } from './__fixtures__/ybc-blocks';
 import { compileYbcProgram } from './compile-ybc-program';
+import { createRunConsole } from './console';
+import { runYbc } from './__fixtures__/run-ybc';
 import { compileUnoProject } from './compile-uno-program';
 import type { Expr, YbcStatement } from './ybc-ir';
 
@@ -339,8 +343,23 @@ describe('compileUnoProject (kit-aware compile: kitBoardContext(resolveBoardCont
         { role: 'buzzer', op: 'buzzer.tone' },
       ],
       outputPins: ['A3'],
+      inputPins: [],
       usage: { servo: true, tone: true, serial: true },
     });
+  });
+
+  it('gives a raw digital read of a module-wired pin the pinMode of the module’s driver, unless a used op sets it up (fix round 1, U-33)', () => {
+    const uses = (blocks: Json[]) => {
+      const result = compileRobot(blocks);
+      return result.ok ? result.uses.inputPins : null;
+    };
+    expect(uses([print(digitalRead('D3')), print(digitalRead('A1')), print(digitalRead('D11')), print(digitalRead('D3'))])).toEqual([
+      { pin: 'D3', mode: 'INPUT_PULLUP' },
+      { pin: 'A1', mode: 'INPUT' },
+      { pin: 'D11', mode: 'INPUT' },
+    ]);
+    // The button's own op already sets D3 up; the analog read of a line pin needs no pinMode.
+    expect(uses([print(buttonPressed()), print(digitalRead('D3')), print(analogRead('A0'))])).toEqual([]);
   });
 
   it('gives the board-context diagnostics of a project without its board', () => {
@@ -352,10 +371,55 @@ describe('compileUnoProject (kit-aware compile: kitBoardContext(resolveBoardCont
     });
   });
 
-  it('throws for a project of another family or with a kit the catalog does not know: such a document did not pass L-1', () => {
-    expect(() => compileUnoProject(unoDocument('uno-basic', { kit: { id: 'nope', version: '1' } }), { registry, profiles: productionProfiles, packs, kits: productionKits })).toThrow(
-      'Unknown kit nope@1',
-    );
+  it('says unknown-kit (L-1) for a kit the catalog does not know, never a throw (fix round 1)', () => {
+    for (const kit of [{ id: 'nope', version: '1' }, { id: 'ref-uno-rover', version: '9' }]) {
+      expect(compileUnoProject(unoDocument('uno-basic', { kit }), { registry, profiles: productionProfiles, packs, kits: productionKits })).toEqual({
+        ok: false,
+        reason: 'layer',
+        diagnostics: [{ layer: 'L-1', severity: 'error', code: 'unknown-kit', message: `The robot kit "${kit.id}@${kit.version}" is not one this app knows.` }],
+      });
+    }
+  });
+
+  it('throws only for a project of another family, a programmer error', () => {
     expect(() => compileUnoProject({ ...unoDocument(), profile: 'ybc-basic' }, { registry, profiles: productionProfiles, packs, kits: productionKits })).toThrow(/not of the uno family/);
+  });
+});
+
+describe('the UNO’s own division and count up (contract UNO U-06, U-14; fix round 1)', () => {
+  it('divides toward zero and counts by 1, in the IR of the dialect’s division and count up', () => {
+    const ir = irOf(compileRobot([print(unoDivide(n(-7, 'a'), n(2, 'b'), 'divide')), unoCountUp('x', n(1, 'from'), n(3, 'to'), [], 'count')], undefined, { profile: 'uno-basic' }));
+    expect(ir.onStart).toEqual([
+      expect.objectContaining({ kind: 'print', value: { blockId: 'divide', type: 'int', kind: 'arith', op: '//', left: int(-7, 'a'), right: int(2, 'b') } }),
+      { kind: 'countUp', variable: 'x', from: int(1, 'from'), to: int(3, 'to'), step: 1, body: [], blockId: 'count' },
+    ]);
+  });
+
+  it('runs them as the board does: -7 / 2 is -3, and the count is 1, 2, 3', async () => {
+    const compiled = compileRobot([print(unoDivide(num(-7), num(2))), unoCountUp('x', num(1), num(3), [print(getVar('x'))])], undefined, { profile: 'uno-basic' });
+    const runConsole = createRunConsole();
+    const outcome = await runYbc(irOf(compiled), { sleep: () => Promise.resolve(), console: runConsole, yieldNow: () => Promise.resolve() }).done;
+    expect(outcome).toEqual({ status: 'finished' });
+    expect(runConsole.snapshot().lines).toEqual(['-3', '1', '2', '3']);
+  });
+
+  it('ignores a step saved into the UNO’s count up, and refuses the end beyond 2147483646 as the dialect’s count up does', () => {
+    const withStep = { ...unoCountUp('x', num(1), num(3), [], 'count'), fields: { VAR: { id: 'x' }, STEP: 5 } };
+    expect(irOf(compileRobot([withStep])).onStart[0]).toMatchObject({ kind: 'countUp', step: 1 });
+    expect(codes(compileRobot([unoCountUp('x', num(1), n(2147483647, 'end'), [])]))).toEqual(['error value-out-of-range end']);
+  });
+
+  it('is not a value as a statement, nor a statement as a value', () => {
+    expect(codes(compileRobot([unoDivide(num(1), num(2), 'divide')]))).toEqual(['error unsupported-construct divide']);
+    expect(codes(compileRobot([setVar('x', unoCountUp('x', num(1), num(2), [], 'count'))]))).toEqual(['error unsupported-construct count']);
+  });
+
+  it('is the uno family’s only: a ybc compile that exposes them refuses them', () => {
+    const exposed = new Set(['uno_int_divide', 'uno_count_up', 'text_print', 'math_number']);
+    const workspace = { blocks: { blocks: [{ type: 'stem_on_start', id: 'h', inputs: { DO: { block: { ...print(unoDivide(num(1), num(2), 'divide')), next: { block: unoCountUp('x', num(1), num(2), [], 'count') } } } } }] }, variables: [{ name: 'x', id: 'x' }] };
+    expect(compileYbcProgram(workspace, exposed).diagnostics.map((d) => [d.code, d.blockId])).toEqual([
+      ['unsupported-construct', 'divide'],
+      ['unsupported-construct', 'count'],
+    ]);
   });
 });

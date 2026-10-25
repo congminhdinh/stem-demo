@@ -923,12 +923,17 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: [
       'Only a pin the kit wires to an input module (button, line, echo): a floating pin reads at random on the board, so it is refused (pin-unavailable).',
       'Never a PWM output pin: digitalRead stops its PWM on the board.',
+      'setup() gives the pin the pinMode of its module\'s driver (<mode>: INPUT_PULLUP for the button, INPUT for a line sensor or the echo), whether or not the program uses the module: a released button reads HIGH.',
     ],
     modules: ['U-M1'],
-    cpp: cpp('(digitalRead(<pin>) == HIGH)'),
+    cpp: cpp('(digitalRead(<pin>) == HIGH)', { setup: ['pinMode(<pin>, <mode>);'] }),
     levels: levels('R1.2, R1.3', ['EMU-13']),
     fields: open({
       call: field([compiles('(digitalRead(3) == HIGH).')]),
+      default: field([
+        doc('ARD-16', 'INPUT_PULLUP turns on the internal pull-up: the button pin reads HIGH while it is released.'),
+        trace('EMU-13', 'With the button\'s pinMode(3, INPUT_PULLUP) in setup(), (digitalRead(3) == HIGH) reads the button: 0 while it is pressed.'),
+      ]),
       range: byDomain('A floating pin, or an output pin, is outside the domain.'),
       block: field([costs('digitalRead takes 3.9375 µs (5.0625 on a timer pin)')]),
       return: field([trace('EMU-13', 'D3 held LOW by the pressed button: (digitalRead(3) == HIGH) is 0.')]),
@@ -1003,7 +1008,7 @@ const closedRows: readonly ConstructContract[] = [
 
 export const unoContract: UnoContract = {
   contractId: 'uno-arduino-avr',
-  version: '0.1.1',
+  version: '0.1.2',
   status: 'v0 (R0.3): every open row is established; L1 waits for R1/R2, L3 for M06.',
   snapshot: {
     pinnedOn: day,

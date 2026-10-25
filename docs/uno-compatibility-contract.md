@@ -1,6 +1,6 @@
 # UNO Compatibility Contract
 
-> **Version:** 0.1.1 (v0) · **Date:** 2026-10-25 · **Task:** N18 R0.3 · **Status:** v0: mọi construct được mở đã có evidence cho mọi field; L1 chờ R1/R2, L3 chờ M06.
+> **Version:** 0.1.2 (v0) · **Date:** 2026-10-25 · **Task:** N18 R0.3 · **Status:** v0: mọi construct được mở đã có evidence cho mọi field; L1 chờ R1/R2, L3 chờ M06.
 > **Target snapshot (pin):** `arduino-cli 1.5.1`, FQBN `arduino:avr:uno`, core `arduino:avr@1.8.8` (2026-05-21), avr-gcc `7.3.0-atmel3.6.1-arduino7`, library `Servo 1.3.0` (2025-11-06, LGPL-2.1), emulator `avr8js@0.21.1` (2026-08-31, MIT). MCU giả định **ATmega328P, 16 MHz**. **Board chính xác: UNKNOWN** (§1).
 > **Evidence:** spike R0.4 `spikes/avr8js/` (số liệu `spikes/avr8js/out/results.json`), ADR `docs/adr/0003-avr8js-parity.md`, ledger §14. **Bản máy đọc được:** `src/core/compat/uno-contract.ts` (§15).
 > **Quan hệ tài liệu:** spec `docs/uno-robot-direction.md`, plan `docs/robot-3d-implementation-plan.md` (R0.3, R0.4; §4.1 board, §4.2 kit, §4.3 driver, §4.4 IR). Kỷ luật evidence theo `docs/yolobit-compatibility-contract.md` (§0, §15, §21). Từ R1, tài liệu này là **source of truth** cho hành vi của mọi block robot trong simulator và trong C++ Arduino sinh ra (C1, C2, R1, R2).
@@ -147,7 +147,7 @@ Placeholder `<…>` như dạng Python của contract Yolo:Bit; `<ROLE>_PIN` là
 | U-30 | `(digitalRead(<ROLE>_PIN) == LOW)` | — | `pinMode(<ROLE>_PIN, INPUT_PULLUP);` |
 | U-31 | `digitalWrite(<pin>, (<v>) ? HIGH : LOW);` | — | `pinMode(<pin>, OUTPUT);` |
 | U-32 | `pwmWrite(<pin>, <value>);` | pwm-write | — |
-| U-33 | `(digitalRead(<pin>) == HIGH)` | — | — |
+| U-33 | `(digitalRead(<pin>) == HIGH)` | — | `pinMode(<pin>, <mode>);` (`<mode>` của driver module nối vào chân: nút `INPUT_PULLUP`, line/echo `INPUT`) |
 | U-34 | `(long)analogRead(<pin>)` | — | — |
 
 ---
@@ -434,7 +434,7 @@ Stack thực tế (đệ quy, biến cục bộ) không đo tĩnh được: v0 k
 |---|---|---|
 | U-31 `digital.write` | `digitalWrite(<pin>, (<v>) ? HIGH : LOW);` + `pinMode(OUTPUT)` | chân kit để trống, không D0/D1 khi có in; ngược lại `pin-unavailable` |
 | U-32 `pwm.write` | `pwmWrite(<pin>, <value>);` (helper kẹp 0…255) | như trên; chân PWM trên timer bị chiếm → `timer-claimed`; chân không PWM → ngưỡng 128 + `not-pwm` |
-| U-33 `digital.read` | `(digitalRead(<pin>) == HIGH)` | chỉ chân kit nối vào module đầu vào (nút, line, echo). Chân thả nổi đọc ngẫu nhiên trên board (ARD-06) → `pin-unavailable`; chân output (nhất là PWM) cũng bị từ chối |
+| U-33 `digital.read` | `(digitalRead(<pin>) == HIGH)` + `pinMode(<pin>, <mode>)` của driver module trong setup | chỉ chân kit nối vào module đầu vào (nút, line, echo). Chân thả nổi đọc ngẫu nhiên trên board (ARD-06) → `pin-unavailable`; chân output (nhất là PWM) cũng bị từ chối. Chân luôn được `pinMode` như driver của module đặt (nút `INPUT_PULLUP`: nhả là HIGH, ARD-16), dù program có dùng op của module hay không |
 | U-34 `analogIn.read` | `(long)analogRead(<pin>)` | A0…A5, chỉ chân kit nối vào module analog |
 
 ```cpp
@@ -487,7 +487,7 @@ Ký hiệu §0.2. Cột field: `call import module unit range default clamp roun
 | U-30 | button pressed | B+A | V·C | – | – | – | – | D·A | – | – | V·E | – | V·E | – | – | – | – | ELIGIBLE | block, return |
 | U-31 | digital write (raw pin) | A | V·C | – | – | – | –ᴰ | – | – | – | V·E | – | – | – | – | – | V·E | RESTRICTED | block, content |
 | U-32 | PWM write 0..255 (raw pin) | A | V·C | – | – | D·A+V·E | V·E | – | V·E | – | V·E | V·E | – | –ᴰ | – | – | V·E | RESTRICTED | unit, range, clamp, block, yield, content |
-| U-33 | digital read (raw pin) | A | V·C | – | – | – | –ᴰ | – | – | – | V·E | – | V·E | – | – | – | – | RESTRICTED | block, return |
+| U-33 | digital read (raw pin) | A | V·C | – | – | – | –ᴰ | D·A+V·E | – | – | V·E | – | V·E | – | – | – | – | RESTRICTED | default, block, return |
 | U-34 | analog read 0..1023 (raw pin) | A | V·C | – | – | – | D·A | – | – | D·S | V·E | – | V·E | – | – | – | – | RESTRICTED | block, return |
 
 Ghi chú:
@@ -742,4 +742,5 @@ Tái lập toàn bộ EMU/CC: `node spikes/avr8js/run-all.mjs` (≈ 20 s; cần 
 |---|---|---|
 | 0.1.0 | 2026-10-25 | v0 (R0.3), từ evidence R0.4 |
 | 0.1.0 | 2026-10-25 | R1: ghi cách virtual UNO charge (§4.4) và các dòng L1 ≠ L2e của R1 (§13: không echo, echo quá timeout, timer bị chiếm lúc chạy). Không đổi ngữ nghĩa dòng nào, nên giữ version |
+| 0.1.2 | 2026-10-25 | R2.2 fix round 1: U-33 có dòng setup `pinMode(<pin>, <mode>);` với mode của driver module nối vào chân (nút `INPUT_PULLUP`), dù program không dùng op của module: nút nhả đọc HIGH như trên board (field `default`: ARD-16, EMU-13). Trước đó đọc thô chân nút mà không có khối nút thì chân là INPUT thả nổi |
 | 0.1.1 | 2026-10-25 | R1 fix round 1: sửa claim của U-48 và §5.3 (sau `noTone` hay khi tone tự hết, D3/D11 không có PWM tới khi `analogWrite` mới; EMU-05 gọi lại `analogWrite` nên không chứng minh PWM tự trở lại), thêm EMU-14 (`spikes/avr8js/run-tone-notone.mjs`) |

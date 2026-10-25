@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buzzerTone, compileRobot, kitWithout, motorSet, pwmWrite, servoSet } from '../program/__fixtures__/uno-blocks';
+import { buzzerTone, compileRobot, digitalRead, kitWithout, motorSet, pwmWrite, servoSet } from '../program/__fixtures__/uno-blocks';
 import { robot } from '../program/__fixtures__/uno-run';
-import { add, getVar, num, setVar, type Json } from '../program/__fixtures__/ybc-blocks';
+import { add, getVar, num, print, setVar, type Json } from '../program/__fixtures__/ybc-blocks';
 import type { Expr, YbcStatement } from '../program/ybc-ir';
 import { unoContract } from './uno-contract';
 
@@ -60,5 +60,21 @@ describe.each(cases)('$name', ({ low, high, block, slot, shown, kit, name }) => 
     expect(run.warnings.map((warning) => [warning.code, warning.blockId])).toEqual(outside ? [[clampCode?.id, 'b']] : []);
     const expected = name.startsWith('motor') ? duty(clampedOf(value)) : name.startsWith('tone ms') ? null : clampedOf(value);
     expect(shown(pin)).toBe(expected);
+  });
+});
+
+describe('U-33 digital read (raw pin): setup() gives a module-wired pin its driver’s pinMode (contract 0.1.2, fix round 1)', () => {
+  const u33 = unoContract.constructs.find((row) => row.id === 'U-33');
+
+  it('is the contract’s setup line, with the mode of the module’s driver', async () => {
+    expect(unoContract.version).toBe('0.1.2');
+    expect(u33?.cpp?.setup).toEqual(['pinMode(<pin>, <mode>);']);
+    expect(u33?.fields.default.label).toBe('VERIFIED');
+    // The button's driver (button-pullup) sets INPUT_PULLUP, as U-30's setup line says; the run does the same for a raw read alone.
+    const u30 = unoContract.constructs.find((row) => row.id === 'U-30');
+    expect(u30?.cpp?.setup).toEqual(['pinMode(<ROLE>_PIN, INPUT_PULLUP);']);
+    const { run, pin } = robot([print(digitalRead('D3'))]);
+    expect(pin('D3').mode).toBe('INPUT_PULLUP');
+    expect(await run.runUntilDone(5)).not.toBeNull();
   });
 });

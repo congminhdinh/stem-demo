@@ -1,5 +1,6 @@
 import { boardPin, type BoardProfile } from '../board';
 import { kitModule, kitPort, type DriverId, type Kit, type KitPort } from '../kit';
+import type { PinMode } from '../virtual-uno';
 import { buttonDriver } from './button';
 import { buzzerDriver } from './buzzer';
 import type { CppLibrary, Driver, DriverOp } from './driver';
@@ -71,6 +72,45 @@ export function roleOps(kit: Kit, board: BoardProfile, role: string): string[] {
 /** Every op of every module of the kit (and the drive): what a program that used everything would set up. */
 export function allUses(kit: Kit, board: BoardProfile): ModuleUse[] {
   return [...kit.modules.map((module) => module.role), DRIVE_ROLE].flatMap((role) => roleOps(kit, board, role).map((op) => ({ role, op })));
+}
+
+/**
+ * N18 R2.2 fix round 1: the pinMode the kit's driver gives a board pin in setup(), from the first setup step of the port's ops that
+ * names it (the button's INPUT_PULLUP, a line sensor's or the echo's INPUT); undefined for a pin no port sets up. A raw read of a
+ * module-wired pin (contract UNO U-33) needs it, whether or not the program uses the module's op.
+ */
+export function driverPinMode(kit: Kit, pin: string): PinMode | undefined {
+  for (const port of kit.ports) {
+    const name = Object.entries(port.pins).find(([, boardPin]) => boardPin === pin)?.[0];
+    if (name === undefined) {
+      continue;
+    }
+    for (const op of Object.values(drivers[port.driver].ops)) {
+      for (const step of op.setup) {
+        if (step.kind === 'pinMode' && step.pin === name) {
+          return step.mode;
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+/** N18 R2.2 fix round 1: the board pins the setup steps of `uses` set (a pinMode, a servo attach). */
+export function setupPinsOf(kit: Kit, uses: readonly ModuleUse[]): Set<string> {
+  const pins = new Set<string>();
+  for (const use of moduleUses(uses)) {
+    const module = kitModule(kit, use.role);
+    const port = module ? kitPort(kit, module.port) : undefined;
+    const op = port ? drivers[port.driver].ops[use.op] : undefined;
+    for (const step of op?.setup ?? []) {
+      const pin = port?.pins[step.pin];
+      if (pin !== undefined) {
+        pins.add(pin);
+      }
+    }
+  }
+  return pins;
 }
 
 /** A drive op stands for `motor.set` of both motors; the rest as they are. */

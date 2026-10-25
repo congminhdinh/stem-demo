@@ -2,8 +2,8 @@ import type { ProjectDocument } from '../circuit/document';
 import type { DeviceRegistry } from '../devices/registry';
 import { boardPin, type BoardProfile } from '../hardware/board';
 import { kitBoardContext, kitBoardTarget, type KitBoardTarget } from '../hardware/board-target';
-import { kitRefOf, type KitCatalog } from '../hardware/catalog';
-import { kitKey, type Kit } from '../hardware/kit';
+import { kitRefOf, unknownKitMessage, type KitCatalog } from '../hardware/catalog';
+import type { Kit } from '../hardware/kit';
 import { checkKit, type HardwareDiagnostic, type KitUsage } from '../hardware/pin-rules';
 import { resolveBoardContext } from '../profiles/board-context';
 import type { ProfileCatalog } from '../profiles/profile';
@@ -27,23 +27,26 @@ export type UnoProjectRules = {
   kits: KitCatalog;
 };
 
+/** Fix round 1: a kit the catalog does not know, as L-1 names it (`unknown-kit`, persistence/project-repository.ts). */
+export type KitLayerDiagnostic = { layer: 'L-1'; severity: 'error'; code: 'unknown-kit'; message: string };
+
 export type UnoCompileResult =
   | { ok: true; ir: YbcProgramIR; diagnostics: YbcDiagnostic[]; kit: Kit; board: BoardProfile; uses: UnoProgramUses }
-  /** The board is not ready or a block is not of the profile (L-2, L-3): the program was not compiled. */
-  | { ok: false; reason: 'layer'; diagnostics: LayerDiagnostic[] }
+  /** The kit is unknown (L-1), the board is not ready or a block is not of the profile (L-2, L-3): the program was not compiled. */
+  | { ok: false; reason: 'layer'; diagnostics: (LayerDiagnostic | KitLayerDiagnostic)[] }
   | { ok: false; reason: 'compile'; diagnostics: YbcDiagnostic[] };
 
 /**
- * Compiles a project of the uno family. Throws for a project of another family and for a kit the catalog does not know: such a
- * document did not pass L-1 (persistence/project-repository.ts `inspectStoredProject`), so it is a programmer error, like
- * `resolveBoardContext` for an unknown profile.
+ * Compiles a project of the uno family. A kit the catalog does not know is the L-1 diagnostic `unknown-kit`, never a throw (such
+ * a document does not pass `inspectStoredProject`, but a caller may not have asked). Throws only for a project of another family,
+ * a programmer error, like `resolveBoardContext` for an unknown profile.
  */
 export function compileUnoProject(project: ProjectDocument, rules: UnoProjectRules): UnoCompileResult {
   const ref = kitRefOf(project);
   const kit = rules.kits.get(ref);
   const board = rules.kits.boardOf(ref);
   if (!kit || !board) {
-    throw new Error(`Unknown kit ${kitKey(ref)}: a project with it does not pass L-1`);
+    return { ok: false, reason: 'layer', diagnostics: [{ layer: 'L-1', severity: 'error', code: 'unknown-kit', message: unknownKitMessage(ref) }] };
   }
   const resolved = resolveBoardContext(project, rules.registry, rules.profiles);
   if (resolved.family !== 'uno') {
@@ -62,7 +65,7 @@ export function compileUnoProject(project: ProjectDocument, rules: UnoProjectRul
   if (!compiled.ok) {
     return { ok: false, reason: 'compile', diagnostics: compiled.diagnostics };
   }
-  const { uses, blocks } = unoUsesAndBlocks(compiled.ir);
+  const { uses, blocks } = unoUsesAndBlocks(compiled.ir, kit);
   const kitDiagnostics = checkKit(kit, board, uses.usage).map((diagnostic) => onFirstUse(diagnostic, board, uses.usage, blocks));
   const diagnostics = [...compiled.diagnostics, ...kitDiagnostics];
   if (kitDiagnostics.some((diagnostic) => diagnostic.severity === 'error')) {

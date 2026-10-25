@@ -1,8 +1,7 @@
 import { createNewProject, projectDocumentSchema, type Circuit, type ProjectDocument } from '../circuit/document';
 import { connectWire } from '../circuit/wires';
 import type { DeviceRegistry } from '../devices/registry';
-import { productionKits, type KitCatalog } from '../hardware/catalog';
-import { kitKey } from '../hardware/kit';
+import { productionKits, unknownKitMessage, type KitCatalog } from '../hardware/catalog';
 import { productionProfiles } from '../profiles';
 import type { ProfileCatalog } from '../profiles/profile';
 
@@ -68,7 +67,7 @@ export function inspectStoredProject(
     return fail('unknown-profile', `"${document.profile}" is not a known profile.`);
   }
   if (document.kit !== undefined && !kits.get(document.kit)) {
-    return fail('unknown-kit', `The robot kit "${kitKey(document.kit)}" is not one this app knows.`);
+    return fail('unknown-kit', unknownKitMessage(document.kit));
   }
   const circuit = checkCircuit(document.circuit, registry);
   if (circuit) {
