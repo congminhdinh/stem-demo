@@ -484,3 +484,41 @@ R4.2 vẽ hình thủ tục (plan D-R7: "procedural geometry first, home-made GL
      GPU tier cao 4×: 1 980–2 000 so với master 1 351–1 354. FPS vẫn đạt (GPU p5 ≥ 52,4 ở cả hai tier; SwiftShader tier thấp 4× p5 51,5–54,3).
    - Bundle `RobotLab-*.js` 368,3 kB gzip (+43,1 kB so với master 1211347).
 
+10. **P2 (2026-10-26): hiệu năng, cùng hình.** Engine, look và tính năng không đổi (phán quyết của chủ dự án: "vẫn giữ đồ hoạ hiện tại và
+    tính năng hiện tại"); 36 ảnh canvas của bản cuối so với `16407b8`: 36/36 trùng từng bit. Bổ sung bảng tier của mục 4:
+
+| Thiết lập | Tier cao | Tier thấp |
+|---|---|---|
+| Shadow map | PCF 2048², **vẽ lại chỉ khi** robot, bánh, servo hay vật động dịch quá 1 pixel, hoặc nội dung cảnh đổi (`shadow-watch.ts`) | không có |
+| Normal map sợi giấy | có (pixel tạo một lần mỗi trang) | **không tạo** |
+| Canvas roughness của mat | có | **không vẽ** (Lambert không đọc) |
+| Theo dõi khung | median > 33 ms trong 3 s chạy → xuống tier thấp, một lần (R4.7) | **một chiều:** median > 28 ms → vẽ tối đa 30 hình/giây (`drawDue`, mô phỏng không đổi); vẫn > 50 ms → **mời** bản đồ 2D, không ép |
+| Draw bóng mỗi khung khi chỉ camera di chuyển (kéo quanh robot đứng yên) | **0** (trước 51) | không có bóng |
+
+    - **Đo** (`pnpm bench:robot3d`, harness của P2: bản production trong khung bài học, M4 Pro, Chromium 153; trước/sau xen kẽ từng
+      vòng, 3 vòng; load 1 phút ghi trong từng ô; `spikes/p2-perf3d/results/phase-b/`):
+
+| Mục tiêu P2 (school PC: SwiftShader, tier thấp, CPU 6×, trừ khi ghi khác) | master `16407b8` | bản cuối | |
+|---|---|---|---|
+| p95 khung ≤ 33 ms khi chạy ở 1× (mọi ô chạy) | 18,7–23,2 ms | 18,6–20,2 ms | đạt |
+| p95 khung ≤ 33 ms ở 4× | Kiểm tra 4× 23,8–25,2; mô phỏng 4× 20,1–47,7 ms | 20,8–22,1; 19,6–20,9 ms | đạt |
+| không long task > 100 ms trong lượt chạy | Kiểm tra 4×: 1 (327–339 ms) và 19–21 task 50–100 ms | **0**, không task nào từ 50 ms | đạt |
+| frame đầu ≤ 2,5 s (ấm) | 2 353–2 762 ms | 2 482–2 870 ms | **chưa đạt, sàn như master** |
+| heap tăng ≤ 5 % trong 10 phút | P2 Phase A: −2,2 / +0,2 / −1,8 % | −2,4 / −2,7 / −2,4 %, không long task > 100 ms trong 30 phút | đạt |
+| không tăng tài nguyên GPU sau 20 lần đổi (gpu-high) | 0 | 0 context, geometry, texture, program; 0 listener (trước +19 và +18) | đạt |
+| GPU tier cao p95 ≤ 20 ms | 17,9–18,5 ms | 17,7–18,3 ms | đạt |
+| Chạy lần đầu → robot chạy | school 389–460, ss-low-4x 267–309, GPU 71–87 ms | 78–127, 51–55, 13–26 ms | |
+
+      Load 4,6–13,5 (agent khác cùng máy), vòng lặp CPU 96–105 ms ở mọi ô school. Frame đầu: P2 không đổi nó (hai khoảng chồng lên
+      nhau); trong đó có script của entry, Blockly và zod, tải và parse GLB (0,25–0,33 s), dựng cảnh, và lần vẽ cảnh đầu chờ link
+      shader 350 ms. Xuống dưới 2,5 s mọi lần cần ít program hơn hay ít thứ phải dựng hơn (đổi hình, phán quyết không cho) hoặc nạp Blockly
+      muộn hơn (đổi thứ tự khởi động lab); không thuộc P2.
+
+    - **Chuỗi tier thấp**, ngưỡng đo trên máy bận (`spikes/p2-perf3d/busy.mjs` chiếm 0, 8, 10 trong 12 nhân, profile school): M4 rảnh
+      16,7 ms một khung, còn 4 nhân 23,1–23,5 ms (43 fps) thì không động; còn 2 nhân 31–32 ms thì giới hạn còn 29–30 fps, CPU của GPU
+      process 84–88 → 46–48 ms một khung, renderer 33–35 → 19–20 ms. Khi giới hạn, p95 khung là 35–36 ms do chính giới hạn (33,3 ms):
+      mục tiêu 33 ms không đạt được ở đó. Đã kiểm tra đầu cuối: giới hạn sau 3,3 s chạy khi còn 2 nhân, lời mời 2D khi gần như không còn
+      nhân, chọn 2D thì lượt chạy tiếp tục trên bản đồ.
+    - **Hai việc chậm còn lại khi không có GPU:** (a) lần vẽ đầu của nhãn zone (144–154 ms ở 6×) là `onFirstUse` của program của nhãn chờ
+      GPU process (SwiftShader không có `KHR_parallel_shader_compile`), một lần mỗi canvas, trước lượt chạy; (b) trình duyệt mới mở cần
+      thêm khoảng 1,3 s trước khi có WebGL renderer (main thread rảnh suốt lúc đó: GPU process đang khởi động), không phải việc của app.

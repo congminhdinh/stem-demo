@@ -691,6 +691,42 @@ Mỗi task ghi **Files**, **Interfaces**, **Tests** (tên + assertion chính), *
 - **Test:** `sensor-overlay-math.test.ts`, `overlay-geometry.test.ts` (đỉnh của tia tới khoảng cách nghe được, bề dày không đổi ở 20 cm và 2 m, mọi tam giác quay ra ngoài hoặc lên trên), `parts/sensor-overlay.test.ts` (đầu mút tia **đọc từ chính các đỉnh đang vẽ**, đối chiếu **oracle** `__fixtures__/ray-oracle.ts` cho xe xoay và nghiêng; nhịp và dừng của nhãn; không echo; quầng chấm; zone; ma trận pose của overlay bằng ma trận `writePose`; bốn draw call, một program, `depthTest` bật; dispose), `tests/robot-sensor-overlay-oracle.test.ts` (**oracle bằng đúng năm hướng tia của core** `ultrasonicRayDirections`, qua đổi hệ trục Rapier → sa bàn), `sensor-overlay.allocation.test.ts`, `zone-highlight.test.ts`, `sensor-label-boxes.test.ts`, `TopViewSensors.test.tsx`, `SensorToggle.test.tsx`, `robot-tools-store.sensors.test.ts`; e2e `robot-lab-sensors.spec.ts` (13 test, SwiftShader, 1100 × 640): tia và nhãn ở stop-at-wall khớp số đọc, **điểm ảnh xanh của tia xuất hiện cạnh robot rồi mất khi tắt**, nút, Kiểm tra 1×/4× và Xem lại, nhịp và reduced motion, **lượt chạy còn tiếp tục khi robot đứng yên không vẽ khung**, **không biên dịch program mới sau khi cảnh dựng xong**, vùng bấm 44 px, tier đẹp, chấm line-follow, bản đồ 2D.
 - **Đo FPS** (`spikes/r47-visual/measure-fps.mjs`, bản production, SwiftShader, tier nhẹ, line-follow ở 1×, Apple M4 Pro, Chromium headless shell; 3 × 8 s mỗi ô; `results/r43-*.json` có `loadavg1m` và `cpuBenchMs` của từng lần; **load của máy do agent khác tạo nên 4 đến 20 và `cpuBenchMs` ở 4× lúc 65 lúc 100**). Tất cả các lần chạy đều ghi trong `r43-report.md`, kể cả những lần xấu: **bản thiết kế ngày 2026-10-25 (53 draw, `0041c42`) có 3 trong 18 lần chạy ở 4× dưới 30 fps p5 (23,1, 19,0, 29,2, cả ba trong `r43-final-swiftshader.json`, load 13–16, `cpuBenchMs` 101–104) và 1 trong 9 lần ở 1× (22,4)**; báo cáo đầu đã bỏ sót ô đó. Bản này (48 draw), xen kẽ tắt/bật, ở 4× trên máy `cpuBenchMs` 64–71: bật p5 54,6–55,6 (trung bình 55,0), tắt 54,1–55,6 (55,1), 9 lần mỗi bên; thêm một lượt 1× và 4× (p5 bật 54,1–57,1, tắt 54,3–57,1, một lần tắt 45); ở 6× (`cpuBenchMs` 96–100, tức trạng thái chậm của các lần đo cũ): tắt p5 51,0–53,5, bản cũ bật 52,1–53,2, bản này bật 50,8–53,2. Nên p5 ≥ 30 ở mọi lần chạy của bản này và bật so với tắt chênh dưới 3 fps; nhưng **trong cùng điều kiện bản cũ cũng đạt**, nên phép đo này **không chứng minh** thiết kế mới nhanh hơn, chỉ chứng minh nó không chậm; cái đo được chắc chắn là số draw (53 → 48 và phần overlay 9 → 4) và bỏ mặt nón ở tier nhẹ. Các lần xấu của bản cũ xảy ra lúc máy bận và có lẽ do tranh chấp lõi của bộ rasterizer phần mềm (`cpuBenchMs` chỉ đo luồng chính). Cỡ chunk `RobotLab` (gzip -6): 368,3 kB (master) → **376,6 kB** (+8,3 kB).
 
+*Bổ sung P2 (hiệu năng 3D, 2026-10-26; nhánh `n18/p2-perf3d` trên master `16407b8`; audit và số đo đầy đủ:
+`spikes/p2-perf3d/p2-audit.md` §9).* Chủ dự án: "tối ưu đi nhưng phải nhớ vẫn giữ đồ hoạ hiện tại và tính năng hiện tại". Mọi thay đổi dưới
+đây giữ nguyên hình của cả hai tier (36 ảnh canvas, 6 pilot × cao/thấp và các chế độ camera, so pixel với `16407b8`: 36/36 trùng từng bit) và mọi
+tính năng; e2e không sửa spec nào.
+- **Harness:** `pnpm bench:robot3d` (`scripts/bench-robot3d.mjs`, `scripts/lib/robot3d-probe.js`, `scripts/lib/profile-attribution.mjs`):
+  bản production trong khung bài học 1100 × 640, các profile `gpu-high`, `ss-low-4x`, `school` (SwiftShader, CPU 6×), `*-sim4x`; pass
+  fps (frame, long task, CPU của từng process) và pass profile (CPU và cấp phát theo nguồn qua source map); load 1 phút ghi trong từng ô.
+  Spike của P2 trong `spikes/p2-perf3d/` (A/B xen kẽ `phase-b-ab.sh`, ảnh `shots.mjs`/`shots-diff.mjs`, máy bận `busy.mjs`).
+- **Free view** (`camera-studio.ts`): phép thử "vừa khung" cùng số học nhưng không tạo mảng (140 pose golden khớp tới chữ số cuối), pose
+  giữ theo scene và vùng trống (16 mỗi scene). Vẫn khung lại khi HUD đổi cao như trước, kể cả giữa lượt chạy.
+- **Rapier** nạp và chạy nóng (một world nháp 30 tick) lúc rảnh, khi view đã lên và lab đã được dùng (bấm, phím, hay `load-project` của
+  host); lab chỉ mở ra thì không tải. Chạy lần đầu → robot chạy trên school 363–380 → 70–73 ms.
+- **OrbitControls** của camera bỏ listener `keydown` khỏi document khi view 3D đi (`rig-controls.ts`).
+- **Chuỗi tier thấp khi không có GPU** (`frame-watch.ts` `createLowTierWatch`, chỉ tier thấp, một chiều): median khung của 3 s chạy
+  > 28 ms → vẽ tối đa 30 hình/giây (mô phỏng chạy theo đồng hồ riêng, hình không đổi), ghi chú "Đang vẽ 30 hình mỗi giây cho mượt hơn" 8 s
+  một lần; đã giới hạn mà median > 50 ms → **mời** bản đồ 2D ("3D chạy chậm trên máy này: bản đồ 2D mượt hơn." với Xem 2D / Giữ 3D), không
+  bao giờ tự chuyển, mời một lần mỗi lab; lựa chọn của người học thắng. Ngưỡng đo bằng `busy.mjs`: M4 rảnh 16,7 ms và còn 4 nhân 43 fps
+  thì không động; còn 2 nhân 31–32 fps thì giới hạn 30 fps với nửa CPU.
+- **Nhãn zone** sắp chỗ không tạo rác mỗi khung (6,5–15,6 → 0,6–4,0 KB/khung), cùng chỗ như trước. Hysteresis (thử chỗ cũ trước) đổi chỗ
+  một nhãn: giữ lại chờ quyết định (`spikes/p2-perf3d/results/phase-b/b4-hysteresis/`).
+- **Tier thấp** không tạo normal map sợi giấy và không vẽ canvas roughness của mat (không dùng).
+- **Bóng** (tier cao): shadow map chỉ vẽ lại khi vật đổ bóng di chuyển hoặc cảnh đổi (`shadow-watch.ts`); kéo camera quanh robot đứng
+  yên 51 → 0 draw bóng mỗi khung.
+- **Màu LED** dựng sẵn (không parse chuỗi mỗi khung).
+- **Build:** `pnpm build` nén sẵn `.glb`, `.wasm`, `.js`, `.css` thành `.gz` và `.br`; cách phục vụ trên VPS (nginx, Caddy) ở
+  `docs/lab-embed-contract.md` §4.1.
+- **Mục tiêu P2** (school PC: SwiftShader, tier thấp, CPU 6×; `16407b8` → bản cuối, 3 vòng xen kẽ): p95 khung khi chạy ở 1× 18,7–23,2 → 18,6–20,2 ms, ở 4× (Kiểm tra 4×) 23,8–25,2 → 20,8–22,1 ms (≤ 33: đạt); long task > 100 ms
+  trong lượt chạy 1 → **0** (không task nào từ 50 ms; trước có 19–21 ở Kiểm tra 4×); heap trong 10 phút −2,4 / −2,7 / −2,4 % (≤ 5 %:
+  đạt); 20 lần đổi 2D ↔ 3D và đổi tier: tài nguyên GPU 0, listener 0 (đạt); GPU tier cao p95 17,9–18,5 → 17,7–18,3 ms (≤ 20: đạt);
+  frame đầu ấm 2 353–2 762 → 2 482–2 870 ms (≤ 2,5 s: **chưa đạt, sàn như master**: Blockly và zod lúc khởi động, parse GLB, lần vẽ
+  đầu chờ link shader 350 ms; xuống nữa phải đổi hình hoặc thứ tự khởi động lab). Trình duyệt mới mở thêm khoảng 1,3 s trước khi có
+  WebGL renderer (GPU process khởi động; không phải việc của app).
+- **Còn mở:** máy trường thật (có GPU chạy được hay SwiftShader); hysteresis của nhãn (chờ quyết định); heap tăng khoảng 4 MB sau 20
+  lần đổi 2D ↔ 3D mà không phải do listener (tăng chậm dần, soak phẳng: giống cache hơn là rò); free view vẫn cấp phát khi khung lại
+  theo bề rộng HUD (khoảng 27 KB/khung trung bình ở mini-mission, không long task).
+
 ### R5 — Sa bàn và kịch bản pilot (62h)
 
 **R5.1 Scenario schema + loader (12h).** `src/core/scenario/{scenario.ts,scenario-schema.ts,variants.ts}`. `variantOffsets(scenario, index): VariantOffsets` (seeded). Tests: `variant 0 is exact start`; `variants differ and stay inside arena`; `inputs are applied at atS in every mode`.

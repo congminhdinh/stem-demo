@@ -1,4 +1,6 @@
-# P2 Phase A: performance audit of the 3D robot lab (N18)
+# P2: performance audit of the 3D robot lab (N18), Phase A and Phase B
+
+**Phase B (2026-10-26), what changed and the targets measured: §9.** Phase A follows as it was written, corrected in §9.5.
 
 The owner asked: "hãy chắc chắn rằng các tính năng 3d phải optimize về hiệu năng nhé" (make sure the 3D features are optimised for
 performance). The lab must also stay as beautiful as R4.7 made it. Phase A measures and audits, and changes no product code. Phase B
@@ -879,4 +881,152 @@ node spikes/p2-perf3d/listener-leak.mjs                                         
 zsh spikes/p2-perf3d/ab-run.sh                                                      # the A/B variants against the base (§4)
 zsh spikes/p2-perf3d/master-ab.sh                                                   # master: overlays on/off, pre-R4.7 first frame, soak
 node spikes/p2-perf3d/loading-trace.mjs --profile=school --template=rb-mini-mission --check  # the long tasks of a traced 4x check
+```
+
+## 9. Phase B (2026-10-26): what changed, measured
+
+Branch `n18/p2-perf3d` on master `16407b8`, worktree `sd-p2-perf3d`. Eleven commits after the audit's: `5680ab2` (#1), `dd4c309` (#1b),
+`aff9dbc` (#2), `af79b0f` (#1 again, the owner's ruling), `f2ff258` (#3), `919c644` (#4), `844e9ce` (#5), `9e8b1a6` (#6), `3ff2106`
+(#7), `7661d33` (#8), `2af730f` (#3: the 30 fps note shown, not said). Every number below is a range over 3 rounds, before and
+after interleaved round by round on the same base (`spikes/p2-perf3d/phase-b-ab.sh`), the 1-minute load average beside it; the results are in `spikes/p2-perf3d/results/phase-b/<item>/`
+(`summary.md` in each, made by `ab-summary.mjs`).
+
+### 9.1 The owner's ruling, and the guards
+
+- **Ruling** (mid-way, through the coordinator): "tối ưu đi nhưng phải nhớ vẫn giữ đồ hoạ hiện tại và tính năng hiện tại". Both tiers
+  look the same; a visible change is a regression unless brought first with pictures; the no-GPU chain is dormant where frames keep
+  up, its cap lowers no visual setting and the 2D map is only offered; no feature changes behaviour; every e2e spec passes
+  unchanged.
+- **What it changed in Phase B.**
+  - #1's hold of the free view's framing during a run (committed in `5680ab2`) moved the camera in the step pictures of three
+    pilots (13–27 % of their pixels): taken out in `af79b0f`. The free view reframes for a new HUD height as master does; only
+    the cheap search and the kept poses stay.
+  - #4's hysteresis (the R4.7 review's "try the last spot first") moves a tag in mini-mission's step pictures: held back, not
+    in `src/`. Evidence for the coordinator in `results/phase-b/b4-hysteresis/` (spot changes 1.4 → 1.0 a second; picture
+    `tag-spot-before-after.png`); it is `ab-patches.py tag-hysteresis`.
+  - #1b had changed the comment of `e2e/robot-bundle.spec.ts`: back to master's text in `af79b0f`.
+- **Pixels** (`spikes/p2-perf3d/shots.mjs` and `shots-diff.mjs`): 36 pictures of the production build's canvas, 6 pilots × high/low
+  after load, after 15 Bước, and for three pilots in "Theo xe" and "Nhìn từ trên"; Chromium new headless on the GPU, 1200 × 760,
+  DPR 1, reduced motion. A pixel counts as changed when a channel differs by more than 8 of 255.
+  - Noise floor: two sets of 16407b8 are bit-identical, except servo-gate high's 3 pixels of the gate's 1 px rail (largest
+    difference 56), which flip between runs of one build (1 in 4 runs of 16407b8; it is no change of #1's, as `5680ab2`'s message
+    first said).
+  - The final build against 16407b8: all 36 bit-identical, the largest difference 0 in every picture (`results/phase-b/final/shots-diff.txt`).
+- **Determinism:** `tests/robot-determinism.test.ts`, the program-run golden, the pilot checks and the parity tests pass unchanged
+  in `pnpm verify` (395 files, 9 089 tests passed, 1 skipped); the e2e determinism spec on Firefox and WebKit passes.
+- **e2e:** no spec was changed. The full suite on this branch: 311 of 312 passed twice and 310 of 312 once, under load 11–18 from
+  other agents (`results/phase-b/final/e2e-head-full-*.txt`).
+  - `robot-lab-a11y.spec.ts`'s contrast test (its 4× run must pass t = 2 s within 5 s, on the high tier over SwiftShader) failed in
+    each; it fails the same on master 16407b8 in the same suite and load (`e2e-16407b8-full.txt`), passes alone three times in a row,
+    and the robot project alone passes 63 of 63 on both (`e2e-*-robot-project.txt`).
+  - In the third run the load slowed SwiftShader enough for the chain to cap a Kiểm tra, and the same spec's count of the polite
+    region's words met the 30 fps note: since `2af730f` the note is shown and not said (only the offer, which asks for an answer).
+  - With the cap forced on the low tier (`results/phase-b/b3-busy/e2e-cap-forced.txt`): 309 passed; robot-lab-scene's "draws the
+    run in every frame" counts full-rate draws and fails by design (0.49–0.5 of them); the two others were fixed or load (§9.2, #3).
+- **No new dependency**; `pnpm-lock.yaml` untouched.
+
+### 9.2 Each item
+
+| # | commit | what | before → after (interleaved, 3 rounds) | pixels |
+|---|---|---|---|---|
+| 1 | `5680ab2`, `af79b0f` | the free view's fit test with the same arithmetic (140 golden poses equal to the last digit), poses kept per scene and safe rect (16 a scene) | school Kiểm tra 4×: long tasks ≥ 50 ms 17–20 → 1 (the last is #1b's), their time 1 152–1 357 → 313–338 ms, p99 74–78 → 45–52 ms; mini-mission's 53 ms task gone (`b1`, load 1.2–6.1). After `af79b0f` (reframing mid-run as master; #1b in both builds): long tasks 0, animation-frame p99 16.8 ms (`b1fix`) | all 36 equal |
+| 1b | `dd4c309` | Rapier loaded and warmed at idle once the lab is used (a press, a key, the host's load-project), after the view is up | first Run → moving school 363–380 → 70–73 ms, GPU 81–89 → 24–25 ms; school Kiểm tra 4× long tasks 1 (308–326 ms) → 0 (`b1b`, load 2.1–6.1). The warm-up is one task of 312–393 ms at 6× right after the load-project (Rapier's wasm 219–293 of it): the same cost, at an idle moment. A lab only opened loads no Rapier | equal |
+| 2 | `aff9dbc` | OrbitControls' keydown listener removed from the root it was added to | listeners after 20 × 2D ↔ 3D +19 → 0, after 20 tier switches +18 → 0; GPU resources 0 growth (`b2`) | equal |
+| 3 | `f2ff258` | the low tier's chain: 30 fps cap, then the 2D map offered | thresholds from `b3-busy` (busy.mjs): a free M4 16.7 ms a frame and 4 cores left 23.1–23.5 ms (43 fps) stay dormant; 2 cores left 31–32 ms → capped at 29–30 fps, the same rate at half the CPU (GPU process 84–88 → 46–48 ms a frame, renderer 33–35 → 19–20). The final build end to end (`b3-chain.txt`): no step at 0 and 8 busy threads, the cap at 3.3 s with 10, 11 and 16, the offer once with 16, taken, the run going on in the 2D map | equal (dormant) |
+| 4 | `919c644` | the tags' layout without garbage, skipped when nothing it reads moved | the tags' allocation a frame: school line-follow 6.5–7.0 → 0.6–0.7 KB, mini-mission 15.0–15.6 → 3.6–4.0, GPU 6.7–7.0 → 0.7–0.8; the same spots (1.4 changes/s) (`b4-profile`, `b4-fps`) | equal |
+| 5 | `844e9ce` | no fibre normal map and no mat roughness canvas on the low tier; the two slow tasks traced | a 34 ms task (fbm, 21 ms) gone from the school trace; the first frame inside its spread (`b5`) | equal |
+| 6 | `9e8b1a6` | the shadow map drawn only when a caster moved or the scene changed | shadow-pass draws a frame while the camera moves over a resting robot 51 → 0; LED frames skip it (servo-gate 53.0 → 52.3 a frame); moving runs 51 as before (`b6`) | equal (high tier, every camera mode) |
+| 7 | `3ff2106` | the robot's LED and lamp colours from Colors parsed once | under the profiler's resolution (< 0.5 KB a frame before and after) (`b7`) | equal |
+| 8 | `7661d33` | `.gz` and `.br` beside each `.glb`, `.wasm`, `.js`, `.css`; the hosting section | GLB 1 777 → 778 (gzip) / 667 kB (brotli); wasm 3 033 → 1 152 / 835 kB; JS 3 490 → 969 / 793 kB | — |
+
+### 9.3 The targets: master 16407b8 against the final build
+
+`spikes/p2-perf3d/final-run.sh` (`results/phase-b/final/`): both builds interleaved, 3 rounds, every run scenario of the school,
+school-sim4x, ss-low-4x and gpu-high profiles; then the final build's soak (school, 10 min) and switches (gpu-high), 3 each.
+
+School PC profile (SwiftShader, the low tier, CPU 6×) unless noted; load 4.6–13.5 over the run (other agents' work), CPU loop
+96–105 ms in every school cell.
+
+| target | 16407b8 | final | verdict |
+|---|---|---|---|
+| p95 frame ≤ 33 ms running at 1× (every run cell) | 18.7–23.2 ms (the idle cell's drag 18.5–29.9) | 18.6–20.2 ms | met |
+| p95 frame ≤ 33 ms at 4× | Kiểm tra 4× 23.8–25.2, sim 4× 20.1–47.7 ms | 20.8–22.1, 19.6–20.9 ms | met |
+| no long task over 100 ms in a run | Kiểm tra 4×: 1 (327–339 ms) and 19–21 more of 50–100 ms; Kiểm tra 1× and mini-mission 1–2 of 52–69 ms; sim 4× mini-mission 3 of 55–59 ms | **0**, none of 50 ms or more in any run cell | met |
+| first frame ≤ 2.5 s, warm (every cell but the browser's first) | 2 353–2 762 ms | 2 482–2 870 ms (round 1 2 767–2 870, rounds 2–3 2 482–2 762) | **not met; the same floor as master** (below) |
+| heap growth ≤ 5 % over 10 min (school soak) | Phase A on master: −2.2 / +0.2 / −1.8 % | −2.4 / −2.7 / −2.4 %; 0 long tasks over 100 ms in its 30 minutes; each minute's p95 ≤ 20.2 ms | met |
+| no GPU-resource growth over 20 switches (gpu-high) | 0 | 0 contexts, geometries, textures, programs after 20 × 2D ↔ 3D and 20 tier switches, 3 runs; listeners 0; heap +4.02–4.05 MB and +1.45–1.46 MB | met |
+| GPU high p95 ≤ 20 ms | 17.9–18.5 ms | 17.7–18.3 ms | met |
+
+Beside them: first Run → moving school 389–460 → 78–127 ms, ss-low-4x 267–309 → 51–55 ms, GPU 71–87 → 13–26 ms (#1b); GPU high
+59.9–60.2 fps median in every cell, before and after.
+
+**The first frame's floor.** P2 did not move the warm first frame (2.35–2.76 s on master, 2.48–2.87 s here, the ranges overlapping;
+#5b's 30 ms is inside them). On the school trace (`results/phase-b/b5/loading-trace-school-warm.txt`) it is: the entry's scripts,
+Blockly and zod (183, 66, 182 ms tasks), the lab chunk at 0.45–0.61 s, the GLBs fetched and parsed (0.25–0.33 s of parse), the
+renderer at 1.08–1.48 s, assembly (61 + 39 ms), the compile, and the first scene render's 350 ms waiting on the shader links
+(`onFirstUse`). Under 2.5 s every time needs fewer programs or less to assemble (the look, which the ruling keeps) or Blockly later
+(another order of the lab's start, a behaviour); neither is P2's to change. The browser's first cell adds about 1.3 s (§9.4).
+
+### 9.4 The two slow tasks the audit could not explain (#5c)
+
+- **The 144–154 ms task one frame after the first** (196–242 ms in Phase A): three's `onFirstUse` of the zones' tags' programs at their
+  first draw (144 of the 154 ms, school trace `results/phase-b/b5/loading-trace-school-warm.txt`). Their links went with the
+  scene's (`compileAsync` with `compileWithScene`), so no program is added; the first draw's queries (diagnostics, uniform and
+  attribute locations) wait on the GPU process, which SwiftShader cannot overlap (no `KHR_parallel_shader_compile`). It happens once
+  a canvas, before any Run. Drawing the tags in the first frame would move it into the first frame: left as it is.
+- **The ~1.3 s more in a fresh browser** (`--cold`, `loading-trace-school-cold.txt`): the WebGL renderer is made at 2 276–2 282 ms
+  against 995–1 013 ms warm, on the lesson page's clock, while the lab's main thread runs no task over 30 ms from 0.93 to 2.25 s. The
+  wait is outside the page: the browser bringing up its GPU process for the first WebGL context. The programs' and the tags' first
+  uses then take 468–471 and 256–277 ms against 350 and 144 ms warm. Not the app's to cut. The bench's first cell in each browser
+  (idle) carries it: 3.8–3.9 s against 2.3–2.5 s for the next cells.
+- **#5a** (starting the links before the files are assembled) would need programs equal to the scene's before the scene exists (its
+  lights, fog, environment and shadows decide them): not done.
+
+### 9.5 Corrections to Phase A
+
+- **§0.4 / §3.6:** the 186–212 KB a mount was not the listener's. With the listener gone (#2) the heap after 20 × 2D ↔ 3D grows the
+  same (+4.04–4.08 → +4.00–4.01 MB, gpu-high; +3.66–3.69 → +3.56–3.60 MB, school; `b2`). It grows less with each switch (+0.87 MB
+  after the second, +0.06–0.13 MB after the 15th to 19th), and soaks are flat, so it reads as caches filling rather than a leak; no
+  heap snapshot was compared (§9.7).
+- **`5680ab2`'s message:** servo-gate high's 3 pixels are run-to-run noise (§9.1), not the camera's last bits.
+- **§3.2 "not reframing while a run goes on"** was a behaviour change; the ruling took it out (§9.1).
+
+### 9.6 The R4.3 and R4.7 carries
+
+- **Tag hysteresis** (R4.7 review): measured, held back (§9.1).
+- **Per-frame allocations in the tag layout** (R4.7 review): #4, 6.5–15.6 → 0.6–4.0 KB a frame.
+- **The overlays on a busy machine** (R4.3): `results/phase-b/b3-busy` ran the chain's build with the overlays on and off beside
+  `busy.mjs`. That build had the first threshold (20 ms), which capped the busy runs at 30 fps; the final 28 ms came from these
+  runs. GPU process a frame, on → off:
+  - free machine (60 fps): line-follow 98.5–103.3 → 93.6–95.4 ms, teleop 128.7–129.8 → 125.9–126.6;
+  - 4 cores left (capped): line-follow 46.8–47.1 → 45.8–49.1, teleop 59.5–63.5 → 57.4–60.5;
+  - 2 cores left (capped): line-follow 46.2–48.3 → 43.8–44.7, teleop 57.4–59.2 → 57.0–58.4.
+  The lab's renderer process differs by under 1 ms a frame, and the frame rate not at all (29.1–29.9 on, 29.6–29.8 off with 2
+  cores). So the overlays cost 0–8 ms of SwiftShader's CPU a frame, busy or not.
+- **The distance tag's canvas painter** (R4.3, untested for want of a DOM): in the browser's sampling heap profile of school
+  line-follow it is below the 40th source, under 0.45 KB a frame (`b4-profile`).
+
+### 9.7 Not done, held back, open
+
+- Held back by the ruling: tag hysteresis (§9.1).
+- #5a (§9.4).
+- The free view still allocates when it reframes: about 27 KB a frame averaged over mini-mission's school run (camera-studio.ts,
+  `b4-profile`), from 5–10 reframes as the HUD's width changes with its text (its corner moves more than 0.01 NDC); 70–80 ms of CPU
+  in 8 s at 6×, no long task. The search's remaining arrays (the sliding rounds, the choices) could go the way of the fit test.
+- The heap after many 2D ↔ 3D switches (§9.5): a heap snapshot comparison would say what fills.
+- The 30 fps cap holds p95 at 35–36 ms by construction (a capped frame is 33.3 ms): where the chain engages, the 33 ms target cannot.
+- `robot-lab-a11y.spec.ts`'s contrast test times out in the full e2e suite under load 13–18, on master 16407b8 as on this branch
+  (`results/phase-b/final/e2e-*.txt`); it passes alone, three times in a row, and in the robot project alone (63 of 63).
+- Real hardware (§7) is still the open question; `busy.mjs` stands in for fewer cores, not for slower ones.
+
+### 9.8 Reproduction
+
+```sh
+zsh spikes/p2-perf3d/phase-b-ab.sh <name> <before> <after> school:check-4x,mini-mission gpu-high:idle   # dist-<build> from vite build
+node spikes/p2-perf3d/ab-summary.mjs spikes/p2-perf3d/results/phase-b/<name>
+node spikes/p2-perf3d/shots.mjs --dist=<build> --out=<dir> && node spikes/p2-perf3d/shots-diff.mjs <before-dir> <after-dir>
+zsh spikes/p2-perf3d/busy-ab.sh <name> line-follow,teleop "0 8 10" <builds...>
+node spikes/p2-perf3d/chain-check.mjs --dist=<build> --seconds=20 [--accept] [--shot=<png>]    # beside busy.mjs
+node spikes/p2-perf3d/loading-trace.mjs --profile=school --dist=<build> [--cold | --warmup | --check]
+zsh spikes/p2-perf3d/final-run.sh <after-build>
 ```
