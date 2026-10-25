@@ -15,6 +15,9 @@ import { readJson } from './helpers';
 // (computed from the real page, as axe's color-contrast rule does), reduced motion, a browser zoomed to 200 %, and the zones' patterns on
 // the 2D map. Screenshots go to R8_SHOTS_DIR (the report's), or under test-results.
 
+// A check and a run at 4× on SwiftShader take a while on a shared machine.
+test.describe.configure({ timeout: 120_000 });
+
 const lessonOrigin = 'http://lesson.localhost:5190';
 const shots = process.env.R8_SHOTS_DIR ?? join('test-results', 'robot-lab-a11y');
 
@@ -788,14 +791,17 @@ test.describe('the zones’ patterns on the 2D map (N18 R8)', () => {
     expect(errors).toEqual([]);
   });
 
-  test('are on the 3D mat too, which the free view shows (screenshots of the lessons’ zones)', async ({ page, baseURL }) => {
+  test('are on the 3D mat too: the views a learner opens are drawn with it (screenshots for the report; the texture is held by mat-paint.patterns.test.ts)', async ({ page, baseURL }) => {
+    const errors = collectErrors(page);
     const frame = await openInLesson(page, labUrl(baseURL, 'rb-mini-mission'));
+    await expect(frame.locator('[data-testid=robot-canvas] canvas')).toHaveAttribute('data-models', 'modelled');
     await frame.locator('[data-testid=robot-camera] [data-mode=top]').click();
     await page.waitForTimeout(800);
     await screenshot(page, '09-zone-patterns-3d-top-view.png');
     await frame.locator('[data-testid=robot-camera] [data-mode=orbit]').click();
     await page.waitForTimeout(800);
     await screenshot(page, '10-zone-patterns-3d-free-view.png');
+    expect(errors).toEqual([]);
   });
 });
 
@@ -822,6 +828,8 @@ test.describe('the lab at a browser zoom of 200 % (N18 R8)', () => {
       frame.evaluate((label) => {
         const doc = document.documentElement;
         const problems: string[] = [];
+        const lab = document.querySelector<HTMLElement>('.robot-lab')!;
+        if (lab.scrollWidth > lab.clientWidth + 1) problems.push(`the lab scrolls sideways: ${lab.scrollWidth} of ${lab.clientWidth}`);
         const controls = [...document.querySelectorAll<HTMLElement>('.robot-lab button, .robot-lab [role=radio], .robot-lab [role=tab], .robot-lab input, .robot-lab summary')].filter(
           (element) => !element.closest('.robot-program-pane[data-shown=false], [inert], [hidden], .blocklyDiv, .injectionDiv') && getComputedStyle(element).visibility !== 'hidden',
         );
@@ -840,7 +848,7 @@ test.describe('the lab at a browser zoom of 200 % (N18 R8)', () => {
             }
           }
         }
-        return { label, scrollsSideways: doc.scrollWidth > innerWidth + 1, scrollsDown: doc.scrollHeight > innerHeight + 1, controls: controls.length, problems };
+        return { label, scrollsSideways: doc.scrollWidth > innerWidth + 1, scrollsDown: lab.scrollHeight > lab.clientHeight + 1, controls: controls.length, problems };
       }, where);
 
     const program = await audit('program tab');
@@ -853,6 +861,9 @@ test.describe('the lab at a browser zoom of 200 % (N18 R8)', () => {
     await screenshot(page, '12-zoom-200-robot-tab.png');
     expect(robot.scrollsSideways).toBe(false);
     expect(robot.problems, 'robot tab').toEqual([]);
+    // The window is too short for the lab: it scrolls, and the 3D view keeps room for the controls over it (the workspace is 460, less the tabs and the dock).
+    expect(robot.scrollsDown).toBe(true);
+    expect((await frame.locator('.robot-stage').boundingBox())!.height).toBeGreaterThanOrEqual(320);
     await frame.getByTestId('robot-tool-teleop').click();
     const tools = await audit('robot tab with the pad');
     await screenshot(page, '13-zoom-200-pad-open.png');
