@@ -45,8 +45,6 @@ type CameraRigProps = {
   replaying?: boolean;
   /** N18 R8: the keyboard's zoom and orbit steps. */
   commands?: CameraCommands;
-  /** N18 P2: a run, a drive or a check goes on (`framingHeld`): a new HUD or tools corner waits for its end to frame the free view again. */
-  holdFraming?: boolean;
 };
 
 /** How long the camera glides from one view to the next, s. */
@@ -69,7 +67,7 @@ const defaultChase = (): ChaseOffset => {
   return { forward: pose.position[0] - pose.target[0], up: pose.position[1] - pose.target[1], side: pose.position[2] - pose.target[2], ahead: pose.target[0] };
 };
 
-export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0, hud = null, walls = [], props = [], card = null, tools = null, replaying = false, commands, holdFraming = false }: CameraRigProps) {
+export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0, hud = null, walls = [], props = [], card = null, tools = null, replaying = false, commands }: CameraRigProps) {
   const camera = useThree((state) => state.camera) as PerspectiveCamera;
   const dom = useThree((state) => state.gl.domElement);
   const size = useThree((state) => state.size);
@@ -89,8 +87,6 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
   const beforeCard = useRef<{ pose: CameraPose; mode: CameraMode } | null>(null);
   const movedSinceCard = useRef(false);
   const wasReplaying = useRef(false);
-  /** The safe rect the free view was last framed for. */
-  const framedFor = useRef<SafeRect | null>(null);
   // Read when the view changes, without being a reason to change it: a new window shape or a switch of reduced motion keeps the camera.
   // A HUD or tools corner that would take most of the view is held back (the free view then frames under part of it).
   const safe = useMemo<SafeRect>(
@@ -213,10 +209,7 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
   /** Where the view `mode` starts. */
   const startPose = (mode: CameraMode): CameraPose => {
     const { aspect: ratio, view: now, span: arena, free: scene, safe: rect, minRobot: least } = latest.current;
-    if (mode === 'top') return topPose(arena, camera.fov, ratio);
-    if (mode === 'follow') return chaseGoal(now());
-    framedFor.current = rect;
-    return keptFreeViewPose(arena, scene, camera.fov, ratio, rect, least);
+    return mode === 'top' ? topPose(arena, camera.fov, ratio) : mode === 'follow' ? chaseGoal(now()) : keptFreeViewPose(arena, scene, camera.fov, ratio, rect, least);
   };
 
   /** Sends the camera to `goal`: a glide, or at once (the first time, with reduced motion). */
@@ -264,18 +257,16 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
   }, [replaying]);
 
   // The HUD or the view tools measured (or grown) before the learner touched the camera: the free view is framed again for them, at once.
-  // N18 P2: not while a run, a drive or a check goes on (a goal's progress bar resizes the HUD then: no jump mid-run), nor while a results
-  // card has turned the camera to the robot; when the run is over, for the corner the HUD has then, if it is not the one framed.
+  // N18 P2: the pose of each HUD height is kept (a goal's progress bar toggles it in a run), and each new one is a cheap search.
   useEffect(() => {
     const { aspect: ratio, span: arena, free: scene, minRobot: least } = latest.current;
-    if (mode !== 'orbit' || moved.current || !placed.current || glide.current || holdFraming || beforeCard.current || framedFor.current === safe) return;
-    framedFor.current = safe;
+    if (mode !== 'orbit' || moved.current || !placed.current || glide.current) return;
     const goal = keptFreeViewPose(arena, scene, camera.fov, ratio, safe, least);
     camera.position.set(...goal.position);
     controls.target.set(...goal.target);
     controls.update();
     invalidate();
-  }, [safe, mode, camera, controls, invalidate, holdFraming]);
+  }, [safe, mode, camera, controls, invalidate]);
 
   // A results card opens: the camera turns to the robot where the run left it (a glide; in "Theo xe" it is there already), and the
   // picture slides left by half the card, so that spot shows beside the card. It folds or closes: the picture slides back, and the camera

@@ -24,7 +24,7 @@ import { SensorOverlay } from './parts/SensorOverlay';
 import type { RobotTagBox } from './parts/ZoneTags';
 import { tierSettings, type QualityTier } from './quality';
 import type { RobotModel } from './robot-model';
-import { framingHeld, isRunOver, type RobotRunStore } from './robot-run-store';
+import { isRunOver, type RobotRunStore } from './robot-run-store';
 import { createFrameWatch } from './frame-watch';
 import type { RobotToolsStore } from './robot-tools-store';
 import { useLocale, useText } from '../i18n/text';
@@ -335,8 +335,6 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
   const overlays = useMemo(() => ({ hud, card, tools: toolsCorner }), [hud, card, toolsCorner]);
   // N18 R4.7: a replay of a check's round ("Xem lại") is under way: the camera goes back to frame its start.
   const replaying = useStore(store, (state) => state.round !== null && state.active && !state.locked);
-  // N18 P2: while a run, a drive or a check goes on, the free view keeps its framing.
-  const holdFraming = useStore(store, framingHeld);
   // N18 R4.3: the sensor overlays write a distance with the learner's decimal sign.
   const t = useText();
   const decimal = useLocale() === 'vi' ? ',' : '.';
@@ -356,7 +354,7 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
         <SceneContent scenario={scenario} kit={kit} model={model} view={view} span={span} tier={tier} zoneLabel={zoneLabel} viewForward={viewForward} cameraMode={cameraMode} tagsReady={tagsReady} overlays={overlays} />
         <CompiledDraw onDrawn={onDrawn} />
       </Suspense>
-      <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} resetKey={resetKey} hud={hud} card={card} tools={toolsCorner} walls={walls} props={props} replaying={replaying} holdFraming={holdFraming} {...(commands ? { commands } : {})} />
+      <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} resetKey={resetKey} hud={hud} card={card} tools={toolsCorner} walls={walls} props={props} replaying={replaying} {...(commands ? { commands } : {})} />
       <RedrawOnChange store={store} />
       <ContextWatch onLost={onContextLost} onRestored={onContextRestored} />
       {onSlowFrames && <SlowFrames store={store} onSlow={onSlowFrames} />}
