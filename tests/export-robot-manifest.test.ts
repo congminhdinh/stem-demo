@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -11,8 +11,12 @@ import fixture from '../src/core/scenario/__fixtures__/all-goals.scenario.json';
 
 vi.setConfig({ testTimeout: 30_000 });
 
-const script = join(import.meta.dirname, '..', 'scripts', 'export-robot-manifest.mjs');
-const committed = join(import.meta.dirname, '..', 'docs', 'fixtures', 'robot-scenarios.v1.json');
+const root = join(import.meta.dirname, '..');
+const script = join(root, 'scripts', 'export-robot-manifest.mjs');
+const committed = join(root, 'docs', 'fixtures', 'robot-scenarios.v1.json');
+/** Vite's cache of pre-bundled dependencies that `pnpm dev` and the e2e runs share, and the script's own, which it must write to instead. */
+const sharedDepsCache = join(root, 'node_modules', '.vite', 'deps');
+const ownCache = join(root, 'node_modules', '.vite-export-robot-manifest');
 
 let work: string;
 beforeEach(() => {
@@ -163,5 +167,32 @@ describe('docs/fixtures/robot-scenarios.v1.json', () => {
     const result = run('--check');
     expect(result.status, `${result.stdout}${result.stderr}`).toBe(0);
     expect(JSON.parse(readFileSync(committed, 'utf8')).schema).toBe('robot-scenarios/v1');
+  });
+});
+
+// Under vitest NODE_ENV is `test`, which hashes the repo's Vite config differently from `pnpm dev`; the config's @vitejs/plugin-react then makes
+// Vite's dependency optimizer rewrite the cache it is given. The script's server must be given its own, or running `pnpm verify` would
+// invalidate a running `pnpm dev` and send the next e2e run back to a cold start.
+describe('the Vite cache of the script', () => {
+  /** Every file under a directory with its size and modification time (the directory itself too), or null when it is not there. */
+  function snapshot(directory: string): string[] | null {
+    if (!existsSync(directory)) return null;
+    const entries = (path: string): string[] => [
+      `${path.slice(directory.length)} ${statSync(path).size} ${statSync(path).mtimeMs}`,
+      ...(statSync(path).isDirectory() ? readdirSync(path).sort().flatMap((name) => entries(join(path, name))) : []),
+    ];
+    return entries(directory);
+  }
+
+  it('is not node_modules/.vite/deps: a run with NODE_ENV=test neither creates nor changes it, and the optimizer writes to the script’s own cache', () => {
+    rmSync(ownCache, { recursive: true, force: true });
+    const before = snapshot(sharedDepsCache);
+
+    const result = spawnSync(process.execPath, [script, '--check'], { encoding: 'utf8', env: { ...process.env, NODE_ENV: 'test' } });
+
+    expect(result.status, `${result.stdout}${result.stderr}`).toBe(0);
+    expect(snapshot(sharedDepsCache)).toEqual(before);
+    // The config's react plugin gives the optimizer work to do, so its output is there: the proof that it went to the script's cache
+    expect(existsSync(join(ownCache, 'deps', '_metadata.json'))).toBe(true);
   });
 });

@@ -18,6 +18,12 @@
 // vite.config.ts, then `ssrLoadModule`), with nothing faked. That works on every Node the project supports (`engines`, Node 20.19 and up).
 // The catalog it writes from is built by `createScenarioCatalog` from the files this script reads, never from the glob: the glob's own catalog
 // is the app's and is ignored here.
+//
+// Its Vite server keeps its cache of pre-bundled dependencies in node_modules/.vite-export-robot-manifest and never in node_modules/.vite, which
+// belongs to `pnpm dev` and the e2e runs: the repo's config pulls @vitejs/plugin-react in, which adds react to `optimizeDeps.include`, and a
+// run under another NODE_ENV (the test run's `test`) hashes the config differently, so the optimizer would rewrite the dev server's cache under
+// it and send the next e2e run back to a cold start. (`optimizeDeps.disabled`, which would stop the optimizer altogether, is deprecated:
+// `noDiscovery` with an empty `include` is its replacement, and the plugin's own entries still apply on top of it, hence the separate cache.)
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -89,7 +95,8 @@ async function main() {
     appType: 'custom',
     logLevel: 'error',
     server: { middlewareMode: true, hmr: false, watch: null },
-    optimizeDeps: { noDiscovery: true },
+    cacheDir: join(root, 'node_modules', '.vite-export-robot-manifest'),
+    optimizeDeps: { noDiscovery: true, include: [] },
   });
   let text;
   try {
