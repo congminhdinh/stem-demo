@@ -71,16 +71,24 @@ function Sun({ span, shadows, mapSize }: { span: ArenaSpan; shadows: boolean; ma
   );
 }
 
-/** Asks for a frame when the picture changes: a published snapshot that moves something, a Stop that holds a run, a Reset that clears it. */
+/**
+ * Asks for a frame when the picture changes: a published snapshot that moves something, a Stop that holds a run, a Reset that clears it.
+ * A run publishes from its own animation-frame callback, which comes before R3F's in a frame, while R3F's demand loop cancels itself
+ * after the frame it draws: a plain invalidate() would then wait for the frame after next, and a run would be drawn at half the display's
+ * rate (measured: 60 draws in 120 frames at 120 Hz, 30 fps on a 60 Hz SwiftShader). So a change keeps the loop asked for one frame
+ * more (`invalidate(2)` while fewer than 2 frames are owed): every frame of a run is drawn in the frame its snapshot came in, and the loop
+ * stops at most two frames after the last change.
+ */
 function RedrawOnChange({ store }: { store: RobotRunStore }) {
   const invalidate = useThree((state) => state.invalidate);
+  const get = useThree((state) => state.get);
   useEffect(() => {
     let shown = store.getState().latestWorld();
     const check = () => {
       const next = store.getState().latestWorld();
       if (!sameView(shown, next)) {
         shown = next;
-        invalidate();
+        if (get().internal.frames < 2) invalidate(2);
       }
     };
     const stopPublishes = store.getState().onPublish(check);
@@ -89,7 +97,7 @@ function RedrawOnChange({ store }: { store: RobotRunStore }) {
       stopPublishes();
       stopState();
     };
-  }, [store, invalidate]);
+  }, [store, invalidate, get]);
   return null;
 }
 
