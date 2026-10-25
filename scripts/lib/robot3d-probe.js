@@ -40,6 +40,8 @@
     firstRender: null,
     firstSceneRender: null,
     watch: null,
+    tagLayout: null,
+    tagChanges: [],
     draws: { screen: 0, offscreen: 0 },
   };
 
@@ -123,6 +125,21 @@
         if (state.firstSceneRender === null && state.draws.screen - screen > 0) {
           state.firstSceneRender = { at: begin, ms, draws: state.draws.screen - screen, programs: renderer.info.programs?.length ?? null };
           performance.mark('p2:first-scene-render');
+        }
+        // The zones' tags' layout (R4.7's ZoneTags): which spot each tag took this frame; a change from the last frame is counted, a
+        // tag that jumps between spots with nothing moving much (no hysteresis) shows as many changes a second.
+        if (state.tagScene !== scene || !state.tagGroup || !state.tagGroup.parent) {
+          state.tagScene = scene;
+          state.tagGroup = scene.getObjectByName('zone-tags') ?? null;
+        }
+        const tags = state.tagGroup;
+        if (tags) {
+          let layout = '';
+          tags.traverse((node) => {
+            if (node.isSprite) layout += node.visible ? `${node.center.x.toFixed(3)},${node.position.y.toFixed(3)};` : 'h;';
+          });
+          if (state.tagLayout !== null && layout !== state.tagLayout) state.tagChanges.push(begin);
+          state.tagLayout = layout;
         }
         const watch = state.watch;
         if (watch && watch.at === null) {
@@ -266,7 +283,7 @@
     state,
     /** The latest of every series, so that a window can be cut from them: begin() then summary(). */
     mark() {
-      return { at: now(), frames: state.frames.length, animation: state.animation.length, busy: state.busy.length, longTasks: state.longTasks.length, longFrames: state.longFrames.length, commits: state.commits.length };
+      return { at: now(), frames: state.frames.length, animation: state.animation.length, busy: state.busy.length, longTasks: state.longTasks.length, longFrames: state.longFrames.length, commits: state.commits.length, tagChanges: state.tagChanges.length };
     },
     begin() {
       this.from = this.mark();
@@ -274,7 +291,7 @@
     },
     /** Empties every series: a soak keeps one window of them at a time, so that the probe's own arrays do not grow the heap it measures. */
     trim() {
-      for (const key of ['frames', 'animation', 'busy', 'longTasks', 'longFrames', 'commits']) state[key].length = 0;
+      for (const key of ['frames', 'animation', 'busy', 'longTasks', 'longFrames', 'commits', 'tagChanges']) state[key].length = 0;
       this.from = this.mark();
     },
     /** What happened since begin(): frames, their times and draws, the main thread, long tasks, React commits. */
@@ -308,6 +325,7 @@
         longTasks: { count: longTasks.length, over100: longTasks.filter(([, ms]) => ms > 100).length, maxMs: longTasks.length ? Math.max(...longTasks.map(([, ms]) => ms)) : 0, totalMs: longTasks.reduce((sum, [, ms]) => sum + ms, 0) },
         longFrames: longFrames.slice(0, 12),
         commits,
+        tagSpotChanges: state.tagChanges.length - (from.tagChanges ?? 0),
         renderer: this.rendererInfo(),
         contexts: { ...state.contexts, live: state.contexts.made - state.contexts.lost },
       };

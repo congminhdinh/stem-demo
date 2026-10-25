@@ -670,6 +670,7 @@ function rowOf(measured) {
     restDrawsPerS: measured.rest ? round(measured.rest.framesDrawn / measured.rest.seconds, 2) : measured.afterDrag ? round(measured.afterDrag.framesDrawn / measured.afterDrag.seconds, 2) : null,
     allocPerFrameKB: w?.alloc ? round(w.alloc.perFrameB / 1024, 1) : null,
     taskPerS: w?.page?.TaskDurationPerSecondMs ?? null,
+    tagChangesPerS: w && w.tagSpotChanges !== undefined ? round(w.tagSpotChanges / w.seconds, 1) : null,
     gpuProcMsPerFrame: w?.processCpu?.GPU?.msPerFrame ?? null,
     gpuProcCores: w?.processCpu?.GPU?.cores ?? null,
     rendererProcMsPerFrame: w?.processCpu?.renderer?.msPerFrame ?? null,
@@ -771,15 +772,15 @@ function markdown(report) {
   lines.push('## Budgets and targets', '', '| kind | measure | worst | limit | result | n | detail |', '|---|---|---|---|---|---|---|');
   for (const row of verdicts) lines.push(`| ${row.kind} | ${row.name} | ${round(row.value, 1)} ${row.unit} | ${row.limit} ${row.unit} | ${row.ok ? 'ok' : row.kind === 'budget' ? 'MISSED' : 'not met'} | ${row.n} | ${row.detail} |`);
   lines.push('', '## Frames (fps pass): ranges over the repeats', '');
-  lines.push('| profile · scenario | fps | p5 fps | frame p50 / p95 / p99 ms | main thread p50 / p95 ms | render call ms | draws screen + shadow | long tasks (>100) max ms | commits/s run (idle) | tasks (script) ms/s | GPU process ms/frame (cores) | renderer process ms/frame (cores) | CPU loop ms | load |');
-  lines.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|');
+  lines.push('| profile · scenario | fps | p5 fps | frame p50 / p95 / p99 ms | main thread p50 / p95 ms | render call ms | draws screen + shadow | long tasks (>100) max ms | commits/s run (idle) | tasks (script) ms/s | GPU process ms/frame (cores) | renderer process ms/frame (cores) | tag spot changes/s | CPU loop ms | load |');
+  lines.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|');
   for (const [key, entries] of groups(cells, 'fps')) {
     const rows = entries.map((entry) => entry.row);
     const pick = (name, digits) => range(rows.map((row) => row[name]), digits);
     const dom = rows.map((row) => row.commitsRun?.['react-dom'] ?? null);
     const domIdle = rows.map((row) => row.commitsIdle?.['react-dom'] ?? null);
     lines.push(
-      `| ${key} | ${pick('fps')} | ${pick('p5fps')} | ${pick('frameP50')} / ${pick('frameP95')} / ${pick('frameP99')} | ${pick('busyP50')} / ${pick('busyP95')} | ${pick('renderCallP50', 2)} | ${pick('drawsScreen', 0)} + ${pick('drawsOffscreen', 0)} | ${pick('longTasks', 0)} (${pick('longOver100', 0)}) ${pick('longMaxMs', 0)} | ${range(dom)} (${range(domIdle)}) | ${pick('taskPerS', 0)} (${pick('scriptPerS', 0)}) | ${pick('gpuProcMsPerFrame')} (${pick('gpuProcCores', 2)}) | ${pick('rendererProcMsPerFrame')} (${pick('rendererProcCores', 2)}) | ${pick('cpuBenchMs', 0)} | ${range(rows.flatMap((row) => row.load ?? []), 2)} |`,
+      `| ${key} | ${pick('fps')} | ${pick('p5fps')} | ${pick('frameP50')} / ${pick('frameP95')} / ${pick('frameP99')} | ${pick('busyP50')} / ${pick('busyP95')} | ${pick('renderCallP50', 2)} | ${pick('drawsScreen', 0)} + ${pick('drawsOffscreen', 0)} | ${pick('longTasks', 0)} (${pick('longOver100', 0)}) ${pick('longMaxMs', 0)} | ${range(dom)} (${range(domIdle)}) | ${pick('taskPerS', 0)} (${pick('scriptPerS', 0)}) | ${pick('gpuProcMsPerFrame')} (${pick('gpuProcCores', 2)}) | ${pick('rendererProcMsPerFrame')} (${pick('rendererProcCores', 2)}) | ${pick('tagChangesPerS')} | ${pick('cpuBenchMs', 0)} | ${range(rows.flatMap((row) => row.load ?? []), 2)} |`,
     );
   }
   lines.push('', '## Loading and rest (fps pass)', '');

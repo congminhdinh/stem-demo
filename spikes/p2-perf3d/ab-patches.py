@@ -30,6 +30,18 @@ elif variant == 'no-shader-checks':
     patch('src/ui/robot3d/Scene.tsx',
           "  useEffect(() => {\n    let live = true;\n    void gl\n      .compileAsync(scene, camera)",
           "  useEffect(() => {\n    let live = true;\n    gl.debug.checkShaderErrors = false;\n    void gl\n      .compileAsync(scene, camera)")
+elif variant == 'low-dpr-075':
+    # The low tier draws 0.75 of the CSS pixels each way (56 % of the pixels) and the browser scales the picture up: SwiftShader rasterises
+    # every pixel on the CPU.
+    patch('src/ui/robot3d/quality.ts',
+          "  low: { shadows: false, dpr: 1, antialias: false, shadowMapSize: 0 },",
+          "  low: { shadows: false, dpr: 0.75, antialias: false, shadowMapSize: 0 },")
+elif variant == 'cap-30':
+    # A run drawn every other display frame (30 fps at 60 Hz): a plain invalidate() from a publish only reaches the frame after next
+    # (R4.2's finding, Scene.tsx RedrawOnChange), so dropping the priming halves the draws, and SwiftShader's raster with them.
+    patch('src/ui/robot3d/Scene.tsx',
+          "        if (get().internal.frames < 2) invalidate(2);",
+          "        invalidate();")
 else:
     raise SystemExit('unknown variant ' + variant)
 print('applied', variant)
