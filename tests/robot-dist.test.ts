@@ -84,3 +84,21 @@ describe('the production build keeps 3D out of every other lab (N18 R4.2)', () =
     expect(files.some((file) => /\.wasm$/.test(file))).toBe(true);
   });
 });
+
+// N18 R4.5: the C++ tab writes sketches in the robot lab; no other lab does, and none may carry the generator. The Python panel imports
+// codegen/yolobit/generate-document.ts in every lab, so what that module imports, the main bundle carries: `generateCodeForDocument` is
+// in codegen/generate-code.ts for this reason (measured: the generator in the main bundle cost every lab +36 kB, +13.8 kB gzip).
+describe('the production build keeps the Arduino sketch generator out of every other lab (N18 R4.5)', () => {
+  /** A text only the sketch generator writes (the header of every sketch), which the minifier keeps. */
+  const sketchHeader = /editing this code does not change the lab/;
+
+  it('is in the robot lab’s chunk, and in none of the chunks that index.html loads', () => {
+    const entry = /src="\/(assets\/index-[^"]+\.js)"/.exec(read('index.html'))?.[1];
+    expect(entry).toBeDefined();
+    for (const chunk of staticClosure(entry!)) {
+      expect([chunk, sketchHeader.test(read(chunk))]).toEqual([chunk, false]);
+    }
+    const lab = readdirSync(join(outDir, 'assets')).find((file) => /^RobotLab-.*\.js$/.test(file));
+    expect(sketchHeader.test(read(`assets/${lab}`))).toBe(true);
+  });
+});

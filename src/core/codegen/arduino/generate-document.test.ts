@@ -7,7 +7,8 @@ import { compileUnoProject } from '../../program/compile-uno-program';
 import { motorSet, packs, registry } from '../../program/__fixtures__/uno-blocks';
 import { num, print, program, text } from '../../program/__fixtures__/ybc-blocks';
 import { createTemplateProject } from '../../../samples/templates';
-import { generateCodeForDocument, generateForDocument } from '../yolobit/generate-document';
+import { generateCodeForDocument } from '../generate-code';
+import { generateForDocument } from '../yolobit/generate-document';
 import { generateUnoSketch } from './generate';
 
 // N18 C1: the code of a document is chosen by its board family's `codeTarget` (devices/definitions/*.json): MicroPython for a Yolo:Bit
