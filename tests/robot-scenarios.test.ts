@@ -192,6 +192,18 @@ describe('the robot scenarios of this build (N18 R5.2)', () => {
     expect(scenarioOf('rb-line-follow').goals[0]).toMatchObject({ minRatio: 0.85 });
     // A correct follower at 35 %, just over the placeholder kit's dead band, enters the garage at about 94 s (spike).
     expect(scenarioOf('rb-line-follow').timeLimitS).toBe(120);
+    // The reference at 40 %, the slowest a solution may drive, parks by 31.1 s in every variant (spike).
+    expect(scenarioOf('rb-mini-mission').goals.find((goal) => goal.kind === 'finish-within')).toMatchObject({ seconds: 35 });
+  });
+
+  it('take a robot as stopped at 0.5 cm/s at most, below the slowest crawl of the placeholder kit (R5.2a fix round 3)', () => {
+    const stops = scenarioCatalog.scenarios.flatMap((scenario) => scenario.goals.flatMap((goal) => (goal.kind === 'stop-in-zone' ? [[scenario.key, goal.maxSpeedCmS, goal.holdS]] : [])));
+    expect(stops).toEqual([
+      ['rb-drive-to-zone', 0.5, 1],
+      ['rb-stop-at-wall', 0.5, 1],
+      ['rb-servo-gate', 0.5, 1],
+      ['rb-mini-mission', 0.5, 1],
+    ]);
   });
 
   it('give a guard goal no more points than the goals that ask the robot to get somewhere (R5.2a fix round 1)', () => {
@@ -457,13 +469,18 @@ describe('the programs of every scenario (N18 R5.2)', () => {
   it('lessons 3-6 have the exploits of the reviews, each named, each held to at most 60 (rule 10)', () => {
     expect(exploits.map(([key, exploit]) => `${key} ${exploit.name} ${exploit.maxScore}`)).toEqual([
       'rb-stop-at-wall crash-and-back-off 0',
+      'rb-stop-at-wall dash-then-creep 0',
       'rb-line-follow crawl-and-dash 0',
       'rb-line-follow short-drive 40',
       'rb-line-follow three-leg-route 60',
       'rb-servo-gate flag-and-crash 40',
       'rb-servo-gate flag-crash-and-back-off 40',
+      'rb-servo-gate flag-dash-then-creep 40',
       'rb-mini-mission follower-without-distance 45',
       'rb-mini-mission timed-follower 35',
+      'rb-mini-mission timed-follower-creep 45',
+      'rb-mini-mission timed-follower-creep-forever 45',
+      'rb-mini-mission follower-bump-and-back 45',
     ]);
     for (const [key, exploit] of exploits) {
       expect(exploit.name, key).toMatch(/^[a-z0-9-]+$/);

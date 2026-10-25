@@ -202,7 +202,8 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
       'the run (endOnContact), as a crash does in a competition, so driving into the wall and backing off parks nowhere (exploit ' +
       'below). Blind: 50 % for 6800 ms (91.1 cm) stops at x = 136.1 from the authored start. The seed (3004) moves variant 1 17.6 cm ' +
       'further on, where the blind program hits the wall at 6.6 s and the run ends, and variant 2 17.5 cm back, where it stops 7.4 cm ' +
-      'short of the zone.',
+      'short of the zone. stop-near-wall is judged at the end of the run, with the robot at 0.5 cm/s at most for the last second, so a ' +
+      'crawl through the zone (33 %, about 1.5 cm/s) is not a stop.',
     exploits: [
       {
         name: 'crash-and-back-off',
@@ -210,6 +211,14 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
           'Forward until it runs into the wall, back for 1.1 s, stop: the wall is the same in every variant, so backing off a fixed time ' +
           'parks in the zone wherever it started. The run ends at the crash (endOnContact), so it parks nowhere.',
         program: workspace(hat('stem_on_start', [drive('go', 'forward', CRUISE), wait('drive-time', 10000), drive('back', 'backward', CRUISE), wait('back-time', 1100), stop('stop')])),
+        maxScore: 0,
+      },
+      {
+        name: 'dash-then-creep',
+        description:
+          'Forward at 50 % for 6070 ms, then at 33 % (a crawl of about 1.5 cm/s) for the rest of the run: it creeps through the zone and ' +
+          'on into the wall. stop-in-zone wants the robot stopped (0.5 cm/s at most) in the zone at the end, so the crawl never counts.',
+        program: workspace(hat('stem_on_start', [drive('dash', 'forward', CRUISE), wait('dash-time', 6070), drive('creep', 'forward', 33)])),
         maxScore: 0,
       },
     ],
@@ -273,7 +282,9 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
       'the robot to stop: a robot that crosses the zone with the flag up meets it, which is why stop-at-gate (40) and no-crash (20) ' +
       'carry the rest, and a touch of the gate ends the run (endOnContact), so backing off it parks nowhere (exploits below). Blind: 50 ' +
       '% for 5800 ms stops at x = 117.6 from the authored start. The seed (1409, jitter 18 cm) moves variant 1 16.9 cm further on, ' +
-      'where the body runs into the gate at 5.65 s and the run ends, and variant 2 17.3 cm back, where it stops 7.8 cm short.',
+      'where the body runs into the gate at 5.65 s and the run ends, and variant 2 17.3 cm back, where it stops 7.8 cm short. ' +
+      'stop-at-gate is judged at the end of the run (0.5 cm/s at most for the last second), so a creep through the zone with the flag ' +
+      'up keeps only the flag.',
     exploits: [
       {
         name: 'flag-and-crash',
@@ -293,6 +304,14 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
         ),
         maxScore: 40,
       },
+      {
+        name: 'flag-dash-then-creep',
+        description:
+          'The flag up, forward at 50 % for 5300 ms, then at 33 % for the rest of the run: the flag is up while it creeps through the zone, ' +
+          'but it never stops there (0.5 cm/s at most at the end) and creeps on into the gate.',
+        program: workspace(hat('stem_on_start', [servo('flag-up', 160), drive('dash', 'forward', CRUISE), wait('dash-time', 5300), drive('creep', 'forward', 33)])),
+        maxScore: 40,
+      },
     ],
   },
   'rb-mini-mission': {
@@ -300,7 +319,7 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
     blind: workspace(hat('stem_on_start', [...leg('leg-1', 5200, 415), ...leg('leg-2', 3150, 415), ...leg('leg-3', 4200), stop('stop')])),
     notes:
       'Reference: the follower of lesson 4 under the stop of lesson 3. Share on the tape 1.000 in all three variants; it parks at x ' +
-      '141.2, y 115.8..115.9 by 13.3..15.4 s (finish-within 30 s, so the time bonus has room) and passes the cones at 2.9 cm (cone-1) ' +
+      '141.2, y 115.8..115.9 by 13.3..15.4 s (finish-within 35 s: the same program at 40 % parks by 26.6..31.1 s) and passes the cones at 2.9 cm (cone-1) ' +
       'and 3.3 cm (cone-2) from its footprint. A touch of a cone or the dock wall ends the run (endOnContact). Two ways round the ' +
       'distance check fail: the tape runs on to y 137, 1 cm before the dock wall, so a follower that stops when it loses the tape meets ' +
       'the wall first; and the start moves up to 15 cm along the start straight (startJitterAlongCm; the seed 3225 puts variant 1 13.8 ' +
@@ -327,6 +346,42 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
           'spike swept 240 000 to 380 000 by 5 000: none passed, the best scored 45).',
         program: workspace(hat('stem_on_start', [repeat('timed', 300000, [ifBlock('if-line', followLine('line'))]), stop('stop')])),
         maxScore: 35,
+      },
+      {
+        name: 'timed-follower-creep',
+        description:
+          'The timed follower, then 6 s at 33 % and a stop: the crawl moves every variant\'s stop the same way, so one still misses the dock ' +
+          'or meets the dock wall, which ends the run before the robot is stopped in the dock.',
+        program: workspace(
+          hat('stem_on_start', [repeat('timed', 300000, [ifBlock('if-line', followLine('line'))]), drive('creep', 'forward', 33), wait('creep-time', 6000), stop('stop')]),
+        ),
+        maxScore: 45,
+      },
+      {
+        name: 'timed-follower-creep-forever',
+        description: 'The timed follower, then 33 % for the rest of the run: it creeps through the dock, never stopped, into the dock wall.',
+        program: workspace(hat('stem_on_start', [repeat('timed', 300000, [ifBlock('if-line', followLine('line'))]), drive('creep', 'forward', 33)])),
+        maxScore: 45,
+      },
+      {
+        name: 'follower-bump-and-back',
+        description:
+          'The follower of lesson 4 at 40 % that, once it loses the tape, backs off for 500 ms and stops: the tape runs on to the dock ' +
+          'wall, so it meets the wall first and the run ends there.',
+        program: workspace(
+          hat('stem_forever', [
+            ifBlock(
+              'if-line',
+              [
+                [lineDark('bump-center', 'lineCenter'), [drive('bump-forward', 'forward', 40)]],
+                [lineDark('bump-left', 'lineLeft'), [drive('bump-spin-left', 'spinLeft', 40)]],
+                [lineDark('bump-right', 'lineRight'), [drive('bump-spin-right', 'spinRight', 40)]],
+              ],
+              [drive('back', 'backward', CRUISE), wait('back-time', 500), stop('stop'), wait('latch', 60000)],
+            ),
+          ]),
+        ),
+        maxScore: 45,
       },
     ],
   },

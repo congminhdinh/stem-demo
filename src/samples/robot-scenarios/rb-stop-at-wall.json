@@ -29,7 +29,7 @@
       "label": { "vi": "Xe dừng hẳn trong vùng trước tường", "en": "The robot stops in the zone in front of the wall" },
       "points": 70,
       "zone": "stop-zone",
-      "maxSpeedCmS": 2,
+      "maxSpeedCmS": 0.5,
       "holdS": 1
     },
     {

@@ -42,7 +42,7 @@
       "label": { "vi": "Xe dừng hẳn trong vùng trước cổng", "en": "The robot stops in the zone before the gate" },
       "points": 40,
       "zone": "gate-zone",
-      "maxSpeedCmS": 2,
+      "maxSpeedCmS": 0.5,
       "holdS": 1
     },
     {

@@ -59,15 +59,15 @@
       "label": { "vi": "Dừng hẳn trong bến", "en": "Stop inside the dock" },
       "points": 20,
       "zone": "dock",
-      "maxSpeedCmS": 2,
+      "maxSpeedCmS": 0.5,
       "holdS": 1
     },
     {
       "id": "in-time",
       "kind": "finish-within",
-      "label": { "vi": "Xong trong 30 giây", "en": "Finish within 30 s" },
+      "label": { "vi": "Xong trong 35 giây", "en": "Finish within 35 s" },
       "points": 10,
-      "seconds": 30
+      "seconds": 35
     }
   ],
   "scoring": { "timeBonusMax": 10 },
