@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Mesh, type Material } from 'three';
+import { loadTestAssets } from '../__fixtures__/load-glb';
 import { forgetFailedRobotAssets, LOAD_TIMEOUT_MS, loadRobotAssets } from './robot-assets';
 
 // N18 R4.7 fix round 1: the tier's model files load once per page, but a load that failed (a 404, a parse error) or stalled (no answer
@@ -46,3 +48,22 @@ describe('loading the robot lab’s 3D models (N18 R4.7)', () => {
     expect(loadRobotAssets('low', 'http://lab.test/')).toBe(pending);
   });
 });
+
+describe('the GPU copies of the robot lab’s 3D models (N18 R4.7)', () => {
+  it('are freed by releaseGpu when a scene unmounts: every geometry and material of the templates, once each', async () => {
+    const assets = await loadTestAssets('low');
+    const owned = new Set<{ dispose(): void }>();
+    for (const name of ['part_chassis', 'part_wheel', 'part_line_leds', 'prop_wall', 'prop_studio']) {
+      const template = name.startsWith('part_') ? assets.part(name) : assets.prop(name);
+      template!.traverse((node) => {
+        if (!(node instanceof Mesh)) return;
+        owned.add(node.geometry);
+        owned.add(node.material as Material);
+      });
+    }
+    const spies = [...owned].map((item) => vi.spyOn(item, 'dispose'));
+    assets.releaseGpu();
+    for (const spy of spies) expect(spy).toHaveBeenCalledTimes(1);
+  });
+});
+

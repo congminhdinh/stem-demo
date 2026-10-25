@@ -22,6 +22,8 @@ export type RobotAssets = {
   prop(name: string): Object3D | null;
   /** Frees the templates' GPU copies (geometries, materials, textures); the data stays for the next scene. */
   releaseGpu(): void;
+  /** Filters the files' textures with `anisotropy` (the renderer's, capped): the walls' grain stays sharp at a grazing look. */
+  sharpen(anisotropy: number): void;
 };
 
 export const ROBOT_ASSET_FILES: Readonly<Record<Detail, { kit: string; props: string }>> = {
@@ -70,6 +72,13 @@ export function robotAssetsOf(kit: GLTF, props: GLTF): RobotAssets {
       for (const geometry of geometries) geometry.dispose();
       for (const material of materials) material.dispose();
       for (const texture of textures) texture.dispose();
+    },
+    sharpen(anisotropy) {
+      for (const texture of gpuResources([...parts.values(), ...propRoots.values()]).textures) {
+        if (texture.anisotropy === anisotropy) continue;
+        texture.anisotropy = anisotropy;
+        texture.needsUpdate = true;
+      }
     },
   };
 }

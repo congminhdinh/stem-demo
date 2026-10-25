@@ -12,11 +12,13 @@ import type { TierLook } from '../lighting/look';
 import { arenaToThree, writePose } from '../scene-math';
 import { assembleArena, MAT_THICKNESS_M } from './arena-assembly';
 import { paintMat, paintMatRoughness, paintMatShading, type MatLabels } from './mat-paint';
+import { tapeRibbon } from './tape-ribbon';
 import { ZoneTags } from './ZoneTags';
 
 // The arena in the 3D view from the modelled props (N18 R4.7): the mat (a canvas painted from the scenario's vector paint, as the line
 // sensors read it, with its printed borders; the zones' names and numbers float over it as tags, ZoneTags.tsx; its roughness and its baked contact shading painted from the same data; the
-// paper's fibres as a tiled normal map on the high tier), on a thin board whose edge shows, and the props of arena-assembly.ts. The
+// paper's fibres as a tiled normal map on the high tier), on a thin board whose edge shows, the tape's thin body over its paint
+// (tape-ribbon.ts), and the props of arena-assembly.ts. The
 // moving bodies' poses are read from the world in the frame callback.
 
 type GltfArenaProps = {
@@ -120,7 +122,14 @@ export function GltfArena({ assets, planView, scenario, view, look, shadows, tex
       edge.setAttribute('color', new Float32BufferAttribute(Array.from({ length: edge.getAttribute('position').count }, () => [tint.r, tint.g, tint.b]).flat(), 3));
     }
     const edgeMaterial = look.detail === 'low' ? new MeshLambertMaterial({ name: 'mat-edge-low', vertexColors: true }) : new MeshStandardMaterial({ name: 'mat-edge', color: colors.matEdge, roughness: 0.8 });
-    return { top, edge, material, edgeMaterial };
+    // The tape's body (tape-ribbon.ts): matte black vinyl, drawn with the mat edge's shader (its colour in its vertices on the low tier).
+    const tape = tapeRibbon(scenario.arena);
+    if (tape && look.detail === 'low') {
+      const black = new Color(colors.tape);
+      tape.setAttribute('color', new Float32BufferAttribute(Array.from({ length: tape.getAttribute('position').count }, () => [black.r, black.g, black.b]).flat(), 3));
+    }
+    const tapeMaterial = look.detail === 'low' ? new MeshLambertMaterial({ name: 'tape-low', vertexColors: true }) : new MeshStandardMaterial({ name: 'tape', color: colors.tape, roughness: 0.82 });
+    return { top, edge, material, edgeMaterial, tape, tapeMaterial };
   }, [widthCm, depthCm, mat, scenario, look, textures]);
   useEffect(
     () => () => {
@@ -129,6 +138,8 @@ export function GltfArena({ assets, planView, scenario, view, look, shadows, tex
       surface.material.normalMap?.dispose();
       surface.material.dispose();
       surface.edgeMaterial.dispose();
+      surface.tape?.dispose();
+      surface.tapeMaterial.dispose();
     },
     [surface],
   );
@@ -148,6 +159,7 @@ export function GltfArena({ assets, planView, scenario, view, look, shadows, tex
       <primitive object={arena.root} />
       <mesh geometry={surface.top} material={surface.material} position={[centre[0], 0, centre[2]]} receiveShadow={shadows} />
       <mesh geometry={surface.edge} material={surface.edgeMaterial} position={[centre[0], 0, centre[2]]} receiveShadow={shadows} />
+      {surface.tape && <mesh geometry={surface.tape} material={surface.tapeMaterial} receiveShadow={shadows} />}
       <ZoneTags scenario={scenario} labels={labels} />
     </group>
   );

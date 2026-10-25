@@ -913,6 +913,14 @@
   background: color-mix(in srgb, var(--stem-color-text-muted) 60%, transparent) padding-box;
 }
 
+/* Firefox has no ::-webkit-scrollbar: the standard properties there (in Chromium they would replace the styled scrollbar above). */
+@supports not selector(::-webkit-scrollbar) {
+  .robot-check-panel {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--stem-color-text-muted) 60%, transparent) transparent;
+  }
+}
+
 .robot-check-panel-passed {
   border-top-color: var(--stem-color-success);
 }

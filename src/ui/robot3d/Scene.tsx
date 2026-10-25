@@ -240,6 +240,8 @@ function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewF
   const textures = useMemo(() => createTextureSet(Math.min(8, gl.capabilities.getMaxAnisotropy())), [gl]);
   useEffect(() => () => textures.dispose(), [textures]);
   useEffect(() => () => assets?.releaseGpu(), [assets]);
+  // Before the first frame: the files' textures filtered as sharply as the mat's.
+  useLayoutEffect(() => assets?.sharpen(Math.min(8, gl.capabilities.getMaxAnisotropy())), [assets, gl]);
   const labels = useMemo(() => ({ zoneLabel }), [zoneLabel]);
   const usable = assets !== null && NEEDED_PARTS.every((name) => assets.part(name)) && NEEDED_PROPS.every((name) => assets.prop(name));
   // What the canvas draws, for the E2E and a curious developer: the modelled scene or the simple shapes.
