@@ -1,0 +1,85 @@
+import type { BoardProfile } from '../../core/hardware/board';
+import { kitPort, type Kit, type KitModule } from '../../core/hardware/kit';
+import type { RobotSnapshot } from '../../core/world/snapshot';
+import { CM_PER_M } from '../../core/world/units';
+import { robotPointToThree, type Vec3Tuple } from './scene-math';
+
+// The robot the 3D view draws (N18 R4.2), built from the kit part by part: the chassis box, a wheel on each drive motor, the caster,
+// each sensor, servo, LED, buzzer and button, each at its mount (the kit's robot frame, cm, drawn in m in the robot group's three.js
+// frame: scene-math.ts). Nothing of the physics is drawn here that the kit does not say. What the parts show (a line sensor seeing dark,
+// the buzzer's tone, the button held down) is read from the snapshot, by the indices worked out here once.
+
+const m = (cm: number) => cm / CM_PER_M;
+const num = (module: KitModule, key: string, fallback = 0): number => {
+  const value = module.spec[key];
+  return typeof value === 'number' ? value : fallback;
+};
+
+export type RobotModel = {
+  body: { lengthM: number; widthM: number; heightM: number; bottomM: number };
+  /** `outward`: the direction of the wheel's outer face along three's Z (the left wheel faces −Z). */
+  wheels: { role: string; position: Vec3Tuple; radiusM: number; widthM: number; outward: 1 | -1 }[];
+  caster: { position: Vec3Tuple; radiusM: number } | null;
+  ultrasonics: { role: string; position: Vec3Tuple; yawRad: number }[];
+  /** `sensorIndex`: the sensor's place among the snapshot's `sensors` (the kit's sensors in kit order). */
+  lineSensors: { role: string; position: Vec3Tuple; sensorIndex: number }[];
+  servos: { role: string; position: Vec3Tuple; mountYawDeg: number; arm: { lengthM: number; widthM: number; heightM: number } }[];
+  leds: { role: string; position: Vec3Tuple }[];
+  /** `pinIndex`: the module's pin among the snapshot's `pins` (the board's pins in order); -1 when it has none. */
+  buzzers: { role: string; position: Vec3Tuple; pinIndex: number }[];
+  buttons: { role: string; position: Vec3Tuple; pinIndex: number }[];
+};
+
+/** A placeholder chassis for a kit without one (the world needs one to run; the view still draws something sensible). */
+const fallbackChassis = { bodyCm: [15, 12, 5] as const, clearanceCm: 1.5, casterCm: null, casterRadiusCm: 0 };
+
+export function robotModel(kit: Kit, board: BoardProfile): RobotModel {
+  const chassis = kit.chassis ?? fallbackChassis;
+  const [length, width, height] = chassis.bodyCm;
+  const sensorKinds = new Set(['ultrasonic', 'line-sensor']);
+  const sensorIndex = (module: KitModule) => kit.modules.filter((other) => sensorKinds.has(other.kind)).indexOf(module);
+  const pinIndex = (module: KitModule) => {
+    const pin = kitPort(kit, module.port)?.pins.PIN;
+    return pin === undefined ? -1 : board.pins.findIndex((spec) => spec.id === pin);
+  };
+  const at = (module: KitModule) => robotPointToThree(module.mount.posCm);
+  const of = (kind: KitModule['kind']) => kit.modules.filter((module) => module.kind === kind);
+  return {
+    body: { lengthM: m(length), widthM: m(width), heightM: m(height), bottomM: m(chassis.clearanceCm) },
+    wheels: of('dc-motor').map((module) => ({
+      role: module.role,
+      position: at(module),
+      radiusM: m(num(module, 'wheelRadiusCm', 3)),
+      widthM: m(num(module, 'wheelWidthCm', 2)),
+      outward: module.mount.posCm[1] >= 0 ? -1 : 1,
+    })),
+    caster: kit.chassis ? { position: robotPointToThree(kit.chassis.casterCm), radiusM: m(kit.chassis.casterRadiusCm) } : null,
+    ultrasonics: of('ultrasonic').map((module) => ({ role: module.role, position: at(module), yawRad: (module.mount.yawDeg * Math.PI) / 180 })),
+    lineSensors: of('line-sensor').map((module) => ({ role: module.role, position: at(module), sensorIndex: sensorIndex(module) })),
+    servos: of('servo').map((module) => ({
+      role: module.role,
+      position: at(module),
+      mountYawDeg: module.mount.yawDeg,
+      arm: { lengthM: m(num(module, 'armLengthCm', 5)), widthM: m(num(module, 'armWidthCm', 0.8)), heightM: m(num(module, 'armHeightCm', 1)) },
+    })),
+    leds: of('led').map((module) => ({ role: module.role, position: at(module) })),
+    buzzers: of('buzzer').map((module) => ({ role: module.role, position: at(module), pinIndex: pinIndex(module) })),
+    buttons: of('button').map((module) => ({ role: module.role, position: at(module), pinIndex: pinIndex(module) })),
+  };
+}
+
+/** Whether the line sensor at `sensorIndex` sees dark on this tick (false before a run, when the snapshot has no readouts). */
+export function lineSeesDark(world: RobotSnapshot, sensorIndex: number): boolean {
+  const readout = world.sensors[sensorIndex];
+  return readout?.kind === 'line-sensor' && readout.dark;
+}
+
+/** The tone the board plays on the pin at `pinIndex`, Hz, or null. */
+export function toneHzOf(world: RobotSnapshot, pinIndex: number): number | null {
+  return world.pins[pinIndex]?.toneHz ?? null;
+}
+
+/** Whether the button on the pin at `pinIndex` is held: the kit wires it to GND, so its pin reads LOW while it is down. */
+export function buttonPressed(world: RobotSnapshot, pinIndex: number): boolean {
+  return world.pins[pinIndex]?.level === 0;
+}
