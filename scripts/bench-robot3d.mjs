@@ -4,8 +4,8 @@
 // (`uptime`: every cell records the 1-minute load average next to its numbers).
 //
 //   node scripts/bench-robot3d.mjs [--profiles=a,b] [--scenarios=x,y] [--repeats=3] [--seconds=8] [--soak-minutes=10] [--switches=20]
-//                                  [--pass=fps|profile|all] [--port=5300] [--no-build | --dist=<dir>] [--label=<name>] [--out=<dir>] [--smoke]
-//                                  [--targets]
+//                                  [--pass=fps|profile|all] [--skip=x,y] [--port=5300] [--no-build | --dist=<dir>] [--label=<name>] [--out=<dir>] [--smoke]
+//                                  [--targets] [--report=a.json,b.json (the tables again from earlier results, merged)]
 //   pnpm bench:robot3d
 //
 // It builds the app (`vite build --sourcemap hidden`: the same bytes as `pnpm build`, the source maps beside them for the profiles) into
@@ -104,11 +104,11 @@ const DEFAULT_SCENARIOS = {
   'ss-low-4x-sim4x': ['line-follow', 'mini-mission'],
   'school-sim4x': ['line-follow', 'mini-mission'],
 };
-const PROFILE_PASS_SCENARIOS = ['line-follow', 'mini-mission', 'check-4x', 'follow', 'teleop', 'pins'];
+const PROFILE_PASS_SCENARIOS = ['line-follow', 'mini-mission', 'check-4x', 'follow', 'teleop', 'pins', 'cpp'];
 const PILOTS = ['drive-to-zone', 'square-route', 'stop-at-wall', 'line-follow', 'servo-gate', 'mini-mission'];
 
 function parseArguments(argv) {
-  const options = { profiles: Object.keys(PROFILES), scenarios: null, repeats: 3, seconds: 8, soakMinutes: 10, switches: 20, pass: 'all', port: 5300, build: true, dist: null, label: null, out: join(cacheDir, 'results'), smoke: false, targets: false };
+  const options = { profiles: Object.keys(PROFILES), scenarios: null, repeats: 3, seconds: 8, soakMinutes: 10, switches: 20, pass: 'all', skip: [], port: 5300, build: true, dist: null, label: null, out: join(cacheDir, 'results'), smoke: false, targets: false };
   for (const arg of argv) {
     const [key, value] = arg.replace(/^--/, '').split('=');
     const number = () => {
@@ -118,6 +118,7 @@ function parseArguments(argv) {
     };
     if (key === 'profiles') options.profiles = value.split(',');
     else if (key === 'scenarios') options.scenarios = value.split(',').flatMap((name) => (name === 'pilots' ? PILOTS : [name]));
+    else if (key === 'skip') options.skip = value.split(',');
     else if (key === 'repeats') options.repeats = number();
     else if (key === 'seconds') options.seconds = number();
     else if (key === 'soak-minutes') options.soakMinutes = number();
@@ -128,6 +129,7 @@ function parseArguments(argv) {
     else if (key === 'no-build') options.build = false;
     else if (key === 'dist') Object.assign(options, { dist: resolve(value), build: false });
     else if (key === 'label') options.label = value;
+    else if (key === 'report') options.report = value.split(',').map((file) => resolve(file));
     else if (key === 'smoke') options.smoke = true;
     else if (key === 'targets') options.targets = true;
     else throw new Failure(2, `Unknown option ${arg}. See the top of scripts/bench-robot3d.mjs.`);
@@ -260,6 +262,16 @@ async function pageMetrics(cdp) {
 const metricDelta = (before, after, seconds) =>
   Object.fromEntries(['TaskDuration', 'ScriptDuration', 'LayoutDuration', 'RecalcStyleDuration'].map((name) => [`${name}PerSecondMs`, round((((after[name] ?? 0) - (before[name] ?? 0)) * 1000) / seconds, 1)]));
 
+/** The browser's own CDP session (one per launch): the CPU time of its processes, to see the GPU process's (SwiftShader's raster). */
+const browserSessions = new WeakMap();
+async function processCpu(browser) {
+  if (!browserSessions.has(browser)) browserSessions.set(browser, await browser.newBrowserCDPSession());
+  const { processInfo } = await browserSessions.get(browser).send('SystemInfo.getProcessInfo');
+  const byType = {};
+  for (const { type, cpuTime } of processInfo) byType[type] = (byType[type] ?? 0) + cpuTime;
+  return byType;
+}
+
 async function startCpuProfile(cdp) {
   await cdp.send('Profiler.enable');
   await cdp.send('Profiler.setSamplingInterval', { interval: 250 });
@@ -318,7 +330,7 @@ async function loadProject(page, frame, project, port) {
  * Measures `during` (async): the probe's window, the page's task metrics, and under `profiled` V8's CPU profiler (250 µs samples) and
  * its sampling heap profiler (collected objects included), mapped to their sources.
  */
-async function measure(frame, cdp, during, { profiled = false, maps = null } = {}) {
+async function measure(frame, cdp, during, { profiled = false, maps = null, browser = null } = {}) {
   if (profiled) {
     await cdp.send('HeapProfiler.enable');
     try {
@@ -329,6 +341,7 @@ async function measure(frame, cdp, during, { profiled = false, maps = null } = {
     await startCpuProfile(cdp);
   }
   const before = await pageMetrics(cdp);
+  const processesBefore = browser ? await processCpu(browser) : null;
   const loadBefore = load1();
   await p2(frame, 'window.__p2.begin()');
   const started = Date.now();
@@ -337,6 +350,17 @@ async function measure(frame, cdp, during, { profiled = false, maps = null } = {
   const seconds = (Date.now() - started) / 1000;
   const after = await pageMetrics(cdp);
   const result = { ...summary, ...(extra ?? {}), page: metricDelta(before, after, seconds), loadavg1m: [loadBefore, load1()] };
+  if (processesBefore) {
+    // CPU time of each kind of process over the window: per animation frame (ms), and in cores (CPU s per wall s). With SwiftShader the
+    // GPU process's is the rasterisation a computer without a GPU does on its CPU, which the main thread's numbers do not show.
+    const processesAfter = await processCpu(browser);
+    result.processCpu = Object.fromEntries(
+      Object.entries(processesAfter).map(([type, cpuS]) => {
+        const deltaS = cpuS - (processesBefore[type] ?? 0);
+        return [type, { msPerFrame: summary.animationFrames > 0 ? round((deltaS * 1000) / summary.animationFrames, 2) : null, cores: round(deltaS / seconds, 2) }];
+      }),
+    );
+  }
   if (profiled) {
     const { profile } = await cdp.send('Profiler.stop');
     const { profile: sampling } = await cdp.send('HeapProfiler.stopSampling');
@@ -387,9 +411,9 @@ async function cell(browser, profileName, scenarioName, run, options, shared) {
     measured.loading = await p2(frame, 'window.__p2.loading()');
     await loadProject(page, frame, scenario.program ? shared.projects[scenario.program] : null, options.port);
     await sleep(1500);
-    const opts = { profiled: false, maps: shared.maps };
+    const opts = { profiled: false, maps: shared.maps, browser };
     measured.idle = await measure(frame, cdp, () => sleep(3000), opts);
-    const windowOpts = { profiled, maps: shared.maps };
+    const windowOpts = { profiled, maps: shared.maps, browser };
 
     if (scenario.action === 'idle') {
       // An orbit drag over the view, then its damping settling, then rest again.
@@ -474,7 +498,7 @@ async function cell(browser, profileName, scenarioName, run, options, shared) {
       );
       await page.keyboard.up('ArrowUp');
     } else if (scenario.action === 'soak') {
-      Object.assign(measured, await soak(frame, cdp, options));
+      Object.assign(measured, await soak(frame, cdp, options, browser));
     } else if (scenario.action === 'switch') {
       Object.assign(measured, await switches(page, frame, cdp, options));
     }
@@ -490,28 +514,36 @@ async function cell(browser, profileName, scenarioName, run, options, shared) {
 }
 
 /** The sandbox's loop line followed for the soak's minutes; a new Run when one ends. Every minute: the heap after a collection. */
-async function soak(frame, cdp, options) {
+async function soak(frame, cdp, options, browser) {
   const minutes = [];
   await frame.getByTestId('robot-run').click();
   await frame.locator('[data-testid=robot-hud][data-status=running]').waitFor({ timeout: 60_000 });
+  await p2(frame, 'window.__p2.trim()');
   const heapStartB = await heapAfterGc(cdp);
   const contextsStart = await p2(frame, 'window.__p2.summary().contexts');
   let runs = 1;
   const minuteMs = Math.min(60_000, options.soakMinutes * 60_000);
   const count = Math.max(1, Math.round((options.soakMinutes * 60_000) / minuteMs));
   for (let minute = 1; minute <= count; minute += 1) {
-    const summary = await measure(frame, cdp, async () => {
-      const until = Date.now() + minuteMs - 1500;
-      while (Date.now() < until) {
-        if (OVER.has(await status(frame))) {
-          runs += 1;
-          await frame.getByTestId('robot-run').click();
+    const summary = await measure(
+      frame,
+      cdp,
+      async () => {
+        const until = Date.now() + minuteMs - 1500;
+        while (Date.now() < until) {
+          if (OVER.has(await status(frame))) {
+            runs += 1;
+            await frame.getByTestId('robot-run').click();
+          }
+          await sleep(1000);
         }
-        await sleep(1000);
-      }
-    });
+      },
+      { browser },
+    );
+    // The probe's series emptied first: only the lab's own heap is compared minute to minute.
+    await p2(frame, 'window.__p2.trim()');
     const heapB = await heapAfterGc(cdp);
-    minutes.push({ minute, heapB, framesDrawn: summary.framesDrawn, frameMs: summary.frameMs, busyMs: summary.busyMs, longTasks: summary.longTasks, commits: summary.commits, renderer: summary.renderer, contexts: summary.contexts, loadavg1m: summary.loadavg1m });
+    minutes.push({ minute, heapB, framesDrawn: summary.framesDrawn, frameMs: summary.frameMs, busyMs: summary.busyMs, longTasks: summary.longTasks, commits: summary.commits, renderer: summary.renderer, contexts: summary.contexts, processCpu: summary.processCpu, loadavg1m: summary.loadavg1m });
     log(`    soak minute ${minute}/${count}: heap ${(heapB / 2 ** 20).toFixed(2)} MiB, ${summary.framesDrawn} frames, p95 ${round(summary.frameMs?.p95)} ms, load ${summary.loadavg1m[1]}`);
   }
   const heapEndB = minutes.at(-1).heapB;
@@ -526,6 +558,7 @@ async function soak(frame, cdp, options) {
 async function switches(page, frame, cdp, options) {
   const sample = async (kind, index) => {
     await sleep(700);
+    await p2(frame, 'window.__p2.trim()');
     const heapB = await heapAfterGc(cdp);
     const dom = await cdp.send('Memory.getDOMCounters');
     const summary = await p2(frame, '({ contexts: window.__p2.summary().contexts, renderer: window.__p2.rendererInfo(), renderers: window.__p2.state.renderers.length })');
@@ -589,7 +622,8 @@ const p5fps = (frameMs) => (frameMs?.p95 ? 1000 / frameMs.p95 : null);
 function rowOf(measured) {
   const w = measured.window ?? measured.drag ?? null;
   const loading = measured.loading;
-  const firstRender = loading?.firstRender;
+  // The first render that drew the scene (an older probe had only the first render, which may be the empty scene's).
+  const firstRender = loading?.firstSceneRender ?? loading?.firstRender;
   const compiles = loading?.compiles ?? [];
   const parses = loading?.parses ?? [];
   const glb = (loading?.resources ?? []).filter((resource) => resource.name.startsWith('robot3d/'));
@@ -624,6 +658,10 @@ function rowOf(measured) {
     restDrawsPerS: measured.rest ? round(measured.rest.framesDrawn / measured.rest.seconds, 2) : measured.afterDrag ? round(measured.afterDrag.framesDrawn / measured.afterDrag.seconds, 2) : null,
     allocPerFrameKB: w?.alloc ? round(w.alloc.perFrameB / 1024, 1) : null,
     taskPerS: w?.page?.TaskDurationPerSecondMs ?? null,
+    gpuProcMsPerFrame: w?.processCpu?.GPU?.msPerFrame ?? null,
+    gpuProcCores: w?.processCpu?.GPU?.cores ?? null,
+    rendererProcMsPerFrame: w?.processCpu?.renderer?.msPerFrame ?? null,
+    rendererProcCores: w?.processCpu?.renderer?.cores ?? null,
     scriptPerS: w?.page?.ScriptDurationPerSecondMs ?? null,
     gpuMB: measured.inventory ? round(measured.inventory.gpuBytes.total / 2 ** 20, 1) : null,
     programs: measured.renderer?.programs ?? null,
@@ -693,6 +731,7 @@ function judge(cells, bundle) {
   add('budget', 'gpu-high: median fps of every run', of('gpu-high', runs).map((entry) => fps(entry.window?.frameMs)), atLeast(50), 'fps', 'the plan’s ≥ 50 fps mid-range');
   add('budget', 'ss-low-4x: p5 fps of every run', of('ss-low-4x', runs).map((entry) => p5fps(entry.window?.frameMs)), atLeast(30), 'fps', 'the plan’s ≥ 30 fps low tier at 4×');
   add('budget', 'Run → moving (warm), every profile', fpsCells.map((entry) => entry.runToMovingMs), atMost(300), 'ms', 'click to the first render with the robot moved');
+  add('budget', 'ss-low-4x: first Run → moving (physics loads)', of('ss-low-4x').map((entry) => entry.firstRunToMovingMs), atMost(1500), 'ms', 'the plan’s init physics ≤ 1.5 s at 4×');
   add('budget', 'draws per second at rest', fpsCells.flatMap((entry) => [entry.idle, entry.rest, entry.afterDrag].filter(Boolean).map((summary) => summary.framesDrawn / summary.seconds)), atMost(0), '/s', 'idle before a run, a parked robot, after an orbit settles');
   for (const entry of fpsCells.filter((cellEntry) => cellEntry.soak)) add('budget', `${entry.profile}: JS heap growth over the soak (minute 1 → end)`, [entry.soak.growthPercent], atMost(5), '%', `${entry.soak.minutes.length} min, ${entry.soak.runs} runs`);
 
@@ -719,15 +758,15 @@ function markdown(report) {
   lines.push('## Budgets and targets', '', '| kind | measure | worst | limit | result | n | detail |', '|---|---|---|---|---|---|---|');
   for (const row of verdicts) lines.push(`| ${row.kind} | ${row.name} | ${round(row.value, 1)} ${row.unit} | ${row.limit} ${row.unit} | ${row.ok ? 'ok' : row.kind === 'budget' ? 'MISSED' : 'not met'} | ${row.n} | ${row.detail} |`);
   lines.push('', '## Frames (fps pass): ranges over the repeats', '');
-  lines.push('| profile · scenario | fps | p5 fps | frame p50 / p95 / p99 ms | main thread p50 / p95 ms | render call ms | draws screen + shadow | long tasks (>100) max ms | commits/s run (idle) | tasks (script) ms/s | load |');
-  lines.push('|---|---|---|---|---|---|---|---|---|---|---|');
+  lines.push('| profile · scenario | fps | p5 fps | frame p50 / p95 / p99 ms | main thread p50 / p95 ms | render call ms | draws screen + shadow | long tasks (>100) max ms | commits/s run (idle) | tasks (script) ms/s | GPU process ms/frame (cores) | renderer process ms/frame (cores) | load |');
+  lines.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|');
   for (const [key, entries] of groups(cells, 'fps')) {
     const rows = entries.map((entry) => entry.row);
     const pick = (name, digits) => range(rows.map((row) => row[name]), digits);
     const dom = rows.map((row) => row.commitsRun?.['react-dom'] ?? null);
     const domIdle = rows.map((row) => row.commitsIdle?.['react-dom'] ?? null);
     lines.push(
-      `| ${key} | ${pick('fps')} | ${pick('p5fps')} | ${pick('frameP50')} / ${pick('frameP95')} / ${pick('frameP99')} | ${pick('busyP50')} / ${pick('busyP95')} | ${pick('renderCallP50', 2)} | ${pick('drawsScreen', 0)} + ${pick('drawsOffscreen', 0)} | ${pick('longTasks', 0)} (${pick('longOver100', 0)}) ${pick('longMaxMs', 0)} | ${range(dom)} (${range(domIdle)}) | ${pick('taskPerS', 0)} (${pick('scriptPerS', 0)}) | ${range(rows.flatMap((row) => row.load ?? []), 2)} |`,
+      `| ${key} | ${pick('fps')} | ${pick('p5fps')} | ${pick('frameP50')} / ${pick('frameP95')} / ${pick('frameP99')} | ${pick('busyP50')} / ${pick('busyP95')} | ${pick('renderCallP50', 2)} | ${pick('drawsScreen', 0)} + ${pick('drawsOffscreen', 0)} | ${pick('longTasks', 0)} (${pick('longOver100', 0)}) ${pick('longMaxMs', 0)} | ${range(dom)} (${range(domIdle)}) | ${pick('taskPerS', 0)} (${pick('scriptPerS', 0)}) | ${pick('gpuProcMsPerFrame')} (${pick('gpuProcCores', 2)}) | ${pick('rendererProcMsPerFrame')} (${pick('rendererProcCores', 2)}) | ${range(rows.flatMap((row) => row.load ?? []), 2)} |`,
     );
   }
   lines.push('', '## Loading and rest (fps pass)', '');
@@ -820,8 +859,27 @@ function markdown(report) {
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 
+/** --report=a.json,b.json: the tables and verdicts again from earlier runs' results, their cells together (the first run's bundle). */
+function reportOnly(options) {
+  const runs = options.report.map((file) => JSON.parse(readFileSync(file, 'utf8')));
+  const [first] = runs;
+  const cells = runs.flatMap((run) => run.cells);
+  const report = { ...first, date: new Date().toISOString(), options: { ...first.options, label: options.label ?? 'merged' }, cells, verdicts: judge(cells, first.bundle), merged: options.report };
+  const table = markdown(report);
+  const loads = runs.map((run) => `${run.date} (${run.options.label ?? 'unlabelled'}, ${run.cells.length} cells)`).join('; ');
+  mkdirSync(options.out, { recursive: true });
+  const base = join(options.out, `bench-robot3d-${options.label ?? 'merged'}`);
+  writeFileSync(`${base}.md`, table.replace('\n\n', `\n\nMerged from: ${loads}.\n\n`));
+  writeFileSync(`${base}.json`, `${JSON.stringify(report, null, 1)}\n`);
+  process.stdout.write(`${table}\nwritten ${base}.md and .json\n`);
+}
+
 async function main() {
   const options = parseArguments(process.argv.slice(2));
+  if (options.report) {
+    reportOnly(options);
+    return;
+  }
   if (options.dist) distDir = options.dist;
   const started = Date.now();
   if (options.build) build();
@@ -840,7 +898,7 @@ async function main() {
     const passes = options.pass === 'all' ? ['fps', 'profile'] : [options.pass];
     for (const pass of passes) {
       for (const profileName of options.profiles) {
-        const scenarios = (options.scenarios ?? DEFAULT_SCENARIOS[profileName]).filter((name) => pass === 'fps' || (PROFILE_PASS_SCENARIOS.includes(name) && SCENARIOS[name].action !== 'soak'));
+        const scenarios = (options.scenarios ?? DEFAULT_SCENARIOS[profileName]).filter((name) => !options.skip.includes(name) && (pass === 'fps' || PROFILE_PASS_SCENARIOS.includes(name)));
         if (scenarios.length === 0) continue;
         let browser = await chromium.launch(PROFILES[profileName].launch);
         chromiumVersion ??= browser.version();

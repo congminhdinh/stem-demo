@@ -14,7 +14,8 @@
 //   tasks      long tasks (> 50 ms) and long animation frames with their scripts
 //   react      commits per renderer (react-dom, @react-three/fiber, …)
 //   contexts   WebGL contexts made and lost (R3F loses its context when a canvas unmounts)
-//   loading    each GLTFLoader.parse (fetch excluded), each compileAsync, the first main render, the resource timings
+//   loading    each GLTFLoader.parse (fetch excluded), each compileAsync, the first main render and the first that drew the scene, the
+//              resource timings; each also as a performance mark (`p2:…`), which a Chromium trace shows on its timeline
 //   inventory  (on demand) the scene's meshes, materials, textures, shadow maps and environment, and an estimate of the GPU memory they
 //              take with the drawing buffer
 (() => {
@@ -37,6 +38,7 @@
     parses: [],
     compiles: [],
     firstRender: null,
+    firstSceneRender: null,
     watch: null,
     draws: { screen: 0, offscreen: 0 },
   };
@@ -96,7 +98,10 @@
   // three's devtools seam: the renderer (its render and compileAsync timed), and each GLTFLoader (its parse timed: decoding included).
   const hookRenderer = (renderer) => {
     state.renderers.push(renderer);
-    state.rendererMadeAt ??= now();
+    if (state.rendererMadeAt === undefined) {
+      state.rendererMadeAt = now();
+      performance.mark('p2:renderer');
+    }
     const render = renderer.render;
     renderer.render = function (scene, camera) {
       const target = renderer.getRenderTarget();
@@ -110,7 +115,15 @@
         state.camera = camera;
         const { calls, triangles } = renderer.info.render;
         state.frames.push([begin, ms, state.draws.screen - screen, state.draws.offscreen - offscreen, calls, triangles]);
-        if (state.firstRender === null) state.firstRender = { at: begin, ms, programs: renderer.info.programs?.length ?? null };
+        if (state.firstRender === null) {
+          state.firstRender = { at: begin, ms, programs: renderer.info.programs?.length ?? null };
+          performance.mark('p2:first-render');
+        }
+        // The first render that drew something to the screen (an empty scene is drawn while the models are still loading).
+        if (state.firstSceneRender === null && state.draws.screen - screen > 0) {
+          state.firstSceneRender = { at: begin, ms, draws: state.draws.screen - screen, programs: renderer.info.programs?.length ?? null };
+          performance.mark('p2:first-scene-render');
+        }
         const watch = state.watch;
         if (watch && watch.at === null) {
           const robot = scene.getObjectByName('robot');
@@ -130,8 +143,10 @@
         const begin = now();
         const entry = { begin, end: null, programsBefore: renderer.info.programs?.length ?? null, programsAfter: null };
         state.compiles.push(entry);
+        performance.mark('p2:compile-begin');
         return compileAsync.apply(this, rest).finally(() => {
           entry.end = now();
+          performance.mark('p2:compile-end');
           entry.programsAfter = renderer.info.programs?.length ?? null;
         });
       };
@@ -143,12 +158,14 @@
     loader.parse = function (data, path, onLoad, onError) {
       const entry = { begin: now(), end: null, bytes: data?.byteLength ?? null };
       state.parses.push(entry);
+      performance.mark('p2:parse-begin');
       return parse.call(
         this,
         data,
         path,
         (gltf) => {
           entry.end = now();
+          performance.mark('p2:parse-end');
           onLoad(gltf);
         },
         onError,
@@ -255,6 +272,11 @@
       this.from = this.mark();
       return this.from;
     },
+    /** Empties every series: a soak keeps one window of them at a time, so that the probe's own arrays do not grow the heap it measures. */
+    trim() {
+      for (const key of ['frames', 'animation', 'busy', 'longTasks', 'longFrames', 'commits']) state[key].length = 0;
+      this.from = this.mark();
+    },
     /** What happened since begin(): frames, their times and draws, the main thread, long tasks, React commits. */
     summary() {
       const from = this.from ?? { at: 0, frames: 0, animation: 0, busy: 0, longTasks: 0, longFrames: 0, commits: 0 };
@@ -328,6 +350,7 @@
         parses: state.parses,
         compiles: state.compiles,
         firstRender: state.firstRender,
+        firstSceneRender: state.firstSceneRender,
         offscreenRenders: state.offscreenRenders,
         longTasks: state.longTasks.map(([start, ms]) => ({ start, ms })),
         longFrames: state.longFrames.filter((frame) => frame.duration > 100).slice(0, 20),
@@ -341,6 +364,12 @@
       const materials = new Set();
       const textures = new Map();
       const counts = { objects: 0, meshes: 0, visibleMeshes: 0, castShadow: 0, sprites: 0, lights: 0, shadowLights: 0, instanced: 0 };
+      // Per top group (the robot, the arena, the zones' tags): visible meshes, shadow casters, triangles.
+      const byGroup = {};
+      const groupOf = (node) => {
+        for (let up = node; up; up = up.parent) if (up.name === 'robot' || up.name === 'arena-gltf' || up.name === 'zone-tags') return up.name;
+        return 'other';
+      };
       const materialTypes = {};
       const shadowMaps = [];
       const addTexture = (texture, where) => {
@@ -364,6 +393,13 @@
           for (let up = node; up; up = up.parent) visible &&= up.visible;
           if (visible && node.isMesh) counts.visibleMeshes += 1;
           if (node.castShadow && visible) counts.castShadow += 1;
+          if (visible && (node.isMesh || node.isSprite)) {
+            const group = (byGroup[groupOf(node)] ??= { visible: 0, castShadow: 0, triangles: 0 });
+            group.visible += 1;
+            if (node.castShadow) group.castShadow += 1;
+            const geometry = node.geometry;
+            if (geometry) group.triangles += Math.round((geometry.index ? geometry.index.count : (geometry.attributes?.position?.count ?? 0)) / 3);
+          }
           if (node.geometry) geometries.add(node.geometry);
           for (const material of Array.isArray(node.material) ? node.material : [node.material]) {
             if (!material) continue;
@@ -407,6 +443,7 @@
       const shadowBytes = shadowMaps.reduce((sum, map) => sum + map.bytes, 0);
       return {
         counts,
+        byGroup,
         materialTypes,
         materials: materials.size,
         geometries: geometries.size,

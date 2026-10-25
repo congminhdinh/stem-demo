@@ -144,7 +144,8 @@ export function categoryOf(source) {
   if (/node_modules\/@react-three\/fiber\//.test(source)) return 'r3f';
   if (/node_modules\/react-dom\//.test(source)) return 'react-dom';
   if (/node_modules\/react-reconciler\//.test(source)) return 'react-reconciler';
-  if (/node_modules\/(scheduler|react)\//.test(source)) return 'react';
+  if (/node_modules\/scheduler\//.test(source)) return 'scheduler';
+  if (/node_modules\/react\//.test(source)) return 'react';
   if (/node_modules\/blockly\//.test(source)) return 'blockly';
   if (/node_modules\/(zustand|use-sync-external-store)\//.test(source)) return 'state';
   if (/^src\/ui\/robot3d\//.test(source)) return 'ui: robot3d';
@@ -155,7 +156,7 @@ export function categoryOf(source) {
 }
 
 /** The buckets, in the order a stack is given to the first that it holds. */
-export const BUCKETS = ['gc', 'idle', 'browser', 'sim', 'shadow map', 'render', 'blockly', 'react-dom', 'r3f reconciler', 'scene callbacks', 'other js'];
+export const BUCKETS = ['gc', 'idle', 'browser', 'sim', 'shadow map', 'render', 'blockly', 'r3f reconciler', 'react-dom', 'scene callbacks', 'other js'];
 
 const SPECIAL = new Map([
   ['(garbage collector)', 'gc'],
@@ -198,8 +199,8 @@ function bucketOf(flags) {
   if (flags.shadow) return 'shadow map';
   if (flags.render) return 'render';
   if (flags.blockly) return 'blockly';
-  if (flags.reactDom) return 'react-dom';
   if (flags.reconciler) return 'r3f reconciler';
+  if (flags.reactDom) return 'react-dom';
   if (flags.scene) return 'scene callbacks';
   return 'other js';
 }
@@ -212,7 +213,7 @@ function flagsOf(parent, frame) {
   if (category === 'three' && /\bthis\.render\s*=\s*function\s*\(\s*lights\b/.test(frame.text)) flags.shadow = true;
   else if (category === 'three' && /\bthis\.render\s*=\s*function\s*\(\s*scene\b/.test(frame.text)) flags.render = true;
   if (category === 'blockly' || category === 'ui: blockly panel') flags.blockly = true;
-  if (category === 'react-dom' || category === 'react') flags.reactDom = true;
+  if (category === 'react-dom') flags.reactDom = true;
   if (category === 'react-reconciler') flags.reconciler = true;
   if (category === 'r3f' || category === 'ui: robot3d' || category === 'three') flags.scene = true;
   return flags;
