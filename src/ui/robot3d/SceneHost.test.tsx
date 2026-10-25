@@ -68,14 +68,14 @@ afterEach(() => {
 const gpu: WebglProbe = { ok: true, renderer: 'ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)' };
 const none: WebglProbe = { ok: false };
 
-function render(probe: () => WebglProbe) {
+function render(probe: () => WebglProbe, options: { onViewUp?: () => void } = {}) {
   const fake = fakeSession(scenario, kit);
   const store = createRobotRunStore(fake.session);
   store.getState().connect();
   act(() =>
     root.render(
       <TextProvider locale="vi">
-        <SceneHost scenario={scenario} kit={kit} model={model} store={store} reducedMotion={false} zoneLabel={() => null} probe={probe} />
+        <SceneHost scenario={scenario} kit={kit} model={model} store={store} reducedMotion={false} zoneLabel={() => null} probe={probe} {...(options.onViewUp ? { onViewUp: options.onViewUp } : {})} />
       </TextProvider>,
     ),
   );
@@ -314,3 +314,19 @@ describe('SceneHost on a slow renderer (N18 R4.7 fix round 1)', () => {
   });
 });
 
+describe('the view up (N18 P2)', () => {
+  it('is told once the 3D view has drawn its first frame, not before', () => {
+    const onViewUp = vi.fn();
+    render(() => gpu, { onViewUp });
+    advance(1000);
+    expect(onViewUp).not.toHaveBeenCalled();
+    act(() => scenes.props!.onFirstFrame!());
+    expect(onViewUp).toHaveBeenCalledTimes(1);
+  });
+
+  it('is told at once when the 2D map stands in from the start', () => {
+    const onViewUp = vi.fn();
+    render(() => none, { onViewUp });
+    expect(onViewUp).toHaveBeenCalledTimes(1);
+  });
+});

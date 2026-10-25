@@ -337,3 +337,8 @@ function macrotask(task: () => void): void {
   };
   port2.postMessage(null);
 }
+
+/** A later turn of the event loop (`macrotask`): whatever waits for it lets the page draw and take input first. */
+export function nextTurn(): Promise<void> {
+  return new Promise((resolve) => macrotask(resolve));
+}

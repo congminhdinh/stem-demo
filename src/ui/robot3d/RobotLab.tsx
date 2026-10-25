@@ -23,6 +23,7 @@ import { useLocale, useText } from '../i18n/text';
 import type { ProjectStore } from '../state/project-store';
 import { createAnnouncer } from './announcer';
 import { createCameraCommands } from './camera-commands';
+import { onFirstUse } from './first-use';
 import { CheckControls } from './CheckControls';
 import { CheckResults, FastCheckView } from './CheckResults';
 import { Hud } from './Hud';
@@ -42,6 +43,7 @@ import type { WebglProbe } from './quality';
 import { restrictToolbox } from './toolbox';
 import { useCheckAnnouncements, useRunAnnouncements } from './use-announcements';
 import { useCameraKeys } from './use-camera-keys';
+import { whenIdle } from './when-idle';
 import './RobotLab.css';
 
 // The robot lab (`lab=robot`, N18 R4.1 shell, R4.2 scene, R4.4 HUD and controls), loaded on its own with React.lazy (RobotLabLoader.tsx)
@@ -198,6 +200,22 @@ export default function RobotLab({
   // The sandbox has no score: nothing to check (as the other labs' templates without a challenge have no Check).
   const checkable = scenarioMaxScore(scenario) !== undefined;
   useRunAnnouncements(store, checkable ? checks : null, announcer, scenarioMaxScore(scenario));
+  // N18 P2: once the view is up and the lab is used (a press, a key, a project the host loads), the session loads and warms the physics
+  // engine at idle: neither the first Run nor the first Kiểm tra waits for it then (about 250 ms of wasm on a school PC, and the download).
+  // A lab that is only opened downloads none of it.
+  const [viewUp, setViewUp] = useState(false);
+  const onViewUp = useCallback(() => setViewUp(true), []);
+  useEffect(() => {
+    if (!viewUp) return undefined;
+    let cancel = () => {};
+    const stop = onFirstUse(window, () => {
+      cancel = whenIdle(() => store.getState().preparePhysics());
+    });
+    return () => {
+      stop();
+      cancel();
+    };
+  }, [viewUp, store]);
   useCheckAnnouncements(checkable ? checks : null, announcer);
   useCameraKeys(stageRef, commands);
   const model = useMemo(() => robotModel(kit, board), [kit, board]);
@@ -334,6 +352,7 @@ export default function RobotLab({
           alert={alert}
           hint={viewHint}
           hintId={hintId}
+          onViewUp={onViewUp}
           {...(probe ? { probe } : {})}
         />
         <Hud store={store} scenario={scenario} />

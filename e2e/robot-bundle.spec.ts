@@ -44,7 +44,8 @@ test.describe('bundle isolation of the robot lab', () => {
     expect(requests.robotLab()).toHaveLength(1);
     // The watcher does see a robot module as a heavy one: it is not blind to what the other tests say is absent. Since R4.2 the lab
     // brings its 3D scene (three and react-three-fiber) with it, and the physics engine (the Rapier package and its wasm, which
-    // core/world/rapier.ts imports lazily) only with the first Run.
+    // core/world/rapier.ts imports lazily) only once the lab is used (N18 P2: its first press or key, or a project the host loads, warms
+    // it at idle; else the first Run).
     const heavy = requests.heavy().map((url) => new URL(url).pathname);
     expect(heavy).toEqual(expect.arrayContaining(['/src/ui/robot3d/RobotLab.tsx', '/src/ui/robot3d/RobotLab.css', '/src/ui/robot3d/Scene.tsx']));
     expect(heavy.some((path) => /\/(three|@react-three_fiber)\.js$/.test(path))).toBe(true);

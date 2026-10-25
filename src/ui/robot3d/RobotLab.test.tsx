@@ -672,3 +672,23 @@ describe('RobotLab checks (N18 R6.3)', () => {
     expect(onBusyChange.mock.calls.at(-1)).toEqual([false]);
   });
 });
+
+describe('the physics engine before the first run (N18 P2)', () => {
+  const wait = (ms: number) => act(() => new Promise((resolve) => setTimeout(resolve, ms)));
+
+  it('is not loaded while the lab is only open, and is loaded at idle once it is used (a press here; a key or the host’s load-project as well)', async () => {
+    vi.stubGlobal('requestIdleCallback', undefined);
+    const { render, session } = setup();
+    await render();
+    await wait(400);
+    expect(session.preparePhysics).not.toHaveBeenCalled();
+    act(() => void window.dispatchEvent(new Event('pointerdown')));
+    await wait(100);
+    expect(session.preparePhysics).not.toHaveBeenCalled();
+    await wait(300);
+    expect(session.preparePhysics).toHaveBeenCalledTimes(1);
+    act(() => void window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' })));
+    await wait(400);
+    expect(session.preparePhysics).toHaveBeenCalledTimes(1);
+  });
+});

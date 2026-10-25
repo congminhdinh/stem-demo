@@ -48,12 +48,14 @@ type SceneHostProps = Omit<SceneProps, 'tier' | 'cameraMode' | 'onContextLost' |
   hint?: string;
   /** N18 R8: the id of the hint element, for the lab to point at. */
   hintId?: string;
+  /** N18 P2: the view is up: the 3D view has drawn its first frame, or the 2D map stands in. */
+  onViewUp?(): void;
 };
 
 /** The camera buttons' keys, as the tooltips and the shortcut attributes say them. */
 const cameraKeys: Readonly<Record<CameraMode, string>> = { orbit: '1', follow: '2', top: '3' };
 
-export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, ...sceneProps }: SceneHostProps) {
+export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, onViewUp, ...sceneProps }: SceneHostProps) {
   const t = useText();
   const [probed, setProbed] = useState(probe);
   const [tier, setTier] = useState<QualityTier>(() => tierForRenderer(probed.ok ? probed.renderer : null));
@@ -118,6 +120,12 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, .
   /** The 3D view is what the learner sees: nothing stands in for it. */
   const live = fallback === null;
   const fallbackView = fallback !== null && <ViewFallback reason={fallback} scenario={scenario} kit={kit} model={model} store={store} zoneLabel={zoneLabel} {...(tools ? { tools } : {})} {...(alert ? { alert } : {})} />;
+
+  // N18 P2: the view is up (the 3D view's first frame, or the 2D map standing in): the lab may load the physics engine from now on.
+  const up = drawn || fallback !== null;
+  useEffect(() => {
+    if (up) onViewUp?.();
+  }, [up, onViewUp]);
 
   // N18 R8: the switch to the 2D map (and why), and back, are said once; so is the light graphics the view chose for itself.
   const latestWords = useRef({ t, announce });

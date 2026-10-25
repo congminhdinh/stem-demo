@@ -137,6 +137,8 @@ export type RobotLabState = {
    * first. Null when nothing was asked of the session: a run goes on, a start is building its world, a check holds the lab or is shown.
    */
   placeRobot(pose: PlacementPose | null): Promise<RobotPlaceResult | null>;
+  /** N18 P2: the session loads and warms the physics engine (`preparePhysics`); the lab asks at idle once the view is up. */
+  preparePhysics(): void;
   /** The world the view draws now: the run's latest, else what a stopped run left; null shows the start. Not held back to a frame. */
   latestWorld(): RobotRunSnapshot['world'];
   /** Every snapshot the session publishes, at once. Returns the way to stop listening. */
@@ -563,6 +565,10 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
         return () => {
           listeners.delete(listener);
         };
+      },
+
+      preparePhysics() {
+        void session.preparePhysics();
       },
 
       connect() {

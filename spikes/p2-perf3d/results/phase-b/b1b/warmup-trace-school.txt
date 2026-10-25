@@ -1,0 +1,43 @@
+== round 1, load 4.61 4.36 4.07
+first frame (Node) 2338 ms; marks: load-project 2715
+  2245 ms  task  468 ms  EvaluateScript 468
+           0 ms  (program)
+           0 ms  (anonymous)
+  2722 ms  task   91 ms  blockly/blockly_compressed.js 73 | react-dom/cjs/react-dom-client.production.js 8
+  2854 ms  task  312 ms  rapier.wasm 235 | (browser) 14 | @dimforge/rapier3d-deterministic/rapier_wasm3d_bg.js 11 | rolldown-runtime-hePW80VL.js (no map) 10 | src/core/world/world.ts 6
+           219 ms  rapier_wasm3d_bg-DZsYp9WG.wasm:0
+           14 ms  (program)
+           10 ms  rolldown-runtime-hePW80VL.js:0
+           9 ms  e5dcf6aa:0
+           7 ms  wasm-to-js
+           3 ms  rapier-DZ_EfFMH.js:0
+long tasks (> 30 ms) up to 2 s after the first scene render: 871 ms
+== round 2, load 4.15 4.28 4.04
+first frame (Node) 2329 ms; marks: load-project 2689
+  2230 ms  task  459 ms  EvaluateScript 459
+           1 ms  (program)
+           0 ms  UtilityScript
+  2695 ms  task   87 ms  blockly/blockly_compressed.js 70 | react-dom/cjs/react-dom-client.production.js 3
+  2821 ms  task  313 ms  rapier.wasm 238 | (browser) 14 | rolldown-runtime-hePW80VL.js (no map) 11 | @dimforge/rapier3d-deterministic/rapier_wasm3d_bg.js 7 | src/core/world/robot/assembly.ts 7
+           220 ms  rapier_wasm3d_bg-DZsYp9WG.wasm:0
+           14 ms  (program)
+           12 ms  e5dcf6aa:0
+           11 ms  rolldown-runtime-hePW80VL.js:0
+           6 ms  wasm-to-js
+           3 ms  src/core/world/world.ts:195 function buildWorld(input: WorldInput, scenarioKey: string | undefined
+long tasks (> 30 ms) up to 2 s after the first scene render: 858 ms
+== round 3, load 4.06 4.25 4.04
+first frame (Node) 2340 ms; marks: load-project 2781
+  2245 ms  task  535 ms  EvaluateScript 535
+           1 ms  (program)
+           0 ms  (anonymous)
+           0 ms  UtilityScript
+  2790 ms  task  103 ms  blockly/blockly_compressed.js 83 | react-dom/cjs/react-dom-client.production.js 7
+  2940 ms  task  393 ms  rapier.wasm 310 | (browser) 17 | rolldown-runtime-hePW80VL.js (no map) 11 | @dimforge/rapier3d-deterministic/rapier_wasm3d_bg.js 7 | src/core/world/robot/assembly.ts 5
+           293 ms  rapier_wasm3d_bg-DZsYp9WG.wasm:0
+           17 ms  (program)
+           11 ms  rolldown-runtime-hePW80VL.js:0
+           9 ms  e5dcf6aa:0
+           7 ms  wasm-to-js
+           3 ms  src/core/world/world.ts:195 function buildWorld(input: WorldInput, scenarioKey: string | undefined
+long tasks (> 30 ms) up to 2 s after the first scene render: 1031 ms

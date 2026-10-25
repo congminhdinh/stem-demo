@@ -22,11 +22,12 @@ import type { Arena } from '../world/arena/arena-schema';
 import { PHYSICS_DT_S, PHYSICS_HZ } from '../world/rapier';
 import type { RobotSnapshot, RunStatus, ScoreState } from '../world/snapshot';
 import { checkPlacement, type PlacementPose } from '../scenario/placement';
+import type { ActuatorTargets } from '../world/robot/assembly';
 import { createScenarioWorld, type World } from '../world/world';
 import { createModuleModels } from './robot-modules';
 import type { RunDiagnostic } from './run-session';
 import { canTeleop, createTeleopController, TELEOP_LIMIT_S, TELEOP_USES, type TeleopCommand, type TeleopController, type TeleopEntry } from './teleop';
-import { createVirtualScheduler, type VirtualScheduler } from './virtual-clock';
+import { createVirtualScheduler, nextTurn, type VirtualScheduler } from './virtual-clock';
 
 // The robot lab's run (N18 R3.6, robot plan §3, B5): the ONLY place where the learner's program, the hardware and the world meet.
 //
@@ -132,6 +133,12 @@ export const JITTER_TICKS = 1;
  * frame by itself. The badge is cleared when the run's status leaves `running` and after a headless run.
  */
 export const SLOW_BADGE_FRAMES = 3;
+
+/** N18 P2: the ticks `preparePhysics` runs its scratch world for (0.25 s), and how many a turn of the event loop. */
+const PREPARE_TICKS = 30;
+const PREPARE_TICKS_A_TURN = 6;
+/** N18 P2: the scratch world's robot drives forward, so its wheels roll and its sensors read as in a run. */
+const PREPARE_DRIVE: ActuatorTargets = { motors: { motorLeft: { duty: 200, dir: 1, brake: false }, motorRight: { duty: 200, dir: 1, brake: false } } };
 
 /** N18 R6.2: a robot is at rest while no point of its outline moves faster than this, cm/s. */
 export const REST_SPEED_CM_S = 0.5;
@@ -287,6 +294,13 @@ export type RobotRunSession = {
   placeRobot(pose: PlacementPose | null): Promise<RobotPlaceResult>;
   getSnapshot(): RobotRunSnapshot;
   subscribe(listener: (snapshot: RobotRunSnapshot) => void): () => void;
+  /**
+   * N18 P2: loads the physics engine and runs a scratch world of the scenario for PREPARE_TICKS, the robot driving, then drops it, a few
+   * ticks a turn of the event loop: the engine's code is then compiled before the first run or check (about 250 ms of wasm on a school
+   * PC, once a page). The lab calls it at idle after the view's first frame. It publishes nothing and touches no run; the same promise
+   * every call. A failure is left for the first run to meet (and say).
+   */
+  preparePhysics(): Promise<void>;
 };
 
 const emptyConsole: ConsoleSnapshot = { lines: [], hidden: 0 };
@@ -968,9 +982,29 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
     return launch(prepared, variantIndex, startOptions.check === true);
   };
 
+  let preparing: Promise<void> | null = null;
+  const preparePhysics = (): Promise<void> => {
+    preparing ??= (async () => {
+      const world = await createScenarioWorld(scenario, kit, 0);
+      try {
+        world.applyActuators(PREPARE_DRIVE);
+        for (let tick = 0; tick < PREPARE_TICKS; tick++) {
+          if (tick % PREPARE_TICKS_A_TURN === 0) await nextTurn();
+          world.step(PHYSICS_DT_S);
+        }
+        world.snapshot();
+        world.goalFrame({ leds: {}, buzzerHz: null });
+      } finally {
+        world.dispose();
+      }
+    })().catch(() => undefined);
+    return preparing;
+  };
+
   return {
     start,
     stop,
+    preparePhysics,
     advance(wallMs, speed = 1) {
       if (!(Number.isFinite(wallMs) && wallMs >= 0) || !(Number.isFinite(speed) && speed > 0)) {
         throw new RangeError(`advance takes a time of 0 ms or more and a speed above 0, not ${wallMs} ms at ${speed}×.`);
