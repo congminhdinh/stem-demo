@@ -2,11 +2,14 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fixture from '../src/core/scenario/__fixtures__/all-goals.scenario.json';
 
-// N18 R7.1: scripts/export-robot-manifest.mjs, run as a plain Node process (no Vite, so no import.meta.glob) over a folder of scenario files,
-// and over the real folder of this build, whose committed manifest (docs/fixtures/robot-scenarios.v1.json) it must reproduce exactly.
+// N18 R7.1: scripts/export-robot-manifest.mjs, run as its own Node process (it loads the sources through Vite's SSR loader, which takes a second
+// or so to start) over a folder of scenario files, and over the real folder of this build, whose committed manifest
+// (docs/fixtures/robot-scenarios.v1.json) it must reproduce exactly.
+
+vi.setConfig({ testTimeout: 30_000 });
 
 const script = join(import.meta.dirname, '..', 'scripts', 'export-robot-manifest.mjs');
 const committed = join(import.meta.dirname, '..', 'docs', 'fixtures', 'robot-scenarios.v1.json');
