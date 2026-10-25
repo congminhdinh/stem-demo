@@ -1,11 +1,12 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { Box3, BufferGeometry, Material, Mesh, Texture, Vector3, type Object3D } from 'three';
+import { Box3, BufferGeometry, Color, Material, Mesh, Texture, Vector3, type Object3D } from 'three';
 import { productionKits, unoR3Board } from '../../../core/hardware/catalog';
 import type { Kit } from '../../../core/hardware/kit';
 import type { PinState } from '../../../core/hardware/virtual-uno';
 import { scenarioCatalog } from '../../../samples/robot-scenarios';
 import { loadTestAssets } from '../__fixtures__/load-glb';
 import type { RobotAssets } from '../assets/robot-assets';
+import { robot3dColors as colors } from '../colors';
 import { robotModel, type RobotModel } from '../robot-model';
 import { idleSnapshot } from '../scene-math';
 import { flagOf } from './GltfRobot';
@@ -210,6 +211,36 @@ describe('what the modelled robot shows (N18 R4.7)', () => {
     applyRobotWorld(robot.handles, { ...idle, pins: pins.map((pin): PinState => (pin.pin === 'D3' ? { ...pin, mode: 'INPUT', level: 0 } : pin)) }, '#f00', '#300');
     expect(button.cap.position.y).toBeCloseTo(button.down, 9);
     expect(button.up - button.down).toBeCloseTo(0.0015, 6);
+    robot.dispose();
+  });
+});
+
+describe('the modelled robot frame by frame (N18 P2)', () => {
+  const scenario = scenarioCatalog.get('rb-line-follow')!;
+  const idle = idleSnapshot(scenario, kit);
+  const pins: PinState[] = unoR3Board.pins.map((pin) => ({ pin: pin.id, mode: 'OUTPUT', level: pin.id === 'D13' ? 1 : 0, duty: 0, toneHz: null, servoDeg: null }));
+  const lit = { ...idle, leds: { led1: true }, pins, sensors: model.lineSensors.map((s, i) => ({ role: s.role, kind: 'line-sensor' as const, reflectance: 0, dark: i === 1, spotCm: [0, 0] as [number, number] })) };
+
+  it('sets the lit and unlit colours it was given, exactly as from their strings, and parses no colour string a frame', () => {
+    const robot = assembleRobot(model, reference, assets.high.part, options('high'));
+    // The first frames parse each colour once (a page's first lit and unlit LED, lamp and L LED).
+    applyRobotWorld(robot.handles, lit, '#ff3b30', '#7f1d1d');
+    applyRobotWorld(robot.handles, idle, '#ff3b30', '#7f1d1d');
+    const parse = vi.spyOn(Color.prototype, 'setStyle');
+    for (let frame = 0; frame < 3; frame++) {
+      applyRobotWorld(robot.handles, lit, '#ff3b30', '#7f1d1d');
+      applyRobotWorld(robot.handles, idle, '#ff3b30', '#7f1d1d');
+    }
+    expect(parse).not.toHaveBeenCalled();
+    applyRobotWorld(robot.handles, lit, '#ff3b30', '#7f1d1d');
+    expect(robot.handles.leds[0]!.material.emissive.toArray()).toEqual(new Color('#ff3b30').toArray());
+    expect(robot.handles.boardLed!.material.emissive.toArray()).toEqual(new Color('#ffb020').toArray());
+    const lamp = robot.handles.lineLamps.find((l) => l.sensorIndex === 1)!;
+    expect(lamp.material.emissive.toArray()).toEqual(new Color(colors.lineLampLit).toArray());
+    applyRobotWorld(robot.handles, idle, '#ff3b30', '#7f1d1d');
+    expect(robot.handles.leds[0]!.material.emissive.toArray()).toEqual(new Color('#7f1d1d').toArray());
+    expect(robot.handles.boardLed!.material.emissive.toArray()).toEqual([0, 0, 0]);
+    expect(lamp.material.emissive.toArray()).toEqual([0, 0, 0]);
     robot.dispose();
   });
 });

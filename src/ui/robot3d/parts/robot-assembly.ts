@@ -426,6 +426,16 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const LED_LIGHT_CD = 0.02;
 
 /** Shows `world` on the assembled robot: wheels, servo arms and the flag, LEDs, line lamps, buzzer waves, buttons, the board's L LED. */
+/** N18 P2: the colours `applyRobotWorld` sets, each parsed once a page (three's Color.set parses a string every call: every LED, every frame). */
+const parsedColours = new Map<string, Color>();
+function colourOf(css: string): Color {
+  let colour = parsedColours.get(css);
+  if (!colour) parsedColours.set(css, (colour = new Color(css)));
+  return colour;
+}
+const BOARD_LED_ON = '#ffb020';
+const UNLIT = '#000000';
+
 export function applyRobotWorld(handles: RobotHandles, world: RobotSnapshot, ledOn: string, ledOff: string): void {
   for (const wheel of handles.wheels) wheel.spin.rotation.z = wheelSpin(world.robot.wheelRad[wheel.role === 'motorRight' ? 1 : 0]);
   for (const servo of handles.servos) {
@@ -439,7 +449,7 @@ export function applyRobotWorld(handles: RobotHandles, world: RobotSnapshot, led
   }
   for (const led of handles.leds) {
     const lit = world.leds[led.role] === true;
-    led.material.emissive.set(lit ? ledOn : ledOff);
+    led.material.emissive.copy(colourOf(lit ? ledOn : ledOff));
     led.material.emissiveIntensity = lit ? 3.2 : 0;
     led.halo.visible = lit;
     if (led.light) led.light.intensity = lit ? LED_LIGHT_CD : 0;
@@ -447,7 +457,7 @@ export function applyRobotWorld(handles: RobotHandles, world: RobotSnapshot, led
   for (const lamp of handles.lineLamps) {
     const dark = lineSeesDark(world, lamp.sensorIndex);
     // A saturated red, not so bright that the tone mapping takes it towards white (pink); off, the lamp's own dark red.
-    lamp.material.emissive.set(dark ? colors.lineLampLit : '#000000');
+    lamp.material.emissive.copy(colourOf(dark ? colors.lineLampLit : UNLIT));
     lamp.material.emissiveIntensity = dark ? 1.4 : 0;
     lamp.glow.visible = dark;
     lamp.spot.visible = dark;
@@ -456,7 +466,7 @@ export function applyRobotWorld(handles: RobotHandles, world: RobotSnapshot, led
   for (const button of handles.buttons) button.cap.position.y = buttonPressed(world, button.pinIndex) ? button.down : button.up;
   if (handles.boardLed) {
     const on = world.pins[handles.boardLed.pinIndex]?.level === 1 && world.pins[handles.boardLed.pinIndex]?.mode === 'OUTPUT';
-    handles.boardLed.material.emissive.set(on ? '#ffb020' : '#000000');
+    handles.boardLed.material.emissive.copy(colourOf(on ? BOARD_LED_ON : UNLIT));
     handles.boardLed.material.emissiveIntensity = on ? 2.5 : 0;
   }
 }
