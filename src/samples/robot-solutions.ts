@@ -7,6 +7,8 @@ import type { robotSandboxKey, RobotTemplateKey } from './robot-keys';
 //              variant, with a margin (R5.2b runs it through the check; R5.2a compiles it and turns its sketch into a golden of C1).
 //   blind      (lessons 3-6) a "blind" program: motors and waits only, no sensor, timed so that it solves variant 0. It must fail at least
 //              one variant, which is the proof that the variants of the scenario mean something.
+//   exploits   programs that try to score without doing the lesson (from the R5.2a review), each with the most it may score in any variant:
+//              regression cases for R5.2b's check, which must keep them at or under that score.
 //   notes      what the timings rest on.
 //
 // Every program is a Blockly workspace as `Blockly.serialization.workspaces.save` writes it (tests/robot-scenarios.test.ts loads it into
@@ -23,10 +25,22 @@ type Json = Record<string, unknown>;
 /** A Blockly workspace in JSON, as Blockly saves it. */
 export type BlocklyJson = Json;
 
+/** A program that tries to score without doing what the lesson asks, and the most it may score (time bonus included) in any variant. */
+export type RobotExploit = {
+  /** A name for the test that runs it, `[a-z0-9-]`. */
+  readonly name: string;
+  /** What it does, and why it must not score more. */
+  readonly description: string;
+  readonly program: BlocklyJson;
+  /** The highest score of any variant: measured by the spike, under half of the 100. */
+  readonly maxScore: number;
+};
+
 export type RobotSolution = {
   readonly reference: BlocklyJson;
   /** Lessons 3-6: motors and waits only, timed for variant 0. */
   readonly blind?: BlocklyJson;
+  readonly exploits?: readonly RobotExploit[];
   readonly notes: string;
 };
 
@@ -175,23 +189,49 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
     reference: workspace(hat('stem_forever', [ifBlock('if-near', [[closerThan('near', 15), [stop('stop')]]], [drive('go', 'forward', CRUISE)])])),
     blind: workspace(hat('stem_on_start', [drive('go', 'forward', CRUISE), wait('drive-time', 6800), stop('stop')])),
     notes:
-      'Reference: stop once the echo reads under 15 cm. The middle stops at x = 135.8..135.9 in all three variants (the front 14.6 cm from the ' +
-      'wall; zone x 126..146), whatever the start, since coasting from 13.4 cm/s takes under 1 cm. The kit enters through that stopping distance ' +
-      'and the sensor 7.5 cm ahead of the middle; by the same geometry a threshold of 10..20 cm also stops in the zone. Blind: 50 % for 6800 ms ' +
-      '(91.1 cm) stops at x = 136.1 from the authored start. The seed (3004) moves variant 1 17.6 cm further on, where the blind program hits the ' +
-      'wall (6.6 s), and variant 2 17.5 cm back, where it stops 7.4 cm short of the zone.',
+      'Reference: stop once the echo reads under 15 cm, the threshold the lesson\'s theory gives. The middle stops at x = 135.8..135.9 ' +
+      'in all three variants (the front 14.7 cm from the wall; zone x 126..146), whatever the start, since coasting from 13.4 cm/s ' +
+      'takes under 1 cm. The kit enters through that stopping distance and the sensor 7.5 cm ahead of the middle. Measured: a threshold ' +
+      'of 10 cm stops at x 140.9 and one of 20 cm at 130.8, both in the zone; 25 cm stops at 125.9, short of it. Blind: 50 % for 6800 ' +
+      'ms (91.1 cm) stops at x = 136.1 from the authored start. The seed (3004) moves variant 1 17.6 cm further on, where the blind ' +
+      'program hits the wall (6.6 s), and variant 2 17.5 cm back, where it stops 7.4 cm short of the zone.',
   },
   'rb-line-follow': {
-    reference: workspace(hat('stem_forever', [ifBlock('if-line', followLine('line'))])),
+    reference: workspace(hat('stem_forever', [ifBlock('if-line', followLine('line'), [stop('lost')])])),
     blind: workspace(
-      hat('stem_on_start', [...leg('leg-1', 4450, 410), ...leg('leg-2', 1950, 410), ...leg('leg-3', 2850, 410), ...leg('leg-4', 1950, 410), ...leg('leg-5', 3300), stop('stop')]),
+      hat('stem_on_start', [...leg('leg-1', 5150, 415), ...leg('leg-2', 2050, 415), ...leg('leg-3', 2850, 415), ...leg('leg-4', 1950, 415), ...leg('leg-5', 7300), stop('stop')]),
     ),
     notes:
-      'Reference: forward while the centre sensor sees the line, spin towards it (50 %) while only a side sensor does. Every moving tick has a ' +
-      'sensor spot on the tape (ratio 1.000) in all three variants, and the finish is reached at 15.4..15.6 s of 40. The kit enters through the ' +
-      'sensor bar (three sensors 1.5 cm apart, 7 cm ahead of the middle): a start whose bar lies within 2.75 cm of the line finds it, which the ' +
-      'jitter (1.5 cm, 5°) keeps. Blind: five legs at 50 % (4450, 1950, 2850, 1950, 3300 ms) with spins of 410 ms (about 45°), found by a grid ' +
-      'search on variant 0: ratio 0.943, finish at 15.0 s. The seed (485) turns variants 1 and 2 by −4.9° and +4.9°: ratio 0.632 and 0.532.',
+      'Reference: the centre-sensor follower: forward while the centre sensor sees the line, spin towards it (50 %) while only a side ' +
+      'sensor does, stop when none does, which is where the tape ends, in the garage. The share on the tape is 0.999 of the distance in ' +
+      'all three variants; the robot enters the garage at 19.5..19.7 s of 45 and stops at x 17.7, 8 cm before its back wall. Lesson 4 ' +
+      'must teach this follower: one on the two side sensors only (forward while neither sees the line) stalls at the first 45° corner ' +
+      '(x 113.5 in every variant) with the placeholder kit\'s sensors 1.5 cm apart. The kit enters through the sensor bar (three sensors ' +
+      '1.5 cm apart, 7 cm ahead of the middle): a start whose bar lies within 2.75 cm of the line finds it, which the jitter (1.5 cm, ' +
+      '5°) keeps. Blind: five legs at 50 % (5150, 2050, 2850, 1950, 7300 ms) with spins of 415 ms, found by a grid search on variant 0: ' +
+      'share 0.965, in the garage at 19.1 s. The seed (485) turns variants 1 and 2 by −4.9° and +4.9°: share 0.576 and 0.481, so the ' +
+      'line goal fails; it still gets into the garage (60), since turning the start moves the garage end of the route along the ' +
+      'corridor more than across it. The garage stops a dash: its mouth faces the way the tape comes in, so any straight line from the ' +
+      'start into it crosses its south wall.',
+    exploits: [
+      {
+        name: 'crawl-and-dash',
+        description:
+          'Forward at 33 % (just over the dead band) for 12 s on the tape, a spin left of 830 ms, forward at 100 % for 1.8 s, stop. A crawl ' +
+          'on the tape bought a share counted by ticks; counted by distance it buys nothing, and the dash across the arena cannot get into ' +
+          'the garage, whose mouth faces the way the tape comes in.',
+        program: workspace(
+          hat('stem_on_start', [drive('crawl', 'forward', 33), wait('crawl-time', 12000), drive('turn', 'spinLeft', CRUISE), wait('turn-time', 830), drive('dash', 'forward', 100), wait('dash-time', 1800), stop('stop')]),
+        ),
+        maxScore: 0,
+      },
+      {
+        name: 'short-drive',
+        description: 'Forward at 50 % for 1.8 s, then stop: 24 cm along the first straight, on the tape. It meets the guard goal and nothing else.',
+        program: workspace(hat('stem_on_start', [drive('go', 'forward', CRUISE), wait('drive-time', 1800), stop('stop')])),
+        maxScore: 40,
+      },
+    ],
   },
   'rb-servo-gate': {
     reference: workspace(
@@ -199,20 +239,44 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
     ),
     blind: workspace(hat('stem_on_start', [drive('go', 'forward', CRUISE), wait('drive-time', 5800), stop('stop'), servo('flag-up', 160)])),
     notes:
-      'Reference: lesson 3 against the gate, and the flag to 160° once stopped. The middle stops at x = 117.8..117.9 in all three variants (zone ' +
-      'x 108..128) and the flag holds in range from 5.2..7.7 s. The servo starts at 90° (the Servo library writes 90 when attached), outside the ' +
-      'goal range 135..180°, so only a program that turns it passes. Blind: 50 % for 5800 ms stops at x = 117.6 from the authored start. The seed ' +
-      '(1409, jitter 18 cm) moves variant 1 16.9 cm further on, where the body runs into the gate (5.65 s), 4.2 cm past the zone, and ' +
-      'variant 2 17.3 cm back, where it stops 7.8 cm short.',
+      'Reference: lesson 3 against the gate, and the flag to 160° once stopped. The middle stops at x = 117.8..117.9 in all three ' +
+      'variants (zone x 108..128) and the flag holds in range from 5.2..7.7 s. The servo starts at 90° (the Servo library writes 90 ' +
+      'when attached), outside the goal range 150..180°, so only a program that turns it passes. flag-at-gate (whenInZone) does not ask ' +
+      'the robot to stop: a robot that crosses the zone with the flag up meets it, which is why stop-at-gate (40) and no-crash (20) ' +
+      'carry the rest. Blind: 50 % for 5800 ms stops at x = 117.6 from the authored start. The seed (1409, jitter 18 cm) moves variant ' +
+      '1 16.9 cm further on, where the body runs into the gate (5.65 s), 4.2 cm past the zone, and variant 2 17.3 cm back, where it ' +
+      'stops 7.8 cm short.',
+    exploits: [
+      {
+        name: 'flag-and-crash',
+        description:
+          'The flag up, then forward with no stop: the flag is up while the robot crosses the zone, which servo-angle (whenInZone) takes ' +
+          'without a stop, then the robot runs into the gate. It gets the flag and nothing else.',
+        program: workspace(hat('stem_on_start', [servo('flag-up', 160), drive('go', 'forward', CRUISE)])),
+        maxScore: 40,
+      },
+    ],
   },
   'rb-mini-mission': {
     reference: workspace(hat('stem_forever', [ifBlock('if-mission', [[closerThan('near', 15), [stop('stop')]], ...followLine('line')])])),
     blind: workspace(hat('stem_on_start', [...leg('leg-1', 5200, 415), ...leg('leg-2', 3150, 415), ...leg('leg-3', 4200), stop('stop')])),
     notes:
-      'Reference: the follower of lesson 4 under the stop of lesson 3. Ratio 1.000 in all three variants; it parks at x 141.2, y 115.8 by ' +
-      '14.3..14.5 s (finish-within 30 s, so the time bonus has room) and passes the cones at 2.8 cm (cone-1) and 3.3 cm (cone-2) from its ' +
-      'footprint. The cones are placed for this kit: a wider robot (track, wheel width) needs them moved out. Blind: three legs at 50 % (5200, ' +
-      '3150, 4200 ms) with spins of 415 ms, found by a grid search on variant 0: ratio 0.946, parked at 14.4 s, 1.5 cm from cone-2. The seed ' +
-      '(1229) turns variants 1 and 2 by +5.0° and −4.8°: the robot leaves the line (ratio 0.41 and 0.24) and hits cone-2 and cone-1.',
+      'Reference: the follower of lesson 4 under the stop of lesson 3. Share on the tape 1.000 in all three variants; it parks at x ' +
+      '141.2, y 115.8 by 14.3..14.5 s (finish-within 30 s, so the time bonus has room) and passes the cones at 2.8 cm (cone-1) and 3.3 ' +
+      'cm (cone-2) from its footprint. The tape runs on to y 137, 1 cm before the dock wall, so a follower that stops only when it ' +
+      'loses the tape reaches the wall first (exploit below): only the distance check parks in the dock. The cones are placed for this ' +
+      'kit: a wider robot (track, wheel width) needs them moved out. Blind: three legs at 50 % (5200, 3150, 4200 ms) with spins of 415 ' +
+      'ms, found by a grid search on variant 0: share 0.954, parked at 14.4 s, 1.5 cm from cone-2. The seed (1229) turns variants 1 and ' +
+      '2 by +5.0° and −4.8°: the robot leaves the line (share 0.40 and 0.26) and hits cone-2 and cone-1.',
+    exploits: [
+      {
+        name: 'follower-without-distance',
+        description:
+          'The follower of lesson 4 ("else stop") with no ultrasonic: it stops only when it loses the tape, and the tape runs on to the dock ' +
+          'wall, so it reaches the wall first. Only a stop on the distance parks in the dock.',
+        program: workspace(hat('stem_forever', [ifBlock('if-line', followLine('line'), [stop('lost')])])),
+        maxScore: 45,
+      },
+    ],
   },
 };

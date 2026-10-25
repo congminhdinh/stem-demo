@@ -1,7 +1,7 @@
 {
   "key": "rb-servo-gate",
   "version": 1,
-  "title": { "vi": "Mở cổng bằng servo", "en": "Open the gate with a servo" },
+  "title": { "vi": "Giơ cờ ở cổng", "en": "Raise the flag at the gate" },
   "profile": "uno-basic",
   "kit": "ref-uno-rover",
   "arena": {
@@ -29,18 +29,18 @@
     {
       "id": "flag-at-gate",
       "kind": "servo-angle",
-      "label": { "vi": "Giơ cờ (servo 135°–180°) khi đứng ở cổng", "en": "Raise the flag (servo 135° to 180°) at the gate" },
-      "points": 50,
+      "label": { "vi": "Giơ cờ (servo ≥ 150°) khi ở trong vùng trước cổng", "en": "Raise the flag (servo at 150° or more) while in the zone before the gate" },
+      "points": 40,
       "role": "servo1",
-      "minDeg": 135,
+      "minDeg": 150,
       "maxDeg": 180,
       "whenInZone": "gate-zone"
     },
     {
       "id": "stop-at-gate",
       "kind": "stop-in-zone",
-      "label": { "vi": "Xe dừng hẳn trước cổng", "en": "The robot stops in front of the gate" },
-      "points": 30,
+      "label": { "vi": "Xe dừng hẳn trong vùng trước cổng", "en": "The robot stops in the zone before the gate" },
+      "points": 40,
       "zone": "gate-zone",
       "maxSpeedCmS": 2,
       "holdS": 1

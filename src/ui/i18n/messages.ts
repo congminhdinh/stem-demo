@@ -118,7 +118,7 @@ export const en = {
   'robot.scenario.rb-square-route': 'Drive a square',
   'robot.scenario.rb-stop-at-wall': 'Stop at the wall',
   'robot.scenario.rb-line-follow': 'Follow the line',
-  'robot.scenario.rb-servo-gate': 'Open the gate with a servo',
+  'robot.scenario.rb-servo-gate': 'Raise the flag at the gate',
   'robot.scenario.rb-mini-mission': 'Mini mission',
   'robot.scenario.rb-sandbox': 'Free sandbox',
   // N18 R6.1: why a robot goal is not met (the reasonKey of a goal result, src/core/scenario/goals/reasons.ts).
@@ -251,7 +251,7 @@ export const vi: Readonly<Record<MessageKey, string>> = {
   'robot.scenario.rb-square-route': 'Đi theo hình vuông',
   'robot.scenario.rb-stop-at-wall': 'Dừng trước tường',
   'robot.scenario.rb-line-follow': 'Bám theo vạch kẻ',
-  'robot.scenario.rb-servo-gate': 'Mở cổng bằng servo',
+  'robot.scenario.rb-servo-gate': 'Giơ cờ ở cổng',
   'robot.scenario.rb-mini-mission': 'Nhiệm vụ tổng hợp',
   'robot.scenario.rb-sandbox': 'Sân tập tự do',
   // N18 R6.1: lý do một mục tiêu của robot chưa đạt (reasonKey trong kết quả mục tiêu, src/core/scenario/goals/reasons.ts).

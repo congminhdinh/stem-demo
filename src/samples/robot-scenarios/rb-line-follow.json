@@ -8,37 +8,39 @@
     "ground": { "sizeCm": [170, 140], "color": "#f2f2f2" },
     "paint": {
       "lines": [
-        { "pointsCm": [[50, 30], [120, 30], [140, 50], [140, 90], [120, 110], [50, 110], [30, 90], [30, 50], [50, 30]], "widthCm": 2.5 }
+        { "pointsCm": [[40, 30], [120, 30], [140, 50], [140, 90], [120, 110], [12, 110]], "widthCm": 2.5 }
       ],
       "zones": [
-        { "id": "start", "kind": "start", "polygonCm": [[48, 18], [72, 18], [72, 42], [48, 42]], "color": "#cfe2f3" },
-        { "id": "finish", "kind": "target", "polygonCm": [[60, 96], [90, 96], [90, 124], [60, 124]], "color": "#d9ead3" }
+        { "id": "start", "kind": "start", "polygonCm": [[38, 18], [62, 18], [62, 42], [38, 42]], "color": "#cfe2f3" },
+        { "id": "garage", "kind": "target", "polygonCm": [[8, 98], [45, 98], [45, 122], [8, 122]], "color": "#d9ead3" }
       ]
     },
     "walls": [
       { "fromCm": [0, 1], "toCm": [170, 1] },
       { "fromCm": [0, 139], "toCm": [170, 139] },
       { "fromCm": [1, 0], "toCm": [1, 140] },
-      { "fromCm": [169, 0], "toCm": [169, 140] }
+      { "fromCm": [169, 0], "toCm": [169, 140] },
+      { "id": "garage-south", "fromCm": [2, 96], "toCm": [60, 96] },
+      { "id": "garage-north", "fromCm": [2, 124], "toCm": [60, 124] }
     ]
   },
-  "start": { "xCm": 60, "yCm": 30, "yawDeg": 0 },
+  "start": { "xCm": 50, "yCm": 30, "yawDeg": 0 },
   "variants": { "count": 3, "seed": 485, "startJitterCm": 1.5, "yawJitterDeg": 5 },
-  "timeLimitS": 40,
+  "timeLimitS": 45,
   "goals": [
     {
       "id": "follow-line",
       "kind": "stay-on-line",
-      "label": { "vi": "Bám vạch suốt đường đi", "en": "Stay on the line all the way" },
-      "points": 60,
+      "label": { "vi": "Bám vạch (≥ 85 % quãng đường)", "en": "Stay on the line (85 % of the distance or more)" },
+      "points": 40,
       "minRatio": 0.85
     },
     {
-      "id": "reach-finish",
+      "id": "reach-garage",
       "kind": "reach-zone",
-      "label": { "vi": "Tới vùng đích", "en": "Reach the finish zone" },
-      "points": 40,
-      "zone": "finish"
+      "label": { "vi": "Theo vạch vào gara", "en": "Follow the line into the garage" },
+      "points": 60,
+      "zone": "garage"
     }
   ],
   "scoring": {},

@@ -49,7 +49,7 @@
     {
       "goalIds": [
         "follow-line",
-        "reach-finish"
+        "reach-garage"
       ],
       "hasGoals": true,
       "key": "rb-line-follow",
@@ -72,8 +72,8 @@
       "maxScore": 100,
       "profile": "uno-basic",
       "title": {
-        "en": "Open the gate with a servo",
-        "vi": "Mở cổng bằng servo"
+        "en": "Raise the flag at the gate",
+        "vi": "Giơ cờ ở cổng"
       },
       "version": 1
     },

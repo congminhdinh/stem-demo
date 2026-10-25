@@ -47,7 +47,7 @@ robot, N18 R4.1), `src/core/scenario/check-result.ts` (kết quả Kiểm tra c�
   { id: 'ref-uno-rover', version: '0' }`, `program.blocks` rỗng (`{}`, đúng thứ Blockly lưu cho workspace trống nên mở lab không
   gửi `project-changed`) cho tới khi khối uno của R2.2 có mặt. Tên bài (tiếng Việt, hiện ở đầu lab): `rb-drive-to-zone` Chạy tới vùng
   đích, `rb-square-route` Đi theo hình vuông, `rb-stop-at-wall` Dừng trước tường, `rb-line-follow` Bám theo vạch kẻ,
-  `rb-servo-gate` Mở cổng bằng servo, `rb-mini-mission` Nhiệm vụ tổng hợp, `rb-sandbox` Sân tập tự do. Cảnh 3D, thế giới vật lý và
+  `rb-servo-gate` Giơ cờ ở cổng, `rb-mini-mission` Nhiệm vụ tổng hợp, `rb-sandbox` Sân tập tự do. Cảnh 3D, thế giới vật lý và
   kiểm tra đến sau (R4.2, R3.x, R6): bây giờ lab robot là khung (tên lab, tên bài, vùng nhìn, trình soạn khối) và `ready`
   có `goals: []`. Một `profile=` thấp hơn mức scenario cần là launch hỏng, giống Yolo:Bit (câu lỗi cùng khuôn:
   *Mẫu bài "…" cần mức … (profile=…): bài dùng khối hoặc linh kiện mà mức … không có.*).

@@ -59,7 +59,7 @@ describe('the robot scenario keys (N18 R4.1)', () => {
       'Đi theo hình vuông',
       'Dừng trước tường',
       'Bám theo vạch kẻ',
-      'Mở cổng bằng servo',
+      'Giơ cờ ở cổng',
       'Nhiệm vụ tổng hợp',
       'Sân tập tự do',
     ]);

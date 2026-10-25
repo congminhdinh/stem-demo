@@ -97,7 +97,11 @@ function programsOf(key: RobotScoredKey): [string, BlocklyJson][] {
     ...(solution.blind ? [['blind', solution.blind] as [string, BlocklyJson]] : []),
   ];
 }
-const allPrograms = scoredKeys.flatMap((key) => programsOf(key).map(([name, program]) => [key, name, program] as const));
+const solutionPrograms = scoredKeys.flatMap((key) => programsOf(key).map(([name, program]) => [key, name, program] as const));
+/** The exploits of the review (R5.2a fix round 1): regression cases for R5.2b, with the most each may score. */
+const exploits = scoredKeys.flatMap((key) => (robotSolutions[key].exploits ?? []).map((exploit) => [key, exploit] as const));
+/** Every program a test can open, compile and hold to the toolbox: the starters, the solutions and the exploits. */
+const allPrograms = [...solutionPrograms, ...exploits.map(([key, exploit]) => [key, `exploit ${exploit.name}`, exploit.program] as const)];
 
 const projectOf = (key: RobotScoredKey | typeof robotSandboxKey, program: BlocklyJson): ProjectDocument => ({
   ...robotStarterDocument(key),
@@ -180,12 +184,20 @@ describe('the robot scenarios of this build (N18 R5.2)', () => {
       'rb-drive-to-zone': ['reach-target reach-zone 30', 'stop-in-target stop-in-zone 70'],
       'rb-square-route': ['half-square checkpoints-in-order 30', 'full-square checkpoints-in-order 50', 'use-repeat uses-block 20'],
       'rb-stop-at-wall': ['stop-near-wall stop-in-zone 70', 'no-crash avoid-contact 30'],
-      'rb-line-follow': ['follow-line stay-on-line 60', 'reach-finish reach-zone 40'],
-      'rb-servo-gate': ['flag-at-gate servo-angle 50', 'stop-at-gate stop-in-zone 30', 'no-crash avoid-contact 20'],
+      'rb-line-follow': ['follow-line stay-on-line 40', 'reach-garage reach-zone 60'],
+      'rb-servo-gate': ['flag-at-gate servo-angle 40', 'stop-at-gate stop-in-zone 40', 'no-crash avoid-contact 20'],
       'rb-mini-mission': ['route checkpoints-in-order 25', 'follow-line stay-on-line 20', 'no-bump avoid-contact 15', 'park stop-in-zone 20', 'in-time finish-within 10'],
     });
     expect(scenarioOf('rb-mini-mission').scoring.timeBonusMax).toBe(10);
     expect(scenarioOf('rb-line-follow').goals[0]).toMatchObject({ minRatio: 0.85 });
+  });
+
+  it('give a guard goal no more points than the goals that ask the robot to get somewhere (R5.2a fix round 1)', () => {
+    for (const key of scoredKeys) {
+      const goals = scenarioOf(key).goals;
+      const sum = (kinds: readonly string[]) => goals.filter((goal) => kinds.includes(goal.kind)).reduce((total, goal) => total + goal.points, 0);
+      expect(sum(GUARD_KINDS), key).toBeLessThanOrEqual(sum(ACHIEVEMENT_KINDS));
+    }
   });
 
   it('run one exact variant for the open-loop lessons 1-2, and three jittered ones for lessons 3-6', () => {
@@ -292,7 +304,7 @@ describe('the variants of every scenario (N18 R5.2)', () => {
     30_000,
   );
 
-  it('lessons 3 and 5 move a jittered start so far along the way that a fixed drive stops at least 4 cm out of the zone', () => {
+  it('lessons 3 and 5 move one jittered start forward and one back, each so far that a fixed drive stops at least 4 cm out of the zone', () => {
     for (const key of ['rb-stop-at-wall', 'rb-servo-gate'] as const) {
       const scenario = scenarioOf(key);
       const stopGoal = scenario.goals.find((goal) => goal.kind === 'stop-in-zone')!;
@@ -300,12 +312,12 @@ describe('the variants of every scenario (N18 R5.2)', () => {
       const [zoneFrom, zoneTo] = [Math.min(...xs), Math.max(...xs)];
       // A blind program drives the distance from the authored start to the middle of the zone, along its own heading.
       const travel = (zoneFrom + zoneTo) / 2 - scenario.start.xCm;
-      const misses = [1, 2].map((index) => {
+      const ends = [1, 2].map((index) => {
         const { start } = applyVariant(scenario, variantOffsets(scenario, index));
-        const endX = start.xCm + travel * Math.cos((start.yawDeg * Math.PI) / 180);
-        return Math.max(zoneFrom - endX, endX - zoneTo);
+        return start.xCm + travel * Math.cos((start.yawDeg * Math.PI) / 180);
       });
-      expect(Math.max(...misses), key).toBeGreaterThanOrEqual(4);
+      expect(Math.max(...ends) - zoneTo, `${key}: past the zone`).toBeGreaterThanOrEqual(4);
+      expect(zoneFrom - Math.min(...ends), `${key}: short of the zone`).toBeGreaterThanOrEqual(4);
     }
   });
 
@@ -412,7 +424,7 @@ describe('the programs of every scenario (N18 R5.2)', () => {
     }
   });
 
-  it.each(allPrograms)(`%s %s drives at ${MIN_SOLUTION_SPEED} % or more (or 0), a number typed in`, (_key, _name, program) => {
+  it.each(solutionPrograms)(`%s %s drives at ${MIN_SOLUTION_SPEED} % or more (or 0), a number typed in`, (_key, _name, program) => {
     for (const block of allBlocks(program).filter((candidate) => MOTOR_BLOCKS.includes(String(candidate.type)))) {
       const speed = typedNumber(block, 'SPEED');
       expect(speed, String(block.id)).toBeDefined();
@@ -423,6 +435,37 @@ describe('the programs of every scenario (N18 R5.2)', () => {
   it('the uses-block goal of lesson 2 is met by its reference and not by its starter', () => {
     expect(runningBlockTypes(robotSolutions['rb-square-route'].reference).has('controls_repeat_ext')).toBe(true);
     expect(runningBlockTypes(scenarioOf('rb-square-route').starter).has('controls_repeat_ext')).toBe(false);
+  });
+
+  it('lessons 4-6 have exploits from the review, each named, each held under half of the score', () => {
+    expect(exploits.map(([key, exploit]) => `${key} ${exploit.name} ${exploit.maxScore}`)).toEqual([
+      'rb-line-follow crawl-and-dash 0',
+      'rb-line-follow short-drive 40',
+      'rb-servo-gate flag-and-crash 40',
+      'rb-mini-mission follower-without-distance 45',
+    ]);
+    for (const [key, exploit] of exploits) {
+      expect(exploit.name, key).toMatch(/^[a-z0-9-]+$/);
+      expect(exploit.maxScore, `${key} ${exploit.name}`).toBeLessThan(SCENARIO_MAX_SCORE / 2);
+      expect(exploit.description.length).toBeGreaterThan(40);
+    }
+  });
+
+  it('the tape of lesson 6 runs on to the dock wall, so only a stop on the distance parks in the dock', () => {
+    const scenario = scenarioOf('rb-mini-mission');
+    const end = scenario.arena.paint.lines[0]!.pointsCm.at(-1)!;
+    const wall = scenario.arena.walls.find((candidate) => candidate.id === 'dock-wall')!;
+    const wallFaceY = wall.fromCm[1] - wall.thicknessCm / 2;
+    expect(wallFaceY - end[1]).toBeGreaterThan(0);
+    expect(wallFaceY - end[1]).toBeLessThanOrEqual(2);
+    // A follower that stops when it loses the tape stops once its sensors (7 cm ahead of the middle) are past the tape's round end, half
+    // its width beyond the last point: its front (7.5 cm ahead) would be past the wall's face, so it meets the wall first. The reference
+    // stops on the echo under 15 cm, its middle 22.5 cm before the face, in the dock.
+    const lostAtFrontY = end[1] + scenario.arena.paint.lines[0]!.widthCm / 2 - 7 + 7.5;
+    const dock = scenario.arena.paint.zones.find((zone) => zone.id === 'dock')!.polygonCm.map(([, y]) => y);
+    expect(lostAtFrontY).toBeGreaterThan(wallFaceY);
+    expect(wallFaceY - 22.5).toBeGreaterThan(Math.min(...dock));
+    expect(wallFaceY - 22.5).toBeLessThan(Math.max(...dock));
   });
 
   it('the servo of lesson 5 starts outside the range of its goal (the Servo library writes 90° when attached) and the reference turns it in', () => {
