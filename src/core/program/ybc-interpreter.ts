@@ -23,10 +23,10 @@ import { TEMPERATURE_MAX, TEMPERATURE_MIN } from '../simulation/peripherals/temp
 import { melodySteps } from '../simulation/peripherals/melodies';
 import { NOTE_TICK_MS, noteHz } from '../simulation/peripherals/sound';
 import type { RunOutcome } from './interpreter';
-import { MAX_RANDOM_ABS, MAX_RANDOM_SPAN, MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_TEXT_CHARS, MAX_WAIT_MS } from './limits';
+import { MAX_RANDOM_ABS, MAX_RANDOM_SPAN, MAX_TEXT_CHARS, MAX_WAIT_MS, numericDomains } from './limits';
 import * as values from './values';
 import { RuntimeFault, type Value } from './values';
-import type { ButtonOperand, CallStatement, ColourOperand, Expr, ImageOperand, RandomExpr, ReadExpr, YbcProgramIR, YbcStatement } from './ybc-ir';
+import { loopPauseUsOf, numericOf, type ButtonOperand, type CallStatement, type ColourOperand, type Expr, type ImageOperand, type NumericModel, type RandomExpr, type ReadExpr, type YbcProgramIR, type YbcStatement } from './ybc-ir';
 
 // The YBC interpreter (YB plan §9.0, §9.3): runs a `YbcProgramIR`. It reaches
 // the world only through `services` and knows nothing about circuits or UI.
@@ -68,12 +68,20 @@ import type { ButtonOperand, CallStatement, ColourOperand, Expr, ImageOperand, R
 // N17 B5: an analog write (a PWM duty) and a servo's angle are pin calls, their arguments evaluated as a digital write's are. A value
 // outside 0..1023 / 0..180 is clamped (constructs/ybc.pins.ts) and the run is warned through `services.warn`, once per pin and kind;
 // the program goes on.
+//
+// N18 R2.3: the numeric model and the forever pause come from the IR (robot plan §4.4). `python` and 10 ms (a ybc IR) are exactly
+// what they always were. A uno IR computes with C++'s `long` (values.ts `valuesFor`, contract UNO §3: a division by zero gives 0 and
+// warns once in the run), takes the loop domains of its model (limits.ts `numericDomains`), and its forever has no pause of its own:
+// every iteration is a `budget.loopIteration()`, which the virtual budget of a robot run charges (run/virtual-clock.ts). Every
+// statement still begins with its budget step, then names its block: the one place a per-statement hook belongs.
 
 /** One note or rest of a melody (or a tone), for `ms`; `hz` null is silence. */
 type Sounding = { hz: number | null; ms: number };
 
-/** E3, as in the legacy interpreter: every forever iteration ends with at least this pause. */
-const foreverYieldMs = 10;
+const isNumericModel = (numeric: unknown): numeric is NumericModel => numeric === 'python' || numeric === 'cxx-int32';
+
+/** N18 R2.3: the warning of a division or a remainder by zero in a cxx-int32 program (contract UNO §3.1): once in a run. */
+const divisionByZeroWarning = { code: 'division-by-zero', message: 'A division or a remainder by 0 gave 0, as on the board.' } as const;
 
 /** A runtime fault carries a diagnostic code that the legacy outcome has no field for. */
 export type YbcRunOutcome =
@@ -102,6 +110,21 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
   const startedAt = services.clock.now();
   let blockId: string | undefined;
   const variables = new Map<string, Value>(ir.variables.map((variable) => [variable.id, values.int(0)]));
+
+  // N18 R2.3: the numeric model and the forever pause of the board family. IR that is not the compiler's is refused when the program
+  // starts (an internal error, never a crash); until then the python model stands in.
+  const numeric = numericOf(ir);
+  const loopPauseUs = loopPauseUsOf(ir);
+  let divisionByZeroWarned = false;
+  const ops = values.valuesFor(isNumericModel(numeric) ? numeric : 'python', {
+    divisionByZero() {
+      if (!divisionByZeroWarned) {
+        divisionByZeroWarned = true;
+        services.warn(divisionByZeroWarning);
+      }
+    },
+  });
+  const domains = numericDomains[ops.model];
 
   /** A part of the board the program reaches. Missing means the factory did not provide what the board promised. */
   const part = <Key extends CapabilityKey>(key: Key): NonNullable<Capabilities[Key]> => {
@@ -270,15 +293,15 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
         blockId = expr.blockId;
         switch (expr.op) {
           case '+':
-            return values.add(left, right);
+            return ops.add(left, right);
           case '-':
-            return values.subtract(left, right);
+            return ops.subtract(left, right);
           case '*':
-            return values.multiply(left, right);
+            return ops.multiply(left, right);
           case '//':
-            return values.floorDivide(left, right);
+            return ops.divide(left, right);
           case '%':
-            return values.remainder(left, right);
+            return ops.remainder(left, right);
         }
         break;
       }
@@ -303,7 +326,7 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
       }
       case 'join': {
         // Every part goes through str(), left to right. The length is known before any text is built.
-        const parts = expr.parts.map((piece) => values.toText(evaluate(piece)));
+        const parts = expr.parts.map((piece) => ops.toText(evaluate(piece)));
         blockId = expr.blockId;
         const length = parts.reduce((total, piece) => total + piece.length, 0);
         if (length > MAX_TEXT_CHARS) {
@@ -535,7 +558,7 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
         if (number.t !== 'int') {
           throw new RuntimeFault('internal-error', 'A number block was given another type.');
         }
-        await scroll(values.toText(number), colourOf(statement.operand));
+        await scroll(ops.toText(number), colourOf(statement.operand));
         return;
       }
       case 'display.setPixel': {
@@ -650,14 +673,14 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
           break;
         }
         case 'print': {
-          const text = values.toText(evaluate(statement.value));
+          const text = ops.toText(evaluate(statement.value));
           blockId = statement.blockId;
           services.console.write(text);
           break;
         }
         case 'repeat': {
-          // Evaluated once. Zero or less runs zero times, as Python's range does.
-          const times = intWithin(statement.times, -MAX_REPEAT_ABS, MAX_REPEAT_ABS, 'The number of repetitions');
+          // Evaluated once. Zero or less runs zero times, as Python's range does (and C++'s `_r < _n`).
+          const times = intWithin(statement.times, domains.repeat[0], domains.repeat[1], 'The number of repetitions');
           for (let done = 0; done < times; done++) {
             await budget.step();
             await runStatements(statement.body);
@@ -677,8 +700,8 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
         case 'countUp': {
           // Contract §3.3: the start is evaluated and checked, then the end is evaluated and checked,
           // each once, before the loop. The bounds are not looked at again.
-          const from = intWithin(statement.from, 0, MAX_RANGE_VALUE, 'The start');
-          const to = intWithin(statement.to, 0, MAX_RANGE_VALUE, 'The end');
+          const from = intWithin(statement.from, domains.countUpFrom[0], domains.countUpFrom[1], 'The start');
+          const to = intWithin(statement.to, domains.countUpTo[0], domains.countUpTo[1], 'The end');
           // Python's `for i in range(...)`: the variable is set at the start of every iteration, so
           // a change made in the body does not move the count. After the loop it keeps the last
           // value, or is untouched when the loop did not run.
@@ -713,16 +736,23 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
   };
 
   try {
+    if (!isNumericModel(numeric) || !Number.isFinite(loopPauseUs) || loopPauseUs < 0) {
+      throw new RuntimeFault('internal-error', 'The program asks for a number model or a loop pause that does not exist.');
+    }
     await runStatements(ir.onStart);
     const { forever } = ir;
     if (forever) {
       for (;;) {
+        budget.loopIteration();
         await budget.step();
         await runStatements(forever);
         blockId = undefined;
         signal.throwIfAborted();
-        await services.sleep(foreverYieldMs, signal);
-        budget.startSlice();
+        // E3 (Yolo:Bit): 10 ms at the end of every iteration. Arduino's loop() has none (contract UNO §4.1).
+        if (loopPauseUs > 0) {
+          await services.sleep(loopPauseUs / 1000, signal);
+          budget.startSlice();
+        }
       }
     }
     signal.throwIfAborted();

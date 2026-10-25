@@ -177,6 +177,8 @@ export const coreMessageRules: readonly Rule[] = [
   [/^"(.+)" needs a true \/ false condition, not (.+)\.$/, (label, type) => `Khối "${term(label)}" cần một điều kiện đúng / sai, không phải ${typeName(type)}.`],
   [/^"(.+)" compares whole numbers, not (.+) and (.+)\.$/, (op, a, b) => `"${op}" so sánh hai số nguyên, không phải ${typeName(a)} và ${typeName(b)}.`],
   [/^"(.+)" compares two values of one type, not (.+) and (.+)\.$/, (op, a, b) => `"${op}" so sánh hai giá trị cùng loại, không phải ${typeName(a)} và ${typeName(b)}.`],
+  // N18 R2.3: on the UNO a text is only printed.
+  [/^"(.+)" compares numbers or true \/ false values here; a text can only be printed\.$/, (op) => `"${op}" ở đây chỉ so sánh số hoặc giá trị đúng / sai; đoạn chữ chỉ dùng để in.`],
   [/^(.+) needs (.+), not (.+)\.$/, (what, wanted, got) => `${capitalize(subject(what))} cần ${typeName(wanted)}, không phải ${typeName(got)}.`],
   [/^digital read needs a pin name\.$/, () => 'Khối "đọc chân số" cần tên chân.'],
   [/^digital write needs a pin name and a HIGH or LOW level\.$/, () => 'Khối "ghi chân số" cần tên chân và mức HIGH hoặc LOW.'],
@@ -207,6 +209,7 @@ export const coreMessageRules: readonly Rule[] = [
   [/^"count up" needs its variable\.$/, () => 'Khối "đếm lên" cần chọn biến.'],
   [/^"count up" needs a whole-number step\.$/, () => 'Khối "đếm lên" cần bước là số nguyên.'],
   [/^"count up" cannot count down; use "repeat" and a variable\.$/, () => 'Khối "đếm lên" không đếm xuống được; dùng "lặp lại" và một biến.'],
+  [/^"count up" counts by (.+) on this board\.$/, (step) => `Trên bo mạch này, khối "đếm lên" chỉ đếm với bước ${step}.`],
   [/^This variable does not exist\.$/, () => 'Biến này không tồn tại.'],
   [/^An arithmetic block needs its operation\.$/, () => 'Khối phép tính cần chọn phép tính.'],
   [/^A comparison needs its operator\.$/, () => 'Khối so sánh cần chọn phép so sánh.'],
@@ -235,6 +238,8 @@ export const coreMessageRules: readonly Rule[] = [
   [/^(.+) must be between (.+) and (.+)\.$/, (what, low, high) => `${capitalize(subject(what))} phải nằm trong khoảng ${low} tới ${high}.`],
   [/^(.+) is outside the supported integer range \(±(.+)\)\.$/, (what, max) => `${capitalize(subject(what))} vượt quá khoảng số nguyên được hỗ trợ (±${max}).`],
   [/^Division by zero\.$/, () => 'Chia cho 0.'],
+  // N18 R2.3: the UNO gives 0 for a division by zero, with a warning.
+  [/^A division or a remainder by 0 gave 0, as on the board\.$/, () => 'Phép chia hoặc phép chia lấy dư cho 0 cho ra 0, như trên bo mạch.'],
   // The board, its pins and its parts
   [/^The board has no pin "(.+)"\.$/, (pin) => `Bo mạch không có chân "${pin}".`],
   [/^This board has no (.+) for "(.+)"\.$/, (capability, type) => `Bo mạch này không có ${own(capabilities, capability) ?? capability} cho khối "${blockName(type)}".`],
@@ -262,6 +267,7 @@ export const coreMessageRules: readonly Rule[] = [
   [/^The board could not be set up\.$/, () => 'Không khởi động được bo mạch.'],
   // Faults that only a broken program or a bug can cause: said plainly, the details kept.
   [/^The board is missing a part this block needs\.$/, () => 'Bo mạch thiếu bộ phận mà khối này cần.'],
+  [/^The program asks for a number model or a loop pause that does not exist\.$/, () => 'Chương trình đòi một kiểu số hoặc một khoảng nghỉ của vòng lặp không tồn tại.'],
   [/^The board does not have the capability this block needs\.$/, () => 'Bo mạch không có khả năng mà khối này cần.'],
   [/^A button block names a button that does not exist\.$/, () => 'Khối nút gọi một nút không tồn tại.'],
   [/^The board cannot count presses\.$/, () => 'Bo mạch không đếm được số lần nhấn.'],

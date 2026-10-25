@@ -21,6 +21,11 @@ import { EXEC_SLICE_MS, STEP_CHECK_INTERVAL } from './limits';
 // A budget yield is housekeeping, not program semantics: it changes no variable,
 // prints nothing and does not move the loop. The 10 ms pause of `forever` and
 // `wait` are the program's own, and go through the interpreter's `sleep`.
+//
+// N18 R2.3: a robot run's budget is the virtual one of run/virtual-clock.ts, on the
+// same interface: it charges the program clock for the work and parks the program
+// when it is a tick ahead of the world. `loopIteration()` tells it a forever iteration
+// (Arduino's loop()) begins; this budget has nothing to do there.
 
 export type ExecutionBudget = {
   /** One expression node was evaluated. Synchronous and cheap: no clock, no await. */
@@ -29,6 +34,11 @@ export type ExecutionBudget = {
   step(): Promise<void> | undefined;
   /** A pause of the program's own just ended; the slice starts again. */
   startSlice(): void;
+  /**
+   * N18 R2.3: an iteration of `forever` begins (Arduino's loop()), just before its step. Synchronous. This budget does nothing (a
+   * Yolo:Bit iteration ends with the program's own 10 ms sleep); the virtual one charges LOOP_MIN_US.
+   */
+  loopIteration(): void;
 };
 
 export function createExecutionBudget(options: {
@@ -62,6 +72,7 @@ export function createExecutionBudget(options: {
       steps = 0;
       sliceStart = now();
     },
+    loopIteration() {},
   };
 }
 

@@ -67,20 +67,19 @@ import {
   type NoteTicks,
 } from '../constructs/ybc.sound';
 import { noBoardTarget, type BoardTarget, type HeaderPinCapability } from '../devices/board-pins';
+import type { CurriculumProfile } from '../profiles/profile';
 import { exceedsBlockLimit } from './block-walk';
 import { blockTypes } from './blocks';
 import {
   MAX_PROGRAM_BLOCKS,
   MAX_RANDOM_ABS,
   MAX_RANDOM_SPAN,
-  MAX_RANGE_VALUE,
-  MAX_REPEAT_ABS,
-  MAX_SAFE_INT,
   MAX_TEXT_CHARS,
   MAX_TEXT_JOIN_PARTS,
   MAX_WAIT_MS,
+  numericDomains,
 } from './limits';
-import type { ArithOp, ColourOperand, CompareOp, Expr, Type, YbcProgramIR, YbcStatement } from './ybc-ir';
+import type { ArithOp, ColourOperand, CompareOp, Expr, NumericModel, Type, YbcProgramIR, YbcStatement } from './ybc-ir';
 
 // The YBC compiler (YB plan §9.4): Blockly serialization JSON to `YbcProgramIR`,
 // with the static types the dialect is defined by (§6.4). Types are known at
@@ -114,6 +113,10 @@ import type { ArithOp, ColourOperand, CompareOp, Expr, Type, YbcProgramIR, YbcSt
 //
 // N17 B5: "analog write" (C-26) and "servo" (C-27) of the Advanced board are pin calls; the pin is the block's, the value an int
 // expression. A value outside 0..1023 / 0..180, typed in or computed, is not an error: the run clamps it and warns (owner ruling).
+//
+// N18 R2.3: the board family decides the numeric model and the loop pause (robot plan §4.4). For the uno family the IR says
+// `cxx-int32` and 0 µs, a literal is a `long`, `repeat` takes any `long`, a count up ends at 2147483646 at most and counts by 1,
+// and a text is only printed, never compared (contract UNO §3). A ybc IR has neither field (python, 10 ms), as since YB-2.
 
 export type YbcDiagnosticCode =
   | 'malformed-program'
@@ -197,13 +200,18 @@ const hasControlCharacter = (text: string) => [...text].some((char) => {
  *   pin block is `capability-unavailable` (a board with nothing: no made-up success) and an onboard block is not
  *   checked: only the unit tests of the language and of single blocks leave it out; every caller that has a board
  *   passes it.
+ * @param family N18 R2.3: the board family of the context (`BoardContext.family`), which decides the numeric model and the loop
+ *   pause the IR carries, and the domains of typed-in values. `ybc` by default.
  */
 export function compileYbcProgram(
   blocksJson: unknown,
   exposedBlockTypes: ReadonlySet<string>,
   noopBlockTypes: ReadonlySet<string> = new Set(),
   target?: BoardTarget,
+  family: CurriculumProfile['family'] = 'ybc',
 ): YbcCompileResult {
+  const numeric: NumericModel = family === 'uno' ? 'cxx-int32' : 'python';
+  const domains = numericDomains[numeric];
   const diagnostics: YbcDiagnostic[] = [];
   const report = (severity: YbcDiagnostic['severity'], code: YbcDiagnosticCode, message: string, blockId?: string) => {
     diagnostics.push(blockId === undefined ? { severity, code, message } : { severity, code, message, blockId });
@@ -462,8 +470,9 @@ export function compileYbcProgram(
           report('error', 'float-not-supported', 'Only whole numbers are supported.', block.id);
           return null;
         }
-        if (!Number.isSafeInteger(value)) {
-          report('error', 'value-out-of-range', `A number must be between -${MAX_SAFE_INT} and ${MAX_SAFE_INT}.`, block.id);
+        const [lowest, highest] = domains.literal;
+        if (value < lowest || value > highest) {
+          report('error', 'value-out-of-range', `A number must be between ${lowest} and ${highest}.`, block.id);
           return null;
         }
         return { ...base, type: 'int', kind: 'int', value: value === 0 ? 0 : value };
@@ -540,6 +549,11 @@ export function compileYbcProgram(
               : `"${op}" compares two values of one type, not ${describe(left.type)} and ${describe(right.type)}.`,
             block.id,
           );
+          return null;
+        }
+        // Contract UNO §3.1: a text lives in flash, only to be printed (F("…")); C++ has no comparison of two of them.
+        if (numeric === 'cxx-int32' && left.type === 'str') {
+          report('error', 'type-mismatch', `"${op}" compares numbers or true / false values here; a text can only be printed.`, block.id);
           return null;
         }
         return { ...base, type: 'bool', kind: 'compare', op, left, right };
@@ -674,8 +688,8 @@ export function compileYbcProgram(
 
   const compileRepeat = (block: RawBlock, depth: number): YbcStatement | null => {
     const times = operand(block, 'TIMES', 'repeat', 'int', '"repeat"', depth);
-    // Python's range: zero or less runs zero times; only the size is limited (contract section 3.2).
-    const tooBig = outsideLiteral(times, -MAX_REPEAT_ABS, MAX_REPEAT_ABS, 'The number of repetitions');
+    // Python's range: zero or less runs zero times; only the size is limited (contract section 3.2). The UNO takes any long.
+    const tooBig = outsideLiteral(times, domains.repeat[0], domains.repeat[1], 'The number of repetitions');
     const body = compileChain(firstStatementIn(block, 'DO'), depth + 1);
     return times && !tooBig ? { kind: 'repeat', times, body, blockId: block.id } : null;
   };
@@ -703,20 +717,25 @@ export function compileYbcProgram(
     } else {
       variable = id;
     }
-    // The step is a number typed into the block, never a computed value (contract section 3.3).
+    // The step is a number typed into the block, never a computed value (contract section 3.3). The UNO counts by 1 (`_c += 1L`).
     const step = block.fields?.STEP;
+    const [lowestStep, highestStep] = domains.countUpStep;
     let stepOk = false;
     if (typeof step !== 'number' || !Number.isInteger(step)) {
       report('error', 'malformed-program', '"count up" needs a whole-number step.', block.id);
-    } else if (step < 1 || step > MAX_RANGE_VALUE) {
-      report('error', 'value-out-of-range', `The step must be between 1 and ${MAX_RANGE_VALUE}.`, block.id);
+    } else if (step < lowestStep || step > highestStep) {
+      if (lowestStep === highestStep) {
+        report('error', 'value-out-of-range', `"count up" counts by ${lowestStep} on this board.`, block.id);
+      } else {
+        report('error', 'value-out-of-range', `The step must be between 1 and ${highestStep}.`, block.id);
+      }
     } else {
       stepOk = true;
     }
     const from = operand(block, 'FROM', 'count up from', 'int', '"count up" start', depth);
     const to = operand(block, 'TO', 'count up to', 'int', '"count up" end', depth);
-    const badFrom = outsideLiteral(from, 0, MAX_RANGE_VALUE, 'The start');
-    const badTo = outsideLiteral(to, 0, MAX_RANGE_VALUE, 'The end');
+    const badFrom = outsideLiteral(from, domains.countUpFrom[0], domains.countUpFrom[1], 'The start');
+    const badTo = outsideLiteral(to, domains.countUpTo[0], domains.countUpTo[1], 'The end');
     // Both bounds typed in and counting down: a mistake we can name now. A computed bound that turns out
     // smaller just runs zero times, as Python's range does.
     const start = literal(from);
@@ -1143,6 +1162,8 @@ export function compileYbcProgram(
       onStart: onStart ?? [],
       forever,
       variables: [...variables].map(([id, name]) => ({ id, name, type: 'int' })),
+      // Contract UNO §4.1: Arduino's loop() has no hidden delay. A ybc IR leaves both out (python, 10 ms: ybc-ir.ts).
+      ...(numeric === 'cxx-int32' ? { numeric, loopPauseUs: 0 } : {}),
     },
     diagnostics,
   };
