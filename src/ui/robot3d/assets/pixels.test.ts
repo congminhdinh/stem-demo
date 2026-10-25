@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blobPixels, fbmField, greyPixels, heightToNormal, type Pixels } from './pixels';
+import { blobPixels, fbmField, heightToNormal, type Pixels } from './pixels';
 
 // N18 R4.7: the 3D view's run-time textures (the mat's fibres, the contact shadow), made from code: plain RGBA pixels, the same for the
 // same seed, and tileable where they repeat across the mat.
@@ -38,9 +38,5 @@ describe('procedural pixels (N18 R4.7)', () => {
     expect(at(blob, 31, 16)[3]).toBeLessThan(10);
   });
 
-  it('a grey map spans the range asked, opaque', () => {
-    const grey = greyPixels(new Float32Array([0, 0.5, 1, 0.25]), 2, 2, 0.2, 0.6);
-    expect([at(grey, 0, 0)[0], at(grey, 1, 0)[0], at(grey, 0, 1)[0]]).toEqual([51, 102, 153]);
-    expect(at(grey, 1, 1)[3]).toBe(255);
-  });
+
 });

@@ -1,6 +1,6 @@
 // The 3D view's small run-time textures (N18 R4.7), made from code: the mat's paper fibres and the soft contact shadow (the modelled
 // parts bring their own textures, drawn by the Blender scripts of assets-src/robot3d/). Each returns plain RGBA pixels (a linear normal
-// map or grey values); textures.ts turns them into three.js textures. Noise is a seeded, periodic value noise, so a texture that
+// map or an alpha); textures.ts turns them into three.js textures. Noise is a seeded, periodic value noise, so a texture that
 // repeats across the mat has no seam. Pure functions: the same arguments give the same pixels.
 
 export type Pixels = { width: number; height: number; data: Uint8Array };
@@ -85,16 +85,6 @@ export function heightToNormal(height: Float32Array, width: number, rows: number
       const length = Math.hypot(dx, dy, 1);
       put(out, y * width + x, Math.round(((-dx / length) * 0.5 + 0.5) * 255), Math.round(((-dy / length) * 0.5 + 0.5) * 255), Math.round(((1 / length) * 0.5 + 0.5) * 255));
     }
-  }
-  return out;
-}
-
-/** A grey value map (roughness, AO) from a field in [0, 1], remapped to [lo, hi]. */
-export function greyPixels(field: Float32Array, width: number, height: number, lo: number, hi: number): Pixels {
-  const out = pixels(width, height);
-  for (let i = 0; i < field.length; i++) {
-    const v = Math.round(mix(lo, hi, field[i]!) * 255);
-    put(out, i, v, v, v);
   }
   return out;
 }

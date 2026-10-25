@@ -31,6 +31,10 @@ import { idleSnapshot, sameView } from './scene-math';
 // context is made, so the owner gives a new tier a new canvas (key). When the browser takes the WebGL context away, the owner is told,
 // and when it gives it back the canvas is drawn again at once (a demand loop would otherwise stay blank, ADR 0002 §4.7).
 
+// N18 R4.7: what it draws are the modelled parts and props of public/robot3d (Blender, assets-src/robot3d) under a studio light, loaded
+// under Suspense (the canvas waits under "Đang tải 3D…" until they are drawn), and R4.2's procedural shapes when the files do not load;
+// the camera's free view looks over the robot to the lesson's zones, framed clear of the HUD and of an open results card.
+
 export type SceneProps = {
   scenario: Scenario;
   kit: Kit;
