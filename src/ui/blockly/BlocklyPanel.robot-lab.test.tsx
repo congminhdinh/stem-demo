@@ -149,4 +149,21 @@ describe('BlocklyPanel highlight of a hidden block (N18 R4.2, the R2.4 carry)', 
     await render({ highlightBlockId: innerId });
     expect(lit()).toEqual([innerId]);
   });
+
+  it('moves the highlight when the learner folds or unfolds a block while the robot stays in a block inside it', async () => {
+    store = createProjectStore(documentOf(program([loop, after])));
+    await render({ highlightBlockId: innerId });
+    expect(lit()).toEqual([innerId]);
+    const fold = (collapsed: boolean) =>
+      act(async () => {
+        const block = workspace().getBlockById(loopId) as Blockly.BlockSvg;
+        block.setCollapsed(collapsed);
+        // Blockly fires its events from an animation frame, which the fake timers do not run: hand the panel the event now.
+        workspace().fireChangeListener(new Blockly.Events.BlockChange(block, 'collapsed', null, !collapsed, collapsed));
+      });
+    await fold(true);
+    expect(lit()).toEqual([loopId]);
+    await fold(false);
+    expect(lit()).toEqual([innerId]);
+  });
 });

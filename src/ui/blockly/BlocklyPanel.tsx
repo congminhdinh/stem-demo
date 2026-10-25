@@ -248,6 +248,10 @@ export function BlocklyPanel({
         clearTimeout(pendingSave);
         pendingSave = setTimeout(save, saveDelayMs);
       }
+      // N18 R4.2 fix round 1: a block folded or unfolded while the robot stays in a block inside it: the highlight moves to what shows it.
+      if (event instanceof Blockly.Events.BlockChange && event.element === 'collapsed') {
+        showHighlight(workspace, shownHighlightRef.current);
+      }
     });
 
     // Reads the workspace itself, so edits whose events are still queued count too.
