@@ -194,8 +194,8 @@ async function main() {
           if (views) {
             for (const [mode, label] of [['orbit', 'Tự do'], ['follow', 'Theo xe'], ['top', 'Nhìn từ trên']]) {
               await camera(frame, label);
-              // "Tự do" orbited for real: a drag round to the arena's side and a little higher.
-              if (mode === 'orbit') await orbit(page, await frame.getByTestId('robot-canvas').boundingBox(), -240, -40);
+              // "Tự do" orbited for real: a drag about a quarter turn round the arena, a little higher.
+              if (mode === 'orbit') await orbit(page, await frame.getByTestId('robot-canvas').boundingBox(), -110, 12);
               await shoot(page, `drive-to-zone-${mode}-high-1100.png`);
             }
           }
