@@ -15,6 +15,7 @@ import type { RobotToolsStore } from './robot-tools-store';
 import { idleSnapshot } from './scene-math';
 import { topViewColors as colors } from './top-view-colors';
 import { fitTopView, movingBodies, rayLengthCm, robotPartCm, sameTopView, scaleBar, treadOffsetCm, wheelRadIndex, type MovingBody, type StageMargins } from './top-view-math';
+import { TopViewSensorsLayer } from './TopViewSensors';
 import { TopViewToolsLayer, useTopViewPointer } from './TopViewTools';
 import type { ViewFallbackReason } from './webgl-support';
 
@@ -32,7 +33,8 @@ import type { ViewFallbackReason } from './webgl-support';
 // of their own (TopViewTools.tsx).
 
 export type TopView2DProps = {
-  scenario: Pick<Scenario, 'arena' | 'start'>;
+  /** `goals` (N18 R4.3) is what the sensor overlay lights the next goal's zone from; without them no zone is lit. */
+  scenario: Pick<Scenario, 'arena' | 'start'> & Partial<Pick<Scenario, 'goals'>>;
   kit: Kit;
   model: RobotModel;
   store: RobotRunStore;
@@ -121,7 +123,8 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
         const reading = world.sensors.find((sensor) => sensor.kind === 'ultrasonic' && sensor.role === ultrasonic.role);
         const ray = n.rays[i];
         const hit = n.hits[i];
-        if (reading?.kind !== 'ultrasonic') {
+        // N18 R4.3: "Hiện cảm biến" off takes the ray away with the rest of the sensor overlay (TopViewSensors.tsx).
+        if (reading?.kind !== 'ultrasonic' || tools?.getState().sensors === false) {
           ray?.visible(false);
           hit?.visible(false);
           return;
@@ -154,7 +157,7 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
       n.layer?.setAttr('draws', n.draws);
       n.layer?.batchDraw();
     },
-    [model],
+    [model, tools],
   );
 
   // Follows the store: a publish or a change of its state draws the world if (and only if) the picture changed. The first call draws the
@@ -171,11 +174,15 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
     refresh(true);
     const stopPublishes = store.getState().onPublish(() => refresh(false));
     const stopState = store.subscribe(() => refresh(false));
+    const stopSensors = tools?.subscribe((state, previous) => {
+      if (state.sensors !== previous.sensors) refresh(true);
+    });
     return () => {
       stopPublishes();
       stopState();
+      stopSensors?.();
     };
-  }, [shown, store, idle, apply]);
+  }, [shown, store, tools, idle, apply]);
 
   const world = fit && { x: fit.originX, y: fit.originY, scaleX: fit.scale, scaleY: -fit.scale };
   const bar = fit && scaleBar(fit.scale);
@@ -266,6 +273,7 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
               </Group>
             </Group>
           </Layer>
+          <TopViewSensorsLayer scenario={scenario} kit={kit} model={model} store={store} tools={tools} fit={fit} />
           {tools && <TopViewToolsLayer tools={tools} kit={kit} fit={fit} />}
         </Stage>
       )}
