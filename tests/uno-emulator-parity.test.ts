@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { afterAll, describe, expect, it } from 'vitest';
 import { sketchCases } from '../src/core/codegen/arduino/__fixtures__/sketch-cases';
-import { unoContract } from '../src/core/compat/uno-contract';
+import { UNO_PARITY_ROWS, unoContract } from '../src/core/compat/uno-contract';
 import { allUses, unoR3Board } from '../src/core/hardware';
 import { led, motorSet, lineDark } from '../src/core/program/__fixtures__/uno-blocks';
 import { num, print, wait } from '../src/core/program/__fixtures__/ybc-blocks';
@@ -72,6 +72,19 @@ describe('the parity fixtures', () => {
       expect(fixture.durationMs, fixture.name).toBeLessThanOrEqual(1000);
     }
     expect(ECHO_INTO_CM_US).toBeLessThan(rule.usPerCm);
+  });
+});
+
+describe('the contract’s L2e column (contract §12, 0.1.4)', () => {
+  it('cites this parity run (EMU-16) on exactly the open rows a parity fixture covers, next to their earlier trace', () => {
+    const open = unoContract.constructs.filter((row) => row.eligibility === 'ELIGIBLE' || row.eligibility === 'RESTRICTED').map((row) => row.id);
+    const covered = [...new Set(parityFixtures.flatMap((fixture) => fixture.covers))].filter((id) => open.includes(id)).sort();
+    expect([...UNO_PARITY_ROWS].sort()).toEqual(covered);
+    const citing = unoContract.constructs.filter((row) => row.levels?.L2e.status === 'PASS' && row.levels.L2e.evidence.includes('EMU-16')).map((row) => row.id);
+    expect(citing.sort()).toEqual(covered);
+    expect(open.filter((id) => !covered.includes(id))).toEqual(['U-08', 'U-31', 'U-32', 'U-33', 'U-34']);
+    expect(unoContract.evidence['EMU-16']).toMatchObject({ kind: 'EMU', supports: ['emu-trace'] });
+    expect(unoContract.evidence['EMU-17']).toMatchObject({ kind: 'EMU', supports: ['emu-trace'] });
   });
 });
 

@@ -17,7 +17,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import process from 'node:process';
@@ -139,7 +139,8 @@ try {
       log(`FAIL ${name}: ${text.split('\n').filter((line) => /error/i.test(line)).join(' | ') || text.trim().split('\n').slice(-3).join(' | ')}`);
       continue;
     }
-    copyFileSync(join(buildDir, `${name}.ino.hex`), join(outDir, `${name}.hex`));
+    // LF line ends, as the repository stores text (.gitattributes): the same bytes on every checkout.
+    writeFileSync(join(outDir, `${name}.hex`), readFileSync(join(buildDir, `${name}.ino.hex`), 'utf8').replace(/\r\n/g, '\n'));
     writeFileSync(join(outDir, `${name}.ino.sha256`), `${sha256(source)}  ${name}.ino\n`);
     sketches[name] = sizesOf(text);
     log(`BUILT ${name}: flash ${sketches[name].flashBytes} B, RAM ${sketches[name].ramBytes} B`);

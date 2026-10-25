@@ -74,6 +74,22 @@ const evidence: Record<EvidenceRef, EvidenceEntry> = {
     ['emu-trace'],
     ['content'],
   ),
+  'EMU-16': entry(
+    'EMU',
+    'avr8js 0.21.1 on Node 24.22.1 (Apple M4 Pro); HEX built by scripts/build-parity-hex.mjs with arduino-cli 1.5.1 for arduino:avr:uno (arduino:avr@1.8.8, Servo 1.3.0), tests/__parity__; pnpm test tests/uno-emulator-parity.test.ts (N18 C2)',
+    'C2 parity: the generated sketch of every C1 language golden and of one program per driver op of ref-uno-rover@0 (21 fixtures), its HEX on avr8js against the simulator with the same scripted inputs; pin events and Serial lines compared',
+    '21 of 21 agree: every Serial line and pin state (duty, angle, tone ±1 %); every interval from 1 ms within ±1 % and the allowed differences (largest with no line printed in it 0.250 %, driver-motor); Servo 1.3.0 sends its first pulse 52802 µs after attach(); a PWM, servo or tone change shows within one timer period',
+    ['emu-trace'],
+    ['block', 'yield', 'return', 'content'],
+  ),
+  'EMU-17': entry(
+    'EMU',
+    'avr8js 0.21.1 on Node 24.22.1 (Apple M4 Pro); HEX built by arduino-cli 1.5.1 for arduino:avr:uno (arduino:avr@1.8.8); node spikes/avr8js/run-helper-costs.mjs (N18 C2, not in results.json)',
+    'sketches/helper-costs: motorSet with run-time speeds against its Arduino calls; tone(10, f, 100) on a silent pin at 31..4000 Hz and replacing a playing tone',
+    'motorSet(50) 58.875 µs, motorSet(-100) 63.75 µs (42.0625 / 42.75 µs beyond 2 digitalWrite + analogWrite as the simulator charges them); tone on a silent pin 145.625 µs at 4000 Hz, 184.4375..184.8125 at 1000..3000 Hz, 224.375 at 500, 262.25 at 440, 301.6875 at 200, 307.125 at 100, 308.8125 at 31; replacing a playing tone 173.0625 µs',
+    ['emu-trace'],
+    ['block'],
+  ),
   'CC-01': entry('CC', compiled, 'Compiled the 15 spike sketches (ram-threshold 8 times)', 'All compile (ram-threshold refuses its 2049 B probe by design, CC-02); e.g. kit-rover 4752 B flash (14 %), 247 B RAM (12 %); 300 * 200 warns -Woverflow', ['compile-ok', 'compile-size', 'snapshot'], ['call', 'import', 'module']),
   'CC-02': entry('CC', compiled, 'sketches/ram-threshold with -DBIG=1000..2040', '1536 B of globals (75.000 %): no warning; 1537 B (75.049 %) and above: "Low memory available, stability problems may occur."; 2049 B: "Not enough memory", the build fails; flash maximum 32256 B', ['compile-size']),
   'CC-03': entry('CC', compiled, 'Compiled sketches/contract-forms with --warnings all', 'Compiles; no warning from the sketch (only from the core); 7474 B flash (23 %), 258 B RAM (12 %)', ['compile-ok', 'compile-size'], ['call', 'import', 'module']),
@@ -1046,11 +1062,26 @@ const closedRows: readonly ConstructContract[] = [
   closedRow('U-50', 'tone on a pin other than the buzzer, two tones at once', 'EXCLUDED', 'The core plays one tone at a time (ARD-03); the buzzer role owns it.'),
 ];
 
+// --- C2 parity (contract §0.1, §12, 0.1.4) ----------------------------------------------------------
+
+/**
+ * The open rows a C2 parity fixture covers (tests/parity/fixtures.ts, the `covers` of each fixture): their L2e also cites the parity
+ * run of the generated sketch's HEX against the simulator, EMU-16. U-08 (negate) and the raw pins U-31…U-34 have no fixture yet.
+ */
+export const UNO_PARITY_ROWS: readonly string[] = [
+  'U-01', 'U-02', 'U-03', 'U-04', 'U-05', 'U-06', 'U-07', 'U-09', 'U-10', 'U-11', 'U-12', 'U-13', 'U-14', 'U-15', 'U-16', 'U-17', 'U-18',
+  'U-19', 'U-20', 'U-21', 'U-22', 'U-23', 'U-24', 'U-25', 'U-26', 'U-27', 'U-28', 'U-29', 'U-30',
+];
+const withParity = (row: ConstructContract): ConstructContract =>
+  UNO_PARITY_ROWS.includes(row.id) && row.levels?.L2e.status === 'PASS'
+    ? { ...row, levels: { ...row.levels, L2e: { status: 'PASS', evidence: [...row.levels.L2e.evidence, 'EMU-16'] } } }
+    : row;
+
 // --- The contract -----------------------------------------------------------------------------
 
 export const unoContract: UnoContract = {
   contractId: 'uno-arduino-avr',
-  version: '0.1.3',
+  version: '0.1.4',
   status: 'v0 (R0.3): every open row is established; L1 waits for R1/R2, L3 for M06.',
   snapshot: {
     pinnedOn: day,
@@ -1174,5 +1205,5 @@ export const unoContract: UnoContract = {
     { id: 'low-memory', severity: 'warning', when: 'L2: global variables above 1536 bytes (75 % of 2 KB), as arduino-cli warns.' },
   ],
   modules,
-  constructs: [...exposedRows, ...closedRows],
+  constructs: [...exposedRows.map(withParity), ...closedRows],
 };

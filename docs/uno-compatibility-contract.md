@@ -1,6 +1,6 @@
 # UNO Compatibility Contract
 
-> **Version:** 0.1.3 (v0) · **Date:** 2026-10-25 · **Task:** N18 R0.3 · **Status:** v0: mọi construct được mở đã có evidence cho mọi field; L1 chờ R1/R2, L3 chờ M06.
+> **Version:** 0.1.4 (v0) · **Date:** 2026-10-25 · **Task:** N18 R0.3 · **Status:** v0: mọi construct được mở đã có evidence cho mọi field; L1 chờ R1/R2, L3 chờ M06.
 > **Target snapshot (pin):** `arduino-cli 1.5.1`, FQBN `arduino:avr:uno`, core `arduino:avr@1.8.8` (2026-05-21), avr-gcc `7.3.0-atmel3.6.1-arduino7`, library `Servo 1.3.0` (2025-11-06, LGPL-2.1), emulator `avr8js@0.21.1` (2026-08-31, MIT). MCU giả định **ATmega328P, 16 MHz**. **Board chính xác: UNKNOWN** (§1).
 > **Evidence:** spike R0.4 `spikes/avr8js/` (số liệu `spikes/avr8js/out/results.json`), ADR `docs/adr/0003-avr8js-parity.md`, ledger §14. **Bản máy đọc được:** `src/core/compat/uno-contract.ts` (§15).
 > **Quan hệ tài liệu:** spec `docs/uno-robot-direction.md`, plan `docs/robot-3d-implementation-plan.md` (R0.3, R0.4; §4.1 board, §4.2 kit, §4.3 driver, §4.4 IR). Kỷ luật evidence theo `docs/yolobit-compatibility-contract.md` (§0, §15, §21). Từ R1, tài liệu này là **source of truth** cho hành vi của mọi block robot trong simulator và trong C++ Arduino sinh ra (C1, C2, R1, R2).
@@ -21,6 +21,7 @@
 | `costsUs` | Đo bằng cycle của avr8js (§4.4) |
 | Ma trận L1/L2/L2e/L3 | §12: L2 PASS và L2e PASS cho mọi dòng mở; L1 PENDING (R1/R2); L3 PENDING (M06) |
 | Go/no-go C2 | **GO, có điều kiện** (ADR 0003 §7) |
+| Parity C2 (0.1.4) | `tests/uno-emulator-parity.test.ts` (EMU-16): 21 fixture (14 golden ngôn ngữ C1 + 7 chương trình, mỗi driver op của `ref-uno-rover@0` một lần) chạy trên simulator và bằng HEX của sketch sinh ra trên avr8js, cùng input kịch bản: mọi dòng Serial và trạng thái chân khớp, khoảng ≥ 1 ms trong ±1 % cộng khác biệt được phép (dữ liệu: `tests/parity/allowed-differences.ts`). L2e của 29 dòng được fixture phủ trích thêm EMU-16 (§12). Khác biệt mới thấy ghi ở §13 |
 
 ### 0.2 Nhãn
 
@@ -85,7 +86,7 @@ Hệ quả:
 | MCU | ATmega328P 16 MHz, flash 32 256 B dùng được (32 KB − bootloader), RAM 2048 B | V·C | CC-01 ("Maximum is 32256 bytes", "Maximum is 2048 bytes") |
 | Board chính xác (MCU thật, chip USB-serial, bootloader) | **UNKNOWN** | U | plan §10 câu 1 (hỏi nhà cung cấp, R0.5) |
 
-Mọi version đều ≥ 2 tuần tuổi tính tới 2026-10-25 (test kiểm). Đổi bất kỳ version nào là đổi contract (version mới, chạy lại `node spikes/avr8js/run-all.mjs`).
+Mọi version đều ≥ 2 tuần tuổi tính tới 2026-10-25 (test kiểm). Đổi bất kỳ version nào là đổi contract (version mới, chạy lại `node spikes/avr8js/run-all.mjs` và `pnpm build:parity-hex`).
 
 **Tuyên bố pin:**
 
@@ -561,41 +562,41 @@ Advanced là tập cha thật sự của Basic. Một profile liệt kê dòng c
 |---|---|---|
 | **L1** sim-semantic | Simulator (IR + virtual UNO + driver TS) làm đúng ngữ nghĩa của dòng | Test của R1.3/R1.4/R2.3 (chưa có ở v0 → PENDING) |
 | **L2** compile-verified | Dạng C++ của dòng compile với toolchain đã pin | CC |
-| **L2e** emulator-trace | HEX chạy trong avr8js cho đúng mức chân / giá trị / thời gian của contract | EMU |
+| **L2e** emulator-trace | HEX chạy trong avr8js cho đúng mức chân / giá trị / thời gian của contract; từ 0.1.4 thêm harness C2: HEX của sketch sinh ra, so với simulator (EMU-16) | EMU |
 | **L3** physical | Board thật (M06) | không có ở v0; validator **cấm** L3 = PASS |
 
 | ID | Capability | Elig. | L1 | L2 | L2e | L3 |
 |---|---|---|---|---|---|---|
-| U-01 | program start: setup() | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
-| U-02 | forever: loop() | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-08, EMU-13) | PENDING (M06) |
-| U-03 | variable (long, int32) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-10, EMU-13) | PENDING (M06) |
-| U-04 | integer literal | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-10, EMU-13) | PENDING (M06) |
-| U-05 | add, subtract, multiply (int32, wrap) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-11, EMU-13, EMU-15) | PENDING (M06) |
-| U-06 | divide (truncating) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-10, EMU-13, EMU-15) | PENDING (M06) |
-| U-07 | remainder (sign of the dividend) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-10, EMU-13, EMU-15) | PENDING (M06) |
+| U-01 | program start: setup() | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13, EMU-16) | PENDING (M06) |
+| U-02 | forever: loop() | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-08, EMU-13, EMU-16) | PENDING (M06) |
+| U-03 | variable (long, int32) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-10, EMU-13, EMU-16) | PENDING (M06) |
+| U-04 | integer literal | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-10, EMU-13, EMU-16) | PENDING (M06) |
+| U-05 | add, subtract, multiply (int32, wrap) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-11, EMU-13, EMU-15, EMU-16) | PENDING (M06) |
+| U-06 | divide (truncating) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-10, EMU-13, EMU-15, EMU-16) | PENDING (M06) |
+| U-07 | remainder (sign of the dividend) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-10, EMU-13, EMU-15, EMU-16) | PENDING (M06) |
 | U-08 | negate | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
-| U-09 | compare | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13, EMU-15) | PENDING (M06) |
-| U-10 | and, or, not, true, false | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
-| U-11 | if / else if / else | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
-| U-12 | repeat N times | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
-| U-13 | while | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
-| U-14 | count up | RESTRICTED | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-10, EMU-13) | PENDING (M06) |
-| U-15 | print a number or a truth value | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-08, EMU-10, EMU-13) | PENDING (M06) |
-| U-16 | print text | RESTRICTED | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
-| U-17 | print a join of text and numbers | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
-| U-18 | wait (ms) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-01, EMU-08, EMU-13) | PENDING (M06) |
-| U-19 | time since start (millis) | ELIGIBLE | PENDING (R1.3, R2.3) | PASS (CC-03) | PASS (EMU-12, EMU-13) | PENDING (M06) |
-| U-20 | motor speed (H-bridge EN/IN1/IN2) | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-02, EMU-07, EMU-13) | PENDING (M06) |
-| U-21 | drive: forward, backward, spin left, spin right | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
-| U-22 | stop the robot | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-02, EMU-13) | PENDING (M06) |
-| U-23 | servo angle | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-03, EMU-07, EMU-13) | PENDING (M06) |
-| U-24 | LED on / off | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-01, EMU-13) | PENDING (M06) |
-| U-25 | buzzer tone (Hz, ms) | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-05, EMU-07, EMU-13, EMU-15) | PENDING (M06) |
-| U-26 | buzzer stop | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-05, EMU-13) | PENDING (M06) |
-| U-27 | ultrasonic distance (cm) | ELIGIBLE | PENDING (R1.4, R3) | PASS (CC-03) | PASS (EMU-03, EMU-07, EMU-13) | PENDING (M06) |
-| U-28 | line sensor sees dark | ELIGIBLE | PENDING (R1.4, R3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
-| U-29 | line sensor raw value | ELIGIBLE | PENDING (R1.4, R3) | PASS (CC-03) | PASS (EMU-07, EMU-13) | PENDING (M06) |
-| U-30 | button pressed | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-07, EMU-13) | PENDING (M06) |
+| U-09 | compare | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13, EMU-15, EMU-16) | PENDING (M06) |
+| U-10 | and, or, not, true, false | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13, EMU-16) | PENDING (M06) |
+| U-11 | if / else if / else | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13, EMU-16) | PENDING (M06) |
+| U-12 | repeat N times | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13, EMU-16) | PENDING (M06) |
+| U-13 | while | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13, EMU-16) | PENDING (M06) |
+| U-14 | count up | RESTRICTED | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-10, EMU-13, EMU-16) | PENDING (M06) |
+| U-15 | print a number or a truth value | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-08, EMU-10, EMU-13, EMU-16) | PENDING (M06) |
+| U-16 | print text | RESTRICTED | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13, EMU-16) | PENDING (M06) |
+| U-17 | print a join of text and numbers | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13, EMU-16) | PENDING (M06) |
+| U-18 | wait (ms) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-01, EMU-08, EMU-13, EMU-16) | PENDING (M06) |
+| U-19 | time since start (millis) | ELIGIBLE | PENDING (R1.3, R2.3) | PASS (CC-03) | PASS (EMU-12, EMU-13, EMU-16) | PENDING (M06) |
+| U-20 | motor speed (H-bridge EN/IN1/IN2) | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-02, EMU-07, EMU-13, EMU-16) | PENDING (M06) |
+| U-21 | drive: forward, backward, spin left, spin right | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-13, EMU-16) | PENDING (M06) |
+| U-22 | stop the robot | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-02, EMU-13, EMU-16) | PENDING (M06) |
+| U-23 | servo angle | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-03, EMU-07, EMU-13, EMU-16) | PENDING (M06) |
+| U-24 | LED on / off | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-01, EMU-13, EMU-16) | PENDING (M06) |
+| U-25 | buzzer tone (Hz, ms) | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-05, EMU-07, EMU-13, EMU-15, EMU-16) | PENDING (M06) |
+| U-26 | buzzer stop | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-05, EMU-13, EMU-16) | PENDING (M06) |
+| U-27 | ultrasonic distance (cm) | ELIGIBLE | PENDING (R1.4, R3) | PASS (CC-03) | PASS (EMU-03, EMU-07, EMU-13, EMU-16) | PENDING (M06) |
+| U-28 | line sensor sees dark | ELIGIBLE | PENDING (R1.4, R3) | PASS (CC-03) | PASS (EMU-13, EMU-16) | PENDING (M06) |
+| U-29 | line sensor raw value | ELIGIBLE | PENDING (R1.4, R3) | PASS (CC-03) | PASS (EMU-07, EMU-13, EMU-16) | PENDING (M06) |
+| U-30 | button pressed | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-07, EMU-13, EMU-16) | PENDING (M06) |
 | U-31 | digital write (raw pin) | RESTRICTED | PENDING (R1.2, R1.3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
 | U-32 | PWM write 0..255 (raw pin) | RESTRICTED | PENDING (R1.2, R1.3) | PASS (CC-03) | PASS (EMU-06, EMU-13) | PENDING (M06) |
 | U-33 | digital read (raw pin) | RESTRICTED | PENDING (R1.2, R1.3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
@@ -631,6 +632,11 @@ Không bao giờ ghi "100 % tương thích". Câu trên UI về mức tương th
 | USART | 1040 µs/byte, hàng 64 | 1044,17 µs/byte, hàng 64 | 1040, hàng 65 | ≤ 0,4 % + 1 byte |
 | Chi phí lệnh ngắn | bảng `costsUs` | tuỳ LTO của chương trình (−8…−41 %, `tone` hằng −96 %) | như L2e | parity thời gian chỉ cho khoảng ≥ 1 ms |
 | Chân thả nổi / pull-up | không cho đọc (domain) | đọc LOW | ngẫu nhiên / HIGH | bị domain loại |
+| Xung servo đầu tiên sau `attach` (0.1.4) | góc có ngay từ `attach` trong `setup()` | xung đầu sau **52 802 µs**: `attach` xoá Timer1 về 0 ở /8, so khớp đầu tiên khi bộ đếm tràn về 0 (65 536 × 0,5 µs = 32 768 µs), rồi một khung 20 ms (EMU-16) | như L2e | servo trên board bắt đầu chậm ≈ 53 ms; đổi góc sau đó hiện trong một khung (20 ms) |
+| Pha của PWM, xung servo, tone (0.1.4) | đổi ngay trong lời gọi | hiện ở chu kỳ kế tiếp của timer: ≤ 1024 µs (T0), 2040 µs (T1/T2), 20 ms (servo), một chu kỳ tone (EMU-16) | như L2e | harness C2 so sự kiện waveform như một khoảng một chu kỳ |
+| Chi phí helper `motorSet` (0.1.4) | charge 2 × `digitalWrite` + `analogWrite` (16,8125 / 21 µs) | `motorSet(50)` 58,875 µs, `motorSet(-100)` 63,75 µs: thêm 42,0625…42,75 µs nhân/chia `long` của libgcc (EMU-17) | như L2e | khoảng dày `motorSet` dài hơn trên board; ±1 % chỉ hứa cho khoảng ≥ 1 ms mà `delay`/`pulseIn`/Serial chiếm phần lớn (§4.4) |
+| Chi phí `tone` theo tần số (0.1.4) | `costsUs.tone` = 174,0625 µs (đo khi chân đang kêu, 1000 Hz) | chân đang im: 145,625 µs (4000 Hz), 184,4375…184,8125 (1000–3000 Hz), 224,375 (500), 262,25 (440), 301,6875 (200), 307,125 (100), 308,8125 (31): `tone()` thử lần lượt prescaler của Timer2, mỗi lần một phép chia `long`; thay tone đang kêu 173,0625 µs (EMU-17) | như L2e | lệch tới +134,75 µs mỗi lần gọi ở Hz thấp; chưa có khoá `costsUs` theo tần số |
+| Thời gian Serial (0.1.4) | **chưa charge** (§7, ghi chú C1 fix round 1) | mô hình §7: 6,28 µs mỗi byte vào hàng, `print(long)` 9,375 + 45,1875 µs mỗi chữ số, `println` 17,25 µs, hàng 64 byte rồi 1044,17 µs/byte (EMU-08) | §7 với 1040 µs/byte, hàng 65 | giá trị in khớp (EMU-16); khoảng có in dài hơn trên board đúng chừng đó |
 
 Diagnostics (`unoContract.diagnostics`):
 
@@ -670,6 +676,8 @@ Ngày quan sát/truy cập: **2026-10-25**. EMU: avr8js 0.21.1 trên Node 24.22.
 | EMU-13 | EMU | avr8js 0.21.1 (đầu §14) | sketches/contract-forms: every C++ form and helper of this contract, with scripted echo, line, button and ADC | 29 of 29 checks: int32 helpers, bool 1/0, repeat and count up order, if / else if / else and while, UTF-8 and escaped text, (long)millis() on the model, motorSet and drive forms, servoSet clamps, buzzerTone clamps and re-tone, noTone, ultrasonicCm 19 cm (call 1675.5625 µs) and 400 (call 20812 µs; 1675.375 and 20806.3125 in the build without the if/while section), line, button, raw pins | emu-trace | unit, range, default, clamp, round, block, yield, return, error, content |
 | EMU-14 | EMU | avr8js 0.21.1 (đầu §14); `node spikes/avr8js/run-tone-notone.mjs` (R1, không có trong `results.json`) | sketches/tone-notone: analogWrite(11/3, 100), tone(10, 1000), noTone with no new analogWrite, analogWrite again, tone(10, 1000, 30) that ends by itself, analogWrite again | alone 490.196 Hz duty 0.39216; tone: D3/D11 LOW; after noTone with no new analogWrite: D3/D11 LOW; a new analogWrite: 490.196 Hz again; after the 30 ms tone ended by itself: D3/D11 LOW; a new analogWrite: 490.196 Hz again | emu-trace | content |
 | EMU-15 | EMU | avr8js 0.21.1 (đầu §14); `node spikes/avr8js/run-eval-order.mjs` (C1, không có trong `results.json`) | sketches/eval-order: se(v) and sb(v) print their value when they are evaluated, in the plain forms and in the sequenced form of §3.5 | plain: add32(se(1L), se(2L)) eval=2, eval=1; sub32(se(3L), se(4L)) 4, 3; f3(10, se(7L), se(8L)) 8, 7; add32(mul32(se(9L), se(10L)), se(11L)) 11, 10, 9; (se(5L) < se(6L)) 5, 6. Sequenced: (_s1 = se(1L), _s2 = se(2L), add32(_s1, _s2)) eval=1, eval=2; sub32 3, 4; (_s1 = se(7L), _s2 = se(8L), f3(10, _s1, _s2)) 7, 8; three temporaries 9, 10, 11; while ((_s1 = se(x), _s2 = se(2L), (_s1 < _s2))) evaluates both each time (0, 2, 1, 2, 2, 2); (sb(false) && sb(true)) and (sb(true) \|\| sb(false)) evaluate the left side only; (_s4 = (sb(true) && sb(false)), _s5 = sb(true), (_s4 == _s5)) 1, 0, 1, then prints 0 | emu-trace | content |
+| EMU-16 | EMU | avr8js 0.21.1 (đầu §14); HEX của `scripts/build-parity-hex.mjs` (`tests/__parity__`), `pnpm test tests/uno-emulator-parity.test.ts` (N18 C2) | C2 parity: the generated sketch of every C1 language golden and of one program per driver op of ref-uno-rover@0 (21 fixtures), its HEX on avr8js against the simulator with the same scripted inputs; pin events and Serial lines compared | 21 of 21 agree: every Serial line and pin state (duty, angle, tone ±1 %); every interval from 1 ms within ±1 % and the allowed differences (largest with no line printed in it 0.250 %, driver-motor); Servo 1.3.0 sends its first pulse 52802 µs after attach(); a PWM, servo or tone change shows within one timer period | emu-trace | block, yield, return, content |
+| EMU-17 | EMU | avr8js 0.21.1 (đầu §14); `node spikes/avr8js/run-helper-costs.mjs` (N18 C2, không có trong `results.json`) | sketches/helper-costs: motorSet with run-time speeds against its Arduino calls; tone(10, f, 100) on a silent pin at 31..4000 Hz and replacing a playing tone | motorSet(50) 58.875 µs, motorSet(-100) 63.75 µs (42.0625 / 42.75 µs beyond 2 digitalWrite + analogWrite as the simulator charges them); tone on a silent pin 145.625 µs at 4000 Hz, 184.4375..184.8125 at 1000..3000 Hz, 224.375 at 500, 262.25 at 440, 301.6875 at 200, 307.125 at 100, 308.8125 at 31; replacing a playing tone 173.0625 µs | emu-trace | block |
 | CC-01 | CC | arduino-cli 1.5.1 (đầu §14) | Compiled the 15 spike sketches (ram-threshold 8 times) | All compile (ram-threshold refuses its 2049 B probe by design, CC-02); e.g. kit-rover 4752 B flash (14 %), 247 B RAM (12 %); 300 * 200 warns -Woverflow | compile-ok, compile-size, snapshot | call, import, module |
 | CC-02 | CC | arduino-cli 1.5.1 (đầu §14) | sketches/ram-threshold with -DBIG=1000..2040 | 1536 B of globals (75.000 %): no warning; 1537 B (75.049 %) and above: "Low memory available, stability problems may occur."; 2049 B: "Not enough memory", the build fails; flash maximum 32256 B | compile-size | — |
 | CC-03 | CC | arduino-cli 1.5.1 (đầu §14) | Compiled sketches/contract-forms with --warnings all | Compiles; no warning from the sketch (only from the core); 7474 B flash (23 %), 258 B RAM (12 %) | compile-ok, compile-size | call, import, module |
@@ -781,4 +789,5 @@ Tái lập toàn bộ EMU/CC: `node spikes/avr8js/run-all.mjs` (≈ 20 s; cần 
 | 0.1.2 | 2026-10-25 | C1: allowlist thêm hai dạng đã có trong `contract-forms.ino` (CC-03) và trong evidence `call` của dòng, nhưng thiếu trong data: literal INT32_MIN `(-2147483647L - 1L)` của U-04 và phần chữ `Serial.print(F("<text>"));` của U-17 (field `cpp.variants`). Không đổi ngữ nghĩa dòng nào, nên giữ version |
 | 0.1.3 | 2026-10-25 | C1 fix round 1: §7 ghi chú cho mô hình hàng TX (join in từng phần khi thời gian Serial được tính). Chỉ là tài liệu, không đổi data hay ngữ nghĩa dòng nào, nên giữ version |
 | 0.1.3 | 2026-10-25 | C1 (ruling của controller): §3.5 thứ tự toán hạng. Toán hạng trái sang phải, mỗi cái một lần; C++ không cố định thứ tự đối số và toán hạng (CXX-10), avr-gcc 7.3 đánh giá đối số phải sang trái (EMU-15); hai lần đọc robot trở lên trong một vùng không tuần tự → dạng tuần tự bằng toán tử phẩy với biến tạm `_s<k>` (CXX-09, CC-05, EMU-15); `&&`/`\|\|` giữ nguyên. Sửa U-05, U-06, U-07, U-09, U-25 (restriction, `cpp.variants`, field `content`, L2e); thêm EMU-15, CC-05, CXX-09, CXX-10 |
+| 0.1.4 | 2026-10-25 | C2: harness parity avr8js (`tests/uno-emulator-parity.test.ts`, `scripts/build-parity-hex.mjs`, HEX trong `tests/__parity__`). L2e của U-01…U-07, U-09…U-30 (mọi dòng mở có fixture parity phủ) trích thêm EMU-16; U-08, U-31…U-34 chưa có fixture. Thêm EMU-16, EMU-17 và 5 dòng §13 (xung servo đầu tiên, pha waveform, chi phí `motorSet`, chi phí `tone` theo tần số, thời gian Serial). Không đổi ngữ nghĩa dòng nào |
 | 0.1.1 | 2026-10-25 | R1 fix round 1: sửa claim của U-48 và §5.3 (sau `noTone` hay khi tone tự hết, D3/D11 không có PWM tới khi `analogWrite` mới; EMU-05 gọi lại `analogWrite` nên không chứng minh PWM tự trở lại), thêm EMU-14 (`spikes/avr8js/run-tone-notone.mjs`) |

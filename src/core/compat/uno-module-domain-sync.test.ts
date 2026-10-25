@@ -67,7 +67,7 @@ describe('U-33 digital read (raw pin): setup() gives a module-wired pin its driv
   const u33 = unoContract.constructs.find((row) => row.id === 'U-33');
 
   it('is the contract’s setup line, with the mode of the module’s driver', async () => {
-    expect(unoContract.version).toBe('0.1.3');
+    expect(unoContract.version).toBe('0.1.4');
     expect(u33?.cpp?.setup).toEqual(['pinMode(<pin>, <mode>);']);
     expect(u33?.fields.default.label).toBe('VERIFIED');
     // The button's driver (button-pullup) sets INPUT_PULLUP, as U-30's setup line says; the run does the same for a raw read alone.
