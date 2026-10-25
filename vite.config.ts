@@ -57,7 +57,16 @@ export default defineConfig({
   // (rapier_wasm3d_bg.js), while Vite's wasm helper instantiates the .wasm against the package's raw glue file: two copies, and the
   // one Rapier calls never gets its wasm (`wasm.memory` undefined, Chromium, Firefox and WebKit, N18 R3.5). Served as it is, the
   // package and its .wasm share one glue module. Dev only: the build bundles it once (ADR 0001 §5.2).
-  optimizeDeps: { exclude: ['@dimforge/rapier3d-deterministic'] },
+  //
+  // N18 R4.2: the robot lab's chunk is the only importer of three and react-three-fiber. Listed here, they are pre-bundled when the server
+  // starts, and a dependency cache made before they were imported is rebuilt then too (the list is part of the cache's hash). Without the
+  // list, the first page that imports them makes Vite pre-bundle them and reload the page in the middle of whatever it was doing (measured:
+  // `vite:deps new dependencies found: @react-three/fiber, three/examples/jsm/controls/OrbitControls.js, three`, which failed
+  // e2e/robot-lab.spec.ts's chunk test when a cache predated them).
+  optimizeDeps: {
+    exclude: ['@dimforge/rapier3d-deterministic'],
+    include: ['three', 'three/examples/jsm/controls/OrbitControls.js', '@react-three/fiber'],
+  },
   server: { headers: crossOriginIsolationHeaders },
   preview: { headers: crossOriginIsolationHeaders },
   test: {

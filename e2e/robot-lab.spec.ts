@@ -198,7 +198,11 @@ test.describe('a robot lab whose chunk does not load', () => {
     // One click while the chunk still cannot be fetched: Chromium keeps the failed import, so the same click reloads the page (the marker
     // is gone), which fails again the same way and shows the message again.
     await page.getByRole('button', { name: 'Tải lại' }).click();
-    await expect.poll(() => page.evaluate(() => (window as unknown as { __marker?: number }).__marker)).toBeUndefined();
+    // N18 R4.2 (the R5.2a carry): a read that lands while the page is reloading finds no page to read (Execution context was destroyed):
+    // it counts as "not reloaded yet" and the poll reads again.
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __marker?: number }).__marker).catch(() => 'reloading'))
+      .toBeUndefined();
     await expect(page.getByTestId('robot-load-failed')).toBeVisible();
 
     // The chunk can be fetched again: ONE click brings the lab.
