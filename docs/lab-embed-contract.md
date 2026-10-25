@@ -192,7 +192,7 @@ Mỗi lab mở project của **một họ board** (`labFamilies` ở `src/ui/app
 - **Kiểm tra của lab robot** (N18 R7.1 là phần bridge; R6 dựng phép chấm): không dùng `challenge` ở trên. Mỗi scenario chạy 1–10 variant
   (`variants.count`, mỗi variant một `seed` lệch điểm xuất phát), chấm từng mục tiêu bằng mô phỏng tất định, rồi gửi **một** `check-result`
   như §2: điểm = điểm **thấp nhất** trong các variant (điểm một variant = tổng `points` các mục tiêu đạt + thưởng thời gian, kẹp trong 0–100;
-  N18 R6.2), `goal.passed` và `passed` là "qua ở mọi variant". Trong lúc chạy lab robot khoá
+  variant mà chương trình dừng vì lỗi được 0 điểm và trượt mọi mục tiêu; N18 R6.2), `goal.passed` và `passed` là "qua ở mọi variant". Trong lúc chạy lab robot khoá
   soạn thảo và gọi `beginCheck()` (sau `saveNow()`) / `endCheck()` của bridge (thứ tự ở §2). Kiểm tra bị huỷ hoặc gián đoạn thì không gửi `check-result` (như trên).
   Scenario không mục tiêu (`rb-sandbox`) nếu gửi `check-result` thì chỉ là `{ passed: true, goals: [] }`; người soạn bài đặt `requiresCheck = false` cho nó.
 
