@@ -626,6 +626,19 @@ Mỗi task ghi **Files**, **Interfaces**, **Tests** (tên + assertion chính), *
   như master. Frame đầu chậm hơn master 97adda4 khoảng 0,1–0,25 s ở 1× và 0,55–0,7 s ở 4× (đã giảm bằng nạp sớm, `compileAsync`, ít
   program ở tier thấp). Chunk 3D 353,7 kB gzip (+37,6 kB); GLB mỗi cảnh 1 113 kB / 724 kB (gzip 497 / 312 kB). SwiftShader ở tier cao
   14–15 fps (renderer phần mềm mặc định tier thấp). Ảnh trước/sau: `.superpowers/sdd/robot-3d-implementation-plan/r47-shots/`.
+- **Fix round 1** (review 1; rebase lên master 1211347, giữ `FloorPicker` và dụng cụ của R4.8; chi tiết ở ADR 0002 §11.8):
+  - "Theo xe" 50 cm sau, 25 cm cao, nhìn trước 25 cm, không bao giờ ra ngoài tường (kéo vào cách mặt tường 3 cm, nâng lên giữ khoảng
+    cách); "Tự do" 34°, khung cả zone xuất phát, băng keo và nhãn zone, tránh góc HUD và góc dụng cụ của R4.8 (đo từ DOM qua callback
+    ref), robot không nhỏ hơn 40 px; thẻ kết quả gập/đóng thì camera về chỗ cũ, "Xem lại" thì khung lại từ đầu.
+  - Tên zone và số điểm kiểm tra là nhãn nổi quay về camera (pill trắng, đường dẫn xuống zone); mat chỉ in nền và viền.
+  - Mọi vật cố định có hình bằng collider (test bounding box ±0,5 cm): khối cọc tiêu thay nón, rào cổng đặc, cột/lon đúng bán kính.
+  - Đèn line trên bo đèn báo ở mép trước sàn trên + đốm đỏ trên mat; studio sáng, bóng bàn trên sàn; vân gỗ, băng keo dày 0,4 mm.
+  - PMREM trong effect (StrictMode); WARP/Basic Render vào tier thấp; tự xuống tier thấp một lần khi chạy < 30 fps (median 3 s) kèm ghi
+    chú; tải file mô hình có hạn 15 s, lỗi thì thử lại ở view 3D sau, không tải khi chọn 2D; manifest băm cả kit tham chiếu.
+  - Ảnh chụp lại trên bản production: `r47-shots/after2/` (`spikes/r47-visual/shots-prod.mjs`).
+  - Đo lại (ADR 0002 §11.8): GPU tier cao 59,9–60,2 fps, p5 ≥ 55,6, 131 draw; SwiftShader tier thấp 4× p5 53,2–53,8 (master 53,2–54,1),
+    44 draw; SwiftShader ở tier cao tự xuống thấp sau 3,4–4,0 s chạy; frame đầu ở 4× chậm hơn master 0,4–0,6 s; chunk 3D 366,1 kB gzip
+    (+41,0 kB so với master 1211347); GLB 1 130 / 690 kB (gzip 510 / 275 kB).
 
 **R4.5 Pin inspector + tab code (16h).** `PinInspector.tsx`: role → port → chân → giá trị sống (vd. *motor trái 50 % → M1 → D5 PWM 128, D7 HIGH, D8 LOW*). Tab "C++" hiện output C1 (read-only, Copy theo pattern clipboard đã có).
 

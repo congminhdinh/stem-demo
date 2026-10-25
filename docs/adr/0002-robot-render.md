@@ -381,7 +381,8 @@ R4.2 vẽ hình thủ tục (plan D-R7: "procedural geometry first, home-made GL
 
    Đo trước khi có tier thấp Lambert: SwiftShader tier thấp với `MeshStandardMaterial` chỉ được median 15,9 fps, p5 10,6 ở 4× (load 3,6);
    đổi sang Lambert + vertex colour: 60,2 / 27,2; thêm file `-low`: 59,9 / 53,2.
-5. **Camera** (thay overview 52° của R4.2 bằng `camera-studio.ts`; hàm cũ trong `camera.ts` giữ nguyên cùng test): "Tự do" thấp 26°, sau
+5. **Camera** (thay overview 52° của R4.2 bằng `camera-studio.ts`; hàm cũ trong `camera.ts` giữ nguyên cùng test; số đo ở đây là của
+   lượt đầu, fix round 1 đổi chúng: mục 8): "Tự do" thấp 26°, sau
    điểm xuất phát của robot, nhìn về các zone mục tiêu của bài (lệch trái 14° để mục tiêu nằm bên phải, xa HUD), khung hình chứa vùng
    quanh robot, mọi zone mục tiêu và hai góc xa của sa bàn trong phần màn hình mà HUD (đo từ DOM, lớn theo số goal) và các nút để trống;
    "Theo xe" bám sau robot 34 cm, cao 15 cm, nhìn trước 10 cm, xoay theo hướng robot, tự nâng lên nhìn qua tường khi tường chắn; "Đặt lại
@@ -418,6 +419,52 @@ R4.2 vẽ hình thủ tục (plan D-R7: "procedural geometry first, home-made GL
    - **Bundle** (gzip -6): chunk `RobotLab-*.js` 353,7 kB (master 97adda4: 316,0 kB; +37,6 kB: GLTFLoader, meshopt decoder,
      RoomEnvironment, BufferGeometryUtils, code R4.7), dưới 0,6 MB; entry và chunk dùng chung không đổi (±20 byte). GLB mỗi cảnh: tier cao
      1 113 kB (gzip 497 kB), tier thấp 724 kB (gzip 312 kB), dưới 2 MB; tải một lần mỗi trang, URL có hash nên cache được lâu dài.
-7. **Chưa đo / còn mở:** laptop tầm trung thật (iGPU) ở tier cao (PBR, PCF, 129 draw); tự hạ tier theo FPS vẫn chưa làm (mục 6); build
+7. **Chưa đo / còn mở:** laptop tầm trung thật (iGPU) ở tier cao (PBR, PCF, 129 draw); tự hạ tier theo FPS (đã làm ở fix round 1,
+   mục 8); build
    Blender không lặp lại đúng từng byte (thứ tự đỉnh của boolean EXACT đổi giữa các lần chạy; manifest vẫn bắt script đổi mà GLB chưa
    build lại); host không nén `.glb` thì tải 1,1 MB thay vì 0,5 MB.
+8. **Fix round 1** (review 1 của R4.7, rebase lên master 1211347 có R4.8):
+   - **Camera.** "Theo xe" 50 cm sau, 25 cm cao, nhìn trước 25 cm; luôn ở trong tường ít nhất 3 cm tính từ mặt tường: đoạn sàn từ robot
+     tới camera chạm footprint nới rộng của một tường thì camera kéo vào theo đoạn đó, nâng lên để giữ khoảng cách tới robot, điểm nhìn
+     lùi về robot cùng tỉ lệ (`clearSight`, test quét mọi vị trí và hướng trong ba sa bàn). "Tự do" 34°; khung hình gồm cả zone xuất phát,
+     mọi điểm của băng keo và chỗ của nhãn zone; vùng trống trên màn là chữ nhật trừ góc HUD (trên trái) và góc dụng cụ của R4.8 (dưới
+     trái), đo từ DOM qua callback ref (view tạo lại sau "Xem 2D" hay "Thử lại 3D" được đo lại). Robot nhỏ hơn 40 px thì bỏ dần: hai góc
+     xa, chỗ của nhãn, phần dưới của HUD cao (chỉ còn tới 0,45 NDC; người học gập HUD được), băng keo, rồi zone xa nhất. Thẻ kết quả gập
+     hay đóng: camera lướt về pose trước khi thẻ mở, trừ khi người học đã xoay; bắt đầu "Xem lại": camera về pose đầu của view.
+   - **Nhãn zone** là sprite cỡ cố định trên màn (6,2 % chiều cao canvas), không depth test, có đường dẫn mảnh xuống tâm zone, ở 13 cm;
+     mat chỉ in nền và viền zone.
+   - **Prop = collider:** khối cọc tiêu (hộp 8 × 8 × 12 cm) thay nón, rào cổng đặc, cột và lon đúng bán kính trụ, tấm cảnh báo của bến chìm
+     vào mặt tường; test giữ bounding box của từng vật cố định của mọi pilot bằng collider trong 0,5 cm.
+   - **Đèn line:** bo đèn báo 3 LED ở mép trước sàn trên (`part_line_leds`, trong mũi thân mà physics chạy; thanh cảm biến không thể chìa
+     ra trước mũi), quầng đỏ và đốm đỏ trên mat dưới mắt thấy tối. Đèn LED point 0,02 cd.
+   - **Studio:** sàn sáng, bóng mềm của bàn và chân bàn trên sàn, bàn 50 cm quanh sa bàn, vân óc chó nhỏ và dịu lặp theo kích thước thật,
+     ván ép 20 px/cm, lọc anisotropic cho texture của GLB; băng keo là dải 0,4 mm mờ; ảnh tier thấp nửa độ phân giải.
+   - **Code:** PMREM tạo trong effect (StrictMode), `compileAsync` sau environment, hình của R4.2 không tone mapping như trước; Windows
+     Basic Render Driver và WARP vào tier thấp; tier cao tự xuống thấp một lần khi median frame của 3 s chạy > 33 ms (`frame-watch.ts`, có
+     ghi chú "Đã chuyển sang đồ hoạ nhẹ cho mượt hơn"); file mô hình lỗi được thử lại ở view 3D sau, quá 15 s thì vẽ hình đơn giản, không
+     tải khi đang chọn 2D; manifest băm cả kit tham chiếu.
+   - **Đo lại** (cùng harness, thêm `autoLowMs` và `endTier`; `results/fix1-*.json`; M4 Pro, Chromium 153, line-follow 1×, 3 lần × 8 s; load
+     1 phút ghi trong từng ô; master 1211347 đo trong cùng buổi (18:35–19:08) từ một `git archive`, `results/fix1-master-1211347-*.json`):
+
+| Nhóm | Tier | CPU | median fps | p5 fps | draw/frame | frame đầu (ms) | Chạy lần đầu (ms) | Chạy → chạy (ms) | load |
+|---|---|---:|---|---|---:|---|---|---|---|
+| GPU (Metal) | cao | 1× | 59,9–60,2 | 56,2 | 131 | 673–837 (master 884–974, load 9,9–13) | 113–145 | 18–21 | 6,0–7,0 |
+| GPU | cao | 4× | 60,2 | 55,6 | 131 | 1 799–1 804 (master 1 359–1 395) | 355–379 | 32–33 | 4,4–5,4 |
+| GPU | thấp | 1× | 59,9 | 55,6–56,2 | 44 | 677–913 (master 941–959) | 99–110 | 46–47 | 3,6–4,1 |
+| GPU | thấp | 4× | 59,9–60,2 | 54,9–55,6 | 44 | 1 807–1 823 (master 1 368–1 503) | 301–310 | 30–31 | 3,0–3,2 |
+| SwiftShader | thấp | 1× | 59,9–60,2 | 57,1 | 44 | 944–1 177, lạnh 3 126 (master 902–905, lạnh 2 052) | 121–315 | 41–49 | 3,8–5,1 |
+| SwiftShader | thấp | 4× | 59,5–59,9 | 53,2–53,8 | 44 | 1 712–1 726 (master 1 148–1 157) | 344–360 | 30–32 | 5,5–7,1 |
+| SwiftShader, chọn tier cao | cao → thấp | 1× | 59,9 | 54,3–54,6 | 44 | 1 181, lạnh 3 041 | 111–614 | 92–162 | 8,6–8,9 |
+| SwiftShader, chọn tier cao | cao → thấp | 4× | 60,2 | 52,9–53,8 | 44 | 1 705–1 730 | 331–341 | 217–225 | 8,8–9,5 |
+
+     - Ngân sách vẫn đạt: tier cao trên GPU median ≥ 59,9, p5 ≥ 55,6; SwiftShader tier thấp ở 4× p5 53,2–53,8 (master 53,2–54,1, cùng
+       load); draw call 131 / 44 (tier thấp 37 → 44: nhãn zone, đường dẫn, dải băng keo, đốm đèn; bằng cảnh thủ tục của master).
+     - **Tự hạ tier:** SwiftShader ở tier cao chuyển sang thấp 3,4–4,0 s sau lần bấm Chạy đầu ở 1× và 3,6–3,7 s ở 4× (`autoLowMs`), ghi chú
+       hiện; cửa sổ đo 8 s sau đó là tier thấp (median 59,9–60,2).
+     - **Frame đầu:** ở CPU 4× chậm hơn master 0,4–0,45 s trên GPU và 0,55–0,6 s ở SwiftShader (lượt đầu: +0,67 s và +0,56 s). Lọc
+       anisotropic texture GLB ở tier thấp từng làm SwiftShader 4× chậm thêm 1,2 s (A/B `results/ab-*.json`: 2 913–2 960 → 1 717–1 720 ms
+       khi bỏ), nên chỉ bật ở tier cao; nhãn zone tốn khoảng 0,3 s ở SwiftShader 4× (A/B, 2 624–2 671 ms khi bỏ). Các lượt đo trước khi sửa
+       ở `results/superseded/`.
+     - **Bundle** (gzip -6): `RobotLab-*.js` 366,1 kB (master 1211347: 325,1 kB, +41,0 kB); entry +3 B, `test-hooks` +68 B (chuỗi i18n).
+       GLB: tier cao 827 + 303 = 1 130 kB (gzip 510 kB), tier thấp 496 + 195 = 690 kB (gzip 275 kB), dưới 2 MB.
+

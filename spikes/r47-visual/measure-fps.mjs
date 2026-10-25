@@ -4,7 +4,9 @@
 // (`data-drawn`) before the project and the Run, and also records firstFrameMs (the lesson page's navigation to the scene's first
 // frame) and runToMovingMs (a second Run, the physics loaded: the click to the first frame drawn after the clock moved).
 //
-// results/: fps-after-gpu.json, fps-after-swiftshader.json, fps-after-gpu-dpr2.json (R4.7's final code); fps-master-97adda4-*.json
+// Fix round 1: autoLowMs, the first Run's click to the note that the view went to light graphics by itself (null: it did not), and
+// endTier, the tier at the end of the cell. results/fix1-*.json: fix round 1's code and master 1211347 (R4.8) run the same way.
+// results/: fps-after-gpu.json, fps-after-swiftshader.json, fps-after-gpu-dpr2.json (R4.7's first round); fps-master-97adda4-*.json
 // (master before R4.7, the same harness, run from a `git archive` of it); fps-before-*.json (master d9ab65b, R4.2's scene alone);
 // fps-first-pass.jsonl (R4.7 before the first-frame work: compileAsync, the early load, fewer low-tier programs); ab-gate-on/off.json
 // (the GPU's first frame with and without compileAsync, a temporary `r47gate=0` switch since removed: no difference).
@@ -163,6 +165,14 @@ async function cell(browser, project, { group, tier, rate }) {
   await page.evaluate(([document, origin]) => window.__sendToLab({ protocol: 'stem-lab/v1', type: 'load-project', document }, origin), [project, `http://localhost:${LAB_PORT}`]);
   // The reference's own blocks (the starter has no `if`): the project is in the editor.
   await frame.locator('[data-testid=blockly-panel] .blocklyText', { hasText: /^nếu$/ }).first().waitFor();
+  // N18 R4.7 fix round 1: when (if) the view goes to the light graphics by itself, from the first Run's click.
+  await frame.evaluate(() => {
+    window.__autoLow = null;
+    const start = performance.now();
+    new MutationObserver(() => {
+      if (window.__autoLow === null && document.querySelector('[data-testid=robot-quality-note]')) window.__autoLow = Math.round(performance.now() - start);
+    }).observe(document.body, { subtree: true, childList: true });
+  });
   const clicked = Date.now();
   await frame.getByTestId('robot-run').click();
   await frame.getByTestId('robot-status').filter({ hasText: 'Đang chạy' }).waitFor({ timeout: 60_000 });
@@ -203,6 +213,8 @@ async function cell(browser, project, { group, tier, rate }) {
     return { name: debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER), buffer: [gl.drawingBufferWidth, gl.drawingBufferHeight] };
   });
 
+  const autoLowMs = await frame.evaluate(() => window.__autoLow);
+  const endTier = await frame.getByTestId('robot-quality').getAttribute('data-tier');
   const wallS = (Date.now() - wallStart) / 1000;
   const intervals = stamps.slice(1).map((t, i) => t - stamps[i]);
   const sorted = [...intervals].sort((a, b) => a - b);
@@ -221,6 +233,8 @@ async function cell(browser, project, { group, tier, rate }) {
     simSecondsPerSecond: round((simEnd - simStart) / wallS, 2),
     slowerBadgeSeen: slowSeen,
     firstRunMs,
+    autoLowMs,
+    endTier,
     firstFrameMs,
     runToMovingMs,
     renderer: renderer.name,

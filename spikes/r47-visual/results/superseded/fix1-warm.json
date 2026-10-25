@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-25T11:46:34.783Z",
+  "machine": {
+    "cpus": "Apple M4 Pro",
+    "cores": 12,
+    "memGB": 24,
+    "platform": "Darwin 25.5.0",
+    "node": "v24.22.1"
+  },
+  "groups": {
+    "gpu": {
+      "label": "Chromium new headless, the machine GPU (ANGLE Metal), vsync 60 Hz",
+      "launch": {
+        "headless": true,
+        "channel": "chromium"
+      }
+    },
+    "swiftshader": {
+      "label": "Chromium headless shell, --use-angle=swiftshader --enable-unsafe-swiftshader",
+      "launch": {
+        "headless": true,
+        "args": [
+          "--use-angle=swiftshader",
+          "--enable-unsafe-swiftshader"
+        ]
+      }
+    }
+  },
+  "seconds": 8,
+  "warmup": 2,
+  "repeats": 1,
+  "cells": [
+    {
+      "run": 1,
+      "group": "gpu",
+      "tier": "low",
+      "shownTier": "low",
+      "cpuThrottle": 1,
+      "frames": 486,
+      "medianFps": 59.9,
+      "p5Fps": 57.1,
+      "meanFps": 60.8,
+      "framesOver50ms": 0,
+      "drawCallsPerFrame": 44,
+      "simSecondsPerSecond": 1.01,
+      "slowerBadgeSeen": false,
+      "firstRunMs": 136,
+      "autoLowMs": null,
+      "endTier": "low",
+      "firstFrameMs": 1066,
+      "runToMovingMs": 26,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "drawingBuffer": [
+        660,
+        497
+      ],
+      "loadavg1m": 6.4,
+      "cpuBenchMs": 26,
+      "consoleErrors": []
+    }
+  ]
+}
