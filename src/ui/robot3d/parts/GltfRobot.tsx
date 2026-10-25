@@ -9,6 +9,7 @@ import type { RobotAssets } from '../assets/robot-assets';
 import { robot3dColors as colors } from '../colors';
 import type { Detail } from '../lighting/look';
 import { robotModel, type RobotModel } from '../robot-model';
+import { RobotView } from '../RobotView';
 import { writePose } from '../scene-math';
 import { applyRobotWorld, assembleRobot, referenceSizes, type AssemblyOptions } from './robot-assembly';
 
@@ -40,17 +41,25 @@ type GltfRobotProps = {
 export function GltfRobot({ assets, kit, model, scenario, view, detail, shadows, blob }: GltfRobotProps) {
   const flag = useMemo(() => flagOf(scenario), [scenario]);
   const robot = useMemo(() => {
-    if (!reference) throw new Error('The reference kit is missing.');
-    const boardLedPin = kit.board === unoR3Board.id ? unoR3Board.pins.findIndex((pin) => pin.id === 'D13') : -1;
-    return assembleRobot(model, reference, assets.part, { detail, shadows, flag, boardLedPin, blob });
+    try {
+      if (!reference) throw new Error('The reference kit is missing.');
+      const boardLedPin = kit.board === unoR3Board.id ? unoR3Board.pins.findIndex((pin) => pin.id === 'D13') : -1;
+      return assembleRobot(model, reference, assets.part, { detail, shadows, flag, boardLedPin, blob });
+    } catch (error) {
+      // A kit file the robot cannot be built from: the simple robot, never the error boundary (that is for a canvas that fails).
+      console.warn('The robot lab’s robot model could not be built; the view draws its simple robot.', error);
+      return null;
+    }
   }, [assets, kit, model, detail, shadows, flag, blob]);
-  useEffect(() => () => robot.dispose(), [robot]);
+  useEffect(() => () => robot?.dispose(), [robot]);
   const group = useRef<Group>(null);
   useFrame(() => {
+    if (!robot) return;
     const world = view();
     if (group.current) writePose(group.current, world.robot);
     applyRobotWorld(robot.handles, world, colors.ledOn, colors.ledOff);
   });
+  if (!robot) return <RobotView model={model} view={view} shadows={shadows} />;
   return (
     <group ref={group} name="robot">
       <primitive object={robot.root} />

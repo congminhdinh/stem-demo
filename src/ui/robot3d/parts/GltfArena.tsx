@@ -5,6 +5,7 @@ import type { Scenario } from '../../../core/scenario/scenario';
 import type { RobotSnapshot } from '../../../core/world/snapshot';
 import type { RobotAssets } from '../assets/robot-assets';
 import type { TextureSet } from '../assets/textures';
+import { ArenaView } from '../ArenaView';
 import { robot3dColors as colors } from '../colors';
 import { groundTextureSize } from '../ground-paint';
 import type { TierLook } from '../lighting/look';
@@ -78,11 +79,19 @@ function useMatTextures(scenario: Scenario, labels: MatLabels, low: boolean): Ma
 
 export function GltfArena({ assets, planView, scenario, view, look, shadows, textures, labels, viewForward }: GltfArenaProps) {
   const mat = useMatTextures(scenario, labels, look.detail === 'low');
-  const arena = useMemo(() => assembleArena(scenario, assets.prop, { shadows, low: look.detail === 'low', blob: textures.blob, viewForward }), [scenario, assets, shadows, look, textures, viewForward]);
-  useEffect(() => () => arena.dispose(), [arena]);
+  const arena = useMemo(() => {
+    try {
+      return assembleArena(scenario, assets.prop, { shadows, low: look.detail === 'low', blob: textures.blob, viewForward });
+    } catch (error) {
+      // A props file the arena cannot be built from: the simple arena, never the error boundary (that is for a canvas that fails).
+      console.warn('The robot lab’s arena models could not be built; the view draws its simple arena.', error);
+      return null;
+    }
+  }, [scenario, assets, shadows, look, textures, viewForward]);
+  useEffect(() => () => arena?.dispose(), [arena]);
   const invalidate = useThree((state) => state.invalidate);
   useEffect(() => {
-    arena.overhead.visible = !planView;
+    if (arena) arena.overhead.visible = !planView;
     invalidate();
   }, [arena, planView, invalidate]);
 
@@ -124,6 +133,7 @@ export function GltfArena({ assets, planView, scenario, view, look, shadows, tex
   );
 
   useFrame(() => {
+    if (!arena) return;
     const world = view();
     for (const object of world.objects) {
       const mover = arena.movers.get(object.id);
@@ -131,6 +141,7 @@ export function GltfArena({ assets, planView, scenario, view, look, shadows, tex
     }
   });
 
+  if (!arena) return <ArenaView arena={scenario.arena} view={view} shadows={shadows} zoneLabel={labels.zoneLabel} />;
   return (
     <group name="arena-gltf">
       <primitive object={arena.root} />
