@@ -99,12 +99,12 @@ Board JSON ┘                                                                  
 
 **Mô hình thời gian** (`src/core/run/virtual-clock.ts`, `robot-run-session.ts`):
 - `programClock: ProgramClock = Clock & { charge(us: number): void }`. Mỗi lệnh Arduino (theo `costsUs` của board) và mỗi node (mặc định 1 µs) được **charge**. `pulseIn` charge thời gian chờ + độ rộng echo + 3,25 µs; không có xung thì charge chi phí đo của contract UNO §4.4 (20 752 µs với timeout 30000, **không phải** 30000: R0.4). Lệnh đọc là đồng bộ và đọc world state tại `world.t`.
-- `VirtualScheduler.advanceTo(tWorld)` resolve timer **từng cái một** theo thứ tự `(deadline, seq)`. Với mỗi timer: đặt `programClock = deadline`, rồi `await whenBlocked()`. Không có lateness: `repeat 100 { wait 10 }` kết thúc đúng 1000 ms ảo.
+- `VirtualScheduler.advanceTo(tWorld)` resolve timer **từng cái một** theo thứ tự `(deadline, seq)`. Với mỗi timer: đặt `programClock = deadline`, rồi `await whenBlocked()`. Không có lateness: `repeat 100 { wait 10 }` kết thúc đúng 1000 ms ảo cộng chi phí node của chính nó (R2.3 đo: 1000,302 ms với 1 µs/node, đúng 1000 ms khi node không tốn gì), không bao giờ làm tròn lên tick.
 - Ở chế độ ảo, `budget.step()` kiểm **mọi** step (bỏ khoảng 256). Khi `programClock ≥ world.t + dt` thì program **park** (một waiter đặc biệt) cho tới tick sau. Nhờ vậy program không bao giờ chạy trước world quá một `dt`.
 - "Blocked" là một trong ba: đăng ký `sleep`, đăng ký `park`, hoặc kết thúc. Yield housekeeping theo wall-clock không bao giờ tính là blocked.
 - `sleep` và `park` reject khi `signal` abort.
 - `createRuntimeServices` thêm option `budget?` để inject budget ảo.
-- `loop()` của family `uno`: `loopPauseUs = 0`, mỗi vòng charge `LOOP_MIN_US = 50`. `ybc` giữ `loopPauseUs = 10000`, hành vi không đổi.
+- `loop()` của family `uno`: `loopPauseUs = 0`, mỗi vòng charge `LOOP_MIN_US = 50`. `ybc` giữ `loopPauseUs = 10000`, hành vi không đổi. IR của `ybc` **không ghi** hai field này (vắng nghĩa là `python` và `10000`), vì test YB-2 khoá nguyên hình IR ybc (R2.3).
 
 **Vòng tick**, với mỗi tick `dt = 1/120 s`:
 1. `advanceTo(world.t)`: chạy program tới khi blocked.
@@ -115,7 +115,7 @@ Board JSON ┘                                                                  
 
 **Chế độ chạy:**
 - `realtime`: UI gọi `advance(wallMs × speed)` từ rAF. Lời gọi này **single-flight**: thời gian nợ được cộng dồn, tối đa 8 tick mỗi frame, vượt thì hiện badge "chậm hơn thời gian thực".
-- `headless`: `runUntil(tEnd)`, nhường bằng `MessageChannel`, không dùng `setTimeout(0)` vì kẹp 4 ms và bị throttle khi tab ẩn.
+- `headless`: `runUntil(tEnd)`, nhường bằng `MessageChannel`, không dùng `setTimeout(0)` vì kẹp 4 ms và bị throttle khi tab ẩn. Mỗi lượt nhường một `MessageChannel` **mới** (`VirtualScheduler.yieldNow`): Node xả hết hàng đợi của một port, kể cả message gửi trong lúc xả, nên một port dùng chung làm đói timer (R2.3 đo trên Node 24.22.1: timer 1 ms chạy 1 lần trong 300 ms, port mới thì 36 lần).
 - Tab ẩn thì rAF dừng, sim dừng theo, **kết quả không đổi**.
 
 ## 4. Hợp đồng chính (tên chốt, task sau dùng đúng tên này)

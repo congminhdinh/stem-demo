@@ -11,8 +11,9 @@ import { createMulberry32 } from '../random/mulberry32';
 export type Clock = { now(): number };
 
 /**
- * N18 R2.1 (type only; R2.3 builds it): the clock of a robot program, which runs on virtual time. Every Arduino call the
- * program makes is charged its cost in µs (the board profile's `costsUs`), so time moves as the board's would.
+ * N18 R2.1: the clock of a robot program, which runs on virtual time. Every Arduino call the program makes is charged its cost in
+ * µs (the board profile's `costsUs`), so time moves as the board's would. R2.3 builds it: `createVirtualScheduler().programClock`
+ * (run/virtual-clock.ts), which also charges every IR node and every loop() iteration.
  */
 export type ProgramClock = Clock & { charge(us: number): void };
 
