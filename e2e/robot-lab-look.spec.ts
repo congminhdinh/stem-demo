@@ -1,9 +1,13 @@
 import { expect, test, type Frame, type Page } from '@playwright/test';
+import { robotSolutions } from '../src/samples/robot-solutions';
+import { robotStarterDocument } from '../src/samples/robot-templates';
 
 // N18 R4.7: every pilot scenario's 3D view, in the 1100 x 640 frame of a lesson page, drawn by SwiftShader (playwright.config.ts, project
 // chromium-robot), is the modelled scene (not the simple fallback shapes) and looks 3D: across a grid of pixels read from its drawing
 // buffer, the light varies (shading, shadows, materials: the luminance's standard deviation) and there are many colours, none of them
-// the page's background. A blank or flat view (R4.2's blank viewport in rb-line-follow's 170 x 140 cm arena) fails here.
+// the page's background. A blank or flat view (R4.2's blank viewport in rb-line-follow's 170 x 140 cm arena) fails here. Fix round 1:
+// model files that do not load draw R4.2's simple shapes (never the 2D map), and the view measures what floats over it again when it is
+// made again (Xem 2D, then Xem 3D): an open results card still slides the picture.
 
 const lessonOrigin = 'http://lesson.localhost:5190';
 const pilots = ['rb-drive-to-zone', 'rb-square-route', 'rb-stop-at-wall', 'rb-line-follow', 'rb-servo-gate', 'rb-mini-mission'] as const;
@@ -93,9 +97,40 @@ test.describe('the robot lab’s 3D look (N18 R4.7)', () => {
     await frame.getByTestId('robot-camera-reset').click();
     await expect(frame.getByTestId('robot-camera-reset')).toHaveAttribute('aria-label', 'Đặt lại góc nhìn');
     // Reduced motion is off: the camera glides back (0.45 s), then rests where it started.
-    await page.waitForTimeout(1200);
-    const after = await frame.evaluate(() => (window as unknown as { __look: number[][] }).__look);
-    const same = after.filter((pixel, i) => pixel.every((c, k) => Math.abs(c - before[i]![k]!) <= 6)).length;
-    expect(same / after.length).toBeGreaterThan(0.9);
+    const sameShare = async () => {
+      const after = await frame.evaluate(() => (window as unknown as { __look: number[][] }).__look);
+      return after.filter((pixel, i) => pixel.every((c, k) => Math.abs(c - before[i]![k]!) <= 6)).length / after.length;
+    };
+    await expect.poll(sameShare, { timeout: 5_000 }).toBeGreaterThan(0.9);
+  });
+
+  test('model files that do not load: R4.2’s simple shapes are drawn, and no 2D map stands in', async ({ page, baseURL }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(String(error)));
+    await page.route('**/robot3d/*.glb*', (route) => route.fulfill({ status: 404, body: 'missing' }));
+    const frame = await openInLesson(page, labUrl(baseURL, 'lab=robot&template=rb-drive-to-zone'));
+    await expect(frame.getByTestId('robot-canvas').locator('canvas')).toHaveAttribute('data-models', 'simple');
+    await expect(frame.getByTestId('robot-topview')).toHaveCount(0);
+    await expect(frame.getByTestId('robot-viewmode')).toHaveText('Xem 2D');
+    expect(errors).toEqual([]);
+  });
+
+  test('a results card slides the picture after Xem 2D and Xem 3D: the view made again is the one measured', async ({ page, baseURL }) => {
+    const frame = await openInLesson(page, labUrl(baseURL, 'lab=robot&template=rb-drive-to-zone'));
+    await frame.getByTestId('robot-viewmode').click();
+    await expect(frame.getByTestId('robot-topview')).toBeVisible();
+    await frame.getByTestId('robot-viewmode').click();
+    await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 30_000 });
+    const canvas = frame.getByTestId('robot-canvas').locator('canvas');
+    await expect(canvas).toHaveAttribute('data-lens-shift', '0');
+    await frame.evaluate((document) => window.__stem?.loadProject(document), { ...robotStarterDocument('rb-drive-to-zone'), program: { blocks: robotSolutions['rb-drive-to-zone'].reference } });
+    await frame.locator('[data-testid=robot-check-speed] [data-speed="fast"]').click();
+    await frame.getByTestId('robot-check-start').click();
+    await expect(frame.getByTestId('robot-check-results')).toHaveAttribute('data-open', 'true', { timeout: 60_000 });
+    // The card covers the view's right: the picture slides left (a negative shift), to the middle of what the card leaves.
+    await expect.poll(async () => Number((await canvas.getAttribute('data-lens-shift'))?.split(',')[0] ?? 0), { timeout: 5_000 }).toBeLessThan(-0.2);
+    // Folded, the picture slides back.
+    await frame.getByTestId('robot-check-fold').click();
+    await expect(canvas).toHaveAttribute('data-lens-shift', '0', { timeout: 5_000 });
   });
 });

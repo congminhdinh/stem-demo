@@ -1,5 +1,5 @@
 import type { Material, Object3D, Texture } from 'three';
-import { DoubleSide, Mesh } from 'three';
+import { DoubleSide, LoadingManager, Mesh } from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import type { Detail } from '../lighting/look';
@@ -10,8 +10,10 @@ import manifest from './robot-assets.manifest.json';
 // mount) and arena-props.glb (`prop_*`: walls, props, the table, the studio), each also as a `-low` file of the low tier's level of
 // detail (half the segments). A tier's pair is fetched once per page, lazily, when a 3D view of that tier first mounts, and kept: a
 // second view (Try again, a return to the tier) clones the same templates. A scene's GPU copies are freed when it
-// unmounts (`releaseGpu`); the next scene uploads them again from the kept data. When a file does not load or parse, the promise gives
-// null and the view draws its procedural fallback (RobotView, ArenaView) for the rest of the page: the lab still works.
+// unmounts (`releaseGpu`); the next scene uploads them again from the kept data. When a file does not load or parse, or does not come
+// within LOAD_TIMEOUT_MS (a stalled request), the promise gives null and the view draws its procedural fallback (RobotView, ArenaView):
+// the lab still works. A load that failed is tried again when the learner asks for a new 3D view ("Thử lại 3D", "Xem 3D":
+// `forgetFailedRobotAssets`), not by every render of the same view (React's `use` needs the same promise while it waits).
 
 export type RobotAssets = {
   /** A robot part's template (`part_chassis`, `part_wheel`…), or null when the kit file has none of that name. */
@@ -72,24 +74,45 @@ export function robotAssetsOf(kit: GLTF, props: GLTF): RobotAssets {
   };
 }
 
-const loading = new Map<Detail, Promise<RobotAssets | null>>();
+/** How long a tier's files may take before the view gives up on them and draws its simple shapes, ms. */
+export const LOAD_TIMEOUT_MS = 15_000;
 
-/** Loads a tier's two files, once per page (the same promise every call, so React's `use` can wait on it). `base` is the app's base URL. */
-export function loadRobotAssets(detail: Detail, base: string = import.meta.env.BASE_URL): Promise<RobotAssets | null> {
+type Attempt = Promise<RobotAssets | null> & { status?: 'fulfilled'; value?: RobotAssets | null };
+const loading = new Map<Detail, Attempt>();
+
+/** Forgets every tier's load that failed, so that the next view tries its files again. */
+export function forgetFailedRobotAssets(): void {
+  for (const [detail, attempt] of loading) if (attempt.status === 'fulfilled' && attempt.value === null) loading.delete(detail);
+}
+
+/**
+ * Loads a tier's two files, once per page (the same promise every call, so React's `use` can wait on it), unless that load failed and
+ * was forgotten since. `base` is the app's base URL.
+ */
+export function loadRobotAssets(detail: Detail, base: string = import.meta.env.BASE_URL, timeoutMs: number = LOAD_TIMEOUT_MS): Promise<RobotAssets | null> {
   const known = loading.get(detail);
   if (known) return known;
-  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  const manager = new LoadingManager();
+  const loader = new GLTFLoader(manager).setMeshoptDecoder(MeshoptDecoder);
   // The file's own hash in its URL: a rebuilt file is a new URL, so a host may cache each one for good.
   const versions = manifest.assets as Readonly<Record<string, { sha256: string }>>;
   const url = (file: string) => `${base.endsWith('/') ? base : `${base}/`}${file}?v=${versions[file.split('/').pop()!]?.sha256.slice(0, 12) ?? '0'}`;
   const files = ROBOT_ASSET_FILES[detail];
-  const attempt: Promise<RobotAssets | null> & { status?: 'fulfilled'; value?: RobotAssets | null } = Promise.all([loader.loadAsync(url(files.kit)), loader.loadAsync(url(files.props))])
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const stalled = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      manager.abort();
+      reject(new Error(`The robot lab’s 3D models took more than ${timeoutMs} ms.`));
+    }, timeoutMs);
+  });
+  const attempt: Attempt = Promise.race([Promise.all([loader.loadAsync(url(files.kit)), loader.loadAsync(url(files.props))]), stalled])
     .then(([kit, props]) => robotAssetsOf(kit, props))
     .catch((error: unknown) => {
       console.warn('The robot lab’s 3D models did not load; the view draws its simple shapes.', error);
       return null;
     })
     .then((assets) => {
+      clearTimeout(timer);
       // Tagged as React's `use` reads a settled promise, so a view that mounts after the files are in renders at once.
       attempt.status = 'fulfilled';
       attempt.value = assets;

@@ -1,5 +1,5 @@
 import { useThree } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Fog, PMREMGenerator, type DirectionalLight, type Scene } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { ArenaSpan } from '../camera';
@@ -21,34 +21,34 @@ type StudioLightingProps = {
   viewForward: readonly [number, number];
 };
 
-/** The room's environment map for this renderer, made once per canvas, disposed with it; none when `intensity` is 0. */
-function useStudioEnvironment(intensity: number) {
+/**
+ * The room's environment map for this renderer, made when the canvas mounts and disposed when it unmounts; none when `intensity` is 0.
+ * It is made in the effect, not in a memo: React's StrictMode (dev) runs an effect, its cleanup and the effect again, and a target made
+ * once and disposed in the first cleanup would leave the scene lit by a disposed map (no image-based light).
+ */
+export function useStudioEnvironment(intensity: number) {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene) as Scene;
   const invalidate = useThree((state) => state.invalidate);
-  const target = useMemo(() => {
-    if (intensity === 0) return null;
+  useEffect(() => {
+    if (intensity === 0) return;
     const generator = new PMREMGenerator(gl);
     const room = new RoomEnvironment();
-    const made = generator.fromScene(room, 0.04);
+    const target = generator.fromScene(room, 0.04);
     room.traverse((node) => {
       const mesh = node as { geometry?: { dispose(): void }; material?: { dispose(): void } };
       mesh.geometry?.dispose();
       mesh.material?.dispose();
     });
     generator.dispose();
-    return made;
-  }, [gl, intensity]);
-  useEffect(() => {
-    if (!target) return;
     scene.environment = target.texture;
     scene.environmentIntensity = intensity;
     invalidate();
     return () => {
-      scene.environment = null;
+      if (scene.environment === target.texture) scene.environment = null;
       target.dispose();
     };
-  }, [scene, target, intensity, invalidate]);
+  }, [gl, scene, intensity, invalidate]);
 }
 
 export function StudioLighting({ span, look, shadows, mapSize, viewForward }: StudioLightingProps) {

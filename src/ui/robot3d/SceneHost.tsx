@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ErrorBoundary } from '../app/ErrorBoundary';
 import { useText } from '../i18n/text';
 import type { CameraMode } from './camera';
 import { useViewOverlays } from './hud-corner';
-import { loadRobotAssets } from './assets/robot-assets';
+import { forgetFailedRobotAssets, loadRobotAssets } from './assets/robot-assets';
 import { tierLook } from './lighting/look';
 import { Icon } from './icons';
 import { probeWebgl, tierForRenderer, type QualityTier, type WebglProbe } from './quality';
@@ -21,13 +21,16 @@ import { CONTEXT_RESTORE_WAIT_MS, fallbackReason, viewToggleAction, viewToggleTe
 // The view's own controls float over it: the camera's three views, and the quality tier (a new tier is a new canvas). Until a canvas
 // has drawn its first frame (about 2 s on a software renderer), "Đang tải 3D…" stands over it instead of the empty page behind.
 
+/** N18 R4.7: how long the note that the view went to light graphics by itself stays, ms. */
+const AUTO_LOW_NOTE_MS = 8000;
+
 const cameraModes: readonly { mode: CameraMode; label: 'robot.camera.orbit' | 'robot.camera.follow' | 'robot.camera.top'; icon: 'orbit' | 'follow' | 'top' }[] = [
   { mode: 'orbit', label: 'robot.camera.orbit', icon: 'orbit' },
   { mode: 'follow', label: 'robot.camera.follow', icon: 'follow' },
   { mode: 'top', label: 'robot.camera.top', icon: 'top' },
 ];
 
-type SceneHostProps = Omit<SceneProps, 'tier' | 'cameraMode' | 'onContextLost' | 'onContextRestored' | 'hud' | 'card'> & {
+type SceneHostProps = Omit<SceneProps, 'tier' | 'cameraMode' | 'onContextLost' | 'onContextRestored' | 'hud' | 'card' | 'toolsCorner' | 'onSlowFrames'> & {
   /** Tests: whether WebGL is there and what draws it (the browser's own probe by default). */
   probe?: () => WebglProbe;
 };
@@ -37,18 +40,31 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
   const [probed, setProbed] = useState(probe);
   const [tier, setTier] = useState<QualityTier>(() => tierForRenderer(probed.ok ? probed.renderer : null));
   const [cameraMode, setCameraMode] = useState<CameraMode>('orbit');
-  // N18 R4.7: the tier's model files are fetched and parsed while the canvas is still being made (it suspends on the same promise).
-  useEffect(() => {
-    if (probed.ok) void loadRobotAssets(tierLook[tier].detail);
-  }, [probed, tier]);
   // N18 R4.7: "đặt lại góc nhìn" puts the current view's camera back where that view starts.
   const [resetKey, setResetKey] = useState(0);
-  const sceneBox = useRef<HTMLDivElement>(null);
-  const { hud, card } = useViewOverlays(sceneBox);
+  // N18 R4.7: what floats over the view, measured on the view's element as it is now (it goes while the 2D map stands in).
+  const { ref: sceneBox, overlays } = useViewOverlays();
   const [attempt, setAttempt] = useState(0);
   const [context, setContext] = useState<ContextState>('ok');
   // The learner picked the 2D view (N18 R4.6): the canvas is gone while they have it, and made again when they go back.
   const [chosen2d, setChosen2d] = useState(false);
+  // N18 R4.7 fix round 1: a run drawn too slowly on the high tier gives way to the low one, once, and says so for a while; the learner
+  // may go back to high (the quality button), and the view then lets it be.
+  const [autoLow, setAutoLow] = useState<'never' | 'shown' | 'done'>('never');
+  const onSlowFrames = useCallback(() => {
+    setTier('low');
+    setAutoLow('shown');
+  }, []);
+  useEffect(() => {
+    if (autoLow !== 'shown') return;
+    const timer = setTimeout(() => setAutoLow('done'), AUTO_LOW_NOTE_MS);
+    return () => clearTimeout(timer);
+  }, [autoLow]);
+  // N18 R4.7: the tier's model files are fetched and parsed while the canvas is still being made (it suspends on the same promise);
+  // not while the learner has the 2D map.
+  useEffect(() => {
+    if (probed.ok && !chosen2d) void loadRobotAssets(tierLook[tier].detail);
+  }, [probed, tier, chosen2d]);
   // The canvas of this attempt and tier has drawn its first frame; a new canvas (Try again, another tier) has not.
   const canvasKey = `${attempt}:${tier}`;
   const [drawnKey, setDrawnKey] = useState<string | null>(null);
@@ -64,6 +80,8 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
   }, [context]);
 
   const retry = () => {
+    // A new 3D view tries the model files again if they did not load the last time.
+    forgetFailedRobotAssets();
     const next = probe();
     // The tier follows the renderer when there was none to follow (WebGL was missing); after that it is the learner's (the quality button).
     if (!probed.ok && next.ok) setTier(tierForRenderer(next.renderer));
@@ -122,8 +140,10 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
               onContextRestored={onContextRestored}
               onFirstFrame={onFirstFrame}
               resetKey={resetKey}
-              hud={hud}
-              card={card}
+              hud={overlays.hud}
+              card={overlays.card}
+              toolsCorner={overlays.tools}
+              {...(tier === 'high' && autoLow === 'never' ? { onSlowFrames } : {})}
             />
           </ErrorBoundary>
           {!drawn && failedAttempt !== attempt && context === 'ok' && (
@@ -154,7 +174,10 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
       <button
         type="button"
         className="robot-quality"
-        onClick={() => setTier(tier === 'high' ? 'low' : 'high')}
+        onClick={() => {
+          setTier(tier === 'high' ? 'low' : 'high');
+          if (autoLow === 'shown') setAutoLow('done');
+        }}
         title={t('robot.quality.hint')}
         data-testid="robot-quality"
         data-tier={tier}
@@ -162,6 +185,11 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
       >
         {t(tier === 'high' ? 'robot.quality.high' : 'robot.quality.low')}
       </button>
+      {autoLow === 'shown' && fallback === null && (
+        <p className="robot-quality-note" role="status" data-testid="robot-quality-note">
+          {t('robot.quality.autoLow')}
+        </p>
+      )}
       {viewButton}
     </>
   );

@@ -14,6 +14,12 @@ describe('quality tiers (N18 R4.2, ADR 0002 §6)', () => {
     expect(tierForRenderer(null)).toBe('high');
   });
 
+  it('picks low for Windows’ software renderers too: the Microsoft Basic Render Driver and WARP (N18 R4.7 fix round 1)', () => {
+    expect(tierForRenderer('ANGLE (Microsoft, Microsoft Basic Render Driver (0x0000008C) Direct3D11 vs_5_0 ps_5_0, D3D11)')).toBe('low');
+    expect(tierForRenderer('ANGLE (Microsoft, WARP Direct3D11)')).toBe('low');
+    expect(tierForRenderer('ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002504) Direct3D11 vs_5_0 ps_5_0, D3D11)')).toBe('high');
+  });
+
   it('sets shadows, pixel ratio and antialiasing per tier as the ADR measured them', () => {
     expect(tierSettings).toEqual({
       high: { shadows: 'percentage', dpr: [1, 1.5], antialias: true, shadowMapSize: 2048 },

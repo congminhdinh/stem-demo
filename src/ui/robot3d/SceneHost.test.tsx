@@ -280,3 +280,35 @@ describe('SceneHost’s quality tier across a round trip (N18 R4.6 fix round 1)'
     expect(byId('scene-stand-in')?.getAttribute('data-tier')).toBe('low');
   });
 });
+
+describe('SceneHost on a slow renderer (N18 R4.7 fix round 1)', () => {
+  it('goes to the light graphics once when a run is drawn too slowly on the detailed ones, says so for 8 s, and lets the learner go back', () => {
+    render(() => gpu);
+    expect(scenes.props?.tier).toBe('high');
+    expect(scenes.props?.onSlowFrames).toBeTypeOf('function');
+    act(() => scenes.props!.onSlowFrames!());
+    expect(byId('scene-stand-in')?.getAttribute('data-tier')).toBe('low');
+    expect(byId('robot-quality')?.getAttribute('data-tier')).toBe('low');
+    expect(text('robot-quality-note')).toBe('Đã chuyển sang đồ hoạ nhẹ cho mượt hơn');
+    expect(byId('robot-quality-note')?.getAttribute('role')).toBe('status');
+    // The low tier is not watched.
+    expect(scenes.props?.onSlowFrames).toBeUndefined();
+    advance(7999);
+    expect(byId('robot-quality-note')).not.toBeNull();
+    advance(1);
+    expect(byId('robot-quality-note')).toBeNull();
+    // Back to detailed by the learner's choice: the view lets it be.
+    click('robot-quality');
+    expect(scenes.props?.tier).toBe('high');
+    expect(scenes.props?.onSlowFrames).toBeUndefined();
+  });
+
+  it('takes the note away when the learner picks a tier', () => {
+    render(() => gpu);
+    act(() => scenes.props!.onSlowFrames!());
+    click('robot-quality');
+    expect(byId('robot-quality-note')).toBeNull();
+    expect(scenes.props?.tier).toBe('high');
+  });
+});
+

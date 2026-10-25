@@ -1,6 +1,7 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Suspense, use, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { NeutralToneMapping, type DirectionalLight } from 'three';
+import { NeutralToneMapping, NoToneMapping, type DirectionalLight } from 'three';
+import { useStore } from 'zustand';
 import type { Kit } from '../../core/hardware/kit';
 import type { Scenario } from '../../core/scenario/scenario';
 import type { PaintZone } from '../../core/world/arena/arena-schema';
@@ -12,7 +13,7 @@ import type { ArenaSpan, CameraMode } from './camera';
 import { CameraRig } from './CameraRig';
 import { freeViewForward, sightWalls, type FreeViewScene } from './camera-studio';
 import { FloorPicker } from './FloorPicker';
-import type { CardEdge, HudCorner } from './hud-corner';
+import type { CardEdge, HudCorner, ToolsCorner } from './hud-corner';
 import { robot3dColors as colors } from './colors';
 import { tierLook } from './lighting/look';
 import { StudioLighting } from './lighting/StudioLighting';
@@ -20,7 +21,8 @@ import { GltfArena } from './parts/GltfArena';
 import { GltfRobot } from './parts/GltfRobot';
 import { tierSettings, type QualityTier } from './quality';
 import type { RobotModel } from './robot-model';
-import type { RobotRunStore } from './robot-run-store';
+import { isRunOver, type RobotRunStore } from './robot-run-store';
+import { createFrameWatch } from './frame-watch';
 import type { RobotToolsStore } from './robot-tools-store';
 import { RobotView } from './RobotView';
 import { idleSnapshot, sameView } from './scene-math';
@@ -55,6 +57,10 @@ export type SceneProps = {
   hud?: HudCorner | null;
   /** N18 R4.7: the check's open results card (NDC), which the camera keeps the robot's end spot clear of. */
   card?: CardEdge | null;
+  /** N18 R4.7: the view tools' corner (NDC, R4.8), which the free view keeps the robot and its start clear of. */
+  toolsCorner?: ToolsCorner | null;
+  /** N18 R4.7 fix round 1: a run is drawn too slowly for this tier (frame-watch.ts); told once. */
+  onSlowFrames?(): void;
   /** N18 R4.8: the view tools (the ruler, the move tool), which take the pointer on the mat (FloorPicker). */
   tools?: RobotToolsStore;
 };
@@ -141,7 +147,8 @@ function CompiledDraw({ onDrawn }: { onDrawn?: (() => void) | undefined }) {
   const invalidate = useThree((state) => state.invalidate);
   const ready = useRef(false);
   const told = useRef(false);
-  useLayoutEffect(() => {
+  // An effect, after the scene's own (the studio's environment map is set by then: every shader is compiled once, with it).
+  useEffect(() => {
     let live = true;
     void gl
       .compileAsync(scene, camera)
@@ -163,6 +170,22 @@ function CompiledDraw({ onDrawn }: { onDrawn?: (() => void) | undefined }) {
       queueMicrotask(onDrawn);
     }
   }, 1);
+  return null;
+}
+
+/** Tells the owner, once, when a run's frames are too slow (frame-watch.ts): frames count while a run moves. */
+function SlowFrames({ store, onSlow }: { store: RobotRunStore; onSlow(): void }) {
+  const watch = useMemo(createFrameWatch, []);
+  const told = useRef(false);
+  useFrame((_, delta) => {
+    if (told.current) return;
+    const state = store.getState();
+    const running = state.active && !state.paused && !state.starting && !isRunOver(state.snapshot);
+    if (watch.frame(delta * 1000, running)) {
+      told.current = true;
+      onSlow();
+    }
+  });
   return null;
 }
 
@@ -201,8 +224,8 @@ type ContentProps = {
 };
 
 /** The parts each of the modelled files must have for the view to use them; without one, the procedural view is drawn. */
-const NEEDED_PARTS = ['part_chassis', 'part_board', 'part_tt_motor', 'part_wheel', 'part_caster', 'part_ultrasonic', 'part_line_bar', 'part_servo', 'part_led', 'part_buzzer', 'part_button'];
-const NEEDED_PROPS = ['prop_wall', 'prop_block', 'prop_cardboard', 'prop_cone', 'prop_barrier', 'prop_tin', 'prop_post', 'prop_table_top', 'prop_table_leg', 'prop_fence_post', 'prop_fence_rail', 'prop_studio'];
+const NEEDED_PARTS = ['part_chassis', 'part_board', 'part_tt_motor', 'part_wheel', 'part_caster', 'part_ultrasonic', 'part_line_bar', 'part_line_leds', 'part_servo', 'part_led', 'part_buzzer', 'part_button'];
+const NEEDED_PROPS = ['prop_wall', 'prop_block', 'prop_cardboard', 'prop_marker', 'prop_barrier', 'prop_tin', 'prop_post', 'prop_table_top', 'prop_table_leg', 'prop_fence_post', 'prop_fence_rail', 'prop_studio'];
 
 /**
  * What the canvas shows (N18 R4.7): the modelled robot and arena under the studio light once their files are in (the canvas waits for
@@ -222,6 +245,9 @@ function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewF
   // What the canvas draws, for the E2E and a curious developer: the modelled scene or the simple shapes.
   useEffect(() => {
     gl.domElement.dataset.models = usable ? 'modelled' : 'simple';
+    // R4.2's simple shapes are drawn as they were, with no tone mapping (R3F's `flat`); the studio's with Khronos PBR Neutral.
+    gl.toneMapping = usable ? NeutralToneMapping : NoToneMapping;
+    gl.toneMappingExposure = usable ? TONE_EXPOSURE : 1;
   }, [gl, usable]);
   if (!usable) {
     return (
@@ -244,18 +270,25 @@ function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewF
   );
 }
 
-export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored, onFirstFrame, resetKey, hud = null, card = null, tools }: SceneProps) {
+export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored, onFirstFrame, resetKey, hud = null, card = null, toolsCorner = null, tools, onSlowFrames }: SceneProps) {
   const settings = tierSettings[tier];
   const idle = useMemo(() => idleSnapshot(scenario, kit), [scenario, kit]);
   const view = useCallback(() => store.getState().latestWorld() ?? idle, [store, idle]);
   const [widthCm, depthCm] = scenario.arena.ground.sizeCm;
   const span = useMemo<ArenaSpan>(() => ({ widthM: widthCm / 100, depthM: depthCm / 100 }), [widthCm, depthCm]);
-  const freeView = useMemo<FreeViewScene>(
-    () => ({ start: scenario.start, goals: scenario.arena.paint.zones.filter((zone) => zone.kind === 'target' || zone.kind === 'checkpoint').map((zone) => zone.polygonCm) }),
-    [scenario],
-  );
+  const freeView = useMemo<FreeViewScene>(() => {
+    const zones = scenario.arena.paint.zones;
+    return {
+      start: scenario.start,
+      goals: zones.filter((zone) => zone.kind === 'target' || zone.kind === 'checkpoint').map((zone) => zone.polygonCm),
+      startZone: zones.find((zone) => zone.kind === 'start')?.polygonCm,
+      route: scenario.arena.paint.lines.flatMap((line) => line.pointsCm),
+    };
+  }, [scenario]);
   const viewForward = useMemo(() => freeViewForward(freeView), [freeView]);
   const walls = useMemo(() => sightWalls(scenario.arena.walls), [scenario]);
+  // N18 R4.7: a replay of a check's round ("Xem lại") is under way: the camera goes back to frame its start.
+  const replaying = useStore(store, (state) => state.round !== null && state.active && !state.locked);
   return (
     <Canvas
       className="robot-canvas"
@@ -271,9 +304,10 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
         <SceneContent scenario={scenario} kit={kit} model={model} view={view} span={span} tier={tier} zoneLabel={zoneLabel} viewForward={viewForward} cameraMode={cameraMode} />
         <CompiledDraw onDrawn={onFirstFrame} />
       </Suspense>
-      <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} resetKey={resetKey} hud={hud} card={card} walls={walls} />
+      <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} resetKey={resetKey} hud={hud} card={card} tools={toolsCorner} walls={walls} replaying={replaying} />
       <RedrawOnChange store={store} />
       <ContextWatch onLost={onContextLost} onRestored={onContextRestored} />
+      {onSlowFrames && <SlowFrames store={store} onSlow={onSlowFrames} />}
       {tools && <FloorPicker tools={tools} store={store} kit={kit} scenario={scenario} />}
     </Canvas>
   );

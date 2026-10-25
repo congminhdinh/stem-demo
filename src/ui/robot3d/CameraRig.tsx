@@ -4,17 +4,18 @@ import { MOUSE, Vector3, type PerspectiveCamera } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { RobotSnapshot } from '../../core/world/snapshot';
 import { cameraLimits, topPose, type ArenaSpan, type CameraMode, type CameraPose } from './camera';
-import { chaseViewPose, clearSight, freeViewPose, VIEW_SAFE_RECT, type FreeViewScene, type SightWall } from './camera-studio';
-import type { CardEdge, HudCorner } from './hud-corner';
-import { arenaToThree } from './scene-math';
+import { chaseViewPose, clearSight, freeViewPose, VIEW_SAFE_RECT, type FreeViewScene, type SafeRect, type SightWall } from './camera-studio';
+import type { CardEdge, HudCorner, ToolsCorner } from './hud-corner';
+import { arenaToThree, type Vec3Tuple } from './scene-math';
 
 // The camera of the robot lab's 3D view (N18 R4.2; R4.7 gives it depth). three's own OrbitControls (ADR 0002 §5: no drei), wired by
-// hand: every change asks for a frame (the canvas draws on demand). Three views: "Tự do" (orbit; it opens low behind and beside the
-// robot's start, the arena receding, camera-studio.ts), "Theo xe" (a chase camera low behind the robot that swings round as it turns
-// and rises to look over a wall between them; the learner may orbit it, and the chase keeps the angle they leave it at) and "Nhìn từ
-// trên" (straight down, pan and zoom only).
-// Going from one view to another, and "đặt lại góc nhìn" (a new `resetKey`), glides for a moment, unless the learner asked for reduced
-// motion: then it jumps, and nothing eases, drifts or trails.
+// hand: every change asks for a frame (the canvas draws on demand). Three views: "Tự do" (orbit; it opens behind and beside the
+// robot's start, the arena receding, framed clear of the HUD and the view tools, camera-studio.ts), "Theo xe" (a chase camera behind
+// the robot that swings round as it turns and stays inside the arena's walls; the learner may orbit it, and the chase keeps the angle
+// they leave it at) and "Nhìn từ trên" (straight down, pan and zoom only).
+// Going from one view to another, "đặt lại góc nhìn" (a new `resetKey`) and the start of a replay glide for a moment, unless the
+// learner asked for reduced motion: then it jumps, and nothing eases, drifts or trails. A check's results card turns the camera to the
+// robot's end spot; when the card folds or closes, the camera glides back to where it was, unless the learner moved it meanwhile.
 
 type CameraRigProps = {
   mode: CameraMode;
@@ -32,12 +33,19 @@ type CameraRigProps = {
   /** The check's open results card (NDC): while it is open, the camera looks at the robot and its picture slides left, so the
    * robot's end spot shows in the part of the view the card leaves. */
   card?: CardEdge | null;
+  /** The view tools' corner (NDC, bottom left): the free view frames the robot and its start clear of it. */
+  tools?: ToolsCorner | null;
+  /** A replay of a check's round is under way: when one starts, the camera goes back to frame the view's start. */
+  replaying?: boolean;
 };
 
 /** How long the camera glides from one view to the next, s. */
 const GLIDE_S = 0.45;
 /** How fast "Theo xe" catches up with the robot and swings behind it: the share of the gap closed per second, as a rate. */
 const FOLLOW_RATE = 5;
+
+/** The robot is never narrower than this on the screen in the free view's first frame (px across its wheels). */
+const MIN_ROBOT_PX = 48;
 
 const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2);
 
@@ -54,7 +62,7 @@ const defaultChase = (): ChaseOffset => {
   return { forward: pose.position[0] - pose.target[0], up: pose.position[1] - pose.target[1], side: pose.position[2] - pose.target[2], ahead: pose.target[0] };
 };
 
-export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0, hud = null, walls = [], card = null }: CameraRigProps) {
+export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0, hud = null, walls = [], card = null, tools = null, replaying = false }: CameraRigProps) {
   const camera = useThree((state) => state.camera) as PerspectiveCamera;
   const dom = useThree((state) => state.gl.domElement);
   const size = useThree((state) => state.size);
@@ -69,11 +77,24 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
   /** The picture's slide (NDC) now and the one it eases to: the middle of the part of the view a results card leaves. */
   const lens = useRef({ x: 0, y: 0, goalX: 0, goalY: 0 });
   const chase = useRef<ChaseOffset>(defaultChase());
+  /** Where the camera was when a results card opened, in which view, and whether the learner has moved it since. */
+  const beforeCard = useRef<{ pose: CameraPose; mode: CameraMode } | null>(null);
+  const movedSinceCard = useRef(false);
+  const wasReplaying = useRef(false);
   // Read when the view changes, without being a reason to change it: a new window shape or a switch of reduced motion keeps the camera.
-  const safe = useMemo(() => (hud ? { ...VIEW_SAFE_RECT, hud: { right: Math.min(0.9, hud.right), bottom: Math.max(-0.2, hud.bottom) } } : VIEW_SAFE_RECT), [hud]);
-  const latest = useRef({ aspect, reducedMotion, view, span, free, mode, safe, walls });
+  // A HUD or tools corner that would take most of the view is held back (the free view then frames under part of it).
+  const safe = useMemo<SafeRect>(
+    () => ({
+      ...VIEW_SAFE_RECT,
+      ...(hud ? { hud: { right: Math.min(0.9, hud.right), bottom: Math.max(-0.2, hud.bottom) } } : {}),
+      ...(tools ? { tools: { right: Math.min(0.2, tools.right), top: Math.min(0.2, tools.top) } } : {}),
+    }),
+    [hud, tools],
+  );
+  const minRobot = (2 * MIN_ROBOT_PX) / Math.max(1, size.width);
+  const latest = useRef({ aspect, reducedMotion, view, span, free, mode, safe, walls, minRobot });
   useEffect(() => {
-    latest.current = { aspect, reducedMotion, view, span, free, mode, safe, walls };
+    latest.current = { aspect, reducedMotion, view, span, free, mode, safe, walls, minRobot };
   });
 
   useEffect(() => {
@@ -81,6 +102,7 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
     const onStart = () => {
       dragging.current = true;
       moved.current = true;
+      movedSinceCard.current = true;
     };
     const onEnd = () => {
       dragging.current = false;
@@ -122,25 +144,25 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
     controls.enableDamping = !reducedMotion;
   }, [controls, reducedMotion]);
 
-  /** Where the chase camera wants to be for `world`. */
+  /** Where the chase camera wants to be for `world`: inside the arena's walls (clearSight). */
   const chaseGoal = (world: RobotSnapshot): CameraPose => {
     const [px, py, pz] = robotPoint(world);
     const yaw = robotYaw(world);
     const [c, s] = [Math.cos(yaw), Math.sin(yaw)];
     const { forward, up, side, ahead } = chase.current;
-    const target: [number, number, number] = [px + ahead * c, py + 0.03, pz - ahead * s];
-    return clearSight({ position: [target[0] + forward * c + side * s, target[1] + up, target[2] - forward * s + side * c], target }, latest.current.walls);
+    const target: Vec3Tuple = [px + ahead * c, py + 0.03, pz - ahead * s];
+    return clearSight({ position: [target[0] + forward * c + side * s, target[1] + up, target[2] - forward * s + side * c], target }, latest.current.walls, [px, py + 0.03, pz]);
   };
 
-  // A new view (or a reset): the camera goes to its pose (at once the first time, or with reduced motion), and the controls take its rules.
-  useEffect(() => {
-    const { aspect: ratio, reducedMotion: jump, view: now, span: arena, free: scene, safe: rect } = latest.current;
-    moved.current = false;
-    const world = now();
-    chase.current = defaultChase();
-    const goal = mode === 'top' ? topPose(arena, camera.fov, ratio) : mode === 'follow' ? chaseGoal(world) : freeViewPose(arena, scene, camera.fov, ratio, rect);
-    controls.enableRotate = mode !== 'top';
-    controls.mouseButtons.LEFT = mode === 'top' ? MOUSE.PAN : MOUSE.ROTATE;
+  /** Where the view `mode` starts. */
+  const startPose = (mode: CameraMode): CameraPose => {
+    const { aspect: ratio, view: now, span: arena, free: scene, safe: rect, minRobot: least } = latest.current;
+    return mode === 'top' ? topPose(arena, camera.fov, ratio) : mode === 'follow' ? chaseGoal(now()) : freeViewPose(arena, scene, camera.fov, ratio, rect, least);
+  };
+
+  /** Sends the camera to `goal`: a glide, or at once (the first time, with reduced motion). */
+  const goTo = (goal: CameraPose) => {
+    const jump = latest.current.reducedMotion;
     // A drag's damped momentum would carry on through the glide and past it: spend it now (without damping, update() applies what is
     // left and clears it), then glide from where that leaves the camera.
     controls.enableDamping = false;
@@ -156,14 +178,37 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
       glide.current = { from: { position: camera.position.toArray(), target: controls.target.toArray() }, to: goal, elapsed: 0 };
     }
     invalidate();
-    // chaseGoal reads refs only.
+  };
+
+  // A new view (or a reset): the camera goes to its pose, and the controls take its rules.
+  useEffect(() => {
+    moved.current = false;
+    movedSinceCard.current = true;
+    chase.current = defaultChase();
+    controls.enableRotate = mode !== 'top';
+    controls.mouseButtons.LEFT = mode === 'top' ? MOUSE.PAN : MOUSE.ROTATE;
+    goTo(startPose(mode));
+    // startPose and goTo read refs only.
   }, [mode, resetKey, controls, camera, invalidate]);
 
-  // The HUD measured (or grown) before the learner touched the camera: the free view is framed again for it, at once.
+  // A replay starts: the camera goes back to where the view starts, so the robot is framed at its start (the results card that turned
+  // it to the end spot has folded).
   useEffect(() => {
-    const { aspect: ratio, span: arena, free: scene } = latest.current;
+    if (replaying && !wasReplaying.current && placed.current) {
+      moved.current = false;
+      beforeCard.current = null;
+      chase.current = defaultChase();
+      goTo(startPose(mode));
+    }
+    wasReplaying.current = replaying;
+    // startPose and goTo read refs only; a new view while it replays is the view's own effect.
+  }, [replaying]);
+
+  // The HUD or the view tools measured (or grown) before the learner touched the camera: the free view is framed again for them, at once.
+  useEffect(() => {
+    const { aspect: ratio, span: arena, free: scene, minRobot: least } = latest.current;
     if (mode !== 'orbit' || moved.current || !placed.current || glide.current) return;
-    const goal = freeViewPose(arena, scene, camera.fov, ratio, safe);
+    const goal = freeViewPose(arena, scene, camera.fov, ratio, safe, least);
     camera.position.set(...goal.position);
     controls.target.set(...goal.target);
     controls.update();
@@ -171,7 +216,8 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
   }, [safe, mode, camera, controls, invalidate]);
 
   // A results card opens: the camera turns to the robot where the run left it (a glide; in "Theo xe" it is there already), and the
-  // picture slides left by half the card, so that spot shows beside the card. It closes or folds: the picture slides back.
+  // picture slides left by half the card, so that spot shows beside the card. It folds or closes: the picture slides back, and the camera
+  // glides back to where it was when the card opened, unless the learner has moved it since (or chose another view).
   useEffect(() => {
     const shift = lens.current;
     shift.goalX = card ? Math.max(-0.8, (card.left - 1) / 2) : 0;
@@ -179,22 +225,23 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
     const hudBottom = latest.current.safe.hud.bottom;
     shift.goalY = card && shift.goalX <= latest.current.safe.hud.right ? (hudBottom + latest.current.safe.bottom) / 2 : 0;
     if (latest.current.reducedMotion) [shift.x, shift.y] = [shift.goalX, shift.goalY];
-    if (card && mode !== 'follow') {
-      const [px, py, pz] = robotPoint(latest.current.view());
-      const offset = new Vector3().subVectors(camera.position, controls.target);
-      const to: CameraPose = { position: [px + offset.x, py + offset.y, pz + offset.z], target: [px, py, pz] };
-      controls.enableDamping = false;
-      controls.update();
-      controls.enableDamping = !latest.current.reducedMotion;
-      if (latest.current.reducedMotion) {
-        camera.position.set(...to.position);
-        controls.target.set(...to.target);
-        controls.update();
-      } else {
-        glide.current = { from: { position: camera.position.toArray(), target: controls.target.toArray() }, to, elapsed: 0 };
+    if (card) {
+      if (!beforeCard.current) {
+        beforeCard.current = { pose: { position: camera.position.toArray(), target: controls.target.toArray() }, mode };
+        movedSinceCard.current = false;
       }
+      if (mode !== 'follow') {
+        const [px, py, pz] = robotPoint(latest.current.view());
+        const offset = new Vector3().subVectors(camera.position, controls.target);
+        goTo({ position: [px + offset.x, py + offset.y, pz + offset.z], target: [px, py, pz] });
+      }
+    } else if (beforeCard.current) {
+      const back = beforeCard.current;
+      beforeCard.current = null;
+      if (!movedSinceCard.current && back.mode === mode && mode !== 'follow') goTo(back.pose);
     }
     invalidate();
+    // goTo reads refs only.
   }, [card, mode, camera, controls, invalidate]);
 
   useFrame((_, delta) => {

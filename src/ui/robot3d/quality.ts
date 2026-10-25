@@ -20,7 +20,9 @@ export const tierSettings: Readonly<Record<QualityTier, Readonly<TierSettings>>>
   low: { shadows: false, dpr: 1, antialias: false, shadowMapSize: 0 },
 };
 
-const softwareRenderer = /swiftshader|llvmpipe|software/i;
+// N18 R4.7 fix round 1: Windows' software renderers too (the Microsoft Basic Render Driver, WARP). A renderer that is slow and named
+// otherwise starts on high, and gives way to low when a run's frames are slow (frame-watch.ts).
+const softwareRenderer = /swiftshader|llvmpipe|software|basic render|\bwarp\b/i;
 
 /** The tier a renderer starts on: low for a software one, high otherwise (also when the browser does not name it). */
 export function tierForRenderer(renderer: string | null): QualityTier {
