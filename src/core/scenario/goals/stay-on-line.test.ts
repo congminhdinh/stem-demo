@@ -4,6 +4,7 @@ import { base, ctx } from './__fixtures__/context';
 import { feed, type FrameInit } from './__fixtures__/frames';
 import { goalReasons } from './reasons';
 import { createStayOnLineGoal, LINE_DARK_MAX_REFLECTANCE, MOVING_SPEED_CM_S } from './stay-on-line';
+import { MIN_GUARD_TRAVEL_CM } from './travel';
 import type { GoalSpec } from './goal';
 
 const spec: GoalSpec<'stay-on-line'> = { ...base, kind: 'stay-on-line', minRatio: 0.8 };
@@ -11,7 +12,8 @@ const spec: GoalSpec<'stay-on-line'> = { ...base, kind: 'stay-on-line', minRatio
 // The tape of the fixture runs along y = 40 (x 30..170), 3 cm wide: y 38.5..41.5.
 const onTape: PointCm = [100, 40];
 const offTape: PointCm = [100, 80];
-const driving = { speedCmS: 10 };
+// 40 cm/s over the 0.25 s ticks of `feed` is 10 cm a tick: three ticks are more than the least path a guard goal needs.
+const driving = { speedCmS: 40 };
 const tick = (spots: readonly PointCm[], extra: FrameInit = {}): FrameInit => ({ ...driving, lineSpotsCm: spots, ...extra });
 /** `on` ticks with a spot on the tape and `off` ticks without, all moving. */
 const drive = (on: number, off: number): FrameInit[] => [
@@ -59,7 +61,7 @@ describe('stay-on-line', () => {
     const goal = createStayOnLineGoal(spec, ctx);
     // 10 ticks at rest off the tape, 4 at exactly 1 cm/s off the tape: none counts
     feed(goal, [...Array.from({ length: 10 }, () => tick([offTape], { speedCmS: 0 })), ...Array.from({ length: 4 }, () => tick([offTape], { speedCmS: 1 }))]);
-    expect(goal.result()).toMatchObject({ passed: false, reasonKey: goalReasons.neverMoved, progress: 0 });
+    expect(goal.result()).toMatchObject({ passed: false, reasonKey: goalReasons.robotDidNotMove, progress: 0 });
     feed(goal, drive(8, 2), { fromS: 10 }); // then 10 moving ticks, 8 on the tape
     expect(goal.result()).toMatchObject({ passed: true });
     feed(goal, [tick([offTape], { speedCmS: 1.01 })], { fromS: 20 }); // 8 of 11 = 0.727: just above 1 cm/s counts
@@ -104,7 +106,7 @@ describe('stay-on-line', () => {
     it('is what is dark under the middle of a spot: the edge of the tape is on it, a hair beyond is not', () => {
       const at = (y: number) => {
         const goal = createStayOnLineGoal(spec, ctx);
-        feed(goal, [tick([[100, y]])]);
+        feed(goal, [tick([[100, y]], { speedCmS: 100 })]); // one tick of 25 cm
         return goal.result().passed;
       };
       expect([at(38.5), at(40), at(41.5)]).toEqual([true, true, true]);
@@ -137,6 +139,63 @@ describe('stay-on-line', () => {
   });
 
   it('has no run to judge before the first tick', () => {
-    expect(createStayOnLineGoal(spec, ctx).result()).toEqual({ id: 'goal', passed: false, points: 0, progress: 0, reasonKey: goalReasons.neverMoved });
+    expect(createStayOnLineGoal(spec, ctx).result()).toEqual({ id: 'goal', passed: false, points: 0, progress: 0, reasonKey: goalReasons.robotDidNotMove });
+  });
+
+  it('counts a robot that crawls below the moving speed as never on the tape, however far it goes', () => {
+    const goal = createStayOnLineGoal(spec, ctx);
+    feed(goal, Array.from({ length: 100 }, () => tick([onTape], { speedCmS: 1 })), { dtS: 0.25 }); // 25 cm at 1 cm/s
+    expect(goal.result()).toMatchObject({ passed: false, progress: 0, reasonKey: goalReasons.offLine });
+  });
+
+  // The guard (controller ruling): a goal that is met by not leaving the tape cannot be met by not leaving the spot.
+  describe('the least path', () => {
+    it('is 20 cm', () => {
+      expect(MIN_GUARD_TRAVEL_CM).toBe(20);
+    });
+
+    it('fails a robot that stands still on the tape, with robot-did-not-move', () => {
+      const goal = createStayOnLineGoal(spec, ctx);
+      feed(goal, Array.from({ length: 40 }, () => tick([onTape], { speedCmS: 0 })));
+      expect(goal.result()).toEqual({ id: 'goal', passed: false, points: 0, progress: 0, reasonKey: goalReasons.robotDidNotMove });
+    });
+
+    it('passes a robot that drives 25 cm on the tape, at a ratio of 1', () => {
+      const goal = createStayOnLineGoal(spec, ctx);
+      feed(goal, Array.from({ length: 10 }, () => tick([onTape], { speedCmS: 10 }))); // 10 ticks of 2.5 cm
+      expect(goal.result()).toEqual({ id: 'goal', passed: true, points: 10, progress: 1 });
+    });
+
+    it('fails a robot that drives 19 cm on the tape, at a ratio of 1, and shows how far it got', () => {
+      const goal = createStayOnLineGoal(spec, ctx);
+      feed(goal, Array.from({ length: 8 }, () => tick([onTape], { speedCmS: 9.5 }))); // 8 ticks of 2.375 cm
+      expect(goal.result()).toEqual({ id: 'goal', passed: false, points: 0, progress: 19 / 20, reasonKey: goalReasons.robotDidNotMove });
+    });
+
+    it('passes at exactly 20 cm, and is not cheated by the rounding of a long sum', () => {
+      const exact = createStayOnLineGoal(spec, ctx);
+      feed(exact, Array.from({ length: 8 }, () => tick([onTape], { speedCmS: 10 })));
+      expect(exact.result().passed).toBe(true);
+      const long = createStayOnLineGoal(spec, ctx); // 100 ticks of 0.2 cm add up to 19.99999999999996
+      feed(long, Array.from({ length: 100 }, () => tick([onTape], { speedCmS: 2 })), { dtS: 0.1 });
+      expect(long.result().passed).toBe(true);
+    });
+
+    it('is checked before the ratio: a robot that drove too little and was off the tape fails for the distance', () => {
+      const goal = createStayOnLineGoal(spec, ctx);
+      feed(goal, Array.from({ length: 4 }, () => tick([offTape], { speedCmS: 10 }))); // 10 cm, none on the tape
+      expect(goal.result()).toMatchObject({ passed: false, progress: 0, reasonKey: goalReasons.robotDidNotMove });
+    });
+
+    it('does not count the fall when the robot leaves the arena: that goal has failed for the arena', () => {
+      const goal = createStayOnLineGoal(spec, ctx);
+      feed(goal, [tick([onTape], { speedCmS: 100 }), tick([onTape], { speedCmS: 100, outOfArena: true })]);
+      expect(goal.result()).toMatchObject({ passed: false, reasonKey: goalReasons.outOfArena });
+    });
+
+    it('refuses a tick that is negative or not a number', () => {
+      expect(() => feed(createStayOnLineGoal(spec, ctx), [tick([onTape])], { dtS: -0.25 })).toThrow(RangeError);
+      expect(() => feed(createStayOnLineGoal(spec, ctx), [tick([onTape])], { dtS: Number.NaN })).toThrow(RangeError);
+    });
   });
 });

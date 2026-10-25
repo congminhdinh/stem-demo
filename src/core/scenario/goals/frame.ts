@@ -31,7 +31,7 @@ export type GoalFrame = {
   readonly robot: GoalPose & {
     /**
      * How fast the middle of the body moves over the floor, cm/s, 0 or more (a speed, not a velocity). Turning on the spot is
-     * the speed of the middle: 0.
+     * the speed of the middle: 0. It is also what the path of the guard goals is summed from (travel.ts): speed × tick.
      */
     readonly speedCmS: number;
     readonly footprint: GoalFootprint;
