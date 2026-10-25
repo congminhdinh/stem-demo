@@ -19,7 +19,8 @@ import type { PoseCm, Scenario } from './scenario-schema';
 //   2. each box tagged `jitter` in arena order, then each cylinder: dx, dy (only when obstacleJitterCm is above 0).
 //
 // A draw that does not fit is thrown away and the thing is drawn again, at most VARIANT_MAX_ATTEMPTS times; then it keeps the place the
-// author gave it (offset 0). What does not fit:
+// author gave it (offset 0). The robot keeps its authored position only: the yaw never decides whether a draw fits (it does not move the
+// footprint), so after the last failed draw the start turns by the yaw of the first draw. What does not fit:
 //   - the start: the robot’s footprint (a circle of ROBOT_FOOTPRINT_RADIUS_CM) leaves the ground or overlaps a wall, an object, an
 //     untagged obstacle, or a tagged obstacle at its authored place;
 //   - a tagged obstacle: it leaves the ground, or overlaps the robot at its final start, a wall, an object, an untagged obstacle, a
@@ -143,21 +144,26 @@ export function variantOffsets(scenario: VariantSource, index: number): VariantO
   const rng = createWorldRng(variantJitterSeed(scenario, index));
   const jitter = (limit: number) => plain(rng.uniform(-limit, limit));
 
-  // The start, first.
+  // The start, first. The yaw does not move the footprint, so a draw never fails for its yaw: when no position fits, only the position
+  // falls back (offset 0) and the start keeps the yaw of the first draw.
   let robot = circleShape(start.xCm, start.yCm, ROBOT_FOOTPRINT_RADIUS_CM);
   if (jitterStart) {
-    for (let attempt = 0; attempt < VARIANT_MAX_ATTEMPTS; attempt++) {
+    let firstYawDeg = 0;
+    let placed = false;
+    for (let attempt = 0; attempt < VARIANT_MAX_ATTEMPTS && !placed; attempt++) {
       const dxCm = jitter(variants.startJitterCm);
       const dyCm = jitter(variants.startJitterCm);
       const dYawDeg = jitter(variants.yawJitterDeg);
+      if (attempt === 0) firstYawDeg = dYawDeg;
       const moved = circleShape(start.xCm + dxCm, start.yCm + dyCm, ROBOT_FOOTPRINT_RADIUS_CM);
       const stays = dxCm === 0 && dyCm === 0;
       if (stays || (insideGround(moved, width, depth) && !hits(moved, fixed) && !hits(moved, authored))) {
         startOffset = { dxCm, dyCm, dYawDeg };
         robot = moved;
-        break;
+        placed = true;
       }
     }
+    if (!placed) startOffset = { dxCm: 0, dyCm: 0, dYawDeg: firstYawDeg };
   }
 
   // Then each tagged obstacle, against what is placed: the robot, the fixed things, the earlier obstacles where they ended up and

@@ -1,51 +1,36 @@
 import { projectDocumentSchema, type ProjectDocument } from '../core/circuit/document';
+import {
+  robotKitId,
+  robotKitVersion,
+  robotLabProfiles,
+  robotSandboxKey,
+  robotTemplates,
+  type RobotLabProfile,
+  type RobotTemplateKey,
+} from './robot-keys';
+
+// The table of keys, profiles and kits lives in robot-keys.ts, a module with no imports, so that the scenario schema (src/core/scenario)
+// and the scenario catalog can read it without importing this file (which will read the catalog, N18 R5.2: that would be a cycle).
+// It is re-exported here, so that everything that reads the table through this module keeps doing so.
+export {
+  isRobotLabProfile,
+  isRobotTemplateKey,
+  robotKitId,
+  robotKitVersion,
+  robotLabProfiles,
+  robotSandboxKey,
+  robotTemplateKeys,
+  robotTemplates,
+  type RobotLabProfile,
+  type RobotTemplate,
+  type RobotTemplateKey,
+  type RobotTitleKey,
+} from './robot-keys';
 
 // The robot labs an embedding page can launch by key (N18 R4.1, `lab=robot`). Like the generic and Yolo:Bit keys they are a public
 // contract: course content stores them (LabTemplateCatalog, STEMLearning), so a key is never renamed or reused. A key names a
 // SCENARIO (the arena, the goals and the score come with R3.x and R6); what this module owns is the project it opens with
 // (plan §4.0) and the profile it needs.
-
-/** The scenarios of the robot lab, in the order of the lessons; `rb-sandbox` has no goals and no score. */
-export const robotTemplateKeys = [
-  'rb-drive-to-zone',
-  'rb-square-route',
-  'rb-stop-at-wall',
-  'rb-line-follow',
-  'rb-servo-gate',
-  'rb-mini-mission',
-  'rb-sandbox',
-] as const;
-
-export type RobotTemplateKey = (typeof robotTemplateKeys)[number];
-
-/** The board profiles a robot lab can be launched with (`profile=`), from the Basic board up: each one has all of the one before. */
-export const robotLabProfiles = ['uno-basic', 'uno-advanced'] as const;
-
-export type RobotLabProfile = (typeof robotLabProfiles)[number];
-
-/** The kit of every robot scenario for now (plan §4.0, §4.2): which modules the robot has and on which ports. */
-export const robotKitId = 'ref-uno-rover';
-export const robotKitVersion = '0';
-
-/** The message key of a scenario's title, which the UI says in its language (src/ui/i18n/messages.ts). */
-export type RobotTitleKey = `robot.scenario.${RobotTemplateKey}`;
-
-export type RobotTemplate = {
-  /** The profile the scenario needs, which it opens with when the launch names none; a launch with a lower one is refused. */
-  profile: RobotLabProfile;
-  kit: typeof robotKitId;
-  titleKey: RobotTitleKey;
-};
-
-/** Every scenario needs the Basic board today; the table, not the launch parser, is where a scenario that needs more says so. */
-export const robotTemplates: Readonly<Record<RobotTemplateKey, Readonly<RobotTemplate>>> = Object.fromEntries(
-  robotTemplateKeys.map((key) => [key, { profile: 'uno-basic', kit: robotKitId, titleKey: `robot.scenario.${key}` }]),
-) as Record<RobotTemplateKey, RobotTemplate>;
-
-/** Exact, case-sensitive match against the list; no lookup on an object, so "constructor" is not a key. */
-export const isRobotTemplateKey = (key: string): key is RobotTemplateKey => (robotTemplateKeys as readonly string[]).includes(key);
-
-export const isRobotLabProfile = (value: string): value is RobotLabProfile => (robotLabProfiles as readonly string[]).includes(value);
 
 /**
  * Why `profile` cannot open `key` (English, for the page that built the launch URL, in the words of the Yolo:Bit labs), or null when
@@ -67,7 +52,7 @@ const maxScore = 100;
  * goals, so it has no score and the field is left out, never null.
  */
 export function robotReadyFields(key: RobotTemplateKey): { scenarioVersion: number; maxScore?: number } {
-  return key === 'rb-sandbox' ? { scenarioVersion } : { scenarioVersion, maxScore };
+  return key === robotSandboxKey ? { scenarioVersion } : { scenarioVersion, maxScore };
 }
 
 /**

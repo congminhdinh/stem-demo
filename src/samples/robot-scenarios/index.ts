@@ -1,5 +1,5 @@
 import { loadScenario, type Scenario } from '../../core/scenario/scenario';
-import { robotTemplateKeys } from '../robot-templates';
+import { robotTemplateKeys } from '../robot-keys';
 
 // The robot scenarios this build ships (N18 R5.1, robot plan §4.6): the registry of `rb-*.json` in this folder. A scenario is added by
 // putting its file here, named after its key (`rb-line-follow.json`); nothing else lists it. R5.2 writes the six pilot scenarios and

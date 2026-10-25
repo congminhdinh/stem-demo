@@ -473,7 +473,7 @@ describe('after a bounded number of draws the authored value is kept', () => {
     expect(variantOffsets(scenario, 1).cylinders[1]).toEqual({ dxCm: rng.uniform(-10, 10), dyCm: rng.uniform(-10, 10) });
   });
 
-  it('keeps the whole authored start when no draw of it fits, yaw included', () => {
+  it('keeps the authored position when no draw of it fits, and the yaw of the first draw', () => {
     // The gap between two walls is 20 cm and the robot’s circle 20 cm across: it fits only where it is (y 50); any move in y overlaps a wall.
     const slot = source(
       {
@@ -487,10 +487,31 @@ describe('after a bounded number of draws the authored value is kept', () => {
       { startJitterCm: 1, yawJitterDeg: 20 },
     );
     for (let i = 1; i < 10; i++) {
+      const rng = createWorldRng(variantJitterSeed(slot, i));
+      rng.uniform(-1, 1); // the first draw’s x and y, which do not fit,
+      rng.uniform(-1, 1);
+      const firstYaw = rng.uniform(-20, 20); // and its yaw, which the position falling back does not take with it
       const offsets = variantOffsets(slot, i);
-      expect(offsets.start).toEqual({ dxCm: 0, dyCm: 0, dYawDeg: 0 });
-      expect(applyVariant(slot, offsets).start).toEqual(slot.start);
+      expect(offsets.start).toEqual({ dxCm: 0, dyCm: 0, dYawDeg: firstYaw });
+      expect(firstYaw).not.toBe(0);
+      expect(applyVariant(slot, offsets).start).toEqual({ xCm: 50, yCm: 50, yawDeg: 45 + firstYaw });
     }
+  });
+
+  it('draws the obstacles after the start’s VARIANT_MAX_ATTEMPTS draws of three numbers, when the start falls back', () => {
+    const arena: ArenaInput = {
+      ground: { sizeCm: [100, 100], color: '#ffffff' },
+      walls: [
+        { fromCm: [0, 39], toCm: [100, 39], thicknessCm: 2 },
+        { fromCm: [0, 61], toCm: [100, 61], thicknessCm: 2 },
+      ],
+      cylinders: [{ id: 'free', centerCm: [80, 50], radiusCm: 3, heightCm: 10, tags: [JITTER_TAG] }],
+    };
+    // The cylinder is in the same corridor, so it can only slide along x: a move in y of more than 8 cm hits a wall; a small one fits.
+    const scenario = source(arena, { xCm: 20, yCm: 50, yawDeg: 0 }, { startJitterCm: 1, yawJitterDeg: 20, obstacleJitterCm: 5 });
+    const rng = createWorldRng(variantJitterSeed(scenario, 1));
+    for (let k = 0; k < 3 * VARIANT_MAX_ATTEMPTS; k++) rng.next();
+    expect(variantOffsets(scenario, 1).cylinders[0]).toEqual({ dxCm: rng.uniform(-5, 5), dyCm: rng.uniform(-5, 5) });
   });
 
   it('lets a start close to a wall keep its yaw jitter, since the yaw does not move the robot’s footprint', () => {

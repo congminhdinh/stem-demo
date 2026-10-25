@@ -1,4 +1,5 @@
-import { SANDBOX_KEY, ScenarioError, formatScenarioPath, scenarioSchema, type Scenario, type ScenarioInput } from './scenario-schema';
+import { robotSandboxKey } from '../../samples/robot-keys';
+import { ScenarioError, formatScenarioPath, scenarioSchema, type Scenario, type ScenarioInput } from './scenario-schema';
 
 export * from './scenario-schema';
 
@@ -28,7 +29,7 @@ export function loadScenario(json: unknown): Scenario {
  * undefined for the sandbox, which has no goals and no score. A score is clamped to `0..maxScore`.
  */
 export function scenarioMaxScore(scenario: Pick<Scenario, 'key' | 'goals' | 'scoring'>): number | undefined {
-  if (scenario.key === SANDBOX_KEY) return undefined;
+  if (scenario.key === robotSandboxKey) return undefined;
   return scenario.goals.reduce((sum, goal) => sum + goal.points, scenario.scoring.timeBonusMax ?? 0);
 }
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fixture from './__fixtures__/all-goals.scenario.json';
 import { goalKinds, inputsDueBetween, loadScenario, scenarioMaxScore, SCENARIO_MAX_SCORE, type Scenario } from './scenario';
 import { ScenarioError } from './scenario-schema';
-import type { RobotTemplateKey } from '../../samples/robot-templates';
+import type { RobotTemplateKey } from '../../samples/robot-keys';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const authored = (): any => structuredClone(fixture);
@@ -132,38 +132,46 @@ describe('inputsDueBetween', () => {
     delete input.inputs;
     expect(inputsDueBetween(loadScenario(input), 0, 60)).toEqual([]);
   });
+});
 
-  // "Inputs are applied at atS in every mode": real time steps by a frame, the headless check by a whole tick batch, speed 4× by
-  // four ticks at a time. The scenario hands out each input in exactly one window of any partition of the run, so no mode gets
-  // one twice or loses one, and an input is never handed out before its atS.
-  describe('are applied at atS in every mode', () => {
-    const windowsOf = (stepS: number, endS: number): [number, number][] => {
-      const windows: [number, number][] = [];
-      for (let k = 0; k * stepS < endS; k++) {
-        windows.push([k * stepS, Math.min((k + 1) * stepS, endS)]);
-      }
-      return windows;
-    };
+// "Inputs are applied at atS in every mode": real time steps by a frame, the headless check by a whole tick batch, speed 4× by
+// four ticks at a time. The scenario hands out each input in exactly one window of any partition of the run, so no mode gets
+// one twice or loses one, and an input is never handed out before its atS.
+describe('inputs are applied at atS in every mode', () => {
+  const scenario = withInputs([
+    { atS: 0, role: 'button1', action: 'press' },
+    { atS: 0.5, role: 'button1', action: 'release' },
+    { atS: 2, role: 'button1', action: 'press' },
+    { atS: 2.25, role: 'button1', action: 'release' },
+    { atS: 59.5, role: 'button1', action: 'press' },
+  ]);
 
-    it.each([
-      ['a 120 Hz tick', 1 / 120],
-      ['a 60 fps frame at 1× (16.7 ms)', 1000 / 60 / 1000],
-      ['a 60 fps frame at 4× (66.7 ms)', 4 * (1000 / 60 / 1000)],
-      ['a headless batch of 250 ms', 0.25],
-      ['a headless batch of 7.3 s', 7.3],
-      ['one window for the whole run', 60],
-    ])('hands each input out exactly once, at its own time, with %s', (_name, stepS) => {
-      const handedOut: { atS: number; window: [number, number] }[] = [];
-      for (const window of windowsOf(stepS, 60)) {
-        for (const input of inputsDueBetween(scenario, window[0], window[1])) {
-          handedOut.push({ atS: input.atS, window });
-        }
+  const windowsOf = (stepS: number, endS: number): [number, number][] => {
+    const windows: [number, number][] = [];
+    for (let k = 0; k * stepS < endS; k++) {
+      windows.push([k * stepS, Math.min((k + 1) * stepS, endS)]);
+    }
+    return windows;
+  };
+
+  it.each([
+    ['a 120 Hz tick', 1 / 120],
+    ['a 60 fps frame at 1× (16.7 ms)', 1000 / 60 / 1000],
+    ['a 60 fps frame at 4× (66.7 ms)', 4 * (1000 / 60 / 1000)],
+    ['a headless batch of 250 ms', 0.25],
+    ['a headless batch of 7.3 s', 7.3],
+    ['one window for the whole run', 60],
+  ])('hands each input out exactly once, at its own time, with %s', (_name, stepS) => {
+    const handedOut: { atS: number; window: [number, number] }[] = [];
+    for (const window of windowsOf(stepS, 60)) {
+      for (const input of inputsDueBetween(scenario, window[0], window[1])) {
+        handedOut.push({ atS: input.atS, window });
       }
-      expect(handedOut.map((item) => item.atS)).toEqual(scenario.inputs.map((input) => input.atS));
-      for (const { atS, window } of handedOut) {
-        expect(window[0]).toBeLessThanOrEqual(atS);
-        expect(atS).toBeLessThan(window[1]);
-      }
-    });
+    }
+    expect(handedOut.map((item) => item.atS)).toEqual(scenario.inputs.map((input) => input.atS));
+    for (const { atS, window } of handedOut) {
+      expect(window[0]).toBeLessThanOrEqual(atS);
+      expect(atS).toBeLessThan(window[1]);
+    }
   });
 });

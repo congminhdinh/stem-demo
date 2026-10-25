@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fixture from '../../core/scenario/__fixtures__/all-goals.scenario.json';
 import { ScenarioError } from '../../core/scenario/scenario';
-import { robotTemplateKeys } from '../robot-templates';
+import { robotTemplateKeys } from '../robot-keys';
 import { createScenarioCatalog, scenarioCatalog } from './index';
 
 describe('scenarioCatalog', () => {

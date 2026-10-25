@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { roleKinds, robotRoles, type ModuleKind, type RobotRole } from '../hardware/kit';
 import { arenaSchema } from '../world/arena/arena-schema';
-import { isRobotTemplateKey, robotKitId, robotLabProfiles, robotTemplateKeys, robotTemplates } from '../../samples/robot-templates';
+import { isRobotTemplateKey, robotKitId, robotLabProfiles, robotSandboxKey, robotTemplateKeys, robotTemplates } from '../../samples/robot-keys';
 
 // The scenario of a robot lab (N18 R5.1, robot plan §4.6): the learner's task as data. The arena, the kit and where the robot
 // starts; the variants a check runs; the scripted button presses; the goals and the score; the program the learner starts from
@@ -16,9 +16,6 @@ import { isRobotTemplateKey, robotKitId, robotLabProfiles, robotTemplateKeys, ro
 
 /** The score of every scored scenario, goal points plus the time bonus (the same top mark for every lesson). `rb-sandbox` has none. */
 export const SCENARIO_MAX_SCORE = 100;
-
-/** The key of the one scenario that has no goals and so no score. */
-export const SANDBOX_KEY = 'rb-sandbox';
 
 /** A scenario's title may not be longer, nor its inputs more numerous (a script is a few button presses). */
 export const TITLE_MAX_CHARS = 120;
@@ -112,7 +109,7 @@ const scoringSchema = z.strictObject({
 });
 
 const scenarioShape = z.strictObject({
-  /** A key of `src/samples/robot-templates.ts`. Never renamed or reused; a change of behaviour raises `version`. */
+  /** A key of `src/samples/robot-keys.ts`. Never renamed or reused; a change of behaviour raises `version`. */
   key: z.string().refine(isRobotTemplateKey, {
     error: (issue) => `unknown scenario key ${JSON.stringify(issue.input)}; the keys are ${robotTemplateKeys.join(', ')}`,
   }),
@@ -172,7 +169,7 @@ function scenarioRuleIssues(scenario: ScenarioShape): RuleIssue[] {
   const add = (path: (string | number)[], message: string) => issues.push({ path, message });
   const { arena } = scenario;
 
-  // What the key stands for: the profile and the kit it is launched with (robot-templates.ts).
+  // What the key stands for: the profile and the kit it is launched with (robot-keys.ts).
   if (isRobotTemplateKey(scenario.key)) {
     const template = robotTemplates[scenario.key];
     if (scenario.profile !== template.profile) {
@@ -316,13 +313,13 @@ function goalIssues(scenario: ScenarioShape, add: Add): void {
 
 function scoreIssues(scenario: ScenarioShape, add: Add): void {
   const bonus = scenario.scoring.timeBonusMax;
-  if (scenario.key === SANDBOX_KEY) {
-    if (scenario.goals.length > 0) add(['goals'], `${SANDBOX_KEY} has no goals`);
-    if (bonus !== undefined) add(['scoring', 'timeBonusMax'], `${SANDBOX_KEY} has no score`);
+  if (scenario.key === robotSandboxKey) {
+    if (scenario.goals.length > 0) add(['goals'], `${robotSandboxKey} has no goals`);
+    if (bonus !== undefined) add(['scoring', 'timeBonusMax'], `${robotSandboxKey} has no score`);
     return;
   }
   if (scenario.goals.length === 0) {
-    add(['goals'], `a scored scenario needs at least one goal (only ${SANDBOX_KEY} has none)`);
+    add(['goals'], `a scored scenario needs at least one goal (only ${robotSandboxKey} has none)`);
     return;
   }
   const goalPoints = scenario.goals.reduce((sum, goal) => sum + goal.points, 0);
