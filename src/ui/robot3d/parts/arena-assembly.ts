@@ -1,6 +1,7 @@
 import { Group, Mesh, MeshBasicMaterial, PlaneGeometry, type BufferGeometry, type Material, type Object3D, type Texture } from 'three';
 import type { Scenario } from '../../../core/scenario/scenario';
 import type { Arena, ArenaWall, PaintZone } from '../../../core/world/arena/arena-schema';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { arenaToThree, boxBody, cylinderBody, dynamicBodyIds, wallBox } from '../scene-math';
 import { bakeMovingPlain, lowTierMaterials, mergeStatic, swapMaterials } from './merge';
 
@@ -353,21 +354,23 @@ export function assembleArena(scenario: Pick<Scenario, 'arena'>, source: PropSou
     }
   });
   root.add(studio);
-  // The table's soft shadow on the studio's floor, and a darker one under each foot: it stands on the floor, it does not float.
+  // The table's soft shadow on the studio's floor, and one under each foot: it stands on the floor, it does not float. One mesh (one
+  // draw: a software renderer pays for each).
   const floorY = -MAT_THICKNESS_M - TABLE_HEIGHT_M + 0.002;
-  const shade = (width: number, depth: number, opacity: number, x: number, z: number) => {
-    const geometry = new PlaneGeometry(width, depth).rotateX(-Math.PI / 2);
-    const material = new MeshBasicMaterial({ color: '#000000', alphaMap: options.blob, transparent: true, opacity, depthWrite: false, fog: false });
-    owned.geometries.push(geometry);
+  const patch = (width: number, depth: number, x: number, z: number) => new PlaneGeometry(width, depth).rotateX(-Math.PI / 2).translate(x, floorY, z);
+  const patches = [patch(tableW * 1.45, tableD * 1.45, centre[0], centre[2])];
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) patches.push(patch(0.16, 0.16, centre[0] + sx * (tableW / 2 - 0.06), centre[2] + sz * (tableD / 2 - 0.06)));
+  const tableShadow = mergeGeometries(patches, false);
+  for (const geometry of patches) geometry.dispose();
+  if (tableShadow) {
+    const material = new MeshBasicMaterial({ color: '#000000', alphaMap: options.blob, transparent: true, opacity: 0.45, depthWrite: false, fog: false });
+    owned.geometries.push(tableShadow);
     owned.materials.push(material);
-    const mesh = new Mesh(geometry, material);
+    const mesh = new Mesh(tableShadow, material);
     mesh.name = 'table-shadow';
-    mesh.position.set(x, floorY, z);
     mesh.userData.moves = true;
     root.add(mesh);
-  };
-  shade(tableW * 1.45, tableD * 1.45, 0.42, centre[0], centre[2]);
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) shade(0.16, 0.16, 0.5, centre[0] + sx * (tableW / 2 - 0.06), centre[2] + sz * (tableD / 2 - 0.06));
+  }
 
   for (const node of statics.children) {
     node.traverse((child) => {
