@@ -144,11 +144,17 @@ export function idleSnapshot(scenario: Pick<Scenario, 'start' | 'arena'>, kit: K
   });
 }
 
-/** Below these a change is not seen: 10 µm, a millionth of a quaternion, 10 µrad of a wheel, a thousandth of a degree of a servo. */
-const SAME_CM = 1e-3;
-const SAME_QUAT = 1e-6;
-const SAME_RAD = 1e-5;
-const SAME_DEG = 1e-3;
+/**
+ * Below these a change is not seen, even from close up (the follow view's 0.46 m, where a pixel is about 0.7 mm): 0.1 mm of a body,
+ * 1e-5 of a quaternion (about 0.001°), 1 mrad of a wheel (0.03 mm at its rim), 0.05° of a servo arm (0.05 mm at the tip of 5.5 cm). A
+ * robot at rest still jitters by less than these (measured over 1 s at rest, N18 R4.2 fix round 1: the servo arm by up to 3e-5° every
+ * 0.1 s, which a threshold of 0.001° crossed about every second), so the view draws nothing for it; slow motion adds up against the
+ * picture last drawn and is drawn once it can be seen.
+ */
+const SAME_CM = 0.01;
+const SAME_QUAT = 1e-5;
+const SAME_RAD = 1e-3;
+const SAME_DEG = 0.05;
 
 function samePose(a: Pose, b: Pose): boolean {
   return (

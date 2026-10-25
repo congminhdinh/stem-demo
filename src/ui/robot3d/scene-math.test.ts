@@ -138,13 +138,15 @@ describe('whether a new snapshot changes the picture (N18 R4.2)', () => {
     expect(sameView(null, null)).toBe(true);
     expect(sameView(base, null)).toBe(false);
     expect(sameView(base, moved({ xCm: 25 + 1e-5 }))).toBe(true);
+    // A robot at rest jitters by less than a pixel (fix round 1: the servo arm by up to 3e-5° a 0.1 s, the body by 6e-6 cm).
+    expect(sameView(base, moved({ xCm: 25.005, wheelRad: [5e-4, -5e-4], servoDeg: { servo1: 0.04 }, rotation: { x: 0, y: 0, z: 5e-6, w: 1 } }))).toBe(true);
   });
 
   it('is another picture when the robot, a wheel, the servo, an LED, a line sensor, the buzzer or the button changes', () => {
-    expect(sameView(base, moved({ xCm: 25.01 }))).toBe(false);
+    expect(sameView(base, moved({ xCm: 25.02 }))).toBe(false);
     expect(sameView(base, moved({ rotation: { x: 0, y: 0, z: 0.01, w: 1 } }))).toBe(false);
-    expect(sameView(base, moved({ wheelRad: [0.01, 0] }))).toBe(false);
-    expect(sameView(base, moved({ servoDeg: { servo1: 1 } }))).toBe(false);
+    expect(sameView(base, moved({ wheelRad: [0.002, 0] }))).toBe(false);
+    expect(sameView(base, moved({ servoDeg: { servo1: 0.06 } }))).toBe(false);
     expect(sameView(base, { ...base, leds: { led1: true } })).toBe(false);
     const line = { role: 'lineCenter', kind: 'line-sensor' as const, reflectance: 1, dark: false, spotCm: [0, 0] as const };
     expect(sameView({ ...base, sensors: [line] }, { ...base, sensors: [{ ...line, dark: true }] })).toBe(false);
