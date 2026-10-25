@@ -115,9 +115,9 @@ import {
 // allocates nothing unless it really waits. Its statements run in `runUno`, one async function over an explicit stack of frames (a
 // block, a loop), instead of an async call per block and an `await` per statement: what each statement does, in what order, with which
 // budget steps, block names and traces, is `runStatements`'s, and the program awaits only a promise it is given (a step that parks or
-// yields, a read or an op that waits for the world, a wait). Only the turns of the event loop between statements are gone, and nothing
-// observes them: a robot run's clock moves by what is charged to it alone (run/virtual-clock.ts), and a run waits for the program to be
-// blocked. `evaluateReading` and `runModule` give their result at once when nothing waits, and a promise of it when something does. A
+// yields, a read or an op that waits for the world, a wait). Only the microtask turns between statements are gone (a step that yields to
+// the browser still does), and nothing observes them: a robot run's clock moves by what is charged to it alone (run/virtual-clock.ts),
+// and a run waits for the program to be blocked. `evaluateReading` and `runModule` give their result at once when nothing waits, and a promise of it when something does. A
 // ybc program keeps `runStatements`, as it was.
 
 /** One note or rest of a melody (or a tone), for `ms`; `hz` null is silence. */
@@ -948,6 +948,12 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
     runPinCall(statement.op, args, capabilities, warnClamped);
   };
 
+  /**
+   * The statements of a ybc program. N18 P1: a uno program never comes here: `runUno` runs it and owns what its reads, module ops and raw
+   * pins do. So the uno branches below (`reading.has(…) ? await evaluateReading(…)`, a module op, a raw pin) are not reached by any program
+   * the compiler writes: in a ybc program `reading` is empty, every expression is `evaluate`'s, and a module op or a raw pin is IR the
+   * compiler never writes, which runs as it did before P1.
+   */
   const runStatements = async (statements: readonly YbcStatement[]): Promise<void> => {
     for (const statement of statements) {
       // One budget step per statement; it throws when Stop was pressed.
