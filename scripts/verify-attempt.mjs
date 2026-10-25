@@ -17,8 +17,9 @@
 // invalid-attempt, unknown-key, scenario-version, engine, seed-mismatch, no-project, project-invalid, rerun-failed), or a usage error. A
 // mismatch outranks an attempt that cannot be verified.
 //
-// The input is untrusted: src/core/scenario/verify-attempt.ts reads it with Zod and the LMS's limits before anything runs, and nothing of it
-// is ever evaluated. The file itself may be at most 32 MiB (500 attempts, of which at most 20 keep a project of 256 KiB, LabAttemptRules).
+// The input is untrusted: src/core/scenario/verify-attempt.ts (`verifyAttemptText`) reads it, its size first (at most 32 MiB:
+// ATTEMPT_LIMITS.inputMaxBytes, 500 attempts of which at most 20 keep a project of 256 KiB), then JSON, then Zod with the LMS's rules, before
+// anything runs; nothing of it is ever evaluated. A longer file is not read. The text output escapes the input's control characters.
 //
 // The sources are TypeScript with extensionless imports, and the scenario catalog (src/samples/robot-scenarios/index.ts) uses
 // `import.meta.glob`: the script loads them through Vite's SSR loader, as scripts/export-robot-manifest.mjs does, with nothing faked, and the
@@ -35,7 +36,6 @@ import { fileURLToPath, URL } from 'node:url';
 import { createServer } from 'vite';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const INPUT_MAX_BYTES = 32 * 1024 * 1024;
 const usage = 'Usage: node scripts/verify-attempt.mjs <file.json | -> [--json]';
 
 /** A failure with the exit code it ends the script with (a usage error, or a fault of this build). */
@@ -66,14 +66,14 @@ function parseArguments(args) {
   return { file: files[0], json };
 }
 
-/** The input's text, at most INPUT_MAX_BYTES; null when it is longer. */
-async function readInput(file) {
+/** The input's text, at most `maxBytes` (the core's ATTEMPT_LIMITS.inputMaxBytes); null when it is longer, which is never read whole. */
+async function readInput(file, maxBytes) {
   if (file === '-') {
     const chunks = [];
     let length = 0;
     for await (const chunk of process.stdin) {
       length += chunk.length;
-      if (length > INPUT_MAX_BYTES) {
+      if (length > maxBytes) {
         return null;
       }
       chunks.push(chunk);
@@ -91,14 +91,8 @@ async function readInput(file) {
   } catch (error) {
     throw error instanceof Failure ? error : new Failure(2, `${file} cannot be read: ${messageOf(error)}`);
   }
-  return size > INPUT_MAX_BYTES ? null : readFileSync(path, 'utf8');
+  return size > maxBytes ? null : readFileSync(path, 'utf8');
 }
-
-/** The one report of an input that is not even JSON (or is too long to read). */
-const invalidInput = (problem) => ({
-  many: false,
-  reports: [{ index: 0, status: 'unverifiable', reason: 'invalid-attempt', detail: `the input is not an attempt: ${problem}`, problems: [`(input): ${problem}`] }],
-});
 
 /** Runs `use` with the module loader of a Vite SSR server (see the header), and closes the server after. */
 async function withSources(use) {
@@ -120,34 +114,27 @@ async function withSources(use) {
 
 async function main() {
   const options = parseArguments(process.argv.slice(2));
-  const text = await readInput(options.file);
-  let input;
-  let early;
-  if (text === null) {
-    early = invalidInput(`the file is longer than ${INPUT_MAX_BYTES} bytes`);
-  } else {
-    try {
-      input = JSON.parse(text);
-    } catch (error) {
-      early = invalidInput(`not JSON (${messageOf(error)})`);
-    }
-  }
   const { outcome, lines, code } = await withSources(async (load) => {
-    const { verifyAttemptInput, createVerifyEnvironment, describeReports, verifyExitCode } = await load('/src/core/scenario/verify-attempt.ts');
-    let verified = early;
-    if (verified === undefined) {
-      // This build's scenarios, kits and devices, with the -compat Rapier.
+    const core = await load('/src/core/scenario/verify-attempt.ts');
+    const maxBytes = core.ATTEMPT_LIMITS.inputMaxBytes;
+    const text = await readInput(options.file, maxBytes);
+    let verified;
+    if (text === null) {
+      verified = core.invalidInputOutcome(`longer than ${maxBytes} UTF-8 bytes`);
+    } else {
+      // This build's scenarios, kits and devices, with the -compat Rapier; the core reads the text (its size, then JSON, then the schema).
       const { initPhysics } = await load('/src/core/world/rapier.ts');
       const { scenarioCatalog } = await load('/src/samples/robot-scenarios/index.ts');
       const { productionKits } = await load('/src/core/hardware/catalog.ts');
       const { createDeviceRegistry } = await load('/src/core/devices/registry.ts');
       const { localDeviceDefinitions } = await load('/src/core/devices/local-catalog.ts');
       await initPhysics(async () => import('@dimforge/rapier3d-deterministic-compat'));
-      const env = createVerifyEnvironment({ scenarios: scenarioCatalog, kits: productionKits, registry: createDeviceRegistry(localDeviceDefinitions) });
-      verified = await verifyAttemptInput(input, env);
+      const env = core.createVerifyEnvironment({ scenarios: scenarioCatalog, kits: productionKits, registry: createDeviceRegistry(localDeviceDefinitions) });
+      verified = await core.verifyAttemptText(text, env);
     }
-    return { outcome: verified, lines: describeReports(verified.reports), code: verifyExitCode(verified.reports) };
+    return { outcome: verified, lines: core.describeReports(verified.reports), code: core.verifyExitCode(verified.reports) };
   });
+  // JSON escapes every control character of the input; the text lines are escaped by describeReports.
   process.stdout.write(options.json ? `${JSON.stringify(outcome.many ? outcome.reports : outcome.reports[0])}\n` : `${lines.join('\n')}\n`);
   process.exitCode = code;
 }

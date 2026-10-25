@@ -18,24 +18,29 @@ import { variantOffsets } from './variants';
 // what the re-run gives. A check is deterministic (plan §3: the same ticks headless, at 1× and at 4×, on every engine), so the re-run of an
 // honest attempt gives exactly its result. scripts/verify-attempt.mjs runs this on Node; it is the base of a later server-side verifier.
 //
-//   match         every field the re-run gives is the attempt's: passed, score (exactly), simTimeMs, each goal's passed (by id), each variant's
-//                 seed, passed, score and simTimeMs, and programHash (the hash of the project's IR, `hashProgramIr`; the LMS stores it in
-//                 lowercase, so it is compared so).
+//   match         every field the re-run gives is the attempt's: passed, score (exactly), simTimeMs, the goals (their ids in the order of the
+//                 result, then each one's passed), each variant's seed, passed, score and simTimeMs, and programHash (the hash of the project's
+//                 IR, `hashProgramIr`; the LMS stores it in lowercase, so it is compared so). Goal labels are not compared (the lab's language).
 //   mismatch      a field differs: each one is told with the attempt's value and the re-run's.
 //   unverifiable  this build cannot say, for one `reason`: invalid-attempt (the input fails the schema or the LMS limits), unknown-key (no
 //                 scored scenario of the key), scenario-version (another version of the scenario than this build's), engine (another
 //                 engine than robot-engine@ROBOT_ENGINE_VERSION), seed-mismatch (the variants' seeds are not the scenario's, `variantOffsets`:
 //                 a check never reports other seeds, so another one is a tamper signal), no-project (neither the attempt nor an earlier one
 //                 with its hash has a project), project-invalid (the project is not JSON, fails the document schema or does not compile),
-//                 rerun-failed (the re-run could not build its world or scorer: a fault of this build, not of the attempt).
+//                 rerun-failed (the re-run could not build its world or scorer, or anything else of this build failed while this attempt was
+//                 verified: a fault of this build, not of the attempt, and the other attempts are still verified).
 //
 // A match proves that the program in the stored project earns that result in this scenario. It does not prove who wrote the program.
 //
-// The input is untrusted (an export a teacher or admin hands in): it is read with Zod before anything else, with the LMS's own limits
-// (LabAttemptRules: a project of at most 262 144 UTF-8 bytes, at most 10 variants and 20 goals, finite numbers), and only the fields named
-// here are kept. Nothing of it is ever evaluated: the project is JSON.parse'd and validated like any document. An input is one attempt, or a
-// list of a learner's attempts oldest first (the LMS keeps a project only when the program changed: an attempt without one takes the
-// project of the latest earlier attempt with the same programHash and key).
+// The input is untrusted (an export a teacher or admin hands in): it is read with Zod before anything else, with the LMS's own rules
+// (LabAttemptRules: a project of at most 262 144 UTF-8 bytes, at most 10 variants, 1 to 20 goals with distinct ids, goal ids and labels
+// without control characters, finite numbers), and only the fields named here are kept. A list's length is checked before its elements, the
+// text of an input is at most ATTEMPT_LIMITS.inputMaxBytes (`verifyAttemptText`), and an attempt reports at most ATTEMPT_LIMITS.maxProblems
+// problems, so a hostile input costs little. Nothing of it is ever evaluated: the project is JSON.parse'd and validated like any document.
+// What the LMS checks across fields (passed is every goal and every variant) is left to the comparison: a re-run says more than a refusal.
+// An input is one attempt, or a list of a learner's attempts oldest first (the LMS keeps a project only when the program changed: an
+// attempt without one takes the project of the latest earlier attempt with the same programHash and key). The text `describeReports`
+// writes shows a control character of the input escaped (`\n`, `\u001b`), never as itself.
 //
 // Framework-free: the caller builds the environment (createVerifyEnvironment) and loads the physics first (`initPhysics`, with the -compat
 // build on Node: scripts/verify-attempt.mjs).
@@ -52,6 +57,10 @@ export const ATTEMPT_LIMITS = {
   maxAttempts: 500,
   /** LabAttemptRules.TemplateKeyMaxLength. */
   templateKeyMaxLength: 50,
+  /** The most UTF-8 bytes of an input's text (`verifyAttemptText`): 500 attempts, of which at most 20 keep a project (MaxStoredProjects). */
+  inputMaxBytes: 32 * 1024 * 1024,
+  /** The most problems an invalid attempt reports; then one more line says how many were left out. */
+  maxProblems: 20,
 } as const;
 
 /** The engine an attempt must name: this build's. */
@@ -151,18 +160,42 @@ function utf8Bytes(text: string): number {
 }
 
 const message = (text: string) => ({ error: text });
+
+/** A control character as .NET's char.IsControl has it (Unicode Cc: U+0000…U+001F, U+007F…U+009F): LabAttemptRules.IsGoalText refuses it. */
+const isControl = (unit: number) => unit <= 0x1f || (unit >= 0x7f && unit <= 0x9f);
+const hasControl = (text: string) => {
+  for (let i = 0; i < text.length; i++) if (isControl(text.charCodeAt(i))) return true;
+  return false;
+};
+
+/** A goal's id or label as LabAttemptRules reads it: trimmed, then 1 to `max` characters (UTF-16 units, as .NET counts), no control character. */
+const goalText = (max: number) => {
+  const length = `must be 1 to ${max} characters without control characters`;
+  return z.string(message(length)).trim().min(1, length).max(max, length).refine((text) => !hasControl(text), length);
+};
+
+/**
+ * A list of at most `max` elements, at least `min`: its length is checked before any element is (a list of a million elements is refused at
+ * once, with one problem), then each element with `element`.
+ */
+const boundedList = <T extends z.ZodType>(element: T, bounds: { min?: number; max: number; error: string }) => {
+  const list = z.array(z.unknown(), message(bounds.error)).max(bounds.max, `at most ${bounds.max}`);
+  return (bounds.min === undefined ? list : list.min(bounds.min, `at least ${bounds.min}`)).pipe(z.array(element));
+};
 const scoreSchema = z.number(message(`must be a finite number from 0 to ${SCORE_MAX}`)).min(0, `must be a finite number from 0 to ${SCORE_MAX}`).max(SCORE_MAX, `must be a finite number from 0 to ${SCORE_MAX}`);
 const simTimeSchema = z.int(message(`must be a whole number of ms from 0 to ${SIM_TIME_MAX}`)).min(0, `must be a whole number of ms from 0 to ${SIM_TIME_MAX}`).max(SIM_TIME_MAX, `must be a whole number of ms from 0 to ${SIM_TIME_MAX}`);
 const flag = z.boolean(message('must be true or false'));
 
-const goalSchema = z.object(
-  {
-    id: z.string(message(`must be 1 to ${GOAL_ID_MAX_CHARS} characters`)).min(1, `must be 1 to ${GOAL_ID_MAX_CHARS} characters`).max(GOAL_ID_MAX_CHARS, `must be 1 to ${GOAL_ID_MAX_CHARS} characters`),
-    label: z.string(message(`must be 1 to ${GOAL_LABEL_MAX_CHARS} characters`)).min(1, `must be 1 to ${GOAL_LABEL_MAX_CHARS} characters`).max(GOAL_LABEL_MAX_CHARS, `must be 1 to ${GOAL_LABEL_MAX_CHARS} characters`),
-    passed: flag,
-  },
-  message('must be an object'),
-);
+const goalSchema = z.object({ id: goalText(GOAL_ID_MAX_CHARS), label: goalText(GOAL_LABEL_MAX_CHARS), passed: flag }, message('must be an object'));
+
+/** The goals: 1 to 20, with distinct ids (LabAttemptRules.Canonical, ordinal comparison). */
+const goalsSchema = boundedList(goalSchema, { min: 1, max: GOALS_MAX, error: 'must be a list' }).superRefine((goals, ctx) => {
+  const seen = new Set<string>();
+  goals.forEach((goal, index) => {
+    if (seen.has(goal.id)) ctx.addIssue({ code: 'custom', path: [index, 'id'], message: `must be distinct: "${goal.id}" is listed before` });
+    seen.add(goal.id);
+  });
+});
 
 const variantSchema = z.object({ seed: z.int(message('must be a safe integer')), passed: flag, score: scoreSchema, simTimeMs: simTimeSchema }, message('must be an object'));
 
@@ -185,12 +218,9 @@ export const labAttemptSchema = z.object(
     score: scoreSchema,
     maxScore: z.literal(SCORE_MAX, message(`must be ${SCORE_MAX}`)),
     simTimeMs: simTimeSchema,
-    goals: z
-      .array(goalSchema, message('must be a list'))
-      .min(1, 'at least 1')
-      .max(ATTEMPT_LIMITS.maxGoals, `at most ${ATTEMPT_LIMITS.maxGoals}`),
+    goals: goalsSchema,
     /** Null when the attempt has none (VariantsJson null); a robot check always has some. */
-    variants: z.array(variantSchema, message('must be a list or null')).max(ATTEMPT_LIMITS.maxVariants, `at most ${ATTEMPT_LIMITS.maxVariants}`).nullish(),
+    variants: boundedList(variantSchema, { max: ATTEMPT_LIMITS.maxVariants, error: 'must be a list or null' }).nullish(),
     programHash: z.string(message('must be 1 to 64 hexadecimal digits')).regex(ROBOT_CHECK_LIMITS.programHash, 'must be 1 to 64 hexadecimal digits'),
     /** The project document as the LMS stored it (text); null or absent when it kept none for this attempt. */
     projectJson: z
@@ -203,8 +233,15 @@ export const labAttemptSchema = z.object(
 
 export type LabAttemptInput = z.output<typeof labAttemptSchema>;
 
-const problemsOf = (error: z.ZodError): string[] =>
-  error.issues.map((issue) => `${issue.path.length === 0 ? '(attempt)' : issue.path.map((part) => (typeof part === 'number' ? `[${part}]` : `.${String(part)}`)).join('').replace(/^\./, '')}: ${issue.message}`);
+/** The problems of a failed parse, `path: what is wrong`: at most ATTEMPT_LIMITS.maxProblems, then a line that says how many more. */
+function problemsOf(error: z.ZodError): string[] {
+  const shownIssues = error.issues.slice(0, ATTEMPT_LIMITS.maxProblems);
+  const problems = shownIssues.map(
+    (issue) => `${issue.path.length === 0 ? '(attempt)' : issue.path.map((part) => (typeof part === 'number' ? `[${part}]` : `.${String(part)}`)).join('').replace(/^\./, '')}: ${issue.message}`,
+  );
+  const left = error.issues.length - shownIssues.length;
+  return left > 0 ? [...problems, `… and ${left} more`] : problems;
+}
 
 type Entry = { ok: true; attempt: LabAttemptInput } | { ok: false; problems: string[] };
 
@@ -240,12 +277,13 @@ export function attemptDiffs(attempt: LabAttemptInput, rerun: RobotCheckResult):
   compare('passed', attempt.passed, rerun.passed);
   compare('score', attempt.score, rerun.score);
   compare('simTimeMs', attempt.simTimeMs, rerun.simTimeMs);
-  for (const goal of rerun.goals) {
-    const claimed = attempt.goals.find((candidate) => candidate.id === goal.id);
-    compare(`goals[${goal.id}].passed`, claimed === undefined ? null : claimed.passed, goal.passed);
-  }
-  for (const goal of attempt.goals) {
-    if (!rerun.goals.some((candidate) => candidate.id === goal.id)) compare(`goals[${goal.id}].passed`, goal.passed, null);
+  // The goals are the result's, in its order (the scenario's): a missing, extra or reordered goal is a mismatch of `goals` itself.
+  const claimedIds = attempt.goals.map((goal) => goal.id);
+  const ids = rerun.goals.map((goal) => goal.id);
+  if (claimedIds.length !== ids.length || claimedIds.some((id, index) => id !== ids[index])) {
+    diffs.push({ field: 'goals', attempt: claimedIds, rerun: ids });
+  } else {
+    rerun.goals.forEach((goal, index) => compare(`goals[${goal.id}].passed`, attempt.goals[index]!.passed, goal.passed));
   }
   const variants = attempt.variants ?? [];
   rerun.variants.forEach((variant, index) => {
@@ -332,18 +370,56 @@ async function rerun(attempt: LabAttemptInput, scenario: Scenario, projectText: 
   return diffs.length === 0 ? { status: 'match' } : { status: 'mismatch', diffs };
 }
 
+export type VerifyOutcome = { many: boolean; reports: AttemptReport[] };
+
+/** The one report of an input that is no attempt at all: not JSON, too long, not an object nor a list, an empty or too long list. */
+export function invalidInputOutcome(problem: string): VerifyOutcome {
+  return {
+    many: false,
+    reports: [{ index: 0, status: 'unverifiable', reason: 'invalid-attempt', detail: `the input is not an attempt: ${problem}`, problems: [`(input): ${problem}`] }],
+  };
+}
+
+const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+/** The verdict of one valid attempt of the input; `entries` are the input's, for an earlier attempt's project. */
+async function verdictOf(index: number, attempt: LabAttemptInput, entries: readonly Entry[], env: VerifyEnvironment): Promise<Verdict & Pick<AttemptReport, 'projectFrom'>> {
+  const checked = precheck(attempt, env);
+  if ('status' in checked) {
+    return checked;
+  }
+  // Its own project, or the latest earlier valid attempt's with the same key and hash.
+  let projectFrom: number | undefined;
+  let projectText = hasText(attempt.projectJson) ? attempt.projectJson : undefined;
+  for (let earlier = index - 1; projectText === undefined && earlier >= 0; earlier--) {
+    const candidate = entries[earlier]!;
+    if (
+      candidate.ok &&
+      candidate.attempt.templateKey === attempt.templateKey &&
+      lower(candidate.attempt.programHash) === lower(attempt.programHash) &&
+      hasText(candidate.attempt.projectJson)
+    ) {
+      projectText = candidate.attempt.projectJson;
+      projectFrom = earlier;
+    }
+  }
+  if (projectText === undefined) {
+    return unverifiable('no-project', 'neither the attempt nor an earlier one with its programHash has a project');
+  }
+  const verdict = await rerun(attempt, checked.scenario, projectText, env);
+  return { ...verdict, ...(projectFrom === undefined ? {} : { projectFrom }) };
+}
+
 /**
  * Verifies an input: one attempt, or a list of a learner's attempts oldest first (see the top of this file). `many` says which it was, so
  * that a caller can answer in the same shape. One report per attempt, in input order; an input that is no attempt at all (not an object
- * nor a list, an empty list, more than ATTEMPT_LIMITS.maxAttempts) is one invalid-attempt report. Rejects only on a fault of this build.
+ * nor a list, an empty list, more than ATTEMPT_LIMITS.maxAttempts) is one invalid-attempt report. A fault of this build while one attempt is
+ * verified is that attempt's rerun-failed: the others are still verified, and this never rejects.
  */
-export async function verifyAttemptInput(input: unknown, env: VerifyEnvironment): Promise<{ many: boolean; reports: AttemptReport[] }> {
+export async function verifyAttemptInput(input: unknown, env: VerifyEnvironment): Promise<VerifyOutcome> {
   const read = entriesOf(input);
   if ('problem' in read) {
-    return {
-      many: false,
-      reports: [{ index: 0, status: 'unverifiable', reason: 'invalid-attempt', detail: `the input is not an attempt: ${read.problem}`, problems: [`(input): ${read.problem}`] }],
-    };
+    return invalidInputOutcome(read.problem);
   }
   const reports: AttemptReport[] = [];
   for (const [index, entry] of read.entries.entries()) {
@@ -353,34 +429,33 @@ export async function verifyAttemptInput(input: unknown, env: VerifyEnvironment)
     }
     const { attempt } = entry;
     const named = { index, ...(attempt.id === undefined ? {} : { id: attempt.id }), templateKey: attempt.templateKey };
-    const checked = precheck(attempt, env);
-    if ('status' in checked) {
-      reports.push({ ...named, ...checked });
-      continue;
+    let verdict: Verdict & Pick<AttemptReport, 'projectFrom'>;
+    try {
+      verdict = await verdictOf(index, attempt, read.entries, env);
+    } catch (error) {
+      verdict = unverifiable('rerun-failed', `this build failed to verify it: ${messageOf(error)}`);
     }
-    // Its own project, or the latest earlier valid attempt's with the same key and hash.
-    let projectFrom: number | undefined;
-    let projectText = hasText(attempt.projectJson) ? attempt.projectJson : undefined;
-    for (let earlier = index - 1; projectText === undefined && earlier >= 0; earlier--) {
-      const candidate = read.entries[earlier]!;
-      if (
-        candidate.ok &&
-        candidate.attempt.templateKey === attempt.templateKey &&
-        lower(candidate.attempt.programHash) === lower(attempt.programHash) &&
-        hasText(candidate.attempt.projectJson)
-      ) {
-        projectText = candidate.attempt.projectJson;
-        projectFrom = earlier;
-      }
-    }
-    if (projectText === undefined) {
-      reports.push({ ...named, ...unverifiable('no-project', 'neither the attempt nor an earlier one with its programHash has a project') });
-      continue;
-    }
-    const verdict = await rerun(attempt, checked.scenario, projectText, env);
-    reports.push({ ...named, ...verdict, ...(projectFrom === undefined ? {} : { projectFrom }) });
+    reports.push({ ...named, ...verdict });
   }
   return { many: read.many, reports };
+}
+
+/**
+ * Verifies the text of an input (a file, a request body): at most ATTEMPT_LIMITS.inputMaxBytes of UTF-8, JSON (parsed, never evaluated), then
+ * as `verifyAttemptInput`. A server takes this one, so that a body too long is refused before it is parsed.
+ */
+export async function verifyAttemptText(text: string, env: VerifyEnvironment): Promise<VerifyOutcome> {
+  // Every UTF-16 unit is at least one byte: a text longer in units is longer in bytes, and is not counted.
+  if (text.length > ATTEMPT_LIMITS.inputMaxBytes || utf8Bytes(text) > ATTEMPT_LIMITS.inputMaxBytes) {
+    return invalidInputOutcome(`longer than ${ATTEMPT_LIMITS.inputMaxBytes} UTF-8 bytes`);
+  }
+  let input: unknown;
+  try {
+    input = JSON.parse(text);
+  } catch (error) {
+    return invalidInputOutcome(`not JSON (${messageOf(error)})`);
+  }
+  return verifyAttemptInput(input, env);
 }
 
 /** The exit code of a verification: 1 when any attempt mismatches, else 2 when any cannot be verified, else 0 (every attempt matches). */
@@ -392,19 +467,38 @@ export function verifyExitCode(reports: readonly Pick<AttemptReport, 'status'>[]
 
 const shown = (value: unknown) => (typeof value === 'string' ? value : JSON.stringify(value));
 
-/** The reports as text lines: one per attempt (numbered from 1), and each differing field or problem under it. */
+/** Bidirectional and line separator controls (U+200E, U+200F, U+2028…U+202E, U+2066…U+2069), which reorder or break a terminal's line. */
+const isLayoutControl = (unit: number) => unit === 0x200e || unit === 0x200f || (unit >= 0x2028 && unit <= 0x202e) || (unit >= 0x2066 && unit <= 0x2069);
+const escapes: Readonly<Record<number, string>> = { 0x09: '\\t', 0x0a: '\\n', 0x0d: '\\r' };
+
+/** A line of text with each control character escaped (`\n`, `\u001b`): text of the input can neither start a line nor drive a terminal. */
+export function printable(text: string): string {
+  let out = '';
+  for (let i = 0; i < text.length; i++) {
+    const unit = text.charCodeAt(i);
+    out += isControl(unit) || isLayoutControl(unit) ? (escapes[unit] ?? `\\u${unit.toString(16).padStart(4, '0')}`) : text[i];
+  }
+  return out;
+}
+
+/**
+ * The reports as text lines: one per attempt (numbered from 1), and each differing field or problem under it. Every line goes through
+ * `printable`: the key, the detail and the problems hold text of the input.
+ */
 export function describeReports(reports: readonly AttemptReport[]): string[] {
-  return reports.flatMap((report) => {
-    const what = [report.id === undefined ? undefined : `id ${report.id}`, report.templateKey].filter((part) => part !== undefined).join(', ');
-    const head = `attempt ${report.index + 1}${what === '' ? '' : ` (${what})`}`;
-    const from = report.projectFrom === undefined ? '' : ` (the project of attempt ${report.projectFrom + 1})`;
-    switch (report.status) {
-      case 'match':
-        return [`${head}: match${from}`];
-      case 'mismatch':
-        return [`${head}: MISMATCH${from}`, ...(report.diffs ?? []).map((diff) => `  ${diff.field}: attempt ${shown(diff.attempt)}, re-run ${shown(diff.rerun)}`)];
-      case 'unverifiable':
-        return [`${head}: UNVERIFIABLE ${report.reason ?? ''}: ${report.detail ?? ''}`, ...(report.problems ?? []).map((problem) => `  ${problem}`)];
-    }
-  });
+  return reports.flatMap((report) => describeReport(report)).map(printable);
+}
+
+function describeReport(report: AttemptReport): string[] {
+  const what = [report.id === undefined ? undefined : `id ${report.id}`, report.templateKey].filter((part) => part !== undefined).join(', ');
+  const head = `attempt ${report.index + 1}${what === '' ? '' : ` (${what})`}`;
+  const from = report.projectFrom === undefined ? '' : ` (the project of attempt ${report.projectFrom + 1})`;
+  switch (report.status) {
+    case 'match':
+      return [`${head}: match${from}`];
+    case 'mismatch':
+      return [`${head}: MISMATCH${from}`, ...(report.diffs ?? []).map((diff) => `  ${diff.field}: attempt ${shown(diff.attempt)}, re-run ${shown(diff.rerun)}`)];
+    case 'unverifiable':
+      return [`${head}: UNVERIFIABLE ${report.reason ?? ''}: ${report.detail ?? ''}`, ...(report.problems ?? []).map((problem) => `  ${problem}`)];
+  }
 }
