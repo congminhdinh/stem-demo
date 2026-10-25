@@ -1,15 +1,23 @@
 import { useId, useMemo, useState, type ReactNode } from 'react';
 import { useStore } from 'zustand';
+import type { BoardProfile } from '../../core/hardware/board';
+import type { Kit } from '../../core/hardware/kit';
 import type { Toolbox } from '../../core/program/block-packs';
+import type { UnoProjectRules } from '../../core/program/compile-uno-program';
 import type { RunDiagnostic } from '../../core/run/run-session';
+import type { Scenario } from '../../core/scenario/scenario';
 import { diagnosticText } from '../app/RunToolbar';
 import { blockWarningsOf } from '../blockly/block-warnings';
 import { useLocale, useText } from '../i18n/text';
+import type { ProjectStore } from '../state/project-store';
+import { CppTab } from './CppTab';
+import { PinInspector } from './PinInspector';
 import { shownRun, type RobotRunStore } from './robot-run-store';
 
-// The robot lab's program side (N18 R4.2): tabs for the blocks, the C++ and the ports & pins (R4.5 fills the last two). The block editor
-// is App's (its stores, its recovery of a program that does not open); this pane hands it what the lab shows on it: the scenario's
-// toolbox and starter, the block the robot is in, the diagnostics that name a block (in the learner's words) and the lock of a check.
+// The robot lab's program side (N18 R4.2, R4.5): tabs for the blocks, the C++ the blocks make (CppTab) and the ports & pins (PinInspector,
+// the hub panel). The block editor is App's (its stores, its recovery of a program that does not open); this pane hands it what the lab
+// shows on it: the scenario's toolbox and starter, the block the robot is in, the diagnostics that name a block (in the learner's words),
+// the lock of a check, and the learner's selection, which the C++ tab marks on its lines.
 
 /** What the robot lab shows on the block editor. */
 export type RobotProgramView = {
@@ -23,6 +31,8 @@ export type RobotProgramView = {
   blockWarnings: Readonly<Record<string, string>>;
   /** A check holds the lab: the blocks cannot be edited. */
   readOnly: boolean;
+  /** The learner selected a block (N18 R4.5): its id and the blocks around it, innermost first; empty for none. The editor reports it here. */
+  onSelectBlock(blockIds: readonly string[]): void;
 };
 
 type Tab = 'blocks' | 'cpp' | 'pins';
@@ -32,10 +42,21 @@ const tabs: readonly { tab: Tab; label: 'robot.tab.blocks' | 'robot.tab.cpp' | '
   { tab: 'pins', label: 'robot.tab.pins' },
 ];
 
+/** What the C++ and the ports & pins tabs read: the project, the lab's rules for compiling it, and the robot. */
+export type ProgramPaneLab = {
+  projectStore: ProjectStore;
+  /** Writes the latest edits of the blocks into the project (BlocklyPanel `saveNow`). */
+  flushProgram(): void;
+  rules: UnoProjectRules;
+  scenario: Scenario;
+  kit: Kit;
+  board: BoardProfile;
+};
+
 type ProgramPaneProps = {
   store: RobotRunStore;
   toolbox: Toolbox;
-  starter: unknown;
+  lab: ProgramPaneLab;
   program(view: RobotProgramView): ReactNode;
 };
 
@@ -53,11 +74,12 @@ function blockDiagnosticsText(state: ReturnType<RobotRunStore['getState']>): str
   return JSON.stringify([...error, ...named(run.diagnostics)]);
 }
 
-export function ProgramPane({ store, toolbox, starter, program }: ProgramPaneProps) {
+export function ProgramPane({ store, toolbox, lab, program }: ProgramPaneProps) {
   const t = useText();
   const locale = useLocale();
   const id = useId();
   const [tab, setTab] = useState<Tab>('blocks');
+  const [selectedIds, setSelectedIds] = useState<readonly string[]>([]);
   const highlightBlockId = useStore(store, (state) => state.snapshot.world?.activeBlockId ?? null);
   const readOnly = useStore(store, (state) => state.locked);
   const diagnosticsText = useStore(store, blockDiagnosticsText);
@@ -82,12 +104,12 @@ export function ProgramPane({ store, toolbox, starter, program }: ProgramPanePro
           </button>
         ))}
       </div>
-      <div {...pane('blocks')}>{program({ toolbox, emptyProgram: starter, highlightBlockId, blockWarnings, readOnly })}</div>
+      <div {...pane('blocks')}>{program({ toolbox, emptyProgram: lab.scenario.starter, highlightBlockId, blockWarnings, readOnly, onSelectBlock: setSelectedIds })}</div>
       <div {...pane('cpp')}>
-        <p className="robot-program-soon">{t('robot.cpp.soon')}</p>
+        <CppTab projectStore={lab.projectStore} rules={lab.rules} scenario={lab.scenario} flush={lab.flushProgram} store={store} selectedIds={selectedIds} active={tab === 'cpp'} />
       </div>
       <div {...pane('pins')}>
-        <p className="robot-program-soon">{t('robot.pins.soon')}</p>
+        <PinInspector store={store} kit={lab.kit} board={lab.board} active={tab === 'pins'} />
       </div>
     </section>
   );

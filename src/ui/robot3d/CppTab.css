@@ -1,0 +1,131 @@
+/*
+ * The "C++" tab of the robot lab (N18 R4.5): the sketch the blocks make, read-only, with line numbers, after the Python panel of the
+ * Yolo:Bit labs. Colours are the app's tokens (app.css :root), never colours of its own.
+ */
+.cpp-tab {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--stem-color-surface);
+  font-size: 12px;
+}
+
+.cpp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--stem-color-border);
+}
+
+.cpp-file {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--stem-color-text-muted);
+  font-family: var(--stem-font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cpp-toolbar button {
+  padding: 3px 12px;
+  border: 1px solid var(--stem-color-border-strong);
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-surface);
+  color: var(--stem-color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.cpp-toolbar button:hover:not(:disabled) {
+  background: var(--stem-color-surface-muted);
+}
+
+.cpp-toolbar button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.cpp-copy-status {
+  margin: 0;
+  padding: 0 10px;
+  color: var(--stem-color-warning-text);
+}
+
+.cpp-copy-status:empty {
+  display: none;
+}
+
+/* Line numbers come from a counter, so selecting and copying the code does not take them along. A line is an inline box that ends in a
+   newline, as the Python panel's are, so that selecting the code copies exactly the sketch. */
+.cpp-source {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 6px 0;
+  overflow: auto;
+  counter-reset: cpp-line;
+  font-family: var(--stem-font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
+}
+
+.cpp-line {
+  box-sizing: border-box;
+  display: inline-block;
+  min-width: 100%;
+  padding: 0 10px 0 0;
+  border-left: 3px solid transparent;
+  counter-increment: cpp-line;
+}
+
+.cpp-line::before {
+  display: inline-block;
+  width: 4ch;
+  margin: 0 1.5ch 0 0.5ch;
+  color: var(--stem-color-text-subtle);
+  text-align: right;
+  content: counter(cpp-line);
+  user-select: none;
+}
+
+/* The block the learner selected: a calm band; the block the robot is in: a green one, as Blockly's own highlight. */
+.cpp-line[data-selected='true'] {
+  border-left-color: var(--stem-color-primary);
+  background: var(--stem-color-primary-soft);
+}
+
+.cpp-line[data-running='true'] {
+  border-left-color: var(--stem-color-success);
+  background: var(--stem-color-success-soft);
+}
+
+.cpp-blocked {
+  flex: 1;
+  min-height: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  color: var(--stem-color-warning-text);
+}
+
+.cpp-blocked p {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+
+.cpp-blocked ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.cpp-footer {
+  margin: 0;
+  padding: 6px 10px;
+  border-top: 1px solid var(--stem-color-border);
+  color: var(--stem-color-text-muted);
+  font-size: 11px;
+}

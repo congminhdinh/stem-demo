@@ -22,7 +22,7 @@ import type { ProjectStore } from '../state/project-store';
 import { CheckControls } from './CheckControls';
 import { CheckAnnouncer, CheckResults, FastCheckView } from './CheckResults';
 import { Hud } from './Hud';
-import { ProgramPane, type RobotProgramView } from './ProgramPane';
+import { ProgramPane, type ProgramPaneLab, type RobotProgramView } from './ProgramPane';
 import { createRobotCheckStore, type CheckHost, type CreateCheck, type RobotCheckStore } from './robot-check-store';
 import { robotModel, toneHzOf } from './robot-model';
 import { createRobotRunStore, labBusy, type RobotRunStore } from './robot-run-store';
@@ -162,6 +162,11 @@ export default function RobotLab({
   const model = useMemo(() => robotModel(kit, board), [kit, board]);
   const buttonRole = kit.modules.find((module) => module.kind === 'button')?.role ?? null;
   const scenarioToolbox = useMemo(() => restrictToolbox(toolbox, scenario.toolbox), [toolbox, scenario]);
+  // What the C++ and the ports & pins tabs read (N18 R4.5): the project and how the lab compiles it, the scenario and its robot. The rules
+  // are made apart from the rest, so that the C++ tab (which writes its sketch again when they change) never sees new ones for a new
+  // `flushProgram`, which App makes anew on each of its renders.
+  const rules = useMemo(() => ({ registry, profiles, packs, kits: productionKits }), [registry, profiles, packs]);
+  const paneLab: ProgramPaneLab = { projectStore, flushProgram, rules, scenario, kit, board };
   // A Run or a Step brings the robot's tab into sight in a narrow frame.
   const [runEpoch, setRunEpoch] = useState(0);
 
@@ -299,7 +304,7 @@ export default function RobotLab({
       </header>
       <LabWorkspace
         board={viewport}
-        program={<ProgramPane store={store} toolbox={scenarioToolbox} starter={scenario.starter} program={program} />}
+        program={<ProgramPane store={store} toolbox={scenarioToolbox} lab={paneLab} program={program} />}
         showBoard={runEpoch}
         shares={viewShares}
         labels={viewLabels}

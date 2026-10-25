@@ -1,0 +1,414 @@
+/*
+ * The "Cổng & chân" tab of the robot lab (N18 R4.5): the hub panel's board, cards and table. Colours are the app's tokens (app.css :root),
+ * never colours of its own. The tab scrolls inside its pane, never sideways.
+ */
+.pin-inspector {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+  padding: 10px 12px 18px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--stem-color-surface);
+  color: var(--stem-color-text);
+  font-size: 13px;
+}
+
+.hub-idle {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-surface-muted);
+  color: var(--stem-color-text-muted);
+}
+
+.hub-idle[hidden] {
+  display: none;
+}
+
+.hub-section {
+  min-width: 0;
+}
+
+/* The board. */
+.hub-board {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.hub-board-body {
+  fill: var(--stem-color-display-bg);
+  stroke: var(--stem-color-border-strong);
+  stroke-width: 1.5;
+}
+
+.hub-board-usb,
+.hub-board-jack {
+  fill: var(--stem-color-neutral-soft);
+  stroke: var(--stem-color-border-strong);
+  stroke-width: 1.5;
+}
+
+.hub-board-strip {
+  fill: var(--stem-color-console-bg);
+}
+
+.hub-board-hole {
+  fill: var(--stem-color-text-muted);
+}
+
+.hub-board-chip {
+  fill: var(--stem-color-console-bg);
+  stroke: var(--stem-color-text-muted);
+  stroke-width: 1;
+}
+
+.hub-board-reset {
+  fill: var(--stem-color-neutral-text);
+  stroke: var(--stem-color-border-strong);
+  stroke-width: 1.5;
+}
+
+.hub-pad-base {
+  fill: var(--stem-color-console-bg);
+  stroke: var(--stem-color-border-strong);
+  stroke-width: 1.5;
+}
+
+.hub-pad[data-state='idle'] .hub-pad-base {
+  fill: var(--stem-color-text-muted);
+}
+
+/* An input is read by the board, not driven: a light ring. */
+.hub-pad[data-input='true'] .hub-pad-base {
+  stroke: var(--stem-color-primary-soft);
+  stroke-width: 3;
+}
+
+.hub-pad-lit {
+  fill: var(--stem-color-accent);
+  pointer-events: none;
+}
+
+.hub-pad[data-state='tone'] .hub-pad-lit,
+.hub-pad[data-state='servo'] .hub-pad-lit {
+  fill: var(--stem-color-success-soft);
+}
+
+.hub-pad-name {
+  fill: var(--stem-color-text-subtle);
+  font-family: var(--stem-font-mono);
+  font-size: 11px;
+}
+
+.hub-pad[data-used='true'] .hub-pad-name {
+  fill: var(--stem-color-console-text);
+  font-weight: 700;
+}
+
+.hub-pad-part {
+  fill: var(--stem-color-text);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.hub-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 4px 0 0;
+  padding: 0;
+  color: var(--stem-color-text-muted);
+  font-size: 11px;
+  list-style: none;
+}
+
+.hub-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.hub-legend li::before {
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid var(--stem-color-border-strong);
+  border-radius: 50%;
+  background: var(--stem-color-console-bg);
+  content: '';
+}
+
+.hub-legend li[data-state='high']::before {
+  background: var(--stem-color-accent);
+}
+
+.hub-legend li[data-state='pwm']::before {
+  background: linear-gradient(90deg, var(--stem-color-console-bg) 40%, var(--stem-color-accent));
+}
+
+.hub-legend li[data-state='input']::before {
+  border-color: var(--stem-color-primary);
+  border-width: 2.5px;
+}
+
+/* The cards. */
+.hub-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hub-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--stem-color-border);
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-surface-muted);
+}
+
+.hub-card[data-kind='line-sensor'] {
+  grid-column: span 2;
+}
+
+.hub-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.hub-card-title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hub-card-port,
+.hub-port {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--stem-color-neutral-soft);
+  color: var(--stem-color-neutral-text);
+  font-family: var(--stem-font-mono);
+  font-size: 11px;
+}
+
+.hub-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 62px;
+}
+
+.hub-card-value {
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.hub-card-note {
+  min-height: 1.2em;
+  color: var(--stem-color-text-muted);
+  font-size: 11px;
+}
+
+.hub-dial {
+  width: 100%;
+  max-width: 104px;
+  height: auto;
+}
+
+.hub-dial-track,
+.hub-dial-value {
+  fill: none;
+  stroke-linecap: round;
+  stroke-width: 7;
+}
+
+.hub-dial-track {
+  stroke: var(--stem-color-border);
+}
+
+.hub-dial-value {
+  stroke: var(--stem-color-accent);
+}
+
+.hub-dial[data-tone='backward'] .hub-dial-value {
+  stroke: var(--stem-color-primary);
+}
+
+.hub-dial[data-tone='servo'] .hub-dial-value {
+  stroke: var(--stem-color-success);
+}
+
+.hub-dial-zero {
+  stroke: var(--stem-color-border-strong);
+  stroke-width: 1.5;
+}
+
+.hub-dial-needle {
+  stroke: var(--stem-color-text);
+  stroke-linecap: round;
+  stroke-width: 2.5;
+}
+
+.hub-dial-hub {
+  fill: var(--stem-color-text);
+}
+
+/* The line sensors' eyes: dots, lit on a dark strip while the sensor sees the dark line. */
+.hub-eyes {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  width: 100%;
+  margin: 0;
+  padding: 10px 8px 6px;
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-console-bg);
+  box-sizing: border-box;
+  list-style: none;
+}
+
+.hub-eye {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.hub-eye-dot {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--stem-color-text-muted);
+  border-radius: 50%;
+}
+
+.hub-eye[data-dark='true'] .hub-eye-dot {
+  border-color: var(--stem-color-accent);
+  background: var(--stem-color-accent);
+  box-shadow: 0 0 9px var(--stem-color-accent);
+}
+
+.hub-eye-name {
+  color: var(--stem-color-console-text);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* The LED, the buzzer and the button: a lamp that is lit while the part is on. */
+.hub-lamp {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--stem-color-border-strong);
+  border-radius: 50%;
+  background: var(--stem-color-console-bg);
+}
+
+.hub-lamp[data-lit='true'] {
+  border-color: var(--stem-color-accent);
+  background: var(--stem-color-accent);
+  box-shadow: 0 0 10px var(--stem-color-accent);
+}
+
+/* The table. */
+.hub-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.hub-table th,
+.hub-table td {
+  padding: 6px 6px;
+  border-bottom: 1px solid var(--stem-color-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.hub-table thead th {
+  color: var(--stem-color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hub-table-part {
+  white-space: nowrap;
+}
+
+.hub-table-name {
+  font-weight: 600;
+}
+
+.hub-table-value {
+  margin-left: 6px;
+  color: var(--stem-color-warning-text);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.hub-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hub-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 1px 7px;
+  border: 1px solid var(--stem-color-border);
+  border-radius: 999px;
+  background: var(--stem-color-surface-muted);
+  font-family: var(--stem-font-mono);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.hub-chip-pin {
+  font-weight: 700;
+}
+
+.hub-chip-signal {
+  color: var(--stem-color-text-subtle);
+  font-size: 10px;
+}
+
+.hub-chip-value {
+  color: var(--stem-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.hub-chip[data-kind='high'] .hub-chip-value,
+.hub-chip[data-kind='pwm'] .hub-chip-value,
+.hub-chip[data-kind='tone'] .hub-chip-value,
+.hub-chip[data-kind='servo'] .hub-chip-value {
+  color: var(--stem-color-warning-text);
+  font-weight: 700;
+}
+
+.hub-chip[data-input='true'] {
+  border-color: var(--stem-color-primary);
+}
