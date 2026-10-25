@@ -465,22 +465,29 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
 
   const atRest = (run: ActiveRun) => run.status === 'finished' && run.restTicks >= REST_HOLD_TICKS;
 
-  /** A realtime frame of a run at rest publishes only for a change besides the ticks: the scorer's points or a goal's verdict among them. */
-  const worthPublishing = (run: ActiveRun): boolean => {
+  /**
+   * Whether a realtime frame publishes, and with which score: null for no publish; undefined to publish with the scorer's score (read by
+   * `publishRun`); a score, to publish with the one read here. A frame of a run at rest publishes only for a change besides the ticks, the
+   * scorer's points or a goal's verdict among them; the score read to tell is the one published, so a scorer that throws there is read
+   * once and fails the run once (with the empty score).
+   */
+  const publication = (run: ActiveRun): ScoreState | undefined | null => {
     if (run.dirty || (run.moved && !atRest(run))) {
-      return true;
+      return undefined;
     }
     if (!run.moved || !run.scorer) {
-      return false;
+      return null;
     }
+    let score: ScoreState;
     try {
-      return verdictOf(run.scorer.score()) !== run.publishedVerdict;
+      score = structuredClone(run.scorer.score());
     } catch (error) {
       if (current === run) {
         failRun(run, error);
       }
-      return current === run;
+      return current === run ? noScore : null;
     }
+    return verdictOf(score) !== run.publishedVerdict ? score : null;
   };
 
   /** Applies the button inputs of tick k's interval [k·dt, (k+1)·dt): the UI's presses, then the scenario's script. */
@@ -575,8 +582,9 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
         }
       }
     }
-    if (current === run && worthPublishing(run)) {
-      publishRun(run);
+    const shown = current === run ? publication(run) : null;
+    if (current === run && shown !== null) {
+      publishRun(run, shown);
     }
   };
 

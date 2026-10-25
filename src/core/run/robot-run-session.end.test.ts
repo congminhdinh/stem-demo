@@ -246,6 +246,27 @@ describe('a finished run whose robot is at rest stops publishing', () => {
     session.stop();
   });
 
+  it('a scorer whose score throws while the robot rests ends the run in internal-error with one diagnostic', async () => {
+    let frames = 0;
+    const session = roverSession(arenaScenario({ timeLimitS: 4 }), {
+      scorer: () => ({
+        update: () => void (frames += 1),
+        score: () => {
+          // At rest from about 1.1 s (the program ends at 0.3 s): the score is read for the verdict of a quiet frame.
+          if (frames > 2 * PHYSICS_HZ) throw new Error('No score at rest.');
+          return { points: 0, maxScore: 100, goals: [] };
+        },
+      }),
+    });
+    await session.start(shortDrive());
+    for (let frame = 0; frame < 3 * 60 && session.getSnapshot().status !== 'error'; frame++) await session.advance(1000 / 60);
+    const snapshot = session.getSnapshot();
+    const message = 'The robot simulation stopped: No score at rest.';
+    expect(snapshot).toMatchObject({ status: 'error', error: { code: 'internal-error', message } });
+    expect(snapshot.diagnostics).toEqual([{ severity: 'error', code: 'internal-error', message }]);
+    session.stop();
+  });
+
   it('a robot spinning in place after its program finished is not at rest: every frame publishes', async () => {
     const session = roverSession(arenaScenario({ timeLimitS: 4 }));
     await session.start(robotProject([driveMove('spinLeft', num(60))]));
