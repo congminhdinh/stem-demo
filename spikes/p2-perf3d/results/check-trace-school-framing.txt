@@ -1,0 +1,14 @@
+node spikes/p2-perf3d/loading-trace.mjs --profile=school --template=rb-mini-mission --check --dist=node_modules/.cache/bench-robot3d/dist-framing
+(2026-10-26 00:5x, load 8-12, the school soak running beside it; the build is 39a877d with the framing fix of ab-patches.py)
+
+first frame (Node) 2608 ms; marks: check-start 5492
+  4920 ms  task  570 ms  EvaluateScript 570
+           0 ms  (program)
+  5811 ms  task  363 ms  rapier.wasm 258 | (browser) 16 | src/core/world/world.ts 15 | rolldown-runtime-hePW80VL.js (no map) 11 | @dimforge/rapier3d-deterministic/rapier_wasm3d_bg.js 8
+           240 ms  rapier_wasm3d_bg-DZsYp9WG.wasm:0
+           16 ms  (program)
+           11 ms  rolldown-runtime-hePW80VL.js:0
+           10 ms  e5dcf6aa:0
+           8 ms  wasm-to-js
+           6 ms  src/core/run/robot-run-session.ts:713 const createRun = (prepared: Prepared, world: World, variantIndex: num
+(long tasks over 100 ms in the whole traced check: the two above; the 570 ms one ends as the check-start mark is set, before the click)
