@@ -34,6 +34,8 @@ export const CHASE_AHEAD_M = 0.25;
 const CHASE_LOOK_UP_M = 0.03;
 /** How high the zones' tags float over the mat (m, parts/ZoneTags.tsx): the free view frames their lines' tops too. */
 export const ZONE_TAG_M = 0.13;
+/** How low a tall HUD's corner may cut into what the free view frames before the robot would be too small (NDC). */
+const RELAXED_HUD_BOTTOM = 0.45;
 /** The room a zone's tag takes over its line's top, as the free view frames it (m). */
 const TAG_ROOM_M = { up: 0.09, across: 0.12 };
 /** The chase camera stays this far inside every wall's face (m). */
@@ -171,8 +173,8 @@ export function robotScreenWidth(pose: CameraPose, start: FreeViewScene['start']
  * controls leave (`rect`): the floor round the start (the robot large near the bottom of the view), the start zone, every goal zone,
  * the tape's route, the zones' tags, and the two corners of the arena farthest along the view, so the arena recedes from the robot to
  * its far walls. When that leaves the robot narrower than `minRobot` (NDC; a small view, a tall HUD), the far corners are let go first,
- * then the tags' room (a tag may then reach under the HUD), then the route with the goals farthest from the start, one by one (orbit and
- * zoom reach them); the start and its zone always stay.
+ * then the tags' room (a tag may then reach under the HUD), then a tall HUD's lower part (the arena's far side may lie under it), then
+ * the route, then the goals farthest from the start, one by one (orbit and zoom reach them); the start and its zone always stay.
  */
 export function freeViewPose(span: ArenaSpan, scene: FreeViewScene, fovDeg: number, aspect: number, rect: SafeRect = VIEW_SAFE_RECT, minRobot = 0): CameraPose {
   const [fx, fz] = freeViewForward(scene);
@@ -202,15 +204,20 @@ export function freeViewPose(span: ArenaSpan, scene: FreeViewScene, fovDeg: numb
     .sort((a, b) => a.away - b.away);
   const floors = goals.flatMap(({ points }) => points);
   const tags = goals.flatMap(({ tags: room }) => room);
-  const choices: Vec3Tuple[][] = [
-    [...far, ...kept, ...route, ...floors, ...tags],
-    [...kept, ...route, ...floors, ...tags],
-    [...kept, ...route, ...floors],
+  // What to frame, most first; each in the view's free part, then with a HUD that reaches low held back to RELAXED_HUD_BOTTOM (the
+  // far part of the arena may then lie under the HUD, which the learner can fold).
+  const relaxed: SafeRect = { ...rect, hud: { right: rect.hud.right, bottom: Math.max(rect.hud.bottom, RELAXED_HUD_BOTTOM) } };
+  const choices: [Vec3Tuple[], SafeRect][] = [
+    [[...far, ...kept, ...route, ...floors, ...tags], rect],
+    [[...kept, ...route, ...floors, ...tags], rect],
+    [[...kept, ...route, ...floors], rect],
+    [[...kept, ...route, ...floors], relaxed],
+    [[...kept, ...floors], relaxed],
   ];
-  for (let count = goals.length - 1; count >= 0; count--) choices.push([...kept, ...goals.slice(0, count).flatMap(({ points }) => points)]);
+  for (let count = goals.length - 1; count >= 0; count--) choices.push([[...kept, ...goals.slice(0, count).flatMap(({ points }) => points)], relaxed]);
   let pose: CameraPose | null = null;
-  for (const points of choices) {
-    pose = framePoints(points, toCamera, fovDeg, aspect, rect);
+  for (const [points, room] of choices) {
+    pose = framePoints(points, toCamera, fovDeg, aspect, room);
     if (robotScreenWidth(pose, scene.start, fovDeg, aspect) >= minRobot) return pose;
   }
   return pose!;

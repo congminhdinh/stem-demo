@@ -45,7 +45,7 @@ const GLIDE_S = 0.45;
 const FOLLOW_RATE = 5;
 
 /** The robot is never narrower than this on the screen in the free view's first frame (px across its wheels). */
-const MIN_ROBOT_PX = 48;
+const MIN_ROBOT_PX = 40;
 
 const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2);
 
