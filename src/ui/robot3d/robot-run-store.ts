@@ -114,7 +114,8 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
     /** The driving frame requested, if any, and the page time of the frame before (null: the next frame starts the clock). */
     let driveFrame: number | null = null;
     let lastFrameAt: number | null = null;
-    let commitRequested = false;
+    /** The frame that hands React the latest snapshot, while one is asked for. */
+    let commitFrame: number | null = null;
     let stepping = false;
     /** Counts the starts, so that a start a newer one replaced does not report. */
     let startTicket = 0;
@@ -157,10 +158,9 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
       for (const listener of [...listeners]) {
         listener(snapshot);
       }
-      if (!commitRequested) {
-        commitRequested = true;
-        requestFrame(() => {
-          commitRequested = false;
+      if (commitFrame === null) {
+        commitFrame = requestFrame(() => {
+          commitFrame = null;
           set({ snapshot: session.getSnapshot() });
         });
       }
@@ -304,6 +304,10 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
         return () => {
           startTicket++;
           stopDriving();
+          if (commitFrame !== null) {
+            cancelFrame(commitFrame);
+            commitFrame = null;
+          }
           unsubscribe();
           visibility?.removeEventListener('visibilitychange', onVisibility);
           session.stop();

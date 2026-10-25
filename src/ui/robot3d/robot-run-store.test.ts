@@ -5,11 +5,16 @@ import { createDeviceRegistry } from '../../core/devices/registry';
 import { productionKits, unoR3Board } from '../../core/hardware/catalog';
 import type { Kit } from '../../core/hardware/kit';
 import { createRobotRunSession, type RobotStartResult } from '../../core/run/robot-run-session';
+import { driveMove, driveStop } from '../../core/program/__fixtures__/uno-blocks';
+import { num, wait } from '../../core/program/__fixtures__/ybc-blocks';
+import { robotProject } from '../../core/run/__fixtures__/robot-session';
+import type { RobotSnapshot } from '../../core/world/snapshot';
 import { robotSolutions } from '../../samples/robot-solutions';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { robotStarterDocument } from '../../samples/robot-templates';
 import { createRobotRunStore, isRunOver, labStatus, ROBOT_SPEEDS, selectRunActive, shownRun } from './robot-run-store';
 import { fakeSession as fakeRobotSession, idleRun } from './__fixtures__/fake-session';
+import { sameView } from './scene-math';
 
 // N18 R4.2/R4.4: the robot lab's run, as the UI drives it. The session (R3.6) runs the world; this store drives it from
 // requestAnimationFrame while a run goes on (`advance(wallMs, speed)`), holds it on Pause, steps it 0.1 s at a time, and hands React at
@@ -262,6 +267,18 @@ describe('the robot lab’s run store (N18 R4.2, R4.4)', () => {
     expect(published).toEqual([2, 4]);
   });
 
+  it('leaves no frame behind when it disconnects: neither the drive nor the commit of a snapshot published just before', async () => {
+    const fake = fakeSession();
+    const frames = fakeFrames();
+    const store = createRobotRunStore(fake.session, { requestFrame: frames.requestFrame, cancelFrame: frames.cancelFrame });
+    const disconnect = store.getState().connect();
+    await store.getState().run(project);
+    fake.publish({ world: fake.world(0.5) });
+    expect(frames.pending()).toBe(2);
+    disconnect();
+    expect(frames.pending()).toBe(0);
+  });
+
   it('starts its clock again when the page comes back into sight, so a hidden tab is not owed', async () => {
     const fake = fakeSession();
     const frames = fakeFrames();
@@ -352,6 +369,35 @@ describe('the run store on the real session (N18 R4.2)', () => {
     const t0 = store.getState().latestWorld()!.t;
     await store.getState().step(solved);
     expect(Math.round((store.getState().latestWorld()!.t - t0) * 120)).toBe(12);
+    disconnect();
+  });
+
+  // N18 R4.2 fix round 1: the HUD reads the committed snapshot's time; it must keep going while a finished robot rests, and the picture
+  // (what the 3D view draws, `sameView`) must not change for it.
+  it('keeps the HUD’s time going in tenths while a finished robot rests, with the same picture: nothing for the 3D view to draw', async () => {
+    const session = createRobotRunSession({ scenario, kit, board: unoR3Board, registry: createDeviceRegistry(localDeviceDefinitions) });
+    const frames = fakeFrames();
+    const store = createRobotRunStore(session, { requestFrame: frames.requestFrame, cancelFrame: frames.cancelFrame });
+    const disconnect = store.getState().connect();
+    await store.getState().run(robotProject([driveMove('forward', num(50)), wait(num(300)), driveStop()]));
+    const shown: { t: number; world: RobotSnapshot }[] = [];
+    for (let frame = 0, now = 0; frame <= 4 * 60; frame++, now += 1000 / 60) {
+      frames.frame(now);
+      await flush();
+      const world = store.getState().snapshot.world;
+      if (world !== null && world !== shown.at(-1)?.world) shown.push({ t: world.t, world });
+    }
+    expect(store.getState().snapshot.status).toBe('finished');
+    // From 2 s the robot has long rested (the program ended at 0.3 s): the time still moves on, a tenth at a time, the picture does not.
+    const resting = shown.filter((entry) => entry.t >= 2);
+    expect(resting.length).toBeGreaterThanOrEqual(15);
+    expect(resting.at(-1)!.t).toBeGreaterThan(3.8);
+    for (let k = 1; k < resting.length; k++) {
+      const gap = resting[k]!.t - resting[k - 1]!.t;
+      expect(gap).toBeGreaterThanOrEqual(0.1 - 1e-9);
+      expect(gap).toBeLessThanOrEqual(0.1 + 1 / 60 + 1e-9);
+      expect(sameView(resting[k - 1]!.world, resting[k]!.world)).toBe(true);
+    }
     disconnect();
   });
 });
