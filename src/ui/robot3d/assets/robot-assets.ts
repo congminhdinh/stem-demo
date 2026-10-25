@@ -83,11 +83,17 @@ export function loadRobotAssets(detail: Detail, base: string = import.meta.env.B
   const versions = manifest.assets as Readonly<Record<string, { sha256: string }>>;
   const url = (file: string) => `${base.endsWith('/') ? base : `${base}/`}${file}?v=${versions[file.split('/').pop()!]?.sha256.slice(0, 12) ?? '0'}`;
   const files = ROBOT_ASSET_FILES[detail];
-  const attempt = Promise.all([loader.loadAsync(url(files.kit)), loader.loadAsync(url(files.props))])
+  const attempt: Promise<RobotAssets | null> & { status?: 'fulfilled'; value?: RobotAssets | null } = Promise.all([loader.loadAsync(url(files.kit)), loader.loadAsync(url(files.props))])
     .then(([kit, props]) => robotAssetsOf(kit, props))
     .catch((error: unknown) => {
       console.warn('The robot lab’s 3D models did not load; the view draws its simple shapes.', error);
       return null;
+    })
+    .then((assets) => {
+      // Tagged as React's `use` reads a settled promise, so a view that mounts after the files are in renders at once.
+      attempt.status = 'fulfilled';
+      attempt.value = assets;
+      return assets;
     });
   loading.set(detail, attempt);
   return attempt;

@@ -30,12 +30,19 @@ function prepared(geometry: BufferGeometry, matrix: Matrix4, colour: 'keep' | 'd
   }
   if (!copy.getAttribute('normal')) copy.computeVertexNormals();
   if (!copy.getAttribute('uv')) copy.setAttribute('uv', new BufferAttribute(new Float32Array(count * 2), 2));
-  const index = geometry.index ? Array.from(geometry.index.array) : Array.from({ length: count }, (_, i) => i);
+  // Typed all the way (a part's index is copied, never boxed into a list): this runs for every part while the view is made.
+  const index = new Uint32Array(geometry.index ? geometry.index.count : count);
+  if (geometry.index) index.set(geometry.index.array);
+  else for (let i = 0; i < count; i++) index[i] = i;
   // A mirrored part (the right wheel's motor) would turn its faces inside out once baked: keep them facing out.
   if (matrix.determinant() < 0) {
-    for (let i = 0; i < index.length; i += 3) [index[i + 1], index[i + 2]] = [index[i + 2]!, index[i + 1]!];
+    for (let i = 0; i < index.length; i += 3) {
+      const swap = index[i + 1]!;
+      index[i + 1] = index[i + 2]!;
+      index[i + 2] = swap;
+    }
   }
-  copy.setIndex(index);
+  copy.setIndex(new BufferAttribute(index, 1));
   copy.applyMatrix4(matrix);
   return copy;
 }

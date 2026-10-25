@@ -3,6 +3,8 @@ import { ErrorBoundary } from '../app/ErrorBoundary';
 import { useText } from '../i18n/text';
 import type { CameraMode } from './camera';
 import { useViewOverlays } from './hud-corner';
+import { loadRobotAssets } from './assets/robot-assets';
+import { tierLook } from './lighting/look';
 import { Icon } from './icons';
 import { probeWebgl, tierForRenderer, type QualityTier, type WebglProbe } from './quality';
 import Scene, { type SceneProps } from './Scene';
@@ -35,6 +37,10 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
   const [probed, setProbed] = useState(probe);
   const [tier, setTier] = useState<QualityTier>(() => tierForRenderer(probed.ok ? probed.renderer : null));
   const [cameraMode, setCameraMode] = useState<CameraMode>('orbit');
+  // N18 R4.7: the tier's model files are fetched and parsed while the canvas is still being made (it suspends on the same promise).
+  useEffect(() => {
+    if (probed.ok) void loadRobotAssets(tierLook[tier].detail);
+  }, [probed, tier]);
   // N18 R4.7: "đặt lại góc nhìn" puts the current view's camera back where that view starts.
   const [resetKey, setResetKey] = useState(0);
   const sceneBox = useRef<HTMLDivElement>(null);
