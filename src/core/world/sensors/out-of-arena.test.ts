@@ -1,4 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { productionKits, referenceKitRef } from '../../hardware/catalog';
+import type { Kit } from '../../hardware/kit';
+import { modulesOfKind } from '../../hardware/kit-mechanics';
 import { parseArena } from '../arena/arena-schema';
 import { buildArena } from '../arena/build-arena';
 import { createGroundPaint } from '../arena/ground-paint';
@@ -12,6 +15,10 @@ import { measureUltrasonic } from './ultrasonic';
 
 // Compiling the real wasm can take seconds on a loaded machine.
 beforeAll(() => initPhysics(), 30_000);
+
+const rover = productionKits.get(referenceKitRef) as Kit;
+const ultrasonicSpec = modulesOfKind(rover, 'ultrasonic')[0]!.spec;
+const lineSpec = modulesOfKind(rover, 'line-sensor')[0]!.spec;
 
 /** A 150 × 100 cm floor with a 2 cm tape along y = 50 and a wall along its west edge; open on the other sides. */
 const arena = parseArena({
@@ -83,11 +90,11 @@ describe('isOutOfArena', () => {
         expect([rotation.x, rotation.y, rotation.z, rotation.w].every(Number.isFinite)).toBe(true);
         out.push(isOutOfArena(arena, position));
         // Looking back west at the wall, then forward and down at the floor from the cube's front.
-        const echo = measureUltrasonic(world, built, { position: sensorAt({ x: -0.05, y: 0, z: 0 }), rotation }, { coneHalfDeg: 15, minCm: 2, maxCm: 400 });
+        const echo = measureUltrasonic(world, built, { position: sensorAt({ x: -0.05, y: 0, z: 0 }), rotation }, ultrasonicSpec);
         expect(echo.cm).toBeGreaterThanOrEqual(2);
         expect(echo.cm).toBeLessThanOrEqual(400);
         expect(Number.isFinite(echo.echoUs)).toBe(true);
-        const line = measureLine(paint, sensorAt({ x: 0.04, y: -0.04, z: 0 }), { spotRadiusCm: 0.3, darkBelow: 0.5 });
+        const line = measureLine(paint, sensorAt({ x: 0.04, y: -0.04, z: 0 }), lineSpec);
         expect(Number.isInteger(line.raw) && line.raw >= 0 && line.raw <= 1023).toBe(true);
         expect(line.reflectance >= 0 && line.reflectance <= 1).toBe(true);
         for (const contact of readContacts(world, built, [cube])) expect(['#ground', 'west']).toContain(contact.id);

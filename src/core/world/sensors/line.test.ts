@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import type { ProgramClock } from '../../capabilities/services';
-import { unoR3Board } from '../../hardware/catalog';
 import { drivers } from '../../hardware/drivers';
-import type { KitPort } from '../../hardware/kit';
+import { productionKits, referenceKitRef, unoR3Board } from '../../hardware/catalog';
+import type { Kit, KitPort, LineSensorSpec } from '../../hardware/kit';
+import { modulesOfKind } from '../../hardware/kit-mechanics';
 import { createVirtualUno } from '../../hardware/virtual-uno';
 import { parseArena } from '../arena/arena-schema';
-import { createGroundPaint } from '../arena/ground-paint';
+import { createGroundPaint, OFF_GROUND_REFLECTANCE } from '../arena/ground-paint';
 import { arenaToWorld } from '../units';
-import { LIFTED_HEIGHT_CM, LIFTED_REFLECTANCE, LINE_ADC_MAX, measureLine, type LineSensorSpec } from './line';
+import { LIFTED_HEIGHT_CM, LIFTED_REFLECTANCE, LINE_ADC_MAX, measureLine } from './line';
 
-/** The reference kit's line sensors (ref-uno-rover@0): 1 cm above the floor, a 0.3 cm spot, dark below 0.5. */
-const SPEC: LineSensorSpec = { spotRadiusCm: 0.3, darkBelow: 0.5 };
+/** The reference kit's centre line sensor (ref-uno-rover@0), as the kit gives it to the world. */
+const SPEC: LineSensorSpec = modulesOfKind(productionKits.get(referenceKitRef) as Kit, 'line-sensor')[0]!.spec;
 
 /**
  * White 100 × 100 cm floor, a 2 cm tape along y = 50 from x = 10 to 90, a grey mat (0.5) and a dark mat (0.25) away
@@ -32,6 +33,10 @@ const paint = createGroundPaint(
 const at = (xCm: number, yCm: number, heightCm = 1) => arenaToWorld(xCm, yCm, heightCm);
 
 describe('measureLine', () => {
+  it('reads the reference kit’s spec: 1 cm above the floor, a 0.3 cm spot, dark below 0.5', () => {
+    expect(SPEC).toEqual({ heightCm: 1, spotRadiusCm: 0.3, darkBelow: 0.5 });
+  });
+
   it('centre of a 2 cm tape reads dark', () => {
     expect(measureLine(paint, at(50, 50), SPEC)).toEqual({ reflectance: 0, dark: true, raw: 1023, level: 1 });
   });
@@ -56,13 +61,14 @@ describe('measureLine', () => {
     expect(measureLine(paint, at(20, 80), { ...SPEC, darkBelow: 0.6 }).dark).toBe(true);
   });
 
-  it('lifted more than 3 cm off the floor reads no reflection: blank, not dark', () => {
+  it('lifted more than 3 cm off the floor reads no reflection: dark, as over the floor’s edge', () => {
     expect(LIFTED_HEIGHT_CM).toBe(3);
-    expect(LIFTED_REFLECTANCE).toBe(1);
-    expect(measureLine(paint, at(50, 50, 3.5), SPEC)).toEqual({ reflectance: 1, dark: false, raw: 0, level: 0 });
-    expect(measureLine(paint, at(50, 50, 30), SPEC).dark).toBe(false);
-    // At 3 cm exactly it still sees the tape.
-    expect(measureLine(paint, at(50, 50, 3), SPEC).dark).toBe(true);
+    expect(LIFTED_REFLECTANCE).toBe(0);
+    expect(LIFTED_REFLECTANCE).toBe(OFF_GROUND_REFLECTANCE);
+    expect(measureLine(paint, at(50, 20, 3.5), SPEC)).toEqual({ reflectance: 0, dark: true, raw: 1023, level: 1 });
+    expect(measureLine(paint, at(50, 20, 30), SPEC).dark).toBe(true);
+    // At 3 cm exactly it still sees the white floor.
+    expect(measureLine(paint, at(50, 20, 3), SPEC)).toEqual({ reflectance: 1, dark: false, raw: 0, level: 0 });
   });
 
   it('beyond the edge of the floor there is nothing to reflect: 0, dark (ground-paint.ts)', () => {
@@ -70,8 +76,8 @@ describe('measureLine', () => {
     expect(measureLine(paint, at(105, 20, -2), SPEC).dark).toBe(true);
   });
 
-  it('reads a position that is not finite as lifted, never NaN', () => {
-    const lifted = { reflectance: 1, dark: false, raw: 0, level: 0 };
+  it('reads a position that is not finite as lifted (dark), never NaN', () => {
+    const lifted = { reflectance: 0, dark: true, raw: 1023, level: 1 };
     expect(measureLine(paint, { ...at(50, 50), x: Number.NaN }, SPEC)).toEqual(lifted);
     expect(measureLine(paint, { ...at(50, 50), y: Number.NEGATIVE_INFINITY }, SPEC)).toEqual(lifted);
     expect(measureLine(paint, { ...at(50, 50), z: Number.POSITIVE_INFINITY }, SPEC)).toEqual(lifted);
@@ -86,8 +92,8 @@ describe('measureLine', () => {
     expect(measureLine(paint, at(50, 50), SPEC, { activeLow: true })).toEqual({ reflectance: 0, dark: true, raw: 0, level: 0 });
     expect(measureLine(paint, at(50, 20), SPEC, { activeLow: true })).toEqual({ reflectance: 1, dark: false, raw: 1023, level: 1 });
     expect(measureLine(paint, at(70, 80), SPEC, { activeLow: true })).toEqual({ reflectance: 0.25, dark: true, raw: 256, level: 0 });
-    // Lifted, an active-low sensor reads blank too: HIGH.
-    expect(measureLine(paint, at(50, 50, 10), SPEC, { activeLow: true }).level).toBe(1);
+    // Lifted, an active-low sensor reads dark too: LOW and a low value.
+    expect(measureLine(paint, at(50, 20, 10), SPEC, { activeLow: true })).toEqual({ reflectance: 0, dark: true, raw: 0, level: 0 });
   });
 
   it('fed to the virtual UNO, the line-digital driver reads the same dark and raw, for both polarities', () => {
@@ -97,13 +103,14 @@ describe('measureLine', () => {
     const port = (activeLow: boolean): KitPort => ({ id: 'LN1', driver: 'line-digital', pins: { PIN: 'A0' }, params: { activeLow } });
     const ops = drivers['line-digital'].ops;
     for (const activeLow of [false, true]) {
-      for (const [xCm, yCm] of [
-        [50, 50],
-        [50, 20],
-        [50, 51],
-        [70, 80],
+      for (const [xCm, yCm, heightCm] of [
+        [50, 50, 1],
+        [50, 20, 1],
+        [50, 51, 1],
+        [70, 80, 1],
+        [50, 20, 10],
       ] as const) {
-        const reading = measureLine(paint, at(xCm, yCm), SPEC, { activeLow });
+        const reading = measureLine(paint, at(xCm, yCm, heightCm), SPEC, { activeLow });
         uno.attachDigitalSource('A0', () => reading.level);
         uno.attachAnalogSource('A0', () => reading.raw);
         expect(ops['line.dark']!.sim(uno.io, port(activeLow), [])).toBe(reading.dark);
