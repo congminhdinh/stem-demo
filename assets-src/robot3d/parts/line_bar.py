@@ -62,9 +62,11 @@ def build_leds(lib, tex, kit, col):
     for k, y in enumerate(eyes):
         led = lib.lathe(f'line_led_{k}', [(0.0, 0.0), (0.18, 0.0), (0.18, 0.06), (0.15, 0.06), (0.15, 0.24), (0.13, 0.32), (0.07, 0.37), (0.0, 0.38)], at=(-0.32, y, top), material=led_off, segments=20, col=col, parent=root)
         led.name = f'line_led_{k}'
-    statics.append(lib.box('leds_header', (0.25, 0.76, 0.25), at=(-1.0, 0, top + 0.125), material=housing, col=col, parent=root))
-    pin = lib.box('leds_pin', (0.06, 0.06, 0.4), at=(-1.0, -0.254, top + 0.35), material=gold, col=col, parent=root)
-    lib.add_array(pin, 3, (0, 0.254, 0))
+    # The header at the board's right end, out of the way of the LEDs as the chase camera sees them from behind.
+    side = -(span / 2 - 0.3)
+    statics.append(lib.box('leds_header', (0.76, 0.25, 0.25), at=(-0.6, side, top + 0.125), material=housing, col=col, parent=root))
+    pin = lib.box('leds_pin', (0.06, 0.06, 0.4), at=(-0.6 - 0.254, side, top + 0.35), material=gold, col=col, parent=root)
+    lib.add_array(pin, 3, (0.254, 0, 0))
     statics.append(pin)
     lib.join(statics, 'line_leds_static')
     return root

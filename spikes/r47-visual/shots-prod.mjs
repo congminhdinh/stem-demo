@@ -205,8 +205,8 @@ async function main() {
           if (flag) {
             await camera(frame, 'Theo xe');
             const box = await frame.getByTestId('robot-canvas').boundingBox();
-            await zoom(page, box, 3);
-            await orbit(page, box, 110, -6);
+            // Round to the robot's right and a little lower, the flag against the arena's far side, clear of the HUD.
+            await orbit(page, box, 160, 40);
             await shoot(page, 'servo-gate-flag-high-1100.png');
           }
           await page.close();
