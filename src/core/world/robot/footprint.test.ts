@@ -46,9 +46,10 @@ describe('robotFootprint', () => {
   });
 
   it('counts a servo arm that sticks out: R3.3’s 6 cm arm 4.5 cm ahead reaches 10.51 cm forward', () => {
-    // At 90° the arm's tip is 10.5 cm ahead, its corners √(6² + 0.4²) = 6.013 cm from the axis at the farthest.
-    expect(robotFootprint(protruding).radiusCm).toBeGreaterThan(10.51);
-    expect(robotFootprint(protruding).radiusCm).toBeLessThan(10.53);
+    // At 90° the arm's tip is 10.5 cm ahead, its corners √(6² + 0.4²) = 6.013 cm from the axis at the farthest: 10.513 cm. The
+    // samples are grown to cover the angles between them, by at most 6 · sin ½° (0.52 mm) and 0.1 mm more.
+    expect(robotFootprint(protruding).radiusCm).toBeGreaterThan(4.5 + Math.hypot(6, 0.4));
+    expect(robotFootprint(protruding).radiusCm).toBeLessThan(4.5 + Math.hypot(6, 0.4) + 6 * Math.sin(Math.PI / 360) + 0.011);
     // The outline is what stands on the floor: the arm, 6.25 cm up, is not part of it.
     expect(robotFootprint(protruding).outlineCm).toEqual(robotFootprint(kit).outlineCm);
   });
@@ -110,8 +111,39 @@ describe('startFootprintIssues', () => {
     // Lower than the arm (6.25 cm up), it is clear.
     const low = arena({ boxes: [{ centerCm: [110, 100], sizeCm: [5, 5, 6] }] });
     expect(startFootprintIssues(low, protruding, start)).toEqual([]);
-    // Between two of the sampled angles the arm sweeps no more than the samples are grown by.
     expect(ARM_SWEEP_STEP_DEG).toBe(1);
+  });
+
+  it.each([
+    [2, 6],
+    [4, 6],
+    [0.8, 60],
+  ])('covers the arm between two sampled angles, whatever its size: a %s cm wide, %s cm long arm', (widthCm, lengthCm) => {
+    // A kit whose arm sticks out ahead of the body, and a speck of a cylinder just inside where the arm is at 45.5° and at 90.5°,
+    // half-way between two samples: at the tip's corner (what a wide arm's samples miss) and at the middle of its tip (what a long,
+    // thin arm's samples miss, between them).
+    const wide: Kit = {
+      ...kit,
+      modules: kit.modules.map((module) =>
+        module.role === 'servo1'
+          ? { ...module, mount: { ...module.mount, posCm: [4.5, 0, 7] as const }, spec: { ...module.spec, armLengthCm: lengthCm, armWidthCm: widthCm } }
+          : module,
+      ),
+    };
+    const inset = 0.001;
+    for (const servoDeg of [45.5, 90.5]) {
+      const turn = ((-90 + servoDeg) * Math.PI) / 180;
+      const along = [Math.cos(turn), Math.sin(turn)] as const;
+      const across = [-Math.sin(turn), Math.cos(turn)] as const;
+      for (const side of [widthCm / 2 - inset, 0]) {
+        const xCm = 150 + 4.5 + (lengthCm - inset) * along[0] + side * across[0];
+        const yCm = 150 + (lengthCm - inset) * along[1] + side * across[1];
+        const speck = parseArena({ ground: { sizeCm: [300, 300], color: '#ffffff' }, cylinders: [{ centerCm: [xCm, yCm], radiusCm: 0.0001, heightCm: 10 }] });
+        expect(startFootprintIssues(speck, wide, { xCm: 150, yCm: 150, yawDeg: 0 }), `${servoDeg}° ${side}`).toEqual([
+          { path: 'start', message: 'the robot’s servo arm of servo1 (anywhere from 0° to 180°) overlaps cylinders[0] (#cylinder-0)' },
+        ]);
+      }
+    }
   });
 
   it('says which variant it is about when it is given one', () => {

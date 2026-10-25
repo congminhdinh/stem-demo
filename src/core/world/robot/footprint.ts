@@ -20,13 +20,15 @@ import { degToRad } from '../units';
 // they overlap seen from above and the thing is taller than the part's bottom: a 1 cm strip may lie under the body, not under a
 // wheel. Overlap is overlap.ts's, the one the variants use: touching is not overlapping.
 
-/** The arm is checked at every whole degree of its range (and at its end), each sample grown by ARM_SAMPLE_GROWTH_CM. */
-export const ARM_SWEEP_STEP_DEG = 1;
 /**
- * Between two samples 1° apart the arm's far corners sweep an arc whose middle lies r·(1 − cos 0.5°) beyond the chord the samples
- * cover: 2.3 µm at the 6 cm of an SG90 horn. A tenth of a millimetre covers it for any arm under 2.6 m.
+ * The arm is checked at every whole degree of its range (and at its end), each sample grown so that the samples cover every angle
+ * between them (`armSample`).
  */
-const ARM_SAMPLE_GROWTH_CM = 0.01;
+export const ARM_SWEEP_STEP_DEG = 1;
+/** What each sample is grown by besides what the angle between samples needs: a tenth of a millimetre, for the float arithmetic. */
+const ARM_SAMPLE_SLACK_CM = 0.01;
+/** sin of half the step: how far, as a part of its distance from the axis, a point of the arm turns between a sample and the next. */
+const HALF_STEP_SIN = sin(degToRad(ARM_SWEEP_STEP_DEG) / 2);
 
 /** A part of the robot seen from above, in the robot frame: a rectangle turned by `yawDeg`, or a circle. */
 type RectPart = { readonly kind: 'rect'; readonly x: number; readonly y: number; readonly hx: number; readonly hy: number; readonly yawDeg: number };
@@ -88,17 +90,7 @@ function computeFootprint(kit: Kit): RobotFootprint {
     const { spec, mount } = servo;
     const shapes: PartShape[] = [];
     for (let deg = spec.minDeg; ; deg = Math.min(spec.maxDeg, deg + ARM_SWEEP_STEP_DEG)) {
-      // Servo angle θ points the arm at the mount's yaw + θ (servo-arm.ts); the bar runs from the axis out to its length.
-      const [c, s] = cosSin(mount.yawDeg + deg);
-      const half = spec.armLengthCm / 2;
-      shapes.push({
-        kind: 'rect',
-        x: mount.posCm[0] + half * c,
-        y: mount.posCm[1] + half * s,
-        hx: half + ARM_SAMPLE_GROWTH_CM,
-        hy: spec.armWidthCm / 2 + ARM_SAMPLE_GROWTH_CM,
-        yawDeg: mount.yawDeg + deg,
-      });
+      shapes.push(armSample(mount.posCm, mount.yawDeg + deg, spec.armLengthCm, spec.armWidthCm));
       if (deg >= spec.maxDeg) break;
     }
     parts.push({
@@ -180,6 +172,28 @@ export function startFootprintIssues(
     issues.push({ path: 'start', message: `${where}the robot’s ${names} ${hit.length === 1 ? 'overlaps' : 'overlap'} ${thing.path} (${thing.id})` });
   }
   return issues;
+}
+
+/**
+ * The arm, a bar `lengthCm` long and `widthCm` wide from the axis at `axisCm`, pointing `deg` (robot frame), grown so that the
+ * samples 1° apart cover the arm at every angle between them. A point of the bar at (a, b) (along it 0..L, across it −w/2..w/2) at
+ * an angle δ ≤ ½° from the nearest sample is, in that sample's frame, at a cos δ ± b sin δ along it and b cos δ ∓ a sin δ across
+ * it: at most (w/2)·sin ½° past either end and L·sin ½° past either side. So each sample is lengthened by (w/2)·sin ½° at both ends
+ * (what a wide arm's tip corner needs) and widened by L·sin ½° on both sides (what a long, thin arm needs between two samples), each
+ * plus ARM_SAMPLE_SLACK_CM: every arm a kit may describe is covered, at most L·sin ½° (0.5 mm for a 6 cm horn) more than it reaches.
+ */
+function armSample(axisCm: RobotPointCm, deg: number, lengthCm: number, widthCm: number): RectPart {
+  // Servo angle θ points the arm at the mount's yaw + θ (servo-arm.ts); the bar runs from the axis out to its length.
+  const [c, s] = cosSin(deg);
+  const half = lengthCm / 2;
+  return {
+    kind: 'rect',
+    x: axisCm[0] + half * c,
+    y: axisCm[1] + half * s,
+    hx: half + (widthCm / 2) * HALF_STEP_SIN + ARM_SAMPLE_SLACK_CM,
+    hy: widthCm / 2 + lengthCm * HALF_STEP_SIN + ARM_SAMPLE_SLACK_CM,
+    yawDeg: deg,
+  };
 }
 
 /** cos and sin of an angle in degrees: exact at the right angles (as overlap.ts), dmath's everywhere else. */
