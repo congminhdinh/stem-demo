@@ -89,36 +89,79 @@ describe('servo-angle in a zone', () => {
   });
 });
 
-describe('servo-angle at the end', () => {
-  it('passes when the angle is in range on the last frame', () => {
+describe('servo-angle without a zone', () => {
+  // The 0.5 s of the hold applies here as well: the angle has to be held, wherever the robot is.
+  const at = (deg: number, xCm = 100, yCm = 80) => ({ xCm, yCm, servoDeg: { servo1: deg } });
+  const held = (deg: number, ticks: number) => Array.from({ length: ticks }, () => at(deg));
+
+  it('passes when the angle is in range for 0.5 s, on the frame that is 0.5 s after the first', () => {
     const goal = createServoAngleGoal(anywhere, ctx);
-    feed(goal, [{ servoDeg: { servo1: 0 } }, { servoDeg: { servo1: 45 } }, { servoDeg: { servo1: 90 } }]);
-    expect(goal.result()).toEqual({ id: 'goal', passed: true, points: 10, progress: 1 });
+    feed(goal, held(90, 4), { dtS: dt, fromS: 3 }); // 3, 3.125, 3.25, 3.375 s
+    expect(goal.result()).toEqual({ id: 'goal', passed: false, points: 0, progress: 0.75, reasonKey: goalReasons.servoOutOfRange });
+    feed(goal, held(90, 1), { dtS: dt, fromS: 3.5 });
+    expect(goal.result()).toEqual({ id: 'goal', passed: true, points: 10, progress: 1, atS: 3.5 });
   });
 
-  it('is the last frame that counts, wherever the robot is: an angle that was right and moved is not', () => {
+  it('fails an angle that is set only on the final tick', () => {
     const goal = createServoAngleGoal(anywhere, ctx);
-    feed(goal, [{ servoDeg: { servo1: 90 } }, { servoDeg: { servo1: 90 } }, { servoDeg: { servo1: 90 } }, { servoDeg: { servo1: 120 } }]);
+    feed(goal, [...held(0, 8), at(90)], { dtS: dt });
     expect(goal.result()).toEqual({ id: 'goal', passed: false, points: 0, progress: 0, reasonKey: goalReasons.servoOutOfRange });
+    feed(goal, [at(90), at(90), at(90)], { dtS: dt, fromS: 9 * dt }); // still short of the 0.5 s: 3 more frames make 0.375 s
+    expect(goal.result()).toMatchObject({ passed: false, progress: 0.75 });
+  });
+
+  it('keeps a pass for an angle that was held for 0.5 s at any time and moved afterwards', () => {
+    const goal = createServoAngleGoal(anywhere, ctx);
+    feed(goal, [...held(0, 3), ...held(90, 5), at(0), at(120), at(179)], { dtS: dt });
+    expect(goal.result()).toEqual({ id: 'goal', passed: true, points: 10, progress: 1, atS: 7 * dt });
+  });
+
+  it('starts over when the angle leaves the range for one frame', () => {
+    const goal = createServoAngleGoal(anywhere, ctx);
+    feed(goal, [...held(90, 4), at(120), ...held(90, 4)], { dtS: dt }); // 4 frames since the break: 0.375 s
+    expect(goal.result()).toMatchObject({ passed: false, progress: 0.75 });
+    feed(goal, held(90, 1), { dtS: dt, fromS: 9 * dt });
+    expect(goal.result()).toMatchObject({ passed: true, atS: 9 * dt });
+  });
+
+  it('does not care where the robot is: it can drive while the servo is held', () => {
+    const goal = createServoAngleGoal(anywhere, ctx);
+    feed(goal, [at(90, 10, 10), at(90, 50, 20), at(90, 120, 90), at(90, 190, 150), at(90, 30, 130)], { dtS: dt });
+    expect(goal.result()).toMatchObject({ passed: true, atS: 4 * dt });
   });
 
   it('takes both ends of the range', () => {
-    const at = (deg: number) => {
+    const run = (deg: number) => {
       const goal = createServoAngleGoal(anywhere, ctx);
-      feed(goal, [{ servoDeg: { servo1: deg } }]);
+      feed(goal, held(deg, 5), { dtS: dt });
       return goal.result().passed;
     };
-    expect([at(80), at(100)]).toEqual([true, true]);
-    expect([at(79.999), at(100.001)]).toEqual([false, false]);
+    expect([run(80), run(100)]).toEqual([true, true]);
+    expect([run(79.999), run(100.001)]).toEqual([false, false]);
   });
 
-  it('has not passed before the first frame', () => {
-    expect(createServoAngleGoal(anywhere, ctx).result()).toMatchObject({ passed: false, reasonKey: goalReasons.servoOutOfRange });
-  });
-
-  it('is not about where the robot is: leaving the arena does not fail it', () => {
+  it('has not passed before the first frame, and a servo the frame lacks is out of range', () => {
+    expect(createServoAngleGoal(anywhere, ctx).result()).toMatchObject({ passed: false, progress: 0, reasonKey: goalReasons.servoOutOfRange });
     const goal = createServoAngleGoal(anywhere, ctx);
-    feed(goal, [{ servoDeg: { servo1: 90 }, outOfArena: true }]);
-    expect(goal.result()).toMatchObject({ passed: true });
+    feed(goal, Array.from({ length: 8 }, () => ({ servoDeg: { servo2: 90 } })), { dtS: dt });
+    expect(goal.result().passed).toBe(false);
+  });
+
+  describe('when the robot leaves the arena', () => {
+    it('fails for good with the reason if the hold was not done', () => {
+      const goal = createServoAngleGoal(anywhere, ctx);
+      feed(goal, [at(90), at(90), { ...at(90), outOfArena: true }, ...held(90, 10)], { dtS: dt });
+      expect(goal.result()).toEqual({ id: 'goal', passed: false, points: 0, progress: 0, reasonKey: goalReasons.outOfArena, atS: 2 * dt });
+    });
+
+    it('keeps a pass', () => {
+      const goal = createServoAngleGoal(anywhere, ctx);
+      feed(goal, [...held(90, 5), { ...at(0), outOfArena: true }], { dtS: dt });
+      expect(goal.result()).toMatchObject({ passed: true, atS: 0.5 });
+    });
+  });
+
+  it('refuses a tick that is not a time', () => {
+    expect(() => feed(createServoAngleGoal(anywhere, ctx), [at(90)], { dtS: -0.1 })).toThrow(RangeError);
   });
 });

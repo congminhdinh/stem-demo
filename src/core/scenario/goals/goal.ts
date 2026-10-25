@@ -10,19 +10,20 @@ import type { GoalReasonKey } from './reasons';
 // What every kind follows:
 //   - Pure arithmetic on `GoalFrame`s (frame.ts), no clock, no randomness: the same frames give the same results on every engine.
 //   - `result()` is the judgement of the run so far, as if it ended now, and changes nothing. A goal that passes once stays passed
-//     (reach-zone, checkpoints-in-order, stop-in-zone, servo-angle in a zone). A goal that is about the end (object-in-zone,
-//     stay-on-line, servo-angle without a zone) and one that is about not doing something (avoid-contact) follow the run, so they
-//     are read after the last frame.
+//     (reach-zone, checkpoints-in-order, stop-in-zone, servo-angle, with or without a zone). A goal that is about the end
+//     (object-in-zone, stay-on-line) and one that is about not doing something (avoid-contact) follow the run, so they are read
+//     after the last frame.
 //   - Points are all or nothing: `points` is the spec's when the goal has passed and 0 otherwise. `progress` (0..1) is for the UI only.
 //   - A goal that has not passed says why with a `reasonKey` (reasons.ts); one that has passed has none. `atS` is the simulated time
 //     of the event that settled it (the pass, or the contact, or the moment the robot left the arena) and is left out when no event did.
 //   - avoid-contact and stay-on-line are guard goals (travel.ts): a robot that never drives would meet them, so they pass only after a
 //     path of MIN_GUARD_TRAVEL_CM; before that they have not passed, with `robot-did-not-move`.
-//   - The robot "being somewhere" means the middle of its body (`robot.xCm`, `yCm`), judged on the paint's own edge rule (geometry.ts).
-//   - The robot leaving the arena (`frame.outOfArena`) ends the goals that depend on where things are: those not yet passed fail for
-//     good with `out-of-arena`. A pass is kept. Those goals are reach-zone, checkpoints-in-order, stay-on-line, object-in-zone,
-//     stop-in-zone and servo-angle in a zone. avoid-contact, servo-angle without a zone, finish-within and uses-block are not about
-//     where things are, so leaving the arena does not end them. On a frame that is both out of the arena and in a zone, leaving wins.
+//   - The robot "being somewhere" means the middle of its body (`robot.xCm`, `yCm`) in the zone's polygon, by the point-in-polygon rule of
+//     geometry.ts (the paint's arithmetic and edge rule; what a sensor reads there can be tape or a later zone instead).
+//   - Every tick is checked the same way, on the first line of `update`: `dtS` is a finite time of 0 s or more or it is a RangeError (tick.ts).
+//   - The robot leaving the arena (`frame.outOfArena`) ends the goals that have not passed: they fail for good with `out-of-arena`, at the
+//     time it left. A pass is kept. That is every kind but two: finish-within, which only compares the scorer's time with its limit, and
+//     uses-block, which is the program alone. On a frame that is both out of the arena and in a zone (or touching a collider), leaving wins.
 
 /** The outcome of a goal. */
 export type GoalResult = {

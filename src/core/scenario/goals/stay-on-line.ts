@@ -1,6 +1,7 @@
 import { createGroundPaint } from '../../world/arena/ground-paint';
 import { outcome, type Goal, type GoalContext, type GoalSpec } from './goal';
 import { goalReasons } from './reasons';
+import { assertTickS } from './tick';
 import { createTravelMeter } from './travel';
 
 // `stay-on-line`: the share of the ticks the robot is moving on which one of its line-sensor spots is over the tape, from the start of
@@ -34,6 +35,7 @@ export function createStayOnLineGoal(spec: GoalSpec<'stay-on-line'>, ctx: Pick<G
   let leftAtS: number | undefined;
   return {
     update(frame, dtS) {
+      assertTickS(dtS);
       travel.add(frame, dtS);
       if (leftAtS !== undefined) return;
       if (frame.outOfArena) {

@@ -1,6 +1,7 @@
 import { zonePolygon, insidePolygon } from './geometry';
 import { outcome, type Goal, type GoalContext, type GoalSpec } from './goal';
 import { goalReasons } from './reasons';
+import { assertTickS } from './tick';
 
 // `object-in-zone`: the middle of the object is inside the zone at the end of the run. The state of the last frame is what counts, so
 // an object that was in the zone and has been pushed out again does not pass, and one pushed in at the last moment does. An object the
@@ -15,7 +16,8 @@ export function createObjectInZoneGoal(spec: GoalSpec<'object-in-zone'>, ctx: Pi
   let inZone = false;
   let leftAtS: number | undefined;
   return {
-    update(frame) {
+    update(frame, dtS) {
+      assertTickS(dtS);
       if (leftAtS !== undefined) return;
       if (frame.outOfArena) {
         leftAtS = frame.tS;

@@ -1,5 +1,5 @@
 import type { GoalFrame } from './frame';
-import { assertTickS } from './hold';
+import { assertTickS } from './tick';
 
 // How far the robot has driven (N18 R6.1, controller ruling). `avoid-contact` and `stay-on-line` are guard goals: they are met by
 // not doing something (not touching, not leaving the tape), so a robot that does nothing would meet them. Each can pass only if the

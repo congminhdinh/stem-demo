@@ -8,6 +8,7 @@ import type { GoalSpec } from './goal';
 
 const route: GoalSpec<'checkpoints-in-order'> = { ...base, kind: 'checkpoints-in-order', zones: ['cp-a', 'cp-b', 'dock'] };
 const goalFor = (zones: string[]) => createCheckpointsGoal({ ...route, zones }, ctx);
+// The scenario schema refuses a route over zones that overlap; a goal made by hand over them is still judged in a fixed way.
 const overlapping = parseArena({
   ground: { sizeCm: [100, 100], color: '#ffffff' },
   paint: {

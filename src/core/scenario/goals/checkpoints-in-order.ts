@@ -1,13 +1,17 @@
 import { zonePolygon, insidePolygon } from './geometry';
 import { outcome, type Goal, type GoalContext, type GoalSpec } from './goal';
 import { goalReasons } from './reasons';
+import { assertTickS } from './tick';
 
 // `checkpoints-in-order`: the zones must be entered in the order they are listed.
 //
 // What counts is an entry: the middle of the robot is in the zone on this frame and was not on the one before (on the first frame, it
 // was nowhere before). Staying in a zone is not entering it again. Each frame, the zone that is next on the list is counted if it was
-// entered, and so on down the list for zones entered on the same frame (zones that overlap, entered at one instant, count in the order
-// they are listed). A zone listed twice in a row takes two entries.
+// entered, and so on down the list for zones entered on the same frame. A zone listed twice in a row takes two entries.
+//
+// The scenario schema refuses a route whose zones overlap (scenario-schema.ts), so two zones of a route are not entered at one instant
+// except by a jump across a frame. A goal made by hand over zones that do overlap is still judged in a fixed way, and the tests hold it:
+// the zones entered on one frame count in the order they are listed, and one the robot was already in is not entered again.
 //
 // A zone entered before the ones that come first is not counted. It does not spoil the route: the robot can go on and come back to it.
 // Entering a zone that was already counted is harmless. When the route is never done, `checkpoint-out-of-order` is the reason if any
@@ -23,7 +27,8 @@ export function createCheckpointsGoal(spec: GoalSpec<'checkpoints-in-order'>, ct
   let passedAtS: number | undefined;
   let leftAtS: number | undefined;
   return {
-    update(frame) {
+    update(frame, dtS) {
+      assertTickS(dtS);
       if (passedAtS !== undefined || leftAtS !== undefined) return;
       if (frame.outOfArena) {
         leftAtS = frame.tS;

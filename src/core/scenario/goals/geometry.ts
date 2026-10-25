@@ -3,11 +3,14 @@ import type { Arena, PointCm } from '../../world/arena/arena-schema';
 // Where things are, for the goals (N18 R6.1). Lengths in centimetres, the arena's frame.
 
 /**
- * Whether the point (x, y) is inside the polygon, even-odd (a crossing count along +x), by exactly the arithmetic that
- * `arena/ground-paint.ts` paints a zone with, so that the robot is "in a zone" precisely when its sensors would read the zone.
- * For the same reason the edge rule is the paint's: a point on a lower or left edge is inside, on an upper or right edge outside
- * (a half-open rule, so zones that tile the floor share no point). Written out here because ground-paint's own is private and
- * works on flat coordinates; geometry.test.ts holds the two together on a grid with the edges and corners on it.
+ * Whether the point (x, y) is inside the polygon, even-odd (a crossing count along +x). This is how every goal decides that the robot, or an
+ * object, is in a zone. It is the arithmetic of the polygon test of `arena/ground-paint.ts`, with its edge rule: a point on a lower or left
+ * edge is inside, on an upper or right edge outside (a half-open rule, so zones that tile the floor share no point).
+ *
+ * Membership follows this rule and nothing else. It equals what a sensor reads only where nothing lies over the zone: the paint puts tape
+ * over a zone and a later zone over an earlier one, so under a line, or in an overlap, the sensor reads the tape or the other zone while
+ * the point is still inside this one. (Written out here because ground-paint's own test is private and works on flat coordinates;
+ * geometry.test.ts holds the two together on a grid with the edges and corners on it, for zones with no tape or overlap.)
  */
 export function insidePolygon(polygon: readonly PointCm[], x: number, y: number): boolean {
   let inside = false;

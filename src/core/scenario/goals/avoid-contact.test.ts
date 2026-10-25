@@ -63,10 +63,36 @@ describe('avoid-contact', () => {
     expect(goal.result().passed).toBe(true);
   });
 
-  it('is not a spatial goal: leaving the arena after driving, without touching anything, does not fail it', () => {
-    const goal = createAvoidContactGoal(spec);
-    feed(goal, [...cruise(2), { ...cruising, outOfArena: true }]);
-    expect(goal.result()).toMatchObject({ passed: true, points: 10 });
+  describe('when the robot leaves the arena', () => {
+    it('fails for good, at the time it left, with the reason: a robot that falls off the table has crashed', () => {
+      const goal = createAvoidContactGoal(spec);
+      feed(goal, [...cruise(2), { ...cruising, outOfArena: true }, ...cruise(10)], { dtS: 0.5 });
+      expect(goal.result()).toEqual({ id: 'goal', passed: false, points: 0, progress: 0, reasonKey: goalReasons.outOfArena, atS: 1 });
+    });
+
+    it('fails a robot that left the arena before it had driven the least path', () => {
+      const goal = createAvoidContactGoal(spec);
+      feed(goal, [{ ...nowhere, outOfArena: true }]);
+      expect(goal.result()).toMatchObject({ passed: false, reasonKey: goalReasons.outOfArena, atS: 0 });
+    });
+
+    it('keeps the contact when the robot touched the tag before it left', () => {
+      const goal = createAvoidContactGoal(spec);
+      feed(goal, [cruising, { ...cruising, contacts: [block] }, { ...cruising, outOfArena: true }], { dtS: 0.5 });
+      expect(goal.result()).toMatchObject({ passed: false, reasonKey: goalReasons.contact, atS: 0.5 });
+    });
+
+    it('keeps leaving the arena as the reason when the robot touched the tag after it', () => {
+      const goal = createAvoidContactGoal(spec);
+      feed(goal, [cruising, { ...cruising, outOfArena: true }, { ...cruising, contacts: [block] }], { dtS: 0.5 });
+      expect(goal.result()).toMatchObject({ passed: false, reasonKey: goalReasons.outOfArena, atS: 0.5 });
+    });
+
+    it('says leaving the arena on a frame that is also a contact', () => {
+      const goal = createAvoidContactGoal(spec);
+      feed(goal, [{ ...cruising, outOfArena: true, contacts: [block] }]);
+      expect(goal.result()).toMatchObject({ reasonKey: goalReasons.outOfArena, atS: 0 });
+    });
   });
 
   // The guard (controller ruling): a robot that touches nothing because it never left its place has not earned the goal.
@@ -94,12 +120,6 @@ describe('avoid-contact', () => {
       const goal = createAvoidContactGoal(spec);
       feed(goal, cruise(2));
       expect(goal.result().passed).toBe(true);
-    });
-
-    it('does not count a fall: ticks out of the arena add nothing to the path', () => {
-      const goal = createAvoidContactGoal(spec);
-      feed(goal, [{ ...cruising, speedCmS: 40 }, { ...cruising, outOfArena: true }, { ...cruising, outOfArena: true }]);
-      expect(goal.result()).toMatchObject({ passed: false, progress: 0.5, reasonKey: goalReasons.robotDidNotMove });
     });
 
     it('refuses a tick that is negative or not a number', () => {

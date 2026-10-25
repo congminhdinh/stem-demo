@@ -33,6 +33,27 @@ describe('createGoal', () => {
     expect(() => createGoal({ ...base, kind: 'teleport' } as unknown as RobotGoalSpec, ctx)).toThrow('unknown goal kind "teleport"');
   });
 
+  // Every kind checks the tick the same way, on its first line, whatever else it does or has already settled.
+  describe('the tick', () => {
+    it.each(scenario.goals.map((goal) => [goal.kind, goal] as const))('%s refuses a tick that is negative or not a finite time with a RangeError', (_kind, spec) => {
+      for (const dtS of [-0.25, Number.NaN, Number.POSITIVE_INFINITY]) {
+        expect(() => createGoal(spec, full).update(frameAt(), dtS)).toThrow(RangeError);
+      }
+    });
+
+    it.each(scenario.goals.map((goal) => [goal.kind, goal] as const))('%s takes a tick of 0 s and the usual one', (_kind, spec) => {
+      const goal = createGoal(spec, full);
+      expect(() => goal.update(frameAt(), 0)).not.toThrow();
+      expect(() => goal.update(frameAt({ tS: 0.25 }), 0.25)).not.toThrow();
+    });
+
+    it.each(scenario.goals.map((goal) => [goal.kind, goal] as const))('%s refuses it also after it has settled', (_kind, spec) => {
+      const goal = createGoal(spec, full);
+      goal.update(frameAt({ ...inside.dock, outOfArena: true, speedCmS: 60 }), 0.5); // settles every goal that a frame can
+      expect(() => goal.update(frameAt({ tS: 0.5 }), -1)).toThrow(RangeError);
+    });
+  });
+
   describe('when the robot leaves the arena', () => {
     const run = (id: string): GoalResult => {
       const goal = createGoal(specOf(id), full);
@@ -41,12 +62,18 @@ describe('createGoal', () => {
       return goal.result();
     };
 
-    it.each(['reach-dock', 'route', 'on-line', 'push-crate', 'park', 'gate-open'])('fails %s, which depends on where things are, with the reason and the time', (id) => {
+    it.each(['reach-dock', 'route', 'on-line', 'no-bump', 'push-crate', 'park', 'gate-open'])('fails %s, which has not passed, with the reason and the time', (id) => {
       expect(run(id)).toMatchObject({ passed: false, points: 0, reasonKey: goalReasons.outOfArena, atS: 0.5 });
     });
 
-    it.each(['no-bump', 'loop'])('leaves %s, which does not, as it was', (id) => {
-      expect(run(id)).toMatchObject({ passed: true, points: 10 });
+    it('leaves uses-block as it was: it is the program that decides', () => {
+      expect(run('loop')).toMatchObject({ passed: true, points: 10 });
+    });
+
+    it('keeps a goal that has already passed', () => {
+      const goal = createGoal(specOf('reach-dock'), full);
+      feed(goal, [inside.dock, { ...nowhere, outOfArena: true }]);
+      expect(goal.result()).toMatchObject({ passed: true, points: 10, atS: 0 });
     });
 
     it('lets the scorer decide finish-within, which has no place of its own', () => {
@@ -57,8 +84,13 @@ describe('createGoal', () => {
   });
 });
 
-// A run of the fixture scenario, scored the way R6.2 wires the goals: every goal is updated on each frame, and finish-within asks
-// the scorer for the time at which the others had all passed.
+// A run of the fixture scenario, with the goals wired the naive way: every goal is updated on each frame, and finish-within asks the
+// scorer for the first time at which the others had all passed together.
+//
+// This is NOT the rule R6.2 must use. The first moment can be lost again: object-in-zone, stay-on-line and avoid-contact follow the run
+// and read at its end, so the crate may be pushed back out after finish-within has been given a time. R6.2's `othersPassedAtS` has to
+// be the start of the final all-passed streak (the last time the others went from not all passed to all passed and stayed so to the end
+// of the run), or null unless the others' final results all passed. The helper below only shows the shape of the wiring.
 
 type Leg = { to: readonly [number, number]; ticks: number; speedCmS: number; tape: boolean; servoDeg?: number; crate?: readonly [number, number]; contacts?: FrameInit['contacts'] };
 

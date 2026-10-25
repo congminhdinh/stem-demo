@@ -22,7 +22,7 @@ export const goalReasons = {
   objectNotInZone: 'robot.goal.reason.object-not-in-zone',
   /** `stop-in-zone`: the robot did not stand still in the zone for long enough. */
   notStoppedInZone: 'robot.goal.reason.not-stopped-in-zone',
-  /** `servo-angle` without a zone: the servo is not at the angle at the end. */
+  /** `servo-angle` without a zone: the servo was never held at the angle for long enough. */
   servoOutOfRange: 'robot.goal.reason.servo-out-of-range',
   /** `servo-angle` with a zone: the servo was never held at the angle, in the zone, for long enough. */
   servoNotSetInZone: 'robot.goal.reason.servo-not-set-in-zone',

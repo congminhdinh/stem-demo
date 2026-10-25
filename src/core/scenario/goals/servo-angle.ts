@@ -1,42 +1,31 @@
 import { zonePolygon, insidePolygon } from './geometry';
 import { outcome, type Goal, type GoalContext, type GoalSpec } from './goal';
-import { assertTickS, createHold } from './hold';
+import { createHold } from './hold';
 import { goalReasons } from './reasons';
+import { assertTickS } from './tick';
 
-// `servo-angle`: the angle of the servo of `role` is in [minDeg, maxDeg], both ends included.
+// `servo-angle`: the angle of the servo of `role` is in [minDeg, maxDeg], both ends included, and held there for SERVO_HOLD_S in a row
+// (hold.ts says how a hold is timed). The half second applies with and without a zone:
 //
-//   - With `whenInZone`: it has to be in range while the middle of the robot is in that zone, for SERVO_HOLD_S in a row (hold.ts says how
-//     a hold is timed). Passing is kept: the servo may move on afterwards. Leaving the arena before it ends the goal.
-//   - Without: the angle on the last frame is what counts, wherever the robot is, so a servo that was right and has been moved again has
-//     not passed. Leaving the arena does not end it, since it is not about where the robot is.
+//   - With `whenInZone`: the angle has to be in range while the middle of the robot is in that zone, the two together for the whole time.
+//   - Without: the angle alone, wherever the robot is.
 //
-// A servo the frame has no angle for is out of range.
+// Passing is kept: the servo may move on afterwards, so an angle that was held for half a second at any time has passed, and one that
+// is set only on the last tick has not. Leaving the arena before the hold is done ends the goal for good (`out-of-arena`), as for every
+// goal that depends on where things are; a pass is kept. A servo the frame has no angle for is out of range.
 
-/** How long a servo is held at its angle in the zone. */
+/** How long a servo is held at its angle. */
 export const SERVO_HOLD_S = 0.5;
 
 export function createServoAngleGoal(spec: GoalSpec<'servo-angle'>, ctx: Pick<GoalContext, 'arena'>): Goal {
+  const zone = spec.whenInZone === undefined ? undefined : zonePolygon(ctx.arena, spec.whenInZone);
+  const hold = createHold(SERVO_HOLD_S);
+  let passedAtS: number | undefined;
+  let leftAtS: number | undefined;
   const inRange = (servoDeg: Readonly<Record<string, number>>): boolean => {
     const deg = Object.hasOwn(servoDeg, spec.role) ? servoDeg[spec.role] : undefined;
     return deg !== undefined && deg >= spec.minDeg && deg <= spec.maxDeg;
   };
-
-  if (spec.whenInZone === undefined) {
-    let rightNow = false;
-    return {
-      update(frame) {
-        rightNow = inRange(frame.servoDeg);
-      },
-      result() {
-        return rightNow ? outcome(spec, { passed: true }) : outcome(spec, { passed: false, progress: 0, reasonKey: goalReasons.servoOutOfRange });
-      },
-    };
-  }
-
-  const zone = zonePolygon(ctx.arena, spec.whenInZone);
-  const hold = createHold(SERVO_HOLD_S);
-  let passedAtS: number | undefined;
-  let leftAtS: number | undefined;
   return {
     update(frame, dtS) {
       assertTickS(dtS);
@@ -45,13 +34,14 @@ export function createServoAngleGoal(spec: GoalSpec<'servo-angle'>, ctx: Pick<Go
         leftAtS = frame.tS;
         return;
       }
-      const set = inRange(frame.servoDeg) && insidePolygon(zone, frame.robot.xCm, frame.robot.yCm);
+      const set = inRange(frame.servoDeg) && (zone === undefined || insidePolygon(zone, frame.robot.xCm, frame.robot.yCm));
       if (hold.tick(set, dtS)) passedAtS = frame.tS;
     },
     result() {
       if (passedAtS !== undefined) return outcome(spec, { passed: true, atS: passedAtS });
       if (leftAtS !== undefined) return outcome(spec, { passed: false, progress: 0, reasonKey: goalReasons.outOfArena, atS: leftAtS });
-      return outcome(spec, { passed: false, progress: hold.progress, reasonKey: goalReasons.servoNotSetInZone });
+      const reasonKey = zone === undefined ? goalReasons.servoOutOfRange : goalReasons.servoNotSetInZone;
+      return outcome(spec, { passed: false, progress: hold.progress, reasonKey });
     },
   };
 }

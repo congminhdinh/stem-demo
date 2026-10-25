@@ -1,5 +1,6 @@
 import { outcome, type Goal, type GoalContext, type GoalSpec } from './goal';
 import { goalReasons } from './reasons';
+import { assertTickS } from './tick';
 
 // `finish-within`: passes when all the other goals of the scenario passed by `seconds` of simulated time, the limit included.
 //
@@ -14,7 +15,9 @@ export function createFinishWithinGoal(spec: GoalSpec<'finish-within'>, ctx: Pic
     throw new TypeError('finish-within needs ctx.othersPassedAtS, the scorer\'s answer to when the other goals had all passed.');
   }
   return {
-    update() {},
+    update(_frame, dtS) {
+      assertTickS(dtS);
+    },
     result() {
       const passedAtS = othersPassedAtS();
       if (passedAtS !== null && passedAtS <= spec.seconds) return outcome(spec, { passed: true, atS: passedAtS });

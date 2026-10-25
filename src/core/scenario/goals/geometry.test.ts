@@ -37,7 +37,7 @@ describe('insidePolygon', () => {
     expect(insidePolygon(arrow, 3, 30)).toBe(true);
   });
 
-  // The sensor and the goal must agree on what is inside a zone: a robot that reads the zone's colour under its middle is in it.
+  // Where nothing lies over the zone, the goal and the sensor agree: a point that reads the zone's colour is inside it, and no other is.
   it('is the rule the ground paint paints a zone by, at every point of a fine grid with the edges and corners on it', () => {
     const polygon: PointCm[] = [[10, 20], [50, 20], [50, 60], [30, 40], [10, 60]];
     const arena = parseArena({
@@ -54,6 +54,32 @@ describe('insidePolygon', () => {
       }
     }
     expect(inside).toBeGreaterThan(100); // the grid did land in the zone
+  });
+});
+
+describe('insidePolygon where the paint is covered', () => {
+  const polygon: PointCm[] = [[10, 10], [50, 10], [50, 50], [10, 50]];
+  const arena = parseArena({
+    ground: { sizeCm: [100, 100], color: '#ffffff', reflectance: 1 },
+    paint: {
+      lines: [{ pointsCm: [[0, 30], [100, 30]], widthCm: 4 }],
+      zones: [
+        { id: 'under', kind: 'area', polygonCm: polygon, color: '#808080', reflectance: 0.5 },
+        { id: 'over', kind: 'area', polygonCm: [[30, 10], [70, 10], [70, 50], [30, 50]], color: '#404040', reflectance: 0.25 },
+      ],
+    },
+  });
+  const paint = createGroundPaint(arena);
+
+  it('says a point under the tape is inside the zone, though a sensor reads the tape', () => {
+    expect(paint.groundReflectanceAt(20, 30, 0)).toBe(0);
+    expect(insidePolygon(polygon, 20, 30)).toBe(true);
+  });
+
+  it('says a point in the overlap is inside both zones, though a sensor reads the later one', () => {
+    expect(paint.groundReflectanceAt(40, 20, 0)).toBe(0.25);
+    expect(insidePolygon(polygon, 40, 20)).toBe(true);
+    expect(insidePolygon([[30, 10], [70, 10], [70, 50], [30, 50]], 40, 20)).toBe(true);
   });
 });
 

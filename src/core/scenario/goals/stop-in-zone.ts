@@ -1,7 +1,8 @@
 import { zonePolygon, insidePolygon } from './geometry';
 import { outcome, type Goal, type GoalContext, type GoalSpec } from './goal';
-import { assertTickS, createHold } from './hold';
+import { createHold } from './hold';
 import { goalReasons } from './reasons';
+import { assertTickS } from './tick';
 
 // `stop-in-zone`: passes once the middle of the robot has been in the zone, at a speed of at most `maxSpeedCmS`, for `holdS` seconds
 // in a row (hold.ts says how a hold is timed: `holdS` between the first frame of the stop and the frame that completes it). Leaving
