@@ -99,7 +99,8 @@ describe('the cost of a robot run', () => {
     } finally {
       world.dispose();
     }
-  });
+    // 12 000 world steps: 1.4 s alone, 6.4 s next to other workers and agents, past Vitest's default of 5 s (N18 P1).
+  }, 120_000);
 
   it('a headless check of 3 variants × 60 s with the program in the loop and every goal fed each tick takes under 20 s (the strict 10 s: pnpm bench:robot)', async () => {
     const started = threadCpuMs();
