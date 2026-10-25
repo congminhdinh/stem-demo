@@ -273,6 +273,9 @@ export const en = {
   'robot.camera.follow': 'Follow the robot',
   'robot.camera.top': 'Top view',
   'robot.camera.reset': 'Reset the view',
+  'robot.sensors': 'Show sensors',
+  'robot.sensors.hint':
+    'Shows what the robot senses: the ultrasonic ray to the distance it hears (the cone is where it listens), where each line sensor looks on the mat, and the zone of the next goal.',
   'robot.quality.high': 'Graphics: detailed',
   'robot.quality.low': 'Graphics: light',
   'robot.quality.hint': 'Light graphics draw no shadows: smoother on a slow computer',
@@ -646,6 +649,9 @@ export const vi: Readonly<Record<MessageKey, string>> = {
   'robot.camera.follow': 'Theo xe',
   'robot.camera.top': 'Nhìn từ trên',
   'robot.camera.reset': 'Đặt lại góc nhìn',
+  'robot.sensors': 'Hiện cảm biến',
+  'robot.sensors.hint':
+    'Hiện những gì robot cảm nhận được: tia siêu âm tới khoảng cách nó nghe thấy (hình nón là vùng nó lắng nghe), chỗ mỗi cảm biến dò line nhìn xuống sa bàn, và vùng của mục tiêu kế tiếp.',
   'robot.quality.high': 'Đồ hoạ: đẹp',
   'robot.quality.low': 'Đồ hoạ: nhẹ',
   'robot.quality.hint': 'Đồ hoạ nhẹ không vẽ bóng đổ: mượt hơn trên máy yếu',

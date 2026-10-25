@@ -1,0 +1,58 @@
+/*
+ * The "Hiện cảm biến" switch of the sensor overlays (N18 R4.3). In the 3D view it is the last button of the camera's panel (top right), an
+ * icon after "Đặt lại góc nhìn"; on, it is tinted, not filled, so that it does not read as one more selected view. Over the 2D map, which
+ * has no camera views, it has a 32 px panel of its own in their place. The app's tokens only.
+ */
+
+.robot-camera .robot-sensors-camera {
+  padding: 2px 6px;
+  border-left: 1px solid var(--stem-color-border);
+  border-radius: 0 6px 6px 0;
+}
+
+.robot-camera .robot-camera-reset:has(+ .robot-sensors-camera) {
+  border-radius: 0;
+}
+
+.robot-camera .robot-sensors-camera[aria-pressed='true'] {
+  background: var(--stem-color-primary-soft);
+  color: var(--stem-color-primary);
+}
+
+.robot-sensors-panel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--stem-color-border);
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-overlay);
+  box-shadow: 0 2px 8px var(--stem-shadow-scroll);
+  color: var(--stem-color-text);
+  cursor: pointer;
+}
+
+.robot-sensors-panel:hover {
+  background: var(--stem-color-primary-soft);
+}
+
+.robot-sensors-panel[aria-pressed='true'] {
+  border-color: var(--stem-color-primary);
+  background: var(--stem-color-primary-soft);
+  color: var(--stem-color-primary);
+}
+
+.robot-sensors .robot-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.robot-sensors:focus-visible {
+  outline: 3px solid var(--stem-color-primary);
+  outline-offset: 1px;
+}

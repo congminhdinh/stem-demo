@@ -8,6 +8,7 @@ import { tierLook } from './lighting/look';
 import { Icon } from './icons';
 import { probeWebgl, tierForRenderer, type QualityTier, type WebglProbe } from './quality';
 import Scene, { type SceneProps } from './Scene';
+import { SensorToggle } from './SensorToggle';
 import { ViewFallback } from './ViewFallback';
 import { CONTEXT_RESTORE_WAIT_MS, fallbackReason, viewToggleAction, viewToggleText, type ContextState } from './webgl-support';
 
@@ -115,6 +116,7 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
     return (
       <>
         {fallbackView}
+        {tools && <SensorToggle tools={tools} variant="panel" />}
         {viewButton}
       </>
     );
@@ -170,7 +172,9 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
         <button type="button" className="robot-camera-reset" onClick={() => setResetKey((count) => count + 1)} title={t('robot.camera.reset')} aria-label={t('robot.camera.reset')} data-testid="robot-camera-reset">
           <Icon name="recenter" />
         </button>
+        {tools && fallback === null && <SensorToggle tools={tools} variant="camera" />}
       </div>
+      {tools && fallback !== null && <SensorToggle tools={tools} variant="panel" />}
       <button
         type="button"
         className="robot-quality"
