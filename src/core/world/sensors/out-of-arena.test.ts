@@ -6,8 +6,10 @@ import { parseArena } from '../arena/arena-schema';
 import { buildArena } from '../arena/build-arena';
 import { createGroundPaint } from '../arena/ground-paint';
 import { createPhysicsWorld, getRapier, initPhysics, refreshQueries } from '../rapier';
-import { arenaToWorld, rotateVector, type Vec3 } from '../units';
-import { isFiniteVector } from './collider-lookup';
+import { assembleRobot, stepWorld } from '../robot/assembly';
+import { localToWorld, multiplyQuaternions, robotPointToLocal } from '../robot/robot-frame';
+import { arenaToWorld, degToRad, rotateVector, yawToQuaternion, type Vec3 } from '../units';
+import { isFiniteVector, type SensorPose } from './collider-lookup';
 import { readContacts } from './contacts';
 import { measureLine } from './line';
 import { BELOW_GROUND_TOLERANCE_CM, isOutOfArena } from './out-of-arena';
@@ -59,11 +61,79 @@ describe('isOutOfArena', () => {
     expect(isOutOfArena(arena, arenaToWorld(75, 50, -100))).toBe(true);
   });
 
+  it('is a step at the border, with no hysteresis: one float32 step past it is out, back on it is in again', () => {
+    // Rapier's positions are float32: the next float32 after 1.5 m is 1.5 + 2⁻²³ m.
+    const step = 1.1920928955078125e-7;
+    const onBorder = { x: 1.5, y: 0, z: -0.5 };
+    expect(isOutOfArena(arena, onBorder)).toBe(false);
+    expect(isOutOfArena(arena, { ...onBorder, x: 1.5 + step })).toBe(true);
+    expect(isOutOfArena(arena, onBorder)).toBe(false);
+    expect(isOutOfArena(arena, { ...onBorder, x: 0 - step })).toBe(true);
+  });
+
   it('is out for a position that is not finite', () => {
     const middle = arenaToWorld(75, 50);
     expect(isOutOfArena(arena, { ...middle, x: Number.NaN })).toBe(true);
     expect(isOutOfArena(arena, { ...middle, y: Number.NEGATIVE_INFINITY })).toBe(true);
     expect(isOutOfArena(arena, { ...middle, z: Number.POSITIVE_INFINITY })).toBe(true);
+  });
+
+  it('robot falling off arena yields outOfArena and finite poses', () => {
+    const world = createPhysicsWorld();
+    try {
+      const built = buildArena(world, arena);
+      const paint = createGroundPaint(arena);
+      // The reference rover 20 cm from the open east edge, facing it, both motors at full duty for 5 s (600 ticks).
+      const robot = assembleRobot(world, rover, { xCm: 130, yCm: 50, yawDeg: 0 });
+      const full = { duty: 255, dir: 1 as const, brake: false };
+      robot.applyActuators({ motors: { motorLeft: full, motorRight: full } });
+      /** Where a module's mount is in the world now (R3.5 will compose this; here, from the robot frame). */
+      const mountPose = (mount: { posCm: readonly [number, number, number]; yawDeg: number }): SensorPose => {
+        const pose = robot.pose();
+        return {
+          position: localToWorld(pose.position, pose.rotation, robotPointToLocal(mount.posCm)),
+          rotation: multiplyQuaternions(pose.rotation, yawToQuaternion(degToRad(mount.yawDeg))),
+        };
+      };
+      const ultrasonic = modulesOfKind(rover, 'ultrasonic')[0]!;
+      const lines = modulesOfKind(rover, 'line-sensor');
+      const out: boolean[] = [];
+      for (let tick = 0; tick < 600; tick++) {
+        stepWorld(world, robot);
+        const { position, rotation } = robot.pose();
+        const echo = measureUltrasonic(world, built, mountPose(ultrasonic.mount), ultrasonic.spec, { exclude: robot.ownsCollider });
+        const values = [
+          position.x,
+          position.y,
+          position.z,
+          rotation.x,
+          rotation.y,
+          rotation.z,
+          rotation.w,
+          ...Object.values(robot.servoAngles()),
+          ...robot.wheelAngles(),
+          echo.cm,
+          echo.echoUs,
+          ...lines.flatMap((line) => {
+            const reading = measureLine(paint, mountPose(line.mount).position, line.spec);
+            return [reading.reflectance, reading.raw];
+          }),
+        ];
+        expect([tick, values.every(Number.isFinite)]).toEqual([tick, true]);
+        expect(values).toHaveLength(7 + 1 + 2 + 2 + 3 * 2);
+        expect(() => readContacts(world, built, robot.bodies)).not.toThrow();
+        out.push(isOutOfArena(arena, position));
+      }
+      expect(out[0]).toBe(false);
+      // Once out, it stays out; after 5 s it is far below the floor and touches nothing.
+      const firstOut = out.indexOf(true);
+      expect(firstOut).toBeGreaterThan(0);
+      expect(out.slice(firstOut).every(Boolean)).toBe(true);
+      expect(robot.pose().position.y).toBeLessThan(-10);
+      expect(readContacts(world, built, robot.bodies)).toEqual([]);
+    } finally {
+      world.free();
+    }
   });
 
   it('a body sliding off the arena falls out of it, with finite poses and finite sensor readings all the way down', () => {

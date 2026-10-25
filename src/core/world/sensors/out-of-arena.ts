@@ -8,9 +8,16 @@ import { worldToArena, type Vec3 } from '../units';
 export const BELOW_GROUND_TOLERANCE_CM = 1;
 
 /**
- * Whether `position` (world frame, m: the robot frame's origin, on the floor under the chassis) is off the arena: beyond
- * the ground's footprint (its border is in, as for every authored point), more than BELOW_GROUND_TOLERANCE_CM below the
- * floor, or not finite. There is no ceiling: a robot that bounces up is still over the arena.
+ * Whether `position` (world frame, m) is off the arena: beyond the ground's footprint (its border is in, as for every
+ * authored point), more than BELOW_GROUND_TOLERANCE_CM below the floor, or not finite. There is no ceiling: a robot that
+ * bounces up is still over the arena.
+ *
+ * - It tests one point, the robot frame's origin (`RobotBody.pose().position`, on the floor under the chassis body's
+ *   centre). A robot hanging half over an edge is still in until that point crosses the edge or sinks 1 cm, and its
+ *   wheels or bumper may be over the void before that.
+ * - It is a step, evaluated on each pose, with no hysteresis. Rapier keeps positions as float32 (steps of about 0.1 µm at
+ *   1–2 m), so a point within that of the border can read either way, and an origin that wobbles across the border reads
+ *   out and in on alternate ticks. Whoever needs "fell off" for good (R3.5's snapshot, R6's goals) latches it.
  */
 export function isOutOfArena(arena: Pick<Arena, 'ground'>, position: Vec3): boolean {
   const [width, depth] = arena.ground.sizeCm;
