@@ -117,8 +117,13 @@ export function createPhysicsWorld(): PhysicsWorld {
  * colliders; dynamic and kinematic bodies, fixed colliders). Whoever moves bodies by hand calls
  * `world.propagateModifiedBodyPositionsToColliders()` and then this.
  *
- * Contact events: a refresh passes no event queue, so a pair that starts touching during it reports no start event later
- * (it is already touching). Refresh while a world is being built, before t = 0.
+ * When it runs: while a world is being built, before t = 0 (buildArena, assembleRobot after its settle steps), and mid-run
+ * whenever bodies are moved by hand (the robot's `placeAt`, a reset).
+ *
+ * Contact events: a refresh passes no event queue, so a contact that begins inside it reports no start event, then or later
+ * (the pair is already touching at the next step). Mid-run, a robot put down against a wall by `placeAt` touches it without
+ * a start event: whoever needs to know what touches what reads the contact pairs' state (as `isGrounded` does), not only
+ * the events.
  */
 export function refreshQueries(world: PhysicsWorld): void {
   const timestep = world.timestep;
