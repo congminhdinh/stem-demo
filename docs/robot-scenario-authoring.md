@@ -379,5 +379,5 @@ Nhãn của vùng tự né vạch và chỗ robot đứng (thu nhỏ chữ, tớ
 - Chữ trên bản in là Be Vietnam Pro (`@fontsource`, đã có sẵn trong dependencies), nhúng thẳng vào trang nên giống nhau trên mọi máy. File `.svg` chỉ ghi tên font: máy mở nó mà không có font
   này dùng font hệ thống.
 - Một kịch bản mới không cần làm gì thêm: script đọc catalog, nên `pnpm export:arena-mat <key mới>` chạy ngay khi kịch bản nạp được.
-- Test: `src/core/scenario/arena-mat.test.ts` (SVG, viewBox, bề rộng vạch, id vùng, thanh 10 cm, kế hoạch lát trang), `tests/arena-mat-png.test.ts` (PNG: IHDR, pHYs, đọc lại bằng `node:zlib`),
+- Test: `src/core/scenario/arena-mat.test.ts` (SVG, viewBox, bề rộng vạch, id vùng, thanh 10 cm, kế hoạch lát trang, và với mỗi kịch bản: tại 20 000 điểm rải đều, độ phản xạ của `ground-paint.ts` bằng cái SVG vẽ, nên sai bề rộng vạch hay lật trục y là test đỏ), `tests/arena-mat-png.test.ts` (PNG: IHDR, pHYs, đọc lại bằng `node:zlib`),
   `tests/arena-mat-pdf.test.ts` (khung trang), `tests/export-arena-mat.test.ts` (chạy cả script cho `rb-drive-to-zone`, kiểm bốn file, MediaBox ± 0,5 pt và vài điểm ảnh).
