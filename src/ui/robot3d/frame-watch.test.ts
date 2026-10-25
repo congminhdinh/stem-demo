@@ -41,4 +41,22 @@ describe('the frame watch (N18 R4.7)', () => {
     expect(feed(watch, 59, 50)).toBe(false);
     expect(feed(watch, 1, 50)).toBe(true);
   });
+
+  it('lets a run whose robot stands still and blinks an LED be: a pair of frames every 0.5 s (484 ms, then 16.7 ms back to back) is not slow (fix round 2, N2)', () => {
+    const watch = createFrameWatch();
+    let slow = false;
+    // 60 s of blinks: the frame loop stops after each pair, and the first frame of a pair comes after that stop.
+    for (let i = 0; i < 120; i++) {
+      slow = watch.frame(484, true, false) || slow;
+      slow = watch.frame(16.7, true, true) || slow;
+    }
+    expect(slow).toBe(false);
+  });
+
+  it('still says a slow run is slow when its frames come back to back, every one of them late', () => {
+    const watch = createFrameWatch();
+    let slow = false;
+    for (let i = 0; i < 70; i++) slow = watch.frame(70, true, true) || slow;
+    expect(slow).toBe(true);
+  });
 });
