@@ -4,7 +4,7 @@
 // (`uptime`: every cell records the 1-minute load average next to its numbers).
 //
 //   node scripts/bench-robot3d.mjs [--profiles=a,b] [--scenarios=x,y] [--repeats=3] [--seconds=8] [--soak-minutes=10] [--switches=20]
-//                                  [--pass=fps|profile|all] [--skip=x,y] [--port=5300] [--no-build | --dist=<dir>] [--label=<name>] [--out=<dir>] [--smoke]
+//                                  [--pass=fps|profile|all] [--skip=x,y] [--sensors=on|off] [--port=5300] [--no-build | --dist=<dir>] [--label=<name>] [--out=<dir>] [--smoke]
 //                                  [--targets] [--report=a.json,b.json (the tables again from earlier results, merged)]
 //   pnpm bench:robot3d
 //
@@ -37,7 +37,7 @@
 
 import { chromium } from '@playwright/test';
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import { join, resolve } from 'node:path';
 import process from 'node:process';
@@ -108,7 +108,7 @@ const PROFILE_PASS_SCENARIOS = ['line-follow', 'mini-mission', 'check-4x', 'foll
 const PILOTS = ['drive-to-zone', 'square-route', 'stop-at-wall', 'line-follow', 'servo-gate', 'mini-mission'];
 
 function parseArguments(argv) {
-  const options = { profiles: Object.keys(PROFILES), scenarios: null, repeats: 3, seconds: 8, soakMinutes: 10, switches: 20, pass: 'all', skip: [], port: 5300, build: true, dist: null, label: null, out: join(cacheDir, 'results'), smoke: false, targets: false };
+  const options = { profiles: Object.keys(PROFILES), scenarios: null, repeats: 3, seconds: 8, soakMinutes: 10, switches: 20, pass: 'all', skip: [], sensors: 'on', port: 5300, build: true, dist: null, label: null, out: join(cacheDir, 'results'), smoke: false, targets: false };
   for (const arg of argv) {
     const [key, value] = arg.replace(/^--/, '').split('=');
     const number = () => {
@@ -119,6 +119,7 @@ function parseArguments(argv) {
     if (key === 'profiles') options.profiles = value.split(',');
     else if (key === 'scenarios') options.scenarios = value.split(',').flatMap((name) => (name === 'pilots' ? PILOTS : [name]));
     else if (key === 'skip') options.skip = value.split(',');
+    else if (key === 'sensors' && ['on', 'off'].includes(value)) options.sensors = value;
     else if (key === 'repeats') options.repeats = number();
     else if (key === 'seconds') options.seconds = number();
     else if (key === 'soak-minutes') options.soakMinutes = number();
@@ -166,7 +167,8 @@ function bundleReport() {
       const bytes = readFileSync(join(assets, file));
       return { file, bytes: bytes.length, gzip: gz(bytes) };
     });
-  const glbs = readdirSync(join(distDir, 'robot3d')).map((file) => {
+  // A build from before R4.7 has no model files.
+  const glbs = (existsSync(join(distDir, 'robot3d')) ? readdirSync(join(distDir, 'robot3d')) : []).map((file) => {
     const bytes = readFileSync(join(distDir, 'robot3d', file));
     return { file, bytes: bytes.length, gzip: gz(bytes) };
   });
@@ -411,6 +413,13 @@ async function cell(browser, profileName, scenarioName, run, options, shared) {
     measured.loading = await p2(frame, 'window.__p2.loading()');
     // The lab's main thread as fast as this cell had it: a fixed loop (3·10⁷ steps) in the frame, after the CPU throttle. The host's
     // scheduler (performance or efficiency cores, other work) moves it between cells; a row's numbers scale with it.
+    // N18 R4.3's sensor overlays ("Hiện cảm biến", on by default): --sensors=off turns them off with the lab's own switch, for their A/B.
+    measured.sensors = options.sensors;
+    const sensorSwitch = frame.getByTestId('robot-sensors');
+    if (options.sensors === 'off' && (await sensorSwitch.count()) > 0 && (await sensorSwitch.getAttribute('aria-pressed')) === 'true') {
+      await sensorSwitch.click();
+      await sleep(300);
+    }
     measured.cpuBenchMs = await p2(frame, '(() => { const s = performance.now(); let x = 0; for (let i = 0; i < 3e7; i += 1) x += i % 7; return Math.round(performance.now() - s + x * 0); })()');
     await loadProject(page, frame, scenario.program ? shared.projects[scenario.program] : null, options.port);
     await sleep(1500);
@@ -758,7 +767,7 @@ function markdown(report) {
   const { options, machine, bundle, headers, cells, verdicts } = report;
   lines.push(`# bench:robot3d — ${report.date}${options.label ? ` — ${options.label}` : ''}`, '');
   lines.push(`Machine: ${machine.cpus} (${machine.cores} cores, ${machine.memGB} GB), ${machine.platform}, Node ${machine.node}, Chromium ${machine.chromium}.`);
-  lines.push(`Commit ${report.commit}. Repeats ${options.repeats}, window ${options.seconds} s, soak ${options.soakMinutes} min, switches ${options.switches}. 1-minute load average from ${range(cells.map((entry) => entry.loadavg1m), 2)} at the cells' start.`, '');
+  lines.push(`Commit ${report.commit}. Sensor overlays ${options.sensors ?? 'on'} (where the build has them). Repeats ${options.repeats}, window ${options.seconds} s, soak ${options.soakMinutes} min, switches ${options.switches}. 1-minute load average from ${range(cells.map((entry) => entry.loadavg1m), 2)} at the cells' start.`, '');
   lines.push('## Budgets and targets', '', '| kind | measure | worst | limit | result | n | detail |', '|---|---|---|---|---|---|---|');
   for (const row of verdicts) lines.push(`| ${row.kind} | ${row.name} | ${round(row.value, 1)} ${row.unit} | ${row.limit} ${row.unit} | ${row.ok ? 'ok' : row.kind === 'budget' ? 'MISSED' : 'not met'} | ${row.n} | ${row.detail} |`);
   lines.push('', '## Frames (fps pass): ranges over the repeats', '');
