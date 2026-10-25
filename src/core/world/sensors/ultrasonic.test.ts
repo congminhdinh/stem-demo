@@ -151,22 +151,39 @@ describe('measureUltrasonic', () => {
     });
   });
 
+  // What the program reads: pulseIn truncates the width to whole µs, the helper divides by 58 and truncates again.
+  const programCm = (echoUs: number) => echoToCm(Math.trunc(echoUs));
+
   it('gives the echo width of the contract: echoUs = cm · 58, so the driver reads whole cm, and no echo is 0 µs → 400', () => {
     withWorld(arenaWith([eastWallAt(150)]), (world, built) => {
       const fifty = measureUltrasonic(world, built, poseAt(100, 100, 4), HC_SR04);
-      expect(fifty.echoUs).toBe(fifty.cm * 58);
-      expect(fifty.echoUs).toBeCloseTo(2900, 2);
-      expect(echoToCm(Math.round(fifty.echoUs))).toBe(50);
+      expect(fifty.cm).toBe(50);
+      expect(fifty.echoUs).toBe(2900);
+      expect(programCm(fifty.echoUs)).toBe(50);
 
       const far = measureUltrasonic(world, built, poseAt(26.6, 100, 4), HC_SR04);
-      expect(far.cm).toBeCloseTo(123.4, 4);
+      expect(far.cm).toBe(123.4);
       expect(far.echoUs).toBe(far.cm * 58);
-      expect(echoToCm(far.echoUs)).toBe(123);
+      expect(programCm(far.echoUs)).toBe(123);
 
       const away = measureUltrasonic(world, built, poseAt(100, 100, 4, 180), HC_SR04);
       expect(away).toEqual({ cm: 400, echoUs: 0, hit: null });
       expect(echoToCm(away.echoUs)).toBe(400);
     });
+  });
+
+  it('a wall a whole number of cm away reads exactly that through the program: 5..95 cm, facing arena +x and +y', () => {
+    // Rapier's float32 time of impact lands a hair under 0.5 m for a wall 50 cm away; pulseIn and the helper both truncate,
+    // so without snapping the distance to 1 µm the program would read 49.
+    for (const yawDeg of [0, 90]) {
+      for (let d = 5; d <= 95; d += 5) {
+        const wall = yawDeg === 0 ? eastWallAt(100 + d) : northWallAt(100 + d);
+        withWorld(arenaWith([wall]), (world, built) => {
+          const reading = measureUltrasonic(world, built, poseAt(100, 100, 4, yawDeg), HC_SR04);
+          expect([yawDeg, d, reading.cm, programCm(reading.echoUs)]).toEqual([yawDeg, d, d, d]);
+        });
+      }
+    }
   });
 
   it('clamps a near echo to 2 cm (or the kit’s larger minCm) and sees nothing beyond its maxCm', () => {

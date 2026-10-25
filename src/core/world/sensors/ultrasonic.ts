@@ -35,9 +35,12 @@ export type UltrasonicOptions = {
 };
 
 export type UltrasonicReading<I extends SensedCollider = SensedCollider> = {
-  /** The distance heard, in cm: within the sensor's range, or NO_ECHO_CM (400). Not rounded: the driver truncates. */
+  /** The distance heard, in cm, to whole µm (SNAP_PER_CM): within the sensor’s range, or NO_ECHO_CM (400). The driver truncates. */
   readonly cm: number;
-  /** The width of the echo pulse, µs: cm · 58, so `echoToCm` gives whole cm; NO_ECHO_US (0) when there is no echo. */
+  /**
+   * The width of the echo pulse, µs: cm · 58, so the program (pulseIn truncates it, `echoToCm` truncates again) reads
+   * floor(cm); NO_ECHO_US (0) when there is no echo.
+   */
   readonly echoUs: number;
   /** What the nearest echo came from; null without an echo. */
   readonly hit: I | null;
@@ -48,6 +51,13 @@ export const ULTRASONIC_RAY_COUNT = 5;
 export const ULTRASONIC_MAX_INCIDENCE_DEG = 60;
 /** cos(ULTRASONIC_MAX_INCIDENCE_DEG), exactly: the cutoff compares cosines, from dot products, so no acos is needed. */
 const MIN_INCIDENCE_COS = 0.5;
+/**
+ * Distances are snapped to whole micrometres (1e-4 cm) before noise and clamping. Rapier's time of impact is float32: a
+ * wall 5 cm away comes back as 4.999995 cm, 123.4 cm as 123.400009 (measured), and the program truncates twice (pulseIn
+ * to whole µs, the helper to whole cm), so a wall a whole number of cm away would read 1 cm short. A float32 coordinate
+ * under 4 m is within 0.12 µm of its double, and the errors measured (0.05 to 0.09 µm) are well inside half a step.
+ */
+const SNAP_PER_CM = 1e4;
 /** The echo width of "no echo": pulseIn sees no pulse, so the helper returns 400 (contract §6.6). */
 export const NO_ECHO_US = 0;
 
@@ -130,7 +140,8 @@ export function measureUltrasonic<I extends SensedCollider>(
   }
   if (nearest === null) return noEcho();
 
-  const cm = Math.min(farCm, Math.max(nearCm, nearestToi * CM_PER_M + offsetCm));
+  const heardCm = Math.round(nearestToi * CM_PER_M * SNAP_PER_CM) / SNAP_PER_CM;
+  const cm = Math.min(farCm, Math.max(nearCm, heardCm + offsetCm));
   // `echoes` accepted it, so the lookup names it.
   return { cm, echoUs: cm * US_PER_CM, hit: lookup.infoOf(nearest) as I };
 }
