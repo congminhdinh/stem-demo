@@ -330,7 +330,7 @@ const exposedRows: readonly ConstructContract[] = [
       'A literal outside -2147483648..2147483647 is a compile error (value-out-of-range).',
     ],
     modules: ['U-M1'],
-    cpp: cpp('<n>L'),
+    cpp: cpp('<n>L', { variants: ['(-2147483647L - 1L)'] }),
     levels: levels('R2.3', ['EMU-10', 'EMU-13']),
     fields: open({
       call: field([compiles('300L, (-2147483647L - 1L).')]),
@@ -579,7 +579,7 @@ const exposedRows: readonly ConstructContract[] = [
     eligibility: 'ELIGIBLE',
     restrictions: ['Each part is its own Serial.print, the last a Serial.println; text parts use F().'],
     modules: ['U-M1'],
-    cpp: cpp('Serial.print(<part>); … Serial.println(<last>);', { setup: ['Serial.begin(9600);'] }),
+    cpp: cpp('Serial.print(<part>); … Serial.println(<last>);', { variants: ['Serial.print(F("<text>"));'], setup: ['Serial.begin(9600);'] }),
     levels: levels('R2.3', ['EMU-13']),
     fields: open({
       call: field([compiles('Serial.print(F("x = ")); Serial.println(x);')]),

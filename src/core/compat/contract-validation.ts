@@ -341,14 +341,14 @@ export function generatorAllowlist(contract: YolobitContract): { forms: string[]
 }
 
 /**
- * UNO contract §15 invariant 9: the C++ a generator may write is exactly what exposable rows list: their forms, the
- * includes, globals and setup lines they need, the helpers they name, and the pinned libraries.
+ * UNO contract §15 invariant 9: the C++ a generator may write is exactly what exposable rows list: their forms (with their
+ * variants, N18 C1), the includes, globals and setup lines they need, the helpers they name, and the pinned libraries.
  */
 export function cppAllowlist(contract: UnoContract): { forms: string[]; includes: string[]; libraries: string[]; helpers: string[]; globals: string[]; setup: string[] } {
   const rows = contract.constructs.filter((construct) => isExposable(construct, contract));
   const unique = (values: (string | undefined)[]) => [...new Set(values.filter((value): value is string => value !== undefined))];
   return {
-    forms: unique(rows.map((row) => row.cpp?.form)),
+    forms: unique(rows.flatMap((row) => [row.cpp?.form, ...(row.cpp?.variants ?? [])])),
     includes: unique(rows.flatMap((row) => row.cpp?.includes ?? [])),
     libraries: unique(rows.flatMap((row) => (row.cpp?.libraries ?? []).map((library) => `${library.name}@${library.version}`))),
     helpers: unique(rows.flatMap((row) => row.cpp?.helpers ?? [])),

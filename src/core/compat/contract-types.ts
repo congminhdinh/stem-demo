@@ -380,6 +380,11 @@ export const UNO_FIELD_CLAIM_KINDS: Readonly<Record<OfField, readonly ClaimKind[
  */
 export type CppMapping = {
   form: string;
+  /**
+   * N18 C1: further exact forms of the row, which the allowlist admits next to `form` (U-04's INT32_MIN literal, U-17's text part).
+   * The row's `call` evidence covers each of them (CC-03 compiled them in contract-forms.ino).
+   */
+  variants?: readonly string[];
   includes: readonly string[];
   libraries: readonly CppLibrary[];
   helpers?: readonly string[];
@@ -735,6 +740,7 @@ const unoConstructSchema = z.object({
   cpp: z
     .object({
       form: z.string().min(1),
+      variants: z.array(z.string().min(1)).optional(),
       includes: z.array(z.string()),
       libraries: z.array(librarySchema),
       helpers: z.array(z.string()).optional(),

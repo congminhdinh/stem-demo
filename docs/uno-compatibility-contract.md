@@ -118,7 +118,7 @@ Placeholder `<…>` như dạng Python của contract Yolo:Bit; `<ROLE>_PIN` là
 | U-01 | `void setup() {⏎  <setup lines>⏎  <body>⏎}` | — | — |
 | U-02 | `void loop() {⏎  <body>⏎}` | — | — |
 | U-03 | `long <name> = 0L; · <name> = <expr>;` | — | — |
-| U-04 | `<n>L` | — | — |
+| U-04 | `<n>L` · variant `(-2147483647L - 1L)` (INT32_MIN, §3.1) | — | — |
 | U-05 | `add32(<a>, <b>) · sub32(<a>, <b>) · mul32(<a>, <b>)` | int32 | — |
 | U-06 | `div32(<a>, <b>)` | int32 | — |
 | U-07 | `mod32(<a>, <b>)` | int32 | — |
@@ -131,7 +131,7 @@ Placeholder `<…>` như dạng Python của contract Yolo:Bit; `<ROLE>_PIN` là
 | U-14 | `{ const long _from = (<start>); const long _to = (<end>); for (long _c = _from; _c <= _to; _c += 1L) { <var> = _c; <body> } }` | — | — |
 | U-15 | `Serial.println(<expr>);` | — | `Serial.begin(9600);` |
 | U-16 | `Serial.println(F("<text>"));` | — | `Serial.begin(9600);` |
-| U-17 | `Serial.print(<part>); … Serial.println(<last>);` | — | `Serial.begin(9600);` |
+| U-17 | `Serial.print(<part>); … Serial.println(<last>);` · variant `Serial.print(F("<text>"));` (phần chữ) | — | `Serial.begin(9600);` |
 | U-18 | `delay(<ms>);` | — | — |
 | U-19 | `(long)millis()` | — | — |
 | U-20 | `motorSet(<ROLE>_EN, <ROLE>_IN1, <ROLE>_IN2, <speed>);` | hbridge-en-in1-in2 | `pinMode(<ROLE>_EN, OUTPUT);` `pinMode(<ROLE>_IN1, OUTPUT);` `pinMode(<ROLE>_IN2, OUTPUT);` |
@@ -677,7 +677,7 @@ Tái lập toàn bộ EMU/CC: `node spikes/avr8js/run-all.mjs` (≈ 20 s; cần 
 
 ## 15. Bản máy đọc được (`src/core/compat/uno-contract.ts`)
 
-- Shape: `UnoContract`, `unoContractSchema` (Zod) trong `contract-types.ts`; mở rộng **cộng thêm** so với Yolo:Bit: `ConstructContract.cpp?: { form; includes; libraries; helpers?; globals?; setup? }`, `ConstructContract.levels?: { L1; L2; L2e; L3 }`, `Profiles`/`Tier` gồm `uno-basic | uno-advanced`, `ModuleContract.library?`, các evidence kind và claim kind mới. Shape và test của Yolo:Bit không đổi (`yolobitContractSchema` vẫn từ chối profile UNO trong dòng Yolo:Bit).
+- Shape: `UnoContract`, `unoContractSchema` (Zod) trong `contract-types.ts`; mở rộng **cộng thêm** so với Yolo:Bit: `ConstructContract.cpp?: { form; variants?; includes; libraries; helpers?; globals?; setup? }` (`variants`: dạng chính xác khác của cùng dòng, evidence `call` của dòng đã đỡ, C1), `ConstructContract.levels?: { L1; L2; L2e; L3 }`, `Profiles`/`Tier` gồm `uno-basic | uno-advanced`, `ModuleContract.library?`, các evidence kind và claim kind mới. Shape và test của Yolo:Bit không đổi (`yolobitContractSchema` vẫn từ chối profile UNO trong dòng Yolo:Bit).
 - Luật: `rulesOf(contract)` chọn `YOLOBIT_RULES` hay `UNO_RULES` (scope evidence, field ↔ claim kind, kind cho VERIFIED/DOCUMENTED, emulator có thể bị thu hồi, loại mapping, profile). Mọi hàm của `contract-validation.ts` (`claimProblems`, `entrySemanticProblems`, `exposureViolations`, `profileConstructViolations`, `validateContract`, …) đọc luật đó.
 - Data chỉ được **test** đọc (như `yolobit-contract.ts`); virtual UNO, driver, generator chép giá trị chúng dùng. Test `is read by tests only` kiểm.
 
@@ -690,7 +690,7 @@ Tái lập toàn bộ EMU/CC: `node spikes/avr8js/run-all.mjs` (≈ 20 s; cần 
 6. Helper: mỗi helper được dòng dùng liệt kê, mỗi dòng nhắc helper có thật; **text giống hệt** block tương ứng trong `contract-forms.ino`.
 7. `costsUs` có đúng các khoá `arduinoCalls`; số đo trích EMU.
 8. RV-U1 = REJECTED (giả định): ngôn ngữ còn, mọi dòng module/chân bị loại.
-9. Allowlist C++ (`cppAllowlist`) = hợp các `form`, `includes`, `libraries`, `helpers`, `globals`, `setup` của dòng mở.
+9. Allowlist C++ (`cppAllowlist`) = hợp các `form` (kèm `variants`), `includes`, `libraries`, `helpers`, `globals`, `setup` của dòng mở. Generator C1 chỉ viết dạng trong allowlist (test `generate.allowlist.test.ts` của `codegen/arduino`).
 10. Domain `Pred` dùng chung bộ đánh giá với Yolo:Bit (biên `end` 2147483646/2147483647, chờ −1/0/60000/60001, literal ±2³¹).
 
 ---
@@ -743,4 +743,5 @@ Tái lập toàn bộ EMU/CC: `node spikes/avr8js/run-all.mjs` (≈ 20 s; cần 
 | 0.1.0 | 2026-10-25 | v0 (R0.3), từ evidence R0.4 |
 | 0.1.0 | 2026-10-25 | R1: ghi cách virtual UNO charge (§4.4) và các dòng L1 ≠ L2e của R1 (§13: không echo, echo quá timeout, timer bị chiếm lúc chạy). Không đổi ngữ nghĩa dòng nào, nên giữ version |
 | 0.1.2 | 2026-10-25 | R2.2 fix round 1: U-33 có dòng setup `pinMode(<pin>, <mode>);` với mode của driver module nối vào chân (nút `INPUT_PULLUP`), dù program không dùng op của module: nút nhả đọc HIGH như trên board (field `default`: ARD-16, EMU-13). Trước đó đọc thô chân nút mà không có khối nút thì chân là INPUT thả nổi |
+| 0.1.2 | 2026-10-25 | C1: allowlist thêm hai dạng đã có trong `contract-forms.ino` (CC-03) và trong evidence `call` của dòng, nhưng thiếu trong data: literal INT32_MIN `(-2147483647L - 1L)` của U-04 và phần chữ `Serial.print(F("<text>"));` của U-17 (field `cpp.variants`). Không đổi ngữ nghĩa dòng nào, nên giữ version |
 | 0.1.1 | 2026-10-25 | R1 fix round 1: sửa claim của U-48 và §5.3 (sau `noTone` hay khi tone tự hết, D3/D11 không có PWM tới khi `analogWrite` mới; EMU-05 gọi lại `analogWrite` nên không chứng minh PWM tự trở lại), thêm EMU-14 (`spikes/avr8js/run-tone-notone.mjs`) |
