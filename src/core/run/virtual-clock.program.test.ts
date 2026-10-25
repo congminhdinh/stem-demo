@@ -79,23 +79,31 @@ const insideTick = ({ clockMs, worldMs }: { clockMs: number; worldMs: number }) 
 describe('no lateness', () => {
   it('repeat 100 × wait 10 ends at exactly 1000 ms virtual', async () => {
     const ir = irOf(compileUno(prog([repeat(num(100), [wait(num(10))])])));
-    // The waits alone: nodes cost nothing here, so the program ends at 1000 ms exactly, whatever ticks the world takes.
+    // The waits alone (no node cost, no delay overhead): the program ends at 1000 ms exactly, whatever ticks the world takes.
     const waitsOnly = startVirtualRun(ir, { scheduler: { nodeUs: 0 } });
     expect(await waitsOnly.runUntilDone(200)).not.toBeNull();
     expect(waitsOnly.outcome()).toEqual({ status: 'finished' });
     expect(waitsOnly.scheduler.programClock.now()).toBe(1000);
+    // A wait is a delay() of the board (U-18): ms × 1000 + delayOverhead each, 100 × (10 000 + 8.5625) µs.
+    const delays = startVirtualRun(ir, { scheduler: { nodeUs: 0, delayOverheadUs: costs.delayOverhead } });
+    expect(await delays.runUntilDone(200)).not.toBeNull();
+    expect(delays.scheduler.programClock.now()).toBe(1000.85625);
     // With the contract's 1 µs per node, the program's own 302 nodes come on top, and nothing else: no tick rounds a wait up.
-    const charged = startVirtualRun(ir);
+    const charged = startVirtualRun(ir, { scheduler: { delayOverheadUs: costs.delayOverhead } });
     expect(await charged.runUntilDone(200)).not.toBeNull();
-    expect(charged.scheduler.programClock.now()).toBe(1000.302);
+    expect(charged.scheduler.programClock.now()).toBe(1001.15825);
   });
 
-  it('ends every wait on its own 10 ms mark, not on the tick after it', async () => {
+  it('ends every wait on its own mark, not on the tick after it', async () => {
     const exposed = new Set([...unoLanguageBlockTypes, 'ybc_running_time']);
     const runningTime: Json = { type: 'ybc_running_time', id: 'running-time' };
-    const run = startVirtualRun(irOf(compileUno(prog([repeat(num(100), [wait(num(10)), print(runningTime)])]), exposed)));
+    const ir = irOf(compileUno(prog([repeat(num(100), [wait(num(10)), print(runningTime)])]), exposed));
+    const run = startVirtualRun(ir, { scheduler: { delayOverheadUs: costs.delayOverhead } });
     expect(await run.runUntilDone(200)).toBe(120);
-    expect(run.lines()).toEqual(Array.from({ length: 100 }, (_, index) => String((index + 1) * 10)));
+    // The k-th read is at 10 013.5625 k + 1 µs (each iteration: 10 008.5625 µs of delay and 5 nodes; 1 µs of nodes before the
+    // first): whole ms 10 k until the overhead adds up to a ms, from k = 74 on (0.0135625 k + 0.001 ≥ 1).
+    expect(run.lines()).toEqual(Array.from({ length: 100 }, (_, index) => String(10 * (index + 1) + (index + 1 >= 74 ? 1 : 0))));
+    expect([run.lines()[72], run.lines()[73], run.lines()[99]]).toEqual(['730', '741', '1001']);
   });
 });
 

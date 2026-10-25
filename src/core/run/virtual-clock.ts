@@ -8,13 +8,17 @@ import { EXEC_SLICE_MS, STEP_CHECK_INTERVAL } from '../program/limits';
 //
 //     world.t ≤ programClock < world.t + dt          whenever the program runs a statement.
 //
-// - `programClock` moves only by what is charged to it: every IR node (NODE_US), every iteration of loop() (LOOP_MIN_US), and every
-//   Arduino call the hardware makes (`charge(costsUs[call])`, R1). Node costs are put on the clock at the program's next step, sleep
-//   or park, so a read (a pulseIn) always happens at a time inside the tick; an Arduino call's charge is on the clock at once.
+// - `programClock` moves only by what is charged to it: every IR node (NODE_US), every iteration of loop() (LOOP_MIN_US), every
+//   wait's delay() overhead (`delayOverheadUs`, contract UNO U-18), and every Arduino call the hardware makes
+//   (`charge(costsUs[call])`, R1). Node costs are put on the clock at the program's next step, sleep or park, so a read (a pulseIn)
+//   always happens at a time inside the tick; an Arduino call's charge is on the clock at once. Only the running program is
+//   charged: a charge while it is blocked (from a timer task) is a programming error and throws.
 // - `advanceTo(t)` is one tick: the world is at t. It waits until the program is blocked, then resolves what is due in the tick's
 //   interval [t, t + dt) (the program's sleep, the run's timers, a park whose clock the world has reached), ONE AT A TIME in
 //   (deadline, seq) order: the clock is set to the deadline (no lateness: `repeat 100 { wait 10 }` takes 1000 ms of virtual time
-//   plus its own node costs, whatever the ticks), then it waits until the program is blocked again.
+//   plus its own node costs and delay overheads, whatever the ticks), then it waits until the program is blocked again. The clock
+//   never goes back: a timer due while the program was ahead runs at the program's later time, and a timer set from a firing task
+//   is relative to the program clock (that time), not to the deadline of the task.
 // - The budget looks at the clock on every step. A program whose clock has reached world.t + dt PARKS (a waiter whose deadline is
 //   its clock) until a tick whose interval holds it: a loop without `wait` never runs ahead of the world by a dt, and never
 //   freezes the page.
@@ -23,9 +27,10 @@ import { EXEC_SLICE_MS, STEP_CHECK_INTERVAL } from '../program/limits';
 //   back. It changes no clock, so the result of a run never depends on the machine, the frame rate or a hidden tab.
 // - `sleep` and `park` reject with the reason of the run's abort (Stop) at once, and leave nothing behind in the queue.
 //
-// One scheduler serves one run: `sleep` and `park` are the program's own, and `budget(signal)` binds the run's signal. The run
-// session builds the services from it: `createRuntimeServices({ clock: programClock, sleep, yieldNow, budget: budget(signal),
-// scheduler: createRunScheduler(timers), … })`, starts the program, then calls `advanceTo(world.t)` once per tick, never two at once.
+// One scheduler serves one run: `sleep` and `park` are the program's own, and the run's signal is given when it is created. The run
+// session creates it with `createVirtualScheduler({ signal, delayOverheadUs: board.costsUs.delayOverhead })`, builds the services
+// from it (`createRuntimeServices({ signal, clock: programClock, sleep, budget: budget(signal), scheduler: createRunScheduler(timers),
+// … })`), starts the program, then calls `advanceTo(tick * 1000 / PHYSICS_HZ)` once per tick, never two at once.
 
 /** Contract UNO §4.2: what one IR node (a statement, an expression, a loop iteration) costs the program. */
 export const NODE_US = 1;
@@ -39,23 +44,38 @@ export const WORLD_TICK_MS = 1000 / 120;
 export type VirtualScheduler = {
   /** The program's time, in ms from the start of the run. `charge(us)` moves it (an Arduino call's cost); time never goes back. */
   programClock: ProgramClock;
-  /** The program's own wait: resolves in the tick whose interval holds `now + ms`, the clock set to that. Rejects on abort. */
+  /**
+   * The program's own wait (a uno program's only sleep is `wait`, Arduino's delay(): loop() has no pause): resolves in the tick
+   * whose interval holds `now + delayOverheadUs + ms`, the clock set to that. Rejects on abort.
+   */
   sleep: Sleep;
-  /** Holds the program until a tick whose interval holds its clock (programClock < world.t + dt). Rejects when the run aborts. */
+  /**
+   * Holds the program until a tick whose interval holds its clock (programClock < world.t + dt). Rejects when the run's signal (the
+   * creation option) aborts.
+   */
   park(): Promise<void>;
   /** A turn of the browser's event loop through a MessageChannel (never setTimeout(0)): housekeeping, never blocked. */
   yieldNow(): Promise<void>;
   /** The run's timers on virtual time (`createRunScheduler(timers)`): a task runs in the tick that holds its deadline. */
   timers: Timers;
-  /** The run's execution budget on virtual time, for the run's `signal`. */
+  /** The run's execution budget on virtual time, for the run's `signal`: the one the scheduler was created with, when it was. */
   budget(signal: AbortSignal): ExecutionBudget;
-  /** One tick, the world at `tWorldMs`: runs the program and what is due before `tWorldMs + dt`, one at a time, until blocked. */
+  /**
+   * One tick, the world at `tWorldMs`: runs the program and what is due before `tWorldMs + dt`, one at a time, until blocked.
+   * Callers pass `tick * 1000 / PHYSICS_HZ` (world/rapier.ts), computed from an integer tick index, never an accumulated float:
+   * `t += dt` drifts (60000.00000000602 ms after 7200 ticks) and moves 34 of the 60 whole-second deadlines of that minute a tick
+   * early. Rejects a time before the last one, and a call while one is running.
+   */
   advanceTo(tWorldMs: number): Promise<void>;
   /** Resolves once the program is blocked: in a sleep, in a park, or ended. */
   whenBlocked(): Promise<void>;
 };
 
 export type VirtualSchedulerOptions = {
+  /** The run's cancellation (Stop): `park` rejects when it aborts, from the start; `budget` must be given the same one. */
+  signal?: AbortSignal;
+  /** What every wait costs on top of its ms, in µs (contract UNO U-18 `costsUs.delayOverhead`, 8.5625); 0 by default. */
+  delayOverheadUs?: number;
   /** dt of the world, in ms; WORLD_TICK_MS by default. */
   tickMs?: number;
   /** What one IR node costs, in µs; NODE_US by default (0 isolates the timers in a test). */
@@ -70,9 +90,11 @@ type Due = { deadlineUs: number; seq: number; fire(): void };
 export function createVirtualScheduler(options: VirtualSchedulerOptions = {}): VirtualScheduler {
   const tickMs = options.tickMs ?? WORLD_TICK_MS;
   const nodeUs = options.nodeUs ?? NODE_US;
+  const delayOverheadUs = options.delayOverheadUs ?? 0;
   const wallNow = options.wallNow ?? (() => performance.now());
-  if (!(tickMs > 0) || !Number.isFinite(tickMs) || !(nodeUs >= 0) || !Number.isFinite(nodeUs)) {
-    throw new RangeError('A virtual scheduler needs a positive tick and a node cost of 0 or more.');
+  const finite = (value: number) => Number.isFinite(value);
+  if (!(tickMs > 0) || !finite(tickMs) || !(nodeUs >= 0) || !finite(nodeUs) || !(delayOverheadUs >= 0) || !finite(delayOverheadUs)) {
+    throw new RangeError('A virtual scheduler needs a positive tick, and a node cost and a delay overhead of 0 or more.');
   }
 
   /** The program's clock in µs: charges of multiples of 1/32 µs (the costs table) add up exactly in a double. */
@@ -91,7 +113,7 @@ export function createVirtualScheduler(options: VirtualSchedulerOptions = {}): V
   let blockedListeners: (() => void)[] = [];
   let probing = false;
   let advancing = false;
-  let runSignal: AbortSignal | undefined;
+  let runSignal: AbortSignal | undefined = options.signal;
   let sliceStart = wallNow();
 
   const settle = () => {
@@ -204,12 +226,15 @@ export function createVirtualScheduler(options: VirtualSchedulerOptions = {}): V
         if (!(us >= 0) || !Number.isFinite(us)) {
           throw new RangeError(`A charge is a finite number of µs, 0 or more, not ${us}.`);
         }
+        if (program !== 'running') {
+          throw new Error('The program clock is charged only while the program runs (its own Arduino calls), never while it is blocked.');
+        }
         programUs += us;
       },
     },
     sleep(ms, signal) {
       settle();
-      return waitUntil(programUs + waitUs(ms), signal);
+      return waitUntil(programUs + delayOverheadUs + waitUs(ms), signal);
     },
     park: () => park(runSignal),
     yieldNow,
@@ -218,6 +243,9 @@ export function createVirtualScheduler(options: VirtualSchedulerOptions = {}): V
       clearTimeout: dequeue,
     },
     budget(signal) {
+      if (options.signal !== undefined && signal !== options.signal) {
+        throw new Error('budget(signal) takes the signal the scheduler was created with: one run, one signal.');
+      }
       runSignal = signal;
       let steps = 0;
       return {

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createRunScheduler } from '../capabilities/services';
 import { unoContract } from '../compat/uno-contract';
+import { PHYSICS_HZ } from '../world/rapier';
 import { createVirtualScheduler, LOOP_MIN_US, NODE_US, WORLD_TICK_MS } from './virtual-clock';
 
 // N18 R2.3: the virtual clock of a robot run (robot plan §3). Two clocks, world.t and programClock; the scheduler resolves the
@@ -271,5 +272,111 @@ describe('Stop: sleep and park reject when the run aborts', () => {
     await scheduler.advanceTo(at(10));
     expect(scheduler.programClock.now()).toBe(30.001);
     expect(() => budget.step()).toThrow('stopped while parked');
+  });
+});
+
+describe('the delay overhead of a wait (contract UNO U-18, review I2)', () => {
+  it('charges every sleep of the program delayOverheadUs on top of its ms, a timer of the run none, and nothing by default', async () => {
+    const scheduler = createVirtualScheduler({ delayOverheadUs: 8.5625 });
+    const signal = new AbortController().signal;
+    const wokeAt = scheduler.sleep(5, signal).then(() => scheduler.programClock.now());
+    let taskAt = -1;
+    scheduler.timers.setTimeout(() => void (taskAt = scheduler.programClock.now()), 7);
+    await scheduler.advanceTo(at(0));
+    expect([await wokeAt, taskAt]).toEqual([5.0085625, 7]);
+    const plain = createVirtualScheduler();
+    const plainWoke = plain.sleep(5, signal).then(() => plain.programClock.now());
+    await plain.advanceTo(at(0));
+    expect(await plainWoke).toBe(5);
+  });
+
+  it('refuses a delay overhead that is negative or not a finite number', () => {
+    for (const delayOverheadUs of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => createVirtualScheduler({ delayOverheadUs })).toThrow(RangeError);
+    }
+  });
+});
+
+describe('only the running program charges the clock (review M1)', () => {
+  it('throws for a charge while the program waits in a sleep or a park, or has ended: a timer task must not charge', async () => {
+    const sleeping = createVirtualScheduler();
+    void sleeping.sleep(100, new AbortController().signal);
+    sleeping.timers.setTimeout(() => sleeping.programClock.charge(10), 1);
+    await expect(sleeping.advanceTo(at(0))).rejects.toThrow('only while the program runs');
+    const parked = createVirtualScheduler();
+    parked.programClock.charge(20_000);
+    void parked.park();
+    expect(() => parked.programClock.charge(1)).toThrow('only while the program runs');
+    const ended = createVirtualScheduler();
+    await ended.whenBlocked();
+    expect(() => ended.programClock.charge(1)).toThrow('only while the program runs');
+    expect([sleeping.programClock.now(), parked.programClock.now(), ended.programClock.now()]).toEqual([1, 20, 0]);
+  });
+
+  it('sets a timer from a firing task relative to the program clock, which never goes back when the program is ahead', async () => {
+    const scheduler = createVirtualScheduler();
+    const ran: number[] = [];
+    scheduler.timers.setTimeout(() => {
+      ran.push(scheduler.programClock.now());
+      scheduler.timers.setTimeout(() => void ran.push(scheduler.programClock.now()), 1);
+    }, 2);
+    // The program ran 5 ms ahead before it ended: the task due at 2 ms runs at 5 ms, and its own 1 ms timer at 6 ms.
+    scheduler.programClock.charge(5000);
+    await scheduler.advanceTo(at(0));
+    expect(ran).toEqual([5, 6]);
+  });
+});
+
+describe('the run signal (review M7)', () => {
+  it('makes park abortable from the creation of the scheduler, before any budget', async () => {
+    const controller = new AbortController();
+    const scheduler = createVirtualScheduler({ signal: controller.signal });
+    scheduler.programClock.charge(20_000);
+    const parked = scheduler.park();
+    controller.abort(new Error('stopped while parked'));
+    await expect(parked).rejects.toThrow('stopped while parked');
+  });
+
+  it('gives a budget only for the signal it was created with', () => {
+    const controller = new AbortController();
+    const scheduler = createVirtualScheduler({ signal: controller.signal });
+    expect(() => scheduler.budget(new AbortController().signal)).toThrow('the signal the scheduler was created with');
+    expect(scheduler.budget(controller.signal).step()).toBeUndefined();
+  });
+});
+
+describe('the world time of a tick (review M5)', () => {
+  it('is the tick index × 1000 / PHYSICS_HZ: after 7200 ticks every whole-second boundary is where it was, unlike an accumulated t += dt', async () => {
+    expect(WORLD_TICK_MS).toBe(1000 / PHYSICS_HZ);
+    /** The tick in which each of 60 waits of 1000 ms ends, over 7201 ticks whose world time is `worldTime(k)`. */
+    const wakes = async (worldTime: (k: number) => number) => {
+      const scheduler = createVirtualScheduler();
+      const signal = new AbortController().signal;
+      let tick = -1;
+      const woke: number[] = [];
+      void (async () => {
+        for (let n = 1; n <= 60; n++) {
+          await scheduler.sleep(1000, signal);
+          woke.push(tick);
+        }
+      })();
+      for (let k = 0; k <= 7200; k++) {
+        tick = k;
+        await scheduler.advanceTo(worldTime(k));
+      }
+      return woke;
+    };
+    // From the tick index: the wait due at n s ends in tick 120 n, the first whose interval holds it, every time.
+    expect(await wakes((k) => (k * 1000) / PHYSICS_HZ)).toEqual(Array.from({ length: 60 }, (_, index) => 120 * (index + 1)));
+    // Accumulated: the sum drifts, and 34 of the 60 boundaries move a tick early.
+    const sums: number[] = [];
+    let accumulated = 0;
+    for (let k = 0; k <= 7200; k++) {
+      sums.push(accumulated);
+      accumulated += WORLD_TICK_MS;
+    }
+    expect(sums[7200]).toBe(60000.00000000602);
+    const early = (await wakes((k) => sums[k] ?? 0)).filter((tick, index) => tick !== 120 * (index + 1));
+    expect(early).toHaveLength(34);
   });
 });
