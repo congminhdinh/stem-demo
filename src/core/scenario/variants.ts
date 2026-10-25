@@ -40,10 +40,12 @@ export const VARIANT_MAX_ATTEMPTS = 20;
 
 /**
  * The floor the robot needs at its start, a circle around the point of its pose (the middle of the body). `ref-uno-rover@0` is a
- * 15 × 10 cm body, whose corners are 9.01 cm from the middle, with its wheels (track 14 cm, radius 3.3 cm, axle 2 cm back) inside the
- * same circle; one more cm of air. A kit with a bigger body needs a bigger number here.
+ * 15 × 12 cm body, whose corners are 9.60 cm from the middle, on wheels 6.6 cm across and 2.6 cm wide (track 15 cm, axle 2 cm back)
+ * whose outer back corners are the farthest point, 10.27 cm away; its servo arm stays inside the body at every angle. 11 cm leaves
+ * 0.73 cm of air. A kit that reaches farther needs a bigger number here: `robotFootprint(kit).radiusCm` (world/robot/footprint.ts)
+ * says how far it reaches, and createWorld refuses a start where any part of the robot overlaps the arena (N18 R3.5).
  */
-export const ROBOT_FOOTPRINT_RADIUS_CM = 10;
+export const ROBOT_FOOTPRINT_RADIUS_CM = 11;
 
 /** Mixed into the variant seed for the jitter stream, so that it is not the stream the world draws its sensor noise from. */
 const JITTER_SALT = 0x9e3779b9;
