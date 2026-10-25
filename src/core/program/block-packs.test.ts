@@ -129,6 +129,9 @@ describe('block packs', () => {
       'uno_servo_set',
       'uno_led_set',
       'uno_buzzer_tone',
+      // N18 R2.2 fix round 1: the UNO's count up and division (contract U-14, U-06), in the order their packs register them.
+      'uno_count_up',
+      'uno_int_divide',
       'uno_line_raw',
       'uno_buzzer_stop',
       'uno_digital_write',

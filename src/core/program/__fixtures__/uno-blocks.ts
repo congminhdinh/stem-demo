@@ -6,7 +6,7 @@ import { productionProfiles } from '../../profiles';
 import { unoDocument } from '../../profiles/__fixtures__/uno-document';
 import { createBlockPackCatalog } from '../block-packs';
 import { compileUnoProject, type UnoCompileResult } from '../compile-uno-program';
-import { program, type Json } from './ybc-blocks';
+import { chain, program, type Json } from './ybc-blocks';
 
 // TEST-ONLY: Blockly serialization JSON of the robot's blocks (N18 R2.2), in the shape Blockly saves them
 // (tests/uno-blockly-conformance.test.ts checks it against real Blockly), and the compile of a robot project with them.
@@ -36,6 +36,14 @@ export const pwmWrite = (pin: string, value: Json, blockId = id('pwm-write')): J
 export const digitalRead = (pin: string, blockId = id('digital-read')): Json => ({ type: 'uno_digital_read', id: blockId, fields: { PIN: pin } });
 export const analogRead = (pin: string, blockId = id('analog-read')): Json => ({ type: 'uno_analog_read', id: blockId, fields: { PIN: pin } });
 export const millis = (blockId = id('millis')): Json => ({ type: 'uno_millis', id: blockId });
+/** The UNO's division (U-06) and count up (U-14), as their own blocks save them. */
+export const unoDivide = (a: Json, b: Json, blockId = id('divide')): Json => ({ type: 'uno_int_divide', id: blockId, inputs: { A: input(a), B: input(b) } });
+export const unoCountUp = (variable: string, from: Json, to: Json, body: Json[], blockId = id('count-up')): Json => ({
+  type: 'uno_count_up',
+  id: blockId,
+  fields: { VAR: { id: variable } },
+  inputs: { FROM: input(from), TO: input(to), ...(body.length > 0 ? { DO: input(chain(body)) } : {}) },
+});
 
 export const registry = createDeviceRegistry(localDeviceDefinitions);
 export const packs = createBlockPackCatalog(registry);

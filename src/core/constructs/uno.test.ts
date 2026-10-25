@@ -9,6 +9,7 @@ import { buildToolbox, createBlockPackCatalog } from '../program/block-packs';
 import { unoLanguageBlockTypes } from '../program/__fixtures__/uno-language';
 import { unoBlockTypesOf, unoConstructs, unoLangConstructs, unoModuleConstructOf, unoModuleConstructs, unoPackIds, type UnoPackId } from './uno';
 import { SPEED_RANGE } from './uno.drive';
+import { unoCountUpType, unoIntDivideType } from './uno.lang';
 import { HZ_RANGE, MS_RANGE } from './uno.output';
 import { PWM_RANGE } from './uno.pins';
 import { ULTRASONIC_CM, UNO_ADC_MAX } from './uno.sensors';
@@ -98,7 +99,7 @@ describe('profile exposure (N18 R2.2)', () => {
   });
 
   it('shows the brief’s Basic blocks: drive, stop, motor, ultrasonic, line, servo, LED, buzzer tone, button', () => {
-    const robot = [...packs.typesOf(basic?.blockPacks ?? [])].filter((type) => type.startsWith('uno_')).sort();
+    const robot = [...packs.typesOf(basic?.blockPacks ?? [])].filter((type) => unoModuleConstructOf(type) !== undefined).sort();
     expect(robot).toEqual(
       ['uno_drive_move', 'uno_drive_stop', 'uno_motor_set', 'uno_ultrasonic_cm', 'uno_line_dark', 'uno_servo_set', 'uno_led_set', 'uno_buzzer_tone', 'uno_button_pressed'].sort(),
     );
@@ -144,7 +145,24 @@ describe('the uno packs', () => {
       expect(unoModuleConstructOf(construct.blockTypes[0] ?? ''), construct.contractId).toBe(construct);
     }
     const language = new Set(unoLangConstructs.flatMap((construct) => construct.blockTypes));
-    expect([...unoLanguageBlockTypes].filter((type) => !language.has(type))).toEqual([]);
+    // The dialect's division and count up are the UNO's own blocks here (fix round 1): their UNO meaning is not the dialect's.
+    const replaced: Readonly<Record<string, string>> = { ybc_int_divide: unoIntDivideType, ybc_count_up: unoCountUpType };
+    expect([...unoLanguageBlockTypes].map((type) => replaced[type] ?? type).filter((type) => !language.has(type))).toEqual([]);
+    for (const profile of [basic, advanced]) {
+      const shown = packs.typesOf(profile?.blockPacks ?? []);
+      expect(Object.keys(replaced).filter((type) => shown.has(type)), profile?.id).toEqual([]);
+      expect(Object.values(replaced).filter((type) => !shown.has(type)), profile?.id).toEqual([]);
+    }
+  });
+
+  it('give the UNO’s count up no step and its division the C++ meaning (contract UNO U-14, U-06)', () => {
+    const definitions = new Map(packs.definitions().map((definition) => [definition.type, definition]));
+    const countUp = JSON.stringify(definitions.get(unoCountUpType));
+    expect(countUp).not.toContain('STEP');
+    expect(definitions.get(unoCountUpType)?.tooltip).toBe('Counts up by 1 from the first number to the second.');
+    expect(definitions.get(unoIntDivideType)?.tooltip).toMatch(/toward zero \(-7 \/ 2 is -3\)/);
+    expect(row('U-14').cpp?.form).toContain('_c += 1L');
+    expect(row('U-06').cpp?.form).toBe('div32(<a>, <b>)');
   });
 });
 

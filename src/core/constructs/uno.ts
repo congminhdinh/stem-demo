@@ -1,6 +1,7 @@
 import type { UnoCallOp, UnoReadOp } from '../program/ybc-ir';
 import type { RobotRole } from '../hardware/kit';
 import { driveConstructs } from './uno.drive';
+import { unoCountUpType, unoIntDivideType } from './uno.lang';
 import { advancedOutputConstructs, outputConstructs } from './uno.output';
 import { pinConstructs } from './uno.pins';
 import { advancedSensorConstructs, sensorConstructs } from './uno.sensors';
@@ -12,7 +13,8 @@ import { servoConstructs } from './uno.servo';
 // never imported here.
 //
 // The language rows (U-01…U-18) are the blocks of the Yolo:Bit dialect, in packs of the uno family that leave out what the UNO
-// contract does not open (random numbers U-45, the running time: U-19 is the board's millis, Advanced). The module rows are the
+// contract does not open (random numbers U-45, the running time: U-19 is the board's millis, Advanced), except the two whose UNO
+// meaning differs: division truncates toward zero (U-06) and count up counts by 1 (U-14), blocks of their own (uno.lang.ts). The module rows are the
 // files uno.drive, uno.sensors, uno.servo, uno.output and uno.pins: one block per row, one IR op per block (robot plan §4.4).
 
 export type UnoPackId =
@@ -51,7 +53,7 @@ export const unoLangConstructs: readonly UnoConstruct[] = [
   { contractId: 'U-03', pack: 'uno.variables', blockTypes: ['variables_get', 'variables_set'] },
   { contractId: 'U-04', pack: 'uno.math', blockTypes: ['math_number'] },
   { contractId: 'U-05', pack: 'uno.math', blockTypes: ['ybc_arith'] },
-  { contractId: 'U-06', pack: 'uno.math', blockTypes: ['ybc_int_divide'] },
+  { contractId: 'U-06', pack: 'uno.math', blockTypes: [unoIntDivideType] },
   { contractId: 'U-07', pack: 'uno.math', blockTypes: ['math_modulo'] },
   { contractId: 'U-08', pack: 'uno.math', blockTypes: [] },
   { contractId: 'U-09', pack: 'uno.logic', blockTypes: ['logic_compare'] },
@@ -59,7 +61,7 @@ export const unoLangConstructs: readonly UnoConstruct[] = [
   { contractId: 'U-11', pack: 'uno.logic', blockTypes: ['controls_if'] },
   { contractId: 'U-12', pack: 'uno.loops', blockTypes: ['controls_repeat_ext'] },
   { contractId: 'U-13', pack: 'uno.loops', blockTypes: ['ybc_while'] },
-  { contractId: 'U-14', pack: 'uno.loops', blockTypes: ['ybc_count_up'] },
+  { contractId: 'U-14', pack: 'uno.loops', blockTypes: [unoCountUpType] },
   { contractId: 'U-15', pack: 'uno.text', blockTypes: ['text_print'] },
   { contractId: 'U-16', pack: 'uno.text', blockTypes: ['text'] },
   { contractId: 'U-17', pack: 'uno.text', blockTypes: ['text_join'] },

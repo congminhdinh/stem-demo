@@ -62,6 +62,7 @@ import {
 } from '../constructs/ybc.pins';
 import { melodyType, musicDefinitions, pitchType, playNoteType, restType, soundDefinitions, soundStopType } from '../constructs/ybc.sound';
 import { unoBlockTypesOf, unoPackIds, type UnoPackId } from '../constructs/uno';
+import { unoCountUpDefinition, unoCountUpType, unoIntDivideDefinition, unoIntDivideType } from '../constructs/uno.lang';
 import { driveDefinitions, driveMoveType, driveStopType, motorSetType } from '../constructs/uno.drive';
 import { advancedOutputDefinitions, buzzerStopType, buzzerToneType, ledSetType, outputDefinitions } from '../constructs/uno.output';
 import { analogReadType, createUnoPinBlockDefinitions, digitalReadType, digitalWriteType, millisType, pwmWriteType } from '../constructs/uno.pins';
@@ -465,7 +466,7 @@ const unoCategories: Readonly<Record<UnoPackId, ToolboxCategory[]>> = {
       contents: [
         block('controls_repeat_ext', { inputs: { TIMES: shadowNumber(10) } }),
         block(whileType),
-        block(countUpType, { inputs: { FROM: shadowNumber(1), TO: shadowNumber(10) } }),
+        block(unoCountUpType, { inputs: { FROM: shadowNumber(1), TO: shadowNumber(10) } }),
       ],
     },
     // Contract UNO: no running time (U-19 is the board's millis, Advanced, which joins this category).
@@ -476,13 +477,13 @@ const unoCategories: Readonly<Record<UnoPackId, ToolboxCategory[]>> = {
       kind: 'category',
       name: 'Math',
       colour: '230',
-      // Contract UNO U-45: no random numbers.
+      // Contract UNO U-45: no random numbers. U-06: the UNO's own division (toward zero), U-14: its own count up (by 1).
       contents: [
         block('math_number', { fields: { NUM: 0 } }),
         arithmetic('ADD'),
         arithmetic('MINUS'),
         arithmetic('MULTIPLY'),
-        block(intDivideType, { inputs: { A: shadowNumber(7), B: shadowNumber(2) } }),
+        block(unoIntDivideType, { inputs: { A: shadowNumber(7), B: shadowNumber(2) } }),
         block('math_modulo', { inputs: { DIVIDEND: shadowNumber(7), DIVISOR: shadowNumber(2) } }),
       ],
     },
@@ -521,8 +522,8 @@ export function createUnoPacks(choices: PinChoices): BlockPack[] {
     'uno.servo': servoDefinitions,
     'uno.output': outputDefinitions,
     'uno.logic': [],
-    'uno.loops': [whileDefinition, countUpDefinition, waitDefinition],
-    'uno.math': [arithDefinition, intDivideDefinition],
+    'uno.loops': [whileDefinition, unoCountUpDefinition, waitDefinition],
+    'uno.math': [arithDefinition, unoIntDivideDefinition],
     'uno.text': [],
     'uno.variables': [],
     'uno.sensors.advanced': advancedSensorDefinitions,

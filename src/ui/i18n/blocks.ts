@@ -148,6 +148,9 @@ const viRobotBlockText: Readonly<Record<string, BlockText>> = {
   uno_digital_read: { message0: 'đọc số chân %1', tooltip: 'Đúng khi một chân nối với cảm biến hoặc nút đang ở mức HIGH.' },
   uno_analog_read: { message0: 'đọc analog chân %1', tooltip: `Giá trị analog của một chân nối với cảm biến analog: từ 0 tới ${UNO_ADC_MAX}.` },
   uno_millis: { message0: 'thời gian từ lúc bắt đầu (ms)', tooltip: 'Số mili giây nguyên mà bo mạch đếm được từ khi chương trình bắt đầu.' },
+  // The UNO's division and count up (contract UNO U-06, U-14), whose meaning is not the Yolo:Bit dialect's.
+  uno_int_divide: { message0: '%1 / %2', tooltip: 'Chia lấy phần nguyên như trên bo mạch: bỏ phần lẻ về phía 0 (-7 / 2 là -3). Chia cho 0 thì được 0.' },
+  uno_count_up: { message0: 'đếm lên với %1 từ %2 tới %3 %4', tooltip: 'Đếm lên từng 1 từ số thứ nhất tới số thứ hai.' },
 };
 
 export const viBlockText: Readonly<Record<string, BlockText>> = {

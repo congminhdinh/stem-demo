@@ -79,6 +79,7 @@ import {
   MAX_WAIT_MS,
   numericDomains,
 } from './limits';
+import { unoCountUpType, unoIntDivideType } from '../constructs/uno.lang';
 import { createUnoModuleCompiler } from './compile-uno-modules';
 import type { ArithOp, ColourOperand, CompareOp, Expr, NumericModel, Type, YbcProgramIR, YbcStatement } from './ybc-ir';
 
@@ -544,6 +545,13 @@ export function compileYbcProgram(
         return arithmetic(block, '%', 'DIVIDEND', 'DIVISOR', depth);
       case intDivideType:
         return arithmetic(block, '//', 'A', 'B', depth);
+      case unoIntDivideType:
+        // N18 R2.2: the UNO's division (U-06), the `//` node of the cxx-int32 model; uno family only.
+        if (numeric === 'cxx-int32') {
+          return arithmetic(block, '//', 'A', 'B', depth);
+        }
+        report('error', 'unsupported-construct', `"${block.type}" is not supported by the compiler.`, block.id);
+        return null;
       case 'logic_compare': {
         const op = typeof block.fields?.OP === 'string' ? compareOps[block.fields.OP] : undefined;
         if (!op) {
@@ -738,8 +746,9 @@ export function compileYbcProgram(
     } else {
       variable = id;
     }
-    // The step is a number typed into the block, never a computed value (contract section 3.3). The UNO counts by 1 (`_c += 1L`).
-    const step = block.fields?.STEP;
+    // The step is a number typed into the block, never a computed value (contract section 3.3). The UNO counts by 1 (`_c += 1L`):
+    // its own block has no step field (N18 R2.2).
+    const step = block.type === unoCountUpType ? 1 : block.fields?.STEP;
     const [lowestStep, highestStep] = domains.countUpStep;
     let stepOk = false;
     if (typeof step !== 'number' || !Number.isInteger(step)) {
@@ -1101,6 +1110,13 @@ export function compileYbcProgram(
         return compileWhile(block, depth);
       case countUpType:
         return compileCountUp(block, depth);
+      case unoCountUpType:
+        // N18 R2.2: the UNO's count up (U-14), always by 1; uno family only.
+        if (numeric === 'cxx-int32') {
+          return compileCountUp(block, depth);
+        }
+        report('error', 'unsupported-construct', `"${block.type}" is not supported by the compiler.`, block.id);
+        return null;
       case waitType:
         return compileWait(block, depth);
       case pinWriteType:
@@ -1112,7 +1128,7 @@ export function compileYbcProgram(
         if (uno?.isStatement(block.type)) {
           return uno.compileStatement(block, depth);
         }
-        if (languageBlockTypes.has(block.type) || hardwareValueBlockTypes.has(block.type) || uno?.isValue(block.type)) {
+        if (languageBlockTypes.has(block.type) || hardwareValueBlockTypes.has(block.type) || uno?.isValue(block.type) || (uno && block.type === unoIntDivideType)) {
           report('error', 'unsupported-construct', `"${block.type}" cannot be used as a statement.`, block.id);
           return null;
         }

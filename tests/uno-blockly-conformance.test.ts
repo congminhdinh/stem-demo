@@ -196,9 +196,36 @@ describe('the robot’s blocks as real Blockly saves them', () => {
     expect(pin('D10').duty).toBe(200);
   });
 
+  it('Basic: the UNO’s own division and count up (fix round 1): -7 / 2 is -3, the count goes by 1 and saves no step', async () => {
+    const workspace = new Blockly.Workspace();
+    let saved: Record<string, unknown>;
+    try {
+      const variable = workspace.getVariableMap().createVariable('i', '', 'i-id');
+      const onStart = newBlock(workspace, 'stem_on_start', 'on-start');
+      const divide = newBlock(workspace, 'uno_int_divide', 'divide');
+      plug(divide, 'A', number(workspace, 'a', -7));
+      plug(divide, 'B', number(workspace, 'b', 2));
+      const count = newBlock(workspace, 'uno_count_up', 'count');
+      count.setFieldValue(variable.getId(), 'VAR');
+      plug(count, 'FROM', number(workspace, 'from', 1));
+      plug(count, 'TO', number(workspace, 'to', 3));
+      const get = newBlock(workspace, 'variables_get', 'get');
+      get.setFieldValue(variable.getId(), 'VAR');
+      plug(count, 'DO', print(workspace, 'p-i', get));
+      stack(onStart, 'DO', print(workspace, 'p-divide', divide), count);
+      saved = Blockly.serialization.workspaces.save(workspace);
+    } finally {
+      workspace.dispose();
+    }
+    expect(JSON.stringify(saved)).not.toContain('STEP');
+    expect(canOpenProgram(saved, packs)).toBe(true);
+    const { lines } = await runOn(compile(project(saved, 'uno-basic')));
+    expect(lines).toEqual(['-3', '1', '2', '3']);
+  });
+
   it('builds every uno_* block the packs register', () => {
     expect([...covered].filter((type) => type.startsWith('uno_')).sort()).toEqual([...unoTypes].sort());
-    expect(unoTypes).toHaveLength(16);
+    expect(unoTypes).toHaveLength(18);
   });
 });
 
@@ -250,6 +277,7 @@ describe('the robot’s blocks as Blockly registers them', () => {
         ['uno_digital_read', 'Boolean'],
         ['uno_analog_read', 'Number'],
         ['uno_millis', 'Number'],
+        ['uno_int_divide', 'Number'],
       ]);
       for (const type of unoTypes) {
         const block = workspace.newBlock(type);
