@@ -89,8 +89,8 @@ hợp lệ và lab nằm trong một frame.
 
 | `type` | Trường | Khi nào |
 |---|---|---|
-| `ready` | `template: string`, `profile: string \| null`, `goals: { id, label }[]`; lab robot thêm `lab: "robot"`, `scenarioVersion?`, `maxScore?` | Một lần, khi lab đã mở template. `profile` là profile của project (null với lab Blockly). `goals` rỗng khi template không có challenge (`empty`, `ybc-empty`; lab robot: chưa có mục tiêu tới R6). Lab robot: `scenarioVersion: 1`, và `maxScore: 100` cho scenario có điểm; `rb-sandbox` **bỏ** `maxScore` (không `null`) |
-| `run-started` | — | Một lượt chạy bắt đầu (Chạy, hoặc lượt chạy của Kiểm tra) |
+| `ready` | `template: string`, `profile: string \| null`, `goals: { id, label }[]`; lab robot thêm `lab: "robot"`, `scenarioVersion?`, `maxScore?` | Một lần, khi lab đã mở template. `profile` là profile của project (null với lab Blockly). `goals` rỗng khi template không có challenge (`empty`, `ybc-empty`). Lab robot (từ N18 R6.3): các mục tiêu của scenario theo thứ tự của nó, `label` theo ngôn ngữ của lab (`robotReadyGoals`, đọc từ file scenario); `rb-sandbox` rỗng. `check-result` có điểm liệt kê đúng các id này. Lab robot: `scenarioVersion: 1`, và `maxScore: 100` cho scenario có điểm; `rb-sandbox` **bỏ** `maxScore` (không `null`) |
+| `run-started` | — | Một lượt chạy bắt đầu (Chạy, hoặc lượt chạy của Kiểm tra). Lab robot (N18 R6.3): **một** cặp cho cả lần Kiểm tra ở 1× hay 4× (mọi variant), không có cặp nào khi Kiểm tra "Nhanh" (lab không hiện lượt chấm); "Xem lại" một variant là một lượt chạy |
 | `run-stopped` | — | Lượt chạy kết thúc (Dừng, Đặt lại, hoặc Kiểm tra xong) |
 | `check-result` | `passed: boolean`, `goals: { id, label, passed }[]`; lab robot thêm `lab: "robot"` và, với scenario có mục tiêu, `score`, `maxScore`, `simTimeMs`, `variants`, `engine`, `scenarioVersion`, `programHash` | Mỗi lần Kiểm tra xong. `passed` = mọi mục tiêu đạt. Đến **sau** `run-stopped` của lượt chạy đó. Kiểm tra bị huỷ (Dừng giữa chừng) hoặc **bị gián đoạn** (N17 B6: tab bị ẩn, máy chậm; xem §3) thì không gửi. Lab robot: trường, giới hạn và thứ tự ở mục "Lab robot" ngay dưới |
 | `project-changed` | `document` (project document, schema v1) | Sau mỗi thay đổi của project, debounce 1 giây (thay đổi cuối thắng); gửi ngay khi trang `pagehide`. Mở template không gửi gì. Lab robot: không gửi trong lúc một lần Kiểm tra chạy (sửa đổi đó đi sau `check-result`; thứ tự ở mục "Lab robot"), kể cả khi `pagehide` chỉ đưa trang vào bfcache (`event.persisted`): lúc đó sửa đổi ấy chờ `endCheck()`, còn `pagehide` thường vẫn gửi ngay |
@@ -195,7 +195,14 @@ Mỗi lab mở project của **một họ board** (`labFamilies` ở `src/ui/app
   variant mà chương trình dừng vì lỗi được 0 điểm và trượt mọi mục tiêu; N18 R6.2), `goal.passed` và `passed` là "qua ở mọi variant". Trong lúc chạy lab robot khoá
   soạn thảo và gọi `beginCheck()` (sau `saveNow()`) / `endCheck()` của bridge (thứ tự ở §2). Kiểm tra bị huỷ hoặc gián đoạn thì không gửi `check-result` (như trên).
   Scenario không mục tiêu (`rb-sandbox`) nếu gửi `check-result` thì chỉ là `{ passed: true, goals: [] }`; người soạn bài đặt `requiresCheck = false` cho nó.
-  Một lần chấm đã lưu được **kiểm chứng lại** bằng `pnpm verify:attempt` (N18 R8a): chạy lại headless trên project đã lưu và so điểm, xem
+  - **Trong lab** (N18 R6.3): nút **Kiểm tra** ở header (cạnh nút chạy), với tốc độ **1×**, **4×** hoặc **Nhanh**. Ở 1× và 4× khung 3D chiếu
+    từng variant ("Lượt k/N", thanh tiến độ); Nhanh chấm không chiếu (headless, phủ một khung tiến độ), cùng kết quả. Trong lúc chấm: khối lệnh,
+    nút chạy và nút của robot bị khoá; run đang chạy của học sinh dừng trước. Xong thì hiện kết quả trên khung 3D: đạt hay chưa, điểm, từng variant,
+    từng mục tiêu và vì sao chưa đạt ("Xe chạm tường lúc 12,4 s ở lượt 2"), thưởng thời gian, và **Xem lại** một variant trượt (chạy lại ở 1×
+    từ đầu: tất định nên là đúng lượt đó). **Tab bị ẩn** khi chấm ở 1×/4× thì lần chấm **dừng lại** (không còn frame) và chạy tiếp khi tab hiện
+    lại, kết quả **giống hệt**: lab robot không coi đó là "gián đoạn" như lab Blockly/Yolo:Bit ở trên (chấm theo thời gian mô phỏng, không theo
+    giờ thật). **Dừng kiểm tra** thì không có kết quả, không gửi `check-result`. `rb-sandbox` không có nút Kiểm tra.
+  - **Kiểm chứng lại** (N18 R8a): một lần chấm đã lưu được **kiểm chứng lại** bằng `pnpm verify:attempt`: chạy lại headless trên project đã lưu và so điểm, xem
   `docs/robot-attempt-verification.md`.
 
 ## 4. Khung nhúng
@@ -229,6 +236,9 @@ không đổi.
 N18 R7.1 (2026-10-25) chỉ **thêm**: trên `check-result` của lab robot, `score`, `maxScore`, `simTimeMs`, `variants`, `engine`, `scenarioVersion`, `programHash`
 (§2: giới hạn, bắt buộc với scenario có mục tiêu, bridge từ chối gửi cái host sẽ bỏ), thứ tự `project-changed` quanh `check-result` (§2: sửa đổi trong lúc chấm được giữ lại và gửi sau `check-result`), fixture chung hai
 repo `docs/fixtures/stem-lab-v1-robot.json` và manifest scenario `docs/fixtures/robot-scenarios.v1.json` (§1). Message của lab Blockly và lab Yolo:Bit không đổi một byte.
+
+N18 R6.3 (2026-10-25) không đổi message: `ready` của lab robot nay **có** `goals` của scenario (trước là rỗng "tới R6"), lab gửi `check-result`
+có điểm của §2, và với Kiểm tra ở 1× / 4× là một cặp `run-started` / `run-stopped` trước `check-result` (§2, §3).
 
 **Hook dev** (`window.__stem.robot`, chỉ bản dev, như `__stem`; N18 R4.1): `getSnapshot()` trả `null` cho tới khi có một lượt chạy (R3.6 định
 nghĩa `RobotSnapshot`, R4.2 phục vụ nó), `setSpeed(n)` lưu hệ số tốc độ (số hữu hạn > 0; đọc lại bằng `getSpeed()`, mặc định 1) và
