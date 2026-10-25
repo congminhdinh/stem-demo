@@ -441,6 +441,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
           highlightBlockId={view.highlightBlockId}
           blockWarnings={view.blockWarnings}
           readOnly={view.readOnly}
+          onSelectBlock={view.onSelectBlock}
         />
       </ErrorBoundary>
     );

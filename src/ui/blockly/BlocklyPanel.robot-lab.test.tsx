@@ -60,7 +60,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-type Props = { readOnly?: boolean; emptyProgram?: unknown; highlightBlockId?: string | null };
+type Props = { readOnly?: boolean; emptyProgram?: unknown; highlightBlockId?: string | null; onSelectBlock?(blockIds: readonly string[]): void };
 const panel = createRef<BlocklyPanelHandle>();
 const render = (props: Props = {}) => act(async () => root.render(<BlocklyPanel ref={panel} projectStore={store} packs={packs} toolbox={toolbox} {...props} />));
 const wait = (ms: number) => act(async () => void vi.advanceTimersByTime(ms));
@@ -165,5 +165,48 @@ describe('BlocklyPanel highlight of a hidden block (N18 R4.2, the R2.4 carry)', 
     expect(lit()).toEqual([loopId]);
     await fold(false);
     expect(lit()).toEqual([innerId]);
+  });
+});
+
+describe('BlocklyPanel onSelectBlock (N18 R4.5)', () => {
+  // Blockly fires its events from an animation frame, which the fake timers do not run: hand the panel the event now.
+  const select = (blockId: string | null) =>
+    act(async () => workspace().fireChangeListener(new Blockly.Events.Selected(null, blockId, workspace().id)));
+
+  it('tells the selected block and the blocks around it, innermost first: the C++ tab shows the code of the first that has any', async () => {
+    store = createProjectStore(documentOf(program([loop, after])));
+    const onSelectBlock = vi.fn();
+    await render({ onSelectBlock });
+    await select(innerId);
+    expect(onSelectBlock).toHaveBeenLastCalledWith([innerId, loopId, 'on-start']);
+    await select(afterId);
+    expect(onSelectBlock).toHaveBeenLastCalledWith([afterId, 'on-start']);
+  });
+
+  it('tells an empty selection when nothing is selected, and when the selected thing is no block of the workspace', async () => {
+    store = createProjectStore(documentOf(program([loop, after])));
+    const onSelectBlock = vi.fn();
+    await render({ onSelectBlock });
+    await select(innerId);
+    await select(null);
+    expect(onSelectBlock).toHaveBeenLastCalledWith([]);
+    await select('a-comment-or-a-bubble');
+    expect(onSelectBlock).toHaveBeenLastCalledWith([]);
+  });
+
+  it('clears the selection when its workspace goes (another project is loaded, the lab closes)', async () => {
+    store = createProjectStore(documentOf(program([loop, after])));
+    const onSelectBlock = vi.fn();
+    await render({ onSelectBlock });
+    await select(innerId);
+    await act(async () => store.getState().loadProject(documentOf(program([after]))));
+    expect(onSelectBlock).toHaveBeenLastCalledWith([]);
+  });
+
+  it('costs nothing without a listener', async () => {
+    store = createProjectStore(documentOf(program([after])));
+    await render();
+    await select(afterId);
+    expect(store.getState().document.program.blocks).toEqual(program([after]));
   });
 });

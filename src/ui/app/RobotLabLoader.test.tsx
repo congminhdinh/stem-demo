@@ -28,7 +28,7 @@ afterEach(async () => {
 });
 
 // N18 R4.2: the lab's program is App's block editor, built for the view of the lab (a render prop); the loader only hands every prop on.
-const view = { toolbox: { kind: 'categoryToolbox', contents: [] }, emptyProgram: {}, highlightBlockId: null, blockWarnings: {}, readOnly: false };
+const view = { toolbox: { kind: 'categoryToolbox', contents: [] }, emptyProgram: {}, highlightBlockId: null, blockWarnings: {}, readOnly: false, onSelectBlock: () => {} };
 const Lab: ComponentType<RobotLabProps> = ({ template, program }) => (
   <main data-testid="lab">
     {template}

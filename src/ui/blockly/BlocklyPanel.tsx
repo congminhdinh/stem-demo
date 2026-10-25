@@ -71,6 +71,12 @@ type BlocklyPanelProps = {
   emptyProgram?: unknown;
   /** N18 R4.2: the workspace cannot be edited (a robot check runs). Blocks can still be looked at and scrolled. */
   readOnly?: boolean;
+  /**
+   * N18 R4.5: the learner selected a block: its id, then the ids of the blocks around it, innermost first (the C++ tab shows the code of
+   * the first that has any: a number typed into a block selects that block's code). Empty when nothing, or something that is no block, is
+   * selected, and when the workspace goes (another project is loaded). Not part of the document.
+   */
+  onSelectBlock?(blockIds: readonly string[]): void;
   ref?: Ref<BlocklyPanelHandle>;
 };
 
@@ -118,6 +124,18 @@ function showHighlight(workspace: Blockly.WorkspaceSvg | null, blockId: string |
 }
 
 /**
+ * The ids of the block `blockId` and of the blocks around it, innermost first (the blocks that hold it in an input or a statement; a
+ * block before it in a stack is not around it); empty when it is no block of the workspace.
+ */
+function blockChain(workspace: Blockly.Workspace, blockId: string | undefined): string[] {
+  const chain: string[] = [];
+  for (let block = blockId === undefined ? null : workspace.getBlockById(blockId); block !== null; block = block.getSurroundParent()) {
+    chain.push(block.id);
+  }
+  return chain;
+}
+
+/**
  * Makes the warnings on `workspace` the record `wanted`, changing only what differs from `applied` (what this panel put there
  * before, id to text); `applied` is updated. A block that is not in the workspace is skipped, and stays unrecorded so that a later
  * call sets it once the block exists.
@@ -154,6 +172,7 @@ export function BlocklyPanel({
   blockWarnings,
   emptyProgram,
   readOnly = false,
+  onSelectBlock,
   ref,
 }: BlocklyPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -161,6 +180,7 @@ export function BlocklyPanel({
   const loadRevision = useStore(projectStore, (state) => state.loadRevision);
   const loadFailed = useEffectEvent(() => onLoadFailed?.());
   const isReadOnly = useEffectEvent(() => readOnly);
+  const blockSelected = useEffectEvent((blockIds: readonly string[]) => onSelectBlock?.(blockIds));
   // N18 R2.4: the workspace of the current load (null between loads), what it shows of the run, and what the caller last asked for.
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
   const shownHighlightRef = useRef<string | null>(null);
@@ -244,6 +264,9 @@ export function BlocklyPanel({
 
     workspace.addChangeListener(Blockly.Events.disableOrphans);
     workspace.addChangeListener((event) => {
+      if (event instanceof Blockly.Events.Selected) {
+        blockSelected(blockChain(workspace, event.newElementId));
+      }
       if (!event.isUiEvent) {
         clearTimeout(pendingSave);
         pendingSave = setTimeout(save, saveDelayMs);
@@ -276,6 +299,7 @@ export function BlocklyPanel({
     return () => {
       workspaceRef.current = null;
       saveNowRef.current = () => {};
+      blockSelected([]);
       resizeObserver.disconnect();
       if (pendingSave !== undefined) {
         save();
