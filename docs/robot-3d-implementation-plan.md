@@ -228,6 +228,14 @@ type RobotGoalSpec = { id: string; label: { vi: string; en: string }; points: nu
   - `goal.passed` (gửi host): goal đó qua ở mọi biến thể.
 - Key `rb-*` **không bao giờ đổi tên hay tái dùng**. Đổi hành vi thì tăng `version`.
 
+*Bổ sung khi làm R5.1 (`src/core/scenario/`, catalog ở `src/samples/robot-scenarios/index.ts`):*
+- `PoseCm = { xCm, yCm, yawDeg }`: điểm trên sàn dưới giữa thân robot (cùng `RobotStart` của R3.3). Vị trí xuất phát phải nằm trên sa bàn.
+- **Điểm:** mọi scenario có điểm đều `maxScore = 100` đúng: `Σ points + (timeBonusMax ?? 0) = 100`, `points` và `timeBonusMax` là số nguyên ≥ 0. `rb-sandbox` không goal, không `maxScore` (schema cấm `timeBonusMax`). `penalties` chỉ nhận mảng rỗng cho tới khi R6.2 định nghĩa `PenaltySpec`.
+- **Key:** chỉ 7 key của `robot-templates.ts`; `profile` phải đúng mức scenario cần, `kit` phải là `ref-uno-rover`. `version` là số nguyên ≥ 1; `timeLimitS` ∈ (0, 600].
+- **Tham chiếu phải tồn tại:** `zone` là id vùng sơn, `object` là id `arena.objects`, `avoid-contact.tag` là một loại collider (`wall`, `box`, `cylinder`, `object`) hoặc tag có trong sa bàn, `servo-angle.role` là role servo (`0 ≤ minDeg ≤ maxDeg ≤ 180`), `stay-on-line` cần có vạch, `uses-block.blockType` phải nằm trong `toolbox` nếu có. `id` goal duy nhất, ≤ 50 ký tự `[a-z0-9-]`; label vi/en ≤ 200 ký tự (luật của LMS).
+- **`inputs`:** `role` là role nút, `0 ≤ atS < timeLimitS`, mỗi nút xen kẽ `press`/`release` bắt đầu từ nhả, một nút không có hai input cùng lúc. `loadScenario` sắp theo thời gian. `inputsDueBetween(scenario, t0S, t1S)` trả input có `t0S ≤ atS < t1S`: các cửa sổ nối tiếp nhau (một tick, một khung hình, một lô headless) trao mỗi input đúng một lần.
+- **Biến thể:** `variantOffsets(scenario, index)` thuần và tất định (seed `variants.seed + index`, `world/rng.ts`, trig qua `dmath`). Biến thể 0 không lệch. Biến thể ≥ 1 bốc `±startJitterCm` (x, y), `±yawJitterDeg` rồi `±obstacleJitterCm` cho box/cylinder có tag `jitter`; bốc trượt (ra ngoài sa bàn, chạm tường, vật, robot hay vật cản khác) thì bốc lại, tối đa 20 lần, rồi giữ vị trí tác giả đặt. Chân robot tính là hình tròn bán kính 10 cm (`ROBOT_FOOTPRINT_RADIUS_CM`, đủ cho thân 15 × 10 cm của `ref-uno-rover`); kit có thân lớn hơn phải tăng số này. `applyVariant(scenario, offsets)` cho `{ start, arena }` để dựng world.
+
 ### 4.7 `stem-lab/v1` (chỉ thêm) — `docs/lab-embed-contract.md`, `src/ui/app/host-bridge.ts`
 - Launch: `?embed=1&lab=robot&template=rb-<key>&profile=uno-basic|uno-advanced&origin=<o>`.
 - `ready` thêm `{ lab: 'robot', scenarioVersion, maxScore }`.
