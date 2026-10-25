@@ -6,7 +6,7 @@ import type { WaveformDecoding } from './board-trace';
 import { compareTraces, type Comparison } from './compare';
 import { compileFixture, sketchOf, type ParityFixture } from './fixtures';
 import { levelTimeline } from './inputs';
-import { runSimulator, type SimRun } from './sim-run';
+import { runSimulator, toneFormsOf, type SimRun } from './sim-run';
 
 // One parity run (N18 C2): a fixture on the simulator and its HEX on avr8js, for the same virtual time with the same inputs, and
 // the comparison of their traces.
@@ -52,12 +52,13 @@ export async function runParity(
   const simulated = { ...fixture, ...simulatorOnly };
   const durationUs = fixture.durationMs * 1000;
   const started = performance.now();
-  const sim = await runSimulator(compileFixture(simulated), simulated.inputs, durationUs);
+  const simulatedProgram = compileFixture(simulated);
+  const sim = await runSimulator(simulatedProgram, simulated.inputs, durationUs);
   const simDone = performance.now();
   const board = runBoard(hex, { kit: program.kit, board: program.board, decodings: decodingsOf(program.kit) }, fixture.inputs, durationUs);
   const boardDone = performance.now();
   const inputChanges = [...levelTimeline(program.kit, fixture.inputs).values()].flat();
   const prints = sketchOf(fixture).includes('Serial.begin(9600);');
-  const comparison = compareTraces({ sim, board, inputChanges, durationUs, prints });
+  const comparison = compareTraces({ sim, board, inputChanges, durationUs, prints, toneForms: toneFormsOf(simulatedProgram.ir) });
   return { sim, board, comparison, wallMs: { sim: simDone - started, board: boardDone - simDone } };
 }

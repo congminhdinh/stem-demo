@@ -36,11 +36,18 @@ describe('decodePin', () => {
       [{ kind: 'low' }, 3, 3],
       [{ kind: 'pwm', duty: 128 }, 3, 600],
     ]);
-    // The run's start window is one period (+4 µs) before its first rise when the LOW is older than that.
+    // The run's start window is one period (+0.5 µs, waveform-jitter) before its first rise when the LOW is older than that.
     expect(events('D5', [low(3), ...pulses(30_600, 3, 1024, 308)], 40_000, pwm).slice(2)).toEqual([
-      [{ kind: 'pwm', duty: 77 }, 30_600 - 1028, 30_600],
-      [{ kind: 'low' }, 30_600 + 2048 + 308, 30_600 + 3072 + 4],
+      [{ kind: 'pwm', duty: 77 }, 30_600 - 1024.5, 30_600],
+      [{ kind: 'low' }, 30_600 + 2048 + 308, 30_600 + 3072 + 0.5],
     ]);
+  });
+
+  it('starts a waveform from a steady HIGH up to two periods before its first rise: its first period shows only a fall', () => {
+    // negate-drive's D6: HIGH (duty 255), then analogWrite(6, 179) at 60 399 µs; the timer sets the pin at 60 412.75 (no edge), clears
+    // it at its compare (61 128.75) and sets it again at 61 436.75, the first rise.
+    const changes = [low(12.9375), high(30_269.875), low(61_128.75), ...pulses(61_436.75, 3, 1024, 716)];
+    expect(events('D6', changes, 64_000, pwm).slice(3)).toEqual([[{ kind: 'pwm', duty: 179 }, 61_436.75 - 2048 - 0.5, 61_436.75]]);
   });
 
   it('times a duty change from the old waveform’s last period to the first rise of the new one', () => {
@@ -52,7 +59,7 @@ describe('decodePin', () => {
     expect(events('D5', changes, 9000, pwm).slice(2)).toEqual([
       [{ kind: 'pwm', duty: 128 }, 3, 600],
       [{ kind: 'pwm', duty: 77 }, 3672, 4696],
-      [{ kind: 'low' }, 7052, 7772],
+      [{ kind: 'low' }, 7052, 7768.5],
     ]);
   });
 
@@ -68,9 +75,9 @@ describe('decodePin', () => {
     // digitalWrite(HIGH) in a LOW phase: a rise before the one due, and no fall.
     expect(events('D5', [low(3), ...run, high(3672), low(4184), high(4400)], 9000, pwm).slice(3)).toEqual([[{ kind: 'high' }, 4400, 4400]]);
     // analogWrite(255) in a HIGH phase: no fall, or one long after: HIGH from the last rise to its fall that did not come.
-    expect(events('D5', [low(3), ...run, high(3672)], 9000, pwm).slice(3)).toEqual([[{ kind: 'high' }, 3672, 3672 + 512 + 4]]);
+    expect(events('D5', [low(3), ...run, high(3672)], 9000, pwm).slice(3)).toEqual([[{ kind: 'high' }, 3672, 3672 + 512 + 0.5]]);
     expect(events('D5', [low(3), ...run, high(3672), low(33_000)], 40_000, pwm).slice(3)).toEqual([
-      [{ kind: 'high' }, 3672, 3672 + 512 + 4],
+      [{ kind: 'high' }, 3672, 3672 + 512 + 0.5],
       [{ kind: 'low' }, 33_000, 33_000],
     ]);
   });

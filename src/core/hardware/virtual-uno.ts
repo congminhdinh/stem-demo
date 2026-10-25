@@ -10,7 +10,8 @@ import type { HardwareDiagnostic } from './pin-rules';
 // tone, D3/D11 have no PWM until a new analogWrite), a digital read or write stops a pin's PWM.
 //
 // tone() costs by the Timer2 prescaler band of its frequency, on a silent pin or on the one that plays (board.toneUs, contract
-// 0.1.5 §4.4, EMU-17).
+// 0.1.6 §4.4, EMU-18): the cost of the call -flto does not fold; with few call sites and a literal frequency the board folds it,
+// down to 17.6875 µs (contract §13).
 //
 // What it does not model (contract §13, L1 ≠ L2e): the load of interrupts (Timer0, the Servo, tone: 0.58 %, 0.16 %, 1.49 %
 // at 1 kHz), so pulseIn without echo charges the 20 752 µs measured without a Servo (20 785.44 µs with one, EMU-03); the
@@ -399,7 +400,7 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
       changing([id, ...timerPins(board.timerClaims.tone)], () => {
         const pin = record(id);
         const playing = toneNow();
-        // By the band of its frequency (contract 0.1.5 §4.4, EMU-17): on a pin that plays nothing (tone() registers the pin and
+        // By the band of its frequency (contract 0.1.6 §4.4, EMU-18): on a pin that plays nothing (tone() registers the pin and
         // sets Timer2 up first), on the pin that plays; a tone on another pin, which does nothing, at the table's cost.
         const band = toneBandOf(hz);
         clock.charge(playing === null ? band.silentUs : playing.pin === id ? band.playingUs : costs.tone);

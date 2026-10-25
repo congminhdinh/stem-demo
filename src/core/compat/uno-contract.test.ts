@@ -307,7 +307,7 @@ describe('time, costs and the board (contract §4, §5)', () => {
       pulseInNoPulse30000: 20_752,
       ultrasonicCmOverhead: 65.5625,
       ultrasonicCmNoEcho: 20_812,
-      motorSetOverhead: 42.0625,
+      motorSetOverhead: 43.3125,
       serialWriteByte: 4.625,
       serialQueueByte: 6.28125,
       serialLineByte: 1040,
@@ -316,7 +316,7 @@ describe('time, costs and the board (contract §4, §5)', () => {
       serialPrintLongSign: 6.8125,
       serialPrintln: 17.25,
     });
-    expect(contract.costsEvidence).toEqual(['EMU-08', 'EMU-03', 'EMU-13', 'EMU-17']);
+    expect(contract.costsEvidence).toEqual(['EMU-08', 'EMU-03', 'EMU-13', 'EMU-17', 'EMU-18']);
   });
 
   it('keeps the loop policy of the simulator: no hidden delay, 50 µs per loop() iteration, 1 µs per node', () => {

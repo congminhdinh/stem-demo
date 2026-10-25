@@ -113,12 +113,16 @@ describe('the allowed differences (ADR 0003 §7 condition 2)', () => {
     expect(intervalRule).toMatchObject({ waitShare: 0.01, longFromUs: 1000 });
   });
 
-  it('are those of ADR 0003 §6 and the contract’s L1 ≠ L2e rows; motorSet and tone() costs are board data now, not differences', () => {
+  it('are those of ADR 0003 §6 and the contract’s L1 ≠ L2e rows; motorSet and tone() costs are board data, tone()’s fold by program a difference', () => {
     expect(Object.keys(allowedDifferences)).toEqual([
-      'timer0-duty', 'usart-frame', 'tx-queue', 'pull-up', 'output-low-first', 'isr-load', 'loop-min-us', 'call-costs', 'serial-time', 'join-by-parts',
+      'timer0-duty', 'usart-frame', 'tx-queue', 'pull-up', 'output-low-first', 'isr-load', 'loop-min-us', 'call-costs', 'tone-fold', 'serial-time', 'join-by-parts',
       'waveform-phase', 'waveform-jitter', 'millis-origin', 'servo-first-pulse', 'tone-frequency', 'tone-duration', 'pulsein-short', 'pulsein-no-echo',
     ]);
     expect(allowedDifferences['servo-first-pulse'].firstPulseAfterAttachUs).toBe(52_768);
+    // tone(): a literal frequency folded to 17.6875 µs at 1000 Hz (one call site), a computed one 213.375 µs (EMU-18).
+    expect(allowedDifferences['tone-fold'].literal.fasterShare).toBeCloseTo(1 - 17.6875 / 181.5625, 12);
+    expect(allowedDifferences['tone-fold'].runtime.slowerShare).toBeCloseTo(213.375 / 181.5625 - 1, 12);
+    expect(allowedDifferences['waveform-jitter'].pwm).toEqual({ periodUs: 0.5, highUs: 0.5 });
     // The interrupt figures are the contract's isrLoad: one Timer0 overflow 5.97 µs, one Servo 32.6 µs a frame, one tone toggle 7.45 µs.
     expect(allowedDifferences['isr-load'].timer0IsrUs).toBeCloseTo(0.00583 * 1024, 9);
     expect(allowedDifferences['isr-load'].servoFrameUs).toBeCloseTo(0.00163 * 20_000, 9);

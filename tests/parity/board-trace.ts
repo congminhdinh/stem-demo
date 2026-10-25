@@ -9,8 +9,8 @@ import type { PinEvent, PinLogicalState } from './trace';
 //
 // When does the change happen? The hardware shows it at the timer's next period, after the call (allowed difference
 // `waveform-phase`: contract §5.1, §6.2, §6.3), so a waveform's start or stop is a time range:
-//   - a waveform starts within one period before its first rising edge, and after the event before it; the output edges in
-//     between are its lead-in, not events of their own. A pin leaving INPUT (the pinMode inside Servo.attach or tone()) is an
+//   - a waveform starts within one period before its first rising edge (two from a steady HIGH, whose first period shows only its
+//     fall), and after the event before it; the output edges in between are its lead-in, not events of their own. A pin leaving INPUT (the pinMode inside Servo.attach or tone()) is an
 //     exact LOW: the simulator's trace gets the same LOW (sim-run.ts), since the board's pin is an output before any waveform;
 //   - a waveform that stops LOW stopped between its last regular falling edge and the rising edge that did not come; one that
 //     stops HIGH, between its last rising edge and the falling edge that did not come; an early edge is an exact stop.
@@ -162,7 +162,11 @@ export function decodePin(pin: string, initial: RawPinState, changes: readonly R
       leadIn--;
     }
     exactUpTo(leadIn);
-    events.push({ pin, state: waveformState(decoding, run.periodUs, run.highUs), fromUs: Math.max(settledUs, windowUs), toUs: firstRiseUs });
+    // From a steady HIGH the waveform's first period shows no rise (the pin is HIGH already when the timer sets it), only its fall:
+    // the first whole period is the second one, so the waveform began up to two periods before its first rise.
+    const fromHigh = stateBefore(leadIn) === 'HIGH' && leadIn < run.first;
+    const startUs = fromHigh ? windowUs - run.periodUs : windowUs;
+    events.push({ pin, state: waveformState(decoding, run.periodUs, run.highUs), fromUs: Math.max(settledUs, startUs), toUs: firstRiseUs });
 
     const lastRiseUs = at(run.last);
     index = run.last + 1;

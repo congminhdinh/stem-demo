@@ -49,9 +49,11 @@ export type ArduinoCall = (typeof arduinoCalls)[number];
 export type CostsUs = Readonly<Record<ArduinoCall, number>>;
 
 /**
- * What tone() costs for the frequencies of one band (contract 0.1.5 §4.4): tone() tries the timer's prescalers in turn, one long
- * division each, until the compare value fits, so the band of the prescaler it ends on sets the cost. `silentUs` on a pin that plays
- * no tone (tone() also registers the pin and sets the timer up), `playingUs` on the pin that plays one.
+ * What tone() costs for the frequencies of one band (contract 0.1.6 §4.4, EMU-18): tone() tries the timer's prescalers in turn, one
+ * long division each, until the compare value fits (Tone.cpp takes p once floor(8e6 / (p · f)) ≤ 256, so a band starts at
+ * floor(16e6 / (514 · p)) + 1 Hz), so the band of the prescaler it ends on sets the cost. Measured on the sketch the generator
+ * writes, with the frequency computed at run time (the call -flto cannot fold), the longest of the band. `silentUs` on a pin that
+ * plays no tone (tone() also registers the pin and sets the timer up), `playingUs` on the pin that plays one.
  */
 export type ToneCostBand = { readonly prescaler: number; readonly fromHz: number; readonly silentUs: number; readonly playingUs: number };
 

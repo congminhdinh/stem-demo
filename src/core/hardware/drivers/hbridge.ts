@@ -5,8 +5,9 @@ import { clampTo, defineDriver, defineOp, pinMacro, pinOf, type ArgRange } from 
 // speed > 0: IN1 HIGH, IN2 LOW; speed < 0: IN1 LOW, IN2 HIGH; 0: both IN LOW and EN LOW. The robot's drive (U-21, U-22) is
 // two of these, in the binding.
 //
-// Time (contract 0.1.5 §4.4, EMU-17): the helper's own long multiply and divide, between IN2 and EN, take costsUs.motorSetOverhead
-// (42.0625 µs) besides its three Arduino calls: motorSet(50) is 58.875 µs on the board.
+// Time (contract 0.1.6 §4.4, EMU-17): the helper's own long multiply and divide, between IN2 and EN, take costsUs.motorSetOverhead
+// (43.3125 µs, the longest of the speeds measured: the division takes a time that depends on the value) besides its three Arduino
+// calls: motorSet(-70) is 60.125 µs on the board, motorSet(50) 58.875.
 
 export const MOTOR_SPEED: ArgRange = { name: 'speed', min: -100, max: 100 };
 

@@ -14,9 +14,11 @@ describe('the uno-r3 board profile is the contract’s board (contract §4.4, §
     expect(board.costsUs).toEqual(unoContract.costsUs);
   });
 
-  it('charges tone() by the contract’s frequency bands, on a silent pin and on a playing one (contract 0.1.5 §4.4, EMU-17)', () => {
+  it('charges tone() by the contract’s frequency bands, on a silent pin and on a playing one (contract 0.1.6 §4.4, EMU-18)', () => {
     expect(board.toneUs).toEqual(unoContract.toneUs.bands);
-    expect(unoContract.toneUs.evidence).toEqual(['EMU-17']);
+    expect(unoContract.toneUs.evidence).toEqual(['EMU-18']);
+    // Tone.cpp takes prescaler p once floor(8e6 / (p · f)) ≤ 256.
+    expect(board.toneUs.map((band) => band.fromHz)).toEqual(board.toneUs.map((band) => Math.floor(16e6 / (514 * band.prescaler)) + 1));
   });
 
   it('has the contract’s PWM pins and timers, reserved pins, timer claims and non-PWM threshold', () => {

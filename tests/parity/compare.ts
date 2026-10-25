@@ -1,6 +1,7 @@
+import { unoContract } from '../../src/core/compat/uno-contract';
 import { allowedDifferences as allowed, intervalRule, type AllowedDifferenceId } from './allowed-differences';
 import type { LevelChange } from './inputs';
-import type { SimCall, SimLine } from './sim-run';
+import type { SimCall, SimLine, ToneForm } from './sim-run';
 import { describeState, isExact, type PinEvent, type PinLogicalState, type PrintedLine } from './trace';
 
 // The comparison of the two traces (N18 C2, ADR 0003 §7 condition 1): the events of every pin, one by one, and the lines printed;
@@ -64,6 +65,8 @@ export type CompareInput = {
   readonly durationUs: number;
   /** The sketch begins setup() with Serial.begin(9600) (it prints). */
   readonly prints: boolean;
+  /** How the sketch writes each tone()'s frequency, by the statement's block (allowed difference `tone-fold`). */
+  readonly toneForms?: ReadonlyMap<string, ToneForm>;
 };
 
 type Pair = { readonly what: string; readonly pin: string; readonly sim: Range & { state: PinLogicalState }; readonly board: Range; readonly exact: boolean; readonly widenedBy?: AllowedDifferenceId };
@@ -122,11 +125,12 @@ export function serialLineAllowances(lines: readonly PrintedLine[]): number[] {
 
 /** The first instant (µs from setup()) at which millis() gives `value`, by the board's model (contract §4.3): n + floor(3n / 125). */
 export function millisInstantUs(value: number): number {
+  const { overflowUs, fractPerOverflow, fractMax } = unoContract.millis;
   let n = 0;
-  while (n + Math.floor((3 * n) / 125) < value) {
+  while (n + Math.floor((fractPerOverflow * n) / fractMax) < value) {
     n += 1;
   }
-  return n * 1024;
+  return n * overflowUs;
 }
 
 const intersect = (a: Range, b: Range): Range => {
@@ -339,17 +343,30 @@ export function checkInterval(
   const waitUs =
     input.sim.sleeps.reduce((sum, sleep) => sum + length(intersect(sleep, window)), 0) +
     input.sim.calls.filter((call) => call.name === 'pulseIn').reduce((sum, call) => sum + length(intersect(call, window)), 0);
-  const callUs = input.sim.calls.filter((call) => call.name !== 'pulseIn').reduce((sum, call) => sum + length(intersect(call, window)), 0);
+  const inWindow = (call: SimCall) => length(intersect(call, window));
+  const callUs = input.sim.calls.filter((call) => call.name !== 'pulseIn').reduce((sum, call) => sum + inWindow(call), 0);
+  const toneCalls = input.sim.calls.filter((call) => call.name === 'tone' && inWindow(call) > 0);
+  const toneUs = toneCalls.reduce((sum, call) => sum + inWindow(call), 0);
   const nodeUs = input.sim.nodesUs.filter((atUs) => atUs >= window.fromUs && atUs < window.toUs).length * allowed['call-costs'].nodeUs;
   const loopUs = allowed['loop-min-us'].simUsPerIteration;
   const loops = input.sim.loopStartsUs.filter((atUs) => atUs > window.fromUs - loopUs && atUs < window.toUs).length;
 
   let belowUs = intervalRule.waitShare * waitUs;
   let aboveUs = intervalRule.waitShare * waitUs;
-  if (callUs > 0 || nodeUs > 0) {
-    belowUs += allowed['call-costs'].fasterShare * callUs + nodeUs;
-    aboveUs += allowed['call-costs'].slowerShare * callUs;
+  if (callUs > toneUs || nodeUs > 0) {
+    belowUs += allowed['call-costs'].fasterShare * (callUs - toneUs) + nodeUs;
     applied.push('call-costs');
+  }
+  // tone(): its own shares, by how the sketch writes its frequency (a variable may be either).
+  if (toneCalls.length > 0) {
+    const fold = allowed['tone-fold'];
+    for (const call of toneCalls) {
+      const form = input.toneForms?.get(call.blockId) ?? 'variable';
+      const shares = form === 'variable' ? { fasterShare: fold.literal.fasterShare, slowerShare: fold.runtime.slowerShare } : fold[form];
+      belowUs += shares.fasterShare * inWindow(call);
+      aboveUs += shares.slowerShare * inWindow(call);
+    }
+    applied.push('tone-fold');
   }
   if (loops > 0) {
     belowUs += loops * loopUs;

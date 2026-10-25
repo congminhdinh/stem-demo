@@ -507,7 +507,7 @@ export type UnoContract = {
   costsUs: Readonly<Record<ArduinoCall, number>>;
   costsEvidence: readonly EvidenceRef[];
   /**
-   * 0.1.5: what tone() costs (contract §4.4, EMU-17), by the band of Timer2 prescaler its frequency needs (`fromHz` up, the lowest
+   * 0.1.5, 0.1.6: what tone() costs (contract §4.4, EMU-18), by the band of Timer2 prescaler its frequency needs (`fromHz` up, the lowest
    * band first): on a pin that plays no tone (it registers the pin and sets Timer2 up first) and on the pin that plays one.
    */
   toneUs: { bands: readonly { prescaler: number; fromHz: number; silentUs: number; playingUs: number }[]; evidence: readonly EvidenceRef[] };

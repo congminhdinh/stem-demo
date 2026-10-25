@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileFixture, parityFixtures } from './fixtures';
-import { logicalStateOf, outputLowFirst, printsOfJoins, settleTones } from './sim-run';
+import { logicalStateOf, outputLowFirst, printsOfJoins, settleTones, toneFormsOf } from './sim-run';
 import type { PinEvent } from './trace';
 
 // N18 C2: how the simulator's pin changes become the harness's events.
@@ -68,5 +68,12 @@ describe('the simulator’s events', () => {
   it('knows which prints print a join (join-by-parts): sequenced-reads ends with one, logic-reads has none', () => {
     const joins = (name: string) => printsOfJoins(compileFixture(parityFixtures.find((fixture) => fixture.name === name) as (typeof parityFixtures)[number]).ir).size;
     expect([joins('sequenced-reads'), joins('logic-reads'), joins('print-mixed')]).toEqual([1, 0, 4]);
+  });
+
+  it('knows how each tone() frequency is written (tone-fold): literals, a variable set from reads, and sequenced-reads’ read', () => {
+    const forms = (name: string) => [...toneFormsOf(compileFixture(parityFixtures.find((fixture) => fixture.name === name) as (typeof parityFixtures)[number]).ir).values()];
+    expect(forms('driver-tone-led')).toEqual(['literal', 'literal', 'literal']);
+    expect(forms('driver-tone-computed')).toEqual(['runtime', 'runtime']);
+    expect(forms('sequenced-reads')).toEqual(['runtime']);
   });
 });

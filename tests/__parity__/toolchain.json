@@ -56,6 +56,16 @@
       "ramBytes": 50,
       "hexSha256": "bce4a6f56da94df31749d5034313c378c03566b2ccd2f490961ad03d8ba8cb17"
     },
+    "driver-tone-computed": {
+      "flashBytes": 2908,
+      "ramBytes": 32,
+      "hexSha256": "1addd7e6c182ae8e9b5d48dd0cc724b87a7effbb97ec105cae6b2b5cb1a43e48"
+    },
+    "driver-tone-led": {
+      "flashBytes": 2310,
+      "ramBytes": 28,
+      "hexSha256": "91c0c4a08f78457c5477d73a28e6d9af85a05c6da557249796b7c45839514ea3"
+    },
     "driver-ultrasonic": {
       "flashBytes": 2682,
       "ramBytes": 188,

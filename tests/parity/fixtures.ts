@@ -3,7 +3,7 @@ import { generateUnoSketch } from '../../src/core/codegen/arduino/generate';
 import {
   buttonPressed, buzzerStop, buzzerTone, driveMove, driveStop, led, lineDark, lineRaw, motorSet, servoSet, ultrasonic,
 } from '../../src/core/program/__fixtures__/uno-blocks';
-import { getVar, ifThen, num, print, setVar, wait } from '../../src/core/program/__fixtures__/ybc-blocks';
+import { add, getVar, ifThen, mul, num, print, setVar, wait } from '../../src/core/program/__fixtures__/ybc-blocks';
 import type { ParityInputs } from './inputs';
 import type { SimProgram } from './sim-run';
 
@@ -272,7 +272,59 @@ const language: ParityFixture[] = [
   },
 ];
 
-export const parityFixtures: readonly ParityFixture[] = [...goldens, ...drivers, ...language];
+/**
+ * A pin event right after a tone(), with no wait between: what tone() costs on the board is all of that interval. With a literal
+ * frequency and few call sites -flto folds tone(); with one read from the robot it cannot (allowed difference `tone-fold`).
+ */
+const toneThenPin: ParityFixture[] = [
+  {
+    name: 'driver-tone-led',
+    covers: ['U-25', 'U-24', 'U-18'],
+    profile: 'uno-basic',
+    onStart: [
+      led('ON'),
+      buzzerTone(num(1000), num(50)),
+      led('OFF'),
+      wait(num(60)),
+      led('ON'),
+      buzzerTone(num(1500), num(100)),
+      led('OFF'),
+      wait(num(20)),
+      led('ON'),
+      buzzerTone(num(440), num(30)),
+      led('OFF'),
+      wait(num(40)),
+    ],
+    variables: [],
+    origin: 'driver',
+    durationMs: 130,
+    inputs: {},
+  },
+  {
+    // The frequency is lineLeft · 1000 + lineCenter: 1000 Hz, then 440 Hz on the pin that still plays.
+    name: 'driver-tone-computed',
+    covers: ['U-25', 'U-24', 'U-29', 'U-05', 'U-18'],
+    profile: 'uno-advanced',
+    onStart: [
+      setVar('x', add(mul(lineRaw('lineLeft'), num(1000)), lineRaw('lineCenter'))),
+      led('ON'),
+      buzzerTone(getVar('x'), num(60)),
+      led('OFF'),
+      wait(num(20)),
+      setVar('x', add(mul(lineRaw('lineLeft'), num(1000)), lineRaw('lineCenter'))),
+      led('ON'),
+      buzzerTone(getVar('x'), num(30)),
+      led('OFF'),
+      wait(num(50)),
+    ],
+    variables: [['x', 'x']],
+    origin: 'driver',
+    durationMs: 110,
+    inputs: { analog: [{ pins: ['A0', 'A1'], values: [1, 0, 0, 440] }] },
+  },
+];
+
+export const parityFixtures: readonly ParityFixture[] = [...goldens, ...drivers, ...toneThenPin, ...language];
 
 /** A fixture's program, compiled as the robot lab compiles it (compileUnoProject against ref-uno-rover@0). */
 export const compileFixture = (fixture: ParityFixture): SimProgram => compileCase(fixture);

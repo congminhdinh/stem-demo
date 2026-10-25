@@ -24,6 +24,8 @@ export type SimCall = {
   readonly args: readonly number[];
   /** What a read returned (millis, digitalRead, analogRead, pulseIn). */
   readonly result?: number;
+  /** The block of the statement the call belongs to. */
+  readonly blockId: string;
   readonly fromUs: number;
   readonly toUs: number;
 };
@@ -73,7 +75,14 @@ export type ToneRecord = { pin: string; endFromUs: number; endToUs: number; sett
  * The virtual UNO of a run with its io and millis wrapped to record each call and its range (the onChange listener reads the call
  * under way), and when each tone ends by itself.
  */
-function recording(uno: VirtualUno, nowUs: () => number, calls: SimCall[], tones: ToneRecord[], current: { fromUs: number; name: SimCall['name'] | null }): VirtualUno {
+function recording(
+  uno: VirtualUno,
+  nowUs: () => number,
+  calls: SimCall[],
+  tones: ToneRecord[],
+  current: { fromUs: number; name: SimCall['name'] | null },
+  statement: { blockId: string },
+): VirtualUno {
   /** Wraps an io call: its first argument is the pin, `null` for millis, delayMicroseconds and compute. */
   const record =
     <A extends unknown[], R>(name: SimCall['name'], real: (...args: A) => R) =>
@@ -84,7 +93,7 @@ function recording(uno: VirtualUno, nowUs: () => number, calls: SimCall[], tones
       const result = real(...args);
       const pin = typeof args[0] === 'string' ? args[0] : null;
       const numbers = args.filter((arg): arg is number => typeof arg === 'number');
-      calls.push({ name, pin, args: numbers, ...(typeof result === 'number' ? { result } : {}), fromUs, toUs: nowUs() });
+      calls.push({ name, pin, args: numbers, ...(typeof result === 'number' ? { result } : {}), blockId: statement.blockId, fromUs, toUs: nowUs() });
       return result;
     };
   const playing = (id: string) => tones.find((tone) => tone.pin === id && !tone.settledByCall && tone.endToUs > nowUs());
@@ -199,7 +208,7 @@ export async function runSimulator(program: SimProgram, inputs: ParityInputs, du
     toldBy.set(event, current.name);
     told.push(event);
   });
-  const capabilities = createProgramIO(kit, recording(uno, nowUs, calls, tones, current), uses);
+  const capabilities = createProgramIO(kit, recording(uno, nowUs, calls, tones, current, statement), uses);
   const { done } = runYbcProgram(ir, capabilities, services);
   let outcome: YbcRunOutcome | undefined;
   void done.then((settled) => void (outcome = settled));
@@ -264,6 +273,58 @@ export function outputLowFirst(events: readonly PinEvent[], callOf: (event: PinE
     out.push(event);
   }
   return out;
+}
+
+/**
+ * How the sketch writes the frequency of each buzzer.tone statement of `ir`, by its block (allowed difference `tone-fold`): `runtime`
+ * when it reads the robot, or reads only variables every assignment of which reads it (-flto cannot fold the call); `literal` when it
+ * is made of numbers, or of variables only ever set to numbers (it may fold it); `variable` otherwise (either).
+ */
+export type ToneForm = 'literal' | 'runtime' | 'variable';
+
+type Node = { kind?: unknown; op?: unknown; args?: unknown[]; blockId?: unknown; variable?: unknown; value?: unknown };
+
+const nodesOf = (node: unknown, found: Node[] = []): Node[] => {
+  if (Array.isArray(node)) {
+    node.forEach((item) => nodesOf(item, found));
+  } else if (node !== null && typeof node === 'object') {
+    found.push(node as Node);
+    Object.values(node).forEach((value) => nodesOf(value, found));
+  }
+  return found;
+};
+
+export function toneFormsOf(ir: YbcProgramIR): Map<string, ToneForm> {
+  const all = nodesOf([ir.onStart, ir.forever]);
+  // What each variable is set to: a count up sets its variable to a count, which is neither.
+  const assigned = new Map<string, ToneForm[]>();
+  for (const node of all) {
+    if ((node.kind === 'set' || node.kind === 'countUp') && typeof node.variable === 'string') {
+      const forms = assigned.get(node.variable) ?? [];
+      forms.push(node.kind === 'countUp' ? 'variable' : formOf(node.value, new Map()));
+      assigned.set(node.variable, forms);
+    }
+  }
+  const variables = new Map<string, ToneForm>(
+    [...assigned].map(([variable, forms]) => [variable, forms.every((form) => form === 'runtime') ? 'runtime' : forms.every((form) => form === 'literal') ? 'literal' : 'variable']),
+  );
+  const forms = new Map<string, ToneForm>();
+  for (const node of all) {
+    if (node.kind === 'call' && node.op === 'buzzer.tone' && typeof node.blockId === 'string') {
+      forms.set(node.blockId, formOf(node.args?.[0], variables));
+    }
+  }
+  return forms;
+}
+
+/** The form of an expression: a read makes it `runtime`; variables take the form of what they are set to (unknown: `variable`). */
+function formOf(expression: unknown, variables: ReadonlyMap<string, ToneForm>): ToneForm {
+  const nodes = nodesOf(expression);
+  if (nodes.some((node) => node.kind === 'read')) {
+    return 'runtime';
+  }
+  const used = nodes.filter((node) => node.kind === 'variable').map((node) => variables.get(String(node.variable)) ?? 'variable');
+  return used.length === 0 || used.every((form) => form === 'literal') ? 'literal' : used.every((form) => form === 'runtime') ? 'runtime' : 'variable';
 }
 
 /** The blocks of the print statements of `ir` that print a join. */

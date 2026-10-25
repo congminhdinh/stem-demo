@@ -7,7 +7,7 @@ import type { PinEvent } from './trace';
 // driver-servo as the harness recorded them).
 
 const at = (pin: string, state: PinEvent['state'], fromUs: number, toUs = fromUs): PinEvent => ({ pin, state, fromUs, toUs });
-const call = (name: SimCall['name'], pin: string | null, fromUs: number, toUs: number, result?: number): SimCall => ({ name, pin, args: [], fromUs, toUs, ...(result === undefined ? {} : { result }) });
+const call = (name: SimCall['name'], pin: string | null, fromUs: number, toUs: number, result?: number): SimCall => ({ name, pin, args: [], blockId: '', fromUs, toUs, ...(result === undefined ? {} : { result }) });
 const line = (atUs: number, text: string, statementUs = atUs, join = false): SimLine => ({ atUs, text, statementUs, join });
 const INPUT = { kind: 'input', pullup: false } as const;
 const LOW = { kind: 'low' } as const;
@@ -101,7 +101,7 @@ describe('compareTraces', () => {
     const boardAt = (atUs: number) => ({ events: [...ledBoard.slice(0, 3), at('D13', LOW, atUs)] });
     expect(compareTraces(input(short(1008.5625), boardAt(1014.0625))).problems).toEqual([]);
     expect(compareTraces(input(short(1158.5625), boardAt(1014.0625))).problems).toEqual([
-      'D13 LOW: -154.06 µs from D13 HIGH over 1171.69 µs (waits 1158.56, calls 9.13, nodes 2.00), allowed −17.33…+18.35 (interval, call-costs, isr-load)',
+      'D13 LOW: -154.06 µs from D13 HIGH over 1171.69 µs (waits 1158.56, calls 9.13, nodes 2.00), allowed −17.33…+17.62 (interval, call-costs, isr-load)',
     ]);
   });
 
