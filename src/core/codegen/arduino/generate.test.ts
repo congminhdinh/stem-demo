@@ -138,7 +138,7 @@ describe('the helpers and libraries a program needs, and no more', () => {
 describe('the line map (plan R4.5)', () => {
   it('maps each block to the lines its code takes: a statement from its first line to its last, an expression its line', () => {
     const blocks = [
-      setVar('x', num(1), ),
+      setVar('x', num(1)),
       repeat(num(2), [print(getVar('x'))]),
       ifElif([[cmp('EQ', getVar('x'), num(1)), [print(text('one'))]]], [print(bool(false))]),
     ];

@@ -39,6 +39,13 @@ describe('the generator’s copies of the contract', () => {
     }
   });
 
+  it('includes for an op exactly what its row includes: Servo.h for the servo (its driver’s), nothing for any other op', () => {
+    const driverIncludes = new Map(Object.values(drivers).flatMap((driver) => Object.entries(driver.ops).map(([op, driverOp]) => [op, driverOp.cpp.includes] as const)));
+    for (const [op, { row: id }] of Object.entries(unoOps)) {
+      expect(driverIncludes.get(op) ?? [], op).toEqual(row(id).includes);
+    }
+  });
+
   it('covers every open C++ row of the contract that is an op', () => {
     const rows = new Set(Object.values(unoOps).map((entry) => entry.row));
     expect([...rows].sort()).toEqual(['U-05', 'U-06', 'U-07', 'U-19', 'U-20', 'U-21', 'U-22', 'U-23', 'U-24', 'U-25', 'U-26', 'U-27', 'U-28', 'U-29', 'U-30', 'U-31', 'U-32', 'U-33', 'U-34']);
