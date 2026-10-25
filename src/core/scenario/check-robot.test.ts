@@ -108,6 +108,27 @@ describe('checkRobot', () => {
     expect(accepted(await checkRobot(dasher(), wallScenario(), headless).result)).toMatchObject({ passed: true, score: 98 });
   });
 
+  // N18 R6.3: the results panel's time bonus line reads it from the variant's end, not from the live score.
+  it('tells each variant’s time bonus with its end: the points of a variant are its passed goals’ plus that bonus', async () => {
+    const bonuses = async (project: ReturnType<typeof parker>, scenario: ReturnType<typeof parkScenario>) => {
+      const ended: CheckProgress[] = [];
+      accepted(await checkRobot(project, scenario, { ...headless, onProgress: (progress) => progress.kind === 'variant-ended' && ended.push(progress) }).result);
+      return ended.map((progress) => {
+        if (progress.kind !== 'variant-ended') throw new Error('not an end');
+        expect(progress.variant.score).toBe(progress.goals.reduce((sum, goal) => sum + goal.points, 0) + progress.timeBonus);
+        return progress.timeBonus;
+      });
+    };
+    // Parked about 3.4 s into an 8 s limit: 20 × (8 − tFinish) / 8 is 11 or 12.
+    for (const bonus of await bonuses(parker(), parkScenario())) {
+      expect(bonus).toBeGreaterThanOrEqual(9);
+      expect(bonus).toBeLessThanOrEqual(13);
+    }
+    // No bonus without every goal, nor for a variant that ended in an error.
+    expect(await bonuses(overshooter(), parkScenario())).toEqual([0, 0, 0]);
+    expect(await bonuses(faulter(), wallScenario())).toEqual([0, 0, 0]);
+  });
+
   it('runs the variants one after the other and tells its progress, in the iterable and to onProgress alike', async () => {
     const told: CheckProgress[] = [];
     const check = checkRobot(parker(), parkScenario(), { ...headless, onProgress: (progress) => told.push(progress) });

@@ -73,7 +73,8 @@ export type CheckProgress =
   | { kind: 'time'; index: number; tS: number; timeLimitS: number }
   /**
    * A variant ended: its line of the result, its goals (with their reasons and times, for "the robot hit the wall at 12.4 s in round 2"),
-   * how the scenario ended it (null for a program fault, then `error` says which), and its last snapshot.
+   * the time bonus in its score (N18 R6.3: 0 unless every goal passed), how the scenario ended it (null for a program fault, then `error`
+   * says which), and its last snapshot.
    */
   | {
       kind: 'variant-ended';
@@ -81,6 +82,7 @@ export type CheckProgress =
       count: number;
       variant: RobotVariantResult;
       goals: readonly GoalResult[];
+      timeBonus: number;
       end: RobotRunEnd | null;
       error: RobotRunError | null;
       snapshot: RobotRunSnapshot;
@@ -258,6 +260,7 @@ export function checkRobot(project: ProjectDocument, scenario: Scenario, opts: C
         count,
         variant: { seed, passed: score.passed, score: score.points, simTimeMs },
         goals: score.goals,
+        timeBonus: score.timeBonus,
         end: snapshot.end ?? null,
         error: snapshot.error,
         snapshot,
