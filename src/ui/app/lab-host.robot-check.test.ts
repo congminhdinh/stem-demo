@@ -11,8 +11,9 @@ import { createHostBridge, PROJECT_CHANGED_DEBOUNCE_MS, type LabWindow } from '.
 import { connectLabHost } from './lab-host';
 
 // N18 R7.1: the order of a robot lab's messages, through the stores that feed the bridge. Edits reach the host through `connectLabHost`; the
-// robot lab calls `beginCheck()` when the learner presses Check and `endCheck()` when the check is over, so that the last `project-changed`
-// before the `check-result` is the program that was checked.
+// robot lab calls `beginCheck()` when the learner presses Check (after the editor has written the workspace into the document) and `endCheck()`
+// when the check is over, so that the last `project-changed` before the `check-result` is the program that was checked and an edit made
+// meanwhile goes out after it.
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -36,9 +37,22 @@ function connect() {
 }
 
 describe('a robot lab’s edits and its checks (N18 R7.1)', () => {
-  it('sends the checked program before the check-result, and not the edits made while the check ran', () => {
+  it('sends the checked program before the check-result, and the edit made while the check ran once after it', () => {
     const { bridge, projectStore, summary } = connect();
     projectStore.getState().loadProject(createNewProject('draft'));
+    projectStore.getState().loadProject(createNewProject('checked'));
+    bridge.beginCheck();
+    projectStore.getState().loadProject(createNewProject('during-the-check'));
+    expect(summary()).toEqual(['ready', 'project-changed:checked']);
+    bridge.checkResult({ passed: true, goals: [] });
+    bridge.endCheck();
+    vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS * 5);
+
+    expect(summary()).toEqual(['ready', 'project-changed:checked', 'check-result', 'project-changed:during-the-check']);
+  });
+
+  it('lets a later edit supersede the one made during the check', () => {
+    const { bridge, projectStore, summary } = connect();
     projectStore.getState().loadProject(createNewProject('checked'));
     bridge.beginCheck();
     projectStore.getState().loadProject(createNewProject('during-the-check'));

@@ -20,8 +20,8 @@ import {
 // (docs/lab-embed-contract.md §2; the shared fixture docs/fixtures/stem-lab-v1-robot.json lists both). So the robot lab's messages are
 // BUILT here and never assembled by hand: a field out of its bounds is a bug of the lab, and throws a `RobotMessageError` instead of
 // sending a message that would be ignored. The order matters as much as the shape: before a `check-result` the bridge sends any pending
-// `project-changed`, and between `beginCheck()` and `endCheck()` it sends none, so the last `project-changed` before a `check-result` is
-// exactly the program that was checked (the one `programHash` hashes).
+// `project-changed`, and between `beginCheck()` and `endCheck()` it sends none (an edit made meanwhile waits and goes out after the check),
+// so the last `project-changed` before a `check-result` is exactly the program that was checked (the one `programHash` hashes).
 
 export const LAB_PROTOCOL = 'stem-lab/v1';
 /** The learner's edits reach the host at most once a second (the last edit wins). */
@@ -111,11 +111,14 @@ export type HostBridge = {
    * with `lab: "robot"`; a scenario with goals sends its score through `robotCheckResult`. A robot lab sends any pending `project-changed` first.
    */
   checkResult(result: CheckResult): void;
-  /** Debounced: sent PROJECT_CHANGED_DEBOUNCE_MS after the last call, with the last document. Not sent while a robot check runs (`beginCheck`). */
+  /**
+   * Debounced: sent PROJECT_CHANGED_DEBOUNCE_MS after the last call, with the last document. While a robot check runs (`beginCheck`) it is
+   * kept instead, and goes out the same way once the check has ended (`endCheck`).
+   */
   projectChanged(document: ProjectDocument): void;
-  /** Sends a pending `project-changed` now (the page is going away). */
+  /** Sends a pending `project-changed` now (the page is going away), and an edit kept during a robot check. */
   flush(): void;
-  /** Stops listening and drops a pending `project-changed`. */
+  /** Stops listening and drops a pending `project-changed`, and an edit kept during a robot check. */
   dispose(): void;
 };
 
@@ -130,12 +133,17 @@ export type RobotHostBridge = HostBridge & {
    */
   robotCheckResult(result: RobotCheckResult): void;
   /**
-   * The learner pressed Check: sends a pending `project-changed` now (the checked program), then sends no `project-changed` until `endCheck()`.
-   * The robot lab locks editing during a check, so an edit that gets through anyway is dropped, not sent late: the host's last project is
-   * the checked one. Call it before `runStarted()`.
+   * The learner pressed Check: sends a pending `project-changed` now (the checked program), then sends none until `endCheck()`. The robot
+   * lab locks editing during a check; a document change that gets through anyway is not sent during the check: only the latest is kept, and
+   * `endCheck()` lets it go out as an ordinary edit, after the `check-result`. Call it AFTER the editor has written the workspace into the
+   * document (`BlocklyPanelHandle.saveNow()`), so that the checked program is already the document the pending `project-changed` carries, and
+   * before `runStarted()`. Calling it while a check is running throws: that is a bug of the lab (a check that never ended).
    */
   beginCheck(): void;
-  /** The check is over: its result is sent, or it was stopped. Edits are reported again. Harmless without a `beginCheck()`. Call it in a `finally`. */
+  /**
+   * The check is over: its result is sent (call it after `robotCheckResult()`), or it was stopped. Edits are reported again, and the one kept
+   * during the check starts its debounce now. A no-op without a `beginCheck()`. Call it in a `finally`.
+   */
   endCheck(): void;
 };
 
@@ -197,6 +205,8 @@ export function createHostBridge({ host, hostOrigin, window, onLoadProject, lab,
   let pending: { handle: unknown; document: ProjectDocument } | null = null;
   /** A robot check is running: `project-changed` is not sent (`beginCheck`). */
   let checking = false;
+  /** The latest document changed while a robot check ran: it becomes `pending` when the check ends (`endCheck`). */
+  let deferred: ProjectDocument | null = null;
   /** What `ready` told the host, which a robot `check-result` is read against: the goals' ids in order, and the scenario version if any. */
   let announced: { goalIds: string[]; scenarioVersion: number | undefined } | null = null;
 
@@ -230,11 +240,21 @@ export function createHostBridge({ host, hostOrigin, window, onLoadProject, lab,
     }
   };
 
-  const flush = () => {
+  /** Sends the pending `project-changed` now. Never the edit kept during a check: it waits for `endCheck()`. */
+  const flushPending = () => {
     if (pending) {
       const { handle, document } = pending;
       pending = null;
       timers.clearTimeout(handle);
+      post({ ...head('project-changed'), document });
+    }
+  };
+  /** The page is going away: nothing may stay behind, an edit kept during a check included. */
+  const flush = () => {
+    flushPending();
+    if (deferred !== null) {
+      const document = deferred;
+      deferred = null;
       post({ ...head('project-changed'), document });
     }
   };
@@ -285,7 +305,7 @@ export function createHostBridge({ host, hostOrigin, window, onLoadProject, lab,
         if (problems.length > 0) {
           throw new RobotMessageError('The robot check-result is not one the host stores', problems);
         }
-        flush();
+        flushPending();
       }
       post({ ...head('check-result'), passed: result.passed, goals: goalsOf(result.goals.map(({ id, label, passed }) => ({ id, label, passed }))) });
     },
@@ -298,26 +318,43 @@ export function createHostBridge({ host, hostOrigin, window, onLoadProject, lab,
       if (problems.length > 0) {
         throw new RobotMessageError('The robot check-result does not match ready', problems);
       }
-      flush();
+      flushPending();
       post(message);
     },
     beginCheck() {
-      if (lab !== undefined) {
-        flush();
-        checking = true;
+      if (lab === undefined) {
+        return;
       }
+      if (checking) {
+        throw new Error('beginCheck() was called while a robot check is running: endCheck() ends each check, in a finally.');
+      }
+      flushPending();
+      checking = true;
     },
     endCheck() {
+      if (!checking) {
+        return;
+      }
       checking = false;
+      if (deferred !== null) {
+        const document = deferred;
+        deferred = null;
+        // Now an ordinary edit: it goes out after the debounce, after the check-result
+        pending = { document, handle: timers.setTimeout(flushPending, PROJECT_CHANGED_DEBOUNCE_MS) };
+      }
     },
     projectChanged(document) {
-      if (disposed || checking) {
+      if (disposed) {
+        return;
+      }
+      if (checking) {
+        deferred = document;
         return;
       }
       if (pending) {
         timers.clearTimeout(pending.handle);
       }
-      pending = { document, handle: timers.setTimeout(flush, PROJECT_CHANGED_DEBOUNCE_MS) };
+      pending = { document, handle: timers.setTimeout(flushPending, PROJECT_CHANGED_DEBOUNCE_MS) };
     },
     flush,
     dispose() {
@@ -325,6 +362,7 @@ export function createHostBridge({ host, hostOrigin, window, onLoadProject, lab,
         timers.clearTimeout(pending.handle);
         pending = null;
       }
+      deferred = null;
       disposed = true;
       window.removeEventListener('message', onMessage);
       window.removeEventListener('pagehide', flush);

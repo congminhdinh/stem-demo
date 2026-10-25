@@ -29,9 +29,14 @@ const goals = [
 function setup(lab?: 'robot') {
   const posted: [Record<string, unknown>, string][] = [];
   const host = { postMessage: (message: unknown, targetOrigin: string) => void posted.push([message as Record<string, unknown>, targetOrigin]) };
-  const window = { addEventListener: () => {}, removeEventListener: () => {} } as unknown as LabWindow;
+  const listeners = new Map<string, Set<(event: unknown) => void>>();
+  const window = {
+    addEventListener: (type: string, listener: (event: unknown) => void) => void listeners.set(type, (listeners.get(type) ?? new Set()).add(listener)),
+    removeEventListener: (type: string, listener: (event: unknown) => void) => void listeners.get(type)?.delete(listener),
+  } as unknown as LabWindow;
   const bridge = createHostBridge({ host, hostOrigin, window, onLoadProject: () => {}, ...(lab === undefined ? {} : { lab }) });
-  return { bridge, posted, types: () => posted.map(([message]) => message.type) };
+  const fire = (type: string) => [...(listeners.get(type) ?? [])].forEach((listener) => listener({}));
+  return { bridge, posted, fire, types: () => posted.map(([message]) => message.type) };
 }
 
 /** A robot lab that has said ready for a scenario with two goals, as `rb-stop-at-wall` will. */
@@ -234,7 +239,7 @@ describe('the order of a robot lab’s messages (N18 R7.1)', () => {
     expect(types()).toEqual(['check-result']);
   });
 
-  it('sends no project-changed for edits made while a check runs, and sends the pending one when the check begins', () => {
+  it('sends the pending project-changed when the check begins, and none while it runs, however long it takes', () => {
     const { bridge, posted, types } = readyRobot();
     bridge.projectChanged(lastDocument);
     bridge.beginCheck();
@@ -243,11 +248,10 @@ describe('the order of a robot lab’s messages (N18 R7.1)', () => {
 
     bridge.projectChanged(createNewProject('an edit that sneaked in during the check'));
     vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS * 5);
-    bridge.flush();
     expect(types()).toEqual(['project-changed']);
   });
 
-  it('keeps the whole order of a check: the checked program, run-started, run-stopped, then check-result; the last project-changed is the checked one', () => {
+  it('keeps the whole order of a check: the checked program, run-started, run-stopped, check-result; the last project-changed before it is the checked one', () => {
     const { bridge, posted, types } = readyRobot();
     bridge.projectChanged(createNewProject('first draft'));
     bridge.projectChanged(lastDocument);
@@ -261,8 +265,86 @@ describe('the order of a robot lab’s messages (N18 R7.1)', () => {
     expect(types()).toEqual(['project-changed', 'run-started', 'run-stopped', 'check-result']);
     const lastProject = posted.map(([message]) => message).filter((message) => message.type === 'project-changed').at(-1);
     expect(lastProject?.document).toBe(lastDocument);
-    vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS * 5);
+  });
+
+  it('sends an edit made during a check once, after the check-result', () => {
+    const { bridge, posted, types } = readyRobot();
+    const sneaked = createNewProject('an edit during the check');
+    bridge.projectChanged(lastDocument);
+    bridge.beginCheck();
+    bridge.runStarted();
+    bridge.projectChanged(sneaked);
+    bridge.runStopped();
+    bridge.robotCheckResult(check());
+    bridge.endCheck();
+    expect(types()).toEqual(['project-changed', 'run-started', 'run-stopped', 'check-result']);
+
+    vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS - 1);
     expect(types()).toHaveLength(4);
+    vi.advanceTimersByTime(1);
+    expect(types()).toEqual(['project-changed', 'run-started', 'run-stopped', 'check-result', 'project-changed']);
+    expect(posted.at(-1)?.[0].document).toBe(sneaked);
+    vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS * 5);
+    expect(types()).toHaveLength(5);
+  });
+
+  it('keeps only the latest edit made during a check', () => {
+    const { bridge, posted, types } = readyRobot();
+    const latest = createNewProject('the latest');
+    bridge.beginCheck();
+    bridge.projectChanged(createNewProject('first'));
+    bridge.projectChanged(createNewProject('second'));
+    bridge.projectChanged(latest);
+    bridge.endCheck();
+    vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS * 5);
+    expect(types()).toEqual(['project-changed']);
+    expect(posted[0]?.[0].document).toBe(latest);
+  });
+
+  it('lets an edit made after the check supersede the one kept during it, as any later edit does', () => {
+    const { bridge, posted, types } = readyRobot();
+    const after = createNewProject('after the check');
+    bridge.beginCheck();
+    bridge.projectChanged(createNewProject('during'));
+    bridge.endCheck();
+    bridge.projectChanged(after);
+    vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS * 5);
+    expect(types()).toEqual(['project-changed']);
+    expect(posted[0]?.[0].document).toBe(after);
+  });
+
+  it('never sends the kept edit with the check-result: robotCheckResult flushes what is pending, not what waits for endCheck', () => {
+    const { bridge, types } = readyRobot();
+    bridge.beginCheck();
+    bridge.projectChanged(createNewProject('during'));
+    bridge.robotCheckResult(check());
+    expect(types()).toEqual(['check-result']);
+    bridge.endCheck();
+    expect(types()).toEqual(['check-result']);
+  });
+
+  it('sends the kept edit when the page goes away during a check, so that nothing stays behind', () => {
+    const { bridge, posted, types, fire } = readyRobot();
+    const sneaked = createNewProject('an edit during the check');
+    bridge.beginCheck();
+    bridge.projectChanged(sneaked);
+    expect(types()).toEqual([]);
+    fire('pagehide');
+    expect(types()).toEqual(['project-changed']);
+    expect(posted[0]?.[0].document).toBe(sneaked);
+    bridge.endCheck();
+    vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS * 5);
+    expect(types()).toEqual(['project-changed']);
+  });
+
+  it('drops the kept edit with the bridge: nothing is sent after dispose', () => {
+    const { bridge, types } = readyRobot();
+    bridge.beginCheck();
+    bridge.projectChanged(createNewProject('during'));
+    bridge.dispose();
+    bridge.endCheck();
+    vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS * 5);
+    expect(types()).toEqual([]);
   });
 
   it('reports edits again once the check has ended, and a cancelled check ends too', () => {
@@ -277,16 +359,34 @@ describe('the order of a robot lab’s messages (N18 R7.1)', () => {
     expect(types()).toEqual(['run-started', 'run-stopped', 'project-changed']);
   });
 
-  it('has endCheck harmless without a begin, and a second beginCheck harmless', () => {
+  it('refuses a second beginCheck while a check is running, a bug of the lab, and the check goes on', () => {
+    const { bridge, types } = readyRobot();
+    const kept = createNewProject('kept');
+    bridge.beginCheck();
+    bridge.projectChanged(kept);
+    expect(() => bridge.beginCheck()).toThrow(/beginCheck\(\) was called while a robot check is running/);
+    bridge.projectChanged(createNewProject('still kept, not sent'));
+    vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS * 5);
+    expect(types()).toEqual([]);
+    bridge.endCheck();
+    // After endCheck a new check may begin
+    expect(() => bridge.beginCheck()).not.toThrow();
+  });
+
+  it('has endCheck do nothing without a matching beginCheck, and a second endCheck do nothing', () => {
     const { bridge, types } = readyRobot();
     bridge.endCheck();
-    bridge.beginCheck();
-    bridge.beginCheck();
     bridge.projectChanged(createNewProject('x'));
     bridge.endCheck();
-    bridge.projectChanged(createNewProject('y'));
     vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS);
     expect(types()).toEqual(['project-changed']);
+
+    bridge.beginCheck();
+    bridge.projectChanged(createNewProject('y'));
+    bridge.endCheck();
+    bridge.endCheck();
+    vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS);
+    expect(types()).toEqual(['project-changed', 'project-changed']);
   });
 
   it('leaves a Blockly or Yolo:Bit lab exactly as it was: no flush before its check-result, and beginCheck and endCheck change nothing', () => {
@@ -295,6 +395,7 @@ describe('the order of a robot lab’s messages (N18 R7.1)', () => {
     bridge.ready({ template: 'ybc-heart', profile: 'ybc-basic', goals: [{ id: 'g', label: 'Trái tim' }] });
     bridge.projectChanged(edit);
     bridge.beginCheck();
+    expect(() => bridge.beginCheck()).not.toThrow();
     bridge.runStarted();
     bridge.runStopped();
     bridge.checkResult({ passed: true, goals: [{ id: 'g', label: 'Trái tim', passed: true }] });
