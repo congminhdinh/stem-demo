@@ -9,6 +9,7 @@ import { assembleRobot, stepWorld } from '../robot/assembly';
 import { rotateVector } from '../units';
 import type { ColliderLookup, SensedCollider } from './collider-lookup';
 import { CONTACT_GAP_M, readContacts } from './contacts';
+import { threadCpuMs } from '../__fixtures__/cpu-time';
 
 // Compiling the real wasm can take seconds on a loaded machine.
 beforeAll(() => initPhysics(), 30_000);
@@ -242,10 +243,11 @@ describe('readContacts', () => {
       expect(ids(readContacts(world, built, robot.bodies))).toEqual(['#ground', '#wall-3']);
       for (let i = 0; i < 200; i++) readContacts(world, built, robot.bodies);
       const count = 2000;
-      const started = performance.now();
+      // CPU time of this thread, so that other processes on a loaded machine (parallel test workers, a build) do not count.
+      const started = threadCpuMs();
       for (let i = 0; i < count; i++) readContacts(world, built, robot.bodies);
-      const usPerCall = ((performance.now() - started) * 1000) / count;
-      console.info(`readContacts: ${usPerCall.toFixed(2)} µs per call (${count} calls, reference rover, boxes arena)`);
+      const usPerCall = ((threadCpuMs() - started) * 1000) / count;
+      console.info(`readContacts: ${usPerCall.toFixed(2)} µs of CPU per call (${count} calls, reference rover, boxes arena)`);
       expect(usPerCall).toBeLessThan(100);
     });
   });

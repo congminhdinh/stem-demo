@@ -12,7 +12,14 @@ import { isFinitePose, type ColliderLookup, type SensedCollider } from './collid
 //   exactly the points within the gap). The pair graph is built at the start of a step, before the solver moves the
 //   bodies, so a body that crosses the last few millimetres within one step has no pair yet on the tick it arrives
 //   (measured: a cube at 0.25 m/s from 3 mm, at 0.91 mm after the tick, had none). The query finds it on that tick.
-//   A shape of another kind is queried as it is, which finds overlaps but not a gap.
+//   A shape of another kind (a capsule, a cone, a convex hull, a mesh: none of the robot's or the arena's today) is queried as it
+//   is (`grown` falls back to the shape itself), which finds what overlaps it but not what is within the gap: for such a shape a
+//   contact across the last millimetre of a step comes from the pair graph alone, one tick late. A new robot shape needs its own
+//   case in `grown`.
+// - The query walks the broad phase's tree, which Rapier updates inside `step()` (and so `refreshQueries`) only, with the
+//   boxes of the colliders where they were when that step began, plus a small margin. So a dynamic arena object that itself
+//   moved more than about 2 mm towards the robot within the last step can still be found one tick late (not reproduced;
+//   reasoned from the tree's margins). Walls, fixed boxes and cylinders never move, and are exact.
 //
 // Whether a candidate touches is measured where the colliders are now (`Collider.contactCollider`), not read from the
 // pair's manifold: the manifold is computed at the start of a step too, so it lags one step, and it is not updated at
@@ -78,7 +85,11 @@ export function readContacts<I extends SensedCollider>(world: PhysicsWorld, look
   return [...touched.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
-/** `shape` grown by CONTACT_GAP_M in every direction, for the shapes the robot and the arena use; any other as it is. */
+/**
+ * `shape` grown by CONTACT_GAP_M in every direction (a Minkowski sum: exactly the points within the gap), for the shapes the robot
+ * and the arena use: ball, cuboid, round cuboid, cylinder, round cylinder. Any other shape comes back as it is, so its query finds
+ * overlaps only (see the header).
+ */
 function grown(shape: Shape): Shape {
   let result = grownShapes.get(shape);
   if (result === undefined) {

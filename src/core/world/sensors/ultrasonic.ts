@@ -35,7 +35,10 @@ export type UltrasonicOptions = {
 };
 
 export type UltrasonicReading<I extends SensedCollider = SensedCollider> = {
-  /** The distance heard, in cm, to whole µm (SNAP_PER_CM): within the sensor’s range, or NO_ECHO_CM (400). The driver truncates. */
+  /**
+   * The distance heard, in cm: the slant distance snapped to whole µm (SNAP_PER_CM), plus the noise when there is some (so then not
+   * to whole µm), clamped to the sensor's range; NO_ECHO_CM (400) without an echo. The driver truncates.
+   */
   readonly cm: number;
   /**
    * The width of the echo pulse, µs: cm · 58, so the program (pulseIn truncates it, `echoToCm` truncates again) reads
