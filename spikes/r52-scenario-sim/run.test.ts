@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { beforeAll, expect, it } from 'vitest';
 import { initPhysics } from '../../src/core/world/rapier';
 import { scenarioCatalog } from '../../src/samples/robot-scenarios';
-import { closerThan, drive, followLine, hat, ifBlock, lineDark, repeat, robotSolutions, stop, wait, workspace } from '../../src/samples/robot-solutions';
+import { closerThan, drive, followLine, hat, ifBlock, lineDark, repeat, robotSolutions, servo, stop, wait, workspace } from '../../src/samples/robot-solutions';
 import { runVariant, type VariantRun } from './sim';
 
 beforeAll(() => initPhysics(), 30_000);
@@ -39,12 +39,29 @@ const spikeOnly: Record<string, Record<string, unknown>> = {
       ]),
     ),
   },
-  'rb-mini-mission': Object.fromEntries(
-    (process.env.SPIKE_N ?? '').split(',').filter(Boolean).map((n) => [`timed-follower-${n}`, workspace(hat('stem_on_start', [repeat('timed', Number(n), [ifBlock('if-line', followLine('line'))]), stop('stop')]))]),
+  'rb-mini-mission': {
+    ...Object.fromEntries(
+      (process.env.SPIKE_N ?? '').split(',').filter(Boolean).map((n) => [`timed-follower-${n}`, workspace(hat('stem_on_start', [repeat('timed', Number(n), [ifBlock('if-line', followLine('line'))]), stop('stop')]))]),
+    ),
+    // The reference's program at 40 %, the slowest a solution may drive: finish-within must give it room in every variant.
+    'reference-at-40': workspace(
+      hat('stem_forever', [
+        ifBlock('if-mission', [
+          [closerThan('near', 15), [stop('stop')]],
+          [lineDark('center', 'lineCenter'), [drive('forward', 'forward', 40)]],
+          [lineDark('left', 'lineLeft'), [drive('spin-left', 'spinLeft', 40)]],
+          [lineDark('right', 'lineRight'), [drive('spin-right', 'spinRight', 40)]],
+        ]),
+      ]),
+    ),
+  },
+  'rb-servo-gate': Object.fromEntries(
+    [5000, 5100, 5200, 5300, 5400].map((ms) => [`flag-dash-${ms}-then-creep`, workspace(hat('stem_on_start', [servo('up', 160), drive('dash', 'forward', 50), wait('dash-time', ms), drive('creep', 'forward', 33)]))]),
   ),
-  'rb-stop-at-wall': Object.fromEntries(
-    [10, 20, 25].map((cm) => [`threshold-${cm}`, workspace(hat('stem_forever', [ifBlock('if-near', [[closerThan('near', cm), [stop('stop')]]], [drive('go', 'forward', 50)])]))]),
-  ),
+  'rb-stop-at-wall': Object.fromEntries([
+    ...[5900, 6000, 6100, 6200].map((ms) => [`dash-${ms}-then-creep`, workspace(hat('stem_on_start', [drive('dash', 'forward', 50), wait('dash-time', ms), drive('creep', 'forward', 33)]))]),
+    ...[10, 20, 25].map((cm) => [`threshold-${cm}`, workspace(hat('stem_forever', [ifBlock('if-near', [[closerThan('near', cm), [stop('stop')]]], [drive('go', 'forward', 50)])]))]),
+  ]),
 };
 
 const only = process.env.SPIKE_ONLY;
