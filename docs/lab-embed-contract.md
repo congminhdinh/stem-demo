@@ -53,7 +53,8 @@ robot, N18 R4.1), `src/core/scenario/check-result.ts` (kết quả Kiểm tra c�
   *Mẫu bài "…" cần mức … (profile=…): bài dùng khối hoặc linh kiện mà mức … không có.*).
 - **Manifest scenario robot** (N18 R7.1): `docs/fixtures/robot-scenarios.v1.json`, do `scripts/export-robot-manifest.mjs` sinh ra
   (`pnpm export:robot-manifest`) từ catalog scenario của bản build (`src/samples/robot-scenarios/rb-*.json`, dựng bằng
-  `createScenarioCatalog`; chạy bằng Node thuần, không cần Vite). Mỗi scenario một mục: `key`, `version`, `title: { vi, en }`, `goalIds`
+  `createScenarioCatalog`; script nạp nguồn TypeScript bằng SSR loader của Vite (`createServer` ở middleware mode với `vite.config.ts` của repo
+  rồi `ssrLoadModule`, như app nạp), nên chạy được trên mọi Node mà `engines` cho phép, không cần giả lập gì). Mỗi scenario một mục: `key`, `version`, `title: { vi, en }`, `goalIds`
   (đúng thứ tự `ready`), `maxScore` (100; **bỏ hẳn** với `rb-sandbox`, không `null`), `profile`, `hasGoals`. Các mục theo thứ tự bài học,
   key JSON xếp theo alphabet ở mọi cấp, nên cùng catalog cho cùng từng byte. Hiện catalog rỗng (R5.2 viết scenario đầu tiên) nên
   `scenarios` là `[]`. Test `tests/export-robot-manifest.test.ts` chạy script (trên một thư mục scenario mẫu, và `--check` trên thư mục
@@ -92,7 +93,7 @@ hợp lệ và lab nằm trong một frame.
 | `run-started` | — | Một lượt chạy bắt đầu (Chạy, hoặc lượt chạy của Kiểm tra) |
 | `run-stopped` | — | Lượt chạy kết thúc (Dừng, Đặt lại, hoặc Kiểm tra xong) |
 | `check-result` | `passed: boolean`, `goals: { id, label, passed }[]`; lab robot thêm `lab: "robot"` và, với scenario có mục tiêu, `score`, `maxScore`, `simTimeMs`, `variants`, `engine`, `scenarioVersion`, `programHash` | Mỗi lần Kiểm tra xong. `passed` = mọi mục tiêu đạt. Đến **sau** `run-stopped` của lượt chạy đó. Kiểm tra bị huỷ (Dừng giữa chừng) hoặc **bị gián đoạn** (N17 B6: tab bị ẩn, máy chậm; xem §3) thì không gửi. Lab robot: trường, giới hạn và thứ tự ở mục "Lab robot" ngay dưới |
-| `project-changed` | `document` (project document, schema v1) | Sau mỗi thay đổi của project, debounce 1 giây (thay đổi cuối thắng); gửi ngay khi trang `pagehide`. Mở template không gửi gì |
+| `project-changed` | `document` (project document, schema v1) | Sau mỗi thay đổi của project, debounce 1 giây (thay đổi cuối thắng); gửi ngay khi trang `pagehide`. Mở template không gửi gì. Lab robot: không gửi trong lúc một lần Kiểm tra chạy (sửa đổi đó đi sau `check-result`; thứ tự ở mục "Lab robot") |
 
 - **Lab robot** (N18 R4.1, R7.1, plan §4.7): **mọi** message của lab robot (`ready`, `run-started`, `run-stopped`, `check-result`,
   `project-changed`) mang `lab: "robot"`; host chỉ đọc các trường robot khi message nói vậy (message không có `lab: "robot"` mà có trường
@@ -127,7 +128,11 @@ hợp lệ và lab nằm trong một frame.
     1. Trước `check-result`, lab gửi ngay `project-changed` đang chờ debounce (bridge tự làm khi gửi `check-result` của lab robot).
     2. Lab không gửi `project-changed` cho sửa đổi diễn ra **trong lúc Kiểm tra chạy** (lab robot khoá soạn thảo khi chấm). Lab gọi
        `beginCheck()` khi học sinh bấm Kiểm tra (gửi ngay `project-changed` đang chờ, rồi chặn) và `endCheck()` khi xong hoặc bị huỷ (trong
-       `finally`); sửa đổi lọt qua giữa hai lời gọi bị bỏ, không gửi trễ.
+       `finally`, **sau** `robotCheckResult()`). Gọi `beginCheck()` **sau** khi editor đã ghi workspace vào document (`BlocklyPanelHandle.saveNow()`),
+       để chương trình được chấm đã nằm trong document mà `project-changed` đang chờ mang đi; gọi nó khi đang có một lần Kiểm tra là lỗi lập trình
+       của lab (bridge ném lỗi), còn `endCheck()` không có `beginCheck()` tương ứng thì không làm gì. Một sửa đổi lọt qua giữa hai lời gọi (khoá
+       rò) **không** được gửi trong lúc chấm: bridge chỉ giữ document mới nhất, và `endCheck()` cho nó đi như một sửa đổi bình thường (debounce
+       1 giây), tức là **một lần, sau `check-result`**; nếu trang `pagehide` giữa chừng thì nó được gửi ngay.
     3. Vậy `project-changed` cuối cùng trước một `check-result` chính là chương trình được chấm, cái `programHash` băm. Một lần Kiểm tra
        đi theo thứ tự: `project-changed` (nếu có sửa chưa gửi) → [`run-started` → `run-stopped` nếu lab chạy hiển thị lượt chấm] → `check-result`.
     4. Phía host: lưu project cùng lần chấm khi đã có `project-changed` sau `check-result` trước của cùng lần tải, hoặc khi lần chấm trước
@@ -186,7 +191,7 @@ Mỗi lab mở project của **một họ board** (`labFamilies` ở `src/ui/app
 - **Kiểm tra của lab robot** (N18 R7.1 là phần bridge; R6 dựng phép chấm): không dùng `challenge` ở trên. Mỗi scenario chạy 1–10 variant
   (`variants.count`, mỗi variant một `seed` lệch điểm xuất phát), chấm từng mục tiêu bằng mô phỏng tất định, rồi gửi **một** `check-result`
   như §2: điểm = trung bình điểm các variant (kẹp trong 0–100), `goal.passed` và `passed` là "qua ở mọi variant". Trong lúc chạy lab robot khoá
-  soạn thảo và gọi `beginCheck()` / `endCheck()` của bridge (thứ tự ở §2). Kiểm tra bị huỷ hoặc gián đoạn thì không gửi `check-result` (như trên).
+  soạn thảo và gọi `beginCheck()` (sau `saveNow()`) / `endCheck()` của bridge (thứ tự ở §2). Kiểm tra bị huỷ hoặc gián đoạn thì không gửi `check-result` (như trên).
   Scenario không mục tiêu (`rb-sandbox`) nếu gửi `check-result` thì chỉ là `{ passed: true, goals: [] }`; người soạn bài đặt `requiresCheck = false` cho nó.
 
 ## 4. Khung nhúng
@@ -218,7 +223,7 @@ khung: cảnh 3D, thế giới và kiểm tra (R4.2, R3.x, R6) chưa có, nên c
 không đổi.
 
 N18 R7.1 (2026-10-25) chỉ **thêm**: trên `check-result` của lab robot, `score`, `maxScore`, `simTimeMs`, `variants`, `engine`, `scenarioVersion`, `programHash`
-(§2: giới hạn, bắt buộc với scenario có mục tiêu, bridge từ chối gửi cái host sẽ bỏ), thứ tự `project-changed` quanh `check-result` (§2), fixture chung hai
+(§2: giới hạn, bắt buộc với scenario có mục tiêu, bridge từ chối gửi cái host sẽ bỏ), thứ tự `project-changed` quanh `check-result` (§2: sửa đổi trong lúc chấm được giữ lại và gửi sau `check-result`), fixture chung hai
 repo `docs/fixtures/stem-lab-v1-robot.json` và manifest scenario `docs/fixtures/robot-scenarios.v1.json` (§1). Message của lab Blockly và lab Yolo:Bit không đổi một byte.
 
 **Hook dev** (`window.__stem.robot`, chỉ bản dev, như `__stem`; N18 R4.1): `getSnapshot()` trả `null` cho tới khi có một lượt chạy (R3.6 định
