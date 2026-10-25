@@ -9,7 +9,13 @@ export default defineConfig({
   testDir: 'e2e',
   reporter: 'list',
   use: { baseURL },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    // N18 R3.5 (robot plan §5): the robot world must hash the same on every engine. Firefox and WebKit run that one spec; Chromium
+    // runs it with everything else.
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /robot-determinism\.spec\.ts$/ },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] }, testMatch: /robot-determinism\.spec\.ts$/ },
+  ],
   webServer: [
     {
       command: `pnpm dev --port ${port} --strictPort`,

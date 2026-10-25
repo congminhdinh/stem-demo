@@ -53,6 +53,11 @@ function blocklyMedia(): Plugin {
 
 export default defineConfig({
   plugins: [react(), blocklyMedia()],
+  // The dev server's dependency optimiser pre-bundles Rapier's split package with its own copy of the wasm-bindgen glue
+  // (rapier_wasm3d_bg.js), while Vite's wasm helper instantiates the .wasm against the package's raw glue file: two copies, and the
+  // one Rapier calls never gets its wasm (`wasm.memory` undefined, Chromium, Firefox and WebKit, N18 R3.5). Served as it is, the
+  // package and its .wasm share one glue module. Dev only: the build bundles it once (ADR 0001 §5.2).
+  optimizeDeps: { exclude: ['@dimforge/rapier3d-deterministic'] },
   server: { headers: crossOriginIsolationHeaders },
   preview: { headers: crossOriginIsolationHeaders },
   test: {
