@@ -1,0 +1,173 @@
+import { createStore } from 'zustand/vanilla';
+import type { Kit } from '../../core/hardware/kit';
+import { checkPlacement, robotOutlineCm, type PlacementPose } from '../../core/scenario/placement';
+import type { Scenario } from '../../core/scenario/scenario';
+import { isRunOver, type RobotRunStore } from './robot-run-store';
+import { dragPose, onRobot, rulerTargets, sensorBarCm, snapPoint, type ArenaPoint, type SnapKind } from './robot-tools';
+
+// The robot lab's view tools (N18 R4.8), as one store the 3D view (FloorPicker), the 2D map (TopViewTools) and the tool strip
+// (RobotTools) share: the views turn the pointer into arena points and call `pick`, `grab`, `drag` and `drop`; the strip turns the tools
+// on and off and holds the teleop speed. One tool at a time:
+//   - the ruler ("Thước đo"): two picks make a segment (a third starts again), each snapped near the robot's middle or its sensor bar;
+//     turning the tool off or Esc clears it;
+//   - the move tool ("Di chuyển robot"): with no run going on (one that is over gives way), a press on the robot grabs it, the drag moves a
+//     ghost (moved back inside the arena; `clear` false, a red ghost, where the robot would stand in something), and the drop places it
+//     there (the run store's placeRobot, which the session checks again). Q and E turn it TURN_STEP_DEG, during a drag too; Esc puts it
+//     back at the lesson's start. A check (the lock) moves nothing.
+// The robot's pose is the one the view shows (the run store's latestWorld), else the scenario's start.
+
+/** The teleop speed slider (%): from just above the kit's dead band (about 31 %) to full speed, 50 % at first. */
+export const TELEOP_SPEED = { min: 30, max: 100, step: 5, initial: 50 } as const;
+
+export type RobotTool = 'ruler' | 'move';
+
+/** A point of the ruler, and what it snapped to. */
+export type RulerPoint = { readonly point: ArenaPoint; readonly snap: SnapKind | null };
+
+export type RobotToolsState = {
+  tool: RobotTool | null;
+  /** The ruler's points: none, the first, or both. */
+  ruler: readonly RulerPoint[];
+  /** The move tool's robot while it is dragged or turned where it cannot go: where it would stand, and whether it may. */
+  ghost: { readonly pose: PlacementPose; readonly clear: boolean } | null;
+  /** The speed teleop drives at, %. */
+  speed: number;
+  setTool(tool: RobotTool | null): void;
+  /** A click on the mat at `point` with the ruler. */
+  pick(point: ArenaPoint): void;
+  clearRuler(): void;
+  /** A press on the mat at `point` with the move tool: true when it grabbed the robot (the view then follows the pointer). */
+  grab(point: ArenaPoint): boolean;
+  drag(point: ArenaPoint): void;
+  /** The pointer let go: the robot is placed where the ghost is, when it may stand there. */
+  drop(): Promise<void>;
+  cancelDrag(): void;
+  /** Q (+) and E (−): turns the robot, or the ghost being dragged, by `stepDeg`. */
+  turn(stepDeg: number): Promise<void>;
+  /** Back at the lesson's start (the move tool's Esc and "Về vị trí xuất phát"). */
+  toStart(): Promise<void>;
+  /** Esc in the view: the ruler clears, the move tool goes back to the start. */
+  escape(): Promise<void>;
+  setSpeed(speed: number): void;
+};
+
+export type RobotToolsStoreOptions = {
+  runStore: RobotRunStore;
+  scenario: Pick<Scenario, 'arena' | 'start'>;
+  kit: Kit;
+};
+
+export function createRobotToolsStore({ runStore, scenario, kit }: RobotToolsStoreOptions) {
+  const outline = robotOutlineCm(kit);
+  const bar = sensorBarCm(kit);
+  return createStore<RobotToolsState>()((set, get) => {
+    /** The drag under way: the robot's pose when it was grabbed, and where. */
+    let grabbed: { from: PlacementPose; at: ArenaPoint } | null = null;
+
+    /** The robot as the view shows it. */
+    const robotPose = (): PlacementPose => {
+      const robot = runStore.getState().latestWorld()?.robot;
+      return robot ? { xCm: robot.xCm, yCm: robot.yCm, yawDeg: robot.yawDeg } : { ...scenario.start };
+    };
+    /** The robot may be moved: no check holds the lab, no start is building, and no run goes on (one that is over gives way). */
+    const movable = () => {
+      const state = runStore.getState();
+      return !state.locked && !state.starting && (!state.active || isRunOver(state.snapshot));
+    };
+    const checked = (pose: PlacementPose) => {
+      const placed = checkPlacement(scenario.arena, kit, pose);
+      return { pose: placed.pose, clear: placed.issues.length === 0 };
+    };
+
+    return {
+      tool: null,
+      ruler: [],
+      ghost: null,
+      speed: TELEOP_SPEED.initial,
+
+      setTool(tool) {
+        if (tool === get().tool) return;
+        grabbed = null;
+        set({ tool, ruler: [], ghost: null });
+      },
+
+      pick(point) {
+        if (get().tool !== 'ruler') return;
+        const snapped = snapPoint(point, rulerTargets(robotPose(), bar));
+        const ruler = get().ruler;
+        set({ ruler: ruler.length >= 2 ? [snapped] : [...ruler, snapped] });
+      },
+
+      clearRuler() {
+        set({ ruler: [] });
+      },
+
+      grab(point) {
+        const from = robotPose();
+        if (get().tool !== 'move' || !movable() || !onRobot(point, from, outline)) return false;
+        grabbed = { from, at: point };
+        set({ ghost: { pose: from, clear: true } });
+        return true;
+      },
+
+      drag(point) {
+        if (grabbed === null) return;
+        const yawDeg = get().ghost?.pose.yawDeg ?? grabbed.from.yawDeg;
+        set({ ghost: checked({ ...dragPose(grabbed.from, grabbed.at, point), yawDeg }) });
+      },
+
+      async drop() {
+        if (grabbed === null) return;
+        grabbed = null;
+        const ghost = get().ghost;
+        if (ghost !== null && ghost.clear && movable()) {
+          await runStore.getState().placeRobot(ghost.pose);
+        }
+        set({ ghost: null });
+      },
+
+      cancelDrag() {
+        grabbed = null;
+        set({ ghost: null });
+      },
+
+      async turn(stepDeg) {
+        if (get().tool !== 'move' || !movable()) return;
+        const ghost = get().ghost;
+        if (grabbed !== null && ghost !== null) {
+          set({ ghost: checked({ ...ghost.pose, yawDeg: ghost.pose.yawDeg + stepDeg }) });
+          return;
+        }
+        const pose = robotPose();
+        const turned = checked({ ...pose, yawDeg: pose.yawDeg + stepDeg });
+        if (!turned.clear) {
+          // Where it cannot turn, the red ghost says so until the next try.
+          set({ ghost: turned });
+          return;
+        }
+        set({ ghost: null });
+        await runStore.getState().placeRobot(turned.pose);
+      },
+
+      async toStart() {
+        grabbed = null;
+        set({ ghost: null });
+        if (movable() && runStore.getState().placement !== null) {
+          await runStore.getState().placeRobot(null);
+        }
+      },
+
+      async escape() {
+        const { tool } = get();
+        if (tool === 'ruler') get().clearRuler();
+        else if (tool === 'move') await get().toStart();
+      },
+
+      setSpeed(speed) {
+        set({ speed: Math.min(TELEOP_SPEED.max, Math.max(TELEOP_SPEED.min, Math.round(speed))) });
+      },
+    };
+  });
+}
+
+export type RobotToolsStore = ReturnType<typeof createRobotToolsStore>;
