@@ -25,7 +25,7 @@ import { checkPlacement, type PlacementPose } from '../scenario/placement';
 import { createScenarioWorld, type World } from '../world/world';
 import { createModuleModels } from './robot-modules';
 import type { RunDiagnostic } from './run-session';
-import { canTeleop, createTeleopController, TELEOP_USES, type TeleopCommand, type TeleopController, type TeleopEntry } from './teleop';
+import { canTeleop, createTeleopController, TELEOP_LIMIT_S, TELEOP_USES, type TeleopCommand, type TeleopController, type TeleopEntry } from './teleop';
 import { createVirtualScheduler, type VirtualScheduler } from './virtual-clock';
 
 // The robot lab's run (N18 R3.6, robot plan §3, B5): the ONLY place where the learner's program, the hardware and the world meet.
@@ -106,9 +106,9 @@ import { createVirtualScheduler, type VirtualScheduler } from './virtual-clock';
 // wait for the next tick, and in step 2 of that tick, in place of the program, the controller calls `drive.move` / `drive.stop` on the
 // module binding: the same calls, on the same pins, as a program's first statement in that tick, so the world is the same tick for tick
 // (and the log of (tick, command) replays it). The board's time there is the tick's start plus what its calls cost (the hardware's clock
-// with no program, see `createRun`). Everything else is a run's: the scorer judges each tick (the HUD shows it; nothing is ever sent as a
-// check), the scenario's time limit and contacts end it, `resetRobot` starts a new teleop run, `start` (Chạy) replaces it, `stopTeleop` (or
-// `stop`) ends it. Commands given while its world is built apply at tick 0; to any other run they are nothing. It is refused while a check
+// with no program, see `createRun`). The scorer judges each tick (the HUD shows it; nothing is ever sent as a check); teleop is exploration,
+// never scored, so the scenario's time limit does not end it: TELEOP_LIMIT_S does (fix round 1, controller ruling), and a crash
+// (`endOnContact`) still does. `resetRobot` starts a new teleop run, `start` (Chạy) replaces it, `stopTeleop` (or `stop`) ends it. Commands given while its world is built apply at tick 0; to any other run they are nothing. It is refused while a check
 // run goes on (`check`) and for a kit without the drive (`no-drive`).
 //
 // N18 R4.8, the placed start ("Di chuyển robot"): `placeRobot(pose)` sets where every next world of the learner's runs starts (its run,
@@ -209,12 +209,12 @@ export type RobotTeleopResult = RobotStartResult | { ok: false; reason: 'check' 
 
 /**
  * N18 R4.8: how `placeRobot` went: the pose every next world of the learner's runs starts at (moved inside the arena); refused for a pose
- * that stands in something (`overlap`, the start check's issues) and while a check run is the session's (`check`); or, when it started the
- * run going on again, why that start failed.
+ * that stands in something (`overlap`, the start check's issues), for one that is not finite numbers (`invalid`, fix round 1: never a
+ * throw) and while a check run is the session's (`check`); or, when it started the run going on again, why that start failed.
  */
 export type RobotPlaceResult =
   | { ok: true; pose: PlacementPose }
-  | { ok: false; reason: 'overlap' | 'check'; issues: readonly { readonly path: string; readonly message: string }[] }
+  | { ok: false; reason: 'overlap' | 'check' | 'invalid'; issues: readonly { readonly path: string; readonly message: string }[] }
   | Extract<RobotStartResult, { ok: false }>;
 
 export type RobotStartOptions = {
@@ -380,6 +380,8 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
   const drivable = canTeleop(kit, board);
   /** The first tick at or after the time limit: the run is the ticks before it, and the next one would go past the limit. */
   const limitTick = Math.ceil(scenario.timeLimitS * PHYSICS_HZ - LIMIT_EPSILON_TICKS);
+  /** N18 R4.8 fix round 1: a teleop run's, from TELEOP_LIMIT_S instead of the scenario's time limit. */
+  const teleopLimitTick = Math.ceil(TELEOP_LIMIT_S * PHYSICS_HZ - LIMIT_EPSILON_TICKS);
   const endsOnContact = (scenario.endOnContact ?? []).length > 0;
 
   let snapshot = idle;
@@ -582,7 +584,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
   /** One tick (see the top of this file). False when the run cannot go on: stopped, replaced, ended in an error or by the scenario. */
   const tick = async (run: ActiveRun): Promise<boolean> => {
     const k = run.world.tick;
-    if (k >= limitTick) {
+    if (k >= (run.teleop === null ? limitTick : teleopLimitTick)) {
       endRun(run, { reason: 'time-limit', atS: run.world.t });
       return false;
     }
@@ -1044,6 +1046,9 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       }
       let next: PlacementPose | null = null;
       if (pose !== null) {
+        if (!Number.isFinite(pose.xCm) || !Number.isFinite(pose.yCm) || !Number.isFinite(pose.yawDeg)) {
+          return { ok: false, reason: 'invalid', issues: [] };
+        }
         const placed = checkPlacement(scenario.arena, kit, pose);
         if (placed.issues.length > 0) {
           return { ok: false, reason: 'overlap', issues: placed.issues.map((issue) => ({ ...issue })) };

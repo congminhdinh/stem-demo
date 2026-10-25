@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useStore } from 'zustand';
+import { TELEOP_LIMIT_S } from '../../core/run/teleop';
 import { scenarioMaxScore, type Scenario } from '../../core/scenario/scenario';
 import type { ScoreState } from '../../core/world/snapshot';
 import { isMessageKey } from '../i18n/messages';
@@ -53,6 +54,8 @@ export function Hud({ store, scenario }: HudProps) {
   // The score as text: a new snapshot with the same score renders nothing.
   const scoreText = useStore(store, (state) => JSON.stringify(shownScore(state)));
   const round = useStore(store, (state) => (state.round === null ? null : `${state.round.index + 1}/${state.round.count}`));
+  // N18 R4.8 fix round 1: teleop is not held to the scenario's time limit, only to TELEOP_LIMIT_S.
+  const limitS = useStore(store, (state) => (state.teleop ? TELEOP_LIMIT_S : scenario.timeLimitS));
   const [goalsOpen, setGoalsOpen] = useState(true);
 
   const score = JSON.parse(scoreText) as ScoreState | null;
@@ -77,7 +80,7 @@ export function Hud({ store, scenario }: HudProps) {
         </span>
         <span className="robot-hud-time" data-testid="robot-time" title={t('robot.hud.time')}>
           <span className="robot-hud-label">{t('robot.hud.time')}</span>{' '}
-          {t('robot.hud.timeOf', { value: formatNumber(time, locale, 1), limit: formatNumber(scenario.timeLimitS, locale) })}
+          {t('robot.hud.timeOf', { value: formatNumber(time, locale, 1), limit: formatNumber(limitS, locale) })}
         </span>
       </div>
       {(slower || outOfArena) && (

@@ -12,6 +12,12 @@ import type { Kit } from '../hardware/kit';
 // makes the same calls at the same ticks (robot-run-session.teleop.test.ts). A command that repeats what the drive was last told (a key
 // held down) changes nothing and is not logged.
 
+/**
+ * How long a teleop run lasts at most, s (N18 R4.8 fix round 1, controller ruling): teleop is exploration and is never scored, so the
+ * scenario's time limit does not end it; this does, so that a run left driving does not tick forever. A crash (`endOnContact`) still ends it.
+ */
+export const TELEOP_LIMIT_S = 600;
+
 /** One command of teleop: drive one way at `speed` (0..100, the drive's own scale), or stop both motors. */
 export type TeleopCommand = { readonly op: 'move'; readonly direction: DriveDirection; readonly speed: number } | { readonly op: 'stop' };
 

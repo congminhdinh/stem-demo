@@ -2,11 +2,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { unoR3Board, type Kit } from '../hardware';
 import { driveMove, driveStop } from '../program/__fixtures__/uno-blocks';
 import { num, wait } from '../program/__fixtures__/ybc-blocks';
+import { loadScenario, type Scenario } from '../scenario/scenario';
 import { initPhysics, PHYSICS_HZ } from '../world/rapier';
 import { hashSnapshot, type RobotSnapshot } from '../world/snapshot';
 import { driveScenario, everyGoalScorer, published, robotProject, rover, roverSession, sandboxScenario, worldOf } from './__fixtures__/robot-session';
 import { createRobotRunSession, type RobotRunSession } from './robot-run-session';
-import type { TeleopCommand } from './teleop';
+import { TELEOP_LIMIT_S, type TeleopCommand } from './teleop';
 import { registry } from '../program/__fixtures__/uno-blocks';
 
 // N18 R4.8: teleop ("Lái tay") and the placed start ("Di chuyển robot") in the run session. Teleop is a run without a program whose drive
@@ -16,6 +17,25 @@ beforeAll(() => initPhysics(), 30_000);
 
 const move = (direction: 'forward' | 'backward' | 'spinLeft' | 'spinRight', speed: number): TeleopCommand => ({ op: 'move', direction, speed });
 const stop: TeleopCommand = { op: 'stop' };
+
+/** The sandbox floor of 300 × 150 cm, the robot at (40, 75) facing +x, a wall across x = 120; a run ends when it touches a wall. */
+function wallScenario(timeLimitS = 10): Scenario {
+  return loadScenario({
+    key: 'rb-sandbox',
+    version: 1,
+    title: { vi: 'Bài thử', en: 'Fixture' },
+    profile: 'uno-basic',
+    kit: 'ref-uno-rover',
+    arena: { ground: { sizeCm: [300, 150], color: '#ffffff' }, walls: [{ id: 'wall', fromCm: [120, 0], toCm: [120, 150] }] },
+    start: { xCm: 40, yCm: 75, yawDeg: 0 },
+    variants: { count: 1, seed: 3, startJitterCm: 0, yawJitterDeg: 0 },
+    inputs: [],
+    timeLimitS,
+    goals: [],
+    starter: {},
+    endOnContact: ['wall'],
+  });
+}
 
 /** The world's hash without what only a program has (the block it is in): what the physics and the hardware did. */
 const bodyHash = (world: RobotSnapshot) => hashSnapshot({ ...world, activeBlockId: null });
@@ -180,11 +200,66 @@ describe('teleop (N18 R4.8)', () => {
     session.stop();
   });
 
-  it('ends at the scenario’s time limit as any run does', async () => {
-    const session = roverSession(sandboxScenario());
+  it('ignores the scenario’s time limit (exploration is never scored): it runs on to TELEOP_LIMIT_S, 600 s, and ends there', { timeout: 120_000 }, async () => {
+    expect(TELEOP_LIMIT_S).toBe(600);
+    const session = roverSession(wallScenario(10));
     await session.startTeleop();
-    await session.runUntil(61);
-    expect(session.getSnapshot()).toMatchObject({ status: 'finished', teleop: true, end: { reason: 'time-limit', atS: 60 } });
+    await session.runUntil(11);
+    expect(session.getSnapshot()).toMatchObject({ status: 'running', teleop: true });
+    expect(session.getSnapshot().end).toBeUndefined();
+    await session.runUntil(TELEOP_LIMIT_S + 1);
+    expect(session.getSnapshot()).toMatchObject({ status: 'finished', teleop: true, end: { reason: 'time-limit', atS: 600 } });
+    // A program's run of the same scenario still ends at its own limit.
+    await session.start(robotProject([driveStop()]));
+    await session.runUntil(11);
+    expect(session.getSnapshot()).toMatchObject({ end: { reason: 'time-limit', atS: 10 } });
+    session.stop();
+  });
+
+  it('a crash still ends it (the scenario’s endOnContact), and Đặt lại robot is a new teleop run at once', async () => {
+    const session = roverSession(wallScenario());
+    await session.startTeleop();
+    session.teleop(move('forward', 100));
+    await session.runUntil(8);
+    expect(session.getSnapshot()).toMatchObject({ status: 'finished', teleop: true, end: { reason: 'contact', tag: 'wall' } });
+    const crashedAt = worldOf(session).t;
+    expect(crashedAt).toBeLessThan(8);
+    // Nothing more is ticked or taken.
+    session.teleop(move('backward', 100));
+    await session.runUntil(9);
+    expect(worldOf(session).t).toBe(crashedAt);
+    expect(await session.resetRobot()).toEqual({ ok: true });
+    expect(session.getSnapshot()).toMatchObject({ status: 'running', teleop: true });
+    expect(session.getSnapshot().end).toBeUndefined();
+    expect(worldOf(session).robot.xCm).toBeCloseTo(40, 1);
+    session.stop();
+  });
+
+  it('startTeleop during a frame in flight: the program’s frame publishes nothing more, the teleop run stands', async () => {
+    const session = roverSession(sandboxScenario());
+    await session.start(robotProject([driveMove('forward', num(80))]));
+    const seen = published(session);
+    const frame = session.advance(100);
+    const started = session.startTeleop();
+    await frame;
+    expect(await started).toEqual({ ok: true });
+    expect(seen.at(-1)).toMatchObject({ status: 'running', teleop: true, world: { t: 0 } });
+    expect(seen.every((snapshot, i) => i === seen.length - 1 || snapshot.teleop === undefined)).toBe(true);
+    await session.runUntil(0.2);
+    expect(session.getSnapshot().teleop).toBe(true);
+    session.stop();
+  });
+
+  it('a Run (start) while a teleop start builds its world supersedes it, and the teleop commands given meanwhile reach nothing', async () => {
+    const session = roverSession(sandboxScenario());
+    const teleop = session.startTeleop();
+    session.teleop(move('forward', 80));
+    const run = session.start(robotProject([driveStop()]));
+    expect(await teleop).toEqual({ ok: false, reason: 'superseded', diagnostics: [] });
+    expect(await run).toEqual({ ok: true });
+    await session.runUntil(0.5);
+    expect(session.getSnapshot().teleop).toBeUndefined();
+    expect(worldOf(session).robot.xCm).toBeCloseTo(40, 1);
     session.stop();
   });
 
@@ -242,6 +317,26 @@ describe('placeRobot (N18 R4.8)', () => {
     expect(refused.ok === false && refused.reason === 'overlap' && refused.issues[0]!.message).toContain('walls[0] (wall)');
     await session.start(robotProject([driveStop()]));
     expect(worldOf(session).robot.xCm).toBeCloseTo(7.5, 1);
+    session.stop();
+  });
+
+  it('refuses a pose that is not numbers, instead of throwing', async () => {
+    const session = roverSession(sandboxScenario());
+    expect(await session.placeRobot({ xCm: Number.NaN, yCm: 60, yawDeg: 0 })).toEqual({ ok: false, reason: 'invalid', issues: [] });
+    expect(await session.placeRobot({ xCm: 10, yCm: 60, yawDeg: Number.POSITIVE_INFINITY })).toEqual({ ok: false, reason: 'invalid', issues: [] });
+    await session.start(robotProject([driveStop()]));
+    expect(worldOf(session).robot.xCm).toBeCloseTo(40, 1);
+    session.stop();
+  });
+
+  it('placeRobot while a start builds its world: that start keeps its pose, the next world takes the new one', async () => {
+    const session = roverSession(sandboxScenario());
+    const started = session.start(robotProject([driveStop()]));
+    expect(await session.placeRobot({ xCm: 150, yCm: 100, yawDeg: 0 })).toEqual({ ok: true, pose: { xCm: 150, yCm: 100, yawDeg: 0 } });
+    expect(await started).toEqual({ ok: true });
+    expect(worldOf(session).robot.xCm).toBeCloseTo(40, 1);
+    await session.resetRobot();
+    expect(worldOf(session).robot.xCm).toBeCloseTo(150, 1);
     session.stop();
   });
 
