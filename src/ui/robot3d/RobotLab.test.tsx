@@ -18,8 +18,10 @@ import { ROBOT_ENGINE, type RobotCheckResult } from '../../core/scenario/check-r
 import { goalReasons } from '../../core/scenario/goals';
 import { fakeChecks } from './__fixtures__/fake-check';
 import { CANCEL_GUARD_MS } from './robot-check-store';
+import { installFakeCanvas2d } from './__fixtures__/fake-canvas-2d';
 import { fakeSession, idleRun } from './__fixtures__/fake-session';
 import RobotLab, { type RobotLabProps, type RobotProgramView } from './RobotLab';
+import { readTopViewState } from './top-view-state';
 
 // The robot lab (N18 R4.1 shell, R4.2 scene, R4.4 HUD and controls), rendered in jsdom with a session the test drives. jsdom has no
 // WebGL, which is itself a case the lab must handle: the 3D view says so, and the program, the run, the HUD and the console keep working.
@@ -34,6 +36,8 @@ const kit = productionKits.get({ id: 'ref-uno-rover', version: '0' }) as Kit;
 let host: HTMLElement;
 let root: Root;
 beforeEach(() => {
+  // N18 R4.6: without WebGL the lab draws its 2D top view, which needs a 2D canvas (jsdom has none) and a ResizeObserver.
+  installFakeCanvas2d();
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }));
   host = document.createElement('div');
   document.body.append(host);
@@ -43,6 +47,7 @@ afterEach(() => {
   act(() => root.unmount());
   host.remove();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   delete window.__stem;
 });
 
@@ -150,17 +155,39 @@ describe('RobotLab (N18 R4.1, R4.2)', () => {
   });
 });
 
-describe('RobotLab without WebGL (N18 R4.2)', () => {
-  it('says the 3D view cannot be drawn, with Try again, and keeps the program and the controls', async () => {
+describe('RobotLab without WebGL (N18 R4.2, R4.6)', () => {
+  it('draws the 2D top view with a note that says why, keeps the program and the controls, and looks for WebGL again on "Thử lại 3D"', async () => {
     const probe = vi.fn(() => ({ ok: false as const }));
     const { render } = setup('rb-drive-to-zone', { probe });
     await render();
-    expect(text('robot-webgl-unavailable')).toBe('Trình duyệt này không vẽ được khung nhìn 3D (WebGL bị tắt hoặc không được hỗ trợ). Chương trình của bạn vẫn được giữ.Thử lại');
+    // N18 R4.6 replaces R4.2's "this browser cannot draw the 3D view" message: the map is the view, and the lab works.
+    expect(host.querySelector('[data-testid=robot-webgl-unavailable]')).toBeNull();
+    expect(host.querySelector('[data-testid=robot-topview] canvas')).not.toBeNull();
+    expect(text('robot-fallback-note')).toBe('Máy này không hiển thị được 3D, đang dùng bản đồ 2D. Chương trình, nút Chạy và các mục tiêu vẫn hoạt động như cũ.');
     expect(text('blocks')).toBe('khối lệnh');
     expect(button('robot-run').disabled).toBe(false);
+    expect(readTopViewState()?.robot).toEqual({ xCm: 25, yCm: 40, yawDeg: 0 });
     const probes = probe.mock.calls.length;
-    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid=robot-webgl-unavailable] button')!.click());
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-testid=robot-viewmode]')!.click());
     expect(probe.mock.calls.length).toBe(probes + 1);
+  });
+
+  it('runs on the map: Chạy starts the session, the robot of the map follows its snapshots, and the HUD reads them as it does over 3D', async () => {
+    const { render, session, publish, world, flushProgram } = setup();
+    await render();
+    await click('robot-run');
+    expect(flushProgram).toHaveBeenCalledTimes(1);
+    expect(session.start).toHaveBeenCalledTimes(1);
+    publish({ status: 'running', world: world(2.5, 61) });
+    await frame();
+    expect(readTopViewState()?.robot?.xCm).toBe(61);
+    expect(text('robot-status')).toBe('Đang chạy');
+    expect(text('robot-time')).toBe('Thời gian 2,5 / 15 s');
+    await click('robot-stop');
+    await click('robot-reset');
+    await frame();
+    expect(readTopViewState()?.robot?.xCm).toBe(25);
+    expect(text('robot-status')).toBe('Chưa chạy');
   });
 
   it('shows its own message with Try again when the 3D canvas cannot be made, not the chunk loader’s', async () => {

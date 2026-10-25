@@ -485,6 +485,81 @@
   cursor: pointer;
 }
 
+/* The 2D top view (N18 R4.6) stands where the 3D scene is when the computer cannot draw 3D, the browser took its graphics away, or the
+   learner asked for it: the map fills the stage, a note under it says why, and the view button switches back. The 3D view's own controls
+   (the camera, the quality) are hidden meanwhile. */
+.robot-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--stem-color-surface-muted);
+}
+
+.robot-topview {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* The stage is out of the flow, so that the map never keeps its container from shrinking. */
+.robot-topview > div {
+  position: absolute;
+  inset: 0;
+}
+
+.robot-fallback-note,
+.robot-topview-failed {
+  margin: 0;
+  color: var(--stem-color-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Room at the right for the view button, which floats over the note. */
+.robot-fallback-note {
+  flex: none;
+  padding: 6px 130px 6px 12px;
+  border-top: 1px solid var(--stem-color-border);
+  background: var(--stem-color-overlay);
+}
+
+.robot-topview-failed {
+  align-self: center;
+  margin: auto;
+  padding: 0 24px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.robot-camera[hidden],
+.robot-quality[hidden] {
+  display: none;
+}
+
+/* Over the quality button in the 3D view; in the bottom corner when that button is hidden. */
+.robot-viewmode {
+  position: absolute;
+  right: 10px;
+  bottom: 46px;
+  min-height: 28px;
+  padding: 2px 10px;
+  border: 1px solid var(--stem-color-border);
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-overlay);
+  box-shadow: 0 2px 8px var(--stem-shadow-scroll);
+  color: var(--stem-color-text);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.robot-viewmode:not([data-action='show2d']) {
+  bottom: 10px;
+}
+
 /* Under the view: the robot's button, the sound, and the Serial console. */
 .robot-dock {
   display: grid;
@@ -787,7 +862,8 @@
   color: var(--stem-color-danger);
 }
 
-/* The result of a check: a card at the right of the view, under the camera's views and above the quality switch; it scrolls inside. */
+/* The result of a check: a card at the right of the view, under the camera's views and above the quality switch and the view button
+   (N18 R4.6: 2D / 3D, over the quality switch); it scrolls inside. It stands over the 2D map the same way. */
 .robot-check-panel {
   position: absolute;
   top: 52px;
@@ -796,7 +872,7 @@
   display: grid;
   gap: 6px;
   width: min(330px, calc(100% - 20px));
-  max-height: calc(100% - 100px);
+  max-height: calc(100% - 136px);
   box-sizing: border-box;
   overflow-y: auto;
   padding: 8px 10px;

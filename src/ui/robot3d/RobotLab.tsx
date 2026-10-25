@@ -40,8 +40,9 @@ import './RobotLab.css';
 //
 //   header      the lab's title, the scenario's, the run's controls (Chạy, Dừng, Tạm dừng, Bước 0,1 s, Đặt lại robot, Tốc độ), and for a
 //               scenario with a score Kiểm tra with its speeds (N18 R6.3: 1×, 4×, Nhanh)
-//   left ~60 %  the 3D view (SceneHost: the arena and the robot, the camera's views, the quality tier, WebGL's own errors), the HUD over
-//               it, why a run did not start or failed, and under it the robot's button, the sound and the Serial console
+//   left ~60 %  the 3D view (SceneHost: the arena and the robot, the camera's views, the quality tier, WebGL's own errors; the 2D top view
+//               in its place where the computer cannot draw 3D, N18 R4.6), the HUD over it, why a run did not start or failed, and under
+//               it the robot's button, the sound and the Serial console
 //   right       the program: Khối lệnh (App's block editor with the scenario's toolbox and starter), C++ and Cổng & chân (R4.5)
 // Under 800 px the two sides are tabs (LabWorkspace, as in the other labs); a Run brings the robot's tab into sight.
 //

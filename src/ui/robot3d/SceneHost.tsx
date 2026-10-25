@@ -5,16 +5,17 @@ import type { CameraMode } from './camera';
 import { Icon } from './icons';
 import { probeWebgl, tierForRenderer, type QualityTier, type WebglProbe } from './quality';
 import Scene, { type SceneProps } from './Scene';
+import { ViewFallback } from './ViewFallback';
+import { CONTEXT_RESTORE_WAIT_MS, fallbackReason, viewToggleAction, viewToggleText, type ContextState } from './webgl-support';
 
 // Where the robot lab's 3D view lives (N18 R4.2, the R4.1 carry): its own error handling, apart from the chunk loader's. Before the canvas
-// is made, WebGL is probed: without it the view says so, with Try again, and the rest of the lab (the program, the run, the HUD) keeps
-// working. A canvas that throws while it is made or drawn, and a WebGL context the browser takes away and does not give back within a few
-// seconds, show the same kind of message; Try again makes a new canvas. The program and the blocks are never touched: they live outside.
+// is made, WebGL is probed: without it the 2D top view (TopView2D, N18 R4.6) stands in for the scene, with a note saying why. So it does
+// when the browser takes the WebGL context away and does not give it back within CONTEXT_RESTORE_WAIT_MS (the scene stays mounted
+// underneath, and comes back by itself when the context does), and when the learner picks "Xem 2D". A canvas that throws while it is made
+// or drawn shows a message with Try again, which makes a new canvas. The program and the blocks are never touched: they live outside, and
+// the run store they all read is not either, so a switch between the views never resets the simulation.
 // The view's own controls float over it: the camera's three views, and the quality tier (a new tier is a new canvas). Until a canvas
 // has drawn its first frame (about 2 s on a software renderer), "Đang tải 3D…" stands over it instead of the empty page behind.
-
-/** How long a lost WebGL context may take to come back before the view offers Try again. */
-const RESTORE_WAIT_MS = 3000;
 
 const cameraModes: readonly { mode: CameraMode; label: 'robot.camera.orbit' | 'robot.camera.follow' | 'robot.camera.top'; icon: 'orbit' | 'follow' | 'top' }[] = [
   { mode: 'orbit', label: 'robot.camera.orbit', icon: 'orbit' },
@@ -45,7 +46,9 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
   const [tier, setTier] = useState<QualityTier>(() => tierForRenderer(probed.ok ? probed.renderer : null));
   const [cameraMode, setCameraMode] = useState<CameraMode>('orbit');
   const [attempt, setAttempt] = useState(0);
-  const [context, setContext] = useState<'ok' | 'lost' | 'gone'>('ok');
+  const [context, setContext] = useState<ContextState>('ok');
+  // The learner picked the 2D view (N18 R4.6): the canvas is gone while they have it, and made again when they go back.
+  const [chosen2d, setChosen2d] = useState(false);
   // The canvas of this attempt and tier has drawn its first frame; a new canvas (Try again, another tier) has not.
   const canvasKey = `${attempt}:${tier}`;
   const [drawnKey, setDrawnKey] = useState<string | null>(null);
@@ -56,56 +59,84 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
 
   useEffect(() => {
     if (context !== 'lost') return;
-    const timer = setTimeout(() => setContext('gone'), RESTORE_WAIT_MS);
+    const timer = setTimeout(() => setContext('gone'), CONTEXT_RESTORE_WAIT_MS);
     return () => clearTimeout(timer);
   }, [context]);
 
   const retry = () => {
-    setProbed(probe());
+    const next = probe();
+    setProbed(next);
+    setTier(tierForRenderer(next.ok ? next.renderer : null));
     setContext('ok');
+    setChosen2d(false);
     setAttempt((count) => count + 1);
   };
   const onContextLost = useCallback(() => setContext('lost'), []);
   const onContextRestored = useCallback(() => setContext('ok'), []);
 
+  // The 2D top view stands in for the 3D scene, and the view button changes between them (N18 R4.6).
+  const fallback = fallbackReason({ webgl: probed.ok, context, chosen2d });
+  const { scenario, kit, model, store, zoneLabel } = sceneProps;
+  const toggle = viewToggleAction(fallback);
+  const fallbackView = fallback !== null && <ViewFallback reason={fallback} scenario={scenario} kit={kit} model={model} store={store} zoneLabel={zoneLabel} />;
+  const viewButton = (
+    <button
+      type="button"
+      className="robot-viewmode"
+      onClick={toggle === 'show2d' ? () => setChosen2d(true) : retry}
+      title={t(viewToggleText[toggle].hint)}
+      data-testid="robot-viewmode"
+      data-action={toggle}
+    >
+      {t(viewToggleText[toggle].label)}
+    </button>
+  );
+
   if (!probed.ok) {
-    return <ViewportMessage text={t('robot.webgl.unavailable')} onRetry={retry} testId="robot-webgl-unavailable" />;
+    return (
+      <>
+        {fallbackView}
+        {viewButton}
+      </>
+    );
   }
   return (
     <>
-      <div className="robot-scene" data-testid="robot-scene" data-drawn={drawn}>
-        <ErrorBoundary
-          key={attempt}
-          onError={(error) => {
-            setFailedAttempt(attempt);
-            console.warn('The robot lab’s 3D view failed.', error);
-          }}
-          fallback={<ViewportMessage text={t('robot.webgl.failed')} onRetry={retry} testId="robot-webgl-failed" />}
-        >
-          <Scene
-            key={tier}
-            {...sceneProps}
-            tier={tier}
-            cameraMode={cameraMode}
-            onContextLost={onContextLost}
-            onContextRestored={onContextRestored}
-            onFirstFrame={onFirstFrame}
-          />
-        </ErrorBoundary>
-        {!drawn && failedAttempt !== attempt && context === 'ok' && (
-          <div className="robot-scene-loading" role="status" data-testid="robot-3d-loading">
-            <span className="robot-scene-spinner" aria-hidden="true" />
-            {t('robot.loading3d')}
-          </div>
-        )}
-      </div>
-      {context === 'lost' && (
+      {!chosen2d && (
+        <div className="robot-scene" data-testid="robot-scene" data-drawn={drawn}>
+          <ErrorBoundary
+            key={attempt}
+            onError={(error) => {
+              setFailedAttempt(attempt);
+              console.warn('The robot lab’s 3D view failed.', error);
+            }}
+            fallback={<ViewportMessage text={t('robot.webgl.failed')} onRetry={retry} testId="robot-webgl-failed" />}
+          >
+            <Scene
+              key={tier}
+              {...sceneProps}
+              tier={tier}
+              cameraMode={cameraMode}
+              onContextLost={onContextLost}
+              onContextRestored={onContextRestored}
+              onFirstFrame={onFirstFrame}
+            />
+          </ErrorBoundary>
+          {!drawn && failedAttempt !== attempt && context === 'ok' && (
+            <div className="robot-scene-loading" role="status" data-testid="robot-3d-loading">
+              <span className="robot-scene-spinner" aria-hidden="true" />
+              {t('robot.loading3d')}
+            </div>
+          )}
+        </div>
+      )}
+      {fallbackView}
+      {context === 'lost' && !chosen2d && (
         <div className="robot-viewport-message robot-viewport-message-soft" role="status" data-testid="robot-webgl-lost">
           <p>{t('robot.webgl.lost')}</p>
         </div>
       )}
-      {context === 'gone' && <ViewportMessage text={t('robot.webgl.lostLong')} onRetry={retry} testId="robot-webgl-gone" />}
-      <div className="robot-camera" role="group" aria-label={t('robot.camera')} data-testid="robot-camera">
+      <div className="robot-camera" role="group" aria-label={t('robot.camera')} data-testid="robot-camera" hidden={fallback !== null}>
         {cameraModes.map(({ mode, label, icon }) => (
           <button key={mode} type="button" aria-pressed={cameraMode === mode} onClick={() => setCameraMode(mode)} title={t(label)} data-mode={mode}>
             <Icon name={icon} />
@@ -120,9 +151,11 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
         title={t('robot.quality.hint')}
         data-testid="robot-quality"
         data-tier={tier}
+        hidden={fallback !== null}
       >
         {t(tier === 'high' ? 'robot.quality.high' : 'robot.quality.low')}
       </button>
+      {viewButton}
     </>
   );
 }
