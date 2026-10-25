@@ -25,6 +25,7 @@ export type WaveformDecoding =
   | { readonly kind: 'tone'; readonly minHz: number; readonly maxHz: number };
 
 const wander = allowedDifferences['waveform-jitter'];
+const firstServoPulse = allowedDifferences['servo-first-pulse'];
 
 /** A waveform is found from this many whole periods on (three rising edges): fewer cannot show a period (waveform-jitter). */
 export const MIN_RUN_PERIODS = wander.minRunPeriods;
@@ -86,8 +87,27 @@ function waveformState(decoding: WaveformDecoding, periodUs: number, highUs: num
 /** A run of steady periods: `first` and `last` index the rising edges that begin its first period and end its last one. */
 export type Run = { readonly first: number; readonly last: number; readonly periodUs: number; readonly highUs: number };
 
-/** The runs of regular, steady periods among the changes of a pin. */
-export function findRuns(changes: readonly RawChange[], decoding: WaveformDecoding): Run[] {
+/**
+ * The index of the rise of a servo's first pulse after attach() among the changes of a pin: the HIGH right after the LOW that ends its INPUT
+ * (attach() sets the pin OUTPUT, LOW), when its state at setup() or the change before that LOW is INPUT; -1 when there is none.
+ */
+function firstPulseAfterAttach(changes: readonly RawChange[], initial: RawPinState): number {
+  for (let index = 0; index + 1 < changes.length; index++) {
+    const before = index > 0 ? changes[index - 1]?.state : initial;
+    if (changes[index]?.state === 'LOW' && (before === 'INPUT' || before === 'INPUT_PULLUP') && changes[index + 1]?.state === 'HIGH') {
+      return index + 1;
+    }
+  }
+  return -1;
+}
+
+/**
+ * The runs of regular, steady periods among the changes of a pin (`initial`: its state at setup()). A run's periods keep the length and
+ * the HIGH time of its first within waveform-jitter; for a servo whose run begins with the first pulse after attach(), that pulse joins the
+ * run when its width is within servo-first-pulse's firstWidthUs of the next one's, and the run's later periods are held to that next one.
+ */
+export function findRuns(changes: readonly RawChange[], decoding: WaveformDecoding, initial: RawPinState = 'INPUT'): Run[] {
+  const attachRise = decoding.kind === 'servo' ? firstPulseAfterAttach(changes, initial) : -1;
   const periods: { rise: number; next: number; periodUs: number; highUs: number }[] = [];
   for (let rise = 1; rise + 2 < changes.length; rise++) {
     const [before, start, fall, next] = [changes[rise - 1], changes[rise], changes[rise + 1], changes[rise + 2]];
@@ -112,11 +132,15 @@ export function findRuns(changes: readonly RawChange[], decoding: WaveformDecodi
     }
     const head = chain[0];
     const jitter = jitterUs(decoding, period.periodUs);
+    const fromAttach = head !== undefined && head.rise === attachRise;
+    // The steady pulses are held to the first of them: after the pulse of attach(), the one that follows it.
+    const reference = fromAttach && chain.length >= 2 ? chain[1] : head;
+    const highAllowanceUs = fromAttach && chain.length === 1 ? firstServoPulse.firstWidthUs : jitter.high;
     const continues =
-      head !== undefined &&
+      reference !== undefined &&
       chain.at(-1)?.next === period.rise &&
-      Math.abs(period.periodUs - head.periodUs) <= jitter.period &&
-      Math.abs(period.highUs - head.highUs) <= jitter.high;
+      Math.abs(period.periodUs - reference.periodUs) <= jitter.period &&
+      Math.abs(period.highUs - reference.highUs) <= highAllowanceUs;
     if (!continues) {
       close();
     }
@@ -184,7 +208,7 @@ export function decodePin(pin: string, initial: RawPinState, changes: readonly R
     return events;
   }
 
-  const runs = findRuns(changes, decoding);
+  const runs = findRuns(changes, decoding, initial);
   for (const [k, run] of runs.entries()) {
     const at = (i: number) => changes[i]?.atUs ?? 0;
     const jitter = jitterUs(decoding, run.periodUs);

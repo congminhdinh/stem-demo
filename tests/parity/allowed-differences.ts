@@ -147,11 +147,12 @@ export const allowedDifferences = {
     timer0BeforeSetupUs: 7.9,
   },
   'servo-first-pulse': {
-    reason: 'Servo 1.3.0 sends the first pulse after attach() only once Timer1, cleared to 0 by attach() at /8, wraps to its first compare (65536 × 0.5 µs) and one 20 ms refresh has passed (measured 52 802 µs: 34 µs more, the interrupts and the library\'s own ticks); the simulator has the servo at its angle from attach(). Later changes show within one frame (waveform-phase).',
+    reason: 'Servo 1.3.0 sends the first pulse after attach() only once Timer1, cleared to 0 by attach() at /8, wraps to its first compare (65536 × 0.5 µs) and one 20 ms refresh has passed (measured 52 802 µs: 34 µs more, the interrupts and the library\'s own ticks); the simulator has the servo at its angle from attach(). Later changes show within one frame (waveform-phase). That first pulse is also a few µs longer than the steady pulses after it (measured 3.5625 µs on D9, 4.5625 µs on D10 in the N18 R8a kit-swap rehearsal): it joins the run of its angle when its width is within firstWidthUs of the next pulse\'s, the time of Timer0\'s interrupt (5.97 µs, isr-load) rounded up; every later pulse keeps waveform-jitter\'s 4 µs.',
     contractRow: 'Xung servo đầu tiên sau attach',
     refs: ['contract §6.2', 'EMU-16'],
     firstPulseAfterAttachUs: 65_536 * 0.5 + SERVO_PULSE.frameUs,
     slackUs: 100,
+    firstWidthUs: 6,
   },
   'tone-frequency': {
     reason: 'The board plays the frequency Timer2 can make from the asked one (440 → 440.141 Hz); the simulator plays the asked one.',

@@ -267,9 +267,7 @@ describe('the C2 parity harness with the rehearsal kit (tests/__parity-rehearsal
     return [...byPin.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   };
 
-  const matching = rehearsalParityFixtures.filter((fixture) => fixture.name !== 'rehearsal-driver-servo');
-
-  it.each(matching)('$name: the simulator and the board run it the same, and do what they do on the reference kit', async (fixture) => {
+  it.each(rehearsalParityFixtures)('$name: the simulator and the board run it the same, and do what they do on the reference kit', async (fixture) => {
     const run = await runParity(fixture, read(`${fixture.name}.hex`));
     expect(run.comparison.problems).toEqual([]);
     expect(run.sim.outcome).toEqual({ status: fixture.forever ? 'stopped' : 'finished' });
@@ -281,17 +279,11 @@ describe('the C2 parity harness with the rehearsal kit (tests/__parity-rehearsal
     expect(states).toEqual(statesByPin(onReference.sim.events, reference, (pin) => pinOf.get(pin) ?? pin));
   }, 120_000);
 
-  // A finding of the rehearsal (docs/kit-swap-rehearsal.md): on D10 the first pulse after attach() is 4.56 µs longer than the next one
-  // (on D9 3.56 µs), so the board decoder's servo width jitter (allowed difference `waveform-jitter`, servo.highUs 4 µs) does not join it
-  // to the next pulses: it reads that pulse as a HIGH and a LOW, then the run from 45°. The board's pulses are the simulator's angles
-  // (90° twice, then 45°: Servo 1.3.0's 544 + angle · 1856 / 180 µs); the harness's tolerance is the contract's (§13), not widened here.
-  it('rehearsal-driver-servo: the board sends the angles the simulator has, but the harness’s 4 µs servo width jitter splits the first pulse on D10', async () => {
+  // The rehearsal's finding (docs/kit-swap-rehearsal.md §4.2, controller ruling): on D10 Servo 1.3.0's first pulse after attach() is
+  // 4.5625 µs longer than the next (3.5625 on D9), over waveform-jitter's 4 µs for steady pulses; servo-first-pulse allows that first pulse
+  // 6 µs (firstWidthUs), so the fixture above matches.
+  it('rehearsal-driver-servo needs servo-first-pulse’s 6 µs: its first pulse after attach() on D10 is 4.5625 µs longer than the next', () => {
     const fixture = rehearsalParityFixtures.find((candidate) => candidate.name === 'rehearsal-driver-servo')!;
-    const run = await runParity(fixture, read(`${fixture.name}.hex`));
-    expect(run.comparison.problems).toEqual([
-      'D10: the simulator went INPUT, LOW, servo 90°, servo 45°, servo 180°, servo 0°, servo 135°; the board INPUT, LOW, HIGH, LOW, servo 45°, servo 180°, servo 0°, servo 135°',
-    ]);
-    expect(run.sim.lines).toEqual([]);
     const widthsOf = (candidate: ParityFixture, hex: string, pin: string) => {
       const program = compileFixture(candidate);
       const edges = runBoard(hex, { kit: program.kit, board: program.board, decodings: new Map() }, candidate.inputs, 130_000).events.filter((event) => event.pin === pin);
@@ -302,8 +294,8 @@ describe('the C2 parity harness with the rehearsal kit (tests/__parity-rehearsal
     const degrees = (widthUs: number) => Math.round(((widthUs - 544) * 180) / 1856);
     expect(onD10.map(degrees)).toEqual([90, 90, 45, 45]);
     expect(onD9.map(degrees)).toEqual([90, 90, 45, 45]);
-    const jitter = allowedDifferences['waveform-jitter'].servo.highUs;
-    expect(jitter).toBe(4);
+    expect(allowedDifferences['waveform-jitter'].servo.highUs).toBe(4);
+    expect(allowedDifferences['servo-first-pulse'].firstWidthUs).toBe(6);
     expect(onD10[0]! - onD10[1]!).toBeCloseTo(4.5625, 9);
     expect(onD9[0]! - onD9[1]!).toBeCloseTo(3.5625, 9);
   }, 120_000);
