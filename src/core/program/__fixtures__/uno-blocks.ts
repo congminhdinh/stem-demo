@@ -60,12 +60,18 @@ export function derivedKit(kitId: string, change: (kit: RawKit) => void): { ref:
   return { ref: { id: kitId, version: raw.version }, kits: createKitCatalog([refUnoRoverJson, raw], [unoR3Board]) };
 }
 
-/** ref-uno-rover@0 without the module of `role` (and its port). */
+/**
+ * ref-uno-rover@0 without the module of `role` (and its port). A kit with a chassis must drive on both motors (R3.3), so a
+ * kit without a drive motor is a bench kit: it loses its chassis too.
+ */
 export function kitWithout(role: string): { ref: { id: string; version: string }; kits: KitCatalog } {
   return derivedKit(`test-rover-without-${role}`, (kit) => {
     const port = kit.modules.find((module) => module.role === role)?.port;
     kit.modules = kit.modules.filter((module) => module.role !== role);
     kit.ports = kit.ports.filter((candidate) => candidate.id !== port);
+    if (role === 'motorLeft' || role === 'motorRight') {
+      delete (kit as { chassis?: unknown }).chassis;
+    }
   });
 }
 
