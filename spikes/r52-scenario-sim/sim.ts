@@ -2,34 +2,29 @@
 // before those tasks land. NOT production code and not their design: it wires what exists on master the obvious way and nothing more.
 //
 //   program   compileUnoProject → startVirtualRun (the virtual clock of R2.3) on createVirtualUno + createProgramIO (the binding of R2.2)
-//   world     buildArena (R3.2) + assembleRobot (R3.3) + the sensors of R3.4, stepped at 120 Hz with stepWorld
-//   goals     createGoal of R6.1, fed one GoalFrame per tick (the adapter is R3.5's; this one is the obvious one)
+//   world     createScenarioWorld (R3.5: the variant's arena and start, the start checked, the settle, one measure per tick)
+//   goals     createGoal of R6.1, fed toGoalFrame(world.snapshot(), world.frameExtras()) each tick (R3.5's adapter)
 //
-// Per tick k: the program runs up to world time k·dt, reading the sensors of the world as it is (state k); the pins become actuator
-// targets; the world steps to k + 1; the goals see the frame at (k + 1)·dt. The ultrasonic echo starts 450 µs after the trigger (the wait
-// the contract measured, EMU-13). Motors: dir from IN1/IN2, duty from EN, brake when IN1 = IN2 = HIGH with a duty (the hbridge never does).
+// Per tick k: the program runs up to world time k·dt, reading the sensors the world measured for tick k (the echo starts 450 µs after
+// the trigger, the wait the contract measured, EMU-13); the pins become actuator targets (motor: dir from IN1/IN2, duty from EN, brake
+// when IN1 = IN2 = HIGH with a duty, which the hbridge helper never does; servo: its pin's angle); the world steps to k + 1; the goals
+// see the frame of k + 1. finish-within is told when the other goals last started to pass together and stayed so (R6.1's note for R6.2).
 import type { ProjectDocument } from '../../src/core/circuit/document';
 import { localDeviceDefinitions } from '../../src/core/devices/local-catalog';
 import { createDeviceRegistry } from '../../src/core/devices/registry';
-import { createProgramIO, createVirtualUno, productionKits, type Kit, type KitModule, type LineSensorSpec, type UltrasonicSpec } from '../../src/core/hardware';
+import { createProgramIO, createVirtualUno, productionKits, type Kit } from '../../src/core/hardware';
 import { productionProfiles } from '../../src/core/profiles';
 import { createBlockPackCatalog } from '../../src/core/program/block-packs';
 import { compileUnoProject } from '../../src/core/program/compile-uno-program';
 import { startVirtualRun } from '../../src/core/run/__fixtures__/virtual-run';
 import { createGoal, type Goal, type GoalFrame, type GoalResult } from '../../src/core/scenario/goals';
 import type { Scenario } from '../../src/core/scenario/scenario';
-import { applyVariant, variantOffsets } from '../../src/core/scenario/variants';
-import { buildArena } from '../../src/core/world/arena/build-arena';
 import { createGroundPaint } from '../../src/core/world/arena/ground-paint';
-import { createPhysicsWorld, PHYSICS_DT_S } from '../../src/core/world/rapier';
-import { assembleRobot, stepWorld, type ActuatorTargets } from '../../src/core/world/robot/assembly';
+import { toGoalFrame } from '../../src/core/world/goal-frame';
+import { PHYSICS_DT_S, PHYSICS_HZ } from '../../src/core/world/rapier';
 import type { MotorCommand } from '../../src/core/world/robot/dc-motor';
-import { localToWorld, multiplyQuaternions, robotPointToLocal } from '../../src/core/world/robot/robot-frame';
-import { readContacts } from '../../src/core/world/sensors/contacts';
-import { LIFTED_HEIGHT_CM, measureLine } from '../../src/core/world/sensors/line';
-import { isOutOfArena } from '../../src/core/world/sensors/out-of-arena';
-import { measureUltrasonic } from '../../src/core/world/sensors/ultrasonic';
-import { degToRad, radToDeg, worldToArena, yawOfQuaternion, yawToQuaternion } from '../../src/core/world/units';
+import { degToRad } from '../../src/core/world/units';
+import { createScenarioWorld } from '../../src/core/world/world';
 import { robotStarterDocument } from '../../src/samples/robot-templates';
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
@@ -43,10 +38,10 @@ export type VariantRun = {
   goals: GoalResult[];
   points: number;
   passed: boolean;
-  /** Where the robot ended, and how far it went. */
+  /** Where the robot ended, and how far it drove (the guard goals' path: Σ speed · dt, the frame's axle speed). */
   end: { xCm: number; yCm: number; yawDeg: number };
   pathCm: number;
-  /** Ticks moving and ticks moving with a line spot on the tape (stay-on-line's own count, for the report). */
+  /** Ticks moving (speed > 1 cm/s) and ticks moving with a line spot on the tape: stay-on-line's own count, for the report. */
   onLine?: { moving: number; onTape: number };
   contacts: string[];
   minFrontCm?: number;
@@ -69,21 +64,10 @@ export async function runVariant(scenario: Scenario, program: unknown, index: nu
   if (!compiled.ok) throw new Error(`does not compile: ${JSON.stringify(compiled.diagnostics)}`);
   const { kit, board } = compiled;
 
-  const offsets = variantOffsets(scenario, index);
-  const { start, arena } = applyVariant(scenario, offsets);
-  const world = createPhysicsWorld();
-  const built = buildArena(world, arena);
-  const robot = assembleRobot(world, kit, start);
+  const world = await createScenarioWorld(scenario, kit, index);
+  const arena = world.arena;
   const paint = createGroundPaint(arena);
-
-  const moduleOf = (role: string) => kit.modules.find((module) => module.role === role) as KitModule | undefined;
-  const sensorPose = (module: KitModule) => {
-    const pose = robot.pose();
-    const position = localToWorld(pose.position, pose.rotation, robotPointToLocal(module.mount.posCm));
-    return { position, rotation: multiplyQuaternions(pose.rotation, yawToQuaternion(degToRad(module.mount.yawDeg))) };
-  };
   const lineRoles = ['lineLeft', 'lineCenter', 'lineRight'] as const;
-  const ultrasonicModule = moduleOf('ultrasonic')!;
 
   let pins: () => ReturnType<ReturnType<typeof createVirtualUno>['pins']> = () => [];
   const run = startVirtualRun(compiled.ir, {
@@ -91,13 +75,10 @@ export async function runVariant(scenario: Scenario, program: unknown, index: nu
     capabilities: ({ scheduler }) => {
       const uno = createVirtualUno(board, scheduler.programClock);
       uno.attachPulseSource(portPin(kit, 'ultrasonic', 'ECHO'), () => {
-        const reading = measureUltrasonic(world, built, sensorPose(ultrasonicModule), ultrasonicModule.spec as UltrasonicSpec, { exclude: robot.ownsCollider });
+        const reading = world.sense.ultrasonic('ultrasonic');
         return reading.echoUs === 0 ? 0 : { waitUs: ECHO_WAIT_US, widthUs: reading.echoUs };
       });
-      for (const role of lineRoles) {
-        const module = moduleOf(role)!;
-        uno.attachDigitalSource(portPin(kit, role, 'PIN'), () => measureLine(paint, sensorPose(module).position, module.spec as LineSensorSpec).level);
-      }
+      for (const role of lineRoles) uno.attachDigitalSource(portPin(kit, role, 'PIN'), () => world.sense.line(role).level);
       pins = () => uno.pins();
       return createProgramIO(kit, uno, compiled.uses);
     },
@@ -105,124 +86,93 @@ export async function runVariant(scenario: Scenario, program: unknown, index: nu
 
   const pinState = (id: string) => pins().find((state) => state.pin === id);
   const motorCommand = (role: 'motorLeft' | 'motorRight'): MotorCommand => {
-    const en = pinState(portPin(kit, role, 'EN'));
+    const duty = pinState(portPin(kit, role, 'EN'))?.duty ?? 0;
     const in1 = pinState(portPin(kit, role, 'IN1'))?.level ?? 0;
     const in2 = pinState(portPin(kit, role, 'IN2'))?.level ?? 0;
-    const duty = en?.duty ?? 0;
     const dir = in1 === 1 && in2 === 0 ? 1 : in1 === 0 && in2 === 1 ? -1 : 0;
     return { duty, dir, brake: in1 === 1 && in2 === 1 && duty > 0 };
   };
   const servoPin = portPin(kit, 'servo1', 'PIN');
 
   // The goals, and finish-within's "when did the others last start to pass together".
-  let goals: Goal[] = [];
   let streakStart: number | null = null;
-  const others = (self: number) => goals.filter((_, i) => i !== self);
-  goals = scenario.goals.map((spec, i) =>
-    createGoal(spec, {
-      arena,
-      scenario,
-      program,
-      othersPassedAtS: () => (others(i).every((goal) => goal.result().passed) ? streakStart : null),
-    }),
+  const goals: Goal[] = [];
+  scenario.goals.forEach((spec, i) =>
+    goals.push(
+      createGoal(spec, {
+        arena,
+        scenario,
+        program,
+        othersPassedAtS: () => (goals.every((goal, j) => j === i || goal.result().passed) ? streakStart : null),
+      }),
+    ),
   );
   const finishIndex = scenario.goals.findIndex((spec) => spec.kind === 'finish-within');
 
-  let last = robot.pose().position;
   let pathCm = 0;
-  let onLine = { moving: 0, onTape: 0 };
+  const onLine = { moving: 0, onTape: 0 };
   const contacts = new Set<string>();
   let minFrontCm: number | undefined;
   const track: [number, number, number][] = [];
   const clearanceCm: Record<string, number> = {};
   const outline = footprintOutline(kit);
-  const frameAt = (tS: number, dtS: number): GoalFrame => {
-    const pose = robot.pose();
-    const here = worldToArena(pose.position);
-    const yawRad = yawOfQuaternion(pose.rotation);
-    if (Math.round(tS * 120) % 6 === 0) track.push([here.xCm, here.yCm, radToDeg(yawRad)]);
-    arena.boxes.forEach((box, i) => {
-      const id = box.id ?? `#box-${i}`;
-      const c = Math.cos(yawRad);
-      const s = Math.sin(yawRad);
-      const gap = Math.min(...outline.map(([u, v]) => boxDistance(box, here.xCm + u * c - v * s, here.yCm + u * s + v * c)));
-      clearanceCm[id] = Math.min(clearanceCm[id] ?? Infinity, gap);
-    });
-    const before = worldToArena(last);
-    const moved = Math.hypot(here.xCm - before.xCm, here.yCm - before.yCm);
-    const speedCmS = dtS > 0 ? moved / dtS : 0;
-    last = pose.position;
-    const out = isOutOfArena(arena, pose.position);
-    if (!out) pathCm += speedCmS * dtS;
-    const spots = lineRoles.flatMap((role) => {
-      const p = worldToArena(sensorPose(moduleOf(role)!).position);
-      return p.heightCm > LIFTED_HEIGHT_CM ? [] : [[p.xCm, p.yCm] as [number, number]];
-    });
+  const observe = (frame: GoalFrame, dtS: number) => {
+    const { xCm, yCm, yawDeg, speedCmS, lineSpotsCm = [] } = frame.robot;
+    if (Math.round(frame.tS * PHYSICS_HZ) % 6 === 0) track.push([xCm, yCm, yawDeg]);
+    if (!frame.outOfArena) pathCm += speedCmS * dtS;
     if (speedCmS > 1) {
       onLine.moving += 1;
-      if (spots.some(([x, y]) => paint.groundReflectanceAt(x, y, 0) <= 0.25)) onLine.onTape += 1;
+      if (lineSpotsCm.some(([x, y]) => paint.groundReflectanceAt(x, y, 0) <= 0.25)) onLine.onTape += 1;
     }
-    const touching = readContacts(world, built, robot.bodies).filter((info) => !info.tags.includes('ground'));
-    for (const info of touching) contacts.add(info.id);
-    const front = measureUltrasonic(world, built, sensorPose(ultrasonicModule), ultrasonicModule.spec as UltrasonicSpec, { exclude: robot.ownsCollider });
+    for (const contact of frame.contacts) contacts.add(contact.otherId);
+    const front = world.sense.ultrasonic('ultrasonic');
     if (front.echoUs > 0) minFrontCm = Math.min(minFrontCm ?? Infinity, front.cm);
-    const servoDeg = robot.servoAngles().servo1;
-    return {
-      tS,
-      robot: {
-        xCm: here.xCm,
-        yCm: here.yCm,
-        yawDeg: radToDeg(yawOfQuaternion(pose.rotation)),
-        speedCmS,
-        footprint: { kind: 'circle', radiusCm: 11 },
-        lineSpotsCm: spots,
-      },
-      objects: {},
-      contacts: touching.map((info) => ({ otherId: info.id, tags: info.tags })),
-      servoDeg: servoDeg === undefined ? {} : { servo1: Math.min(180, Math.max(0, servoDeg)) },
-      leds: {},
-      buzzerHz: null,
-      outOfArena: out,
-    };
+    const a = degToRad(yawDeg);
+    arena.boxes.forEach((box, i) => {
+      const id = box.id ?? `#box-${i}`;
+      const gap = Math.min(...outline.map(([u, v]) => boxDistance(box, xCm + u * Math.cos(a) - v * Math.sin(a), yCm + u * Math.sin(a) + v * Math.cos(a))));
+      clearanceCm[id] = Math.min(clearanceCm[id] ?? Infinity, gap);
+    });
   };
-  const feed = (frame: GoalFrame, dtS: number) => {
+  const feed = (dtS: number) => {
+    const frame = toGoalFrame(world.snapshot(), world.frameExtras());
+    observe(frame, dtS);
     goals.forEach((goal) => goal.update(frame, dtS));
-    const allOthers = goals.every((goal, i) => i === finishIndex || goal.result().passed);
-    if (allOthers) streakStart ??= frame.tS;
+    if (goals.every((goal, i) => i === finishIndex || goal.result().passed)) streakStart ??= frame.tS;
     else streakStart = null;
   };
 
-  feed(frameAt(0, 0), 0);
-  const ticks = Math.round((options.seconds ?? scenario.timeLimitS) / PHYSICS_DT_S);
+  feed(0);
+  const ticks = Math.round((options.seconds ?? scenario.timeLimitS) * PHYSICS_HZ);
   for (let k = 0; k < ticks; k++) {
     await run.tick(k);
     await Promise.resolve();
-    const targets: ActuatorTargets = {
+    const servoDeg = pinState(servoPin)?.servoDeg;
+    world.applyActuators({
       motors: { motorLeft: motorCommand('motorLeft'), motorRight: motorCommand('motorRight') },
-      ...(pinState(servoPin)?.servoDeg != null ? { servos: { servo1: pinState(servoPin)!.servoDeg! } } : {}),
-    };
-    robot.applyActuators(targets);
-    stepWorld(world, robot);
-    feed(frameAt(((k + 1) * 1000) / 120 / 1000, PHYSICS_DT_S), PHYSICS_DT_S);
+      ...(servoDeg == null ? {} : { servos: { servo1: servoDeg } }),
+    });
+    world.step(PHYSICS_DT_S);
+    feed(PHYSICS_DT_S);
   }
   run.stop();
   const results = goals.map((goal) => goal.result());
-  const pose = robot.pose();
-  const end = worldToArena(pose.position);
-  world.free();
+  const end = world.snapshot().robot;
+  const start = track[0]!;
+  world.dispose();
   return {
     variant: index,
-    start,
+    start: { xCm: start[0], yCm: start[1], yawDeg: start[2] },
     goals: results,
     points: results.reduce((sum, result) => sum + result.points, 0),
     passed: results.every((result) => result.passed),
-    end: { xCm: end.xCm, yCm: end.yCm, yawDeg: radToDeg(yawOfQuaternion(pose.rotation)) },
+    end: { xCm: end.xCm, yCm: end.yCm, yawDeg: end.yawDeg },
     pathCm,
     ...(scenario.arena.paint.lines.length > 0 ? { onLine } : {}),
     contacts: [...contacts].sort(),
+    ...(minFrontCm === undefined ? {} : { minFrontCm }),
     clearanceCm,
     track,
-    ...(minFrontCm === undefined ? {} : { minFrontCm }),
     programOutcome: run.outcome()?.status ?? 'running',
   };
 }

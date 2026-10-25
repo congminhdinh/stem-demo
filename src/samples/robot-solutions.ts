@@ -150,8 +150,9 @@ const leg = (id: string, ms: number, turnMs?: number): Json[] => [
 /** The scenarios that have goals, and so a solution: every key but the sandbox. */
 export type RobotScoredKey = Exclude<RobotTemplateKey, typeof robotSandboxKey>;
 
-// The numbers in the notes were measured with spikes/r52-scenario-sim (a stand-in for R3.6 and R6.2 on the world of R3.3/R3.4 and the goals of
-// R6.1; see its results/ and the R5.2a report), not computed: R5.2b checks them again through the real run session and check.
+// The numbers in the notes were measured with spikes/r52-scenario-sim (a stand-in for R3.6 and R6.2: the compiled program on the virtual UNO,
+// R3.5's createScenarioWorld and goal frame, R6.1's goals; see its results/ and the R5.2a report), not computed: R5.2b checks them again
+// through the real run session and check.
 export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
   'rb-drive-to-zone': {
     reference: workspace(hat('stem_on_start', [drive('go', 'forward', CRUISE), wait('drive-time', 5000), stop('stop')])),
@@ -190,7 +191,7 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
       'sensor spot on the tape (ratio 1.000) in all three variants, and the finish is reached at 15.4..15.6 s of 40. The kit enters through the ' +
       'sensor bar (three sensors 1.5 cm apart, 7 cm ahead of the middle): a start whose bar lies within 2.75 cm of the line finds it, which the ' +
       'jitter (1.5 cm, 5°) keeps. Blind: five legs at 50 % (4450, 1950, 2850, 1950, 3300 ms) with spins of 410 ms (about 45°), found by a grid ' +
-      'search on variant 0: ratio 0.937, finish at 15.0 s. The seed (485) turns variants 1 and 2 by −4.9° and +4.9°: ratio 0.621 and 0.534.',
+      'search on variant 0: ratio 0.943, finish at 15.0 s. The seed (485) turns variants 1 and 2 by −4.9° and +4.9°: ratio 0.632 and 0.532.',
   },
   'rb-servo-gate': {
     reference: workspace(
@@ -201,9 +202,8 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
       'Reference: lesson 3 against the gate, and the flag to 160° once stopped. The middle stops at x = 117.8..117.9 in all three variants (zone ' +
       'x 108..128) and the flag holds in range from 5.2..7.7 s. The servo starts at 90° (the Servo library writes 90 when attached), outside the ' +
       'goal range 135..180°, so only a program that turns it passes. Blind: 50 % for 5800 ms stops at x = 117.6 from the authored start. The seed ' +
-      '(1409, jitter 18 cm) moves variant 1 16.9 cm further on, where it reaches the gate (in the spike the arm of the current kit, 3 cm ahead of ' +
-      'the body at 90°, touched it at 5.45 s; with the arm inside the body it stops about 4.5 cm past the zone), and variant 2 17.3 cm back, where ' +
-      'it stops 7.8 cm short.',
+      '(1409, jitter 18 cm) moves variant 1 16.9 cm further on, where the body runs into the gate (5.65 s), 4.2 cm past the zone, and ' +
+      'variant 2 17.3 cm back, where it stops 7.8 cm short.',
   },
   'rb-mini-mission': {
     reference: workspace(hat('stem_forever', [ifBlock('if-mission', [[closerThan('near', 15), [stop('stop')]], ...followLine('line')])])),
@@ -212,7 +212,7 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
       'Reference: the follower of lesson 4 under the stop of lesson 3. Ratio 1.000 in all three variants; it parks at x 141.2, y 115.8 by ' +
       '14.3..14.5 s (finish-within 30 s, so the time bonus has room) and passes the cones at 2.8 cm (cone-1) and 3.3 cm (cone-2) from its ' +
       'footprint. The cones are placed for this kit: a wider robot (track, wheel width) needs them moved out. Blind: three legs at 50 % (5200, ' +
-      '3150, 4200 ms) with spins of 415 ms, found by a grid search on variant 0: ratio 0.931, parked at 14.4 s, 1.5 cm from cone-2. The seed ' +
+      '3150, 4200 ms) with spins of 415 ms, found by a grid search on variant 0: ratio 0.946, parked at 14.4 s, 1.5 cm from cone-2. The seed ' +
       '(1229) turns variants 1 and 2 by +5.0° and −4.8°: the robot leaves the line (ratio 0.41 and 0.24) and hits cone-2 and cone-1.',
   },
 };
