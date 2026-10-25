@@ -61,6 +61,12 @@ import {
   type PinChoices,
 } from '../constructs/ybc.pins';
 import { melodyType, musicDefinitions, pitchType, playNoteType, restType, soundDefinitions, soundStopType } from '../constructs/ybc.sound';
+import { unoBlockTypesOf, unoPackIds, type UnoPackId } from '../constructs/uno';
+import { driveDefinitions, driveMoveType, driveStopType, motorSetType } from '../constructs/uno.drive';
+import { advancedOutputDefinitions, buzzerStopType, buzzerToneType, ledSetType, outputDefinitions } from '../constructs/uno.output';
+import { analogReadType, createUnoPinBlockDefinitions, digitalReadType, digitalWriteType, millisType, pwmWriteType } from '../constructs/uno.pins';
+import { advancedSensorDefinitions, buttonPressedType as unoButtonPressedType, lineDarkType, lineRawType, sensorDefinitions as unoSensorDefinitions, ultrasonicType } from '../constructs/uno.sensors';
+import { servoDefinitions, servoSetType } from '../constructs/uno.servo';
 import { usablePins } from '../devices/board-pins';
 import type { DeviceRegistry } from '../devices/registry';
 import {
@@ -398,6 +404,134 @@ export function createYbcPwmPack(choices: PinChoices): BlockPack {
   };
 }
 
+/** N18 R2.2: what each pack of the uno family shows in the toolbox. Categories of one name merge (`buildToolbox`). */
+const unoCategories: Readonly<Record<UnoPackId, ToolboxCategory[]>> = {
+  'uno.structure': [
+    {
+      kind: 'category',
+      name: 'Program',
+      colour: '45',
+      contents: [block(blockTypes.onStart), block(blockTypes.forever)],
+    },
+  ],
+  'uno.drive': [
+    {
+      kind: 'category',
+      name: 'Motors',
+      colour: '0',
+      contents: [
+        block(driveMoveType, { fields: { DIRECTION: 'forward' }, inputs: { SPEED: shadowNumber(50) } }),
+        block(driveMoveType, { fields: { DIRECTION: 'spinLeft' }, inputs: { SPEED: shadowNumber(50) } }),
+        block(driveStopType),
+        block(motorSetType, { fields: { ROLE: 'motorLeft' }, inputs: { SPEED: shadowNumber(50) } }),
+        block(motorSetType, { fields: { ROLE: 'motorRight' }, inputs: { SPEED: shadowNumber(50) } }),
+      ],
+    },
+  ],
+  'uno.sensors': [
+    {
+      kind: 'category',
+      name: 'Sensors',
+      colour: '195',
+      contents: [block(ultrasonicType), block(lineDarkType, { fields: { ROLE: 'lineCenter' } }), block(unoButtonPressedType)],
+    },
+  ],
+  'uno.servo': [
+    {
+      kind: 'category',
+      name: 'Servo',
+      colour: '270',
+      contents: [block(servoSetType, { fields: { ROLE: 'servo1' }, inputs: { ANGLE: shadowNumber(90) } })],
+    },
+  ],
+  'uno.output': [
+    {
+      kind: 'category',
+      name: 'Light & Sound',
+      colour: '60',
+      contents: [
+        block(ledSetType, { fields: { STATE: 'ON' } }),
+        block(ledSetType, { fields: { STATE: 'OFF' } }),
+        block(buzzerToneType, { inputs: { HZ: shadowNumber(440), MS: shadowNumber(200) } }),
+      ],
+    },
+  ],
+  'uno.logic': langCategories['lang.logic'],
+  'uno.loops': [
+    {
+      kind: 'category',
+      name: 'Loops',
+      colour: '120',
+      contents: [
+        block('controls_repeat_ext', { inputs: { TIMES: shadowNumber(10) } }),
+        block(whileType),
+        block(countUpType, { inputs: { FROM: shadowNumber(1), TO: shadowNumber(10) } }),
+      ],
+    },
+    // Contract UNO: no running time (U-19 is the board's millis, Advanced, which joins this category).
+    { kind: 'category', name: 'Time', colour: '120', contents: [block(waitType, { inputs: { MS: shadowNumber(1000) } })] },
+  ],
+  'uno.math': [
+    {
+      kind: 'category',
+      name: 'Math',
+      colour: '230',
+      // Contract UNO U-45: no random numbers.
+      contents: [
+        block('math_number', { fields: { NUM: 0 } }),
+        arithmetic('ADD'),
+        arithmetic('MINUS'),
+        arithmetic('MULTIPLY'),
+        block(intDivideType, { inputs: { A: shadowNumber(7), B: shadowNumber(2) } }),
+        block('math_modulo', { inputs: { DIVIDEND: shadowNumber(7), DIVISOR: shadowNumber(2) } }),
+      ],
+    },
+  ],
+  'uno.text': langCategories['lang.text'],
+  'uno.variables': langCategories['lang.variables'],
+  'uno.sensors.advanced': [{ kind: 'category', name: 'Sensors', colour: '195', contents: [block(lineRawType, { fields: { ROLE: 'lineCenter' } })] }],
+  'uno.output.advanced': [{ kind: 'category', name: 'Light & Sound', colour: '60', contents: [block(buzzerStopType)] }],
+  'uno.pins': [
+    {
+      kind: 'category',
+      name: 'Pins',
+      colour: '210',
+      contents: [
+        block(digitalWriteType, { fields: { PIN: 'A3', LEVEL: 'HIGH' } }),
+        block(pwmWriteType, { inputs: { VALUE: shadowNumber(128) } }),
+        block(digitalReadType, { fields: { PIN: 'D3' } }),
+        block(analogReadType, { fields: { PIN: 'A0' } }),
+      ],
+    },
+    { kind: 'category', name: 'Time', colour: '120', contents: [block(millisType)] },
+  ],
+};
+
+/**
+ * N18 R2.2: the packs of the robot lab (family `uno`), for the pins of the UNO boards of the registry (the raw pin blocks offer
+ * them). The language packs show the Yolo:Bit dialect's blocks without the rows the UNO contract does not open; the module packs
+ * are the robot's (constructs/uno.*.ts). Basic shows the first ten, Advanced adds the raw line value, buzzer stop and the raw pins.
+ */
+export function createUnoPacks(choices: PinChoices): BlockPack[] {
+  const hats = buildBlockDefinitions([]).filter((definition) => definition.type === blockTypes.onStart || definition.type === blockTypes.forever);
+  const blocks: Readonly<Record<UnoPackId, readonly BlockDefinitionJson[]>> = {
+    'uno.structure': hats,
+    'uno.drive': driveDefinitions,
+    'uno.sensors': unoSensorDefinitions,
+    'uno.servo': servoDefinitions,
+    'uno.output': outputDefinitions,
+    'uno.logic': [],
+    'uno.loops': [whileDefinition, countUpDefinition, waitDefinition],
+    'uno.math': [arithDefinition, intDivideDefinition],
+    'uno.text': [],
+    'uno.variables': [],
+    'uno.sensors.advanced': advancedSensorDefinitions,
+    'uno.output.advanced': advancedOutputDefinitions,
+    'uno.pins': createUnoPinBlockDefinitions(choices),
+  };
+  return unoPackIds.map((id) => ({ id, family: 'uno', blocks: blocks[id], blockTypes: unoBlockTypesOf(id), categories: unoCategories[id] }));
+}
+
 export type BlockPackCatalog = {
   list(): readonly BlockPack[];
   get(id: string): BlockPack | undefined;
@@ -425,6 +559,8 @@ export function createBlockPackCatalog(
     createYbcPinsPack(pinChoices),
     createYbcPwmPack(pinChoices),
     ...createLangPacks(),
+    // N18 R2.2: the robot lab's packs, last, so every pack and block known before keeps its place.
+    ...createUnoPacks(boardPinChoices(registry, 'uno')),
     ...extraPacks,
   ];
   const byId = new Map<string, BlockPack>();

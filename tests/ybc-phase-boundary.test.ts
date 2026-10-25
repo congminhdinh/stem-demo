@@ -88,10 +88,15 @@ describe('the blocks a Yolo:Bit-compatible project has', () => {
 
   it('have no block for pulse, events, a timer or Blockly\'s random, and none for PWM, the servo, the display, the buttons, light, sound or the sensors but the onboard ones (N17 B4: the running time and the dialect\'s random number; N17 B5: analog write and the servo)', () => {
     const logic = ['ybc_running_time', 'ybc_random_int'];
+    // N18 R2.2: the robot's blocks are the uno family's (its servo, button, tone, PWM write), never a Yolo:Bit project's.
+    const unoBlockTypes = [
+      'uno_drive_move', 'uno_drive_stop', 'uno_motor_set', 'uno_ultrasonic_cm', 'uno_line_dark', 'uno_button_pressed', 'uno_servo_set', 'uno_led_set',
+      'uno_buzzer_tone', 'uno_line_raw', 'uno_buzzer_stop', 'uno_digital_write', 'uno_pwm_write', 'uno_digital_read', 'uno_analog_read', 'uno_millis',
+    ];
     const everything = packs
       .list()
       .flatMap((pack) => pack.blockTypes)
-      .filter((type) => !onboardBlockTypes.includes(type) && !logic.includes(type) && !pinOutputBlockTypes.includes(type))
+      .filter((type) => !onboardBlockTypes.includes(type) && !logic.includes(type) && !pinOutputBlockTypes.includes(type) && !unoBlockTypes.includes(type))
       .join(' ');
     expect(everything).not.toMatch(/pwm|servo|pulse|temperature|display|image|scroll|button|light|sound|music|note|tone|event|random|timer|running|elapsed|shake|accel|gesture|write_analog/i);
   });

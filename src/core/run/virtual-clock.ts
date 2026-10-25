@@ -21,7 +21,8 @@ import { EXEC_SLICE_MS, STEP_CHECK_INTERVAL } from '../program/limits';
 //   is relative to the program clock (that time), not to the deadline of the task.
 // - The budget looks at the clock on every step. A program whose clock has reached world.t + dt PARKS (a waiter whose deadline is
 //   its clock) until a tick whose interval holds it: a loop without `wait` never runs ahead of the world by a dt, and never
-//   freezes the page.
+//   freezes the page. N18 R2.2: it looks again before every module op of a uno program (`atHardware`), so a second read in one
+//   statement (two ultrasonic reads, 20.8 ms each without an echo) waits for its own tick too.
 // - Blocked is one of three: the program waits in a sleep, waits in a park, or has ended. A housekeeping yield to the browser
 //   (a MessageChannel turn, after EXEC_SLICE_MS of wall time in one tick) is never blocked: the tick waits for the program to come
 //   back. It changes no clock, so the result of a run never depends on the machine, the frame rate or a hidden tab.
@@ -276,6 +277,12 @@ export function createVirtualScheduler(options: VirtualSchedulerOptions = {}): V
         startSlice() {},
         loopIteration() {
           unsettledUs += LOOP_MIN_US;
+        },
+        // N18 R2.2: a module op waits for the world when the program's clock is a tick ahead (an earlier read of its statement took
+        // it there); it costs nothing itself: the op's own cost is the Arduino call's charge.
+        atHardware() {
+          signal.throwIfAborted();
+          return programUs >= horizonUs ? park(signal) : undefined;
         },
       };
     },

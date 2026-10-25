@@ -1,4 +1,4 @@
-import type { CallStatement, Expr, PinCallStatement, PinReadExpr, RandomExpr, ReadExpr, YbcProgramIR, YbcStatement } from '../../program/ybc-ir';
+import { isModuleCall, isModuleRead, type CallStatement, type Expr, type PinCallStatement, type PinReadExpr, type RandomExpr, type ReadExpr, type YbcProgramIR, type YbcStatement } from '../../program/ybc-ir';
 
 // The modules a generated file imports (contract §2, IM-1…IM-3). `import time` is always there; the lines below
 // are the `yolobit` module's: its import and the three preamble lines that follow it (IM-2), exactly as the
@@ -72,12 +72,20 @@ export function usesYolobitModule(ir: YbcProgramIR): boolean {
     seen.add(node);
     switch (node.kind) {
       case 'call':
+        // N18 R2.2: a module op of a uno program uses no Python module.
+        if (!isModuleCall(node) && moduleOfOp[node.op] === 'yolobit') {
+          return true;
+        }
+        break;
       case 'read':
+        if (isModuleRead(node)) {
+          break;
+        }
         if (moduleOfOp[node.op] === 'yolobit') {
           return true;
         }
         // The ends of a random number (N17 B4) are expressions that may use the module.
-        if (node.kind === 'read' && node.op === 'random.int') {
+        if (node.op === 'random.int') {
           push(node.args);
         }
         break;

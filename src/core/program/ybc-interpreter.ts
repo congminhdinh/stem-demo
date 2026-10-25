@@ -5,6 +5,7 @@ import { DEFAULT_COLOUR, IMAGE_SIZE, isDisplayText, paletteColourOf } from '../c
 import { isBuiltinImageName } from '../constructs/ybc.images';
 import { isAxisName, isGestureName } from '../constructs/ybc.input';
 import { clampWarning, runPinCall, runPinRead, type ClampedValue } from '../constructs/ybc.pins';
+import { runBoardPinCall, runBoardPinRead, runModuleCall, runModuleRead, type UnoClamp } from '../constructs/uno.run';
 import { isMelodyName, noteTicks, PITCH_MAX_HZ, PITCH_MAX_MS, PITCH_MIN_HZ } from '../constructs/ybc.sound';
 import {
   charactersOf,
@@ -26,7 +27,25 @@ import type { RunOutcome } from './interpreter';
 import { MAX_RANDOM_ABS, MAX_RANDOM_SPAN, MAX_TEXT_CHARS, MAX_WAIT_MS, numericDomains } from './limits';
 import * as values from './values';
 import { RuntimeFault, type Value } from './values';
-import { loopPauseUsOf, numericOf, type ButtonOperand, type CallStatement, type ColourOperand, type Expr, type ImageOperand, type NumericModel, type RandomExpr, type ReadExpr, type YbcProgramIR, type YbcStatement } from './ybc-ir';
+import {
+  isBoardPinOp,
+  isModuleCall,
+  isModuleRead,
+  loopPauseUsOf,
+  numericOf,
+  type ArithOp,
+  type ButtonOperand,
+  type CallStatement,
+  type ColourOperand,
+  type Expr,
+  type ImageOperand,
+  type ModuleCallStatement,
+  type NumericModel,
+  type RandomExpr,
+  type ReadExpr,
+  type YbcProgramIR,
+  type YbcStatement,
+} from './ybc-ir';
 
 // The YBC interpreter (YB plan §9.0, §9.3): runs a `YbcProgramIR`. It reaches
 // the world only through `services` and knows nothing about circuits or UI.
@@ -74,6 +93,14 @@ import { loopPauseUsOf, numericOf, type ButtonOperand, type CallStatement, type 
 // warns once per block in the run, U-06), takes the loop domains of its model (limits.ts `numericDomains`), and its forever has no pause of its own:
 // every iteration is a `budget.loopIteration()`, which the virtual budget of a robot run charges (run/virtual-clock.ts). Every
 // statement still begins with its budget step, then names its block: the one place a per-statement hook belongs.
+//
+// N18 R2.2: the module ops of a uno program (robot plan §4.4) reach the robot through `capabilities.modules` (role → port → driver,
+// hardware/binding.ts), its raw pins through the virtual UNO's `digital`, `pwm` and `analogIn`. An int argument outside its range is
+// clamped and the run warned once per role (a raw pin: per pin) in a run, with the block (constructs/uno.run.ts). Every module op,
+// and every read of one inside an expression, first gives the budget its `atHardware()`: the virtual budget parks a program whose
+// clock has reached world.t + dt, so the op happens inside the tick of its time even after an earlier read of the same statement
+// took the clock past it (an ultrasonic read without an echo charges 20.8 ms). An expression with such a read is evaluated by
+// `evaluateReading`, which awaits there; every other expression, and every expression of a ybc program, as before.
 
 /** One note or rest of a melody (or a tone), for `ms`; `hz` null is silence. */
 type Sounding = { hz: number | null; ms: number };
@@ -147,6 +174,26 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
       services.warn(clampWarning(clamped));
     }
   };
+
+  /** N18 R2.2: the roles and pins whose clamped value the run was warned about (contract UNO §0.5): once each in a run. */
+  const unoClampWarned = new Set<string>();
+  const warnUnoClamp = (clamp: UnoClamp) => {
+    if (!unoClampWarned.has(clamp.key)) {
+      unoClampWarned.add(clamp.key);
+      services.warn(blockId === undefined ? clamp.warning : { ...clamp.warning, blockId });
+    }
+  };
+
+  /** N18 R2.2: the program reaches the hardware; the virtual budget may first hold it until the world is at its time. */
+  const atHardware = async () => {
+    const wait = budget.atHardware?.();
+    if (wait) {
+      await wait;
+    }
+  };
+
+  /** N18 R2.2: the expressions of a uno program that read the hardware, at any depth: what `evaluateReading` evaluates. */
+  const reading = ops.model === 'cxx-int32' ? readingExpressions(ir) : new WeakSet<Expr>();
 
   /** What the display shows now: the frame the program gave it last. It starts dark, as RunSession's display does. */
   let shown: Frame = blankFrame();
@@ -272,6 +319,98 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
     return values.int(drawn === 0 ? 0 : drawn);
   };
 
+  const arithmetic = (op: ArithOp, left: Value, right: Value): Value => {
+    switch (op) {
+      case '+':
+        return ops.add(left, right);
+      case '-':
+        return ops.subtract(left, right);
+      case '*':
+        return ops.multiply(left, right);
+      case '//':
+        return ops.divide(left, right);
+      case '%':
+        return ops.remainder(left, right);
+    }
+  };
+
+  /** A join of parts already through str(): at most MAX_TEXT_CHARS characters. */
+  const joined = (parts: readonly string[]): Value => {
+    const length = parts.reduce((total, piece) => total + piece.length, 0);
+    if (length > MAX_TEXT_CHARS) {
+      throw new RuntimeFault('limit-exceeded', `A text is limited to ${MAX_TEXT_CHARS} characters.`);
+    }
+    return values.str(parts.join(''));
+  };
+
+  /** N18 R2.2: a module read or a raw pin read of a uno program, at this moment of the program clock; a fault names its block. */
+  const readHardware = (expr: Expr): Value => {
+    blockId = expr.blockId;
+    let value: Value;
+    if (isModuleRead(expr)) {
+      value = runModuleRead(expr, capabilities);
+    } else if (expr.kind === 'read' && (expr.op === 'digital.read' || expr.op === 'analogIn.read') && isBoardPinOp(expr)) {
+      value = runBoardPinRead(expr.op, expr.operand, capabilities);
+    } else {
+      throw new RuntimeFault('internal-error', 'This block is not known to the board.');
+    }
+    if (value.t !== expr.type) {
+      throw new RuntimeFault('internal-error', 'A read gave another type than its block says.');
+    }
+    return value;
+  };
+
+  /**
+   * N18 R2.2: `evaluate` for an expression of a uno program that reads the hardware: the same nodes, the same order, the same budget
+   * work and block names, with a wait for the world (`atHardware`) before each read. A part without a read is `evaluate`'s.
+   */
+  const evaluateReading = async (expr: Expr): Promise<Value> => {
+    if (!reading.has(expr)) {
+      return evaluate(expr);
+    }
+    budget.work();
+    blockId = expr.blockId;
+    switch (expr.kind) {
+      case 'arith': {
+        const left = await evaluateReading(expr.left);
+        const right = await evaluateReading(expr.right);
+        blockId = expr.blockId;
+        return arithmetic(expr.op, left, right);
+      }
+      case 'compare': {
+        const left = await evaluateReading(expr.left);
+        const right = await evaluateReading(expr.right);
+        blockId = expr.blockId;
+        return values.compare(expr.op, left, right);
+      }
+      case 'logic': {
+        const left = values.asBool(await evaluateReading(expr.left));
+        if (expr.op === 'and' ? !left : left) {
+          return values.bool(left);
+        }
+        return values.bool(values.asBool(await evaluateReading(expr.right)));
+      }
+      case 'not': {
+        const inner = await evaluateReading(expr.value);
+        blockId = expr.blockId;
+        return values.not(inner);
+      }
+      case 'join': {
+        const parts: string[] = [];
+        for (const piece of expr.parts) {
+          parts.push(ops.toText(await evaluateReading(piece)));
+        }
+        blockId = expr.blockId;
+        return joined(parts);
+      }
+      case 'read':
+        await atHardware();
+        return readHardware(expr);
+      default:
+        throw new RuntimeFault('internal-error', 'Unexpected runtime error.');
+    }
+  };
+
   const evaluate = (expr: Expr): Value => {
     // An expression node is a step too (it only counts; the checkpoint is the next statement or iteration).
     budget.work();
@@ -294,19 +433,7 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
         const left = evaluate(expr.left);
         const right = evaluate(expr.right);
         blockId = expr.blockId;
-        switch (expr.op) {
-          case '+':
-            return ops.add(left, right);
-          case '-':
-            return ops.subtract(left, right);
-          case '*':
-            return ops.multiply(left, right);
-          case '//':
-            return ops.divide(left, right);
-          case '%':
-            return ops.remainder(left, right);
-        }
-        break;
+        return arithmetic(expr.op, left, right);
       }
       case 'compare': {
         const left = evaluate(expr.left);
@@ -331,13 +458,13 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
         // Every part goes through str(), left to right. The length is known before any text is built.
         const parts = expr.parts.map((piece) => ops.toText(evaluate(piece)));
         blockId = expr.blockId;
-        const length = parts.reduce((total, piece) => total + piece.length, 0);
-        if (length > MAX_TEXT_CHARS) {
-          throw new RuntimeFault('limit-exceeded', `A text is limited to ${MAX_TEXT_CHARS} characters.`);
-        }
-        return values.str(parts.join(''));
+        return joined(parts);
       }
       case 'read': {
+        if (isModuleRead(expr) || ((expr.op === 'digital.read' || expr.op === 'analogIn.read') && isBoardPinOp(expr))) {
+          // N18 R2.2: a read of the robot (`evaluateReading` waits for the world first; here it reads at once).
+          return readHardware(expr);
+        }
         if (expr.op === 'digital.read' || expr.op === 'analogIn.read') {
           // A header pin (YB-4): the arguments first, left to right, each once; then the one call into the board.
           // A fault names this block.
@@ -357,15 +484,16 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
     }
   };
 
-  /** An int the program computed, checked against the domain of the construct that uses it. */
-  const intWithin = (expr: Expr, low: number, high: number, what: string): number => {
-    const value = values.asInt(evaluate(expr));
+  /** An int the program computed (the value of `expr`), checked against the domain of the construct that uses it. */
+  const within = (computed: Value, expr: Expr, low: number, high: number, what: string): number => {
+    const value = values.asInt(computed);
     blockId = expr.blockId;
     if (value < low || value > high) {
       throw new RuntimeFault('out-of-domain', `${what} must be between ${low} and ${high}, not ${value}.`);
     }
     return value;
   };
+  const intWithin = (expr: Expr, low: number, high: number, what: string): number => within(evaluate(expr), expr, low, high, what);
 
   /**
    * C-07 / C-08 (contract §4.2): nothing for an empty text; one character is shown and stays; two or more scroll, one
@@ -647,6 +775,24 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
     }
   };
 
+  /** N18 R2.2: the arguments of a uno op, left to right, each once (awaited when one reads the hardware). */
+  const evaluatedArgs = async (args: readonly Expr[]): Promise<Value[]> => {
+    const evaluated: Value[] = [];
+    for (const arg of args) {
+      evaluated.push(reading.has(arg) ? await evaluateReading(arg) : evaluate(arg));
+    }
+    return evaluated;
+  };
+
+  /** N18 R2.2: a module op (contract UNO U-20…U-26): its arguments, then the wait for the world, then the one call into the robot. */
+  const runModule = async (statement: ModuleCallStatement): Promise<void> => {
+    const args = 'args' in statement ? await evaluatedArgs(statement.args) : [];
+    blockId = statement.blockId;
+    await atHardware();
+    blockId = statement.blockId;
+    runModuleCall(statement, args, capabilities, warnUnoClamp);
+  };
+
   const runStatements = async (statements: readonly YbcStatement[]): Promise<void> => {
     for (const statement of statements) {
       // One budget step per statement; it throws when Stop was pressed.
@@ -656,7 +802,7 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
         case 'noop':
           break;
         case 'set': {
-          const value = evaluate(statement.value);
+          const value = reading.has(statement.value) ? await evaluateReading(statement.value) : evaluate(statement.value);
           if (value.t !== 'int') {
             throw new RuntimeFault('internal-error', 'An int variable was given another type.');
           }
@@ -667,7 +813,7 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
           // Top to bottom; the first true condition wins and the ones after it are not evaluated.
           let chosen: readonly YbcStatement[] = statement.else;
           for (const branch of statement.branches) {
-            if (values.asBool(evaluate(branch.condition))) {
+            if (values.asBool(reading.has(branch.condition) ? await evaluateReading(branch.condition) : evaluate(branch.condition))) {
               chosen = branch.body;
               break;
             }
@@ -676,14 +822,14 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
           break;
         }
         case 'print': {
-          const text = ops.toText(evaluate(statement.value));
+          const text = ops.toText(reading.has(statement.value) ? await evaluateReading(statement.value) : evaluate(statement.value));
           blockId = statement.blockId;
           services.console.write(text);
           break;
         }
         case 'repeat': {
           // Evaluated once. Zero or less runs zero times, as Python's range does (and C++'s `_r < _n`).
-          const times = intWithin(statement.times, domains.repeat[0], domains.repeat[1], 'The number of repetitions');
+          const times = within(reading.has(statement.times) ? await evaluateReading(statement.times) : evaluate(statement.times), statement.times, domains.repeat[0], domains.repeat[1], 'The number of repetitions');
           for (let done = 0; done < times; done++) {
             await budget.step();
             await runStatements(statement.body);
@@ -693,7 +839,7 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
         case 'while': {
           for (;;) {
             await budget.step();
-            if (!values.asBool(evaluate(statement.condition))) {
+            if (!values.asBool(reading.has(statement.condition) ? await evaluateReading(statement.condition) : evaluate(statement.condition))) {
               break;
             }
             await runStatements(statement.body);
@@ -703,8 +849,8 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
         case 'countUp': {
           // Contract §3.3: the start is evaluated and checked, then the end is evaluated and checked,
           // each once, before the loop. The bounds are not looked at again.
-          const from = intWithin(statement.from, domains.countUpFrom[0], domains.countUpFrom[1], 'The start');
-          const to = intWithin(statement.to, domains.countUpTo[0], domains.countUpTo[1], 'The end');
+          const from = within(reading.has(statement.from) ? await evaluateReading(statement.from) : evaluate(statement.from), statement.from, domains.countUpFrom[0], domains.countUpFrom[1], 'The start');
+          const to = within(reading.has(statement.to) ? await evaluateReading(statement.to) : evaluate(statement.to), statement.to, domains.countUpTo[0], domains.countUpTo[1], 'The end');
           // Python's `for i in range(...)`: the variable is set at the start of every iteration, so
           // a change made in the body does not move the count. After the loop it keeps the last
           // value, or is untouched when the loop did not run.
@@ -716,14 +862,27 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
           break;
         }
         case 'waitMs': {
-          const ms = intWithin(statement.ms, 0, MAX_WAIT_MS, 'A wait');
+          const ms = within(reading.has(statement.ms) ? await evaluateReading(statement.ms) : evaluate(statement.ms), statement.ms, 0, MAX_WAIT_MS, 'A wait');
           blockId = statement.blockId;
           await services.sleep(ms, signal);
           budget.startSlice();
           break;
         }
         case 'call': {
+          if (isModuleCall(statement)) {
+            await runModule(statement);
+            break;
+          }
           if (statement.op === 'digital.write' || statement.op === 'pwm.write' || statement.op === 'servo.write') {
+            if (isBoardPinOp(statement)) {
+              // N18 R2.2: a raw pin of a uno program, its pin an operand.
+              const args = await evaluatedArgs(statement.args);
+              blockId = statement.blockId;
+              await atHardware();
+              blockId = statement.blockId;
+              runBoardPinCall(statement.op, statement.operand, args, capabilities, warnUnoClamp);
+              break;
+            }
             // A header pin (YB-4; N17 B5: PWM and servo): the arguments first, left to right, each once; then the one call into the
             // board, with a PWM duty or an angle outside its range clamped and the run warned.
             const args = statement.args.map((arg) => values.asInt(evaluate(arg)));
@@ -771,5 +930,83 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
     return blockId === undefined
       ? { status: 'error', code: fault.code, message: fault.message }
       : { status: 'error', code: fault.code, message: fault.message, blockId };
+  }
+}
+
+/**
+ * N18 R2.2: the expressions of `ir` that read the hardware (a module read or a raw pin read of a uno program) or have such a read
+ * inside them. An explicit walk of the statements; an expression is a tree as deep as the compiler lets it be.
+ */
+function readingExpressions(ir: YbcProgramIR): WeakSet<Expr> {
+  const reading = new WeakSet<Expr>();
+  const mark = (expr: Expr): boolean => {
+    let reads = false;
+    for (const child of childrenOf(expr)) {
+      reads = mark(child) || reads;
+    }
+    if (isModuleRead(expr) || (expr.kind === 'read' && (expr.op === 'digital.read' || expr.op === 'analogIn.read') && isBoardPinOp(expr))) {
+      reads = true;
+    }
+    if (reads) {
+      reading.add(expr);
+    }
+    return reads;
+  };
+  const pending: YbcStatement[] = [...ir.onStart, ...(ir.forever ?? [])];
+  for (let statement = pending.pop(); statement !== undefined; statement = pending.pop()) {
+    switch (statement.kind) {
+      case 'set':
+      case 'print':
+        mark(statement.value);
+        break;
+      case 'if':
+        for (const branch of statement.branches) {
+          mark(branch.condition);
+          pending.push(...branch.body);
+        }
+        pending.push(...statement.else);
+        break;
+      case 'repeat':
+        mark(statement.times);
+        pending.push(...statement.body);
+        break;
+      case 'while':
+        mark(statement.condition);
+        pending.push(...statement.body);
+        break;
+      case 'countUp':
+        mark(statement.from);
+        mark(statement.to);
+        pending.push(...statement.body);
+        break;
+      case 'waitMs':
+        mark(statement.ms);
+        break;
+      case 'call':
+        if ('args' in statement) {
+          statement.args.forEach(mark);
+        }
+        break;
+      case 'noop':
+        break;
+    }
+  }
+  return reading;
+}
+
+function childrenOf(expr: Expr): readonly Expr[] {
+  switch (expr.kind) {
+    case 'arith':
+    case 'compare':
+    case 'logic':
+      return [expr.left, expr.right];
+    case 'not':
+      return [expr.value];
+    case 'join':
+      return expr.parts;
+    case 'read':
+      return 'args' in expr ? expr.args : [];
+    default:
+      return [];
   }
 }

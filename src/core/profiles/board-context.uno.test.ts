@@ -17,9 +17,10 @@ const resolve = (document: Parameters<typeof resolveBoardContext>[0]) => resolve
 const ybcBoard = { id: 'y', deviceType: 'ybc-board', position: { x: 0, y: 0 } };
 
 describe('resolveBoardContext for the uno family (N18 R2.1)', () => {
-  it.each(['uno-basic', 'uno-advanced'] as const)('is uno for the profile %s, with only the UNO board allowed and no pack yet', (profile) => {
+  it.each(['uno-basic', 'uno-advanced'] as const)('is uno for the profile %s, with only the UNO board allowed and the profile’s packs (N18 R2.2)', (profile) => {
     const context = resolve(unoDocument(profile));
-    expect(context).toMatchObject({ family: 'uno', profile: { id: profile }, allowedDeviceTypes: ['uno-r3'], blockPacks: [], incompatible: [] });
+    expect(context).toMatchObject({ family: 'uno', profile: { id: profile }, allowedDeviceTypes: ['uno-r3'], blockPacks: productionProfiles.get(profile)?.blockPacks, incompatible: [] });
+    expect(context.blockPacks.every((id) => packs.get(id)?.family === 'uno')).toBe(true);
     expect(context.boards).toEqual([unoBoardComponent]);
     expect(context.readiness).toEqual({ ok: true, board: unoBoardComponent, capabilities: ['digital', 'pwm', 'analogIn'] });
   });

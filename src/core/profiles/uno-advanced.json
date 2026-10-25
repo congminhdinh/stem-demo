@@ -4,7 +4,7 @@
   "boardType": "uno-r3",
   "extends": "uno-basic",
   "constructs": ["U-19", "U-26", "U-29", "U-31", "U-32", "U-33", "U-34"],
-  "blockPacks": [],
+  "blockPacks": ["uno.sensors.advanced", "uno.output.advanced", "uno.pins"],
   "palette": ["uno-r3"],
   "controls": []
 }

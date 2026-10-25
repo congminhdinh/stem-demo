@@ -4,7 +4,7 @@ import { isAxisName, isButtonName, isGestureName } from '../../constructs/ybc.in
 import { PIN_LEVELS, PIN_NUMBERS, PWM_MAX, SERVO_MAX_ANGLE } from '../../constructs/ybc.pins';
 import { isMelodyName, isNoteName, noteTicks, PITCH_MAX_HZ, PITCH_MAX_MS, PITCH_MIN_HZ } from '../../constructs/ybc.sound';
 import { MAX_RANDOM_ABS, MAX_RANDOM_SPAN, MAX_RANGE_VALUE, MAX_REPEAT_ABS, MAX_SAFE_INT, MAX_TEXT_CHARS, MAX_WAIT_MS } from '../../program/limits';
-import type { ArithOp, CallStatement, ColourOperand, Expr, RandomExpr, ReadExpr, Type, YbcProgramIR, YbcStatement } from '../../program/ybc-ir';
+import { isModuleCall, isModuleRead, type ArithOp, type CallStatement, type ColourOperand, type Expr, type RandomExpr, type ReadExpr, type Type, type YbcProgramIR, type YbcStatement } from '../../program/ybc-ir';
 import { MAX_EXPRESSION_DEPTH, MAX_GENERATED_BYTES, MAX_STATEMENT_DEPTH } from './limits';
 import { moduleOfOp, yolobitModuleLines } from './modules';
 import { assignNames } from './names';
@@ -286,6 +286,11 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
         return { text: `not ${inner}`, prec: precNot };
       }
       case 'read': {
+        if (isModuleRead(expr)) {
+          // N18 R2.2: a module read is a uno program's, whose code is C++ (C1), never Python.
+          report('unsupported-node', 'The generator does not know this kind of value.', expr.blockId);
+          return { text: '', prec: precAtom };
+        }
         if (expr.op === 'digital.read' || expr.op === 'analogIn.read') {
           // A header pin (YB-4, C-24, C-25): the pin is a literal of the block.
           const pin = pinOf(expr.args, 1, expr.blockId);
@@ -500,6 +505,11 @@ export function generateYbcMicroPython(ir: YbcProgramIR, target: GenTarget = def
         emitCountUp(statement, depth);
         return;
       case 'call': {
+        if (isModuleCall(statement)) {
+          // N18 R2.2: a module op is a uno program's, whose code is C++ (C1), never Python.
+          report('unsupported-node', 'The generator does not know this kind of block.', statement.blockId);
+          return;
+        }
         if (statement.op === 'digital.write') {
           // A header pin (YB-4, C-23): the pin and the level are literals of the block.
           const pin = pinOf(statement.args, 2, statement.blockId);

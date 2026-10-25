@@ -3,7 +3,7 @@
   "family": "uno",
   "boardType": "uno-r3",
   "constructs": ["U-01", "U-02", "U-03", "U-04", "U-05", "U-06", "U-07", "U-08", "U-09", "U-10", "U-11", "U-12", "U-13", "U-14", "U-15", "U-16", "U-17", "U-18", "U-20", "U-21", "U-22", "U-23", "U-24", "U-25", "U-27", "U-28", "U-30"],
-  "blockPacks": [],
+  "blockPacks": ["uno.structure", "uno.drive", "uno.sensors", "uno.servo", "uno.output", "uno.logic", "uno.loops", "uno.math", "uno.text", "uno.variables"],
   "palette": ["uno-r3"],
   "controls": [],
   "variableTypes": ["int"]

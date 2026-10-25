@@ -40,11 +40,20 @@
 // C++'s 32-bit `long` on the UNO) and the pause at the end of every forever iteration (10 ms on Yolo:Bit, none in Arduino's
 // loop()). The compiler writes both for the uno family. A ybc IR leaves them out and means python and 10 000 µs: that is the IR
 // every ybc program has compiled to since YB-2, kept byte for byte.
+//
+// N18 R2.2 (robot plan §4.4) adds the module ops of a uno program: `call` statements and `read` expressions on a role of the kit
+// (`motor.set(motorLeft, speed)`), on the drive (both motors), on a raw pin of the board (Advanced), and the board's millis. The
+// role, the direction and the pin are operands the block fixed; the speed, the angle, the Hz and ms, the PWM value and the on / off
+// level are typed arguments. A typed-in number outside its range is written clamped by the compiler (with a warning), so the IR
+// holds only numbers the generator can write as they are; a computed one is clamped when it runs. The raw pin ops are the header
+// pin ops of YB-4 (same names, same node) with the pin as an operand instead of the argument `args[0]`: the operand tells them apart.
 
 import type { HexColour } from '../capabilities/frame';
 import type { BuiltinImageName } from '../constructs/ybc.images';
 import type { AxisName, ButtonName, GestureName } from '../constructs/ybc.input';
 import type { MelodyName, NoteName, NoteTicks } from '../constructs/ybc.sound';
+import type { DriveDirection } from '../hardware/drivers';
+import type { RobotRole } from '../hardware/kit';
 
 export type Type = 'int' | 'bool' | 'str';
 
@@ -104,7 +113,8 @@ export type YbcStatement =
   /** `ms` is an int in 0..MAX_WAIT_MS, else out-of-domain. */
   | { kind: 'waitMs'; ms: Expr; blockId: string }
   | CallStatement
-  | PinCallStatement;
+  | PinCallStatement
+  | ModuleCallStatement;
 
 /**
  * An operation on an onboard part (YB-3). The contract row of each is in `constructs/ybc.*.ts`.
@@ -151,7 +161,49 @@ export type CallStatement =
  * [pin 0..2, duty, clamped to 0..1023]; C-27 `servo.write`: [pin 0..2, angle, clamped to 0..180]). One member per op, so
  * that a check of `op` tells a pin call from an onboard one.
  */
-export type PinCallStatement = { [Op in CallOp]: { kind: 'call'; op: Op; args: Expr[]; blockId: string } }[CallOp];
+export type PinCallStatement = {
+  [Op in CallOp]: {
+    kind: 'call';
+    op: Op;
+    args: Expr[];
+    /**
+     * N18 R2.2: the pin of a uno program's raw pin op (Advanced: `digital.write`, contract UNO U-31: `args` = [level, a truth
+     * value]; `pwm.write`, U-32: `args` = [value, clamped to 0..255]). Absent for a header pin of YB-4, whose pin is `args[0]`.
+     */
+    operand?: BoardPinOperand;
+    blockId: string;
+  };
+}[CallOp];
+
+/** N18 R2.2: a role of the kit (robot plan §4.2) the block names, in its dropdown or by itself (the LED, the buzzer). */
+export type RoleOperand = { kind: 'role'; role: RobotRole };
+/** N18 R2.2: where the drive goes (contract UNO U-21): (left, right) = (+s, +s), (−s, −s), (−s, +s), (+s, −s). */
+export type DriveOperand = { kind: 'drive'; direction: DriveDirection };
+/** N18 R2.2: a pin of the board the block names (`D5`, `A3`), Advanced only (contract UNO §9). */
+export type BoardPinOperand = { kind: 'pin'; pin: string };
+
+/**
+ * N18 R2.2: a module op of a uno program (robot plan §4.4, contract UNO U-20…U-26), through the kit: role → port → driver. The
+ * arguments are evaluated left to right, each once; an int outside its range is clamped (a typed-in one already by the compiler),
+ * and the run warns once per role. `drive.move` evaluates the speed once and clamps it per motor after the sign of the direction.
+ */
+export type ModuleCallStatement =
+  /** U-20: speed −100..100 (%), clamped. */
+  | { kind: 'call'; op: 'motor.set'; operand: RoleOperand; args: [speed: Expr]; blockId: string }
+  /** U-21: both motors, by the direction; the speed once, then each motor clamps its own. */
+  | { kind: 'call'; op: 'drive.move'; operand: DriveOperand; args: [speed: Expr]; blockId: string }
+  /** U-22: both motors 0. */
+  | { kind: 'call'; op: 'drive.stop'; blockId: string }
+  /** U-23: angle 0..180 (°), clamped. */
+  | { kind: 'call'; op: 'servo.set'; operand: RoleOperand; args: [angle: Expr]; blockId: string }
+  /** U-24: a truth value: on or off. */
+  | { kind: 'call'; op: 'led.set'; operand: RoleOperand; args: [on: Expr]; blockId: string }
+  /** U-25: hz 31..4000, ms 1..60000, clamped; plays in the background. */
+  | { kind: 'call'; op: 'buzzer.tone'; operand: RoleOperand; args: [hz: Expr, ms: Expr]; blockId: string }
+  /** U-26 (Advanced): the tone stops at once. */
+  | { kind: 'call'; op: 'buzzer.stop'; operand: RoleOperand; blockId: string };
+
+export type ModuleCallOp = ModuleCallStatement['op'];
 
 /**
  * C-06: the learner's own picture, 25 cells row by row from the top left; a lit cell is in `colour` (red when absent: a picture
@@ -187,7 +239,48 @@ export type Expr = { type: Type; blockId: string } & (
   | ReadExpr
   | PinReadExpr
   | RandomExpr
+  | ModuleReadExpr
 );
+
+/**
+ * N18 R2.2: a module read of a uno program (robot plan §4.4, contract UNO U-19, U-27…U-30). The `type` of the node is fixed by the
+ * op: bool for `line.dark` and `button.pressed`, int for the others. Every read is a call into the board, which charges the program
+ * clock what the board spends on it.
+ */
+export type ModuleReadExpr =
+  /** U-27: whole cm, 2..400; no echo is 400. */
+  | { kind: 'read'; op: 'ultrasonic.cm'; operand: RoleOperand }
+  /** U-28: the sensor sees the dark line (the driver knows the kit's polarity). */
+  | { kind: 'read'; op: 'line.dark'; operand: RoleOperand }
+  /** U-29 (Advanced): the sensor's analog value, 0..1023. */
+  | { kind: 'read'; op: 'line.raw'; operand: RoleOperand }
+  /** U-30: the button is held down (its pin reads LOW). */
+  | { kind: 'read'; op: 'button.pressed'; operand: RoleOperand }
+  /** U-19 (Advanced): `(long)millis()`, the board's whole ms since setup() began. */
+  | { kind: 'read'; op: 'time.millis' };
+
+export type ModuleReadOp = ModuleReadExpr['op'];
+
+/** N18 R2.2: the ops of a uno program (robot plan §4.4): through the kit, and on a raw pin of the board (Advanced). */
+export type UnoCallOp = ModuleCallOp | 'digital.write' | 'pwm.write';
+export type UnoReadOp = ModuleReadOp | 'digital.read' | 'analogIn.read';
+
+const moduleCallOps: ReadonlySet<string> = new Set<ModuleCallOp>(['motor.set', 'drive.move', 'drive.stop', 'servo.set', 'led.set', 'buzzer.tone', 'buzzer.stop']);
+const moduleReadOps: ReadonlySet<string> = new Set<ModuleReadOp>(['ultrasonic.cm', 'line.dark', 'line.raw', 'button.pressed', 'time.millis']);
+
+/** N18 R2.2: whether a statement is a module op of a uno program. */
+export function isModuleCall(statement: YbcStatement): statement is ModuleCallStatement {
+  return statement.kind === 'call' && moduleCallOps.has(statement.op);
+}
+
+/** N18 R2.2: whether an expression is a module read of a uno program. */
+export function isModuleRead(expr: Expr): expr is Expr & ModuleReadExpr {
+  return expr.kind === 'read' && moduleReadOps.has(expr.op);
+}
+
+/** N18 R2.2: whether a pin op is a uno program's raw pin (its pin an operand), not a header pin of YB-4. */
+export const isBoardPinOp = (node: PinCallStatement | PinReadExpr): node is (PinCallStatement | PinReadExpr) & { operand: BoardPinOperand } =>
+  node.operand?.kind === 'pin';
 
 /**
  * A read of an onboard part (YB-3, N17 B2). The `type` of the node is fixed by the op: bool for `button.isPressed` and
@@ -220,4 +313,15 @@ export type RandomExpr = { kind: 'read'; op: 'random.int'; args: [from: Expr, to
  * board's native scale 0..4095 (contract C-24, C-25). The argument is the pin number. One member per op, so that a
  * check of `op` tells a pin read from an onboard one.
  */
-export type PinReadExpr = { [Op in ReadOp]: { kind: 'read'; op: Op; args: Expr[] } }[ReadOp];
+export type PinReadExpr = {
+  [Op in ReadOp]: {
+    kind: 'read';
+    op: Op;
+    args: Expr[];
+    /**
+     * N18 R2.2: the pin of a uno program's raw pin read (Advanced: `digital.read`, contract UNO U-33, a bool; `analogIn.read`, U-34,
+     * an int 0..1023), with no argument. Absent for a header pin of YB-4, whose pin is `args[0]`.
+     */
+    operand?: BoardPinOperand;
+  };
+}[ReadOp];

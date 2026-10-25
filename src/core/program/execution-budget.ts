@@ -39,6 +39,12 @@ export type ExecutionBudget = {
    * Yolo:Bit iteration ends with the program's own 10 ms sleep); the virtual one charges LOOP_MIN_US.
    */
   loopIteration(): void;
+  /**
+   * N18 R2.2: the program is about to reach the hardware (a module op or a raw pin of a uno program, or a read of one inside an
+   * expression). undefined: go on; a promise: await it first. The virtual budget parks a program whose clock has reached
+   * world.t + dt there, so the op happens inside the tick of its time; this budget has none (a ybc program never gets there).
+   */
+  atHardware?(): Promise<void> | undefined;
 };
 
 export function createExecutionBudget(options: {

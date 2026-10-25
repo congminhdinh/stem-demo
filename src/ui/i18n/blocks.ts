@@ -1,3 +1,9 @@
+import { SPEED_RANGE } from '../../core/constructs/uno.drive';
+import { HZ_RANGE, MS_RANGE } from '../../core/constructs/uno.output';
+import { PWM_RANGE } from '../../core/constructs/uno.pins';
+import { ULTRASONIC_CM, UNO_ADC_MAX } from '../../core/constructs/uno.sensors';
+import { ANGLE_RANGE } from '../../core/constructs/uno.servo';
+import { SERVO_START_DEG } from '../../core/hardware/drivers';
 import { ANALOG_MAX, PWM_MAX, SERVO_MAX_ANGLE } from '../../core/constructs/ybc.pins';
 import { melodyLabels, type MelodyName } from '../../core/constructs/ybc.sound';
 import type { Toolbox, ToolboxCategory } from '../../core/program/block-packs';
@@ -93,6 +99,57 @@ export const viMelodyNames: Readonly<Record<string, string>> = {
 /** Whether the program waits for a melody (N17 B3), by value. */
 export const viMelodyModes: Readonly<Record<string, string>> = { wait: 'chờ xong', background: 'không chờ' };
 
+/** N18 R2.2: the robot's roles in its blocks' dropdowns (constructs/uno.roles.ts), by the role each option saves. */
+export const viRoleLabels: Readonly<Record<string, string>> = {
+  motorLeft: 'trái',
+  motorRight: 'phải',
+  lineLeft: 'trái',
+  lineCenter: 'giữa',
+  lineRight: 'phải',
+  servo1: '1',
+};
+
+/** N18 R2.2: where the robot goes (constructs/uno.drive.ts), by the direction each option saves. */
+export const viDriveDirections: Readonly<Record<string, string>> = { forward: 'tới', backward: 'lùi', spinLeft: 'xoay trái', spinRight: 'xoay phải' };
+
+/** N18 R2.2: the robot's blocks (the lab=robot launch speaks Vietnamese). */
+const viRobotBlockText: Readonly<Record<string, BlockText>> = {
+  uno_drive_move: {
+    message0: 'robot đi %1 tốc độ %2 %',
+    tooltip: `Chạy cả hai motor: tới, lùi, hoặc xoay tại chỗ. Tốc độ từ ${SPEED_RANGE.min} tới ${SPEED_RANGE.max} %; robot chạy tiếp cho tới khối đi hoặc dừng sau đó.`,
+    options: { DIRECTION: viDriveDirections },
+  },
+  uno_drive_stop: { message0: 'dừng robot', tooltip: 'Dừng cả hai motor.' },
+  uno_motor_set: {
+    message0: 'motor %1 tốc độ %2 %',
+    tooltip: `Quay một motor: từ ${SPEED_RANGE.min} tới ${SPEED_RANGE.max} %, lớn hơn 0 là quay tới, nhỏ hơn 0 là quay lùi, 0 là dừng.`,
+    options: { ROLE: viRoleLabels },
+  },
+  uno_ultrasonic_cm: {
+    message0: 'khoảng cách siêu âm (cm)',
+    tooltip: `Khoảng cách tới vật phía trước cảm biến siêu âm, số nguyên cm từ ${ULTRASONIC_CM[0]} tới ${ULTRASONIC_CM[1]}. Không có gì phía trước thì là ${ULTRASONIC_CM[1]}.`,
+  },
+  uno_line_dark: { message0: 'cảm biến line %1 thấy vạch đen?', tooltip: 'Đúng khi cảm biến line đang ở trên vạch đen.', options: { ROLE: viRoleLabels } },
+  uno_button_pressed: { message0: 'nút được nhấn?', tooltip: 'Đúng khi nút trên robot đang được giữ.' },
+  uno_servo_set: {
+    message0: 'servo %1 góc %2 °',
+    tooltip: `Quay servo tới một góc từ ${ANGLE_RANGE.min} tới ${ANGLE_RANGE.max} độ. Lúc đầu servo ở ${SERVO_START_DEG} độ.`,
+    options: { ROLE: viRoleLabels },
+  },
+  uno_led_set: { message0: 'đèn %1', tooltip: 'Bật hoặc tắt đèn trên robot. Lúc đầu đèn tắt.', options: { STATE: { ON: 'bật', OFF: 'tắt' } } },
+  uno_buzzer_tone: {
+    message0: 'còi kêu %1 Hz trong %2 ms',
+    tooltip: `Còi kêu một âm từ ${HZ_RANGE.min} tới ${HZ_RANGE.max} Hz trong ${MS_RANGE.min} tới ${MS_RANGE.max} ms. Chương trình chạy tiếp ngay; âm mới thay âm đang kêu.`,
+  },
+  uno_buzzer_stop: { message0: 'tắt còi', tooltip: 'Tắt ngay âm đang kêu.' },
+  uno_line_raw: { message0: 'giá trị thô cảm biến line %1', tooltip: `Giá trị analog của cảm biến line, từ 0 tới ${UNO_ADC_MAX}.`, options: { ROLE: viRoleLabels } },
+  uno_digital_write: { message0: 'ghi số chân %1 %2', tooltip: 'Đặt một chân còn trống của bo mạch ở mức HIGH hoặc LOW.' },
+  uno_pwm_write: { message0: 'ghi PWM chân %1 giá trị %2', tooltip: `Ghi giá trị PWM ra một chân còn trống: từ 0 (luôn tắt) tới ${PWM_RANGE.max} (luôn bật).` },
+  uno_digital_read: { message0: 'đọc số chân %1', tooltip: 'Đúng khi một chân nối với cảm biến hoặc nút đang ở mức HIGH.' },
+  uno_analog_read: { message0: 'đọc analog chân %1', tooltip: `Giá trị analog của một chân nối với cảm biến analog: từ 0 tới ${UNO_ADC_MAX}.` },
+  uno_millis: { message0: 'thời gian từ lúc bắt đầu (ms)', tooltip: 'Số mili giây nguyên mà bo mạch đếm được từ khi chương trình bắt đầu.' },
+};
+
 export const viBlockText: Readonly<Record<string, BlockText>> = {
   stem_on_start: { message0: 'khi bắt đầu %1 %2', tooltip: 'Chạy một lần khi chương trình bắt đầu.' },
   stem_forever: { message0: 'lặp mãi mãi %1 %2', tooltip: 'Lặp lại cho tới khi chương trình dừng.' },
@@ -164,6 +221,7 @@ export const viBlockText: Readonly<Record<string, BlockText>> = {
     message0: 'số ngẫu nhiên từ %1 tới %2',
     tooltip: 'Một số nguyên ngẫu nhiên từ số thứ nhất tới số thứ hai, gồm cả hai đầu. Số nào lớn hơn cũng được.',
   },
+  ...viRobotBlockText,
 };
 
 /** The toolbox categories, by the core's English name. */
@@ -180,6 +238,11 @@ export const viCategoryNames: Readonly<Record<string, string>> = {
   Display: 'Màn hình',
   Input: 'Đầu vào',
   Sound: 'Âm thanh',
+  // N18 R2.2: the robot lab's.
+  Motors: 'Động cơ',
+  Sensors: 'Cảm biến',
+  Servo: 'Servo',
+  'Light & Sound': 'Đèn & còi',
 };
 
 /** `args` with the shown label of each option of the dropdowns `options` names replaced; the values, and everything else, kept. */

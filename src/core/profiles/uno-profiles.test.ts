@@ -8,7 +8,7 @@ import { createProfileCatalog, productionProfiles } from './index';
 
 // The UNO-compatible profiles of the robot lab (N18 R2.1, plan §4.0). Their rows are the UNO contract's
 // (docs/uno-compatibility-contract.md §10.1); the contract is test data only, so production code never imports it. Their
-// block packs arrive with R2.2.
+// block packs are R2.2's (constructs/uno*.ts, program/block-packs.ts).
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
 const basic = productionProfiles.get('uno-basic');
@@ -57,11 +57,14 @@ describe('the UNO profiles (N18 R2.1)', () => {
     expect(profileConstructViolations('uno-advanced', advanced?.constructs ?? [], unoContract)).toEqual([]);
   });
 
-  it('show no block pack yet: the uno packs are R2.2’s, and every pack named must exist', () => {
+  it('show the uno packs of R2.2: Basic the structure, the robot and the language, Advanced adds the raw line value, buzzer stop and the raw pins', () => {
     const packs = createBlockPackCatalog(registry);
+    const basicPacks = ['uno.structure', 'uno.drive', 'uno.sensors', 'uno.servo', 'uno.output', 'uno.logic', 'uno.loops', 'uno.math', 'uno.text', 'uno.variables'];
+    expect(basic?.blockPacks).toEqual(basicPacks);
+    expect(advanced?.blockPacks).toEqual([...basicPacks, 'uno.sensors.advanced', 'uno.output.advanced', 'uno.pins']);
     for (const profile of [basic, advanced]) {
-      expect(profile?.blockPacks, profile?.id).toEqual([]);
       expect(() => packs.typesOf(profile?.blockPacks ?? [])).not.toThrow();
+      expect((profile?.blockPacks ?? []).map((id) => packs.get(id)?.family), profile?.id).toEqual((profile?.blockPacks ?? []).map(() => 'uno'));
     }
   });
 });

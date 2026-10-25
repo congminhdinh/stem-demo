@@ -36,6 +36,14 @@ export const DRIVE_ROLE = 'drive';
 export const driveOps = ['drive.move', 'drive.stop'] as const;
 /** `drive.move(direction, speed)`: the direction is an index in this list. (left, right) = (+s, +s), (−s, −s), (−s, +s), (+s, −s). */
 export const driveDirections = ['forward', 'backward', 'spinLeft', 'spinRight'] as const;
+export type DriveDirection = (typeof driveDirections)[number];
+
+/**
+ * N18 R2.2: the board's own clock is not a module of the kit either. A program reads `millis()` (contract UNO U-19) as the op
+ * `time.millis` on this role; every UNO has it, so the kit's board target does not list it.
+ */
+export const CLOCK_ROLE = 'clock';
+export const MILLIS_OP = 'time.millis';
 
 /** A module op a program uses: `{ role: 'motorLeft', op: 'motor.set' }`. */
 export type ModuleUse = { readonly role: string; readonly op: string };

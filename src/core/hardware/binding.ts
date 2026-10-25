@@ -1,13 +1,15 @@
-import type { ModuleIO } from '../capabilities/io';
-import { allUses, clampTo, driveDirections, DRIVE_ROLE, drivers, moduleUses, roleOps, runSetup, type DriverOp, type ModuleUse } from './drivers';
+import type { Capabilities, ModuleIO } from '../capabilities/io';
+import { allUses, clampTo, CLOCK_ROLE, driveDirections, DRIVE_ROLE, drivers, MILLIS_OP, moduleUses, roleOps, runSetup, type DriverOp, type ModuleUse } from './drivers';
 import { kitPort, type Kit, type KitPort } from './kit';
 import type { VirtualUno } from './virtual-uno';
 
 // The module binding (N18 R1.4, robot plan §4.3): the `modules` capability of a robot program. `call(role, op, args)` and
 // `read(role, op)` take the IR's module ops (plan §4.4: `motor.set`, `servo.set`, `led.set`, `buzzer.tone`, `buzzer.stop`,
 // `ultrasonic.cm`, `line.dark`, `line.raw`, `button.pressed`, and `drive.move` / `drive.stop` on the role `drive`) to the
-// kit's driver for the role, on the virtual UNO's pins. An argument outside its range is clamped with a value-clamped warning,
-// once per role per run (contract §0.5); the driver clamps again, as its C++ helper does.
+// kit's driver for the role, on the virtual UNO's pins; N18 R2.2 adds the board's `time.millis` on the role `clock`. An argument
+// outside its range is clamped with a value-clamped warning, once per role per run (contract §0.5); the driver clamps again, as
+// its C++ helper does. (A program's interpreter clamps first and warns with the block, constructs/uno.run.ts, so a program's
+// calls reach this one in range.)
 //
 // Creating the binding is the start of setup(): it runs the setup steps of the ops the program uses, in kit port order, as
 // the generated sketch does (contract §2.1; the interpreter's Serial.begin is not a pin step). Without `uses`, every op of
@@ -131,6 +133,9 @@ export function createModuleIO(kit: Kit, uno: VirtualUno, uses: readonly ModuleU
       callOp(role, op, args);
     },
     read(role, op) {
+      if (role === CLOCK_ROLE && op === MILLIS_OP) {
+        return uno.millis();
+      }
       const { port, driverOp } = resolve(role, op, 'read');
       const value = driverOp.sim(io, port, []);
       if (typeof value !== 'number' && typeof value !== 'boolean') {
@@ -139,4 +144,18 @@ export function createModuleIO(kit: Kit, uno: VirtualUno, uses: readonly ModuleU
       return value;
     },
   };
+}
+
+/**
+ * N18 R2.2: the capabilities of a uno program on the virtual UNO. Its module ops go through the binding (whose creation is the start
+ * of setup(): the setup steps of `uses.modules`), its raw pins through the virtual UNO's pins (UnoPinIO as `digital`, `pwm`,
+ * `analogIn`, contract UNO §9). Then each pin a digital write of the program sets is made OUTPUT, as the generated setup() writes
+ * `pinMode(<pin>, OUTPUT);` (U-31), in the order the program meets them.
+ */
+export function createProgramIO(kit: Kit, uno: VirtualUno, uses: { readonly modules: readonly ModuleUse[]; readonly outputPins: readonly string[] }): Capabilities & { modules: ModuleBinding } {
+  const modules = createModuleIO(kit, uno, uses.modules);
+  for (const pin of uses.outputPins) {
+    uno.io.pinMode(pin, 'OUTPUT');
+  }
+  return { modules, digital: uno.io, pwm: uno.io, analogIn: uno.io };
 }

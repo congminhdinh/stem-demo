@@ -34,6 +34,20 @@ describe('block packs', () => {
       'lang.math',
       'lang.text',
       'lang.variables',
+      // N18 R2.2: the robot lab's packs (family uno), after every pack known before.
+      'uno.structure',
+      'uno.drive',
+      'uno.sensors',
+      'uno.servo',
+      'uno.output',
+      'uno.logic',
+      'uno.loops',
+      'uno.math',
+      'uno.text',
+      'uno.variables',
+      'uno.sensors.advanced',
+      'uno.output.advanced',
+      'uno.pins',
     ]);
   });
 
@@ -105,6 +119,23 @@ describe('block packs', () => {
       'ybc_arith',
       'ybc_int_divide',
       'ybc_random_int',
+      // N18 R2.2: the robot's blocks (the language ones of the uno packs are the dialect's, registered once above).
+      'uno_drive_move',
+      'uno_drive_stop',
+      'uno_motor_set',
+      'uno_ultrasonic_cm',
+      'uno_line_dark',
+      'uno_button_pressed',
+      'uno_servo_set',
+      'uno_led_set',
+      'uno_buzzer_tone',
+      'uno_line_raw',
+      'uno_buzzer_stop',
+      'uno_digital_write',
+      'uno_pwm_write',
+      'uno_digital_read',
+      'uno_analog_read',
+      'uno_millis',
     ]);
   });
 
