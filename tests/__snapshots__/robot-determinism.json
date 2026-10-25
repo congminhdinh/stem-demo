@@ -2,8 +2,8 @@
   "engineVersion": 1,
   "ticks": 3000,
   "fixtures": {
-    "boxes-script": { "final": "4927ee22", "trajectory": "4667a215" },
-    "line-follow": { "final": "17c47f8d", "trajectory": "e026603c" },
-    "mini-mission-v1-noise": { "final": "d02081f3", "trajectory": "4261dc13" }
+    "boxes-script": { "final": "4927ee22", "trajectory": "abf46454" },
+    "line-follow": { "final": "17c47f8d", "trajectory": "3e412cc4" },
+    "mini-mission-v1-noise": { "final": "d02081f3", "trajectory": "2693afb5" }
   }
 }

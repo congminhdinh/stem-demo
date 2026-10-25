@@ -1,4 +1,5 @@
 import { portOfRole, portParam, type Kit, type LineSensorSpec, type ModuleSpecs, type UltrasonicSpec } from '../hardware/kit';
+import { robotMechanics } from '../hardware/kit-mechanics';
 import { ScenarioError, type Scenario } from '../scenario/scenario-schema';
 import { applyVariant, variantOffsets, type VariantOffsets } from '../scenario/variants';
 import type { Arena, PointCm } from './arena/arena-schema';
@@ -52,6 +53,16 @@ import { CM_PER_M, degToRad, radToDeg, worldToArena, yawOfQuaternion, yawToQuate
 //
 // Sensors compose the kit's mount with the chassis pose (kit.ts `KitModule.mount`): the ultrasonic looks along the mount's yaw from
 // its position, a line sensor looks down from its position (R3.4's pure measures).
+//
+// What the goals need besides the snapshot (`frameExtras`, goal-frame.ts):
+//   - `speedCmS`, how fast the robot drives: the speed over the floor of the middle of its wheel axle, the point a two-wheel robot
+//     turns about, less what turning about a point up to TURN_IN_PLACE_TOLERANCE_CM (1 cm) from it accounts for: max(0, |v_axle| −
+//     |ω| · 1 cm), the speed of the slowest point within 1 cm of the axle's middle. Driving straight it is the axle's speed; spinning
+//     in place it is 0, though the middle of the body (2 cm ahead of the axle on ref-uno-rover@0) circles; pivoting on one wheel it is
+//     (7.5 − 1) / 7.5 of the axle's. The guard goals sum it into a path and `stop-in-zone` holds it under its limit, so a robot that
+//     only spins has not moved, and is stopped. Where the robot *is* stays the middle of its body (the pose, R6.1).
+//   - `servoRangeDeg`, each servo's minDeg..maxDeg, which the adapter clamps the arm's physical angle to (the snapshot keeps it).
+//   - the contacts of the tick and the robot's outline on the floor.
 
 /** What a world is built from. The arena and the start are the variant's already (`applyVariant`). */
 export type WorldInput = {
@@ -130,8 +141,10 @@ export async function createScenarioWorld(scenario: Scenario, kit: Kit, variantI
   }
   const offsets = variantOffsets(scenario, variantIndex);
   const { start, arena } = applyVariant(scenario, offsets);
+  const input: WorldInput = { ...options, arena, start, kit, seed: offsets.seed, variant: offsets };
+  checkInput(input);
   await initPhysics();
-  return buildWorld({ ...options, arena, start, kit, seed: offsets.seed, variant: offsets }, scenario.key);
+  return buildWorld(input, scenario.key);
 }
 
 /**
@@ -156,6 +169,13 @@ function checkInput(input: WorldInput): void {
   }
 }
 
+/**
+ * A robot turning about a point this close to the middle of its wheel axle is turning in place: it is not driving (its
+ * `speedCmS` is 0). R3.3's drive spins a robot told to spin about a point 0.3 to 0.6 cm from the axle's middle (measured, duty
+ * 100 to 255, after the first second), not about the middle itself.
+ */
+export const TURN_IN_PLACE_TOLERANCE_CM = 1;
+
 type UltrasonicSensor = { readonly role: string; readonly spec: UltrasonicSpec; readonly at: Vec3; readonly turn: Quat };
 type LineSensor = { readonly role: string; readonly spec: LineSensorSpec; readonly at: Vec3; readonly activeLow: boolean };
 type LineState = { readonly reading: LineReading; readonly spotCm: readonly [number, number] | null };
@@ -163,13 +183,20 @@ type LineState = { readonly reading: LineReading; readonly spotCm: readonly [num
 const NO_SCORE: ScoreState = deepFreeze({ points: 0, maxScore: null, goals: [] });
 const NO_PINS = Object.freeze([]);
 
+/** The world, from an input `checkInput` has passed, once physics is loaded. */
 function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
-  checkInput(input);
   const { arena, start, kit } = input;
   const issues = startFootprintIssues(arena, kit, start, input.variant?.index);
   if (issues.length > 0) throw new ScenarioError(scenarioKey, issues);
 
   const footprint = robotFootprint(kit);
+  const mechanics = robotMechanics(kit);
+  // The middle of the wheel axle on the floor: where the robot's drive speed is measured (`buildExtras`).
+  const [axleX, leftY] = mechanics.motorLeft.mount.posCm;
+  const axle = robotPointToLocal([axleX, (leftY + mechanics.motorRight.mount.posCm[1]) / 2, 0]);
+  const servoRangeDeg: Readonly<Record<string, readonly [number, number]>> = Object.freeze(
+    Object.fromEntries(mechanics.servos.map((servo) => [servo.role, Object.freeze([servo.spec.minDeg, servo.spec.maxDeg] as const)])),
+  );
   const ultrasonics: UltrasonicSensor[] = [];
   const lines: LineSensor[] = [];
   for (const module of kit.modules) {
@@ -285,21 +312,30 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
   const buildExtras = (): GoalFrameExtras => {
     const position = robot.chassis.translation();
     const rotation = robot.chassis.rotation();
-    // The middle of the body is the robot frame's origin: its velocity is the centre of mass's plus ω × (origin − centre of mass).
+    // The drive speed (see the top of this file): the axle's middle moves at the centre of mass's velocity plus ω × (axle − centre
+    // of mass); seen over the floor, the slowest point within TURN_IN_PLACE_TOLERANCE_CM of it moves at that speed less ω times it.
     const v = robot.linvel();
     const w = robot.angvel();
     const com = robot.chassis.worldCom();
-    const r = { x: position.x - com.x, y: position.y - com.y, z: position.z - com.z };
+    const at = localToWorld(position, rotation, axle);
+    const r = { x: at.x - com.x, y: at.y - com.y, z: at.z - com.z };
     const vx = v.x + (w.y * r.z - w.z * r.y);
     const vz = v.z + (w.x * r.y - w.y * r.x);
+    const axleCmS = Math.sqrt(vx * vx + vz * vz) * CM_PER_M;
+    const speedCmS = Math.max(0, axleCmS - Math.abs(w.y) * TURN_IN_PLACE_TOLERANCE_CM);
     const pointsCm: PointCm[] = outline.map((local) => {
       const point = worldToArena(localToWorld(position, rotation, local));
       return [plain(point.xCm), plain(point.yCm)];
     });
-    return deepFreeze({ contacts, speedCmS: plain(Math.sqrt(vx * vx + vz * vz) * CM_PER_M), footprint: { kind: 'polygon', pointsCm } });
+    return deepFreeze({ contacts, speedCmS: plain(speedCmS), footprint: { kind: 'polygon', pointsCm }, servoRangeDeg });
   };
 
-  measure();
+  try {
+    measure();
+  } catch (error) {
+    physics.free();
+    throw error;
+  }
 
   const world: World = {
     get tick() {

@@ -30,8 +30,11 @@ export type GoalFrame = {
   readonly tS: number;
   readonly robot: GoalPose & {
     /**
-     * How fast the middle of the body moves over the floor, cm/s, 0 or more (a speed, not a velocity). Turning on the spot is
-     * the speed of the middle: 0. It is also what the path of the guard goals is summed from (travel.ts): speed × tick.
+     * How fast the robot drives over the floor, cm/s, 0 or more (a speed, not a velocity): the speed of the middle of its wheel
+     * axle, the point a two-wheel robot turns about, with a turn about any point within 1 cm of it counting as no drive (R3.5,
+     * world.ts `TURN_IN_PLACE_TOLERANCE_CM`). Turning on the spot is 0, though the middle of the body (`xCm`, `yCm`, which says
+     * where the robot is) moves on a small circle. It is what the path of the guard goals is summed from (travel.ts: speed × tick),
+     * what `stop-in-zone` holds under its limit (a robot spinning in place is stopped) and what `stay-on-line` calls moving.
      */
     readonly speedCmS: number;
     readonly footprint: GoalFootprint;
@@ -45,7 +48,10 @@ export type GoalFrame = {
   readonly objects: Readonly<Record<string, GoalPose>>;
   /** What the robot touches on this tick: a contact that lasts is in each of its frames. The floor and the robot's own parts are not contacts. */
   readonly contacts: readonly GoalContact[];
-  /** The angle of each servo by role (`servo1`), in degrees, 0 to 180. */
+  /**
+   * The angle of each servo by role (`servo1`), in degrees, within its servo's range (0 to 180): R3.5's adapter snaps the arm's
+   * physical angle to a thousandth of a degree and clamps it to the range, so an arm folded at 0° or held at 180° reads exactly that.
+   */
   readonly servoDeg: Readonly<Record<string, number>>;
   /** Whether each LED (by role) is lit. No goal kind reads it yet. */
   readonly leds: Readonly<Record<string, boolean>>;

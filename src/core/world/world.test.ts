@@ -373,24 +373,45 @@ describe('snapshot', () => {
 });
 
 describe('frameExtras', () => {
-  it('gives the speed of the middle of the body over the floor: 0 at rest, the drive’s speed straight, ω × 2 cm spinning', async () => {
-    await withWorld(open(), { xCm: 100, yCm: 150, yawDeg: 0 }, (world) => {
+  it('gives the speed the robot drives at (the middle of its wheel axle): 0 at rest, the axle’s speed straight, 0 spinning in place', async () => {
+    /** The middle of the axle on the floor, 2 cm behind the robot frame's origin, from a snapshot. */
+    const axleOf = (snapshot: RobotSnapshot) => {
+      const q = snapshot.robot.rotation;
+      const forward = [1 - 2 * (q.y * q.y + q.z * q.z), 2 * (q.x * q.y + q.w * q.z)] as const;
+      return [snapshot.robot.xCm - 2 * forward[0], snapshot.robot.yCm - 2 * forward[1]] as const;
+    };
+    const axleSpeed = (before: RobotSnapshot, after: RobotSnapshot) => {
+      const [a, b] = [axleOf(before), axleOf(after)];
+      return Math.hypot(b[0] - a[0], b[1] - a[1]) * 120;
+    };
+    await withWorld(open([400, 400]), { xCm: 100, yCm: 200, yawDeg: 0 }, (world) => {
       expect(world.frameExtras().speedCmS).toBeLessThan(0.01);
       steps(world, 120, both(run(255, 1)));
-      // ref-uno-rover@0 runs free at 0.479 m/s at duty 255 (R3.3).
+      // ref-uno-rover@0 runs free at 0.479 m/s at duty 255 (R3.3); straight, the speed is the axle's, unchanged.
+      let before = world.snapshot();
+      world.step(PHYSICS_DT_S);
       expect(world.frameExtras().speedCmS).toBeGreaterThan(45);
       expect(world.frameExtras().speedCmS).toBeLessThan(50);
+      expect(world.frameExtras().speedCmS / axleSpeed(before, world.snapshot())).toBeCloseTo(1, 2);
       steps(world, 120, { motors: {} });
+      // Spinning in place at full duty: the robot turns about a point within 0.6 cm of the axle's middle (measured), so its body
+      // moves (the middle of the body 2 cm ahead circles at about 14 cm/s) but the robot drives nowhere.
       steps(world, 120, spinLeft(255));
-      const yaw0 = world.snapshot().robot.yawDeg;
-      world.applyActuators(spinLeft(255));
+      let fastest = 0;
+      for (let tick = 0; tick < 240; tick++) {
+        world.applyActuators(spinLeft(255));
+        world.step(PHYSICS_DT_S);
+        fastest = Math.max(fastest, world.frameExtras().speedCmS);
+      }
+      expect(fastest).toBe(0);
+      // Pivoting about the left wheel (7.5 cm from the axle's middle) is driving, at the axle's speed less 1 cm × ω.
+      steps(world, 120, { motors: { motorRight: run(200, 1) } });
+      before = world.snapshot();
+      world.applyActuators({ motors: { motorRight: run(200, 1) } });
       world.step(PHYSICS_DT_S);
-      const turnRadS = (((world.snapshot().robot.yawDeg - yaw0 + 540) % 360) - 180) * (Math.PI / 180) * 120;
-      // It turns about the axle's middle, 2 cm behind the middle of the body (measured: 2.13 cm), not about the centre of mass
-      // (0.5 cm behind), and not on the spot.
-      const radiusCm = world.frameExtras().speedCmS / Math.abs(turnRadS);
-      expect(radiusCm).toBeGreaterThan(1.8);
-      expect(radiusCm).toBeLessThan(2.3);
+      const ratio = world.frameExtras().speedCmS / axleSpeed(before, world.snapshot());
+      expect(ratio).toBeGreaterThan(0.85);
+      expect(ratio).toBeLessThan(0.89);
     });
   });
 

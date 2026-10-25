@@ -44,6 +44,7 @@ const extras: GoalFrameExtras = {
   ],
   speedCmS: 12.5,
   footprint: { kind: 'polygon', pointsCm: [[30, 50], [50, 50], [50, 70], [30, 70]] },
+  servoRangeDeg: { servo1: [0, 180] },
 };
 
 describe('toGoalFrame', () => {
@@ -71,6 +72,30 @@ describe('toGoalFrame', () => {
     expect(Object.keys(frame.objects)).toEqual(['crate', '__proto__']);
     expect(Object.hasOwn(frame.objects, '__proto__')).toBe(true);
     expect(Object.getPrototypeOf(frame.objects)).toBe(Object.prototype);
+  });
+
+  it('snaps each servo angle to a thousandth of a degree and clamps it to its servo’s range; the snapshot keeps the physical angle', () => {
+    // The physics leaves an arm a hair off: at rest at 0° it reads −1.2e-6°, driven to an end up to 0.06° past it, held at 180° as
+    // low as 179.999987°.
+    const angles = (servo1: number, servo2?: number) =>
+      toGoalFrame(
+        { ...snapshot, robot: { ...snapshot.robot, servoDeg: servo2 === undefined ? { servo1 } : { servo1, servo2 } } },
+        { ...extras, servoRangeDeg: { servo1: [0, 180], servo2: [30, 150] } },
+      ).servoDeg;
+    expect(angles(-0.0000012)).toEqual({ servo1: 0 });
+    expect(angles(-0.057)).toEqual({ servo1: 0 });
+    expect(angles(180.058)).toEqual({ servo1: 180 });
+    expect(angles(179.9999996)).toEqual({ servo1: 180 });
+    expect(angles(179.999987)).toEqual({ servo1: 180 });
+    expect(angles(89.9999998)).toEqual({ servo1: 90 });
+    expect(angles(45.0004, 20)).toEqual({ servo1: 45, servo2: 30 });
+    expect(angles(45.0006)).toEqual({ servo1: 45.001 });
+    expect(angles(90, 150.2)).toEqual({ servo1: 90, servo2: 150 });
+    expect(Object.is(angles(-0.0000001).servo1, 0)).toBe(true);
+    // A servo the kit gives no range for is only snapped.
+    expect(toGoalFrame({ ...snapshot, robot: { ...snapshot.robot, servoDeg: { servo9: 200.0001 } } }, extras).servoDeg).toEqual({ servo9: 200 });
+    // The snapshot is not changed: it keeps what the physics says, for the view.
+    expect(snapshot.robot.servoDeg).toEqual({ servo1: 45 });
   });
 
   it('takes the buzzer from the run session, and the latched outOfArena from the snapshot', () => {
@@ -159,5 +184,83 @@ describe('goals judged on a world (snapshot → frame → R6.1 goals)', () => {
       ['reach', false, goalReasons.zoneNotReached],
       ['no-fence', false, goalReasons.robotDidNotMove],
     ]);
+  });
+});
+
+describe('goals judged on a world: spinning in place and servo angles at their ends', () => {
+  const kit = productionKits.get(referenceKitRef) as Kit;
+  const scenarioOf = (goals: Scenario['goals'] | unknown[]): Scenario =>
+    loadScenario({
+      key: 'rb-mini-mission',
+      version: 1,
+      title: { vi: 'Thử: quay tại chỗ', en: 'Fixture: spinning in place' },
+      profile: 'uno-basic',
+      kit: 'ref-uno-rover',
+      arena: {
+        ground: { sizeCm: [300, 200], color: '#ffffff' },
+        paint: {
+          lines: [{ pointsCm: [[50, 50], [250, 50]], widthCm: 2 }],
+          zones: [{ id: 'pad', kind: 'target', polygonCm: [[120, 70], [180, 70], [180, 130], [120, 130]], color: '#d9ead3' }],
+        },
+        walls: [{ id: 'east', fromCm: [290, 0], toCm: [290, 200], tags: ['fence'] }],
+      },
+      start: { xCm: 150, yCm: 100, yawDeg: 0 },
+      variants: { count: 1, seed: 3, startJitterCm: 0, yawJitterDeg: 0 },
+      timeLimitS: 60,
+      goals,
+      starter: {},
+    });
+  const label = { vi: 'Mục tiêu', en: 'Goal' };
+
+  /** Runs variant 0 for `ticks`, feeding every frame to the scenario's goals; returns their results and the last frame. */
+  async function judge(scenario: Scenario, ticks: number, targets: (tick: number) => ActuatorTargets) {
+    const world = await createScenarioWorld(scenario, kit, 0);
+    try {
+      const goals = scenario.goals.map((spec) => createGoal(spec, { arena: world.arena, scenario }));
+      let frame = toGoalFrame(world.snapshot(), world.frameExtras());
+      for (const goal of goals) goal.update(frame, 0);
+      for (let tick = 0; tick < ticks; tick++) {
+        world.applyActuators(targets(tick));
+        world.step(PHYSICS_DT_S);
+        frame = toGoalFrame(world.snapshot(), world.frameExtras());
+        for (const goal of goals) goal.update(frame, PHYSICS_DT_S);
+      }
+      return { results: goals.map((goal) => goal.result()), frame, snapshot: world.snapshot() };
+    } finally {
+      world.dispose();
+    }
+  }
+
+  it.each([150, 255])('a robot spinning in place for the whole 60 s at duty %i fails both guard goals (it did not move) and counts as stopped', async (duty) => {
+    const scenario = scenarioOf([
+      { id: 'on-line', kind: 'stay-on-line', label, points: 40, minRatio: 0.5 },
+      { id: 'no-fence', kind: 'avoid-contact', label, points: 30, tag: 'fence' },
+      { id: 'park', kind: 'stop-in-zone', label, points: 30, zone: 'pad', maxSpeedCmS: 1, holdS: 1 },
+    ]);
+    const spin: ActuatorTargets = { motors: { motorLeft: { duty, dir: -1, brake: false }, motorRight: { duty, dir: 1, brake: false } } };
+    const { results, frame } = await judge(scenario, 60 * 120, () => spin);
+    expect(results.map((result) => [result.id, result.passed, result.reasonKey])).toEqual([
+      ['on-line', false, goalReasons.robotDidNotMove],
+      ['no-fence', false, goalReasons.robotDidNotMove],
+      ['park', true, undefined],
+    ]);
+    // It has spun the whole time, about where it started.
+    expect(Math.hypot(frame.robot.xCm - 150, frame.robot.yCm - 100)).toBeLessThan(3);
+  }, 60_000);
+
+  it('a folded arm passes a range from 0, and an arm held at 180° passes a range of exactly 180°', async () => {
+    const scenario = scenarioOf([
+      { id: 'folded', kind: 'servo-angle', label, points: 50, role: 'servo1', minDeg: 0, maxDeg: 10 },
+      { id: 'up', kind: 'servo-angle', label, points: 50, role: 'servo1', minDeg: 180, maxDeg: 180 },
+    ]);
+    // 1 s at rest (the arm folded at its restDeg 0), then 1.5 s told 180°.
+    const { results, frame, snapshot } = await judge(scenario, 300, (tick) => (tick < 120 ? {} : { servos: { servo1: 180 } }));
+    expect(results.map((result) => [result.id, result.passed])).toEqual([
+      ['folded', true],
+      ['up', true],
+    ]);
+    expect(frame.servoDeg.servo1).toBe(180);
+    // The snapshot keeps the arm's physical angle, a hair off the end.
+    expect(snapshot.robot.servoDeg.servo1).toBeCloseTo(180, 1);
   });
 });

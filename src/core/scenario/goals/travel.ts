@@ -7,7 +7,8 @@ import { assertTickS } from './tick';
 //
 // The path is the sum of speed × tick over the run: each frame adds `robot.speedCmS · dtS` (the speed at the end of the tick, held
 // over the tick; the ticks are short and the sum is only held against a 20 cm limit). It is plain multiplication and addition, so it is
-// the same on every engine. A robot turning on the spot, or pushed without driving, adds what its middle moves: nothing, or its speed.
+// the same on every engine. The speed is the robot's drive (frame.ts: the middle of its wheel axle, a turn within 1 cm of it counting as
+// none), so a robot turning on the spot adds nothing, however long it spins, and one pushed without driving adds what its axle moves.
 // A frame on which the robot is out of the arena adds nothing (the fall is not driving), and neither does a speed that is not a number.
 
 /** The least path, in centimetres, over which a guard goal can pass. */
