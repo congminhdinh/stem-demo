@@ -73,6 +73,13 @@ EN đều LOW) là **thả trôi**: motor hở mạch, chỉ ma sát hộp số 
 tốc độ. Khi nhà cung cấp cho tốc độ không
 tải đo được n₀ (đã gồm ma sát), đặt `maxRpm = n₀ / (1 − T_f/T_s)`.
 
+## `rehearsal.kit.json` là kit DIỄN TẬP, không phải kit sản phẩm
+
+`rehearsal-rover@0` (N18 R8a) là `ref-uno-rover@0` với mọi chân đổi chỗ, line `activeLow: true` và IN1/IN2 của motor trái đổi chỗ, để
+chứng minh đổi kit chỉ là thay dữ liệu (`docs/kit-swap-rehearsal.md`). Nó ở catalog riêng `rehearsalKits`
+(`src/core/hardware/rehearsal-kits.ts`), không ở `productionKits`, và app không nạp nó. Schema kit không có trường ghi chú, nên điều này chỉ
+được ghi ở đây và trong code.
+
 ## Thay bằng kit của nhà cung cấp
 
 1. Lấy câu trả lời của `docs/uno-vendor-questions.md`: §1 (MCU, phải là ATmega328P để giữ board `uno-r3` và kiểm chứng

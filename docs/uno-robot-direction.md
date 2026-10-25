@@ -62,6 +62,10 @@ Cần xây dựng lại mapping: *Block → API → pin/cổng → module vật 
 Ví dụ cùng block "Motor trái chạy 50%" nhưng phía dưới phải biết motor trái nằm ở cổng nào, dùng driver nào và
 library nào. Đây là phần phụ thuộc trực tiếp vào thiết kế mạch của nhà cung cấp mới.
 
+N18 đã làm mapping này thành **dữ liệu** (kit, `src/core/hardware/kits/README.md`). Buổi diễn tập đổi kit (R8a,
+`docs/kit-swap-rehearsal.md`) cho thấy một kit có chân và cực tính khác chỉ là thay dữ liệu: không sửa engine, cùng điểm, cùng sketch
+(trừ chân), compile được và khớp avr8js.
+
 ### Compile
 
 MicroPython có thể chạy source tương đối trực tiếp trên runtime của board. Arduino lại theo flow: *C/C++ source →
