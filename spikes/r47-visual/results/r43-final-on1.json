@@ -1,0 +1,202 @@
+{
+  "date": "2026-10-25T15:09:53.336Z",
+  "machine": {
+    "cpus": "Apple M4 Pro",
+    "cores": 12,
+    "memGB": 24,
+    "platform": "Darwin 25.5.0",
+    "node": "v24.22.1"
+  },
+  "groups": {
+    "gpu": {
+      "label": "Chromium new headless, the machine GPU (ANGLE Metal), vsync 60 Hz",
+      "launch": {
+        "headless": true,
+        "channel": "chromium"
+      }
+    },
+    "swiftshader": {
+      "label": "Chromium headless shell, --use-angle=swiftshader --enable-unsafe-swiftshader",
+      "launch": {
+        "headless": true,
+        "args": [
+          "--use-angle=swiftshader",
+          "--enable-unsafe-swiftshader"
+        ]
+      }
+    }
+  },
+  "seconds": 8,
+  "warmup": 2,
+  "repeats": 3,
+  "cells": [
+    {
+      "run": 1,
+      "group": "swiftshader",
+      "tier": "low",
+      "shownTier": "low",
+      "cpuThrottle": 1,
+      "frames": 437,
+      "medianFps": 59.2,
+      "p5Fps": 38.8,
+      "meanFps": 54.6,
+      "framesOver50ms": 8,
+      "drawCallsPerFrame": 53,
+      "simSecondsPerSecond": 0.99,
+      "slowerBadgeSeen": false,
+      "firstRunMs": 265,
+      "autoLowMs": null,
+      "endTier": "low",
+      "firstFrameMs": 4170,
+      "runToMovingMs": 46,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "drawingBuffer": [
+        660,
+        497
+      ],
+      "loadavg1m": 14.24,
+      "cpuBenchMs": 26,
+      "consoleErrors": []
+    },
+    {
+      "run": 2,
+      "group": "swiftshader",
+      "tier": "low",
+      "shownTier": "low",
+      "cpuThrottle": 1,
+      "frames": 405,
+      "medianFps": 59.5,
+      "p5Fps": 41.8,
+      "meanFps": 50.6,
+      "framesOver50ms": 9,
+      "drawCallsPerFrame": 53,
+      "simSecondsPerSecond": 0.93,
+      "slowerBadgeSeen": false,
+      "firstRunMs": 375,
+      "autoLowMs": null,
+      "endTier": "low",
+      "firstFrameMs": 1577,
+      "runToMovingMs": 20,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "drawingBuffer": [
+        660,
+        497
+      ],
+      "loadavg1m": 15.38,
+      "cpuBenchMs": 26,
+      "consoleErrors": []
+    },
+    {
+      "run": 3,
+      "group": "swiftshader",
+      "tier": "low",
+      "shownTier": "low",
+      "cpuThrottle": 1,
+      "frames": 469,
+      "medianFps": 59.9,
+      "p5Fps": 54.6,
+      "meanFps": 58.6,
+      "framesOver50ms": 3,
+      "drawCallsPerFrame": 53,
+      "simSecondsPerSecond": 1.01,
+      "slowerBadgeSeen": false,
+      "firstRunMs": 268,
+      "autoLowMs": null,
+      "endTier": "low",
+      "firstFrameMs": 1556,
+      "runToMovingMs": 21,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "drawingBuffer": [
+        660,
+        497
+      ],
+      "loadavg1m": 14.48,
+      "cpuBenchMs": 24,
+      "consoleErrors": []
+    },
+    {
+      "run": 1,
+      "group": "swiftshader",
+      "tier": "low",
+      "shownTier": "low",
+      "cpuThrottle": 4,
+      "frames": 461,
+      "medianFps": 59.5,
+      "p5Fps": 46.9,
+      "meanFps": 57.6,
+      "framesOver50ms": 5,
+      "drawCallsPerFrame": 53,
+      "simSecondsPerSecond": 0.98,
+      "slowerBadgeSeen": false,
+      "firstRunMs": 537,
+      "autoLowMs": null,
+      "endTier": "low",
+      "firstFrameMs": 2895,
+      "runToMovingMs": 47,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "drawingBuffer": [
+        660,
+        497
+      ],
+      "loadavg1m": 14.34,
+      "cpuBenchMs": 101,
+      "consoleErrors": []
+    },
+    {
+      "run": 2,
+      "group": "swiftshader",
+      "tier": "low",
+      "shownTier": "low",
+      "cpuThrottle": 4,
+      "frames": 471,
+      "medianFps": 59.9,
+      "p5Fps": 49.8,
+      "meanFps": 58.9,
+      "framesOver50ms": 5,
+      "drawCallsPerFrame": 53,
+      "simSecondsPerSecond": 0.99,
+      "slowerBadgeSeen": false,
+      "firstRunMs": 536,
+      "autoLowMs": null,
+      "endTier": "low",
+      "firstFrameMs": 2880,
+      "runToMovingMs": 46,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "drawingBuffer": [
+        660,
+        497
+      ],
+      "loadavg1m": 13.88,
+      "cpuBenchMs": 102,
+      "consoleErrors": []
+    },
+    {
+      "run": 3,
+      "group": "swiftshader",
+      "tier": "low",
+      "shownTier": "low",
+      "cpuThrottle": 4,
+      "frames": 439,
+      "medianFps": 59.2,
+      "p5Fps": 37.9,
+      "meanFps": 54.9,
+      "framesOver50ms": 8,
+      "drawCallsPerFrame": 53,
+      "simSecondsPerSecond": 0.99,
+      "slowerBadgeSeen": false,
+      "firstRunMs": 545,
+      "autoLowMs": null,
+      "endTier": "low",
+      "firstFrameMs": 2653,
+      "runToMovingMs": 45,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "drawingBuffer": [
+        660,
+        497
+      ],
+      "loadavg1m": 13.2,
+      "cpuBenchMs": 102,
+      "consoleErrors": []
+    }
+  ]
+}
