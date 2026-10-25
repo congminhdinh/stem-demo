@@ -112,7 +112,7 @@ describe('loadKit refuses mechanics that do not fit, naming the path', () => {
     expect(thrown(() => loadKit(negative, board))).toMatch(/modules\.1\.spec\.wheelRadiusCm: Too small/);
     const cone = raw();
     moduleOf(cone, 'ultrasonic').spec.coneHalfDeg = 90;
-    expect(thrown(() => loadKit(cone, board))).toMatch(/modules\.2\.spec\.coneHalfDeg: Too big/);
+    expect(thrown(() => loadKit(cone, board))).toMatch(new RegExp(`modules\\.${indexOf('ultrasonic')}\\.spec\\.coneHalfDeg: Too big`));
     const text = raw();
     moduleOf(text, 'servo1').spec.sPer60Deg = 'fast';
     expect(thrown(() => loadKit(text, board))).toMatch(new RegExp(`modules\\.${indexOf('servo1')}\\.spec\\.sPer60Deg: `));
@@ -187,19 +187,42 @@ describe('loadKit refuses mechanics that do not fit, naming the path', () => {
   });
 
   it('refuses an ultrasonic spec whose range is empty or starts where the contract stops reading (400 cm)', () => {
+    const at = indexOf('ultrasonic');
     const empty = raw();
     Object.assign(moduleOf(empty, 'ultrasonic').spec, { minCm: 50, maxCm: 40 });
-    expect(thrown(() => loadKit(empty, board))).toMatch(/modules\.2\.spec\.maxCm: maxCm is more than minCm \(50\)/);
+    expect(thrown(() => loadKit(empty, board))).toMatch(new RegExp(`modules\\.${at}\\.spec\\.maxCm: maxCm is more than minCm \\(50\\)`));
     for (const minCm of [400, 450]) {
       const far = raw();
       Object.assign(moduleOf(far, 'ultrasonic').spec, { minCm, maxCm: 500 });
       expect(thrown(() => loadKit(far, board))).toMatch(
-        new RegExp(`modules\\.2\\.spec\\.minCm: minCm is under 400, the most the HC-SR04 helper reads \\(contract U-27\\), not ${minCm}`),
+        new RegExp(`modules\\.${at}\\.spec\\.minCm: minCm is under 400, the most the HC-SR04 helper reads \\(contract U-27\\), not ${minCm}`),
       );
     }
     const wide = raw();
     Object.assign(moduleOf(wide, 'ultrasonic').spec, { minCm: 3, maxCm: 500 });
     expect(() => loadKit(wide, board)).not.toThrow();
+  });
+
+  it('refuses an ultrasonic spec that hears nothing: the world hears from max(minCm, 2) to min(maxCm, 400), and that must not be empty', () => {
+    const at = indexOf('ultrasonic');
+    // 0.5..1.5 cm is a range of its own, but the HC-SR04 helper reads nothing under 2 cm: the world would hear from 2 to 1.5.
+    for (const maxCm of [1.5, 2]) {
+      const near = raw();
+      Object.assign(moduleOf(near, 'ultrasonic').spec, { minCm: 0.5, maxCm });
+      const message = thrown(() => loadKit(near, board));
+      expect(message).toMatch(
+        new RegExp(`modules\\.${at}\\.spec\\.maxCm: maxCm is more than 2, the least the HC-SR04 helper reads \\(contract U-27\\), not ${maxCm}`),
+      );
+      // One issue: the range is not also called empty for minCm.
+      expect(message.match(/spec\.m(in|ax)Cm:/g)).toHaveLength(1);
+    }
+    const justAbove = raw();
+    Object.assign(moduleOf(justAbove, 'ultrasonic').spec, { minCm: 0.5, maxCm: 2.5 });
+    expect(() => loadKit(justAbove, board)).not.toThrow();
+    // A range already refused as empty is told once, on maxCm.
+    const reversed = raw();
+    Object.assign(moduleOf(reversed, 'ultrasonic').spec, { minCm: 1.5, maxCm: 0.5 });
+    expect(thrown(() => loadKit(reversed, board)).match(/spec\.m(in|ax)Cm:/g)).toHaveLength(1);
   });
 
   it('refuses sensor and servo specs that contradict themselves or the mount', () => {
@@ -210,7 +233,7 @@ describe('loadKit refuses mechanics that do not fit, naming the path', () => {
     );
     const sonar = raw();
     moduleOf(sonar, 'ultrasonic').spec.minCm = 400;
-    expect(thrown(() => loadKit(sonar, board))).toMatch(/modules\.2\.spec\.maxCm: maxCm is more than minCm \(400\)/);
+    expect(thrown(() => loadKit(sonar, board))).toMatch(new RegExp(`modules\\.${indexOf('ultrasonic')}\\.spec\\.maxCm: maxCm is more than minCm \\(400\\)`));
     const at = indexOf('servo1');
     const range = raw();
     moduleOf(range, 'servo1').spec.minDeg = 180;

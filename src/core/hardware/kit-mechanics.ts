@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { HardwareDataError, pathOf, type DataIssue } from './board-schema';
-import { MAX_CM } from './drivers/hcsr04';
+import { MAX_CM, MIN_CM } from './drivers/hcsr04';
 import { kitKey, type ChassisSpec, type Kit, type KitModule, type ModuleKind, type ModuleSpecs, type RobotRole } from './kit';
 
 // The mechanical half of a kit (N18 R3.3): the chassis and each module's physical spec, which the world builds the robot from
@@ -109,8 +109,12 @@ export function mechanicsIssues(kit: Kit): DataIssue[] {
     } else if (module.kind === 'ultrasonic') {
       const spec = module.spec as unknown as ModuleSpecs['ultrasonic'];
       if (spec.maxCm <= spec.minCm) add(at('spec', 'maxCm'), `maxCm is more than minCm (${spec.minCm})`);
-      // The world hears from max(minCm, 2) to min(maxCm, 400) (sensors/ultrasonic.ts): that range must not be empty.
+      // The world hears from max(minCm, 2) to min(maxCm, 400) (sensors/ultrasonic.ts): that range must not be empty, so
+      // max(minCm, 2) < min(maxCm, 400). Past the two rules above, it only fails for a maxCm of 2 or less.
       if (spec.minCm >= MAX_CM) add(at('spec', 'minCm'), `minCm is under ${MAX_CM}, the most the HC-SR04 helper reads (contract U-27), not ${spec.minCm}`);
+      else if (spec.maxCm > spec.minCm && !(Math.max(spec.minCm, MIN_CM) < Math.min(spec.maxCm, MAX_CM))) {
+        add(at('spec', 'maxCm'), `maxCm is more than ${MIN_CM}, the least the HC-SR04 helper reads (contract U-27), not ${spec.maxCm}`);
+      }
     } else if (module.kind === 'servo') {
       const spec = module.spec as unknown as ModuleSpecs['servo'];
       if (spec.maxDeg <= spec.minDeg) {
