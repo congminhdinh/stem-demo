@@ -3,14 +3,14 @@ import {
   robotKitId,
   robotKitVersion,
   robotLabProfiles,
-  robotSandboxKey,
   robotTemplates,
   type RobotLabProfile,
   type RobotTemplateKey,
 } from './robot-keys';
+import { scenarioReadyFields } from './robot-scenarios/ready-fields';
 
 // The table of keys, profiles and kits lives in robot-keys.ts, a module with no imports, so that the scenario schema (src/core/scenario)
-// and the scenario catalog can read it without importing this file (which will read the catalog, N18 R5.2: that would be a cycle).
+// and the scenario catalog can read it without importing this file (which reads the scenario files, N18 R5.2: that would be a cycle).
 // It is re-exported here, so that everything that reads the table through this module keeps doing so.
 export {
   isRobotLabProfile,
@@ -43,16 +43,17 @@ export function robotTemplateProfileProblem(key: RobotTemplateKey, profile: Robo
     : `The template "${key}" needs profile=${needed}: it uses blocks or parts that ${profile} does not have.`;
 }
 
-/** The scenario version and the top score of every robot scenario, until the scenario data of R3.5 brings its own. */
-const scenarioVersion = 1;
-const maxScore = 100;
-
 /**
- * What a robot lab adds to `ready` (plan §4.7): the scenario's version and, for a scored scenario, its top score. The sandbox has no
- * goals, so it has no score and the field is left out, never null.
+ * What a robot lab adds to `ready` (plan §4.7): the scenario's version and, for a scored scenario, its top score, read from the scenario's
+ * file (robot-scenarios/ready-fields.ts, held to the catalog by its test). The sandbox has no goals, so it has no score and the field is
+ * left out, never null. A new object on every call. Every key has a scenario file (the catalog's test), so a key without one is a bug and throws.
  */
 export function robotReadyFields(key: RobotTemplateKey): { scenarioVersion: number; maxScore?: number } {
-  return key === robotSandboxKey ? { scenarioVersion } : { scenarioVersion, maxScore };
+  const fields = scenarioReadyFields(key);
+  if (fields === undefined) {
+    throw new Error(`The robot scenario "${key}" has no file in src/samples/robot-scenarios.`);
+  }
+  return { ...fields };
 }
 
 /**

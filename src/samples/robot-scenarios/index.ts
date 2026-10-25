@@ -1,9 +1,9 @@
 import { loadScenario, type Scenario } from '../../core/scenario/scenario';
 import { robotTemplateKeys } from '../robot-keys';
 
-// The robot scenarios this build ships (N18 R5.1, robot plan §4.6): the registry of `rb-*.json` in this folder. A scenario is added by
-// putting its file here, named after its key (`rb-line-follow.json`); nothing else lists it. R5.2 writes the six pilot scenarios and
-// `rb-sandbox`; until then the folder is empty and so is the catalog.
+// The robot scenarios this build ships (N18 R5.1, robot plan §4.6): the registry of `rb-*.json` in this folder, one per key of robot-keys.ts,
+// named after its key (`rb-line-follow.json`). R5.2 wrote the six pilot scenarios and `rb-sandbox`. Besides this catalog only ready-fields.ts
+// names the files (it reads the version and top score of each for `ready`, without the schema; its test holds it to this catalog).
 //
 // Every file is loaded and validated when this module is first imported, so broken data fails there (like the kit catalog), not when a
 // learner opens the lab. The files are bundled with whatever imports this module: the robot lab’s own chunk, never the generic editor.
