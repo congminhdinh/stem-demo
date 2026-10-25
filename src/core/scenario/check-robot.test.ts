@@ -7,11 +7,11 @@ import { num, wait } from '../program/__fixtures__/ybc-blocks';
 import { robotKitCatalog } from '../run/robot-run-session';
 import { robotProject, rover, sandboxScenario, unoR3Board } from '../run/__fixtures__/robot-session';
 import { initPhysics } from '../world/rapier';
-import { crashScenario, overshooter, parker, parkScenario, rammer } from './__fixtures__/check-cases';
+import { crashScenario, dasher, faulter, overshooter, parker, parkScenario, rammer, wallScenario } from './__fixtures__/check-cases';
 import { checkRobot, RobotCheckError, type CheckProgress, type CheckRobotOptions } from './check-robot';
 import { robotCheckResultProblems, ROBOT_ENGINE, type RobotCheckResult } from './check-result';
 import { hashProgramIr } from './program-hash';
-import { RUN_ENDED_CONTACT_REASON } from './scoring';
+import { PROGRAM_ERROR_REASON, RUN_ENDED_CONTACT_REASON } from './scoring';
 import { variantSeed } from './variants';
 
 // N18 R6.2: checkRobot runs a learner's project in every variant of a scenario, one after the other, and gives the check's result (robot
@@ -86,6 +86,28 @@ describe('checkRobot', () => {
     expect(result.simTimeMs).toBe(Math.max(...result.variants.map((variant) => variant.simTimeMs)));
   });
 
+  it('a variant whose program ends in an error scores 0 and fails, however far it got: every goal program-error, no bonus (the review’s probe)', async () => {
+    // Full speed for 800 ms, then a fault, the robot frozen in the target short of the wall: frozen there it would pass both goals (98).
+    const ended: CheckProgress[] = [];
+    const faulted = accepted(await checkRobot(faulter(), wallScenario(), { ...headless, onProgress: (progress) => progress.kind === 'variant-ended' && ended.push(progress) }).result);
+    expect(faulted).toMatchObject({ passed: false, score: 0, simTimeMs: 800 });
+    expect(faulted.goals.map((goal) => goal.passed)).toEqual([false, false]);
+    expect(faulted.variants.map((variant) => [variant.passed, variant.score, variant.simTimeMs])).toEqual([[false, 0, 800], [false, 0, 800], [false, 0, 800]]);
+    expect(ended).toHaveLength(3);
+    for (const progress of ended) {
+      if (progress.kind !== 'variant-ended') continue;
+      expect(progress.error).toMatchObject({ code: 'out-of-domain' });
+      expect(progress.end).toBeNull();
+      expect(progress.goals).toEqual([
+        { id: 'reach', passed: false, points: 0, progress: 0, reasonKey: PROGRAM_ERROR_REASON, atS: 0.8 },
+        { id: 'no-wall', passed: false, points: 0, progress: 0, reasonKey: PROGRAM_ERROR_REASON, atS: 0.8 },
+      ]);
+    }
+    // Full speed for ever reaches the target and hits the wall: 50. The same dash without the fault passes: the fault is what fails it.
+    expect(accepted(await checkRobot(rammer(), wallScenario(), headless).result)).toMatchObject({ passed: false, score: 50 });
+    expect(accepted(await checkRobot(dasher(), wallScenario(), headless).result)).toMatchObject({ passed: true, score: 98 });
+  });
+
   it('runs the variants one after the other and tells its progress, in the iterable and to onProgress alike', async () => {
     const told: CheckProgress[] = [];
     const check = checkRobot(parker(), parkScenario(), { ...headless, onProgress: (progress) => told.push(progress) });
@@ -127,6 +149,34 @@ describe('checkRobot', () => {
     expect(toldOdd).toEqual(toldHeadless);
     // The check's run is stopped once its result is in.
     expect(check.run.getSnapshot().status).toBe('idle');
+  });
+
+  it('an onProgress that throws never breaks the check, headless or realtime: the same result, every progress still told', async () => {
+    const plain = accepted(await checkRobot(parker(), parkScenario(), headless).result);
+    for (const options of [headless, realtime(4)]) {
+      let calls = 0;
+      const check = checkRobot(parker(), parkScenario(), {
+        ...options,
+        onProgress: () => {
+          calls += 1;
+          throw new Error('a listener that breaks');
+        },
+      });
+      const result = options.mode === 'headless' ? await check.result : await drive(check);
+      expect(accepted(result)).toEqual(plain);
+      const seen: CheckProgress[] = [];
+      for await (const progress of check.progress) seen.push(progress);
+      expect([calls, seen.length]).toEqual([30, 30]); // 3 × (started, 8 seconds, ended)
+    }
+  });
+
+  it('frame rejects a time or a speed that is not one, and never throws', async () => {
+    const check = checkRobot(parker(), parkScenario(), realtime());
+    for (const [ms, speed] of [[-1, 1], [Number.NaN, 1], [16, 0], [16, Number.POSITIVE_INFINITY]] as const) {
+      await expect(check.frame(ms, speed)).rejects.toThrow(RangeError);
+    }
+    check.cancel();
+    expect(await check.result).toBeNull();
   });
 
   it('labels the goals in the language asked for', async () => {
@@ -188,12 +238,18 @@ describe('checkRobot', () => {
       expect(() => checkRobot(parker(), parkScenario(), realtime(0))).toThrow(RangeError);
     });
 
-    it('a program fault ends its variant, which is scored as far as it went', async () => {
+    it('a program fault at t = 0 scores 0: every goal fails with program-error', async () => {
       // A wait longer than the contract allows, computed: a fault of the program (out-of-domain) at t = 0.
       const faulty = robotProject([driveMove('forward', num(50)), wait(unoDivide(num(70000), num(1)))]);
-      const result = accepted(await checkRobot(faulty, parkScenario(), headless).result);
+      const ended: CheckProgress[] = [];
+      const result = accepted(await checkRobot(faulty, parkScenario(), { ...headless, onProgress: (progress) => progress.kind === 'variant-ended' && ended.push(progress) }).result);
       expect(result).toMatchObject({ passed: false, score: 0 });
-      expect(result.variants.every((variant) => variant.simTimeMs < 100)).toBe(true);
+      expect(result.variants).toEqual(result.variants.map((variant) => ({ ...variant, passed: false, score: 0, simTimeMs: 0 })));
+      for (const progress of ended) {
+        if (progress.kind !== 'variant-ended') continue;
+        expect(progress.error).toMatchObject({ code: 'out-of-domain' });
+        expect(progress.goals.map((goal) => goal.reasonKey)).toEqual([PROGRAM_ERROR_REASON, PROGRAM_ERROR_REASON, PROGRAM_ERROR_REASON]);
+      }
     });
   });
 });

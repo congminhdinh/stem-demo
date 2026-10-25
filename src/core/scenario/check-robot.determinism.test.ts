@@ -1,11 +1,13 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { registry } from '../program/__fixtures__/uno-blocks';
 import { rover, unoR3Board } from '../run/__fixtures__/robot-session';
+import type { ProjectDocument } from '../circuit/document';
 import { initPhysics } from '../world/rapier';
 import { hashSnapshot } from '../world/snapshot';
 import { checkCases, type CheckCase } from './__fixtures__/check-cases';
 import { checkRobot, type CheckProgress } from './check-robot';
 import { robotCheckResultProblems } from './check-result';
+import type { Scenario } from './scenario';
 
 // N18 R6.2, Review Focus 2 (robot plan §6): a hidden tab or a slow machine during a check gives the very same result. A check is driven
 // headless, or in realtime by the page's frames at 1× and 4×, by frames of any length (slow ones drop ticks, the run does not catch up),
@@ -35,10 +37,10 @@ const drives: readonly Drive[] = [
   { name: 'realtime 4×, the tab hidden and back', mode: 'realtime', speed: 4, frames: hiddenTab },
 ];
 
-/** Everything a check gives that must not depend on how it was driven. */
-async function outcomeOf(check: CheckCase, drive: Drive) {
+/** Everything a check of `project` gives that must not depend on how it was driven. */
+async function outcomeOf(project: ProjectDocument, scenario: Scenario, drive: Drive) {
   const ended: CheckProgress[] = [];
-  const run = checkRobot(check.project(), check.scenario(), {
+  const run = checkRobot(project, scenario, {
     mode: drive.mode,
     ...(drive.speed === undefined ? {} : { speed: drive.speed }),
     kit: rover,
@@ -64,9 +66,12 @@ async function outcomeOf(check: CheckCase, drive: Drive) {
 }
 
 describe('same score/passed/hash for 1×, 4× and headless', () => {
-  it.each(checkCases.map((check) => [check.name, check] as const))('%s', async (_name, check) => {
-    const [first, ...others] = await Promise.all(drives.map((drive) => outcomeOf(check, drive)));
-    expect(first!.variants).toHaveLength(check.scenario().variants.count);
+  it.each(checkCases.map((check) => [check.name, check] as const))('%s', async (_name, check: CheckCase) => {
+    // One project (its block ids, which an error names) and one scenario for every way of driving the check.
+    const project = check.project();
+    const scenario = check.scenario();
+    const [first, ...others] = await Promise.all(drives.map((drive) => outcomeOf(project, scenario, drive)));
+    expect(first!.variants).toHaveLength(scenario.variants.count);
     for (const [index, other] of others.entries()) {
       expect({ drive: drives[index + 1]!.name, ...other }).toEqual({ drive: drives[index + 1]!.name, ...first });
     }

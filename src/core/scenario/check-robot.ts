@@ -21,24 +21,27 @@ import type { RobotCheckResult, RobotVariantResult } from './check-result';
 import type { GoalResult } from './goals';
 import { hashProgramIr } from './program-hash';
 import { scenarioMaxScore, type Scenario } from './scenario';
-import { checkResultOf, createScenarioScorer, type CheckedVariant, type ScenarioScorer } from './scoring';
+import { checkResultOf, createScenarioScorer, programErrorScore, type CheckedVariant, type ScenarioScorer } from './scoring';
 import { variantSeed } from './variants';
 
 // A check of the robot lab (N18 R6.2, robot plan §4.6, §4.7): the learner's project in every variant of the scenario, one after the other
 // (variant i with its seed, `variantSeed`), each a run of a RobotRunSession of its own with the check's scorer (scoring.ts), then one
 // `RobotCheckResult` for the host bridge (R6.3 sends it: `beginCheck`, `robotCheckResult`, `endCheck`).
 //
-//   - A variant runs until the scenario ends it (its time limit, a contact of `endOnContact`) or the program faults; a program fault is the
-//     learner's, so the variant is scored as far as it went. Its score, verdict and goals are the scorer's at that end; its simulated time
-//     is the world's, in whole ms.
+//   - A variant runs until the scenario ends it (its time limit, a contact of `endOnContact`) or it ends in an error. Its score, verdict and
+//     goals are the scorer's at that end; its simulated time is the world's, in whole ms. A variant that ends in an error (a fault of the
+//     program, or of the simulation) scores 0 and fails, every goal with `program-error` (scoring.ts `programErrorScore`, R6.2 fix round 1):
+//     the world stands still at the error, and what it froze must not pass.
 //   - Headless: the check drives each variant itself (`runUntil`, a second of simulated time at a time, telling its progress after each).
 //     Realtime: the caller drives it with its frames (`frame(wallMs)` from requestAnimationFrame, at `speed`) and draws `run`'s snapshots.
 //     The mode only decides who calls the ticks: the ticks, and so the result, are the same (Review Focus 2, check-robot.determinism.test.ts).
 //   - `cancel()` ends the check without a result: `result` resolves null, as a cancelled check of App.tsx gives no verdict and sends nothing.
 //     It is the only way to get null.
 //   - A check that cannot be made rejects `result` with a RobotCheckError: the program does not compile, or is for another kit (the start's
-//     reason and diagnostics, as Run gives them), the world cannot be built, or the simulation itself fails (`internal-error`). The host is
-//     sent nothing then: there is no result to send.
+//     reason and diagnostics, as Run gives them), or a variant's world or scorer cannot be made. The host is sent nothing then: there is no
+//     result to send.
+//   - `onProgress` is the caller's: one that throws is ignored, and the check goes on. `frame` rejects (never throws) a time or a speed that
+//     is not one.
 //   - Once `result` settles the check's run is stopped (its world freed); the last world of every variant is in its `variant-ended` progress.
 // The sandbox has no score: it is not checked here (R6.3 sends its plain `{ passed, goals: [] }`).
 
@@ -97,7 +100,7 @@ export type RobotCheck = {
 };
 
 /** Why a check has no result although it was not cancelled. */
-export type RobotCheckFailureReason = Exclude<RobotStartFailureReason, 'superseded' | 'idle'> | 'internal-error';
+export type RobotCheckFailureReason = Exclude<RobotStartFailureReason, 'superseded' | 'idle'>;
 
 /** A check that could not be made: why, the diagnostics of the start or of the simulation, and the variant (null before any ran). */
 export class RobotCheckError extends Error {
@@ -139,7 +142,11 @@ export function checkRobot(project: ProjectDocument, scenario: Scenario, opts: C
 
   const log = createProgressLog<CheckProgress>();
   const tell = (progress: CheckProgress) => {
-    opts.onProgress?.(progress);
+    try {
+      opts.onProgress?.(progress);
+    } catch {
+      // The listener is the caller's: what it does wrong never stops the check.
+    }
     log.push(progress);
   };
 
@@ -240,10 +247,8 @@ export function checkRobot(project: ProjectDocument, scenario: Scenario, opts: C
       telling = null;
       const snapshot = session.getSnapshot();
       if (cancelled || snapshot.world === null) return null;
-      if (snapshot.status === 'error' && snapshot.error?.code === 'internal-error') {
-        throw new RobotCheckError('internal-error', snapshot.diagnostics.filter((diagnostic) => diagnostic.severity === 'error'), index);
-      }
-      const score = variantScorer.result();
+      // A run that ended in an error scores 0, every goal failed (see the top of this file); the scorer is not asked.
+      const score = snapshot.status === 'error' ? programErrorScore(scenario, judgedS) : variantScorer.result();
       // The world's time at the end: the last frame judged (the world stays at it once the run ended).
       const simTimeMs = Math.round(judgedS * 1000);
       variants.push({ seed, simTimeMs, score });
@@ -280,6 +285,9 @@ export function checkRobot(project: ProjectDocument, scenario: Scenario, opts: C
       session.stop();
     },
     frame(wallMs, speed = defaultSpeed) {
+      if (!(Number.isFinite(wallMs) && wallMs >= 0) || !(Number.isFinite(speed) && speed > 0)) {
+        return Promise.reject(new RangeError(`A frame is a time of 0 ms or more at a speed above 0, not ${wallMs} ms at ${speed}×.`));
+      }
       if (mode !== 'realtime' || settled || cancelled) return Promise.resolve();
       return session.advance(wallMs, speed).then(() => {
         // The run may have ended in this frame: its last seconds are told before its end.

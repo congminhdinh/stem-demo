@@ -4,7 +4,18 @@ import { robotCheckResultProblems, ROBOT_ENGINE } from './check-result';
 import { frameAt, type FrameInit } from './goals/__fixtures__/frames';
 import { createGoal, goalReasons, type GoalResult } from './goals';
 import { loadScenario, type Scenario, type ScenarioJson } from './scenario';
-import { checkResultOf, checkScore, createScenarioScorer, RUN_ENDED_CONTACT_REASON, timeBonus, variantScore, type RunScore, type ScenarioScorer } from './scoring';
+import {
+  checkResultOf,
+  checkScore,
+  createScenarioScorer,
+  PROGRAM_ERROR_REASON,
+  programErrorScore,
+  RUN_ENDED_CONTACT_REASON,
+  timeBonus,
+  variantScore,
+  type RunScore,
+  type ScenarioScorer,
+} from './scoring';
 
 // N18 R6.2 (robot plan §4.6, controller rulings): the score of a run and of a check. A variant scores the points of the goals it passed,
 // plus the time bonus when it passed every goal, clamped to 0..maxScore; a check scores the lowest of its variants and passes when every
@@ -203,6 +214,21 @@ describe('the scorer of a run', () => {
     const scorer = scorerOf(sandbox);
     scorer.update(frameAt(), 0);
     expect(scorer.score()).toEqual({ points: 0, maxScore: null, goals: [] });
+  });
+});
+
+describe('programErrorScore', () => {
+  it('a run whose program ended in an error: 0 points, failed, every goal failed with program-error at the time of the error, no bonus', () => {
+    const scenario = scenarioWith([dock, crate, inTime(45)], 10);
+    expect(programErrorScore(scenario, 2.5)).toEqual({
+      goals: ['reach-dock', 'push-crate', 'in-time'].map((id) => ({ id, passed: false, points: 0, progress: 0, reasonKey: PROGRAM_ERROR_REASON, atS: 2.5 })),
+      passed: false,
+      finishedAtS: null,
+      timeBonus: 0,
+      points: 0,
+      maxScore: 100,
+    } satisfies RunScore);
+    expect(PROGRAM_ERROR_REASON).toBe('robot.goal.reason.program-error');
   });
 });
 

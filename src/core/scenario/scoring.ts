@@ -21,6 +21,9 @@ import { SCENARIO_MAX_SCORE, scenarioMaxScore, type RobotGoalSpec, type Scenario
 //   - At the end (`end`, told by the session when the scenario ended the run): a contact end cuts short a hold or a stop that had not
 //     happened yet (`stop-in-zone`, `servo-angle`): such a goal fails with `run-ended-contact` at the time of the end, unless it had already
 //     failed by leaving the arena. Every other goal keeps its own end rules (R6.1), and a time-limit end changes nothing.
+//   - A run whose program ended in an error (a fault of the program, or of the simulation: the run's status `error`) scores 0 and fails,
+//     however far it got: `programErrorScore`, every goal failed with `program-error`, no bonus (R6.2 fix round 1). The world stands still
+//     at the error, so judging what it froze would pass a program that crashes once its goals are met.
 //
 // A check (`checkResultOf`) of N variants: it passes when every goal passed in every variant; a goal passed when it passed in every variant;
 // its score is the LOWEST of its variants' scores (robustness first, as for `passed`); its simulated time is its longest variant's.
@@ -34,6 +37,12 @@ import { SCENARIO_MAX_SCORE, scenarioMaxScore, type RobotGoalSpec, type Scenario
  * and messages.ts has its words in vi and en.
  */
 export const RUN_ENDED_CONTACT_REASON = 'robot.goal.reason.run-ended-contact' as string as GoalReasonKey;
+
+/**
+ * The reason of every goal of a run whose program ended in an error (R6.2 fix round 1, controller ruling): the scorer's own, like
+ * RUN_ENDED_CONTACT_REASON, with its words in messages.ts.
+ */
+export const PROGRAM_ERROR_REASON = 'robot.goal.reason.program-error' as string as GoalReasonKey;
 
 /** A bonus this close below a whole point is that point: 10 × (1 − 54/60) is 0.9999999999999998 in doubles. */
 export const TIME_BONUS_EPSILON = 1e-9;
@@ -49,11 +58,31 @@ export function timeBonus(timeBonusMax: number, finishedAtS: number, timeLimitS:
  * of the final streak in which they all passed), clamped to 0..SCENARIO_MAX_SCORE. 0 for the sandbox, which has no score.
  */
 export function variantScore(scenario: Pick<Scenario, 'key' | 'goals' | 'scoring' | 'timeLimitS'>, goals: readonly GoalResult[], finishedAtS: number | null): number {
-  if (scenarioMaxScore(scenario) === undefined) return 0;
-  const points = goals.reduce((sum, goal) => sum + (goal.passed ? goal.points : 0), 0);
+  return scoreOf(scenario, goals, finishedAtS).points;
+}
+
+/** `variantScore` and the time bonus in it. */
+function scoreOf(scenario: Pick<Scenario, 'key' | 'goals' | 'scoring' | 'timeLimitS'>, goals: readonly GoalResult[], finishedAtS: number | null): { points: number; bonus: number } {
+  if (scenarioMaxScore(scenario) === undefined) return { points: 0, bonus: 0 };
+  const sum = goals.reduce((total, goal) => total + (goal.passed ? goal.points : 0), 0);
   const allPassed = goals.length > 0 && goals.every((goal) => goal.passed);
   const bonus = allPassed && finishedAtS !== null ? timeBonus(scenario.scoring.timeBonusMax ?? 0, finishedAtS, scenario.timeLimitS) : 0;
-  return Math.min(SCENARIO_MAX_SCORE, Math.max(0, points + bonus));
+  return { points: Math.min(SCENARIO_MAX_SCORE, Math.max(0, sum + bonus)), bonus };
+}
+
+/**
+ * The score of a run whose program ended in an error at `atS` (see the top of this file): 0 points, failed, every goal failed with
+ * PROGRAM_ERROR_REASON at that time, no bonus. It reads no goal: after a failure of the simulation the scorer may be the broken part.
+ */
+export function programErrorScore(scenario: Pick<Scenario, 'key' | 'goals' | 'scoring'>, atS: number): RunScore {
+  return {
+    goals: scenario.goals.map((spec) => ({ id: spec.id, passed: false, points: 0, progress: 0, reasonKey: PROGRAM_ERROR_REASON, atS })),
+    passed: false,
+    finishedAtS: null,
+    timeBonus: 0,
+    points: 0,
+    maxScore: scenarioMaxScore(scenario) ?? null,
+  };
 }
 
 /** The score of a check: the lowest of its variants' scores. A check has at least one variant. */
@@ -116,8 +145,7 @@ export function createScenarioScorer(run: { scenario: Scenario; arena: Arena; pr
     const results = goals.map(judged);
     const passed = results.length > 0 && results.every((goal) => goal.passed);
     const finishedAtS = passed ? othersSinceS : null;
-    const points = variantScore(scenario, results, finishedAtS);
-    const bonus = passed && finishedAtS !== null ? timeBonus(scenario.scoring.timeBonusMax ?? 0, finishedAtS, scenario.timeLimitS) : 0;
+    const { points, bonus } = scoreOf(scenario, results, finishedAtS);
     return { goals: results, passed, finishedAtS, timeBonus: bonus, points, maxScore };
   };
 

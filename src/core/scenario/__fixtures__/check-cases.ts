@@ -1,6 +1,6 @@
 import type { ProjectDocument } from '../../circuit/document';
 import { robotProject, withEndOnContact } from '../../run/__fixtures__/robot-session';
-import { driveMove, driveStop } from '../../program/__fixtures__/uno-blocks';
+import { driveMove, driveStop, unoDivide } from '../../program/__fixtures__/uno-blocks';
 import { num, wait } from '../../program/__fixtures__/ybc-blocks';
 import { loadScenario, type Scenario, type ScenarioJson } from '../scenario';
 
@@ -48,15 +48,37 @@ export const parkScenario = (): Scenario => loadScenario(parkScenarioJson);
 export const crashScenario = (): Scenario =>
   withEndOnContact(loadScenario({ ...parkScenarioJson, arena: { ...parkScenarioJson.arena, walls: [{ id: 'wall', fromCm: [100, 0], toCm: [100, 100] }] } }), ['wall']);
 
+/**
+ * The park scenario's floor and zone with a wall across x = 100 (cm) and other goals: reach the target (50) and never touch the wall (30,
+ * a guard goal), with a time bonus of up to 20. Full speed for ever reaches the target and then hits the wall: 50.
+ */
+export const wallScenario = (): Scenario =>
+  loadScenario({
+    ...parkScenarioJson,
+    arena: { ...parkScenarioJson.arena, walls: [{ id: 'wall', fromCm: [100, 0], toCm: [100, 100] }] },
+    goals: [
+      { id: 'reach', kind: 'reach-zone', label: label('Tới vùng đích', 'Reach the zone'), points: 50, zone: 'target' },
+      { id: 'no-wall', kind: 'avoid-contact', label: label('Không chạm tường', 'Do not touch the wall'), points: 30, tag: 'wall' },
+    ],
+  });
+
 /** Forward at 50 % for 2 s, then stop: it parks in the target. */
 export const parker = (): ProjectDocument => robotProject([driveMove('forward', num(50)), wait(num(2000)), driveStop()]);
 /** Forward at 50 % for 4 s: through the target and past it. */
 export const overshooter = (): ProjectDocument => robotProject([driveMove('forward', num(50)), wait(num(4000)), driveStop()]);
 /** Full speed ahead, for ever. */
 export const rammer = (): ProjectDocument => robotProject([], [driveMove('forward', num(100))]);
+/**
+ * The review's probe (R6.2 fix round 1): full speed for 800 ms, then a wait longer than the contract allows, computed, so the program faults
+ * (out-of-domain) with the robot in the target, short of the wall. A run frozen there would pass every goal of the wall scenario.
+ */
+export const faulter = (): ProjectDocument => robotProject([driveMove('forward', num(100)), wait(num(800)), wait(unoDivide(num(70000), num(1)))]);
+/** The probe without its fault: full speed for 800 ms, then stop. */
+export const dasher = (): ProjectDocument => robotProject([driveMove('forward', num(100)), wait(num(800)), driveStop()]);
 
 export const checkCases: readonly CheckCase[] = [
   { name: 'park: a program that parks in the zone', scenario: parkScenario, project: parker },
   { name: 'park: a program that overshoots', scenario: parkScenario, project: overshooter },
   { name: 'crash: a program that hits the wall that ends the run', scenario: crashScenario, project: rammer },
+  { name: 'wall: a program that faults once its goals have passed', scenario: wallScenario, project: faulter },
 ];
