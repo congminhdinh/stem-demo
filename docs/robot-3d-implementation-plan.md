@@ -272,7 +272,7 @@ type RobotGoalSpec = { id: string; label: { vi: string; en: string }; points: nu
 
 1. **Program không có `wait`** (`forever` dày hoặc `while dist > 20` trong on-start): program không được chạy trước world quá `dt`, sim không đóng băng. *Test ở R2.3:* `pulseIn loop never leads world by more than dt`; `tight forever loop never blocks a tick > 8 ms wall`.
 2. **Tab bị ẩn / máy chậm giữa lúc Kiểm tra**: kết quả **giống hệt**. *Test ở R6.3:* `same score/passed/hash for 1×, 4× and headless`.
-3. **Robot lật, kẹt tường, rơi khỏi sa bàn**: không NaN, không treo, goal trượt kèm giải thích, Reset robot về trạng thái y như mới. *Test ở R3.4/R3.6:* `robot falling off arena yields outOfArena and finite poses`; `resetRobot hash equals fresh start`.
+3. **Robot lật, kẹt tường, rơi khỏi sa bàn**: không NaN, không treo, goal trượt kèm giải thích, Reset robot về trạng thái y như mới. *Test ở R3.5/R3.6 (R3.4 test bằng vật thay robot):* `robot falling off arena yields outOfArena and finite poses`; `resetRobot hash equals fresh start`.
 4. **Xung đột timer/chân** (vd. kit vendor đặt motor PWM ở D10 khi có servo): R0.4 đã có trace (ADR 0003 §3.4–3.5: chân giữ LOW, `tone` đổi tần số), quyết định vẫn là sim **từ chối chạy** với `timer-claimed` (contract UNO §5.3, U-48). *Test ở R1.2:* `pwm on D10 with servo is refused with timer-claimed`.
 5. **WebGL không có hoặc mất context** (máy trường học, iframe): lab vẫn dùng được qua top view 2D, state sim không mất. *Test ở R4.6:* e2e với WebGL tắt.
 
@@ -489,13 +489,19 @@ Mỗi task ghi **Files**, **Interfaces**, **Tests** (tên + assertion chính), *
   - `wall at 50 cm reads 50±1`;
   - `angled wall beyond cone reads 400`;
   - `robot falling off arena yields outOfArena and finite poses`.
+- *Bổ sung khi làm R3.4:*
+  - Cảm biến là **hàm thuần** trên pose của cảm biến trong world; R3.5 ghép chassis pose + mount thành pose. `measureUltrasonic(world, lookup, pose, spec, { exclude?, noise? }) → { cm, echoUs, hit }`, `measureLine(paint, positionWorld, spec, { activeLow? }) → { reflectance, dark, raw, level }`, `readContacts(world, lookup, bodies) → info[]`, `isOutOfArena(arena, position)` (thêm file `sensors/{collider-lookup.ts,out-of-arena.ts}`). `lookup` là `{ infoOf(collider) }`, ví dụ `BuiltArena`. Collider mà lookup không biết thì vô hình với mọi cảm biến.
+  - Siêu âm: 5 tia là trục và 4 mép nón (trái, phải, trên, dưới), tính một lần mỗi nón bằng dmath. Tia ngắn nhất thắng: khoảng cách xiên tới tiếng vọng đầu tiên. Miền đo là `[max(minCm, 2), min(maxCm, 400)]`; gần hơn thì đọc đầu gần. Không trúng thì 400 với `echoUs = 0`: pulseIn không thấy xung, helper trả 400 (contract §6.6) và virtual UNO charge `pulseInNoPulse30000`. Có echo thì `echoUs = cm × 58`. Pose NaN/∞ hoặc quaternion độ dài 0 thì không echo (đo được: Rapier trả hit toi 0 cho tia NaN). Nhiễu: mỗi lần đo rút đúng một `uniform(−a, a)`, kể cả khi không echo. Đo được 4,1–4,7 µs/lần đo (Apple M4 Pro, Node 24.22.1, sa bàn `boxes`).
+  - Line: cao hơn 3 cm (hoặc vị trí không hữu hạn) thì đọc như sàn trắng: reflectance 1, không dark (phán quyết của controller). Khác với mép sàn: ở đó ground-paint đọc 0, tức dark. `raw` là ADC lý tưởng `min(1023, floor(signal × 1024))`, với `signal = 1 − reflectance` khi `activeLow: false` (dark = HIGH, raw cao) và `signal = reflectance` khi `activeLow: true`. `level` là mức `digitalRead` mà driver `line-digital` so với mức dark của nó. Test nối số đo vào virtual UNO: driver đọc lại đúng `dark` và `raw` ở cả hai cực tính.
+  - Contacts: ứng viên lấy từ `contactPairsWith` (pair state, không dùng event). "Chạm" thì đo bằng `Collider.contactCollider` ở vị trí **hiện tại** (≤ 1 mm), không đọc manifold. Lý do: manifold được tính ở đầu step, trước solver, nên trễ một step, và không cập nhật khi body ngủ. Đo được: khối lập phương ngủ trên sàn, lún 0,07 mm, vẫn giữ manifold 1,7 mm; khi trượt vào tường, manifold báo chạm trễ 8 tick, còn `contactCollider` báo đúng tick tới. Kết quả mỗi id một lần, sắp theo id (code unit).
+  - `robot falling off arena yields outOfArena and finite poses` cần robot (R3.3) và World (R3.5), nên test tên này chuyển sang R3.5. R3.4 test bằng một khối lập phương thay robot, trượt khỏi mép sàn: pose và mọi số đo hữu hạn suốt 2 s, `isOutOfArena` đúng từ lúc rơi.
 
 **R3.5 World facade + snapshot + tất định (20h).**
 - Files: `src/core/world/{world.ts,snapshot.ts}`, `tests/robot-determinism.test.ts`, `e2e/robot-determinism.spec.ts`.
 - `playwright.config.ts` thêm project `firefox` và `webkit`, chỉ chạy spec này.
 - `hashSnapshot(s): string`: FNV-1a trên số đã lượng tử 1e-6.
 - Golden hash mỗi scenario ở `tests/__snapshots__/robot-determinism.json`. Đổi engine thì cố ý bump `ROBOT_ENGINE_VERSION`.
-- Tests: `same seed twice → identical hash after 3000 ticks`; 4 runtime cho cùng hash.
+- Tests: `same seed twice → identical hash after 3000 ticks`; 4 runtime cho cùng hash; `robot falling off arena yields outOfArena and finite poses` (chuyển từ R3.4, xem trên).
 
 **R3.6 RobotRunSession (16h).**
 - Files: `src/core/run/robot-run-session.ts`. Services tạo bằng `createRuntimeServices({ signal, console, clock: programClock, sleep, yieldNow, scheduler: createRunScheduler(timers), budget, randomInt: createSeededRandomInt(seed), warn })`.
