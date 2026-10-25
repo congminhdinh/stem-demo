@@ -764,6 +764,11 @@ Test `tests/robot-scenarios.test.ts`:
 **C2 avr8js parity harness (24h), nếu R0.4 = go.**
 - Files: `tests/uno-emulator-parity.test.ts`, `scripts/build-parity-hex.mjs`. HEX fixture được commit kèm hash của `.ino` nguồn.
 - So pin trace (IR + VirtualUno) với trace của HEX trên avr8js cho mọi driver và fixture ngôn ngữ. Lệch timing ≤ 1 %. Chạy trên Node, không cần tool ngoài.
+- *Bổ sung khi làm (C2, contract 0.1.4, ADR 0003 §10):*
+  - Harness ở `tests/parity/`: `emulated-uno.ts` (avr8js 0.21.1, port từ spike), `intel-hex.ts` (kiểm checksum), `inputs.ts` (input kịch bản, lái mọi chân input của kit), `sim-run.ts` (interpreter + virtual UNO + binding dưới `createVirtualScheduler`, chỉ nghe), `board-run.ts` + `board-trace.ts` (cạnh → trạng thái: PWM theo duty, góc servo, tone, mỗi sự kiện là một khoảng một chu kỳ timer), `compare.ts` (trạng thái từng chân khớp đúng, dòng Serial khớp đúng, khoảng từ mốc: ±1 % từ 1 ms, ±41 % dưới 1 ms), `allowed-differences.ts` (16 khác biệt được phép là dữ liệu, mỗi mục có lý do và dòng contract/ADR), `fixtures.ts` (21 fixture: 14 golden ngôn ngữ C1 + 7 chương trình, mỗi driver op của `ref-uno-rover@0` ít nhất một lần).
+  - `scripts/build-parity-hex.mjs` (`pnpm build:parity-hex`): sketch từ generator (nạp TS qua Vite SSR), compile với toolchain pin, ghi `tests/__parity__/<name>.hex` + `<name>.ino.sha256` + `toolchain.json`. Test fail khi hash của sketch hiện tại khác hash đã commit; sửa: chạy lại script. Không thuộc `pnpm verify` (cần arduino-cli); test parity thì thuộc.
+  - Kết quả: 21/21 khớp; khoảng ≥ 1 ms không có in lệch tối đa 0,250 %; khoảng có in lệch đúng phần thời gian Serial chưa charge (§7). 1,89 s ảo, cả file ≈ 1,5 s trên M4 Pro.
+  - Evidence mới, ghi contract §13: xung servo đầu tiên 52,8 ms sau `attach`; `motorSet` thêm 42,75 µs nhân/chia `long`; `tone` trên chân im 145,6…308,8 µs theo tần số (spike `helper-costs`, EMU-17). L2e của 29 dòng được phủ trích thêm EMU-16; U-08 và U-31…U-34 chưa có fixture.
 
 ## 8. Gate và mốc
 
