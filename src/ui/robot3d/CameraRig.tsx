@@ -5,7 +5,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { RobotSnapshot } from '../../core/world/snapshot';
 import { cameraLimits, topPose, type ArenaSpan, type CameraMode, type CameraPose } from './camera';
 import { chaseViewPose, clearSight, freeViewPose, VIEW_SAFE_RECT, type FreeViewScene, type SightWall } from './camera-studio';
-import type { HudCorner } from './hud-corner';
+import type { CardEdge, HudCorner } from './hud-corner';
 import { arenaToThree } from './scene-math';
 
 // The camera of the robot lab's 3D view (N18 R4.2; R4.7 gives it depth). three's own OrbitControls (ADR 0002 §5: no drei), wired by
@@ -29,6 +29,9 @@ type CameraRigProps = {
   hud?: HudCorner | null;
   /** The arena's walls: the chase camera rises to look over any between it and the robot. */
   walls?: readonly SightWall[];
+  /** The check's open results card (NDC): while it is open, the camera looks at the robot and its picture slides left, so the
+   * robot's end spot shows in the part of the view the card leaves. */
+  card?: CardEdge | null;
 };
 
 /** How long the camera glides from one view to the next, s. */
@@ -51,9 +54,10 @@ const defaultChase = (): ChaseOffset => {
   return { forward: pose.position[0] - pose.target[0], up: pose.position[1] - pose.target[1], side: pose.position[2] - pose.target[2], ahead: pose.target[0] };
 };
 
-export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0, hud = null, walls = [] }: CameraRigProps) {
+export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0, hud = null, walls = [], card = null }: CameraRigProps) {
   const camera = useThree((state) => state.camera) as PerspectiveCamera;
   const dom = useThree((state) => state.gl.domElement);
+  const size = useThree((state) => state.size);
   const invalidate = useThree((state) => state.invalidate);
   const aspect = useThree((state) => state.size.width / Math.max(1, state.size.height));
   const controls = useMemo(() => new OrbitControls(camera, dom), [camera, dom]);
@@ -62,6 +66,8 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
   const dragging = useRef(false);
   /** The learner has moved the camera since the view was last placed: a new HUD size then leaves it where it is. */
   const moved = useRef(false);
+  /** The picture's slide (NDC) now and the one it eases to: the middle of the part of the view a results card leaves. */
+  const lens = useRef({ x: 0, y: 0, goalX: 0, goalY: 0 });
   const chase = useRef<ChaseOffset>(defaultChase());
   // Read when the view changes, without being a reason to change it: a new window shape or a switch of reduced motion keeps the camera.
   const safe = useMemo(() => (hud ? { ...VIEW_SAFE_RECT, hud: { right: Math.min(0.9, hud.right), bottom: Math.max(-0.2, hud.bottom) } } : VIEW_SAFE_RECT), [hud]);
@@ -164,7 +170,49 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
     invalidate();
   }, [safe, mode, camera, controls, invalidate]);
 
+  // A results card opens: the camera turns to the robot where the run left it (a glide; in "Theo xe" it is there already), and the
+  // picture slides left by half the card, so that spot shows beside the card. It closes or folds: the picture slides back.
+  useEffect(() => {
+    const shift = lens.current;
+    shift.goalX = card ? Math.max(-0.8, (card.left - 1) / 2) : 0;
+    // Under the HUD as well when the slid picture's middle falls below it: halfway between the HUD and the bottom.
+    const hudBottom = latest.current.safe.hud.bottom;
+    shift.goalY = card && shift.goalX <= latest.current.safe.hud.right ? (hudBottom + latest.current.safe.bottom) / 2 : 0;
+    if (latest.current.reducedMotion) [shift.x, shift.y] = [shift.goalX, shift.goalY];
+    if (card && mode !== 'follow') {
+      const [px, py, pz] = robotPoint(latest.current.view());
+      const offset = new Vector3().subVectors(camera.position, controls.target);
+      const to: CameraPose = { position: [px + offset.x, py + offset.y, pz + offset.z], target: [px, py, pz] };
+      controls.enableDamping = false;
+      controls.update();
+      controls.enableDamping = !latest.current.reducedMotion;
+      if (latest.current.reducedMotion) {
+        camera.position.set(...to.position);
+        controls.target.set(...to.target);
+        controls.update();
+      } else {
+        glide.current = { from: { position: camera.position.toArray(), target: controls.target.toArray() }, to, elapsed: 0 };
+      }
+    }
+    invalidate();
+  }, [card, mode, camera, controls, invalidate]);
+
   useFrame((_, delta) => {
+    // The picture's slide (a lens shift: the camera stays, the frustum moves), eased towards its goal.
+    const shift = lens.current;
+    if (shift.x !== shift.goalX || shift.y !== shift.goalY) {
+      const share = reducedMotion ? 1 : 1 - Math.exp(-8 * Math.min(delta, 0.1));
+      const ease = (now: number, goal: number) => (Math.abs(goal - now) < 1e-3 ? goal : now + (goal - now) * share);
+      [shift.x, shift.y] = [ease(shift.x, shift.goalX), ease(shift.y, shift.goalY)];
+      invalidate();
+    }
+    if (shift.x === 0 && shift.y === 0) {
+      if (camera.view?.enabled) camera.clearViewOffset();
+    } else {
+      // A window over a frame of the same size: the camera stays, the picture moves by the slide (left and down for negative values).
+      camera.setViewOffset(size.width, size.height, (-shift.x * size.width) / 2, (shift.y * size.height) / 2, size.width, size.height);
+    }
+    dom.dataset.lensShift = shift.x === 0 && shift.y === 0 ? '0' : `${shift.x.toFixed(2)},${shift.y.toFixed(2)}`;
     const moving = glide.current;
     if (moving) {
       moving.elapsed += Math.min(delta, 0.1);

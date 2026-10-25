@@ -11,7 +11,7 @@ import { createTextureSet } from './assets/textures';
 import type { ArenaSpan, CameraMode } from './camera';
 import { CameraRig } from './CameraRig';
 import { freeViewForward, sightWalls, type FreeViewScene } from './camera-studio';
-import type { HudCorner } from './hud-corner';
+import type { CardEdge, HudCorner } from './hud-corner';
 import { robot3dColors as colors } from './colors';
 import { tierLook } from './lighting/look';
 import { StudioLighting } from './lighting/StudioLighting';
@@ -48,6 +48,8 @@ export type SceneProps = {
   resetKey?: number;
   /** N18 R4.7: where the HUD covers the view (NDC), which the free view frames the lesson clear of. */
   hud?: HudCorner | null;
+  /** N18 R4.7: the check's open results card (NDC), which the camera keeps the robot's end spot clear of. */
+  card?: CardEdge | null;
 };
 
 /** The camera's vertical field of view, degrees. */
@@ -212,7 +214,7 @@ function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewF
   );
 }
 
-export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored, onFirstFrame, resetKey, hud = null }: SceneProps) {
+export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored, onFirstFrame, resetKey, hud = null, card = null }: SceneProps) {
   const settings = tierSettings[tier];
   const idle = useMemo(() => idleSnapshot(scenario, kit), [scenario, kit]);
   const view = useCallback(() => store.getState().latestWorld() ?? idle, [store, idle]);
@@ -239,7 +241,7 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
         <SceneContent scenario={scenario} kit={kit} model={model} view={view} span={span} tier={tier} zoneLabel={zoneLabel} viewForward={viewForward} cameraMode={cameraMode} />
         {onFirstFrame && <FirstFrame onDrawn={onFirstFrame} />}
       </Suspense>
-      <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} resetKey={resetKey} hud={hud} walls={walls} />
+      <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} resetKey={resetKey} hud={hud} card={card} walls={walls} />
       <RedrawOnChange store={store} />
       <ContextWatch onLost={onContextLost} onRestored={onContextRestored} />
     </Canvas>

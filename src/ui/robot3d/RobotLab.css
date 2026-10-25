@@ -876,6 +876,27 @@
   font-size: 12px;
 }
 
+/* N18 R4.7 (R6.3's carry): a long result shows that it goes on: a thin scrollbar that stays (macOS hides overlay ones), and scroll
+   shadows at an edge with more beyond it (the cover gradients scroll with the content, the shadows stay with the box). */
+.robot-check-panel {
+  background:
+    linear-gradient(var(--stem-color-overlay) 30%, transparent) center top / 100% 32px no-repeat local,
+    linear-gradient(transparent, var(--stem-color-overlay) 70%) center bottom / 100% 32px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, var(--stem-shadow-scroll), transparent) center top / 100% 18px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, var(--stem-shadow-scroll), transparent) center bottom / 100% 18px no-repeat scroll,
+    var(--stem-color-overlay);
+}
+
+.robot-check-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.robot-check-panel::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--stem-color-text-muted) 60%, transparent) padding-box;
+}
+
 .robot-check-panel-passed {
   border-top-color: var(--stem-color-success);
 }

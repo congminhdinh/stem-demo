@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from '../app/ErrorBoundary';
 import { useText } from '../i18n/text';
 import type { CameraMode } from './camera';
-import { useHudCorner } from './hud-corner';
+import { useViewOverlays } from './hud-corner';
 import { Icon } from './icons';
 import { probeWebgl, tierForRenderer, type QualityTier, type WebglProbe } from './quality';
 import Scene, { type SceneProps } from './Scene';
@@ -25,7 +25,7 @@ const cameraModes: readonly { mode: CameraMode; label: 'robot.camera.orbit' | 'r
   { mode: 'top', label: 'robot.camera.top', icon: 'top' },
 ];
 
-type SceneHostProps = Omit<SceneProps, 'tier' | 'cameraMode' | 'onContextLost' | 'onContextRestored' | 'hud'> & {
+type SceneHostProps = Omit<SceneProps, 'tier' | 'cameraMode' | 'onContextLost' | 'onContextRestored' | 'hud' | 'card'> & {
   /** Tests: whether WebGL is there and what draws it (the browser's own probe by default). */
   probe?: () => WebglProbe;
 };
@@ -38,7 +38,7 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
   // N18 R4.7: "đặt lại góc nhìn" puts the current view's camera back where that view starts.
   const [resetKey, setResetKey] = useState(0);
   const sceneBox = useRef<HTMLDivElement>(null);
-  const hud = useHudCorner(sceneBox);
+  const { hud, card } = useViewOverlays(sceneBox);
   const [attempt, setAttempt] = useState(0);
   const [context, setContext] = useState<ContextState>('ok');
   // The learner picked the 2D view (N18 R4.6): the canvas is gone while they have it, and made again when they go back.
@@ -117,6 +117,7 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
               onFirstFrame={onFirstFrame}
               resetKey={resetKey}
               hud={hud}
+              card={card}
             />
           </ErrorBoundary>
           {!drawn && failedAttempt !== attempt && context === 'ok' && (
