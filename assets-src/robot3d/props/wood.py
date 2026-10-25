@@ -15,7 +15,7 @@ def beech(lib, tex):
 
 
 def walnut(lib, tex):
-    return lib.material('walnut', image=lib.image_from_array('walnut', lambda: tex.wood(512, 512, '#6d4a31', '#3b2618', 31, lines=12, warp=2.8, fibre=0.4)), roughness=0.42, coat=0.35)
+    return lib.material('walnut', image=lib.image_from_array('walnut', lambda: tex.wood(512, 512, '#6d4a31', '#3b2618', 31, lines=12, warp=2.8, fibre=0.4)), roughness=0.5)
 
 
 def face_uvs(lib, obj, size, faces):

@@ -20,7 +20,7 @@ def build(lib, tex, kit, col):
     white = lib.material('abs_white', '#f4f4f1', roughness=0.45)
     yellow = lib.material('beam_yellow', '#ffc21a', metallic=0.35, roughness=0.34)
     steel = lib.material('steel', '#c5cad1', metallic=1.0, roughness=0.24)
-    flag = lib.material('flag_red', '#e63339', roughness=0.7, double_sided=True)
+    flag = lib.material('flag_blue', '#1f6bff', roughness=0.7, double_sided=True)
     mast = lib.material('mast_white', '#f7f7f5', metallic=0.2, roughness=0.3)
     brown = lib.material('wire_brown', '#6b3b1f', roughness=0.5)
     red = lib.material('wire_red', '#d1262b', roughness=0.5)
@@ -78,7 +78,7 @@ def build(lib, tex, kit, col):
     finial = lib.sphere('mast_finial', 0.24, at=(0, 0, height + 0.12), material=lib.material('finial_gold', '#e2bd5f', metallic=1.0, roughness=0.25), segments=16, rings=8, col=col, parent=mast_node)
     clamp = lib.cylinder('mast_clamp', 0.28, 0.4, at=(0, 0, 0.2), material=yellow, segments=14, col=col, parent=mast_node)
     lib.join([rod, finial, clamp], 'mast')
-    pennant_h, pennant_l = 2.6, 3.8
+    pennant_h, pennant_l = 3.4, 5.2
     pennant_node = lib.empty('flag_pennant', parent=mast_node, at=(0, 0, height - 0.35), col=col)
     pennant_node['low'] = lib.cm(0.6 + pennant_h)
     pennant_node['high'] = lib.cm(height - 0.35)

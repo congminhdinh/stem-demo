@@ -7,7 +7,7 @@ def build_post(lib, tex, kit, col, wood):
     pvc = lib.material('pvc_white', '#f3f5f7', roughness=0.3)
     grey = lib.material('pvc_grey', '#9aa3ad', roughness=0.5)
     parts = [
-        lib.lathe('post_foot', [(0.0, 0.0), (2.4, 0.0), (2.4, 0.4), (1.3, 0.9), (1.1, 1.4), (0.0, 1.4)], material=grey, segments=32, col=col, parent=root),
+        lib.lathe('post_foot', [(0.0, 0.0), (1.7, 0.0), (1.7, 0.3), (1.15, 0.7), (0.95, 1.1), (0.0, 1.1)], material=grey, segments=32, col=col, parent=root),
         lib.cylinder('post_pipe', 0.8, 15.0, at=(0, 0, 8.4), material=pvc, segments=24, col=col, parent=root),
     ]
     for z in (6.0, 14.0):
