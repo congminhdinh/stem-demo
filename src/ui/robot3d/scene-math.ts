@@ -20,6 +20,11 @@ export function arenaToThree(xCm: number, yCm: number, zCm: number): Vec3Tuple {
   return [m(xCm), m(zCm), 0 - m(yCm)];
 }
 
+/** N18 R4.8: a three.js position (m; +Y up) as an arena point (cm; z up from the floor): `arenaToThree` undone. */
+export function threeToArena(x: number, y: number, z: number): Vec3Tuple {
+  return [x * CM_PER_M, 0 - z * CM_PER_M, y * CM_PER_M];
+}
+
 /** A point of the robot frame (a kit mount, cm: x forward, y left, z up) in the robot group's three.js frame (m). */
 export function robotPointToThree([x, y, z]: RobotPointCm): Vec3Tuple {
   return arenaToThree(x, y, z);

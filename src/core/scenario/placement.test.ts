@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { productionKits, referenceKitRef, type Kit } from '../hardware';
 import { sandboxScenario } from '../run/__fixtures__/robot-session';
-import { checkPlacement } from './placement';
+import { checkPlacement, robotOutlineCm } from './placement';
 
 // N18 R4.8: where the learner may put the robot before a Run ("Di chuyển robot"): inside the arena, its heading in (-180°, 180°], and on
 // nothing (the same check a scenario's start passes, footprint.ts).
@@ -10,6 +10,16 @@ const rover = productionKits.get(referenceKitRef) as Kit;
 // The rover seen from above, at yaw 0: its outline spans x -7.5..7.5 (the body) and y -8.8..8.8 (the wheels).
 const open = sandboxScenario({ sizeCm: [300, 150] }).arena;
 const walled = sandboxScenario({ sizeCm: [300, 150], wallAtCm: 100 }).arena;
+
+describe('robotOutlineCm', () => {
+  it('is the rover’s outline from above: the body’s ends and the wheels’ sides', () => {
+    const outline = robotOutlineCm(rover);
+    expect(Math.min(...outline.map(([x]) => x))).toBe(-7.5);
+    expect(Math.max(...outline.map(([x]) => x))).toBe(7.5);
+    expect(Math.min(...outline.map(([, y]) => y))).toBe(-8.8);
+    expect(Math.max(...outline.map(([, y]) => y))).toBe(8.8);
+  });
+});
 
 describe('checkPlacement', () => {
   it('keeps a pose that is clear and inside, its heading turned into (-180°, 180°]', () => {

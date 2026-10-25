@@ -20,6 +20,11 @@ export type Placement = {
   readonly issues: readonly { readonly path: string; readonly message: string }[];
 };
 
+/** The robot's outline seen from above (robot frame, cm, counter-clockwise): what stands on the floor, the body and the wheels. */
+export function robotOutlineCm(kit: Kit): readonly (readonly [number, number])[] {
+  return robotFootprint(kit).outlineCm;
+}
+
 /** A heading in (-180°, 180°]. `+ 0` makes −0 a 0. */
 export function normalizeYawDeg(yawDeg: number): number {
   const turned = ((yawDeg % 360) + 360) % 360;

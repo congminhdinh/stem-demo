@@ -31,6 +31,16 @@ export function fitTopView(arenaCm: readonly [number, number], stage: StageSize,
   };
 }
 
+/** N18 R4.8: the arena point (cm) under the stage point (`x`, `y`, px): the fit undone (the ruler and the move tool on the map). */
+export function stageToArena(fit: TopViewFit, x: number, y: number): { xCm: number; yCm: number } {
+  return { xCm: (x - fit.originX) / fit.scale, yCm: (fit.originY - y) / fit.scale + 0 };
+}
+
+/** N18 R4.8: the stage point (px) of an arena point (cm): where a label of the map's tools stands, upright. */
+export function arenaToStage(fit: TopViewFit, point: { xCm: number; yCm: number }): { x: number; y: number } {
+  return { x: fit.originX + point.xCm * fit.scale, y: fit.originY - point.yCm * fit.scale };
+}
+
 /** The scale bar: it is 10 cm long, `lengthPx` on a stage at `scale` px a cm. */
 export function scaleBar(scale: number): { cm: number; lengthPx: number } {
   const cm = 10;
