@@ -10,7 +10,7 @@ import { paintZonePattern } from './zone-pattern';
 // drawn right over its fill, for learners who cannot tell the zones' colours apart.
 
 /** What `paintGround` uses of a 2D context (a real CanvasRenderingContext2D, or a recorder in tests). */
-export type PaintContext = Pick<CanvasRenderingContext2D, 'fillRect' | 'beginPath' | 'moveTo' | 'lineTo' | 'closePath' | 'fill' | 'stroke' | 'fillText'> & {
+export type PaintContext = Pick<CanvasRenderingContext2D, 'fillRect' | 'beginPath' | 'moveTo' | 'lineTo' | 'closePath' | 'fill' | 'stroke' | 'fillText' | 'strokeText'> & {
   fillStyle: CanvasRenderingContext2D['fillStyle'];
   strokeStyle: CanvasRenderingContext2D['strokeStyle'];
   lineWidth: number;
@@ -66,6 +66,13 @@ export function paintGround(ctx: PaintContext, arena: Pick<Arena, 'ground' | 'pa
       ctx.font = labelFont(size);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
+      if (options.patterns === true) {
+        // N18 R8: a pale halo, so that the name reads over the pattern's lines.
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = Math.max(2.5, size * 0.3);
+        ctx.strokeStyle = robot3dColors.zoneLabelHalo;
+        ctx.strokeText(label, px((minX + maxX) / 2), py((minY + maxY) / 2));
+      }
       ctx.fillText(label, px((minX + maxX) / 2), py((minY + maxY) / 2));
     }
   }

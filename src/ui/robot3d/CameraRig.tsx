@@ -118,7 +118,12 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
   };
 
   useEffect(() => {
-    const onChange = () => invalidate();
+    const onChange = () => {
+      invalidate();
+      // Where the camera is, for the E2E and a curious developer (like the lens shift's): its distance from what it looks at (m), the
+      // turn about the vertical and the angle from the vertical (degrees).
+      dom.dataset.camera = `${camera.position.distanceTo(controls.target).toFixed(3)} ${((controls.getAzimuthalAngle() * 180) / Math.PI).toFixed(1)} ${((controls.getPolarAngle() * 180) / Math.PI).toFixed(1)}`;
+    };
     const onStart = () => {
       dragging.current = true;
       moved.current = true;
@@ -138,7 +143,7 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
       controls.dispose();
     };
     // rememberChase reads refs and the camera and controls this effect depends on.
-  }, [controls, invalidate, camera]);
+  }, [controls, invalidate, camera, dom]);
 
   // N18 R8: the keyboard's steps. A step jumps to its place (no glide, no damping): it is the learner's own, and a held key repeats it. An
   // unfinished glide gives way. The camera counts as moved by the learner, and the chase remembers where they put it.

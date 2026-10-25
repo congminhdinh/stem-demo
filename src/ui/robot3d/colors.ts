@@ -8,7 +8,9 @@ export const robot3dColors = {
   table: '#d7dee8',
   /** The black tape of the lines (reflectance 0) and the text of a zone's label painted on the floor. */
   tape: '#15171c',
-  zoneLabel: 'rgba(30, 41, 59, 0.42)',
+  /** The text of a zone's name painted on the floor of the 2D map: opaque and dark (N18 R8: it was 42 % slate, 2.2:1 on the pale zones), with a pale halo where a pattern runs under it. */
+  zoneLabel: '#334155',
+  zoneLabelHalo: 'rgba(255, 255, 255, 0.85)',
   /** Arena bodies. */
   wall: '#b8c4d4',
   wallTop: '#9aa8bb',

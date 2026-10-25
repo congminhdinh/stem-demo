@@ -129,6 +129,12 @@ describe('what the lab draws on the canvas (N18 R8)', () => {
     expect(tagBadgeColor('#fff2cc', false)).toBe('rgb(209, 198, 167)');
   });
 
+  it('the zones’ names on the 2D map and the fallback floor are opaque dark text on every pilot zone and ground, 4.5:1 or more', () => {
+    const fills = new Set(scenarioCatalog.scenarios.flatMap((scenario) => [scenario.arena.ground.color, ...scenario.arena.paint.zones.map((zone) => zone.color)]));
+    expect(fills.size).toBeGreaterThanOrEqual(4);
+    for (const fill of fills) expect(contrastRatio(robot3dColors.zoneLabel, fill), fill).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('the distance tag and the ruler’s label read over any mat', () => {
     expect(worstRatio(sensorColors.labelText, sensorColors.labelBackground)).toBeGreaterThanOrEqual(4.5);
     expect(worstRatio(toolColors.labelText, toolColors.labelBackground)).toBeGreaterThanOrEqual(4.5);

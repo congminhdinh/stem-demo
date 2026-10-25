@@ -7,7 +7,8 @@ import { Icon } from './icons';
 import { isRunOver, shownRun, type RobotRunStore } from './robot-run-store';
 
 // Under the robot lab's 3D view (N18 R4.4): the robot's button ("Nút", held with the pointer or the keyboard while a run goes on), the
-// sound switch, and what the program printed on Serial, in the console the other labs use (N18 R8: quiet, not read out line by line).
+// sound switch, and what the program printed on Serial, in the console the other labs use (N18 R8: quiet, not read out line by line; the
+// sound button's name says what it does, "Tắt âm thanh" or "Bật âm thanh", so it is not also "pressed").
 
 type RobotDockProps = {
   store: RobotRunStore;
@@ -94,7 +95,6 @@ export function RobotDock({ store, buttonRole, sound }: RobotDockProps) {
         <button
           type="button"
           className="robot-sound"
-          aria-pressed={sound.on}
           onClick={sound.toggle}
           title={sound.on ? t('sound.turnOff') : t('sound.turnOn')}
           aria-label={sound.on ? t('sound.turnOff') : t('sound.turnOn')}

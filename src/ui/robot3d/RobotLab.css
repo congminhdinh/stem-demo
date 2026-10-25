@@ -90,11 +90,67 @@
   color: var(--stem-color-warning-text);
 }
 
+/* N18 R8: one focus ring for everything the keyboard reaches in the lab: 3 px of the primary colour, which has at least 3:1 against every
+   surface it is drawn on (robot-contrast.test.ts), 2 px clear of the control. Blockly's own are its own. */
 .robot-header button:focus-visible,
 .robot-viewport button:focus-visible,
-.robot-program button:focus-visible {
+.robot-program button:focus-visible,
+.robot-lab summary:focus-visible,
+.robot-lab .robot-serial .run-console:focus-visible,
+.robot-lab .cpp-source:focus-visible,
+.robot-check-panel h3:focus-visible {
   outline: 3px solid var(--stem-color-primary);
   outline-offset: 2px;
+}
+
+/* The 3D view is a stop of its own (named, with its keys as its description). Its ring is drawn over the canvas, not as an outline of the
+   view (which the canvas would cover), with a pale line inside it so that it shows against any arena. The hint that lists its keys is read
+   to a screen reader always and shown over the view's foot while the keyboard has the focus on it. */
+.robot-scene:focus {
+  outline: none;
+}
+
+.robot-scene:focus-visible::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  box-sizing: border-box;
+  border: 3px solid var(--stem-color-primary);
+  box-shadow: inset 0 0 0 2px var(--stem-color-surface);
+  pointer-events: none;
+}
+
+.robot-view-hint {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.robot-scene:focus-visible + .robot-view-hint {
+  right: 10px;
+  bottom: 10px;
+  left: 10px;
+  z-index: 4;
+  width: auto;
+  height: auto;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  overflow: visible;
+  border: 1px solid var(--stem-color-border-strong);
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-overlay);
+  box-shadow: 0 2px 8px var(--stem-shadow-scroll);
+  clip-path: none;
+  color: var(--stem-color-text);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: normal;
+  pointer-events: none;
 }
 
 /* The speed: one control of four choices. */
@@ -625,6 +681,13 @@
   box-shadow: 0 0 0 var(--stem-shadow-pressed);
 }
 
+/* N18 R8: with reduced motion the robot's button still goes down and up, but does not slide. */
+@media (prefers-reduced-motion: reduce) {
+  .robot-hold-cap {
+    transition: none;
+  }
+}
+
 .robot-hold-button:disabled,
 .robot-sound:disabled {
   cursor: default;
@@ -1122,5 +1185,21 @@
 
   .robot-header-checkable > :not(.robot-title, .robot-check, .robot-controls) {
     order: 3;
+  }
+}
+
+/*
+ * N18 R8: a short window (a browser zoomed to 200 % in a 1100 × 640 window is 550 × 320 CSS px; a phone held sideways): the 3D view and the
+ * controls over it keep the room they need and the page scrolls, as WCAG's reflow asks, instead of the view shrinking to a sliver with its
+ * controls clipped. From 561 px up nothing changes.
+ */
+@media (max-height: 560px) {
+  .app-shell-lab:has(.robot-lab) {
+    height: auto;
+    min-height: 100dvh;
+  }
+
+  .robot-lab .robot-workspace {
+    min-height: 460px;
   }
 }

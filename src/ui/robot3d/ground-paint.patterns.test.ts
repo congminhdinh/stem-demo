@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseArena } from '../../core/world/arena/arena-schema';
+import { robot3dColors } from './colors';
 import { paintGround, type PaintContext } from './ground-paint';
 import { patternInk } from './zone-pattern';
 
@@ -17,6 +18,7 @@ function recorder() {
         if (key === 'fill') log.push(`fill ${String(state.fillStyle)}`);
         else if (key === 'stroke') log.push(`stroke ${String(state.strokeStyle)} ${String(state.lineWidth)} ${String(state.lineCap)}`);
         else if (key === 'fillText') log.push('text');
+        else if (key === 'strokeText') log.push(`halo ${String(state.strokeStyle)}`);
       };
     },
     set(target, key: string, value) {
@@ -64,10 +66,18 @@ describe('paintGround patterns (N18 R8)', () => {
     expect(log).toEqual(['fill #cfe2f3', 'fill #fff2cc', 'fill #d9ead3', 'fill #f4cccc', expect.stringMatching(/^stroke #15171c 8 round$/)]);
   });
 
-  it('keeps a pattern under the zone’s label', () => {
+  it('keeps a pattern under the zone’s label, which has a pale halo of its own over the lines', () => {
     const { ctx, log } = recorder();
     paintGround(ctx, arena, { pxPerCm: 4, zoneLabel: (zone) => (zone.kind === 'target' ? 'Đích' : null), patterns: true });
     const hatch = log.findIndex((entry) => entry.startsWith(`stroke ${patternInk('#d9ead3')}`));
-    expect(log.indexOf('text')).toBeGreaterThan(hatch);
+    expect(log[hatch + 1]).toBe(`halo ${robot3dColors.zoneLabelHalo}`);
+    expect(log[hatch + 2]).toBe('text');
+  });
+
+  it('draws the label as it always did, with no halo, when there are no patterns', () => {
+    const { ctx, log } = recorder();
+    paintGround(ctx, arena, { pxPerCm: 4, zoneLabel: (zone) => (zone.kind === 'target' ? 'Đích' : null) });
+    expect(log.some((entry) => entry.startsWith('halo'))).toBe(false);
+    expect(log).toContain('text');
   });
 });
