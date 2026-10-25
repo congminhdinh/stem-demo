@@ -1,7 +1,12 @@
-import { compileCase, sketchCases, type SketchCase } from '../../src/core/codegen/arduino/__fixtures__/sketch-cases';
+import { blocksOf, compileCase, sketchCases, type SketchCase } from '../../src/core/codegen/arduino/__fixtures__/sketch-cases';
 import { generateUnoSketch } from '../../src/core/codegen/arduino/generate';
+import { kitKey, portParam, productionKits, referenceKitRef, type Kit, type KitRef } from '../../src/core/hardware';
+import { rehearsalKit, rehearsalKitRef, rehearsalKits } from '../../src/core/hardware/rehearsal-kits';
+import { productionProfiles } from '../../src/core/profiles';
+import { unoDocument } from '../../src/core/profiles/__fixtures__/uno-document';
+import { compileUnoProject } from '../../src/core/program/compile-uno-program';
 import {
-  buttonPressed, buzzerStop, buzzerTone, driveMove, driveStop, led, lineDark, lineRaw, motorSet, servoSet, ultrasonic,
+  buttonPressed, buzzerStop, buzzerTone, driveMove, driveStop, led, lineDark, lineRaw, motorSet, packs, registry, servoSet, ultrasonic,
 } from '../../src/core/program/__fixtures__/uno-blocks';
 import { add, getVar, ifThen, mul, num, print, setVar, wait } from '../../src/core/program/__fixtures__/ybc-blocks';
 import type { ParityInputs } from './inputs';
@@ -19,12 +24,18 @@ import type { SimProgram } from './sim-run';
 //
 // `pnpm build:parity-hex` (scripts/build-parity-hex.mjs) compiles each fixture's sketch into tests/__parity__/<name>.hex and writes
 // the sha256 of the sketch next to it; tests/uno-emulator-parity.test.ts refuses a HEX whose sketch the generator no longer writes.
+//
+// N18 R8a, the kit-swap rehearsal: `rehearsalParityFixtures` are the driver fixtures again on rehearsal-rover@0 (the same programs, their
+// inputs on that kit's pins), with their HEX in tests/__parity-rehearsal__ (`pnpm build:parity-hex --rehearsal`); tests/kit-rehearsal.test.ts
+// runs them.
 
 export type ParityFixture = Pick<SketchCase, 'name' | 'covers' | 'profile' | 'onStart' | 'forever' | 'variables'> & {
   /** `golden`: a C1 golden, as sketch-cases.ts has it; `driver`: a driver op of the reference kit; `language`: a language row no golden runs. */
   readonly origin: 'golden' | 'driver' | 'language';
   readonly durationMs: number;
   readonly inputs: ParityInputs;
+  /** The kit the program is compiled for (N18 R8a): ref-uno-rover@0 when absent; otherwise a kit of `rehearsalKits`. */
+  readonly kit?: KitRef;
 };
 
 /**
@@ -347,8 +358,58 @@ const toneThenPin: ParityFixture[] = [
 
 export const parityFixtures: readonly ParityFixture[] = [...goldens, ...drivers, ...toneThenPin, ...language];
 
-/** A fixture's program, compiled as the robot lab compiles it (compileUnoProject against ref-uno-rover@0). */
-export const compileFixture = (fixture: ParityFixture): SimProgram => compileCase(fixture);
+/** A fixture's program, compiled as the robot lab compiles it (compileUnoProject against ref-uno-rover@0, or the fixture's kit). */
+export function compileFixture(fixture: ParityFixture): SimProgram {
+  if (fixture.kit === undefined) {
+    return compileCase(fixture);
+  }
+  const document = unoDocument(fixture.profile, { program: { blocks: blocksOf(fixture) }, kit: { ...fixture.kit } });
+  const compiled = compileUnoProject(document, { registry, profiles: productionProfiles, packs, kits: rehearsalKits });
+  if (!compiled.ok) {
+    throw new Error(`${fixture.name} does not compile for ${kitKey(fixture.kit)}: ${JSON.stringify(compiled.diagnostics)}`);
+  }
+  return compiled;
+}
+
+/**
+ * The inputs of a fixture of `from` on the pins of `to`, for the same world: each pin of a port goes to the pin of the same name of the same
+ * port of `to`; a line sensor whose `activeLow` differs reads the other level (its pin, scripted in the fixture, also gets the other one of
+ * its INPUT default, LOW, at 0 µs); ADC values and echoes stay what they are.
+ */
+export function inputsOnKit(inputs: ParityInputs, from: Kit, to: Kit): ParityInputs {
+  const pinOf = new Map<string, string>();
+  const inverted = new Set<string>();
+  for (const port of from.ports) {
+    const other = to.ports.find((candidate) => candidate.id === port.id && candidate.driver === port.driver);
+    if (other === undefined) throw new Error(`${kitKey(to)} has no port ${port.id} driven by ${port.driver}`);
+    for (const [name, pin] of Object.entries(port.pins)) {
+      pinOf.set(pin, other.pins[name] as string);
+      if (port.driver === 'line-digital' && portParam(port, 'activeLow') !== portParam(other, 'activeLow')) inverted.add(pin);
+    }
+  }
+  const mapped = (pin: string) => pinOf.get(pin) ?? pin;
+  const scripted = [...new Set((inputs.levels ?? []).map((change) => change.pin))].filter((pin) => inverted.has(pin));
+  return {
+    ...(inputs.levels === undefined
+      ? {}
+      : {
+          levels: [
+            ...scripted.map((pin) => ({ pin: mapped(pin), atUs: 0, level: 1 as const })),
+            ...inputs.levels.map((change) => ({ pin: mapped(change.pin), atUs: change.atUs, level: inverted.has(change.pin) ? ((1 - change.level) as 0 | 1) : change.level })),
+          ],
+        }),
+    ...(inputs.analog === undefined ? {} : { analog: inputs.analog.map((group) => ({ pins: group.pins.map(mapped), values: group.values })) }),
+    ...(inputs.echoes === undefined ? {} : { echoes: { ...inputs.echoes, trig: mapped(inputs.echoes.trig), echo: mapped(inputs.echoes.echo) } }),
+  };
+}
+
+/** N18 R8a: every driver fixture on rehearsal-rover@0, the same program and world, named `rehearsal-<name>`. */
+export const rehearsalParityFixtures: readonly ParityFixture[] = drivers.map((fixture) => ({
+  ...fixture,
+  name: `rehearsal-${fixture.name}`,
+  kit: rehearsalKitRef,
+  inputs: inputsOnKit(fixture.inputs, productionKits.get(referenceKitRef) as Kit, rehearsalKit),
+}));
 
 /** The sketch the generator writes for a fixture (what build-parity-hex.mjs compiles). */
 export function sketchOf(fixture: ParityFixture): string {

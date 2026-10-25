@@ -11,7 +11,10 @@
 // The HEX and hash files are committed, so tests/uno-emulator-parity.test.ts runs on Node with no tool (avr8js runs the HEX). That
 // test fails when a fixture's sketch is no longer the one hashed: run this script again (`pnpm build:parity-hex`) and commit.
 //
-//   node scripts/build-parity-hex.mjs [fixture-name ...]
+//   node scripts/build-parity-hex.mjs [--rehearsal] [fixture-name ...]
+//
+// --rehearsal builds the kit-swap rehearsal's fixtures instead (N18 R8a: `rehearsalParityFixtures`, the driver fixtures on
+// rehearsal-rover@0) into tests/__parity-rehearsal__, with a toolchain.json of its own; tests/kit-rehearsal.test.ts runs them.
 //
 // ARDUINO_CLI names the arduino-cli to run (default: the one on PATH). The script never installs anything: a missing arduino-cli,
 // core or library (or another version) is PENDING. Exit codes: 0 built, 1 a sketch failed or a fixture is unknown, 2 PENDING
@@ -27,7 +30,8 @@ import { fileURLToPath, URL } from 'node:url';
 import { createServer } from 'vite';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const outDir = join(root, 'tests', '__parity__');
+const rehearsal = process.argv.includes('--rehearsal');
+const outDir = join(root, 'tests', rehearsal ? '__parity-rehearsal__' : '__parity__');
 const pinned = { cli: '1.5.1', core: { id: 'arduino:avr', version: '1.8.8' }, libraries: [{ name: 'Servo', version: '1.3.0' }], fqbn: 'arduino:avr:uno' };
 
 const cli = process.env.ARDUINO_CLI || 'arduino-cli';
@@ -93,8 +97,8 @@ async function loadFixtures() {
     optimizeDeps: { noDiscovery: true, include: [] },
   });
   try {
-    const { parityFixtures, sketchOf } = await server.ssrLoadModule('/tests/parity/fixtures.ts');
-    return parityFixtures.map((fixture) => ({ name: fixture.name, source: sketchOf(fixture) }));
+    const { parityFixtures, rehearsalParityFixtures, sketchOf } = await server.ssrLoadModule('/tests/parity/fixtures.ts');
+    return (rehearsal ? rehearsalParityFixtures : parityFixtures).map((fixture) => ({ name: fixture.name, source: sketchOf(fixture) }));
   } finally {
     await server.close();
   }
@@ -107,7 +111,7 @@ if (missing) {
 }
 
 const all = await loadFixtures();
-const wanted = process.argv.slice(2);
+const wanted = process.argv.slice(2).filter((arg) => arg !== '--rehearsal');
 const unknown = wanted.filter((name) => !all.some((fixture) => fixture.name === name));
 if (unknown.length > 0) {
   log(`FAIL: no parity fixture named ${unknown.join(', ')}`);

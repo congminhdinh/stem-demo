@@ -1,0 +1,45 @@
+{
+  "fqbn": "arduino:avr:uno",
+  "arduinoCli": "1.5.1",
+  "core": "arduino:avr@1.8.8",
+  "libraries": [
+    "Servo@1.3.0"
+  ],
+  "sketches": {
+    "rehearsal-driver-button": {
+      "flashBytes": 892,
+      "ramBytes": 9,
+      "hexSha256": "074d4edbb0530b9544495ec9518f76584de85089d8c5c4f4928bb11ad8b0cec0"
+    },
+    "rehearsal-driver-buzzer": {
+      "flashBytes": 2360,
+      "ramBytes": 28,
+      "hexSha256": "c7854f423f14027c3a824493b2c5d7ebb3c17e8a1fb1c057c8fe320929237b70"
+    },
+    "rehearsal-driver-led": {
+      "flashBytes": 968,
+      "ramBytes": 9,
+      "hexSha256": "845c00492e71e89fb1b0a27863cee4b34f658c4787674761e02fc743b5b60efa"
+    },
+    "rehearsal-driver-line": {
+      "flashBytes": 2534,
+      "ramBytes": 188,
+      "hexSha256": "749bee92e96a49d59af1dd0774ba2ae68fd1acc0128166127c7322c1f335a618"
+    },
+    "rehearsal-driver-motor": {
+      "flashBytes": 1730,
+      "ramBytes": 9,
+      "hexSha256": "6a24cea558f65b891a499d7a7fb541e1457471b1cd6940567b77c79f3bca4def"
+    },
+    "rehearsal-driver-servo": {
+      "flashBytes": 2098,
+      "ramBytes": 50,
+      "hexSha256": "1a80f60707574a62907909bee3df8d64d0004217d165303433369d3050df3b8a"
+    },
+    "rehearsal-driver-ultrasonic": {
+      "flashBytes": 2682,
+      "ramBytes": 188,
+      "hexSha256": "7e95237a14aa6697b23d7060e4e281fe9961a37561e2ca02f9171a85a19459a6"
+    }
+  }
+}
