@@ -4,8 +4,9 @@ import { describe, expect, it } from 'vitest';
 
 // N18 R4.1 (plan §5, the 3D chunk budget): the robot lab, and with R4.2 the 3D scene and the physics behind it, is a chunk that only
 // `lab=robot` loads. A single static import of src/ui/robot3d from anywhere else would pull it into the main bundle for every lab,
-// whatever the launch says; so the only way in is the one `import()` in App.tsx, behind React.lazy. (e2e/robot-bundle.spec.ts
-// watches the network for the same thing; this is the cheap guard that runs with every `pnpm test`.)
+// whatever the launch says; so the only way in is the one `import()` in RobotLabLoader.tsx, behind React.lazy (and an error
+// boundary, for a chunk that does not load). (e2e/robot-bundle.spec.ts watches the network for the same thing; this is the cheap guard
+// that runs with every `pnpm test`.)
 
 const sourceRoot = join(import.meta.dirname, '..', 'src');
 const robotRoot = join(sourceRoot, 'ui', 'robot3d');
@@ -43,9 +44,15 @@ describe('the robot lab chunk (N18 R4.1)', () => {
     expect(outside.filter((path) => staticImport.test(read(path))).map(name)).toEqual([]);
   });
 
-  it('is imported dynamically once, by App.tsx, behind React.lazy', () => {
+  it('is imported dynamically once, by RobotLabLoader.tsx, behind React.lazy', () => {
     const importers = outside.flatMap((path) => (read(path).match(dynamicImport) ?? []).map(() => name(path)));
-    expect(importers).toEqual(['ui/app/App.tsx']);
-    expect(read(join(sourceRoot, 'ui', 'app', 'App.tsx'))).toMatch(/lazy\(\(\) => import\('\.\.\/robot3d\/RobotLab'\)\)/);
+    expect(importers).toEqual(['ui/app/RobotLabLoader.tsx']);
+    const loader = read(join(sourceRoot, 'ui', 'app', 'RobotLabLoader.tsx'));
+    expect(loader).toMatch(/=> import\('\.\.\/robot3d\/RobotLab'\)/);
+    expect(loader).toMatch(/lazy\(load\)/);
+  });
+
+  it('is loaded by App through RobotLabLoader only', () => {
+    expect(read(join(sourceRoot, 'ui', 'app', 'App.tsx'))).toMatch(/<RobotLabLoader /);
   });
 });

@@ -308,14 +308,14 @@ export const launchProblemRules: readonly Rule[] = [
   [/^A template opens only in an embedded lab: add embed=1\.$/, () => 'Mẫu bài chỉ mở trong lab nhúng: thêm embed=1.'],
   [/^embed must be given once, as embed=1\.$/, () => 'Tham số embed phải có đúng một lần, dạng embed=1.'],
   [/^lab must be given once\.$/, () => 'Tham số lab chỉ được có một lần.'],
-  [/^Unknown lab "(.*)": use lab=blockly or lab=yolobit\.$/, (lab) => `Không có lab "${lab}": dùng lab=blockly hoặc lab=yolobit.`],
+  [/^Unknown lab "(.*)": use lab=blockly, lab=yolobit or lab=robot\.$/, (lab) => `Không có lab "${lab}": dùng lab=blockly, lab=yolobit hoặc lab=robot.`],
   [/^No template was given: add template=<key>\.$/, () => 'Chưa có mẫu bài: thêm template=<key>.'],
   [/^template must be given once\.$/, () => 'Tham số template chỉ được có một lần.'],
   [/^Unknown template "(.*)"\.$/, (key) => `Không có mẫu bài "${key}".`],
   [/^The template "(.*)" does not open in lab=(.+)\.$/, (key, lab) => `Mẫu bài "${key}" không mở trong lab=${lab}.`],
   [/^The template "(.*)" opens only in lab=robot: add lab=robot\.$/, (key) => `Mẫu bài "${key}" chỉ mở trong lab=robot: thêm lab=robot.`],
   [/^profile must be given once\.$/, () => 'Tham số profile chỉ được có một lần.'],
-  [/^profile is only for lab=yolobit\.$/, () => 'Tham số profile chỉ dùng với lab=yolobit.'],
+  [/^profile is only for lab=yolobit or lab=robot\.$/, () => 'Tham số profile chỉ dùng với lab=yolobit hoặc lab=robot.'],
   [/^Unknown profile "(.*)": use (.+) or (.+)\.$/, (profile, a, b) => `Không có cấp độ "${profile}": dùng ${a} hoặc ${b}.`],
   // N17 B6: the levels by the names the LMS shows them by.
   [

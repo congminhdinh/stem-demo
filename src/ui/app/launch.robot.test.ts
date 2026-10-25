@@ -1,7 +1,17 @@
-import { describe, expect, it } from 'vitest';
-import { robotTemplateKeys, robotTemplates, type RobotTemplateKey } from '../../samples/robot-templates';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { robotTemplateKeys } from '../../samples/robot-templates';
 import { localizeLaunchProblem } from '../i18n/core-text';
 import { parseLaunch } from './launch';
+
+// The launch asks robot-templates.ts which level a scenario needs. It is the same function, with the `needed` parameter a test may set,
+// so that a test can say a scenario needs more than uno-basic (none does yet) without changing the table of scenarios.
+const scenario = vi.hoisted(() => ({ needs: undefined as 'uno-basic' | 'uno-advanced' | undefined }));
+vi.mock('../../samples/robot-templates', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../samples/robot-templates')>();
+  const robotTemplateProfileProblem = (...[key, profile]: Parameters<typeof original.robotTemplateProfileProblem>) =>
+    original.robotTemplateProfileProblem(key, profile, scenario.needs);
+  return { ...original, robotTemplateProfileProblem };
+});
 
 // N18 R4.1: `?embed=1&lab=robot&template=rb-<key>&profile=uno-basic|uno-advanced&origin=<o>` (plan §4.7).
 
@@ -62,7 +72,7 @@ describe('parseLaunch: lab=robot (N18 R4.1)', () => {
   });
 
   it('refuses a robot level for the Blockly lab, as any profile there', () => {
-    expect(parseLaunch('?embed=1&lab=blockly&template=blink&profile=uno-basic')).toEqual({ mode: 'invalid', problem: 'profile is only for lab=yolobit.', lab: 'blockly' });
+    expect(parseLaunch('?embed=1&lab=blockly&template=blink&profile=uno-basic')).toEqual({ mode: 'invalid', problem: 'profile is only for lab=yolobit or lab=robot.', lab: 'blockly' });
   });
 
   it('refuses a robot level for the Yolo:Bit lab, and a Yolo:Bit level for the robot lab', () => {
@@ -79,31 +89,24 @@ describe('parseLaunch: lab=robot (N18 R4.1)', () => {
   });
 
   describe('a profile lower than the scenario needs', () => {
-    // Every scenario needs uno-basic, the lowest profile, so no launch can be too low yet; a scenario that needs uno-advanced is
-    // put in the table for the length of the test, to see the launch refuse the lower profile the way the Yolo:Bit launch does.
-    const table = robotTemplates as Record<RobotTemplateKey, { profile: string }>;
-    const withNeeded = (key: RobotTemplateKey, profile: string, run: () => void) => {
-      const before = table[key].profile;
-      table[key].profile = profile;
-      try {
-        run();
-      } finally {
-        table[key].profile = before;
-      }
-    };
+    afterEach(() => {
+      scenario.needs = undefined;
+    });
 
     it('is an error screen of the robot lab, never a project', () => {
-      withNeeded('rb-servo-gate', 'uno-advanced', () => {
-        expect(parseLaunch(`?embed=1&lab=robot&template=rb-servo-gate&profile=uno-basic&origin=${host}`)).toEqual({
-          mode: 'invalid',
-          problem: 'The template "rb-servo-gate" needs profile=uno-advanced: it uses blocks or parts that uno-basic does not have.',
-          lab: 'robot',
-        });
-        // The profile of the scenario, or a higher one, or none (the scenario's own), opens.
-        expect(parseLaunch(`?embed=1&lab=robot&template=rb-servo-gate&profile=uno-advanced&origin=${host}`)).toMatchObject({ mode: 'embed', lab: robot('uno-advanced') });
-        expect(parseLaunch(`?embed=1&lab=robot&template=rb-servo-gate&origin=${host}`)).toMatchObject({ mode: 'embed', lab: robot(null) });
-        expect(parseLaunch(`?embed=1&lab=robot&template=rb-sandbox&profile=uno-basic&origin=${host}`)).toMatchObject({ mode: 'embed', lab: robot('uno-basic') });
+      scenario.needs = 'uno-advanced';
+      expect(parseLaunch(`?embed=1&lab=robot&template=rb-servo-gate&profile=uno-basic&origin=${host}`)).toEqual({
+        mode: 'invalid',
+        problem: 'The template "rb-servo-gate" needs profile=uno-advanced: it uses blocks or parts that uno-basic does not have.',
+        lab: 'robot',
       });
+      // The profile of the scenario, or a higher one, or none (the scenario's own) opens.
+      expect(parseLaunch(`?embed=1&lab=robot&template=rb-servo-gate&profile=uno-advanced&origin=${host}`)).toMatchObject({ mode: 'embed', lab: robot('uno-advanced') });
+      expect(parseLaunch(`?embed=1&lab=robot&template=rb-servo-gate&origin=${host}`)).toMatchObject({ mode: 'embed', lab: robot(null) });
+    });
+
+    it('is not one while the scenario needs the Basic board, which is every scenario today', () => {
+      expect(parseLaunch(`?embed=1&lab=robot&template=rb-servo-gate&profile=uno-basic&origin=${host}`)).toMatchObject({ mode: 'embed', lab: robot('uno-basic') });
     });
   });
 
@@ -118,6 +121,8 @@ describe('parseLaunch: lab=robot (N18 R4.1)', () => {
     expect(say('?embed=1&template=rb-sandbox')).toBe('Mẫu bài "rb-sandbox" chỉ mở trong lab=robot: thêm lab=robot.');
     expect(say('?embed=1&lab=robot&template=rb-sandbox&profile=ybc-basic')).toBe('Không có cấp độ "ybc-basic": dùng uno-basic hoặc uno-advanced.');
     expect(say('?embed=1&lab=blockly&template=rb-sandbox')).toBe('Mẫu bài "rb-sandbox" không mở trong lab=blockly.');
+    expect(say('?embed=1&lab=scratch&template=rb-sandbox')).toBe('Không có lab "scratch": dùng lab=blockly, lab=yolobit hoặc lab=robot.');
+    expect(say('?embed=1&lab=blockly&template=blink&profile=uno-basic')).toBe('Tham số profile chỉ dùng với lab=yolobit hoặc lab=robot.');
     expect(localizeLaunchProblem('The template "rb-servo-gate" needs profile=uno-advanced: it uses blocks or parts that uno-basic does not have.', 'vi')).toBe(
       'Mẫu bài "rb-servo-gate" cần mức Nâng cao (profile=uno-advanced): bài dùng khối hoặc linh kiện mà mức Cơ bản không có.',
     );

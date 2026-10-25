@@ -110,6 +110,8 @@ export const en = {
   'lab.result.interrupted': 'Not passed: the check was interrupted (the tab was hidden or the computer was too slow). Keep this tab open and press Check again.',
   // N18 R4.1: the shell of the robot lab. The scenario titles are the keys of src/samples/robot-templates.ts.
   'robot.loading': 'Loading the robot lab…',
+  'robot.loadFailed': 'The robot lab could not be shown. Check your connection, then press Reload.',
+  'robot.reload': 'Reload',
   'robot.viewport': 'Robot view',
   'robot.viewport.placeholder': 'The 3D view of the robot will be here.',
   'robot.scenario.rb-drive-to-zone': 'Drive to the zone',
@@ -227,6 +229,8 @@ export const vi: Readonly<Record<MessageKey, string>> = {
   'lab.result.notStarted': 'Chương trình chưa chạy được: sửa lỗi được báo ở thanh trên rồi kiểm tra lại.',
   'lab.result.interrupted': 'Chưa đạt: lần kiểm tra bị gián đoạn (tab bị ẩn hoặc máy chạy chậm). Hãy để tab này mở và bấm Kiểm tra lại.',
   'robot.loading': 'Đang tải bài thực hành robot…',
+  'robot.loadFailed': 'Không hiện được bài thực hành robot. Hãy kiểm tra kết nối mạng, rồi bấm Tải lại.',
+  'robot.reload': 'Tải lại',
   'robot.viewport': 'Khung nhìn robot',
   'robot.viewport.placeholder': 'Khung nhìn 3D của robot sẽ hiện ở đây.',
   'robot.scenario.rb-drive-to-zone': 'Chạy tới vùng đích',

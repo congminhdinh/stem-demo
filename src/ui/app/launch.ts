@@ -62,7 +62,7 @@ export function parseLaunch(search: string): Launch {
   }
   const [labName] = lab;
   if (labName !== undefined && !(labKinds as readonly string[]).includes(labName)) {
-    return invalid(`Unknown lab "${labName}": use lab=blockly or lab=yolobit.`);
+    return invalid(`Unknown lab "${labName}": use lab=blockly, lab=yolobit or lab=robot.`);
   }
   const kind = labName as LabKind | undefined;
   const [key] = template;
@@ -119,8 +119,7 @@ function readProfile(values: string[], kind: LabKind): LabProfile | null | Extra
   }
   const [value = ''] = values;
   if (kind === 'blockly') {
-    // (The sentence is older than the robot lab, which takes a profile as well; the host's code and its tests know it as it is.)
-    return invalid('profile is only for lab=yolobit.', kind);
+    return invalid('profile is only for lab=yolobit or lab=robot.', kind);
   }
   const levels: readonly LabProfile[] = kind === 'yolobit' ? ybcLabProfiles : robotLabProfiles;
   return levels.includes(value as LabProfile) ? (value as LabProfile) : invalid(`Unknown profile "${value}": use ${levels.join(' or ')}.`, kind);

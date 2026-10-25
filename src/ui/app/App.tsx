@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from 'zustand';
 import { runCheck, type Challenge, type CheckResult, type CheckRun } from '../../core/challenge';
 import { createNewProject, type Circuit, type ProjectDocument } from '../../core/circuit/document';
@@ -32,12 +32,9 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { LabWorkspace } from './LabWorkspace';
 import { onPageHidden } from './page-hidden';
 import { PythonPanel } from './PythonPanel';
+import { RobotLabLoader } from './RobotLabLoader';
 import { RunOutput, RunToolbar, SteadyLabel } from './RunToolbar';
 import './app.css';
-
-// The robot lab is its own chunk (N18 R4.1): the Blockly and Yolo:Bit labs and the standalone editor never load it, nor the 3D scene
-// and the physics that come to live behind it (R4.2). Nothing but this line may import from src/ui/robot3d (tests/robot-chunk.test.ts).
-const RobotLab = lazy(() => import('../robot3d/RobotLab'));
 
 /** What a lab launch (`lab=`, N6a S4) adds to the editor: its title, the template's challenge and Reset. */
 export type LabChrome = {
@@ -409,22 +406,8 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
   if (lab && lab.kind === 'robot' && isRobotTemplateKey(lab.template)) {
     return (
       <div className="app-shell app-shell-lab">
-        <Suspense
-          fallback={
-            <>
-              <header className="app-header">
-                <h1>{t('lab.title.robot')}</h1>
-              </header>
-              <main className="workspace">
-                <p role="status" data-testid="robot-loading">
-                  {t('robot.loading')}
-                </p>
-              </main>
-            </>
-          }
-        >
-          <RobotLab template={lab.template} program={programRegion} notices={notices} />
-        </Suspense>
+        {/* The robot lab's own chunk, loaded here and nowhere else (RobotLabLoader). */}
+        <RobotLabLoader template={lab.template} program={programRegion} notices={notices} />
       </div>
     );
   }

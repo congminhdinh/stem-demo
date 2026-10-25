@@ -16,6 +16,16 @@ import { openAtStartup } from '../src/ui/app/startup';
 import { autosaveDelayMs, startAutosave } from '../src/ui/state/autosave';
 import { createProjectStore } from '../src/ui/state/project-store';
 
+// N18 R4.1: the launch asks robot-templates.ts which level a scenario needs; the same function with the `needed` a test may set (none
+// needs more than uno-basic yet), so a test can see a lower level refused without changing the table of scenarios.
+const scenario = vi.hoisted(() => ({ needs: undefined as 'uno-basic' | 'uno-advanced' | undefined }));
+vi.mock('../src/samples/robot-templates', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../src/samples/robot-templates')>();
+  const robotTemplateProfileProblem = (...[key, profile]: Parameters<typeof original.robotTemplateProfileProblem>) =>
+    original.robotTemplateProfileProblem(key, profile, scenario.needs);
+  return { ...original, robotTemplateProfileProblem };
+});
+
 // S1 persistence isolation: an embedded lab neither restores nor overwrites
 // the standalone last project. Each page load below is composed the way
 // src/main.tsx composes it, on the real Dexie adapter (fake-indexeddb on
@@ -212,9 +222,8 @@ describe('launch isolation of the robot lab (N18 R4.1)', () => {
   });
 
   it('a profile lower than the scenario needs is an error screen of the robot lab, never a project', async () => {
-    // Every scenario needs uno-basic, the lowest level, so none can be refused yet: one is made to need uno-advanced for this test.
-    const table = robotTemplates as Record<RobotTemplateKey, { profile: string }>;
-    table['rb-servo-gate'].profile = 'uno-advanced';
+    // Every scenario needs uno-basic, the lowest level, so none can be refused yet: for this test one is said to need uno-advanced.
+    scenario.needs = 'uno-advanced';
     try {
       const storage = freshDatabase();
       const started = await startup(storage, `?embed=1&lab=robot&template=rb-servo-gate&profile=uno-basic&origin=${host}`);
@@ -225,7 +234,7 @@ describe('launch isolation of the robot lab (N18 R4.1)', () => {
       });
       expect((await indexedDB.databases()).map((database) => database.name)).not.toContain(storage);
     } finally {
-      table['rb-servo-gate'].profile = 'uno-basic';
+      scenario.needs = undefined;
     }
   });
 });

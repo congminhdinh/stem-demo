@@ -17,7 +17,7 @@ robot, N18 R4.1). Phía host:
 | `?embed=1&template=<key>` | Lab S1 (legacy, cho `StemLab` cũ): mọi key, tiếng Anh, có nút New, **không** bridge, **không** Kiểm tra. `profile`, `origin` bị bỏ qua |
 | `?embed=1&lab=blockly&template=<key>[&origin=<o>]` | Lab "Lập trình khối": chỉ key generic |
 | `?embed=1&lab=yolobit&template=<key>[&profile=<p>][&origin=<o>]` | Lab "Mạch Yolo:Bit": chỉ key `ybc-*`; `profile` = `ybc-basic` \| `ybc-advanced`, **không thấp hơn mức template cần** (bảng dưới); thiếu thì dùng mức template cần |
-| `?embed=1&lab=robot&template=rb-<key>[&profile=<p>][&origin=<o>]` | Lab "Robot 3D" (N18 R4.1): chỉ key `rb-*`; `profile` = `uno-basic` \| `uno-advanced`, **không thấp hơn mức scenario cần** (hiện mọi scenario cần `uno-basic`, mức thấp nhất, nên chưa có launch nào bị từ chối vì mức); thiếu thì dùng mức scenario cần. Lab này tải **riêng** (chunk `RobotLab`, `React.lazy`): lab Blockly, lab Yolo:Bit và editor standalone không tải chunk đó, không tải `three` hay physics |
+| `?embed=1&lab=robot&template=rb-<key>[&profile=<p>][&origin=<o>]` | Lab "Robot 3D" (N18 R4.1): chỉ key `rb-*`; `profile` = `uno-basic` \| `uno-advanced`, **không thấp hơn mức scenario cần** (hiện mọi scenario cần `uno-basic`, mức thấp nhất, nên chưa có launch nào bị từ chối vì mức); thiếu thì dùng mức scenario cần. Lab này tải **riêng** (chunk `RobotLab`, `React.lazy`): lab Blockly, lab Yolo:Bit và editor standalone không tải chunk đó, không tải `three` hay physics. Chunk không tải được (mạng, bản build mới thay chunk cũ) thì lab hiện thông báo kèm nút **Tải lại**, không để iframe trống |
 
 - **Key** (so khớp chính xác, phân biệt hoa thường; không bao giờ đổi tên hay tái dùng):
   - Blockly: `blink`, `led-on`, `button-direct`, `button-led`, `empty`.

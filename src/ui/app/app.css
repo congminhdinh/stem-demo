@@ -1116,3 +1116,36 @@ body {
     animation: none;
   }
 }
+
+/*
+ * What the robot lab shows before its chunk has loaded, and when it could not (N18 R4.1): in the main stylesheet, since the lab's own
+ * (RobotLab.css) is part of the chunk that is not there.
+ */
+.robot-load {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  color: var(--stem-color-text-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.robot-load p {
+  margin: 0;
+}
+
+.robot-load [role='alert'] {
+  color: var(--stem-color-danger);
+}
+
+.robot-load button {
+  padding: 4px 14px;
+  font: inherit;
+  font-size: 13px;
+  border: 1px solid var(--stem-color-border-strong);
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-surface);
+  cursor: pointer;
+}

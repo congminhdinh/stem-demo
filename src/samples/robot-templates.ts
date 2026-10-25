@@ -49,10 +49,10 @@ export const isRobotLabProfile = (value: string): value is RobotLabProfile => (r
 
 /**
  * Why `profile` cannot open `key` (English, for the page that built the launch URL, in the words of the Yolo:Bit labs), or null when
- * it can: it has all the scenario needs.
+ * it can: it has all the scenario needs. `needed` is that profile, the scenario's own by default; a test that wants to see a
+ * scenario refuse a lower level gives another one, so that no test has to change the table.
  */
-export function robotTemplateProfileProblem(key: RobotTemplateKey, profile: RobotLabProfile): string | null {
-  const needed = robotTemplates[key].profile;
+export function robotTemplateProfileProblem(key: RobotTemplateKey, profile: RobotLabProfile, needed: RobotLabProfile = robotTemplates[key].profile): string | null {
   return robotLabProfiles.indexOf(profile) >= robotLabProfiles.indexOf(needed)
     ? null
     : `The template "${key}" needs profile=${needed}: it uses blocks or parts that ${profile} does not have.`;

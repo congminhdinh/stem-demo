@@ -16,7 +16,6 @@ import {
   robotTemplateKeys,
   robotTemplateProfileProblem,
   robotTemplates,
-  type RobotTemplateKey,
 } from './robot-templates';
 
 // N18 R4.1: the scenarios a robot lab (`lab=robot`) can be launched with. The keys are a public contract (course content stores
@@ -74,18 +73,15 @@ describe('the profile a robot scenario needs (N18 R4.1)', () => {
   });
 
   it('refuses a profile lower than the one the scenario needs, in the words of the Yolo:Bit labs', () => {
-    const table = robotTemplates as Record<RobotTemplateKey, { profile: string }>;
-    const needed = table['rb-servo-gate'].profile;
-    table['rb-servo-gate'].profile = 'uno-advanced';
-    try {
-      expect(robotTemplateProfileProblem('rb-servo-gate', 'uno-basic')).toBe(
-        'The template "rb-servo-gate" needs profile=uno-advanced: it uses blocks or parts that uno-basic does not have.',
-      );
-      expect(robotTemplateProfileProblem('rb-servo-gate', 'uno-advanced')).toBeNull();
-      expect(() => robotStarterDocument('rb-servo-gate', 'uno-basic')).toThrow(RangeError);
-    } finally {
-      table['rb-servo-gate'].profile = needed;
-    }
+    // No scenario needs more than uno-basic yet: the level a scenario needs is given, so the table is left as it is.
+    expect(robotTemplateProfileProblem('rb-servo-gate', 'uno-basic', 'uno-advanced')).toBe(
+      'The template "rb-servo-gate" needs profile=uno-advanced: it uses blocks or parts that uno-basic does not have.',
+    );
+    expect(robotTemplateProfileProblem('rb-servo-gate', 'uno-advanced', 'uno-advanced')).toBeNull();
+    expect(robotTemplateProfileProblem('rb-servo-gate', 'uno-basic', 'uno-basic')).toBeNull();
+    // Without it, the scenario's own level is the one.
+    expect(robotTemplates['rb-servo-gate'].profile).toBe('uno-basic');
+    expect(robotTemplateProfileProblem('rb-servo-gate', 'uno-basic')).toBeNull();
   });
 });
 

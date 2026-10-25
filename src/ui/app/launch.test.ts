@@ -123,7 +123,7 @@ describe('parseLaunch: lab, profile and origin (N6a S0)', () => {
     ['?embed=1&lab=yolobit&template=ybc-heart&profile=ybc-pro', 'Unknown profile "ybc-pro": use ybc-basic or ybc-advanced.', 'yolobit'],
     ['?embed=1&lab=yolobit&template=ybc-heart&profile=', 'Unknown profile "": use ybc-basic or ybc-advanced.', 'yolobit'],
     ['?embed=1&lab=yolobit&template=ybc-heart&profile=ybc-basic&profile=ybc-basic', 'profile must be given once.', 'yolobit'],
-    ['?embed=1&lab=blockly&template=blink&profile=ybc-basic', 'profile is only for lab=yolobit.', 'blockly'],
+    ['?embed=1&lab=blockly&template=blink&profile=ybc-basic', 'profile is only for lab=yolobit or lab=robot.', 'blockly'],
     [`?embed=1&lab=blockly&template=blink&origin=${host}&origin=${host}`, 'origin must be given once.', 'blockly'],
     // N17 B6: a lab that uses what only the Advanced board has does not open on the Basic one.
     ...(['ybc-thermometer', 'ybc-dice', 'ybc-servo-gate'] as const).map((key) => [
@@ -136,9 +136,9 @@ describe('parseLaunch: lab, profile and origin (N6a S0)', () => {
   });
 
   it.each([
-    ['?embed=1&lab=scratch&template=blink', 'Unknown lab "scratch": use lab=blockly or lab=yolobit.'],
-    ['?embed=1&lab=Blockly&template=blink', 'Unknown lab "Blockly": use lab=blockly or lab=yolobit.'],
-    ['?embed=1&lab=&template=blink', 'Unknown lab "": use lab=blockly or lab=yolobit.'],
+    ['?embed=1&lab=scratch&template=blink', 'Unknown lab "scratch": use lab=blockly, lab=yolobit or lab=robot.'],
+    ['?embed=1&lab=Blockly&template=blink', 'Unknown lab "Blockly": use lab=blockly, lab=yolobit or lab=robot.'],
+    ['?embed=1&lab=&template=blink', 'Unknown lab "": use lab=blockly, lab=yolobit or lab=robot.'],
     ['?embed=1&lab=blockly&lab=blockly&template=blink', 'lab must be given once.'],
     ['?lab=blockly&template=blink', 'A template opens only in an embedded lab: add embed=1.'],
     ['?lab=yolobit', 'A template opens only in an embedded lab: add embed=1.'],

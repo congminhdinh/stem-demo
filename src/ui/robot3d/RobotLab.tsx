@@ -3,7 +3,7 @@ import { robotTemplates, type RobotTemplateKey } from '../../samples/robot-templ
 import { useText } from '../i18n/text';
 import './RobotLab.css';
 
-// The robot lab (`lab=robot`, N18 R4.1): a SHELL, loaded on its own with React.lazy (App.tsx) so that no other lab pays for it.
+// The robot lab (`lab=robot`, N18 R4.1): a SHELL, loaded on its own with React.lazy (RobotLabLoader.tsx) so that no other lab pays for it.
 // It holds the places the rest of N18 plugs into: the viewport (R4.2 puts the 3D scene in it, over the world of R3.x), the program
 // (the block editor App builds, with the uno blocks of R2.2) and, later, the scenario's goals and the checks of R6. Nothing in
 // this file may import `three`, `@react-three/*` or the world engine until R4.2 does it on purpose: that is what keeps the Blockly

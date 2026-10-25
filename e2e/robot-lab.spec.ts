@@ -176,3 +176,30 @@ test.describe('a robot lab on its own', () => {
     await expect(page.getByTestId('robot-lab')).toHaveCount(0);
   });
 });
+
+test.describe('a robot lab whose chunk does not load', () => {
+  test('says so, with a Reload button, instead of a blank page; Reload loads the lab once the chunk can be fetched', async ({ page }) => {
+    // Chromium keeps a module that failed to load for the life of the page: the first Reload imports again and fails without a request,
+    // so the next one reloads the page (RobotLabLoader). Firefox and WebKit fetch again at the first Reload.
+    // The chunk (in the dev server: the module of the lab) is refused, as a network that failed would.
+    await page.route('**/src/ui/robot3d/RobotLab.tsx*', (route) => route.abort());
+    await page.goto('/?embed=1&lab=robot&template=rb-drive-to-zone');
+
+    await expect(page.getByTestId('robot-load-failed')).toBeVisible();
+    await expect(page.getByTestId('robot-load-failed')).toHaveText('Không hiện được bài thực hành robot. Hãy kiểm tra kết nối mạng, rồi bấm Tải lại.');
+    await expect(page.getByRole('heading', { level: 1, name: 'Robot 3D' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Tải lại' })).toBeVisible();
+    await expect(page.getByTestId('robot-lab')).toHaveCount(0);
+
+    // An attempt that fails leaves the message in place.
+    await page.getByRole('button', { name: 'Tải lại' }).click();
+    await expect(page.getByTestId('robot-load-failed')).toBeVisible();
+
+    // The chunk can be fetched again: Reload brings the lab.
+    await page.unroute('**/src/ui/robot3d/RobotLab.tsx*');
+    await page.getByRole('button', { name: 'Tải lại' }).click();
+    await expect(page.getByTestId('robot-lab')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Chạy tới vùng đích' })).toBeVisible();
+    await expect(page.getByTestId('robot-load-failed')).toHaveCount(0);
+  });
+});
