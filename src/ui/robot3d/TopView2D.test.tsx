@@ -10,7 +10,7 @@ import type { SensorReadout } from '../../core/world/snapshot';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { TextProvider } from '../i18n/text';
 import { fakeSession } from './__fixtures__/fake-session';
-import { installFakeCanvas2d } from './__fixtures__/fake-canvas-2d';
+import { installFakeCanvas2d, resizeObserved } from './__fixtures__/fake-canvas-2d';
 import { createRobotRunStore } from './robot-run-store';
 import { robotModel } from './robot-model';
 import { TopView2D } from './TopView2D';
@@ -44,14 +44,18 @@ function mount(scenario: Pick<Scenario, 'arena' | 'start'> = scenarioCatalog.get
   const fake = fakeSession(scenarioCatalog.get('rb-line-follow')!, kit);
   const store = createRobotRunStore(fake.session);
   store.getState().connect();
-  act(() =>
-    root.render(
-      <TextProvider locale="vi">
-        <TopView2D scenario={scenario} kit={kit} model={model} store={store} zoneLabel={(zone) => (zone.kind === 'start' ? 'Xuất phát' : null)} reason={reason} />
-      </TextProvider>,
-    ),
-  );
-  return { ...fake, store };
+  const zoneLabel = (zone: { kind: string }) => (zone.kind === 'start' ? 'Xuất phát' : null);
+  // Every call renders the view again from new elements with the same props, as its owner does for a Run click or a block edit.
+  const render = () =>
+    act(() =>
+      root.render(
+        <TextProvider locale="vi">
+          <TopView2D scenario={scenario} kit={kit} model={model} store={store} zoneLabel={zoneLabel} reason={reason} />
+        </TextProvider>,
+      ),
+    );
+  render();
+  return { ...fake, store, render };
 }
 
 const state = () => readTopViewState()!;
@@ -210,6 +214,90 @@ describe('TopView2D follows the snapshots (N18 R4.6)', () => {
     expect(state().robot?.xCm).toBe(90);
     void store.getState().resetRobot();
     expect(state().robot?.xCm).toBe(50);
+  });
+});
+
+describe('TopView2D after React draws it again (N18 R4.6 fix round 1)', () => {
+  /** The robot stopped at a wall, hearing it, with a line under its centre sensor, the servo turned and an LED lit. */
+  const atTheWall = (mounted: ReturnType<typeof mount>) => {
+    const start = mounted.world(1).robot;
+    mounted.publish({
+      status: 'running',
+      world: mounted.world(1, 60, { robot: { ...start, xCm: 60, yCm: 40, yawDeg: 0, servoDeg: { servo1: 60 } }, sensors: sensors(echo(37.5, 'wall-east'), [false, true, false]), leds: { led1: true } }),
+    });
+  };
+  /** What every moving part shows, in the arena's frame, to a millionth of a centimetre (a new scale moves the last digits of a position). */
+  const shown = () => {
+    const { robot, rays, lineDots, leds, servos } = state();
+    return JSON.parse(JSON.stringify({ robot, rays, lineDots, leds, servos }), (_key, value: unknown) => (typeof value === 'number' ? Math.round(value * 1e6) / 1e6 + 0 : value)) as unknown;
+  };
+
+  it('keeps the ray, its hit dot and every part’s state when its owner renders it again with the same props', () => {
+    const mounted = mount();
+    atTheWall(mounted);
+    const before = shown();
+    expect(state().rays[0]).toMatchObject({ visible: true, echo: true, hit: true, lengthCm: 37.5 });
+    near(state().rays[0]!.to, 60 + 7.5 + 37.5, 40);
+    // A Run click, a block edit, a status change: the owner renders again, over and over, while the robot rests at the wall.
+    mounted.render();
+    mounted.render();
+    mounted.render();
+    expect(shown()).toEqual(before);
+    near(state().rays[0]!.to, 105, 40);
+    expect(state().rays[0]).toMatchObject({ visible: true, echo: true, hit: true, lengthCm: 37.5 });
+  });
+
+  it('keeps the ray at the same arena point when the container is resized, at the new scale', () => {
+    const mounted = mount();
+    atTheWall(mounted);
+    const before = shown();
+    const scale = state().scale;
+    act(() => resizeObserved(800, 500));
+    expect(state().stage).toEqual({ width: 800, height: 500 });
+    expect(state().scale).toBeGreaterThan(scale);
+    expect(shown()).toEqual(before);
+    near(state().rays[0]!.to, 105, 40);
+    expect(state().rays[0]).toMatchObject({ visible: true, echo: true, hit: true });
+    // And back to a small one, then a render: still the same.
+    act(() => resizeObserved(420, 300));
+    mounted.render();
+    expect(state().scale).toBeLessThan(scale);
+    expect(shown()).toEqual(before);
+  });
+
+  it('still draws the next snapshot after a resize and a render', () => {
+    const mounted = mount();
+    atTheWall(mounted);
+    act(() => resizeObserved(800, 500));
+    mounted.render();
+    mounted.publish({ status: 'running', world: mounted.world(2, 70, { sensors: sensors(echo(27.5, 'wall-east'), [false, false, false]) }) });
+    near(state().rays[0]!.to, 70 + 7.5 + 27.5, 30);
+    expect(state().lineDots.map((dot) => dot.dark)).toEqual([false, false, false]);
+  });
+});
+
+describe('TopView2D’s frame (N18 R4.6 fix round 1)', () => {
+  /** The robot's place on the stage, px, as Konva has it. */
+  const robotOnStage = () => Konva.stages.at(-1)!.findOne<Konva.Group>('.topview-robot')!.getAbsolutePosition();
+
+  it('puts a higher yCm higher on the stage (a smaller stage y) and a larger xCm further right, at the fitted scale', () => {
+    const { publish, world } = mount();
+    const start = world(1).robot;
+    const at = (xCm: number, yCm: number) => {
+      publish({ status: 'running', world: world(1, xCm, { robot: { ...start, xCm, yCm } }) });
+      return robotOnStage();
+    };
+    const low = at(50, 30);
+    const high = at(50, 60);
+    const right = at(80, 60);
+    const { scale } = state();
+    expect(high.y).toBeLessThan(low.y);
+    expect(low.y - high.y).toBeCloseTo(30 * scale, 6);
+    expect(right.x - high.x).toBeCloseTo(30 * scale, 6);
+    expect(right.y).toBeCloseTo(high.y, 6);
+    // 170 × 140 cm in the 600 × 400 stage, margins 14, 14, 14 and 40: the arena's lower edge (y = 0) is 346 + 14 = 360 px down.
+    expect(low.y).toBeCloseTo(360 - 30 * scale, 6);
+    expect(low.x).toBeCloseTo(14 + (572 - 170 * scale) / 2 + 50 * scale, 6);
   });
 });
 

@@ -25,17 +25,40 @@ function fakeContext2d() {
   );
 }
 
+/** The observers that watch an element now, so that a test can resize what they watch. */
+const observers = new Set<FakeResizeObserver>();
+
 export class FakeResizeObserver {
+  private readonly targets = new Set<Element>();
   constructor(private readonly callback: ResizeObserverCallback) {}
   observe(target: Element) {
-    this.callback([{ target, contentRect: { width: 600, height: 400 } } as ResizeObserverEntry], this as unknown as ResizeObserver);
+    this.targets.add(target);
+    observers.add(this);
+    this.report(target, 600, 400);
   }
-  unobserve() {}
-  disconnect() {}
+  unobserve(target: Element) {
+    this.targets.delete(target);
+  }
+  disconnect() {
+    this.targets.clear();
+    observers.delete(this);
+  }
+  report(target: Element, width: number, height: number) {
+    this.callback([{ target, contentRect: { width, height } } as ResizeObserverEntry], this as unknown as ResizeObserver);
+  }
+  reportAll(width: number, height: number) {
+    for (const target of this.targets) this.report(target, width, height);
+  }
+}
+
+/** Tells every observed element that its content is now `width` × `height`, as a browser does when a container changes size. */
+export function resizeObserved(width: number, height: number) {
+  for (const observer of [...observers]) observer.reportAll(width, height);
 }
 
 /** Gives every canvas the stand-in 2D context (and none for WebGL), and the page a ResizeObserver that reports 600 × 400. */
 export function installFakeCanvas2d() {
+  observers.clear();
   const context = fakeContext2d();
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(((kind: string) => (kind === '2d' ? context : null)) as never);
   vi.stubGlobal('ResizeObserver', FakeResizeObserver);

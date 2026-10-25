@@ -121,6 +121,9 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
           return;
         }
         const [x, y] = robotPartCm(ultrasonic.position);
+        // The sensor's beam is five rays (its axis and the four edges of its cone, core/world/sensors/ultrasonic.ts) and its reading is the
+        // nearest echo of the five. The map draws one ray, along the axis, to that distance: when the nearest echo came from a ray at the
+        // cone's edge (a wall's corner beside the axis), the dot at the end is where the reading says, not where the axis ray would hit.
         const echo = reading.hitId !== null;
         const length = rayLengthCm(reading.cm, echo);
         const end = [x + length * Math.cos(ultrasonic.yawRad), y + length * Math.sin(ultrasonic.yawRad)] as const;
@@ -278,6 +281,17 @@ type SetNode = <K extends 'treads' | 'lineDots' | 'rays' | 'hits' | 'arms' | 'le
 function RobotParts({ model, setNode }: { model: RobotModel; setNode: SetNode }) {
   const length = model.body.lengthM * CM_PER_M;
   const width = model.body.widthM * CM_PER_M;
+  // Every prop that `apply` also sets on a node (the ray's `points`, its `visible`, the dots' `fill`…) must keep the very value it has
+  // when this renders again, because react-konva sets a prop again whenever its value is not `===` the last one, and a new array each
+  // render would put the ray back to a point under a resting robot (a resize, a Run click, a block edit render this component again).
+  const rayStarts = useMemo(
+    () =>
+      model.ultrasonics.map((ultrasonic) => {
+        const [x, y] = robotPartCm(ultrasonic.position);
+        return [x, y, x, y];
+      }),
+    [model],
+  );
   return (
     <>
       {/* The wheels under the body, each with a mark on its tyre that moves as the wheel rolls. */}
@@ -313,10 +327,9 @@ function RobotParts({ model, setNode }: { model: RobotModel; setNode: SetNode })
       {/* The heading: an arrow from the middle to the nose. */}
       <Arrow name="topview-heading" points={[-length * 0.2, 0, length * 0.36, 0]} pointerLength={3} pointerWidth={3.4} fill={colors.arrow} stroke={colors.arrow} strokeWidth={0.7} />
       {model.ultrasonics.map((ultrasonic, i) => {
-        const [x, y] = robotPartCm(ultrasonic.position);
         return (
           <Group key={ultrasonic.role}>
-            <Line ref={setNode('rays', i)} name="topview-ray" role={ultrasonic.role} points={[x, y, x, y]} stroke={colors.ray} strokeWidth={0.45} lineCap="round" visible={false} />
+            <Line ref={setNode('rays', i)} name="topview-ray" role={ultrasonic.role} points={rayStarts[i]} stroke={colors.ray} strokeWidth={0.45} lineCap="round" visible={false} />
             <Circle ref={setNode('hits', i)} name="topview-ray-hit" role={ultrasonic.role} radius={1} fill={colors.rayHit} stroke={colors.dotRing} strokeWidth={0.25} visible={false} />
           </Group>
         );
