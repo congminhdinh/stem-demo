@@ -593,6 +593,40 @@ Mỗi task ghi **Files**, **Interfaces**, **Tests** (tên + assertion chính), *
 - **Bundle** (production build): chunk `RobotLab-*.js` 1 053 kB, **289,6 kB gzip** (ngân sách 0,6 MB); Rapier JS riêng 52,1 kB gzip + `.wasm` 1 192 kB gzip, nạp lúc Chạy đầu tiên. `tests/robot-dist.test.ts` build rồi kiểm `index.html`, entry và mọi chunk tĩnh không có three/fiber/Rapier. Rolldown gom module chung của entry và lab vào một chunk tên `test-hooks-*.js` (508 kB, không có three): tên chỉ là module đầu tiên của nó. Dev: `optimizeDeps.include` three, OrbitControls, fiber, vì nếu không Vite phát hiện chúng lúc chạy và reload trang giữa chừng (nguyên nhân của flake `robot-lab.spec.ts:181`).
 - **Đo FPS** (`spikes/r42-lab-fps/measure.mjs`, `results/fps.json`; M4 Pro, load 5–12 do agent khác): bản build trong iframe 1100 × 640 của lesson host, line follower tham chiếu ở 1×, 3 lần × 8 s mỗi ô. GPU (ANGLE Metal): median 59,9–60,2 fps, p5 ≥ 52,6 ở cả hai tier, có và không throttle 4×. SwiftShader tier thấp: 59,9–60,2, p5 ≥ 52,6 cả ở 4× (ngân sách ≥ 30). SwiftShader tier cao: 46,7–53,5, p5 22,7–38,9 (lý do mặc định thấp). Mô phỏng 0,98–1,01 s ảo/s, không lần nào hiện badge. Chạy đầu (bấm → "Đang chạy", gồm nạp + init Rapier): 142–1 010 ms ở 1×, 456–721 ms ở 4× (ngân sách init 1,5 s). Vẫn chưa đo laptop tầm trung thật (như ADR §8).
 
+*Bổ sung khi làm R4.7* (asset 3D và nhìn có chiều sâu; ADR 0002 §11; `assets-src/robot3d/**`, `scripts/build-robot-assets.mjs`,
+`public/robot3d/*.glb`, `src/ui/robot3d/{assets,parts,lighting}/**`, `camera-studio.ts`, `hud-corner.ts`; sửa `Scene.tsx`,
+`SceneHost.tsx`, `CameraRig.tsx`, `ground-paint.ts` (tách `paintTape`, hành vi giữ nguyên), `colors.ts`, `icons.tsx`, `RobotLab.css`,
+`messages.ts`, `vite.config.ts`, `playwright.config.ts`, `package.json`):
+- **Asset (phán quyết: Blender → glTF, engine giữ nguyên).** Mỗi part/prop một script bpy commit (`lib.py`, `tex.py` dùng chung), chạy
+  headless bằng Blender 5.2.3 (`pnpm build:robot-assets`, khoảng 7 s): tấm nhôm đục lỗ cam (array dao cắt + boolean), standoff đồng, ốc,
+  hộp pin 2 cell, driver motor, board kiểu UNO (không logo, không chữ "UNO"), động cơ TT, bánh có gai lốp (lathe + array xoay), caster,
+  HC-SR04, thanh line 3 mắt có đèn từng mắt, servo SG90 + horn + cờ, LED, còi, nút, đầu cắm dupont; prop: tường ván ép (vân + lớp), khối
+  gỗ, thùng carton có băng keo, cọc tiêu, lon, cột sọc, rào chắn của cổng, mái gara trong suốt + biển P, tấm sọc cảnh báo của bến, khung
+  đích + băng cờ caro, hàng rào ống nhựa, bàn gỗ óc chó, thùng nhựa, bóng, cuộn băng dính, studio. AO bake vào vertex colour khi mọi part
+  ở mount của kit tham chiếu. GLB meshopt + WebP, hai mức chi tiết; manifest SHA-256 có test (`tests/robot-assets.test.ts`).
+- **Đặt theo kit, seam vendor CAD.** `parts/robot-assembly.ts` clone node `part_*` về mount của RobotModel và scale theo spec (bánh, thân,
+  caster, tay servo, khoảng mắt line); test: bánh, caster, siêu âm, trục servo, LED/còi/nút ở đúng mount, bán kính lốp = `wheelRadiusCm`,
+  tấm = `bodyCm`, kit khác kích thước cho robot khác kích thước, dispose. Thay vendor CAD = thay output một script bằng node cùng tên.
+- **Sa bàn.** Mat vẽ từ paint vector như cảm biến đọc (`paintGround` + `paintTape` cuối cùng), thêm viền và tên zone bằng sắc độ của chính
+  zone (luma > 0,5, test), số điểm kiểm tra theo thứ tự route; roughness (băng keo bóng hơn giấy) và aoMap chân tường vẽ từ cùng dữ liệu.
+  Vật của scenario thành đồ thật đúng kích thước; trang trí theo bài không đứng trên đường robot (`arenaDressing`, test): gara của
+  rb-line-follow, tấm cảnh báo ở tường bến (rb-mini-mission) và tường dừng (rb-stop-at-wall), khung đích ở rb-drive-to-zone và
+  rb-servo-gate. Bàn, hàng rào ống ở hai mép xa, đồ trên góc bàn xa, studio dome + sàn, fog. Thứ treo trên mat không đổ bóng (bóng dải
+  ngang trông như vạch mà cảm biến không thấy) và ẩn ở "Nhìn từ trên".
+- **Tier** (`lighting/look.ts`): cao = PBR, PMREM RoomEnvironment, PCF radius 2,5, dây jumper, đèn LED; thấp = file `-low`, Lambert, màu
+  vật liệu trơn bake vào vertex colour thành 1 mesh, không environment, blob + aoMap. Tone mapping Khronos PBR Neutral, exposure 1.
+- **Camera** (`camera-studio.ts`, test): "Tự do" 26°, sau robot nhìn về zone mục tiêu (lệch trái 14°), khung trong vùng chữ L mà HUD (đo từ
+  DOM) để trống; "Theo xe" bám sau 34 cm, cao 15 cm, xoay theo robot, nâng lên khi tường chắn (`clearSight`), giữ góc người học xoay;
+  "Đặt lại góc nhìn" (nút mới, `robot.camera.reset`). Carry R6.3: thẻ kết quả mở thì camera về robot và lens shift đẩy hình sang phần
+  trống; thẻ có scrollbar mảnh và bóng mép khi còn nội dung.
+- **E2E** `robot-lab-look.spec.ts`: 6 pilot ở SwiftShader là cảnh mô hình (`data-models=modelled`), độ lệch chuẩn luminance > 0,08 và
+  ≥ 30 màu trên lưới 24 × 16 pixel, không pixel nền trang; tier cao; nút đặt lại góc nhìn.
+- **Đo** (`spikes/r47-visual/measure-fps.mjs`, bảng đầy đủ ở ADR 0002 §11.6; M4 Pro, load 4–11): GPU tier cao 59,9–60,2 fps, p5 ≥ 53,2 (cả
+  DPR 1,5), 129 draw call; SwiftShader tier thấp ở 4× 59,9–60,2, p5 53,2–53,8, 37 draw call; Chạy → robot chạy 17–50 ms; Chạy lần đầu
+  như master. Frame đầu chậm hơn master 97adda4 khoảng 0,1–0,25 s ở 1× và 0,55–0,7 s ở 4× (đã giảm bằng nạp sớm, `compileAsync`, ít
+  program ở tier thấp). Chunk 3D 353,7 kB gzip (+37,6 kB); GLB mỗi cảnh 1 113 kB / 724 kB (gzip 497 / 312 kB). SwiftShader ở tier cao
+  14–15 fps (renderer phần mềm mặc định tier thấp). Ảnh trước/sau: `.superpowers/sdd/robot-3d-implementation-plan/r47-shots/`.
+
 **R4.5 Pin inspector + tab code (16h).** `PinInspector.tsx`: role → port → chân → giá trị sống (vd. *motor trái 50 % → M1 → D5 PWM 128, D7 HIGH, D8 LOW*). Tab "C++" hiện output C1 (read-only, Copy theo pattern clipboard đã có).
 
 *Bổ sung khi làm R4.5* (`src/ui/robot3d/`: `CppTab.tsx`, `cpp-code.ts`, `cpp-lines.ts`, `PinInspector.tsx`, `BoardDiagram.tsx`, `ModuleCards.tsx`, `PinTable.tsx`, `pin-map.ts`, `pin-text.ts`, `board-layout.ts`, `gauge.ts`, `use-hub-values.ts`, `use-throttled.ts`, `CppTab.css`, `PinInspector.css`; sửa `ProgramPane.tsx`, `RobotLab.tsx`, `BlocklyPanel.tsx`, `App.tsx`, `messages.ts`; e2e `e2e/robot-pins.spec.ts`):

@@ -1,0 +1,190 @@
+{
+  "date": "2026-10-25T10:01:21.741Z",
+  "machine": {
+    "cpus": "Apple M4 Pro",
+    "cores": 12,
+    "memGB": 24,
+    "platform": "Darwin 25.5.0",
+    "node": "v24.22.1"
+  },
+  "groups": {
+    "gpu": {
+      "label": "Chromium new headless, the machine GPU (ANGLE Metal), vsync 60 Hz",
+      "launch": {
+        "headless": true,
+        "channel": "chromium"
+      }
+    },
+    "swiftshader": {
+      "label": "Chromium headless shell, --use-angle=swiftshader --enable-unsafe-swiftshader",
+      "launch": {
+        "headless": true,
+        "args": [
+          "--use-angle=swiftshader",
+          "--enable-unsafe-swiftshader"
+        ]
+      }
+    }
+  },
+  "seconds": 8,
+  "warmup": 2,
+  "repeats": 3,
+  "cells": [
+    {
+      "run": 1,
+      "group": "gpu",
+      "tier": "high",
+      "shownTier": "high",
+      "cpuThrottle": 1,
+      "frames": 487,
+      "medianFps": 60.2,
+      "p5Fps": 54.3,
+      "meanFps": 60.9,
+      "framesOver50ms": 0,
+      "drawCallsPerFrame": 129,
+      "simSecondsPerSecond": 1,
+      "slowerBadgeSeen": false,
+      "firstRunMs": 128,
+      "firstFrameMs": 895,
+      "runToMovingMs": 26,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "drawingBuffer": [
+        990,
+        745
+      ],
+      "loadavg1m": 11.54,
+      "cpuBenchMs": 20,
+      "consoleErrors": []
+    },
+    {
+      "run": 2,
+      "group": "gpu",
+      "tier": "high",
+      "shownTier": "high",
+      "cpuThrottle": 1,
+      "frames": 487,
+      "medianFps": 59.9,
+      "p5Fps": 54.9,
+      "meanFps": 60.9,
+      "framesOver50ms": 0,
+      "drawCallsPerFrame": 129,
+      "simSecondsPerSecond": 1,
+      "slowerBadgeSeen": false,
+      "firstRunMs": 116,
+      "firstFrameMs": 792,
+      "runToMovingMs": 50,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "drawingBuffer": [
+        990,
+        745
+      ],
+      "loadavg1m": 9.57,
+      "cpuBenchMs": 17,
+      "consoleErrors": []
+    },
+    {
+      "run": 3,
+      "group": "gpu",
+      "tier": "high",
+      "shownTier": "high",
+      "cpuThrottle": 1,
+      "frames": 487,
+      "medianFps": 60.2,
+      "p5Fps": 54.3,
+      "meanFps": 60.9,
+      "framesOver50ms": 0,
+      "drawCallsPerFrame": 129,
+      "simSecondsPerSecond": 1,
+      "slowerBadgeSeen": false,
+      "firstRunMs": 117,
+      "firstFrameMs": 792,
+      "runToMovingMs": 47,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "drawingBuffer": [
+        990,
+        745
+      ],
+      "loadavg1m": 8.65,
+      "cpuBenchMs": 16,
+      "consoleErrors": []
+    },
+    {
+      "run": 1,
+      "group": "gpu",
+      "tier": "high",
+      "shownTier": "high",
+      "cpuThrottle": 4,
+      "frames": 487,
+      "medianFps": 59.9,
+      "p5Fps": 54.1,
+      "meanFps": 60.9,
+      "framesOver50ms": 0,
+      "drawCallsPerFrame": 129,
+      "simSecondsPerSecond": 1.01,
+      "slowerBadgeSeen": false,
+      "firstRunMs": 385,
+      "firstFrameMs": 1757,
+      "runToMovingMs": 33,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "drawingBuffer": [
+        990,
+        745
+      ],
+      "loadavg1m": 7.39,
+      "cpuBenchMs": 65,
+      "consoleErrors": []
+    },
+    {
+      "run": 2,
+      "group": "gpu",
+      "tier": "high",
+      "shownTier": "high",
+      "cpuThrottle": 4,
+      "frames": 487,
+      "medianFps": 60.2,
+      "p5Fps": 53.8,
+      "meanFps": 60.9,
+      "framesOver50ms": 0,
+      "drawCallsPerFrame": 129,
+      "simSecondsPerSecond": 1.01,
+      "slowerBadgeSeen": false,
+      "firstRunMs": 383,
+      "firstFrameMs": 1775,
+      "runToMovingMs": 31,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "drawingBuffer": [
+        990,
+        745
+      ],
+      "loadavg1m": 6.64,
+      "cpuBenchMs": 64,
+      "consoleErrors": []
+    },
+    {
+      "run": 3,
+      "group": "gpu",
+      "tier": "high",
+      "shownTier": "high",
+      "cpuThrottle": 4,
+      "frames": 488,
+      "medianFps": 60.2,
+      "p5Fps": 53.5,
+      "meanFps": 61,
+      "framesOver50ms": 0,
+      "drawCallsPerFrame": 129,
+      "simSecondsPerSecond": 1.01,
+      "slowerBadgeSeen": false,
+      "firstRunMs": 383,
+      "firstFrameMs": 1767,
+      "runToMovingMs": 31,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+      "drawingBuffer": [
+        990,
+        745
+      ],
+      "loadavg1m": 6,
+      "cpuBenchMs": 65,
+      "consoleErrors": []
+    }
+  ]
+}

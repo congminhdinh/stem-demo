@@ -340,3 +340,84 @@ node spikes/robot-render/tables.mjs                            # print the table
 `measure.mjs` tự khởi động `vite preview` (cổng 5221, cấu hình `spikes/robot-render/vite.config.ts`) và `node e2e/lesson-host.mjs 5222`; không dùng cổng 5173/5190. Build tay một biến thể:
 `SPIKE_CONTROLS=three|drei node node_modules/vite/bin/vite.js build -c spikes/robot-render/vite.config.ts` (ra `spikes/robot-render/dist/<biến thể>/`, đã được `.gitignore`).
 Kiểm kiểu của spike: `npx tsc -p spikes/robot-render/tsconfig.json --noEmit`. Số liệu thay đổi theo máy và tải; hãy xem `loadavg` trong từng file JSON trước khi so sánh.
+
+## 11. Bổ sung R4.7 (2026-10-25): mô hình Blender, ánh sáng studio, camera có chiều sâu
+
+R4.2 vẽ hình thủ tục (plan D-R7: "procedural geometry first, home-made GLB later"); chủ dự án thấy "trông không 3d lắm". R4.7 là phần
+"later". **Engine giữ nguyên** (three 0.186.1 + R3F 9.8.1, không drei); quyết định dưới đây chỉ thêm vào mục 2 và 6.
+
+1. **Asset: Blender → glTF** (phán quyết controller, thay cho lựa chọn (a)/(b) của brief). Mỗi part/prop là một script bpy commit trong
+   `assets-src/robot3d/` (`lib.py`, `tex.py` dùng chung; `parts/*.py`, `props/*.py`), chạy headless bằng Blender 5.2.3 LTS
+   (`pnpm build:robot-assets`, khoảng 7 s). Mô hình hoá thật: bevel modifier, boolean cho lỗ, array cho tấm đục lỗ, lathe/spin cho lốp
+   với gai lốp bằng array xoay quanh trục; vật liệu Principled BSDF xuất thành glTF PBR; texture vẽ bằng numpy (vân gỗ, lớp ván ép,
+   mạch in, bìa carton, sọc cảnh báo), không ảnh tải về. AO bake bằng Cycles vào **vertex colour** (COLOR_0, nhân vào base colour) khi
+   mọi part đặt ở mount của kit tham chiếu. Xuất GLB với `EXT_meshopt_compression` (bridge meshopt có sẵn trong add-on glTF của 5.2; màu
+   AO được vá để đi qua meshopt ở 8 bit) và ảnh WebP (`EXT_texture_webp`). Hai file cho mỗi tier: `robot-kit.glb` + `arena-props.glb`
+   (tier cao) và `-low` (nửa số segment, bevel 1 segment): **1 113 kB** (gzip 497 kB) và **724 kB** (gzip 312 kB) một cảnh, dưới 2 MB.
+   Manifest SHA-256 của script và file (`src/ui/robot3d/assets/robot-assets.manifest.json`) có test bắt asset cũ; URL mang `?v=<hash>`.
+2. **Kit-driven:** runtime clone từng node `part_*` về mount của kit (RobotModel, cùng số mà physics dùng) và scale theo spec khi khác
+   kit tham chiếu (bánh theo `wheelRadiusCm`/`wheelWidthCm`, chassis theo `bodyCm`/`clearanceCm`, caster, chiều dài tay servo, khoảng
+   cách mắt line). Node động có tên cố định: `wheel_spin`, `servo_horn`, `flag_mast`/`flag_pennant` (extras `low`/`high`), `led_dome`,
+   `line_led_<i>`, `button_cap` (extras `travel`), `board_led_l`. Part tĩnh được merge theo material: robot của kit tham chiếu là 60
+   mesh ở tier cao (60 431 vertex), 26 ở tier thấp (29 327); sa bàn line-follow 19 và 5 mesh. **Seam vendor CAD:** thay output của một
+   script bằng node GLB cùng tên, gốc ở mount của module; runtime không đổi. File không tải được, hoặc không dựng được robot hay sa bàn
+   từ file: vẽ hình thủ tục của R4.2 (`RobotView`, `ArenaView`), không ném lên error boundary (boundary là của canvas hỏng, R4.6: bản đồ
+   2D).
+3. **Ánh sáng:** `RoomEnvironment` qua `PMREMGenerator` (`scene.environment`, cường độ 1), key light ấm (cường độ 3) từ sau vai trái
+   camera với PCF shadow 2048² bán kính 2,5 texel (PCF của r186 lấy 5 mẫu Vogel disk), rim light lạnh, hemisphere fill, fog màu studio.
+   Tone mapping **Khronos PBR Neutral** (`NeutralToneMapping`, thiết kế cho ảnh sản phẩm: giữ base colour như đã soạn, chỉ cuộn
+   highlight); lượt ảnh đầu dùng AgX với đèn yếu hơn, mat trắng trông xám. AO: **bake** (vertex AO của part, aoMap của mat vẽ từ chân tường/vật cố định, bóng mềm
+   dạng blob dưới robot và vật động), không GTAO: không thêm pass nào, chi phí runtime là 1 draw call blob và 4 B/vertex màu AO.
+4. **Tier** (bổ sung bảng mục 6; `quality.ts` không đổi, phần mới ở `lighting/look.ts`):
+
+| Thiết lập | Tier cao | Tier thấp |
+|---|---|---|
+| File mô hình | `robot-kit.glb`, `arena-props.glb` | `robot-kit-low.glb`, `arena-props-low.glb` (nửa segment) |
+| Material | `MeshStandardMaterial` từ glTF (PBR) | `MeshLambertMaterial` cùng màu/texture/AO; material không texture bake vào vertex colour, merge thành 1 mesh |
+| Environment map | PMREM RoomEnvironment, cường độ 1 | không (hemisphere 1,6) |
+| Bóng | PCF 2048², radius 2,5 + blob 0,32 | blob 0,55 + aoMap của mat |
+| Dây jumper, đèn point của LED, normal map sợi giấy | có | không |
+| Draw call (đo, line-follow) | 129 (kể cả shadow pass) | 37 |
+
+   Đo trước khi có tier thấp Lambert: SwiftShader tier thấp với `MeshStandardMaterial` chỉ được median 15,9 fps, p5 10,6 ở 4× (load 3,6);
+   đổi sang Lambert + vertex colour: 60,2 / 27,2; thêm file `-low`: 59,9 / 53,2.
+5. **Camera** (thay overview 52° của R4.2 bằng `camera-studio.ts`; hàm cũ trong `camera.ts` giữ nguyên cùng test): "Tự do" thấp 26°, sau
+   điểm xuất phát của robot, nhìn về các zone mục tiêu của bài (lệch trái 14° để mục tiêu nằm bên phải, xa HUD), khung hình chứa vùng
+   quanh robot, mọi zone mục tiêu và hai góc xa của sa bàn trong phần màn hình mà HUD (đo từ DOM, lớn theo số goal) và các nút để trống;
+   "Theo xe" bám sau robot 34 cm, cao 15 cm, nhìn trước 10 cm, xoay theo hướng robot, tự nâng lên nhìn qua tường khi tường chắn; "Đặt lại
+   góc nhìn" về pose ban đầu của chế độ hiện tại. Khi thẻ kết quả Kiểm tra mở, camera quay về robot và lens shift (`setViewOffset`) đẩy hình
+   sang phần màn hình thẻ để trống.
+6. **Đo** (`spikes/r47-visual/measure-fps.mjs`: harness của R4.2 trên cổng 5252/5253, chờ `data-drawn` rồi mới Chạy, đo thêm
+   `firstFrameMs` (điều hướng trang lesson → frame đầu của cảnh) và `runToMovingMs` (lượt Chạy thứ hai: bấm → frame đầu robot đã đi);
+   `results/*.json`; M4 Pro, Chromium 153, line-follow tham chiếu ở 1×, 3 lần × 8 s mỗi ô, load 1 phút ghi trong từng ô). So với master
+   97adda4 (cảnh thủ tục của R4.2 cùng R4.5, R4.6, R6.3) đo cùng harness:
+
+| Nhóm | Tier | CPU | median fps | p5 fps | draw/frame | frame đầu (ms) | Chạy lần đầu (ms) | Chạy → chạy (ms) | load |
+|---|---|---:|---|---|---:|---|---|---|---|
+| GPU (Metal) | cao | 1× | 59,9–60,2 | 54,1–54,6 | 129 | 794–895 (master 544–915) | 116–132 | 45–49 | 5,4–6,2 |
+| GPU | cao | 4× | 59,9–60,2 | 53,2–53,8 | 129 | 1 748–1 760 (master 1 080–1 082) | 372–384 | 29–31 | 4,6–5,3 |
+| GPU, DPR 2 → 1,5 (990 × 745) | cao | 1× | 59,9–60,2 | 54,3–54,9 | 129 | 792–895 | 116–128 | 26–50 | 8,7–11,5 |
+| GPU, DPR 2 → 1,5 | cao | 4× | 59,9–60,2 | 53,5–54,1 | 129 | 1 757–1 775 | 383–385 | 31–33 | 6,0–7,4 |
+| GPU | thấp | 1× | 59,9 | 53,8–54,9 | 37 | 682–790 | 104–111 | 29–47 | 4,0–4,5 |
+| GPU | thấp | 4× | 59,9 | 53,2–53,8 | 37 | 1 756–1 765 | 303–315 | 29–30 | 4,1–4,2 |
+| SwiftShader | thấp | 1× | 59,9 | 54,3–55,2 | 37 | 1 104–1 113, lần lạnh 2 509 (master 905–906, lạnh 2 063) | 111–216 | 17–39 | 3,8–5,6 |
+| SwiftShader | thấp | 4× | 59,9–60,2 | 53,2–53,8 | 37 | 1 711–1 716 (master 1 148–1 160) | 353–360 | 27–29 | 6,6–6,9 |
+| SwiftShader | cao | 1× | 14,6–15,0 | 11,3–14,1 | 129 | 943–1 115 | 98–264 | 94–120 | 8,4–9,4 |
+| SwiftShader | cao | 4× | 13,8–14,0 | 10,7–12,5 | 129 | 1 714–1 745 | 356–380 | 225–245 | 9,8–11,2 |
+
+   - **Ngân sách:** tier cao ≥ 50 fps median trên GPU máy này: **đạt** (59,9–60,2, p5 ≥ 53,2, cả DPR 1,5). Tier thấp ≥ 30 fps p5 ở
+     SwiftShader 4×: **đạt** (p5 53,2–53,8). Draw call 129 / 37 (ngân sách 200 / 350). Chạy → robot chạy 17–50 ms (≤ 300).
+     Chạy lần đầu (nạp Rapier) như master (116–132 so với 117–129 ms ở GPU 1×; 353–360 so với 353–369 ms ở SwiftShader 4×).
+   - **Frame đầu chậm hơn:** khoảng +0,1 đến +0,25 s ở 1× và +0,55 đến +0,7 s ở CPU 4×. Đo bằng mark tạm (không giữ trong code): tải
+     + parse hai GLB 25–46 ms ở 1× (155 ms ở một lượt khi load 33) và 100–133 ms ở 4×, lắp robot và sa bàn 11–19 ms ở 1× và 47–76 ms ở
+     4×, frame đầu (biên dịch, upload) 50–165 ms trên GPU và 0,4–1,2 s ở SwiftShader (12 program ở tier thấp lúc đó). Đã giảm: nạp file ngay khi `SceneHost` dựng (song song với việc tạo canvas; GPU 1× từ 1 244–1 344 xuống 794–895 ms),
+     `compileAsync` trước frame đầu (SwiftShader 4× từ 2 090–2 210 xuống 1 609–1 630 ms ở lượt đo trước), tier thấp ít program hơn,
+     mat của tier thấp 5 px/cm. Thử meshopt decode trong 2 worker: GPU 4× chậm hơn (1 889–1 975 ms), đã bỏ.
+   - **SwiftShader ở tier cao** chỉ 14–15 fps (R4.2: 46,7–53,5): renderer phần mềm vẫn mặc định tier thấp (`tierForRenderer`), người học
+     chỉ vào tier cao khi tự bấm "Đồ hoạ".
+   - **Bundle** (gzip -6): chunk `RobotLab-*.js` 353,7 kB (master 97adda4: 316,0 kB; +37,6 kB: GLTFLoader, meshopt decoder,
+     RoomEnvironment, BufferGeometryUtils, code R4.7), dưới 0,6 MB; entry và chunk dùng chung không đổi (±20 byte). GLB mỗi cảnh: tier cao
+     1 113 kB (gzip 497 kB), tier thấp 724 kB (gzip 312 kB), dưới 2 MB; tải một lần mỗi trang, URL có hash nên cache được lâu dài.
+7. **Chưa đo / còn mở:** laptop tầm trung thật (iGPU) ở tier cao (PBR, PCF, 129 draw); tự hạ tier theo FPS vẫn chưa làm (mục 6); build
+   Blender không lặp lại đúng từng byte (thứ tự đỉnh của boolean EXACT đổi giữa các lần chạy; manifest vẫn bắt script đổi mà GLB chưa
+   build lại); host không nén `.glb` thì tải 1,1 MB thay vì 0,5 MB.
