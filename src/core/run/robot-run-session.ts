@@ -92,10 +92,11 @@ import { createVirtualScheduler, type VirtualScheduler } from './virtual-clock';
 // nothing more is owed, pressed or ticked, as after an error.
 //
 // A finished run at rest (R6.2): once the program has finished and every point of the robot's outline has moved under REST_SPEED_CM_S
-// for REST_HOLD_S in a row, a realtime frame publishes nothing for the ticks alone (the view would draw the same picture). The ticks go
-// on, so the goals and the time limit count as they would; a frame still publishes when anything else changes (the status, the end, a
-// goal's verdict or the points, the console, a diagnostic), and a headless run still publishes its last snapshot. A robot that moves
-// again publishes again.
+// for REST_HOLD_S in a row, a realtime frame publishes for the ticks alone only once the world's time has moved REST_CLOCK_S since the
+// last publish (N18 R4.2 fix round 1: the HUD's clock, shown in tenths, goes on; the view draws nothing for it, since the picture is the
+// same). The ticks go on, so the goals and the time limit count as they would; a frame still publishes when anything else changes (the
+// status, the end, a goal's verdict or the points, the console, a diagnostic), and a headless run still publishes its last snapshot. A
+// robot that moves again publishes every frame again.
 
 /** The most ticks one `advance` runs (one frame) on a machine that keeps up: 4× speed at 60 frames per second. */
 export const MAX_TICKS_PER_FRAME = 8;
@@ -119,11 +120,18 @@ export const REST_SPEED_CM_S = 0.5;
 /** N18 R6.2: how long a finished run's robot is at rest before a frame stops publishing it, s (a whole number of ticks). */
 export const REST_HOLD_S = 0.5;
 
+/**
+ * N18 R4.2 fix round 1: a run at rest still publishes once its world time has moved this far since the last publish, s (a whole number of
+ * ticks): the HUD shows the time in tenths of a second, and it goes on while the robot rests.
+ */
+export const REST_CLOCK_S = 0.1;
+
 /** One tick of the world, ms. */
 const TICK_MS = 1000 / PHYSICS_HZ;
 
-/** The ticks of REST_HOLD_S. */
+/** The ticks of REST_HOLD_S and REST_CLOCK_S. */
 const REST_HOLD_TICKS = Math.round(REST_HOLD_S * PHYSICS_HZ);
+const REST_CLOCK_TICKS = Math.round(REST_CLOCK_S * PHYSICS_HZ);
 
 /** A time limit this close above a whole number of ticks is that tick: 12.3 s × 120 is 1476.0000000000002. */
 const LIMIT_EPSILON_TICKS = 1e-6;
@@ -288,6 +296,8 @@ type ActiveRun = {
   restTicks: number;
   /** The points and the goals' verdicts the last snapshot showed, to tell a change while the robot rests. */
   publishedVerdict: string;
+  /** The world's tick of the last snapshot, to publish the clock of a run at rest every REST_CLOCK_TICKS. */
+  publishedTick: number;
   /** Headless runs asked for and not ended yet: while there is one, `advance` adds no time. */
   headlessRuns: number;
   /** The frame or headless run in flight, if any. */
@@ -429,6 +439,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
     run.dirty = false;
     run.moved = false;
     run.publishedVerdict = verdictOf(score);
+    run.publishedTick = run.world.tick;
     publish({
       status: run.status,
       diagnostics: run.diagnostics.map((diagnostic) => ({ ...diagnostic })),
@@ -465,15 +476,21 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
 
   /**
    * Whether a realtime frame publishes, and with which score: null for no publish; undefined to publish with the scorer's score (read by
-   * `publishRun`); a score, to publish with the one read here. A frame of a run at rest publishes only for a change besides the ticks, the
-   * scorer's points or a goal's verdict among them; the score read to tell is the one published, so a scorer that throws there is read
-   * once and fails the run once (with the empty score).
+   * `publishRun`); a score, to publish with the one read here. A frame of a run at rest publishes for its clock once REST_CLOCK_TICKS have
+   * gone since the last publish, and otherwise only for a change besides the ticks, the scorer's points or a goal's verdict among them;
+   * the score read to tell is the one published, so a scorer that throws there is read once and fails the run once (with the empty score).
    */
   const publication = (run: ActiveRun): ScoreState | undefined | null => {
     if (run.dirty || (run.moved && !atRest(run))) {
       return undefined;
     }
-    if (!run.moved || !run.scorer) {
+    if (!run.moved) {
+      return null;
+    }
+    if (run.world.tick - run.publishedTick >= REST_CLOCK_TICKS) {
+      return undefined;
+    }
+    if (!run.scorer) {
       return null;
     }
     let score: ScoreState;
@@ -758,6 +775,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       restPoints: null,
       restTicks: 0,
       publishedVerdict: '',
+      publishedTick: 0,
       headlessRuns: 0,
       driving: null,
     };

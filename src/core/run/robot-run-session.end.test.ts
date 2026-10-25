@@ -7,6 +7,7 @@ import { initPhysics, PHYSICS_DT_S, PHYSICS_HZ } from '../world/rapier';
 import { published, robotProject, roverSession, worldOf } from './__fixtures__/robot-session';
 import {
   MAX_TICKS_PER_FRAME,
+  REST_CLOCK_S,
   REST_HOLD_S,
   REST_SPEED_CM_S,
   SLOW_BADGE_FRAMES,
@@ -16,7 +17,8 @@ import {
 } from './robot-run-session';
 
 // N18 R6.2: what ends a run besides the program (robot plan §R6.2, controller rulings): its time limit, the first contact with a tag of
-// the scenario's `endOnContact`; and a finished run whose robot is at rest stops publishing. The slower-than-real-time badge is debounced.
+// the scenario's `endOnContact`; and a finished run whose robot is at rest stops publishing, but for its clock every 0.1 s (N18 R4.2 fix
+// round 1). The slower-than-real-time badge is debounced.
 
 beforeAll(() => initPhysics(), 30_000);
 
@@ -186,8 +188,13 @@ describe('a run ends at the first contact with a tag of endOnContact', () => {
 describe('a finished run whose robot is at rest stops publishing', () => {
   /** Drives forward at 50 % for 300 ms and stops: the program finishes at 0.3 s and the rover coasts to rest. */
   const shortDrive = () => robotProject([driveMove('forward', num(50)), wait(num(300)), driveStop()]);
+  /** Equal times written as different sums of ticks: within a tenth of a tick. */
+  const TICK_EPSILON_S = 0.1 / PHYSICS_HZ;
 
-  it(`once the program finished and the robot moved under ${REST_SPEED_CM_S} cm/s for ${REST_HOLD_S} s, frames publish nothing; the ticks go on, and the end is published`, async () => {
+  // N18 R4.2 fix round 1 (controller ruling): at rest a frame no longer publishes nothing at all. It publishes the clock once the world's
+  // time has moved REST_CLOCK_S since the last snapshot (the HUD shows tenths), and nothing for the ticks in between. This test asserted
+  // R6.2's "nothing until the end"; it now asserts at most one snapshot per REST_CLOCK_S of simulated time at rest, none in between.
+  it(`once the program finished and the robot moved under ${REST_SPEED_CM_S} cm/s for ${REST_HOLD_S} s, frames publish only its clock, at most once per ${REST_CLOCK_S} s of simulated time; the ticks go on, and the end is published`, async () => {
     const { scorer, frames } = recording();
     const session = roverSession(arenaScenario({ timeLimitS: 4 }), { scorer });
     await session.start(shortDrive());
@@ -203,13 +210,23 @@ describe('a finished run whose robot is at rest stops publishing', () => {
     const finished = seen.findIndex((snapshot) => snapshot.status === 'finished');
     const last = seen.at(-1)!;
     expect(last).toMatchObject({ status: 'finished', end: { reason: 'time-limit', atS: 4 } });
-    // Published: each frame until the robot rested for half a second after the program ended, then only the end.
-    const quietFrom = seen.at(-2)!.world!.t;
     expect(seen[finished]!.world!.t).toBeCloseTo(0.3, 1);
+    // Published: each frame until the robot rested for half a second after the program ended, then only the clock, then the end.
+    const times = seen.map((snapshot) => snapshot.world!.t);
+    const gaps = times.slice(1).map((t, i) => t - times[i]!);
+    const restIndex = gaps.findIndex((gap) => gap > 1 / 60 + TICK_EPSILON_S);
+    const quietFrom = times[restIndex]!;
     expect(quietFrom).toBeGreaterThan(0.8);
     expect(quietFrom).toBeLessThan(1.6);
+    // At rest (the end aside, a change of status): one snapshot a REST_CLOCK_S, never two inside one, and never more than a frame late.
+    const restGaps = gaps.slice(restIndex, -1);
+    expect(restGaps.length).toBeGreaterThan(20);
+    for (const gap of restGaps) {
+      expect(gap).toBeGreaterThanOrEqual(REST_CLOCK_S - TICK_EPSILON_S);
+      expect(gap).toBeLessThanOrEqual(REST_CLOCK_S + 1 / 60 + TICK_EPSILON_S);
+    }
     expect(quiet).toBeGreaterThan(0);
-    // The robot really was at rest: under the speed for the last half second before the snapshots stopped.
+    // The robot really was at rest: under the speed for the last half second before the snapshots slowed down.
     const restFrames = frames.filter((frame) => frame.tS > quietFrom - REST_HOLD_S && frame.tS <= quietFrom);
     for (let k = 1; k < restFrames.length; k++) {
       const [a, b] = [restFrames[k - 1]!, restFrames[k]!];
@@ -218,16 +235,17 @@ describe('a finished run whose robot is at rest stops publishing', () => {
     session.stop();
   });
 
-  it('a goal whose verdict changes while the robot rests is published; a headless run still publishes its last snapshot', async () => {
+  // N18 R4.2 fix round 1: the clock is published at rest too (see above), so the snapshots after 1.6 s are no longer the verdict's alone.
+  it('a goal whose verdict changes while the robot rests is published in the frame it changes; a headless run still publishes its last snapshot', async () => {
     const { scorer } = recording((frame) => frame.tS >= 2.5);
     const session = roverSession(arenaScenario({ timeLimitS: 4 }), { scorer });
     await session.start(shortDrive());
     const seen = published(session);
     for (let frame = 0; frame < 3 * 60; frame++) await session.advance(1000 / 60);
-    const quiet = seen.filter((snapshot) => snapshot.world!.t > 1.6);
-    expect(quiet).toHaveLength(1);
-    expect(quiet[0]!.world!.t).toBeCloseTo(2.5, 1);
-    expect(quiet[0]!.world!.score.goals[0]!.passed).toBe(true);
+    const passed = seen.findIndex((snapshot) => snapshot.world!.score.goals[0]!.passed);
+    expect(seen[passed]!.world!.t).toBeCloseTo(2.5, 1);
+    expect(seen[passed]!.world!.t - 2.5).toBeLessThanOrEqual(1 / 60 + 1e-9);
+    expect(seen.slice(0, passed).every((snapshot) => !snapshot.world!.score.goals[0]!.passed)).toBe(true);
     await session.runUntil(3.5);
     expect(seen.at(-1)!.world!.t).toBe(3.5);
     session.stop();
