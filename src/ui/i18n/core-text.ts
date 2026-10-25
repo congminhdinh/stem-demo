@@ -275,6 +275,8 @@ export const coreMessageRules: readonly Rule[] = [
   [/^"count up" cannot count down; use "repeat" and a variable\.$/, () => 'Khối "đếm lên" không đếm xuống được; dùng "lặp lại" và một biến.'],
   [/^"count up" counts by (.+) on this board\.$/, (step) => `Trên bo mạch này, khối "đếm lên" chỉ đếm với bước ${step}.`],
   [/^This variable does not exist\.$/, () => 'Biến này không tồn tại.'],
+  // N18 R6.2 fix round 1: a uno program's second variable of a name.
+  [/^Two variables are named "(.+)": rename one of them \(a sketch has one variable of a name\)\.$/, (name) => `Có hai biến cùng tên "${name}": hãy đổi tên một biến (mỗi tên chỉ dùng cho một biến).`],
   [/^An arithmetic block needs its operation\.$/, () => 'Khối phép tính cần chọn phép tính.'],
   [/^A comparison needs its operator\.$/, () => 'Khối so sánh cần chọn phép so sánh.'],
   [/^A logic block needs "and" or "or"\.$/, () => 'Khối logic cần "và" hoặc "hoặc".'],

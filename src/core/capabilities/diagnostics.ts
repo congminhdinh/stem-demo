@@ -42,7 +42,16 @@ export const n17CompileDiagnosticCodes = ['invalid-colour'] as const;
  */
 export const n18CompileDiagnosticCodes = ['pin-unavailable', 'timer-claimed', 'not-pwm', 'value-clamped', 'pin-conflict', 'pin-reserved'] as const;
 
-export const compileDiagnosticCodes = [...plannedCompileDiagnosticCodes, ...ybc2CompileDiagnosticCodes, ...n17CompileDiagnosticCodes, ...n18CompileDiagnosticCodes] as const;
+/** Compile codes N18 R6.2 added: a uno program's second variable of a name (a sketch has one; a robot check's programHash names them). */
+export const n18ProgramDiagnosticCodes = ['duplicate-variable'] as const;
+
+export const compileDiagnosticCodes = [
+  ...plannedCompileDiagnosticCodes,
+  ...ybc2CompileDiagnosticCodes,
+  ...n17CompileDiagnosticCodes,
+  ...n18CompileDiagnosticCodes,
+  ...n18ProgramDiagnosticCodes,
+] as const;
 
 /** Faults of a run: the program stops with one, naming the block (plan §6.3 "Domain guard", §6.7). */
 export const runtimeDiagnosticCodes = ['out-of-domain', 'limit-exceeded', 'zero-division', 'internal-error'] as const;

@@ -150,7 +150,9 @@ export type YbcDiagnosticCode =
   | 'not-pwm'
   | 'value-clamped'
   | 'pin-conflict'
-  | 'pin-reserved';
+  | 'pin-reserved'
+  /** N18 R6.2 fix round 1: a uno program's second variable of a name (a sketch has one; a check's programHash names them). */
+  | 'duplicate-variable';
 
 export type YbcDiagnostic = {
   severity: 'error' | 'warning';
@@ -249,6 +251,18 @@ export function compileYbcProgram(
     const variable = asRecord(raw);
     if (typeof variable?.id === 'string' && typeof variable.name === 'string') {
       variables.set(variable.id, variable.name);
+    }
+  }
+  // N18 R6.2 fix round 1: in the uno family every variable has a name of its own. A sketch declares one variable of a name, and a robot
+  // check's programHash names the variables by their names (scenario/program-hash.ts). Names differing in case are different, as in C++.
+  // The ybc family is unchanged.
+  if (family === 'uno') {
+    const named = new Set<string>();
+    for (const name of variables.values()) {
+      if (named.has(name)) {
+        report('error', 'duplicate-variable', `Two variables are named "${name}": rename one of them (a sketch has one variable of a name).`);
+      }
+      named.add(name);
     }
   }
 
