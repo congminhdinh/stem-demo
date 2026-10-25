@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { roleKinds, robotRoles, type ModuleKind, type RobotRole } from '../hardware/kit';
 import { arenaSchema } from '../world/arena/arena-schema';
+import { polygonsOverlap } from './polygon-overlap';
 import { isRobotTemplateKey, robotKitId, robotLabProfiles, robotSandboxKey, robotTemplateKeys, robotTemplates } from '../../samples/robot-keys';
 
 // The scenario of a robot lab (N18 R5.1, robot plan §4.6): the learner's task as data. The arena, the kit and where the robot
@@ -11,8 +12,8 @@ import { isRobotTemplateKey, robotKitId, robotLabProfiles, robotSandboxKey, robo
 // Units are the arena's (arena-schema.ts): centimetres and degrees, x right, y away, yaw counter-clockwise from +x.
 // Unknown keys are refused rather than dropped, as in the arena, so a typo is an error and not a silent default.
 //
-// Rules a shape cannot say are checked in `scenarioRuleIssues`: what a goal refers to exists in the arena, the inputs are a
-// consistent script, and the score adds up to exactly 100. Every issue names the path of the value at fault.
+// Rules a shape cannot say are checked in `scenarioRuleIssues`: what a goal refers to exists in the arena (and the zones of one route
+// do not overlap), the inputs are a consistent script, and the score adds up to exactly 100. Every issue names the path of the value at fault.
 
 /** The score of every scored scenario, goal points plus the time bonus (the same top mark for every lesson). `rb-sandbox` has none. */
 export const SCENARIO_MAX_SCORE = 100;
@@ -273,6 +274,7 @@ function goalIssues(scenario: ScenarioShape, add: Add): void {
         break;
       case 'checkpoints-in-order':
         goal.zones.forEach((zone, j) => zoneAt(['goals', i, 'zones', j], zone));
+        checkpointOverlapIssues(arena, goal.zones, i, add);
         break;
       case 'stay-on-line':
         if (arena.paint.lines.length === 0) add(at('kind'), 'stay-on-line needs a line painted in the arena');
@@ -307,6 +309,30 @@ function goalIssues(scenario: ScenarioShape, add: Add): void {
           add(at('blockType'), `the toolbox does not list "${goal.blockType}"`);
         }
         break;
+    }
+  });
+}
+
+/**
+ * The zones of one route may not overlap each other: a robot in the overlap would enter two checkpoints at once, and which of them comes
+ * first would be a matter of how the list is written. Zones that only touch (a shared edge or corner) are fine. A zone listed twice is the
+ * same zone, not an overlap, and a pair is told once however often its zones are listed. The issue is at the later zone of the pair.
+ */
+function checkpointOverlapIssues(arena: ScenarioShape['arena'], zones: readonly string[], goalIndex: number, add: Add): void {
+  const polygonOf = (id: string) => arena.paint.zones.find((zone) => zone.id === id)?.polygonCm;
+  const told = new Set<string>();
+  zones.forEach((id, j) => {
+    const polygon = polygonOf(id);
+    if (polygon === undefined) return;
+    for (let k = 0; k < j; k++) {
+      const earlier = zones[k]!;
+      const earlierPolygon = polygonOf(earlier);
+      const pair = [earlier, id].sort().join('\n');
+      if (earlier === id || earlierPolygon === undefined || told.has(pair)) continue;
+      if (polygonsOverlap(earlierPolygon, polygon)) {
+        told.add(pair);
+        add(['goals', goalIndex, 'zones', j], `zone "${id}" overlaps zone "${earlier}" (zones[${k}]): the zones of one route may not overlap, or it is not clear which is entered first`);
+      }
     }
   });
 }
