@@ -330,3 +330,74 @@ describe('the view up (N18 P2)', () => {
     expect(onViewUp).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('SceneHost on a computer too slow for the low tier (N18 P2)', () => {
+  const software: WebglProbe = { ok: true, renderer: 'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)' };
+
+  it('watches the low tier only; a slow run is drawn at 30 fps from then on and says so for 8 s, once', () => {
+    render(() => gpu);
+    expect(scenes.props?.onLowStep).toBeUndefined();
+    click('robot-quality');
+    expect(scenes.props?.tier).toBe('low');
+    expect(scenes.props?.onLowStep).toBeTypeOf('function');
+    expect(scenes.props?.drawCap).toBe(false);
+    act(() => scenes.props!.onLowStep!('cap'));
+    expect(scenes.props?.drawCap).toBe(true);
+    expect(text('robot-quality-note')).toBe('Đang vẽ 30 hình mỗi giây cho mượt hơn');
+    advance(7999);
+    expect(byId('robot-quality-note')).not.toBeNull();
+    advance(1);
+    expect(byId('robot-quality-note')).toBeNull();
+    expect(scenes.props?.drawCap).toBe(true);
+  });
+
+  it('offers the 2D map, never shows it by itself, and shows it when the learner takes the offer', () => {
+    render(() => software);
+    expect(scenes.props?.tier).toBe('low');
+    act(() => scenes.props!.onLowStep!('cap'));
+    act(() => scenes.props!.onLowStep!('offer'));
+    expect(text('robot-offer-2d')).toBe('3D chạy chậm trên máy này: bản đồ 2D mượt hơn.Xem 2DGiữ 3D');
+    advance(60_000);
+    expect(byId('robot-offer-2d')).not.toBeNull();
+    expect(byId('scene-stand-in')).not.toBeNull();
+    click('robot-offer-2d-accept');
+    expect(byId('scene-stand-in')).toBeNull();
+    expect(byId('robot-offer-2d')).toBeNull();
+    // Back to 3D by the learner's choice: no offer again.
+    click('robot-viewmode');
+    act(() => scenes.props!.onLowStep!('offer'));
+    expect(byId('robot-offer-2d')).toBeNull();
+  });
+
+  it('keeps 3D when the learner says so, or picks a tier or the map themselves, and never offers again', () => {
+    for (const answer of ['robot-offer-2d-keep', 'robot-quality', 'robot-viewmode']) {
+      act(() => root.unmount());
+      root = createRoot(host);
+      render(() => software);
+      act(() => scenes.props!.onLowStep!('offer'));
+      expect(byId('robot-offer-2d')).not.toBeNull();
+      click(answer);
+      expect(byId('robot-offer-2d')).toBeNull();
+      if (answer === 'robot-viewmode') click('robot-viewmode');
+      if (answer === 'robot-quality') click('robot-quality');
+      expect(scenes.props?.tier).toBe('low');
+      act(() => scenes.props!.onLowStep!('offer'));
+      expect(byId('robot-offer-2d')).toBeNull();
+    }
+  });
+
+  it('keeps the low tier at 30 fps for the lab once it was too slow (another tier and back), and says so once', () => {
+    render(() => software);
+    act(() => scenes.props!.onLowStep!('cap'));
+    expect(scenes.props?.drawCap).toBe(true);
+    advance(8000);
+    click('robot-quality');
+    expect(scenes.props?.tier).toBe('high');
+    expect(scenes.props?.drawCap).toBeUndefined();
+    click('robot-quality');
+    expect(scenes.props?.tier).toBe('low');
+    expect(scenes.props?.drawCap).toBe(true);
+    act(() => scenes.props!.onLowStep!('cap'));
+    expect(byId('robot-quality-note')).toBeNull();
+  });
+});

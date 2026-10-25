@@ -1,0 +1,54 @@
+== busy 0 threads, round 1, load 5.95 15.20 14.29
+tier low; 1150 drawn frames in 20 s; median gap by thirds: 16.6 / 16.6 / 16.5 ms; status at the end: Đang chạy
+  0.48 s: - | offer false | map false (Đang chạy)
+== busy 0 threads, round 2, load 8.16 14.95 14.23
+tier low; 1177 drawn frames in 20 s; median gap by thirds: 16.7 / 16.6 / 16.5 ms; status at the end: Đang chạy
+  0.46 s: - | offer false | map false (Đang chạy)
+== busy 8 threads, round 1, load 9.30 14.45 14.07
+tier low; 818 drawn frames in 20 s; median gap by thirds: 22.4 / 21.7 / 22.0 ms; status at the end: Đang chạy
+  0.48 s: - | offer false | map false (Đang chạy)
+== busy 8 threads, round 2, load 12.68 14.73 14.18
+tier low; 833 drawn frames in 20 s; median gap by thirds: 22.3 / 20.9 / 21.8 ms; status at the end: Đang chạy
+  0.48 s: - | offer false | map false (Đang chạy)
+== busy 10 threads, round 1, load 14.51 14.99 14.29
+tier low; 478 drawn frames in 20 s; median gap by thirds: 35.4 / 34.8 / 34.7 ms; status at the end: Đang chạy
+  0.49 s: - | offer false | map false (Đang chạy)
+  3.31 s: Đang vẽ 30 hình mỗi giây cho mượt hơn | offer false | map false (Đang chạy)
+  11.25 s: - | offer false | map false (Đang chạy)
+== busy 10 threads, round 2, load 17.85 15.72 14.58
+tier low; 461 drawn frames in 20 s; median gap by thirds: 35.6 / 35.0 / 34.8 ms; status at the end: Đang chạy
+  0.48 s: - | offer false | map false (Đang chạy)
+  3.30 s: Đang vẽ 30 hình mỗi giây cho mượt hơn | offer false | map false (Đang chạy)
+  11.26 s: - | offer false | map false (Đang chạy)
+== busy 11 threads, round 1, load 17.74 15.92 14.70
+tier low; 405 drawn frames in 20 s; median gap by thirds: 40.3 / 37.6 / 34.9 ms; status at the end: Đang chạy
+  0.50 s: - | offer false | map false (Đang chạy)
+  3.31 s: Đang vẽ 30 hình mỗi giây cho mượt hơn | offer false | map false (Đang chạy)
+  11.45 s: - | offer false | map false (Đang chạy)
+== busy 11 threads, round 2, load 19.67 16.52 14.95
+tier low; 405 drawn frames in 20 s; median gap by thirds: 39.8 / 37.6 / 34.3 ms; status at the end: Đang chạy
+  0.49 s: - | offer false | map false (Đang chạy)
+  3.32 s: Đang vẽ 30 hình mỗi giây cho mượt hơn | offer false | map false (Đang chạy)
+  11.48 s: - | offer false | map false (Đang chạy)
+== busy 16 threads, round 1, load 17.04 16.34 14.97
+tier low; 466 drawn frames in 25 s; median gap by thirds: 43.0 / 43.5 / 41.8 ms; status at the end: Đang chạy
+  0.48 s: - | offer false | map false (Đang chạy)
+  3.27 s: Đang vẽ 30 hình mỗi giây cho mượt hơn | offer false | map false (Đang chạy)
+  11.39 s: - | offer false | map false (Đang chạy)
+== busy 16 threads, round 2 (--accept), load 20.76 17.34 15.39
+tier low; 236 drawn frames in 25 s; median gap by thirds: 46.4 / 41.6 / 45.4 ms; status at the end: Đang chạy
+  0.47 s: - | offer false | map false (Đang chạy)
+  3.26 s: Đang vẽ 30 hình mỗi giây cho mượt hơn | offer false | map false (Đang chạy)
+  11.38 s: - | offer false | map false (Đang chạy)
+  12.40 s: - | offer true | map false (Đang chạy)
+  12.90 s: - | offer false | map true (Đang chạy)
+== busy 16 threads, the final build, round 1, load 9.46 12.69 13.91
+tier low; 436 drawn frames in 40 s; median gap by thirds: 48.4 / 47.5 / 47.8 ms; status at the end: Đang chạy
+  0.46 s: - | offer false | map false (Đang chạy)
+  3.25 s: Đang vẽ 30 hình mỗi giây cho mượt hơn | offer false | map false (Đang chạy)
+  11.47 s: - | offer false | map false (Đang chạy)
+== busy 16 threads, the final build, round 2, load 17.83 14.50 14.52
+tier low; 511 drawn frames in 40 s; median gap by thirds: 35.6 / 40.9 / 38.9 ms; status at the end: Đang chạy
+  0.46 s: - | offer false | map false (Đang chạy)
+  3.24 s: Đang vẽ 30 hình mỗi giây cho mượt hơn | offer false | map false (Đang chạy)
+  11.26 s: - | offer false | map false (Đang chạy)

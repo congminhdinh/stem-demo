@@ -7,6 +7,7 @@ import { forgetFailedRobotAssets, loadRobotAssets } from './assets/robot-assets'
 import { viewAnnouncement } from './lab-announcements';
 import { tierLook } from './lighting/look';
 import { Icon } from './icons';
+import type { LowTierStep } from './frame-watch';
 import { probeWebgl, tierForRenderer, type QualityTier, type WebglProbe } from './quality';
 import Scene, { type SceneProps } from './Scene';
 import { SensorToggle } from './SensorToggle';
@@ -80,6 +81,19 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, o
     const timer = setTimeout(() => setAutoLow('done'), AUTO_LOW_NOTE_MS);
     return () => clearTimeout(timer);
   }, [autoLow]);
+  // N18 P2: the low tier's chain (frame-watch.ts createLowTierWatch), for a computer without a GPU. A run drawn too slowly on the low tier
+  // is drawn at 30 fps from then on, on every low-tier canvas of the lab (the computer is the same), and says so for a while, once;
+  // still too slow, the 2D map is offered, once a lab, and the offer stays until the learner answers it (the map, "Giữ 3D") or makes
+  // another choice of view or tier. Nothing here ever forces the map or undoes a choice of the learner's.
+  const [capped, setCapped] = useState(false);
+  const [capNote, setCapNote] = useState<'never' | 'shown' | 'done'>('never');
+  const [offer, setOffer] = useState<'never' | 'shown' | 'answered'>('never');
+  useEffect(() => {
+    if (capNote !== 'shown') return;
+    const timer = setTimeout(() => setCapNote('done'), AUTO_LOW_NOTE_MS);
+    return () => clearTimeout(timer);
+  }, [capNote]);
+  const answerOffer = () => setOffer((was) => (was === 'shown' ? 'answered' : was));
   // N18 R4.7: the tier's model files are fetched and parsed while the canvas is still being made (it suspends on the same promise);
   // not while the learner has the 2D map.
   useEffect(() => {
@@ -90,6 +104,14 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, o
   const [drawnKey, setDrawnKey] = useState<string | null>(null);
   const drawn = drawnKey === canvasKey;
   const onFirstFrame = useCallback(() => setDrawnKey(canvasKey), [canvasKey]);
+  const onLowStep = useCallback((step: LowTierStep) => {
+    if (step === 'cap') {
+      setCapped(true);
+      setCapNote((was) => (was === 'never' ? 'shown' : was));
+    } else {
+      setOffer((was) => (was === 'never' ? 'shown' : was));
+    }
+  }, []);
   // The attempt whose canvas failed: the 2D map shows, not the loading sign.
   const [failedAttempt, setFailedAttempt] = useState<number | null>(null);
 
@@ -141,6 +163,12 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, o
   useEffect(() => {
     if (autoLow === 'shown') latestWords.current.announce?.(latestWords.current.t('robot.quality.autoLow'));
   }, [autoLow]);
+  useEffect(() => {
+    if (capNote === 'shown') latestWords.current.announce?.(latestWords.current.t('robot.quality.capped'));
+  }, [capNote]);
+  useEffect(() => {
+    if (offer === 'shown') latestWords.current.announce?.(latestWords.current.t('robot.quality.offer2d'));
+  }, [offer]);
   // The browser took the graphics away: said at once, while the view waits for them (its message is on the view too), and said again
   // when they come back within the wait (after the wait the 2D map says why it is there, and says when 3D is back).
   const shownContext = useRef<ContextState>('ok');
@@ -169,7 +197,11 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, o
     <button
       type="button"
       className="robot-viewmode"
-      onClick={toggle === 'show2d' ? () => setChosen2d(true) : retry}
+      onClick={() => {
+        answerOffer();
+        if (toggle === 'show2d') setChosen2d(true);
+        else retry();
+      }}
       title={t(viewToggleText[toggle].hint)}
       data-testid="robot-viewmode"
       data-action={toggle}
@@ -232,6 +264,7 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, o
               card={overlays.card}
               toolsCorner={overlays.tools}
               {...(tier === 'high' && autoLow === 'never' ? { onSlowFrames } : {})}
+              {...(tier === 'low' ? { onLowStep, drawCap: capped } : {})}
             />
           </ErrorBoundary>
           {!drawn && failedAttempt !== attempt && context === 'ok' && (
@@ -288,6 +321,8 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, o
         onClick={() => {
           setTier(tier === 'high' ? 'low' : 'high');
           if (autoLow === 'shown') setAutoLow('done');
+          if (capNote === 'shown') setCapNote('done');
+          answerOffer();
         }}
         title={t('robot.quality.hint')}
         data-testid="robot-quality"
@@ -296,10 +331,32 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, o
       >
         {t(tier === 'high' ? 'robot.quality.high' : 'robot.quality.low')}
       </button>
-      {autoLow === 'shown' && fallback === null && (
-        <p className="robot-quality-note" data-testid="robot-quality-note">
-          {t('robot.quality.autoLow')}
-        </p>
+      {offer === 'shown' && fallback === null ? (
+        <div className="robot-quality-note robot-offer-2d" data-testid="robot-offer-2d">
+          <p>{t('robot.quality.offer2d')}</p>
+          <div className="robot-offer-2d-actions">
+            <button
+              type="button"
+              data-testid="robot-offer-2d-accept"
+              onClick={() => {
+                answerOffer();
+                setChosen2d(true);
+              }}
+            >
+              {t('robot.view.show2d')}
+            </button>
+            <button type="button" data-testid="robot-offer-2d-keep" onClick={answerOffer}>
+              {t('robot.quality.keep3d')}
+            </button>
+          </div>
+        </div>
+      ) : (
+        (autoLow === 'shown' || capNote === 'shown') &&
+        fallback === null && (
+          <p className="robot-quality-note" data-testid="robot-quality-note">
+            {t(capNote === 'shown' ? 'robot.quality.capped' : 'robot.quality.autoLow')}
+          </p>
+        )
       )}
       {viewButton}
     </>

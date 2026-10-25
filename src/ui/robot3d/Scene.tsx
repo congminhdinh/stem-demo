@@ -25,7 +25,7 @@ import type { RobotTagBox } from './parts/ZoneTags';
 import { tierSettings, type QualityTier } from './quality';
 import type { RobotModel } from './robot-model';
 import { isRunOver, type RobotRunStore } from './robot-run-store';
-import { createFrameWatch } from './frame-watch';
+import { createFrameWatch, createLowTierWatch, drawDue, type LowTierStep } from './frame-watch';
 import type { RobotToolsStore } from './robot-tools-store';
 import { useLocale, useText } from '../i18n/text';
 import { RobotView } from './RobotView';
@@ -66,6 +66,10 @@ export type SceneProps = {
   toolsCorner?: ToolsCorner | null;
   /** N18 R4.7 fix round 1: a run is drawn too slowly for this tier (frame-watch.ts); told once. */
   onSlowFrames?(): void;
+  /** N18 P2: the low tier's frame watch (frame-watch.ts createLowTierWatch) says its next step: draw at 30 fps, then offer the 2D map. */
+  onLowStep?(step: LowTierStep): void;
+  /** N18 P2: a run is drawn at most 30 frames a second (`drawDue`); the simulation runs on its own clock, the same. */
+  drawCap?: boolean;
   /** N18 R4.8: the view tools (the ruler, the move tool), which take the pointer on the mat (FloorPicker). */
   tools?: RobotToolsStore;
   /** N18 R8: the keyboard's camera steps (camera-keys.ts); the rig takes the zoom and the orbit. */
@@ -147,13 +151,24 @@ function RedrawOnChange({ store }: { store: RobotRunStore }) {
  * the other in the first frame, which a software renderer pays for with tens of milliseconds each. Then it tells the owner once the
  * canvas has drawn its first frame, in a microtask after it, when the frame is on the canvas (until then "Đang tải 3D…" stands over it).
  */
-function CompiledDraw({ onDrawn }: { onDrawn?: (() => void) | undefined }) {
+function CompiledDraw({ onDrawn, cap = false, onDraw }: { onDrawn?: (() => void) | undefined; cap?: boolean; onDraw?: ((sinceDrawMs: number, backToBack: boolean) => void) | undefined }) {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
   const invalidate = useThree((state) => state.invalidate);
   const ready = useRef(false);
   const told = useRef(false);
+  // N18 P2: when the last frame was drawn, and whether the demand loop stopped since (R3F's tail): the low tier's watch judges the
+  // draws, and a capped view skips a display frame that comes too soon after the last draw (it asks for the next one instead).
+  const lastDraw = useRef<number | null>(null);
+  const stoppedSinceDraw = useRef(true);
+  useEffect(
+    () =>
+      addTail(() => {
+        stoppedSinceDraw.current = true;
+      }),
+    [],
+  );
   // An effect, after the scene's own (the studio's environment map is set by then: every shader is compiled once, with it).
   useEffect(() => {
     let live = true;
@@ -181,7 +196,17 @@ function CompiledDraw({ onDrawn }: { onDrawn?: (() => void) | undefined }) {
   }, [gl, scene, camera, invalidate]);
   useFrame(() => {
     if (!ready.current) return;
+    const now = performance.now();
+    const since = lastDraw.current === null ? Infinity : now - lastDraw.current;
+    const backToBack = !stoppedSinceDraw.current;
+    if (cap && backToBack && !drawDue(since)) {
+      invalidate();
+      return;
+    }
     gl.render(scene, camera);
+    lastDraw.current = now;
+    stoppedSinceDraw.current = false;
+    if (since !== Infinity) onDraw?.(since, backToBack);
     if (!told.current && onDrawn) {
       told.current = true;
       queueMicrotask(onDrawn);
@@ -316,7 +341,7 @@ function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewF
   );
 }
 
-export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored, onFirstFrame, resetKey, hud = null, card = null, toolsCorner = null, tools, onSlowFrames, commands }: SceneProps) {
+export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored, onFirstFrame, resetKey, hud = null, card = null, toolsCorner = null, tools, onSlowFrames, onLowStep, drawCap = false, commands }: SceneProps) {
   const settings = tierSettings[tier];
   const idle = useMemo(() => idleSnapshot(scenario, kit), [scenario, kit]);
   const view = useCallback(() => store.getState().latestWorld() ?? idle, [store, idle]);
@@ -333,6 +358,23 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
     requestAnimationFrame(() => setTagsReady(true));
   }, [onFirstFrame]);
   const overlays = useMemo(() => ({ hud, card, tools: toolsCorner }), [hud, card, toolsCorner]);
+  // N18 P2: the low tier's frame watch, one a canvas (it goes one way: a step it said is not said again). The draws of a run count.
+  // A canvas made capped (the lab capped an earlier one) starts at the cap: its next step is the offer.
+  const startCapped = useRef(drawCap);
+  const lowWatch = useMemo(() => createLowTierWatch(startCapped.current ? 'capped' : 'full'), []);
+  const latestLowStep = useRef(onLowStep);
+  useEffect(() => {
+    latestLowStep.current = onLowStep;
+  });
+  const lowDraw = useCallback(
+    (sinceDrawMs: number, backToBack: boolean) => {
+      const state = store.getState();
+      const running = state.active && !state.paused && !state.starting && !isRunOver(state.snapshot);
+      const step = lowWatch.frame(sinceDrawMs, running, backToBack);
+      if (step) latestLowStep.current?.(step);
+    },
+    [store, lowWatch],
+  );
   // N18 R4.7: a replay of a check's round ("Xem lại") is under way: the camera goes back to frame its start.
   const replaying = useStore(store, (state) => state.round !== null && state.active && !state.locked);
   // N18 R4.3: the sensor overlays write a distance with the learner's decimal sign.
@@ -352,7 +394,7 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
     >
       <Suspense fallback={null}>
         <SceneContent scenario={scenario} kit={kit} model={model} view={view} span={span} tier={tier} zoneLabel={zoneLabel} viewForward={viewForward} cameraMode={cameraMode} tagsReady={tagsReady} overlays={overlays} />
-        <CompiledDraw onDrawn={onDrawn} />
+        <CompiledDraw onDrawn={onDrawn} cap={drawCap} onDraw={onLowStep ? lowDraw : undefined} />
       </Suspense>
       <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} resetKey={resetKey} hud={hud} card={card} tools={toolsCorner} walls={walls} props={props} replaying={replaying} {...(commands ? { commands } : {})} />
       <RedrawOnChange store={store} />

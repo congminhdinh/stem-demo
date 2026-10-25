@@ -602,6 +602,38 @@
   font-size: 12px;
 }
 
+/* N18 P2: the 2D map offered on a computer too slow for 3D: the note on one line, with its two answers. */
+.robot-offer-2d {
+  max-width: 340px;
+}
+
+.robot-offer-2d p {
+  margin: 0 0 6px;
+}
+
+.robot-offer-2d-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.robot-offer-2d-actions button {
+  min-height: 26px;
+  padding: 2px 10px;
+  border: 1px solid var(--stem-color-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--stem-color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.robot-offer-2d-actions button:first-child {
+  border-color: var(--stem-color-primary);
+  background: var(--stem-color-primary);
+  color: var(--stem-color-on-primary);
+}
+
 /* Over the quality button in the 3D view; in the bottom corner when that button is hidden. */
 .robot-viewmode {
   position: absolute;
