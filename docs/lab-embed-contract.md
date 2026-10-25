@@ -220,6 +220,55 @@ Mỗi lab mở project của **một họ board** (`labFamilies` ở `src/ui/app
   Trang không cuộn khi khung cao từ khoảng 600 px. Host không phải làm gì: iframe hiện tại
   (`h-[min(78dvh,56rem)] min-h-[32rem]`) vừa. Lab không lưu bố cục (mỗi lần mở là mặc định).
 
+### 4.1 Phục vụ bản build trên VPS (N18 P2)
+
+- `pnpm build` chạy `vite build` rồi `node scripts/precompress.mjs dist`: mỗi file `.glb`, `.wasm`, `.js`, `.css` từ 1 kB có thêm bản
+  `.gz` (gzip mức 9) và `.br` (brotli mức 11) cạnh nó, khi bản nén nhỏ hơn (`scripts/lib/precompress.ts`, không thêm dependency:
+  `node:zlib`). Đo trên build của P2 (kB, file gốc → gzip → brotli): bốn `.glb` 1 777 → 778 → 667; wasm của Rapier 3 033 → 1 152
+  → 835; JS 3 490 → 969 → 793 (chunk `RobotLab-*.js` 1 319 → 376 → 310); CSS 54 → 10 → 9. Bước nén thêm khoảng 11 s vào
+  `pnpm build` (M4 Pro, brotli mức 11).
+- Reverse proxy phục vụ thẳng các bản nén đó (không nén lại mỗi request), với `Content-Encoding` đúng và `Vary: Accept-Encoding`
+  (đường dẫn dưới đây là của base `/`; build với `--base /lab/` thì thành `/lab/assets/*`, `/lab/robot3d/*`):
+  - `/assets/*`: tên file có hash nội dung, nên `Cache-Control: public, max-age=31536000, immutable`.
+  - `/robot3d/*.glb`: lab luôn xin kèm `?v=<sha256>` của manifest (`robot-assets.manifest.json`), nên cũng `immutable` (trình duyệt
+    cache theo URL đầy đủ).
+  - `index.html` (và mọi trang HTML): `Cache-Control: no-cache`, để bản deploy mới tới ngay.
+  - `.wasm` phải là `application/wasm` (trình duyệt biên dịch wasm trong lúc tải chỉ với kiểu này).
+- **nginx** (`gzip_static` có sẵn trong gói nginx của Debian/Ubuntu; `brotli_static` cần module `ngx_brotli`, không có thì bỏ dòng đó:
+  trình duyệt nhận bản `.gz`):
+
+```nginx
+server {
+  root /srv/stem-lab/dist;
+  gzip_static on;          # file.gz cạnh file
+  brotli_static on;        # file.br cạnh file (ngx_brotli)
+  gzip_vary on;            # Vary: Accept-Encoding
+
+  location /assets/  { add_header Cache-Control "public, max-age=31536000, immutable"; }
+  location /robot3d/ { add_header Cache-Control "public, max-age=31536000, immutable"; }
+  location ~ \.html$ { add_header Cache-Control "no-cache"; }
+  location ~ \.wasm$ { types { application/wasm wasm; } add_header Cache-Control "public, max-age=31536000, immutable"; }
+}
+```
+
+- **Caddy** (`precompressed` tự đặt `Content-Encoding` và `Vary`):
+
+```caddy
+lab.example.vn {
+  root * /srv/stem-lab/dist
+  file_server {
+    precompressed br gzip
+  }
+  @immutable path /assets/* /robot3d/*
+  header @immutable Cache-Control "public, max-age=31536000, immutable"
+  @html path *.html /
+  header @html Cache-Control "no-cache"
+}
+```
+
+- `vite preview` (Vite 8) **không** phục vụ các bản `.gz`/`.br` này: nó nén JS, CSS và JSON lúc gửi bằng gzip, còn `.glb` và `.wasm`
+  đi nguyên (bench:robot3d ghi header nó gửi). Nó chỉ để thử trên máy; đo tải lần đầu thật thì đo sau reverse proxy.
+
 ## 5. Phiên bản
 
 `stem-lab/v1` chỉ được **thêm** trường hoặc `type` mới (bên nhận bỏ qua cái không biết). Đổi nghĩa hay bỏ trường

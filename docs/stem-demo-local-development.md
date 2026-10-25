@@ -38,7 +38,7 @@ pnpm build
 pnpm preview
 ```
 
-`pnpm build` ghi bản build vào `dist/`, còn `pnpm preview` phục vụ thư mục đó ở <http://localhost:4173>. Build có in cảnh báo chunk lớn hơn 500 kB; đó chỉ là cảnh báo, không phải lỗi.
+`pnpm build` ghi bản build vào `dist/` (rồi nén sẵn `.glb`, `.wasm`, `.js`, `.css` thành `.gz` và `.br` cạnh chúng cho reverse proxy: `docs/lab-embed-contract.md` §4.1), còn `pnpm preview` phục vụ thư mục đó ở <http://localhost:4173> (không dùng các bản nén sẵn). Build có in cảnh báo chunk lớn hơn 500 kB; đó chỉ là cảnh báo, không phải lỗi.
 
 ## Kiểm tra nhanh
 
