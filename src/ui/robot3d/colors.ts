@@ -42,9 +42,9 @@ export const robot3dColors = {
   sky: '#ffffff',
   ground: '#aab4c3',
   sun: '#fffaf0',
-  /** N18 R4.7: the studio's rim light, its fog (the floor's colour where the studio fades it) and the mat's edge. */
+  /** N18 R4.7: the studio's rim light, its fog (the floor's colour where the studio fades it; light since fix round 1) and the mat's edge. */
   rim: '#d6e4ff',
-  studioFog: '#333c47',
+  studioFog: '#bdc2c9',
   matEdge: '#e4e4e0',
   /** N18 R4.7 fix round 1: the zones' tags over the mat (a white tag, dark words, a white number on the zone's colour) and their lines. */
   tagBackground: 'rgba(255, 255, 255, 0.96)',

@@ -78,8 +78,9 @@ export function boardPlacement(model: RobotModel): { x: number; z: number } {
 
 /** How far the line LEDs' board stands back from the deck's front edge (m): inside the body the physics drives. */
 const LINE_LEDS_INSET_M = 0.0005;
-/** The red halo round a lit line LED and the red spot on the mat under a dark eye, m across. */
-const LINE_HALO_M = 0.022;
+/** The red glow over a lit line LED (a sprite of fixed size on the screen: its scale is a share of the view's height through the
+ * field of view, about 1.6 % of it at 40°), and the red spot on the mat under a dark eye (m across). */
+const LINE_HALO_SCREEN = 0.012;
 const LINE_SPOT_M = 0.03;
 
 /** A material whose glow the robot view sets: the high tier's standard one, or the low tier's Lambert copy. */
@@ -270,10 +271,11 @@ export function assembleRobot(model: RobotModel, reference: ReferenceSizes, sour
     board.position.set(body.lengthM / 2 - LINE_LEDS_INSET_M, deck, middle);
     board.scale.set(1, 1, spacing / reference.lineSpacingM);
     root.add(board);
-    // What a dark eye lights: a halo round its LED, a spot on the mat under the eye (a soft red, untoned, so it stays red on the white
-    // mat and on the black tape alike).
-    const haloMaterial = new SpriteMaterial({ name: 'line-halo', color: colors.lineSensorDark, alphaMap: options.blob, transparent: true, opacity: 0.7, depthWrite: false, toneMapped: false });
-    const spotMaterial = new MeshBasicMaterial({ name: 'line-spot', color: colors.lineSensorDark, alphaMap: options.blob, transparent: true, opacity: 0.75, depthWrite: false, toneMapped: false });
+    // What a dark eye lights: a red glow over its LED that keeps its size on the screen (it reads from the far free view as well as up
+    // close), and a soft red spot on the mat under the eye. Both share the shader programs of what is always drawn (the zones' tags,
+    // the contact shadow): a program first needed in the middle of a run would be compiled there, a hitch on a software renderer.
+    const haloMaterial = new SpriteMaterial({ name: 'line-halo', color: colors.lineSensorDark, map: options.blob, transparent: true, opacity: 0.85, depthWrite: false, sizeAttenuation: false });
+    const spotMaterial = new MeshBasicMaterial({ name: 'line-spot', color: colors.lineSensorDark, alphaMap: options.blob, transparent: true, opacity: 0.75, depthWrite: false });
     const spotGeometry = new PlaneGeometry(LINE_SPOT_M, LINE_SPOT_M).rotateX(-Math.PI / 2);
     owned.materials.push(haloMaterial, spotMaterial);
     owned.geometries.push(spotGeometry);
@@ -284,7 +286,7 @@ export function assembleRobot(model: RobotModel, reference: ReferenceSizes, sour
       node.userData.moves = true;
       const glow = new Sprite(haloMaterial);
       glow.name = `line_halo_${i}`;
-      glow.scale.set(LINE_HALO_M, LINE_HALO_M, 1);
+      glow.scale.set(LINE_HALO_SCREEN, LINE_HALO_SCREEN, 1);
       glow.position.y = 0.0028;
       glow.visible = false;
       glow.userData.moves = true;

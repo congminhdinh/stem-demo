@@ -355,7 +355,7 @@ export function assembleArena(scenario: Pick<Scenario, 'arena'>, source: PropSou
   });
   root.add(studio);
   // The table's soft shadow on the studio's floor, and one under each foot: it stands on the floor, it does not float. One mesh (one
-  // draw: a software renderer pays for each).
+  // draw: a software renderer pays for each), drawn with the contact shadows' shader.
   const floorY = -MAT_THICKNESS_M - TABLE_HEIGHT_M + 0.002;
   const patch = (width: number, depth: number, x: number, z: number) => new PlaneGeometry(width, depth).rotateX(-Math.PI / 2).translate(x, floorY, z);
   const patches = [patch(tableW * 1.45, tableD * 1.45, centre[0], centre[2])];
@@ -363,7 +363,7 @@ export function assembleArena(scenario: Pick<Scenario, 'arena'>, source: PropSou
   const tableShadow = mergeGeometries(patches, false);
   for (const geometry of patches) geometry.dispose();
   if (tableShadow) {
-    const material = new MeshBasicMaterial({ color: '#000000', alphaMap: options.blob, transparent: true, opacity: 0.45, depthWrite: false, fog: false });
+    const material = new MeshBasicMaterial({ color: '#000000', alphaMap: options.blob, transparent: true, opacity: 0.45, depthWrite: false });
     owned.geometries.push(tableShadow);
     owned.materials.push(material);
     const mesh = new Mesh(tableShadow, material);
