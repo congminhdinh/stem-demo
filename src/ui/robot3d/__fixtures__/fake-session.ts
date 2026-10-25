@@ -1,7 +1,9 @@
 import { vi } from 'vitest';
 import type { Kit } from '../../../core/hardware/kit';
-import type { RobotRunSession, RobotRunSnapshot, RobotStartResult } from '../../../core/run/robot-run-session';
+import type { RobotPlaceResult, RobotRunSession, RobotRunSnapshot, RobotStartResult, RobotTeleopResult } from '../../../core/run/robot-run-session';
+import type { TeleopCommand } from '../../../core/run/teleop';
 import type { Scenario } from '../../../core/scenario/scenario';
+import type { PlacementPose } from '../../../core/scenario/placement';
 import type { RobotSnapshot } from '../../../core/world/snapshot';
 import type { CheckRunView } from '../robot-run-store';
 import { idleSnapshot } from '../scene-math';
@@ -38,6 +40,17 @@ export function fakeSession(scenario: Scenario, kit: Kit) {
       return { ok: true };
     }),
     pressButton: vi.fn(),
+    // N18 R4.8: teleop is a run marked `teleop`; its commands are only recorded; a placement is taken as given.
+    startTeleop: vi.fn(async (): Promise<RobotTeleopResult> => {
+      publish({ status: 'running', world: world(0), teleop: true });
+      return { ok: true };
+    }),
+    teleop: vi.fn((command: TeleopCommand) => void command),
+    stopTeleop: vi.fn(() => {
+      if (snapshot.teleop) publish(idleRun);
+    }),
+    teleopLog: () => [],
+    placeRobot: vi.fn(async (pose: PlacementPose | null): Promise<RobotPlaceResult> => ({ ok: true, pose: pose ?? { ...scenario.start } })),
     getSnapshot: () => snapshot,
     subscribe: (listener: (snapshot: RobotRunSnapshot) => void) => {
       listeners.add(listener);

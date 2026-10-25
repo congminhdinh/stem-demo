@@ -1,4 +1,5 @@
 import type { ProjectDocument } from '../circuit/document';
+import type { ModuleIO } from '../capabilities/io';
 import { createRunScheduler, createRuntimeServices, createSeededRandomInt, type ProgramClock, type RunScheduler, type RunWarning } from '../capabilities/services';
 import type { DeviceRegistry } from '../devices/registry';
 import { createProgramIO } from '../hardware/binding';
@@ -20,9 +21,11 @@ import { inputsDueBetween, runEndingContact, type Scenario } from '../scenario/s
 import type { Arena } from '../world/arena/arena-schema';
 import { PHYSICS_DT_S, PHYSICS_HZ } from '../world/rapier';
 import type { RobotSnapshot, RunStatus, ScoreState } from '../world/snapshot';
+import { checkPlacement, type PlacementPose } from '../scenario/placement';
 import { createScenarioWorld, type World } from '../world/world';
 import { createModuleModels } from './robot-modules';
 import type { RunDiagnostic } from './run-session';
+import { canTeleop, createTeleopController, TELEOP_USES, type TeleopCommand, type TeleopController, type TeleopEntry } from './teleop';
 import { createVirtualScheduler, type VirtualScheduler } from './virtual-clock';
 
 // The robot lab's run (N18 R3.6, robot plan §3, B5): the ONLY place where the learner's program, the hardware and the world meet.
@@ -97,6 +100,22 @@ import { createVirtualScheduler, type VirtualScheduler } from './virtual-clock';
 // same). The ticks go on, so the goals and the time limit count as they would; a frame still publishes when anything else changes (the
 // status, the end, a goal's verdict or the points, the console, a diagnostic), and a headless run still publishes its last snapshot. A
 // robot that moves again publishes every frame again.
+//
+// N18 R4.8, teleop ("Lái tay", teleop.ts): `startTeleop()` replaces any run (as `start` does: the latest call wins) with a run that has no
+// program, on a new world from the start, its snapshots marked `teleop`. setup() is the drive's (TELEOP_USES); the commands of `teleop(cmd)`
+// wait for the next tick, and in step 2 of that tick, in place of the program, the controller calls `drive.move` / `drive.stop` on the
+// module binding: the same calls, on the same pins, as a program's first statement in that tick, so the world is the same tick for tick
+// (and the log of (tick, command) replays it). The board's time there is the tick's start plus what its calls cost (the hardware's clock
+// with no program, see `createRun`). Everything else is a run's: the scorer judges each tick (the HUD shows it; nothing is ever sent as a
+// check), the scenario's time limit and contacts end it, `resetRobot` starts a new teleop run, `start` (Chạy) replaces it, `stopTeleop` (or
+// `stop`) ends it. Commands given while its world is built apply at tick 0; to any other run they are nothing. It is refused while a check
+// run goes on (`check`) and for a kit without the drive (`no-drive`).
+//
+// N18 R4.8, the placed start ("Di chuyển robot"): `placeRobot(pose)` sets where every next world of the learner's runs starts (its run,
+// Đặt lại robot, teleop), moved inside the arena and checked against it (scenario/placement.ts: a pose that stands in something is
+// refused); null gives back the scenario's start. A run going on is started again from there (a new world, as `resetRobot`). A check's run
+// always starts at the scenario's start and its variants' (robot plan §4.6): its worlds never take the placed pose, and placeRobot is refused
+// while one is the session's. A start that is building its world keeps the start it began with.
 
 /** The most ticks one `advance` runs (one frame) on a machine that keeps up: 4× speed at 60 frames per second. */
 export const MAX_TICKS_PER_FRAME = 8;
@@ -165,6 +184,8 @@ export type RobotRunSnapshot = {
   slowerThanRealtime: boolean;
   /** N18 R6.2: present once the scenario ended the run (its time limit or a contact); left out before and for every other state. */
   end?: RobotRunEnd;
+  /** N18 R4.8: present (true) while the run is teleop (no program; the drive follows `teleop` commands); left out for every other run. */
+  teleop?: true;
 };
 
 export type RobotStartFailureReason =
@@ -182,6 +203,19 @@ export type RobotStartFailureReason =
   | 'idle';
 
 export type RobotStartResult = { ok: true } | { ok: false; reason: RobotStartFailureReason; diagnostics: RunDiagnostic[] };
+
+/** N18 R4.8: how `startTeleop` went: as a start, or refused while a check run goes on (`check`) or for a kit without the drive (`no-drive`). */
+export type RobotTeleopResult = RobotStartResult | { ok: false; reason: 'check' | 'no-drive'; diagnostics: RunDiagnostic[] };
+
+/**
+ * N18 R4.8: how `placeRobot` went: the pose every next world of the learner's runs starts at (moved inside the arena); refused for a pose
+ * that stands in something (`overlap`, the start check's issues) and while a check run is the session's (`check`); or, when it started the
+ * run going on again, why that start failed.
+ */
+export type RobotPlaceResult =
+  | { ok: true; pose: PlacementPose }
+  | { ok: false; reason: 'overlap' | 'check'; issues: readonly { readonly path: string; readonly message: string }[] }
+  | Extract<RobotStartResult, { ok: false }>;
 
 export type RobotStartOptions = {
   /** A check (R6.2) runs it: `pressButton` is ignored, only the scenario's inputs press buttons. */
@@ -238,6 +272,19 @@ export type RobotRunSession = {
    * Ignored while idle, during a check, once the ticks have stopped (an error), and for a role that is no button of the kit.
    */
   pressButton(role: string, down: boolean): void;
+  /** N18 R4.8: replaces any run with a teleop run on a new world from the start (see the top of this file). */
+  startTeleop(): Promise<RobotTeleopResult>;
+  /**
+   * N18 R4.8: a command of the teleop run, applied at its next tick (its first, while its world is built). Ignored for any other run, while
+   * idle and once its ticks have stopped. Throws a RangeError for a command that is none (teleop.ts).
+   */
+  teleop(command: TeleopCommand): void;
+  /** N18 R4.8: ends the teleop run, or the teleop start building its world; nothing for any other run. */
+  stopTeleop(): void;
+  /** N18 R4.8: the commands the teleop run applied, with their ticks (empty for any other run). */
+  teleopLog(): readonly TeleopEntry[];
+  /** N18 R4.8: where the learner's next worlds start (null: the scenario's start); a run going on starts again there. */
+  placeRobot(pose: PlacementPose | null): Promise<RobotPlaceResult>;
   getSnapshot(): RobotRunSnapshot;
   subscribe(listener: (snapshot: RobotRunSnapshot) => void): () => void;
 };
@@ -246,15 +293,22 @@ const emptyConsole: ConsoleSnapshot = { lines: [], hidden: 0 };
 const idle: RobotRunSnapshot = { status: 'idle', diagnostics: [], error: null, console: emptyConsole, world: null, slowerThanRealtime: false };
 const noScore: ScoreState = { points: 0, maxScore: null, goals: [] };
 
-/** What a start compiled, kept for `resetRobot`. */
-type Prepared = { ir: YbcProgramIR; uses: UnoProgramUses; diagnostics: RunDiagnostic[]; program: unknown };
+/** What a start compiled, kept for `resetRobot`; a teleop run has no program (`ir` null) and sets up the drive only. */
+type Prepared = { ir: YbcProgramIR | null; uses: Pick<UnoProgramUses, 'modules' | 'inputPins' | 'outputPins'>; diagnostics: RunDiagnostic[]; program: unknown };
+
+/** What a teleop run is made from (N18 R4.8): no program, the drive's setup, nothing for uses-block to read. */
+const teleopPrepared: Prepared = { ir: null, uses: TELEOP_USES, diagnostics: [], program: null };
 
 type ActiveRun = {
   readonly prepared: Prepared;
   readonly variantIndex: number;
   readonly check: boolean;
+  /** N18 R4.8: the teleop controller of a teleop run; null for a program's run. */
+  readonly teleop: TeleopController | null;
   readonly world: World;
   readonly uno: VirtualUno;
+  /** The module binding of the run's virtual UNO (the program's `modules`, teleop's drive). */
+  readonly modules: ModuleIO;
   readonly scheduler: VirtualScheduler;
   readonly controller: AbortController;
   readonly timers: RunScheduler;
@@ -322,6 +376,8 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
   const kits = robotKitCatalog(kit, board);
   const models = createModuleModels(kit, board);
   const buttonRoles = new Set<string>(kit.modules.filter((module) => module.kind === 'button').map((module) => module.role));
+  /** N18 R4.8: the kit has the drive, so it can be driven by hand. */
+  const drivable = canTeleop(kit, board);
   /** The first tick at or after the time limit: the run is the ticks before it, and the next one would go past the limit. */
   const limitTick = Math.ceil(scenario.timeLimitS * PHYSICS_HZ - LIMIT_EPSILON_TICKS);
   const endsOnContact = (scenario.endOnContact ?? []).length > 0;
@@ -330,8 +386,10 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
   const listeners = new Set<(snapshot: RobotRunSnapshot) => void>();
   /** The run that owns the session: from its start until stop or a replacing start, also once it finished or failed. */
   let current: ActiveRun | null = null;
-  /** The start that is building its world; a stop or a newer start replaces it. */
-  let pendingStart: object | null = null;
+  /** The start that is building its world (with its teleop controller, for a teleop start); a stop or a newer start replaces it. */
+  let pendingStart: { readonly teleop: TeleopController | null } | null = null;
+  /** N18 R4.8: where the learner placed the robot; null for the scenario's start. */
+  let placement: PlacementPose | null = null;
 
   const publish = (next: RobotRunSnapshot) => {
     snapshot = next;
@@ -448,6 +506,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       world,
       slowerThanRealtime: run.slower,
       ...(run.end === null ? {} : { end: { ...run.end } }),
+      ...(run.teleop === null ? {} : { teleop: true as const }),
     });
   };
 
@@ -528,15 +587,27 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       return false;
     }
     applyInputs(run, k);
-    run.startProgram();
-    try {
-      await run.scheduler.advanceTo((k * 1000) / PHYSICS_HZ);
-    } catch (error) {
-      // A timer task that throws (a charge while the program is blocked) rejects the tick: the run fails, the loop goes on living.
-      if (current === run) {
-        failRun(run, error);
+    if (run.teleop !== null) {
+      // N18 R4.8: no program; the commands given since the last tick make their drive calls at its start, where a program's would.
+      try {
+        run.teleop.apply(k, run.modules);
+      } catch (error) {
+        if (current === run) {
+          failRun(run, error);
+        }
+        return false;
       }
-      return false;
+    } else {
+      run.startProgram();
+      try {
+        await run.scheduler.advanceTo((k * 1000) / PHYSICS_HZ);
+      } catch (error) {
+        // A timer task that throws (a charge while the program is blocked) rejects the tick: the run fails, the loop goes on living.
+        if (current === run) {
+          failRun(run, error);
+        }
+        return false;
+      }
     }
     if (!ticking(run)) {
       return false;
@@ -637,16 +708,33 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
   };
 
   /** The run of a compiled program on a new world: the virtual UNO, its sources, setup(), the services. The program starts at `go`. */
-  const createRun = (prepared: Prepared, world: World, variantIndex: number, check: boolean): ActiveRun => {
+  const createRun = (prepared: Prepared, world: World, variantIndex: number, check: boolean, teleop: TeleopController | null): ActiveRun => {
     const controller = new AbortController();
     const { signal } = controller;
     const scheduler = createVirtualScheduler({ signal, delayOverheadUs: board.costsUs.delayOverhead, wallNow });
     /** The end of the last tick the program lived through, ms: the hardware's time is never before it (see the top of this file). */
     let livedMs = 0;
-    const hardwareClock: ProgramClock = {
-      now: () => Math.max(scheduler.programClock.now(), livedMs),
-      charge: (us) => scheduler.programClock.charge(us),
-    };
+    /**
+     * N18 R4.8: with no program (teleop), the board does only what the commands say, at the start of the tick they apply in: its time is
+     * that tick's start, plus what its calls cost since (µs). The scheduler's program clock, which only a running program may be charged,
+     * is not used.
+     */
+    let boardUs = 0;
+    const hardwareClock: ProgramClock =
+      teleop === null
+        ? {
+            now: () => Math.max(scheduler.programClock.now(), livedMs),
+            charge: (us) => scheduler.programClock.charge(us),
+          }
+        : {
+            now: () => Math.max(boardUs / 1000, livedMs),
+            charge(us) {
+              if (!(us >= 0) || !Number.isFinite(us)) {
+                throw new RangeError(`A charge is a finite number of µs, 0 or more, not ${us}.`);
+              }
+              boardUs = Math.max(boardUs, livedMs * 1000) + us;
+            },
+          };
     const uno = createVirtualUno(board, hardwareClock);
     const runConsole = createRunConsole();
     const timers = createRunScheduler(scheduler.timers);
@@ -710,8 +798,10 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       prepared,
       variantIndex,
       check,
+      teleop,
       world,
       uno,
+      modules: io.modules,
       scheduler,
       controller,
       timers,
@@ -733,7 +823,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
         return structuredClone(scorer.score());
       },
       startProgram() {
-        if (started) {
+        if (started || prepared.ir === null) {
           return;
         }
         started = true;
@@ -793,9 +883,12 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
 
   const superseded: RobotStartResult = { ok: false, reason: 'superseded', diagnostics: [] };
 
-  /** Replaces the current run with a run of `prepared` on a new world of the variant (start and resetRobot). */
-  const launch = async (prepared: Prepared, variantIndex: number, check: boolean): Promise<RobotStartResult> => {
-    const ticket = {};
+  /**
+   * Replaces the current run with a run of `prepared` on a new world of the variant (start, resetRobot, startTeleop and placeRobot); a
+   * teleop run with `teleop`, its controller. The learner's runs start where the robot was placed; a check's never do.
+   */
+  const launch = async (prepared: Prepared, variantIndex: number, check: boolean, teleop: TeleopController | null = null): Promise<RobotStartResult> => {
+    const ticket = { teleop };
     pendingStart = ticket;
     // The run this one replaces ends now, without an idle snapshot in between.
     const replaced = current;
@@ -803,9 +896,10 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
     if (replaced) {
       retire(replaced);
     }
+    const from = check || placement === null ? scenario : { ...scenario, start: placement };
     let world: World;
     try {
-      world = await createScenarioWorld(scenario, kit, variantIndex);
+      world = await createScenarioWorld(from, kit, variantIndex);
     } catch (error) {
       if (pendingStart !== ticket) {
         return superseded;
@@ -819,7 +913,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
     }
     let run: ActiveRun;
     try {
-      run = createRun(prepared, world, variantIndex, check);
+      run = createRun(prepared, world, variantIndex, check, teleop);
     } catch (error) {
       pendingStart = null;
       world.dispose();
@@ -914,7 +1008,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       if (!run) {
         return { ok: false, reason: 'idle', diagnostics: [] };
       }
-      return launch(run.prepared, run.variantIndex, run.check);
+      return launch(run.prepared, run.variantIndex, run.check, run.teleop === null ? null : createTeleopController());
     },
     pressButton(role, down) {
       const run = current;
@@ -922,6 +1016,48 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
         return;
       }
       run.pendingPresses.push([role, down]);
+    },
+    async startTeleop() {
+      if (!drivable) {
+        return { ok: false, reason: 'no-drive', diagnostics: [] };
+      }
+      if (current !== null && current.check && ticking(current)) {
+        return { ok: false, reason: 'check', diagnostics: [] };
+      }
+      return launch(teleopPrepared, 0, false, createTeleopController());
+    },
+    teleop(command) {
+      const run = current;
+      // The teleop run's while its ticks go on; while a teleop start builds its world, that one's (for its tick 0).
+      const controller = run !== null ? (ticking(run) ? run.teleop : null) : (pendingStart?.teleop ?? null);
+      controller?.push(command);
+    },
+    stopTeleop() {
+      if (current !== null ? current.teleop !== null : (pendingStart?.teleop ?? null) !== null) {
+        stop();
+      }
+    },
+    teleopLog: () => current?.teleop?.log() ?? Object.freeze([]),
+    async placeRobot(pose) {
+      if (current !== null && current.check) {
+        return { ok: false, reason: 'check', issues: [] };
+      }
+      let next: PlacementPose | null = null;
+      if (pose !== null) {
+        const placed = checkPlacement(scenario.arena, kit, pose);
+        if (placed.issues.length > 0) {
+          return { ok: false, reason: 'overlap', issues: placed.issues.map((issue) => ({ ...issue })) };
+        }
+        next = placed.pose;
+      }
+      placement = next;
+      const shown: PlacementPose = { ...(next ?? scenario.start) };
+      const run = current;
+      if (run === null) {
+        return { ok: true, pose: shown };
+      }
+      const restarted = await launch(run.prepared, run.variantIndex, run.check, run.teleop === null ? null : createTeleopController());
+      return restarted.ok ? { ok: true, pose: shown } : restarted;
     },
     getSnapshot: () => snapshot,
     subscribe(listener) {
