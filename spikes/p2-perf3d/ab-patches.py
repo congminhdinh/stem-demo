@@ -42,6 +42,20 @@ elif variant == 'cap-30':
     patch('src/ui/robot3d/Scene.tsx',
           "        if (get().internal.frames < 2) invalidate(2);",
           "        invalidate();")
+elif variant == 'tag-hysteresis':
+    # Phase B (#4, held back by the owner's ruling: no visible change): the zones' tags try last frame's spot first, on Phase B's
+    # allocation-free layout (zone-tag-layout.ts createTagLayout), so a tag keeps its spot until something comes in its way.
+    patch('src/ui/robot3d/parts/zone-tag-layout.ts',
+          """        let chosen: TagPlace | null = null;
+        if (!tag.hidden) {
+          for (const place of TAG_PLACES) {
+            if (free(tag, place, avoid, count)) {""",
+          """        const last = places[t] ?? null;
+        let chosen: TagPlace | null = null;
+        if (!tag.hidden) {
+          if (last && free(tag, last, avoid, count)) chosen = last;
+          else for (const place of TAG_PLACES) {
+            if (place !== last && free(tag, place, avoid, count)) {""")
 else:
     raise SystemExit('unknown variant ' + variant)
 print('applied', variant)

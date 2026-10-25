@@ -8,9 +8,9 @@ import { VIEW_SAFE_RECT, ZONE_TAG_M } from '../camera-studio';
 import { robot3dColors as colors } from '../colors';
 import type { CardEdge, HudCorner, ToolsCorner } from '../hud-corner';
 import { arenaToThree } from '../scene-math';
-import { labelBoxes } from '../sensor-label-boxes';
+import { labelBoxes, MAX_LABEL_BOXES } from '../sensor-label-boxes';
 import type { MatLabels } from './mat-paint';
-import { boxOf, inPolygon, placeTags, TAG_LIFTS_M, TAG_PLACES, type ScreenBox, type TagPlace, type TagToPlace } from './zone-tag-layout';
+import { boxOfInto, createTagLayout, inPolygon, TAG_LIFTS_M, TAG_PLACES, type ScreenBox, type TagPlace } from './zone-tag-layout';
 import { tagBadgeColor, zoneTags, type ZoneTag } from './zone-tags';
 
 // The zones' tags over the mat (N18 R4.7 fix round 1, zone-tags.ts): each a rounded tag drawn on a canvas (a checkpoint's number in a
@@ -30,6 +30,8 @@ const FONT = '"Be Vietnam Pro", system-ui, sans-serif';
 const TEXT_FONT = `600 32px ${FONT}`;
 /** The line's width on the screen (px). */
 const LINE_PX = 1.5;
+/** N18 P2: what the layout is made from, as numbers (ZoneTags' frame callback): two 4 × 4 matrices, 6 more and the sensors' tags. */
+const SEEN_LENGTH = 16 + 16 + 6 + 4 * MAX_LABEL_BOXES;
 
 const hex = (colour: string): [number, number, number] => {
   const value = Number.parseInt(colour.slice(1, 7), 16);
@@ -163,49 +165,127 @@ export function ZoneTags({ scenario, labels, view, mode, overlays, robot }: Zone
   // The pill TAG_SCREEN of the canvas high (the sprite has the shadow's margin round it).
   const spriteHeight = TAG_SCREEN * 2 * Math.tan((fovDeg * Math.PI) / 360) * ((PILL_PX + 2 * MARGIN_PX) / PILL_PX);
 
+  // N18 P2: what the frame callback works with, made once for the tags, so that it makes no garbage a frame (it made 3–5 KB a frame,
+  // and the layout 3–10 KB more): the layout (createTagLayout) and every array and box are made once, and reused.
+  const work = useMemo(() => {
+    const point = new Vector3();
+    return {
+      layout: createTagLayout(),
+      point,
+      /** Projects (x, y, z) into `into` (NDC x, y); false where it is behind the camera or past its far plane. */
+      project: (x: number, y: number, z: number, into: [number, number]): boolean => {
+        point.set(x, y, z).project(camera);
+        if (point.z > 1 || point.z < -1) return false;
+        into[0] = point.x;
+        into[1] = point.y;
+        return true;
+      },
+      distance: new Vector3(),
+      /** The robot's box's corners on the screen, x, y each. */
+      corners: new Float64Array(16),
+      robot: { left: 0, right: 0, bottom: 0, top: 0 },
+      above: { left: -1, right: 1, bottom: VIEW_SAFE_RECT.top, top: 1 },
+      hud: { left: -1, right: 0, bottom: 0, top: 1 },
+      card: { left: 0, right: 1, bottom: -1, top: 1 },
+      tools: { left: -1, right: 0, bottom: -1, top: 0 },
+      avoid: [] as ScreenBox[],
+      /** The robot's spot on the floor (arena cm), for its zone. */
+      at: [0, 0] as [number, number],
+      toPlace: tags.map(() => ({ anchors: [null, null, null] as ([number, number] | null)[], points: TAG_LIFTS_M.map((): [number, number] => [0, 0]), width: 0, height: 0, hidden: false })),
+      /** What the last layout was made from: the camera's two matrices, the robot's pose, the view's height, the mode and the sensors' tags (and, by identity, the overlays and the robot's box). */
+      seen: new Float64Array(SEEN_LENGTH).fill(Number.NaN),
+      next: new Float64Array(SEEN_LENGTH),
+      seenOverlays: null as ZoneTagsProps['overlays'] | null,
+      seenRobot: null as RobotTagBox | null,
+    };
+  }, [tags, camera]);
+
   useFrame(() => {
     const { view: now, mode: cameraMode, overlays: over, robot: box } = latest.current;
     const world = now();
     const { xCm, yCm, yawDeg } = world.robot;
+    // Nothing the layout reads has changed since the last frame (a frame for an LED, a blink): it stands as it is.
+    const { seen, next } = work;
+    next.set(camera.matrixWorld.elements, 0);
+    next.set(camera.projectionMatrix.elements, 16);
+    next[32] = xCm;
+    next[33] = yCm;
+    next[34] = yawDeg;
+    next[35] = size.height;
+    next[36] = cameraMode === 'follow' ? 1 : 0;
+    next[37] = labelBoxes.count;
+    for (let i = 0; i < MAX_LABEL_BOXES; i++) {
+      const label = labelBoxes.boxes[i]!;
+      const at = 38 + 4 * i;
+      const used = i < labelBoxes.count;
+      next[at] = used ? label.left : 0;
+      next[at + 1] = used ? label.right : 0;
+      next[at + 2] = used ? label.bottom : 0;
+      next[at + 3] = used ? label.top : 0;
+    }
+    let same = over === work.seenOverlays && box === work.seenRobot;
+    for (let i = 0; same && i < SEEN_LENGTH; i++) same = next[i] === seen[i];
+    if (same) return;
+    seen.set(next);
+    work.seenOverlays = over;
+    work.seenRobot = box;
+
     const elements = camera.projectionMatrix.elements;
-    const point = new Vector3();
-    const project = (x: number, y: number, z: number): [number, number] | null => {
-      point.set(x, y, z).project(camera);
-      return point.z > 1 || point.z < -1 ? null : [point.x, point.y];
-    };
+    const { point, corners, project } = work;
     // The robot's box on the screen, its raised flag in it.
-    const [c, s] = [Math.cos((yawDeg * Math.PI) / 180), Math.sin((yawDeg * Math.PI) / 180)];
-    const corners: [number, number][] = [];
-    for (const dx of [-box.halfLength, box.halfLength]) {
-      for (const dy of [-box.halfWidth, box.halfWidth]) {
-        const [x, , z] = arenaToThree(xCm + (dx * c - dy * s) * 100, yCm + (dx * s + dy * c) * 100, 0);
-        for (const h of [0, box.height]) {
-          const at = project(x, h, z);
-          if (at) corners.push(at);
-        }
+    const c = Math.cos((yawDeg * Math.PI) / 180);
+    const s = Math.sin((yawDeg * Math.PI) / 180);
+    let cornerCount = 0;
+    for (let i = 0; i < 4; i++) {
+      const dx = i < 2 ? -box.halfLength : box.halfLength;
+      const dy = i % 2 === 0 ? -box.halfWidth : box.halfWidth;
+      // arenaToThree, inline: (x cm, y cm) → (x m, 0 − y m).
+      const x = (xCm + (dx * c - dy * s) * 100) / 100;
+      const z = 0 - (yCm + (dx * s + dy * c) * 100) / 100;
+      for (let k = 0; k < 2; k++) {
+        point.set(x, k === 0 ? 0 : box.height, z).project(camera);
+        if (point.z > 1 || point.z < -1) continue;
+        corners[2 * cornerCount] = point.x;
+        corners[2 * cornerCount + 1] = point.y;
+        cornerCount += 1;
       }
     }
-    const avoid: ScreenBox[] = [{ left: -1, right: 1, bottom: VIEW_SAFE_RECT.top, top: 1 }];
-    const robotBox = boxOf(corners);
-    if (robotBox) avoid.push(robotBox);
-    if (over.hud) avoid.push({ left: -1, right: over.hud.right, bottom: over.hud.bottom, top: 1 });
-    if (over.card) avoid.push({ left: over.card.left, right: 1, bottom: -1, top: 1 });
-    if (over.tools) avoid.push({ left: -1, right: over.tools.right, bottom: -1, top: over.tools.top });
+    work.at[0] = xCm;
+    work.at[1] = yCm;
+    const avoid = work.avoid;
+    avoid.length = 0;
+    avoid.push(work.above);
+    if (boxOfInto(corners, cornerCount, work.robot)) avoid.push(work.robot);
+    if (over.hud) {
+      work.hud.right = over.hud.right;
+      work.hud.bottom = over.hud.bottom;
+      avoid.push(work.hud);
+    }
+    if (over.card) {
+      work.card.left = over.card.left;
+      avoid.push(work.card);
+    }
+    if (over.tools) {
+      work.tools.right = over.tools.right;
+      work.tools.top = over.tools.top;
+      avoid.push(work.tools);
+    }
     // N18 R4.3: the ultrasonic distance tags (sensor-label-boxes.ts).
     for (let i = 0; i < labelBoxes.count; i++) avoid.push(labelBoxes.boxes[i]!);
-    const toPlace: TagToPlace[] = tags.map(({ tag, drawn, polygon }) => {
-      const [x, , z] = arenaToThree(tag.centerCm[0], tag.centerCm[1], 0);
+    for (let i = 0; i < tags.length; i++) {
+      const { tag, drawn, polygon } = tags[i]!;
+      const entry = work.toPlace[i]!;
+      const x = tag.centerCm[0] / 100;
+      const z = 0 - tag.centerCm[1] / 100;
+      for (let lift = 0; lift < TAG_LIFTS_M.length; lift++) entry.anchors[lift] = project(x, ZONE_TAG_M + TAG_LIFTS_M[lift]!, z, entry.points[lift]!) ? entry.points[lift]! : null;
       const spriteWidth = spriteHeight * (drawn.canvasWidth / (PILL_PX + 2 * MARGIN_PX));
-      return {
-        anchors: TAG_LIFTS_M.map((lift) => project(x, ZONE_TAG_M + lift, z)),
-        width: spriteWidth * elements[0]! * (drawn.pillWidth / drawn.canvasWidth),
-        height: spriteHeight * elements[5]! * (PILL_PX / (PILL_PX + 2 * MARGIN_PX)),
-        hidden: cameraMode === 'follow' || inPolygon([xCm, yCm], polygon),
-      };
-    });
-    const places = placeTags(toPlace, avoid);
-    const distance = new Vector3();
-    tags.forEach(({ tag, drawn }, i) => {
+      entry.width = spriteWidth * elements[0]! * (drawn.pillWidth / drawn.canvasWidth);
+      entry.height = spriteHeight * elements[5]! * (PILL_PX / (PILL_PX + 2 * MARGIN_PX));
+      entry.hidden = cameraMode === 'follow' || inPolygon(work.at, polygon);
+    }
+    const places = work.layout.place(work.toPlace, avoid);
+    for (let i = 0; i < tags.length; i++) {
+      const { tag, drawn } = tags[i]!;
       const sprite = sprites.current[i];
       const leader = lines.current[i];
       const place: TagPlace | null = places[i] ?? null;
@@ -219,15 +299,16 @@ export function ZoneTags({ scenario, labels, view, mode, overlays, robot }: Zone
       if (leader) {
         leader.visible = place !== null;
         if (place) {
-          const [x, , z] = arenaToThree(tag.centerCm[0], tag.centerCm[1], 0);
+          const x = tag.centerCm[0] / 100;
+          const z = 0 - tag.centerCm[1] / 100;
           const height = ZONE_TAG_M + TAG_LIFTS_M[place.lift];
           // A line LINE_PX wide at its distance, turned to face the camera about the upright.
-          const far = distance.set(x, height / 2, z).distanceTo(camera.position);
+          const far = work.distance.set(x, height / 2, z).distanceTo(camera.position);
           leader.scale.set((LINE_PX * 2 * far * Math.tan((fovDeg * Math.PI) / 360)) / Math.max(1, size.height), height, 1);
           leader.rotation.y = Math.atan2(camera.position.x - x, camera.position.z - z);
         }
       }
-    });
+    }
   });
 
   return (

@@ -1,0 +1,38 @@
+shots (36) of b4hyst (ab-patches.py tag-hysteresis on b4) against b4: the visible change held back by the owner's ruling (tag-spot-before-after.png: mini-mission high, after 15 steps; top b4, bottom b4hyst)
+drive-to-zone-high-follow.png: 0.000 % over 8, largest 0
+drive-to-zone-high-idle.png: 0.000 % over 8, largest 0
+drive-to-zone-high-step.png: 0.000 % over 8, largest 0
+drive-to-zone-high-top.png: 0.000 % over 8, largest 0
+drive-to-zone-low-follow.png: 0.000 % over 8, largest 0
+drive-to-zone-low-idle.png: 0.000 % over 8, largest 0
+drive-to-zone-low-step.png: 0.000 % over 8, largest 0
+drive-to-zone-low-top.png: 0.000 % over 8, largest 0
+line-follow-high-follow.png: 0.000 % over 8, largest 0
+line-follow-high-idle.png: 0.000 % over 8, largest 0
+line-follow-high-step.png: 0.000 % over 8, largest 0
+line-follow-high-top.png: 0.000 % over 8, largest 0
+line-follow-low-follow.png: 0.000 % over 8, largest 0
+line-follow-low-idle.png: 0.000 % over 8, largest 0
+line-follow-low-step.png: 0.000 % over 8, largest 0
+line-follow-low-top.png: 0.000 % over 8, largest 0
+mini-mission-high-follow.png: 0.000 % over 8, largest 0
+mini-mission-high-idle.png: 0.000 % over 8, largest 0
+mini-mission-high-step.png: 0.479 % over 8, largest 171, box x 330–383 y 245–279
+mini-mission-high-top.png: 0.000 % over 8, largest 0
+mini-mission-low-follow.png: 0.000 % over 8, largest 0
+mini-mission-low-idle.png: 0.000 % over 8, largest 0
+mini-mission-low-step.png: 0.373 % over 8, largest 174, box x 330–383 y 245–279
+mini-mission-low-top.png: 0.000 % over 8, largest 0
+servo-gate-high-idle.png: 0.001 % over 8, largest 56, box x 320–434 y 143–155
+servo-gate-high-step.png: 0.001 % over 8, largest 56, box x 320–434 y 143–155
+servo-gate-low-idle.png: 0.000 % over 8, largest 0
+servo-gate-low-step.png: 0.000 % over 8, largest 0
+square-route-high-idle.png: 0.000 % over 8, largest 0
+square-route-high-step.png: 0.000 % over 8, largest 0
+square-route-low-idle.png: 0.000 % over 8, largest 0
+square-route-low-step.png: 0.000 % over 8, largest 0
+stop-at-wall-high-idle.png: 0.000 % over 8, largest 0
+stop-at-wall-high-step.png: 0.000 % over 8, largest 0
+stop-at-wall-low-idle.png: 0.000 % over 8, largest 0
+stop-at-wall-low-step.png: 0.000 % over 8, largest 0
+4 picture(s) changed

@@ -33,18 +33,72 @@ export function tagBox(tag: TagToPlace, place: TagPlace): ScreenBox | null {
 
 /** Each tag's spot, in order: the first that overlaps none of `avoid` nor a tag placed before it; null where it is hidden. */
 export function placeTags(tags: readonly TagToPlace[], avoid: readonly ScreenBox[]): (TagPlace | null)[] {
+  return [...createTagLayout().place(tags, avoid)];
+}
+
+/** The tags' layout from frame to frame (ZoneTags.tsx keeps one for its tags). */
+export type TagLayout = {
+  /**
+   * Each tag's spot this frame, as `placeTags` places it: the first of TAG_PLACES that is on the screen and clear of `avoid` and of the
+   * tags placed before it; null where it is hidden. The array is the layout's own, the same one each frame.
+   */
+  place(tags: readonly TagToPlace[], avoid: readonly ScreenBox[]): readonly (TagPlace | null)[];
+};
+
+/**
+ * N18 P2: the layout that makes nothing per frame (the R4.7 review: `placeTags` spread `avoid` and the tags placed before for every spot
+ * it tried, and made a box for each): its boxes and its answer are its own, kept from frame to frame. The spots are `placeTags`' own.
+ */
+export function createTagLayout(): TagLayout {
+  const places: (TagPlace | null)[] = [];
   const taken: ScreenBox[] = [];
-  return tags.map((tag) => {
-    if (tag.hidden) return null;
-    for (const place of TAG_PLACES) {
-      const box = tagBox(tag, place);
-      if (!box || box.left < -1 || box.right > 1 || box.top > 1) continue;
-      if ([...avoid, ...taken].some((other) => overlaps(box, other))) continue;
-      taken.push(box);
-      return place;
-    }
-    return null;
-  });
+  const box: ScreenBox = { left: 0, right: 0, bottom: 0, top: 0 };
+  /** Whether `tag` at `place` is on the screen and clear of `avoid` and of the first `count` taken boxes (its box is then in `box`). */
+  const free = (tag: TagToPlace, place: TagPlace, avoid: readonly ScreenBox[], count: number) => {
+    if (!tagBoxInto(tag, place, box) || box.left < -1 || box.right > 1 || box.top > 1) return false;
+    for (const other of avoid) if (overlaps(box, other)) return false;
+    for (let i = 0; i < count; i++) if (overlaps(box, taken[i]!)) return false;
+    return true;
+  };
+  return {
+    place(tags, avoid) {
+      let count = 0;
+      places.length = tags.length;
+      for (let t = 0; t < tags.length; t++) {
+        const tag = tags[t]!;
+        let chosen: TagPlace | null = null;
+        if (!tag.hidden) {
+          for (const place of TAG_PLACES) {
+            if (free(tag, place, avoid, count)) {
+              chosen = place;
+              break;
+            }
+          }
+        }
+        if (chosen) {
+          const slot = (taken[count] ??= { left: 0, right: 0, bottom: 0, top: 0 });
+          slot.left = box.left;
+          slot.right = box.right;
+          slot.bottom = box.bottom;
+          slot.top = box.top;
+          count += 1;
+        }
+        places[t] = chosen;
+      }
+      return places;
+    },
+  };
+}
+
+/** The pill's box of a tag at `place`, written into `into`; false where its anchor there is behind the camera. */
+function tagBoxInto(tag: TagToPlace, place: TagPlace, into: ScreenBox): boolean {
+  const anchor = tag.anchors[place.lift] ?? null;
+  if (!anchor) return false;
+  into.left = anchor[0] - place.centerX * tag.width;
+  into.right = into.left + tag.width;
+  into.bottom = anchor[1];
+  into.top = anchor[1] + tag.height;
+  return true;
 }
 
 /** Whether the floor point (arena cm) lies inside the zone's polygon (even-odd rule). */
@@ -60,8 +114,22 @@ export function inPolygon(point: readonly [number, number], polygon: readonly (r
 
 /** The box round projected points (NDC), or null when there are none. */
 export function boxOf(points: readonly (readonly [number, number])[]): ScreenBox | null {
-  if (points.length === 0) return null;
-  const xs = points.map(([x]) => x);
-  const ys = points.map(([, y]) => y);
-  return { left: Math.min(...xs), right: Math.max(...xs), bottom: Math.min(...ys), top: Math.max(...ys) };
+  const into: ScreenBox = { left: 0, right: 0, bottom: 0, top: 0 };
+  return boxOfInto(points.flat(), points.length, into) ? into : null;
+}
+
+/** N18 P2: the box round the first `count` points of `xy` (x, y, x, y, … in NDC) written into `into`; false when there are none. */
+export function boxOfInto(xy: ArrayLike<number>, count: number, into: ScreenBox): boolean {
+  if (count === 0) return false;
+  into.left = into.bottom = Infinity;
+  into.right = into.top = -Infinity;
+  for (let i = 0; i < count; i++) {
+    const x = xy[2 * i]!;
+    const y = xy[2 * i + 1]!;
+    if (x < into.left) into.left = x;
+    if (x > into.right) into.right = x;
+    if (y < into.bottom) into.bottom = y;
+    if (y > into.top) into.top = y;
+  }
+  return true;
 }

@@ -33,9 +33,18 @@ const columns = {
   'switch tiers heap MB': [(c) => (c.switch ? c.switch.tiers.heapGrowthB / 2 ** 20 : null), 2],
   'switch tiers listeners': [(c) => c.switch?.tiers.listenersGrowth ?? null, 0],
   'switch GPU res (geo/tex/prog/ctx)': [(c) => (c.switch ? ['views', 'tiers'].map((k) => { const g = c.switch[k]; return `${g.geometriesGrowth}/${g.texturesGrowth}/${g.programsGrowth}/${g.liveContextsGrowth}`; }).join(' · ') : null), 0],
+  'alloc KB/frame': [(c, w) => (w?.alloc?.perFrameB != null ? w.alloc.perFrameB / 1024 : null), 1],
+  'tags alloc KB/frame': [(c, w) => sourceKB(w, ['src/ui/robot3d/parts/ZoneTags.tsx', 'src/ui/robot3d/parts/zone-tag-layout.ts']), 2],
+  'distance tag alloc KB/frame': [(c, w) => sourceKB(w, ['src/ui/robot3d/parts/distance-label.ts']), 2],
+  'robot-assembly alloc KB/frame': [(c, w) => sourceKB(w, ['src/ui/robot3d/parts/robot-assembly.ts']), 2],
+  'render ms/frame': [(c, w) => (w?.cpu ? w.cpu.perFrameMs.render + w.cpu.perFrameMs['shadow map'] : null), 2],
+  'shadow ms/frame': [(c, w) => (w?.cpu ? w.cpu.perFrameMs['shadow map'] : null), 2],
+  'draws screen+shadow': [(c, w) => (w?.drawsScreen ? `${w.drawsScreen.p50}+${w.drawsOffscreen?.p50 ?? 0}` : null), 0],
   'CPU loop': [(c) => c.cpuBenchMs, 0],
   load: [(c) => c.loadavg1m, 2],
 };
+/** What the given sources allocated a frame in a profile pass's window (KB; 0 where none is among the window's top sources). */
+const sourceKB = (w, sources) => (w?.alloc?.topSourcesB && w.animationFrames ? sources.reduce((sum, source) => sum + (w.alloc.topSourcesB[source] ?? 0), 0) / w.animationFrames / 1024 : null);
 const wanted = (process.argv.find((arg) => arg.startsWith('--cols='))?.slice(7).split(',') ?? Object.keys(columns)).filter((name) => columns[name]);
 const groups = new Map();
 for (const file of readdirSync(dir).filter((name) => /\.json(\.gz)?$/.test(name)).sort()) {
@@ -43,7 +52,7 @@ for (const file of readdirSync(dir).filter((name) => /\.json(\.gz)?$/.test(name)
   const result = JSON.parse(file.endsWith('.gz') ? gunzipSync(bytes) : bytes);
   const label = (result.options.label ?? '').replace(/-\d+$/, '');
   for (const cell of result.cells.filter((entry) => !entry.error)) {
-    const key = `${label} · ${cell.profile} · ${cell.scenario}`;
+    const key = `${label} · ${cell.profile} · ${cell.scenario}${cell.pass === 'profile' ? ' (profile pass)' : ''}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(cell);
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boxOf, inPolygon, overlaps, placeTags, TAG_PLACES, tagBox, type ScreenBox, type TagToPlace } from './zone-tag-layout';
+import { boxOf, boxOfInto, createTagLayout, inPolygon, overlaps, placeTags, TAG_PLACES, tagBox, type ScreenBox, type TagToPlace } from './zone-tag-layout';
 
 // N18 R4.7 fix round 2 (review N1): the zones' tags never cover the robot, its raised flag, the HUD or another tag; the zone the robot
 // stands in shows none, nor does "Theo xe" (ZoneTags.tsx hides them all there).
@@ -47,5 +47,32 @@ describe('laying out the zones’ tags (N18 R4.7)', () => {
     expect(inPolygon([70, 40], zone)).toBe(false);
     expect(boxOf([[0.1, 0.2], [-0.3, 0.5], [0.2, -0.1]])).toEqual({ left: -0.3, right: 0.2, bottom: -0.1, top: 0.5 });
     expect(boxOf([])).toBeNull();
+  });
+});
+
+describe('the zones’ tags from frame to frame (N18 P2)', () => {
+  /** The robot's box, 0.07 wide round `x`. */
+  const robotAt = (x: number): ScreenBox => ({ left: x - 0.035, right: x + 0.035, bottom: -0.2, top: 0.15 });
+  const hud: ScreenBox = { left: -1, right: -0.1, bottom: 0.3, top: 1 };
+
+  it('places every frame as placeTags does, the robot driving past, into the same array each frame', () => {
+    const layout = createTagLayout();
+    const tags = [tag(0.2, 0.1), tag(0.3, 0), tag(0.35, 0.02), tag(-0.08, 0.4), tag(0.6, 0.5, true)];
+    const first = layout.place(tags, [hud]);
+    for (let x = -0.9; x <= 0.9; x += 0.01) {
+      const avoid = [hud, robotAt(x)];
+      const placed = layout.place(tags, avoid);
+      expect(placed).toBe(first);
+      expect([...placed]).toEqual(placeTags(tags, avoid));
+    }
+    // Fewer tags (a canvas with fewer zones): the answer is as long as the tags.
+    expect([...layout.place([tag(0.2, 0.1)], [robotAt(0.13)])]).toEqual([{ centerX: 0.1, lift: 0 }]);
+  });
+
+  it('boxes projected points into a box it is given, from a flat list of x, y', () => {
+    const into: ScreenBox = { left: 0, right: 0, bottom: 0, top: 0 };
+    expect(boxOfInto([0.1, 0.2, -0.3, 0.5, 0.2, -0.1], 3, into)).toBe(true);
+    expect(into).toEqual({ left: -0.3, right: 0.2, bottom: -0.1, top: 0.5 });
+    expect(boxOfInto([9, 9], 0, into)).toBe(false);
   });
 });

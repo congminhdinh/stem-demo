@@ -367,7 +367,7 @@ async function measure(frame, cdp, during, { profiled = false, maps = null, brow
     const { profile } = await cdp.send('Profiler.stop');
     const { profile: sampling } = await cdp.send('HeapProfiler.stopSampling');
     result.cpu = attributeCpuProfile(profile, maps, { frames: summary.animationFrames });
-    result.alloc = attributeHeapProfile(sampling, maps, { frames: summary.animationFrames });
+    result.alloc = attributeHeapProfile(sampling, maps, { frames: summary.animationFrames, top: 40 });
     await cdp.send('Profiler.disable');
   }
   return result;
