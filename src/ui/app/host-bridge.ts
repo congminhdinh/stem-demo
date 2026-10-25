@@ -116,7 +116,10 @@ export type HostBridge = {
    * kept instead, and goes out the same way once the check has ended (`endCheck`).
    */
   projectChanged(document: ProjectDocument): void;
-  /** Sends a pending `project-changed` now (the page is going away), and an edit kept during a robot check. */
+  /**
+   * Sends a pending `project-changed` now, and an edit kept during a robot check. The page's own `pagehide` does the same, except that a page
+   * that goes into the back/forward cache (`event.persisted`) keeps the edit made during a check for `endCheck()`.
+   */
   flush(): void;
   /** Stops listening and drops a pending `project-changed`, and an edit kept during a robot check. */
   dispose(): void;
@@ -249,13 +252,27 @@ export function createHostBridge({ host, hostOrigin, window, onLoadProject, lab,
       post({ ...head('project-changed'), document });
     }
   };
-  /** The page is going away: nothing may stay behind, an edit kept during a check included. */
-  const flush = () => {
-    flushPending();
+  /** Sends the edit kept during a robot check now, in the middle of the check. */
+  const flushDeferred = () => {
     if (deferred !== null) {
       const document = deferred;
       deferred = null;
       post({ ...head('project-changed'), document });
+    }
+  };
+  /** Everything the host has not been told yet, an edit kept during a check included. */
+  const flush = () => {
+    flushPending();
+    flushDeferred();
+  };
+  /**
+   * The page is going away: nothing may stay behind. Unless it goes into the back/forward cache (`persisted`): it can come back with its check
+   * running, and the edit kept during it goes out after `endCheck()` as usual, rather than in the middle of the check.
+   */
+  const onPageHide = (event: PageTransitionEvent) => {
+    flushPending();
+    if (!event.persisted) {
+      flushDeferred();
     }
   };
 
@@ -275,7 +292,7 @@ export function createHostBridge({ host, hostOrigin, window, onLoadProject, lab,
   };
 
   window.addEventListener('message', onMessage);
-  window.addEventListener('pagehide', flush);
+  window.addEventListener('pagehide', onPageHide);
 
   return {
     ready({ template, profile, goals, robot }) {
@@ -365,7 +382,7 @@ export function createHostBridge({ host, hostOrigin, window, onLoadProject, lab,
       deferred = null;
       disposed = true;
       window.removeEventListener('message', onMessage);
-      window.removeEventListener('pagehide', flush);
+      window.removeEventListener('pagehide', onPageHide);
     },
   };
 }

@@ -35,7 +35,7 @@ function setup(lab?: 'robot') {
     removeEventListener: (type: string, listener: (event: unknown) => void) => void listeners.get(type)?.delete(listener),
   } as unknown as LabWindow;
   const bridge = createHostBridge({ host, hostOrigin, window, onLoadProject: () => {}, ...(lab === undefined ? {} : { lab }) });
-  const fire = (type: string) => [...(listeners.get(type) ?? [])].forEach((listener) => listener({}));
+  const fire = (type: string, event: object = {}) => [...(listeners.get(type) ?? [])].forEach((listener) => listener(event));
   return { bridge, posted, fire, types: () => posted.map(([message]) => message.type) };
 }
 
@@ -337,6 +337,45 @@ describe('the order of a robot lab’s messages (N18 R7.1)', () => {
     expect(types()).toEqual(['project-changed']);
   });
 
+  it('keeps the edit made during a check for endCheck when the page goes into the back/forward cache (pagehide persisted), and sends it once then', () => {
+    const { bridge, posted, types, fire } = readyRobot();
+    const sneaked = createNewProject('an edit during the check');
+    bridge.beginCheck();
+    bridge.projectChanged(sneaked);
+    fire('pagehide', { persisted: true });
+    vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS * 5);
+    expect(types()).toEqual([]);
+
+    bridge.endCheck();
+    vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS);
+    expect(types()).toEqual(['project-changed']);
+    expect(posted[0]?.[0].document).toBe(sneaked);
+  });
+
+  it('still sends a pending project-changed on any pagehide, persisted or not: only the edit kept during a check waits', () => {
+    for (const persisted of [true, false]) {
+      const { bridge, posted, types, fire } = readyRobot();
+      const pending = createNewProject(`pending (persisted ${persisted})`);
+      bridge.projectChanged(pending);
+      fire('pagehide', { persisted });
+      expect(types()).toEqual(['project-changed']);
+      expect(posted[0]?.[0].document).toBe(pending);
+    }
+  });
+
+  it('sends the edit kept during a check on pagehide when the page is not persisted (it is going away), once', () => {
+    const { bridge, posted, types, fire } = readyRobot();
+    const sneaked = createNewProject('an edit during the check');
+    bridge.beginCheck();
+    bridge.projectChanged(sneaked);
+    fire('pagehide', { persisted: false });
+    expect(types()).toEqual(['project-changed']);
+    expect(posted[0]?.[0].document).toBe(sneaked);
+    bridge.endCheck();
+    vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS * 5);
+    expect(types()).toEqual(['project-changed']);
+  });
+
   it('drops the kept edit with the bridge: nothing is sent after dispose', () => {
     const { bridge, types } = readyRobot();
     bridge.beginCheck();
@@ -359,18 +398,40 @@ describe('the order of a robot lab’s messages (N18 R7.1)', () => {
     expect(types()).toEqual(['run-started', 'run-stopped', 'project-changed']);
   });
 
-  it('refuses a second beginCheck while a check is running, a bug of the lab, and the check goes on', () => {
-    const { bridge, types } = readyRobot();
-    const kept = createNewProject('kept');
+  it('refuses a second beginCheck while a check is running, a bug of the lab, and the edit kept before it is sent once after endCheck', () => {
+    const { bridge, posted, types } = readyRobot();
+    const kept = createNewProject('kept before the nested beginCheck');
     bridge.beginCheck();
     bridge.projectChanged(kept);
     expect(() => bridge.beginCheck()).toThrow(/beginCheck\(\) was called while a robot check is running/);
-    bridge.projectChanged(createNewProject('still kept, not sent'));
+
+    // The check goes on, locked: the throw neither ended it nor lost the kept edit
     vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS * 5);
     expect(types()).toEqual([]);
     bridge.endCheck();
+    vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS - 1);
+    expect(types()).toEqual([]);
+    vi.advanceTimersByTime(1);
+    expect(types()).toEqual(['project-changed']);
+    expect(posted[0]?.[0].document).toBe(kept);
+    vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS * 5);
+    expect(types()).toEqual(['project-changed']);
+
     // After endCheck a new check may begin
     expect(() => bridge.beginCheck()).not.toThrow();
+  });
+
+  it('keeps the latest edit made after a refused beginCheck, too', () => {
+    const { bridge, posted, types } = readyRobot();
+    const latest = createNewProject('after the nested beginCheck');
+    bridge.beginCheck();
+    bridge.projectChanged(createNewProject('before'));
+    expect(() => bridge.beginCheck()).toThrow();
+    bridge.projectChanged(latest);
+    bridge.endCheck();
+    vi.advanceTimersByTime(PROJECT_CHANGED_DEBOUNCE_MS * 5);
+    expect(types()).toEqual(['project-changed']);
+    expect(posted[0]?.[0].document).toBe(latest);
   });
 
   it('has endCheck do nothing without a matching beginCheck, and a second endCheck do nothing', () => {
