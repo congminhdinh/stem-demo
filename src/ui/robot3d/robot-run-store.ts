@@ -392,7 +392,9 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
           return;
         }
         // N18 R4.8: with the robot placed, Đặt lại goes back to the placed pose, and the next one (nothing in between) to the scenario's start.
-        const placed = get().placement !== null;
+        // The replay of a check's round is the check's run: it starts again at the scenario's start every time.
+        const replaying = get().round !== null && session.getSnapshot().status !== 'idle';
+        const placed = get().placement !== null && !replaying;
         const toStart = placed && get().resetToStart;
         if (session.getSnapshot().status === 'idle') {
           if (get().held === null && toStart) {

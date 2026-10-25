@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import { Circle, Group, Label, Layer, Line, Tag, Text } from 'react-konva';
 import { useStore } from 'zustand';
 import type { Kit } from '../../core/hardware/kit';
@@ -30,9 +30,15 @@ const shownPose = (store: RobotRunStore, scenario: Pick<Scenario, 'start'>): Pla
 /** The pointer on the map's container (`container`), for the tools, while the map has a fit. */
 export function useTopViewPointer(container: RefObject<HTMLElement | null>, tools: RobotToolsStore | undefined, store: RobotRunStore, scenario: Pick<Scenario, 'start'>, kit: Kit, fit: TopViewFit | null) {
   const outline = useMemo(() => robotOutlineCm(kit), [kit]);
+  // The map's fit is a new object on each of its renders: the listeners read the latest, and stay (a render never ends a drag).
+  const latestFit = useRef(fit);
+  useEffect(() => {
+    latestFit.current = fit;
+  });
+  const shown = fit !== null;
   useEffect(() => {
     const element = container.current;
-    if (tools === undefined || element === null || fit === null) return undefined;
+    if (tools === undefined || element === null || !shown) return undefined;
     const toolCursor = () => {
       element.style.cursor = tools.getState().tool === 'ruler' ? 'crosshair' : '';
     };
@@ -40,16 +46,19 @@ export function useTopViewPointer(container: RefObject<HTMLElement | null>, tool
     const stopCursor = tools.subscribe((state, previous) => {
       if (state.tool !== previous.tool) toolCursor();
     });
-    const at = (event: PointerEvent): ArenaPoint => {
+    const at = (event: PointerEvent): ArenaPoint | null => {
+      const now = latestFit.current;
+      if (now === null) return null;
       const rect = element.getBoundingClientRect();
-      return stageToArena(fit, event.clientX - rect.left, event.clientY - rect.top);
+      return stageToArena(now, event.clientX - rect.left, event.clientY - rect.top);
     };
     let pressed: { id: number; x: number; y: number } | null = null;
     let dragging: number | null = null;
     const onDown = (event: PointerEvent) => {
       if (event.button !== 0) return;
       pressed = { id: event.pointerId, x: event.clientX, y: event.clientY };
-      if (tools.getState().tool !== 'move' || !tools.getState().grab(at(event))) return;
+      const point = at(event);
+      if (tools.getState().tool !== 'move' || point === null || !tools.getState().grab(point)) return;
       dragging = event.pointerId;
       element.style.cursor = 'grabbing';
       try {
@@ -59,11 +68,12 @@ export function useTopViewPointer(container: RefObject<HTMLElement | null>, tool
       }
     };
     const onMove = (event: PointerEvent) => {
+      const point = at(event);
       if (dragging === event.pointerId) {
-        tools.getState().drag(at(event));
+        if (point !== null) tools.getState().drag(point);
         return;
       }
-      if (tools.getState().tool === 'move' && pressed === null) element.style.cursor = onRobot(at(event), shownPose(store, scenario), outline) ? 'grab' : '';
+      if (tools.getState().tool === 'move' && pressed === null) element.style.cursor = point !== null && onRobot(point, shownPose(store, scenario), outline) ? 'grab' : '';
     };
     const onUp = (event: PointerEvent) => {
       if (dragging === event.pointerId) {
@@ -76,7 +86,8 @@ export function useTopViewPointer(container: RefObject<HTMLElement | null>, tool
       const start = pressed;
       pressed = null;
       if (start === null || start.id !== event.pointerId || tools.getState().tool !== 'ruler') return;
-      if (Math.hypot(event.clientX - start.x, event.clientY - start.y) <= CLICK_SLOP_PX) tools.getState().pick(at(event));
+      const point = at(event);
+      if (point !== null && Math.hypot(event.clientX - start.x, event.clientY - start.y) <= CLICK_SLOP_PX) tools.getState().pick(point);
     };
     const onCancel = (event: PointerEvent) => {
       if (dragging === event.pointerId) {
@@ -98,7 +109,7 @@ export function useTopViewPointer(container: RefObject<HTMLElement | null>, tool
       stopCursor();
       element.style.cursor = '';
     };
-  }, [container, tools, store, scenario, outline, fit]);
+  }, [container, tools, store, scenario, outline, shown]);
 }
 
 /** The ruler and the ghost over the map (inside its Stage). */

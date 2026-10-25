@@ -240,6 +240,17 @@ describe('the placed start in the run store (N18 R4.8)', () => {
     expect(store.getState().latestWorld()).toBeNull();
   });
 
+  it('during a replay of a check’s round, every Đặt lại robot starts that round again (a check never takes the placed pose)', async () => {
+    const { store, session } = setup();
+    await store.getState().placeRobot({ xCm: 100, yCm: 50, yawDeg: 0 });
+    await store.getState().replay(project, { index: 1, count: 2, score: null });
+    await store.getState().resetRobot();
+    await store.getState().resetRobot();
+    expect(session.resetRobot).toHaveBeenCalledTimes(2);
+    expect(session.placeRobot).toHaveBeenCalledTimes(1);
+    expect(store.getState()).toMatchObject({ placement: { xCm: 100 }, resetToStart: false });
+  });
+
   it('with the robot already at its placed pose, the first Reset only arms the way back, and anything else in between disarms it', async () => {
     const { store } = setup();
     await store.getState().placeRobot({ xCm: 100, yCm: 50, yawDeg: 0 });

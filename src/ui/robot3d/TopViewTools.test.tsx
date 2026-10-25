@@ -46,14 +46,17 @@ function mount(withTools = true) {
   const store = createRobotRunStore(fake.session, { startView: (pose) => idleSnapshot({ ...scenario, start: pose }, kit) });
   store.getState().connect();
   const tools = createRobotToolsStore({ runStore: store, scenario, kit });
-  act(() =>
-    root.render(
-      <TextProvider locale="vi">
-        <TopView2D scenario={scenario} kit={kit} model={model} store={store} zoneLabel={() => null} reason="no-webgl" {...(withTools ? { tools } : {})} />
-      </TextProvider>,
-    ),
-  );
-  return { ...fake, store, tools };
+  // Every call renders the map again from new elements with the same props, as its owner does for a Run click or a block edit.
+  const render = () =>
+    act(() =>
+      root.render(
+        <TextProvider locale="vi">
+          <TopView2D scenario={scenario} kit={kit} model={model} store={store} zoneLabel={() => null} reason="no-webgl" {...(withTools ? { tools } : {})} />
+        </TextProvider>,
+      ),
+    );
+  render();
+  return { ...fake, store, tools, render };
 }
 
 const stage = () => Konva.stages.find((candidate) => candidate.container().closest('[data-testid=robot-topview]') !== null)!;
@@ -129,6 +132,17 @@ describe('the move tool on the 2D map (N18 R4.8)', () => {
     expect(stage().findOne<Konva.Line>('.topview-ghost')!.getAttr('clear')).toBe(false);
     await pointer('pointerup', 30, 96);
     expect(session.placeRobot).not.toHaveBeenCalled();
+  });
+
+  it('a render of the map in the middle of a drag keeps the drag', async () => {
+    const { tools, session, render } = mount();
+    tools.getState().setTool('move');
+    await pointer('pointerdown', 50, 30);
+    render();
+    await pointer('pointermove', 90, 50);
+    await pointer('pointerup', 90, 50);
+    expect(session.placeRobot).toHaveBeenCalledTimes(1);
+    expect(session.placeRobot.mock.calls[0]![0]!.xCm).toBeCloseTo(90, 6);
   });
 
   it('a map without the tools draws no tools layer and takes no pointer', async () => {
