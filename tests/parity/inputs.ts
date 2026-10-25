@@ -1,4 +1,5 @@
 import { drivers, type Kit, type PulseReading } from '../../src/core/hardware';
+import { allowedDifferences } from './allowed-differences';
 
 // The scripted inputs of a parity fixture (N18 C2): what the robot's sensors give the program, said once and applied the same
 // way to both sides, on the same pins at the same µs from the start of setup() (ADR 0003 §7 condition 4: the harness drives
@@ -30,7 +31,7 @@ export function kitInputDefaults(kit: Kit): Map<string, 0 | 1> {
       for (const step of op.setup) {
         const pin = port.pins[step.pin];
         if (step.kind === 'pinMode' && step.mode !== 'OUTPUT' && pin !== undefined) {
-          defaults.set(pin, step.mode === 'INPUT_PULLUP' ? 1 : 0);
+          defaults.set(pin, step.mode === 'INPUT_PULLUP' ? allowedDifferences['pull-up'].releasedLevel : 0);
         }
       }
     }
