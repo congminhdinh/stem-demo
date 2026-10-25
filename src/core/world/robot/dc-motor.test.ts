@@ -106,6 +106,21 @@ describe('createDcMotor', () => {
     expect(braking.referenceRadS).toBe(0);
   });
 
+  it('is free when it coasts (no duty or no direction), not when it drives or brakes', () => {
+    const motor = createDcMotor(spec);
+    expect(motor.coasting).toBe(true);
+    for (const [command, free] of [
+      [{ duty: 0, dir: 1, brake: false }, true],
+      [{ duty: 200, dir: 0, brake: false }, true],
+      [{ duty: 200, dir: 1, brake: false }, false],
+      [{ duty: 255, dir: 0, brake: true }, false],
+      [{ duty: 0, dir: 0, brake: true }, false],
+    ] as const) {
+      motor.setCommand(command);
+      expect(motor.coasting, JSON.stringify(command)).toBe(free);
+    }
+  });
+
   it('starts stopped and goes back to that on reset', () => {
     const motor = createDcMotor(spec);
     expect(motor.command).toEqual({ duty: 0, dir: 0, brake: false });

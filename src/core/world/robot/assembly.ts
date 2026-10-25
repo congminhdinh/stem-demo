@@ -20,8 +20,8 @@ import { checkServoAngle, createServoArm, type ServoArm } from './servo-arm';
 // - Each servo adds its arm, a light dynamic body on a revolute joint (servo-arm.ts).
 //
 // Drive: the floor never pushes the robot along; each tick the drive gives the chassis the push towards the diff-drive
-// velocity of its wheel references (drive.ts), from motors that follow their commands (dc-motor.ts), as a force over the
-// step. A wheel pushes only while its support ball stands on something (`isGrounded`): a contact of the narrow phase, read
+// velocity of its wheel references (drive.ts), from motors that follow their commands (dc-motor.ts), as forces over the
+// step where the wheels meet the floor. A wheel pushes only while its support ball stands on something (`isGrounded`): a contact of the narrow phase, read
 // from the contact pair's current state rather than from contact events, which a refresh or a settle step does not report.
 // The support balls carry the gearbox's friction (`gearFrictionNm`) as contact friction, so the solver holds a stopped
 // robot against a push and slows a running one, within the same step as the drive.
@@ -203,7 +203,7 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
 
   /**
    * Whether a support ball stands on a surface that is not the robot's own (contact pair state of the narrow phase), and the
-   * normal impulse the last step pushed it up with (N·s).
+   * normal impulse the last step pressed it on that surface with, along the contact normal (N·s).
    */
   const supportContact = (support: Collider): { grounded: boolean; normalImpulse: number } => {
     let grounded = false;
@@ -215,9 +215,10 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
         const normalY = manifold.normal().y;
         const upward = flipped ? normalY : 0 - normalY;
         if (upward < GROUND_NORMAL_MIN_Y) return;
+        // The impulse is along the contact normal: the load the friction scales with, on a slope as on the flat.
         for (let i = 0; i < manifold.numContacts(); i++) {
           if (manifold.contactDist(i) <= GROUND_CONTACT_GAP_M) grounded = true;
-          normalImpulse += manifold.contactImpulse(i) * upward;
+          normalImpulse += manifold.contactImpulse(i);
         }
       });
     });
@@ -237,14 +238,22 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
    * moved a robot the friction should hold by 2.6 mm a second (it stopped only at the end of each step). Other forces on the
    * chassis (a push) stay: each tick adds the change of the drive's share only.
    */
-  let driveForce: Vec3 = { x: 0, y: 0, z: 0 };
-  let driveTorque = 0;
-  const setDrive = (force: Vec3, torque: number) => {
-    chassis.addForce({ x: force.x - driveForce.x, y: 0, z: force.z - driveForce.z }, true);
-    chassis.addTorque({ x: 0, y: torque - driveTorque, z: 0 }, true);
+  const still: Vec3 = { x: 0, y: 0, z: 0 };
+  let driveForce: Vec3 = still;
+  let driveTorque: Vec3 = still;
+  const setDrive = (force: Vec3, torque: Vec3) => {
+    chassis.addForce({ x: force.x - driveForce.x, y: force.y - driveForce.y, z: force.z - driveForce.z }, true);
+    chassis.addTorque({ x: torque.x - driveTorque.x, y: torque.y - driveTorque.y, z: torque.z - driveTorque.z }, true);
     driveForce = force;
     driveTorque = torque;
   };
+  // Where the pushes act, in the chassis frame: each wheel where it meets the floor, the side push on the floor under the
+  // centre of mass. On the floor, like the friction: a push at the centre of mass against friction at the floor makes a
+  // pitch couple no robot has (measured: reversing, the caster's load fell from 0.84 N to 0.14 N, and a 1–3 mm bump left
+  // the robot on its tail, 16° up). Under the centre of mass, the side push turns the robot no more than the drive's yaw
+  // computation assumed.
+  const contactLocal = [robotPointToLocal([axleX, halfTrackCm, 0]), robotPointToLocal([axleX, -halfTrackCm, 0])] as const;
+  const underComLocal = robotPointToLocal([comX, comY, 0]);
   /** Before the step: where the axle's midpoint was, the chassis rotation and its heading on the floor. */
   let before: { axle: Vec3; rotation: Quat; frame: GroundFrame | null } | null = null;
   /** How far the chassis sank into its supports while it settled: where placeAt puts it. */
@@ -285,24 +294,46 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
       });
       left.advance(stepDt);
       right.advance(stepDt);
-      const frame = groundFrame(chassis.rotation());
+      const rotation = chassis.rotation();
+      const frame = groundFrame(rotation);
       if (frame !== null && (grounded[0] || grounded[1])) {
         const impulse = driveImpulse(
           geometry,
           frame,
           chassis.linvel(),
           chassis.angvel().y,
-          { motor: left.model, drive: left.drive, referenceRadS: left.referenceRadS, grounded: grounded[0] },
-          { motor: right.model, drive: right.drive, referenceRadS: right.referenceRadS, grounded: grounded[1] },
+          { motor: left.model, drive: left.drive, referenceRadS: left.referenceRadS, grounded: grounded[0], coasting: left.coasting },
+          { motor: right.model, drive: right.drive, referenceRadS: right.referenceRadS, grounded: grounded[1], coasting: right.coasting },
           stepDt,
         );
-        // The step's impulse as a force over the step: the same change of velocity, spread over the solver's substeps.
-        setDrive({ x: impulse.linear.x / stepDt, y: 0, z: impulse.linear.z / stepDt }, impulse.yaw / stepDt);
+        // The step's impulses as forces over the step (the same change of velocity, spread over the solver's substeps), each
+        // where it acts: the force at the centre of mass plus the torque of each about it.
+        const position = chassis.translation();
+        const com = chassis.worldCom();
+        const leftX = frame.fz;
+        const leftZ = 0 - frame.fx;
+        const pushes: { at: Vec3; force: Vec3 }[] = [
+          ...impulse.wheelPush.map((push, side) => ({
+            at: localToWorld(position, rotation, contactLocal[side]!),
+            force: { x: (push * frame.fx) / stepDt, y: 0, z: (push * frame.fz) / stepDt },
+          })),
+          { at: localToWorld(position, rotation, underComLocal), force: { x: (impulse.sidePush * leftX) / stepDt, y: 0, z: (impulse.sidePush * leftZ) / stepDt } },
+        ];
+        const total = { x: 0, y: 0, z: 0 };
+        const torque = { x: 0, y: 0, z: 0 };
+        for (const { at, force } of pushes) {
+          const arm = { x: at.x - com.x, y: at.y - com.y, z: at.z - com.z };
+          total.x += force.x;
+          total.z += force.z;
+          torque.x += arm.y * force.z - arm.z * force.y;
+          torque.y += arm.z * force.x - arm.x * force.z;
+          torque.z += arm.x * force.y - arm.y * force.x;
+        }
+        setDrive(total, torque);
       } else {
-        setDrive({ x: 0, y: 0, z: 0 }, 0);
+        setDrive(still, still);
       }
       for (const arm of arms) arm.beforeStep(stepDt);
-      const rotation = chassis.rotation();
       before = { axle: localToWorld(chassis.translation(), rotation, axleLocal), rotation, frame };
     },
     afterStep() {
@@ -331,7 +362,7 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
       chassis.setRotation(pose.rotation, true);
       chassis.setLinvel({ x: 0, y: 0, z: 0 }, true);
       chassis.setAngvel({ x: 0, y: 0, z: 0 }, true);
-      setDrive({ x: 0, y: 0, z: 0 }, 0);
+      setDrive(still, still);
       arms.forEach((arm, i) => arm.followChassis(angles[i]!));
       left.reset();
       right.reset();

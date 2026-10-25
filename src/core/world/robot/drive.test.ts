@@ -45,7 +45,7 @@ describe('groundFrame', () => {
 describe('driveImpulse', () => {
   it('does nothing to a chassis at rest whose wheels aim at rest', () => {
     const impulse = driveImpulse(geometry, facingX, still, 0, wheel(0, 0), wheel(0, 0), DT);
-    expect(impulse).toEqual({ linear: { x: 0, y: 0, z: 0 }, yaw: 0, wheelSpeedsRadS: [0, 0] });
+    expect(impulse).toEqual({ linear: { x: 0, y: 0, z: 0 }, yaw: 0, wheelPush: [0, 0], sidePush: 0, wheelSpeedsRadS: [0, 0] });
   });
 
   it('brings the chassis to the references in one tick when the torque line and grip allow it, along its heading', () => {
@@ -62,6 +62,8 @@ describe('driveImpulse', () => {
     const impulse = driveImpulse(geometry, facingX, rolling, 0, wheel(0.25, omega0), wheel(0.25, omega0), DT);
     const perWheel = ((0.15 * (0.25 - 0.2)) / r) * DT;
     close(impulse.linear, { x: 2 * perWheel, y: 0, z: 0 });
+    expect(impulse.wheelPush[0]).toBeCloseTo(perWheel, 15);
+    expect(impulse.wheelPush[1]).toBeCloseTo(perWheel, 15);
     expect(impulse.wheelSpeedsRadS[0]).toBeCloseTo(0.2 * omega0, 12);
     expect(impulse.wheelSpeedsRadS[1]).toBeCloseTo(0.2 * omega0, 12);
   });
@@ -86,6 +88,17 @@ describe('driveImpulse', () => {
     // The centre of mass, 1.5 cm ahead of the axle, swings left at ω·d: the side impulse gives it that speed.
     expect(impulse.linear.x).toBeCloseTo(0, 15);
     expect(impulse.linear.z).toBeCloseTo(-0.4 * yawRate * 0.015, 15);
+  });
+
+  it('gets nothing from a coasting motor (open circuit: no torque line), but still holds the axle against side slip', () => {
+    const rolling: Vec3 = { x: omega0 * r, y: 0, z: -0.01 };
+    const free = (wheelDrive: WheelDrive): WheelDrive => ({ ...wheelDrive, coasting: true });
+    const impulse = driveImpulse(geometry, facingX, rolling, 0, free(wheel(0, 0)), free(wheel(0, 0)), DT);
+    expect(impulse.wheelPush).toEqual([0, 0]);
+    expect(impulse.sidePush).toBeCloseTo(-0.4 * 0.01, 15);
+    // The same wheels braking (u = 0, not free) slow along the shorted line −T_s·ω/ω₀, capped by the grip.
+    const braking = driveImpulse(geometry, facingX, rolling, 0, wheel(0, 0), wheel(0, 0), DT);
+    expect(braking.wheelPush[0]).toBeCloseTo(-1.5 * DT, 15);
   });
 
   it('cancels side slip at the axle, within the grip of both wheels', () => {

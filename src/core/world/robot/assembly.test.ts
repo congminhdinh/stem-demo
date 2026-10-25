@@ -6,10 +6,11 @@ import { parseArena, type ArenaInput } from '../arena/arena-schema';
 import { buildArena, type BuiltArena } from '../arena/build-arena';
 import boxesArena from '../arena/fixtures/boxes.json';
 import { getRapier, initPhysics, createPhysicsWorld, refreshQueries, type PhysicsWorld, type RigidBody } from '../rapier';
-import { arenaToWorld, degToRad, radToDeg, rotateVector, worldToArena, yawOfQuaternion, type Vec3 } from '../units';
+import { arenaToWorld, degToRad, radToDeg, rotateVector, worldToArena, yawOfQuaternion, type Quat, type Vec3 } from '../units';
 import { assembleRobot, SETTLE_STEPS, stepWorld, type ActuatorTargets, type RobotBody, type RobotStart } from './assembly';
 import type { MotorCommand } from './dc-motor';
-import { localToWorld } from './robot-frame';
+import { conjugate, localToWorld, multiplyQuaternions } from './robot-frame';
+import type { Collider } from '../rapier';
 
 // N18 R3.3: the kit's robot as Rapier bodies, driven by model (c) of ADR 0001 §5.3, with the reference kit ref-uno-rover@0
 // (PLACEHOLDER mechanics: 200 rpm motors on 6.6 cm wheels, a 15 cm track, an SG90-like servo arm).
@@ -202,9 +203,9 @@ describe('the drive (model (c))', () => {
       for (const centre of centres) {
         expect(Math.hypot(centre.xCm - pivot.xCm, centre.yCm - pivot.yCm)).toBeLessThan(0.6);
       }
-      // (Four spins are not exactly 360°: the pivot's few millimetres of offset leave a fraction of a millimetre.)
+      // (Four spins are not exactly 360°: the pivot's few millimetres of offset leave about half a millimetre.)
       for (const fullTurn of [centres[3]!, centres[7]!]) {
-        expect(Math.hypot(fullTurn.xCm - pivot.xCm, fullTurn.yCm - pivot.yCm)).toBeLessThan(0.05);
+        expect(Math.hypot(fullTurn.xCm - pivot.xCm, fullTurn.yCm - pivot.yCm)).toBeLessThan(0.1);
       }
     });
   });
@@ -304,7 +305,8 @@ describe('the drive (model (c))', () => {
     withRobot(open, start, ({ world, robot }) => {
       steps(world, robot, 1, both(run(255, 1)));
       const kept = robot.chassis.linvel().x / ((2 * (0.03 - 0.01) * DT) / WHEEL_R / 0.4);
-      expect(kept).toBeGreaterThan(1);
+      // (The push at the floor shifts load onto the wheels at once; the friction follows the load a tick later.)
+      expect(kept).toBeGreaterThan(0.9);
       expect(kept).toBeLessThan(1.08);
       steps(world, robot, 120, both(brake));
       const from = at(robot).xCm;
@@ -329,16 +331,27 @@ describe('the drive (model (c))', () => {
     });
   });
 
-  it('a coasting robot can be pushed above the friction limit', () => {
-    withRobot(open, { xCm: 50, yCm: 150, yawDeg: 0 }, ({ world, robot }) => {
-      steps(world, robot, 30, both(run(0, 0)));
-      const from = at(robot).xCm;
-      // Above the two wheels' 2·T_f/r = 1.52 N, a 3 N push moves it, the friction and the shorted line holding it back.
-      robot.chassis.addForce({ x: 3, y: 0, z: 0 }, true);
-      steps(world, robot, 120);
-      expect(at(robot).xCm - from).toBeGreaterThan(5);
-      expect(speed(robot.linvel())).toBeLessThan((3 / 0.4) * 1);
-    });
+  it('a coasting robot can be pushed above the friction limit, and far more easily than a braked one', () => {
+    // Stopping is coasting (IN1, IN2, EN LOW): the motor is free, only the gearbox friction resists. A 3 N push is above the
+    // two wheels' 2·T_f/r = 1.52 N: the coasting robot accelerates at (3 − 1.52) N / 0.4 kg ≈ 3.7 m/s², while the braked
+    // one is also held back by its shorted motors, −T_s·ω/ω₀ per wheel (a terminal speed of about 0.21 m/s).
+    const pushed = (stop: MotorCommand) =>
+      withRobot(open, { xCm: 50, yCm: 150, yawDeg: 0 }, ({ world, robot }) => {
+        steps(world, robot, 30, both(stop));
+        const from = at(robot).xCm;
+        robot.chassis.addForce({ x: 3, y: 0, z: 0 }, true);
+        steps(world, robot, 60);
+        return { cm: at(robot).xCm - from, speed: speed(robot.linvel()) };
+      });
+    const coasting = pushed(run(0, 0));
+    const braked = pushed(brake);
+    // In 0.5 s: ½·a·t² ≈ 46 cm if the friction were the whole of T_f/r per wheel; the solver's falls a little short.
+    expect(coasting.cm).toBeGreaterThan(40);
+    expect(coasting.cm).toBeLessThan(55);
+    expect(coasting.speed).toBeLessThan(2.2);
+    expect(braked.cm).toBeGreaterThan(1);
+    expect(braked.speed).toBeLessThan(0.25);
+    expect(coasting.cm).toBeGreaterThan(4 * braked.cm);
   });
 
   it('runs under the no-load speed: the gearbox friction is a rolling resistance', () => {
@@ -377,6 +390,75 @@ describe('the drive (model (c))', () => {
       expect((r1 - r0 - (l1 - l0)) / ((turnedRad * 0.15) / WHEEL_R)).toBeCloseTo(1, 4);
       expect(Math.abs(r1 - r0 + (l1 - l0)) / (r1 - r0)).toBeLessThan(0.05);
     });
+  });
+
+  it('reversing at duty 255 over a 2 mm strip, it is level again (pitch under 5°) within 0.5 s after the strip', () => {
+    // The drive pushes where the wheels meet the floor, as the friction acts: no pitch couple lifts the caster. (With the
+    // drive at the centre of mass, a 1–3 mm bump left the robot on its tail, 16° up, for the rest of the run.)
+    const arena: ArenaInput = { ground: { sizeCm: [800, 400], color: '#ffffff' }, boxes: [{ id: 'strip', centerCm: [300, 200], sizeCm: [4, 40, 0.2] }] };
+    withRobot(arena, { xCm: 330, yCm: 200, yawDeg: 0 }, ({ world, robot }) => {
+      robot.applyActuators(both(run(255, -1)));
+      const pitches: { tick: number; deg: number; xCm: number }[] = [];
+      for (let tick = 0; tick < 480; tick++) {
+        stepWorld(world, robot);
+        pitches.push({ tick, deg: pitchDeg(robot), xCm: at(robot).xCm });
+      }
+      // The caster (5.5 cm ahead of the centre, radius 0.75 cm) is past the strip's far edge (x 298) once x < 291.7.
+      const past = pitches.find((sample) => sample.xCm < 298 - 5.5 - 0.75)!;
+      expect(past).toBeDefined();
+      const after = pitches.filter((sample) => sample.tick >= past.tick + 60);
+      expect(after.length).toBeGreaterThan(60);
+      for (const sample of after) expect(Math.abs(sample.deg)).toBeLessThan(5);
+      expect(robot.isGrounded()).toBe(true);
+      expect(casterLoadN(world, robot)).toBeGreaterThan(0.5);
+    });
+  });
+
+  it('keeps the caster loaded while driving: in reverse and forward its load stays within 20 % of the static load', () => {
+    withRobot(open, { xCm: 150, yCm: 150, yawDeg: 0 }, ({ world, robot }) => {
+      const restN = casterLoadN(world, robot);
+      // 0.4 kg · 9.81 · (−0.5 − (−2)) / (5.5 − (−2)): 0.78 N, less the arm's share it carries ahead of the axle.
+      expect(restN).toBeGreaterThan(0.7);
+      expect(restN).toBeLessThan(0.95);
+      for (const dir of [-1, 1] as const) {
+        steps(world, robot, 60, both(run(255, dir)));
+        let least = Infinity;
+        let most = 0;
+        for (let tick = 0; tick < 60; tick++) {
+          stepWorld(world, robot);
+          least = Math.min(least, casterLoadN(world, robot));
+          most = Math.max(most, casterLoadN(world, robot));
+        }
+        expect(least / restN, `dir ${dir}`).toBeGreaterThan(0.8);
+        expect(most / restN, `dir ${dir}`).toBeLessThan(1.2);
+        steps(world, robot, 60, both(brake));
+      }
+    });
+  });
+
+  it('holds with T_f/r at each wheel on a slope as on the flat: the friction follows the load along the contact normal', () => {
+    for (const slopeDeg of [0, 10, 20]) {
+      withRobot(open, { xCm: 150, yCm: 150, yawDeg: 0 }, ({ world, robot }) => {
+        // A fixed slab off the arena, tilted nose-up by the slope, and the robot put on it by hand, braked.
+        const R = getRapier();
+        const tilt: Quat = { x: 0, y: 0, z: Math.sin(degToRad(slopeDeg) / 2), w: Math.cos(degToRad(slopeDeg) / 2) };
+        const slab = world.createRigidBody(R.RigidBodyDesc.fixed());
+        world.createCollider(R.ColliderDesc.cuboid(1, 0.05, 1).setTranslation(6, -0.05, -6).setRotation(tilt).setFriction(1), slab);
+        const top = { x: 6 + rotateVector(tilt, { x: 0, y: 0.05, z: 0 }).x, y: -0.05 + rotateVector(tilt, { x: 0, y: 0.05, z: 0 }).y, z: -6 };
+        moveRobot(world, robot, top, tilt);
+        steps(world, robot, 120, both(brake));
+        // It stays where it was put (the pull down the slope, m·g·sin 20° = 1.34 N, is under 2·T_f/r = 1.52 N)...
+        const settled = robot.pose().position;
+        steps(world, robot, 120);
+        const moved = robot.pose().position;
+        expect(Math.hypot(moved.x - settled.x, moved.y - settled.y, moved.z - settled.z), `${slopeDeg}°`).toBeLessThan(0.001);
+        // ...and each support's friction limit, μ · its load along the normal, is T_f/r.
+        for (const ball of supportBalls(world, robot)) {
+          const limit = ball.friction() * normalLoadN(world, robot, ball);
+          expect(limit / (T_F / WHEEL_R), `${slopeDeg}°`).toBeCloseTo(1, 2);
+        }
+      });
+    }
   });
 
   it('refuses targets for roles the kit does not drive', () => {
@@ -589,10 +671,10 @@ describe('determinism', () => {
   it('same inputs → bit-identical poses: a 3000-tick scripted run hashes the same twice, and the golden hash', () => {
     const first = scriptedHash();
     expect(scriptedHash()).toBe(first);
-    // Golden (moves to R3.5's snapshot file). A change here is a change of the engine: bump it on purpose. In this run the
-    // robot drives 68 cm net, turns, sweeps its arm and pushes the crate 54 cm. (R3.3 fix round 1 re-pinned it: gearbox
-    // friction, the Tustin lag, the drive as a force over the step, T_s 0.08 N·m; it had not shipped.)
-    expect(first).toBe('9e89807b');
+    // Golden (moves to R3.5's snapshot file). A change here is a change of the engine: bump it on purpose. It had not
+    // shipped when R3.3's fix rounds re-pinned it: round 1 (gearbox friction, the Tustin lag, the drive as a force over the
+    // step, T_s 0.08 N·m), round 2 (the drive at the wheels' floor contacts, coasting motors free, μ along the normal).
+    expect(first).toBe('e6dec6a1');
   });
 
   it(
@@ -609,7 +691,7 @@ describe('determinism', () => {
         assembleRobot: assembly.assembleRobot,
         stepWorld: assembly.stepWorld,
       };
-      expect(scriptedHash(compat)).toBe('9e89807b');
+      expect(scriptedHash(compat)).toBe('e6dec6a1');
     },
     30_000,
   );
@@ -631,6 +713,55 @@ describe('determinism', () => {
     });
   });
 });
+
+/** The chassis' pitch, degrees, nose up positive. */
+function pitchDeg(robot: RobotBody): number {
+  return radToDeg(Math.asin(rotateVector(robot.pose().rotation, { x: 1, y: 0, z: 0 }).y));
+}
+
+/** The robot's own ball colliders of a radius, m. */
+function ownBalls(world: PhysicsWorld, robot: RobotBody, radiusM: number): Collider[] {
+  const balls: Collider[] = [];
+  world.forEachCollider((collider) => {
+    if (robot.ownsCollider(collider) && collider.shape.type === getRapier().ShapeType.Ball && Math.abs(collider.radius() - radiusM) < 1e-6) balls.push(collider);
+  });
+  return balls;
+}
+
+/** The two wheels' support balls (radius half the 2.6 cm wheel width). */
+const supportBalls = (world: PhysicsWorld, robot: RobotBody) => ownBalls(world, robot, 0.013);
+
+/** The normal load the last step put on one of the robot's colliders from everything else, N. */
+function normalLoadN(world: PhysicsWorld, robot: RobotBody, collider: Collider): number {
+  let impulse = 0;
+  world.contactPairsWith(collider, (other) => {
+    if (robot.ownsCollider(other)) return;
+    world.contactPair(collider, other, (manifold) => {
+      for (let i = 0; i < manifold.numContacts(); i++) impulse += manifold.contactImpulse(i);
+    });
+  });
+  return impulse / world.timestep;
+}
+
+/** The load on the caster ball (radius 0.75 cm), N. */
+const casterLoadN = (world: PhysicsWorld, robot: RobotBody) => normalLoadN(world, robot, ownBalls(world, robot, 0.0075)[0]!);
+
+/** Puts the robot by hand with its frame's origin at `origin`, turned by `rotation`: every body moved rigidly, at rest. */
+function moveRobot(world: PhysicsWorld, robot: RobotBody, origin: Vec3, rotation: Quat): void {
+  const from = robot.chassis.translation();
+  const unturn = conjugate(robot.chassis.rotation());
+  for (const body of robot.bodies) {
+    const t = body.translation();
+    const local = rotateVector(unturn, { x: t.x - from.x, y: t.y - from.y, z: t.z - from.z });
+    const placed = rotateVector(rotation, local);
+    body.setTranslation({ x: origin.x + placed.x, y: origin.y + placed.y, z: origin.z + placed.z }, true);
+    body.setRotation(multiplyQuaternions(rotation, multiplyQuaternions(unturn, body.rotation())), true);
+    body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+    body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+  }
+  world.propagateModifiedBodyPositionsToColliders();
+  refreshQueries(world);
+}
 
 /** Lifts the robot by hand: every body of it moved by the same offset, at rest, then propagated and refreshed. */
 function liftTo(world: PhysicsWorld, robot: RobotBody, target: Vec3): void {

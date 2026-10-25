@@ -17,9 +17,12 @@ import { cmToM } from '../units';
 //   makes T_f at the wheel, so the physics solver applies it within the step, against the drive and against anything that
 //   pushes the robot. Hence a running wheel settles where the line meets the friction, T_s·(u − ω/ω₀) = T_f: unloaded at
 //   ω₀·(u − T_f/T_s), under ω₀·u; a duty below T_f/T_s · 255 does not start the robot.
-// - Braking (IN1 = IN2 with EN on) shorts the motor: u = 0 and the reference drops to 0 at once, so the wheel slows as fast
-//   as the line −T_s·ω/ω₀ (proportional to its speed) plus the friction let it, and at rest the friction holds it. Coasting
-//   (EN off or no direction) also has u = 0, but the reference only decays through the lag.
+// - Stopping, by the contract, is coasting: IN1, IN2 and EN LOW leave the motor's terminals open, so the motor gives no
+//   torque at all (no current, no back-EMF braking) and only the gearbox's friction slows the robot and holds it (`coasting`;
+//   so does EN LOW with a direction, or a direction of 0). Braking is what a driver would get from IN1 = IN2 with EN HIGH:
+//   the shorted motor brakes along the line at u = 0, −T_s·ω/ω₀ (proportional to its speed), its reference dropping to 0 at
+//   once, and at rest the friction holds it. A coasting motor's reference decays through the lag; it only matters to a
+//   wheel off the floor, which spins down with it.
 
 /** The highest PWM duty of the UNO (analogWrite 255). */
 export const PWM_DUTY_MAX = 255;
@@ -93,6 +96,8 @@ export type DcMotor = {
   readonly drive: number;
   /** ω_target = u·ω₀, rad/s. */
   readonly targetRadS: number;
+  /** The motor is free (open circuit): no duty or no direction, and not braking. It gives the wheel no torque. */
+  readonly coasting: boolean;
   /** The speed the drive aims the wheel at, rad/s: ω_target through the lag (0 at once while braking). */
   readonly referenceRadS: number;
   /** Takes a new command; throws a RangeError for one the H-bridge cannot give. */
@@ -118,6 +123,9 @@ export function createDcMotor(spec: DcMotorSpec): DcMotor {
     },
     get targetRadS() {
       return drive * model.noLoadRadS;
+    },
+    get coasting() {
+      return !command.brake && (command.duty === 0 || command.dir === 0);
     },
     get referenceRadS() {
       return reference;

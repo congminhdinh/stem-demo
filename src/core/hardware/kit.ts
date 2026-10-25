@@ -99,7 +99,7 @@ export type ModuleSpec = Readonly<Record<string, number | boolean | string>>;
  * A DC gear motor and the wheel on its shaft (N18 R3.3). The world turns it into the torque line T = T_s·(u − ω/ω₀), with
  * u = duty/255 × dir and ω₀ = maxRpm in rad/s, a first-order lag of `tauS` on the wheel speed it aims at, and the gearbox's
  * Coulomb friction T_f, which holds a stopped wheel and slows a running one: unloaded, the wheel runs at ω₀·(u − T_f/T_s),
- * a little under ω₀·u.
+ * so at full duty at 1 − T_f/T_s of ω₀ (about 69 % for ref-uno-rover@0's placeholders).
  */
 export type DcMotorSpec = {
   /**

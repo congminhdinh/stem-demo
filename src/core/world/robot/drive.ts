@@ -4,8 +4,8 @@ import { torqueRange, type DcMotorModel } from './dc-motor';
 // The drive of a two-wheeled robot, model (c) of ADR 0001 §5.3: velocity-level diff-drive on a dynamic chassis.
 //
 // The chassis rests on supports the floor never pushes along (assembly.ts). Each tick, before the physics step, this
-// computes the impulse that brings the chassis to the velocity its wheels aim at (assembly.ts applies it as a force over the
-// step): forward speed
+// computes the impulse that brings the chassis to the velocity its wheels aim at (assembly.ts applies each wheel's share as
+// a force over the step where that wheel meets the floor): forward speed
 // v = (s_L + s_R)/2 and yaw rate ω = (s_R − s_L)/track, from each wheel's reference ground speed s = r·ω_ref. The impulse is
 // split between the wheels, and each wheel's share is held
 // - between 0 and the motor's torque line at the speed the wheel rolls at (dc-motor.ts, `torqueRange`), and
@@ -35,22 +35,33 @@ export type DriveGeometry = {
   readonly gripForceN: readonly [number, number];
 };
 
-/** One wheel this tick: its motor, the motor's drive u, the speed the wheel aims at, and whether it touches the floor. */
+/**
+ * One wheel this tick: its motor, the motor's drive u, the speed the wheel aims at, whether it touches the floor, and
+ * whether its motor is free (coasting: open circuit, no torque at all; dc-motor.ts).
+ */
 export type WheelDrive = {
   readonly motor: DcMotorModel;
   readonly drive: number;
   readonly referenceRadS: number;
   readonly grounded: boolean;
+  readonly coasting?: boolean;
 };
 
 /** The chassis' forward direction on the floor, a unit vector (x, z). Left is (fz, −fx). */
 export type GroundFrame = { readonly fx: number; readonly fz: number };
 
 export type DriveImpulse = {
-  /** To apply at the centre of mass, N·s. Horizontal. */
+  /** The sum of the pushes below, N·s. Horizontal. */
   readonly linear: Vec3;
-  /** About world +Y, N·m·s. */
+  /** The yaw the wheels' pushes give about world +Y, N·m·s: halfTrack · (right − left). */
   readonly yaw: number;
+  /**
+   * Each wheel's push along the heading, N·s: [left, right], to apply where the wheel meets the floor (so it acts at the
+   * height the floor's friction does, assembly.ts).
+   */
+  readonly wheelPush: readonly [number, number];
+  /** The side push that cancels the axle's slip, N·s along left: to apply on the floor under the centre of mass. */
+  readonly sidePush: number;
   /** The speed each wheel rolls at before the impulse (its contact point's forward speed / r), rad/s: [left, right]. */
   readonly wheelSpeedsRadS: readonly [number, number];
 };
@@ -76,7 +87,7 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 
 /** The impulses of one wheel's share, held to its torque line and its grip; nothing when it is off the floor. */
 function wheelLimits(wheel: WheelDrive, rollingRadS: number, gripForceN: number, dt: number): { min: number; max: number } {
-  if (!wheel.grounded) {
+  if (!wheel.grounded || wheel.coasting === true) {
     return { min: 0, max: 0 };
   }
   const torque = torqueRange(wheel.motor, wheel.drive, rollingRadS);
@@ -128,6 +139,8 @@ export function driveImpulse(
   return {
     linear: { x: push * frame.fx + side * leftX, y: 0, z: push * frame.fz + side * leftZ },
     yaw: halfTrackM * (pushRight - pushLeft),
+    wheelPush: [pushLeft, pushRight],
+    sidePush: side,
     wheelSpeedsRadS: [rollingLeft, rollingRight],
   };
 }
