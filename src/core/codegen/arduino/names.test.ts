@@ -63,6 +63,12 @@ describe('the reserved names', () => {
     expect(isReservedCppName('x')).toBe(false);
   });
 
+  it('has the sequencing temporaries of contract §3.5 (`_s1`, `_s2`, …), which a learner name can never become anyway', () => {
+    expect(['_s1', '_s2', '_s10', '_s123'].map(isReservedCppName)).toEqual([true, true, true, true]);
+    expect(sanitizeCppName('_s1')).toBe('v_s1');
+    expect(names('_s1', 's1')).toEqual(['v_s1', 's1']);
+  });
+
   it('has the sketch’s own names: setup, loop, the helpers, every robot role and every pin macro', () => {
     for (const name of ['setup', 'loop', 'add32', 'sub32', 'mul32', 'neg32', 'div32', 'mod32', 'motorSet', 'servoSet', 'buzzerTone', 'ultrasonicCm', 'pwmWrite', ...robotRoles]) {
       expect(isReservedCppName(name), name).toBe(true);

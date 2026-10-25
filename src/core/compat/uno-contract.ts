@@ -66,10 +66,19 @@ const evidence: Record<EvidenceRef, EvidenceEntry> = {
     ['emu-trace'],
     ['content'],
   ),
+  'EMU-15': entry(
+    'EMU',
+    'avr8js 0.21.1 on Node 24.22.1 (Apple M4 Pro); HEX built by arduino-cli 1.5.1 for arduino:avr:uno (arduino:avr@1.8.8); node spikes/avr8js/run-eval-order.mjs (N18 C1, not in results.json)',
+    'sketches/eval-order: se(v) and sb(v) print their value when they are evaluated, in the plain forms and in the sequenced form of §3.5',
+    'plain: add32(se(1L), se(2L)) eval=2, eval=1; sub32(se(3L), se(4L)) 4, 3; f3(10, se(7L), se(8L)) 8, 7; add32(mul32(se(9L), se(10L)), se(11L)) 11, 10, 9; (se(5L) < se(6L)) 5, 6. Sequenced: (_s1 = se(1L), _s2 = se(2L), add32(_s1, _s2)) eval=1, eval=2; sub32 3, 4; (_s1 = se(7L), _s2 = se(8L), f3(10, _s1, _s2)) 7, 8; three temporaries 9, 10, 11; while ((_s1 = se(x), _s2 = se(2L), (_s1 < _s2))) evaluates both each time (0, 2, 1, 2, 2, 2); (sb(false) && sb(true)) and (sb(true) || sb(false)) evaluate the left side only; (_s4 = (sb(true) && sb(false)), _s5 = sb(true), (_s4 == _s5)) 1, 0, 1, then prints 0',
+    ['emu-trace'],
+    ['content'],
+  ),
   'CC-01': entry('CC', compiled, 'Compiled the 15 spike sketches (ram-threshold 8 times)', 'All compile (ram-threshold refuses its 2049 B probe by design, CC-02); e.g. kit-rover 4752 B flash (14 %), 247 B RAM (12 %); 300 * 200 warns -Woverflow', ['compile-ok', 'compile-size', 'snapshot'], ['call', 'import', 'module']),
   'CC-02': entry('CC', compiled, 'sketches/ram-threshold with -DBIG=1000..2040', '1536 B of globals (75.000 %): no warning; 1537 B (75.049 %) and above: "Low memory available, stability problems may occur."; 2049 B: "Not enough memory", the build fails; flash maximum 32256 B', ['compile-size']),
   'CC-03': entry('CC', compiled, 'Compiled sketches/contract-forms with --warnings all', 'Compiles; no warning from the sketch (only from the core); 7474 B flash (23 %), 258 B RAM (12 %)', ['compile-ok', 'compile-size'], ['call', 'import', 'module']),
   'CC-04': entry('CC', `${compiled}; avr-objdump -d of servo-pulsein.ino.elf`, 'Read countPulseASM', 'Wait-for-start loop 11 cycles, counting loop 16 cycles, one budget of `timeout` iterations; pulseIn returns (count · 16 + 16) / 16 µs', ['disassembly'], ['block']),
+  'CC-05': entry('CC', compiled, 'Compiled sketches/eval-order with --warnings all', 'Compiles; no warning from the sketch (only from the core); 3118 B flash (9 %), 192 B RAM (9 %); long and bool temporaries at the top of setup(), the comma form in an assignment, a print, a while condition and a call statement', ['compile-ok', 'compile-size'], ['call']),
   'PKG-01': entry('PKG', 'gh api repos/arduino/ArduinoCore-avr/releases, repos/arduino-libraries/Servo/releases, repos/wokwi/avr8js/releases; arduino-cli version', 'Read the release dates', 'arduino:avr 1.8.8 2026-05-21; Servo 1.3.0 2025-11-06; avr8js v0.21.1 2026-08-31; arduino-cli 1.5.1 2026-06-05', ['snapshot']),
   'ARD-01': ard(reference('Functions/Analog IO/analogWrite.adoc'), '"UNO (R3 and earlier), Nano, Mini | 3, 5, 6, 9, 10, 11 | 490 Hz (pins 5 and 6: 980 Hz)"; "`value`: the duty cycle: between 0 (always off) and 255 (always on)"; "…until the next call to `analogWrite()` (or a call to `digitalRead()` or `digitalWrite()`) on the same pin"; "The PWM outputs generated on pins 5 and 6 will have higher-than-expected duty cycles"', ['unit', 'range', 'content']),
   'ARD-02': ard(reference('Functions/Analog IO/analogRead.adoc'), '"…into integer values between 0 and 1023"; "it takes about 100 microseconds (0.0001 s) to read an analog input"', ['range', 'block', 'return']),
@@ -97,6 +106,12 @@ const evidence: Record<EvidenceRef, EvidenceEntry> = {
   'CXX-06': cxx(draft('conv.prom'), '"A prvalue of type bool can be converted to a prvalue of type int, with false becoming zero and true becoming one."', ['return', 'content']),
   'CXX-07': cxx(`${draft('stmt.for')}; ${draft('intro.execution')}`, 'for: "…is equivalent to { init-statement while ( condition ) { statement expression ; } }"; "Every value computation and side effect associated with a full-expression is sequenced before every value computation and side effect associated with the next full-expression to be evaluated."', ['range', 'content']),
   'CXX-08': entry('CXX', `GCC 7.3 manual, "Common Function Attributes" (optimize) and "Code Gen Options" (-fwrapv) (accessed ${day})`, 'Read and quoted', '"This attribute should be used for debugging purposes only. It is not suitable in production code."; -fstrict-overflow: "…overflow when doing arithmetic with signed numbers is undefined"', ['context']),
+  'CXX-09': cxx(draft('expr.comma'), '"A pair of expressions separated by a comma is evaluated left-to-right; the left expression is a discarded-value expression. The left expression is sequenced before the right expression ([intro.execution]). The type and value of the result are the type and value of the right operand"', ['content']),
+  'CXX-10': cxx(
+    `${draft('expr.call')}; ${draft('intro.execution')}`,
+    'call: "The initialization of a parameter … including every associated value computation and side effect, is indeterminately sequenced with respect to that of any other parameter."; "Except where noted, evaluations of operands of individual operators and of subexpressions of individual expressions are unsequenced."',
+    ['content'],
+  ),
 };
 
 // --- Builders ------------------------------------------------------------------------------
@@ -263,6 +278,22 @@ const modules: readonly ModuleContract[] = [
 const costs = (what: string) => trace('EMU-08', `${what} (contract §4.4); the simulator charges the costsUs of each Arduino call it makes.`);
 const backgroundPwm = trace(['EMU-02', 'EMU-06'], 'The PWM is made by the timer hardware: it goes on while the program runs or waits.');
 
+// --- Operand order (contract §3.5, 0.1.3, N18 C1) ------------------------------------------------
+
+const sequencing =
+  'Operands are evaluated left to right, each once, as in the simulator. C++ leaves the arguments of a call and the operands of a comparison unsequenced, and avr-gcc 7.3 evaluates call arguments right to left (EMU-15). When two or more operands of one such expression read the robot (a module read, millis, a raw pin read, or an && / || that reads), the generator assigns each, in the simulator\'s depth-first order, to a temporary _s<k> declared at the top of setup() or loop() (after the setup lines), with the comma operator, which is sequenced left to right: (_s1 = <read>, _s2 = <read>, <expr>). && and || stay native: they are sequenced and skip their right side as the simulator does (U-10).';
+const sequencedForms = ['(_s<k> = <read>, … <expr>)', 'long _s<k>;', 'bool _s<k>;'];
+const sequencedCall = (statement: string) =>
+  claim('compile-ok', 'CC-05', `${statement} The sequenced form compiles with no warning: function-scope long / bool temporaries, the comma operator in an assignment, a print, a while condition and a call.`);
+const sequencedContent = (what: string) =>
+  field(
+    [
+      language('CXX-10', `${what} are unsequenced in C++ (a call's parameters are indeterminately sequenced): their order is not the language's.`),
+      language('CXX-09', 'The comma operator evaluates left to right, each assignment to a temporary before the next: the reads happen in the simulator\'s order, once each.'),
+    ],
+    ['EMU-15'],
+  );
+
 // --- Rows that may be shown (contract §10.1) ----------------------------------------------------
 
 const exposedRows: readonly ConstructContract[] = [
@@ -355,12 +386,14 @@ const exposedRows: readonly ConstructContract[] = [
       'Never a plain + - * on a learner value: avr-gcc 7.3 folds signed overflow as impossible (x + 1L > x is 1 at INT32_MAX), so the board would not wrap.',
       'The helpers compute in unsigned long and convert back: every pair of longs has a result, and it wraps.',
       'The simulator multiplies with Math.imul: (a * b) | 0 loses the low bits of a product beyond 2^53 ((2147483647 * 2147483647) | 0 is 0, the board gives 1).',
+      sequencing,
     ],
     modules: ['U-M1'],
-    cpp: cpp('add32(<a>, <b>) · sub32(<a>, <b>) · mul32(<a>, <b>)', { helpers: ['int32'] }),
-    levels: levels('R2.3', ['EMU-11', 'EMU-13']),
+    cpp: cpp('add32(<a>, <b>) · sub32(<a>, <b>) · mul32(<a>, <b>)', { variants: sequencedForms, helpers: ['int32'] }),
+    levels: levels('R2.3', ['EMU-11', 'EMU-13', 'EMU-15']),
     fields: open({
-      call: field([compiles('add32, sub32 and mul32 compile and inline.')]),
+      call: field([compiles('add32, sub32 and mul32 compile and inline.'), sequencedCall('(_s1 = <read>, _s2 = <read>, sub32(_s1, _s2)).')]),
+      content: sequencedContent('The two arguments of add32, sub32 and mul32'),
       range: na('Every int32 pair has a result.'),
       return: field(
         [
@@ -378,12 +411,13 @@ const exposedRows: readonly ConstructContract[] = [
     tier: tierBoth,
     profiles: BOTH,
     eligibility: 'ELIGIBLE',
-    restrictions: ['Truncates toward zero (-7 / 2 = -3).', 'INT32_MIN / -1 is INT32_MIN (wrap).', 'x / 0 is 0 on the board and in the simulator, which also warns division-by-zero once per block per run.'],
+    restrictions: ['Truncates toward zero (-7 / 2 = -3).', 'INT32_MIN / -1 is INT32_MIN (wrap).', 'x / 0 is 0 on the board and in the simulator, which also warns division-by-zero once per block per run.', sequencing],
     modules: ['U-M1'],
-    cpp: cpp('div32(<a>, <b>)', { helpers: ['int32'] }),
-    levels: levels('R2.3', ['EMU-10', 'EMU-13']),
+    cpp: cpp('div32(<a>, <b>)', { variants: sequencedForms, helpers: ['int32'] }),
+    levels: levels('R2.3', ['EMU-10', 'EMU-13', 'EMU-15']),
     fields: open({
-      call: field([compiles('div32 compiles.')]),
+      call: field([compiles('div32 compiles.'), sequencedCall('(_s1 = <read>, _s2 = <read>, div32(_s1, _s2)).')]),
+      content: sequencedContent('The two arguments of div32'),
       round: field([language('CXX-01', 'The quotient is the algebraic quotient with any fractional part discarded.')], ['EMU-10']),
       return: field([language('CXX-01', 'div32 only evaluates a / b when b is neither 0 nor -1, where the quotient is defined; -1 is neg32.')], ['EMU-13']),
       error: field([language('CXX-01', 'Division by zero and INT32_MIN / -1 are undefined in C++: div32 never evaluates them and returns 0 and neg32(a).')], ['EMU-10', 'EMU-13']),
@@ -395,12 +429,13 @@ const exposedRows: readonly ConstructContract[] = [
     tier: tierBoth,
     profiles: BOTH,
     eligibility: 'ELIGIBLE',
-    restrictions: ['The remainder takes the sign of the dividend (-7 % 2 = -1, 7 % -2 = 1).', 'x % -1 is 0, INT32_MIN % -1 included.', 'x % 0 is 0, with the division-by-zero warning in the simulator.'],
+    restrictions: ['The remainder takes the sign of the dividend (-7 % 2 = -1, 7 % -2 = 1).', 'x % -1 is 0, INT32_MIN % -1 included.', 'x % 0 is 0, with the division-by-zero warning in the simulator.', sequencing],
     modules: ['U-M1'],
-    cpp: cpp('mod32(<a>, <b>)', { helpers: ['int32'] }),
-    levels: levels('R2.3', ['EMU-10', 'EMU-13']),
+    cpp: cpp('mod32(<a>, <b>)', { variants: sequencedForms, helpers: ['int32'] }),
+    levels: levels('R2.3', ['EMU-10', 'EMU-13', 'EMU-15']),
     fields: open({
-      call: field([compiles('mod32 compiles.')]),
+      call: field([compiles('mod32 compiles.'), sequencedCall('(_s1 = <read>, _s2 = <read>, mod32(_s1, _s2)).')]),
+      content: sequencedContent('The two arguments of mod32'),
       round: field([language('CXX-01', '(a/b)*b + a%b == a with a truncated quotient: the remainder has the sign of a.'), doc('ARD-15', 'If the first operand is negative, the result is negative (or zero).')], ['EMU-10']),
       return: field([language('CXX-01', 'mod32 only evaluates a % b when b is neither 0 nor -1, where it is defined.')], ['EMU-13']),
       error: field([language('CXX-01', 'a % 0 and INT32_MIN % -1 are undefined in C++: mod32 never evaluates them and returns 0.')], ['EMU-10', 'EMU-13']),
@@ -427,12 +462,13 @@ const exposedRows: readonly ConstructContract[] = [
     tier: tierBoth,
     profiles: BOTH,
     eligibility: 'ELIGIBLE',
-    restrictions: ['< <= > >= == != on two longs: no arithmetic, so no overflow.'],
+    restrictions: ['< <= > >= == != on two longs: no arithmetic, so no overflow.', sequencing],
     modules: ['U-M1'],
-    cpp: cpp('(<a> < <b>) · (<a> <= <b>) · (<a> > <b>) · (<a> >= <b>) · (<a> == <b>) · (<a> != <b>)'),
-    levels: levels('R2.3', ['EMU-13']),
+    cpp: cpp('(<a> < <b>) · (<a> <= <b>) · (<a> > <b>) · (<a> >= <b>) · (<a> == <b>) · (<a> != <b>)', { variants: sequencedForms }),
+    levels: levels('R2.3', ['EMU-13', 'EMU-15']),
     fields: open({
-      call: field([compiles('The six comparisons compile on long operands.')]),
+      call: field([compiles('The six comparisons compile on long operands.'), sequencedCall('(_s1 = <read>, _s2 = <read>, (_s1 < _s2)).')]),
+      content: sequencedContent('The two operands of a comparison'),
       return: field([language('CXX-05', 'A comparison is a bool.')], ['EMU-13']),
     }),
   },
@@ -760,19 +796,25 @@ const exposedRows: readonly ConstructContract[] = [
       'Does not block: the tone plays in the background for ms; a new tone on the same pin replaces it.',
       'Tone holds Timer2: no PWM on D3 or D11 while the kit has a buzzer (U-48).',
       'The board plays floor(2 × hz × ms / 1000) half-periods of the nearest frequency the timer makes (440 → 440.141 Hz).',
+      'hz, then ms, each once (§3.5): when both read the robot, the call is (_s1 = <read>, …, buzzerTone(<ROLE>_PIN, <hz>, <ms>)); with the reads sequenced left to right, since avr-gcc evaluates call arguments right to left (EMU-15).',
     ],
     modules: ['U-M1'],
-    cpp: cpp('buzzerTone(<ROLE>_PIN, <hz>, <ms>);', { helpers: ['buzzer-tone'] }),
-    levels: levels('R1.4', ['EMU-05', 'EMU-07', 'EMU-13']),
+    cpp: cpp('buzzerTone(<ROLE>_PIN, <hz>, <ms>);', { variants: ['(_s<k> = <read>, … buzzerTone(<ROLE>_PIN, <hz>, <ms>));'], helpers: ['buzzer-tone'] }),
+    levels: levels('R1.4', ['EMU-05', 'EMU-07', 'EMU-13', 'EMU-15']),
     fields: open({
-      call: field([compiles('buzzerTone(PIN, hz, ms) compiles.')]),
+      call: field([compiles('buzzerTone(PIN, hz, ms) compiles.'), sequencedCall('(_s1 = <read>, _s2 = <read>, buzzerTone(PIN, _s1, _s2));')]),
       unit: field([doc('ARD-03', 'Frequency in Hz, duration in milliseconds.')], ['EMU-13']),
       range: field([doc('ARD-03', 'No tone lower than 31 Hz.'), trace('EMU-13', '4000 Hz plays exactly.')]),
       clamp: field([trace('EMU-13', '10 Hz → 31 Hz; 9000 → 4000 Hz; 0 ms → 1 ms.')]),
       round: field([trace('EMU-13', '440 → 440.141 Hz, 880 → 880.282 Hz; 31 Hz × 40 ms plays 2 half-periods.')]),
       block: field([doc('ARD-03', 'tone is non-blocking.'), trace('EMU-05', 'tone(10, 1000, 50) returns and plays 49.36 ms.')]),
       yield: field([trace(['EMU-05', 'EMU-13'], 'A Timer2 interrupt toggles the pin while the program runs or waits.')]),
-      content: field([doc('ARD-03', 'A tone on the same pin sets its frequency.'), trace('EMU-13', 'A second buzzerTone plays 880 Hz for its own 30 ms.')]),
+      content: field([
+        doc('ARD-03', 'A tone on the same pin sets its frequency.'),
+        trace('EMU-13', 'A second buzzerTone plays 880 Hz for its own 30 ms.'),
+        language('CXX-10', 'The arguments of a call are indeterminately sequenced: hz and ms have no order of their own in C++.'),
+        trace('EMU-15', 'f3(10, se(7L), se(8L)) evaluates 8 before 7; (_s1 = se(7L), _s2 = se(8L), f3(10, _s1, _s2)) evaluates 7, then 8.'),
+      ]),
     }),
   },
   {
@@ -1008,7 +1050,7 @@ const closedRows: readonly ConstructContract[] = [
 
 export const unoContract: UnoContract = {
   contractId: 'uno-arduino-avr',
-  version: '0.1.2',
+  version: '0.1.3',
   status: 'v0 (R0.3): every open row is established; L1 waits for R1/R2, L3 for M06.',
   snapshot: {
     pinnedOn: day,

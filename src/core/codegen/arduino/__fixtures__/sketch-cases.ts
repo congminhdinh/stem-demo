@@ -1,4 +1,4 @@
-import { productionKits, unoR3Board, type BoardProfile, type Kit } from '../../../hardware';
+import { productionKits, unoR3Board, type BoardProfile, type Kit, type VirtualUno } from '../../../hardware';
 import { productionProfiles } from '../../../profiles';
 import { unoDocument } from '../../../profiles/__fixtures__/uno-document';
 import { compileUnoProject } from '../../../program/compile-uno-program';
@@ -26,6 +26,23 @@ export type SketchCase = {
   variables: [id: string, name: string][];
   /** The lines the program prints, from the contract's arithmetic; absent for a program that never ends (a forever). */
   console?: string[];
+  /** What the robot's sensors give the parity run (attached to the virtual UNO before setup()); nothing by default. */
+  world?: (uno: VirtualUno) => void;
+};
+
+/** Every call of the result gives the next of `first`, `first + step`, …: the order of the reads shows in the values. */
+const counting = (first: number, step: number) => {
+  let next = first;
+  return () => {
+    const value = next;
+    next += step;
+    return value;
+  };
+};
+/** An echo for every ultrasonic read: 10 cm, 20 cm, … (580 µs per 10 cm, contract §6.6), 450 µs after the trigger. */
+const echoes = () => {
+  const width = counting(580, 580);
+  return () => ({ waitUs: 450, widthUs: width() });
 };
 
 const x = () => getVar('x');
@@ -273,6 +290,82 @@ export const sketchCases: SketchCase[] = [
     onStart: nestedRepeat(63, [print(nestedAdd(30))]),
     variables: [],
     console: [printed(31)],
+  },
+  {
+    // Contract §3.5 (0.1.3): two reads in one helper call, comparison or buzzerTone are sequenced with the comma operator, left to right.
+    // The three line sensors share one counter (10, 20, 30, … per analogRead), the echoes give 10, 20, 30, … cm: a value says which read
+    // came first. "line raw left − line raw right" and "distance + distance".
+    name: 'sequenced-reads',
+    covers: ['U-05', 'U-09', 'U-17', 'U-20', 'U-25', 'U-27', 'U-29'],
+    profile: 'uno-advanced',
+    onStart: [
+      print(sub(lineRaw('lineLeft'), lineRaw('lineRight'))),
+      setVar('x', add(ultrasonic(), ultrasonic())),
+      print(x()),
+      print(cmp('GT', lineRaw('lineLeft'), add(lineRaw('lineRight'), num(5)))),
+      buzzerTone(lineRaw('lineCenter'), ultrasonic()),
+      motorSet('motorLeft', sub(lineRaw('lineLeft'), lineRaw('lineRight'))),
+      print(join(text('d = '), sub(ultrasonic(), ultrasonic()))),
+    ],
+    variables: xyz,
+    console: [printed(sub32(10, 20)), printed(add32(10, 20)), printed(30 > add32(40, 5)), `d = ${printed(sub32(40, 50))}`],
+    world: (uno) => {
+      const shared = counting(10, 10);
+      ['A0', 'A1', 'A2'].forEach((pin) => uno.attachAnalogSource(pin, shared));
+      uno.attachPulseSource('D11', echoes());
+    },
+  },
+  {
+    // A while condition with two reads is sequenced again on every evaluation; an else-if is evaluated only when it is reached.
+    name: 'while-two-reads',
+    covers: ['U-09', 'U-11', 'U-13', 'U-29'],
+    profile: 'uno-advanced',
+    onStart: [
+      setVar('x', num(0)),
+      whileLoop(cmp('LT', lineRaw('lineLeft'), lineRaw('lineRight')), [setVar('x', add(x(), num(1)))]),
+      print(x()),
+      ifElif(
+        [
+          [cmp('GT', lineRaw('lineLeft'), lineRaw('lineRight')), [print(text('left'))]],
+          [cmp('LT', lineRaw('lineLeft'), lineRaw('lineRight')), [print(text('right'))]],
+        ],
+        [print(text('same'))],
+      ),
+    ],
+    variables: xyz,
+    // The left sensor reads 0, 10, 20, … and the right one 35: four turns (0…30 < 35), then 50 > 35.
+    console: ['4', 'left'],
+    world: (uno) => {
+      uno.attachAnalogSource('A0', counting(0, 10));
+      uno.attachAnalogSource('A2', () => 35);
+    },
+  },
+  {
+    // && and || stay native (contract §3.5, U-10): sequenced, and the right side is not read when the left decides. An && that reads,
+    // compared with another read, is taken whole into a bool temporary.
+    name: 'logic-reads',
+    covers: ['U-09', 'U-10', 'U-11', 'U-13', 'U-27', 'U-28', 'U-30'],
+    profile: 'uno-basic',
+    onStart: [
+      ifThen(and(lineDark('lineLeft'), lineDark('lineRight')), [print(text('both'))]),
+      ifThen(or(buttonPressed(), cmp('LT', ultrasonic(), num(10))), [print(text('stop'))]),
+      print(ultrasonic()),
+      print(cmp('EQ', and(lineDark('lineLeft'), lineDark('lineCenter')), lineDark('lineRight'))),
+      setVar('x', num(0)),
+      whileLoop(and(not(buttonPressed()), cmp('LT', x(), num(3))), [setVar('x', add(x(), num(1)))]),
+      print(x()),
+    ],
+    variables: xyz,
+    // The button is held, so the || never reads the distance: the first echo (10 cm) is the print's. (true && false) == true is 0, and
+    // the while stops at not(pressed) without comparing x.
+    console: ['both', 'stop', '10', printed(false), '0'],
+    world: (uno) => {
+      uno.attachDigitalSource('A0', () => 1);
+      uno.attachDigitalSource('A1', () => 0);
+      uno.attachDigitalSource('A2', () => 1);
+      uno.attachDigitalSource('D3', () => 0);
+      uno.attachPulseSource('D11', echoes());
+    },
   },
   {
     name: 'forever-blink',

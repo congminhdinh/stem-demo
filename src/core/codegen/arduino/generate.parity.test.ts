@@ -14,7 +14,11 @@ async function simulate(sketchCase: SketchCase) {
   const compiled = compileCase(sketchCase);
   const run = startVirtualRun(compiled.ir, {
     scheduler: { delayOverheadUs: compiled.board.costsUs.delayOverhead },
-    capabilities: ({ scheduler }) => createProgramIO(compiled.kit, createVirtualUno(compiled.board, scheduler.programClock), compiled.uses),
+    capabilities: ({ scheduler }) => {
+      const uno = createVirtualUno(compiled.board, scheduler.programClock);
+      sketchCase.world?.(uno);
+      return createProgramIO(compiled.kit, uno, compiled.uses);
+    },
   });
   const endedAt = await run.runUntilDone(240);
   return { endedAt, outcome: run.outcome(), lines: run.lines(), warnings: run.warnings.map((warning) => warning.code) };
@@ -23,9 +27,10 @@ async function simulate(sketchCase: SketchCase) {
 const parityCases = sketchCases.filter((c) => c.console !== undefined);
 
 describe('the interpreter prints what the contract says the sketch prints', () => {
-  it('runs the language goldens, the names golden and the deepest nesting', () => {
+  it('runs the language goldens, the names golden, the deepest nesting and the sequenced reads (contract §3.5)', () => {
     expect(parityCases.map((c) => c.name)).toEqual([
       'empty-program', 'mul-literal', 'int32-wrap', 'division-by-zero', 'count-up-bounds-once', 'millis-compare', 'print-mixed', 'nested-control', 'names', 'deep-nesting',
+      'sequenced-reads', 'while-two-reads', 'logic-reads',
     ]);
   });
 

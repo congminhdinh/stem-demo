@@ -12,18 +12,20 @@ import { generateUnoSketch } from './generate';
 // them, and code in setup() and loop() that the rows' forms and setup lines produce. The audit reduces the code bottom-up with the
 // forms of `cppAllowlist`, turned into patterns: a literal or `true`/`false` is a value, a learner variable is a name, an expression
 // form whose operands are values is a value, a statement form whose parts are values and statements is a statement, until only the
-// two statements setup() and loop() are left. A plain `x + 1L`, an unknown call or a form of no row never reduces, so it fails.
+// two statements setup() and loop() are left. A plain `x + 1L`, an unknown call or a form of no row never reduces, so it fails. The
+// generator's sequencing temporaries (`_s1`, …, contract §3.5) are a mark of their own: only the forms of §3.5 assign or declare them.
 
 const allowed = cppAllowlist(unoContract);
 const VALUE = '⟨e⟩';
 const NAME = '⟨n⟩';
 const STATEMENT = '⟨s⟩';
+const TEMP = '⟨t⟩';
 /** Where a form has statements (`<body>`, `<setup lines>`). */
 const BODY = '⟨b⟩';
-const operand = `(?:${VALUE}|${NAME})`;
+const operand = `(?:${VALUE}|${NAME}|${TEMP})`;
 const statements = `(?:${STATEMENT} )*`;
 const placeholders: Readonly<Record<string, string>> = {
-  ...Object.fromEntries(['a', 'b', 'c', 'c2', 'expr', 'count', 'start', 'end', 'ms', 'speed', 'angle', 'on', 'hz', 'v', 'value', 'part', 'last'].map((name) => [name, operand])),
+  ...Object.fromEntries(['a', 'b', 'c', 'c2', 'expr', 'count', 'start', 'end', 'ms', 'speed', 'angle', 'on', 'hz', 'v', 'value', 'part', 'last', 'read'].map((name) => [name, operand])),
   name: NAME,
   var: NAME,
   ROLE: '[A-Z][A-Z0-9_]*',
@@ -34,11 +36,12 @@ const placeholders: Readonly<Record<string, string>> = {
   '_s|neg32(_s)': '(?:_s|neg32\\(_s\\))',
 };
 
-/** Text as the audit reads it: strings are "T", whitespace is one space, literals and true/false are values. */
+/** Text as the audit reads it: strings are "T", whitespace is one space, temporaries are marked, literals and true/false are values. */
 const normalize = (text: string) =>
   text
     .replace(/"(?:[^"\\]|\\.)*"/g, '"T"')
     .replace(/\s+/g, ' ')
+    .replace(/\b_s\d+\b/g, TEMP)
     .replace(/\(-2147483647L - 1L\)/g, VALUE)
     .replace(/(?<![\w.])-?\d+L\b/g, VALUE)
     .replace(/\b(?:true|false)\b/g, VALUE)
@@ -48,8 +51,20 @@ const escapeRegex = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'
 
 /** A form of the contract as a pattern: its fixed text exactly, each placeholder by its class. */
 function pattern(form: string): RegExp {
-  const text = normalize(form).replace(/<(body\d?|setup lines)> /g, BODY);
-  const source = text
+  const text = normalize(form.replaceAll('_s<k>', TEMP)).replace(/<(body\d?|setup lines)> /g, BODY);
+  // §3.5: `(X, … Y` is one or more `X, ` and then `Y`.
+  const repeated = /^\((.+?), … (.+)$/.exec(text);
+  if (repeated) {
+    return new RegExp(`\\((?:${convert(repeated[1] ?? '', form)}, )+${convert(repeated[2] ?? '', form)}`, 'g');
+  }
+  const source = convert(text, form);
+  // U-11: its else-if part may repeat or be absent, its else part may be absent (the form shows one of each).
+  return new RegExp(source.replace(/( else if .*?\\\})( else \\\{.*?\\\})$/, '(?:$1)*(?:$2)?'), 'g');
+}
+
+/** A form's text as a regular expression: its fixed text exactly, each placeholder by its class. */
+function convert(text: string, form: string): string {
+  return text
     .split(new RegExp(`(<[^<>]+>|${BODY})`))
     .map((part) => {
       if (part === BODY) {
@@ -66,15 +81,13 @@ function pattern(form: string): RegExp {
       return replacement;
     })
     .join('');
-  // U-11: its else-if part may repeat or be absent, its else part may be absent (the form shows one of each).
-  return new RegExp(source.replace(/( else if .*?\\\})( else \\\{.*?\\\})$/, '(?:$1)*(?:$2)?'), 'g');
 }
 
 /** U-03's two forms are a global and a statement; U-17's `…` is any number of parts. U-04's literal is a value of `normalize`. */
 const forms = allowed.forms
   .filter((form) => !form.includes('<n>L'))
   .flatMap((form) => form.split(' · '))
-  .flatMap((form) => form.split(' … '))
+  .flatMap((form) => (form.includes(', … ') ? [form] : form.split(' … ')))
   .filter((form) => form !== 'true' && form !== 'false' && form !== '(-2147483647L - 1L)' && !form.startsWith('long <name>'));
 const isStatement = (form: string) => /[;}]$/.test(form.trim());
 const expressionPatterns = forms.filter((form) => !isStatement(form)).map(pattern);
@@ -172,6 +185,11 @@ describe('the C++ allowlist (contract §15 invariant 9)', () => {
     expect(audit(sketch('  analogWrite(9, 100);'))[0]).toMatch(/^code outside the forms/);
     expect(audit(sketch('  delay(100);'))[0]).toMatch(/^code outside the forms/);
     expect(audit(sketch('  if (x == 1L) {\n  }'))[0]).toMatch(/^code outside the forms/);
+    // §3.5: the sequenced form takes temporaries only, declared as such; a learner variable or a plain operator in it does not reduce.
+    expect(audit(sketch('  long _s1;\n  long _s2;\n  x = (_s1 = (long)analogRead(A0), _s2 = (long)millis(), sub32(_s1, _s2));'))).toEqual([]);
+    expect(audit(sketch('  Serial.println((x = 1L, x));'))[0]).toMatch(/^code outside the forms/);
+    expect(audit(sketch('  long _s1;\n  x = (_s1 = (long)analogRead(A0), sub32(_s1, x + 1L));'))[0]).toMatch(/^code outside the forms/);
+    expect(audit(sketch('  int _s1;'))[0]).toMatch(/^code outside the forms/);
     expect(audit(sketch('', 'long x = 0L;\nint y = 0;'))).toEqual(['global or helper: int y = 0;']);
     expect(audit(`#include <Wire.h>\n\n${sketch('')}`)).toEqual(['include: #include <Wire.h>']);
     expect(audit(`#define MOTOR_LEFT_EN 6\n\n${sketch('')}`)).toEqual(['define: #define MOTOR_LEFT_EN 6']);

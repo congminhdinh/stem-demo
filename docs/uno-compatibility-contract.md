@@ -1,6 +1,6 @@
 # UNO Compatibility Contract
 
-> **Version:** 0.1.2 (v0) · **Date:** 2026-10-25 · **Task:** N18 R0.3 · **Status:** v0: mọi construct được mở đã có evidence cho mọi field; L1 chờ R1/R2, L3 chờ M06.
+> **Version:** 0.1.3 (v0) · **Date:** 2026-10-25 · **Task:** N18 R0.3 · **Status:** v0: mọi construct được mở đã có evidence cho mọi field; L1 chờ R1/R2, L3 chờ M06.
 > **Target snapshot (pin):** `arduino-cli 1.5.1`, FQBN `arduino:avr:uno`, core `arduino:avr@1.8.8` (2026-05-21), avr-gcc `7.3.0-atmel3.6.1-arduino7`, library `Servo 1.3.0` (2025-11-06, LGPL-2.1), emulator `avr8js@0.21.1` (2026-08-31, MIT). MCU giả định **ATmega328P, 16 MHz**. **Board chính xác: UNKNOWN** (§1).
 > **Evidence:** spike R0.4 `spikes/avr8js/` (số liệu `spikes/avr8js/out/results.json`), ADR `docs/adr/0003-avr8js-parity.md`, ledger §14. **Bản máy đọc được:** `src/core/compat/uno-contract.ts` (§15).
 > **Quan hệ tài liệu:** spec `docs/uno-robot-direction.md`, plan `docs/robot-3d-implementation-plan.md` (R0.3, R0.4; §4.1 board, §4.2 kit, §4.3 driver, §4.4 IR). Kỷ luật evidence theo `docs/yolobit-compatibility-contract.md` (§0, §15, §21). Từ R1, tài liệu này là **source of truth** cho hành vi của mọi block robot trong simulator và trong C++ Arduino sinh ra (C1, C2, R1, R2).
@@ -16,6 +16,7 @@
 | Construct được mở | 34 dòng (U-01…U-34): 27 dòng cho cả hai profile, 7 dòng chỉ Advanced. **Không dòng nào còn field UNKNOWN** (§10.1, test `uno-contract.test.ts`) |
 | Không mở | 11 dòng (U-40…U-50): 8 EXCLUDED, 3 DEFERRED, mỗi dòng có lý do (§10.2) |
 | Số học | `cxx-int32`: wrap, chia cắt về 0, `%` theo dấu số bị chia, `INT32_MIN / -1 = INT32_MIN`, `x % -1 = 0`, `x / 0 = x % 0 = 0` (+ cảnh báo). Generator **không bao giờ** viết toán tử thường lên giá trị của learner: avr-gcc gập tràn có dấu (§3) |
+| Thứ tự toán hạng (0.1.3) | Toán hạng đánh giá trái sang phải, mỗi cái một lần, như simulator. C++ không cố định thứ tự đối số của lời gọi và toán hạng của so sánh; avr-gcc 7.3 đánh giá đối số **phải sang trái** (EMU-15). Hai lần đọc robot trở lên trong cùng biểu thức như vậy → generator gán từng lần đọc vào biến tạm `_s<k>` bằng toán tử phẩy (§3.5) |
 | Timer bị chiếm | **Đã có trace** (thay UNKNOWN): Servo làm D9/D10 mất PWM (giữ LOW, cả sau `detach`); `tone` làm D3/D11 mất PWM và `analogWrite(11)` đổi tần số tone. Quyết định: từ chối `timer-claimed` (§5.3, U-48) |
 | `costsUs` | Đo bằng cycle của avr8js (§4.4) |
 | Ma trận L1/L2/L2e/L3 | §12: L2 PASS và L2e PASS cho mọi dòng mở; L1 PENDING (R1/R2); L3 PENDING (M06) |
@@ -119,11 +120,11 @@ Placeholder `<…>` như dạng Python của contract Yolo:Bit; `<ROLE>_PIN` là
 | U-02 | `void loop() {⏎  <body>⏎}` | — | — |
 | U-03 | `long <name> = 0L; · <name> = <expr>;` | — | — |
 | U-04 | `<n>L` · variant `(-2147483647L - 1L)` (INT32_MIN, §3.1) | — | — |
-| U-05 | `add32(<a>, <b>) · sub32(<a>, <b>) · mul32(<a>, <b>)` | int32 | — |
-| U-06 | `div32(<a>, <b>)` | int32 | — |
-| U-07 | `mod32(<a>, <b>)` | int32 | — |
+| U-05 | `add32(<a>, <b>) · sub32(<a>, <b>) · mul32(<a>, <b>)` · variant `(_s<k> = <read>, … <expr>)`, `long _s<k>;`, `bool _s<k>;` (§3.5) | int32 | — |
+| U-06 | `div32(<a>, <b>)` · variant như U-05 (§3.5) | int32 | — |
+| U-07 | `mod32(<a>, <b>)` · variant như U-05 (§3.5) | int32 | — |
 | U-08 | `neg32(<a>)` | int32 | — |
-| U-09 | `(<a> < <b>) · (<a> <= <b>) · (<a> > <b>) · (<a> >= <b>) · (<a> == <b>) · (<a> != <b>)` | — | — |
+| U-09 | `(<a> < <b>) · (<a> <= <b>) · (<a> > <b>) · (<a> >= <b>) · (<a> == <b>) · (<a> != <b>)` · variant như U-05 (§3.5) | — | — |
 | U-10 | `(<a> && <b>) · (<a> \|\| <b>) · !(<a>) · true · false` | — | — |
 | U-11 | `if (<c>) {⏎  <body>⏎} else if (<c2>) {⏎  <body2>⏎} else {⏎  <body3>⏎}` | — | — |
 | U-12 | `{ const long _n = (<count>); for (long _r = 0L; _r < _n; _r += 1L) { <body> } }` | — | — |
@@ -139,7 +140,7 @@ Placeholder `<…>` như dạng Python của contract Yolo:Bit; `<ROLE>_PIN` là
 | U-22 | `motorSet(MOTOR_LEFT_EN, MOTOR_LEFT_IN1, MOTOR_LEFT_IN2, 0L); motorSet(MOTOR_RIGHT_EN, MOTOR_RIGHT_IN1, MOTOR_RIGHT_IN2, 0L);` | hbridge-en-in1-in2 | — |
 | U-23 | `servoSet(<role>, <angle>);` | servo-lib | `<role>.attach(<ROLE>_PIN);` `<role>.write(90);` |
 | U-24 | `digitalWrite(<ROLE>_PIN, (<on>) ? HIGH : LOW);` | — | `pinMode(<ROLE>_PIN, OUTPUT);` |
-| U-25 | `buzzerTone(<ROLE>_PIN, <hz>, <ms>);` | buzzer-tone | — |
+| U-25 | `buzzerTone(<ROLE>_PIN, <hz>, <ms>);` · variant `(_s<k> = <read>, … buzzerTone(<ROLE>_PIN, <hz>, <ms>));` (§3.5) | buzzer-tone | — |
 | U-26 | `noTone(<ROLE>_PIN);` | — | — |
 | U-27 | `ultrasonicCm(<ROLE>_TRIG, <ROLE>_ECHO)` | hcsr04-pulsein | `pinMode(<ROLE>_TRIG, OUTPUT);` `pinMode(<ROLE>_ECHO, INPUT);` |
 | U-28 | `(digitalRead(<ROLE>_PIN) == <LOW\|HIGH>)` | — | `pinMode(<ROLE>_PIN, INPUT);` |
@@ -208,6 +209,31 @@ long mod32(long a, long b) { return (b == -1L || b == 0L) ? 0L : a % b; }
 
 - `repeat N`: `{ const long _n = (<count>); for (long _r = 0L; _r < _n; _r += 1L) { <body> } }`; N đánh giá một lần; `N ≤ 0` → 0 vòng; không có domain (`_r < _n ≤ INT32_MAX`).
 - `while (<c>) { … }`, `if / else if / else`: C++ thường. **Không có delay ẩn** ở đâu cả.
+
+### 3.5 Thứ tự toán hạng và dạng tuần tự (0.1.3, C1)
+
+**Luật.** Mọi toán hạng được đánh giá **trái sang phải, mỗi cái đúng một lần**, theo thứ tự depth-first của simulator (interpreter: trái rồi phải ở `+ − × // %` và so sánh, đối số của lời gọi module theo thứ tự).
+
+**C++ không cố định thứ tự đó.**
+- "The initialization of a parameter … is indeterminately sequenced with respect to that of any other parameter."
+- "Except where noted, evaluations of operands of individual operators and of subexpressions of individual expressions are unsequenced." (CXX-10)
+- avr-gcc 7.3 (`-Os -flto`, gnu++11) đánh giá đối số của lời gọi **phải sang trái**: `add32(se(1L), se(2L))` in `eval=2` rồi `eval=1`; `f3(10, se(7L), se(8L))` in 8 rồi 7. Riêng so sánh này thì trái sang phải (EMU-15).
+- Biểu thức nào chỉ đọc biến và literal thì không sao: không có gì trong biểu thức ghi biến của learner. Lần đọc robot (module read, `millis`, chân thô) thì khác.
+
+**Dạng tuần tự.** Một vùng là phần của biểu thức mà C++ để toán hạng không tuần tự: đối số của helper `add32…mod32`, hai vế của so sánh, xuyên qua `!`. Đơn vị của vùng là những gì trong vùng đọc robot: một lần đọc, hoặc một `&&` / `||` có đọc (lấy **nguyên khối**).
+- Vùng có **hai đơn vị trở lên**: mỗi đơn vị được gán, theo thứ tự depth-first trái sang phải, vào biến tạm `_s<k>` bằng toán tử phẩy. Phần còn lại của biểu thức tính trên biến tạm:
+
+  ```cpp
+  Serial.println((_s1 = (long)analogRead(LINE_LEFT_PIN), _s2 = (long)analogRead(LINE_RIGHT_PIN), sub32(_s1, _s2)));
+  ```
+
+  "A pair of expressions separated by a comma is evaluated left-to-right; … The left expression is sequenced before the right expression" (CXX-09). Trace: `(_s1 = se(1L), _s2 = se(2L), add32(_s1, _s2))` in `eval=1`, `eval=2` (EMU-15).
+- Biến tạm khai báo **`long _s<k>;`** (hoặc **`bool _s<k>;`** cho đơn vị bool) ở đầu `setup()` (sau các dòng setup) hoặc đầu `loop()`. Mỗi biến một lần, đánh số theo thứ tự lấy, riêng cho từng hàm. Learner không thể có tên `_s<k>` (`names.ts`).
+- Vì vẫn là **một biểu thức**, dạng này được đánh giá lại đúng mỗi lần: điều kiện `while`, nhánh `else if` chỉ đánh giá khi tới (EMU-15: `while ((_s1 = se(x), _s2 = se(2L), (_s1 < _s2)))` đọc cả hai mỗi vòng).
+- **`&&` và `||` giữ nguyên**: C++ tuần tự chúng trái sang phải và bỏ vế phải đúng như simulator (CXX-05, EMU-15), nên vế phải bị bỏ thì không đọc, không tốn thời gian. Không kéo lần đọc ra khỏi chúng. Mỗi vế là một vùng riêng. Khi chính `&&`/`||` nằm trong vùng có đơn vị khác, nó được gán nguyên khối: `(_s1 = (A && B), _s2 = C, (_s1 == _s2))`.
+- Lời gọi có hai đối số giá trị (`buzzerTone`, U-25): hai đối số là một vùng. Khi có hai đơn vị trở lên thì bọc cả lời gọi: `(_s1 = <read>, _s2 = <read>, buzzerTone(BUZZER_PIN, _s1, _s2));`. Lời gọi một đối số (motor, servo, PWM, `const long _s` của drive) thì tuần tự bên trong đối số đó.
+- Chỉ một đơn vị (hoặc không có): viết như cũ, cho dễ đọc. Phần của join (mỗi phần một `Serial.print`), bound của count up (`_from`, `_to`) và mỗi câu lệnh đã là full-expression riêng (CXX-07).
+- Evidence: CC-05 (compile `--warnings all`, không warning của sketch), EMU-15 (trace). Dạng nằm trong allowlist (`cpp.variants` của U-05, U-06, U-07, U-09, U-25).
 
 ---
 
@@ -459,11 +485,11 @@ Ký hiệu §0.2. Cột field: `call import module unit range default clamp roun
 | U-02 | forever: loop() | B+A | V·C | – | – | – | – | – | – | – | D·A | – | – | – | – | – | D·A | ELIGIBLE | — |
 | U-03 | variable (long, int32) | B+A | V·C | – | – | – | D·A | –ᴱ | – | – | – | – | D·X | – | – | – | – | ELIGIBLE | — |
 | U-04 | integer literal | B+A | V·C | – | – | – | D·A+D·X | – | – | – | – | – | – | –ᴰ | – | – | – | ELIGIBLE | — |
-| U-05 | add, subtract, multiply (int32, wrap) | B+A | V·C | – | – | – | – | – | – | – | – | – | D·X | D·X | – | – | – | ELIGIBLE | — |
-| U-06 | divide (truncating) | B+A | V·C | – | – | – | – | – | – | D·X | – | – | D·X | D·X | – | – | – | ELIGIBLE | — |
-| U-07 | remainder (sign of the dividend) | B+A | V·C | – | – | – | – | – | – | D·X+D·A | – | – | D·X | D·X | – | – | – | ELIGIBLE | — |
+| U-05 | add, subtract, multiply (int32, wrap) | B+A | V·C | – | – | – | – | – | – | – | – | – | D·X | D·X | – | – | D·X | ELIGIBLE | — |
+| U-06 | divide (truncating) | B+A | V·C | – | – | – | – | – | – | D·X | – | – | D·X | D·X | – | – | D·X | ELIGIBLE | — |
+| U-07 | remainder (sign of the dividend) | B+A | V·C | – | – | – | – | – | – | D·X+D·A | – | – | D·X | D·X | – | – | D·X | ELIGIBLE | — |
 | U-08 | negate | B+A | V·C | – | – | – | – | – | – | – | – | – | D·X | – | – | – | – | ELIGIBLE | — |
-| U-09 | compare | B+A | V·C | – | – | – | – | – | – | – | – | – | D·X | – | – | – | – | ELIGIBLE | — |
+| U-09 | compare | B+A | V·C | – | – | – | – | – | – | – | – | – | D·X | – | – | – | D·X | ELIGIBLE | — |
 | U-10 | and, or, not, true, false | B+A | V·C | – | – | – | – | – | – | – | – | – | D·X | – | – | – | – | ELIGIBLE | — |
 | U-11 | if / else if / else | B+A | V·C | – | – | – | – | – | – | – | – | – | – | – | – | – | – | ELIGIBLE | — |
 | U-12 | repeat N times | B+A | V·C | – | – | – | D·X | – | – | – | – | – | – | – | – | – | D·X | ELIGIBLE | — |
@@ -479,7 +505,7 @@ Ký hiệu §0.2. Cột field: `call import module unit range default clamp roun
 | U-22 | stop the robot | B+A | V·C | – | – | – | – | – | – | – | V·E | – | – | – | – | – | V·E | ELIGIBLE | block, content |
 | U-23 | servo angle | B+A | V·C | V·C | V·C | D·A+V·E | D·A+V·E | V·E | V·E | V·E | V·E | V·E | – | – | – | – | – | ELIGIBLE | unit, range, default, clamp, round, block, yield |
 | U-24 | LED on / off | B+A | V·C | – | – | – | – | V·E | – | – | V·E | – | – | – | – | – | V·E | ELIGIBLE | default, block, content |
-| U-25 | buzzer tone (Hz, ms) | B+A | V·C | – | – | D·A | D·A+V·E | – | V·E | V·E | D·A+V·E | V·E | – | – | – | – | D·A+V·E | ELIGIBLE | range, clamp, round, block, yield, content |
+| U-25 | buzzer tone (Hz, ms) | B+A | V·C | – | – | D·A | D·A+V·E | – | V·E | V·E | D·A+V·E | V·E | – | – | – | – | D·A+V·E+D·X | ELIGIBLE | range, clamp, round, block, yield, content |
 | U-26 | buzzer stop | A | V·C | – | – | – | – | – | – | – | V·E | – | – | – | – | – | V·E | ELIGIBLE | block, content |
 | U-27 | ultrasonic distance (cm) | B+A | V·C | – | – | D·A+V·E | V·E | – | V·E | V·E | V·C+V·E | – | D·A+V·E | – | – | – | – | ELIGIBLE | unit, range, clamp, round, block, return |
 | U-28 | line sensor sees dark | B+A | V·C | – | – | – | – | – | – | – | V·E | – | V·E | – | – | – | V·E | ELIGIBLE | block, return, content |
@@ -540,11 +566,11 @@ Advanced là tập cha thật sự của Basic. Một profile liệt kê dòng c
 | U-02 | forever: loop() | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-08, EMU-13) | PENDING (M06) |
 | U-03 | variable (long, int32) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-10, EMU-13) | PENDING (M06) |
 | U-04 | integer literal | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-10, EMU-13) | PENDING (M06) |
-| U-05 | add, subtract, multiply (int32, wrap) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-11, EMU-13) | PENDING (M06) |
-| U-06 | divide (truncating) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-10, EMU-13) | PENDING (M06) |
-| U-07 | remainder (sign of the dividend) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-10, EMU-13) | PENDING (M06) |
+| U-05 | add, subtract, multiply (int32, wrap) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-11, EMU-13, EMU-15) | PENDING (M06) |
+| U-06 | divide (truncating) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-10, EMU-13, EMU-15) | PENDING (M06) |
+| U-07 | remainder (sign of the dividend) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-10, EMU-13, EMU-15) | PENDING (M06) |
 | U-08 | negate | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
-| U-09 | compare | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
+| U-09 | compare | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13, EMU-15) | PENDING (M06) |
 | U-10 | and, or, not, true, false | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
 | U-11 | if / else if / else | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
 | U-12 | repeat N times | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
@@ -560,7 +586,7 @@ Advanced là tập cha thật sự của Basic. Một profile liệt kê dòng c
 | U-22 | stop the robot | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-02, EMU-13) | PENDING (M06) |
 | U-23 | servo angle | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-03, EMU-07, EMU-13) | PENDING (M06) |
 | U-24 | LED on / off | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-01, EMU-13) | PENDING (M06) |
-| U-25 | buzzer tone (Hz, ms) | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-05, EMU-07, EMU-13) | PENDING (M06) |
+| U-25 | buzzer tone (Hz, ms) | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-05, EMU-07, EMU-13, EMU-15) | PENDING (M06) |
 | U-26 | buzzer stop | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-05, EMU-13) | PENDING (M06) |
 | U-27 | ultrasonic distance (cm) | ELIGIBLE | PENDING (R1.4, R3) | PASS (CC-03) | PASS (EMU-03, EMU-07, EMU-13) | PENDING (M06) |
 | U-28 | line sensor sees dark | ELIGIBLE | PENDING (R1.4, R3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
@@ -639,10 +665,12 @@ Ngày quan sát/truy cập: **2026-10-25**. EMU: avr8js 0.21.1 trên Node 24.22.
 | EMU-12 | EMU | avr8js 0.21.1 (đầu §14) | sketches/millis-drift: 250 reads of millis() about 4 ms apart against the cycle counter | millis = n + floor(3n / 125), n = floor((t - t0) / 1024 µs): 250 of 250 for every t0 0..7.9 µs before setup() | emu-trace | unit, range, round, return |
 | EMU-13 | EMU | avr8js 0.21.1 (đầu §14) | sketches/contract-forms: every C++ form and helper of this contract, with scripted echo, line, button and ADC | 29 of 29 checks: int32 helpers, bool 1/0, repeat and count up order, if / else if / else and while, UTF-8 and escaped text, (long)millis() on the model, motorSet and drive forms, servoSet clamps, buzzerTone clamps and re-tone, noTone, ultrasonicCm 19 cm (call 1675.5625 µs) and 400 (call 20812 µs; 1675.375 and 20806.3125 in the build without the if/while section), line, button, raw pins | emu-trace | unit, range, default, clamp, round, block, yield, return, error, content |
 | EMU-14 | EMU | avr8js 0.21.1 (đầu §14); `node spikes/avr8js/run-tone-notone.mjs` (R1, không có trong `results.json`) | sketches/tone-notone: analogWrite(11/3, 100), tone(10, 1000), noTone with no new analogWrite, analogWrite again, tone(10, 1000, 30) that ends by itself, analogWrite again | alone 490.196 Hz duty 0.39216; tone: D3/D11 LOW; after noTone with no new analogWrite: D3/D11 LOW; a new analogWrite: 490.196 Hz again; after the 30 ms tone ended by itself: D3/D11 LOW; a new analogWrite: 490.196 Hz again | emu-trace | content |
+| EMU-15 | EMU | avr8js 0.21.1 (đầu §14); `node spikes/avr8js/run-eval-order.mjs` (C1, không có trong `results.json`) | sketches/eval-order: se(v) and sb(v) print their value when they are evaluated, in the plain forms and in the sequenced form of §3.5 | plain: add32(se(1L), se(2L)) eval=2, eval=1; sub32(se(3L), se(4L)) 4, 3; f3(10, se(7L), se(8L)) 8, 7; add32(mul32(se(9L), se(10L)), se(11L)) 11, 10, 9; (se(5L) < se(6L)) 5, 6. Sequenced: (_s1 = se(1L), _s2 = se(2L), add32(_s1, _s2)) eval=1, eval=2; sub32 3, 4; (_s1 = se(7L), _s2 = se(8L), f3(10, _s1, _s2)) 7, 8; three temporaries 9, 10, 11; while ((_s1 = se(x), _s2 = se(2L), (_s1 < _s2))) evaluates both each time (0, 2, 1, 2, 2, 2); (sb(false) && sb(true)) and (sb(true) \|\| sb(false)) evaluate the left side only; (_s4 = (sb(true) && sb(false)), _s5 = sb(true), (_s4 == _s5)) 1, 0, 1, then prints 0 | emu-trace | content |
 | CC-01 | CC | arduino-cli 1.5.1 (đầu §14) | Compiled the 15 spike sketches (ram-threshold 8 times) | All compile (ram-threshold refuses its 2049 B probe by design, CC-02); e.g. kit-rover 4752 B flash (14 %), 247 B RAM (12 %); 300 * 200 warns -Woverflow | compile-ok, compile-size, snapshot | call, import, module |
 | CC-02 | CC | arduino-cli 1.5.1 (đầu §14) | sketches/ram-threshold with -DBIG=1000..2040 | 1536 B of globals (75.000 %): no warning; 1537 B (75.049 %) and above: "Low memory available, stability problems may occur."; 2049 B: "Not enough memory", the build fails; flash maximum 32256 B | compile-size | — |
 | CC-03 | CC | arduino-cli 1.5.1 (đầu §14) | Compiled sketches/contract-forms with --warnings all | Compiles; no warning from the sketch (only from the core); 7474 B flash (23 %), 258 B RAM (12 %) | compile-ok, compile-size | call, import, module |
 | CC-04 | CC | arduino-cli 1.5.1 + avr-objdump | Read countPulseASM | Wait-for-start loop 11 cycles, counting loop 16 cycles, one budget of `timeout` iterations; pulseIn returns (count · 16 + 16) / 16 µs | disassembly | block |
+| CC-05 | CC | arduino-cli 1.5.1 (đầu §14) | Compiled sketches/eval-order with --warnings all | Compiles; no warning from the sketch (only from the core); 3118 B flash (9 %), 192 B RAM (9 %); long and bool temporaries at the top of setup(), the comma form in an assignment, a print, a while condition and a call statement | compile-ok, compile-size | call |
 | PKG-01 | PKG | gh api repos/arduino/ArduinoCore-avr/releases, repos/arduino-libraries/Servo/releases, repos/wokwi/avr8js/releases; arduino-cli version | Read the release dates | arduino:avr 1.8.8 2026-05-21; Servo 1.3.0 2025-11-06; avr8js v0.21.1 2026-08-31; arduino-cli 1.5.1 2026-06-05 | snapshot | — |
 | ARD-01 | ARD | github.com/arduino/reference-en, Language/Functions/Analog IO/analogWrite.adoc (accessed 2026-10-25) | Read the page and quoted it | "UNO (R3 and earlier), Nano, Mini \| 3, 5, 6, 9, 10, 11 \| 490 Hz (pins 5 and 6: 980 Hz)"; "`value`: the duty cycle: between 0 (always off) and 255 (always on)"; "…until the next call to `analogWrite()` (or a call to `digitalRead()` or `digitalWrite()`) on the same pin"; "The PWM outputs generated on pins 5 and 6 will have higher-than-expected duty cycles" | documented | unit, range, content |
 | ARD-02 | ARD | github.com/arduino/reference-en, Language/Functions/Analog IO/analogRead.adoc (accessed 2026-10-25) | Read the page and quoted it | "…into integer values between 0 and 1023"; "it takes about 100 microseconds (0.0001 s) to read an analog input" | documented | range, block, return |
@@ -669,6 +697,8 @@ Ngày quan sát/truy cập: **2026-10-25**. EMU: avr8js 0.21.1 trên Node 24.22.
 | CXX-05 | CXX | eel.is/c++draft/expr.rel (accessed 2026-10-25); eel.is/c++draft/expr.eq (accessed 2026-10-25); eel.is/c++draft/expr.log.and (accessed 2026-10-25); eel.is/c++draft/expr.log.or (accessed 2026-10-25); eel.is/c++draft/expr.unary.op (accessed 2026-10-25) | Read the section and quoted it | relational: "The type of the result is bool."; equality: "…a result of type bool"; &&: "the second operand is not evaluated if the first operand is false"; \|\|: "the second operand is not evaluated if the first operand evaluates to true"; !: "The type of the result is bool." | documented, language | return |
 | CXX-06 | CXX | eel.is/c++draft/conv.prom (accessed 2026-10-25) | Read the section and quoted it | "A prvalue of type bool can be converted to a prvalue of type int, with false becoming zero and true becoming one." | documented, language | return, content |
 | CXX-07 | CXX | eel.is/c++draft/stmt.for (accessed 2026-10-25); eel.is/c++draft/intro.execution (accessed 2026-10-25) | Read the section and quoted it | for: "…is equivalent to { init-statement while ( condition ) { statement expression ; } }"; "Every value computation and side effect associated with a full-expression is sequenced before every value computation and side effect associated with the next full-expression to be evaluated." | documented, language | range, content |
+| CXX-09 | CXX | eel.is/c++draft/expr.comma (accessed 2026-10-25) | Read the section and quoted it | "A pair of expressions separated by a comma is evaluated left-to-right; the left expression is a discarded-value expression. The left expression is sequenced before the right expression ([intro.execution]). The type and value of the result are the type and value of the right operand" | documented, language | content |
+| CXX-10 | CXX | eel.is/c++draft/expr.call (accessed 2026-10-25); eel.is/c++draft/intro.execution (accessed 2026-10-25) | Read the section and quoted it | call: "The initialization of a parameter … including every associated value computation and side effect, is indeterminately sequenced with respect to that of any other parameter."; "Except where noted, evaluations of operands of individual operators and of subexpressions of individual expressions are unsequenced." | documented, language | content |
 | CXX-08 | CXX | GCC 7.3 manual, "Common Function Attributes" (optimize) and "Code Gen Options" (-fwrapv) (accessed 2026-10-25) | Read and quoted | "This attribute should be used for debugging purposes only. It is not suitable in production code."; -fstrict-overflow: "…overflow when doing arithmetic with signed numbers is undefined" | context | — |
 
 Tái lập toàn bộ EMU/CC: `node spikes/avr8js/run-all.mjs` (≈ 20 s; cần `arduino-cli` với core và Servo như §1).
@@ -710,6 +740,7 @@ Tái lập toàn bộ EMU/CC: `node spikes/avr8js/run-all.mjs` (≈ 20 s; cần 
 | D7 | PWM trên timer bị chiếm: từ chối `timer-claimed` | EMU-04/05 |
 | D8 | Siêu âm: simulator dùng thời gian chính xác; chấm điểm chừa ≥ 3 % + 1 cm | EMU-03/07 |
 | D9 | Bảng chi phí từ lời gọi không bị gập | EMU-08 vs EMU-09 |
+| D10 | Hai lần đọc robot trong toán hạng không tuần tự → dạng tuần tự bằng toán tử phẩy (§3.5); `&&`/`\|\|` giữ nguyên | CXX-09/10, EMU-15: avr-gcc đánh giá đối số phải sang trái; mọi chương trình chạy được trong simulator đều có C++ |
 
 ### 16.2 UNKNOWN còn lại (không chặn dòng nào được mở)
 
@@ -744,4 +775,5 @@ Tái lập toàn bộ EMU/CC: `node spikes/avr8js/run-all.mjs` (≈ 20 s; cần 
 | 0.1.0 | 2026-10-25 | R1: ghi cách virtual UNO charge (§4.4) và các dòng L1 ≠ L2e của R1 (§13: không echo, echo quá timeout, timer bị chiếm lúc chạy). Không đổi ngữ nghĩa dòng nào, nên giữ version |
 | 0.1.2 | 2026-10-25 | R2.2 fix round 1: U-33 có dòng setup `pinMode(<pin>, <mode>);` với mode của driver module nối vào chân (nút `INPUT_PULLUP`), dù program không dùng op của module: nút nhả đọc HIGH như trên board (field `default`: ARD-16, EMU-13). Trước đó đọc thô chân nút mà không có khối nút thì chân là INPUT thả nổi |
 | 0.1.2 | 2026-10-25 | C1: allowlist thêm hai dạng đã có trong `contract-forms.ino` (CC-03) và trong evidence `call` của dòng, nhưng thiếu trong data: literal INT32_MIN `(-2147483647L - 1L)` của U-04 và phần chữ `Serial.print(F("<text>"));` của U-17 (field `cpp.variants`). Không đổi ngữ nghĩa dòng nào, nên giữ version |
+| 0.1.3 | 2026-10-25 | C1 (ruling của controller): §3.5 thứ tự toán hạng. Toán hạng trái sang phải, mỗi cái một lần; C++ không cố định thứ tự đối số và toán hạng (CXX-10), avr-gcc 7.3 đánh giá đối số phải sang trái (EMU-15); hai lần đọc robot trở lên trong một vùng không tuần tự → dạng tuần tự bằng toán tử phẩy với biến tạm `_s<k>` (CXX-09, CC-05, EMU-15); `&&`/`\|\|` giữ nguyên. Sửa U-05, U-06, U-07, U-09, U-25 (restriction, `cpp.variants`, field `content`, L2e); thêm EMU-15, CC-05, CXX-09, CXX-10 |
 | 0.1.1 | 2026-10-25 | R1 fix round 1: sửa claim của U-48 và §5.3 (sau `noTone` hay khi tone tự hết, D3/D11 không có PWM tới khi `analogWrite` mới; EMU-05 gọi lại `analogWrite` nên không chứng minh PWM tự trở lại), thêm EMU-14 (`spikes/avr8js/run-tone-notone.mjs`) |

@@ -24,8 +24,10 @@ import { arduinoTarget } from './target';
 // - repeat and count up evaluate their bounds once, in the contract's order, into the generator's own `_n`, `_from`, `_to`; count up
 //   assigns the learner's variable from `_c`, so it keeps the last value (U-12, U-14);
 // - a module op is its driver's C++ (`Driver.ops[op].cpp`, on the kit's port), the drive is `driveCall` (U-21, U-22);
-// - the interpreter evaluates operands left to right, C++ leaves a call's arguments and a comparison's operands unordered (avr-gcc
-//   evaluates call arguments right to left, spike eval-order): two of them may not both read the robot (`unsequenced-reads`);
+// - the interpreter evaluates operands left to right, each once; C++ leaves a call's arguments and a comparison's operands unsequenced
+//   (avr-gcc 7.3 evaluates call arguments right to left, EMU-15). An expression that reads the robot two or more times in such operands
+//   assigns each read, in the interpreter's depth-first order, to a function-scope temporary `_s<k>` with the comma operator, which is
+//   sequenced left to right: `(_s1 = <read>, _s2 = <read>, sub32(_s1, _s2))` (contract §3.5, 0.1.3); `&&` and `||` stay native;
 // - setup() starts with `Serial.begin(9600);` when the program prints, then the setup lines of the ports the program uses in kit port
 //   order (`kitCpp`), then the pinMode of each module-wired pin the program reads raw (U-33, `uses.inputPins`) and of each pin it
 //   writes (U-31, `uses.outputPins`), as the binding sets them up in the simulator (hardware/binding.ts `createProgramIO`).
@@ -41,7 +43,6 @@ export type UnoGenDiagnosticCode =
   | 'value-out-of-range'
   | 'descending-range-not-supported'
   | 'capability-unavailable'
-  | 'unsequenced-reads'
   | 'limit-exceeded'
   | 'program-too-large';
 
@@ -100,7 +101,8 @@ export function cString(text: string): string | null {
 
 /**
  * Whether an expression reads the robot or the board's clock (a module read, millis, a raw pin read). An explicit stack, never recursion.
- * Literals and variables read nothing, and nothing in an expression writes a variable, so such operands may be evaluated in any order.
+ * Literals and variables read nothing, and nothing in an expression writes a learner variable, so such operands may be evaluated in any
+ * order.
  */
 function readsTheRobot(expr: Expr): boolean {
   const pending: Expr[] = [expr];
@@ -224,18 +226,6 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
     return arduinoPin(pin);
   };
 
-  /**
-   * C++ leaves the order of a call's arguments and of a comparison's operands open, and avr-gcc 7.3 evaluates call arguments right to
-   * left (avr8js trace of `add32(se(1L), se(2L))`: eval=2, then eval=1), where the interpreter evaluates left to right. So the operands of
-   * one helper call, comparison or module call may read the robot in one of them only; `and`, `or` (sequenced, left first), a join's
-   * parts (one Serial.print each) and count up's bounds (`_from`, `_to`) are in order already.
-   */
-  const inOrder = (operands: readonly Expr[], blockId: string) => {
-    if (operands.filter(readsTheRobot).length > 1) {
-      report('unsequenced-reads', 'This block reads the robot in two of its inputs, and C++ does not say which read comes first; put one reading in a variable first.', blockId);
-    }
-  };
-
   /** An expression nested too deep is said once, on its first block: its operands are all too deep too. */
   let tooDeep = false;
   const deepExpression = (blockId: string) => {
@@ -245,12 +235,73 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
     }
   };
 
-  const renderExpr = (expr: Expr, depth: number): string => {
+  // --- Contract §3.5 (0.1.3): operands in the interpreter's order ----------------------------------------------------------------
+  //
+  // A region is the part of an expression whose operands C++ leaves unsequenced: the arguments of a helper (add32…mod32), the two sides
+  // of a comparison, through `!`. `&&` and `||` end a region: C++ sequences them left to right and skips the right side exactly as the
+  // interpreter does, so each of their operands is a region of its own. The units of a region are what reads the robot in it: a read, or
+  // an `&&` / `||` that reads (taken whole, so its short-circuit stays). A region with two or more units is written with each unit
+  // assigned, in depth-first left-to-right order (the interpreter's), to a temporary `_s<k>` of setup() or loop(), with the comma
+  // operator, and the rest of the expression on the temporaries. One unit or none: the expression as it is.
+
+  /** The temporaries of setup() and of loop(), `_s1`, `_s2`, … in the order they are taken, each with its C++ type. */
+  const temps: Record<Section, ('long' | 'bool')[]> = { setup: [], loop: [] };
+  const takeTemp = (type: Type) => {
+    temps[section].push(type === 'bool' ? 'bool' : 'long');
+    return `_s${String(temps[section].length)}`;
+  };
+
+  /** The units of a region, depth-first, left to right, with their depth. An explicit stack, never recursion. */
+  const unitsOf = (roots: readonly Expr[], depth: number): { expr: Expr; depth: number }[] => {
+    const found: { expr: Expr; depth: number }[] = [];
+    const stack = [...roots].reverse().map((expr) => ({ expr, depth }));
+    for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
+      const { expr } = node;
+      if (expr.kind === 'read' || (expr.kind === 'logic' && readsTheRobot(expr))) {
+        found.push(node);
+      } else if (expr.kind === 'arith' || expr.kind === 'compare') {
+        stack.push({ expr: expr.right, depth: node.depth + 1 }, { expr: expr.left, depth: node.depth + 1 });
+      } else if (expr.kind === 'not') {
+        stack.push({ expr: expr.value, depth: node.depth + 1 });
+      }
+    }
+    return found;
+  };
+
+  /** The C++ of the expressions of one region (one, or a call's arguments), and the assignments that sequence its reads, if any. */
+  const renderRegion = (roots: readonly Expr[], depth: number): { assignments: string[]; texts: string[] } => {
+    const units = unitsOf(roots, depth);
+    if (units.length < 2) {
+      return { assignments: [], texts: roots.map((root) => renderExpr(root, depth)) };
+    }
+    const substitution = new Map<Expr, string>();
+    const assignments = units.map((unit) => {
+      const temp = takeTemp(unit.expr.type);
+      const text = renderExpr(unit.expr, unit.depth);
+      substitution.set(unit.expr, temp);
+      return `${temp} = ${text}`;
+    });
+    return { assignments, texts: roots.map((root) => renderExpr(root, depth, substitution)) };
+  };
+
+  /** One expression, sequenced when it has to be: `(_s1 = <read>, _s2 = <read>, <expr>)`. */
+  const renderTop = (expr: Expr, depth: number): string => {
+    const { assignments, texts } = renderRegion([expr], depth);
+    const text = texts[0] ?? '';
+    return assignments.length === 0 ? text : `(${[...assignments, text].join(', ')})`;
+  };
+
+  /** `substitution`: the units of a sequenced region, already in their temporaries. */
+  const renderExpr = (expr: Expr, depth: number, substitution?: ReadonlyMap<Expr, string>): string => {
     if (depth > MAX_EXPRESSION_DEPTH) {
       deepExpression(expr.blockId);
       return '';
     }
     pending.push(expr.blockId);
+    const temp = substitution?.get(expr);
+    if (temp !== undefined) {
+      return temp;
+    }
     switch (expr.kind) {
       case 'int':
         if (expr.type !== 'int' || !Number.isSafeInteger(expr.value)) {
@@ -284,8 +335,7 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
         expectType(expr.left, 'int', `The left side of ${expr.op}`);
         expectType(expr.right, 'int', `The right side of ${expr.op}`);
         useOp(expr.op);
-        inOrder([expr.left, expr.right], expr.blockId);
-        return `${arithHelper[expr.op]}(${renderExpr(expr.left, depth + 1)}, ${renderExpr(expr.right, depth + 1)})`;
+        return `${arithHelper[expr.op]}(${renderExpr(expr.left, depth + 1, substitution)}, ${renderExpr(expr.right, depth + 1, substitution)})`;
       }
       case 'compare': {
         expectType(expr, 'bool', 'A comparison');
@@ -297,19 +347,19 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
           expectType(expr.left, 'int', `The left side of ${expr.op}`);
           expectType(expr.right, 'int', `The right side of ${expr.op}`);
         }
-        inOrder([expr.left, expr.right], expr.blockId);
-        return `(${renderExpr(expr.left, depth + 1)} ${expr.op} ${renderExpr(expr.right, depth + 1)})`;
+        return `(${renderExpr(expr.left, depth + 1, substitution)} ${expr.op} ${renderExpr(expr.right, depth + 1, substitution)})`;
       }
       case 'logic': {
         expectType(expr, 'bool', 'A logic result');
         expectType(expr.left, 'bool', `The left side of ${expr.op}`);
         expectType(expr.right, 'bool', `The right side of ${expr.op}`);
-        return `(${renderExpr(expr.left, depth + 1)} ${expr.op === 'and' ? '&&' : '||'} ${renderExpr(expr.right, depth + 1)})`;
+        // Sequenced and short-circuit in C++ as in the interpreter: each side is a region of its own (§3.5).
+        return `(${renderTop(expr.left, depth + 1)} ${expr.op === 'and' ? '&&' : '||'} ${renderTop(expr.right, depth + 1)})`;
       }
       case 'not':
         expectType(expr, 'bool', 'A "not" result');
         expectType(expr.value, 'bool', 'The value of "not"');
-        return `!(${renderExpr(expr.value, depth + 1)})`;
+        return `!(${renderExpr(expr.value, depth + 1, substitution)})`;
       case 'read':
         return renderRead(expr);
       default:
@@ -346,7 +396,7 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
     return '';
   };
 
-  const expression = (expr: Expr) => renderExpr(expr, 1);
+  const expression = (expr: Expr) => renderTop(expr, 1);
   const condition = (expr: Expr, what: string) => {
     expectType(expr, 'bool', what);
     return expression(expr);
@@ -574,21 +624,22 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
     }
     const role = statement.operand.role;
     const found = driverOpOf(role, statement.op, 'call', statement.blockId);
-    const args: string[] = [];
-    if (statement.op !== 'buzzer.stop') {
-      inOrder(statement.args, statement.blockId);
-      statement.args.forEach((arg, index) => {
-        const range = found?.driverOp.args[index];
-        if (range === null) {
-          expectType(arg, 'bool', 'An on / off value');
-          args.push(expression(arg));
-        } else {
-          args.push(intArgument(arg, range === undefined ? 'An argument' : `The ${range.name}`, statement.blockId));
-        }
-      });
+    if (statement.op === 'buzzer.stop') {
+      if (found) {
+        emit(depth, found.driverOp.cpp.call(found.port, role, []));
+      }
+      return;
     }
+    statement.args.forEach((arg, index) => {
+      const range = found?.driverOp.args[index];
+      expectType(arg, range === null ? 'bool' : 'int', range === null ? 'An on / off value' : range === undefined ? 'An argument' : `The ${range.name}`);
+    });
+    // U-25 (§3.5): hz and ms are one region, so when they read the robot twice or more the call itself is sequenced,
+    // `(_s1 = <read>, _s2 = <read>, buzzerTone(BUZZER_PIN, _s1, _s2));`. A call with one argument sequences inside it.
+    const { assignments, texts } = statement.args.length > 1 ? renderRegion(statement.args, 1) : { assignments: [], texts: statement.args.map(expression) };
     if (found) {
-      emit(depth, found.driverOp.cpp.call(found.port, role, args));
+      const call = found.driverOp.cpp.call(found.port, role, texts);
+      emit(depth, assignments.length === 0 ? call : `(${[...assignments, call.replace(/;$/, '')].join(', ')});`);
     }
   };
 
@@ -627,6 +678,8 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
     ...cpp.helpers.map((helper) => helper.text),
     ...(helpersUsed.has('pwm-write') ? [languageHelpers['pwm-write']] : []),
   ];
+  /** §3.5: the temporaries a function takes, declared at its top (after setup()'s setup lines), each once, with its type. */
+  const declarations = (of: Section) => temps[of].map((type, index) => `${indentUnit}${type} _s${String(index + 1)};`);
   const assembled = assembleSketch({
     header,
     includes: cpp.includes,
@@ -634,14 +687,17 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
     globals: [...cpp.globals, ...ir.variables.map((variable) => `long ${names.get(variable.id) ?? ''} = 0L;`)],
     helpers,
     functions: [],
-    setup: [...setupLines, ...bodies.setup],
-    loop: bodies.loop,
+    setup: [...setupLines, ...declarations('setup'), ...bodies.setup],
+    loop: [...declarations('loop'), ...bodies.loop],
   });
   if (utf8Bytes(assembled.source) > MAX_GENERATED_BYTES) {
     report('program-too-large', `The generated sketch is limited to ${MAX_GENERATED_BYTES} bytes.`);
     return { ok: false, diagnostics };
   }
-  const firstLine: Record<Section, number> = { setup: assembled.setupBodyLine + setupLines.length, loop: assembled.loopBodyLine };
+  const firstLine: Record<Section, number> = {
+    setup: assembled.setupBodyLine + setupLines.length + temps.setup.length,
+    loop: assembled.loopBodyLine + temps.loop.length,
+  };
   const lineMap = [...ranges.entries()]
     .map(([blockId, range]) => ({ blockId, from: firstLine[range.section] + range.from, to: firstLine[range.section] + range.to, order: range.order }))
     .sort((a, b) => a.from - b.from || b.to - a.to || a.order - b.order)

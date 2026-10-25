@@ -6,7 +6,8 @@ import { toolchainNames } from './toolchain-names';
 // C++ names for Blockly variables in a generated sketch (N18 C1), as yolobit/names.ts does for Python: a name is made ASCII and a
 // legal identifier, kept away from everything the sketch and the pinned toolchain already mean, and made unique, all in the order of
 // `variables`, so the same program always gets the same names. A learner name never starts with `_` (those are the generator's own:
-// `_n`, `_r`, `_from`, `_to`, `_c`, `_s`) and never holds `__` (C++ reserves it).
+// `_n`, `_r`, `_from`, `_to`, `_c`, `_s`, and the sequencing temporaries `_s1`, `_s2`, … of contract §3.5) and never holds `__` (C++
+// reserves it).
 //
 // Kept away from: the C++ keywords and alternative tokens (`and` is an operator in C++); every identifier the pinned toolchain uses at
 // file scope (toolchain-names.ts, extracted by scripts/arduino-reserved-names.mjs: Arduino's API, the AVR registers and macros, the C
@@ -31,10 +32,13 @@ const pinMacros = () => robotRoles.flatMap((role) => driverIds.flatMap((driver) 
 
 let own: ReadonlySet<string> | undefined;
 
+/** The sequencing temporaries of contract §3.5: `_s<k>`, declared in setup() or loop(). */
+export const isSequencingTemporary = (name: string): boolean => /^_s\d+$/.test(name);
+
 /** Whether a name is taken in every generated sketch. */
 export function isReservedCppName(name: string): boolean {
   own ??= new Set([...keywords, ...sketchNames, ...languageHelperNames, ...robotRoles, ...pinMacros()]);
-  return own.has(name) || toolchainNames().has(name) || /^B[01]{1,8}$/.test(name);
+  return own.has(name) || toolchainNames().has(name) || /^B[01]{1,8}$/.test(name) || isSequencingTemporary(name);
 }
 
 /** ASCII letters, digits and single `_`s: accents are dropped (đ becomes d), anything else becomes `_`, and a name starts with a letter. */
