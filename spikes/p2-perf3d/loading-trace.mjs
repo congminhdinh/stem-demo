@@ -1,5 +1,5 @@
 // N18 P2 spike (evidence for p2-audit.md). Run from the repository root after pnpm bench:robot3d has built its dist:
-//   node spikes/p2-perf3d/loading-trace.mjs [--profile=school|gpu] [--template=rb-line-follow] [--out=trace.json]
+//   node spikes/p2-perf3d/loading-trace.mjs [--profile=school|gpu] [--template=rb-line-follow] [--out=trace.json] [--dist=<build>] [--check]
 // What the main thread does from the lesson page's navigation to the robot lab's first 3D frame (school PC profile: SwiftShader, CPU 6x,
 // 1366 x 768; or --profile=gpu): a Chromium trace (devtools.timeline), its long tasks on the renderer's main thread with what ran in
 // them (scripts mapped to sources through the bench build's source maps), aligned with the probe's performance marks.
@@ -12,7 +12,9 @@ const template = (process.argv.find((a) => a.startsWith('--template=')) ?? '--te
 const out = process.argv.find((a) => a.startsWith('--out='))?.split('=')[1];
 const { chromium } = await import(join(root, 'node_modules/@playwright/test/index.mjs'));
 const { loadSourceMaps } = await import(join(root, 'scripts/lib/profile-attribution.mjs'));
-const dist = join(root, 'node_modules/.cache/bench-robot3d/dist');
+const dist = process.argv.find((a) => a.startsWith('--dist='))?.split('=')[1] ?? join(root, 'node_modules/.cache/bench-robot3d/dist');
+// --check: instead of the loading, trace a whole Kiểm tra 4× of mini-mission and list its long tasks over 100 ms.
+const checkMode = process.argv.includes('--check');
 const maps = loadSourceMaps(join(dist, 'assets'));
 const port = 5304;
 const kids = [spawn(process.execPath, [join(root, 'node_modules/vite/bin/vite.js'), 'preview', '--outDir', dist, '--port', String(port), '--strictPort'], { cwd: root, stdio: 'ignore' }), spawn(process.execPath, [join(root, 'e2e/lesson-host.mjs'), String(port + 1)], { cwd: root, stdio: 'ignore' })];
@@ -28,13 +30,25 @@ async function open(trace) {
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
   if (school) await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 });
-  if (trace) await browser.startTracing(page, { categories: ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'v8.execute', 'blink.user_timing', 'loading', 'v8', 'disabled-by-default-v8.cpu_profiler'] });
+  const categories = ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'v8.execute', 'blink.user_timing', 'loading', 'v8', 'disabled-by-default-v8.cpu_profiler'];
+  if (trace && !checkMode) await browser.startTracing(page, { categories });
   const t0 = Date.now();
   await page.goto(host);
   const frame = page.frames().find((f) => f.url().includes('lab=robot'));
   await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 120000 });
   const first = Date.now() - t0;
   await new Promise((r) => setTimeout(r, 300));
+  if (trace && checkMode) {
+    const { robotSolutions } = await import(join(root, 'src/samples/robot-solutions.ts'));
+    const document = { schemaVersion: 1, id: 'trace', name: 'Robot', profile: 'uno-basic', kit: { id: 'ref-uno-rover', version: '0' }, circuit: { components: [{ id: 'uno', deviceType: 'uno-r3', position: { x: 300, y: 200 } }], wires: [] }, program: { blocks: robotSolutions['rb-mini-mission'].reference } };
+    await page.evaluate(([d, o]) => globalThis.__sendToLab({ protocol: 'stem-lab/v1', type: 'load-project', document: d }, o), [document, `http://localhost:${port}`]);
+    await new Promise((r) => setTimeout(r, 2500));
+    await browser.startTracing(page, { categories });
+    await frame.evaluate("performance.mark('p2:check-start')");
+    await frame.locator('[data-testid=robot-check-speed] [data-speed="4x"]').click();
+    await frame.getByTestId('robot-check-start').click();
+    await frame.getByTestId('robot-check-results').waitFor({ timeout: 180000 });
+  }
   const buffer = trace ? await browser.stopTracing() : null;
   await context.close();
   return { first, buffer };
@@ -45,7 +59,7 @@ const events = JSON.parse(buffer.toString()).traceEvents;
 if (out) writeFileSync(out, buffer);
 // The renderer main thread of the lab (the thread with the lab's marks).
 const marks = events.filter((e) => e.cat?.includes('blink.user_timing') && e.name?.startsWith('p2:'));
-const nav = events.find((e) => e.name === 'navigationStart' && e.args?.data?.documentLoaderURL?.includes('/lesson'))?.ts ?? Math.min(...events.filter((e) => e.ts > 0).map((e) => e.ts));
+const nav = events.find((e) => e.name === 'navigationStart' && e.args?.data?.documentLoaderURL?.includes('/lesson'))?.ts ?? events.reduce((least, e) => (e.ts > 0 && e.ts < least ? e.ts : least), Infinity);
 const labThread = marks[0] ? [marks[0].pid, marks[0].tid] : null;
 const onMain = (e) => labThread && e.pid === labThread[0] && e.tid === labThread[1];
 const ms = (ts) => Math.round((ts - nav) / 1000);
@@ -91,8 +105,8 @@ const sliceProfile = (from, to) => {
   }
   return out;
 };
-const tasks = events.filter((e) => onMain(e) && e.ph === 'X' && (e.name === 'RunTask' || e.name === 'ThreadControllerImpl::RunTask') && e.dur > 30000).sort((a, b) => a.ts - b.ts);
-const endAt = marks.find((m) => m.name === 'p2:first-scene-render')?.ts ?? Infinity;
+const tasks = events.filter((e) => onMain(e) && e.ph === 'X' && (e.name === 'RunTask' || e.name === 'ThreadControllerImpl::RunTask') && e.dur > (checkMode ? 100000 : 30000)).sort((a, b) => a.ts - b.ts);
+const endAt = checkMode ? Infinity : (marks.find((m) => m.name === 'p2:first-scene-render')?.ts ?? Infinity);
 let busy = 0;
 for (const task of tasks) {
   if (task.ts > endAt + 2e6) break;
