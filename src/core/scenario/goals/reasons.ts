@@ -14,9 +14,9 @@ export const goalReasons = {
   checkpointOutOfOrder: 'robot.goal.reason.checkpoint-out-of-order',
   /** `checkpoints-in-order`: the robot did not go through every checkpoint, and entered none out of order. */
   checkpointMissed: 'robot.goal.reason.checkpoint-missed',
-  /** `avoid-contact` and `stay-on-line`, the guard goals: the robot's path did not reach the least that lets them pass (travel.ts). */
+  /** `avoid-contact` and `stay-on-line`, the guard goals: the robot never got as far from its start as lets them pass (travel.ts). */
   robotDidNotMove: 'robot.goal.reason.robot-did-not-move',
-  /** `stay-on-line`: the robot was over the tape on too few of the ticks it moved. */
+  /** `stay-on-line`: the robot was over the tape for too little of the distance it drove. */
   offLine: 'robot.goal.reason.off-line',
   /** `object-in-zone`: the object is not in the zone at the end. */
   objectNotInZone: 'robot.goal.reason.object-not-in-zone',

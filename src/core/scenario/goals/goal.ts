@@ -16,8 +16,9 @@ import type { GoalReasonKey } from './reasons';
 //   - Points are all or nothing: `points` is the spec's when the goal has passed and 0 otherwise. `progress` (0..1) is for the UI only.
 //   - A goal that has not passed says why with a `reasonKey` (reasons.ts); one that has passed has none. `atS` is the simulated time
 //     of the event that settled it (the pass, or the contact, or the moment the robot left the arena) and is left out when no event did.
-//   - avoid-contact and stay-on-line are guard goals (travel.ts): a robot that never drives would meet them, so they pass only after a
-//     path of MIN_GUARD_TRAVEL_CM; before that they have not passed, with `robot-did-not-move`.
+//   - avoid-contact and stay-on-line are guard goals (travel.ts): a robot that never drives would meet them, so they pass only once the
+//     robot has been MIN_GUARD_TRAVEL_CM from its start (net reach, not path length); before that they have not passed, with
+//     `robot-did-not-move`.
 //   - The robot "being somewhere" means the middle of its body (`robot.xCm`, `yCm`) in the zone's polygon, by the point-in-polygon rule of
 //     geometry.ts (the paint's arithmetic and edge rule; what a sensor reads there can be tape or a later zone instead).
 //   - Every tick is checked the same way, on the first line of `update`: `dtS` is a finite time of 0 s or more or it is a RangeError (tick.ts).

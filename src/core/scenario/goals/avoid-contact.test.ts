@@ -10,9 +10,11 @@ const wall = { otherId: '#wall-0', tags: ['wall'] };
 const block = { otherId: 'block', tags: ['box', 'obstacle', 'jitter'] };
 const pole = { otherId: 'pole', tags: ['cylinder', 'obstacle', 'jitter'] };
 
-// 40 cm/s over the 0.25 s ticks of `feed` is 10 cm a tick: two ticks are the least path a guard goal needs (20 cm).
+// 40 cm/s over the 0.25 s ticks of `feed` is 10 cm a tick. `cruise` drives along +x from `nowhere`, so its third frame is 20 cm from the
+// first: the least distance from the start a guard goal needs (net reach, R5.2a fix round 1). A lone `cruising` frame stays at `nowhere`.
 const cruising: FrameInit = { ...nowhere, speedCmS: 40 };
-const cruise = (ticks: number, extra: FrameInit = {}): FrameInit[] => Array.from({ length: ticks }, () => ({ ...cruising, ...extra }));
+const cruise = (ticks: number, extra: FrameInit = {}): FrameInit[] =>
+  Array.from({ length: ticks }, (_, k) => ({ ...cruising, xCm: nowhere.xCm + 10 * k, ...extra }));
 
 describe('avoid-contact', () => {
   it('passes a robot that has driven and has touched nothing', () => {
@@ -41,7 +43,7 @@ describe('avoid-contact', () => {
 
   it('ignores contact with a collider that does not have the tag', () => {
     const goal = createAvoidContactGoal(spec);
-    feed(goal, cruise(2, { contacts: [wall, { otherId: 'crate', tags: ['object', 'pushable'] }] }));
+    feed(goal, cruise(3, { contacts: [wall, { otherId: 'crate', tags: ['object', 'pushable'] }] }));
     expect(goal.result()).toEqual({ id: 'goal', passed: true, points: 10, progress: 1 });
   });
 
@@ -59,7 +61,7 @@ describe('avoid-contact', () => {
 
   it('matches the whole tag, not a part of it', () => {
     const goal = createAvoidContactGoal(spec);
-    feed(goal, cruise(2, { contacts: [{ otherId: 'x', tags: ['obstacles', 'obstac', 'Obstacle', 'my-obstacle'] }] }));
+    feed(goal, cruise(3, { contacts: [{ otherId: 'x', tags: ['obstacles', 'obstac', 'Obstacle', 'my-obstacle'] }] }));
     expect(goal.result().passed).toBe(true);
   });
 
@@ -95,8 +97,9 @@ describe('avoid-contact', () => {
     });
   });
 
-  // The guard (controller ruling): a robot that touches nothing because it never left its place has not earned the goal.
-  describe('the least path', () => {
+  // The guard (controller ruling; net reach since R5.2a fix round 1): a robot that touches nothing because it never left its place, or
+  // only wandered about it, has not earned the goal.
+  describe('the least distance from the start', () => {
     it('fails a robot that stands still, with robot-did-not-move', () => {
       const goal = createAvoidContactGoal(spec);
       feed(goal, Array.from({ length: 40 }, () => ({ ...nowhere, speedCmS: 0 })));
@@ -107,19 +110,26 @@ describe('avoid-contact', () => {
       expect(createAvoidContactGoal(spec).result()).toEqual({ id: 'goal', passed: false, points: 0, progress: 0, reasonKey: goalReasons.robotDidNotMove });
     });
 
-    it('passes a robot that drives 25 cm and fails one that drives 19 cm', () => {
+    it('passes a robot that gets 25 cm from its start and fails one that gets 19 cm', () => {
       const far = createAvoidContactGoal(spec);
-      feed(far, Array.from({ length: 10 }, () => ({ ...nowhere, speedCmS: 10 }))); // 10 ticks of 2.5 cm
+      feed(far, Array.from({ length: 11 }, (_, k) => ({ ...nowhere, xCm: nowhere.xCm + 2.5 * k, speedCmS: 10 })));
       expect(far.result()).toEqual({ id: 'goal', passed: true, points: 10, progress: 1 });
       const short = createAvoidContactGoal(spec);
-      feed(short, Array.from({ length: 8 }, () => ({ ...nowhere, speedCmS: 9.5 }))); // 8 ticks of 2.375 cm
+      feed(short, Array.from({ length: 9 }, (_, k) => ({ ...nowhere, xCm: nowhere.xCm + 2.375 * k, speedCmS: 9.5 })));
       expect(short.result()).toEqual({ id: 'goal', passed: false, points: 0, progress: 19 / 20, reasonKey: goalReasons.robotDidNotMove });
     });
 
     it('passes at exactly 20 cm', () => {
       const goal = createAvoidContactGoal(spec);
-      feed(goal, cruise(2));
+      feed(goal, cruise(3));
       expect(goal.result().passed).toBe(true);
+    });
+
+    it('fails a robot that drives a long path without getting 20 cm away: back and forth, or wiggling on the spot', () => {
+      const wiggle = createAvoidContactGoal(spec);
+      feed(wiggle, Array.from({ length: 200 }, (_, k) => ({ ...nowhere, xCm: nowhere.xCm + (k % 2 === 0 ? 0 : 18), yCm: nowhere.yCm + (k % 4 < 2 ? 0 : 5), speedCmS: 72 })));
+      expect(wiggle.result()).toMatchObject({ passed: false, reasonKey: goalReasons.robotDidNotMove });
+      expect(wiggle.result().progress).toBeCloseTo(Math.hypot(18, 5) / 20, 12);
     });
 
     it('refuses a tick that is negative or not a number', () => {

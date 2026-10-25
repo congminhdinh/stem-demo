@@ -33,8 +33,8 @@ export type GoalFrame = {
      * How fast the robot drives over the floor, cm/s, 0 or more (a speed, not a velocity): the speed of the middle of its wheel
      * axle, the point a two-wheel robot turns about, with a turn about any point within 1 cm of it counting as no drive (R3.5,
      * world.ts `TURN_IN_PLACE_TOLERANCE_CM`). Turning on the spot is 0, though the middle of the body (`xCm`, `yCm`, which says
-     * where the robot is) moves on a small circle. It is what the path of the guard goals is summed from (travel.ts: speed × tick),
-     * what `stop-in-zone` holds under its limit (a robot spinning in place is stopped) and what `stay-on-line` calls moving.
+     * where the robot is) moves on a small circle. It is what `stay-on-line` weighs its share of the distance by (speed × tick) and
+     * what `stop-in-zone` holds under its limit (a robot spinning in place is stopped). The guard goals' reach is from `xCm`, `yCm`.
      */
     readonly speedCmS: number;
     readonly footprint: GoalFootprint;
