@@ -246,7 +246,7 @@ type RobotGoalSpec = { id: string; label: { vi: string; en: string }; points: nu
 - Key `rb-*` **không bao giờ đổi tên hay tái dùng**. Đổi hành vi thì tăng `version`.
 
 *Bổ sung khi làm R5.1 (`src/core/scenario/`, catalog ở `src/samples/robot-scenarios/index.ts`):*
-- **Không vòng import:** bảng key/profile/kit nằm ở `src/samples/robot-keys.ts` (lá, không import gì; `robot-templates.ts` re-export). `scenario-schema.ts`, `scenario.ts` và catalog chỉ import lá này, vì R5.2 cho `robotReadyFields` đọc catalog (`robot-templates → robot-scenarios → core/scenario → scenario-schema → robot-templates` sẽ là vòng, lỗi TDZ khi nạp module).
+- **Không vòng import:** bảng key/profile/kit nằm ở `src/samples/robot-keys.ts` (lá, không import gì; `robot-templates.ts` re-export). `scenario-schema.ts`, `scenario.ts` và catalog chỉ import lá này, vì R5.2 cho `robotReadyFields` đọc catalog (`robot-templates → robot-scenarios → core/scenario → scenario-schema → robot-templates` sẽ là vòng, lỗi TDZ khi nạp module). R5.2a cuối cùng đọc thẳng file kịch bản qua `robot-scenarios/ready-fields.ts` (lá chỉ import `robot-keys.ts` và JSON), xem R5.2.
 - `PoseCm = { xCm, yCm, yawDeg }`: điểm trên sàn dưới giữa thân robot (cùng `RobotStart` của R3.3). Vị trí xuất phát phải nằm trên sa bàn.
 - **Điểm:** mọi scenario có điểm đều `maxScore = 100` đúng: `Σ points + (timeBonusMax ?? 0) = 100`, `points` và `timeBonusMax` là số nguyên ≥ 0. `rb-sandbox` không goal, không `maxScore` (schema cấm `timeBonusMax`). `penalties` chỉ nhận mảng rỗng cho tới khi R6.2 định nghĩa `PenaltySpec`.
 - **Key:** chỉ 7 key của `robot-templates.ts`; `profile` phải đúng mức scenario cần, `kit` phải là `ref-uno-rover`. `version` là số nguyên ≥ 1; `timeLimitS` ∈ (0, 600].
@@ -595,6 +595,28 @@ Test `tests/robot-scenarios.test.ts`:
 - lời giải chuẩn qua **mọi** biến thể;
 - bài 3–6: lời giải mù trượt ≥ 1 biến thể;
 - lời giải ≤ 75 % RAM (khi có L2).
+
+*Bổ sung khi làm R5.2a (R5.2 tách đôi: R5.2a soạn dữ liệu và kiểm tĩnh; R5.2b chạy lời giải qua run session R3.6 và check R6.2):*
+- **File:** `src/samples/robot-scenarios/rb-*.json` (bảy kịch bản), `src/samples/robot-solutions.ts` (`{ reference, blind?, notes }`
+  cho sáu kịch bản có điểm), `tests/robot-scenarios.test.ts`, `tests/robot-solutions/rb-<key>.ino`, `docs/robot-scenario-authoring.md`
+  (R5.3, 6h). Sa bàn, goal, seed và lý do chọn: bảng ở mục 9 của tài liệu soạn kịch bản; số đo ở `notes` của từng lời giải.
+- **Thiết kế bằng số đo, không bằng ước lượng:** spike `spikes/r52-scenario-sim` chạy chương trình đã compile trên virtual UNO, world của
+  R3.5 (`createScenarioWorld`, `toGoalFrame`) và goal của R6.1. Kết quả (M4 Pro, Node 24.22.1, 15 s cho mọi chương trình × mọi biến thể):
+  lời giải chuẩn qua mọi goal ở mọi biến thể; lời giải mù qua biến thể 0 và trượt cả hai biến thể còn lại (đâm tường hay dừng ngắn 7–8 cm ở
+  bài 3, 5; tỉ lệ bám vạch 0,24–0,63 ở bài 4, 6, kèm chạm cọc ở bài 6); starter 0 điểm. Spike nối pin → actuator và time bonus đơn giản
+  hơn R3.6/R6.2 sẽ làm, nên R5.2b đo lại.
+- **`robotReadyFields` đọc file kịch bản qua `robot-scenarios/ready-fields.ts`, không qua catalog** (lệch khỏi ruling "đọc catalog" vì hai
+  ràng buộc có test): `robot-templates.ts` nằm trong bundle chính của mọi lab, còn catalog kéo scenario schema → `src/core/world/arena`
+  (`e2e/robot-bundle.spec.ts` cấm lab khác tải `src/core/world`); và Playwright import `robot-templates.ts` vào Node thuần
+  (`e2e/robot-lab.spec.ts`), nơi không có `import.meta.glob` và JSON cần `with { type: 'json' }`, chỉ có default export. Lá này import bảy
+  file như thế, đọc `version`, `goals[].points`, `scoring` y như `scenarioMaxScore`; test giữ nó bằng catalog cho mọi key. Giá: bundle chính
+  thêm 12,8 kB minified (2,7 kB gzip), JSON của bảy file; schema và world không vào.
+- **Golden của lời giải ở `tests/robot-solutions/`, không ở thư mục `__golden__`:** `check-arduino.test.ts` (C1) ghim lần chạy mặc định của
+  `scripts/check-arduino.mjs` vào đúng số case của C1, nên golden mới trong `__golden__` dưới `src/`, `tests/` sẽ làm đỏ test đó. Lệnh
+  `pnpm check:arduino` nay truyền `src tests` (compile mọi `.ino` trong đó: golden của C1 và sketch của lời giải). Nếu muốn đưa golden về
+  `tests/__golden__`, chỉ cần đổi assertion đếm của C1 thành số golden tìm thấy.
+- **Starter:** nằm trong JSON (`starter`), hat của bài và một khối chạy rời bị tắt. `robotStarterDocument` vẫn mở project với `program.blocks
+  = {}`; nạp `scenario.starter` vào workspace là việc của UI lab robot (R4).
 
 **R5.3 Hướng dẫn soạn + in sa bàn (12h).** `docs/robot-scenario-authoring.md` (6h). ✂ (6h) `scripts/export-arena-mat.mjs` xuất PNG đúng tỉ lệ (150 dpi) để in sa bàn thật; nếu cần về 720h thì chuyển sang M06.
 
