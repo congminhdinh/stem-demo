@@ -176,7 +176,18 @@ type Driver<A> = {
 type UnoPinIO = DigitalIO & AnalogInIO & PwmIO & ServoIO & PulseIO & { pinMode(pin, mode): void; tone(pin, hz, ms?): void; noTone(pin): void; wire: WireIO };
 type WireIO = { write(addr: number, bytes: number[]): void; read(addr: number, count: number): number[] };   // device model gắn theo địa chỉ
 ```
-*Điều chỉnh khi làm R1.4 (evidence: contract §2.3 có một dòng cho mỗi op, và còi có `buzzer.tone`/`buzzer.stop`, line có `line.dark`/`line.raw`):* một driver giữ cặp `{ sim, cpp }` của §4.3 **cho từng op** (khoá là tên op IR, `ops['motor.set']`), cùng `row` (dòng contract), `args` (khoảng kẹp), `setup` (bước setup dùng chung cho TS và C++). `cpp` = `{ libraries, includes, helper: { id, text } | null, globals(port, role), setup(port, role), call(port, role, argExprs) }`: role cần cho tên `#define` (`MOTOR_LEFT_EN`) và `Servo <role>;`. `sim` nhận `DriverIO` = `UnoPinIO` + `delayMicroseconds` + `compute(us)` (thời gian của chính helper mà contract đo, chỉ HC-SR04 dùng) + `costsUs`. Drive (U-21, U-22) là hai motor trong binding, role `drive`, op `drive.move` (args `[direction, speed]`) / `drive.stop`.
+*Điều chỉnh khi làm R1.4 (evidence: contract §2.3 có một dòng cho mỗi op, và còi có `buzzer.tone`/`buzzer.stop`, line có `line.dark`/`line.raw`):* cặp `{ sim, cpp }` của §4.3 nằm ở **từng op**; driver giữ phần chung của các op. Hình dạng đã dựng (`src/core/hardware/drivers/driver.ts`):
+```ts
+type Driver = { id: DriverId; ops: Record<string /* op IR: 'motor.set' */, DriverOp>;
+  libraries: CppLibrary[] /* hợp của libraries các op */; defines(port: KitPort, role: string): string[] /* '#define MOTOR_LEFT_EN 5' */ };
+type DriverOp = { kind: 'call'|'read'; row: string /* dòng contract: 'U-20' */; args: (ArgRange|null)[] /* khoảng kẹp, null = bool */;
+  requires?: { pin: string; cap: PinCap } /* line.raw chỉ có trên chân analogIn */; setup: SetupStep[] /* pinMode / servoAttach, chung cho TS và C++ */;
+  sim(io: DriverIO, port: KitPort, args: number[]): void | number | boolean;
+  cpp: { libraries: CppLibrary[]; includes: string[]; helper: { id: string; text: string } | null;
+         globals(port: KitPort, role: string): string[]; setup(port: KitPort, role: string): string[]; call(port: KitPort, role: string, argExprs: string[]): string } };
+type DriverIO = UnoPinIO & { delayMicroseconds(us: number): void; compute(us: number): void /* thời gian của chính helper mà contract đo; chỉ HC-SR04 */; costsUs: CostsUs };
+```
+`role` cần cho tên `#define` (`MOTOR_LEFT_EN`) và `Servo <role>;`. Drive (U-21, U-22) không phải driver: binding gọi hai motor, role `drive`, op `drive.move` (args `[direction, speed]`, `driveDirections`) / `drive.stop`; C++ của nó là `driveCall`.
 
 ### 4.4 IR (family `uno`) — `src/core/program/ybc-ir.ts`
 - IR mới có thêm: `numeric: 'python'|'cxx-int32'`, `loopPauseUs: number`.

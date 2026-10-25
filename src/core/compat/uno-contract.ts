@@ -49,7 +49,7 @@ const evidence: Record<EvidenceRef, EvidenceEntry> = {
   'EMU-02': emu('sketches/motor: motorSet on D5/D7/D8 and D6/D4/D2 with 50, -100, -30, 1, 0', 'D5 976.563 Hz HIGH 512 µs (128), 308 µs (77); D6 HIGH (255), 12 µs (3); IN pins as the sign says; 0: all LOW; the PWM goes on while the program waits', ['unit', 'round', 'yield', 'default', 'content']),
   'EMU-03': emu('sketches/servo-pulsein: Servo D9 and pulseIn on D11 against scripted echoes (450 µs after TRIG, widths 116..30500 µs, none)', 'servo 544 + a·1856/180 µs every 20002.8..20005.6 µs; pulseIn 0..1.10 % short; echo end to return 2.625..3.3125 µs; no echo 20785.44 µs; echo beyond the timeout 30020.63 µs; cm 19 / 10 / 400 / 397 / 2 / 49 / 400', ['unit', 'range', 'default', 'clamp', 'round', 'block', 'yield', 'return', 'content']),
   'EMU-04': emu('sketches/servo-pwm10: analogWrite(10, 200) alone, after Servo.attach(9), while attached, after detach', 'alone 490.196 Hz duty 200/255; attach stops it and holds D10 LOW; analogWrite(10) while attached: LOW, no PWM; after detach still LOW; servo pulses go on', ['yield', 'error', 'content']),
-  'EMU-05': emu('sketches/tone-pwm11: analogWrite(11/3, 100) alone, tone(10, 1000), analogWrite while the tone plays, noTone, tone with 50 ms', 'alone 490.196 Hz; tone stops D3/D11 PWM (LOW); analogWrite(11) while the tone plays changes it to 2475.248 Hz; noTone gives PWM back; tone(10, 1000, 50) plays 49.36 ms and does not block', ['block', 'yield', 'error', 'content']),
+  'EMU-05': emu('sketches/tone-pwm11: analogWrite(11/3, 100) alone, tone(10, 1000), analogWrite while the tone plays, noTone, tone with 50 ms', 'alone 490.196 Hz; tone stops D3/D11 PWM (LOW); analogWrite(11) while the tone plays changes it to 2475.248 Hz; noTone, then a new analogWrite(11/3, 100), gives the PWM back; tone(10, 1000, 50) plays 49.36 ms and does not block', ['block', 'yield', 'error', 'content']),
   'EMU-06': emu('sketches/pwm-pins: analogWrite on D3 D5 D6 D9 D10 D11 at once, and on D7 D8 A0 A1', 'D5/D6 976.563 Hz, D3/D9/D10/D11 490.196 Hz, duty v/255 (avr8js gives v/256 on Timer0); 127 -> LOW, 128 -> HIGH, 200 -> HIGH, 0 -> LOW on pins without PWM', ['unit', 'range', 'yield', 'content']),
   'EMU-07': emu('sketches/kit-rover: every module of ref-uno-rover@0 at once', 'servo 1007..1008 µs, tone 1000 Hz, D5 duty 128, D6 duty 204, IN levels, LED, button 1/0/1, analogRead 0/512/1023 for 0/2.5/5 V; echo 1160 µs read as 1125..1134 µs while the tone plays', ['range', 'yield', 'return', 'content']),
   'EMU-08': emu('sketches/costs: each Arduino call between port-write markers, 8 samples, shortest minus the baseline', 'digitalWrite 73 cycles, digitalRead 63, analogRead 1693 (first 3229), analogWrite 123, millis 19, Servo.write 792, tone 2785, Serial byte queued 6.28 µs, beyond 64 bytes 1044.17 µs each (avr8js), empty loop() 5 cycles; Timer0 interrupt 0.583 %, one Servo 0.163 %, tone 1000 Hz 1.49 %', ['block']),
@@ -58,6 +58,14 @@ const evidence: Record<EvidenceRef, EvidenceEntry> = {
   'EMU-11': emu('sketches/lang-wrap and lang-wrapv: plain operators, unsigned helpers, __builtin_*_overflow, an asm barrier, noinline, #pragma GCC optimize("wrapv")', 'every helper wraps correctly when no plain signed overflow runs in the program; after one, unsigned and builtin helpers are merged with it (CSE); the pragma makes plain operators wrap', ['round', 'return', 'error']),
   'EMU-12': emu('sketches/millis-drift: 250 reads of millis() about 4 ms apart against the cycle counter', 'millis = n + floor(3n / 125), n = floor((t - t0) / 1024 µs): 250 of 250 for every t0 0..7.9 µs before setup()', ['unit', 'range', 'round', 'return']),
   'EMU-13': emu('sketches/contract-forms: every C++ form and helper of this contract, with scripted echo, line, button and ADC', '29 of 29 checks: int32 helpers, bool 1/0, repeat and count up order, if / else if / else and while, UTF-8 and escaped text, (long)millis() on the model, motorSet and drive forms, servoSet clamps, buzzerTone clamps and re-tone, noTone, ultrasonicCm 19 cm (call 1675.5625 µs) and 400 (call 20812 µs; 1675.375 and 20806.3125 in the build without the if/while section), line, button, raw pins', ['unit', 'range', 'default', 'clamp', 'round', 'block', 'yield', 'return', 'error', 'content']),
+  'EMU-14': entry(
+    'EMU',
+    'avr8js 0.21.1 on Node 24.22.1 (Apple M4 Pro); HEX built by arduino-cli 1.5.1 for arduino:avr:uno (arduino:avr@1.8.8); node spikes/avr8js/run-tone-notone.mjs (N18 R1, not in results.json)',
+    'sketches/tone-notone: analogWrite(11/3, 100), tone(10, 1000), noTone with no new analogWrite, analogWrite again, tone(10, 1000, 30) that ends by itself, analogWrite again',
+    'alone 490.196 Hz duty 0.39216; tone: D3/D11 LOW; after noTone with no new analogWrite: D3/D11 LOW; a new analogWrite: 490.196 Hz again; after the 30 ms tone ended by itself: D3/D11 LOW; a new analogWrite: 490.196 Hz again',
+    ['emu-trace'],
+    ['content'],
+  ),
   'CC-01': entry('CC', compiled, 'Compiled the 15 spike sketches (ram-threshold 8 times)', 'All compile (ram-threshold refuses its 2049 B probe by design, CC-02); e.g. kit-rover 4752 B flash (14 %), 247 B RAM (12 %); 300 * 200 warns -Woverflow', ['compile-ok', 'compile-size', 'snapshot'], ['call', 'import', 'module']),
   'CC-02': entry('CC', compiled, 'sketches/ram-threshold with -DBIG=1000..2040', '1536 B of globals (75.000 %): no warning; 1537 B (75.049 %) and above: "Low memory available, stability problems may occur."; 2049 B: "Not enough memory", the build fails; flash maximum 32256 B', ['compile-size']),
   'CC-03': entry('CC', compiled, 'Compiled sketches/contract-forms with --warnings all', 'Compiles; no warning from the sketch (only from the core); 7474 B flash (23 %), 258 B RAM (12 %)', ['compile-ok', 'compile-size'], ['call', 'import', 'module']),
@@ -980,7 +988,8 @@ const closedRows: readonly ConstructContract[] = [
     {
       content: field([
         trace('EMU-04', 'Servo on Timer1: analogWrite(10, 200) gives a constant LOW; after detach still LOW.'),
-        trace('EMU-05', 'tone on Timer2: D3/D11 LOW; analogWrite(11, 100) moves the tone from 1000 to 2475.248 Hz; noTone gives the PWM back.'),
+        trace('EMU-05', 'tone on Timer2: D3/D11 LOW; analogWrite(11, 100) moves the tone from 1000 to 2475.248 Hz; noTone followed by a new analogWrite gives the PWM back.'),
+        trace('EMU-14', 'After noTone, or a tone that ends by itself, D3/D11 have no PWM until a new analogWrite.'),
         doc(['ARD-12', 'ARD-03'], 'Servo disables PWM on pins 9 and 10; tone interferes with PWM on pins 3 and 11.'),
       ]),
     },
@@ -994,7 +1003,7 @@ const closedRows: readonly ConstructContract[] = [
 
 export const unoContract: UnoContract = {
   contractId: 'uno-arduino-avr',
-  version: '0.1.0',
+  version: '0.1.1',
   status: 'v0 (R0.3): every open row is established; L1 waits for R1/R2, L3 for M06.',
   snapshot: {
     pinnedOn: day,

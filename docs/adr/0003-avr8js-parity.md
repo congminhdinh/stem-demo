@@ -99,7 +99,7 @@ Servo D9; HC-SR04 TRIG=D12, ECHO=D11; `pulseIn(ECHO, HIGH, 30000UL)`; cm = µs/5
 | E | `noTone(10); analogWrite(11/3, 100)` | LOW | PWM trở lại 490,196 Hz | PWM trở lại |
 | F | `tone(10, 1000, 50)` | 1000 Hz trong 49,36 ms rồi dừng; **không chặn** | LOW | LOW |
 
-Khác Timer1: `noTone` đặt lại Timer2 về phase-correct /64, nên PWM trên D3/D11 trở lại. Khớp tài liệu `tone`: "Use of the `tone()` function will interfere with PWM output on pins 3 and 11".
+Khác Timer1: `noTone` đặt lại Timer2 về phase-correct /64, nên một `analogWrite` **mới** sau `noTone` cho lại PWM trên D3/D11 (pha E gọi lại `analogWrite`). PWM không tự trở lại: `disableTimer(2)` xoá bit COM (`TCCR2A = (1 << WGM20)`, `Tone.cpp:449`), và R1 trace thêm điều đó (contract EMU-14, `node spikes/avr8js/run-tone-notone.mjs`: sau `noTone` hay tone tự hết mà không có `analogWrite` mới, D3/D11 LOW). Khớp tài liệu `tone`: "Use of the `tone()` function will interfere with PWM output on pins 3 and 11".
 
 ### 3.6 Sáu chân PWM và ngưỡng 128 (`pwmPins`)
 

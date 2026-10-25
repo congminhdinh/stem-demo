@@ -6,8 +6,8 @@ import type { HardwareDiagnostic } from './pin-rules';
 // The virtual UNO (N18 R1.3, robot plan §3, §4.3): the board at pin level, as the drivers and the raw pin ops drive it and
 // as the world reads it. Each Arduino call charges its measured cost (the board profile's costsUs, contract §4.4) to the
 // program clock and changes pins the way the R0.4 traces show (contract §5): PWM is a duty v/255 on the timer pins, a pin
-// without PWM drives HIGH from 128 up, a servo takes Timer1 and a tone Timer2 away from PWM (the pin stays LOW), a digital
-// read or write stops a pin's PWM.
+// without PWM drives HIGH from 128 up, a servo takes Timer1 and a tone Timer2 away from PWM (the pin stays LOW; after a
+// tone, D3/D11 have no PWM until a new analogWrite), a digital read or write stops a pin's PWM.
 //
 // What it does not model (contract §13, L1 ≠ L2e): the load of interrupts (Timer0, the Servo, tone: 0.58 %, 0.16 %, 1.49 %
 // at 1 kHz), so pulseIn without echo charges the 20 752 µs measured without a Servo (20 785.44 µs with one, EMU-03); the
@@ -68,7 +68,10 @@ export type VirtualUno = {
   attachDigitalSource(pin: string, source: DigitalSource): void;
   attachPulseSource(pin: string, source: PulseSource): void;
   attachWireDevice(address: number, device: WireDevice): void;
-  /** Tells each pin whose state a call changed, with the program time (ms) after the call. Returns the unsubscribe. */
+  /**
+   * Tells each pin whose state a call changed, with the program time (ms) after the call; a tone that ran out by itself is
+   * told at the next call, whatever pin that call touches (pins() shows it at once). Returns the unsubscribe.
+   */
   onChange(listener: (state: PinState, atMs: number) => void): () => void;
   /** Adds a warning of the run (the module binding reports its value-clamped here); each one once per code, pin, role and address. */
   report(diagnostic: HardwareDiagnostic): void;
@@ -172,17 +175,60 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
   /** The last told key of each pin; filled when the first listener subscribes. */
   const keys = new Map<string, string>();
   const timerPins = (timer: string | undefined) => board.pins.filter((pin) => timer !== undefined && pin.pwmTimer === timer).map((pin) => pin.id);
+
+  /** `digitalWrite` without its cost: PWM off, the PORT bit, and on an input the pull-up (HIGH on, LOW off), as on the AVR. */
+  const writeLevel = (pin: PinRecord, level: 0 | 1) => {
+    pin.pwm = null;
+    pin.port = level;
+    if (pin.mode !== 'OUTPUT') {
+      pin.mode = level ? 'INPUT_PULLUP' : 'INPUT';
+    }
+  };
+  /**
+   * The end of a tone, by noTone or by itself (the core's Timer2 interrupt then calls noTone, Tone.cpp:554): disableTimer(2)
+   * puts Timer2 back with its COM bits cleared (`TCCR2A = (1 << WGM20)`, Tone.cpp:449), so D3/D11 have no PWM until a new
+   * analogWrite; then digitalWrite(pin, 0) leaves the tone pin LOW. Traced for both cases: contract EMU-14.
+   * Returns the pins it changed.
+   */
+  const endTone = (): string[] => {
+    if (tone === null) {
+      return [];
+    }
+    const ended = tone;
+    tone = null;
+    const timer = timerPins(board.timerClaims.tone);
+    for (const id of timer) {
+      const pin = pins.get(id);
+      if (pin) {
+        pin.pwm = null;
+      }
+    }
+    writeLevel(record(ended.pin), 0);
+    return [ended.pin, ...timer];
+  };
+  /** Pins a tone that ran out changed since the last call: told at the next call, whatever pin it touches. */
+  let settled: string[] = [];
+  /** Ends a tone whose time is up. pins() and every call do this first, so the state never shows a tone past its end. */
+  const settle = () => {
+    if (tone !== null && tone.endMs !== null && clock.now() >= tone.endMs) {
+      settled.push(...endTone());
+    }
+  };
   /**
    * Runs a call that may change the `touched` pins (its own pin, and a timer's pins when it takes or frees the timer), then
-   * tells each change. Only those pins are compared, and nothing when nobody listens: a read in a tight loop stays cheap.
+   * tells each change, with the pins a tone that ran out changed. Only those pins are compared, and nothing when nobody
+   * listens: a read in a tight loop stays cheap.
    */
   const changing = <T>(touched: readonly string[], run: () => T): T => {
+    settle();
     const result = run();
+    const ended = settled;
+    settled = [];
     if (changeListeners.size === 0) {
       return result;
     }
     const atMs = clock.now();
-    for (const id of new Set(touched)) {
+    for (const id of new Set([...ended, ...touched])) {
       const pin = pins.get(id);
       const key = pin ? keyOf(pin) : undefined;
       if (pin && key !== keys.get(id)) {
@@ -274,11 +320,7 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
       changing([id], () => {
         const pin = record(id);
         timerCall(pin, 'digitalWrite', 'digitalWriteTimerPin');
-        pin.pwm = null;
-        pin.port = level;
-        if (pin.mode !== 'OUTPUT') {
-          pin.mode = level ? 'INPUT_PULLUP' : 'INPUT';
-        }
+        writeLevel(pin, level);
       }),
     digitalRead: (id) =>
       changing([id], () => {
@@ -287,19 +329,20 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
         pin.pwm = null;
         return levelOf(pin);
       }),
-    analogRead: (id) => {
-      const pin = record(id);
-      if (!pin.spec.caps.includes('analogIn')) {
-        throw new RangeError(`${id} has no analog input on ${board.id}`);
-      }
-      charge(analogReads === 0 ? 'analogReadFirst' : 'analogRead');
-      analogReads += 1;
-      const value = pin.analog ? pin.analog() : 0;
-      if (!Number.isFinite(value)) {
-        throw new RangeError(`The analog source of ${id} gave ${String(value)}, not a finite number`);
-      }
-      return Math.floor(Math.min(board.adcMax, Math.max(0, value)));
-    },
+    analogRead: (id) =>
+      changing([], () => {
+        const pin = record(id);
+        if (!pin.spec.caps.includes('analogIn')) {
+          throw new RangeError(`${id} has no analog input on ${board.id}`);
+        }
+        charge(analogReads === 0 ? 'analogReadFirst' : 'analogRead');
+        analogReads += 1;
+        const value = pin.analog ? pin.analog() : 0;
+        if (!Number.isFinite(value)) {
+          throw new RangeError(`The analog source of ${id} gave ${String(value)}, not a finite number`);
+        }
+        return Math.floor(Math.min(board.adcMax, Math.max(0, value)));
+      }),
     pwmWrite: (id, value) =>
       changing([id], () => {
         const pin = record(id);
@@ -326,25 +369,26 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
         // Servo.write below 544 is an angle, clamped to 0..180 by the library; the servo-lib helper clamps before (U-23).
         pin.servoDeg = Math.trunc(Math.min(SERVO_MAX_DEG, Math.max(0, angle)));
       }),
-    pulseIn: (id, level, timeoutUs) => {
-      const pin = record(id);
-      const reading = pin.pulse?.(level, timeoutUs) ?? 0;
-      const { waitUs, widthUs } = typeof reading === 'number' ? { waitUs: 0, widthUs: reading } : reading;
-      if (!(widthUs > 0)) {
-        if (timeoutUs !== MEASURED_NO_PULSE_TIMEOUT_US) {
-          throw new RangeError(`There is no measured cost for a pulseIn timeout of ${String(timeoutUs)} µs without a pulse (contract §4.4 has 30000)`);
+    pulseIn: (id, level, timeoutUs) =>
+      changing([], () => {
+        const pin = record(id);
+        const reading = pin.pulse?.(level, timeoutUs) ?? 0;
+        const { waitUs, widthUs } = typeof reading === 'number' ? { waitUs: 0, widthUs: reading } : reading;
+        if (!(widthUs > 0)) {
+          if (timeoutUs !== MEASURED_NO_PULSE_TIMEOUT_US) {
+            throw new RangeError(`There is no measured cost for a pulseIn timeout of ${String(timeoutUs)} µs without a pulse (contract §4.4 has 30000)`);
+          }
+          charge('pulseInNoPulse30000');
+          return 0;
         }
-        charge('pulseInNoPulse30000');
-        return 0;
-      }
-      if (waitUs + widthUs > timeoutUs) {
-        // pulseIn gives up when the pulse does not end within its timeout (ARD-04); EMU-03 measured 30 020.63 µs (with a Servo).
-        clock.charge(timeoutUs);
-        return 0;
-      }
-      clock.charge(waitUs + widthUs + costs.pulseInAfterPulse);
-      return Math.trunc(widthUs);
-    },
+        if (waitUs + widthUs > timeoutUs) {
+          // pulseIn gives up when the pulse does not end within its timeout (ARD-04); EMU-03 measured 30 020.63 µs (with a Servo).
+          clock.charge(timeoutUs);
+          return 0;
+        }
+        clock.charge(waitUs + widthUs + costs.pulseInAfterPulse);
+        return Math.trunc(widthUs);
+      }),
     tone: (id, hz, ms) =>
       changing([id, ...timerPins(board.timerClaims.tone)], () => {
         const pin = record(id);
@@ -365,12 +409,12 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
       changing([id, ...timerPins(board.timerClaims.tone)], () => {
         const pin = record(id);
         charge('noTone');
+        // noTone frees Timer2 only for the pin that plays (Tone.cpp:480); it always ends with digitalWrite(pin, 0) (U-26).
         if (toneNow()?.pin === id) {
-          tone = null;
+          endTone();
+        } else {
+          writeLevel(pin, 0);
         }
-        // noTone ends with digitalWrite(pin, 0): the pin is LOW (U-26).
-        pin.pwm = null;
-        pin.port = 0;
       }),
     wire: wireIO,
     delayMicroseconds: (us) => clock.charge(us),
@@ -390,14 +434,18 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
   return {
     board,
     io,
-    pins: () => [...pins.values()].map(stateOf),
-    millis: () => {
-      // t in whole cycles since setup() began, so a time on a 1024 µs boundary is not lost to rounding.
-      const tUs = Math.round((clock.now() - originMs) * 1000 * cyclesPerUs) / cyclesPerUs;
-      charge('millis');
-      const overflows = Math.floor(tUs / board.millis.overflowUs);
-      return overflows + Math.floor((board.millis.fractPerOverflow * overflows) / board.millis.fractMax);
+    pins: () => {
+      settle();
+      return [...pins.values()].map(stateOf);
     },
+    millis: () =>
+      changing([], () => {
+        // t in whole cycles since setup() began, so a time on a 1024 µs boundary is not lost to rounding.
+        const tUs = Math.round((clock.now() - originMs) * 1000 * cyclesPerUs) / cyclesPerUs;
+        charge('millis');
+        const overflows = Math.floor(tUs / board.millis.overflowUs);
+        return overflows + Math.floor((board.millis.fractPerOverflow * overflows) / board.millis.fractMax);
+      }),
     attachAnalogSource: (id, source) => attach(id, 'analog', source),
     attachDigitalSource: (id, source) => attach(id, 'digital', source),
     attachPulseSource: (id, source) => attach(id, 'pulse', source),

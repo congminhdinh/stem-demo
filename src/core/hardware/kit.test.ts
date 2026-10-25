@@ -135,6 +135,17 @@ describe('loadKit refuses a kit that does not fit, naming the path', () => {
     expect(thrown(() => loadKit({ ...raw(), board: 'mega2560' }, board))).toMatch(/board: the kit is for mega2560, not uno-r3/);
   });
 
+  it('rejects a key the kit shape does not have, naming where it is', () => {
+    const extraTop = { ...raw(), colour: 'red' };
+    expect(thrown(() => loadKit(extraTop, board))).toMatch(/\(root\): Unrecognized key: "colour"/);
+    const extraPort = raw();
+    Object.assign(port(extraPort, 0), { voltage: 6 });
+    expect(thrown(() => loadKit(extraPort, board))).toMatch(/ports\.0: Unrecognized key: "voltage"/);
+    const extraMount = raw() as RawKit & { modules: { mount?: Record<string, unknown> }[] };
+    Object.assign(extraMount.modules[2]?.mount ?? {}, { pitchDeg: 10 });
+    expect(thrown(() => loadKit(extraMount, board))).toMatch(/modules\.2\.mount: Unrecognized key: "pitchDeg"/);
+  });
+
   it('gives a typed Kit whose line ports carry activeLow', () => {
     const line: Kit['ports'][number] | undefined = kit.ports.find((port) => port.driver === 'line-digital');
     expect(line?.params).toEqual({ activeLow: false });

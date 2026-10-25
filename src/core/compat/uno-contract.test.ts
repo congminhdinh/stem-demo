@@ -140,6 +140,15 @@ describe('rows and eligibility (contract §10)', () => {
     }
   });
 
+  it('says D3/D11 get PWM back after a tone only with a new analogWrite (U-48, EMU-14; Tone.cpp disableTimer clears the COM bits)', () => {
+    const content = row('U-48').fields.content;
+    const statements = content.label === 'VERIFIED' ? content.claims.map((c) => c.statement) : [];
+    expect(statements).toContain('After noTone, or a tone that ends by itself, D3/D11 have no PWM until a new analogWrite.');
+    expect(statements.join(' ')).not.toMatch(/noTone gives the PWM back/);
+    expect(contract.evidence['EMU-05']?.observed).toContain('noTone, then a new analogWrite(11/3, 100), gives the PWM back');
+    expect(contract.evidence['EMU-14']).toMatchObject({ kind: 'EMU', supports: ['emu-trace'], establishes: ['content'] });
+  });
+
   it('records the timer conflict as VERIFIED behaviour on the excluded row U-48, not as UNKNOWN', () => {
     expect(row('U-48')).toMatchObject({ eligibility: 'EXCLUDED' });
     const content = row('U-48').fields.content;

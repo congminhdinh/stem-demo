@@ -152,14 +152,30 @@ describe('timers a servo or a tone holds (contract §5.3, U-48)', () => {
     expect(state('D10')).toMatchObject({ duty: 255, level: 1 });
   });
 
-  it('a tone takes Timer2 while it plays: D3/D11 PWM stays LOW, and comes back after noTone (EMU-05)', () => {
+  it('a tone takes Timer2 while it plays: D3/D11 PWM stays LOW, and stays off after noTone until a new analogWrite (Tone.cpp:449)', () => {
     const { uno, io, state } = setup();
     io.pwmWrite('D11', 100);
     io.tone('D10', 1000);
     expect(state('D11').duty).toBe(0);
     expect(codes(uno)).toEqual(['warning timer-claimed D11']);
     io.noTone('D10');
+    // disableTimer(2) clears the COM bits: no PWM by itself (contract EMU-14, phase C).
+    expect(state('D11')).toMatchObject({ duty: 0, level: 0 });
+    io.pwmWrite('D11', 100);
     expect(state('D11').duty).toBe(100);
+    expect(codes(uno)).toEqual(['warning timer-claimed D11']);
+  });
+
+  it('a tone that ends by itself frees Timer2 the same way: no PWM on D3/D11 until a new analogWrite (contract EMU-14, phase E)', () => {
+    const { uno, io, clock, state } = setup();
+    io.pwmWrite('D3', 100);
+    io.tone('D10', 1000, 30);
+    clock.charge(31_000);
+    expect(state('D10')).toMatchObject({ toneHz: null, level: 0 });
+    expect(state('D3').duty).toBe(0);
+    io.pwmWrite('D3', 100);
+    expect(state('D3').duty).toBe(100);
+    expect(codes(uno)).toEqual(['warning timer-claimed D3']);
   });
 });
 
@@ -194,6 +210,24 @@ describe('tone', () => {
     io.tone('D10', 1000);
     expect(charged(() => io.noTone('D10'))).toBe(6.375);
     expect(state('D10')).toMatchObject({ toneHz: null, level: 0 });
+  });
+
+  it('noTone on a pin that plays no tone leaves the tone and Timer2 alone, and drives that pin LOW (Tone.cpp:480)', () => {
+    const { io, state } = setup();
+    io.tone('D10', 1000);
+    io.pwmWrite('D11', 100);
+    io.pinMode('D12', 'OUTPUT');
+    io.digitalWrite('D12', 1);
+    io.noTone('D12');
+    expect([state('D10').toneHz, state('D11').duty, state('D12').level]).toEqual([1000, 0, 0]);
+  });
+
+  it('noTone on a pin with the pull-up turns it off, as its digitalWrite(pin, 0) does (Tone.cpp:494)', () => {
+    const { io, state } = setup();
+    io.pinMode('D4', 'INPUT_PULLUP');
+    io.noTone('D4');
+    expect(state('D4')).toMatchObject({ mode: 'INPUT', level: 0, duty: 0 });
+    expect(io.digitalRead('D4')).toBe(0);
   });
 
   it('plays one tone at a time: a tone on another pin while one plays has no effect (ARD-03)', () => {
@@ -327,7 +361,7 @@ describe('onChange', () => {
     expect(changes).toEqual(['D5 OUTPUT 0 @4.375', 'D5 OUTPUT 128 @12.0625', 'D9 OUTPUT 0 @169.25']);
   });
 
-  it('tells a PWM pin that a servo or a tone stops, and gives it back when the tone ends with noTone', () => {
+  it('tells a PWM pin that a servo or a tone stops, and nothing more at noTone: D3 stays without PWM', () => {
     const { uno, io } = setup();
     io.pwmWrite('D10', 200);
     io.pwmWrite('D3', 50);
@@ -336,7 +370,28 @@ describe('onChange', () => {
     io.servoWrite('D9', 90);
     io.tone('D12', 1000);
     io.noTone('D12');
-    expect(changes).toEqual(['D9 0 90', 'D10 0 ', 'D12 0 1000', 'D3 0 ', 'D12 0 ', 'D3 50 ']);
+    expect(changes).toEqual(['D9 0 90', 'D10 0 ', 'D12 0 1000', 'D3 0 ', 'D12 0 ']);
+  });
+
+  it('tells a tone that ends by itself at the next call, whatever pin that call touches', () => {
+    const { uno, io, clock, state } = setup();
+    io.tone('D10', 1000, 10);
+    const changes: string[] = [];
+    uno.onChange((pin, atMs) => changes.push(`${pin.pin} ${String(pin.toneHz)} @${String(Math.round(atMs * 1e7) / 1e4)}`));
+    clock.charge(20_000);
+    // pins() is right at once; nothing is told before a call.
+    expect(state('D10').toneHz).toBeNull();
+    expect(changes).toEqual([]);
+    io.digitalWrite('D13', 1);
+    expect(changes).toEqual(['D10 null @20178.625', 'D13 null @20178.625']);
+    // A call that touches no pin tells it too.
+    const again = setup();
+    const told: string[] = [];
+    again.io.tone('D10', 500, 5);
+    again.uno.onChange((pin) => told.push(`${pin.pin} ${String(pin.toneHz)}`));
+    again.clock.charge(6000);
+    again.io.analogRead('A0');
+    expect(told).toEqual(['D10 null']);
   });
 
   it('tells diagnostics as they come, once each', () => {
