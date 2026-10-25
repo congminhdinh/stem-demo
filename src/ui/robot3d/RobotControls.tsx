@@ -8,7 +8,8 @@ import { isRunOver, ROBOT_SPEEDS, type RobotRunStore } from './robot-run-store';
 
 // The robot lab's run controls (N18 R4.4), in the header where the other labs have Run and Stop: Chạy, Dừng, Tạm dừng / Tiếp tục,
 // Bước 0,1 s, Đặt lại robot and the speed (0,5× to 4×). Everything is locked while a check holds the lab (R6.3). Run and Step are the
-// lab's (they save the blocks and compile the project); the rest goes to the store.
+// lab's (they save the blocks and compile the project); the rest goes to the store. N18 R4.8: with the robot placed (Di chuyển robot),
+// Đặt lại robot goes back to the placed pose, then, pressed again, to the lesson's start; its tooltip says which.
 
 type RobotControlsProps = {
   store: RobotRunStore;
@@ -25,6 +26,8 @@ export function RobotControls({ store, onRun, onStep }: RobotControlsProps) {
   const speed = useStore(store, (state) => state.speed);
   const locked = useStore(store, (state) => state.locked);
   const held = useStore(store, (state) => state.held !== null);
+  const placed = useStore(store, (state) => state.placement !== null);
+  const toStart = useStore(store, (state) => state.resetToStart);
   const over = useStore(store, (state) => state.snapshot.status !== 'idle' && isRunOver(state.snapshot));
   const { stop, togglePause, resetRobot, setSpeed } = store.getState();
   // The speeds are one radio group (WAI-ARIA): Tab reaches the chosen one, the arrows, Home and End choose another and move to it.
@@ -73,8 +76,8 @@ export function RobotControls({ store, onRun, onStep }: RobotControlsProps) {
         type="button"
         className="robot-button"
         onClick={() => void resetRobot()}
-        disabled={locked || starting || (!active && !held)}
-        title={t('robot.resetRobot.hint')}
+        disabled={locked || starting || (!active && !held && !placed)}
+        title={t(!placed ? 'robot.resetRobot.hint' : toStart ? 'robot.resetRobot.hintToStart' : 'robot.resetRobot.hintPlaced')}
         data-testid="robot-reset"
       >
         <Icon name="reset" />

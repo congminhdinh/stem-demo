@@ -6,6 +6,7 @@ import type { BoardProfile } from '../../core/hardware/board';
 import type { ProfileCatalog } from '../../core/profiles/profile';
 import type { BlockPackCatalog, Toolbox } from '../../core/program/block-packs';
 import { createRobotRunSession, type RobotRunSession, type RobotScorerFactory } from '../../core/run/robot-run-session';
+import { canTeleop } from '../../core/run/teleop';
 import { checkRobot } from '../../core/scenario/check-robot';
 import { scenarioMaxScore, type Scenario } from '../../core/scenario/scenario';
 import { scenarioScorer } from '../../core/scenario/scoring';
@@ -25,10 +26,13 @@ import { Hud } from './Hud';
 import { ProgramPane, type ProgramPaneLab, type RobotProgramView } from './ProgramPane';
 import { createRobotCheckStore, type CheckHost, type CreateCheck, type RobotCheckStore } from './robot-check-store';
 import { robotModel, toneHzOf } from './robot-model';
-import { createRobotRunStore, labBusy, type RobotRunStore } from './robot-run-store';
+import { createRobotRunStore, labBusy, selectHostRun, type RobotRunStore } from './robot-run-store';
+import { createRobotToolsStore, type RobotToolsStore } from './robot-tools-store';
+import { RobotTools } from './RobotTools';
 import { RobotControls } from './RobotControls';
 import { RobotDock } from './RobotDock';
 import { RunMessages } from './RunMessages';
+import { idleSnapshot } from './scene-math';
 import { SceneHost } from './SceneHost';
 import type { WebglProbe } from './quality';
 import { restrictToolbox } from './toolbox';
@@ -41,8 +45,9 @@ import './RobotLab.css';
 //   header      the lab's title, the scenario's, the run's controls (Chạy, Dừng, Tạm dừng, Bước 0,1 s, Đặt lại robot, Tốc độ), and for a
 //               scenario with a score Kiểm tra with its speeds (N18 R6.3: 1×, 4×, Nhanh)
 //   left ~60 %  the 3D view (SceneHost: the arena and the robot, the camera's views, the quality tier, WebGL's own errors; the 2D top view
-//               in its place where the computer cannot draw 3D, N18 R4.6), the HUD over it, why a run did not start or failed, and under
-//               it the robot's button, the sound and the Serial console
+//               in its place where the computer cannot draw 3D, N18 R4.6), the HUD over it, the view tools at its bottom left (N18 R4.8:
+//               Lái tay, Thước đo, Di chuyển robot, RobotTools), why a run did not start or failed, and under it the robot's button, the
+//               sound and the Serial console
 //   right       the program: Khối lệnh (App's block editor with the scenario's toolbox and starter), C++ and Cổng & chân (R4.5)
 // Under 800 px the two sides are tabs (LabWorkspace, as in the other labs); a Run brings the robot's tab into sight.
 //
@@ -108,7 +113,7 @@ function useReducedMotion(): boolean {
   );
 }
 
-type Lab = { scenario: Scenario; kit: Kit; board: BoardProfile; store: RobotRunStore; checks: RobotCheckStore };
+type Lab = { scenario: Scenario; kit: Kit; board: BoardProfile; store: RobotRunStore; checks: RobotCheckStore; tools: RobotToolsStore };
 
 export default function RobotLab({
   template,
@@ -152,7 +157,9 @@ export default function RobotLab({
     const session = createSession
       ? createSession({ scenario, kit, board })
       : createRobotRunSession({ scenario, kit, board, registry, profiles, packs, scorer });
-    const store = createRobotRunStore(session);
+    // N18 R4.8: the robot the learner placed is shown before a run as the start is.
+    const store = createRobotRunStore(session, { startView: (pose) => idleSnapshot({ ...scenario, start: pose }, kit) });
+    const tools = createRobotToolsStore({ runStore: store, scenario, kit });
     const checks = createRobotCheckStore({
       runStore: store,
       scenario,
@@ -161,9 +168,12 @@ export default function RobotLab({
       flushProgram: () => latest.current.flushProgram(),
       host: () => latest.current.onCheck,
     });
-    return { scenario, kit, board, store, checks };
+    return { scenario, kit, board, store, checks, tools };
   });
-  const { scenario, kit, board, store, checks } = lab;
+  const { scenario, kit, board, store, checks, tools } = lab;
+  const drivable = useMemo(() => canTeleop(kit, board), [kit, board]);
+  // N18 R4.8: the 3D view takes the keys of the view tools (RobotTools); a click on it gives it the focus.
+  const stageRef = useRef<HTMLDivElement>(null);
   // The sandbox has no score: nothing to check (as the other labs' templates without a challenge have no Check).
   const checkable = scenarioMaxScore(scenario) !== undefined;
   const model = useMemo(() => robotModel(kit, board), [kit, board]);
@@ -201,11 +211,11 @@ export default function RobotLab({
     };
   }, [store, onBusyChange]);
 
-  // The host hears when a run starts and ends.
+  // The host hears when a run starts and ends; N18 R4.8: teleop is no run of the learner's program, it hears nothing of it.
   useEffect(
     () =>
       store.subscribe((state, previous) => {
-        if (state.active !== previous.active) onRunChange?.(state.active);
+        if (selectHostRun(state) !== selectHostRun(previous)) onRunChange?.(selectHostRun(state));
       }),
     [store, onRunChange],
   );
@@ -279,9 +289,10 @@ export default function RobotLab({
 
   const viewport = (
     <section className="robot-viewport" aria-label={t('robot.viewport')} data-testid="robot-viewport">
-      <div className="robot-stage">
-        <SceneHost scenario={scenario} kit={kit} model={model} store={store} reducedMotion={reducedMotion} zoneLabel={zoneLabel} {...(probe ? { probe } : {})} />
+      <div className="robot-stage" ref={stageRef} tabIndex={-1}>
+        <SceneHost scenario={scenario} kit={kit} model={model} store={store} reducedMotion={reducedMotion} zoneLabel={zoneLabel} tools={tools} {...(probe ? { probe } : {})} />
         <Hud store={store} scenario={scenario} />
+        <RobotTools store={store} tools={tools} scenario={scenario} drivable={drivable} stage={stageRef} />
         <RunMessages store={store} />
         {checkable && (
           <>

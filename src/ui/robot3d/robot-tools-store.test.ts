@@ -138,6 +138,34 @@ describe('the move tool (N18 R4.8)', () => {
   });
 });
 
+describe('holding a direction in teleop (N18 R4.8)', () => {
+  it('sends the held direction at the speed, a stop when let go, and the held direction again when the speed changes', async () => {
+    const { tools, runStore, session } = setup();
+    tools.getState().hold('forward');
+    expect(session.teleop).not.toHaveBeenCalled();
+    expect(tools.getState().held).toBeNull();
+    await runStore.getState().startTeleop();
+    tools.getState().hold('forward');
+    expect(tools.getState().held).toBe('forward');
+    tools.getState().setSpeed(80);
+    tools.getState().hold('spinLeft');
+    tools.getState().hold(null);
+    tools.getState().setSpeed(60);
+    expect(session.teleop.mock.calls.map(([command]) => command)).toEqual([
+      { op: 'move', direction: 'forward', speed: 50 },
+      { op: 'move', direction: 'forward', speed: 80 },
+      { op: 'move', direction: 'spinLeft', speed: 80 },
+      { op: 'stop' },
+    ]);
+    expect(tools.getState().held).toBeNull();
+    // Teleop off: nothing is held any more.
+    tools.getState().hold('backward');
+    runStore.getState().stopTeleop();
+    tools.getState().release();
+    expect(tools.getState().held).toBeNull();
+  });
+});
+
 describe('the teleop speed (N18 R4.8)', () => {
   it('is 50 % at first, a whole number from 30 to 100', () => {
     const { tools } = setup();

@@ -1,4 +1,5 @@
 import { createStore } from 'zustand/vanilla';
+import type { DriveDirection } from '../../core/hardware/drivers';
 import type { Kit } from '../../core/hardware/kit';
 import { checkPlacement, robotOutlineCm, type PlacementPose } from '../../core/scenario/placement';
 import type { Scenario } from '../../core/scenario/scenario';
@@ -14,6 +15,8 @@ import { dragPose, onRobot, rulerTargets, sensorBarCm, snapPoint, type ArenaPoin
 //     ghost (moved back inside the arena; `clear` false, a red ghost, where the robot would stand in something), and the drop places it
 //     there (the run store's placeRobot, which the session checks again). Q and E turn it TURN_STEP_DEG, during a drag too; Esc puts it
 //     back at the lesson's start. A check (the lock) moves nothing.
+//   - teleop's direction held (`hold`, by the keys or the pad): sent to the run store as a move at the speed of the slider, a stop when let
+//     go, and sent again when the speed changes while it is held. Nothing is held while teleop is off.
 // The robot's pose is the one the view shows (the run store's latestWorld), else the scenario's start.
 
 /** The teleop speed slider (%): from just above the kit's dead band (about 31 %) to full speed, 50 % at first. */
@@ -32,6 +35,8 @@ export type RobotToolsState = {
   ghost: { readonly pose: PlacementPose; readonly clear: boolean } | null;
   /** The speed teleop drives at, %. */
   speed: number;
+  /** Teleop: the direction the learner holds now (a key or the pad); null when the robot is told to stop. */
+  held: DriveDirection | null;
   setTool(tool: RobotTool | null): void;
   /** A click on the mat at `point` with the ruler. */
   pick(point: ArenaPoint): void;
@@ -49,6 +54,10 @@ export type RobotToolsState = {
   /** Esc in the view: the ruler clears, the move tool goes back to the start. */
   escape(): Promise<void>;
   setSpeed(speed: number): void;
+  /** Teleop: drive `direction` at the speed, or stop (null); nothing while teleop is off. */
+  hold(direction: DriveDirection | null): void;
+  /** Teleop: nothing is held any more (teleop went off, the view lost the focus); tells the robot nothing. */
+  release(): void;
 };
 
 export type RobotToolsStoreOptions = {
@@ -84,6 +93,7 @@ export function createRobotToolsStore({ runStore, scenario, kit }: RobotToolsSto
       ruler: [],
       ghost: null,
       speed: TELEOP_SPEED.initial,
+      held: null,
 
       setTool(tool) {
         if (tool === get().tool) return;
@@ -164,7 +174,24 @@ export function createRobotToolsStore({ runStore, scenario, kit }: RobotToolsSto
       },
 
       setSpeed(speed) {
-        set({ speed: Math.min(TELEOP_SPEED.max, Math.max(TELEOP_SPEED.min, Math.round(speed))) });
+        const next = Math.min(TELEOP_SPEED.max, Math.max(TELEOP_SPEED.min, Math.round(speed)));
+        if (next === get().speed) return;
+        set({ speed: next });
+        const { held } = get();
+        if (held !== null) get().hold(held);
+      },
+
+      hold(direction) {
+        if (!runStore.getState().teleop) {
+          set({ held: null });
+          return;
+        }
+        set({ held: direction });
+        runStore.getState().teleopCommand(direction === null ? { op: 'stop' } : { op: 'move', direction, speed: get().speed });
+      },
+
+      release() {
+        set({ held: null });
       },
     };
   });

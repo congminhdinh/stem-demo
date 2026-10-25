@@ -7,10 +7,12 @@ import type { PaintZone } from '../../core/world/arena/arena-schema';
 import { ArenaView } from './ArenaView';
 import type { ArenaSpan, CameraMode } from './camera';
 import { CameraRig } from './CameraRig';
+import { FloorPicker } from './FloorPicker';
 import { robot3dColors as colors } from './colors';
 import { tierSettings, type QualityTier } from './quality';
 import type { RobotModel } from './robot-model';
 import type { RobotRunStore } from './robot-run-store';
+import type { RobotToolsStore } from './robot-tools-store';
 import { RobotView } from './RobotView';
 import { idleSnapshot, sameView } from './scene-math';
 
@@ -34,6 +36,8 @@ export type SceneProps = {
   onContextRestored(): void;
   /** The canvas has drawn its first frame (until then the page shows what is behind it). */
   onFirstFrame?(): void;
+  /** N18 R4.8: the view tools (the ruler, the move tool), which take the pointer on the mat (FloorPicker). */
+  tools?: RobotToolsStore;
 };
 
 /** The camera's vertical field of view, degrees. */
@@ -140,7 +144,7 @@ function ContextWatch({ onLost, onRestored }: { onLost(): void; onRestored(): vo
   return null;
 }
 
-export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored, onFirstFrame }: SceneProps) {
+export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored, onFirstFrame, tools }: SceneProps) {
   const settings = tierSettings[tier];
   const shadows = settings.shadows !== false;
   const idle = useMemo(() => idleSnapshot(scenario, kit), [scenario, kit]);
@@ -168,6 +172,7 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
       <RedrawOnChange store={store} />
       <ContextWatch onLost={onContextLost} onRestored={onContextRestored} />
       {onFirstFrame && <FirstFrame onDrawn={onFirstFrame} />}
+      {tools && <FloorPicker tools={tools} store={store} kit={kit} scenario={scenario} />}
     </Canvas>
   );
 }

@@ -11,9 +11,11 @@ import { useText } from '../i18n/text';
 import { groundTextureSize, paintGround } from './ground-paint';
 import { lineSeesDark, type RobotModel } from './robot-model';
 import type { RobotRunStore } from './robot-run-store';
+import type { RobotToolsStore } from './robot-tools-store';
 import { idleSnapshot } from './scene-math';
 import { topViewColors as colors } from './top-view-colors';
 import { fitTopView, movingBodies, rayLengthCm, robotPartCm, sameTopView, scaleBar, treadOffsetCm, wheelRadIndex, type MovingBody, type StageMargins } from './top-view-math';
+import { TopViewToolsLayer, useTopViewPointer } from './TopViewTools';
 import type { ViewFallbackReason } from './webgl-support';
 
 // The robot lab's 2D top view (N18 R4.6): what stands in for the 3D scene on a computer that cannot draw WebGL, while the browser has
@@ -26,7 +28,8 @@ import type { ViewFallbackReason } from './webgl-support';
 // the servo's arm, the LEDs) and the ultrasonic ray to its hit. A world group flips the stage's y once, so a position is the snapshot's
 // (xCm, yCm) and a turn is its yawDeg as they are. It draws only when the picture changes (`sameTopView`): the second layer's nodes are
 // moved from the store's publishes and its `batchDraw` runs once per animation frame at most, with no React render for a snapshot.
-// Nothing listens to the pointer: the layers are not hit-tested.
+// The layers are not hit-tested; N18 R4.8: the view tools (the ruler, the move tool) read the pointer on the container and draw on a layer
+// of their own (TopViewTools.tsx).
 
 export type TopView2DProps = {
   scenario: Pick<Scenario, 'arena' | 'start'>;
@@ -37,6 +40,8 @@ export type TopView2DProps = {
   zoneLabel: (zone: PaintZone) => string | null;
   /** Why this view is up (tests and the E2E read it); null when it is only a view the learner chose. */
   reason?: ViewFallbackReason | null;
+  /** N18 R4.8: the view tools, which work on the map as in the 3D view. */
+  tools?: RobotToolsStore;
 };
 
 /** Room left around the arena, px: the scale bar sits under it, and the view button over the stage's corner clear of it (28 px + 10). */
@@ -79,7 +84,7 @@ type Nodes = {
 
 const emptyNodes = (): Nodes => ({ layer: null, robot: null, treads: [], lineDots: [], rays: [], hits: [], arms: [], leds: [], moving: new Map(), draws: 0 });
 
-export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = null }: TopView2DProps) {
+export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = null, tools }: TopView2DProps) {
   const t = useText();
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useElementSize(containerRef);
@@ -91,6 +96,7 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
   const mat = useMat(arena, fit?.scale ?? null, zoneLabel);
   const nodes = useRef<Nodes>(emptyNodes());
   const shown = fit !== null;
+  useTopViewPointer(containerRef, tools, store, scenario, kit, fit);
 
   // The part nodes, by index: the ref callbacks keep them where `apply` finds them.
   const setNode = useCallback(<K extends 'treads' | 'lineDots' | 'rays' | 'hits' | 'arms' | 'leds'>(list: K, index: number) => (node: Nodes[K][number]) => {
@@ -260,6 +266,7 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
               </Group>
             </Group>
           </Layer>
+          {tools && <TopViewToolsLayer tools={tools} kit={kit} fit={fit} />}
         </Stage>
       )}
     </div>

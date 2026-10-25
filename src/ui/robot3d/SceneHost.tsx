@@ -66,9 +66,9 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
 
   // The 2D top view stands in for the 3D scene, and the view button changes between them (N18 R4.6).
   const fallback = fallbackReason({ webgl: probed.ok, context, chosen2d, canvasFailed: failedAttempt === attempt });
-  const { scenario, kit, model, store, zoneLabel } = sceneProps;
+  const { scenario, kit, model, store, zoneLabel, tools } = sceneProps;
   const toggle = viewToggleAction(fallback);
-  const fallbackView = fallback !== null && <ViewFallback reason={fallback} scenario={scenario} kit={kit} model={model} store={store} zoneLabel={zoneLabel} />;
+  const fallbackView = fallback !== null && <ViewFallback reason={fallback} scenario={scenario} kit={kit} model={model} store={store} zoneLabel={zoneLabel} {...(tools ? { tools } : {})} />;
   const viewButton = (
     <button
       type="button"
