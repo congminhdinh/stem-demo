@@ -405,7 +405,7 @@ describe('stop and the latest call', () => {
     expect(seen).toHaveLength(1);
   });
 
-  it('stop mid-tick publishes no further snapshot (a stop from the scorer, between the step and the next tick)', async () => {
+  it('a stop from the scorer, between a tick’s step and the next tick, publishes no further snapshot', async () => {
     const holder: { session?: RobotRunSession } = {};
     let updates = 0;
     const scorer: RobotScorerFactory = () => ({
@@ -426,6 +426,39 @@ describe('stop and the latest call', () => {
     // A frame asked for after the stop runs nothing either.
     await session.advance(100);
     expect(seen).toHaveLength(1);
+  });
+
+  it('a scorer that throws ends the run in an error with a diagnostic, never the tick loop', async () => {
+    let updates = 0;
+    const failing = roverSession(driveScenario(), {
+      scorer: () => ({
+        update() {
+          // The first update is tick 0's; the sixth comes after the step of tick 4.
+          if (++updates === 6) throw new Error('A goal failed.');
+        },
+        score: () => ({ points: 0, maxScore: null, goals: [] }),
+      }),
+    });
+    await failing.start(avoider());
+    await failing.runUntil(1);
+    const message = 'The robot simulation stopped: A goal failed.';
+    expect(failing.getSnapshot()).toMatchObject({ status: 'error', error: { code: 'internal-error', message }, world: { t: 5 / PHYSICS_HZ, status: 'error' } });
+    expect(failing.getSnapshot().diagnostics).toEqual([{ severity: 'error', code: 'internal-error', message }]);
+    failing.stop();
+
+    const unscored = roverSession(driveScenario(), {
+      scorer: () => ({
+        update() {},
+        score() {
+          throw new Error('No score.');
+        },
+      }),
+    });
+    expect(await unscored.start(avoider())).toEqual({ ok: true });
+    expect(unscored.getSnapshot()).toMatchObject({ status: 'error', error: { code: 'internal-error', message: 'The robot simulation stopped: No score.' }, world: { t: 0, score: { points: 0, maxScore: null, goals: [] } } });
+    await unscored.runUntil(1);
+    expect(worldOf(unscored).t).toBe(0);
+    unscored.stop();
   });
 
   it('a start while another builds its world: the latest wins, the older one is superseded and publishes nothing', async () => {

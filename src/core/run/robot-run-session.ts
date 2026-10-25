@@ -279,14 +279,26 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
 
   const ticking = (run: ActiveRun) => current === run && run.status !== 'error';
 
-  /** The snapshot of `run` now. Calls the scorer (foreign code): the caller checks the run is still current before publishing it. */
-  const viewOf = (run: ActiveRun): RobotRunSnapshot => {
+  /** Publishes the snapshot of `run`, the current run. Its score comes first: the scorer is foreign code, which may stop the run or fail. */
+  const publishRun = (run: ActiveRun) => {
+    let score = noScore;
+    if (run.scorer) {
+      try {
+        score = structuredClone(run.scorer.score());
+      } catch (error) {
+        if (current === run) {
+          failRun(run, error);
+        }
+      }
+    }
+    if (current !== run) {
+      return;
+    }
     const pins = run.uno.pins();
     if (run.consoleDirty) {
       run.consoleSnapshot = run.console.snapshot();
       run.consoleDirty = false;
     }
-    const score = run.scorer ? structuredClone(run.scorer.score()) : noScore;
     const world: RobotSnapshot = deepFreeze({
       ...run.world.snapshot(),
       pins,
@@ -295,23 +307,15 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       status: run.status,
       score,
     });
-    return {
+    run.dirty = false;
+    publish({
       status: run.status,
       diagnostics: run.diagnostics.map((diagnostic) => ({ ...diagnostic })),
       error: run.error === null ? null : { ...run.error },
       console: run.consoleSnapshot,
       world,
       slowerThanRealtime: run.slower,
-    };
-  };
-
-  const publishRun = (run: ActiveRun) => {
-    const view = viewOf(run);
-    if (current !== run) {
-      return;
-    }
-    run.dirty = false;
-    publish(view);
+    });
   };
 
   /** Applies the button inputs of tick k's interval [k·dt, (k+1)·dt): the UI's presses, then the scenario's script. */
@@ -502,8 +506,18 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
         }
         started = true;
         // Tick 0 for the goals: the world at t = 0 with the pins setup() left.
-        const pins = uno.pins();
-        scorer?.update(world.goalFrame({ leds: models.leds(pins), buzzerHz: models.buzzerHz(pins) }), 0);
+        try {
+          const pins = uno.pins();
+          scorer?.update(world.goalFrame({ leds: models.leds(pins), buzzerHz: models.buzzerHz(pins) }), 0);
+        } catch (error) {
+          if (current === run) {
+            failRun(run, error);
+          }
+          return;
+        }
+        if (current !== run) {
+          return;
+        }
         const { done } = runYbcProgram(prepared.ir, io, services);
         void done.then((outcome) => {
           // A stopped or replaced run, or one the simulation already failed, changes nothing more.

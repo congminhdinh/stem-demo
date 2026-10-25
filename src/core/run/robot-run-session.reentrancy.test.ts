@@ -160,7 +160,8 @@ describe('one tick at a time', () => {
 });
 
 describe('stop and failures inside a tick', () => {
-  it('stop mid-tick publishes no further snapshot (a stop while the program runs its part of the tick)', async () => {
+  // Mid-tick: the stop comes while the program runs its part of tick 10 (inside advanceTo), before the tick's step.
+  it('stop mid-tick publishes no further snapshot', async () => {
     const session = roverSession(driveScenario());
     await session.start(looper());
     const seen = published(session);
