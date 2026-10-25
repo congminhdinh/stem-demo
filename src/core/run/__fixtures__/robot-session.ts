@@ -69,6 +69,14 @@ export function sandboxScenario(options: { sizeCm?: [number, number]; start?: { 
 
 export const driveScenario = (): Scenario => loadScenario(driveScenarioJson);
 
+/**
+ * N18 R6.2: `scenario` whose run ends at the first contact with one of `tags`. R5.2a adds `endOnContact` to the scenario schema; until it
+ * merges a scenario that says it does not load, so the field is put on the loaded scenario, by the same name.
+ */
+export function withEndOnContact(scenario: Scenario, tags: string[]): Scenario {
+  return { ...scenario, endOnContact: tags } as Scenario;
+}
+
 /** A robot project of the Basic profile (or the one given) with these hats; `kit` when it names one. */
 export function robotProject(onStart: Json[], forever?: Json[], options: { profile?: 'uno-basic' | 'uno-advanced'; kit?: { id: string; version: string }; variables?: string[] } = {}): ProjectDocument {
   return unoDocument(options.profile ?? 'uno-basic', {

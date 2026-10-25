@@ -144,7 +144,8 @@ const looper = () => robotProject([], [setVar('x', ultrasonic())]);
 
 describe('one tick at a time', () => {
   it('overlapping advance calls never run ticks concurrently', async () => {
-    const session = roverSession(driveScenario());
+    // N18 R6.2: the badge is debounced (robot-run-session.end.test.ts); one frame at a time here, as R3.6 flagged it.
+    const session = roverSession(driveScenario(), { slowBadgeFrames: 1 });
     await session.start(looper());
     const seen = published(session);
     // A frame of 50 ms (6 ticks); two calls while it runs add their time to it; a headless run waits for it; a frame asked for

@@ -15,7 +15,7 @@ import { createRunConsole, type ConsoleSnapshot, type RunConsole } from '../prog
 import { EXEC_SLICE_MS } from '../program/limits';
 import { runYbcProgram } from '../program/ybc-interpreter';
 import type { YbcProgramIR } from '../program/ybc-ir';
-import type { GoalFrame } from '../scenario/goals/frame';
+import type { GoalContact, GoalFrame } from '../scenario/goals/frame';
 import { inputsDueBetween, type Scenario } from '../scenario/scenario';
 import type { Arena } from '../world/arena/arena-schema';
 import { PHYSICS_DT_S, PHYSICS_HZ } from '../world/rapier';
@@ -56,7 +56,8 @@ import { createVirtualScheduler, type VirtualScheduler } from './virtual-clock';
 //     frame runs the whole ticks it owes. A frame may owe one tick more than MAX_TICKS_PER_FRAME without anything lost (JITTER_TICKS:
 //     at 4× a 60 Hz display asks for exactly 8 ticks a frame, and a frame that comes 0.1 ms late owes 8.05): it runs them all. A frame
 //     that owes more than MAX_TICKS_PER_FRAME + JITTER_TICKS runs MAX_TICKS_PER_FRAME, drops the rest (a slow machine or a tab coming
-//     back runs slower, it does not catch up) and the snapshot says `slowerThanRealtime` until a frame fits again. It is single-flight:
+//     back runs slower, it does not catch up); after SLOW_BADGE_FRAMES such frames in a row the snapshot says `slowerThanRealtime`, until
+//     as many frames in a row fit again (N18 R6.2: one slow frame does not flash it). It is single-flight:
 //     the frame starts in a microtask after the call, so every call of the same turn adds its time to it; a call while it runs adds
 //     its time for the next frame and returns the one in flight. Ticks always run one after the other.
 //   - `runUntil(tS)`, the headless mode: ticks until the world's time reaches tS, giving the browser a turn every EXEC_SLICE_MS of wall
@@ -82,6 +83,20 @@ import { createVirtualScheduler, type VirtualScheduler } from './virtual-clock';
 // does); a program fault (`error`, with its block) and a failure of the simulation itself (a timer task that throws, which rejects
 // advanceTo, the world refusing a step, a scorer that throws: `error`, `internal-error`, with a diagnostic) end the ticks: the world
 // stays at that moment. A scorer that throws on tick 0 (or whose first score throws) fails the start instead (`scorer-error`).
+// N18 R6.2 adds the scenario's own ends (`end` of the snapshot, `RobotRunEnd`), in every run, a check or not:
+//   - the time limit: a run is the ticks up to t = timeLimitS (the first tick at or after it, when the limit is not a whole number of
+//     ticks), every one judged; the next tick, which would go past it, ends the run instead (`time-limit`);
+//   - the first contact with a tag of the scenario's `endOnContact` (`endingTag`): that tick is the last, its frame judged (`contact`).
+//     R5.2a adds `endOnContact?: string[]` to the scenario schema (tags something in the arena has); until it merges the session reads it
+//     from the scenario object by that exact name.
+// Either way the program is stopped, the status is `finished`, the scorer is told (`RobotScorer.end`) and the world stays at that moment:
+// nothing more is owed, pressed or ticked, as after an error.
+//
+// A finished run at rest (R6.2): once the program has finished and every point of the robot's outline has moved under REST_SPEED_CM_S
+// for REST_HOLD_S in a row, a realtime frame publishes nothing for the ticks alone (the view would draw the same picture). The ticks go
+// on, so the goals and the time limit count as they would; a frame still publishes when anything else changes (the status, the end, a
+// goal's verdict or the points, the console, a diagnostic), and a headless run still publishes its last snapshot. A robot that moves
+// again publishes again.
 
 /** The most ticks one `advance` runs (one frame) on a machine that keeps up: 4× speed at 60 frames per second. */
 export const MAX_TICKS_PER_FRAME = 8;
@@ -92,14 +107,39 @@ export const MAX_TICKS_PER_FRAME = 8;
  */
 export const JITTER_TICKS = 1;
 
+/**
+ * N18 R6.2: frames in a row that drop ticks before the snapshot says `slowerThanRealtime`, and frames in a row that fit before it stops:
+ * a single slow frame (a GC pause, a tab coming back) does not flash the badge. `slowBadgeFrames` of the options sets it; 1 flags each
+ * frame by itself. The badge is cleared when the run's status leaves `running` and after a headless run.
+ */
+export const SLOW_BADGE_FRAMES = 3;
+
+/** N18 R6.2: a robot is at rest while no point of its outline moves faster than this, cm/s. */
+export const REST_SPEED_CM_S = 0.5;
+
+/** N18 R6.2: how long a finished run's robot is at rest before a frame stops publishing it, s (a whole number of ticks). */
+export const REST_HOLD_S = 0.5;
+
 /** One tick of the world, ms. */
 const TICK_MS = 1000 / PHYSICS_HZ;
+
+/** The ticks of REST_HOLD_S. */
+const REST_HOLD_TICKS = Math.round(REST_HOLD_S * PHYSICS_HZ);
+
+/** A time limit this close above a whole number of ticks is that tick: 12.3 s × 120 is 1476.0000000000002. */
+const LIMIT_EPSILON_TICKS = 1e-6;
 
 /** Owed time this close to a whole tick counts as one: frame times are floats (16.666… ms is two ticks of 8.333… ms). */
 const OWED_EPSILON_MS = 1e-6;
 
 /** What a run's error says: a fault of the program (its code and block) or of the simulation (`internal-error`). */
 export type RobotRunError = { message: string; blockId?: string; code?: string };
+
+/** N18 R6.2: why the scenario ended a run (see the top of this file). */
+export type RobotRunEndReason = 'time-limit' | 'contact';
+
+/** N18 R6.2: how the scenario ended a run: why, at what simulated time, and for a contact, the tag of `endOnContact` it had. */
+export type RobotRunEnd = { reason: RobotRunEndReason; atS: number; tag?: string };
 
 /** What the session publishes. Plain JSON; a new object on every publish. */
 export type RobotRunSnapshot = {
@@ -111,8 +151,13 @@ export type RobotRunSnapshot = {
   console: ConsoleSnapshot;
   /** The world on the latest tick with the run's part (pins, LEDs, active block, status, score); null while idle. Frozen. */
   world: RobotSnapshot | null;
-  /** The last frame owed more than MAX_TICKS_PER_FRAME + JITTER_TICKS ticks and dropped some: the simulation runs slower than real time. */
+  /**
+   * Frames owed more than MAX_TICKS_PER_FRAME + JITTER_TICKS ticks and dropped some: the simulation runs slower than real time. Set after
+   * SLOW_BADGE_FRAMES such frames in a row, cleared after as many that fit (N18 R6.2).
+   */
   slowerThanRealtime: boolean;
+  /** N18 R6.2: present once the scenario ended the run (its time limit or a contact); left out before and for every other state. */
+  end?: RobotRunEnd;
 };
 
 export type RobotStartFailureReason =
@@ -142,6 +187,8 @@ export type RobotScorer = {
   update(frame: GoalFrame, dtS: number): void;
   /** The score so far; the snapshot holds a copy of it. */
   score(): ScoreState;
+  /** N18 R6.2: the scenario ended the run, after the last frame (its end rules apply). Once; not for a run that ends otherwise. */
+  end?(end: RobotRunEnd): void;
 };
 
 /** Makes the scorer of one run (a start or a reset). `program` is the project's Blockly workspace (uses-block reads it). */
@@ -160,6 +207,8 @@ export type RobotRunSessionOptions = {
   scorer?: RobotScorerFactory;
   /** The wall clock the housekeeping yields look at, ms; `performance.now` by default. It never reaches the simulation. */
   wallNow?: () => number;
+  /** N18 R6.2: the debounce of `slowerThanRealtime`, in frames (a whole number from 1); SLOW_BADGE_FRAMES by default. */
+  slowBadgeFrames?: number;
 };
 
 export type RobotRunSession = {
@@ -228,6 +277,18 @@ type ActiveRun = {
   /** Realtime: the virtual time owed, ms. */
   owedMs: number;
   slower: boolean;
+  /** Frames in a row that dropped ticks, and that fit (the badge's debounce). */
+  slowFrames: number;
+  fitFrames: number;
+  /** Ticks ran since the last publish. */
+  moved: boolean;
+  /** N18 R6.2: how the scenario ended the run, once it did. */
+  end: RobotRunEnd | null;
+  /** Once the program finished: the robot's outline on the last tick, and the ticks in a row it has been at rest (see the top of this file). */
+  restPoints: readonly (readonly [number, number])[] | null;
+  restTicks: number;
+  /** The points and the goals' verdicts the last snapshot showed, to tell a change while the robot rests. */
+  publishedVerdict: string;
   /** Headless runs asked for and not ended yet: while there is one, `advance` adds no time. */
   headlessRuns: number;
   /** The frame or headless run in flight, if any. */
@@ -236,6 +297,10 @@ type ActiveRun = {
 
 export function createRobotRunSession(options: RobotRunSessionOptions): RobotRunSession {
   const { scenario, kit, board, registry } = options;
+  const slowBadgeFrames = options.slowBadgeFrames ?? SLOW_BADGE_FRAMES;
+  if (!Number.isInteger(slowBadgeFrames) || slowBadgeFrames < 1) {
+    throw new RangeError(`slowBadgeFrames is a whole number of frames from 1, not ${slowBadgeFrames}.`);
+  }
   if (scenario.kit !== kit.id) {
     throw new RangeError(`Scenario "${scenario.key}" runs on the kit "${scenario.kit}", not "${kit.id}".`);
   }
@@ -245,14 +310,13 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
   const profiles = options.profiles ?? productionProfiles;
   const packs = options.packs ?? createBlockPackCatalog(registry);
   const wallNow = options.wallNow ?? (() => performance.now());
-  // A project is compiled against this lab's kit only: another kit, even one the app knows, is not one this robot is (L-1 unknown-kit).
-  const kits: KitCatalog = {
-    get: (ref) => (kitKey(ref) === kitKey(kit) ? kit : undefined),
-    boardOf: (ref) => (kitKey(ref) === kitKey(kit) ? board : undefined),
-    refs: () => [{ id: kit.id, version: kit.version }],
-  };
+  const kits = robotKitCatalog(kit, board);
   const models = createModuleModels(kit, board);
   const buttonRoles = new Set<string>(kit.modules.filter((module) => module.kind === 'button').map((module) => module.role));
+  /** The first tick at or after the time limit: the run is the ticks before it, and the next one would go past the limit. */
+  const limitTick = Math.ceil(scenario.timeLimitS * PHYSICS_HZ - LIMIT_EPSILON_TICKS);
+  const endTags = endOnContactOf(scenario);
+  const endsOnContact = endTags.length > 0;
 
   let snapshot = idle;
   const listeners = new Set<(snapshot: RobotRunSnapshot) => void>();
@@ -298,10 +362,40 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
     run.activeBlockId = null;
     run.error = { message, code: 'internal-error' };
     run.diagnostics.push({ severity: 'error', code: 'internal-error', message });
+    clearBadge(run);
     run.dirty = true;
   };
 
-  const ticking = (run: ActiveRun) => current === run && run.status !== 'error';
+  /** The run's status left `running`: the badge goes, and its debounce starts again. */
+  const clearBadge = (run: ActiveRun) => {
+    run.slowFrames = 0;
+    run.fitFrames = 0;
+    if (run.slower) {
+      run.slower = false;
+      run.dirty = true;
+    }
+  };
+
+  /** N18 R6.2: the scenario ends the run (its time limit or a contact): the program stops, the status is finished, the scorer is told. */
+  const endRun = (run: ActiveRun, end: RobotRunEnd) => {
+    run.controller.abort();
+    run.timers.dispose();
+    run.status = 'finished';
+    run.end = end;
+    run.activeBlockId = null;
+    clearBadge(run);
+    run.dirty = true;
+    try {
+      run.scorer?.end?.({ ...end });
+    } catch (error) {
+      if (current === run) {
+        failRun(run, error);
+      }
+    }
+  };
+
+  /** Whether the run's ticks go on: it owns the session, and no error or end of the scenario stopped them. */
+  const ticking = (run: ActiveRun) => current === run && run.status !== 'error' && run.end === null;
 
   /**
    * Publishes the snapshot of `run`, the current run, with `given` as its score or the scorer's. The score comes first: the scorer is
@@ -335,6 +429,8 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       score,
     });
     run.dirty = false;
+    run.moved = false;
+    run.publishedVerdict = verdictOf(score);
     publish({
       status: run.status,
       diagnostics: run.diagnostics.map((diagnostic) => ({ ...diagnostic })),
@@ -342,7 +438,49 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       console: run.consoleSnapshot,
       world,
       slowerThanRealtime: run.slower,
+      ...(run.end === null ? {} : { end: { ...run.end } }),
     });
+  };
+
+  /**
+   * Once the program has finished, whether the robot is at rest (see the top of this file): every point of its outline (and its middle)
+   * moved under REST_SPEED_CM_S since the last tick, for REST_HOLD_TICKS ticks in a row. Only the view reads it: never the goals.
+   */
+  const trackRest = (run: ActiveRun, frame: GoalFrame) => {
+    const points = outlineOf(frame);
+    const previous = run.restPoints;
+    run.restPoints = points;
+    if (previous === null || previous.length !== points.length) {
+      run.restTicks = 0;
+      return;
+    }
+    let most = 0;
+    for (let i = 0; i < points.length; i++) {
+      const dx = points[i]![0] - previous[i]![0];
+      const dy = points[i]![1] - previous[i]![1];
+      most = Math.max(most, Math.sqrt(dx * dx + dy * dy));
+    }
+    run.restTicks = most / PHYSICS_DT_S < REST_SPEED_CM_S ? run.restTicks + 1 : 0;
+  };
+
+  const atRest = (run: ActiveRun) => run.status === 'finished' && run.restTicks >= REST_HOLD_TICKS;
+
+  /** A realtime frame of a run at rest publishes only for a change besides the ticks: the scorer's points or a goal's verdict among them. */
+  const worthPublishing = (run: ActiveRun): boolean => {
+    if (run.dirty || (run.moved && !atRest(run))) {
+      return true;
+    }
+    if (!run.moved || !run.scorer) {
+      return false;
+    }
+    try {
+      return verdictOf(run.scorer.score()) !== run.publishedVerdict;
+    } catch (error) {
+      if (current === run) {
+        failRun(run, error);
+      }
+      return current === run;
+    }
   };
 
   /** Applies the button inputs of tick k's interval [k·dt, (k+1)·dt): the UI's presses, then the scenario's script. */
@@ -360,9 +498,13 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
     }
   };
 
-  /** One tick (see the top of this file). False when the run cannot go on: stopped, replaced, or ended in an error. */
+  /** One tick (see the top of this file). False when the run cannot go on: stopped, replaced, ended in an error or by the scenario. */
   const tick = async (run: ActiveRun): Promise<boolean> => {
     const k = run.world.tick;
+    if (k >= limitTick) {
+      endRun(run, { reason: 'time-limit', atS: run.world.t });
+      return false;
+    }
     applyInputs(run, k);
     run.startProgram();
     try {
@@ -378,40 +520,62 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       return false;
     }
     run.livedThrough(k);
+    let frame: GoalFrame | undefined;
     try {
       const pins = run.uno.pins();
       run.world.applyActuators(models.targets(pins));
       run.world.step(PHYSICS_DT_S);
-      run.dirty = true;
-      run.scorer?.update(run.world.goalFrame({ leds: models.leds(pins), buzzerHz: models.buzzerHz(pins) }), PHYSICS_DT_S);
+      run.moved = true;
+      // The goal frame is built when something reads it: the scorer, the scenario's end on a contact, the rest of a finished run.
+      if (run.scorer || endsOnContact || run.status === 'finished') {
+        frame = run.world.goalFrame({ leds: models.leds(pins), buzzerHz: models.buzzerHz(pins) });
+        run.scorer?.update(frame, PHYSICS_DT_S);
+      }
     } catch (error) {
       if (current === run) {
         failRun(run, error);
       }
       return false;
     }
-    return current === run;
+    if (!ticking(run) || frame === undefined) {
+      return ticking(run);
+    }
+    const tag = endsOnContact ? endingTag(endTags, frame.contacts) : null;
+    if (tag !== null) {
+      endRun(run, { reason: 'contact', atS: frame.tS, tag });
+      return false;
+    }
+    if (run.status === 'finished') {
+      trackRest(run, frame);
+    }
+    return true;
   };
 
-  /** One realtime frame: the whole ticks owed (see the top of this file for the jitter allowance and the drop), then one publish. */
+  /**
+   * One realtime frame: the whole ticks owed (see the top of this file for the jitter allowance and the drop), then one publish, unless
+   * the run is finished and at rest with nothing else to show.
+   */
   const frame = async (run: ActiveRun) => {
     if (ticking(run)) {
       const due = Math.floor((run.owedMs + OWED_EPSILON_MS) / TICK_MS);
       run.owedMs = Math.max(0, run.owedMs - due * TICK_MS);
-      const slower = due > MAX_TICKS_PER_FRAME + JITTER_TICKS;
+      const drops = due > MAX_TICKS_PER_FRAME + JITTER_TICKS;
+      run.slowFrames = drops ? run.slowFrames + 1 : 0;
+      run.fitFrames = drops ? 0 : run.fitFrames + 1;
+      const slower = run.slower ? run.fitFrames < slowBadgeFrames : run.slowFrames >= slowBadgeFrames;
       if (slower !== run.slower) {
         run.slower = slower;
         run.dirty = true;
       }
       // Within the allowance every owed tick runs; beyond it the frame runs its cap and the rest is dropped.
-      const ticks = slower ? MAX_TICKS_PER_FRAME : due;
+      const ticks = drops ? MAX_TICKS_PER_FRAME : due;
       for (let done = 0; done < ticks; done++) {
         if (!(await tick(run))) {
           break;
         }
       }
     }
-    if (current === run && run.dirty) {
+    if (current === run && worthPublishing(run)) {
       publishRun(run);
     }
   };
@@ -430,11 +594,8 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
     }
     // A headless run owes nothing to real time: no time is left owed, and it is not slower than real time.
     run.owedMs = 0;
-    if (run.slower) {
-      run.slower = false;
-      run.dirty = true;
-    }
-    if (current === run && run.dirty) {
+    clearBadge(run);
+    if (current === run && (run.dirty || run.moved)) {
       publishRun(run);
     }
   };
@@ -555,8 +716,8 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
         started = true;
         const { done } = runYbcProgram(prepared.ir, io, services);
         void done.then((outcome) => {
-          // A stopped or replaced run, or one the simulation already failed, changes nothing more.
-          if (current !== run || run.status === 'error') {
+          // A stopped or replaced run, or one the simulation already failed or the scenario ended, changes nothing more.
+          if (current !== run || run.status === 'error' || run.end !== null) {
             return;
           }
           if (outcome.status === 'finished') {
@@ -569,6 +730,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
             return;
           }
           run.activeBlockId = null;
+          clearBadge(run);
           run.dirty = true;
         });
       },
@@ -583,6 +745,13 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       pendingPresses: [],
       owedMs: 0,
       slower: false,
+      slowFrames: 0,
+      fitFrames: 0,
+      moved: false,
+      end: null,
+      restPoints: null,
+      restTicks: 0,
+      publishedVerdict: '',
       headlessRuns: 0,
       driving: null,
     };
@@ -740,11 +909,60 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
   };
 }
 
+/**
+ * The kits a robot lab compiles a project against: its own kit only. Another kit, even one the app knows, is not the robot this lab has
+ * (L-1 unknown-kit). The session's compile and the check's (R6.2, for the program's hash) use it.
+ */
+export function robotKitCatalog(kit: Kit, board: BoardProfile): KitCatalog {
+  return {
+    get: (ref) => (kitKey(ref) === kitKey(kit) ? kit : undefined),
+    boardOf: (ref) => (kitKey(ref) === kitKey(kit) ? board : undefined),
+    refs: () => [{ id: kit.id, version: kit.version }],
+  };
+}
+
 /** What an error says, for a diagnostic. */
 const detailOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
+/**
+ * N18 R6.2: the scenario's `endOnContact`, the tags whose first contact ends the run (none when it has none). R5.2a adds the field to the
+ * scenario schema; it is read from the object by that name until then, so a scenario of either branch works.
+ */
+function endOnContactOf(scenario: Scenario): readonly string[] {
+  const tags = (scenario as { endOnContact?: unknown }).endOnContact;
+  return Array.isArray(tags) ? tags.filter((tag): tag is string => typeof tag === 'string' && tag !== '') : [];
+}
+
+/**
+ * The tag of `tags` that one of this tick's contacts has, or null: the first of the list that any contact has, so the same tick names the
+ * same tag on every engine. A contact names its collider's tags, its kind among them (build-arena.ts); a whole tag matches, not a part of
+ * one. (R5.2a's `runEndingContact` of scenario.ts gives the same answer.)
+ */
+export function endingTag(tags: readonly string[], contacts: readonly GoalContact[]): string | null {
+  for (const tag of tags) {
+    if (contacts.some((contact) => contact.tags.includes(tag))) return tag;
+  }
+  return null;
+}
+
+/** What a snapshot shows of a score that the ticks alone do not change: the points and each goal's verdict and reason. */
+const verdictOf = (score: ScoreState): string =>
+  `${score.points}|${score.goals.map((goal) => `${goal.id}:${goal.passed ? 1 : 0}:${goal.reasonKey ?? ''}`).join(',')}`;
+
+/** The points of the robot on the floor whose speeds tell whether it is at rest: its middle and its outline (the goal frame's footprint). */
+function outlineOf(frame: GoalFrame): readonly (readonly [number, number])[] {
+  const { robot } = frame;
+  const middle = [robot.xCm, robot.yCm] as const;
+  if (robot.footprint.kind === 'polygon') {
+    return [middle, ...robot.footprint.pointsCm];
+  }
+  // A round footprint: its middle and the point of its rim ahead, which a turn moves.
+  const yawRad = (robot.yawDeg * Math.PI) / 180;
+  return [middle, [robot.xCm + robot.footprint.radiusCm * Math.cos(yawRad), robot.yCm + robot.footprint.radiusCm * Math.sin(yawRad)] as const];
+}
+
 /** A diagnostic of the compile or the validity layers as the run reports it (its code, severity, message and block). */
-function toRunDiagnostic(diagnostic: { severity: 'error' | 'warning'; code: string; message: string; blockId?: string }): RunDiagnostic {
+export function toRunDiagnostic(diagnostic: { severity: 'error' | 'warning'; code: string; message: string; blockId?: string }): RunDiagnostic {
   return {
     severity: diagnostic.severity,
     code: diagnostic.code,

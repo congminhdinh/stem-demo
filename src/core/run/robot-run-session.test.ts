@@ -8,7 +8,7 @@ import type { GoalFrame } from '../scenario/goals/frame';
 import { loadScenario } from '../scenario/scenario';
 import { initPhysics, PHYSICS_HZ } from '../world/rapier';
 import { hashSnapshot } from '../world/snapshot';
-import { driveScenario, everyGoalScorer, numbers, published, robotProject, rover, roverSession, sandboxScenario, worldOf } from './__fixtures__/robot-session';
+import { driveScenario, driveScenarioJson, everyGoalScorer, numbers, published, robotProject, rover, roverSession, sandboxScenario, worldOf } from './__fixtures__/robot-session';
 import { createRobotRunSession, JITTER_TICKS, MAX_TICKS_PER_FRAME, type RobotRunSession, type RobotScorerFactory } from './robot-run-session';
 import { registry } from '../program/__fixtures__/uno-blocks';
 
@@ -312,7 +312,8 @@ describe('the pins read the world, and the world reads the pins', () => {
 
 describe('driving the ticks', () => {
   it('advance runs the whole ticks owed, at most 8 a frame, and says slower than real time beyond; one snapshot per call', async () => {
-    const session = roverSession(driveScenario());
+    // N18 R6.2: the badge is debounced (robot-run-session.end.test.ts); one frame at a time here, as R3.6 flagged it.
+    const session = roverSession(driveScenario(), { slowBadgeFrames: 1 });
     await session.start(avoider());
     const seen = published(session);
     const tick = () => Math.round(worldOf(session).t * PHYSICS_HZ);
@@ -338,7 +339,9 @@ describe('driving the ticks', () => {
   });
 
   it('4× on a 60 Hz display with its jitter (frames of 16.5–16.9 ms) never says slower than real time and drops no tick; a slow host does', async () => {
-    const session = roverSession(driveScenario());
+    // N18 R6.2: the run ends at its time limit and the badge is debounced (robot-run-session.end.test.ts): 41 s of 4× frames need a limit
+    // past them, and the badge here is one frame at a time, as R3.6 flagged it.
+    const session = roverSession(loadScenario({ ...driveScenarioJson, timeLimitS: 60 }), { slowBadgeFrames: 1 });
     await session.start(avoider());
     let seed = 1;
     const random = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
