@@ -1,7 +1,7 @@
 import type { HubMap, PinReading, PinView } from './pin-map';
 
 // The drawing of the generic UNO-compatible board on the "Cổng & chân" tab (N18 R4.5): where each pad, and the name of the part on it, is
-// in a drawing of 500 × 262 units. Our own artwork, like the 3D robot: a board with the digital header along the top (D13 at the left to
+// in a drawing of 500 × 312 units. Our own artwork, like the 3D robot: a board with the digital header along the top (D13 at the left to
 // D0 at the right, with the gap after D8 that a real header has) and the analog header along the bottom right; no logo, no wordmark.
 // The part names stand outside the board, rotated, so that a pin's name never sits on a neighbour's: above the top header, below the
 // bottom one.
@@ -31,11 +31,11 @@ export type BoardLayout = {
 };
 
 const WIDTH = 500;
-const BODY = { x: 14, y: 86, width: 472, height: 92 } as const;
+const BODY = { x: 14, y: 112, width: 472, height: 92 } as const;
 const PITCH = 28;
 const GAP = 14;
 const PAD_RADIUS = 8;
-const LABEL_ROOM = 84;
+const LABEL_ROOM = 108;
 /** The centre of the rightmost pad: D0 and A5. */
 const RIGHT = 468;
 const TOP_Y = BODY.y + 16;

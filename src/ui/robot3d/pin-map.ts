@@ -31,7 +31,13 @@ export type HubModule = {
 export type HubBoardPin = { id: string; index: number; pwm: boolean; analog: boolean };
 
 /** Who a board pin is wired to in the kit. */
-export type HubOwner = { role: string; port: string; signal: string };
+export type HubOwner = {
+  role: string;
+  port: string;
+  signal: string;
+  /** How many pins the port has: a part with several (a motor's EN, IN1, IN2) names the signal on each, one with a single pin does not. */
+  portPins: number;
+};
 
 export type HubMap = {
   /** The board's pins in board order (D0…D13, A0…A5). */
@@ -55,7 +61,7 @@ export function hubMap(kit: Kit, board: BoardProfile): HubMap {
     const port = kitPort(kit, module.port);
     const spec = port === undefined ? undefined : driverPortSpecs[port.driver];
     const pins = Object.entries(port?.pins ?? {}).map(([name, pin]): HubPin => {
-      owners.set(pin, { role: module.role, port: module.port, signal: name });
+      owners.set(pin, { role: module.role, port: module.port, signal: name, portPins: Object.keys(port?.pins ?? {}).length });
       return { name, pin, index: indexOfPin(pin), dir: spec?.pins[name]?.dir ?? 'out' };
     });
     return {

@@ -8,7 +8,7 @@ import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { translate, type Locale } from '../i18n/messages';
 import type { Text } from '../i18n/text';
 import { hubMap, hubValues, idleHubValues, type PinReading } from './pin-map';
-import { hubRows, moduleValueText, pinValueText, rowText } from './pin-text';
+import { hubRows, moduleValueText, padLabel, pinValueText, rowText } from './pin-text';
 import { idleSnapshot } from './scene-math';
 
 // N18 R4.5: the words of the "Cổng & chân" tab, in both languages. The plan's example, motor.set(motorLeft, 50), reads
@@ -148,6 +148,43 @@ describe('hubRows: role → port → pins → value (N18 R4.5)', () => {
       'Đèn LED bật → LED1 → D13 LOW',
       'Còi im → BZ1 → D10 LOW',
       'Nút bấm nhả → BTN1 → D3 HIGH',
+    ]);
+  });
+});
+
+describe('padLabel: the name beside a pin on the board (N18 R4.5 fix round 1)', () => {
+  const labels = (t: Text) => map.board.flatMap((pin) => (map.owners.has(pin.id) ? [`${pin.id}: ${((label) => (label.signal === null ? label.part : `${label.part} ${label.signal}`))(padLabel(t, map.owners.get(pin.id)!))}`] : []));
+
+  it('names the signal on each pin of a part that has several, and only the part on a part with one', () => {
+    expect(labels(vi)).toEqual([
+      'D2: Motor phải IN2',
+      'D3: Nút bấm',
+      'D4: Motor phải IN1',
+      'D5: Motor trái EN',
+      'D6: Motor phải EN',
+      'D7: Motor trái IN1',
+      'D8: Motor trái IN2',
+      'D9: Servo',
+      'D10: Còi',
+      'D11: Siêu âm ECHO',
+      'D12: Siêu âm TRIG',
+      'D13: Đèn LED',
+      'A0: Line trái',
+      'A1: Line giữa',
+      'A2: Line phải',
+    ]);
+  });
+
+  it('says it in English too', () => {
+    expect(labels(en).filter((label) => /motor|Ultrasonic/i.test(label))).toEqual([
+      'D2: Right motor IN2',
+      'D4: Right motor IN1',
+      'D5: Left motor EN',
+      'D6: Right motor EN',
+      'D7: Left motor IN1',
+      'D8: Left motor IN2',
+      'D11: Ultrasonic ECHO',
+      'D12: Ultrasonic TRIG',
     ]);
   });
 });

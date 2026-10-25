@@ -66,7 +66,7 @@ test.describe('the ports & pins and C++ tabs of the robot lab (N18 R4.5)', () =>
     await expect(frame.getByTestId('hub-value-motorLeft')).toHaveText('—');
     await expect(frame.getByTestId('hub-row-motorLeft')).toContainText('M1');
     await expect(frame.getByTestId('hub-pad-D5')).toHaveAttribute('data-state', 'idle');
-    await expect(frame.getByTestId('hub-part-D5')).toHaveText('Motor trái');
+    await expect(frame.getByTestId('hub-part-D5')).toHaveText('Motor trái EN');
     await screenshot(page, '01-pins-idle-1100x640.png');
 
     await frame.evaluate((document) => window.__stem?.loadProject(document), solved());
@@ -85,6 +85,26 @@ test.describe('the ports & pins and C++ tabs of the robot lab (N18 R4.5)', () =>
     await expect(frame.getByTestId('hub-pad-D7')).toHaveAttribute('data-state', 'high');
     await expect(frame.getByTestId('hub-pad-D8')).toHaveAttribute('data-state', 'low');
     await screenshot(page, '02-pins-running-1100x640.png');
+
+    // The names of the parts, with the signal of a pin when its part has several, stay inside the drawing: the text of each starts at
+    // its pin and runs up (above the board) or down (below it), and the drawing has room for the longest.
+    await expect(frame.getByTestId('hub-part-D7')).toHaveText('Motor trái IN1');
+    await expect(frame.getByTestId('hub-part-D11')).toHaveText('Siêu âm ECHO');
+    const labels = await frame.locator('[data-testid=hub-board] .hub-pad-part').evaluateAll((elements) => {
+      const svg = (elements[0] as unknown as SVGGraphicsElement | undefined)?.ownerSVGElement;
+      const height = svg?.viewBox.baseVal.height ?? 0;
+      return elements.map((element) => {
+        const text = element as unknown as SVGTextElement;
+        const length = text.getComputedTextLength();
+        const start = Number(text.getAttribute('y'));
+        const upward = /rotate\(-90/.test(text.getAttribute('transform') ?? '');
+        return { name: text.textContent, room: upward ? start : height - start, length };
+      });
+    });
+    expect(labels).toHaveLength(15);
+    for (const label of labels) {
+      expect(label.length, label.name ?? '').toBeLessThanOrEqual(label.room);
+    }
 
     // The cards and the table are under the board: the pane scrolls down to them.
     await frame.getByTestId('hub-table').scrollIntoViewIfNeeded();
@@ -118,6 +138,17 @@ test.describe('the ports & pins and C++ tabs of the robot lab (N18 R4.5)', () =>
     await expect(frame.getByTestId('cpp-file')).toHaveText('rb-drive-to-zone.ino');
     await expect(frame.getByTestId('cpp-footer')).toContainText('arduino-cli');
     await screenshot(page, '03-cpp-idle-1100x640.png');
+
+    // A click on a block of the editor marks its lines in the C++ tab (the purple band; the running block's is the green one). Blockly
+    // drops its selection when the focus goes to the tab, and the tab goes on marking the last block selected.
+    await tab(frame, 'Khối lệnh').click();
+    await frame.locator('[data-testid=blockly-panel] g.blocklyDraggable[data-id="drive-time"]').click({ position: { x: 10, y: 10 } });
+    await tab(frame, 'C++').click();
+    const selected = frame.locator('[data-testid=cpp-source] [data-selected=true]');
+    await expect(selected).toHaveCount(1);
+    await expect(selected).toHaveText('  delay(5000L);');
+    await expect(frame.locator('[data-testid=cpp-source] [data-running=true]')).toHaveCount(0);
+    await screenshot(page, '03b-cpp-selected-1100x640.png');
 
     // The robot waits 5 s inside the wait block: its line is the marked one.
     await frame.getByTestId('robot-run').click();

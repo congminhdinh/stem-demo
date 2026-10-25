@@ -71,24 +71,31 @@ describe('PinInspector (N18 R4.5)', () => {
     expect(host.querySelector('[data-testid=hub-idle]')?.hasAttribute('hidden')).toBe(false);
     expect(text('hub-idle')).toBe('Hãy chạy chương trình để xem giá trị trực tiếp. Trước đó, đây là cách nối các bộ phận.');
     expect(attr('hub-pad-D5', 'data-state')).toBe('idle');
-    expect(text('hub-part-D5')).toBe('Motor trái');
+    expect(text('hub-part-D5')).toBe('Motor trái EN');
     expect(text('hub-value-motorLeft')).toBe('—');
     expect(host.querySelector('[data-testid=hub-row-motorLeft]')?.textContent).toBe('Motor trái' + 'M1' + 'D5END7IN1D8IN2');
     expect(host.querySelector('[data-testid=hub-row-motorLeft]')?.getAttribute('title')).toBe('Motor trái → M1 → D5, D7, D8');
   });
 
-  it('draws the board without a wordmark: only the pin names, the parts on them and nothing else as text', async () => {
+  it('draws the board without a wordmark: only the pin names, and the parts on them with the signal of a part that has several pins', async () => {
     const { render } = setup();
     await render();
-    const labels = [...host.querySelectorAll('[data-testid=hub-board] text')].map((element) => element.textContent);
+    const labels = [...host.querySelectorAll('[data-testid=hub-board] text')].map((element) => element.textContent ?? '');
     const pins = [...Array.from({ length: 14 }, (_, index) => `D${index}`), ...Array.from({ length: 6 }, (_, index) => `A${index}`)];
-    const parts = ['Motor trái', 'Motor phải', 'Siêu âm', 'Line trái', 'Line giữa', 'Line phải', 'Servo', 'Đèn LED', 'Còi', 'Nút bấm'];
-    expect(labels.filter((label) => !pins.includes(label ?? '') && !parts.includes(label ?? ''))).toEqual([]);
-    expect(labels.filter((label) => pins.includes(label ?? '')).sort()).toEqual([...pins].sort());
-    // The pins of the kit carry the name of their part; the others carry none.
+    const parts = [
+      'Motor trái EN', 'Motor trái IN1', 'Motor trái IN2', 'Motor phải EN', 'Motor phải IN1', 'Motor phải IN2', 'Siêu âm TRIG', 'Siêu âm ECHO',
+      'Line trái', 'Line giữa', 'Line phải', 'Servo', 'Đèn LED', 'Còi', 'Nút bấm',
+    ];
+    expect(labels.filter((label) => !pins.includes(label) && !parts.includes(label))).toEqual([]);
+    expect(labels.filter((label) => pins.includes(label)).sort()).toEqual([...pins].sort());
+    // The pins of the kit carry the name of their part, each of a motor's three its own signal; the others carry none.
+    expect(labels.filter((label) => parts.includes(label)).sort()).toEqual([...parts].sort());
     expect(host.querySelectorAll('[data-testid=hub-board] .hub-pad-part')).toHaveLength(15);
     expect(host.querySelector('[data-testid=hub-pad-D0] .hub-pad-part')).toBeNull();
-    expect(text('hub-part-A1')).toBe('Line giữa');
+    expect(['D5', 'D7', 'D8', 'D11', 'D12', 'A1'].map((pin) => text(`hub-part-${pin}`))).toEqual(['Motor trái EN', 'Motor trái IN1', 'Motor trái IN2', 'Siêu âm ECHO', 'Siêu âm TRIG', 'Line giữa']);
+    // The signal is a span of its own, so that it can be set lighter than the name.
+    expect(host.querySelector('[data-testid=hub-part-D5] .hub-pad-signal')?.textContent).toBe('EN');
+    expect(host.querySelector('[data-testid=hub-part-A1] .hub-pad-signal')).toBeNull();
   });
 
   it('motor.set(motorLeft, 50): the table says Motor trái 50 % → M1 → D5 PWM 128, D7 HIGH, D8 LOW, and the card and the board agree', async () => {

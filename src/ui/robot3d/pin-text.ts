@@ -2,7 +2,7 @@ import type { Locale } from '../i18n/messages';
 import type { Text } from '../i18n/text';
 import type { RobotRole } from '../../core/hardware/kit';
 import { formatNumber } from './format';
-import type { HubMap, HubValues, ModuleView, PinReading } from './pin-map';
+import type { HubMap, HubOwner, HubValues, ModuleView, PinReading } from './pin-map';
 
 // The words of the robot lab's "Cổng & chân" tab (N18 R4.5): the values of pin-map.ts said in the learner's language, and the rows of the
 // plan's chain role → port → pins → value, for the table, as data a test reads exactly. HIGH, LOW and PWM are the board's own words and are
@@ -48,6 +48,14 @@ export function moduleValueText(t: Text, locale: Locale, view: ModuleView | unde
 
 /** The name of a part of the kit, in the learner's language. */
 export const roleName = (t: Text, role: RobotRole): string => t(`robot.pins.role.${role}`);
+
+/**
+ * What the board's drawing writes beside a pin the kit uses: the part, and for a part that has several pins (a motor's EN, IN1 and IN2,
+ * the ultrasonic's TRIG and ECHO) which of them this is, so that two pins of one part are told apart. A part with one pin has no signal.
+ */
+export function padLabel(t: Text, owner: HubOwner): { part: string; signal: string | null } {
+  return { part: roleName(t, owner.role as RobotRole), signal: owner.portPins > 1 ? owner.signal : null };
+}
 
 export type HubRowPin = {
   pin: string;

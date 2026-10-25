@@ -82,9 +82,9 @@ describe('hubMap: the kit’s role → port → pins (N18 R4.5)', () => {
   });
 
   it('knows the part, port and signal behind each pin the kit uses, and no other', () => {
-    expect(map.owners.get('D5')).toEqual({ role: 'motorLeft', port: 'M1', signal: 'EN' });
-    expect(map.owners.get('D11')).toEqual({ role: 'ultrasonic', port: 'US1', signal: 'ECHO' });
-    expect(map.owners.get('A2')).toEqual({ role: 'lineRight', port: 'LN3', signal: 'PIN' });
+    expect(map.owners.get('D5')).toEqual({ role: 'motorLeft', port: 'M1', signal: 'EN', portPins: 3 });
+    expect(map.owners.get('D11')).toEqual({ role: 'ultrasonic', port: 'US1', signal: 'ECHO', portPins: 2 });
+    expect(map.owners.get('A2')).toEqual({ role: 'lineRight', port: 'LN3', signal: 'PIN', portPins: 1 });
     expect(map.owners.get('D0')).toBeUndefined();
     expect(map.owners.get('A5')).toBeUndefined();
     expect([...map.owners.keys()].sort()).toEqual(['A0', 'A1', 'A2', 'D10', 'D11', 'D12', 'D13', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9']);

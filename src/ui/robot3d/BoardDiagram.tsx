@@ -2,7 +2,7 @@ import type { RobotRole } from '../../core/hardware/kit';
 import { useLocale, useText } from '../i18n/text';
 import { padLook, type BoardLayout } from './board-layout';
 import type { HubMap, HubValues } from './pin-map';
-import { pinValueText, roleName } from './pin-text';
+import { padLabel, pinValueText, roleName } from './pin-text';
 
 // The board of the hub panel (N18 R4.5): a generic UNO-compatible board, our own drawing with no logo and no wordmark. Its pins D0–D13 and
 // A0–A5 light with what they carry (a level, a PWM duty, a tone, a servo's command), and each pin the kit uses has the name of the part on
@@ -57,6 +57,7 @@ export function BoardDiagram({ map, layout, values }: BoardDiagramProps) {
         const look = padLook(view, map.pwmMax);
         const owner = map.owners.get(pad.id);
         const value = view === undefined ? '—' : pinValueText(t, locale, view.reading);
+        const label = owner === undefined ? null : padLabel(t, owner);
         const title = owner
           ? t('robot.pins.pad.owner', { pin: pad.id, value, part: roleName(t, owner.role as RobotRole), signal: owner.signal, port: owner.port })
           : t(view === undefined ? 'robot.pins.pad.free' : 'robot.pins.pad', { pin: pad.id, value });
@@ -68,7 +69,7 @@ export function BoardDiagram({ map, layout, values }: BoardDiagramProps) {
             <text className="hub-pad-name" x={pad.name.x} y={pad.name.y} textAnchor="middle">
               {pad.id}
             </text>
-            {owner && (
+            {label && (
               <text
                 className="hub-pad-part"
                 x={pad.label.x}
@@ -77,7 +78,13 @@ export function BoardDiagram({ map, layout, values }: BoardDiagramProps) {
                 transform={`rotate(${pad.label.rotate} ${pad.label.x} ${pad.label.y})`}
                 data-testid={`hub-part-${pad.id}`}
               >
-                {roleName(t, owner.role as RobotRole)}
+                {label.part}
+                {label.signal !== null && (
+                  <>
+                    {' '}
+                    <tspan className="hub-pad-signal">{label.signal}</tspan>
+                  </>
+                )}
               </text>
             )}
           </g>
