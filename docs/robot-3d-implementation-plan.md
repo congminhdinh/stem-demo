@@ -241,9 +241,20 @@ type RobotGoalSpec = { id: string; label: { vi: string; en: string }; points: nu
 - `maxScore = Σ points + (timeBonusMax ?? 0)`. Điểm kẹp vào `[0, maxScore]`.
 - Kết quả gồm:
   - `passed`: mọi goal qua ở **mọi** biến thể;
-  - `score`: trung bình điểm các biến thể;
+  - `score`: điểm **thấp nhất** trong các biến thể (ruling cho R6.2, thay cho trung bình: chương trình qua một biến thể may mắn không được điểm cao);
   - `goal.passed` (gửi host): goal đó qua ở mọi biến thể.
 - Key `rb-*` **không bao giờ đổi tên hay tái dùng**. Đổi hành vi thì tăng `version`.
+
+*Bổ sung khi làm R5.2a fix round 2 (ruling của controller):*
+- **`endOnContact?: string[]`:** các tag (hoặc loại collider) mà lần chạm đầu tiên **kết thúc lượt chạy**, như đâm xe trong thi robot. Ở tick đầu
+  tiên robot chạm collider có một trong các tag đó, lượt chạy dừng; goal được chấm trên các frame tới hết tick đó (gồm cả nó). Goal cần giữ hay
+  dừng (`stop-in-zone`, `servo-angle`) mà chưa đạt thì trượt với `reasonKey = run-ended-contact` (`robot.goal.reason.run-ended-contact`, vi/en).
+  Schema: mỗi tag phải có trong sa bàn (cùng tập tag với `avoid-contact`), không trùng, danh sách không rỗng. `runEndingContact(scenario,
+  contacts)` (scenario.ts) cho tag kết thúc của một tick (tag đầu tiên của danh sách mà một contact có) hoặc `null`. Dừng lượt chạy là việc của
+  run session và check (R3.6, R6.2); R5.2a chỉ đặt nó lên kịch bản (bài 3: `wall`, 5: `gate`, 6: `obstacle`) và chạy nó trong spike.
+- **`variants.startJitterAlongCm?`:** chỗ xuất phát dời tới ±giá trị này **dọc hướng xuất phát** và ±`startJitterCm` ngang hướng (đường thẳng
+  xuất phát của bài bám vạch: dời dọc xa mà vẫn thấy vạch). Hai lần bốc đầu là dọc và ngang, quay ra dx, dy bằng yaw đã soạn (đúng tuyệt đối ở các
+  góc vuông); không có trường này thì như cũ (dx, dy cùng ±`startJitterCm`), nên kịch bản cũ ra đúng các biến thể cũ.
 
 *Bổ sung khi làm R5.1 (`src/core/scenario/`, catalog ở `src/samples/robot-scenarios/index.ts`):*
 - **Không vòng import:** bảng key/profile/kit nằm ở `src/samples/robot-keys.ts` (lá, không import gì; `robot-templates.ts` re-export). `scenario-schema.ts`, `scenario.ts` và catalog chỉ import lá này, vì R5.2 cho `robotReadyFields` đọc catalog (`robot-templates → robot-scenarios → core/scenario → scenario-schema → robot-templates` sẽ là vòng, lỗi TDZ khi nạp module). R5.2a cuối cùng đọc thẳng file kịch bản qua `robot-scenarios/ready-fields.ts` (lá chỉ import `robot-keys.ts` và JSON), xem R5.2.
@@ -601,10 +612,10 @@ Test `tests/robot-scenarios.test.ts`:
   cho sáu kịch bản có điểm), `tests/robot-scenarios.test.ts`, `tests/robot-solutions/rb-<key>.ino`, `docs/robot-scenario-authoring.md`
   (R5.3, 6h). Sa bàn, goal, seed và lý do chọn: bảng ở mục 9 của tài liệu soạn kịch bản; số đo ở `notes` của từng lời giải.
 - **Thiết kế bằng số đo, không bằng ước lượng:** spike `spikes/r52-scenario-sim` chạy chương trình đã compile trên virtual UNO, world của
-  R3.5 (`createScenarioWorld`, `toGoalFrame`) và goal của R6.1. Kết quả (M4 Pro, Node 24.22.1, sau fix round 1): lời giải chuẩn qua mọi goal
-  ở mọi biến thể; lời giải mù qua biến thể 0 và trượt cả hai biến thể còn lại (đâm tường hay dừng ngắn 7–8 cm ở bài 3, 5; tỉ lệ bám vạch
-  0,26–0,58 ở bài 4, 6, kèm chạm cọc ở bài 6); starter 0 điểm; `exploits` không quá điểm tối đa của chúng (0–45). Spike nối pin → actuator
-  và time bonus đơn giản hơn R3.6/R6.2 sẽ làm, nên R5.2b đo lại.
+  R3.5 (`createScenarioWorld`, `toGoalFrame`) và goal của R6.1, có luật `endOnContact` (sau fix round 2). Kết quả (M4 Pro, Node 24.22.1): lời
+  giải chuẩn qua mọi goal ở mọi biến thể; lời giải mù qua biến thể 0 và trượt cả hai biến thể còn lại (đâm tường hay dừng ngắn 7–8 cm ở bài 3,
+  5; tỉ lệ bám vạch 0,48–0,58 ở bài 4; chạm cọc hay rời vạch ở bài 6); starter 0 điểm; không `exploit` nào qua check, điểm check của chúng
+  0–60. Spike nối pin → actuator và time bonus đơn giản hơn R3.6/R6.2 sẽ làm, nên R5.2b đo lại.
 - **`robotReadyFields` đọc file kịch bản qua `robot-scenarios/ready-fields.ts`, không qua catalog** (lệch khỏi ruling "đọc catalog" vì hai
   ràng buộc có test): `robot-templates.ts` nằm trong bundle chính của mọi lab, còn catalog kéo scenario schema → `src/core/world/arena`
   (`e2e/robot-bundle.spec.ts` cấm lab khác tải `src/core/world`); và Playwright import `robot-templates.ts` vào Node thuần
@@ -619,9 +630,17 @@ Test `tests/robot-scenarios.test.ts`:
   (b) `stay-on-line` tính tỉ lệ **theo quãng đường** thay cho số tick (xem §R6.1; test của `goals/travel`, `stay-on-line`, `avoid-contact`
   viết lại). Bài 4: vạch mở vòng qua sa bàn vào một gara có miệng quay về hướng vạch tới (không cú chạy thẳng nào vào được), điểm vạch 40 /
   gara 60, lời giải chuẩn là bộ bám vạch dùng cảm biến giữa có "else dừng" (bộ bám hai cảm biến bên kẹt ở góc 45°). Bài 5: tên mới "Giơ cờ ở
-  cổng" / "Raise the flag at the gate" (key giữ `rb-servo-gate`), cờ ≥ 150°, điểm 40/40/20. Bài 6: vạch chạy tới y 137, sát tường bến, nên chỉ
-  dừng theo siêu âm mới đỗ được trong bến. `robot-solutions.ts` thêm `exploits` (chương trình lách và điểm tối đa) cho R5.2b. Chưa kịch bản
+  cổng" / "Raise the flag at the gate" (key giữ `rb-servo-gate`), cờ ≥ 150°, điểm 40/40/20. Bài 6: vạch chạy tới y 137, sát tường bến, nên bộ
+  bám vạch dừng khi mất vạch gặp tường trước (fix round 2: và chỗ xuất phát dời ±15 cm dọc đường thẳng xuất phát, nên dừng sau một thời gian cố định
+  cũng trượt bến ở một biến thể). `robot-solutions.ts` thêm `exploits` (chương trình lách và điểm tối đa) cho R5.2b. Chưa kịch bản
   nào được phát hành, nên `version` vẫn là 1.
+- **Fix round 2 (ruling của controller):** schema thêm `endOnContact` và `variants.startJitterAlongCm` (xem bổ sung ở §4.6), lý do mới
+  `run-ended-contact`. Bài 3, 5, 6 kết thúc lượt chạy ở lần chạm đầu tường / cổng / vật cản và tường bến: đâm rồi lùi một thời gian cố định không
+  còn đỗ được (trước đó được 70 / 80 ở mọi biến thể vì tường không dời). Bài 6 dời chỗ xuất phát ±15 cm dọc đường thẳng xuất phát (seed 3225:
+  −13,8 và +14,2 cm), xa hơn chiều dài bến (23 cm), nên bám vạch rồi dừng sau một thời gian cố định trượt bến ở một biến thể với mọi thời gian
+  (spike quét 240 000 – 380 000 vòng: không giá trị nào qua, điểm check cao nhất 45). Bài 4: `timeLimitS` 120 (bộ bám đúng ở 35 % vào gara lúc
+  khoảng 94 s), nhãn "Vào gara". Luật 10 của tài liệu soạn: chương trình mở không được qua check, điểm check cao nhất ghi ở `exploits`, nên ≤ 60.
+  Điểm check là **điểm thấp nhất** trong các biến thể (ruling cho R6.2).
 - **Starter:** nằm trong JSON (`starter`), hat của bài và một khối chạy rời bị tắt. `robotStarterDocument` vẫn mở project với `program.blocks
   = {}`; nạp `scenario.starter` vào workspace là việc của UI lab robot (R4).
 
@@ -639,7 +658,7 @@ Test `tests/robot-scenarios.test.ts`:
   - `reach-zone`: qua ngay lần đầu tâm robot vào vùng, giữ nguyên kể cả khi rời đi.
   - `checkpoints-in-order`: chỉ tính **lần vào** (khung này trong vùng, khung trước không; khung đầu coi như vào). Vùng kế tiếp được vào thì tính, vùng đến sau mà vào trước thì **không tính** nhưng không làm hỏng lộ trình (robot quay lại sau vẫn được); vào lại vùng đã tính là vô hại. Không xong: `checkpoint-out-of-order` (có vào sai thứ tự, `atS` là lần đầu) hoặc `checkpoint-missed`. Vùng liệt kê hai lần cần hai lần vào. **Luật schema:** các vùng của một goal `checkpoints-in-order` **không được chồng nhau** (giao diện tích hoặc chứa nhau; chỉ chạm cạnh/góc thì được), vì robot ở chỗ chồng sẽ vào hai điểm một lúc và thứ tự phụ thuộc cách viết danh sách. `loadScenario` báo lỗi ở `goals[i].zones[j]` của vùng đứng sau trong cặp (`zone "b" overlaps zone "a" (zones[k])`), mỗi cặp một lần, vùng liệt kê hai lần không tính là chồng với chính nó; kiểm tra bằng `scenario/polygon-overlap.ts` (quét theo x, chính xác cho đa giác lõm). Hai goal khác nhau được phép dùng các vùng chồng nhau. Evaluator vẫn xử lý được vùng chồng nếu goal được dựng tay: vùng vào cùng khung tính theo thứ tự liệt kê, vùng đang đứng trong không tính là vào lại.
   - `stay-on-line` (goal canh gác, xem dưới): tỉ lệ **quãng đường** (từ R5.2a fix round 1, ruling của controller; trước đó là tỉ lệ số tick, bị lách bằng cách bò chậm trên vạch rồi phóng nhanh ngoài vạch) có ≥ 1 điểm nhìn của cảm biến vạch nằm trên băng keo: `Σ(speedCmS·dtS khi trên vạch) / Σ(speedCmS·dtS)`, tính từ t=0 tới hết run; tốc độ là tốc độ chạy của frame (giữa trục bánh, quay tại chỗ là 0), nên robot đứng yên hay quay tại chỗ không cộng gì, tốc độ không phải số dương hữu hạn cũng vậy. Qua khi tỉ lệ `≥ minRatio` **và** robot đã đi đủ xa (xem dưới). Các tick cùng độ dài và cùng tốc độ cho tỉ lệ của hai bội số nguyên, là số double gần tỉ lệ thật nhất như hằng số tác giả viết, nên run đúng ở biên vẫn qua. "Trên băng keo" = `groundReflectanceAt(điểm, 0) ≤ 0,25` và điểm nằm trong nền (ngoài mép nền đọc 0 nhưng không có băng). Chưa đi quãng nào thì tỉ lệ là 0.
-  - `avoid-contact` (goal canh gác, xem dưới): trượt vĩnh viễn ở sự kiện đầu tiên trong hai: tick đầu chạm collider có `tag` (tag gồm cả loại `wall/box/cylinder/object`, `reasonKey = contact`) hoặc robot ra khỏi sa bàn (`out-of-arena`: rơi khỏi bàn là đã đâm); chạm collider khác bị bỏ qua. Lỗi của chính nó đứng trước lý do quãng đường; không lỗi mà quãng đường chưa đủ thì chưa qua.
+  - `avoid-contact` (goal canh gác, xem dưới): trượt vĩnh viễn ở sự kiện đầu tiên trong hai: tick đầu chạm collider có `tag` (tag gồm cả loại `wall/box/cylinder/object`, `reasonKey = contact`) hoặc robot ra khỏi sa bàn (`out-of-arena`: rơi khỏi bàn là đã đâm); chạm collider khác bị bỏ qua. Lỗi của chính nó đứng trước lý do tầm xa; không lỗi mà robot chưa đi đủ xa khỏi chỗ xuất phát (tầm xa ròng, xem dưới) thì chưa qua.
   - `object-in-zone`: tâm vật trong vùng ở **frame cuối** (đẩy vào rồi đẩy ra thì không qua).
   - `stop-in-zone`: tâm robot trong vùng và `speedCmS ≤ maxSpeedCmS` liên tục `holdS`, qua một lần là giữ.
   - `servo-angle`: góc trong `[minDeg, maxDeg]` (gồm hai đầu) **liên tục 0,5 s** (`SERVO_HOLD_S`, tính như mục "Giữ khi đủ thời gian" bên dưới); qua một lần là giữ, servo quay đi sau đó cũng không mất, còn góc chỉ được đặt ở tick cuối thì chưa qua. 0,5 s áp dụng cả hai trường hợp: có `whenInZone` thì góc đúng **và** tâm robot trong vùng cùng lúc; không có thì chỉ xét góc, robot ở đâu cũng được.
@@ -647,7 +666,7 @@ Test `tests/robot-scenarios.test.ts`:
   - `uses-block`: tĩnh, chỉ từ `ctx.program` (JSON Blockly) qua `runningBlockTypes`: khối bị tắt (kể cả những khối nằm trong nó) và khối rời không được tính. Thiếu `program` thì throw lúc tạo.
 - **Goal canh gác (`travel.ts`, ruling của controller; tầm xa ròng từ R5.2a fix round 1):** `avoid-contact` và `stay-on-line` được thoả bằng việc *không* làm gì (không chạm, không rời vạch), nên robot đứng yên cũng qua. Hai goal này chỉ qua khi **robot đã có lúc cách chỗ xuất phát ≥ `MIN_GUARD_TRAVEL_CM = 20` cm** (tầm xa ròng, net reach); chưa đủ thì `passed: false`, `reasonKey = robot-did-not-move` (`robot.goal.reason.robot-did-not-move`), bất kể tỉ lệ. Tầm xa = khoảng cách lớn nhất của giữa thân (`robot.xCm`, `yCm`) tới vị trí ở frame đầu tiên được tính; frame `outOfArena` và vị trí không phải số hữu hạn không được tính (không làm điểm xuất phát, không tính tầm xa). Trước đây là tổng quãng đường Σ `speedCmS · dtS`, bị lách bằng quay lệch hay đi tới đi lui tại chỗ (đường dài mà không đi đâu). Chỉ + − × và `Math.sqrt` (làm tròn đúng theo IEEE 754) nên tất định; so với 20 có dung sai `1e-9` cm (vị trí 12,3 và 32,3 cách nhau 19,999999999999996). Đánh giá ở cuối run (`result()` sau frame cuối). `progress` của hai goal này lấy phần nhỏ hơn giữa tầm xa/20 cm và tỉ lệ/`minRatio`. `dtS` âm hoặc không phải số hữu hạn là lỗi của caller (`RangeError`), như `stop-in-zone` và `servo-angle`.
 - **Giữ khi đủ thời gian (`hold.ts`):** khung đầu tiên điều kiện đúng bắt đầu đếm với 0 s, mỗi khung liên tiếp sau đó cộng thêm `dtS`; xong khi tổng `≥ holdS − 1e-9`. Nghĩa là `holdS` giây là khoảng giữa hai khung đều thoả điều kiện (tick 0,25 s, `holdS = 1` cần 5 khung liên tiếp); tick kết thúc ở khung đầu không được tính vì robot có thể đang chạy trong tick đó. Một khung không thoả thì đếm lại từ đầu. `dtS` âm, vô hạn hoặc NaN là lỗi của caller (`RangeError`).
-- **Ra khỏi sa bàn (`frame.outOfArena`):** mọi goal **chưa qua** thì trượt vĩnh viễn, `reasonKey = out-of-arena`, `atS` là lúc rời; goal đã qua thì giữ. Áp dụng cho `reach-zone`, `checkpoints-in-order`, `stay-on-line`, `avoid-contact`, `object-in-zone`, `stop-in-zone` và `servo-angle` (cả hai dạng). Trừ `finish-within` (chỉ so giờ scorer với giới hạn) và `uses-block` (chỉ nhìn chương trình). Quãng đường lúc rơi không được cộng cho goal canh gác. Khung vừa ra ngoài vừa trong vùng (hay vừa chạm collider) thì ra ngoài thắng.
+- **Ra khỏi sa bàn (`frame.outOfArena`):** mọi goal **chưa qua** thì trượt vĩnh viễn, `reasonKey = out-of-arena`, `atS` là lúc rời; goal đã qua thì giữ. Áp dụng cho `reach-zone`, `checkpoints-in-order`, `stay-on-line`, `avoid-contact`, `object-in-zone`, `stop-in-zone` và `servo-angle` (cả hai dạng). Trừ `finish-within` (chỉ so giờ scorer với giới hạn) và `uses-block` (chỉ nhìn chương trình). Vị trí lúc rơi không được tính vào tầm xa của goal canh gác. Khung vừa ra ngoài vừa trong vùng (hay vừa chạm collider) thì ra ngoài thắng.
 - **Kiểm tra tick:** mọi kind kiểm tra `dtS` ở dòng đầu của `update` bằng một hàm chung (`goals/tick.ts`): `dtS` không hữu hạn hoặc âm thì `RangeError`, kể cả khi goal đã chốt kết quả hay kind không dùng đến `dtS`.
 - **Dành cho R6.2 (không phải việc của R6.1):** `othersPassedAtS` không được là "lần đầu mọi goal khác cùng qua" (đó là cách nối ngây thơ trong helper `scoreRun` của `goals/index.test.ts`, có ghi chú): goal theo dõi tới cuối run (`object-in-zone`, `stay-on-line`, `avoid-contact`) có thể mất lại sau đó. Phải lấy **đầu chuỗi liên tục cuối cùng** mà mọi goal khác cùng qua cho tới hết run, hoặc yêu cầu kết quả cuối của các goal khác đều qua (nếu không thì `null`).
 

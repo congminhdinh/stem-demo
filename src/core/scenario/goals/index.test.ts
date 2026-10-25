@@ -57,7 +57,7 @@ describe('createGoal', () => {
   describe('when the robot leaves the arena', () => {
     const run = (id: string): GoalResult => {
       const goal = createGoal(specOf(id), full);
-      // driving at 60 cm/s: the first 0.5 s tick is 30 cm, more than the guard goals ask
+      // driving at 60 cm/s, though on the spot: leaving the arena fails the guard goals before their reach (travel.test.ts) is asked
       feed(goal, [{ ...nowhere, speedCmS: 60 }, { ...nowhere, speedCmS: 60, outOfArena: true }], { dtS: 0.5 });
       return goal.result();
     };

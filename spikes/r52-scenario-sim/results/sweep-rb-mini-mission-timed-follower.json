@@ -1,0 +1,5883 @@
+{
+  "machine": {
+    "platform": "darwin",
+    "release": "25.5.0",
+    "arch": "arm64",
+    "cpu": "Apple M4 Pro",
+    "node": "v24.22.1"
+  },
+  "wallS": 70.726153959,
+  "runs": {
+    "rb-mini-mission": {
+      "spike:timed-follower-240000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 140.81708192825317,
+            "yCm": 76.23432278633118,
+            "yawDeg": 86.61558053043255
+          },
+          "pathCm": 125.87492404790495,
+          "reachCm": 110.91113703283388,
+          "onLine": {
+            "drivenCm": 125.87492404790495,
+            "onTapeCm": 125.87492404790495
+          },
+          "contacts": [],
+          "minFrontCm": 42.0281,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 7.395968815043338
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.3333333333333333,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 139.37900066375732,
+            "yCm": 63.01690340042114,
+            "yawDeg": 75.46786020679994
+          },
+          "pathCm": 126.94250072687817,
+          "reachCm": 118.0043433479905,
+          "onLine": {
+            "drivenCm": 126.94250072687817,
+            "onTapeCm": 126.94250072687817
+          },
+          "contacts": [],
+          "minFrontCm": 42.004,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 17.453052397966324
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.1341667175293,
+            "yCm": 90.06834626197815,
+            "yawDeg": 89.17535274923821
+          },
+          "pathCm": 124.98309924932165,
+          "reachCm": 106.3185794863685,
+          "onLine": {
+            "drivenCm": 124.98309924932165,
+            "onTapeCm": 124.98309924932165
+          },
+          "contacts": [],
+          "minFrontCm": 40.4384,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.303091147820205
+          },
+          "track": [],
+          "programOutcome": "finished"
+        }
+      ],
+      "spike:timed-follower-245000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 140.9355878829956,
+            "yCm": 79.04021143913269,
+            "yawDeg": 87.34430401781744
+          },
+          "pathCm": 128.67090656347037,
+          "reachCm": 112.21664024179354,
+          "onLine": {
+            "drivenCm": 128.67090656347037,
+            "onTapeCm": 128.67090656347037
+          },
+          "contacts": [],
+          "minFrontCm": 42.0281,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 6.400683679900779
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 139.83349800109863,
+            "yCm": 65.44909477233887,
+            "yawDeg": 78.83424227168776
+          },
+          "pathCm": 129.35804574826597,
+          "reachCm": 119.14766884884327,
+          "onLine": {
+            "drivenCm": 129.35804574826597,
+            "onTapeCm": 129.35804574826597
+          },
+          "contacts": [],
+          "minFrontCm": 42.004,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 15.421453894144898
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.14094972610474,
+            "yCm": 92.87589192390442,
+            "yawDeg": 89.99136072986096
+          },
+          "pathCm": 127.77820835859445,
+          "reachCm": 107.96232776012857,
+          "onLine": {
+            "drivenCm": 127.77820835859445,
+            "onTapeCm": 127.77820835859445
+          },
+          "contacts": [],
+          "minFrontCm": 37.6281,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "finished"
+        }
+      ],
+      "spike:timed-follower-250000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.01758003234863,
+            "yCm": 81.77658915519714,
+            "yawDeg": 87.9573577167044
+          },
+          "pathCm": 131.39906452212688,
+          "reachCm": 113.51189001855643,
+          "onLine": {
+            "drivenCm": 131.39906452212688,
+            "onTapeCm": 131.39906452212688
+          },
+          "contacts": [],
+          "minFrontCm": 42.0281,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 5.712061854131452
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 140.16882181167603,
+            "yCm": 67.96662211418152,
+            "yawDeg": 81.77111841260248
+          },
+          "pathCm": 131.8445006564073,
+          "reachCm": 120.24597721807599,
+          "onLine": {
+            "drivenCm": 131.8445006564073,
+            "onTapeCm": 131.8445006564073
+          },
+          "contacts": [],
+          "minFrontCm": 42.004,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 13.335914116239481
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.14766120910645,
+            "yCm": 95.80063819885254,
+            "yawDeg": 89.9296104767625
+          },
+          "pathCm": 130.70318730319678,
+          "reachCm": 109.72597698915325,
+          "onLine": {
+            "drivenCm": 130.70318730319678,
+            "onTapeCm": 130.70318730319678
+          },
+          "contacts": [],
+          "minFrontCm": 34.7018,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "finished"
+        }
+      ],
+      "spike:timed-follower-255000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.0606026649475,
+            "yCm": 84.58536267280579,
+            "yawDeg": 88.71029458698494
+          },
+          "pathCm": 134.1934785516866,
+          "reachCm": 114.85836564130129,
+          "onLine": {
+            "drivenCm": 134.1934785516866,
+            "onTapeCm": 134.1934785516866
+          },
+          "contacts": [],
+          "minFrontCm": 42.0281,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.857748352345829
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 140.44073820114136,
+            "yCm": 70.61840891838074,
+            "yawDeg": 83.87194275739793
+          },
+          "pathCm": 134.47389359941872,
+          "reachCm": 121.37214903660254,
+          "onLine": {
+            "drivenCm": 134.47389359941872,
+            "onTapeCm": 134.47389359941872
+          },
+          "contacts": [],
+          "minFrontCm": 42.004,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 11.206044403757724
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.15123748779297,
+            "yCm": 98.60571026802063,
+            "yawDeg": 89.92964909607772
+          },
+          "pathCm": 133.50832351384858,
+          "reachCm": 111.46065605987991,
+          "onLine": {
+            "drivenCm": 133.50832351384858,
+            "onTapeCm": 133.50832351384858
+          },
+          "contacts": [],
+          "minFrontCm": 31.8967,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "finished"
+        }
+      ],
+      "spike:timed-follower-260000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.09008312225342,
+            "yCm": 87.39261627197266,
+            "yawDeg": 89.52618819040289
+          },
+          "pathCm": 136.98890050785465,
+          "reachCm": 116.24377369080673,
+          "onLine": {
+            "drivenCm": 136.98890050785465,
+            "onTapeCm": 136.98890050785465
+          },
+          "contacts": [],
+          "minFrontCm": 42.0281,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.296028738027701
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 140.6097173690796,
+            "yCm": 73.24036359786987,
+            "yawDeg": 86.12074823562267
+          },
+          "pathCm": 137.0621252907402,
+          "reachCm": 122.43966626769699,
+          "onLine": {
+            "drivenCm": 137.0621252907402,
+            "onTapeCm": 137.0621252907402
+          },
+          "contacts": [],
+          "minFrontCm": 42.004,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 9.208516241134253
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.15495681762695,
+            "yCm": 101.52297019958496,
+            "yawDeg": 89.92965875636057
+          },
+          "pathCm": 136.42560701103963,
+          "reachCm": 113.31016111054242,
+          "onLine": {
+            "drivenCm": 136.42560701103963,
+            "onTapeCm": 136.42560701103963
+          },
+          "contacts": [],
+          "minFrontCm": 28.9795,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "finished"
+        }
+      ],
+      "spike:timed-follower-265000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.1191701889038,
+            "yCm": 90.17614126205444,
+            "yawDeg": 89.4648214152367
+          },
+          "pathCm": 139.77445430589782,
+          "reachCm": 117.66758831973642,
+          "onLine": {
+            "drivenCm": 139.77445430589782,
+            "onTapeCm": 139.77445430589782
+          },
+          "contacts": [],
+          "minFrontCm": 40.3294,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.298238934057912
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 140.78150987625122,
+            "yCm": 75.95269083976746,
+            "yawDeg": 86.62082832805791
+          },
+          "pathCm": 139.77069429628574,
+          "reachCm": 123.59043973481238,
+          "onLine": {
+            "drivenCm": 139.77069429628574,
+            "onTapeCm": 139.77069429628574
+          },
+          "contacts": [],
+          "minFrontCm": 42.004,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 7.5205856404153035
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.15853309631348,
+            "yCm": 104.32796478271484,
+            "yawDeg": 89.9296587571867
+          },
+          "pathCm": 139.2307396202086,
+          "reachCm": 115.1302335435006,
+          "onLine": {
+            "drivenCm": 139.2307396202086,
+            "onTapeCm": 139.2307396202086
+          },
+          "contacts": [],
+          "minFrontCm": 26.1745,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "finished"
+        }
+      ],
+      "spike:timed-follower-270000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.1467432975769,
+            "yCm": 93.12227964401245,
+            "yawDeg": 89.46450415293761
+          },
+          "pathCm": 142.7190138508275,
+          "reachCm": 119.22521281407302,
+          "onLine": {
+            "drivenCm": 142.7190138508275,
+            "onTapeCm": 142.7190138508275
+          },
+          "contacts": [],
+          "minFrontCm": 37.3821,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.297735326393549
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 140.90940952301025,
+            "yCm": 78.74709963798523,
+            "yawDeg": 87.3178285354967
+          },
+          "pathCm": 142.55606453640058,
+          "reachCm": 124.78128364420556,
+          "onLine": {
+            "drivenCm": 142.55606453640058,
+            "onTapeCm": 142.55606453640058
+          },
+          "contacts": [],
+          "minFrontCm": 42.004,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 6.439405532876059
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 12.641666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 12.641666666666667
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.16228818893433,
+            "yCm": 107.2422981262207,
+            "yawDeg": 89.9287030528282
+          },
+          "pathCm": 142.14410043304426,
+          "reachCm": 117.06288780934719,
+          "onLine": {
+            "drivenCm": 142.14410043304426,
+            "onTapeCm": 142.14410043304426
+          },
+          "contacts": [],
+          "minFrontCm": 23.2595,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "finished"
+        }
+      ],
+      "spike:timed-follower-275000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.17296934127808,
+            "yCm": 95.92727422714233,
+            "yawDeg": 89.46450415076367
+          },
+          "pathCm": 145.52413480869674,
+          "reachCm": 120.75569752814401,
+          "onLine": {
+            "drivenCm": 145.52413480869674,
+            "onTapeCm": 145.52413480869674
+          },
+          "contacts": [],
+          "minFrontCm": 34.577,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 140.99843502044678,
+            "yCm": 81.49482011795044,
+            "yawDeg": 87.92963577148981
+          },
+          "pathCm": 145.29275046395475,
+          "reachCm": 125.96916500813225,
+          "onLine": {
+            "drivenCm": 145.29275046395475,
+            "onTapeCm": 145.29275046395475
+          },
+          "contacts": [],
+          "minFrontCm": 42.004,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 5.927712786800264
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 12.85
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 12.85
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.16586446762085,
+            "yCm": 110.04726886749268,
+            "yawDeg": 89.92870304807765
+          },
+          "pathCm": 144.94920522476775,
+          "reachCm": 118.96044131444319,
+          "onLine": {
+            "drivenCm": 144.94920522476775,
+            "onTapeCm": 144.94920522476775
+          },
+          "contacts": [],
+          "minFrontCm": 20.4545,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "finished"
+        }
+      ],
+      "spike:timed-follower-280000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.2002444267273,
+            "yCm": 98.84447455406189,
+            "yawDeg": 89.46450415790261
+          },
+          "pathCm": 148.4414563472082,
+          "reachCm": 122.39531078581004,
+          "onLine": {
+            "drivenCm": 148.4414563472082,
+            "onTapeCm": 148.4414563472082
+          },
+          "contacts": [],
+          "minFrontCm": 31.6597,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.04703664779663,
+            "yCm": 84.28003787994385,
+            "yawDeg": 88.67947287997633
+          },
+          "pathCm": 148.0672677557268,
+          "reachCm": 127.18346071934104,
+          "onLine": {
+            "drivenCm": 148.0672677557268,
+            "onTapeCm": 148.0672677557268
+          },
+          "contacts": [],
+          "minFrontCm": 42.004,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 4.0136117469099855
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 13.066666666666666
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 13.066666666666666
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.169536113739,
+            "yCm": 112.94955015182495,
+            "yawDeg": 89.92938844895748
+          },
+          "pathCm": 147.85346490097587,
+          "reachCm": 120.96008192827537,
+          "onLine": {
+            "drivenCm": 147.85346490097587,
+            "onTapeCm": 147.85346490097587
+          },
+          "contacts": [],
+          "minFrontCm": 17.5533,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "finished"
+        }
+      ],
+      "spike:timed-follower-285000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.19336605072021,
+            "yCm": 101.58019065856934,
+            "yawDeg": 90.08763967068377
+          },
+          "pathCm": 151.16577420901532,
+          "reachCm": 123.94915155323196,
+          "onLine": {
+            "drivenCm": 151.16577420901532,
+            "onTapeCm": 151.16577420901532
+          },
+          "contacts": [],
+          "minFrontCm": 28.9222,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.08129739761353,
+            "yCm": 87.12653517723083,
+            "yawDeg": 89.5439570063732
+          },
+          "pathCm": 150.8987253961579,
+          "reachCm": 128.46200839799576,
+          "onLine": {
+            "drivenCm": 150.8987253961579,
+            "onTapeCm": 150.8987253961579
+          },
+          "contacts": [],
+          "minFrontCm": 42.004,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.288774972435258
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 13.275
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 13.275
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.17311239242554,
+            "yCm": 115.75454473495483,
+            "yawDeg": 89.9293884508294
+          },
+          "pathCm": 150.65857576351274,
+          "reachCm": 122.92770111960199,
+          "onLine": {
+            "drivenCm": 150.65857576351274,
+            "onTapeCm": 150.65857576351274
+          },
+          "contacts": [],
+          "minFrontCm": 14.7483,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "finished"
+        }
+      ],
+      "spike:timed-follower-290000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.1902904510498,
+            "yCm": 104.49707508087158,
+            "yawDeg": 90.07589516853848
+          },
+          "pathCm": 154.08330739833156,
+          "reachCm": 125.65363860965182,
+          "onLine": {
+            "drivenCm": 154.08330739833156,
+            "onTapeCm": 154.08330739833156
+          },
+          "contacts": [],
+          "minFrontCm": 26.0054,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.1153793334961,
+            "yCm": 89.9252712726593,
+            "yawDeg": 89.43257871994268
+          },
+          "pathCm": 153.6987387329944,
+          "reachCm": 129.76887696491232,
+          "onLine": {
+            "drivenCm": 153.6987387329944,
+            "onTapeCm": 153.6987387329944
+          },
+          "contacts": [],
+          "minFrontCm": 40.58,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295739909900162
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 13.491666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 13.491666666666667
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.1768078804016,
+            "yCm": 118.66064071655273,
+            "yawDeg": 89.92999661898781
+          },
+          "pathCm": 153.56574061836386,
+          "reachCm": 124.99946252597555,
+          "onLine": {
+            "drivenCm": 153.56574061836386,
+            "onTapeCm": 153.56574061836386
+          },
+          "contacts": [],
+          "minFrontCm": 11.8429,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "finished"
+        }
+      ],
+      "spike:timed-follower-295000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 13.691666666666666
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 13.691666666666666
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.18671417236328,
+            "yCm": 107.30210542678833,
+            "yawDeg": 90.0758951743916
+          },
+          "pathCm": 156.88800995287286,
+          "reachCm": 127.33384589456743,
+          "onLine": {
+            "drivenCm": 156.88800995287286,
+            "onTapeCm": 156.88800995287286
+          },
+          "contacts": [],
+          "minFrontCm": 23.2004,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.14514589309692,
+            "yCm": 92.83967614173889,
+            "yawDeg": 89.43206930375254
+          },
+          "pathCm": 156.6124413487248,
+          "reachCm": 131.17389970250963,
+          "onLine": {
+            "drivenCm": 156.6124413487248,
+            "onTapeCm": 156.6124413487248
+          },
+          "contacts": [],
+          "minFrontCm": 37.6648,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295716187045086
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 13.708333333333334
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 13.708333333333334
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.18056297302246,
+            "yCm": 121.60673141479492,
+            "yawDeg": 89.92965875647022
+          },
+          "pathCm": 156.51021669184533,
+          "reachCm": 127.13452223018874,
+          "onLine": {
+            "drivenCm": 156.51021669184533,
+            "onTapeCm": 156.51021669184533
+          },
+          "contacts": [],
+          "minFrontCm": 8.8958,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "finished"
+        }
+      ],
+      "spike:timed-follower-300000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 13.908333333333333
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 13.908333333333333
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.1830186843872,
+            "yCm": 110.21642684936523,
+            "yawDeg": 90.07493824977914
+          },
+          "pathCm": 159.80188907450164,
+          "reachCm": 129.1213074156892,
+          "onLine": {
+            "drivenCm": 159.80188907450164,
+            "onTapeCm": 159.80188907450164
+          },
+          "contacts": [],
+          "minFrontCm": 20.2854,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.1737561225891,
+            "yCm": 95.64467668533325,
+            "yawDeg": 89.4320596894376
+          },
+          "pathCm": 159.4175893000786,
+          "reachCm": 132.57237939435691,
+          "onLine": {
+            "drivenCm": 159.4175893000786,
+            "onTapeCm": 159.4175893000786
+          },
+          "contacts": [],
+          "minFrontCm": 34.8596,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295694320188458
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 13.916666666666666
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 13.916666666666666
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.18413925170898,
+            "yCm": 124.4117259979248,
+            "yawDeg": 89.92965875630593
+          },
+          "pathCm": 159.31536657791608,
+          "reachCm": 129.19610935924825,
+          "onLine": {
+            "drivenCm": 159.31536657791608,
+            "onTapeCm": 159.31536657791608
+          },
+          "contacts": [],
+          "minFrontCm": 6.0908,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "finished"
+        }
+      ],
+      "spike:timed-follower-305000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 14.125
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 14.125
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.17928743362427,
+            "yCm": 113.1186842918396,
+            "yawDeg": 90.07563419061293
+          },
+          "pathCm": 162.70602608481988,
+          "reachCm": 130.9404356099373,
+          "onLine": {
+            "drivenCm": 162.70602608481988,
+            "onTapeCm": 162.70602608481988
+          },
+          "contacts": [],
+          "minFrontCm": 17.3842,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.17344617843628,
+            "yCm": 98.49727153778076,
+            "yawDeg": 90.09041420551506
+          },
+          "pathCm": 162.2583424216251,
+          "reachCm": 134.0144226399131,
+          "onLine": {
+            "drivenCm": 162.2583424216251,
+            "onTapeCm": 162.2583424216251
+          },
+          "contacts": [],
+          "minFrontCm": 32.0054,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295694320188458
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 14.133333333333333
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 14.133333333333333
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.18785858154297,
+            "yCm": 127.32892036437988,
+            "yawDeg": 89.92965875641869
+          },
+          "pathCm": 162.23264750997814,
+          "reachCm": 131.36937727709739,
+          "onLine": {
+            "drivenCm": 162.23264750997814,
+            "onTapeCm": 162.23264750997814
+          },
+          "contacts": [],
+          "minFrontCm": 3.1736,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "finished"
+        }
+      ],
+      "spike:timed-follower-310000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 14.333333333333334
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 14.333333333333334
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.17571115493774,
+            "yCm": 115.92367887496948,
+            "yawDeg": 90.07563419233571
+          },
+          "pathCm": 165.51116983916216,
+          "reachCm": 132.73594660172748,
+          "onLine": {
+            "drivenCm": 165.51116983916216,
+            "onTapeCm": 165.51116983916216
+          },
+          "contacts": [],
+          "minFrontCm": 14.5792,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.1739945411682,
+            "yCm": 101.40976905822754,
+            "yawDeg": 90.04524916556745
+          },
+          "pathCm": 165.17186328667424,
+          "reachCm": 135.53395723889372,
+          "onLine": {
+            "drivenCm": 165.17186328667424,
+            "onTapeCm": 165.17186328667424
+          },
+          "contacts": [],
+          "minFrontCm": 29.0925,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295694320188458
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 60,
+          "passed": false,
+          "end": {
+            "xCm": 141.1914348602295,
+            "yCm": 130.13391494750977,
+            "yawDeg": 89.92965875596026
+          },
+          "pathCm": 165.0378212622484,
+          "reachCm": 133.48581455434712,
+          "onLine": {
+            "drivenCm": 165.0378212622484,
+            "onTapeCm": 165.0378212622484
+          },
+          "contacts": [],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "finished"
+        }
+      ],
+      "spike:timed-follower-315000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 14.55
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 14.55
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.17200374603271,
+            "yCm": 118.82977485656738,
+            "yawDeg": 90.07623346838854
+          },
+          "pathCm": 168.4184056268482,
+          "reachCm": 134.63210323980243,
+          "onLine": {
+            "drivenCm": 168.4184056268482,
+            "onTapeCm": 168.4184056268482
+          },
+          "contacts": [],
+          "minFrontCm": 11.6737,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": false,
+              "points": 0,
+              "progress": 0.6666666666666666,
+              "reasonKey": "robot.goal.reason.checkpoint-missed"
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 35,
+          "passed": false,
+          "end": {
+            "xCm": 141.1728024482727,
+            "yCm": 104.21483516693115,
+            "yawDeg": 90.04527815906168
+          },
+          "pathCm": 167.97700919469673,
+          "reachCm": 137.03842885895529,
+          "onLine": {
+            "drivenCm": 167.97700919469673,
+            "onTapeCm": 167.97700919469673
+          },
+          "contacts": [],
+          "minFrontCm": 26.2874,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295694320188458
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.19207859039307,
+            "yCm": 130.4143190383911,
+            "yawDeg": 89.9177567635514
+          },
+          "pathCm": 165.3535281528525,
+          "reachCm": 133.6977406161756,
+          "onLine": {
+            "drivenCm": 165.3535281528525,
+            "onTapeCm": 165.3535281528525
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 13.341666666666667
+          }
+        }
+      ],
+      "spike:timed-follower-320000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 14.758333333333333
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 14.758333333333333
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.16843938827515,
+            "yCm": 121.63476943969727,
+            "yawDeg": 90.07623347049669
+          },
+          "pathCm": 171.22355769142635,
+          "reachCm": 136.4964278168963,
+          "onLine": {
+            "drivenCm": 171.22355769142635,
+            "onTapeCm": 171.22355769142635
+          },
+          "contacts": [],
+          "minFrontCm": 8.8687,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 13.591666666666667
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 14.766666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 14.766666666666667
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.17153882980347,
+            "yCm": 107.1171522140503,
+            "yawDeg": 90.04622515469235
+          },
+          "pathCm": 170.88051410349576,
+          "reachCm": 138.6369314496774,
+          "onLine": {
+            "drivenCm": 170.88051410349576,
+            "onTapeCm": 170.88051410349576
+          },
+          "contacts": [],
+          "minFrontCm": 23.3861,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295694320188458
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.19207859039307,
+            "yCm": 130.4143190383911,
+            "yawDeg": 89.9177567635514
+          },
+          "pathCm": 165.3535281528525,
+          "reachCm": 133.6977406161756,
+          "onLine": {
+            "drivenCm": 165.3535281528525,
+            "onTapeCm": 165.3535281528525
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 13.341666666666667
+          }
+        }
+      ],
+      "spike:timed-follower-325000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 14.975
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 14.975
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.1646842956543,
+            "yCm": 124.58086013793945,
+            "yawDeg": 90.07589517589737
+          },
+          "pathCm": 174.16797853907576,
+          "reachCm": 138.48956808934582,
+          "onLine": {
+            "drivenCm": 174.16797853907576,
+            "onTapeCm": 174.16797853907576
+          },
+          "contacts": [],
+          "minFrontCm": 5.9216,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 13.591666666666667
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 14.975
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 14.975
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.17034673690796,
+            "yCm": 109.92214679718018,
+            "yawDeg": 90.04620583080383
+          },
+          "pathCm": 173.6856580995063,
+          "reachCm": 140.22224943937462,
+          "onLine": {
+            "drivenCm": 173.6856580995063,
+            "onTapeCm": 173.6856580995063
+          },
+          "contacts": [],
+          "minFrontCm": 20.5811,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295694320188458
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.19207859039307,
+            "yCm": 130.4143190383911,
+            "yawDeg": 89.9177567635514
+          },
+          "pathCm": 165.3535281528525,
+          "reachCm": 133.6977406161756,
+          "onLine": {
+            "drivenCm": 165.3535281528525,
+            "onTapeCm": 165.3535281528525
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 13.341666666666667
+          }
+        }
+      ],
+      "spike:timed-follower-330000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 15.183333333333334
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 15.183333333333334
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.16110801696777,
+            "yCm": 127.38585472106934,
+            "yawDeg": 90.07589516683032
+          },
+          "pathCm": 176.9730719569487,
+          "reachCm": 140.4175913975035,
+          "onLine": {
+            "drivenCm": 176.9730719569487,
+            "onTapeCm": 176.9730719569487
+          },
+          "contacts": [],
+          "minFrontCm": 3.1166,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 13.591666666666667
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 15.191666666666666
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 15.191666666666666
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.16922616958618,
+            "yCm": 112.82812356948853,
+            "yawDeg": 90.04364510269079
+          },
+          "pathCm": 176.59258596455194,
+          "reachCm": 141.90416115198323,
+          "onLine": {
+            "drivenCm": 176.59258596455194,
+            "onTapeCm": 176.59258596455194
+          },
+          "contacts": [],
+          "minFrontCm": 17.6758,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295694320188458
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.19207859039307,
+            "yCm": 130.4143190383911,
+            "yawDeg": 89.9177567635514
+          },
+          "pathCm": 165.3535281528525,
+          "reachCm": 133.6977406161756,
+          "onLine": {
+            "drivenCm": 165.3535281528525,
+            "onTapeCm": 165.3535281528525
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 13.341666666666667
+          }
+        }
+      ],
+      "spike:timed-follower-335000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 60,
+          "passed": false,
+          "end": {
+            "xCm": 141.1573886871338,
+            "yCm": 130.30307292938232,
+            "yawDeg": 90.07589516693997
+          },
+          "pathCm": 179.89044377475804,
+          "reachCm": 142.45364798015297,
+          "onLine": {
+            "drivenCm": 179.89044377475804,
+            "onTapeCm": 179.89044377475804
+          },
+          "contacts": [],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 13.591666666666667
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 15.4
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 15.4
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.16803407669067,
+            "yCm": 115.63313007354736,
+            "yawDeg": 90.04365476173278
+          },
+          "pathCm": 179.3976830068916,
+          "reachCm": 143.56499675258362,
+          "onLine": {
+            "drivenCm": 179.3976830068916,
+            "onTapeCm": 179.3976830068916
+          },
+          "contacts": [],
+          "minFrontCm": 14.8708,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295694320188458
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.19207859039307,
+            "yCm": 130.4143190383911,
+            "yawDeg": 89.9177567635514
+          },
+          "pathCm": 165.3535281528525,
+          "reachCm": 133.6977406161756,
+          "onLine": {
+            "drivenCm": 165.3535281528525,
+            "onTapeCm": 165.3535281528525
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 13.341666666666667
+          }
+        }
+      ],
+      "spike:timed-follower-340000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.1574363708496,
+            "yCm": 130.47125339508057,
+            "yawDeg": 90.06397799566761
+          },
+          "pathCm": 180.09401652887286,
+          "reachCm": 142.57102293897506,
+          "onLine": {
+            "drivenCm": 180.09401652887286,
+            "onTapeCm": 180.09401652887286
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 14.391666666666667
+          }
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 13.591666666666667
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 15.616666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 15.616666666666667
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.16668701171875,
+            "yCm": 118.57928037643433,
+            "yawDeg": 90.04584829175114
+          },
+          "pathCm": 182.34290159989084,
+          "reachCm": 145.34796441548303,
+          "onLine": {
+            "drivenCm": 182.34290159989084,
+            "onTapeCm": 182.34290159989084
+          },
+          "contacts": [],
+          "minFrontCm": 11.9236,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295694320188458
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.19207859039307,
+            "yCm": 130.4143190383911,
+            "yawDeg": 89.9177567635514
+          },
+          "pathCm": 165.3535281528525,
+          "reachCm": 133.6977406161756,
+          "onLine": {
+            "drivenCm": 165.3535281528525,
+            "onTapeCm": 165.3535281528525
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 13.341666666666667
+          }
+        }
+      ],
+      "spike:timed-follower-345000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.1574363708496,
+            "yCm": 130.47125339508057,
+            "yawDeg": 90.06397799566761
+          },
+          "pathCm": 180.09401652887286,
+          "reachCm": 142.57102293897506,
+          "onLine": {
+            "drivenCm": 180.09401652887286,
+            "onTapeCm": 180.09401652887286
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 14.391666666666667
+          }
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 13.591666666666667
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 15.825
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 15.825
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.16549491882324,
+            "yCm": 121.38427495956421,
+            "yawDeg": 90.04585795494177
+          },
+          "pathCm": 185.1480322561288,
+          "reachCm": 147.07962674863754,
+          "onLine": {
+            "drivenCm": 185.1480322561288,
+            "onTapeCm": 185.1480322561288
+          },
+          "contacts": [],
+          "minFrontCm": 9.1186,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295694320188458
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.19207859039307,
+            "yCm": 130.4143190383911,
+            "yawDeg": 89.9177567635514
+          },
+          "pathCm": 165.3535281528525,
+          "reachCm": 133.6977406161756,
+          "onLine": {
+            "drivenCm": 165.3535281528525,
+            "onTapeCm": 165.3535281528525
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 13.341666666666667
+          }
+        }
+      ],
+      "spike:timed-follower-350000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.1574363708496,
+            "yCm": 130.47125339508057,
+            "yawDeg": 90.06397799566761
+          },
+          "pathCm": 180.09401652887286,
+          "reachCm": 142.57102293897506,
+          "onLine": {
+            "drivenCm": 180.09401652887286,
+            "onTapeCm": 180.09401652887286
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 14.391666666666667
+          }
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 13.591666666666667
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 16.041666666666668
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 16.041666666666668
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.1642551422119,
+            "yCm": 124.30148124694824,
+            "yawDeg": 90.0458482967862
+          },
+          "pathCm": 188.0653427214815,
+          "reachCm": 148.91524644403205,
+          "onLine": {
+            "drivenCm": 188.0653427214815,
+            "onTapeCm": 188.0653427214815
+          },
+          "contacts": [],
+          "minFrontCm": 6.2015,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295694320188458
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.19207859039307,
+            "yCm": 130.4143190383911,
+            "yawDeg": 89.9177567635514
+          },
+          "pathCm": 165.3535281528525,
+          "reachCm": 133.6977406161756,
+          "onLine": {
+            "drivenCm": 165.3535281528525,
+            "onTapeCm": 165.3535281528525
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 13.341666666666667
+          }
+        }
+      ],
+      "spike:timed-follower-355000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.1574363708496,
+            "yCm": 130.47125339508057,
+            "yawDeg": 90.06397799566761
+          },
+          "pathCm": 180.09401652887286,
+          "reachCm": 142.57102293897506,
+          "onLine": {
+            "drivenCm": 180.09401652887286,
+            "onTapeCm": 180.09401652887286
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 14.391666666666667
+          }
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 13.591666666666667
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": true,
+              "points": 20,
+              "progress": 1,
+              "atS": 16.25
+            },
+            {
+              "id": "in-time",
+              "passed": true,
+              "points": 10,
+              "progress": 1,
+              "atS": 16.25
+            }
+          ],
+          "points": 90,
+          "passed": true,
+          "end": {
+            "xCm": 141.1630630493164,
+            "yCm": 127.10646390914917,
+            "yawDeg": 90.04585795511282
+          },
+          "pathCm": 190.87048011033653,
+          "reachCm": 150.7124344309165,
+          "onLine": {
+            "drivenCm": 190.87048011033653,
+            "onTapeCm": 190.87048011033653
+          },
+          "contacts": [],
+          "minFrontCm": 3.3965,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295694320188458
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.19207859039307,
+            "yCm": 130.4143190383911,
+            "yawDeg": 89.9177567635514
+          },
+          "pathCm": 165.3535281528525,
+          "reachCm": 133.6977406161756,
+          "onLine": {
+            "drivenCm": 165.3535281528525,
+            "onTapeCm": 165.3535281528525
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 13.341666666666667
+          }
+        }
+      ],
+      "spike:timed-follower-360000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.1574363708496,
+            "yCm": 130.47125339508057,
+            "yawDeg": 90.06397799566761
+          },
+          "pathCm": 180.09401652887286,
+          "reachCm": 142.57102293897506,
+          "onLine": {
+            "drivenCm": 180.09401652887286,
+            "onTapeCm": 180.09401652887286
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 14.391666666666667
+          }
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 13.591666666666667
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": true,
+              "points": 15,
+              "progress": 1
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-stopped-in-zone"
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 60,
+          "passed": false,
+          "end": {
+            "xCm": 141.16183519363403,
+            "yCm": 130.02078533172607,
+            "yawDeg": 90.04524916841014
+          },
+          "pathCm": 193.7841313470239,
+          "reachCm": 152.61224494607208,
+          "onLine": {
+            "drivenCm": 193.7841313470239,
+            "onTapeCm": 193.7841313470239
+          },
+          "contacts": [],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295694320188458
+          },
+          "track": [],
+          "programOutcome": "finished"
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.19207859039307,
+            "yCm": 130.4143190383911,
+            "yawDeg": 89.9177567635514
+          },
+          "pathCm": 165.3535281528525,
+          "reachCm": 133.6977406161756,
+          "onLine": {
+            "drivenCm": 165.3535281528525,
+            "onTapeCm": 165.3535281528525
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 13.341666666666667
+          }
+        }
+      ],
+      "spike:timed-follower-365000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.1574363708496,
+            "yCm": 130.47125339508057,
+            "yawDeg": 90.06397799566761
+          },
+          "pathCm": 180.09401652887286,
+          "reachCm": 142.57102293897506,
+          "onLine": {
+            "drivenCm": 180.09401652887286,
+            "onTapeCm": 180.09401652887286
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 14.391666666666667
+          }
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 13.591666666666667
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 15.475
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 15.475
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.1622405052185,
+            "yCm": 130.41577339172363,
+            "yawDeg": 90.02885203296562
+          },
+          "pathCm": 194.2168984304687,
+          "reachCm": 152.87130886534607,
+          "onLine": {
+            "drivenCm": 194.2168984304687,
+            "onTapeCm": 194.2168984304687
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295694320188458
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 15.475
+          }
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.19207859039307,
+            "yCm": 130.4143190383911,
+            "yawDeg": 89.9177567635514
+          },
+          "pathCm": 165.3535281528525,
+          "reachCm": 133.6977406161756,
+          "onLine": {
+            "drivenCm": 165.3535281528525,
+            "onTapeCm": 165.3535281528525
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 13.341666666666667
+          }
+        }
+      ],
+      "spike:timed-follower-370000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.1574363708496,
+            "yCm": 130.47125339508057,
+            "yawDeg": 90.06397799566761
+          },
+          "pathCm": 180.09401652887286,
+          "reachCm": 142.57102293897506,
+          "onLine": {
+            "drivenCm": 180.09401652887286,
+            "onTapeCm": 180.09401652887286
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 14.391666666666667
+          }
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 13.591666666666667
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 15.475
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 15.475
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.1622405052185,
+            "yCm": 130.41577339172363,
+            "yawDeg": 90.02885203296562
+          },
+          "pathCm": 194.2168984304687,
+          "reachCm": 152.87130886534607,
+          "onLine": {
+            "drivenCm": 194.2168984304687,
+            "onTapeCm": 194.2168984304687
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295694320188458
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 15.475
+          }
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.19207859039307,
+            "yCm": 130.4143190383911,
+            "yawDeg": 89.9177567635514
+          },
+          "pathCm": 165.3535281528525,
+          "reachCm": 133.6977406161756,
+          "onLine": {
+            "drivenCm": 165.3535281528525,
+            "onTapeCm": 165.3535281528525
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 13.341666666666667
+          }
+        }
+      ],
+      "spike:timed-follower-375000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.1574363708496,
+            "yCm": 130.47125339508057,
+            "yawDeg": 90.06397799566761
+          },
+          "pathCm": 180.09401652887286,
+          "reachCm": 142.57102293897506,
+          "onLine": {
+            "drivenCm": 180.09401652887286,
+            "onTapeCm": 180.09401652887286
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 14.391666666666667
+          }
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 13.591666666666667
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 15.475
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 15.475
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.1622405052185,
+            "yCm": 130.41577339172363,
+            "yawDeg": 90.02885203296562
+          },
+          "pathCm": 194.2168984304687,
+          "reachCm": 152.87130886534607,
+          "onLine": {
+            "drivenCm": 194.2168984304687,
+            "onTapeCm": 194.2168984304687
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295694320188458
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 15.475
+          }
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.19207859039307,
+            "yCm": 130.4143190383911,
+            "yawDeg": 89.9177567635514
+          },
+          "pathCm": 165.3535281528525,
+          "reachCm": 133.6977406161756,
+          "onLine": {
+            "drivenCm": 165.3535281528525,
+            "onTapeCm": 165.3535281528525
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 13.341666666666667
+          }
+        }
+      ],
+      "spike:timed-follower-380000": [
+        {
+          "variant": 0,
+          "start": {
+            "xCm": 40.00195860862732,
+            "yCm": 30.00202476978302,
+            "yawDeg": -0.005090038384622915
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 12.5
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 14.391666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.1574363708496,
+            "yCm": 130.47125339508057,
+            "yawDeg": 90.06397799566761
+          },
+          "pathCm": 180.09401652887286,
+          "reachCm": 142.57102293897506,
+          "onLine": {
+            "drivenCm": 180.09401652887286,
+            "onTapeCm": 180.09401652887286
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 3.818685692250636,
+            "cone-2": 3.2974970169274926
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 14.391666666666667
+          }
+        },
+        {
+          "variant": 1,
+          "start": {
+            "xCm": 26.185166835784912,
+            "yCm": 29.669013619422913,
+            "yawDeg": -3.2481865336201765
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 13.591666666666667
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 15.475
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 15.475
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.1622405052185,
+            "yCm": 130.41577339172363,
+            "yawDeg": 90.02885203296562
+          },
+          "pathCm": 194.2168984304687,
+          "reachCm": 152.87130886534607,
+          "onLine": {
+            "drivenCm": 194.2168984304687,
+            "onTapeCm": 194.2168984304687
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 2.8705020005454465,
+            "cone-2": 3.295694320188458
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 15.475
+          }
+        },
+        {
+          "variant": 2,
+          "start": {
+            "xCm": 54.15865182876587,
+            "yCm": 28.924080729484558,
+            "yawDeg": 4.719498288985009
+          },
+          "goals": [
+            {
+              "id": "route",
+              "passed": true,
+              "points": 25,
+              "progress": 1,
+              "atS": 11.458333333333334
+            },
+            {
+              "id": "follow-line",
+              "passed": true,
+              "points": 20,
+              "progress": 1
+            },
+            {
+              "id": "no-bump",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "park",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.run-ended-contact",
+              "atS": 13.341666666666667
+            },
+            {
+              "id": "in-time",
+              "passed": false,
+              "points": 0,
+              "progress": 0,
+              "reasonKey": "robot.goal.reason.not-finished-in-time"
+            }
+          ],
+          "points": 45,
+          "passed": false,
+          "end": {
+            "xCm": 141.19207859039307,
+            "yCm": 130.4143190383911,
+            "yawDeg": 89.9177567635514
+          },
+          "pathCm": 165.3535281528525,
+          "reachCm": 133.6977406161756,
+          "onLine": {
+            "drivenCm": 165.3535281528525,
+            "onTapeCm": 165.3535281528525
+          },
+          "contacts": [
+            "dock-wall"
+          ],
+          "minFrontCm": 2,
+          "clearanceCm": {
+            "cone-1": 5.105165225392284,
+            "cone-2": 3.3028426074558337
+          },
+          "track": [],
+          "programOutcome": "running",
+          "endedOnContact": {
+            "tag": "obstacle",
+            "atS": 13.341666666666667
+          }
+        }
+      ]
+    }
+  }
+}

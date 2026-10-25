@@ -178,7 +178,7 @@ describe('goals judged on a world (snapshot → frame → R6.1 goals)', () => {
     expect(frames.at(-1)!.robot.speedCmS).toBeLessThan(0.1);
   });
 
-  it('standing still passes neither: the zone is not reached, and the guard goal needs a path of 20 cm', async () => {
+  it('standing still passes neither: the zone is not reached, and the guard goal needs the robot 20 cm from its start', async () => {
     const { results } = await judge(240, () => ({}));
     expect(results.map((result) => [result.id, result.passed, result.reasonKey])).toEqual([
       ['reach', false, goalReasons.zoneNotReached],

@@ -18,7 +18,8 @@ import { createBlockPackCatalog } from '../../src/core/program/block-packs';
 import { compileUnoProject } from '../../src/core/program/compile-uno-program';
 import { startVirtualRun } from '../../src/core/run/__fixtures__/virtual-run';
 import { createGoal, type Goal, type GoalFrame, type GoalResult } from '../../src/core/scenario/goals';
-import type { Scenario } from '../../src/core/scenario/scenario';
+import { goalReasons } from '../../src/core/scenario/goals/reasons';
+import { runEndingContact, type Scenario } from '../../src/core/scenario/scenario';
 import { createGroundPaint } from '../../src/core/world/arena/ground-paint';
 import { toGoalFrame } from '../../src/core/world/goal-frame';
 import { PHYSICS_DT_S, PHYSICS_HZ } from '../../src/core/world/rapier';
@@ -52,6 +53,8 @@ export type VariantRun = {
   /** The pose every 6 ticks (20 Hz): x, y, yaw. */
   track: [number, number, number][];
   programOutcome: string;
+  /** When the run ended at a contact of `endOnContact` (the tag and the time), else absent: the run went to the time limit. */
+  endedOnContact?: { tag: string; atS: number };
 };
 
 const portPin = (kit: Kit, role: string, pin: string): string => {
@@ -142,17 +145,21 @@ export async function runVariant(scenario: Scenario, program: unknown, index: nu
       clearanceCm[id] = Math.min(clearanceCm[id] ?? Infinity, gap);
     });
   };
+  let endedOnContact: { tag: string; atS: number } | undefined;
   const feed = (dtS: number) => {
     const frame = toGoalFrame(world.snapshot(), world.frameExtras());
     observe(frame, dtS);
     goals.forEach((goal) => goal.update(frame, dtS));
     if (goals.every((goal, i) => i === finishIndex || goal.result().passed)) streakStart ??= frame.tS;
     else streakStart = null;
+    // The controller's endOnContact rule (R5.2a fix round 2; the check's to implement, R6.2): the run ends at this tick, judged with it.
+    const tag = runEndingContact(scenario, frame.contacts);
+    if (tag !== null) endedOnContact = { tag, atS: frame.tS };
   };
 
   feed(0);
   const ticks = Math.round((options.seconds ?? scenario.timeLimitS) * PHYSICS_HZ);
-  for (let k = 0; k < ticks; k++) {
+  for (let k = 0; k < ticks && endedOnContact === undefined; k++) {
     await run.tick(k);
     await Promise.resolve();
     const servoDeg = pinState(servoPin)?.servoDeg;
@@ -164,7 +171,14 @@ export async function runVariant(scenario: Scenario, program: unknown, index: nu
     feed(PHYSICS_DT_S);
   }
   run.stop();
-  const results = goals.map((goal) => goal.result());
+  // A goal that needs a hold or a stop it had not yet had fails with run-ended-contact when the run ended on a contact (the ruling).
+  const holds = new Set(['stop-in-zone', 'servo-angle']);
+  const results = goals.map((goal, i) => {
+    const result = goal.result();
+    return endedOnContact !== undefined && !result.passed && holds.has(scenario.goals[i]!.kind)
+      ? { ...result, reasonKey: goalReasons.runEndedContact, atS: endedOnContact.atS }
+      : result;
+  });
   const end = world.snapshot().robot;
   const start = track[0]!;
   world.dispose();
@@ -183,6 +197,7 @@ export async function runVariant(scenario: Scenario, program: unknown, index: nu
     clearanceCm,
     track,
     programOutcome: run.outcome()?.status ?? 'running',
+    ...(endedOnContact === undefined ? {} : { endedOnContact }),
   };
 }
 

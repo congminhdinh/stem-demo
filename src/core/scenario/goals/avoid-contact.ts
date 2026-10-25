@@ -9,8 +9,8 @@ import { createReachMeter } from './travel';
 // of the arena, leaving wins. After the first of the two the goal does not change.
 //
 // It is also a guard goal (travel.ts): a robot that never leaves its place touches nothing, so it passes only once it has been
-// MIN_GUARD_TRAVEL_CM from its start (net reach, not the length of its path); before that it has not passed, with `robot-did-not-move`. A failure of its own (contact, out of the arena) is the
-// more telling reason, so it comes first. The goal is judged at the end of the run.
+// MIN_GUARD_TRAVEL_CM from its start (net reach, not the length of its path); before that it has not passed, with `robot-did-not-move`.
+// A failure of its own (contact, out of the arena) is the more telling reason, so it comes first. The goal is judged at the end of the run.
 //
 // A collider has its kind (`wall`, `box`, `cylinder`, `object`) among its tags next to the ones the arena gives it, so `tag: "wall"`
 // means every wall. Touching any other collider is allowed.

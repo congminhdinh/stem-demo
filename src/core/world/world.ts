@@ -60,8 +60,9 @@ import { CM_PER_M, degToRad, radToDeg, worldToArena, yawOfQuaternion, yawToQuate
 //     turns about, less what turning about a point up to TURN_IN_PLACE_TOLERANCE_CM (1 cm) from it accounts for: max(0, |v_axle| −
 //     |ω| · 1 cm), the speed of the slowest point within 1 cm of the axle's middle. Driving straight it is the axle's speed; spinning
 //     in place it is 0, though the middle of the body (2 cm ahead of the axle on ref-uno-rover@0) circles; pivoting on one wheel it is
-//     (7.5 − 1) / 7.5 of the axle's. The guard goals sum it into a path and `stop-in-zone` holds it under its limit, so a robot that
-//     only spins has not moved, and is stopped. Where the robot *is* stays the middle of its body (the pose, R6.1).
+//     (7.5 − 1) / 7.5 of the axle's. `stay-on-line` weighs its share of the distance by it and `stop-in-zone` holds it under its limit,
+//     so a robot that only spins drives no distance, and is stopped. Where the robot *is* stays the middle of its body (the pose, R6.1),
+//     which is what the guard goals' reach (the farthest from the start, R5.2a fix round 1) is measured from.
 //   - `servoRangeDeg`, each servo's minDeg..maxDeg, which the adapter clamps the arm's physical angle to (the snapshot keeps it).
 //   - the contacts of the tick and the robot's outline on the floor.
 

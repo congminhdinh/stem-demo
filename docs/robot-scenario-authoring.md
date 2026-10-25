@@ -31,13 +31,14 @@ Key `rb-*` là hợp đồng công khai (khóa học lưu nó): **không bao gi�
 | `profile`, `kit` | Profile mà key cần (`robot-keys.ts`, hiện là `uno-basic`) và kit `ref-uno-rover`. |
 | `arena` | Sa bàn: `ground`, `paint.lines`, `paint.zones`, `walls`, `boxes`, `cylinders`, `objects` (mục 3). |
 | `start` | `{ xCm, yCm, yawDeg }`: điểm trên sàn dưới **giữa thân** robot và hướng (độ, ngược chiều kim đồng hồ từ +x). |
-| `variants` | `{ count, seed, startJitterCm, yawJitterDeg, obstacleJitterCm? }` (mục 5). |
+| `variants` | `{ count, seed, startJitterCm, startJitterAlongCm?, yawJitterDeg, obstacleJitterCm? }` (mục 6). |
 | `inputs` | Kịch bản nhấn/nhả nút (`button1`) theo thời gian; bỏ trống nếu không cần. |
 | `timeLimitS` | Thời gian chạy tối đa (0, 600] giây. Mỗi biến thể chạy tới mốc này khi Kiểm tra. |
 | `goals` | Danh sách mục tiêu (mục 4). |
 | `scoring` | `{ timeBonusMax? }`. Luôn ghi (kể cả `{}`), vì `ready-fields.ts` đọc nó. |
 | `starter` | Workspace Blockly mà bài mở ra (JSON như `Blockly.serialization.workspaces.save`). |
 | `toolbox` | Danh sách block type được dùng; bỏ trống = mọi block (chỉ `rb-sandbox`). |
+| `endOnContact` | Các tag (hay loại collider) mà lần chạm đầu tiên **kết thúc lượt chạy**, như đâm xe trong thi robot (mục 4). Bỏ trống: chạm không dừng gì. |
 
 Khoá lạ bị từ chối (không bị bỏ qua), nên gõ sai tên khoá là lỗi ngay khi nạp.
 
@@ -76,6 +77,12 @@ Mỗi goal có `id` (`[a-z0-9-]`, ≤ 50 ký tự, không trùng), `label {vi, e
 | `finish-within` | các goal khác cùng qua trước `seconds` | Đi cùng `scoring.timeBonusMax` (cách tính thưởng do R6.2). |
 | `uses-block` | chương trình có khối `blockType` đang chạy | Khối phải có trong `toolbox`. Khối rời hay bị tắt không tính. |
 
+**`endOnContact`:** ở tick đầu tiên robot chạm collider có một trong các tag này, lượt chạy kết thúc; goal chấm trên các frame tới hết tick
+đó. Goal cần giữ hay dừng (`stop-in-zone`, `servo-angle`) mà chưa đạt thì trượt với lý do `run-ended-contact` ("Lượt chạy kết thúc khi robot
+đâm vào vật, trước khi đạt mục tiêu này"). Mỗi tag phải có trong sa bàn. Đặt nó cho tag của `avoid-contact` khi đâm là hỏng bài (bài 3: `wall`,
+bài 5: `gate`, bài 6: `obstacle`): không có nó, chạy thẳng vào tường rồi lùi một thời gian cố định sẽ đỗ đúng vùng ở mọi biến thể, vì tường
+không dời theo biến thể.
+
 Goal canh gác (`avoid-contact`, `stay-on-line`) thoả được bằng cách *không làm gì*, nên chúng **chỉ qua khi robot đã có lúc cách chỗ
 xuất phát ≥ 20 cm** (`MIN_GUARD_TRAVEL_CM`, tầm xa ròng: khoảng cách lớn nhất của giữa thân tới chỗ xuất phát), xét ở cuối run. Không phải
 độ dài quãng đường: quay lệch hay đi tới đi lui tại chỗ cho quãng đường dài mà không đi đâu cả.
@@ -99,15 +106,18 @@ xuất phát ≥ 20 cm** (`MIN_GUARD_TRAVEL_CM`, tầm xa ròng: khoảng cách 
 8. **Key và version:** xem mục 1.
 9. **Điểm goal canh gác ≤ điểm goal "đạt tới":** tổng `points` của `avoid-contact` và `stay-on-line` không lớn hơn tổng của `reach-zone`,
    `checkpoints-in-order`, `stop-in-zone`, `servo-angle`, `object-in-zone` (test kiểm). Một đoạn chạy ngắn trên vạch đã qua goal bám vạch.
-10. **Thử xem chương trình mở (không cảm biến) được bao nhiêu điểm ở từng goal:** chạy thẳng một đoạn, chạy thẳng tới đích, bò chậm rồi
-    phóng, đặt servo rồi chạy không dừng, bám vạch mà không đo khoảng cách. Chương trình nào được ≥ 50 thì sửa sa bàn hay điểm. Ghi các
-    chương trình đó vào `exploits` của lời giải, kèm điểm tối đa (mục 7).
+10. **Chương trình mở không được qua check.** Thử các cách lấy điểm mà không làm bài, mỗi goal một: chạy thẳng một đoạn, chạy thẳng tới
+    đích, lộ trình canh giờ, bò chậm rồi phóng, đâm tường rồi lùi một thời gian cố định, đặt servo rồi chạy không dừng, bám vạch mà không đo
+    khoảng cách, bám vạch rồi dừng sau một thời gian cố định. Không cách nào được qua check; ghi điểm cao nhất của mỗi cách (điểm check, tức
+    điểm thấp nhất trong các biến thể) vào `exploits` của lời giải (mục 7); điểm đó nên **≤ 60**.
 11. **`whenInZone` không đòi dừng** (mục 4): goal cờ ở cổng phải đi cùng `stop-in-zone` nếu bài muốn robot dừng.
+12. **Đâm là hết lượt** khi bài coi đâm là hỏng: đặt `endOnContact` bằng tag của `avoid-contact` (mục 4).
 
 ## 6. Biến thể (`variants`)
 
-Kiểm tra (R6.2) chạy `count` biến thể và chỉ qua khi mọi goal qua ở **mọi** biến thể; điểm là trung bình. Biến thể 0 là chỗ xuất phát
-đúng như soạn. Biến thể ≥ 1 dời chỗ xuất phát `±startJitterCm` theo x và y, quay `±yawJitterDeg`, và dời mỗi vật có tag `jitter`
+Kiểm tra (R6.2) chạy `count` biến thể và chỉ qua khi mọi goal qua ở **mọi** biến thể; điểm là **điểm thấp nhất** trong các biến thể (ruling
+cho R6.2: một biến thể may mắn không làm điểm cao). Biến thể 0 là chỗ xuất phát đúng như soạn. Biến thể ≥ 1 dời chỗ xuất phát `±startJitterCm`
+theo x và y (hoặc, có `startJitterAlongCm`, ±giá trị đó dọc hướng xuất phát và ±`startJitterCm` ngang hướng), quay `±yawJitterDeg`, và dời mỗi vật có tag `jitter`
 `±obstacleJitterCm`, tất cả từ `seed` (`variants.ts`, tất định trên mọi engine). Lần bốc không vừa (ra mép, đè vật) thì bốc lại, tối
 đa 20 lần, rồi giữ vị trí đã soạn: thiết kế sao cho không lần nào phải bốc lại (test kiểm rằng mỗi biến thể ≥ 1 đều dời thật).
 
@@ -119,15 +129,21 @@ Mục đích là bắt chương trình **chạy mù** (chỉ motor và wait, can
   tới trước và một biến thể dời lùi**, mỗi cái đủ xa để chạy mù dừng ngoài vùng ≥ 4 cm: một biến thể đâm tường, một biến thể dừng ngắn
   (pilot: dời khoảng ±17 cm). Bài lý thuyết dùng ngưỡng **15 cm** (đo: 10 cm và 20 cm cũng dừng trong vùng, 25 cm dừng ngắn).
 - **Bài bám vạch (4, 6):** jitter vị trí nhỏ (1,5 cm, để thanh cảm biến vẫn thấy vạch lúc xuất phát) nhưng jitter hướng ±5°. Lệch 4°
-  là robot chạy mù ra khỏi vạch (2,75 cm) sau khoảng 40 cm. Chọn `seed` sao cho có biến thể quay ≥ 4°. Bài 4 phải dạy **bộ bám vạch
+  là robot chạy mù ra khỏi vạch (2,75 cm) sau khoảng 40 cm. Chọn `seed` sao cho có biến thể quay ≥ 4°. Khi bài đòi dừng ở một vùng cuối
+  vạch (bài 6), cho chỗ xuất phát dời xa **dọc** đường thẳng xuất phát (`startJitterAlongCm`, pilot: ±15 cm, seed có một biến thể ≥ 12 cm
+  tới trước và một ≥ 12 cm lùi): bộ bám vạch dừng sau một thời gian cố định dừng ở cùng quãng đường kể từ chỗ xuất phát, nên các chỗ dừng cách
+  nhau xa hơn chiều dài vùng đỗ và một biến thể trượt, với mọi thời gian (spike quét số vòng lặp: không giá trị nào qua). Bài 4 phải dạy **bộ bám vạch
   dùng cảm biến giữa** (giữa thấy vạch thì chạy, chỉ cảm biến bên thấy thì quay về phía đó, không cái nào thấy thì dừng): bộ bám chỉ dùng
   hai cảm biến bên (chạy khi không cái nào thấy) kẹt ở góc 45° đầu tiên với khoảng cách cảm biến 1,5 cm của kit placeholder (đo bằng spike).
 - **Đích không ra được bằng một cú chạy thẳng:** bài 4 đặt đích trong một gara có miệng quay về hướng vạch đi tới, nên mọi đường thẳng
   từ chỗ xuất phát vào gara đều cắt tường gara. Một lộ trình mở canh giờ cho biến thể 0 vẫn vào được gara ở biến thể khác (quay chỗ xuất
-  phát làm đầu lộ trình lệch dọc hành lang nhiều hơn là ngang), nhưng trượt goal bám vạch; điểm của gara (60) lớn hơn của vạch (40).
+  phát làm đầu lộ trình lệch dọc hành lang nhiều hơn là ngang), nhưng trượt goal bám vạch, nên không qua check và được 60 (điểm thấp nhất
+  trong các biến thể); một lộ trình ba đoạn tránh xa vạch cũng vậy. Bài 4 có `timeLimitS` 120: bộ bám đúng ở 35 % (vừa trên vùng chết) vào
+  gara lúc khoảng 94 s, ở 40 % lúc khoảng 41 s.
 - Test tĩnh trong `tests/robot-scenarios.test.ts` giữ các tính chất này (bài 3, 5: một biến thể tới trước, một biến thể lùi, mỗi cái
-  ≥ 4 cm ra ngoài vùng; bài 4, 6: có biến thể quay ≥ 4°; điểm canh gác ≤ điểm đạt tới). Kết quả thật (lời giải chuẩn qua mọi biến thể,
-  lời giải mù trượt ≥ 1, `exploits` không quá điểm tối đa) do R5.2b chạy qua run session và check.
+  ≥ 4 cm ra ngoài vùng; bài 4, 6: có biến thể quay ≥ 4°; bài 6: chỗ xuất phát dời ≥ 12 cm tới và lùi dọc đường thẳng; điểm canh gác ≤ điểm
+  đạt tới; `endOnContact` bằng tag của `avoid-contact`). Kết quả thật (lời giải chuẩn qua mọi biến thể, lời giải mù trượt ≥ 1, `exploits`
+  không qua và không quá điểm tối đa) do R5.2b chạy qua run session và check.
 
 Số của kit placeholder dùng để thiết kế (đo bằng spike `spikes/r52-scenario-sim`, máy M4 Pro, Node 24.22.1):
 
@@ -146,16 +162,21 @@ Số của kit placeholder dùng để thiết kế (đo bằng spike `spikes/r5
   (`uno_drive_move` forward 50, `disabledReasons: ["ORPHANED_BLOCK"]`) để học sinh kéo vào. Robot không chạy được gì cho tới khi
   học sinh dựng chương trình, nên starter không qua goal nào. `rb-sandbox` mở với "on start" và "forever" trống.
 - **Lời giải** (`src/samples/robot-solutions.ts`): `reference` viết bằng đúng toolbox của bài; `blind` (bài 3–6) chỉ motor và wait
-  trong "on start"; `exploits` (bài 4–6) là các chương trình cố lấy điểm mà không làm bài, mỗi cái kèm `maxScore`, điểm cao nhất nó được
-  ở mọi biến thể (dưới 50); `notes` ghi thời gian đo được và chỗ lời giải phụ thuộc kit placeholder. Số dùng trong khối là shadow như
+  trong "on start"; `exploits` (bài 3–6) là các chương trình cố lấy điểm mà không làm bài, mỗi cái kèm `maxScore`, điểm check cao nhất của nó
+  (điểm thấp nhất trong các biến thể, ≤ 60), và không cái nào được qua check; `notes` ghi thời gian đo được và chỗ lời giải phụ thuộc kit
+  placeholder. Số dùng trong khối là shadow như
   toolbox đưa. Test nạp mọi chương trình vào Blockly thật và lưu lại, phải ra đúng JSON.
 
   | Kịch bản | Exploit | Điểm tối đa |
   |---|---|---|
+  | `rb-stop-at-wall` | `crash-and-back-off`: chạy tới đâm tường, lùi 1,1 s, dừng (lượt chạy kết thúc ở cú đâm) | 0 |
   | `rb-line-follow` | `crawl-and-dash`: chạy 33 % 12 s, quay trái 830 ms, chạy 100 % 1,8 s, dừng | 0 |
   | `rb-line-follow` | `short-drive`: chạy 50 % 1,8 s rồi dừng | 40 |
+  | `rb-line-follow` | `three-leg-route`: đông, quay, bắc, quay, tây vào gara, canh giờ cho biến thể 0 | 60 |
   | `rb-servo-gate` | `flag-and-crash`: servo 160°, chạy tới không dừng | 40 |
+  | `rb-servo-gate` | `flag-crash-and-back-off`: servo 160°, chạy tới đâm cổng, lùi 1,1 s, dừng | 40 |
   | `rb-mini-mission` | `follower-without-distance`: bộ bám vạch có "else dừng", không đo khoảng cách | 45 |
+  | `rb-mini-mission` | `timed-follower`: lặp bộ bám vạch 300 000 lần rồi dừng (không số lần nào qua) | 35 |
 
 ## 8. Kiểm tra trên máy
 
@@ -194,8 +215,8 @@ Các bước sửa hay thêm một kịch bản:
 |---|---|---|---|---|
 | `rb-drive-to-zone` | 1. Làm quen | 160×80, vùng đích x 76–106 | reach-zone 30, stop-in-zone 70 | 1 |
 | `rb-square-route` | 2. Lộ trình | 130×130, hình vuông cạnh 60, checkpoint giữa mỗi cạnh | nửa vòng 30, cả vòng 50, uses-block repeat 20 | 1 |
-| `rb-stop-at-wall` | 3. Siêu âm | 160×100, vùng dừng x 126–146 trước tường | stop-in-zone 70, avoid-contact wall 30 | 3, seed 3004, 18 cm, 5° |
-| `rb-line-follow` | 4. Dò line | 170×140, vạch mở 2,5 cm vòng qua sa bàn vào gara (miệng quay về hướng vạch tới) | stay-on-line ≥ 0,85: 40, reach-zone gara 60 | 3, seed 485, 1,5 cm, 5° |
-| `rb-servo-gate` | 5. Servo ("Giơ cờ ở cổng") | 160×100, cổng x 140, vùng x 108–128 | servo-angle 150–180° trong vùng 40, stop-in-zone 40, avoid-contact gate 20 | 3, seed 1409, 18 cm, 5° |
-| `rb-mini-mission` | 6. Tổng hợp | 180×140, vạch gấp 45° chạy tới sát tường bến (y 137), 2 cọc | checkpoints 25, stay-on-line ≥ 0,85: 20, avoid-contact 15, stop-in-zone 20, finish-within 30 s: 10, thưởng thời gian 10 | 3, seed 1229, 1,5 cm, 5° |
+| `rb-stop-at-wall` | 3. Siêu âm | 160×100, vùng dừng x 126–146 trước tường; chạm tường là hết lượt | stop-in-zone 70, avoid-contact wall 30 | 3, seed 3004, 18 cm, 5° |
+| `rb-line-follow` | 4. Dò line | 170×140, vạch mở 2,5 cm vòng qua sa bàn vào gara (miệng quay về hướng vạch tới), 120 s | stay-on-line ≥ 0,85: 40, reach-zone "Vào gara" 60 | 3, seed 485, 1,5 cm, 5° |
+| `rb-servo-gate` | 5. Servo ("Giơ cờ ở cổng") | 160×100, cổng x 140, vùng x 108–128; chạm cổng là hết lượt | servo-angle 150–180° trong vùng 40, stop-in-zone 40, avoid-contact gate 20 | 3, seed 1409, 18 cm, 5° |
+| `rb-mini-mission` | 6. Tổng hợp | 180×140, vạch gấp 45° chạy tới sát tường bến (y 137), 2 cọc; chạm cọc hay tường bến là hết lượt | checkpoints 25, stay-on-line ≥ 0,85: 20, avoid-contact 15, stop-in-zone 20, finish-within 30 s: 10, thưởng thời gian 10 | 3, seed 3225, 1,5 cm ngang, 15 cm dọc, 5° |
 | `rb-sandbox` | Sân tập | 200×150, vòng vạch, hộp, cọc | không goal | 1 |

@@ -1,6 +1,8 @@
 // Spike (N18 R5.2a): every scored scenario's reference, blind and starter program through every variant (sim.ts), written to
 // results/runs.json (results/runs-<keys>.json when narrowed). SPIKE_ONLY=<key>[,<key>] and SPIKE_PROGRAM=reference,blind,starter narrow
-// it; SPIKE_TRACKS=1 keeps the pose of every 6th tick.
+// it; SPIKE_TRACKS=1 keeps the pose of every 6th tick. The programs: the starter, reference, blind and exploits of each scenario, and the
+// spike-only ones below. SPIKE_N=<n>[,<n>] adds lesson 6's timed follower (repeat n × the follower, then stop) for each count, the sweep of
+// fix round 2 (results/sweep-rb-mini-mission-timed-follower.json was SPIKE_N=240000,245000,…,380000).
 //   pnpm exec vitest run --config spikes/r52-scenario-sim/vitest.config.ts run
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { arch, cpus, platform, release } from 'node:os';
@@ -8,7 +10,7 @@ import { join } from 'node:path';
 import { beforeAll, expect, it } from 'vitest';
 import { initPhysics } from '../../src/core/world/rapier';
 import { scenarioCatalog } from '../../src/samples/robot-scenarios';
-import { closerThan, drive, hat, ifBlock, lineDark, robotSolutions, stop, workspace } from '../../src/samples/robot-solutions';
+import { closerThan, drive, followLine, hat, ifBlock, lineDark, repeat, robotSolutions, stop, wait, workspace } from '../../src/samples/robot-solutions';
 import { runVariant, type VariantRun } from './sim';
 
 beforeAll(() => initPhysics(), 30_000);
@@ -19,6 +21,15 @@ beforeAll(() => initPhysics(), 30_000);
  */
 const spikeOnly: Record<string, Record<string, unknown>> = {
   'rb-line-follow': {
+    'follower-at-35': workspace(
+      hat('stem_forever', [
+        ifBlock('if-line', [
+          [lineDark('center', 'lineCenter'), [drive('forward', 'forward', 35)]],
+          [lineDark('left', 'lineLeft'), [drive('spin-left', 'spinLeft', 35)]],
+          [lineDark('right', 'lineRight'), [drive('spin-right', 'spinRight', 35)]],
+        ], [stop('lost')]),
+      ]),
+    ),
     'two-sensor-follower': workspace(
       hat('stem_forever', [
         ifBlock('if-line', [
@@ -28,6 +39,9 @@ const spikeOnly: Record<string, Record<string, unknown>> = {
       ]),
     ),
   },
+  'rb-mini-mission': Object.fromEntries(
+    (process.env.SPIKE_N ?? '').split(',').filter(Boolean).map((n) => [`timed-follower-${n}`, workspace(hat('stem_on_start', [repeat('timed', Number(n), [ifBlock('if-line', followLine('line'))]), stop('stop')]))]),
+  ),
   'rb-stop-at-wall': Object.fromEntries(
     [10, 20, 25].map((cm) => [`threshold-${cm}`, workspace(hat('stem_forever', [ifBlock('if-near', [[closerThan('near', cm), [stop('stop')]]], [drive('go', 'forward', 50)])]))]),
   ),

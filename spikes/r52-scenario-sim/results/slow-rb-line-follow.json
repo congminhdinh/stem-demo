@@ -1,0 +1,80 @@
+[
+ {
+  "speed": 35,
+  "variant": 0,
+  "goals": [
+   "follow-line:ok@undefined",
+   "reach-garage:ok@93.1"
+  ],
+  "end": {
+   "xCm": 17.913056910037994,
+   "yCm": 110.95948219299316,
+   "yawDeg": -177.56125369655888
+  }
+ },
+ {
+  "speed": 35,
+  "variant": 1,
+  "goals": [
+   "follow-line:ok@undefined",
+   "reach-garage:ok@93.7"
+  ],
+  "end": {
+   "xCm": 17.94041395187378,
+   "yCm": 110.874342918396,
+   "yawDeg": -178.72791908317564
+  }
+ },
+ {
+  "speed": 35,
+  "variant": 2,
+  "goals": [
+   "follow-line:ok@undefined",
+   "reach-garage:ok@93.7"
+  ],
+  "end": {
+   "xCm": 17.908933758735657,
+   "yCm": 111.09976768493652,
+   "yawDeg": -176.46551916650415
+  }
+ },
+ {
+  "speed": 40,
+  "variant": 0,
+  "goals": [
+   "follow-line:ok@undefined",
+   "reach-garage:ok@40.9"
+  ],
+  "end": {
+   "xCm": 17.899838089942932,
+   "yCm": 111.02899312973022,
+   "yawDeg": -177.02554305508588
+  }
+ },
+ {
+  "speed": 40,
+  "variant": 1,
+  "goals": [
+   "follow-line:ok@undefined",
+   "reach-garage:ok@41.2"
+  ],
+  "end": {
+   "xCm": 17.900772392749786,
+   "yCm": 110.91539859771729,
+   "yawDeg": -177.93842064100238
+  }
+ },
+ {
+  "speed": 40,
+  "variant": 2,
+  "goals": [
+   "follow-line:ok@undefined",
+   "reach-garage:ok@41.0"
+  ],
+  "end": {
+   "xCm": 17.88719743490219,
+   "yCm": 111.04329824447632,
+   "yawDeg": -176.80022346885247
+  }
+ }
+]
