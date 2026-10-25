@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
-import { CHASE_AHEAD_M, CHASE_BACK_M, CHASE_INSIDE_M, CHASE_UP_M, chaseViewPose, clearSight, FREE_ELEVATION_DEG, freeViewForward, keepOutOfProps, MIN_ROBOT_PX, freeViewPose, projectToScreen, robotScreenWidth, safeBottom, safeTop, sightWalls, VIEW_SAFE_RECT, type FreeViewScene, type SafeRect } from './camera-studio';
+import { cases as freeViewCases } from './__fixtures__/free-view-cases';
+import freeViewGolden from './__fixtures__/free-view-golden.json';
+import { CHASE_AHEAD_M, CHASE_BACK_M, CHASE_INSIDE_M, CHASE_UP_M, chaseViewPose, clearSight, FREE_ELEVATION_DEG, freeViewForward, keepOutOfProps, keptFreeViewPose, MIN_ROBOT_PX, freeViewPose, projectToScreen, freeViewSceneOf, robotScreenWidth, safeBottom, safeTop, sightWalls, VIEW_SAFE_RECT, type FreeViewScene, type SafeRect } from './camera-studio';
 
 // N18 R4.7: the 3D view's camera reads as 3D: "Tự do" opens 34° above the floor behind and beside the robot's start, the arena
 // receding in front of it, the start, the route and the goals inside the part of the view the HUD, the buttons and the view tools leave
@@ -158,6 +160,38 @@ describe('the free view of a pilot lesson (N18 R4.7 fix round 1)', () => {
         expect((robotScreenWidth(pose, scenario.start, fov, aspect) * width) / 2).toBeGreaterThanOrEqual(MIN_ROBOT_PX - 1e-6);
       }
     }
+  });
+});
+
+describe('the free view’s poses (N18 P2)', () => {
+  it('frames every pilot lesson exactly as R4.7 did: at 660 × 497 and 760 × 560, with no HUD and its bottom edge at 0.5, 0.35, 0.2 and 0.05, with and without the view tools’ corner', () => {
+    const poses = freeViewCases().map(({ key, span, scene, fov: field, aspect: wide, rect, minRobot }) => ({ key, pose: freeViewPose(span, scene, field, wide, rect, minRobot) }));
+    expect(poses).toHaveLength(140);
+    expect(poses).toEqual(freeViewGolden);
+  });
+
+  it('keeps the pose of a scene for each view and safe rect it was framed for: a HUD that toggles between heights frames once per height', () => {
+    // No HUD (the default rect) and the HUD's bottom at 0.35.
+    const [first, , second] = freeViewCases().filter(({ key }) => key.startsWith('rb-mini-mission 660x497') && key.endsWith('tools no'));
+    const pose = keptFreeViewPose(first!.span, first!.scene, fov, first!.aspect, first!.rect, first!.minRobot);
+    expect(pose).toEqual(freeViewPose(first!.span, first!.scene, fov, first!.aspect, first!.rect, first!.minRobot));
+    const other = keptFreeViewPose(second!.span, second!.scene, fov, second!.aspect, second!.rect, second!.minRobot);
+    // The same scene and an equal rect (a new object): the kept pose itself; another rect, another pose.
+    expect(keptFreeViewPose(first!.span, first!.scene, fov, first!.aspect, { ...first!.rect }, first!.minRobot)).toBe(pose);
+    expect(keptFreeViewPose(second!.span, second!.scene, fov, second!.aspect, second!.rect, second!.minRobot)).toBe(other);
+    expect(other).not.toBe(pose);
+  });
+
+  it('keeps at most 16 poses a scene, the latest framed: the oldest is framed again', () => {
+    const scene = freeViewSceneOf(scenarioCatalog.get('rb-drive-to-zone')!);
+    const span = { widthM: 1.6, depthM: 0.8 };
+    const rect = (bottom: number): SafeRect => ({ ...VIEW_SAFE_RECT, hud: { right: -0.08, bottom } });
+    const poses = Array.from({ length: 17 }, (_, i) => keptFreeViewPose(span, scene, fov, aspect, rect(0.5 - i * 0.01)));
+    expect(keptFreeViewPose(span, scene, fov, aspect, rect(0.5 - 16 * 0.01))).toBe(poses[16]);
+    expect(keptFreeViewPose(span, scene, fov, aspect, rect(0.5 - 1 * 0.01))).toBe(poses[1]);
+    const again = keptFreeViewPose(span, scene, fov, aspect, rect(0.5));
+    expect(again).not.toBe(poses[0]);
+    expect(again).toEqual(poses[0]);
   });
 });
 

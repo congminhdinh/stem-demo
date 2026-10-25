@@ -1,3 +1,4 @@
+import type { Scenario } from '../../core/scenario/scenario';
 import type { ArenaSpan, CameraPose } from './camera';
 import { arenaToThree, type Vec3Tuple } from './scene-math';
 
@@ -80,23 +81,26 @@ export function framePoints(points: readonly Vec3Tuple[], toCamera: Vec3Tuple, f
   const tanH = tanV * aspect;
   let target: Vec3Tuple = [0, 1, 2].map((i) => points.reduce((sum, p) => sum + p[i]!, 0) / points.length) as unknown as Vec3Tuple;
   const poseAt = (distance: number, at: Vec3Tuple): CameraPose => ({ position: [at[0] + toCamera[0] * distance, at[1] + toCamera[1] * distance, at[2] + toCamera[2] * distance], target: at });
-  /** The room left on each side of the free area at `pose` (negative where a point is outside), or null when a point is behind. */
-  const room = (pose: CameraPose) => {
-    let [left, rightRoom, bottom, top] = [Infinity, Infinity, Infinity, Infinity];
-    for (const point of points) {
-      const relative: Vec3Tuple = [point[0] - pose.position[0], point[1] - pose.position[1], point[2] - pose.position[2]];
-      if (dot(relative, [-toCamera[0], -toCamera[1], -toCamera[2]]) <= 1e-6) return null;
-      const [x, y] = projectToScreen(point, pose, fovDeg, aspect);
-      left = Math.min(left, x - rect.left);
-      rightRoom = Math.min(rightRoom, rect.right - x);
-      bottom = Math.min(bottom, y - safeBottom(x, rect));
-      top = Math.min(top, safeTop(x, rect) - y);
-    }
-    return { left, right: rightRoom, bottom, top };
-  };
+  const tanP = Math.tan((fovDeg * Math.PI) / 360);
+  /**
+   * Whether every point's projection from `distance` along `toCamera` off `at` lies in the free area (none behind the camera). The sum
+   * `projectToScreen` makes, inline and without arrays (N18 P2: the bisection asks this some 900 times a frame it reframes; the same
+   * arithmetic in the same order, so the same answers).
+   */
   const fits = (distance: number, at: Vec3Tuple) => {
-    const r = room(poseAt(distance, at));
-    return r !== null && r.left >= 0 && r.right >= 0 && r.bottom >= 0 && r.top >= 0;
+    const [px, py, pz] = [at[0] + toCamera[0] * distance, at[1] + toCamera[1] * distance, at[2] + toCamera[2] * distance];
+    const [cx, cy, cz] = [px - at[0], py - at[1], pz - at[2]];
+    const length = Math.hypot(cx, cy, cz);
+    const { forward: f, right: r, up: u } = axesOf([cx / length, cy / length, cz / length]);
+    for (const point of points) {
+      const [qx, qy, qz] = [point[0] - px, point[1] - py, point[2] - pz];
+      if (qx * -toCamera[0] + qy * -toCamera[1] + qz * -toCamera[2] <= 1e-6) return false;
+      const depth = qx * f[0] + qy * f[1] + qz * f[2];
+      const x = (qx * r[0] + qy * r[1] + qz * r[2]) / depth / (tanP * aspect);
+      const y = (qx * u[0] + qy * u[1] + qz * u[2]) / depth / tanP;
+      if (!(x - rect.left >= 0 && rect.right - x >= 0 && y - safeBottom(x, rect) >= 0 && safeTop(x, rect) - y >= 0)) return false;
+    }
+    return true;
   };
   /** The least distance that fits, by bisection; grows the bracket until it fits. */
   const nearest = (at: Vec3Tuple, from: number) => {
@@ -139,6 +143,32 @@ export type FreeViewScene = {
   /** The lesson's fixed bodies (the gate, obstacles, a pole): points of their tops, arena cm and their height (cm). */
   bodies?: readonly (readonly [number, number, number])[] | undefined;
 };
+
+/** A box's four top corners (arena cm, its height), turned by its yaw. */
+function boxTopCorners(box: { centerCm: readonly [number, number]; sizeCm: readonly [number, number, number]; yawDeg: number }): [number, number, number][] {
+  const [c, s] = [Math.cos((box.yawDeg * Math.PI) / 180), Math.sin((box.yawDeg * Math.PI) / 180)];
+  return [-1, 1].flatMap((dx) =>
+    [-1, 1].map((dy): [number, number, number] => {
+      const [x, y] = [(dx * box.sizeCm[0]) / 2, (dy * box.sizeCm[1]) / 2];
+      return [box.centerCm[0] + x * c - y * s, box.centerCm[1] + x * s + y * c, box.sizeCm[2]];
+    }),
+  );
+}
+
+/** What the free view frames in a scenario (N18 P2: moved here from Scene.tsx, unchanged, so that the tests build it as the view does). */
+export function freeViewSceneOf(scenario: Pick<Scenario, 'start' | 'arena'>): FreeViewScene {
+  const zones = scenario.arena.paint.zones;
+  return {
+    start: scenario.start,
+    goals: zones.filter((zone) => zone.kind === 'target' || zone.kind === 'checkpoint').map((zone) => zone.polygonCm),
+    startZone: zones.find((zone) => zone.kind === 'start')?.polygonCm,
+    route: scenario.arena.paint.lines.flatMap((line) => line.pointsCm),
+    bodies: [
+      ...scenario.arena.boxes.filter((box) => box.body === 'fixed').flatMap((box) => boxTopCorners(box)),
+      ...scenario.arena.cylinders.filter((cylinder) => cylinder.body === 'fixed').map((cylinder): [number, number, number] => [cylinder.centerCm[0], cylinder.centerCm[1], cylinder.heightCm]),
+    ],
+  };
+}
 
 /**
  * The free view's horizontal forward direction (three's x, z, unit): from the robot's start towards the middle of the zones the lesson
@@ -242,6 +272,26 @@ export function freeViewPose(span: ArenaSpan, scene: FreeViewScene, fovDeg: numb
     if (robotScreenWidth(pose, scene.start, fovDeg, aspect) >= minRobot) return pose;
   }
   return pose!;
+}
+
+/** How many free-view poses `keptFreeViewPose` keeps a scene: the HUD's few heights in a run, at a few view sizes. */
+const KEPT_POSES = 16;
+const keptPoses = new WeakMap<FreeViewScene, Map<string, CameraPose>>();
+
+/**
+ * `freeViewPose`, kept per scene for each view and safe rect it was asked for (N18 P2): a goal's progress bar toggles the HUD's height
+ * between a few values, and each framing is a search of some milliseconds. The latest KEPT_POSES of a scene are kept.
+ */
+export function keptFreeViewPose(span: ArenaSpan, scene: FreeViewScene, fovDeg: number, aspect: number, rect: SafeRect = VIEW_SAFE_RECT, minRobot = 0): CameraPose {
+  let poses = keptPoses.get(scene);
+  if (!poses) keptPoses.set(scene, (poses = new Map()));
+  const key = JSON.stringify([span.widthM, span.depthM, fovDeg, aspect, rect.left, rect.right, rect.bottom, rect.top, rect.hud.right, rect.hud.bottom, rect.tools?.right ?? null, rect.tools?.top ?? null, minRobot]);
+  let pose = poses.get(key);
+  if (pose) poses.delete(key);
+  else pose = freeViewPose(span, scene, fovDeg, aspect, rect, minRobot);
+  poses.set(key, pose);
+  if (poses.size > KEPT_POSES) poses.delete(poses.keys().next().value!);
+  return pose;
 }
 
 /** "Theo xe": behind the robot at `robot` (three's frame) facing `yawRad` (arena yaw), looking ahead of it. */

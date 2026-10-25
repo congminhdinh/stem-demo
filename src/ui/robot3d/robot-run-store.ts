@@ -177,6 +177,12 @@ export const shownScore = (state: RobotLabState): ScoreState | null => {
  */
 export const labBusy = (state: RobotLabState): boolean => state.locked || state.starting || (state.active && !state.teleop && !isRunOver(state.snapshot));
 
+/**
+ * N18 P2: the free view keeps its framing while a start builds its world, a run or teleop goes on (one that is over is not) or a check
+ * holds the lab: a goal's progress bar resizes the HUD mid-run, and the camera never jumps then. The framing catches up when it ends.
+ */
+export const framingHeld = (state: RobotLabState): boolean => state.locked || state.starting || (state.active && !isRunOver(state.snapshot));
+
 /** How a run that is over ended, as the lab says it. */
 const endedStatus = (snapshot: RobotRunSnapshot): LabStatus | null =>
   snapshot.status === 'error' ? 'error' : snapshot.end?.reason === 'contact' ? 'crashed' : snapshot.end?.reason === 'time-limit' ? 'timeUp' : null;

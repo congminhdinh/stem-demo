@@ -12,7 +12,7 @@ import { createTextureSet } from './assets/textures';
 import type { ArenaSpan, CameraMode } from './camera';
 import type { CameraCommands } from './camera-commands';
 import { CameraRig } from './CameraRig';
-import { freeViewForward, sightWalls, type FreeViewScene } from './camera-studio';
+import { freeViewForward, freeViewSceneOf, sightWalls, type FreeViewScene } from './camera-studio';
 import { FloorPicker } from './FloorPicker';
 import type { CardEdge, HudCorner, ToolsCorner } from './hud-corner';
 import { robot3dColors as colors } from './colors';
@@ -24,7 +24,7 @@ import { SensorOverlay } from './parts/SensorOverlay';
 import type { RobotTagBox } from './parts/ZoneTags';
 import { tierSettings, type QualityTier } from './quality';
 import type { RobotModel } from './robot-model';
-import { isRunOver, type RobotRunStore } from './robot-run-store';
+import { framingHeld, isRunOver, type RobotRunStore } from './robot-run-store';
 import { createFrameWatch } from './frame-watch';
 import type { RobotToolsStore } from './robot-tools-store';
 import { useLocale, useText } from '../i18n/text';
@@ -316,36 +316,13 @@ function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewF
   );
 }
 
-/** A box's four top corners (arena cm, its height), turned by its yaw. */
-function boxTopCorners(box: { centerCm: readonly [number, number]; sizeCm: readonly [number, number, number]; yawDeg: number }): [number, number, number][] {
-  const [c, s] = [Math.cos((box.yawDeg * Math.PI) / 180), Math.sin((box.yawDeg * Math.PI) / 180)];
-  return [-1, 1].flatMap((dx) =>
-    [-1, 1].map((dy): [number, number, number] => {
-      const [x, y] = [(dx * box.sizeCm[0]) / 2, (dy * box.sizeCm[1]) / 2];
-      return [box.centerCm[0] + x * c - y * s, box.centerCm[1] + x * s + y * c, box.sizeCm[2]];
-    }),
-  );
-}
-
 export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored, onFirstFrame, resetKey, hud = null, card = null, toolsCorner = null, tools, onSlowFrames, commands }: SceneProps) {
   const settings = tierSettings[tier];
   const idle = useMemo(() => idleSnapshot(scenario, kit), [scenario, kit]);
   const view = useCallback(() => store.getState().latestWorld() ?? idle, [store, idle]);
   const [widthCm, depthCm] = scenario.arena.ground.sizeCm;
   const span = useMemo<ArenaSpan>(() => ({ widthM: widthCm / 100, depthM: depthCm / 100 }), [widthCm, depthCm]);
-  const freeView = useMemo<FreeViewScene>(() => {
-    const zones = scenario.arena.paint.zones;
-    return {
-      start: scenario.start,
-      goals: zones.filter((zone) => zone.kind === 'target' || zone.kind === 'checkpoint').map((zone) => zone.polygonCm),
-      startZone: zones.find((zone) => zone.kind === 'start')?.polygonCm,
-      route: scenario.arena.paint.lines.flatMap((line) => line.pointsCm),
-      bodies: [
-        ...scenario.arena.boxes.filter((box) => box.body === 'fixed').flatMap((box) => boxTopCorners(box)),
-        ...scenario.arena.cylinders.filter((cylinder) => cylinder.body === 'fixed').map((cylinder): [number, number, number] => [cylinder.centerCm[0], cylinder.centerCm[1], cylinder.heightCm]),
-      ],
-    };
-  }, [scenario]);
+  const freeView = useMemo<FreeViewScene>(() => freeViewSceneOf(scenario), [scenario]);
   const viewForward = useMemo(() => freeViewForward(freeView), [freeView]);
   const walls = useMemo(() => sightWalls(scenario.arena.walls), [scenario]);
   const props = useMemo(() => sightProps(scenario), [scenario]);
@@ -358,6 +335,8 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
   const overlays = useMemo(() => ({ hud, card, tools: toolsCorner }), [hud, card, toolsCorner]);
   // N18 R4.7: a replay of a check's round ("Xem lại") is under way: the camera goes back to frame its start.
   const replaying = useStore(store, (state) => state.round !== null && state.active && !state.locked);
+  // N18 P2: while a run, a drive or a check goes on, the free view keeps its framing.
+  const holdFraming = useStore(store, framingHeld);
   // N18 R4.3: the sensor overlays write a distance with the learner's decimal sign.
   const t = useText();
   const decimal = useLocale() === 'vi' ? ',' : '.';
@@ -377,7 +356,7 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
         <SceneContent scenario={scenario} kit={kit} model={model} view={view} span={span} tier={tier} zoneLabel={zoneLabel} viewForward={viewForward} cameraMode={cameraMode} tagsReady={tagsReady} overlays={overlays} />
         <CompiledDraw onDrawn={onDrawn} />
       </Suspense>
-      <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} resetKey={resetKey} hud={hud} card={card} tools={toolsCorner} walls={walls} props={props} replaying={replaying} {...(commands ? { commands } : {})} />
+      <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} resetKey={resetKey} hud={hud} card={card} tools={toolsCorner} walls={walls} props={props} replaying={replaying} holdFraming={holdFraming} {...(commands ? { commands } : {})} />
       <RedrawOnChange store={store} />
       <ContextWatch onLost={onContextLost} onRestored={onContextRestored} />
       {onSlowFrames && <SlowFrames store={store} onSlow={onSlowFrames} />}

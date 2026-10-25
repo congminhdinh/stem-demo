@@ -14,7 +14,7 @@ import { hashSnapshot, type RobotSnapshot, type ScoreState } from '../../core/wo
 import { robotSolutions } from '../../samples/robot-solutions';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { robotStarterDocument } from '../../samples/robot-templates';
-import { createRobotRunStore, isRunOver, labStatus, ROBOT_SPEEDS, selectRunActive, shownRun, shownScore, type CheckRunView } from './robot-run-store';
+import { createRobotRunStore, framingHeld, isRunOver, labStatus, ROBOT_SPEEDS, selectRunActive, shownRun, shownScore, type CheckRunView } from './robot-run-store';
 import { fakeSession as fakeRobotSession, idleRun } from './__fixtures__/fake-session';
 import { sameView } from './scene-math';
 
@@ -620,4 +620,33 @@ describe('a replay on the real session (N18 R6.3)', () => {
     }
     disconnect();
   }, 60_000);
+});
+
+describe('the free view’s framing during a run (N18 P2)', () => {
+  it('is held from a start until the run is over (a goal’s progress bar resizes the HUD mid-run): starting, running, paused, in teleop and while a check holds the lab', async () => {
+    const { store, publish, world, frames, willStart } = setup();
+    expect(framingHeld(store.getState())).toBe(false);
+    await store.getState().startTeleop();
+    expect(framingHeld(store.getState())).toBe(true);
+    store.getState().stop();
+    expect(framingHeld(store.getState())).toBe(false);
+    let finish: (result: RobotStartResult) => void = () => {};
+    willStart(new Promise((resolve) => (finish = resolve)));
+    const started = store.getState().run(project);
+    expect(framingHeld(store.getState())).toBe(true);
+    finish({ ok: true });
+    await started;
+    expect(framingHeld(store.getState())).toBe(true);
+    store.getState().togglePause();
+    expect(framingHeld(store.getState())).toBe(true);
+    store.getState().togglePause();
+    publish({ status: 'finished', world: world(15), end: { reason: 'time-limit', atS: 15 } });
+    frames.frame(0);
+    expect(framingHeld(store.getState())).toBe(false);
+    store.getState().stop();
+    store.getState().setLocked(true);
+    expect(framingHeld(store.getState())).toBe(true);
+    store.getState().setLocked(false);
+    expect(framingHeld(store.getState())).toBe(false);
+  });
 });
