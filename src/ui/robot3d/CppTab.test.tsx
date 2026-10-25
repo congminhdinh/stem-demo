@@ -143,14 +143,16 @@ describe('CppTab: the code (N18 R4.5)', () => {
 });
 
 describe('CppTab: following the program (N18 R4.5)', () => {
-  it('regenerates after the learner pauses, not at every change', async () => {
-    const { render, projectStore } = setup();
+  it('regenerates after the learner pauses, not at every change, and never writes the editor into the project by itself', async () => {
+    const { render, projectStore, flush } = setup();
     await render();
     act(() => projectStore.getState().setProgramBlocks(robotSolutions['rb-square-route'].reference));
     await advance(CPP_DEBOUNCE_MS - 10);
     expect(text('cpp-source')).toBe(golden('rb-drive-to-zone'));
     await advance(20);
     expect(text('cpp-source')).toBe(golden('rb-square-route').replace('rb-square-route@1', 'rb-drive-to-zone@1'));
+    // Only Copy and Tải .ino flush the blocks (the host would hear of a project change); looking at the code does not.
+    expect(flush).not.toHaveBeenCalled();
   });
 
   it('waits again for each change, so that a run of edits generates once', async () => {
