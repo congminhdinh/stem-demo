@@ -1,0 +1,351 @@
+import { z } from 'zod';
+import { roleKinds, robotRoles, type ModuleKind, type RobotRole } from '../hardware/kit';
+import { arenaSchema } from '../world/arena/arena-schema';
+import { isRobotTemplateKey, robotKitId, robotLabProfiles, robotTemplateKeys, robotTemplates } from '../../samples/robot-templates';
+
+// The scenario of a robot lab (N18 R5.1, robot plan §4.6): the learner's task as data. The arena, the kit and where the robot
+// starts; the variants a check runs; the scripted button presses; the goals and the score; the program the learner starts from
+// and the blocks they may use. Authored as JSON in `src/samples/robot-scenarios/rb-*.json`, validated here when it is loaded.
+// R5.2 writes the scenarios, R6 judges the goals, R4 shows the task: all of them read this one shape.
+//
+// Units are the arena's (arena-schema.ts): centimetres and degrees, x right, y away, yaw counter-clockwise from +x.
+// Unknown keys are refused rather than dropped, as in the arena, so a typo is an error and not a silent default.
+//
+// Rules a shape cannot say are checked in `scenarioRuleIssues`: what a goal refers to exists in the arena, the inputs are a
+// consistent script, and the score adds up to exactly 100. Every issue names the path of the value at fault.
+
+/** The score of every scored scenario, goal points plus the time bonus (the same top mark for every lesson). `rb-sandbox` has none. */
+export const SCENARIO_MAX_SCORE = 100;
+
+/** The key of the one scenario that has no goals and so no score. */
+export const SANDBOX_KEY = 'rb-sandbox';
+
+/** A scenario's title may not be longer, nor its inputs more numerous (a script is a few button presses). */
+export const TITLE_MAX_CHARS = 120;
+export const INPUTS_MAX = 100;
+/** The longest run a scenario can ask for. A check runs every variant for this long, in the worst case, in a few seconds (plan §5). */
+export const TIME_LIMIT_MAX_S = 600;
+/** What the LMS stores of a goal (STEMLearning): a key of lowercase letters, digits and "-", at most 50 characters, and a label of 200. */
+export const GOAL_ID_MAX_CHARS = 50;
+export const GOAL_LABEL_MAX_CHARS = 200;
+/** The most variants a check runs, the LMS cap on `variants` of a check result. */
+export const VARIANTS_MAX = 10;
+/** A servo turns 0..180° (the `servo-lib` driver clamps to it). */
+const SERVO_DEG_MAX = 180;
+const SEED_MAX = 4294967295;
+
+const wholeFrom = (min: number, message: string) => z.number().int(message).min(min, message);
+const text = (max: number) => z.string().trim().min(1, 'must not be empty').max(max, `at most ${max} characters`);
+/** A text in both languages the UI speaks. */
+const localized = (max: number) => z.strictObject({ vi: text(max), en: text(max) });
+
+const blockTypeSchema = z.string().regex(/^[A-Za-z0-9_]+$/, 'a block type is letters, digits and "_"');
+const goalIdSchema = z
+  .string()
+  .regex(/^[a-z0-9-]+$/, 'a goal id is lowercase letters, digits and "-"')
+  .max(GOAL_ID_MAX_CHARS, `a goal id is at most ${GOAL_ID_MAX_CHARS} characters`);
+const pointsSchema = wholeFrom(0, 'must be a whole number, 0 or more');
+const positive = z.number().positive('must be more than 0');
+const servoDeg = z.number().min(0, `must be from 0 to ${SERVO_DEG_MAX}`).max(SERVO_DEG_MAX, `must be from 0 to ${SERVO_DEG_MAX}`);
+
+const goalBase = { id: goalIdSchema, label: localized(GOAL_LABEL_MAX_CHARS), points: pointsSchema };
+
+export const goalKinds = [
+  'reach-zone',
+  'checkpoints-in-order',
+  'stay-on-line',
+  'avoid-contact',
+  'object-in-zone',
+  'stop-in-zone',
+  'servo-angle',
+  'finish-within',
+  'uses-block',
+] as const;
+
+/** What a goal asks; each kind is judged by `core/scenario/goals/<kind>.ts` (R6.1). Zones and objects are named by arena id. */
+const goalSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ ...goalBase, kind: z.literal('reach-zone'), zone: z.string() }),
+  z.strictObject({ ...goalBase, kind: z.literal('checkpoints-in-order'), zones: z.array(z.string()).min(1, 'needs at least one zone') }),
+  z.strictObject({
+    ...goalBase,
+    kind: z.literal('stay-on-line'),
+    minRatio: z.number().gt(0, 'must be more than 0 and at most 1').max(1, 'must be more than 0 and at most 1'),
+  }),
+  z.strictObject({ ...goalBase, kind: z.literal('avoid-contact'), tag: z.string().min(1, 'must not be empty') }),
+  z.strictObject({ ...goalBase, kind: z.literal('object-in-zone'), object: z.string(), zone: z.string() }),
+  z.strictObject({ ...goalBase, kind: z.literal('stop-in-zone'), zone: z.string(), maxSpeedCmS: positive, holdS: positive }),
+  z.strictObject({
+    ...goalBase,
+    kind: z.literal('servo-angle'),
+    role: z.string(),
+    minDeg: servoDeg,
+    maxDeg: servoDeg,
+    whenInZone: z.string().optional(),
+  }),
+  z.strictObject({ ...goalBase, kind: z.literal('finish-within'), seconds: positive }),
+  z.strictObject({ ...goalBase, kind: z.literal('uses-block'), blockType: z.string() }),
+], {
+  error: (issue) => `unknown goal kind ${JSON.stringify((issue.input as { kind?: unknown } | null)?.kind)}; the kinds are ${goalKinds.join(', ')}`,
+});
+
+/** Where the robot starts: the point of the floor under the middle of its body, and its heading. */
+const poseSchema = z.strictObject({ xCm: z.number(), yCm: z.number(), yawDeg: z.number() });
+
+const variantsSchema = z.strictObject({
+  /** Variants a check runs, from 1; variant 0 is always the exact start. */
+  count: wholeFrom(1, `must be a whole number from 1 to ${VARIANTS_MAX}`).max(VARIANTS_MAX, `must be a whole number from 1 to ${VARIANTS_MAX}`),
+  /** The seed of the jitter; each variant derives its own from it (variants.ts). */
+  seed: wholeFrom(0, `must be a whole number from 0 to ${SEED_MAX}`).max(SEED_MAX, `must be a whole number from 0 to ${SEED_MAX}`),
+  startJitterCm: z.number().min(0, 'must be 0 or more'),
+  yawJitterDeg: z.number().min(0, 'must be from 0 to 180').max(180, 'must be from 0 to 180'),
+  /** How far the arena boxes and cylinders tagged `jitter` may move, each way along x and y. */
+  obstacleJitterCm: z.number().min(0, 'must be 0 or more').optional(),
+});
+
+const inputSchema = z.strictObject({ atS: z.number(), role: z.string(), action: z.enum(['press', 'release']) });
+
+const scoringSchema = z.strictObject({
+  /** The most a quick finish adds. How it is earned is the score's (R6.2). */
+  timeBonusMax: pointsSchema.optional(),
+  /** Reserved: no penalty kind is defined yet (R6.2 adds them, with their meaning). */
+  penalties: z.array(z.custom<never>()).max(0, 'no penalty kind exists yet').optional(),
+});
+
+const scenarioShape = z.strictObject({
+  /** A key of `src/samples/robot-templates.ts`. Never renamed or reused; a change of behaviour raises `version`. */
+  key: z.string().refine(isRobotTemplateKey, {
+    error: (issue) => `unknown scenario key ${JSON.stringify(issue.input)}; the keys are ${robotTemplateKeys.join(', ')}`,
+  }),
+  version: wholeFrom(1, 'must be a whole number from 1'),
+  title: localized(TITLE_MAX_CHARS),
+  profile: z.enum(robotLabProfiles),
+  kit: z.string(),
+  arena: arenaSchema,
+  start: poseSchema,
+  variants: variantsSchema,
+  /** The script of button presses, from the first to the last; sorted by time when loaded. */
+  inputs: z.array(inputSchema).max(INPUTS_MAX, `at most ${INPUTS_MAX} inputs`).default([]),
+  timeLimitS: z.number().positive('must be more than 0 s').max(TIME_LIMIT_MAX_S, `must be at most ${TIME_LIMIT_MAX_S} s`),
+  goals: z.array(goalSchema),
+  scoring: scoringSchema.default({}),
+  /** A Blockly workspace as `Blockly.serialization.workspaces.save` writes it (`{}` when empty): opaque here, the UI loads it. */
+  starter: z.record(z.string(), z.unknown()),
+  /** The block types the learner may use; every block when absent. */
+  toolbox: z.array(blockTypeSchema).min(1, 'needs at least one block type').optional(),
+});
+
+type ScenarioShape = z.output<typeof scenarioShape>;
+
+export const scenarioSchema = scenarioShape
+  .superRefine((scenario, ctx) => {
+    for (const issue of scenarioRuleIssues(scenario)) {
+      ctx.addIssue({ code: 'custom', ...issue });
+    }
+  })
+  .transform((scenario) => ({ ...scenario, inputs: inTimeOrder(scenario.inputs) }));
+
+/** A scenario as authored (defaults may be left out). */
+export type ScenarioJson = z.input<typeof scenarioSchema>;
+/** A validated scenario: defaults filled in, inputs sorted by time. */
+export type Scenario = z.output<typeof scenarioSchema>;
+export type RobotGoalSpec = Scenario['goals'][number];
+export type GoalKind = RobotGoalSpec['kind'];
+/** A button press or release of the script. */
+export type ScenarioInput = Scenario['inputs'][number];
+export type PoseCm = Scenario['start'];
+/** No penalty kind exists yet (R6.2). */
+export type PenaltySpec = never;
+
+type RuleIssue = { path: (string | number)[]; message: string };
+
+/** Stable: inputs at one instant keep the order they were written in (the kit has one button, which has one input per instant). */
+function inTimeOrder(inputs: ScenarioShape['inputs']): ScenarioShape['inputs'] {
+  return [...inputs].sort((a, b) => a.atS - b.atS);
+}
+
+const rolesOfKind = (kind: ModuleKind): RobotRole[] => robotRoles.filter((role) => roleKinds[role] === kind);
+const list = (items: readonly string[], none: string) => (items.length > 0 ? items.join(', ') : none);
+
+/** The rules a shape cannot say. Runs when the shape holds, so every field has its type. */
+function scenarioRuleIssues(scenario: ScenarioShape): RuleIssue[] {
+  const issues: RuleIssue[] = [];
+  const add = (path: (string | number)[], message: string) => issues.push({ path, message });
+  const { arena } = scenario;
+
+  // What the key stands for: the profile and the kit it is launched with (robot-templates.ts).
+  if (isRobotTemplateKey(scenario.key)) {
+    const template = robotTemplates[scenario.key];
+    if (scenario.profile !== template.profile) {
+      add(['profile'], `${scenario.key} needs the profile "${template.profile}", not "${scenario.profile}"`);
+    }
+    if (scenario.kit !== robotKitId) {
+      add(['kit'], `${scenario.key} uses the kit "${robotKitId}", not "${scenario.kit}"`);
+    }
+  }
+
+  const [width, depth] = arena.ground.sizeCm;
+  if (scenario.start.xCm < 0 || scenario.start.xCm > width || scenario.start.yCm < 0 || scenario.start.yCm > depth) {
+    add(['start'], `off the ground (x 0..${width}, y 0..${depth} cm)`);
+  }
+
+  inputIssues(scenario, add);
+  goalIssues(scenario, add);
+  scoreIssues(scenario, add);
+
+  if (scenario.toolbox) {
+    const first = new Map<string, number>();
+    scenario.toolbox.forEach((blockType, i) => {
+      const earlier = first.get(blockType);
+      if (earlier === undefined) first.set(blockType, i);
+      else add(['toolbox', i], `"${blockType}" is already listed at toolbox[${earlier}]`);
+    });
+  }
+  return issues;
+}
+
+type Add = (path: (string | number)[], message: string) => void;
+
+function inputIssues(scenario: ScenarioShape, add: Add): void {
+  const buttons = rolesOfKind('button');
+  const valid: number[] = [];
+  scenario.inputs.forEach((input, i) => {
+    let ok = true;
+    if (!buttons.includes(input.role as RobotRole)) {
+      add(['inputs', i, 'role'], `"${input.role}" is not a button role (${buttons.join(', ')})`);
+      ok = false;
+    }
+    if (input.atS < 0 || input.atS >= scenario.timeLimitS) {
+      add(['inputs', i, 'atS'], `must be at least 0 s and before the time limit (${scenario.timeLimitS} s)`);
+      ok = false;
+    }
+    if (ok) valid.push(i);
+  });
+
+  // A script: in time order, each button alternates press and release from released, and has one input per instant.
+  const inOrder = [...valid].sort((a, b) => scenario.inputs[a]!.atS - scenario.inputs[b]!.atS || a - b);
+  const state = new Map<string, { pressed: boolean; atS: number }>();
+  for (const i of inOrder) {
+    const input = scenario.inputs[i]!;
+    const now = state.get(input.role) ?? { pressed: false, atS: Number.NaN };
+    if (now.atS === input.atS) {
+      add(['inputs', i, 'atS'], `${input.role} already has an input at ${input.atS} s`);
+      continue;
+    }
+    if (input.action === 'press' && now.pressed) {
+      add(['inputs', i, 'action'], `${input.role} is already pressed`);
+    } else if (input.action === 'release' && !now.pressed) {
+      add(['inputs', i, 'action'], `${input.role} is not pressed, so it cannot be released`);
+    }
+    state.set(input.role, { pressed: input.action === 'press', atS: input.atS });
+  }
+}
+
+function goalIssues(scenario: ScenarioShape, add: Add): void {
+  const { arena } = scenario;
+  const zoneIds = arena.paint.zones.map((zone) => zone.id);
+  const objectIds = arena.objects.map((object) => object.id);
+  const colliders = [...arena.walls, ...arena.boxes, ...arena.cylinders, ...arena.objects];
+  // What `avoid-contact` can name: the kind of a collider (build-arena.ts adds it to its tags) and the tags the arena gives.
+  const tags = new Set<string>();
+  if (arena.walls.length > 0) tags.add('wall');
+  if (arena.boxes.length > 0) tags.add('box');
+  if (arena.cylinders.length > 0) tags.add('cylinder');
+  if (arena.objects.length > 0) tags.add('object');
+  for (const collider of colliders) {
+    for (const tag of collider.tags) tags.add(tag);
+  }
+  const servoRoles = rolesOfKind('servo');
+
+  const zoneAt = (path: (string | number)[], zone: string) => {
+    if (!zoneIds.includes(zone)) add(path, `no zone "${zone}" in the arena (${zoneIds.length > 0 ? `zones: ${zoneIds.join(', ')}` : 'the arena has no zones'})`);
+  };
+  const withinTimeLimit = (path: (string | number)[], seconds: number) => {
+    if (seconds > scenario.timeLimitS) add(path, `must not be more than the time limit (${scenario.timeLimitS} s)`);
+  };
+
+  const firstOfId = new Map<string, number>();
+  scenario.goals.forEach((goal, i) => {
+    const at = (field: string) => ['goals', i, field];
+    const earlier = firstOfId.get(goal.id);
+    if (earlier === undefined) firstOfId.set(goal.id, i);
+    else add(at('id'), `the id "${goal.id}" is already used by goals[${earlier}]`);
+
+    switch (goal.kind) {
+      case 'reach-zone':
+        zoneAt(at('zone'), goal.zone);
+        break;
+      case 'checkpoints-in-order':
+        goal.zones.forEach((zone, j) => zoneAt(['goals', i, 'zones', j], zone));
+        break;
+      case 'stay-on-line':
+        if (arena.paint.lines.length === 0) add(at('kind'), 'stay-on-line needs a line painted in the arena');
+        break;
+      case 'avoid-contact':
+        if (!tags.has(goal.tag)) {
+          add(at('tag'), `nothing in the arena has the tag "${goal.tag}" (tags: ${list([...tags], 'none')})`);
+        }
+        break;
+      case 'object-in-zone':
+        if (!objectIds.includes(goal.object)) {
+          add(at('object'), `no object "${goal.object}" in the arena (${objectIds.length > 0 ? `objects: ${objectIds.join(', ')}` : 'the arena has no objects'})`);
+        }
+        zoneAt(at('zone'), goal.zone);
+        break;
+      case 'stop-in-zone':
+        zoneAt(at('zone'), goal.zone);
+        withinTimeLimit(at('holdS'), goal.holdS);
+        break;
+      case 'servo-angle':
+        if (!servoRoles.includes(goal.role as RobotRole)) add(at('role'), `"${goal.role}" is not a servo role (${servoRoles.join(', ')})`);
+        if (goal.maxDeg < goal.minDeg) add(at('maxDeg'), `must be at least minDeg (${goal.minDeg})`);
+        if (goal.whenInZone !== undefined) zoneAt(at('whenInZone'), goal.whenInZone);
+        break;
+      case 'finish-within':
+        withinTimeLimit(at('seconds'), goal.seconds);
+        break;
+      case 'uses-block':
+        if (!blockTypeSchema.safeParse(goal.blockType).success) {
+          add(at('blockType'), 'a block type is letters, digits and "_"');
+        } else if (scenario.toolbox && !scenario.toolbox.includes(goal.blockType)) {
+          add(at('blockType'), `the toolbox does not list "${goal.blockType}"`);
+        }
+        break;
+    }
+  });
+}
+
+function scoreIssues(scenario: ScenarioShape, add: Add): void {
+  const bonus = scenario.scoring.timeBonusMax;
+  if (scenario.key === SANDBOX_KEY) {
+    if (scenario.goals.length > 0) add(['goals'], `${SANDBOX_KEY} has no goals`);
+    if (bonus !== undefined) add(['scoring', 'timeBonusMax'], `${SANDBOX_KEY} has no score`);
+    return;
+  }
+  if (scenario.goals.length === 0) {
+    add(['goals'], `a scored scenario needs at least one goal (only ${SANDBOX_KEY} has none)`);
+    return;
+  }
+  const goalPoints = scenario.goals.reduce((sum, goal) => sum + goal.points, 0);
+  const total = goalPoints + (bonus ?? 0);
+  if (total !== SCENARIO_MAX_SCORE) {
+    add(['goals'], `the points add up to ${total} (goals ${goalPoints} + time bonus ${bonus ?? 0}), not ${SCENARIO_MAX_SCORE}`);
+  }
+}
+
+/** `goals[2].zones[1]` */
+export function formatScenarioPath(path: readonly PropertyKey[]): string {
+  return path.reduce<string>((text, key) => (typeof key === 'number' ? `${text}[${key}]` : text === '' ? String(key) : `${text}.${String(key)}`), '');
+}
+
+export type ScenarioIssue = { path: string; message: string };
+
+/** A scenario that does not validate: every issue, each with the path of the value at fault. */
+export class ScenarioError extends Error {
+  readonly issues: readonly ScenarioIssue[];
+
+  constructor(key: string | undefined, issues: readonly ScenarioIssue[]) {
+    super(`Invalid scenario${key === undefined ? '' : ` "${key}"`}: ${issues.map((issue) => `${issue.path === '' ? 'scenario' : issue.path}: ${issue.message}`).join('; ')}`);
+    this.name = 'ScenarioError';
+    this.issues = issues;
+  }
+}

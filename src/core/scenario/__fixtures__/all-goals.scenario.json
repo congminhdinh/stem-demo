@@ -1,0 +1,58 @@
+{
+  "key": "rb-mini-mission",
+  "version": 1,
+  "title": { "vi": "Bài thử: đủ mọi loại mục tiêu", "en": "Fixture: every goal kind" },
+  "profile": "uno-basic",
+  "kit": "ref-uno-rover",
+  "arena": {
+    "ground": { "sizeCm": [200, 160], "color": "#f2f2f2" },
+    "paint": {
+      "lines": [{ "pointsCm": [[30, 40], [170, 40], [170, 120], [30, 120], [30, 40]], "widthCm": 3 }],
+      "zones": [
+        { "id": "start", "kind": "start", "polygonCm": [[10, 20], [50, 20], [50, 60], [10, 60]], "color": "#cfe2f3" },
+        { "id": "cp-a", "kind": "checkpoint", "polygonCm": [[150, 20], [190, 20], [190, 60], [150, 60]], "color": "#fff2cc" },
+        { "id": "cp-b", "kind": "checkpoint", "polygonCm": [[150, 100], [190, 100], [190, 140], [150, 140]], "color": "#fff2cc" },
+        { "id": "dock", "kind": "target", "polygonCm": [[10, 100], [50, 100], [50, 140], [10, 140]], "color": "#d9ead3" },
+        { "id": "gate", "kind": "area", "polygonCm": [[80, 60], [120, 60], [120, 100], [80, 100]], "color": "#f4cccc" }
+      ]
+    },
+    "walls": [
+      { "fromCm": [0, 1], "toCm": [200, 1] },
+      { "fromCm": [0, 159], "toCm": [200, 159] },
+      { "fromCm": [1, 0], "toCm": [1, 160] },
+      { "fromCm": [199, 0], "toCm": [199, 160] }
+    ],
+    "boxes": [
+      { "id": "block", "centerCm": [100, 25], "sizeCm": [14, 8, 10], "yawDeg": 15, "tags": ["obstacle", "jitter"] },
+      { "id": "bench", "centerCm": [60, 100], "sizeCm": [10, 10, 10], "tags": ["obstacle"] }
+    ],
+    "cylinders": [
+      { "id": "pole", "centerCm": [100, 140], "radiusCm": 3, "heightCm": 20, "tags": ["obstacle", "jitter"] }
+    ],
+    "objects": [
+      { "id": "crate", "shape": "box", "centerCm": [130, 80], "sizeCm": [8, 8, 8], "massG": 80, "tags": ["pushable"] }
+    ]
+  },
+  "start": { "xCm": 30, "yCm": 40, "yawDeg": 0 },
+  "variants": { "count": 3, "seed": 2026, "startJitterCm": 4, "yawJitterDeg": 10, "obstacleJitterCm": 5 },
+  "inputs": [
+    { "atS": 2, "role": "button1", "action": "press" },
+    { "atS": 2.5, "role": "button1", "action": "release" },
+    { "atS": 10, "role": "button1", "action": "press" }
+  ],
+  "timeLimitS": 60,
+  "goals": [
+    { "id": "reach-dock", "kind": "reach-zone", "label": { "vi": "Tới bãi đỗ", "en": "Reach the dock" }, "points": 10, "zone": "dock" },
+    { "id": "route", "kind": "checkpoints-in-order", "label": { "vi": "Đi qua các điểm theo thứ tự", "en": "Pass the checkpoints in order" }, "points": 10, "zones": ["cp-a", "cp-b", "dock"] },
+    { "id": "on-line", "kind": "stay-on-line", "label": { "vi": "Bám vạch", "en": "Stay on the line" }, "points": 10, "minRatio": 0.85 },
+    { "id": "no-bump", "kind": "avoid-contact", "label": { "vi": "Không chạm vật cản", "en": "Do not touch the obstacles" }, "points": 10, "tag": "obstacle" },
+    { "id": "push-crate", "kind": "object-in-zone", "label": { "vi": "Đẩy thùng vào cổng", "en": "Push the crate into the gate" }, "points": 10, "object": "crate", "zone": "gate" },
+    { "id": "park", "kind": "stop-in-zone", "label": { "vi": "Dừng hẳn trong bãi đỗ", "en": "Stop inside the dock" }, "points": 10, "zone": "dock", "maxSpeedCmS": 2, "holdS": 1 },
+    { "id": "gate-open", "kind": "servo-angle", "label": { "vi": "Mở cổng khi tới cổng", "en": "Open the gate at the gate" }, "points": 10, "role": "servo1", "minDeg": 80, "maxDeg": 100, "whenInZone": "gate" },
+    { "id": "in-time", "kind": "finish-within", "label": { "vi": "Xong trong 45 giây", "en": "Finish within 45 s" }, "points": 10, "seconds": 45 },
+    { "id": "loop", "kind": "uses-block", "label": { "vi": "Dùng khối lặp", "en": "Use a repeat block" }, "points": 10, "blockType": "controls_repeat_ext" }
+  ],
+  "scoring": { "timeBonusMax": 10 },
+  "starter": { "blocks": { "languageVersion": 0, "blocks": [] } },
+  "toolbox": ["controls_repeat_ext", "controls_if", "math_number"]
+}
