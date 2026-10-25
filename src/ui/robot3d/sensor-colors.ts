@@ -1,6 +1,6 @@
 // The colours of the sensor overlays (N18 R4.3), in the 3D view and on the 2D map. They read over the light mat, its black tape and its
 // zones, and over the studio's walls: the ultrasonic beam is a sky blue (the 2D map's ray since R4.6), the echo a rose, a line sensor's
-// spot red where it reads dark (the lamp's red) and slate where it reads bright, the next goal's zone a warm amber that no zone colour of
+// spot a red disc where it reads dark (the lamp's red) and a blue ring where it reads bright, the next goal's zone a warm amber that no zone colour of
 // the pilots shares. The label is a white tag with the beam's blue, like the zones' tags.
 
 export const sensorColors = {
@@ -11,11 +11,9 @@ export const sensorColors = {
   coneFill: 'rgba(56, 189, 248, 0.16)',
   /** The point where the nearest echo came from. */
   hit: '#e11d48',
-  /** A line sensor's spot on the mat: red where it reads dark, slate where it reads bright. */
+  /** A line sensor's spot on the mat: a red disc where it reads dark, a blue ring where it reads bright. */
   spotDark: '#ef4444',
-  /** The white edge round a spot, so that it reads over dark and light alike. */
-  spotEdge: '#ffffff',
-  spotLight: '#475569',
+  spotLight: '#2563eb',
   /** The zone the next unmet goal needs: its soft fill and its outline. */
   goal: '#f59e0b',
   goalEdge: '#d97706',

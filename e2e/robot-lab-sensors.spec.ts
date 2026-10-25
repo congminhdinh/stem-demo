@@ -243,6 +243,24 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     expect(errors).toEqual([]);
   });
 
+  test('on the detailed graphics tier the overlays are drawn too', async ({ page, baseURL }) => {
+    test.setTimeout(90_000);
+    const errors = collectErrors(page);
+    const frame = await openInLesson(page, labUrl(baseURL));
+    // SwiftShader starts the lab on the light tier; the quality button gives it the detailed one, with a new canvas.
+    expect(await frame.getByTestId('robot-canvas').getAttribute('data-tier')).toBe('low');
+    await frame.getByTestId('robot-quality').click();
+    await expect(frame.getByTestId('robot-canvas')).toHaveAttribute('data-tier', 'high');
+    await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 30_000 });
+    await expect.poll(async () => (await overlay(frame))?.zone, { timeout: 15_000 }).toBe('stop-zone');
+    await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('reference'));
+    await frame.getByTestId('robot-run').click();
+    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0], { timeout: 30_000 }).toMatchObject({ visible: true, ray: true, hit: true });
+    await expect.poll(async () => (await view(frame))?.t ?? 0, { timeout: 30_000 }).toBeGreaterThan(1.5);
+    await screenshot(page, '09-high-tier.png');
+    expect(errors).toEqual([]);
+  });
+
   test('the 2D map (Xem 2D) has the cone, the tag, the spots and the zone, and the same switch', async ({ page, baseURL }) => {
     const errors = collectErrors(page);
     const frame = await openInLesson(page, labUrl(baseURL, 'template=rb-line-follow'));

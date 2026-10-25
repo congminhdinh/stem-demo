@@ -71,10 +71,19 @@ describe('the ultrasonic beam', () => {
     const half = (kit.modules.find((module) => module.role === 'ultrasonic')!.spec as { coneHalfDeg: number }).coneHalfDeg;
     const expected = ultrasonicEndsCm(tipped, mount, half, 61.7);
     const [axis] = named(overlay, 'sensor-axis');
-    const edges = named(overlay, 'sensor-cone-edge');
-    expect(edges).toHaveLength(4);
+    // The edges are one mesh; a tip marks where each of the four ends.
+    const tips = named(overlay, 'sensor-cone-tip');
+    expect(tips).toHaveLength(4);
     close(arenaCm(endOf(axis!)), expected.ends[0]!);
-    edges.forEach((edge, i) => close(arenaCm(endOf(edge)), expected.ends[i + 1]!));
+    tips.forEach((tip, i) => close(arenaCm(tip.getWorldPosition(new Vector3())), expected.ends[i + 1]!));
+    // And the mesh itself reaches them: its farthest vertices from the sensor are 61.7 cm out, the thickness of a rod more.
+    const [edges] = named(overlay, 'sensor-cone-edges') as Mesh[];
+    const origin = named(overlay, 'sensor-beam-ultrasonic')[0]!.getWorldPosition(new Vector3());
+    const position = edges!.geometry.getAttribute('position');
+    let farthest = 0;
+    for (let i = 0; i < position.count; i++) farthest = Math.max(farthest, edges!.localToWorld(new Vector3().fromBufferAttribute(position, i)).distanceTo(origin));
+    expect(farthest).toBeGreaterThan(0.617 - 1e-6);
+    expect(farthest).toBeLessThan(0.617 + 0.003);
   });
 
   it('draws a ray that heard nothing to 400 cm, quietly, with no dot, and writes "400 cm"', () => {
@@ -118,7 +127,7 @@ describe('the ultrasonic beam', () => {
 describe('the line sensors’ spots', () => {
   const spots = (overlay: SensorOverlay) => lineRoles.map((role) => named(overlay, `sensor-spot-${role}`)[0] as Mesh);
 
-  it('lies on the mat where the readout puts each, as big as the kit’s spot, a disc in the ring where it reads dark', () => {
+  it('lies on the mat where the readout puts each, as big as the kit’s spot, a disc where it reads dark and a ring where it reads bright', () => {
     const overlay = make(lineFollow);
     const readouts = [ultrasonic(80, 'wall'), line('lineLeft', false, [31.5, 20.25]), line('lineCenter', true, [32, 22.5]), line('lineRight', false, [31.5, 24.75])];
     expect(lineRoles).toEqual(['lineLeft', 'lineCenter', 'lineRight']);
@@ -127,19 +136,19 @@ describe('the line sensors’ spots', () => {
     close(found[0]!.position.toArray(), [0.315, 0.005, -0.2025]);
     close(found[1]!.position.toArray(), [0.32, 0.005, -0.225]);
     close(found[2]!.position.toArray(), [0.315, 0.005, -0.2475]);
+    // The quad is a little wider than the spot (the mask's shape fills 0.9 of it), 2 m across at scale 1.
     const radiusCm = (kit.modules.find((module) => module.role === 'lineLeft')!.spec as { spotRadiusCm: number }).spotRadiusCm;
-    expect(found[0]!.scale.x).toBeCloseTo(Math.max(0.7, radiusCm) / 100, 9);
+    expect(found[0]!.scale.x).toBeCloseTo((Math.max(0.7, radiusCm) / 100) / 0.9, 9);
     expect(overlay.probe().spots.map((spot) => [spot.visible, spot.dark])).toEqual([
       [true, false],
       [true, true],
       [true, false],
     ]);
-    // Only the dark one has a disc.
-    const discs = lineRoles.map((role) => named(overlay, `sensor-spot-disc-${role}`)[0]!.visible);
-    expect(discs).toEqual([false, true, false]);
-    // And it is a different ring: red where dark, slate where bright.
+    // Dark is another look (the disc) from bright (the ring), and the same for both bright eyes.
     expect(found[1]!.material).not.toBe(found[0]!.material);
     expect(found[0]!.material).toBe(found[2]!.material);
+    expect(((found[1]!.material as MeshBasicMaterial).color.getHexString())).toBe('ef4444');
+    expect(((found[0]!.material as MeshBasicMaterial).color.getHexString())).toBe('2563eb');
   });
 
   it('hides the spot of a sensor that is lifted off the floor, and all before a run', () => {
@@ -220,7 +229,7 @@ describe('what it costs', () => {
     overlay.root.traverse((node) => {
       if (node instanceof Mesh) meshes.push(node);
     });
-    expect(meshes.length).toBeGreaterThan(10);
+    expect(meshes.length).toBeGreaterThanOrEqual(9);
     for (const mesh of meshes) {
       const material = mesh.material as MeshBasicMaterial;
       expect(material.isMeshBasicMaterial).toBe(true);

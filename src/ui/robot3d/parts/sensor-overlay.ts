@@ -1,4 +1,5 @@
-import { BufferGeometry, CircleGeometry, CylinderGeometry, DataTexture, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, Quaternion, RingGeometry, SphereGeometry, Vector3, type Material, type Object3D } from 'three';
+import { BufferGeometry, CylinderGeometry, DataTexture, Euler, Float32BufferAttribute, Group, Matrix4, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, Quaternion, SphereGeometry, Vector3, type Material } from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Kit, LineSensorSpec, UltrasonicSpec } from '../../../core/hardware/kit';
 import type { Scenario } from '../../../core/scenario/scenario';
 import type { Pose, RobotSnapshot, SensorReadout } from '../../../core/world/snapshot';
@@ -7,6 +8,7 @@ import { CM_PER_M } from '../../../core/world/units';
 import { sensorColors as colors } from '../sensor-colors';
 import { GLYPH, labelGlyphs, LABEL_GLYPHS_MAX, nextGoalZoneId, spotDrawRadiusCm } from '../sensor-overlay-math';
 import { createDistanceLabel, type DistanceLabel } from './distance-label';
+import { spotMaskTexture } from './spot-mask';
 import { zoneBandGeometry, zoneFillGeometry } from './zone-highlight';
 
 // The sensor overlays of the 3D view (N18 R4.3): what the robot "sees", drawn over the arena for a learner to read, from the snapshot's
@@ -26,7 +28,8 @@ import { zoneBandGeometry, zoneFillGeometry } from './zone-highlight';
 // Everything is flagged `compileWithScene` (Scene.tsx CompiledDraw): hidden until a reading comes, but compiled with the scene.
 
 const RAY_RADIUS_M = 0.003;
-const EDGE_RADIUS_M = 0.0014;
+/** The cone's edges are one mesh scaled in all directions by the reading: this thick at 1 m, thinner at less (0.7 mm at 30 cm). */
+const EDGE_RADIUS_M = 0.0024;
 const HIT_RADIUS_M = 0.012;
 /** The tag floats this far over the point of the echo, m. */
 const LABEL_LIFT_M = 0.07;
@@ -37,9 +40,8 @@ const SPOT_LIFT_M = 0.005;
 /** The width of the goal zone's outline, cm. */
 const ZONE_BAND_CM = 1.2;
 const CONE_RING_SEGMENTS = 24;
-/** The ring of a spot is this share of its radius wide; the disc fills the rest; a white edge, this share of it wide again, outside it. */
-const SPOT_RING = 0.4;
-const SPOT_EDGE = 0.2;
+/** A spot's quad is this much wider than the spot (the mask's shape fills SPOT_EXTENT of it, with room for its soft edge). */
+const SPOT_QUAD = 1 / 0.9;
 
 export type SensorOverlayOptions = {
   kit: Kit;
@@ -83,7 +85,9 @@ type UltrasonicPart = {
   group: Group;
   cone: Mesh;
   axis: Mesh;
-  edges: Mesh[];
+  /** The cone's four edges, one mesh; `tips` mark where the left, right, up and down edge end (for a test). */
+  edges: Mesh;
+  tips: Object3D[];
   hit: Mesh;
   label: DistanceLabel | null;
   glyphs: Int8Array;
@@ -93,26 +97,22 @@ type UltrasonicPart = {
   cm: number;
 };
 
-type SpotPart = { role: string; sensorIndex: number; edge: Mesh; ring: Mesh; disc: Mesh; dark: boolean };
+type SpotPart = { role: string; sensorIndex: number; spot: Mesh; dark: boolean };
 
 type ZonePart = { id: string; group: Group };
 
-/** The cone of `halfDeg` as a surface: the apex, a fan to a ring of segments at slant length 1, and the ring's cap (both ways round). */
+/** The cone of `halfDeg` as a surface: the apex and a fan to a ring of segments at slant length 1, facing outward (one layer, no cap). */
 function coneGeometry(halfDeg: number): BufferGeometry {
   const half = (halfDeg * Math.PI) / 180;
   const [c, s] = [Math.cos(half), Math.sin(half)];
   // three's frame: forward +X, up +Y, right +Z; the ring starts at the up edge and goes towards the right.
-  const positions: number[] = [0, 0, 0, c, 0, 0];
+  const positions: number[] = [0, 0, 0];
   for (let k = 0; k < CONE_RING_SEGMENTS; k++) {
     const angle = (2 * Math.PI * k) / CONE_RING_SEGMENTS;
     positions.push(c, s * Math.cos(angle), s * Math.sin(angle));
   }
   const index: number[] = [];
-  for (let k = 0; k < CONE_RING_SEGMENTS; k++) {
-    const [p, q] = [2 + k, 2 + ((k + 1) % CONE_RING_SEGMENTS)];
-    // The side faces outward; the cap faces forward and, for a view from inside the beam, back as well.
-    index.push(0, q, p, 1, p, q, 1, q, p);
-  }
+  for (let k = 0; k < CONE_RING_SEGMENTS; k++) index.push(0, 1 + ((k + 1) % CONE_RING_SEGMENTS), 1 + k);
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
   geometry.setIndex(index);
@@ -122,6 +122,12 @@ function coneGeometry(halfDeg: number): BufferGeometry {
 /** A cylinder of `radius` along +X from 0 to 1 (scaled in x to the length wanted). */
 function rodGeometry(radius: number): BufferGeometry {
   return new CylinderGeometry(radius, radius, 1, 6, 1, true).rotateZ(-Math.PI / 2).translate(0.5, 0, 0);
+}
+
+/** The four edges of a cone of `half` rad as one geometry of unit-length rods from the apex: left (towards −Z), right, up, down. */
+function edgesGeometry(half: number): BufferGeometry {
+  const turns = [new Euler(0, half, 0), new Euler(0, -half, 0), new Euler(0, 0, half), new Euler(0, 0, -half)];
+  return mergeGeometries(turns.map((turn) => rodGeometry(EDGE_RADIUS_M).applyMatrix4(new Matrix4().makeRotationFromEuler(turn))))!;
 }
 
 export function createSensorOverlay({ kit, model, scenario, decimal, fovDeg, makeLabel = createDistanceLabel }: SensorOverlayOptions): SensorOverlay {
@@ -141,16 +147,22 @@ export function createSensorOverlay({ kit, model, scenario, decimal, fovDeg, mak
     materials.push(material);
     return material;
   };
+  const spotMaterial = (name: string, color: string, shape: 'ring' | 'disc'): MeshBasicMaterial => {
+    const mask = spotMaskTexture(shape);
+    textures.push(mask);
+    const material = new MeshBasicMaterial({ name, color, alphaMap: mask, transparent: true, opacity: 0.95, depthWrite: false, depthTest: false });
+    materials.push(material);
+    return material;
+  };
   const look = {
     axisEcho: basic('sensor-ray', colors.ray, 0.92),
     axisQuiet: basic('sensor-ray-quiet', colors.ray, 0.3),
     cone: basic('sensor-cone', colors.cone, 0.1),
     edge: basic('sensor-cone-edge', colors.cone, 0.55),
     hit: basic('sensor-hit', colors.hit, 0.95),
-    spotEdge: basic('sensor-spot-edge', colors.spotEdge, 0.9, false),
-    ringDark: basic('sensor-spot-dark', colors.spotDark, 0.95, false),
-    ringLight: basic('sensor-spot-light', colors.spotLight, 0.95, false),
-    disc: basic('sensor-spot-disc', colors.spotDark, 0.9, false),
+    // A spot is a quad cut by a mask: a ring where the sensor reads bright, a disc where it reads dark; over the robot (no depth test).
+    spotLight: spotMaterial('sensor-spot-light', colors.spotLight, 'ring'),
+    spotDark: spotMaterial('sensor-spot-dark', colors.spotDark, 'disc'),
     goalFill: basic('sensor-goal', colors.goal, 0.22),
     goalBand: basic('sensor-goal-edge', colors.goalEdge, 0.75),
   };
@@ -175,7 +187,6 @@ export function createSensorOverlay({ kit, model, scenario, decimal, fovDeg, mak
 
   // The ultrasonic sensors: at the mount, turned by its yaw; everything of the beam is built at slant length 1 m and scaled by the reading.
   const rod = own(rodGeometry(RAY_RADIUS_M));
-  const edgeRod = own(rodGeometry(EDGE_RADIUS_M));
   const dot = own(new SphereGeometry(HIT_RADIUS_M, 12, 8));
   const ultrasonics: UltrasonicPart[] = model.ultrasonics.map((ultrasonic) => {
     const spec = kit.modules.find((module) => module.role === ultrasonic.role)?.spec as unknown as UltrasonicSpec | undefined;
@@ -190,55 +201,40 @@ export function createSensorOverlay({ kit, model, scenario, decimal, fovDeg, mak
     const axis = new Mesh(rod, look.axisEcho);
     axis.name = 'sensor-axis';
     axis.renderOrder = 23;
-    // Left (towards −Z), right, up and down: a turn of the half angle about the up axis or the sideways one.
-    const edges = [
-      { y: half, z: 0 },
-      { y: -half, z: 0 },
-      { y: 0, z: half },
-      { y: 0, z: -half },
-    ].map((turn) => {
-      const edge = new Mesh(edgeRod, look.edge);
-      edge.name = 'sensor-cone-edge';
-      edge.rotation.set(0, turn.y, turn.z);
-      edge.renderOrder = 22;
-      return edge;
+    // The four edges, left (towards −Z), right, up and down, one mesh (a tip marks the end of each, where a test looks).
+    const edges = new Mesh(own(edgesGeometry(half)), look.edge);
+    edges.name = 'sensor-cone-edges';
+    edges.renderOrder = 22;
+    const tips = [new Euler(0, half, 0), new Euler(0, -half, 0), new Euler(0, 0, half), new Euler(0, 0, -half)].map((turn) => {
+      const tip = new Object3D();
+      tip.name = 'sensor-cone-tip';
+      tip.position.set(1, 0, 0).applyEuler(turn);
+      edges.add(tip);
+      return tip;
     });
     const hit = new Mesh(dot, look.hit);
     hit.name = 'sensor-hit';
     hit.renderOrder = 24;
     const label = makeLabel({ decimal, fovDeg });
-    group.add(cone, axis, ...edges, hit);
+    group.add(cone, axis, edges, hit);
     if (label) group.add(label.sprite);
     group.visible = false;
     robot.add(group);
-    return { role: ultrasonic.role, group, cone, axis, edges, hit, label, glyphs: new Int8Array(LABEL_GLYPHS_MAX), glyphCount: 0, tenths: -1, echo: false, cm: 0 };
+    return { role: ultrasonic.role, group, cone, axis, edges, tips, hit, label, glyphs: new Int8Array(LABEL_GLYPHS_MAX), glyphCount: 0, tenths: -1, echo: false, cm: 0 };
   });
 
-  // The line sensors: a ring and a disc flat on the mat, at the readout's spot, as big as the kit's spot.
-  const ringGeometry = own(new RingGeometry(1 - SPOT_RING, 1, 24).rotateX(-Math.PI / 2));
-  const discGeometry = own(new CircleGeometry(1 - SPOT_RING, 24).rotateX(-Math.PI / 2));
-  const edgeGeometry = own(new RingGeometry(1, 1 + SPOT_EDGE, 24).rotateX(-Math.PI / 2));
+  // The line sensors: a quad flat on the mat at the readout's spot, as big as the kit's spot (at least MIN_SPOT_RADIUS_CM), one draw each.
+  const quad = own(new PlaneGeometry(2, 2).rotateX(-Math.PI / 2));
   const spots: SpotPart[] = model.lineSensors.map((sensor) => {
     const spec = kit.modules.find((module) => module.role === sensor.role)?.spec as unknown as LineSensorSpec | undefined;
-    const radius = spotDrawRadiusCm(spec?.spotRadiusCm) / CM_PER_M;
-    // The white edge keeps the ring readable over the dark bar of the robot and over the black tape alike.
-    const edge = new Mesh(edgeGeometry, look.spotEdge);
-    edge.name = `sensor-spot-edge-${sensor.role}`;
-    edge.scale.set(radius, 1, radius);
-    edge.renderOrder = 24;
-    const ring = new Mesh(ringGeometry, look.ringLight);
-    ring.name = `sensor-spot-${sensor.role}`;
-    ring.scale.set(radius, 1, radius);
-    ring.renderOrder = 25;
-    const disc = new Mesh(discGeometry, look.disc);
-    disc.name = `sensor-spot-disc-${sensor.role}`;
-    disc.scale.set(radius, 1, radius);
-    disc.renderOrder = 25;
-    edge.visible = false;
-    ring.visible = false;
-    disc.visible = false;
-    root.add(edge, ring, disc);
-    return { role: sensor.role, sensorIndex: sensor.sensorIndex, edge, ring, disc, dark: false };
+    const radius = (spotDrawRadiusCm(spec?.spotRadiusCm) / CM_PER_M) * SPOT_QUAD;
+    const spot = new Mesh(quad, look.spotLight);
+    spot.name = `sensor-spot-${sensor.role}`;
+    spot.scale.set(radius, 1, radius);
+    spot.renderOrder = 25;
+    spot.visible = false;
+    root.add(spot);
+    return { role: sensor.role, sensorIndex: sensor.sensorIndex, spot, dark: false };
   });
 
   // The zones goals name, each a fill and an outline, shown one at a time.
@@ -304,7 +300,7 @@ export function createSensorOverlay({ kit, model, scenario, decimal, fovDeg, mak
         part.cone.scale.set(length, length, length);
         part.axis.scale.x = length;
         part.axis.material = echo ? look.axisEcho : look.axisQuiet;
-        for (let k = 0; k < part.edges.length; k++) part.edges[k]!.scale.x = length;
+        part.edges.scale.set(length, length, length);
         part.hit.visible = echo;
         part.hit.position.x = length;
         part.cm = reading.cm;
@@ -322,20 +318,15 @@ export function createSensorOverlay({ kit, model, scenario, decimal, fovDeg, mak
         const spot = spots[i]!;
         const reading = world.sensors[spot.sensorIndex];
         const at = reading?.kind === 'line-sensor' ? reading.spotCm : null;
-        const visible = reading?.kind === 'line-sensor' && at !== null;
-        spot.ring.visible = visible;
-        spot.edge.visible = visible;
         if (reading?.kind !== 'line-sensor' || at === null) {
-          spot.disc.visible = false;
+          spot.spot.visible = false;
           continue;
         }
+        spot.spot.visible = true;
         // The arena's (x, y) cm on the mat: (x, 0 − y) / 100 m in three's frame.
-        spot.edge.position.set(at[0] / CM_PER_M, SPOT_LIFT_M, 0 - at[1] / CM_PER_M);
-        spot.ring.position.set(at[0] / CM_PER_M, SPOT_LIFT_M, 0 - at[1] / CM_PER_M);
-        spot.disc.position.set(at[0] / CM_PER_M, SPOT_LIFT_M, 0 - at[1] / CM_PER_M);
+        spot.spot.position.set(at[0] / CM_PER_M, SPOT_LIFT_M, 0 - at[1] / CM_PER_M);
         spot.dark = reading.dark;
-        spot.ring.material = reading.dark ? look.ringDark : look.ringLight;
-        spot.disc.visible = reading.dark;
+        spot.spot.material = reading.dark ? look.spotDark : look.spotLight;
       }
 
       const next = nextGoalZoneId(scenario.goals, world.score.goals);
@@ -366,7 +357,7 @@ export function createSensorOverlay({ kit, model, scenario, decimal, fovDeg, mak
           hit: last.shown && part.group.visible && part.hit.visible,
           label: part.group.visible && part.glyphCount > 0 ? text(part) : null,
         })),
-        spots: spots.map((spot) => ({ role: spot.role, visible: last.shown && spot.ring.visible, dark: spot.dark })),
+        spots: spots.map((spot) => ({ role: spot.role, visible: last.shown && spot.spot.visible, dark: spot.dark })),
         zone: last.shown ? last.zone : null,
         pulse: last.pulse,
       };
