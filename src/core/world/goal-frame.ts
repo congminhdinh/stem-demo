@@ -1,6 +1,6 @@
 import type { PointCm } from './arena/arena-schema';
 import type { GoalFootprint, GoalFrame, GoalPose } from '../scenario/goals/frame';
-import type { ContactEvent, Pose, RobotSnapshot } from './snapshot';
+import type { ContactEvent, Pose, RobotSnapshot, SensorReadout, SnapshotObject } from './snapshot';
 
 // The goals' view of a tick (N18 R3.5, R6.1 ruling): a RobotSnapshot turned into the `GoalFrame` the goal library judges
 // (scenario/goals/frame.ts), plain centimetres and degrees in the arena's frame. Pure, no Rapier: the world gives the snapshot and
@@ -37,7 +37,24 @@ export type GoalFrameExtras = {
   readonly buzzerHz?: number | null;
 };
 
-const goalPose = (pose: Pose): GoalPose => ({ xCm: pose.xCm, yCm: pose.yCm, yawDeg: pose.yawDeg });
+/** Where a thing stands, as a goal frame reads it: a snapshot's `Pose` is one. */
+type StandingPose = Pick<Pose, 'xCm' | 'yCm' | 'yawDeg'>;
+
+/**
+ * What a goal frame reads of a tick: a `RobotSnapshot` is one, and so is the lighter view the world builds from its bodies each tick
+ * (world.ts `goalFrame`, N18 R3.6), which leaves out what only a view needs (rotations, wheel angles, the ultrasonic readouts, pins).
+ */
+export type GoalFrameSource = {
+  readonly t: number;
+  readonly robot: StandingPose & { readonly servoDeg: RobotSnapshot['robot']['servoDeg'] };
+  readonly objects: readonly { readonly id: string; readonly kind: SnapshotObject['kind']; readonly pose: StandingPose }[];
+  /** The line sensors' spots are read; any other sensor is skipped. */
+  readonly sensors: readonly (Pick<Extract<SensorReadout, { kind: 'line-sensor' }>, 'kind' | 'spotCm'> | Pick<SensorReadout, 'kind'>)[];
+  readonly leds: RobotSnapshot['leds'];
+  readonly outOfArena: boolean;
+};
+
+const goalPose = (pose: StandingPose): GoalPose => ({ xCm: pose.xCm, yCm: pose.yCm, yawDeg: pose.yawDeg });
 
 /** Servo angles are snapped to whole thousandths of a degree (see the top of this file). */
 const SERVO_QUANTUM_PER_DEG = 1e3;
@@ -48,11 +65,12 @@ function goalServoDeg(deg: number, range: readonly [number, number] | undefined)
   return (range === undefined ? snapped : Math.min(range[1], Math.max(range[0], snapped))) + 0;
 }
 
-/** The goal frame of a snapshot (see the top of this file). A new object each call; neither argument is changed. */
-export function toGoalFrame(snapshot: RobotSnapshot, extras: GoalFrameExtras): GoalFrame {
+/** The goal frame of a snapshot (see the top of this file), or of the world's lighter view of a tick. A new object each call; neither argument is changed. */
+export function toGoalFrame(snapshot: GoalFrameSource, extras: GoalFrameExtras): GoalFrame {
   const lineSpotsCm: PointCm[] = [];
   for (const sensor of snapshot.sensors) {
-    if (sensor.kind === 'line-sensor' && sensor.spotCm !== null) lineSpotsCm.push([sensor.spotCm[0], sensor.spotCm[1]]);
+    const spotCm = sensor.kind === 'line-sensor' && 'spotCm' in sensor ? sensor.spotCm : null;
+    if (spotCm !== null) lineSpotsCm.push([spotCm[0], spotCm[1]]);
   }
   // fromEntries defines each id as an own field, so an id such as "__proto__" (letters and "_" are allowed) is an object like any other.
   const objects: Record<string, GoalPose> = Object.fromEntries(

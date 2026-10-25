@@ -5,7 +5,8 @@ import { applyVariant, variantOffsets, type VariantOffsets } from '../scenario/v
 import type { Arena, PointCm } from './arena/arena-schema';
 import { buildArena, type ArenaColliderInfo, type BuiltArena } from './arena/build-arena';
 import { createGroundPaint } from './arena/ground-paint';
-import type { GoalFrameExtras } from './goal-frame';
+import type { GoalFrame } from '../scenario/goals/frame';
+import { toGoalFrame, type GoalFrameExtras, type GoalFrameSource } from './goal-frame';
 import { createPhysicsWorld, initPhysics, PHYSICS_DT_S, PHYSICS_HZ, type PhysicsWorld } from './rapier';
 import { assembleRobot, stepWorld, type ActuatorTargets, type RobotBody, type RobotStart } from './robot/assembly';
 import { robotFootprint, startFootprintIssues } from './robot/footprint';
@@ -123,6 +124,12 @@ export type World = {
   snapshot(): RobotSnapshot;
   /** What a goal frame needs besides the snapshot (goal-frame.ts `toGoalFrame`): this tick's contacts, speed and outline. */
   frameExtras(): GoalFrameExtras;
+  /**
+   * N18 R3.6: this tick's goal frame straight from the bodies and this tick's measures, without building the snapshot (a run feeds
+   * its goals every tick and builds a snapshot only for a view). `run` is what only the run session knows: the LEDs and the buzzer
+   * (from the virtual UNO's pins). Equal to `toGoalFrame({ ...snapshot(), leds }, { ...frameExtras(), buzzerHz })`; a new object each call.
+   */
+  goalFrame(run: { readonly leds: Readonly<Record<string, boolean>>; readonly buzzerHz: number | null }): GoalFrame;
   /** Frees the physics world. Every other use after it throws; a second call does nothing. */
   dispose(): void;
 };
@@ -283,6 +290,8 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
     return state;
   };
 
+  const servoDegOf = (): Record<string, number> => Object.fromEntries(Object.entries(robot.servoAngles()).map(([role, deg]) => [role, plain(deg!)]));
+
   const buildSnapshot = (): RobotSnapshot => {
     const [left, right] = robot.wheelAngles();
     const sensors: SensorReadout[] = sensorOrder.map((role): SensorReadout => {
@@ -296,7 +305,7 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
       robot: {
         ...poseOf(robot.chassis.translation(), robot.chassis.rotation()),
         wheelRad: [plain(left), plain(right)] as const,
-        servoDeg: Object.fromEntries(Object.entries(robot.servoAngles()).map(([role, deg]) => [role, plain(deg!)])),
+        servoDeg: servoDegOf(),
       },
       objects: built.dynamicBodies.map(({ id, kind, body }) => ({ id, kind, pose: poseOf(body.translation(), body.rotation()) })),
       sensors,
@@ -307,6 +316,20 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
       outOfArena,
       score: NO_SCORE,
     });
+  };
+
+  /** What toGoalFrame reads of this tick, without what only a view needs (see `World.goalFrame`). */
+  const goalSource = (leds: Readonly<Record<string, boolean>>): GoalFrameSource => {
+    const sensors: GoalFrameSource['sensors'][number][] = [];
+    for (const sensor of lines) sensors.push({ kind: 'line-sensor', spotCm: seen.get(sensor.role)!.spotCm });
+    return {
+      t: tick / PHYSICS_HZ,
+      robot: { ...standingPoseOf(robot.chassis.translation(), robot.chassis.rotation()), servoDeg: servoDegOf() },
+      objects: built.dynamicBodies.filter(({ kind }) => kind === 'object').map(({ id, kind, body }) => ({ id, kind, pose: standingPoseOf(body.translation(), body.rotation()) })),
+      sensors,
+      leds,
+      outOfArena,
+    };
   };
 
   const buildExtras = (): GoalFrameExtras => {
@@ -383,6 +406,11 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
       extras ??= buildExtras();
       return extras;
     },
+    goalFrame(run) {
+      alive();
+      extras ??= buildExtras();
+      return toGoalFrame(goalSource(run.leds), { ...extras, buzzerHz: run.buzzerHz });
+    },
     dispose() {
       if (disposed) return;
       disposed = true;
@@ -407,6 +435,12 @@ function poseOf(position: Vec3, rotation: Quat): Pose {
     yawDeg: plain(radToDeg(yawOfQuaternion(rotation))),
     rotation: { x: plain(rotation.x), y: plain(0 - rotation.z), z: plain(rotation.y), w: plain(rotation.w) },
   };
+}
+
+/** Where a body stands on the floor, as a goal reads it: the x, y and yaw of `poseOf`, the same numbers. */
+function standingPoseOf(position: Vec3, rotation: Quat): Pick<Pose, 'xCm' | 'yCm' | 'yawDeg'> {
+  const point = worldToArena(position);
+  return { xCm: plain(point.xCm), yCm: plain(point.yCm), yawDeg: plain(radToDeg(yawOfQuaternion(rotation))) };
 }
 
 /** Freezes a JSON value and everything in it; returns it. */
