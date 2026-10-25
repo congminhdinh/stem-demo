@@ -4,7 +4,7 @@ import { scenarioMaxScore, type Scenario } from '../../core/scenario/scenario';
 import type { ScoreState } from '../../core/world/snapshot';
 import { isMessageKey } from '../i18n/messages';
 import { useLocale, useText } from '../i18n/text';
-import { labStatus, shownRun, type RobotRunStore } from './robot-run-store';
+import { labStatus, shownRun, type LabStatus, type RobotRunStore } from './robot-run-store';
 import { formatNumber } from './format';
 
 // The robot lab's HUD (N18 R4.4), over the top left of the 3D view: what the run is doing, its simulated time against the scenario's
@@ -16,6 +16,27 @@ type HudProps = {
   store: RobotRunStore;
   scenario: Scenario;
 };
+
+/** The colour a status is shown in: an alert only for a crash and an error, a success for a run that met every goal. */
+export type StatusTone = 'neutral' | 'active' | 'info' | 'success' | 'alert' | 'error';
+
+export function statusTone(status: LabStatus, allGoalsMet: boolean): StatusTone {
+  switch (status) {
+    case 'running':
+      return 'active';
+    case 'paused':
+    case 'finished':
+      return 'info';
+    case 'timeUp':
+      return allGoalsMet ? 'success' : 'neutral';
+    case 'crashed':
+      return 'alert';
+    case 'error':
+      return 'error';
+    default:
+      return 'neutral';
+  }
+}
 
 /** The time shown, s, in whole tenths: the HUD renders only when it changes. */
 const tenths = (t: number) => Math.floor(t * 10 + 1e-9) / 10;
@@ -35,11 +56,15 @@ export function Hud({ store, scenario }: HudProps) {
   const maxScore = scenarioMaxScore(scenario);
   const hasGoals = scenario.goals.length > 0;
   const results = new Map((score?.goals ?? []).map((goal) => [goal.id, goal]));
+  // How the status reads (N18 R4.2 fix round 1): a run that ends at its time limit is no failure, a success when every goal was met;
+  // only a crash and an error are alerts.
+  const allMet = hasGoals && scenario.goals.every((goal) => results.get(goal.id)?.passed === true);
+  const tone = statusTone(status, allMet);
 
   return (
     <section className="robot-hud" aria-label={t('robot.hud')} data-testid="robot-hud" data-status={status}>
       <div className="robot-hud-row">
-        <span className={`robot-status robot-status-${status}`} role="status" data-testid="robot-status">
+        <span className={`robot-status robot-status-${tone}`} role="status" data-testid="robot-status" data-tone={tone}>
           {t(`robot.status.${status}`)}
         </span>
         <span className="robot-hud-time" data-testid="robot-time" title={t('robot.hud.time')}>

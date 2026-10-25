@@ -143,20 +143,21 @@ export default function RobotLab({
     [store, onRunChange],
   );
 
-  // The dev hooks (window.__stem.robot) read this lab's run.
-  useEffect(
-    () =>
-      attachRobotTestTarget({
-        getSnapshot: () => store.getState().latestWorld(),
-        snapshotHash: () => {
-          const world = store.getState().latestWorld();
-          return world === null ? null : hashSnapshot(world);
-        },
-        setSpeed: (multiplier) => store.getState().setSpeed(multiplier),
-        getSpeed: () => store.getState().speed,
-      }),
-    [store],
-  );
+  // The dev hooks (window.__stem.robot) read this lab's run. Dev builds only: a production build drops this code and the hash it needs.
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return undefined;
+    }
+    return attachRobotTestTarget({
+      getSnapshot: () => store.getState().latestWorld(),
+      snapshotHash: () => {
+        const world = store.getState().latestWorld();
+        return world === null ? null : hashSnapshot(world);
+      },
+      setSpeed: (multiplier) => store.getState().setSpeed(multiplier),
+      getSpeed: () => store.getState().speed,
+    });
+  }, [store]);
 
   // The buzzer's sound follows every published snapshot, and is silent while the run is paused (no time passes then).
   const buzzerPin = model.buzzers[0]?.pinIndex ?? -1;

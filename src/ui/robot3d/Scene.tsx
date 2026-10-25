@@ -1,4 +1,4 @@
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { DirectionalLight } from 'three';
 import type { Kit } from '../../core/hardware/kit';
@@ -32,6 +32,8 @@ export type SceneProps = {
   zoneLabel: (zone: PaintZone) => string | null;
   onContextLost(): void;
   onContextRestored(): void;
+  /** The canvas has drawn its first frame (until then the page shows what is behind it). */
+  onFirstFrame?(): void;
 };
 
 /** The camera's vertical field of view, degrees. */
@@ -101,6 +103,21 @@ function RedrawOnChange({ store }: { store: RobotRunStore }) {
   return null;
 }
 
+/**
+ * Tells the owner once the canvas has drawn its first frame: R3F draws right after its frame callbacks, so the owner is told in a
+ * microtask after the first one, when the frame is on the canvas. A software renderer takes about 2 s to get there (shader compiles).
+ */
+function FirstFrame({ onDrawn }: { onDrawn(): void }) {
+  const told = useRef(false);
+  useFrame(() => {
+    if (!told.current) {
+      told.current = true;
+      queueMicrotask(onDrawn);
+    }
+  });
+  return null;
+}
+
 /** Tells the owner when the browser takes the WebGL context away and gives it back, and draws again then (ADR 0002 §4.7). */
 function ContextWatch({ onLost, onRestored }: { onLost(): void; onRestored(): void }) {
   const gl = useThree((state) => state.gl);
@@ -123,7 +140,7 @@ function ContextWatch({ onLost, onRestored }: { onLost(): void; onRestored(): vo
   return null;
 }
 
-export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored }: SceneProps) {
+export default function Scene({ scenario, kit, model, store, tier, cameraMode, reducedMotion, zoneLabel, onContextLost, onContextRestored, onFirstFrame }: SceneProps) {
   const settings = tierSettings[tier];
   const shadows = settings.shadows !== false;
   const idle = useMemo(() => idleSnapshot(scenario, kit), [scenario, kit]);
@@ -150,6 +167,7 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
       <CameraRig mode={cameraMode} span={span} view={view} reducedMotion={reducedMotion} />
       <RedrawOnChange store={store} />
       <ContextWatch onLost={onContextLost} onRestored={onContextRestored} />
+      {onFirstFrame && <FirstFrame onDrawn={onFirstFrame} />}
     </Canvas>
   );
 }

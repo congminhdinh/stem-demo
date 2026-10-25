@@ -26,7 +26,9 @@ async function openInLesson(page: Page, url: string): Promise<Frame> {
     throw new Error('The lab iframe has no frame');
   }
   await frame.getByTestId('robot-lab').waitFor();
-  await frame.getByTestId('robot-canvas').locator('canvas').waitFor();
+  // N18 R4.2 fix round 1: the first frame drawn, not just the canvas element (SwiftShader takes about 2 s to get there).
+  await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 15_000 });
+  await expect(frame.getByTestId('robot-3d-loading')).toHaveCount(0);
   return frame;
 }
 
@@ -115,7 +117,8 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
     await expect(frame.getByTestId('robot-speed').getByRole('radio', { name: '4×' })).toHaveAttribute('aria-checked', 'true');
     await frame.getByTestId('robot-run').click();
     // The scenario's time limit is 15 s: under 4 s at 4×, with a margin for a slow machine.
-    await expect(frame.getByTestId('robot-status')).toHaveText('Đã hết thời gian', { timeout: 20_000 });
+    await expect(frame.getByTestId('robot-status')).toHaveText('Lượt chạy kết thúc', { timeout: 20_000 });
+    await expect(frame.getByTestId('robot-status')).toHaveAttribute('data-tone', 'success');
     await expect(frame.getByTestId('robot-score')).toHaveText('Điểm 100/100');
     await expect(frame.locator('[data-goal=reach-target]')).toHaveAttribute('data-passed', 'true');
     await expect(frame.locator('[data-goal=stop-in-target]')).toHaveAttribute('data-passed', 'true');
@@ -131,6 +134,46 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
     await page.waitForTimeout(600);
     await screenshot(page, '05-follow-1100x640.png');
     expect(errors).toEqual([]);
+  });
+
+  test('draws the idle view before any run: the canvas shows the arena and the robot, not the page behind it', async ({ page, baseURL }) => {
+    // Counts the draws to the screen and reads pixels of each one, in a microtask after it starts: after the frame's draw calls, before
+    // the compositor takes the picture (the drawing buffer is not preserved).
+    await page.addInitScript(() => {
+      const probe = window as unknown as { __draws: number; __pixels: number[][] };
+      probe.__draws = 0;
+      probe.__pixels = [];
+      const clear = WebGL2RenderingContext.prototype.clear;
+      WebGL2RenderingContext.prototype.clear = function (this: WebGL2RenderingContext, mask: number) {
+        if (this.getParameter(this.FRAMEBUFFER_BINDING) === null) {
+          probe.__draws += 1;
+          queueMicrotask(() => {
+            const pixels: number[][] = [];
+            for (let i = 1; i <= 5; i += 1) {
+              for (let j = 1; j <= 5; j += 1) {
+                const pixel = new Uint8Array(4);
+                this.readPixels(Math.floor((this.drawingBufferWidth * i) / 6), Math.floor((this.drawingBufferHeight * j) / 6), 1, 1, this.RGBA, this.UNSIGNED_BYTE, pixel);
+                pixels.push([...pixel]);
+              }
+            }
+            probe.__pixels = pixels;
+          });
+        }
+        clear.call(this, mask);
+      };
+    });
+    const frame = await openInLesson(page, labUrl(baseURL, 'lab=robot&template=rb-drive-to-zone'));
+    await expect(frame.getByTestId('robot-status')).toHaveText('Chưa chạy');
+    const { draws, pixels } = await frame.evaluate(() => {
+      const probe = window as unknown as { __draws: number; __pixels: number[][] };
+      return { draws: probe.__draws, pixels: probe.__pixels };
+    });
+    expect(draws).toBeGreaterThanOrEqual(1);
+    expect(pixels).toHaveLength(25);
+    // The view's own colours (the sky, the floor, the walls, the zones, the robot), not the plain background of the page (#f1f4f9).
+    const colours = new Set(pixels.map((pixel) => pixel.join(',')));
+    expect(colours.size).toBeGreaterThanOrEqual(4);
+    expect(pixels.filter(([r, g, b]) => r === 0xf1 && g === 0xf4 && b === 0xf9)).toHaveLength(0);
   });
 
   test('draws the run in every frame its snapshot changes, and nothing once the robot rests (the canvas draws on demand)', async ({ page, baseURL }) => {
@@ -170,12 +213,14 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
     );
     expect(during.changed).toBeGreaterThan(30);
     expect(during.draws / during.changed).toBeGreaterThan(0.8);
-    // The program ends after 5 s and the robot rests in the target: the canvas stops drawing.
+    // The program ends after 5 s and the robot rests in the target: the canvas stops drawing, and the HUD's clock goes on (fix round 1).
     await expect(frame.getByTestId('robot-status')).toHaveText('Chương trình đã chạy xong', { timeout: 10_000 });
     await page.waitForTimeout(1500);
     const rested = await frame.evaluate(() => (window as unknown as { __draws: number }).__draws);
+    const restedAt = await frame.getByTestId('robot-time').textContent();
     await page.waitForTimeout(1000);
     expect(await frame.evaluate(() => (window as unknown as { __draws: number }).__draws)).toBe(rested);
+    expect(await frame.getByTestId('robot-time').textContent()).not.toBe(restedAt);
   });
 
   test('steps 0.1 s of simulated time from idle, paused, then runs on with Tiếp tục', async ({ page, baseURL }) => {
@@ -235,7 +280,7 @@ test.describe('the robot lab’s layout (N18 R4.2)', () => {
     const errors = collectErrors(page);
     await page.setViewportSize({ width: 760, height: 640 });
     await page.goto('/?embed=1&lab=robot&template=rb-drive-to-zone');
-    await page.getByTestId('robot-canvas').locator('canvas').waitFor({ state: 'attached' });
+    await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 15_000 });
     await expect(page.getByRole('tab', { name: 'Chương trình', exact: true })).toHaveAttribute('aria-selected', 'true');
     expect(await scrolls(page)).toEqual({ sideways: false, down: false });
     await screenshot(page, '07-program-tab-760.png');

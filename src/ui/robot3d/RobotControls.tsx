@@ -1,3 +1,4 @@
+import { useRef, type KeyboardEvent } from 'react';
 import { useStore } from 'zustand';
 import { SteadyLabel } from '../app/RunToolbar';
 import { useLocale, useText } from '../i18n/text';
@@ -26,6 +27,29 @@ export function RobotControls({ store, onRun, onStep }: RobotControlsProps) {
   const held = useStore(store, (state) => state.held !== null);
   const over = useStore(store, (state) => state.snapshot.status !== 'idle' && isRunOver(state.snapshot));
   const { stop, togglePause, resetRobot, setSpeed } = store.getState();
+  // The speeds are one radio group (WAI-ARIA): Tab reaches the chosen one, the arrows, Home and End choose another and move to it.
+  const radios = useRef<(HTMLButtonElement | null)[]>([]);
+  const chosen = ROBOT_SPEEDS.indexOf(speed as (typeof ROBOT_SPEEDS)[number]);
+  const onSpeedKey = (event: KeyboardEvent<HTMLDivElement>) => {
+    const last = ROBOT_SPEEDS.length - 1;
+    const from = chosen < 0 ? 0 : chosen;
+    const to =
+      event.key === 'ArrowRight' || event.key === 'ArrowDown'
+        ? (from + 1) % ROBOT_SPEEDS.length
+        : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+          ? (from + last) % ROBOT_SPEEDS.length
+          : event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? last
+              : null;
+    if (to === null || locked) {
+      return;
+    }
+    event.preventDefault();
+    setSpeed(ROBOT_SPEEDS[to]!);
+    radios.current[to]?.focus();
+  };
 
   return (
     <div className="robot-controls" role="toolbar" aria-label={t('robot.controls')} data-testid="robot-controls">
@@ -56,12 +80,23 @@ export function RobotControls({ store, onRun, onStep }: RobotControlsProps) {
         <Icon name="reset" />
         {t('robot.resetRobot')}
       </button>
-      <div className="robot-speed" role="radiogroup" aria-label={t('robot.speed')} data-testid="robot-speed">
+      <div className="robot-speed" role="radiogroup" aria-label={t('robot.speed')} data-testid="robot-speed" onKeyDown={onSpeedKey}>
         <span className="robot-speed-label" aria-hidden="true">
           {t('robot.speed')}
         </span>
-        {ROBOT_SPEEDS.map((value) => (
-          <button key={value} type="button" role="radio" aria-checked={speed === value} disabled={locked} onClick={() => setSpeed(value)}>
+        {ROBOT_SPEEDS.map((value, index) => (
+          <button
+            key={value}
+            ref={(button) => {
+              radios.current[index] = button;
+            }}
+            type="button"
+            role="radio"
+            aria-checked={speed === value}
+            tabIndex={index === (chosen < 0 ? 0 : chosen) ? 0 : -1}
+            disabled={locked}
+            onClick={() => setSpeed(value)}
+          >
             {t('robot.speed.value', { value: formatNumber(value, locale) })}
           </button>
         ))}

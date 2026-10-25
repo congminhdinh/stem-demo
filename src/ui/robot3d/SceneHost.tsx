@@ -10,7 +10,8 @@ import Scene, { type SceneProps } from './Scene';
 // is made, WebGL is probed: without it the view says so, with Try again, and the rest of the lab (the program, the run, the HUD) keeps
 // working. A canvas that throws while it is made or drawn, and a WebGL context the browser takes away and does not give back within a few
 // seconds, show the same kind of message; Try again makes a new canvas. The program and the blocks are never touched: they live outside.
-// The view's own controls float over it: the camera's three views, and the quality tier (a new tier is a new canvas).
+// The view's own controls float over it: the camera's three views, and the quality tier (a new tier is a new canvas). Until a canvas
+// has drawn its first frame (about 2 s on a software renderer), "Đang tải 3D…" stands over it instead of the empty page behind.
 
 /** How long a lost WebGL context may take to come back before the view offers Try again. */
 const RESTORE_WAIT_MS = 3000;
@@ -45,6 +46,13 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
   const [cameraMode, setCameraMode] = useState<CameraMode>('orbit');
   const [attempt, setAttempt] = useState(0);
   const [context, setContext] = useState<'ok' | 'lost' | 'gone'>('ok');
+  // The canvas of this attempt and tier has drawn its first frame; a new canvas (Try again, another tier) has not.
+  const canvasKey = `${attempt}:${tier}`;
+  const [drawnKey, setDrawnKey] = useState<string | null>(null);
+  const drawn = drawnKey === canvasKey;
+  const onFirstFrame = useCallback(() => setDrawnKey(canvasKey), [canvasKey]);
+  // The attempt whose canvas failed: its message shows, not the loading one.
+  const [failedAttempt, setFailedAttempt] = useState<number | null>(null);
 
   useEffect(() => {
     if (context !== 'lost') return;
@@ -65,13 +73,32 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
   }
   return (
     <>
-      <ErrorBoundary
-        key={attempt}
-        onError={(error) => console.warn('The robot lab’s 3D view failed.', error)}
-        fallback={<ViewportMessage text={t('robot.webgl.failed')} onRetry={retry} testId="robot-webgl-failed" />}
-      >
-        <Scene key={tier} {...sceneProps} tier={tier} cameraMode={cameraMode} onContextLost={onContextLost} onContextRestored={onContextRestored} />
-      </ErrorBoundary>
+      <div className="robot-scene" data-testid="robot-scene" data-drawn={drawn}>
+        <ErrorBoundary
+          key={attempt}
+          onError={(error) => {
+            setFailedAttempt(attempt);
+            console.warn('The robot lab’s 3D view failed.', error);
+          }}
+          fallback={<ViewportMessage text={t('robot.webgl.failed')} onRetry={retry} testId="robot-webgl-failed" />}
+        >
+          <Scene
+            key={tier}
+            {...sceneProps}
+            tier={tier}
+            cameraMode={cameraMode}
+            onContextLost={onContextLost}
+            onContextRestored={onContextRestored}
+            onFirstFrame={onFirstFrame}
+          />
+        </ErrorBoundary>
+        {!drawn && failedAttempt !== attempt && context === 'ok' && (
+          <div className="robot-scene-loading" role="status" data-testid="robot-3d-loading">
+            <span className="robot-scene-spinner" aria-hidden="true" />
+            {t('robot.loading3d')}
+          </div>
+        )}
+      </div>
       {context === 'lost' && (
         <div className="robot-viewport-message robot-viewport-message-soft" role="status" data-testid="robot-webgl-lost">
           <p>{t('robot.webgl.lost')}</p>

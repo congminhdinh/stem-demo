@@ -138,6 +138,46 @@
   touch-action: none;
 }
 
+/* The scene's own layer, and what stands over it until its canvas has drawn a first frame. */
+.robot-scene {
+  position: absolute;
+  inset: 0;
+}
+
+.robot-scene-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--stem-color-surface-muted);
+  color: var(--stem-color-text-muted);
+  font-size: 14px;
+}
+
+.robot-scene-spinner {
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  border: 2px solid var(--stem-color-border-strong);
+  border-top-color: var(--stem-color-primary);
+  border-radius: 50%;
+  animation: robot-spin 0.9s linear infinite;
+}
+
+@keyframes robot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .robot-scene-spinner {
+    animation: none;
+  }
+}
+
 /* What floats over the view: a card, readable over any arena. */
 .robot-hud,
 .robot-camera,
@@ -195,24 +235,29 @@
   color: var(--stem-color-neutral-text);
 }
 
-.robot-status-running {
+/* A status's tone (Hud.tsx statusTone): alert colours only for a crash and an error; a run that ends at its time limit is neutral, or a
+   success when it met every goal. */
+.robot-status-active,
+.robot-status-success {
   background: var(--stem-color-success-soft);
   color: var(--stem-color-success);
 }
 
-.robot-status-finished {
+.robot-status-success::before {
+  content: '✓ ';
+}
+
+.robot-status-info {
   background: var(--stem-color-primary-soft);
   color: var(--stem-color-primary);
 }
 
-.robot-status-paused,
-.robot-status-timeUp,
+.robot-status-alert,
 .robot-badge-slow {
   background: var(--stem-color-warning-soft);
   color: var(--stem-color-warning-text);
 }
 
-.robot-status-crashed,
 .robot-status-error,
 .robot-badge-out {
   background: var(--stem-color-danger-soft);

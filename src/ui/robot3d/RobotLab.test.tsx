@@ -105,6 +105,19 @@ describe('RobotLab (N18 R4.1, R4.2)', () => {
     expect([...host.querySelectorAll('.robot-program-tabs [role=tab]')].map((element) => element.textContent)).toEqual(['Khối lệnh', 'C++', 'Cổng & chân']);
   });
 
+  it('says the 3D view is loading over it until its canvas draws a first frame (jsdom never draws one)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // A container that never reports a size: the canvas waits to make its renderer, as a browser's does before the first frame.
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
+    const { render } = setup('rb-drive-to-zone', { probe: () => ({ ok: true, renderer: 'Test GPU' }) });
+    await render();
+    expect(host.querySelector('[data-testid=robot-canvas]')).not.toBeNull();
+    expect(text('robot-3d-loading')).toBe('Đang tải 3D…');
+    expect(host.querySelector('[data-testid=robot-scene]')?.getAttribute('data-drawn')).toBe('false');
+    warn.mockRestore();
+    vi.restoreAllMocks();
+  });
+
   it('titles every scenario in its own words, and in English when the lab is read in English', async () => {
     const titles: (string | null)[] = [];
     for (const key of robotTemplateKeys) {
@@ -167,6 +180,8 @@ describe('RobotLab without WebGL (N18 R4.2)', () => {
     // The canvas measures its container after a debounce of 50 ms, then makes its renderer.
     await act(() => new Promise((resolve) => setTimeout(resolve, 300)));
     expect(text('robot-webgl-failed')).toBe('Khung nhìn 3D gặp lỗi và đã dừng. Chương trình của bạn vẫn được giữ.Thử lại');
+    // N18 R4.2 fix round 1: the loading sign gives way to the failure's message.
+    expect(host.querySelector('[data-testid=robot-3d-loading]')).toBeNull();
     expect(text('blocks')).toBe('khối lệnh');
     expect(host.querySelector('[data-testid=robot-load-failed]')).toBeNull();
     warn.mockRestore();
@@ -226,6 +241,35 @@ describe('RobotLab runs (N18 R4.4)', () => {
     expect(host.querySelector('[data-goal=stop-in-target]')?.getAttribute('title')).toBe('Robot chưa đứng yên đủ lâu trong vùng.');
     expect(host.querySelector<HTMLElement>('[data-goal=stop-in-target] .robot-goal-progress > span')?.style.width).toBe('50%');
     expect(text('robot-slower')).toBe('Chạy chậm hơn thời gian thực');
+  });
+
+  it('ends at the time limit as "Lượt chạy kết thúc", a success when every goal was met; only a crash and an error are alerts', async () => {
+    const { render, publish, world } = setup();
+    await render();
+    await click('robot-run');
+    const goals = (reach: boolean, stop: boolean) => ({
+      points: (reach ? 30 : 0) + (stop ? 70 : 0),
+      maxScore: 100,
+      goals: [
+        { id: 'reach-target', passed: reach, points: reach ? 30 : 0, progress: reach ? 1 : 0, ...(reach ? {} : { reasonKey: 'robot.goal.reason.zone-not-reached' as const }) },
+        { id: 'stop-in-target', passed: stop, points: stop ? 70 : 0, progress: stop ? 1 : 0, ...(stop ? {} : { reasonKey: 'robot.goal.reason.not-stopped-in-zone' as const }) },
+      ],
+    });
+    const badge = () => [text('robot-status'), host.querySelector('[data-testid=robot-status]')?.getAttribute('data-tone')];
+    await frame();
+    expect(badge()).toEqual(['Đang chạy', 'active']);
+    publish({ status: 'finished', world: world(15, 90, { status: 'finished', score: goals(true, false) }), end: { reason: 'time-limit', atS: 15 } });
+    await frame();
+    expect(badge()).toEqual(['Lượt chạy kết thúc', 'neutral']);
+    publish({ world: world(15, 90, { status: 'finished', score: goals(true, true) }) });
+    await frame();
+    expect(badge()).toEqual(['Lượt chạy kết thúc', 'success']);
+    publish({ end: { reason: 'contact', atS: 3, tag: 'wall' } });
+    await frame();
+    expect(badge()).toEqual(['Hết lượt: robot đã va chạm', 'alert']);
+    publish({ status: 'error', end: undefined, error: { message: 'Division by zero.', code: 'division-by-zero' } });
+    await frame();
+    expect(badge()).toEqual(['Lỗi', 'error']);
   });
 
   it('says why a run did not start, and puts the diagnostics that name a block on that block, in Vietnamese', async () => {
@@ -304,6 +348,32 @@ describe('RobotLab runs (N18 R4.4)', () => {
     await click('robot-stop');
     await frame();
     expect(text('console-lines')).toBe('xa 40 cm\ngần 12 cm');
+  });
+
+  it('chooses the speed with the arrows, Home and End, the chosen one the only stop of Tab in the group (a radio group)', async () => {
+    const { render } = setup();
+    await render();
+    const radios = () => [...host.querySelectorAll<HTMLButtonElement>('[data-testid=robot-speed] [role=radio]')];
+    const state = () => radios().map((radio) => [radio.textContent, radio.getAttribute('aria-checked'), radio.tabIndex, radio === document.activeElement]);
+    expect(state()).toEqual([
+      ['0,5×', 'false', -1, false],
+      ['1×', 'true', 0, false],
+      ['2×', 'false', -1, false],
+      ['4×', 'false', -1, false],
+    ]);
+    const key = (name: string) => act(async () => void document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: name, bubbles: true })));
+    act(() => radios()[1]!.focus());
+    await key('ArrowRight');
+    expect(state()[2]).toEqual(['2×', 'true', 0, true]);
+    await key('End');
+    expect(state()[3]).toEqual(['4×', 'true', 0, true]);
+    await key('ArrowDown');
+    expect(state()[0]).toEqual(['0,5×', 'true', 0, true]);
+    await key('ArrowLeft');
+    expect(state()[3]).toEqual(['4×', 'true', 0, true]);
+    await key('Home');
+    expect(state()[0]).toEqual(['0,5×', 'true', 0, true]);
+    expect(state().filter(([, , tabIndex]) => tabIndex === 0)).toHaveLength(1);
   });
 
   it('serves window.__stem.robot: the world, its hash and the speed, which the speed buttons set too', async () => {
