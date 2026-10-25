@@ -9,8 +9,9 @@
 // to 760 px wide for the narrow layout, the Robot tab picked), loads each program over stem-lab/v1 (`load-project`: a production build
 // has no test hooks), runs it at 4× and pauses it where the HUD's clock says, in Chromium on the machine's GPU (new headless, ANGLE
 // Metal on a Mac). Shots (every one from this production build):
-//   - <pilot>-<tier>-<width>.png: the six pilots, high and low, at 1100 and 760 (Tự do, the view each lesson opens on);
-//   - drive-to-zone-{orbit,follow,top}-high-1100.png: the three camera views; servo-gate-flag-high-1100.png: the raised flag up close;
+//   - <pilot>-<tier>-<width>.png: the six pilots, high and low, at 1100 and 760 (Tự do, the view each lesson opens on), paused mid-run;
+//     idle/<pilot>-high-<width>.png the same views before the run, the robot at its start;
+//   - drive-to-zone-{orbit,follow,top}-high-1100.png: the three camera views (Tự do orbited by a drag); servo-gate-flag-high-1100.png: the raised flag up close;
 //   - follow-<tier>-1100.png, closeup-<tier>-1100.png, closeup-front-<tier>-1100.png: Theo xe as it opens, zoomed in, and orbited round
 //     to the robot's front-left;
 //   - line-lamps-free-<tier>-1100.png (Tự do), line-lamps-follow-<tier>-1100.png (Theo xe as it opens, the robot on a turn of the tape)
@@ -33,6 +34,7 @@ const only = args.only ?? null;
 const distDir = join(here, 'dist');
 const SANDBOX = 'allow-scripts allow-same-origin allow-downloads';
 mkdirSync(join(out, 'check'), { recursive: true });
+mkdirSync(join(out, 'idle'), { recursive: true });
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 const want = (name) => only === null || name.includes(only);
@@ -183,6 +185,8 @@ async function main() {
           if (!want(name) && !views && !follow && !flag) continue;
           const { page, frame } = await open(context, key, width);
           await setTier(frame, tier);
+          // The view the lesson opens on, the robot at its start (the high tier).
+          if (tier === 'high' && want(name)) await shoot(page, `idle/${key.slice(3)}-${tier}-${width}.png`, width === 1100 ? null : page.locator('iframe'));
           await load(page, frame, project(key));
           await runTo(frame, pauseAt);
           const iframe = width === 1100 ? null : page.locator('iframe');
@@ -190,6 +194,8 @@ async function main() {
           if (views) {
             for (const [mode, label] of [['orbit', 'Tự do'], ['follow', 'Theo xe'], ['top', 'Nhìn từ trên']]) {
               await camera(frame, label);
+              // "Tự do" orbited for real: a drag round to the arena's side and a little higher.
+              if (mode === 'orbit') await orbit(page, await frame.getByTestId('robot-canvas').boundingBox(), -240, -40);
               await shoot(page, `drive-to-zone-${mode}-high-1100.png`);
             }
           }
