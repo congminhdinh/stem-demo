@@ -481,6 +481,6 @@ R4.2 vẽ hình thủ tục (plan D-R7: "procedural geometry first, home-made GL
    - **Đo lại frame đầu** (`results/fix2-*.json`, `ab-r2-*.json`): máy bận hơn (một máy ảo chiếm khoảng 1,3 lõi, load 7–12). Cùng điều
      kiện, xen kẽ với master: SwiftShader tier thấp ở 4× 2 610–2 656 ms so với master 1 271–1 302; bản 75bdfda (cuối fix round 1) đo lại
      lúc đó 2 653–2 684 ms, nên round 2 không làm chậm thêm; gắn nhãn ngay hay sau frame đầu không khác (2 616–2 655 so với 2 613–2 648).
-     GPU tier cao 4×: 1 980–2 000 so với master 1 351–1 354. FPS vẫn đạt (GPU p5 ≥ 53,8; SwiftShader tier thấp 4× p5 51,5–54,3).
+     GPU tier cao 4×: 1 980–2 000 so với master 1 351–1 354. FPS vẫn đạt (GPU p5 ≥ 52,4 ở cả hai tier; SwiftShader tier thấp 4× p5 51,5–54,3).
    - Bundle `RobotLab-*.js` 368,3 kB gzip (+43,1 kB so với master 1211347).
 
