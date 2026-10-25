@@ -108,7 +108,7 @@
 .robot-tool-panel {
   display: grid;
   gap: 6px;
-  max-width: 270px;
+  max-width: 320px;
   box-sizing: border-box;
   padding: 8px 10px;
 }
@@ -253,6 +253,7 @@
 .robot-ruler dd {
   margin: 0;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .robot-ruler strong {
@@ -294,5 +295,9 @@
 
   .robot-stage:has(.robot-tools) .robot-messages {
     left: 70px;
+  }
+
+  .robot-ruler dd {
+    white-space: normal;
   }
 }
