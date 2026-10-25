@@ -76,6 +76,8 @@ test.describe('the robot lab’s view tools (N18 R4.8)', () => {
     await expect(frame.getByTestId('robot-tool-teleop')).toHaveAttribute('aria-pressed', 'true');
     await expect(frame.getByTestId('robot-teleop')).toBeVisible();
     await expect(frame.getByTestId('robot-status')).toHaveText('Đang lái tay');
+    // Teleop is held to TELEOP_LIMIT_S (600 s), not the lesson's 15 s.
+    await expect(frame.getByTestId('robot-time')).toContainText('/ 600 s');
     await expect.poll(async () => (await view(frame))?.status).toBe('running');
     const start = (await view(frame))!.robot;
     expect(start.xCm).toBeCloseTo(25, 0);
@@ -123,7 +125,7 @@ test.describe('the robot lab’s view tools (N18 R4.8)', () => {
     const a = await topViewPoint(frame, 60, 40);
     const b = await topViewPoint(frame, 120, 55);
     await page.mouse.click(a.x, a.y);
-    await expect(frame.getByTestId('robot-ruler-from')).toBeVisible();
+    await expect(frame.getByTestId('robot-ruler')).toHaveText('Bấm điểm thứ hai.');
     await page.mouse.click(b.x, b.y);
     await expect(frame.getByTestId('robot-ruler-distance')).toBeVisible();
     // √(60² + 15²) = 61.85 cm, at 14.04° to the left of the robot's heading (+x).
@@ -131,10 +133,12 @@ test.describe('the robot lab’s view tools (N18 R4.8)', () => {
     await expect(frame.getByTestId('robot-ruler-angle')).toHaveText(/^1[34],\d° sang trái$/);
     await screenshot(page, '02-ruler-top-view.png');
 
-    // A click near the robot snaps to its middle.
+    // A click near the robot snaps to its middle (the two points fold out of the panel).
     const robot = await topViewPoint(frame, 26, 41);
     await page.mouse.click(robot.x, robot.y);
+    await frame.getByTestId('robot-ruler-points').click();
     await expect(frame.getByTestId('robot-ruler-from')).toHaveText('tâm robot (x 25,0 · y 40,0 cm)');
+    await frame.locator('.robot-stage').focus();
     // Esc on the view clears it.
     await page.keyboard.press('Escape');
     await expect(frame.getByTestId('robot-ruler')).toHaveText('Bấm điểm thứ nhất trên sa bàn.');
@@ -162,12 +166,52 @@ test.describe('the robot lab’s view tools (N18 R4.8)', () => {
     // Q turns it 15° to the left.
     await page.keyboard.press('q');
     await expect.poll(async () => (await view(frame))!.robot.yawDeg).toBeCloseTo(15, 3);
+    // By the keyboard: → twice and Shift+↑ nudge its ghost 2 cm right and 5 cm away, Enter places it.
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Shift+ArrowUp');
+    await page.keyboard.press('Enter');
+    await expect.poll(async () => (await view(frame))!.robot.yCm).toBeGreaterThan(placed.yCm + 4);
+    const nudged = (await view(frame))!.robot;
+    expect(nudged.xCm - placed.xCm).toBeCloseTo(2, 1);
+    expect(nudged.yCm - placed.yCm).toBeCloseTo(5, 1);
+    expect(nudged.yawDeg).toBeCloseTo(15, 3);
     // A Run starts there.
     await frame.getByTestId('robot-run').click();
     await expect(frame.getByTestId('robot-status')).toHaveText(/Đang chạy|Chương trình đã chạy xong|Lượt chạy kết thúc/);
     await expect.poll(async () => (await view(frame))?.status).not.toBe('idle');
     const running = (await view(frame))!.robot;
-    expect(Math.hypot(running.xCm - placed.xCm, running.yCm - placed.yCm)).toBeLessThan(5);
+    expect(Math.hypot(running.xCm - nudged.xCm, running.yCm - nudged.yCm)).toBeLessThan(5);
+    expect(errors).toEqual([]);
+  });
+
+  test('the tools are small over the arena: icon toggles, the D-pad panel, and the D-pad folded away', async ({ page, baseURL }) => {
+    const errors = collectErrors(page);
+    const frame = await openInLesson(page, labUrl(baseURL));
+    const size = async () => {
+      const box = (await frame.getByTestId('robot-tools').boundingBox())!;
+      return { width: Math.round(box.width), height: Math.round(box.height) };
+    };
+    const strip = await size();
+    await frame.getByTestId('robot-tool-teleop').click();
+    await expect(frame.getByTestId('robot-teleop')).toBeVisible();
+    await expect(frame.getByTestId('robot-status')).toHaveText('Đang lái tay');
+    const withPad = await size();
+    await screenshot(page, '05-teleop-compact.png');
+    await frame.getByTestId('robot-teleop-fold').click();
+    const folded = await size();
+    await screenshot(page, '06-teleop-folded.png');
+    // Every target of the tools is 44 px or more.
+    await frame.getByTestId('robot-teleop-fold').click();
+    const small = await frame
+      .locator('[data-testid=robot-tools] button, [data-testid=robot-tools] input')
+      .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()).filter((box) => box.width < 44 || box.height < 44).length);
+    expect(small).toBe(0);
+    console.log(`R4.8 tools at 1100 x 640: strip ${strip.width}x${strip.height}, with the D-pad ${withPad.width}x${withPad.height}, folded ${folded.width}x${folded.height}`);
+    expect(strip.width).toBeLessThanOrEqual(60);
+    expect(withPad.width).toBeLessThanOrEqual(220);
+    expect(withPad.height).toBeLessThanOrEqual(215);
+    expect(folded.height).toBeLessThanOrEqual(150);
     expect(errors).toEqual([]);
   });
 
