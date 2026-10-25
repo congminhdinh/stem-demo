@@ -639,6 +639,9 @@ Mỗi task ghi **Files**, **Interfaces**, **Tests** (tên + assertion chính), *
   - Đo lại (ADR 0002 §11.8): GPU tier cao 59,9–60,2 fps, p5 ≥ 55,6, 131 draw; SwiftShader tier thấp 4× p5 53,2–53,8 (master 53,2–54,1),
     44 draw; SwiftShader ở tier cao tự xuống thấp sau 3,4–4,0 s chạy; frame đầu ở 4× chậm hơn master 0,4–0,6 s; chunk 3D 366,1 kB gzip
     (+41,0 kB so với master 1211347); GLB 1 130 / 690 kB (gzip 510 / 275 kB).
+- **Fix round 2** (ADR 0002 §11.9): nhãn zone được xếp mỗi frame để không che robot, cờ, HUD hay nhau (ẩn khi không có chỗ, ở zone robot
+  đang đứng và ở "Theo xe"), điểm kiểm tra chỉ hiện số; tự hạ tier chỉ đếm frame liền nhau; "Theo xe" không vào vật; `MIN_ROBOT_PX` = 60;
+  đèn line sáng đỏ rõ, tắt gần đen. Ảnh chụp lại: `r47-shots/after2/` (kèm `idle/`).
 
 **R4.5 Pin inspector + tab code (16h).** `PinInspector.tsx`: role → port → chân → giá trị sống (vd. *motor trái 50 % → M1 → D5 PWM 128, D7 HIGH, D8 LOW*). Tab "C++" hiện output C1 (read-only, Copy theo pattern clipboard đã có).
 

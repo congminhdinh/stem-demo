@@ -467,4 +467,20 @@ R4.2 vẽ hình thủ tục (plan D-R7: "procedural geometry first, home-made GL
        ở `results/superseded/`.
      - **Bundle** (gzip -6): `RobotLab-*.js` 366,1 kB (master 1211347: 325,1 kB, +41,0 kB); entry +3 B, `test-hooks` +68 B (chuỗi i18n).
        GLB: tier cao 827 + 303 = 1 130 kB (gzip 510 kB), tier thấp 496 + 195 = 690 kB (gzip 275 kB), dưới 2 MB.
+9. **Fix round 2** (re-review của R4.7):
+   - **Nhãn zone không che chủ thể:** mỗi frame `zone-tag-layout.ts` chiếu điểm neo của nhãn và hộp robot (cả cờ khi có) lên màn hình rồi
+     đặt nhãn ở chỗ đầu tiên không chồng lên robot, HUD, dải nút camera, dụng cụ R4.8, thẻ kết quả hay nhãn đã đặt (giữa, lệch phải, lệch
+     trái, cạnh đường dẫn; cao hơn; thấp hơn), không có chỗ thì ẩn; zone robot đang đứng và chế độ "Theo xe" không hiện nhãn. Điểm kiểm
+     tra chỉ hiện số. Đường dẫn là quad quay về camera vẽ bằng program của bóng tiếp xúc; texture nhãn dựng một lần khi font đã có; nhãn
+     gắn sau frame đầu một frame.
+   - **Tự hạ tier chỉ đếm frame liền nhau** (`addTail` của R3F báo vòng lặp demand dừng): robot đứng yên nháy LED (cặp frame 484 / 16,7 ms)
+     không còn làm máy khoẻ xuống tier thấp.
+   - **Camera "Theo xe" không vào vật** (`keepOutOfProps`, `sight-props.ts`): nâng qua cổng, khối, lon, cột; lên hoặc xuống khỏi thanh
+     khung đích và mái gara. `MIN_ROBOT_PX` = 60 (một giá trị cho code và test); "Tự do" khung cả vật cố định và 80 cm băng keo đầu.
+   - **Đèn line:** sáng là đỏ bão hoà (emissive 1,4) với quầng khoảng 12 px; tắt gần đen; quầng được compile cùng cảnh.
+   - **Đo lại frame đầu** (`results/fix2-*.json`, `ab-r2-*.json`): máy bận hơn (một máy ảo chiếm khoảng 1,3 lõi, load 7–12). Cùng điều
+     kiện, xen kẽ với master: SwiftShader tier thấp ở 4× 2 610–2 656 ms so với master 1 271–1 302; bản 75bdfda (cuối fix round 1) đo lại
+     lúc đó 2 653–2 684 ms, nên round 2 không làm chậm thêm; gắn nhãn ngay hay sau frame đầu không khác (2 616–2 655 so với 2 613–2 648).
+     GPU tier cao 4×: 1 980–2 000 so với master 1 351–1 354. FPS vẫn đạt (GPU p5 ≥ 53,8; SwiftShader tier thấp 4× p5 51,5–54,3).
+   - Bundle `RobotLab-*.js` 368,3 kB gzip (+43,1 kB so với master 1211347).
 
