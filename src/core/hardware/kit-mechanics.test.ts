@@ -186,6 +186,22 @@ describe('loadKit refuses mechanics that do not fit, naming the path', () => {
     expect(thrown(() => loadKit(oneMotor, board))).toMatch(/modules: a kit with a chassis drives on motorLeft and motorRight; it has no motorRight/);
   });
 
+  it('refuses an ultrasonic spec whose range is empty or starts where the contract stops reading (400 cm)', () => {
+    const empty = raw();
+    Object.assign(moduleOf(empty, 'ultrasonic').spec, { minCm: 50, maxCm: 40 });
+    expect(thrown(() => loadKit(empty, board))).toMatch(/modules\.2\.spec\.maxCm: maxCm is more than minCm \(50\)/);
+    for (const minCm of [400, 450]) {
+      const far = raw();
+      Object.assign(moduleOf(far, 'ultrasonic').spec, { minCm, maxCm: 500 });
+      expect(thrown(() => loadKit(far, board))).toMatch(
+        new RegExp(`modules\\.2\\.spec\\.minCm: minCm is under 400, the most the HC-SR04 helper reads \\(contract U-27\\), not ${minCm}`),
+      );
+    }
+    const wide = raw();
+    Object.assign(moduleOf(wide, 'ultrasonic').spec, { minCm: 3, maxCm: 500 });
+    expect(() => loadKit(wide, board)).not.toThrow();
+  });
+
   it('refuses sensor and servo specs that contradict themselves or the mount', () => {
     const line = raw();
     moduleOf(line, 'lineCenter').spec.heightCm = 1.5;
