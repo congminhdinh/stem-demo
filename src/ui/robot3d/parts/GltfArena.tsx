@@ -12,9 +12,10 @@ import type { TierLook } from '../lighting/look';
 import { arenaToThree, writePose } from '../scene-math';
 import { assembleArena, MAT_THICKNESS_M } from './arena-assembly';
 import { paintMat, paintMatRoughness, paintMatShading, type MatLabels } from './mat-paint';
+import { ZoneTags } from './ZoneTags';
 
 // The arena in the 3D view from the modelled props (N18 R4.7): the mat (a canvas painted from the scenario's vector paint, as the line
-// sensors read it, with its printed borders and names; its roughness and its baked contact shading painted from the same data; the
+// sensors read it, with its printed borders; the zones' names and numbers float over it as tags, ZoneTags.tsx; its roughness and its baked contact shading painted from the same data; the
 // paper's fibres as a tiled normal map on the high tier), on a thin board whose edge shows, and the props of arena-assembly.ts. The
 // moving bodies' poses are read from the world in the frame callback.
 
@@ -34,7 +35,7 @@ type GltfArenaProps = {
 type MatTextures = { map: Texture; roughness: Texture; shading: Texture; dispose(): void } | null;
 
 /** The mat's three canvases, as sharp as the renderer allows; null where a 2D canvas cannot be made. */
-function useMatTextures(scenario: Scenario, labels: MatLabels, low: boolean): MatTextures {
+function useMatTextures(scenario: Scenario, low: boolean): MatTextures {
   const gl = useThree((state) => state.gl);
   const made = useMemo<MatTextures>(() => {
     const { arena } = scenario;
@@ -52,7 +53,7 @@ function useMatTextures(scenario: Scenario, labels: MatLabels, low: boolean): Ma
     const shade = canvas(0.25);
     const [c, r, s] = [colour.getContext('2d'), rough.getContext('2d'), shade.getContext('2d')];
     if (!c || !r || !s) return null;
-    paintMat(c, scenario, { pxPerCm, labels });
+    paintMat(c, scenario, { pxPerCm });
     paintMatRoughness(r, arena, pxPerCm * 0.5);
     paintMatShading(s, arena, pxPerCm * 0.25);
     const map = new CanvasTexture(colour);
@@ -72,13 +73,13 @@ function useMatTextures(scenario: Scenario, labels: MatLabels, low: boolean): Ma
         shading.dispose();
       },
     };
-  }, [scenario, labels, gl, low]);
+  }, [scenario, gl, low]);
   useEffect(() => () => made?.dispose(), [made]);
   return made;
 }
 
 export function GltfArena({ assets, planView, scenario, view, look, shadows, textures, labels, viewForward }: GltfArenaProps) {
-  const mat = useMatTextures(scenario, labels, look.detail === 'low');
+  const mat = useMatTextures(scenario, look.detail === 'low');
   const arena = useMemo(() => {
     try {
       return assembleArena(scenario, assets.prop, { shadows, low: look.detail === 'low', blob: textures.blob, viewForward });
@@ -147,6 +148,7 @@ export function GltfArena({ assets, planView, scenario, view, look, shadows, tex
       <primitive object={arena.root} />
       <mesh geometry={surface.top} material={surface.material} position={[centre[0], 0, centre[2]]} receiveShadow={shadows} />
       <mesh geometry={surface.edge} material={surface.edgeMaterial} position={[centre[0], 0, centre[2]]} receiveShadow={shadows} />
+      <ZoneTags scenario={scenario} labels={labels} />
     </group>
   );
 }

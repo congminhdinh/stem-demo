@@ -46,6 +46,12 @@ export const robot3dColors = {
   rim: '#d6e4ff',
   studioFog: '#333c47',
   matEdge: '#e4e4e0',
+  /** N18 R4.7 fix round 1: the zones' tags over the mat (a white tag, dark words, a white number on the zone's colour) and their lines. */
+  tagBackground: 'rgba(255, 255, 255, 0.96)',
+  tagShadow: 'rgba(15, 23, 42, 0.35)',
+  tagText: '#1e293b',
+  tagNumber: '#ffffff',
+  tagLine: '#334155',
 } as const;
 
 export type Robot3dColor = keyof typeof robot3dColors;

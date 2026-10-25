@@ -5,11 +5,13 @@ import { scenarioCatalog } from '../../../samples/robot-scenarios';
 import { en, vi } from '../../i18n/messages';
 import { assetPath, readGlb } from '../__fixtures__/load-glb';
 import type { PaintContext } from '../ground-paint';
-import { checkpointNumbers, matTexts, paintMat } from './mat-paint';
+import { checkpointNumbers, paintMat } from './mat-paint';
+import { zoneTags, zoneTexts } from './zone-tags';
 
-// N18 R4.7: the mat the 3D view prints: the sensors' paint exactly (zones, then the tape on top of everything), each zone's border and
-// name in shades of its own colour that a line sensor would still read as light, checkpoints numbered in the order the route visits
-// them; and no vendor's name printed anywhere (plan D-R7): not in the mat's words, not in the modelled files' names.
+// N18 R4.7: the mat the 3D view prints: the sensors' paint exactly (zones, then the tape on top of everything), each zone's border in a
+// shade of its own colour that a line sensor would still read as light, and no words (fix round 1: the zones' names and the
+// checkpoints' numbers, in the order the route visits them, float over the zones as tags); no vendor's name anywhere (plan D-R7): not
+// in the tags' words, not in the modelled files' names.
 
 const BRAND = /arduino|\buno\b|ohstem/i;
 
@@ -68,24 +70,41 @@ describe('the printed mat (N18 R4.7)', () => {
     expect(checkpointNumbers(scenarioCatalog.get('rb-drive-to-zone')!).size).toBe(0);
   });
 
-  it('paints the tape last, over every border and name, and prints nothing a line sensor would read as dark', () => {
+  it('paints the tape last, over every border, prints nothing a line sensor would read as dark, and writes no words on the mat', () => {
     const scenario = scenarioCatalog.get('rb-mini-mission')!;
     const { ctx, calls } = recorder();
-    paintMat(ctx, scenario, { pxPerCm: 2, labels: { zoneLabel: (zone) => zone.kind } });
+    paintMat(ctx, scenario, { pxPerCm: 2 });
     const tape = calls.findIndex((call) => call.op === 'stroke' && call.style === '#15171c');
     expect(tape).toBeGreaterThan(0);
     expect(calls.slice(tape).every((call) => call.op === 'stroke' && call.style === '#15171c')).toBe(true);
     const printed = calls.slice(0, tape).filter((call) => call.op !== 'fillRect' && !(call.op === 'fill' && scenario.arena.paint.zones.some((zone) => zone.color === call.style)));
     expect(printed.length).toBeGreaterThan(0);
     for (const call of printed) expect(luma(call.style)).toBeGreaterThan(0.5);
-    expect(calls.filter((call) => call.op === 'text').map((call) => call.text)).toEqual(['start', '1', 'checkpoint', '2', 'checkpoint', 'target']);
+    expect(calls.filter((call) => call.op === 'text')).toEqual([]);
+  });
+
+  it('tags the zones the lesson sends the robot to over the mat: each checkpoint with its number and name, the target with its name', () => {
+    const scenario = scenarioCatalog.get('rb-mini-mission')!;
+    const tags = zoneTags(scenario, { zoneLabel: (zone) => zone.kind });
+    expect(tags.map(({ zoneId, text, number }) => [zoneId, text, number])).toEqual([
+      ['cp-1', 'checkpoint', 1],
+      ['cp-2', 'checkpoint', 2],
+      ['dock', 'target', null],
+    ]);
+    // Over the middle of the zone's bounds.
+    expect(tags[0]!.centerCm).toEqual([80, 30]);
+    // An unnamed checkpoint keeps its number; an unnamed target has no tag; the start never has one.
+    expect(zoneTags(scenario, { zoneLabel: () => null }).map(({ zoneId, text, number }) => [zoneId, text, number])).toEqual([
+      ['cp-1', null, 1],
+      ['cp-2', null, 2],
+    ]);
   });
 
   it('prints no vendor’s name: the words of every pilot mat in both languages, and the names in the modelled files', () => {
     for (const words of [vi, en]) {
       const zoneLabel = (zone: { kind: string }) => (zone.kind === 'start' ? words['robot.zone.start'] : zone.kind === 'target' ? words['robot.zone.target'] : zone.kind === 'checkpoint' ? words['robot.zone.checkpoint'] : null);
       for (const scenario of scenarioCatalog.scenarios) {
-        const texts = matTexts(scenario, { zoneLabel });
+        const texts = zoneTexts(scenario, { zoneLabel });
         for (const text of texts) expect(text).not.toMatch(BRAND);
       }
     }

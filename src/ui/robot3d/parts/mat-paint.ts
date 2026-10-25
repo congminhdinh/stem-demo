@@ -4,11 +4,12 @@ import { paintGround, paintTape, type PaintContext } from '../ground-paint';
 import { wallBox } from '../scene-math';
 
 // The mat of the 3D view (N18 R4.7): the scenario's vector paint exactly as the line sensors read it (ground-paint.ts: the ground's
-// colour, the zones, the black tape on top), and on the zones, under the tape, what a printed mat carries: a thin border in a darker
-// shade of each zone's colour and its name in crisp letters, checkpoints with their number in the order the route visits them. Two more
-// maps are painted from the same data: the roughness (the tape a little glossier than the paper) and the baked contact shading under
-// the walls and the fixed bodies. Nothing dark is printed that the sensors do not read as the zone it is on: borders and letters are
-// shades of the zone's own colour with a luma above the line sensor's dark threshold (0.5), never black.
+// colour, the zones, the black tape on top), and on the zones, under the tape, a thin printed border in a darker shade of each zone's
+// colour (dashed round the start). The zones' names and the checkpoints' numbers are not printed (fix round 1): they float over the
+// zones as the view's tags (zone-tags.ts), readable from any camera. Two more maps are painted from the same data: the roughness (the
+// tape as matte as the paper) and the baked contact shading under the walls and the fixed bodies. Nothing dark is printed that the
+// sensors do not read as the zone it is on: the borders are shades of the zone's own colour with a luma above the line sensor's dark
+// threshold (0.5), never black.
 
 export type MatLabels = {
   /** A zone's name (the learner's words), or null to leave it unnamed. */
@@ -25,16 +26,6 @@ export function checkpointNumbers(scenario: Pick<Scenario, 'arena' | 'goals'>): 
   return new Map(order.map((id, i) => [id, i + 1]));
 }
 
-/** Every text the mat's texture carries for `scenario`: what a brand check reads (no vendor's name may be printed). */
-export function matTexts(scenario: Pick<Scenario, 'arena' | 'goals'>, labels: MatLabels): string[] {
-  const numbers = checkpointNumbers(scenario);
-  return scenario.arena.paint.zones.flatMap((zone) => {
-    const label = labels.zoneLabel(zone);
-    const number = numbers.get(zone.id);
-    return [...(label === null ? [] : [label]), ...(number === undefined ? [] : [String(number)])];
-  });
-}
-
 const hex = (colour: string): [number, number, number] => {
   const value = Number.parseInt(colour.slice(1, 7), 16);
   return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
@@ -45,8 +36,6 @@ const shade = (colour: string, k: number, alpha = 1) => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-const labelFont = (px: number, weight = 700) => `${weight} ${px}px "Be Vietnam Pro", system-ui, sans-serif`;
-
 type Box = { minX: number; maxX: number; minY: number; maxY: number };
 const boundsOf = (zone: PaintZone): Box => {
   const xs = zone.polygonCm.map(([x]) => x);
@@ -54,15 +43,14 @@ const boundsOf = (zone: PaintZone): Box => {
   return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
 };
 
-/** Paints the mat: the sensors' paint, then each zone's border and name, then the tape over everything. */
-export function paintMat(ctx: PaintContext & Pick<CanvasRenderingContext2D, 'arc' | 'setLineDash'>, scenario: Pick<Scenario, 'arena' | 'goals'>, options: { pxPerCm: number; labels: MatLabels }): void {
+/** Paints the mat: the sensors' paint, then each zone's border, then the tape over everything. */
+export function paintMat(ctx: PaintContext & Pick<CanvasRenderingContext2D, 'setLineDash'>, scenario: Pick<Scenario, 'arena' | 'goals'>, options: { pxPerCm: number }): void {
   const { arena } = scenario;
   const { pxPerCm } = options;
   const depthCm = arena.ground.sizeCm[1];
   const px = (x: number) => x * pxPerCm;
   const py = (y: number) => (depthCm - y) * pxPerCm;
   paintGround(ctx, { ground: arena.ground, paint: { zones: arena.paint.zones, lines: [] } }, { pxPerCm, zoneLabel: () => null });
-  const numbers = checkpointNumbers(scenario);
   for (const zone of arena.paint.zones) {
     const box = boundsOf(zone);
     // A printed border 3 mm wide, 6 mm inside the zone's edge.
@@ -83,46 +71,16 @@ export function paintMat(ctx: PaintContext & Pick<CanvasRenderingContext2D, 'arc
     ctx.closePath();
     ctx.stroke();
     ctx.setLineDash([]);
-
-    const label = options.labels.zoneLabel(zone);
-    const number = numbers.get(zone.id);
-    const width = box.maxX - box.minX;
-    const height = box.maxY - box.minY;
-    const cx = px((box.minX + box.maxX) / 2);
-    const cy = py((box.minY + box.maxY) / 2);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    if (number !== undefined) {
-      // A numbered disc, the zone's name under it.
-      const r = Math.min(width, height) * 0.22 * pxPerCm;
-      ctx.fillStyle = shade(zone.color, 0.3);
-      ctx.beginPath();
-      ctx.arc(cx, cy - (label ? r * 0.35 : 0), r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.font = labelFont(Math.round(r * 1.25), 800);
-      ctx.fillText(String(number), cx, cy - (label ? r * 0.35 : 0) + r * 0.06);
-      if (label) {
-        ctx.fillStyle = shade(zone.color, 0.38);
-        ctx.font = labelFont(Math.round(Math.max(10, r * 0.42)), 600);
-        ctx.fillText(label, cx, cy + r * 1.05);
-      }
-    } else if (label) {
-      const size = Math.round(Math.max(12, Math.min(64, Math.min(width * 0.16, height * 0.24) * pxPerCm)));
-      ctx.fillStyle = shade(zone.color, 0.36);
-      ctx.font = labelFont(size);
-      ctx.fillText(label, cx, cy);
-    }
   }
   paintTape(ctx, arena, pxPerCm);
 }
 
-/** The mat's roughness (green channel): matte paper, the tape smoother. */
+/** The mat's roughness (green channel): matte paper, and the tape a matte vinyl a shade smoother. */
 export function paintMatRoughness(ctx: PaintContext, arena: Pick<Arena, 'ground' | 'paint'>, pxPerCm: number): void {
   const [widthCm, depthCm] = arena.ground.sizeCm;
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, widthCm * pxPerCm, depthCm * pxPerCm);
-  paintTape(ctx, arena, pxPerCm, '#6e6e6e');
+  paintTape(ctx, arena, pxPerCm, '#d2d2d2');
 }
 
 type ShadeContext = PaintContext & Pick<CanvasRenderingContext2D, 'save' | 'restore' | 'translate' | 'rotate' | 'arc'> & { filter: string };
