@@ -9,6 +9,8 @@
 //   --scenarios  the folder of rb-*.json (default src/samples/robot-scenarios, the one the app bundles)
 //   --out        the file to write (default docs/fixtures/robot-scenarios.v1.json, the committed copy STEMLearning takes)
 //   --check      write nothing; exit 1 when the file is missing or differs from what the scenarios give
+//   --print-cache-dir  print the directory Vite's dependency cache of this script is resolved to (its own, see below), and exit; it resolves
+//                the config only, with no server and no optimizer, and is what tests/export-robot-manifest.test.ts checks the cache against
 //
 // Exit codes: 0 written (or up to date with --check); 1 a scenario does not validate, or --check found the file out of date;
 // 2 a usage error (an unknown option, a missing folder).
@@ -29,7 +31,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { dirname, join, relative, resolve } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath, URL } from 'node:url';
-import { createServer } from 'vite';
+import { createServer, resolveConfig } from 'vite';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 
@@ -45,16 +47,30 @@ const isFile = (path) => existsSync(path) && statSync(path).isFile();
 const plural = (count) => `${count} scenario file${count === 1 ? '' : 's'}`;
 const messageOf = (error) => (error instanceof Error ? error.message : String(error));
 
+/** The Vite config of the script's server: the repo's, with the server of a script (no HMR, no watcher) and a cache of its own (see the header). */
+const viteOptions = {
+  root,
+  configFile: join(root, 'vite.config.ts'),
+  appType: 'custom',
+  logLevel: 'error',
+  server: { middlewareMode: true, hmr: false, watch: null },
+  cacheDir: join(root, 'node_modules', '.vite-export-robot-manifest'),
+  optimizeDeps: { noDiscovery: true, include: [] },
+};
+
 function parseArguments(args) {
   const options = {
     scenarios: join(root, 'src', 'samples', 'robot-scenarios'),
     out: join(root, 'docs', 'fixtures', 'robot-scenarios.v1.json'),
     check: false,
+    printCacheDir: false,
   };
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === '--check') {
       options.check = true;
+    } else if (arg === '--print-cache-dir') {
+      options.printCacheDir = true;
     } else if (arg === '--scenarios' || arg === '--out') {
       const value = args[index + 1];
       if (value === undefined || value.startsWith('--')) {
@@ -87,17 +103,14 @@ function readScenarioFiles(folder) {
 
 async function main() {
   const options = parseArguments(process.argv.slice(2));
+  if (options.printCacheDir) {
+    // The resolved config, as the server would get it: the plugins of the repo's config have had their say on it too
+    process.stdout.write(`${(await resolveConfig(viteOptions, 'serve')).cacheDir}\n`);
+    return;
+  }
   const files = readScenarioFiles(options.scenarios);
 
-  const server = await createServer({
-    root,
-    configFile: join(root, 'vite.config.ts'),
-    appType: 'custom',
-    logLevel: 'error',
-    server: { middlewareMode: true, hmr: false, watch: null },
-    cacheDir: join(root, 'node_modules', '.vite-export-robot-manifest'),
-    optimizeDeps: { noDiscovery: true, include: [] },
-  });
+  const server = await createServer(viteOptions);
   let text;
   try {
     let createScenarioCatalog;

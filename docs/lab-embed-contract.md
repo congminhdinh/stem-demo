@@ -93,7 +93,7 @@ hợp lệ và lab nằm trong một frame.
 | `run-started` | — | Một lượt chạy bắt đầu (Chạy, hoặc lượt chạy của Kiểm tra) |
 | `run-stopped` | — | Lượt chạy kết thúc (Dừng, Đặt lại, hoặc Kiểm tra xong) |
 | `check-result` | `passed: boolean`, `goals: { id, label, passed }[]`; lab robot thêm `lab: "robot"` và, với scenario có mục tiêu, `score`, `maxScore`, `simTimeMs`, `variants`, `engine`, `scenarioVersion`, `programHash` | Mỗi lần Kiểm tra xong. `passed` = mọi mục tiêu đạt. Đến **sau** `run-stopped` của lượt chạy đó. Kiểm tra bị huỷ (Dừng giữa chừng) hoặc **bị gián đoạn** (N17 B6: tab bị ẩn, máy chậm; xem §3) thì không gửi. Lab robot: trường, giới hạn và thứ tự ở mục "Lab robot" ngay dưới |
-| `project-changed` | `document` (project document, schema v1) | Sau mỗi thay đổi của project, debounce 1 giây (thay đổi cuối thắng); gửi ngay khi trang `pagehide`. Mở template không gửi gì. Lab robot: không gửi trong lúc một lần Kiểm tra chạy (sửa đổi đó đi sau `check-result`; thứ tự ở mục "Lab robot") |
+| `project-changed` | `document` (project document, schema v1) | Sau mỗi thay đổi của project, debounce 1 giây (thay đổi cuối thắng); gửi ngay khi trang `pagehide`. Mở template không gửi gì. Lab robot: không gửi trong lúc một lần Kiểm tra chạy (sửa đổi đó đi sau `check-result`; thứ tự ở mục "Lab robot"), kể cả khi `pagehide` chỉ đưa trang vào bfcache (`event.persisted`): lúc đó sửa đổi ấy chờ `endCheck()`, còn `pagehide` thường vẫn gửi ngay |
 
 - **Lab robot** (N18 R4.1, R7.1, plan §4.7): **mọi** message của lab robot (`ready`, `run-started`, `run-stopped`, `check-result`,
   `project-changed`) mang `lab: "robot"`; host chỉ đọc các trường robot khi message nói vậy (message không có `lab: "robot"` mà có trường
