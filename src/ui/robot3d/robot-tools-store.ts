@@ -39,6 +39,9 @@ export type RobotToolsState = {
   speed: number;
   /** Teleop: the direction the learner holds now (a key or the pad); null when the robot is told to stop. */
   held: DriveDirection | null;
+  /** N18 R4.3: the sensor overlays ("Hiện cảm biến") are shown, in the 3D view and on the 2D map. On until the learner turns them off, in a check too. */
+  sensors: boolean;
+  setSensors(on: boolean): void;
   setTool(tool: RobotTool | null): void;
   /** A click on the mat at `point` with the ruler. */
   pick(point: ArenaPoint): void;
@@ -105,6 +108,11 @@ export function createRobotToolsStore({ runStore, scenario, kit }: RobotToolsSto
       ghost: null,
       speed: TELEOP_SPEED.initial,
       held: null,
+      sensors: true,
+
+      setSensors(on) {
+        if (on !== get().sensors) set({ sensors: on });
+      },
 
       setTool(tool) {
         if (tool === get().tool || (tool !== null && held())) return;

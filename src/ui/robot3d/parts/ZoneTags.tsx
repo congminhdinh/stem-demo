@@ -8,6 +8,7 @@ import { VIEW_SAFE_RECT, ZONE_TAG_M } from '../camera-studio';
 import { robot3dColors as colors } from '../colors';
 import type { CardEdge, HudCorner, ToolsCorner } from '../hud-corner';
 import { arenaToThree } from '../scene-math';
+import { labelBoxes } from '../sensor-label-boxes';
 import type { MatLabels } from './mat-paint';
 import { boxOf, inPolygon, placeTags, TAG_LIFTS_M, TAG_PLACES, type ScreenBox, type TagPlace, type TagToPlace } from './zone-tag-layout';
 import { zoneTags, type ZoneTag } from './zone-tags';
@@ -190,6 +191,8 @@ export function ZoneTags({ scenario, labels, view, mode, overlays, robot }: Zone
     if (over.hud) avoid.push({ left: -1, right: over.hud.right, bottom: over.hud.bottom, top: 1 });
     if (over.card) avoid.push({ left: over.card.left, right: 1, bottom: -1, top: 1 });
     if (over.tools) avoid.push({ left: -1, right: over.tools.right, bottom: -1, top: over.tools.top });
+    // N18 R4.3: the ultrasonic distance tags (sensor-label-boxes.ts).
+    for (let i = 0; i < labelBoxes.count; i++) avoid.push(labelBoxes.boxes[i]!);
     const toPlace: TagToPlace[] = tags.map(({ tag, drawn, polygon }) => {
       const [x, , z] = arenaToThree(tag.centerCm[0], tag.centerCm[1], 0);
       const spriteWidth = spriteHeight * (drawn.canvasWidth / (PILL_PX + 2 * MARGIN_PX));
