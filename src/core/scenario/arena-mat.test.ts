@@ -17,6 +17,7 @@ import {
   matPixelsPerMetre,
   planTiles,
 } from './arena-mat';
+import { LINE_REFLECTANCE, colorReflectance, createGroundPaint } from '../world/arena/ground-paint';
 import { loadScenario } from './scenario';
 import { ROBOT_FOOTPRINT_RADIUS_CM } from './variants';
 
@@ -230,6 +231,62 @@ describe('buildArenaMat', () => {
     expect(mat.svg).toContain('viewBox="0 0 50 40"');
     expect(document.querySelectorAll('#mat-zones > *, #mat-tape > *, #mat-obstacles > *')).toHaveLength(0);
   });
+});
+
+describe('the SVG draws what the simulator reads', () => {
+  it.each(scenarioCatalog.scenarios.map((scenario) => [scenario.key, scenario] as const))(
+    '%s: at 20 000 spread points, the reflectance ground-paint.ts gives is the one the SVG shows (tape 0, the last zone over the point, the ground)',
+    (_key, scenario) => {
+      const [width, depth] = scenario.arena.ground.sizeCm;
+      const document = parse(buildArenaMat(scenario).svg);
+      const paint = createGroundPaint(scenario.arena);
+      // Back to the arena's frame (y away from the viewer) from the sheet's (y down)
+      const arenaPoints = (element: Element) => pointsOf(element).map(([x, y]) => [x, depth - y] as const);
+      const tape = Array.from(document.querySelectorAll('#mat-tape > polyline'), (element) => ({ points: arenaPoints(element), half: Number(element.getAttribute('stroke-width')) / 2 }));
+      const zones = Array.from(document.querySelectorAll('#mat-zones > polygon'), (element) => ({ points: arenaPoints(element), reflectance: colorReflectance(element.getAttribute('fill')!) }));
+      const ground = colorReflectance(document.querySelector('#mat-ground rect')!.getAttribute('fill')!);
+      expect(tape.length + document.querySelectorAll('#mat-tape > circle').length).toBe(scenario.arena.paint.lines.length);
+
+      const distanceToSegment = (px: number, py: number, [ax, ay]: readonly [number, number], [bx, by]: readonly [number, number]) => {
+        const dx = bx - ax;
+        const dy = by - ay;
+        const t = dx === 0 && dy === 0 ? 0 : Math.min(1, Math.max(0, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
+        return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+      };
+      // Even-odd, as the sensor reads a zone
+      const inside = (points: readonly (readonly [number, number])[], px: number, py: number) => {
+        let result = false;
+        for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+          const [xi, yi] = points[i]!;
+          const [xj, yj] = points[j]!;
+          if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) result = !result;
+        }
+        return result;
+      };
+      const shown = (x: number, y: number) => {
+        if (tape.some(({ points, half }) => points.some((point, i) => i > 0 && distanceToSegment(x, y, points[i - 1]!, point) <= half))) return LINE_REFLECTANCE;
+        for (let i = zones.length - 1; i >= 0; i--) {
+          if (inside(zones[i]!.points, x, y)) return zones[i]!.reflectance;
+        }
+        return ground;
+      };
+
+      // 20 000 points of the R2 low-discrepancy sequence (the plastic number's fractions), spread over the whole arena with no pattern that an edge
+      // of a shape could line up with, as a grid at whole centimetres does along a 45° tape
+      const mismatches: string[] = [];
+      let onTape = 0;
+      for (let i = 1; i <= 20_000; i++) {
+        const x = width * ((i * 0.7548776662466927) % 1);
+        const y = depth * ((i * 0.5698402909980532) % 1);
+        const seen = shown(x, y);
+        if (seen === LINE_REFLECTANCE) onTape += 1;
+        if (Math.abs(paint.groundReflectanceAt(x, y, 0) - seen) > 1e-9) mismatches.push(`(${x.toFixed(3)}, ${y.toFixed(3)})`);
+      }
+      expect(mismatches.slice(0, 5)).toEqual([]);
+      // The tape was really under some of the points (a scenario with tape), so that "no mismatch" is not "nothing compared"
+      expect(onTape > 0).toBe(scenario.arena.paint.lines.length > 0);
+    },
+  );
 });
 
 describe('buildMatLegend', () => {
