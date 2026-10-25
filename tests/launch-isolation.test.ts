@@ -9,6 +9,7 @@ import { createDeviceRegistry } from '../src/core/devices/registry';
 import { createDefaultProgram } from '../src/core/program/blocks';
 import blinkSample from '../src/samples/blink.project.json';
 import buttonLedSample from '../src/samples/button-led.project.json';
+import { robotStarterDocument, robotTemplates, type RobotTemplateKey } from '../src/samples/robot-templates';
 import { createDexieProjectRepository } from '../src/storage/dexie-project-repository';
 import { parseLaunch } from '../src/ui/app/launch';
 import { openAtStartup } from '../src/ui/app/startup';
@@ -133,5 +134,98 @@ describe('launch isolation (S1)', () => {
     lab.close();
 
     expect((await indexedDB.databases()).map((database) => database.name)).not.toContain(storage);
+  });
+});
+
+// N18 R4.1: the robot lab (`lab=robot`) is a lab like the others: it opens its template, leaves the standalone last project and the
+// storage alone, and a launch that is wrong is an error screen, never a project of any kind.
+describe('launch isolation of the robot lab (N18 R4.1)', () => {
+  const host = 'http://localhost:3000';
+
+  /** What the app does for `search` without opening an editor: its startup result, as src/main.tsx would get it. */
+  const startup = (databaseName: string, search: string) =>
+    openAtStartup(parseLaunch(search), {
+      openRepository: () => createDexieProjectRepository(databaseName),
+      registry,
+      newId: () => crypto.randomUUID(),
+      canOpenProgram: () => true,
+    });
+
+  it('an embedded robot lab, edited, leaves the standalone last project as it was, and a reload starts again from the scenario', async () => {
+    const storage = freshDatabase();
+    const standalone = await pageLoad(storage, '');
+    const projectA: ProjectDocument = {
+      ...createNewProject('project-a'),
+      circuit: addComponent({ components: [], wires: [] }, 'led', { x: 300, y: 200 }).circuit,
+    };
+    standalone.projectStore.getState().loadProject(projectA);
+    await expectLastStored(storage, projectA);
+    standalone.close();
+    const before = await storedRecords(storage);
+
+    const lab = await pageLoad(storage, `?embed=1&lab=robot&template=rb-drive-to-zone&profile=uno-basic&origin=${host}`);
+    expect(lab.document()).toEqual(robotStarterDocument('rb-drive-to-zone', 'uno-basic'));
+    lab.projectStore.getState().setProgramBlocks(createDefaultProgram());
+    lab.projectStore.getState().setCircuit({ components: [], wires: [] });
+    expect(lab.document()).not.toEqual(robotStarterDocument('rb-drive-to-zone'));
+    await pastAutosave();
+    lab.close();
+    expect(await storedRecords(storage)).toEqual(before);
+
+    const reloaded = await pageLoad(storage, `?embed=1&lab=robot&template=rb-drive-to-zone&profile=uno-basic&origin=${host}`);
+    expect(reloaded.document()).toEqual(robotStarterDocument('rb-drive-to-zone'));
+    reloaded.close();
+
+    const back = await pageLoad(storage, '');
+    expect(back.document()).toEqual(projectA);
+    back.close();
+    expect([...standalone.saveErrors, ...lab.saveErrors, ...back.saveErrors]).toEqual([]);
+  });
+
+  it('opens every scenario, with the launch profile when it is given and without an origin like any other lab', async () => {
+    const storage = freshDatabase();
+    for (const key of Object.keys(robotTemplates) as RobotTemplateKey[]) {
+      const withProfile = await pageLoad(storage, `?embed=1&lab=robot&template=${key}&profile=uno-advanced&origin=${host}`);
+      expect(withProfile.document()).toEqual(robotStarterDocument(key, 'uno-advanced'));
+      withProfile.close();
+      const withoutOrigin = await pageLoad(storage, `?embed=1&lab=robot&template=${key}`);
+      expect(withoutOrigin.document()).toEqual(robotStarterDocument(key));
+      withoutOrigin.close();
+    }
+    expect((await indexedDB.databases()).map((database) => database.name)).not.toContain(storage);
+  });
+
+  it.each([
+    ['an unknown rb-* key', '?embed=1&lab=robot&template=rb-unknown'],
+    ['a key of another lab', '?embed=1&lab=robot&template=blink'],
+    ['a robot key in another lab', '?embed=1&lab=blockly&template=rb-sandbox'],
+    ['a robot key without a lab', '?embed=1&template=rb-sandbox'],
+    ['a profile of another family', '?embed=1&lab=robot&template=rb-sandbox&profile=ybc-basic'],
+    ['an origin that is not an origin', '?embed=1&lab=robot&template=rb-sandbox&origin=*'],
+    ['no template', '?embed=1&lab=robot'],
+  ])('%s is an error screen: no project is opened and no storage is created', async (_, search) => {
+    const storage = freshDatabase();
+    const started = await startup(storage, search);
+    expect(started.kind).toBe('launch-error');
+    expect(started).not.toHaveProperty('document');
+    expect((await indexedDB.databases()).map((database) => database.name)).not.toContain(storage);
+  });
+
+  it('a profile lower than the scenario needs is an error screen of the robot lab, never a project', async () => {
+    // Every scenario needs uno-basic, the lowest level, so none can be refused yet: one is made to need uno-advanced for this test.
+    const table = robotTemplates as Record<RobotTemplateKey, { profile: string }>;
+    table['rb-servo-gate'].profile = 'uno-advanced';
+    try {
+      const storage = freshDatabase();
+      const started = await startup(storage, `?embed=1&lab=robot&template=rb-servo-gate&profile=uno-basic&origin=${host}`);
+      expect(started).toEqual({
+        kind: 'launch-error',
+        problem: 'The template "rb-servo-gate" needs profile=uno-advanced: it uses blocks or parts that uno-basic does not have.',
+        lab: 'robot',
+      });
+      expect((await indexedDB.databases()).map((database) => database.name)).not.toContain(storage);
+    } finally {
+      table['rb-servo-gate'].profile = 'uno-basic';
+    }
   });
 });

@@ -4,8 +4,8 @@ import type { DeviceRegistry } from '../../core/devices/registry';
 import { readStoredProject, type ProgramCheck } from '../../core/persistence/project-repository';
 import type { BoardFamily } from '../../core/profiles/board-context';
 import type { ProfileCatalog } from '../../core/profiles/profile';
-import type { LabKind, TemplateKey } from '../../samples/templates';
-import type { YbcLabProfile } from '../../samples/ybc-templates';
+import { isRobotTemplateKey, robotReadyFields } from '../../samples/robot-templates';
+import type { LabKind, LabProfile, LabTemplateKey } from '../../samples/templates';
 import type { ProjectStore } from '../state/project-store';
 import { selectIsRunning, type RunStore } from '../state/run-store';
 import type { HostBridge } from './host-bridge';
@@ -16,8 +16,7 @@ import type { HostBridge } from './host-bridge';
 
 /**
  * The board family of the projects each lab opens (N18 R2.1, docs/lab-embed-contract.md §2): a generic project in a Blockly lab,
- * a Yolo:Bit one in a Yolo:Bit lab, a uno one in a robot lab. `robot` is listed before `LabKind` has it: R4.1 adds the kind to
- * `LabKind`, and nothing here changes.
+ * a Yolo:Bit one in a Yolo:Bit lab, a uno one in a robot lab (`LabKind` has `robot` since R4.1).
  */
 export const labFamilies = {
   blockly: 'generic',
@@ -30,8 +29,8 @@ export type HostLab = keyof typeof labFamilies;
 
 export type HostProjectRules = {
   lab: HostLab;
-  /** The launch's board profile, which a Yolo:Bit project opens with; null keeps the project's own. */
-  profile: YbcLabProfile | null;
+  /** The launch's board profile, which a Yolo:Bit or a robot project opens with; null keeps the project's own. */
+  profile: LabProfile | null;
   registry: DeviceRegistry;
   profiles: ProfileCatalog;
   canOpenProgram: ProgramCheck;
@@ -51,14 +50,14 @@ export function readHostProject(document: unknown, rules: HostProjectRules): Pro
   if (family !== labFamilies[rules.lab]) {
     return null;
   }
-  return rules.lab === 'yolobit' && rules.profile !== null ? { ...project, profile: rules.profile } : project;
+  return rules.lab !== 'blockly' && rules.profile !== null ? { ...project, profile: rules.profile } : project;
 }
 
 export type LabHostOptions = HostProjectRules & {
   bridge: HostBridge;
   projectStore: ProjectStore;
   runStore: RunStore;
-  template: TemplateKey;
+  template: LabTemplateKey;
   challenge: Challenge | null;
 };
 
@@ -79,7 +78,9 @@ export function connectLabHost(options: LabHostOptions): () => void {
       bridge.projectChanged(state.document);
     }
   });
-  bridge.ready({ template, profile: projectStore.getState().document.profile ?? null, goals: challenge?.goals ?? [] });
+  // A robot scenario adds its version and its score to ready (plan §4.7); its goals come with the checks of R6.
+  const robot = options.lab === 'robot' && isRobotTemplateKey(template) ? { robot: robotReadyFields(template) } : {};
+  bridge.ready({ template, profile: projectStore.getState().document.profile ?? null, goals: challenge?.goals ?? [], ...robot });
   return () => {
     stopRuns();
     stopEdits();

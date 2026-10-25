@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from 'zustand';
 import { runCheck, type Challenge, type CheckResult, type CheckRun } from '../../core/challenge';
 import { createNewProject, type Circuit, type ProjectDocument } from '../../core/circuit/document';
@@ -9,7 +9,8 @@ import type { ProfileCatalog } from '../../core/profiles/profile';
 import { buildToolbox, type BlockPackCatalog } from '../../core/program/block-packs';
 import { buzzerPartId, displayPartId } from '../../core/simulation/peripherals/onboard-capabilities';
 import type { ComponentInput, SimulationResult } from '../../core/simulation/simulate-circuit';
-import type { LabKind } from '../../samples/templates';
+import { isRobotTemplateKey } from '../../samples/robot-templates';
+import type { LabKind, LabTemplateKey } from '../../samples/templates';
 import { SoundIndicator } from '../audio/SoundIndicator';
 import { toneHz } from '../audio/tone';
 import { useBuzzerSound } from '../audio/use-buzzer-sound';
@@ -34,9 +35,15 @@ import { PythonPanel } from './PythonPanel';
 import { RunOutput, RunToolbar, SteadyLabel } from './RunToolbar';
 import './app.css';
 
+// The robot lab is its own chunk (N18 R4.1): the Blockly and Yolo:Bit labs and the standalone editor never load it, nor the 3D scene
+// and the physics that come to live behind it (R4.2). Nothing but this line may import from src/ui/robot3d (tests/robot-chunk.test.ts).
+const RobotLab = lazy(() => import('../robot3d/RobotLab'));
+
 /** What a lab launch (`lab=`, N6a S4) adds to the editor: its title, the template's challenge and Reset. */
 export type LabChrome = {
   kind: LabKind;
+  /** The template the lab was launched with (the robot lab shows its scenario). */
+  template: LabTemplateKey;
   /** The template's challenge; null: nothing to check (the empty templates). */
   challenge: Challenge | null;
   /** A fresh copy of the template, for Reset. */
@@ -376,6 +383,52 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
     </section>
   );
 
+  const notices = (
+    <>
+      {shownNotice && (
+        <p className="app-notice" role="status" data-testid="app-notice">
+          {shownNotice}
+          <button type="button" onClick={() => setNoticeDismissed(true)}>
+            {t('app.dismiss')}
+          </button>
+        </p>
+      )}
+      {shownProgramNotice && (
+        <p className="app-notice" role="status" data-testid="program-notice">
+          {t(shownProgramNotice)}
+          <button type="button" onClick={() => setProgramNotice(null)}>
+            {t('app.dismiss')}
+          </button>
+        </p>
+      )}
+    </>
+  );
+
+  // The robot lab (N18 R4.1) brings its own chrome, in its own chunk; the block editor, its stores and its notices are App's, so the
+  // robot lab opens, saves and recovers a program exactly as the other labs do. Run, Check and Reset come with R4.2 and R6.
+  if (lab && lab.kind === 'robot' && isRobotTemplateKey(lab.template)) {
+    return (
+      <div className="app-shell app-shell-lab">
+        <Suspense
+          fallback={
+            <>
+              <header className="app-header">
+                <h1>{t('lab.title.robot')}</h1>
+              </header>
+              <main className="workspace">
+                <p role="status" data-testid="robot-loading">
+                  {t('robot.loading')}
+                </p>
+              </main>
+            </>
+          }
+        >
+          <RobotLab template={lab.template} program={programRegion} notices={notices} />
+        </Suspense>
+      </div>
+    );
+  }
+
   return (
     <div className={lab ? 'app-shell app-shell-lab' : 'app-shell'}>
       <header className="app-header">
@@ -408,22 +461,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
         />
         {lab?.challenge && <ChallengePanel challenge={lab.challenge} check={shownCheck} />}
         <RunOutput runStore={runStore} />
-        {shownNotice && (
-          <p className="app-notice" role="status" data-testid="app-notice">
-            {shownNotice}
-            <button type="button" onClick={() => setNoticeDismissed(true)}>
-              {t('app.dismiss')}
-            </button>
-          </p>
-        )}
-        {shownProgramNotice && (
-          <p className="app-notice" role="status" data-testid="program-notice">
-            {t(shownProgramNotice)}
-            <button type="button" onClick={() => setProgramNotice(null)}>
-              {t('app.dismiss')}
-            </button>
-          </p>
-        )}
+        {notices}
       </header>
       {lab ? (
         <LabWorkspace board={boardRegion} program={programRegion} showBoard={runEpoch} />

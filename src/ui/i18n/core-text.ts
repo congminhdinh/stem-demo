@@ -299,8 +299,9 @@ export const coreMessageRules: readonly Rule[] = [
   [/^Unexpected runtime error\.$/, () => 'Lỗi không mong đợi khi chạy.'],
 ];
 
-/** A board profile by the name of its level, as the LMS shows it: Cơ bản (Basic), Nâng cao (Advanced). */
-const levelName = (profile: string): string => (profile === 'ybc-basic' ? 'Cơ bản' : profile === 'ybc-advanced' ? 'Nâng cao' : profile);
+/** A board profile by the name of its level, as the LMS shows it: Cơ bản (Basic), Nâng cao (Advanced); the robot's two levels too (N18 R4.1). */
+const levelName = (profile: string): string =>
+  profile === 'ybc-basic' || profile === 'uno-basic' ? 'Cơ bản' : profile === 'ybc-advanced' || profile === 'uno-advanced' ? 'Nâng cao' : profile;
 
 /** The rules for the launch parser's problems (src/ui/app/launch.ts), most specific first. Exported for its tests. */
 export const launchProblemRules: readonly Rule[] = [
@@ -312,6 +313,7 @@ export const launchProblemRules: readonly Rule[] = [
   [/^template must be given once\.$/, () => 'Tham số template chỉ được có một lần.'],
   [/^Unknown template "(.*)"\.$/, (key) => `Không có mẫu bài "${key}".`],
   [/^The template "(.*)" does not open in lab=(.+)\.$/, (key, lab) => `Mẫu bài "${key}" không mở trong lab=${lab}.`],
+  [/^The template "(.*)" opens only in lab=robot: add lab=robot\.$/, (key) => `Mẫu bài "${key}" chỉ mở trong lab=robot: thêm lab=robot.`],
   [/^profile must be given once\.$/, () => 'Tham số profile chỉ được có một lần.'],
   [/^profile is only for lab=yolobit\.$/, () => 'Tham số profile chỉ dùng với lab=yolobit.'],
   [/^Unknown profile "(.*)": use (.+) or (.+)\.$/, (profile, a, b) => `Không có cấp độ "${profile}": dùng ${a} hoặc ${b}.`],

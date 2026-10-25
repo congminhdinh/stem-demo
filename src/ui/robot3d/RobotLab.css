@@ -1,0 +1,35 @@
+/*
+ * The shell of the robot lab (N18 R4.1): the viewport beside the program, one under the other in a narrow frame. R4.2 replaces this
+ * layout (tabs under 800 px, the toolbar, the goals); it only has to hold a place for each part until then.
+ */
+.app-header .robot-scenario {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--stem-color-text-muted);
+}
+
+.robot-lab {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.robot-viewport {
+  display: grid;
+  place-items: center;
+  background: var(--stem-color-surface-muted);
+}
+
+.robot-viewport-placeholder {
+  margin: 0;
+  padding: 0 16px;
+  color: var(--stem-color-text-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+@media (max-width: 799px) {
+  .robot-lab {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(120px, 35%) minmax(0, 1fr);
+  }
+}

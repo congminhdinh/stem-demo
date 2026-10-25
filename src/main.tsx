@@ -103,6 +103,8 @@ if (started.kind === 'launch-error') {
       hostOrigin: lab.hostOrigin,
       window,
       onLoadProject: (document) => void loadHostProject(document, { ...rules, projectStore, runStore }),
+      // N18 R4.1 (plan §4.7): the robot lab says so in every message.
+      ...(lab.kind === 'robot' ? { lab: 'robot' as const } : {}),
     });
     connectLabHost({ ...rules, bridge, projectStore, runStore, template: launch.template, challenge });
   }
@@ -125,6 +127,7 @@ if (started.kind === 'launch-error') {
             launch.mode === 'embed' && lab
               ? {
                   kind: lab.kind,
+                  template: launch.template,
                   challenge,
                   createTemplate: () => createTemplateProject(launch.template, lab.profile === null ? {} : { profile: lab.profile }),
                   onChecked: (result) => bridge?.checkResult(result),

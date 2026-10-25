@@ -142,6 +142,11 @@ describe('a broken launch in Vietnamese (N8s)', () => {
     '?embed=1&lab=blockly&template=blink&profile=ybc-basic',
     '?embed=1&lab=yolobit&template=ybc-heart&profile=ybc-pro',
     '?embed=1&lab=yolobit&template=ybc-dice&profile=ybc-basic',
+    // N18 R4.1: the robot lab's own sentences (a scenario of the legacy launch; a level that is not the robot's).
+    '?embed=1&template=rb-sandbox',
+    '?embed=1&lab=blockly&template=rb-sandbox',
+    '?embed=1&lab=robot&template=rb-unknown',
+    '?embed=1&lab=robot&template=rb-sandbox&profile=ybc-basic',
     '?embed=1&lab=blockly&template=blink&origin=http://a.example&origin=http://a.example',
     `?embed=1&lab=blockly&template=blink&origin=${encodeURIComponent('http://localhost:3000/')}`,
   ];

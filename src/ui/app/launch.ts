@@ -1,5 +1,6 @@
-import { isTemplateKey, labOfTemplate, type LabKind, type TemplateKey } from '../../samples/templates';
-import { isYbcTemplateKey, templateProfileProblem, ybcLabProfiles, type YbcLabProfile } from '../../samples/ybc-templates';
+import { isRobotLabProfile, isRobotTemplateKey, robotLabProfiles, robotTemplateProfileProblem } from '../../samples/robot-templates';
+import { isLabTemplateKey, labOfTemplate, type LabKind, type LabProfile, type LabTemplateKey } from '../../samples/templates';
+import { isYbcLabProfile, isYbcTemplateKey, templateProfileProblem, ybcLabProfiles } from '../../samples/ybc-templates';
 
 // The launch contract (S1, plan §9.2; N6a S0): how the app is told, by its URL, to run as the standalone
 // editor or as an embedded lab. The URL is read once, at startup (main.tsx); nothing past this module knows
@@ -12,6 +13,11 @@ import { isYbcTemplateKey, templateProfileProblem, ybcLabProfiles, type YbcLabPr
 //                                                       Yolo:Bit lab: a ybc-* template, profile ybc-basic|ybc-advanced, at
 //                                                       least the one the template needs (N17 B6: the thermometer, the
 //                                                       dice and the servo gate need ybc-advanced)
+//   ?embed=1&lab=robot&template=rb-<key>[&profile=<p>][&origin=<o>]
+//                                                       3D robot lab (N18 R4.1): an rb-* scenario, profile uno-basic|uno-advanced,
+//                                                       at least the one the scenario needs (robot-templates.ts). An unknown rb-*
+//                                                       key is an error, never a standalone project; the legacy launch (no lab=)
+//                                                       has no robot scenario.
 //
 // `origin` is the embedding page's origin, the only one the lab talks to (stem-lab/v1, host-bridge.ts); without
 // it the lab works but talks to nobody. Anything else that names embed, template or lab is a broken launch,
@@ -21,8 +27,8 @@ import { isYbcTemplateKey, templateProfileProblem, ybcLabProfiles, type YbcLabPr
 /** What a `lab=` launch adds to the template. */
 export type LabLaunch = {
   kind: LabKind;
-  /** Yolo:Bit labs only: the board profile of `profile=`; null keeps the template's own. */
-  profile: YbcLabProfile | null;
+  /** Yolo:Bit and robot labs only: the board profile of `profile=`; null keeps the template's own. */
+  profile: LabProfile | null;
   /** The embedding page's origin (`origin=`), the only target of the lab's messages; null: no host bridge. */
   hostOrigin: string | null;
 };
@@ -30,11 +36,11 @@ export type LabLaunch = {
 export type Launch =
   | { mode: 'standalone' }
   /** `lab` is absent for the legacy S1 launch. */
-  | { mode: 'embed'; template: TemplateKey; lab?: LabLaunch }
+  | { mode: 'embed'; template: LabTemplateKey; lab?: LabLaunch }
   /** `lab`: the lab the broken launch asked for, when it named a known one (the error lists that lab's templates). */
   | { mode: 'invalid'; problem: string; lab?: LabKind };
 
-const labKinds: readonly LabKind[] = ['blockly', 'yolobit'];
+const labKinds: readonly LabKind[] = ['blockly', 'yolobit', 'robot'];
 
 /** Reads the launch from a URL query string such as `location.search`. */
 export function parseLaunch(search: string): Launch {
@@ -66,11 +72,12 @@ export function parseLaunch(search: string): Launch {
   if (template.length > 1) {
     return invalid('template must be given once.', kind);
   }
-  if (!isTemplateKey(key)) {
+  if (!isLabTemplateKey(key)) {
     return invalid(`Unknown template "${key}".`, kind);
   }
   if (kind === undefined) {
-    return { mode: 'embed', template: key };
+    // The legacy S1 lab has no robot: a robot scenario is a lab=robot launch or nothing.
+    return isRobotTemplateKey(key) ? invalid(`The template "${key}" opens only in lab=robot: add lab=robot.`) : { mode: 'embed', template: key };
   }
   if (labOfTemplate(key) !== kind) {
     return invalid(`The template "${key}" does not open in lab=${kind}.`, kind);
@@ -79,8 +86,9 @@ export function parseLaunch(search: string): Launch {
   if (typeof profile === 'object' && profile !== null) {
     return profile;
   }
-  // N17 B6: a lab whose program uses what only the Advanced board has does not open on the Basic one: it could not run there.
-  const tooLow = profile !== null && isYbcTemplateKey(key) ? templateProfileProblem(key, profile) : null;
+  // N17 B6: a lab whose program uses what only the Advanced board has does not open on the Basic one: it could not run there. The
+  // robot scenarios say it the same way (N18 R4.1).
+  const tooLow = profileProblem(key, profile);
   if (tooLow !== null) {
     return invalid(tooLow, kind);
   }
@@ -91,7 +99,18 @@ export function parseLaunch(search: string): Launch {
   return { mode: 'embed', template: key, lab: { kind, profile, hostOrigin } };
 }
 
-function readProfile(values: string[], kind: LabKind): YbcLabProfile | null | Extract<Launch, { mode: 'invalid' }> {
+/** Why the launch's `profile` is lower than template `key` needs, or null (also when it names no profile). */
+function profileProblem(key: LabTemplateKey, profile: LabProfile | null): string | null {
+  if (profile === null) {
+    return null;
+  }
+  if (isRobotTemplateKey(key)) {
+    return isRobotLabProfile(profile) ? robotTemplateProfileProblem(key, profile) : null;
+  }
+  return isYbcTemplateKey(key) && isYbcLabProfile(profile) ? templateProfileProblem(key, profile) : null;
+}
+
+function readProfile(values: string[], kind: LabKind): LabProfile | null | Extract<Launch, { mode: 'invalid' }> {
   if (values.length === 0) {
     return null;
   }
@@ -99,12 +118,12 @@ function readProfile(values: string[], kind: LabKind): YbcLabProfile | null | Ex
     return invalid('profile must be given once.', kind);
   }
   const [value = ''] = values;
-  if (kind !== 'yolobit') {
+  if (kind === 'blockly') {
+    // (The sentence is older than the robot lab, which takes a profile as well; the host's code and its tests know it as it is.)
     return invalid('profile is only for lab=yolobit.', kind);
   }
-  return (ybcLabProfiles as readonly string[]).includes(value)
-    ? (value as YbcLabProfile)
-    : invalid(`Unknown profile "${value}": use ${ybcLabProfiles.join(' or ')}.`, kind);
+  const levels: readonly LabProfile[] = kind === 'yolobit' ? ybcLabProfiles : robotLabProfiles;
+  return levels.includes(value as LabProfile) ? (value as LabProfile) : invalid(`Unknown profile "${value}": use ${levels.join(' or ')}.`, kind);
 }
 
 /**
