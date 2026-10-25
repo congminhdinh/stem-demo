@@ -190,6 +190,30 @@ test.describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
     await expect(frame.getByTestId('robot-check-results')).toHaveCount(0);
   });
 
+  test('a load-project from the host during a check opens after it: the check-result first, then the project it loaded', async ({ page, baseURL }) => {
+    const frame = await openInLesson(page, labUrl(baseURL, 'rb-drive-to-zone'));
+    const checked = projectOf('rb-drive-to-zone', 'reference');
+    await frame.evaluate((document) => window.__stem?.loadProject(document), checked);
+    await frame.locator('[data-testid=robot-check-speed] [data-speed="4x"]').click();
+    await frame.getByTestId('robot-check-start').click();
+    await expect.poll(async () => ((await frame.evaluate(() => window.__stem?.robot.getSnapshot())) as { t: number } | null)?.t ?? 0).toBeGreaterThan(0.5);
+    const loaded = { ...robotStarterDocument('rb-drive-to-zone'), id: 'saved-by-the-host' };
+    await page.evaluate(([message, origin]) => (window as unknown as { __sendToLab(message: unknown, origin: string): void }).__sendToLab(message, origin as string), [
+      { protocol: 'stem-lab/v1', type: 'load-project', document: loaded },
+      new URL(frame.url()).origin,
+    ] as const);
+    // It waits: the check goes on with the program it checks.
+    await page.waitForTimeout(300);
+    expect(((await frame.evaluate(() => window.__stem?.getProject())) as { id: string }).id).toBe(checked.id);
+    await expect(frame.getByTestId('robot-check-round')).toHaveText('Lượt 1/1');
+    await expect.poll(async () => (await checkResults(page)).length, { timeout: 30_000 }).toBe(1);
+    await expect.poll(() => frame.evaluate(() => window.__stem?.getProject())).toEqual(loaded);
+    await expect.poll(() => types(page)).toEqual(['ready', 'project-changed', 'run-started', 'run-stopped', 'check-result', 'project-changed']);
+    expect((await messages(page)).at(-1)?.document).toEqual(loaded);
+    // The result was about the program it checked: the new project closes it.
+    await expect(frame.getByTestId('robot-check-results')).toHaveCount(0);
+  });
+
   test('same score/passed/hash for 1×, 4× and headless', async ({ page, baseURL }) => {
     test.setTimeout(120_000);
     const frame = await openInLesson(page, labUrl(baseURL, 'rb-drive-to-zone'));

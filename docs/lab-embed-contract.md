@@ -161,7 +161,7 @@ Mỗi lab mở project của **một họ board** (`labFamilies` ở `src/ui/app
 
 | `type` | Trường | Lab làm gì |
 |---|---|---|
-| `load-project` | `document` | Mở project này thay template, nếu: editor mở được nó (schema, device, profile, program Blockly nạp được), đúng family của lab theo bảng lab → family (`blockly`→generic, `yolobit`→ybc, `robot`→uno; `labFamilies` ở `src/ui/app/lab-host.ts`, N18 R2.1; lab `robot` mở được từ R4.1, kèm `kit` của project) và không có lượt chạy nào. Lab `yolobit` và lab `robot` có `profile=` thì project mở với profile đó (N18 R4.1). Không hợp lệ → bỏ qua, không báo lỗi |
+| `load-project` | `document` | Mở project này thay template, nếu: editor mở được nó (schema, device, profile, program Blockly nạp được), đúng family của lab theo bảng lab → family (`blockly`→generic, `yolobit`→ybc, `robot`→uno; `labFamilies` ở `src/ui/app/lab-host.ts`, N18 R2.1; lab `robot` mở được từ R4.1, kèm `kit` của project) và không có lượt chạy nào. Lab `yolobit` và lab `robot` có `profile=` thì project mở với profile đó (N18 R4.1). Không hợp lệ → bỏ qua, không báo lỗi. Lab `robot` (N18 R6.3): trong lúc Kiểm tra hay một lượt chạy đang chạy, project **không bị bỏ**: `load-project` cuối cùng được giữ và mở ngay khi lab rảnh (sau `check-result` của lần Kiểm tra đó), rồi lab gửi `project-changed` của nó như mọi lần mở project |
 
 ## 3. Kiểm tra (challenge)
 
@@ -201,7 +201,9 @@ Mỗi lab mở project của **một họ board** (`labFamilies` ở `src/ui/app
     từng mục tiêu và vì sao chưa đạt ("Xe chạm tường lúc 12,4 s ở lượt 2"), thưởng thời gian, và **Xem lại** một variant trượt (chạy lại ở 1×
     từ đầu: tất định nên là đúng lượt đó). **Tab bị ẩn** khi chấm ở 1×/4× thì lần chấm **dừng lại** (không còn frame) và chạy tiếp khi tab hiện
     lại, kết quả **giống hệt**: lab robot không coi đó là "gián đoạn" như lab Blockly/Yolo:Bit ở trên (chấm theo thời gian mô phỏng, không theo
-    giờ thật). **Dừng kiểm tra** thì không có kết quả, không gửi `check-result`. `rb-sandbox` không có nút Kiểm tra.
+    giờ thật). **Dừng kiểm tra** thì không có kết quả, không gửi `check-result`. Kiểm tra không khởi động được (chương trình lỗi) thì không có
+    `run-started` / `run-stopped`, như Chạy không khởi động được. Kiểm tra không xong vì lỗi bên trong lab (kể cả khi bridge từ chối gửi kết quả)
+    thì lab nói không kiểm tra xong và bài học chưa nhận được kết quả, không hiện kết quả nào như đã lưu. `rb-sandbox` không có nút Kiểm tra.
   - **Kiểm chứng lại** (N18 R8a): một lần chấm đã lưu được **kiểm chứng lại** bằng `pnpm verify:attempt`: chạy lại headless trên project đã lưu và so điểm, xem
   `docs/robot-attempt-verification.md`.
 
@@ -238,7 +240,8 @@ N18 R7.1 (2026-10-25) chỉ **thêm**: trên `check-result` của lab robot, `sc
 repo `docs/fixtures/stem-lab-v1-robot.json` và manifest scenario `docs/fixtures/robot-scenarios.v1.json` (§1). Message của lab Blockly và lab Yolo:Bit không đổi một byte.
 
 N18 R6.3 (2026-10-25) không đổi message: `ready` của lab robot nay **có** `goals` của scenario (trước là rỗng "tới R6"), lab gửi `check-result`
-có điểm của §2, và với Kiểm tra ở 1× / 4× là một cặp `run-started` / `run-stopped` trước `check-result` (§2, §3).
+có điểm của §2, và với Kiểm tra ở 1× / 4× là một cặp `run-started` / `run-stopped` trước `check-result` (§2, §3). `load-project` tới lúc lab robot
+đang Kiểm tra hay đang chạy thì được giữ tới khi lab rảnh, không bị bỏ (§2, bảng host → lab).
 
 **Hook dev** (`window.__stem.robot`, chỉ bản dev, như `__stem`; N18 R4.1): `getSnapshot()` trả `null` cho tới khi có một lượt chạy (R3.6 định
 nghĩa `RobotSnapshot`, R4.2 phục vụ nó), `setSpeed(n)` lưu hệ số tốc độ (số hữu hạn > 0; đọc lại bằng `getSpeed()`, mặc định 1) và
