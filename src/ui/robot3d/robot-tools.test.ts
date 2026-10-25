@@ -93,6 +93,11 @@ describe('the keys of teleop (N18 R4.8)', () => {
     expect(['speed', 'name', 'note', 'pick', 'editable', 'block', 'blockField'].map(typing)).toEqual([true, true, true, true, true, true, true]);
     expect(['pad', 'stage'].map(typing)).toEqual([false, false]);
     expect(isTypingTarget(null)).toBe(false);
+    // N18 R4.8 fix round 1: a slider takes only the keys that move it; W A S D and Space drive from it.
+    const slider = host.querySelector('#speed');
+    expect(['ArrowUp', 'ArrowLeft', 'Home', 'End', 'PageUp'].map((key) => isTypingTarget(slider, key))).toEqual([true, true, true, true, true]);
+    expect(['w', 'd', ' ', 'Enter', 'q'].map((key) => isTypingTarget(slider, key))).toEqual([false, false, false, false, false]);
+    expect(isTypingTarget(host.querySelector('#name'), 'w')).toBe(true);
     host.remove();
   });
 });

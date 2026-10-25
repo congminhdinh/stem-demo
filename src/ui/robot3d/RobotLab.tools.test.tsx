@@ -85,7 +85,8 @@ describe('the view tools in the robot lab (N18 R4.8)', () => {
     const stage = host.querySelector<HTMLElement>('.robot-stage')!;
     expect(stage.contains(el('robot-tools'))).toBe(true);
     expect(stage.tabIndex).toBe(-1);
-    expect([...el('robot-tools')!.querySelectorAll('[role=toolbar] button')].map((button) => button.textContent)).toEqual(['Lái tay', 'Thước đo', 'Di chuyển robot']);
+    expect([...el('robot-tools-strip')!.querySelectorAll('button')].map((button) => button.getAttribute('aria-label'))).toEqual(['Lái tay', 'Thước đo', 'Di chuyển robot']);
+    expect(stage.getAttribute('aria-label')).toBeNull();
   });
 
   it('teleop is no run for the host and keeps no load-project waiting once it drives; Chạy after it is a run', async () => {
@@ -94,12 +95,18 @@ describe('the view tools in the robot lab (N18 R4.8)', () => {
     expect(session.startTeleop).toHaveBeenCalledTimes(1);
     expect(el('robot-hud')!.getAttribute('data-status')).toBe('teleop');
     expect(el('robot-status')!.textContent).toBe('Đang lái tay');
+    // Its time is held to TELEOP_LIMIT_S, not the lesson's 15 s; the view's name says which keys drive.
+    expect(el('robot-time')!.textContent).toBe('Thời gian 0,0 / 600 s');
+    const stage = host.querySelector<HTMLElement>('.robot-stage')!;
+    expect([stage.getAttribute('role'), stage.getAttribute('aria-label')]).toEqual(['group', 'Khung nhìn 3D của robot: phím mũi tên hoặc W A S D để lái, phím cách để dừng']);
     expect(onRunChange).not.toHaveBeenCalled();
     // Only while its world is built (a start, as any): once it drives, a load-project need not wait.
     expect(onBusyChange).toHaveBeenLastCalledWith(false);
     await click('robot-run');
     expect(onRunChange).toHaveBeenCalledWith(true);
     expect(el('robot-tool-teleop')!.getAttribute('aria-pressed')).toBe('false');
+    expect(el('robot-time')!.textContent).toBe('Thời gian 0,0 / 15 s');
+    expect(host.querySelector('.robot-stage')!.getAttribute('aria-label')).toBeNull();
   });
 
   it('measures on the 2D map: a click there is a point of the ruler', async () => {
@@ -112,6 +119,7 @@ describe('the view tools in the robot lab (N18 R4.8)', () => {
       map.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1, clientX: at.x, clientY: at.y }));
       map.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 1, clientX: at.x, clientY: at.y }));
     });
+    await click('robot-ruler-points');
     expect(el('robot-ruler-from')!.textContent).toBe('x 100,0 · y 50,0 cm');
   });
 

@@ -14,7 +14,9 @@ import { dragPose, onRobot, rulerTargets, sensorBarCm, snapPoint, type ArenaPoin
 //   - the move tool ("Di chuyển robot"): with no run going on (one that is over gives way), a press on the robot grabs it, the drag moves a
 //     ghost (moved back inside the arena; `clear` false, a red ghost, where the robot would stand in something), and the drop places it
 //     there (the run store's placeRobot, which the session checks again). Q and E turn it TURN_STEP_DEG, during a drag too; Esc puts it
-//     back at the lesson's start. A check (the lock) moves nothing.
+//     back at the lesson's start. By the keyboard (fix round 1): the arrows nudge a ghost from where the robot stands (`nudge`), Q/E turn
+//     that ghost, Enter places it (`commit`), Esc drops it first. A check (the lock) moves nothing.
+//   - A replay of a check's round is the check's: no tool turns on and none takes a point meanwhile (fix round 1).
 //   - teleop's direction held (`hold`, by the keys or the pad): sent to the run store as a move at the speed of the slider, a stop when let
 //     go, and sent again when the speed changes while it is held. Nothing is held while teleop is off.
 // The robot's pose is the one the view shows (the run store's latestWorld), else the scenario's start.
@@ -47,8 +49,12 @@ export type RobotToolsState = {
   /** The pointer let go: the robot is placed where the ghost is, when it may stand there. */
   drop(): Promise<void>;
   cancelDrag(): void;
-  /** Q (+) and E (−): turns the robot, or the ghost being dragged, by `stepDeg`. */
+  /** Q (+) and E (−): turns the robot, or the ghost being dragged or nudged, by `stepDeg`. */
   turn(stepDeg: number): Promise<void>;
+  /** The arrows with the move tool: moves the ghost (from where the robot stands) by (dx, dy) cm of the arena. */
+  nudge(dxCm: number, dyCm: number): void;
+  /** Enter with the move tool: places the robot where the nudged ghost is, when it may stand there. */
+  commit(): Promise<void>;
   /** Back at the lesson's start (the move tool's Esc and "Về vị trí xuất phát"). */
   toStart(): Promise<void>;
   /** Esc in the view: the ruler clears, the move tool goes back to the start. */
@@ -78,6 +84,11 @@ export function createRobotToolsStore({ runStore, scenario, kit }: RobotToolsSto
       const robot = runStore.getState().latestWorld()?.robot;
       return robot ? { xCm: robot.xCm, yCm: robot.yCm, yawDeg: robot.yawDeg } : { ...scenario.start };
     };
+    /** A check holds the lab, or a replay of a check's round goes on: no tool is the learner's then. */
+    const held = () => {
+      const state = runStore.getState();
+      return state.locked || (state.round !== null && state.active && !isRunOver(state.snapshot));
+    };
     /** The robot may be moved: no check holds the lab, no start is building, and no run goes on (one that is over gives way). */
     const movable = () => {
       const state = runStore.getState();
@@ -96,13 +107,13 @@ export function createRobotToolsStore({ runStore, scenario, kit }: RobotToolsSto
       held: null,
 
       setTool(tool) {
-        if (tool === get().tool) return;
+        if (tool === get().tool || (tool !== null && held())) return;
         grabbed = null;
         set({ tool, ruler: [], ghost: null });
       },
 
       pick(point) {
-        if (get().tool !== 'ruler') return;
+        if (get().tool !== 'ruler' || held()) return;
         const snapped = snapPoint(point, rulerTargets(robotPose(), bar));
         const ruler = get().ruler;
         set({ ruler: ruler.length >= 2 ? [snapped] : [...ruler, snapped] });
@@ -144,7 +155,7 @@ export function createRobotToolsStore({ runStore, scenario, kit }: RobotToolsSto
       async turn(stepDeg) {
         if (get().tool !== 'move' || !movable()) return;
         const ghost = get().ghost;
-        if (grabbed !== null && ghost !== null) {
+        if (ghost !== null) {
           set({ ghost: checked({ ...ghost.pose, yawDeg: ghost.pose.yawDeg + stepDeg }) });
           return;
         }
@@ -159,6 +170,19 @@ export function createRobotToolsStore({ runStore, scenario, kit }: RobotToolsSto
         await runStore.getState().placeRobot(turned.pose);
       },
 
+      nudge(dxCm, dyCm) {
+        if (get().tool !== 'move' || grabbed !== null || !movable()) return;
+        const from = get().ghost?.pose ?? robotPose();
+        set({ ghost: checked({ xCm: from.xCm + dxCm, yCm: from.yCm + dyCm, yawDeg: from.yawDeg }) });
+      },
+
+      async commit() {
+        const ghost = get().ghost;
+        if (get().tool !== 'move' || grabbed !== null || ghost === null || !ghost.clear || !movable()) return;
+        await runStore.getState().placeRobot(ghost.pose);
+        set({ ghost: null });
+      },
+
       async toStart() {
         grabbed = null;
         set({ ghost: null });
@@ -170,6 +194,7 @@ export function createRobotToolsStore({ runStore, scenario, kit }: RobotToolsSto
       async escape() {
         const { tool } = get();
         if (tool === 'ruler') get().clearRuler();
+        else if (tool === 'move' && grabbed === null && get().ghost !== null) set({ ghost: null });
         else if (tool === 'move') await get().toStart();
       },
 

@@ -39,8 +39,11 @@ export function useTopViewPointer(container: RefObject<HTMLElement | null>, tool
   useEffect(() => {
     const element = container.current;
     if (tools === undefined || element === null || !shown) return undefined;
+    // While a tool is on, a touch on the map is the tool's, never the page's scroll or zoom (fix round 1).
     const toolCursor = () => {
-      element.style.cursor = tools.getState().tool === 'ruler' ? 'crosshair' : '';
+      const { tool } = tools.getState();
+      element.style.cursor = tool === 'ruler' ? 'crosshair' : '';
+      element.style.touchAction = tool === null ? '' : 'none';
     };
     toolCursor();
     const stopCursor = tools.subscribe((state, previous) => {
@@ -108,6 +111,7 @@ export function useTopViewPointer(container: RefObject<HTMLElement | null>, tool
       if (dragging !== null) tools.getState().cancelDrag();
       stopCursor();
       element.style.cursor = '';
+      element.style.touchAction = '';
     };
   }, [container, tools, store, scenario, outline, shown]);
 }

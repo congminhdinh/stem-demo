@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useStore } from 'zustand';
 import type { DeviceRegistry } from '../../core/devices/registry';
 import { productionKits } from '../../core/hardware/catalog';
 import type { Kit } from '../../core/hardware/kit';
@@ -172,8 +173,10 @@ export default function RobotLab({
   });
   const { scenario, kit, board, store, checks, tools } = lab;
   const drivable = useMemo(() => canTeleop(kit, board), [kit, board]);
-  // N18 R4.8: the 3D view takes the keys of the view tools (RobotTools); a click on it gives it the focus.
+  // N18 R4.8: the 3D view takes the keys of the view tools (RobotTools); a click on it gives it the focus. While teleop is on, its name
+  // says which keys drive (fix round 1).
   const stageRef = useRef<HTMLDivElement>(null);
+  const teleopOn = useStore(store, (state) => state.teleop);
   // The sandbox has no score: nothing to check (as the other labs' templates without a challenge have no Check).
   const checkable = scenarioMaxScore(scenario) !== undefined;
   const model = useMemo(() => robotModel(kit, board), [kit, board]);
@@ -289,7 +292,7 @@ export default function RobotLab({
 
   const viewport = (
     <section className="robot-viewport" aria-label={t('robot.viewport')} data-testid="robot-viewport">
-      <div className="robot-stage" ref={stageRef} tabIndex={-1}>
+      <div className="robot-stage" ref={stageRef} tabIndex={-1} {...(teleopOn ? { role: 'group', 'aria-label': t('robot.view.keys') } : {})}>
         <SceneHost scenario={scenario} kit={kit} model={model} store={store} reducedMotion={reducedMotion} zoneLabel={zoneLabel} tools={tools} {...(probe ? { probe } : {})} />
         <Hud store={store} scenario={scenario} />
         <RobotTools store={store} tools={tools} scenario={scenario} drivable={drivable} stage={stageRef} />

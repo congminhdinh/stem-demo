@@ -125,7 +125,17 @@ export function driveKeyOf(event: { readonly key: string; readonly code?: string
 /** Where the learner types: a form field, editable text, or the block editor (its workspace and its field editors). */
 const typingSelector = 'input, textarea, select, [contenteditable=""], [contenteditable="true"], .injectionDiv, .blocklyWidgetDiv, .blocklyDropDownDiv';
 
-/** Whether a key from `target` was typed somewhere (a field, the blocks): the view's keys never take it. */
-export function isTypingTarget(target: EventTarget | null): boolean {
-  return typeof Element !== 'undefined' && target instanceof Element && target.closest(typingSelector) !== null;
+/** The keys a slider (`<input type=range>`) moves with: its own. */
+const sliderKeys = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown']);
+
+/**
+ * Whether `key` from `target` was typed somewhere (a field, the blocks): the view's keys never take it. A slider (the teleop speed) takes
+ * only the keys that move it (N18 R4.8 fix round 1): W A S D and Space drive and stop from it. Without `key`, any field is one.
+ */
+export function isTypingTarget(target: EventTarget | null, key?: string): boolean {
+  if (typeof Element === 'undefined' || !(target instanceof Element)) return false;
+  const field = target.closest(typingSelector);
+  if (field === null) return false;
+  if (key !== undefined && field instanceof HTMLInputElement && field.type === 'range') return sliderKeys.has(key);
+  return true;
 }

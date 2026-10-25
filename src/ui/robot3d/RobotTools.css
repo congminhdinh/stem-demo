@@ -1,7 +1,9 @@
 /*
- * The 3D view's tools (N18 R4.8): a strip of three toggles at the bottom left of the view (Lái tay, Thước đo, Di chuyển robot), and beside
- * it the panel of what is on: the D-pad and the speed, the ruler's reading, the move tool's place and buttons. The HUD keeps the top left,
- * the camera the top right, the quality and view buttons the bottom right. Every target is 44 px or more (touch). The app's tokens only.
+ * The 3D view's tools (N18 R4.8): a strip of three icon toggles at the bottom left of the view (Lái tay, Thước đo, Di chuyển robot), and
+ * beside it the small panels of what is on: the D-pad and the speed, the ruler's reading, the move tool's place and buttons (fix round 1:
+ * icons only, the panels small and the D-pad and the ruler's points folding away, so that they cover little of the arena). The HUD keeps
+ * the top left, the camera the top right, the quality and view buttons the bottom right. Every target is 44 px or more (touch). The app's
+ * tokens only.
  */
 
 /* The view takes the keys of the tools when it has the focus (a click on it gives it); the ring shows only for the keyboard. */
@@ -21,14 +23,15 @@
   z-index: 1;
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: 6px;
   max-width: calc(100% - 140px);
   /* The space between the cards is the view's: the camera still turns there. */
   pointer-events: none;
   font-size: 12px;
 }
 
-.robot-tools > * {
+.robot-tools > *,
+.robot-tools-panels > * {
   pointer-events: auto;
 }
 
@@ -39,7 +42,7 @@
 
 /* Why a run did not start stands right of the strip. */
 .robot-stage:has(.robot-tools) .robot-messages {
-  left: 160px;
+  left: 66px;
 }
 
 .robot-tools-strip,
@@ -54,24 +57,25 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 3px;
+  padding: 2px;
 }
 
 .robot-tool {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 4px 10px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   border: 0;
   border-radius: 6px;
   background: transparent;
   color: var(--stem-color-text);
-  font: inherit;
-  font-size: 12px;
-  white-space: nowrap;
   cursor: pointer;
+}
+
+.robot-tool .robot-icon {
+  width: 20px;
+  height: 20px;
 }
 
 .robot-tool:hover {
@@ -81,7 +85,6 @@
 .robot-tool[aria-pressed='true'] {
   background: var(--stem-color-primary);
   color: var(--stem-color-on-primary);
-  font-weight: 600;
 }
 
 .robot-tool[aria-disabled='true'] {
@@ -97,26 +100,36 @@
   outline-offset: 1px;
 }
 
+/* The panels side by side, their bottoms on one line: they take the width, not the height the HUD needs. */
 .robot-tools-panels {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-wrap: wrap-reverse;
+  align-items: flex-end;
   gap: 6px;
   min-width: 0;
+  pointer-events: none;
 }
 
 .robot-tool-panel {
   display: grid;
-  gap: 6px;
-  max-width: 320px;
+  gap: 2px;
+  max-width: 300px;
   box-sizing: border-box;
-  padding: 8px 10px;
+  padding: 4px 6px;
+}
+
+.robot-tool-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
 }
 
 .robot-tool-note {
   margin: 0;
+  padding: 0 4px;
   color: var(--stem-color-text-muted);
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
 .robot-tool-warning {
@@ -124,44 +137,45 @@
   font-weight: 600;
 }
 
+/* A panel's icon button: 44 px, quiet until pointed at. */
 .robot-tool-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 4px 10px;
-  border: 1px solid var(--stem-color-border-strong);
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
   border-radius: 6px;
-  background: var(--stem-color-surface);
+  background: transparent;
   color: var(--stem-color-text);
-  font: inherit;
-  font-size: 12px;
   cursor: pointer;
+}
+
+.robot-tool-action:hover {
+  background: var(--stem-color-primary-soft);
+}
+
+.robot-tool-action[aria-expanded='true'] {
+  color: var(--stem-color-primary);
 }
 
 .robot-tool-action:disabled {
   color: var(--stem-color-text-muted);
-  opacity: 0.55;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
-/* Lái tay: the D-pad, 3 × 3 cells of 46 px, the stop in the middle. */
-.robot-teleop {
-  grid-template-columns: auto;
-  justify-items: center;
-}
-
+/* Lái tay: the D-pad, 3 × 3 cells of 44 px, the stop in the middle, its fold in the top right corner; the speed under it. */
 .robot-pad {
   display: grid;
   grid-template-areas:
-    '. up .'
+    '. up fold'
     'left stop right'
     '. down .';
-  grid-template-columns: repeat(3, 46px);
-  grid-template-rows: repeat(3, 46px);
-  gap: 3px;
+  grid-template-columns: repeat(3, 44px);
+  grid-template-rows: repeat(3, 44px);
+  gap: 2px;
   touch-action: none;
   user-select: none;
 }
@@ -169,8 +183,8 @@
 .robot-pad-button {
   display: grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 1px solid var(--stem-color-border-strong);
   border-radius: 50%;
@@ -181,8 +195,8 @@
 }
 
 .robot-pad-button .robot-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .robot-pad-up {
@@ -206,6 +220,24 @@
   color: var(--stem-color-danger);
 }
 
+.robot-pad-fold {
+  display: grid;
+  grid-area: fold;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--stem-color-text-muted);
+  cursor: pointer;
+}
+
+.robot-pad-fold:hover {
+  background: var(--stem-color-primary-soft);
+}
+
 .robot-pad-button[aria-pressed='true'] {
   border-color: var(--stem-color-primary);
   background: var(--stem-color-primary);
@@ -218,32 +250,66 @@
   cursor: not-allowed;
 }
 
+.robot-teleop {
+  justify-items: center;
+}
+
 .robot-teleop-speed {
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 32px;
-  color: var(--stem-color-text-muted);
+  gap: 4px;
+  width: 136px;
+  min-height: 44px;
 }
 
+/* The slider's own height is its hit area: 44 px. */
 .robot-teleop-speed input {
-  width: 96px;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 44px;
+  margin: 0;
   accent-color: var(--stem-color-primary);
 }
 
-.robot-teleop-speed output {
+.robot-teleop-value {
   min-width: 38px;
   color: var(--stem-color-text);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
-/* Thước đo: the two points, the distance and the angle. */
+.robot-teleop-folded .robot-teleop-value {
+  padding-right: 6px;
+}
+
+.robot-teleop .robot-tool-note {
+  max-width: 136px;
+}
+
+/* Thước đo: the distance and the angle on one row, the two points folded out under it. */
+.robot-ruler-reading {
+  display: grid;
+  margin: 0 auto 0 0;
+  padding: 0 4px;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.robot-ruler-reading strong {
+  font-size: 15px;
+}
+
+.robot-ruler .robot-tool-note {
+  margin-right: auto;
+}
+
 .robot-ruler dl {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 2px 8px;
   margin: 0;
+  padding: 0 4px 4px;
 }
 
 .robot-ruler dt {
@@ -253,51 +319,16 @@
 .robot-ruler dd {
   margin: 0;
   font-variant-numeric: tabular-nums;
+}
+
+/* Di chuyển robot: what to do, where it stands, Q / E and back to the start. */
+.robot-move-pose {
+  margin-right: auto;
+  padding: 0 4px;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.robot-ruler strong {
-  font-size: 15px;
-}
-
-.robot-ruler .robot-tool-action {
-  justify-self: start;
-  min-height: 32px;
-}
-
-/* Di chuyển robot: where it stands, Q / E, back to the start. */
-.robot-move-pose {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.robot-move-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-/* A narrow view: the strip's icons only (each still says its name to a screen reader and in its tooltip). */
-@container (max-width: 620px) {
-  .robot-tool-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .robot-tool {
-    padding: 4px;
-    justify-content: center;
-  }
-
-  .robot-stage:has(.robot-tools) .robot-messages {
-    left: 70px;
-  }
-
-  .robot-ruler dd {
-    white-space: normal;
-  }
+.robot-move .robot-tool-note {
+  max-width: 260px;
 }

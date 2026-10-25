@@ -145,6 +145,17 @@ describe('the move tool on the 2D map (N18 R4.8)', () => {
     expect(session.placeRobot.mock.calls[0]![0]!.xCm).toBeCloseTo(90, 6);
   });
 
+  it('takes the touches on the map while a tool is on (no scroll, no zoom of the page), and gives them back when it is off', async () => {
+    const { tools } = mount();
+    expect(map().style.touchAction).toBe('');
+    await act(async () => tools.getState().setTool('ruler'));
+    expect(map().style.touchAction).toBe('none');
+    await act(async () => tools.getState().setTool('move'));
+    expect(map().style.touchAction).toBe('none');
+    await act(async () => tools.getState().setTool(null));
+    expect(map().style.touchAction).toBe('');
+  });
+
   it('a map without the tools draws no tools layer and takes no pointer', async () => {
     mount(false);
     expect(stage().findOne('.topview-tools')).toBeUndefined();

@@ -138,6 +138,56 @@ describe('the move tool (N18 R4.8)', () => {
   });
 });
 
+describe('the tools during a replay of a check’s round (N18 R4.8 fix round 1)', () => {
+  it('turn on no tool and take no pick, grab or nudge while a replay goes on; a replay that is over gives way', async () => {
+    const { tools, runStore, publish, world, frames } = setup();
+    tools.getState().setTool('ruler');
+    await runStore.getState().replay(project, { index: 0, count: 2, score: null });
+    tools.getState().pick({ xCm: 80, yCm: 40 });
+    expect(tools.getState().ruler).toEqual([]);
+    tools.getState().setTool('move');
+    expect(tools.getState().tool).toBe('ruler');
+    publish({ world: world(3), end: { reason: 'time-limit', atS: 3 } });
+    frames.frame(16);
+    tools.getState().pick({ xCm: 80, yCm: 40 });
+    expect(tools.getState().ruler).toHaveLength(1);
+  });
+});
+
+describe('the move tool by the keyboard (N18 R4.8 fix round 1)', () => {
+  it('nudges a ghost from where the robot stands, 1 cm a step (5 with Shift), turns it with Q/E, and Enter places it', async () => {
+    const { tools, session, runStore } = setup();
+    tools.getState().setTool('move');
+    tools.getState().nudge(1, 0);
+    tools.getState().nudge(0, 5);
+    tools.getState().nudge(0, 5);
+    expect(tools.getState().ghost).toEqual({ pose: { xCm: 26, yCm: 50, yawDeg: 0 }, clear: true });
+    expect(session.placeRobot).not.toHaveBeenCalled();
+    await tools.getState().turn(15);
+    expect(tools.getState().ghost).toEqual({ pose: { xCm: 26, yCm: 50, yawDeg: 15 }, clear: true });
+    await tools.getState().commit();
+    expect(session.placeRobot).toHaveBeenCalledWith({ xCm: 26, yCm: 50, yawDeg: 15 });
+    expect(runStore.getState().placement).toEqual({ xCm: 26, yCm: 50, yawDeg: 15 });
+    expect(tools.getState().ghost).toBeNull();
+  });
+
+  it('a nudge into the wall shows the ghost red and Enter places nothing; Esc drops a pending ghost first, then goes back to the start', async () => {
+    const { tools, session, runStore } = setup();
+    tools.getState().setTool('move');
+    for (let i = 0; i < 6; i++) tools.getState().nudge(0, -5);
+    expect(tools.getState().ghost?.clear).toBe(false);
+    await tools.getState().commit();
+    expect(session.placeRobot).not.toHaveBeenCalled();
+    expect(tools.getState().ghost?.clear).toBe(false);
+    await tools.getState().escape();
+    expect(tools.getState().ghost).toBeNull();
+    await tools.getState().turn(15);
+    expect(runStore.getState().placement).not.toBeNull();
+    await tools.getState().escape();
+    expect(runStore.getState().placement).toBeNull();
+  });
+});
+
 describe('holding a direction in teleop (N18 R4.8)', () => {
   it('sends the held direction at the speed, a stop when let go, and the held direction again when the speed changes', async () => {
     const { tools, runStore, session } = setup();
