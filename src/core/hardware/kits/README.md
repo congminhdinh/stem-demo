@@ -41,7 +41,7 @@ Vì vậy z là độ cao so với sàn. `mount.yawDeg` quay module quanh z, ng�
 | | `trackCm` | khoảng cách hai tâm bánh; bánh trái ở y = +trackCm/2 |
 | | `casterCm`, `casterRadiusCm` | tâm và bán kính bánh tự lựa (bi cầu), chạm sàn: z = bán kính |
 | | `frictionWheel` | hệ số ma sát lốp–sàn: độ bám giới hạn lực đẩy của bánh |
-| `dc-motor` | `maxRpm`, `tauS`, `stallTorqueNm` | ω₀ (tốc độ không tải ở duty 255), hằng số thời gian bậc 1, mô-men kẹt T_s; đường mô-men T = T_s·(u − ω/ω₀) |
+| `dc-motor` | `maxRpm`, `tauS`, `stallTorqueNm`, `gearFrictionNm` | ω₀ của đường mô-men (duty 255, không tải, chưa trừ ma sát hộp số), hằng số thời gian bậc 1, mô-men kẹt T_s, ma sát Coulomb của hộp số T_f (< T_s); đường mô-men T = T_s·(u − ω/ω₀) |
 | | `wheelRadiusCm`, `wheelWidthCm` | bánh trên trục motor; `mount` là tâm bánh, z = bán kính, `yawDeg` = 0 |
 | `servo` | `sPer60Deg`, `minDeg`, `maxDeg`, `restDeg`, `stallTorqueNm` | tốc độ (s cho 60°), dải góc, góc lúc dựng world, mô-men giữ tối đa |
 | | `armLengthCm`, `armWidthCm`, `armHeightCm`, `armMassG` | tay servo: thanh quay trong mặt phẳng ngang quanh trục z của `mount`; góc 0 chỉ theo `yawDeg`, tăng ngược chiều kim đồng hồ |
@@ -53,9 +53,15 @@ Vì vậy z là độ cao so với sàn. `mount.yawDeg` quay module quanh z, ng�
 `trackCm`, bánh và caster chạm sàn, tâm khối lượng nằm giữa trục bánh và caster (không thì robot lật), `heightCm` của cảm
 biến line bằng độ cao gắn, dải góc servo hợp lệ và tay servo không chạm sàn.
 
-**Số của `ref-uno-rover@0` là PLACEHOLDER** cho một rover UNO nhỏ, tới khi nhà cung cấp gửi số đo (§3, §4 của
-`docs/uno-vendor-questions.md`): thân 15 × 12 × 5 cm, 400 g, bánh 6,6 cm, motor giảm tốc TT 200 rpm ở duty 255 (T_s =
-0,15 N·m, τ = 0,05 s), servo cỡ SG90 (0,1 s/60°, 0–180°, 0,18 N·m). `mount` của LED, còi, nút chỉ để vẽ.
+**Mọi số cơ khí của `ref-uno-rover@0` là PLACEHOLDER** cho một rover UNO nhỏ, tới khi nhà cung cấp gửi số đo (§3, §4 của
+`docs/uno-vendor-questions.md`): thân 15 × 12 × 5 cm, 400 g, bánh 6,6 cm, motor giảm tốc TT 1:48 với ω₀ = 200 rpm,
+T_s = 0,08 N·m (0,8 kgf·cm), T_f = 0,025 N·m, τ = 0,05 s; servo cỡ SG90 (0,1 s/60°, 0–180°, 0,18 N·m). `mount` của LED,
+còi, nút chỉ để vẽ.
+
+**Ma sát hộp số** (`gearFrictionNm`): giữ robot đứng yên khi bị đẩy (hai bánh giữ tới 2·T_f/r ≈ 1,5 N với số trên) và là
+lực cản lăn khi chạy. Bánh chạy tự do ở ω₀·(1 − T_f/T_s), không phải ω₀: với số trên là 69 % (0,48 m/s ở duty 255), và
+duty dưới T_f/T_s · 255 ≈ 80 không khởi động được robot (như motor TT thật ở PWM thấp). Khi nhà cung cấp cho tốc độ không
+tải đo được n₀ (đã gồm ma sát), đặt `maxRpm = n₀ / (1 − T_f/T_s)`.
 
 ## Thay bằng kit của nhà cung cấp
 
