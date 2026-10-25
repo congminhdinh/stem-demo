@@ -30,6 +30,7 @@ import type { RobotToolsStore } from './robot-tools-store';
 import { useLocale, useText } from '../i18n/text';
 import { RobotView } from './RobotView';
 import { idleSnapshot, sameView } from './scene-math';
+import { createShadowWatch } from './shadow-watch';
 import { sightProps } from './sight-props';
 
 // The robot lab's 3D view (N18 R4.2, ADR 0002): one R3F canvas with the arena, the robot and the camera. It draws on demand
@@ -245,6 +246,30 @@ function SlowFrames({ store, onSlow }: { store: RobotRunStore; onSlow(): void })
   return null;
 }
 
+/**
+ * N18 P2: the key light's shadow map is drawn again only on a frame where what casts a shadow has moved, or after the scene changed
+ * (shadow-watch.ts): not for a frame where only the camera moved or an LED blinked. It renders with the scene's content, so every commit
+ * of that content (its parts, the plan view, the overlays) counts as a change; so does a restored WebGL context.
+ */
+function ShadowsOnChange({ view }: { view: () => RobotSnapshot }) {
+  const gl = useThree((state) => state.gl);
+  const watch = useMemo(createShadowWatch, []);
+  useLayoutEffect(() => watch.changed());
+  useEffect(() => {
+    gl.shadowMap.autoUpdate = false;
+    const restored = () => watch.changed();
+    gl.domElement.addEventListener('webglcontextrestored', restored);
+    return () => {
+      gl.domElement.removeEventListener('webglcontextrestored', restored);
+      gl.shadowMap.autoUpdate = true;
+    };
+  }, [gl, watch]);
+  useFrame(() => {
+    if (watch.frame(view())) gl.shadowMap.needsUpdate = true;
+  });
+  return null;
+}
+
 /** Tells the owner when the browser takes the WebGL context away and gives it back, and draws again then (ADR 0002 §4.7). */
 function ContextWatch({ onLost, onRestored }: { onLost(): void; onRestored(): void }) {
   const gl = useThree((state) => state.gl);
@@ -338,6 +363,7 @@ function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewF
       <StudioLighting span={span} look={look} shadows={shadows} mapSize={settings.shadowMapSize} viewForward={viewForward} />
       <GltfArena assets={assets} planView={cameraMode === 'top'} scenario={scenario} view={view} look={look} shadows={shadows} textures={textures} labels={labels} viewForward={viewForward} tags={tags} />
       <GltfRobot assets={assets} kit={kit} model={model} scenario={scenario} view={view} detail={look.detail} shadows={shadows} blob={textures.blob} />
+      {shadows && <ShadowsOnChange view={view} />}
     </>
   );
 }

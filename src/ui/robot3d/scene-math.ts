@@ -174,11 +174,11 @@ function samePose(a: Pose, b: Pose): boolean {
 }
 
 /**
- * Whether two worlds draw the same picture: the poses of the robot and the objects, the wheels, the servos, the LEDs, what each line
- * sensor sees and the board's pins (the buzzer's tone, the button's level). The time and the score are the HUD's, not the picture's.
- * The 3D view asks for a frame only when the picture changes, so a robot at rest costs no drawing.
+ * Whether two worlds show the robot and the objects in the same place, to within a pixel (SAME_CM, SAME_QUAT, SAME_RAD, SAME_DEG): the
+ * poses of the robot and the objects, the wheels and the servos. N18 P2: what casts the shadows (moved here from `sameView`, its first
+ * half): the key light's shadow map is drawn again only when these change.
  */
-export function sameView(a: RobotSnapshot | null, b: RobotSnapshot | null): boolean {
+export function sameCasters(a: RobotSnapshot | null, b: RobotSnapshot | null): boolean {
   if (a === b) return true;
   if (a === null || b === null) return false;
   const [ra, rb] = [a.robot, b.robot];
@@ -186,7 +186,18 @@ export function sameView(a: RobotSnapshot | null, b: RobotSnapshot | null): bool
   for (const role of Object.keys(ra.servoDeg)) {
     if (!(Math.abs((ra.servoDeg[role] ?? 0) - (rb.servoDeg[role] ?? 0)) < SAME_DEG)) return false;
   }
-  if (a.objects.length !== b.objects.length || a.objects.some((object, i) => !samePose(object.pose, b.objects[i]!.pose))) return false;
+  return a.objects.length === b.objects.length && a.objects.every((object, i) => samePose(object.pose, b.objects[i]!.pose));
+}
+
+/**
+ * Whether two worlds draw the same picture: the poses of the robot and the objects, the wheels, the servos, the LEDs, what each line
+ * sensor sees and the board's pins (the buzzer's tone, the button's level). The time and the score are the HUD's, not the picture's.
+ * The 3D view asks for a frame only when the picture changes, so a robot at rest costs no drawing.
+ */
+export function sameView(a: RobotSnapshot | null, b: RobotSnapshot | null): boolean {
+  if (a === b) return true;
+  if (a === null || b === null) return false;
+  if (!sameCasters(a, b)) return false;
   for (const role of Object.keys(a.leds)) {
     if (a.leds[role] !== b.leds[role]) return false;
   }
