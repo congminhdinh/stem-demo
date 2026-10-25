@@ -87,6 +87,7 @@ export const en = {
   'python.layer.L-4': 'Python cannot be generated yet.',
   'lab.title.blockly': 'Block programming',
   'lab.title.yolobit': 'Yolo:Bit circuit',
+  'lab.title.robot': 'Robot 3D',
   'lab.check': 'Check',
   'lab.checking': 'Checking…',
   'lab.reset': 'Reset',
@@ -107,6 +108,17 @@ export const en = {
   'lab.result.failed': 'Not yet: look at the goals that are not met, change the program and check again.',
   'lab.result.notStarted': 'The program could not run: fix what the toolbar says, then check again.',
   'lab.result.interrupted': 'Not passed: the check was interrupted (the tab was hidden or the computer was too slow). Keep this tab open and press Check again.',
+  // N18 R4.1: the shell of the robot lab. The scenario titles are the keys of src/samples/robot-templates.ts.
+  'robot.loading': 'Loading the robot lab…',
+  'robot.viewport': 'Robot view',
+  'robot.viewport.placeholder': 'The 3D view of the robot will be here.',
+  'robot.scenario.rb-drive-to-zone': 'Drive to the zone',
+  'robot.scenario.rb-square-route': 'Drive a square',
+  'robot.scenario.rb-stop-at-wall': 'Stop at the wall',
+  'robot.scenario.rb-line-follow': 'Follow the line',
+  'robot.scenario.rb-servo-gate': 'Open the gate with a servo',
+  'robot.scenario.rb-mini-mission': 'Mini mission',
+  'robot.scenario.rb-sandbox': 'Free sandbox',
 } as const satisfies Record<string, string>;
 
 export type MessageKey = keyof typeof en;
@@ -193,6 +205,7 @@ export const vi: Readonly<Record<MessageKey, string>> = {
   'python.layer.L-4': 'Chưa sinh được Python.',
   'lab.title.blockly': 'Lập trình khối',
   'lab.title.yolobit': 'Mạch Yolo:Bit',
+  'lab.title.robot': 'Robot 3D',
   'lab.check': 'Kiểm tra',
   'lab.checking': 'Đang kiểm tra…',
   'lab.reset': 'Đặt lại',
@@ -213,6 +226,16 @@ export const vi: Readonly<Record<MessageKey, string>> = {
   'lab.result.failed': 'Chưa đạt: xem các mục tiêu chưa đạt, sửa chương trình rồi kiểm tra lại.',
   'lab.result.notStarted': 'Chương trình chưa chạy được: sửa lỗi được báo ở thanh trên rồi kiểm tra lại.',
   'lab.result.interrupted': 'Chưa đạt: lần kiểm tra bị gián đoạn (tab bị ẩn hoặc máy chạy chậm). Hãy để tab này mở và bấm Kiểm tra lại.',
+  'robot.loading': 'Đang tải bài thực hành robot…',
+  'robot.viewport': 'Khung nhìn robot',
+  'robot.viewport.placeholder': 'Khung nhìn 3D của robot sẽ hiện ở đây.',
+  'robot.scenario.rb-drive-to-zone': 'Chạy tới vùng đích',
+  'robot.scenario.rb-square-route': 'Đi theo hình vuông',
+  'robot.scenario.rb-stop-at-wall': 'Dừng trước tường',
+  'robot.scenario.rb-line-follow': 'Bám theo vạch kẻ',
+  'robot.scenario.rb-servo-gate': 'Mở cổng bằng servo',
+  'robot.scenario.rb-mini-mission': 'Nhiệm vụ tổng hợp',
+  'robot.scenario.rb-sandbox': 'Sân tập tự do',
 };
 
 const dictionaries: Readonly<Record<Locale, Readonly<Record<MessageKey, string>>>> = { en, vi };

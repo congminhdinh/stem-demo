@@ -31,6 +31,8 @@ export const ybcLabProfiles = ['ybc-basic', 'ybc-advanced'] as const;
 
 export type YbcLabProfile = (typeof ybcLabProfiles)[number];
 
+export const isYbcLabProfile = (value: string): value is YbcLabProfile => (ybcLabProfiles as readonly string[]).includes(value);
+
 /**
  * The profile each template needs (N17 B6), which it opens with when the launch names none: the lowest board that has every block
  * and part of its program. A launch with a lower profile is refused (launch.ts), since the program would not run there.

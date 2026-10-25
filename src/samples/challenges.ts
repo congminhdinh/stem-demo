@@ -1,5 +1,6 @@
 import type { Challenge, GoalSpec, InputStep } from '../core/challenge';
-import type { TemplateKey } from './templates';
+import { isRobotTemplateKey } from './robot-templates';
+import type { LabTemplateKey, TemplateKey } from './templates';
 import { ybcImages } from './ybc-templates';
 
 // The challenge of each template (N6a S2): what "Kiểm tra" / Check asks of the learner's program. Template data,
@@ -149,9 +150,12 @@ const challenges: Readonly<Record<TemplateKey, ChallengeData | null>> = {
   },
 };
 
-/** The challenge of `key` with its labels in `language`, or null when the template has none. */
-export function templateChallenge(key: TemplateKey, language: ChallengeLanguage): Challenge | null {
-  const data = challenges[key];
+/**
+ * The challenge of `key` with its labels in `language`, or null when the template has none. A robot scenario has none here: its goals
+ * are checked by the robot engine (N18 R6), not by the board simulator's challenge runner.
+ */
+export function templateChallenge(key: LabTemplateKey, language: ChallengeLanguage): Challenge | null {
+  const data = isRobotTemplateKey(key) ? null : challenges[key];
   if (!data) {
     return null;
   }
