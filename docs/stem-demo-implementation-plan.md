@@ -1700,6 +1700,13 @@ kết quả lưu LMS (`RobotLab`, `LabAttempt`). Track `ybc` đóng băng (vẫn
 `uno-r3` (`codeTarget: 'arduino-avr'`, thang `adcMax 1023`/`pwmMax 255`), profile `uno-basic`/`uno-advanced` (block pack để
 R2.2), field `kit` của document (§6.1). Mã `unsupported-family` được thêm vào danh sách board context của plan Yolo:Bit §9.4.
 
+*R2.2 (2026-10-25):* block pack family `uno` cho hai profile, op module của IR (`ModuleCallStatement`, `ModuleReadExpr`, chân
+thô là node pin của YB-4 có `operand`), compile theo kit (`compileUnoProject`) và interpreter qua `capabilities.modules`. Lớp L-1
+(§6.1, §7) thêm một kiểm tra: `kit` mà catalog kit không biết → `unknown-kit`, lùi về như profile lạ. `ExecutionBudget` thêm
+method tuỳ chọn `atHardware?()` (budget ảo park program trước op module khi đã đi trước world một tick; budget YB-2 không có).
+Mã compile mới (`n18CompileDiagnosticCodes`): `pin-unavailable`, `timer-claimed`, `not-pwm`, `value-clamped`, `pin-conflict`,
+`pin-reserved`. Chi tiết ở plan robot R2.2.
+
 ---
 
 ## 10. Dependency và critical path
