@@ -84,11 +84,24 @@ test.describe('a robot lab in a lesson (stem-lab/v1)', () => {
       height,
     ]);
 
-    // ready: from the lab's origin, with the fields of plan §4.7 and no null.
+    // ready: from the lab's origin, with the fields of plan §4.7 and no null; since N18 R6.3 with the scenario's goals, which its scored
+    // check-result lists in the same order.
     await expect.poll(() => messagesOfType(page, 'ready')).toEqual([
       {
         origin: labOrigin,
-        data: { protocol: 'stem-lab/v1', type: 'ready', lab: 'robot', template: 'rb-drive-to-zone', profile: 'uno-basic', scenarioVersion: 1, maxScore: 100, goals: [] },
+        data: {
+          protocol: 'stem-lab/v1',
+          type: 'ready',
+          lab: 'robot',
+          template: 'rb-drive-to-zone',
+          profile: 'uno-basic',
+          scenarioVersion: 1,
+          maxScore: 100,
+          goals: [
+            { id: 'reach-target', label: 'Xe chạy vào vùng đích' },
+            { id: 'stop-in-target', label: 'Xe dừng hẳn trong vùng đích' },
+          ],
+        },
       },
     ]);
     // Opening the template changed nothing: the host is not told of an edit.

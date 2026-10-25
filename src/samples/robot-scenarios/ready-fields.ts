@@ -44,6 +44,17 @@ export function readyFieldsOf(files: ScenarioFileFields): ReadonlyMap<string, Sc
   return table;
 }
 
+/** Each file's goals, by its path: what the ready fields add up, and the goals `ready` lists (N18 R6.3). */
+const goalsByFile = {
+  './rb-drive-to-zone.json': driveToZone.goals,
+  './rb-square-route.json': squareRoute.goals,
+  './rb-stop-at-wall.json': stopAtWall.goals,
+  './rb-line-follow.json': lineFollow.goals,
+  './rb-servo-gate.json': servoGate.goals,
+  './rb-mini-mission.json': miniMission.goals,
+  './rb-sandbox.json': sandbox.goals,
+} as const;
+
 const table = readyFieldsOf({
   version: {
     './rb-drive-to-zone.json': driveToZone.version,
@@ -54,15 +65,7 @@ const table = readyFieldsOf({
     './rb-mini-mission.json': miniMission.version,
     './rb-sandbox.json': sandbox.version,
   },
-  goals: {
-    './rb-drive-to-zone.json': driveToZone.goals,
-    './rb-square-route.json': squareRoute.goals,
-    './rb-stop-at-wall.json': stopAtWall.goals,
-    './rb-line-follow.json': lineFollow.goals,
-    './rb-servo-gate.json': servoGate.goals,
-    './rb-mini-mission.json': miniMission.goals,
-    './rb-sandbox.json': sandbox.goals,
-  },
+  goals: goalsByFile,
   scoring: {
     './rb-drive-to-zone.json': driveToZone.scoring,
     './rb-square-route.json': squareRoute.scoring,
@@ -74,5 +77,21 @@ const table = readyFieldsOf({
   },
 });
 
+/**
+ * A goal as a robot lab's `ready` lists it (N18 R6.3, lab-embed-contract §2): its id and its label in both languages. A scored check-result
+ * lists exactly these ids in this order, and the host reads it against the `ready` of its load.
+ */
+export type ScenarioReadyGoal = { readonly id: string; readonly label: { readonly vi: string; readonly en: string } };
+
+const goalTable: ReadonlyMap<string, readonly ScenarioReadyGoal[]> = new Map(
+  Object.entries(goalsByFile).map(([path, goals]: [string, readonly { id: string; label: { vi: string; en: string } }[]]) => [
+    path.slice(2).replace(/\.json$/, ''),
+    goals.map((goal) => ({ id: goal.id, label: { vi: goal.label.vi, en: goal.label.en } })),
+  ]),
+);
+
 /** The ready fields of a scenario of this build, or undefined for a key it has no file for. */
 export const scenarioReadyFields = (key: string): ScenarioReadyFields | undefined => table.get(key);
+
+/** The goals of a scenario of this build, in its order, or undefined for a key it has no file for. */
+export const scenarioReadyGoals = (key: string): readonly ScenarioReadyGoal[] | undefined => goalTable.get(key);

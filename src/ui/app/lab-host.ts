@@ -4,7 +4,7 @@ import type { DeviceRegistry } from '../../core/devices/registry';
 import { readStoredProject, type ProgramCheck } from '../../core/persistence/project-repository';
 import type { BoardFamily } from '../../core/profiles/board-context';
 import type { ProfileCatalog } from '../../core/profiles/profile';
-import { isRobotTemplateKey, robotReadyFields } from '../../samples/robot-templates';
+import { isRobotTemplateKey, robotReadyFields, robotReadyGoals } from '../../samples/robot-templates';
 import type { LabKind, LabProfile, LabTemplateKey } from '../../samples/templates';
 import type { ProjectStore } from '../state/project-store';
 import { selectIsRunning, type RunStore } from '../state/run-store';
@@ -59,6 +59,8 @@ export type LabHostOptions = HostProjectRules & {
   runStore: RunStore;
   template: LabTemplateKey;
   challenge: Challenge | null;
+  /** The language of the goals' labels a robot lab lists in `ready`; Vietnamese, the language of `lab=robot`, by default. */
+  locale?: 'vi' | 'en';
 };
 
 /** Sends `ready` and keeps the host told until the returned function is called. */
@@ -78,9 +80,12 @@ export function connectLabHost(options: LabHostOptions): () => void {
       bridge.projectChanged(state.document);
     }
   });
-  // A robot scenario adds its version and its score to ready (plan §4.7); its goals come with the checks of R6.
-  const robot = options.lab === 'robot' && isRobotTemplateKey(template) ? { robot: robotReadyFields(template) } : {};
-  bridge.ready({ template, profile: projectStore.getState().document.profile ?? null, goals: challenge?.goals ?? [], ...robot });
+  // A robot scenario adds its version and its score to ready (plan §4.7), and lists its goals (N18 R6.3): its scored check-result lists the
+  // same ids in the same order, which the host reads it against.
+  const isRobot = options.lab === 'robot' && isRobotTemplateKey(template);
+  const robot = isRobot ? { robot: robotReadyFields(template) } : {};
+  const goals = challenge?.goals ?? (isRobot ? robotReadyGoals(template, options.locale ?? 'vi') : []);
+  bridge.ready({ template, profile: projectStore.getState().document.profile ?? null, goals, ...robot });
   return () => {
     stopRuns();
     stopEdits();

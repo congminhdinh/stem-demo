@@ -106,7 +106,7 @@ if (started.kind === 'launch-error') {
       // N18 R4.1 (plan §4.7): the robot lab says so in every message.
       ...(lab.kind === 'robot' ? { lab: 'robot' as const } : {}),
     });
-    connectLabHost({ ...rules, bridge, projectStore, runStore, template: launch.template, challenge });
+    connectLabHost({ ...rules, bridge, projectStore, runStore, template: launch.template, challenge, locale });
   }
 
   if (import.meta.env.DEV) {

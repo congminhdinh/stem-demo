@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import readyFieldsSource from './ready-fields.ts?raw';
 import { scenarioMaxScore } from '../../core/scenario/scenario';
 import { robotTemplateKeys } from '../robot-keys';
-import { robotReadyFields } from '../robot-templates';
+import { robotReadyFields, robotReadyGoals } from '../robot-templates';
 import { scenarioCatalog } from './index';
-import { readyFieldsOf, scenarioReadyFields } from './ready-fields';
+import { readyFieldsOf, scenarioReadyFields, scenarioReadyGoals } from './ready-fields';
 
 // N18 R5.2: what `ready` tells the host of a robot scenario (plan §4.7), its version and top score, comes from the scenario files, the same
 // files the catalog validates, instead of numbers written in robot-templates.ts. It is read without the scenario schema, which the main
@@ -43,6 +43,14 @@ describe('the ready fields of the scenarios this build ships', () => {
     const expected = maxScore === undefined ? { scenarioVersion: scenario!.version } : { scenarioVersion: scenario!.version, maxScore };
     expect(scenarioReadyFields(key)).toEqual(expected);
     expect(robotReadyFields(key)).toEqual(expected);
+  });
+
+  // N18 R6.3: `ready` lists the goals a scored check-result then lists, in the same order (lab-embed-contract §2).
+  it.each(robotTemplateKeys)('%s: the goals of its catalog scenario, id and label, in its order', (key) => {
+    const scenario = scenarioCatalog.get(key)!;
+    expect(scenarioReadyGoals(key)).toEqual(scenario.goals.map((goal) => ({ id: goal.id, label: goal.label })));
+    expect(robotReadyGoals(key, 'vi')).toEqual(scenario.goals.map((goal) => ({ id: goal.id, label: goal.label.vi })));
+    expect(robotReadyGoals(key, 'en')).toEqual(scenario.goals.map((goal) => ({ id: goal.id, label: goal.label.en })));
   });
 
   it('imports the scenario files and the key table only, never the scenario schema or the world, and each file as Node reads JSON', () => {

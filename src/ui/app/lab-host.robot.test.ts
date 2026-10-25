@@ -4,7 +4,7 @@ import { createDeviceRegistry } from '../../core/devices/registry';
 import { productionProfiles } from '../../core/profiles';
 import { unoDocument } from '../../core/profiles/__fixtures__/uno-document';
 import { createRunSession } from '../../core/run/run-session';
-import { robotStarterDocument, robotTemplateKeys, type RobotTemplateKey } from '../../samples/robot-templates';
+import { robotReadyGoals, robotStarterDocument, robotTemplateKeys, type RobotTemplateKey } from '../../samples/robot-templates';
 import type { LabKind, LabProfile, LabTemplateKey } from '../../samples/templates';
 import { createProjectStore } from '../state/project-store';
 import { createRunStore } from '../state/run-store';
@@ -39,10 +39,13 @@ function connect(lab: HostLab, template: LabTemplateKey, document = robotStarter
 }
 
 describe('connectLabHost for a robot lab (N18 R4.1)', () => {
-  it.each(robotTemplateKeys.filter((key) => key !== 'rb-sandbox'))('says ready for %s with the profile, no goals yet, scenarioVersion 1 and maxScore 100', (key) => {
+  // N18 R6.3 replaced R4.1's "no goals yet": a scored check-result lists the goals of ready, so ready lists the scenario's (in Vietnamese,
+  // the language of lab=robot).
+  it.each(robotTemplateKeys.filter((key) => key !== 'rb-sandbox'))('says ready for %s with the profile, its goals, scenarioVersion 1 and maxScore 100', (key) => {
     expect(connect('robot', key, robotStarterDocument(key)).readyInfo).toEqual([
-      { template: key, profile: 'uno-basic', goals: [], robot: { scenarioVersion: 1, maxScore: 100 } },
+      { template: key, profile: 'uno-basic', goals: robotReadyGoals(key, 'vi'), robot: { scenarioVersion: 1, maxScore: 100 } },
     ]);
+    expect(robotReadyGoals(key, 'vi').length).toBeGreaterThan(0);
   });
 
   it('says ready for the sandbox without a maxScore', () => {
@@ -75,7 +78,10 @@ describe('connectLabHost for a robot lab (N18 R4.1)', () => {
     bridge.dispose();
 
     expect(posted).toEqual([
-      [{ protocol: LAB_PROTOCOL, type: 'ready', lab: 'robot', template: 'rb-line-follow', profile: 'uno-basic', scenarioVersion: 1, maxScore: 100, goals: [] }, 'http://localhost:3000'],
+      [
+        { protocol: LAB_PROTOCOL, type: 'ready', lab: 'robot', template: 'rb-line-follow', profile: 'uno-basic', scenarioVersion: 1, maxScore: 100, goals: robotReadyGoals('rb-line-follow', 'vi') },
+        'http://localhost:3000',
+      ],
     ]);
     expect(PROJECT_CHANGED_DEBOUNCE_MS).toBeGreaterThan(0);
   });

@@ -7,7 +7,7 @@ import {
   type RobotLabProfile,
   type RobotTemplateKey,
 } from './robot-keys';
-import { scenarioReadyFields } from './robot-scenarios/ready-fields';
+import { scenarioReadyFields, scenarioReadyGoals } from './robot-scenarios/ready-fields';
 
 // The table of keys, profiles and kits lives in robot-keys.ts, a module with no imports, so that the scenario schema (src/core/scenario)
 // and the scenario catalog can read it without importing this file (which reads the scenario files, N18 R5.2: that would be a cycle).
@@ -54,6 +54,18 @@ export function robotReadyFields(key: RobotTemplateKey): { scenarioVersion: numb
     throw new Error(`The robot scenario "${key}" has no file in src/samples/robot-scenarios.`);
   }
   return { ...fields };
+}
+
+/**
+ * The goals a robot lab lists in `ready` (N18 R6.3, lab-embed-contract §2): each goal's id and its label in `locale`, in the scenario's order,
+ * read from the scenario's file like `robotReadyFields`. A scored check-result lists the same ids in the same order. The sandbox has none.
+ */
+export function robotReadyGoals(key: RobotTemplateKey, locale: 'vi' | 'en'): { id: string; label: string }[] {
+  const goals = scenarioReadyGoals(key);
+  if (goals === undefined) {
+    throw new Error(`The robot scenario "${key}" has no file in src/samples/robot-scenarios.`);
+  }
+  return goals.map((goal) => ({ id: goal.id, label: goal.label[locale] }));
 }
 
 /**
