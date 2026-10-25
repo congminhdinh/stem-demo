@@ -4,19 +4,35 @@ import { readCanvasState, type CanvasTestState } from '../canvas/canvas-test-sta
 import type { ProjectStore } from '../state/project-store';
 
 /**
- * The robot lab's hooks (N18 R4.1): the place the E2E reads the 3D lab through, since it cannot look inside a canvas. R4.1 only
- * holds the contract; the world fills it in later.
+ * The robot lab's hooks (N18 R4.1): the place the E2E reads the 3D lab through, since it cannot look inside a canvas. R4.1 held the
+ * contract; since R4.2 the mounted robot lab serves it (`attachRobotTestTarget`).
  */
 export type RobotTestHooks = {
-  /** The RobotSnapshot of the lab's world as the view shows it, or null until a run exists. R3.6 defines the snapshot, R4.2 serves it. */
+  /** The RobotSnapshot of the lab's world as the view shows it, or null when the view shows the scenario's start (no run yet, or Reset). */
   getSnapshot(): unknown;
-  /** Sets the speed of the simulation (a multiplier of real time; finite and above 0). R4.2 makes the run follow it. */
+  /** Sets the speed of the simulation (a multiplier of real time; finite and above 0): the robot lab drives its run at it. */
   setSpeed(multiplier: number): void;
-  /** The speed `setSpeed` stored; 1 until it is called. */
+  /** The speed the lab drives at (1 until it is set). */
   getSpeed(): number;
-  /** The hash of the snapshot (the same on every browser for the same run), or null until a run exists. R3.6 defines it, R4.2 serves it. */
+  /** `hashSnapshot` of the snapshot `getSnapshot` gives (the same on every browser for the same run), or null when it gives none. */
   snapshotHash(): string | null;
 };
+
+/** What the mounted robot lab serves to `window.__stem.robot` (N18 R4.2). */
+export type RobotTestTarget = Pick<RobotTestHooks, 'getSnapshot' | 'snapshotHash' | 'setSpeed' | 'getSpeed'>;
+
+/** The robot lab that is mounted, if any. Only the dev hooks read it: in a production build nothing does. */
+let robotTarget: RobotTestTarget | null = null;
+
+/** The robot lab serves the hooks from now until the returned function is called (when it unmounts). */
+export function attachRobotTestTarget(target: RobotTestTarget): () => void {
+  robotTarget = target;
+  return () => {
+    if (robotTarget === target) {
+      robotTarget = null;
+    }
+  };
+}
 
 export type StemTestHooks = {
   getCanvasState(): CanvasTestState | null;
@@ -52,15 +68,16 @@ export function installTestHooks(projectStore: ProjectStore, profiles: ProfileCa
       projectStore.getState().loadProject(parsed);
     },
     robot: {
-      getSnapshot: () => null,
+      getSnapshot: () => robotTarget?.getSnapshot() ?? null,
       setSpeed: (multiplier) => {
         if (!Number.isFinite(multiplier) || multiplier <= 0) {
           throw new RangeError(`The speed must be a finite number above 0, not ${multiplier}.`);
         }
         robotSpeed = multiplier;
+        robotTarget?.setSpeed(multiplier);
       },
-      getSpeed: () => robotSpeed,
-      snapshotHash: () => null,
+      getSpeed: () => robotTarget?.getSpeed() ?? robotSpeed,
+      snapshotHash: () => robotTarget?.snapshotHash() ?? null,
     },
   };
 }

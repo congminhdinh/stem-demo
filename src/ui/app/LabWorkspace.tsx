@@ -1,11 +1,19 @@
 import { useId, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import type { MessageKey } from '../i18n/messages';
 import { useText } from '../i18n/text';
-import { boardShareAfterKey, boardShareAt, defaultBoardShare, maxBoardShare, minBoardShare, stackedQuery } from './lab-layout';
+import { boardShareAfterKey, boardShareAt, circuitShares, stackedQuery, type BoardShares } from './lab-layout';
 
 // The workspace of a lab launch (N8s): the circuit and the program side by side, the program the wider, with a
 // separator to move and a button to fold the circuit away; in a narrow frame, one of them at a time, in tabs.
 // Both panels stay mounted (Blockly and Konva keep their state); the one out of sight is inert. A run or a
-// check brings the circuit into sight (`showBoard`), so the learner sees what the program does.
+// check brings the circuit into sight (`showBoard`), so the learner sees what the program does. The robot lab (N18 R4.2) uses it too,
+// with its 3D view as the board: its own shares and words (`shares`, `labels`).
+
+/** What the board panel is called: its tab, the fold button (hide, show) and the separator. */
+export type BoardLabels = { tab: MessageKey; hide: MessageKey; show: MessageKey; resize: MessageKey };
+
+/** The circuit's words (the Blockly and Yolo:Bit labs). */
+const circuitLabels: BoardLabels = { tab: 'app.circuit', hide: 'lab.hideBoard', show: 'lab.showBoard', resize: 'lab.resize' };
 
 type Panel = 'program' | 'board';
 
@@ -29,13 +37,19 @@ type LabWorkspaceProps = {
   program: ReactNode;
   /** Counts the runs and checks: every new value shows the circuit (its tab, or unfolds it). */
   showBoard: number;
+  /** The board's share of the width (the circuit's by default). */
+  shares?: BoardShares;
+  /** The board panel's words (the circuit's by default). */
+  labels?: BoardLabels;
+  /** Extra class names of the workspace. */
+  className?: string;
 };
 
-export function LabWorkspace({ board, program, showBoard }: LabWorkspaceProps) {
+export function LabWorkspace({ board, program, showBoard, shares = circuitShares, labels = circuitLabels, className: extraClass }: LabWorkspaceProps) {
   const t = useText();
   const stacked = useStacked();
   const id = useId();
-  const [boardShare, setBoardShare] = useState(defaultBoardShare);
+  const [boardShare, setBoardShare] = useState(shares.initial);
   const [collapsed, setCollapsed] = useState(false);
   const [tab, setTab] = useState<Panel>('program');
   const [shownFor, setShownFor] = useState(showBoard);
@@ -50,7 +64,7 @@ export function LabWorkspace({ board, program, showBoard }: LabWorkspaceProps) {
   }
 
   const onSeparatorKey = (event: KeyboardEvent<HTMLDivElement>) => {
-    const next = boardShareAfterKey(boardShare, event.key);
+    const next = boardShareAfterKey(boardShare, event.key, shares);
     if (next !== null) {
       event.preventDefault();
       setBoardShare(next);
@@ -59,7 +73,7 @@ export function LabWorkspace({ board, program, showBoard }: LabWorkspaceProps) {
   const followPointer = (event: PointerEvent<HTMLDivElement>) => {
     const box = workspaceRef.current?.getBoundingClientRect();
     if (dragging.current && box) {
-      setBoardShare(boardShareAt(event.clientX, box.left, box.width));
+      setBoardShare(boardShareAt(event.clientX, box.left, box.width, shares));
     }
   };
   const onSeparatorDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -90,7 +104,7 @@ export function LabWorkspace({ board, program, showBoard }: LabWorkspaceProps) {
       ...(stacked ? { role: 'tabpanel', 'aria-labelledby': tabId(panel) } : {}),
     };
   };
-  const className = ['lab-workspace', !stacked && collapsed ? 'lab-workspace-collapsed' : ''].filter(Boolean).join(' ');
+  const className = ['lab-workspace', !stacked && collapsed ? 'lab-workspace-collapsed' : '', extraClass ?? ''].filter(Boolean).join(' ');
 
   return (
     <main
@@ -112,7 +126,7 @@ export function LabWorkspace({ board, program, showBoard }: LabWorkspaceProps) {
               aria-controls={paneId(panel)}
               onClick={() => setTab(panel)}
             >
-              {t(panel === 'program' ? 'app.program' : 'app.circuit')}
+              {t(panel === 'program' ? 'app.program' : labels.tab)}
             </button>
           ))}
         </div>
@@ -125,8 +139,8 @@ export function LabWorkspace({ board, program, showBoard }: LabWorkspaceProps) {
             className="lab-collapse"
             aria-expanded={!collapsed}
             aria-controls={paneId('board')}
-            aria-label={collapsed ? t('lab.showBoard') : t('lab.hideBoard')}
-            title={collapsed ? t('lab.showBoard') : t('lab.hideBoard')}
+            aria-label={collapsed ? t(labels.show) : t(labels.hide)}
+            title={collapsed ? t(labels.show) : t(labels.hide)}
             onClick={() => setCollapsed(!collapsed)}
           >
             {collapsed ? '›' : '‹'}
@@ -136,11 +150,11 @@ export function LabWorkspace({ board, program, showBoard }: LabWorkspaceProps) {
               className="lab-separator"
               role="separator"
               aria-orientation="vertical"
-              aria-label={t('lab.resize')}
+              aria-label={t(labels.resize)}
               aria-controls={paneId('board')}
               aria-valuenow={boardShare}
-              aria-valuemin={minBoardShare}
-              aria-valuemax={maxBoardShare}
+              aria-valuemin={shares.min}
+              aria-valuemax={shares.max}
               tabIndex={0}
               data-testid="lab-separator"
               onKeyDown={onSeparatorKey}
