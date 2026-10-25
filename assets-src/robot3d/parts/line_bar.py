@@ -48,7 +48,7 @@ def build_leds(lib, tex, kit, col):
     nylon = lib.material('abs_white', '#f4f4f1', roughness=0.45)
     housing = lib.material('abs_black', '#1d1f23', roughness=0.42)
     gold = lib.material('gold', '#e2bd5f', metallic=1.0, roughness=0.24)
-    led_off = lib.material('line_led', '#3a0e0e', roughness=0.18)
+    led_off = lib.material('line_led', '#24090a', roughness=0.18)
     span = max(eyes) - min(eyes) + 2.0
     depth = 1.2
     lift = 0.3

@@ -79,8 +79,8 @@ export function boardPlacement(model: RobotModel): { x: number; z: number } {
 /** How far the line LEDs' board stands back from the deck's front edge (m): inside the body the physics drives. */
 const LINE_LEDS_INSET_M = 0.0005;
 /** The red glow over a lit line LED (a sprite of fixed size on the screen: its scale is a share of the view's height through the
- * field of view, about 1.6 % of it at 40°), and the red spot on the mat under a dark eye (m across). */
-const LINE_HALO_SCREEN = 0.012;
+ * field of view, about 12 px of a 497 px view at 40°), and the red spot on the mat under a dark eye (m across). */
+const LINE_HALO_SCREEN = 0.0176;
 const LINE_SPOT_M = 0.03;
 
 /** A material whose glow the robot view sets: the high tier's standard one, or the low tier's Lambert copy. */
@@ -274,7 +274,7 @@ export function assembleRobot(model: RobotModel, reference: ReferenceSizes, sour
     // What a dark eye lights: a red glow over its LED that keeps its size on the screen (it reads from the far free view as well as up
     // close), and a soft red spot on the mat under the eye. Both share the shader programs of what is always drawn (the zones' tags,
     // the contact shadow): a program first needed in the middle of a run would be compiled there, a hitch on a software renderer.
-    const haloMaterial = new SpriteMaterial({ name: 'line-halo', color: colors.lineSensorDark, map: options.blob, transparent: true, opacity: 0.85, depthWrite: false, sizeAttenuation: false });
+    const haloMaterial = new SpriteMaterial({ name: 'line-halo', color: colors.lineLampLit, map: options.blob, transparent: true, opacity: 0.9, depthWrite: false, sizeAttenuation: false });
     const spotMaterial = new MeshBasicMaterial({ name: 'line-spot', color: colors.lineSensorDark, alphaMap: options.blob, transparent: true, opacity: 0.75, depthWrite: false });
     const spotGeometry = new PlaneGeometry(LINE_SPOT_M, LINE_SPOT_M).rotateX(-Math.PI / 2);
     owned.materials.push(haloMaterial, spotMaterial);
@@ -444,8 +444,9 @@ export function applyRobotWorld(handles: RobotHandles, world: RobotSnapshot, led
   }
   for (const lamp of handles.lineLamps) {
     const dark = lineSeesDark(world, lamp.sensorIndex);
-    lamp.material.emissive.set(dark ? colors.lineSensorDark : '#000000');
-    lamp.material.emissiveIntensity = dark ? 2.5 : 0;
+    // A saturated red, not so bright that the tone mapping takes it towards white (pink); off, the lamp's own dark red.
+    lamp.material.emissive.set(dark ? colors.lineLampLit : '#000000');
+    lamp.material.emissiveIntensity = dark ? 1.4 : 0;
     lamp.glow.visible = dark;
     lamp.spot.visible = dark;
   }

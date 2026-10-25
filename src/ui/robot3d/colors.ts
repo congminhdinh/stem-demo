@@ -30,6 +30,8 @@ export const robot3dColors = {
   lineSensor: '#1d2026',
   lineSensorDark: '#ef4444',
   lineSensorLight: '#4b5563',
+  /** N18 R4.7 fix round 2: a lit line lamp (on the robot's LED board) and its glow. */
+  lineLampLit: '#ff2414',
   servoBody: '#3b4252',
   servoArm: '#facc15',
   ledOff: '#7f1d1d',
