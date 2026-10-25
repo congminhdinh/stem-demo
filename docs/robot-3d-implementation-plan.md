@@ -115,7 +115,7 @@ Board JSON ┘                                                                  
 
 **Chế độ chạy:**
 - `realtime`: UI gọi `advance(wallMs × speed)` từ rAF. Lời gọi này **single-flight**: thời gian nợ được cộng dồn, tối đa 8 tick mỗi frame, vượt thì hiện badge "chậm hơn thời gian thực".
-- `headless`: `runUntil(tEnd)`, nhường bằng `MessageChannel`, không dùng `setTimeout(0)` vì kẹp 4 ms và bị throttle khi tab ẩn. Mỗi lượt nhường một `MessageChannel` **mới** (`VirtualScheduler.yieldNow`): Node xả hết hàng đợi của một port, kể cả message gửi trong lúc xả, nên một port dùng chung làm đói timer (R2.3 đo trên Node 24.22.1: timer 1 ms chạy 1 lần trong 300 ms, port mới thì 36 lần).
+- `headless`: `runUntil(tEnd)`, nhường bằng `MessageChannel`, không dùng `setTimeout(0)` vì kẹp 4 ms và bị throttle khi tab ẩn. Mỗi lượt nhường một `MessageChannel` **mới** (`VirtualScheduler.yieldNow`): Node xả hết hàng đợi của một port, kể cả message gửi trong lúc xả, nên một port dùng chung làm đói timer (R2.3 đo trên Node 24.22.1: timer 1 ms chạy 1 lần trong 300 ms, port mới thì 36–37 lần; `spikes/message-channel/`).
 - Tab ẩn thì rAF dừng, sim dừng theo, **kết quả không đổi**.
 
 ## 4. Hợp đồng chính (tên chốt, task sau dùng đúng tên này)

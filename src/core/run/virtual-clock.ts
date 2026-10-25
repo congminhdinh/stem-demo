@@ -282,9 +282,9 @@ export function createVirtualScheduler(options: VirtualSchedulerOptions = {}): V
 /**
  * Runs `task` on a later turn of the event loop through a MessageChannel: setTimeout(0) is clamped to 4 ms and throttled in a
  * hidden tab. A channel of its own every time, closed once it has delivered: Node drains a port's queue with the messages posted
- * meanwhile, so one shared port posting from its own turns starves timers and I/O (Node 24.22.1: a 1 ms interval ran once in
- * 300 ms of 8 ms slices with a shared port, 36 times with a fresh one; a fresh one costs about 6 µs). Nothing relies on the order
- * of two turns.
+ * meanwhile, so one shared port posting from its own turns starves timers and I/O (spikes/message-channel, Node 24.22.1: a 1 ms
+ * interval ran once in 300 ms of 8 ms slices with a shared port, 36–37 times with a fresh one; a fresh one costs about 6 µs).
+ * Nothing relies on the order of two turns.
  */
 function macrotask(task: () => void): void {
   if (typeof MessageChannel === 'undefined') {
