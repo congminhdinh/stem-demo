@@ -23,9 +23,9 @@ async function simulate(sketchCase: SketchCase) {
 const parityCases = sketchCases.filter((c) => c.console !== undefined);
 
 describe('the interpreter prints what the contract says the sketch prints', () => {
-  it('runs the language goldens and the names golden', () => {
+  it('runs the language goldens, the names golden and the deepest nesting', () => {
     expect(parityCases.map((c) => c.name)).toEqual([
-      'empty-program', 'mul-literal', 'int32-wrap', 'division-by-zero', 'count-up-bounds-once', 'millis-compare', 'print-mixed', 'nested-control', 'names',
+      'empty-program', 'mul-literal', 'int32-wrap', 'division-by-zero', 'count-up-bounds-once', 'millis-compare', 'print-mixed', 'nested-control', 'names', 'deep-nesting',
     ]);
   });
 

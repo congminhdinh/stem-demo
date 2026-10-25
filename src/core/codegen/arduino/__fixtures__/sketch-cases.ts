@@ -32,6 +32,10 @@ const x = () => getVar('x');
 const y = () => getVar('y');
 const i = () => getVar('i');
 const n = () => getVar('n');
+/** 1 + (1 + (… + 1)): `depth` additions, value depth + 1. */
+const nestedAdd = (depth: number): Json => (depth === 0 ? num(1) : add(num(1), nestedAdd(depth - 1)));
+/** `levels` repeats, each once, one inside the other, around `body`. */
+const nestedRepeat = (levels: number, body: Json[]): Json[] => (levels === 0 ? body : [repeat(num(1), nestedRepeat(levels - 1, body))]);
 const xyz: [string, string][] = [
   ['x', 'x'],
   ['y', 'y'],
@@ -259,6 +263,16 @@ export const sketchCases: SketchCase[] = [
       print(analogRead('A0')),
     ],
     variables: xyz,
+  },
+  {
+    // The deepest block nesting the generator writes (MAX_STATEMENT_DEPTH = 64 levels: 63 repeats and the print), with an expression
+    // 30 deep inside it (the compiler allows 100 nested blocks in all): `pnpm check:arduino` compiles it.
+    name: 'deep-nesting',
+    covers: ['U-05', 'U-12', 'U-15'],
+    profile: 'uno-basic',
+    onStart: nestedRepeat(63, [print(nestedAdd(30))]),
+    variables: [],
+    console: [printed(31)],
   },
   {
     name: 'forever-blink',

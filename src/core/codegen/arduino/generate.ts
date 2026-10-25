@@ -39,6 +39,7 @@ export type UnoGenDiagnosticCode =
   | 'value-out-of-range'
   | 'descending-range-not-supported'
   | 'capability-unavailable'
+  | 'unsequenced-reads'
   | 'limit-exceeded'
   | 'program-too-large';
 
@@ -93,6 +94,34 @@ export function cString(text: string): string | null {
     previous = char;
   }
   return out;
+}
+
+/**
+ * Whether an expression reads the robot or the board's clock (a module read, millis, a raw pin read). An explicit stack, never recursion.
+ * Literals and variables read nothing, and nothing in an expression writes a variable, so such operands may be evaluated in any order.
+ */
+function readsTheRobot(expr: Expr): boolean {
+  const pending: Expr[] = [expr];
+  for (let node = pending.pop(); node !== undefined; node = pending.pop()) {
+    switch (node.kind) {
+      case 'read':
+        return true;
+      case 'arith':
+      case 'compare':
+      case 'logic':
+        pending.push(node.left, node.right);
+        break;
+      case 'not':
+        pending.push(node.value);
+        break;
+      case 'join':
+        pending.push(...node.parts);
+        break;
+      default:
+        break;
+    }
+  }
+  return false;
 }
 
 /** A long literal (contract U-04): `300L`; INT32_MIN is `(-2147483647L - 1L)`, since 2147483648L is not a long. */
@@ -193,6 +222,18 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
     return arduinoPin(pin);
   };
 
+  /**
+   * C++ leaves the order of a call's arguments and of a comparison's operands open, and avr-gcc 7.3 evaluates call arguments right to
+   * left (avr8js trace of `add32(se(1L), se(2L))`: eval=2, then eval=1), where the interpreter evaluates left to right. So the operands of
+   * one helper call, comparison or module call may read the robot in one of them only; `and`, `or` (sequenced, left first), a join's
+   * parts (one Serial.print each) and count up's bounds (`_from`, `_to`) are in order already.
+   */
+  const inOrder = (operands: readonly Expr[], blockId: string) => {
+    if (operands.filter(readsTheRobot).length > 1) {
+      report('unsequenced-reads', 'This block reads the robot in two of its inputs, and C++ does not say which read comes first; put one reading in a variable first.', blockId);
+    }
+  };
+
   /** An expression nested too deep is said once, on its first block: its operands are all too deep too. */
   let tooDeep = false;
   const deepExpression = (blockId: string) => {
@@ -241,6 +282,7 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
         expectType(expr.left, 'int', `The left side of ${expr.op}`);
         expectType(expr.right, 'int', `The right side of ${expr.op}`);
         useOp(expr.op);
+        inOrder([expr.left, expr.right], expr.blockId);
         return `${arithHelper[expr.op]}(${renderExpr(expr.left, depth + 1)}, ${renderExpr(expr.right, depth + 1)})`;
       }
       case 'compare': {
@@ -253,6 +295,7 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
           expectType(expr.left, 'int', `The left side of ${expr.op}`);
           expectType(expr.right, 'int', `The right side of ${expr.op}`);
         }
+        inOrder([expr.left, expr.right], expr.blockId);
         return `(${renderExpr(expr.left, depth + 1)} ${expr.op} ${renderExpr(expr.right, depth + 1)})`;
       }
       case 'logic': {
@@ -315,9 +358,10 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
     return expression(expr);
   };
 
-  const emitBody = (statements: readonly YbcStatement[], depth: number) => {
+  /** `depth` is the indentation; `level` how deep the blocks nest (a repeat's body is two indents in, one level). */
+  const emitBody = (statements: readonly YbcStatement[], depth: number, level: number) => {
     for (const statement of statements) {
-      emitStatement(statement, depth);
+      emitStatement(statement, depth, level);
     }
   };
 
@@ -378,15 +422,15 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
     });
   };
 
-  const emitStatement = (statement: YbcStatement, depth: number) => {
-    if (depth > MAX_STATEMENT_DEPTH) {
+  const emitStatement = (statement: YbcStatement, depth: number, level: number) => {
+    if (level > MAX_STATEMENT_DEPTH) {
       report('limit-exceeded', `Blocks can be nested at most ${MAX_STATEMENT_DEPTH} levels deep.`, statement.blockId);
       return;
     }
-    spanning(statement.blockId, () => emitStatementLines(statement, depth));
+    spanning(statement.blockId, () => emitStatementLines(statement, depth, level));
   };
 
-  const emitStatementLines = (statement: YbcStatement, depth: number) => {
+  const emitStatementLines = (statement: YbcStatement, depth: number, level: number) => {
     switch (statement.kind) {
       case 'noop':
         return;
@@ -410,18 +454,18 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
         }
         statement.branches.forEach((branch, index) => {
           emit(depth, `${index === 0 ? 'if' : '} else if'} (${condition(branch.condition, 'A condition')}) {`);
-          emitBody(branch.body, depth + 1);
+          emitBody(branch.body, depth + 1, level + 1);
         });
         if (statement.else.length > 0) {
           emit(depth, '} else {');
-          emitBody(statement.else, depth + 1);
+          emitBody(statement.else, depth + 1, level + 1);
         }
         emit(depth, '}');
         return;
       }
       case 'while':
         emit(depth, `while (${condition(statement.condition, 'A condition')}) {`);
-        emitBody(statement.body, depth + 1);
+        emitBody(statement.body, depth + 1, level + 1);
         emit(depth, '}');
         return;
       case 'repeat': {
@@ -430,13 +474,13 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
         emit(depth, '{');
         emit(depth + 1, `const long _n = (${expression(statement.times)});`);
         emit(depth + 1, 'for (long _r = 0L; _r < _n; _r += 1L) {');
-        emitBody(statement.body, depth + 2);
+        emitBody(statement.body, depth + 2, level + 1);
         emit(depth + 1, '}');
         emit(depth, '}');
         return;
       }
       case 'countUp':
-        emitCountUp(statement, depth);
+        emitCountUp(statement, depth, level);
         return;
       case 'waitMs': {
         expectType(statement.ms, 'int', 'A wait');
@@ -484,7 +528,7 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
   };
 
   /** U-14: start, then end, each evaluated once into `_from` and `_to`; the variable takes each value of `_c` and keeps the last. */
-  const emitCountUp = (statement: Extract<YbcStatement, { kind: 'countUp' }>, depth: number) => {
+  const emitCountUp = (statement: Extract<YbcStatement, { kind: 'countUp' }>, depth: number, level: number) => {
     const name = names.get(statement.variable);
     if (name === undefined) {
       report('unknown-variable', `The variable "${statement.variable}" is not declared.`, statement.blockId);
@@ -506,7 +550,7 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
     emit(depth + 1, `const long _to = (${expression(statement.to)});`);
     emit(depth + 1, 'for (long _c = _from; _c <= _to; _c += 1L) {');
     emit(depth + 2, `${name} = _c;`);
-    emitBody(statement.body, depth + 2);
+    emitBody(statement.body, depth + 2, level + 1);
     emit(depth + 1, '}');
     emit(depth, '}');
   };
@@ -530,6 +574,7 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
     const found = driverOpOf(role, statement.op, 'call', statement.blockId);
     const args: string[] = [];
     if (statement.op !== 'buzzer.stop') {
+      inOrder(statement.args, statement.blockId);
       statement.args.forEach((arg, index) => {
         const range = found?.driverOp.args[index];
         if (range === null) {
@@ -546,9 +591,9 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
   };
 
   section = 'setup';
-  emitBody(ir.onStart, 1);
+  emitBody(ir.onStart, 1, 1);
   section = 'loop';
-  emitBody(ir.forever ?? [], 1);
+  emitBody(ir.forever ?? [], 1, 1);
 
   if (diagnostics.length > 0) {
     return { ok: false, diagnostics };

@@ -232,6 +232,23 @@ describe('what the generator cannot say faithfully is a diagnostic (K4)', () => 
     expect(failure(uno([{ kind: 'waitMs', ms: int(60_001), blockId: 'w' }]))).toEqual([{ code: 'value-out-of-range', message: 'A wait is 0 to 60000 milliseconds.' }]);
   });
 
+  it('refuses two reads of the robot in one call or comparison: C++ does not fix their order (avr-gcc reads the last first)', () => {
+    const lineRaw = (role: 'lineLeft' | 'lineRight'): Expr => ({ blockId: role, type: 'int', kind: 'read', op: 'line.raw', operand: { kind: 'role', role } });
+    const millis: Expr = { blockId: 'ms', type: 'int', kind: 'read', op: 'time.millis' };
+    const variable: Expr = { blockId: 'v', type: 'int', kind: 'variable', variable: 'x' };
+    const arith = (left: Expr, right: Expr): Expr => ({ blockId: 'a', type: 'int', kind: 'arith', op: '-', left, right });
+    const message = 'This block reads the robot in two of its inputs, and C++ does not say which read comes first; put one reading in a variable first.';
+    expect(failure(uno([printIt(arith(lineRaw('lineLeft'), lineRaw('lineRight')))]))).toEqual([{ code: 'unsequenced-reads', message }]);
+    expect(failure(uno([printIt({ blockId: 'c', type: 'bool', kind: 'compare', op: '>', left: lineRaw('lineLeft'), right: arith(variable, millis) })]))).toEqual([{ code: 'unsequenced-reads', message }]);
+    const tone: YbcStatement = { kind: 'call', op: 'buzzer.tone', operand: { kind: 'role', role: 'buzzer' }, args: [arith(variable, millis), lineRaw('lineLeft')], blockId: 't' };
+    expect(failure(uno([tone]))).toEqual([{ code: 'unsequenced-reads', message }]);
+    // One read per call is in order; `and` / `or` are sequenced (left first), and so are a join's parts (one Serial.print each).
+    expect(failure(uno([printIt(arith(lineRaw('lineLeft'), variable)), printIt(arith(variable, arith(int(1), millis)))]))).toEqual([]);
+    const dark = (role: 'lineLeft' | 'lineRight'): Expr => ({ blockId: `d-${role}`, type: 'bool', kind: 'read', op: 'line.dark', operand: { kind: 'role', role } });
+    expect(failure(uno([printIt({ blockId: 'l', type: 'bool', kind: 'logic', op: 'and', left: dark('lineLeft'), right: dark('lineRight') })]))).toEqual([]);
+    expect(failure(uno([printIt({ blockId: 'j', type: 'str', kind: 'join', parts: [lineRaw('lineLeft'), lineRaw('lineRight')] })]))).toEqual([]);
+  });
+
   it('refuses the Yolo:Bit’s onboard parts and header pins', () => {
     const show: YbcStatement = { kind: 'call', op: 'display.clear', blockId: 'd' };
     const header: YbcStatement = { kind: 'call', op: 'digital.write', args: [int(0), int(1)], blockId: 'p' };
@@ -254,6 +271,13 @@ describe('what the generator cannot say faithfully is a diagnostic (K4)', () => 
       nested = { kind: 'while', condition: { blockId: id(), type: 'bool', kind: 'bool', value: false }, body: [nested], blockId: id() };
     }
     expect(failure(uno([nested]))).toEqual([{ code: 'limit-exceeded', message: `Blocks can be nested at most ${MAX_STATEMENT_DEPTH} levels deep.` }]);
+    // A repeat indents its body twice but nests it once: the limit counts blocks.
+    let repeats: YbcStatement = printIt(int(1));
+    for (let level = 1; level < MAX_STATEMENT_DEPTH; level += 1) {
+      repeats = { kind: 'repeat', times: int(1), body: [repeats], blockId: id() };
+    }
+    expect(generateUnoSketch(uno([repeats]), { kit, board }).ok).toBe(true);
+    expect(failure(uno([{ kind: 'repeat', times: int(1), body: [repeats], blockId: id() }]))).toEqual([{ code: 'limit-exceeded', message: `Blocks can be nested at most ${MAX_STATEMENT_DEPTH} levels deep.` }]);
     const big = Array.from({ length: Math.ceil(MAX_GENERATED_BYTES / 1000) }, () => printIt(str('a'.repeat(1000))));
     expect(failure(uno(big))).toEqual([{ code: 'program-too-large', message: `The generated sketch is limited to ${MAX_GENERATED_BYTES} bytes.` }]);
     expect(generateUnoSketch(uno(big.slice(0, 200)), { kit, board }).ok).toBe(true);
