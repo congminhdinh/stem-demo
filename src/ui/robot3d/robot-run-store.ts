@@ -1,7 +1,9 @@
 import { createStore } from 'zustand/vanilla';
 import type { ProjectDocument } from '../../core/circuit/document';
-import type { RobotRunSession, RobotRunSnapshot, RobotStartResult } from '../../core/run/robot-run-session';
-import type { ScoreState } from '../../core/world/snapshot';
+import type { RobotPlaceResult, RobotRunSession, RobotRunSnapshot, RobotStartResult } from '../../core/run/robot-run-session';
+import type { TeleopCommand } from '../../core/run/teleop';
+import type { PlacementPose } from '../../core/scenario/placement';
+import type { RobotSnapshot, ScoreState } from '../../core/world/snapshot';
 
 // The robot lab's run as the UI drives it (N18 R4.2, R4.4): a thin store over the RobotRunSession of R3.6, like run-store.ts is over the
 // circuit's RunSession.
@@ -31,6 +33,15 @@ import type { ScoreState } from '../../core/world/snapshot';
 //     leaves its last round (`hold`).
 //   - Replay (`replay`, "Xem lại"): a round of a check is run again in the lab's session as that variant's check run (its seed, the scenario's
 //     inputs only), at 1× from its start. The same project, scenario, seed and engine give the same run (robot plan §5), so nothing is recorded.
+//   - N18 R4.8, teleop ("Lái tay", `startTeleop`): a run of the session without a program, driven by the frames like any other, its commands
+//     (`teleop`) for the session's next tick. `teleop` says the lab's run is one (from the click, while its world is built, until another run
+//     replaces it or it stops). It is refused while a check holds the lab, while a check's run is shown and while a replay goes on; Chạy and
+//     Bước replace it (the session's start), and Dừng or `stopTeleop` end it, keeping where the robot got to in view. It is no run for the
+//     host (`selectHostRun`: no run-started / run-stopped) and no reason for a load-project to wait (`labBusy`): it never touches the program.
+//   - N18 R4.8, the placed start ("Di chuyển robot", `placeRobot`): with no run going on (one that is over gives way), the session takes the
+//     pose for the learner's next worlds and the view shows the robot there (`startView`, read by `latestWorld`). Đặt lại robot goes back to
+//     the placed pose (a run starts again there, what a stopped run left gives way to it); the next Đặt lại, with nothing else in between
+//     (`resetToStart`), goes back to the scenario's start. A check never moves it: the session's check runs start at the scenario's start.
 
 /** The speeds the controls offer. `setSpeed` takes any finite multiplier above 0 (the E2E's hook). */
 export const ROBOT_SPEEDS = [0.5, 1, 2, 4] as const;
@@ -84,6 +95,12 @@ export type RobotLabState = {
   locked: boolean;
   /** N18 R6.3: the round of a check the view shows, if it shows one. */
   round: ShownRound | null;
+  /** N18 R4.8: the lab's run is teleop ("Lái tay"), or a teleop start is building its world. */
+  teleop: boolean;
+  /** N18 R4.8: where the learner placed the robot; null for the scenario's start. */
+  placement: PlacementPose | null;
+  /** N18 R4.8: the next Đặt lại robot goes to the scenario's start (the last one went to the placed pose, and nothing came since). */
+  resetToStart: boolean;
 
   /** Replaces any run with a run of `project`. */
   run(project: ProjectDocument): Promise<void>;
@@ -109,6 +126,17 @@ export type RobotLabState = {
   replay(project: ProjectDocument, round: ShownRound): Promise<void>;
   /** N18 R6.3: why a check could not be made, said as a start that failed (the message over the view, the warnings on the blocks). */
   showFailure(failure: RobotStartFailure): void;
+  /** N18 R4.8: replaces the lab's run with teleop; nothing while a check holds the lab, a check's run is shown or a replay goes on. */
+  startTeleop(): Promise<void>;
+  /** N18 R4.8: a command of teleop, for the session's next tick; nothing unless teleop is on. */
+  teleopCommand(command: TeleopCommand): void;
+  /** N18 R4.8: ends teleop as Dừng does (where the robot got to stays in view); nothing unless teleop is on. */
+  stopTeleop(): void;
+  /**
+   * N18 R4.8: puts the robot at `pose` for the learner's next runs (null: the scenario's start), before a run: a run that is over gives way
+   * first. Null when nothing was asked of the session: a run goes on, a start is building its world, a check holds the lab or is shown.
+   */
+  placeRobot(pose: PlacementPose | null): Promise<RobotPlaceResult | null>;
   /** The world the view draws now: the run's latest, else what a stopped run left; null shows the start. Not held back to a frame. */
   latestWorld(): RobotRunSnapshot['world'];
   /** Every snapshot the session publishes, at once. Returns the way to stop listening. */
@@ -122,8 +150,11 @@ export type RobotLabState = {
 
 export const selectRunActive = (state: RobotLabState) => state.active;
 
+/** N18 R4.8: a run the host hears of (run-started, run-stopped): the lab's run or a check's shown in it, but never teleop. */
+export const selectHostRun = (state: RobotLabState) => state.active && !state.teleop;
+
 /** What the lab says the run is doing (the HUD's status). */
-export type LabStatus = 'idle' | 'starting' | 'running' | 'paused' | 'finished' | 'stopped' | 'timeUp' | 'crashed' | 'error';
+export type LabStatus = 'idle' | 'starting' | 'running' | 'paused' | 'finished' | 'stopped' | 'timeUp' | 'crashed' | 'error' | 'teleop';
 
 /** The run's snapshot the lab shows: the running one, or what a stopped run left (null: neither). */
 export const shownRun = (state: RobotLabState): RobotRunSnapshot | null => (state.snapshot.status !== 'idle' ? state.snapshot : state.held);
@@ -144,7 +175,7 @@ export const shownScore = (state: RobotLabState): ScoreState | null => {
  * N18 R6.3: the lab is busy: a check holds it, a start builds its world, or a run is going on (one that is over, a time limit, a crash or an
  * error, is not). A host's load-project waits while it is.
  */
-export const labBusy = (state: RobotLabState): boolean => state.locked || state.starting || (state.active && !isRunOver(state.snapshot));
+export const labBusy = (state: RobotLabState): boolean => state.locked || state.starting || (state.active && !state.teleop && !isRunOver(state.snapshot));
 
 /** How a run that is over ended, as the lab says it. */
 const endedStatus = (snapshot: RobotRunSnapshot): LabStatus | null =>
@@ -161,6 +192,7 @@ export function labStatus(state: RobotLabState): LabStatus {
   const ended = endedStatus(snapshot);
   if (ended !== null) return ended;
   if (state.paused) return 'paused';
+  if (state.teleop) return 'teleop';
   return snapshot.status === 'finished' ? 'finished' : 'running';
 }
 
@@ -169,6 +201,8 @@ export type RobotRunStoreOptions = {
   cancelFrame?: (handle: number) => void;
   /** Where the page says it is hidden or shown again (document). */
   visibility?: EventTarget & { readonly hidden: boolean };
+  /** N18 R4.8: what the view shows before a run with the robot placed at `pose` (scene-math's idleSnapshot of that start). */
+  startView?: (pose: PlacementPose) => RobotSnapshot;
 };
 
 export function createRobotRunStore(session: RobotRunSession, options: RobotRunStoreOptions = {}) {
@@ -190,6 +224,9 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
     let attached: { view: CheckRunView; speed: number; unsubscribe: () => void } | null = null;
     /** The run the view shows: an attached check's, else the lab's session. */
     const shown = (): Pick<RobotRunSession, 'getSnapshot'> => attached?.view ?? session;
+    /** N18 R4.8: a teleop start is building its world (its ticket), and the robot as placed, as the view shows it before a run. */
+    let teleopStarting: number | null = null;
+    let placedView: RobotSnapshot | null = null;
 
     // A check is driven by every frame until it detaches: it runs its rounds itself, and between two of them its run is over for a moment.
     const shouldDrive = () => (attached !== null ? true : !get().paused && !isRunOver(session.getSnapshot()));
@@ -225,8 +262,10 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
     const onSnapshot = (snapshot: RobotRunSnapshot) => {
       // An attached check is one run from attach to detach (the host's run-started and run-stopped).
       const active = attached !== null || snapshot.status !== 'idle';
-      if (active !== get().active) {
-        set({ active });
+      // N18 R4.8: the lab's run is teleop when its snapshot says so (or a teleop start is still building, while it shows none).
+      const teleop = attached === null && (snapshot.status !== 'idle' ? snapshot.teleop === true : teleopStarting !== null);
+      if (active !== get().active || teleop !== get().teleop) {
+        set({ active, teleop });
       }
       for (const listener of [...listeners]) {
         listener(snapshot);
@@ -254,17 +293,25 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
     const start = async (project: ProjectDocument, paused: boolean, round: ShownRound | null = null) => {
       const ticket = ++startTicket;
       stopDriving();
-      set({ starting: true, startFailure: null, held: null, paused, round });
+      teleopStarting = null;
+      set({ starting: true, startFailure: null, held: null, paused, round, resetToStart: false });
       const result = round === null ? await session.start(project) : await session.start(project, round.index, { check: true });
       if (ticket !== startTicket) {
         return false;
       }
       // The snapshot now, not a frame later: the HUD never shows the state before the start next to the controls after it.
-      set({ starting: false, startFailure: result.ok || result.reason === 'superseded' ? null : result, snapshot: session.getSnapshot() });
+      // A start that failed leaves the session idle: teleop is over either way (Chạy turns it off).
+      set({ starting: false, startFailure: result.ok || result.reason === 'superseded' ? null : result, snapshot: session.getSnapshot(), teleop: result.ok && session.getSnapshot().teleop === true });
       if (result.ok) {
         ensureDriving();
       }
       return result.ok;
+    };
+
+    /** N18 R4.8: the robot placed at `pose` (null: the scenario's start), as the view shows it before a run. */
+    const setPlacement = (pose: PlacementPose | null) => {
+      placedView = pose === null || options.startView === undefined ? null : options.startView(pose);
+      set({ placement: pose === null ? null : { ...pose } });
     };
 
     return {
@@ -277,6 +324,9 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
       startFailure: null,
       locked: false,
       round: null,
+      teleop: false,
+      placement: null,
+      resetToStart: false,
 
       async run(project) {
         if (get().locked || attached !== null) {
@@ -290,10 +340,11 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
           return;
         }
         startTicket++;
+        teleopStarting = null;
         stopDriving();
         const left = session.getSnapshot();
         session.stop();
-        set({ held: left.status === 'idle' ? get().held : left, paused: false, starting: false, snapshot: session.getSnapshot() });
+        set({ held: left.status === 'idle' ? get().held : left, paused: false, starting: false, snapshot: session.getSnapshot(), teleop: false, resetToStart: false });
       },
 
       togglePause() {
@@ -340,18 +391,31 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
         if (get().locked || attached !== null) {
           return;
         }
+        // N18 R4.8: with the robot placed, Đặt lại goes back to the placed pose, and the next one (nothing in between) to the scenario's start.
+        const placed = get().placement !== null;
+        const toStart = placed && get().resetToStart;
         if (session.getSnapshot().status === 'idle') {
-          set({ held: null, startFailure: null, round: null });
+          if (get().held === null && toStart) {
+            await session.placeRobot(null);
+            setPlacement(null);
+            set({ resetToStart: false, startFailure: null, round: null });
+            return;
+          }
+          set({ held: null, startFailure: null, round: null, resetToStart: placed });
           return;
         }
         const ticket = ++startTicket;
         stopDriving();
-        set({ starting: true });
-        const result = await session.resetRobot();
+        set({ starting: true, resetToStart: false });
+        const result = toStart ? await session.placeRobot(null) : await session.resetRobot();
         if (ticket !== startTicket) {
           return;
         }
-        set({ starting: false, startFailure: result.ok || result.reason === 'superseded' || result.reason === 'idle' ? null : result, snapshot: session.getSnapshot() });
+        if (toStart && result.ok) {
+          setPlacement(null);
+        }
+        const failed = !result.ok && (result.reason === 'layer' || result.reason === 'compile' || result.reason === 'world-error' || result.reason === 'scorer-error');
+        set({ starting: false, startFailure: failed ? result : null, snapshot: session.getSnapshot(), resetToStart: placed && !toStart });
         ensureDriving();
       },
 
@@ -369,7 +433,7 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
       },
 
       setLocked(locked) {
-        set({ locked });
+        set({ locked, resetToStart: false });
       },
 
       attach(view, speed) {
@@ -424,7 +488,67 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
         set({ startFailure: failure });
       },
 
-      latestWorld: () => shown().getSnapshot().world ?? get().held?.world ?? null,
+      async startTeleop() {
+        const { locked, round, active } = get();
+        // A replay of a check's round is the check's: teleop waits until it is over.
+        if (locked || attached !== null || (round !== null && active && !isRunOver(session.getSnapshot()))) {
+          return;
+        }
+        const ticket = ++startTicket;
+        teleopStarting = ticket;
+        stopDriving();
+        set({ starting: true, startFailure: null, held: null, paused: false, round: null, teleop: true, resetToStart: false });
+        const result = await session.startTeleop();
+        if (ticket !== startTicket) {
+          return;
+        }
+        teleopStarting = null;
+        const failed = !result.ok && (result.reason === 'world-error' || result.reason === 'scorer-error');
+        set({ starting: false, startFailure: failed ? result : null, snapshot: session.getSnapshot(), teleop: result.ok });
+        if (result.ok) {
+          ensureDriving();
+        }
+      },
+
+      teleopCommand(command) {
+        if (get().teleop && !get().locked && attached === null) {
+          session.teleop(command);
+        }
+      },
+
+      stopTeleop() {
+        if (get().teleop) {
+          get().stop();
+        }
+      },
+
+      async placeRobot(pose) {
+        if (get().locked || get().starting || attached !== null) {
+          return null;
+        }
+        const now = session.getSnapshot();
+        if (now.status !== 'idle' && !isRunOver(now)) {
+          return null;
+        }
+        // A run that is over gives way: the robot stands where it is put, not where that run left it.
+        if (now.status !== 'idle') {
+          startTicket++;
+          stopDriving();
+          session.stop();
+          set({ snapshot: session.getSnapshot(), held: null, paused: false, teleop: false });
+        }
+        const ticket = startTicket;
+        set({ resetToStart: false });
+        const result = await session.placeRobot(pose);
+        // A run started meanwhile stands: what it shows is not the placed robot's.
+        if (ticket === startTicket && result.ok) {
+          setPlacement(pose === null ? null : result.pose);
+          set({ held: null, round: null, startFailure: null });
+        }
+        return result;
+      },
+
+      latestWorld: () => shown().getSnapshot().world ?? get().held?.world ?? (get().locked ? null : placedView),
 
       onPublish(listener) {
         listeners.add(listener);

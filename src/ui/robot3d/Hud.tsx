@@ -24,6 +24,7 @@ export type StatusTone = 'neutral' | 'active' | 'info' | 'success' | 'alert' | '
 export function statusTone(status: LabStatus, allGoalsMet: boolean): StatusTone {
   switch (status) {
     case 'running':
+    case 'teleop':
       return 'active';
     case 'paused':
     case 'finished':

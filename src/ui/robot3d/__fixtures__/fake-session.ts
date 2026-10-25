@@ -27,7 +27,8 @@ export function fakeSession(scenario: Scenario, kit: Kit) {
   const session = {
     start: vi.fn(async () => {
       const result = await startResult;
-      if (result.ok) publish({ status: 'running', world: world(0) });
+      // A program's run, never teleop's (N18 R4.8).
+      if (result.ok) publish({ status: 'running', world: world(0), teleop: undefined });
       return result;
     }),
     stop: vi.fn(() => publish(idleRun)),
