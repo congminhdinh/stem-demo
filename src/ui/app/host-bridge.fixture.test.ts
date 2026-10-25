@@ -11,8 +11,8 @@ import { createHostBridge, LAB_PROTOCOL, RobotMessageError, ROBOT_LAB, type LabW
 // "valid" message the lab can send, byte for byte, and refuses to build any of the others.
 
 const FIXTURE_URL = new URL('../../../docs/fixtures/stem-lab-v1-robot.json', import.meta.url);
-const FIXTURE_SHA256 = '61acd5fd967fe04def1738624d4dbb10c543efd58975996eff5dcddd1b4e7b85';
-const FIXTURE_BYTES = 47421;
+const FIXTURE_SHA256 = '8ee12774e5496c65dab53b5eec7f487697b438e4863e34e7822566fb5b7495d3';
+const FIXTURE_BYTES = 47420;
 
 type Message = Record<string, unknown>;
 type Fixture = {
