@@ -107,8 +107,8 @@ hợp lệ và lab nằm trong một frame.
     | `lab` | mọi message | đúng `"robot"` |
     | `scenarioVersion` | `ready`, `check-result` | số nguyên 1 … 2 147 483 647 (int 32 bit); là `version` của scenario, và `check-result` phải bằng cái `ready` đã nói |
     | `maxScore` | `ready`, `check-result` | đúng `100`: mọi scenario có điểm chấm thang 0–100 (Σ `points` + `timeBonusMax` = 100). `rb-sandbox` không mục tiêu, không điểm: **bỏ** ở `ready` |
-    | `score` | `check-result` | số hữu hạn, `0 ≤ score ≤ maxScore`; là trung bình điểm các variant; luôn đi cùng `maxScore` |
-    | `simTimeMs` | `check-result` | số hữu hạn từ 0 đến 3 600 000 (mili giây mô phỏng) |
+    | `score` | `check-result` | số hữu hạn, `0 ≤ score ≤ maxScore`; là điểm **thấp nhất** trong các variant (N18 R6.2: bền trước, như `passed` là qua ở mọi variant); luôn đi cùng `maxScore` |
+    | `simTimeMs` | `check-result` | số hữu hạn từ 0 đến 3 600 000 (mili giây mô phỏng); là thời gian của variant dài nhất |
     | `variants` | `check-result` | tối đa **10** mục `{ seed, passed, score, simTimeMs }`: `seed` là safe integer (âm được), `passed` boolean, `score` và `simTimeMs` như trên. Cần có `score`/`maxScore`. Trường thừa trong mục bị host bỏ qua; lab không gửi |
     | `engine` | `check-result` | `^[A-Za-z0-9._@-]{1,50}$`; lab gửi `robot-engine@1` (`ROBOT_ENGINE`) |
     | `programHash` | `check-result` | `^[0-9a-fA-F]{1,64}$`: hash của **IR** chương trình, không phải của JSON Blockly (JSON có toạ độ và id khối nên đổi khi chỉ kéo khối) |
@@ -191,7 +191,8 @@ Mỗi lab mở project của **một họ board** (`labFamilies` ở `src/ui/app
 - **Người soạn bài**: với `empty`/`ybc-empty` (không có mục tiêu), để `requiresCheck = false`.
 - **Kiểm tra của lab robot** (N18 R7.1 là phần bridge; R6 dựng phép chấm): không dùng `challenge` ở trên. Mỗi scenario chạy 1–10 variant
   (`variants.count`, mỗi variant một `seed` lệch điểm xuất phát), chấm từng mục tiêu bằng mô phỏng tất định, rồi gửi **một** `check-result`
-  như §2: điểm = trung bình điểm các variant (kẹp trong 0–100), `goal.passed` và `passed` là "qua ở mọi variant". Trong lúc chạy lab robot khoá
+  như §2: điểm = điểm **thấp nhất** trong các variant (điểm một variant = tổng `points` các mục tiêu đạt + thưởng thời gian, kẹp trong 0–100;
+  N18 R6.2), `goal.passed` và `passed` là "qua ở mọi variant". Trong lúc chạy lab robot khoá
   soạn thảo và gọi `beginCheck()` (sau `saveNow()`) / `endCheck()` của bridge (thứ tự ở §2). Kiểm tra bị huỷ hoặc gián đoạn thì không gửi `check-result` (như trên).
   Scenario không mục tiêu (`rb-sandbox`) nếu gửi `check-result` thì chỉ là `{ passed: true, goals: [] }`; người soạn bài đặt `requiresCheck = false` cho nó.
 

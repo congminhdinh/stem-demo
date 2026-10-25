@@ -53,10 +53,10 @@ export type RobotCheckResult = {
   /** Every goal passed in every variant. */
   passed: boolean;
   goals: readonly RobotGoalResult[];
-  /** The mean of the variants' scores, 0..maxScore. */
+  /** The lowest of the variants' scores, 0..maxScore (N18 R6.2: robustness first, as `passed` is every variant; scoring.ts). */
   score: number;
   maxScore: typeof ROBOT_CHECK_LIMITS.maxScore;
-  /** The simulated time of the check, in milliseconds. */
+  /** The simulated time of the check, in milliseconds: its longest variant's (N18 R6.2). */
   simTimeMs: number;
   /** At most `ROBOT_CHECK_LIMITS.maxVariants`; each with these four fields (the host reads no others). */
   variants: readonly RobotVariantResult[];
