@@ -10,7 +10,8 @@ import type { SensorOverlayProbe } from '../src/ui/robot3d/parts/sensor-overlay'
 // chromium-robot). In stop-at-wall, the goal's zone is lit before the run; once it runs the ultrasonic ray, its echo dot and its tag with the
 // distance in cm (the comma) appear and match the sensor's reading; "Hiện cảm biến" takes them off and brings them back; they show in a
 // check at 1× and in Xem lại; the zone's glow pulses while a run goes on and stands still with reduced motion; a robot at rest draws no
-// frame for them; and the 2D map ("Xem 2D") has the same. Screenshots go to R43_SHOTS_DIR (the report's), or under test-results.
+// frame for them (also while a run goes on with the robot at rest, the pulse being no frame of its own); the ray is on the canvas, in the
+// colour of the beam, and gone with the switch; the switch has a 44 px hit area; and the 2D map ("Xem 2D") has the same. Screenshots go to R43_SHOTS_DIR (the report's), or under test-results.
 
 const lessonOrigin = 'http://lesson.localhost:5190';
 const shots = process.env.R43_SHOTS_DIR ?? join('test-results', 'robot-lab-sensors');
@@ -241,6 +242,156 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     await page.waitForTimeout(800);
     await screenshot(page, '08-line-follow-behind.png');
     expect(errors).toEqual([]);
+  });
+
+  test('the ray is on the canvas: pixels of the beam’s blue appear beside the robot with the overlays on and go with the switch', async ({ page, baseURL }) => {
+    const frame = await openInLesson(page, labUrl(baseURL));
+    await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('reference'));
+    await frame.getByTestId('robot-run').click();
+    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0]?.ray).toBe(true);
+    await expect.poll(async () => (await view(frame))?.t ?? 0).toBeGreaterThan(1);
+    await frame.getByTestId('robot-pause').click();
+    await expect(frame.getByTestId('robot-status')).toHaveText('Tạm dừng');
+    // The drawing buffer of every draw to the screen, read after its draw calls (before it is composited), and its pixels counted that are
+    // clearly blue: the blue is far over the red (the beam's #0284c7 and its softer edges; the robot has a few blue parts, which are in
+    // both counts, so the two are compared).
+    await frame.evaluate(() => {
+      const canvas = document.querySelector('[data-testid=robot-canvas] canvas') as HTMLCanvasElement;
+      const gl = canvas.getContext('webgl2')!;
+      const seen = ((window as unknown as { __blue: { draws: number; blue: number } }).__blue = { draws: 0, blue: -1 });
+      const clear = gl.clear.bind(gl);
+      gl.clear = (mask: number) => {
+        clear(mask);
+        if (gl.getParameter(gl.FRAMEBUFFER_BINDING) !== null) return;
+        queueMicrotask(() => {
+          const pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
+          gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+          let blue = 0;
+          for (let i = 0; i < pixels.length; i += 4) if (pixels[i + 2]! >= 150 && pixels[i + 2]! - pixels[i]! >= 90) blue += 1;
+          seen.blue = blue;
+          seen.draws += 1;
+        });
+      };
+    });
+    const seen = () => frame.evaluate(() => (window as unknown as { __blue: { draws: number; blue: number } }).__blue);
+    const drawFrame = async (change: () => Promise<void>) => {
+      const before = (await seen()).draws;
+      await change();
+      await expect.poll(async () => (await seen()).draws).toBeGreaterThan(before);
+      // The last draw of the frames the change asked for.
+      await page.waitForTimeout(300);
+      return (await seen()).blue;
+    };
+    const toggle = frame.getByTestId('robot-sensors');
+    const off = await drawFrame(async () => {
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    });
+    const on = await drawFrame(async () => {
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    });
+    expect(off).toBeGreaterThanOrEqual(0);
+    // The ray (a few px wide, 80 cm long), its edges and its tag's border: well over a hundred more pixels.
+    expect(on - off).toBeGreaterThan(100);
+    const offAgain = await drawFrame(async () => {
+      await toggle.click();
+    });
+    expect(Math.abs(offAgain - off)).toBeLessThan(30);
+  });
+
+  test('a run that goes on with the robot at rest draws no frame: the pulse is no frame of its own, and the tag settles to the exact reading', async ({ page, baseURL }) => {
+    test.setTimeout(60_000);
+    const frame = await openInLesson(page, labUrl(baseURL));
+    await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('reference'));
+    await frame.evaluate(() => {
+      const gl = (document.querySelector('[data-testid=robot-canvas] canvas') as HTMLCanvasElement).getContext('webgl2')!;
+      (window as unknown as { __draws: number }).__draws = 0;
+      const clear = gl.clear.bind(gl);
+      gl.clear = (mask: number) => {
+        if (gl.getParameter(gl.FRAMEBUFFER_BINDING) === null) (window as unknown as { __draws: number }).__draws += 1;
+        clear(mask);
+      };
+    });
+    const draws = () => frame.evaluate(() => (window as unknown as { __draws: number }).__draws);
+    await frame.getByTestId('robot-run').click();
+    // The reference drives up to the wall and stops 15 cm from it, in the zone; its goal then passes after the hold, and the zone's glow goes.
+    await expect.poll(async () => (await overlay(frame))?.zone, { timeout: 30_000 }).toBeNull();
+    // Still running: the program loops for ever, the clock goes on, the robot stands.
+    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
+    // The overlays have settled (the tag, once, by the loop stopping) and nothing else asks for a frame.
+    await page.waitForTimeout(1500);
+    const rested = await draws();
+    const restedAt = await frame.getByTestId('robot-time').textContent();
+    await page.waitForTimeout(2500);
+    expect(await draws()).toBe(rested);
+    expect(await frame.getByTestId('robot-time').textContent()).not.toBe(restedAt);
+    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
+    // And the tag says the reading to a tenth: it settled to it.
+    const reading = ultrasonicOf(await view(frame));
+    expect((await overlay(frame))?.ultrasonics[0]?.label).toBe(tagOf(reading!.cm!));
+  });
+
+  test('no shader program is compiled once the scene is up: the overlays’ is compiled with it, before the first frame', async ({ page, baseURL }) => {
+    test.setTimeout(60_000);
+    // Counts the programs the page links, in every frame, from before the canvas is made.
+    await page.addInitScript(() => {
+      const w = window as unknown as { __links: number };
+      w.__links = 0;
+      for (const context of [WebGL2RenderingContext, WebGLRenderingContext]) {
+        const link = context.prototype.linkProgram;
+        context.prototype.linkProgram = function (this: WebGLRenderingContext, program: WebGLProgram) {
+          w.__links += 1;
+          link.call(this, program);
+        };
+      }
+    });
+    const frame = await openInLesson(page, labUrl(baseURL, 'template=rb-line-follow'));
+    const links = () => frame.evaluate(() => (window as unknown as { __links: number }).__links);
+    // The zones' tags come one frame after the first, and the lab settles in a second.
+    await page.waitForTimeout(1500);
+    const before = await links();
+    expect(before).toBeGreaterThan(3);
+    const line = { ...robotStarterDocument('rb-line-follow'), program: { blocks: robotSolutions['rb-line-follow'].reference } };
+    await frame.evaluate((document) => window.__stem?.loadProject(document), line);
+    await frame.getByTestId('robot-run').click();
+    // The beam, the tag, the spots (dark and bright) and the zone all show; none needs a new program.
+    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0]?.ray).toBe(true);
+    const seen = { dark: false, bright: false };
+    await expect
+      .poll(async () => {
+        for (const spot of (await overlay(frame))?.spots ?? []) if (spot.visible) seen[spot.dark ? 'dark' : 'bright'] = true;
+        return seen.dark && seen.bright;
+      })
+      .toBe(true);
+    await expect.poll(async () => (await overlay(frame))?.zone).toBe('garage');
+    await page.waitForTimeout(500);
+    expect(await links()).toBe(before);
+  });
+
+  test('the switch has a hit area of 44 px in the camera’s panel and over the 2D map: a point 21 px from its middle, every way, is its own', async ({ page, baseURL }) => {
+    const frame = await openInLesson(page, labUrl(baseURL));
+    // In the frame's own coordinates: the middle of the button, and what is found 21 px up, down, left and right of it.
+    const reach = () =>
+      frame.evaluate(() => {
+        const button = document.querySelector('[data-testid=robot-sensors]')!;
+        const box = button.getBoundingClientRect();
+        const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
+        const own = (px: number, py: number) => document.elementFromPoint(px, py)?.closest('[data-testid=robot-sensors]') === button;
+        return { width: box.width, height: box.height, middle: own(x, y), up: own(x, y - 21), down: own(x, y + 21), left: own(x - 21, y), right: own(x + 21, y) };
+      });
+    // The camera panel's button is 28 px tall and 44 wide; its hit area reaches 8 px above and below.
+    const inCamera = await reach();
+    expect(inCamera.width).toBeGreaterThanOrEqual(44);
+    expect(inCamera.height).toBeLessThan(44);
+    expect(inCamera).toMatchObject({ middle: true, up: true, down: true, left: true, right: true });
+    // Over the 2D map it is a panel of 44 × 44.
+    await frame.getByTestId('robot-viewmode').click();
+    await frame.getByTestId('robot-topview').waitFor();
+    const onMap = await reach();
+    expect(onMap.width).toBeGreaterThanOrEqual(44);
+    expect(onMap.height).toBeGreaterThanOrEqual(44);
+    expect(onMap).toMatchObject({ middle: true, up: true, down: true, left: true, right: true });
   });
 
   test('on the detailed graphics tier the overlays are drawn too', async ({ page, baseURL }) => {
