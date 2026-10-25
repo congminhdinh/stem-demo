@@ -1,66 +1,16 @@
-import type { RobotPointCm } from '../../core/hardware/kit';
 import type { Scenario } from '../../core/scenario/scenario';
-import type { Pose, RobotSnapshot, ScoreState } from '../../core/world/snapshot';
+import type { RobotSnapshot, ScoreState } from '../../core/world/snapshot';
 
 // The arithmetic of the sensor overlays (N18 R4.3), in the 3D view (parts/sensor-overlay.ts) and on the 2D map (TopViewSensors.tsx): what
 // the robot "sees" drawn over the arena so that a learner can read it. Plain numbers, tested exactly; nothing here imports three or Konva.
 //
 // The overlays draw the snapshot and never work a reading out again (the sensors are measured once per tick, in the world). What the
-// snapshot holds of an ultrasonic sensor is its nearest echo (`cm`, `hitId`), not its five rays one by one, so the axis ray is drawn to
-// that distance and the cone as an outline of the same slant length from the sensor: where the sensor listens, not five measured hits.
-
-export type Vec3Cm = readonly [number, number, number];
+// snapshot holds of an ultrasonic sensor is the distance it heard (`cm`, the shortest of its five rays') and what that came from
+// (`hitId`), not its five rays one by one, so the axis ray is drawn to the heard distance and the cone as an outline of the same slant
+// length from the sensor: where the sensor listens, not five measured hits, and the dot at the end of the axis is the heard distance
+// on the axis, not the point the echo came from (an edge ray may have heard it). With no echo the ray is NO_ECHO_RAY_CM long.
 
 const RAD = Math.PI / 180;
-
-/**
- * The five rays of an ultrasonic cone in the sensor's frame (forward +x, left +y, up +z, as the kit's mounts): the axis, then the cone's
- * edge to the left, to the right, up and down at `coneHalfDeg`. The very rays of core/world/sensors/ultrasonic.ts (there in Rapier's
- * frame, forward +X, up +Y, left −Z), as unit vectors.
- */
-export function coneDirections(coneHalfDeg: number): readonly Vec3Cm[] {
-  const [c, s] = [Math.cos(coneHalfDeg * RAD), Math.sin(coneHalfDeg * RAD)];
-  return [
-    [1, 0, 0],
-    [c, s, 0],
-    [c, -s, 0],
-    [c, 0, s],
-    [c, 0, -s],
-  ];
-}
-
-/** A vector turned by the unit quaternion `q`. */
-function rotated(q: Pose['rotation'], [x, y, z]: Vec3Cm): Vec3Cm {
-  // t = 2 (q.xyz × v); v' = v + w t + q.xyz × t
-  const tx = 2 * (q.y * z - q.z * y);
-  const ty = 2 * (q.z * x - q.x * z);
-  const tz = 2 * (q.x * y - q.y * x);
-  return [x + q.w * tx + (q.y * tz - q.z * ty), y + q.w * ty + (q.z * tx - q.x * tz), z + q.w * tz + (q.x * ty - q.y * tx)];
-}
-
-export type UltrasonicEnds = {
-  /** The sensor on the arena (cm, z up from the floor). */
-  origin: Vec3Cm;
-  /** Where the rays end, `lengthCm` from the sensor along each of `coneDirections`: the axis first, then left, right, up, down. */
-  ends: readonly Vec3Cm[];
-};
-
-/**
- * Where the rays of an ultrasonic sensor at `mount` (the kit's: its place in the robot frame and its yaw) end on the arena, for a
- * robot at `robot` and a reading of `lengthCm`. The robot's whole rotation counts (tilt included), as in the world.
- */
-export function ultrasonicEndsCm(robot: Pose, mount: { readonly posCm: RobotPointCm; readonly yawDeg: number }, coneHalfDeg: number, lengthCm: number): UltrasonicEnds {
-  const [c, s] = [Math.cos(mount.yawDeg * RAD), Math.sin(mount.yawDeg * RAD)];
-  const world = (point: Vec3Cm): Vec3Cm => {
-    const [x, y, z] = rotated(robot.rotation, point);
-    return [robot.xCm + x, robot.yCm + y, robot.zCm + z];
-  };
-  const [mx, my, mz] = mount.posCm;
-  return {
-    origin: world([mx, my, mz]),
-    ends: coneDirections(coneHalfDeg).map(([x, y, z]) => world([mx + lengthCm * (x * c - y * s), my + lengthCm * (x * s + y * c), mz + lengthCm * z])),
-  };
-}
 
 /** How many steps the cone's arc has on the 2D map. */
 export const SECTOR_ARC_STEPS = 8;
@@ -91,21 +41,20 @@ export const MIN_SPOT_RADIUS_CM = 0.7;
 /** The radius a line sensor's spot is drawn with: the kit's own, at least MIN_SPOT_RADIUS_CM. */
 export const spotDrawRadiusCm = (kitRadiusCm: number | undefined): number => Math.max(MIN_SPOT_RADIUS_CM, kitRadiusCm ?? 1);
 
-/** The glyphs of the distance label: the digits are 0 to 9, then these. The decimal sign is the learner's (a comma in Vietnamese). */
-export const GLYPH = { separator: 10, space: 11, c: 12, m: 13 } as const;
-export const GLYPH_COUNT = 14;
-/** The most glyphs a label has: "400,0 cm" is 8. */
-export const LABEL_GLYPHS_MAX = 12;
+/** The glyphs of the distance label's number: the digits are 0 to 9, then the decimal sign (the learner's: a comma in Vietnamese). */
+export const GLYPH = { separator: 10 } as const;
+export const GLYPH_COUNT = 11;
+/** The most glyphs a number has: "400,0" is 5. */
+export const LABEL_GLYPHS_MAX = 8;
 
 /**
- * Writes the distance label's glyphs into `out` and returns how many: an echo to a tenth of a cm ("23,4 cm"), no echo as the whole 400
- * the program reads ("400 cm"). A reading that is negative or not a number is 0. Allocates nothing, so a frame can call it.
+ * Writes the glyphs of the distance heard into `out` and returns how many: to a tenth of a cm ("23,4"). A reading that is negative or not
+ * a number is 0. The unit is the label's own, from the messages. Allocates nothing, so a frame can call it.
  */
-export function labelGlyphs(out: Int8Array, cm: number, echo: boolean): number {
-  const reading = Number.isFinite(cm) && cm > 0 ? cm : 0;
-  const tenths = Math.round(reading * 10);
-  let whole = echo ? Math.floor(tenths / 10) : Math.round(reading);
-  // The whole part's digits, written backwards from the end of the room it can take (5), then moved to the front.
+export function labelGlyphs(out: Int8Array, cm: number): number {
+  const tenths = Math.round((Number.isFinite(cm) && cm > 0 ? cm : 0) * 10);
+  let whole = Math.floor(tenths / 10);
+  // The whole part's digits, written backwards and then turned round.
   let n = 0;
   do {
     out[n++] = whole % 10;
@@ -116,13 +65,8 @@ export function labelGlyphs(out: Int8Array, cm: number, echo: boolean): number {
     out[i] = out[j]!;
     out[j] = digit;
   }
-  if (echo) {
-    out[n++] = GLYPH.separator;
-    out[n++] = tenths % 10;
-  }
-  out[n++] = GLYPH.space;
-  out[n++] = GLYPH.c;
-  out[n++] = GLYPH.m;
+  out[n++] = GLYPH.separator;
+  out[n++] = tenths % 10;
   return n;
 }
 
@@ -196,4 +140,34 @@ export function sameSensorView(a: RobotSnapshot | null, b: RobotSnapshot | null,
     }
   }
   return true;
+}
+
+const hex2 = (n: number) => Math.round(Math.min(255, Math.max(0, n * 255))).toString(16).padStart(2, '0');
+
+/**
+ * The colour of a zone's highlight: the zone's own hue, strong (saturation at least 0.65) and darkish (lightness 0.38). A highlight of
+ * the same family never goes muddy over the zone's pastel paint, whatever the zone's colour is (an amber one over a light green zone did).
+ */
+export function highlightColor(zoneHex: string): string {
+  const value = Number.parseInt(zoneHex.slice(1, 7), 16);
+  const [r, g, b] = [(value >> 16) & 255, (value >> 8) & 255, value & 255].map((channel) => channel / 255) as [number, number, number];
+  const [max, min] = [Math.max(r, g, b), Math.min(r, g, b)];
+  const delta = max - min;
+  let hue = 0;
+  if (delta > 0) {
+    if (max === r) hue = ((g - b) / delta + (g < b ? 6 : 0)) / 6;
+    else if (max === g) hue = ((b - r) / delta + 2) / 6;
+    else hue = ((r - g) / delta + 4) / 6;
+  }
+  const lightness = (max + min) / 2;
+  const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
+  const [h, s, l] = [hue, delta === 0 ? 0 : Math.max(0.65, saturation), 0.38];
+  // HSL to RGB.
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const channel = (t: number) => {
+    const u = t < 0 ? t + 1 : t > 1 ? t - 1 : t;
+    return u < 1 / 6 ? p + (q - p) * 6 * u : u < 1 / 2 ? q : u < 2 / 3 ? p + (q - p) * (2 / 3 - u) * 6 : p;
+  };
+  return `#${hex2(channel(h + 1 / 3))}${hex2(channel(h))}${hex2(channel(h - 1 / 3))}`;
 }

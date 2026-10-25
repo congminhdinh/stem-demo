@@ -16,6 +16,8 @@ export type TopViewSensorsState = {
   spots: { role: string; visible: boolean; dark: boolean; xCm: number; yCm: number; radiusCm: number }[];
   /** The zone of the next unmet goal, as lit now; null when none is. */
   zone: string | null;
+  /** The lit zone's fill and outline colours (CSS) and opacity as drawn: the zone's own hue, and the pulse. */
+  zoneLook: { fill: string; edge: string; fillOpacity: number; edgeOpacity: number } | null;
 };
 
 /** The sensor overlay of the map that is mounted, as it is drawn now; null when none is. */
@@ -33,5 +35,13 @@ export function readTopViewSensors(): TopViewSensorsState | null {
     labels: stage.find<Konva.Label>('.topview-sensor-label').map((node) => ({ role: node.getAttr('role'), visible: node.visible(), text: node.getText().text(), x: node.x(), y: node.y() })),
     spots: stage.find<Konva.Circle>('.topview-spot').map((node) => ({ role: node.getAttr('role'), visible: node.visible(), dark: node.getAttr('dark') === true, xCm: node.x(), yCm: node.y(), radiusCm: node.radius() })),
     zone: lit?.getAttr('zoneId') ?? null,
+    zoneLook: lit
+      ? {
+          fill: String(lit.findOne<Konva.Line>('.topview-goal-fill')?.fill()),
+          edge: String(lit.findOne<Konva.Line>('.topview-goal-edge')?.stroke()),
+          fillOpacity: lit.findOne<Konva.Line>('.topview-goal-fill')?.opacity() ?? 0,
+          edgeOpacity: lit.findOne<Konva.Line>('.topview-goal-edge')?.opacity() ?? 0,
+        }
+      : null,
   };
 }

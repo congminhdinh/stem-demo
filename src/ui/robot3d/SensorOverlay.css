@@ -1,13 +1,21 @@
 /*
  * The "Hiện cảm biến" switch of the sensor overlays (N18 R4.3). In the 3D view it is the last button of the camera's panel (top right), an
  * icon after "Đặt lại góc nhìn"; on, it is tinted, not filled, so that it does not read as one more selected view. Over the 2D map, which
- * has no camera views, it has a 32 px panel of its own in their place. The app's tokens only.
+ * has no camera views, it has a 44 px panel of its own in their place; in the camera's panel its hit area is 44 px too. The app's tokens only.
  */
 
 .robot-camera .robot-sensors-camera {
-  padding: 2px 6px;
+  position: relative;
+  padding: 2px 13px;
   border-left: 1px solid var(--stem-color-border);
   border-radius: 0 6px 6px 0;
+}
+
+/* The camera's buttons are 28 px high; this one's hit area is 44 px (touch): the pseudo-element reaches 8 px up and down, where nothing else is. */
+.robot-camera .robot-sensors-camera::after {
+  content: '';
+  position: absolute;
+  inset: -8px 0;
 }
 
 .robot-camera .robot-camera-reset:has(+ .robot-sensors-camera) {
@@ -26,8 +34,8 @@
   z-index: 1;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 1px solid var(--stem-color-border);
   border-radius: var(--stem-radius);

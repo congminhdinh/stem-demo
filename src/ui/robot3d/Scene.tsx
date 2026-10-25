@@ -26,7 +26,7 @@ import type { RobotModel } from './robot-model';
 import { isRunOver, type RobotRunStore } from './robot-run-store';
 import { createFrameWatch } from './frame-watch';
 import type { RobotToolsStore } from './robot-tools-store';
-import { useLocale } from '../i18n/text';
+import { useLocale, useText } from '../i18n/text';
 import { RobotView } from './RobotView';
 import { idleSnapshot, sameView } from './scene-math';
 import { sightProps } from './sight-props';
@@ -356,7 +356,9 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
   // N18 R4.7: a replay of a check's round ("Xem lại") is under way: the camera goes back to frame its start.
   const replaying = useStore(store, (state) => state.round !== null && state.active && !state.locked);
   // N18 R4.3: the sensor overlays write a distance with the learner's decimal sign.
+  const t = useText();
   const decimal = useLocale() === 'vi' ? ',' : '.';
+  const unit = t('robot.ruler.cm', { value: '' }).trim();
   return (
     <Canvas
       className="robot-canvas"
@@ -377,7 +379,7 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
       <ContextWatch onLost={onContextLost} onRestored={onContextRestored} />
       {onSlowFrames && <SlowFrames store={store} onSlow={onSlowFrames} />}
       {tools && <FloorPicker tools={tools} store={store} kit={kit} scenario={scenario} />}
-      <SensorOverlay scenario={scenario} kit={kit} model={model} view={view} store={store} tools={tools} reducedMotion={reducedMotion} decimal={decimal} overlays={overlays} />
+      <SensorOverlay scenario={scenario} kit={kit} model={model} view={view} store={store} tools={tools} reducedMotion={reducedMotion} decimal={decimal} unit={unit} noEchoText={t('robot.pins.ultra.noEcho')} detail={tierLook[tier].detail} overlays={overlays} />
     </Canvas>
   );
 }

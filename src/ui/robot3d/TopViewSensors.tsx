@@ -12,7 +12,7 @@ import { robotToArena } from './robot-tools';
 import type { RobotToolsStore } from './robot-tools-store';
 import { idleSnapshot } from './scene-math';
 import { sensorColors as colors } from './sensor-colors';
-import { nextGoalZoneId, pulseLevel, sameSensorView, sectorPointsCm, SECTOR_POINTS_LENGTH, spotDrawRadiusCm } from './sensor-overlay-math';
+import { highlightColor, nextGoalZoneId, pulseLevel, sameSensorView, sectorPointsCm, SECTOR_POINTS_LENGTH, spotDrawRadiusCm } from './sensor-overlay-math';
 import { arenaToStage, rayLengthCm, sameTopView, type TopViewFit } from './top-view-math';
 
 // The sensor overlays on the 2D map (N18 R4.3), as parts/SensorOverlay.tsx draws them in the 3D view: over the cone of each ultrasonic
@@ -20,8 +20,8 @@ import { arenaToStage, rayLengthCm, sameTopView, type TopViewFit } from './top-v
 // with the distance in cm in the learner's decimal sign), a ring on the mat at each line sensor's spot (a red disc in it where it reads
 // dark), and the zone of the next unmet goal, which pulses while a run goes on and stands still with reduced motion. Like the map's moving
 // layer it draws only when the picture changes (`sameTopView` and `sameSensorView`), from the store's publishes, with no React render for
-// a snapshot. The readings are the snapshot's (the nearest echo, not the five rays), so the fan is an outline of the same length from the
-// sensor, as in the 3D view. A reading with no echo is drawn as long as the map's ray for it (NO_ECHO_RAY_CM), not 400 cm.
+// a snapshot. The readings are the snapshot's (the distance the sensor heard, the shortest of its five rays', not the rays), so the fan is an outline of the same length from the
+// sensor, as in the 3D view. A reading with no echo is drawn as long as the map's ray for it (NO_ECHO_RAY_CM) and says "không thấy vật", as the 3D view does.
 // "Hiện cảm biến" (the tools store's `sensors`) turns the whole layer, and the map's ray, off.
 
 const EMPTY_GOALS: Scenario['goals'] = [];
@@ -46,14 +46,14 @@ type Nodes = {
   spots: (Konva.Circle | null)[];
 };
 
-/** Whether the learner asks the system for no motion (a browser without the query, or a test, has none). */
-const reducedMotion = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(reducedMotionQuery).matches;
-
 export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }: TopViewSensorsProps) {
   const t = useText();
   const locale = useLocale();
   const goals = scenario.goals ?? EMPTY_GOALS;
   const idle = useMemo(() => idleSnapshot(scenario, kit), [scenario, kit]);
+  // Whether the learner asks the system for no motion: the query is made once here (a media query list is live: `matches` is always the
+  // current answer, and a browser without the query, or a test, has none).
+  const motion = useMemo(() => (typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia(reducedMotionQuery) : null), []);
   const nodes = useRef<Nodes>({ layer: null, zones: new Map(), cones: [], labels: [], texts: [], spots: [] });
   // The zones goals name.
   const zones = useMemo(() => {
@@ -63,7 +63,7 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
       else if (goal.kind === 'checkpoints-in-order') goal.zones.forEach((zone) => named.add(zone));
       else if (goal.kind === 'servo-angle' && goal.whenInZone !== undefined) named.add(goal.whenInZone);
     }
-    return scenario.arena.paint.zones.filter((zone) => named.has(zone.id)).map((zone) => ({ id: zone.id, points: zone.polygonCm.flatMap(([x, y]) => [x, y]) }));
+    return scenario.arena.paint.zones.filter((zone) => named.has(zone.id)).map((zone) => ({ id: zone.id, points: zone.polygonCm.flatMap(([x, y]) => [x, y]), color: highlightColor(zone.color) }));
   }, [goals, scenario.arena.paint.zones]);
   // The sensors, from the kit: where each is mounted, how wide its cone, how big its spot. The cones' points are written in place by
   // `apply` and keep these very arrays, so a React render never puts a fan back to nothing.
@@ -95,13 +95,13 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
       const on = tools?.getState().sensors ?? true;
       layer.visible(on);
       if (on) {
-        const pulse = pulseLevel(world.status === 'running', reducedMotion(), performance.now() / 1000);
+        const pulse = pulseLevel(world.status === 'running', motion?.matches === true, performance.now() / 1000);
         const next = nextGoalZoneId(goals, world.score.goals);
         for (const [id, zone] of n.zones) {
           const lit = id === next;
           zone.group.visible(lit);
-          zone.fill.opacity(0.14 + 0.16 * pulse);
-          zone.edge.opacity(0.55 + 0.4 * pulse);
+          zone.fill.opacity(0.18 + 0.12 * pulse);
+          zone.edge.opacity(0.6 + 0.3 * pulse);
         }
         beams.forEach((beam, i) => {
           const cone = n.cones[i];
@@ -124,7 +124,8 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
           cone.opacity(echo ? 1 : 0.5);
           cone.visible(true);
           const end = arenaToStage(shownFit.current, { xCm: origin.xCm + length * Math.cos((heading * Math.PI) / 180), yCm: origin.yCm + length * Math.sin((heading * Math.PI) / 180) });
-          text.text(shownText.current('robot.ruler.cm', { value: formatNumber(reading.cm, locale, echo ? 1 : 0) }));
+          // The heard distance, or "không thấy vật" with no echo (the same words as the 3D tag and the pin table).
+          text.text(echo ? shownText.current('robot.ruler.cm', { value: formatNumber(reading.cm, locale, 1) }) : shownText.current('robot.pins.ultra.noEcho'));
           label.position({ x: end.x, y: end.y - 10 });
           label.offsetX(label.width() / 2);
           label.visible(true);
@@ -165,7 +166,7 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
       stopState();
       stopTools?.();
     };
-  }, [fit, t, locale, store, tools, idle, goals, beams, spots]);
+  }, [fit, t, locale, store, tools, idle, goals, beams, spots, motion]);
 
   const world = { x: fit.originX, y: fit.originY, scaleX: fit.scale, scaleY: -fit.scale };
   return (
@@ -193,8 +194,8 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
               found.set(zone.id, { group, fill, edge });
             }}
           >
-            <Line name="topview-goal-fill" points={zone.points} closed fill={colors.goal} opacity={0.22} perfectDrawEnabled={false} />
-            <Line name="topview-goal-edge" points={zone.points} closed stroke={colors.goalEdge} strokeWidth={1.1} lineJoin="round" opacity={0.75} perfectDrawEnabled={false} />
+            <Line name="topview-goal-fill" points={zone.points} closed fill={zone.color} opacity={0.24} perfectDrawEnabled={false} />
+            <Line name="topview-goal-edge" points={zone.points} closed stroke={zone.color} strokeWidth={1.1} lineJoin="round" opacity={0.8} perfectDrawEnabled={false} />
           </Group>
         ))}
         {beams.map((beam, i) => (

@@ -99,15 +99,23 @@ describe('the sensor overlay on the 2D map (N18 R4.3)', () => {
     expect(sensorState().labels[0]!.text).toBe('80.5 cm');
   });
 
-  it('draws a reading without an echo as long as the map’s ray, 40 cm, and writes the 400 the program reads', () => {
+  it('draws a reading without an echo as long as the map’s ray, 40 cm, and says "không thấy vật"', () => {
     const { publish, world } = mount();
     publish({ status: 'running', world: world(1, 45, { sensors: sensors(400, null) }) });
     const { cones, labels } = sensorState();
     const [x, y] = [cones[0]!.points.at(-2)!, cones[0]!.points.at(-1)!];
     expect(Math.hypot(x - 52.5, y - 50)).toBeCloseTo(40, 9);
-    expect(labels[0]!.text).toBe('400 cm');
+    expect(labels[0]!.text).toBe('không thấy vật');
     // The map's ray and its dot: the ray as it has been since R4.6.
     expect(readTopViewState()!.rays[0]).toMatchObject({ visible: true, echo: false });
+  });
+
+  it('says "nothing in range" in English, and a distance again when the echo comes back', () => {
+    const { publish, world } = mount('en');
+    publish({ status: 'running', world: world(1, 45, { sensors: sensors(400, null) }) });
+    expect(sensorState().labels[0]!.text).toBe('nothing in range');
+    publish({ status: 'running', world: world(2, 45, { sensors: sensors(66.6, 'front-wall') }) });
+    expect(sensorState().labels[0]!.text).toBe('66.6 cm');
   });
 
   it('turns the cone with the robot: at 90° it looks along the arena’s +y', () => {
@@ -133,6 +141,29 @@ describe('the sensor overlay on the 2D map (N18 R4.3)', () => {
     expect([spots[0]!.xCm, spots[0]!.yCm]).toEqual([52.5, 51.5]);
     const radius = (kit.modules.find((module) => module.role === 'lineLeft')!.spec as { spotRadiusCm: number }).spotRadiusCm;
     expect(spots[0]!.radiusCm).toBe(Math.max(0.7, radius));
+  });
+
+  it('lights the zone in a strong shade of its own hue, not a colour of its own, the fill soft and the outline firm', () => {
+    mount();
+    const { zoneLook } = sensorState();
+    // stop-zone is #d9ead3, a light green: its highlight is a green (the green channel far over the red and the blue).
+    const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(zoneLook!.fill.slice(i, i + 2), 16));
+    expect(g!).toBeGreaterThan(r! * 1.4);
+    expect(g!).toBeGreaterThan(b! * 1.4);
+    expect(zoneLook!.edge).toBe(zoneLook!.fill);
+    expect(zoneLook!.fillOpacity).toBeLessThan(zoneLook!.edgeOpacity);
+  });
+
+  it('asks for the reduced-motion query once, not at every snapshot, and holds the pulse still when it says so', () => {
+    const query = { matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() };
+    const matchMedia = vi.fn(() => query);
+    vi.stubGlobal('matchMedia', matchMedia);
+    const { publish, world } = mount();
+    for (let i = 1; i <= 6; i++) publish({ status: 'running', world: world(i, 45 + i, { sensors: sensors(80 - i, 'front-wall') }) });
+    expect(matchMedia).toHaveBeenCalledTimes(1);
+    // Still: the middle of the pulse's range, whatever the time.
+    expect(sensorState().zoneLook!.fillOpacity).toBeCloseTo(0.18 + 0.12 * 0.5, 9);
+    expect(sensorState().zoneLook!.edgeOpacity).toBeCloseTo(0.6 + 0.3 * 0.5, 9);
   });
 
   it('lights the zone until the goal passes, then none', () => {

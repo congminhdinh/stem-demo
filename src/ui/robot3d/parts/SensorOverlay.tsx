@@ -1,4 +1,4 @@
-import { useFrame, useThree } from '@react-three/fiber';
+import { addTail, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import { Vector3 } from 'three';
 import type { Kit } from '../../../core/hardware/kit';
@@ -6,6 +6,7 @@ import type { Scenario } from '../../../core/scenario/scenario';
 import type { RobotSnapshot } from '../../../core/world/snapshot';
 import { VIEW_SAFE_RECT } from '../camera-studio';
 import type { CardEdge, HudCorner, ToolsCorner } from '../hud-corner';
+import type { Detail } from '../lighting/look';
 import type { RobotModel } from '../robot-model';
 import type { RobotRunStore } from '../robot-run-store';
 import type { RobotToolsStore } from '../robot-tools-store';
@@ -34,6 +35,10 @@ type SensorOverlayProps = {
   reducedMotion: boolean;
   /** The learner's decimal sign: ',' in Vietnamese. */
   decimal: string;
+  /** The unit after the distance and the words for no echo (the messages'), and the tier's detail (the light tier has no cone surface). */
+  unit: string;
+  noEchoText: string;
+  detail: Detail;
   /** Where the HUD, the results card and the view tools cover the view (NDC): the distance tag keeps clear of them. */
   overlays: { hud: HudCorner | null; card: CardEdge | null; tools: ToolsCorner | null };
 };
@@ -49,7 +54,7 @@ function cover(box: ScreenBox, left: number, right: number, bottom: number, top:
   box.top = top;
 }
 
-export function SensorOverlay({ scenario, kit, model, view, store, tools, reducedMotion, decimal, overlays }: SensorOverlayProps) {
+export function SensorOverlay({ scenario, kit, model, view, store, tools, reducedMotion, decimal, unit, noEchoText, detail, overlays }: SensorOverlayProps) {
   const gl = useThree((state) => state.gl);
   const camera = useThree((state) => state.camera);
   const invalidate = useThree((state) => state.invalidate);
@@ -57,13 +62,13 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
   const fovDeg = 'fov' in camera && typeof camera.fov === 'number' ? camera.fov : 40;
   const overlay = useMemo(() => {
     try {
-      return createSensorOverlay({ kit, model, scenario, decimal, fovDeg });
+      return createSensorOverlay({ kit, model, scenario, decimal, unit, noEchoText, fovDeg, detail });
     } catch (error) {
       // An overlay that cannot be built is no reason to lose the view.
       console.warn('The robot lab’s sensor overlay could not be built; the view draws without it.', error);
       return null;
     }
-  }, [kit, model, scenario, decimal, fovDeg]);
+  }, [kit, model, scenario, decimal, unit, noEchoText, fovDeg, detail]);
   useEffect(() => () => overlay?.dispose(), [overlay]);
   useEffect(() => (overlay ? registerSensorOverlay(gl.domElement, overlay) : undefined), [gl, overlay]);
 
@@ -94,6 +99,16 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
     };
   }, [overlay, store, tools, scenario, invalidate, get]);
 
+  // The tag is painted at most about ten times a second while a reading changes; when the draw loop stops (R3F's tail) the tag held back is
+  // painted to the latest reading and one frame shows it, so a robot that comes to rest says its distance exactly. That frame is the only
+  // one the overlay asks for, and only when the tag was behind; it paints nothing the next time the loop stops.
+  useEffect(() => {
+    if (!overlay) return undefined;
+    return addTail(() => {
+      if (overlay.flushLabels()) invalidate();
+    });
+  }, [overlay, invalidate]);
+
   // The distance tag's spot is worked out in the frame, before the frame's other callbacks (priority −1: only a positive one takes
   // rendering over, as CompiledDraw's does), so that the zones' tags, laid out in the same frame, keep clear of it (sensor-label-boxes.ts).
   const scratch = useMemo(
@@ -118,7 +133,7 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
   useFrame(({ clock }) => {
     if (!overlay) return;
     const world = view();
-    overlay.update(world, tools ? tools.getState().sensors : true, pulseLevel(world.status === 'running', reducedMotion, clock.elapsedTime));
+    overlay.update(world, tools ? tools.getState().sensors : true, pulseLevel(world.status === 'running', reducedMotion, clock.elapsedTime), clock.elapsedTime);
     const { anchor, anchors, avoid, place } = scratch;
     const { hud, card, tools: toolsCorner } = latest.current;
     const elements = camera.projectionMatrix.elements;

@@ -4,11 +4,12 @@ import type { Pose, RobotSnapshot, SensorReadout } from '../../core/world/snapsh
 import { idleSnapshot } from './scene-math';
 import { productionKits } from '../../core/hardware/catalog';
 import type { Kit } from '../../core/hardware/kit';
-import { coneDirections, GLYPH, labelGlyphs, nextGoalZoneId, pulseLevel, PULSE_PERIOD_S, sameSensorView, spotDrawRadiusCm, SECTOR_ARC_STEPS, SECTOR_POINTS_LENGTH, sectorPointsCm, ultrasonicEndsCm } from './sensor-overlay-math';
+import { GLYPH, highlightColor, labelGlyphs, LABEL_GLYPHS_MAX, nextGoalZoneId, pulseLevel, PULSE_PERIOD_S, sameSensorView, spotDrawRadiusCm, SECTOR_ARC_STEPS, SECTOR_POINTS_LENGTH, sectorPointsCm } from './sensor-overlay-math';
+import { ultrasonicEndsCm } from './__fixtures__/ray-oracle';
 
-// N18 R4.3: the arithmetic of the sensor overlays, in plain numbers and tested exactly: where an ultrasonic ray and the edges of its
-// cone end for a known reading, the glyphs of the distance label (with the learner's decimal comma), which zone the next unmet goal
-// needs, when the overlay's picture changed, and the pulse.
+// N18 R4.3: the arithmetic of the sensor overlays, in plain numbers and tested exactly: the glyphs of the distance label (the learner's
+// decimal comma), which zone the next unmet goal needs and the colour of its highlight, when the overlay's picture changed, the pulse, and
+// the cone on the 2D map (held against the 3D oracle's edges).
 
 const kit = productionKits.get({ id: 'ref-uno-rover', version: '0' }) as Kit;
 const stopAtWall = scenarioCatalog.get('rb-stop-at-wall')!;
@@ -23,54 +24,6 @@ const close = (actual: readonly number[], expected: readonly number[], digits = 
   expect(actual).toHaveLength(expected.length);
   actual.forEach((value, i) => expect(value).toBeCloseTo(expected[i]!, digits));
 };
-
-describe('the cone of an ultrasonic sensor (core/world/sensors/ultrasonic.ts: five rays)', () => {
-  it('is the axis, then the edges left, right, up and down at the half angle, as unit vectors (forward +x, left +y, up +z)', () => {
-    const half = 15;
-    const [c, s] = [Math.cos((half * Math.PI) / 180), Math.sin((half * Math.PI) / 180)];
-    const directions = coneDirections(half);
-    expect(directions).toHaveLength(5);
-    close(directions[0]!, [1, 0, 0]);
-    close(directions[1]!, [c, s, 0]);
-    close(directions[2]!, [c, -s, 0]);
-    close(directions[3]!, [c, 0, s]);
-    close(directions[4]!, [c, 0, -s]);
-    for (const direction of directions) expect(Math.hypot(...direction)).toBeCloseTo(1, 12);
-  });
-});
-
-describe('where the rays end for a known reading', () => {
-  it('puts the axis end at the reading ahead of the mount: robot at (50, 40) facing +y, sensor 7.5 cm ahead and 4 cm up, 23.4 cm heard', () => {
-    const { origin, ends } = ultrasonicEndsCm(pose(50, 40, 90), mount, 15, 23.4);
-    close(origin, [50, 47.5, 4]);
-    close(ends[0]!, [50, 70.9, 4]);
-  });
-
-  it('puts the four edges on the cone: each at the reading from the mount, the half angle from the axis', () => {
-    const half = 15;
-    const [c, s] = [Math.cos((half * Math.PI) / 180), Math.sin((half * Math.PI) / 180)];
-    const { ends } = ultrasonicEndsCm(pose(50, 40, 0), mount, half, 100);
-    // Facing +x: left is +y, right is −y, up is +z.
-    close(ends[1]!, [57.5 + 100 * c, 40 + 100 * s, 4]);
-    close(ends[2]!, [57.5 + 100 * c, 40 - 100 * s, 4]);
-    close(ends[3]!, [57.5 + 100 * c, 40, 4 + 100 * s]);
-    close(ends[4]!, [57.5 + 100 * c, 40, 4 - 100 * s]);
-    for (const end of ends) expect(Math.hypot(end[0] - 57.5, end[1] - 40, end[2] - 4)).toBeCloseTo(100, 9);
-  });
-
-  it('turns with the mount’s own yaw: a sensor looking 90° left of the robot facing +x looks along +y', () => {
-    const { ends } = ultrasonicEndsCm(pose(10, 20, 0), { posCm: [0, 5, 4], yawDeg: 90 }, 15, 30);
-    close(ends[0]!, [10, 55, 4]);
-  });
-
-  it('follows the robot’s whole rotation, tilt included: nose up by 10° lifts the axis end', () => {
-    const tilt = (10 * Math.PI) / 360;
-    const tipped: Pose = { xCm: 0, yCm: 0, zCm: 0, yawDeg: 0, rotation: { x: 0, y: -Math.sin(tilt), z: 0, w: Math.cos(tilt) } };
-    const { ends } = ultrasonicEndsCm(tipped, { posCm: [0, 0, 0], yawDeg: 0 }, 15, 100);
-    const rise = Math.sin((10 * Math.PI) / 180);
-    close(ends[0]!, [100 * Math.cos((10 * Math.PI) / 180), 0, 100 * rise], 9);
-  });
-});
 
 describe('the line sensors’ spots', () => {
   it('are drawn as big as the kit’s spot, and at least 0.7 cm so that a spot of 3 mm shows', () => {
@@ -106,35 +59,72 @@ describe('the cone on the 2D map', () => {
 });
 
 describe('the distance label', () => {
-  const glyphsOf = (cm: number, echo: boolean) => {
-    const out = new Int8Array(12);
-    const n = labelGlyphs(out, cm, echo);
+  const glyphsOf = (cm: number) => {
+    const out = new Int8Array(LABEL_GLYPHS_MAX);
+    const n = labelGlyphs(out, cm);
     return Array.from(out.subarray(0, n));
   };
-  const { separator, space, c, m } = GLYPH;
+  const { separator } = GLYPH;
 
-  it('writes an echo to a tenth of a cm: 23,4 cm', () => {
-    expect(glyphsOf(23.4, true)).toEqual([2, 3, separator, 4, space, c, m]);
+  it('writes the distance to a tenth of a cm: 23,4', () => {
+    expect(glyphsOf(23.4)).toEqual([2, 3, separator, 4]);
   });
 
   it('rounds to the nearest tenth, and carries into the whole part', () => {
-    expect(glyphsOf(23.449, true)).toEqual([2, 3, separator, 4, space, c, m]);
-    expect(glyphsOf(23.451, true)).toEqual([2, 3, separator, 5, space, c, m]);
-    expect(glyphsOf(9.96, true)).toEqual([1, 0, separator, 0, space, c, m]);
+    expect(glyphsOf(23.449)).toEqual([2, 3, separator, 4]);
+    expect(glyphsOf(23.451)).toEqual([2, 3, separator, 5]);
+    expect(glyphsOf(9.96)).toEqual([1, 0, separator, 0]);
   });
 
   it('writes a whole part of one digit, and 0 for a reading of nothing', () => {
-    expect(glyphsOf(7, true)).toEqual([7, separator, 0, space, c, m]);
-    expect(glyphsOf(0, true)).toEqual([0, separator, 0, space, c, m]);
+    expect(glyphsOf(7)).toEqual([7, separator, 0]);
+    expect(glyphsOf(0)).toEqual([0, separator, 0]);
   });
 
-  it('writes no echo as the 400 the program reads, in whole cm', () => {
-    expect(glyphsOf(400, false)).toEqual([4, 0, 0, space, c, m]);
+  it('fits the room of a reading as long as the sensor’s range: 400,0', () => {
+    expect(glyphsOf(400)).toEqual([4, 0, 0, separator, 0]);
   });
 
   it('never writes a negative or non-finite reading as anything but 0', () => {
-    expect(glyphsOf(-3, true)).toEqual([0, separator, 0, space, c, m]);
-    expect(glyphsOf(Number.NaN, true)).toEqual([0, separator, 0, space, c, m]);
+    expect(glyphsOf(-3)).toEqual([0, separator, 0]);
+    expect(glyphsOf(Number.NaN)).toEqual([0, separator, 0]);
+  });
+});
+
+describe('the colour of a zone’s highlight', () => {
+  const hue = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255) as [number, number, number];
+    const [max, min] = [Math.max(r, g, b), Math.min(r, g, b)];
+    const delta = max - min;
+    if (delta === 0) return 0;
+    const h = max === r ? ((g - b) / delta + (g < b ? 6 : 0)) : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4;
+    return h * 60;
+  };
+  const lightness = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255) as [number, number, number];
+    return (Math.max(r, g, b) + Math.min(r, g, b)) / 2;
+  };
+
+  it('keeps the zone’s own hue: the pilots’ light green target stays green, the light yellow checkpoint stays yellow', () => {
+    for (const zone of ['#d9ead3', '#fff2cc', '#cfe2f3']) {
+      expect(Math.abs(hue(highlightColor(zone)) - hue(zone))).toBeLessThan(2);
+    }
+  });
+
+  it('is much darker than the pastel paint and strongly coloured (lightness 0.38, saturation at least 0.65)', () => {
+    const green = highlightColor('#d9ead3');
+    expect(lightness(green)).toBeCloseTo(0.38, 2);
+    expect(lightness(green)).toBeLessThan(lightness('#d9ead3') - 0.3);
+    expect(green).toMatch(/^#[0-9a-f]{6}$/);
+    const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(green.slice(i, i + 2), 16));
+    expect(g!).toBeGreaterThan(r! * 1.6);
+    expect(g!).toBeGreaterThan(b! * 1.6);
+  });
+
+  it('is a plain dark grey for a zone with no colour of its own', () => {
+    const grey = highlightColor('#cccccc');
+    expect(grey.slice(1, 3)).toBe(grey.slice(3, 5));
+    expect(grey.slice(3, 5)).toBe(grey.slice(5, 7));
   });
 });
 
