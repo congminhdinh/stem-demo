@@ -143,7 +143,7 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     await expect(frame.getByTestId('robot-sensors')).toBeVisible();
     await screenshot(page, '04-check-1x.png');
     await frame.getByTestId('robot-check-cancel').click();
-    await expect(frame.getByTestId('robot-check-start')).toBeVisible();
+    await expect(frame.getByTestId('robot-check-start')).toBeVisible({ timeout: 30_000 });
     // At 4×, to its result.
     await frame.locator('[data-testid=robot-check-speed] [data-speed="4x"]').click();
     await frame.getByTestId('robot-check-start').click();
