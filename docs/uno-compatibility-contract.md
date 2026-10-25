@@ -1,6 +1,6 @@
 # UNO Compatibility Contract
 
-> **Version:** 0.1.4 (v0) · **Date:** 2026-10-25 · **Task:** N18 R0.3 · **Status:** v0: mọi construct được mở đã có evidence cho mọi field; L1 chờ R1/R2, L3 chờ M06.
+> **Version:** 0.1.5 (v0) · **Date:** 2026-10-25 · **Task:** N18 R0.3 · **Status:** v0: mọi construct được mở đã có evidence cho mọi field; L1 chờ R1/R2, L3 chờ M06.
 > **Target snapshot (pin):** `arduino-cli 1.5.1`, FQBN `arduino:avr:uno`, core `arduino:avr@1.8.8` (2026-05-21), avr-gcc `7.3.0-atmel3.6.1-arduino7`, library `Servo 1.3.0` (2025-11-06, LGPL-2.1), emulator `avr8js@0.21.1` (2026-08-31, MIT). MCU giả định **ATmega328P, 16 MHz**. **Board chính xác: UNKNOWN** (§1).
 > **Evidence:** spike R0.4 `spikes/avr8js/` (số liệu `spikes/avr8js/out/results.json`), ADR `docs/adr/0003-avr8js-parity.md`, ledger §14. **Bản máy đọc được:** `src/core/compat/uno-contract.ts` (§15).
 > **Quan hệ tài liệu:** spec `docs/uno-robot-direction.md`, plan `docs/robot-3d-implementation-plan.md` (R0.3, R0.4; §4.1 board, §4.2 kit, §4.3 driver, §4.4 IR). Kỷ luật evidence theo `docs/yolobit-compatibility-contract.md` (§0, §15, §21). Từ R1, tài liệu này là **source of truth** cho hành vi của mọi block robot trong simulator và trong C++ Arduino sinh ra (C1, C2, R1, R2).
@@ -21,7 +21,7 @@
 | `costsUs` | Đo bằng cycle của avr8js (§4.4) |
 | Ma trận L1/L2/L2e/L3 | §12: L2 PASS và L2e PASS cho mọi dòng mở; L1 PENDING (R1/R2); L3 PENDING (M06) |
 | Go/no-go C2 | **GO, có điều kiện** (ADR 0003 §7) |
-| Parity C2 (0.1.4) | `tests/uno-emulator-parity.test.ts` (EMU-16): 21 fixture (14 golden ngôn ngữ C1 + 7 chương trình, mỗi driver op của `ref-uno-rover@0` một lần) chạy trên simulator và bằng HEX của sketch sinh ra trên avr8js, cùng input kịch bản: mọi dòng Serial và trạng thái chân khớp, khoảng ≥ 1 ms trong ±1 % cộng khác biệt được phép (dữ liệu: `tests/parity/allowed-differences.ts`). L2e của 29 dòng được fixture phủ trích thêm EMU-16 (§12). Khác biệt mới thấy ghi ở §13 |
+| Parity C2 (0.1.4, 0.1.5) | `tests/uno-emulator-parity.test.ts` (EMU-16): 23 fixture (14 golden ngôn ngữ C1, golden chân thô, 7 chương trình mỗi driver op của `ref-uno-rover@0` ít nhất một lần, `negate-drive`) chạy trên simulator và bằng HEX của sketch sinh ra trên avr8js, cùng input kịch bản: mọi dòng Serial và trạng thái chân khớp; từng sự kiện chân và từng dòng Serial được tính giờ từ mốc nó phụ thuộc, phần chờ ±1 %, phần còn lại theo khác biệt được phép (dữ liệu: `tests/parity/allowed-differences.ts`, mỗi mục một dòng §13). L2e của **mọi** dòng mở (U-01…U-34) trích thêm EMU-16 (§12). Từ 0.1.5 virtual UNO charge phần tính của `motorSet` và `tone` theo băng tần số (§4.4, EMU-17) |
 
 ### 0.2 Nhãn
 
@@ -280,12 +280,13 @@ Virtual UNO (R1.3) `charge(costsUs[call])` cho mỗi lời gọi Arduino mà dri
 | `millis` | 1,1875 | 19 cycle | |
 | `delayOverhead` | 8,5625 | | thêm vào `ms × 1000` (5,06…13,19) |
 | `servoWrite` | 49,5 | 792 cycle | |
-| `tone` | 174,0625 | 2785 cycle | có duration (helper luôn truyền); không duration 2145 cycle |
+| `tone` | 174,0625 | 2785 cycle | có duration (helper luôn truyền), chân đang kêu, 1000 Hz; không duration 2145 cycle. Từ 0.1.5 virtual UNO charge theo băng tần số (bảng `toneUs` dưới), khoá này chỉ cho `tone` lên chân khác khi một tone đang kêu (không có tác dụng, ARD-03) |
 | `noTone` | 6,375 | 102 cycle | |
 | `pulseInAfterPulse` | 3,25 | trung vị | từ khi echo hết tới khi trả (2,625…3,3125) |
 | `pulseInNoPulse30000` | 20 752 | 332 032 cycle | không có xung, timeout 30000: vòng chờ 11 cycle × 30000 + ngắt (CC-04); có Servo: 20 785,44 |
 | `ultrasonicCmOverhead` | 65,5625 | | cả helper trừ (chờ echo + độ rộng): trigger, `pulseIn`, chia 58 |
 | `ultrasonicCmNoEcho` | 20 812 | | cả helper khi không có echo (có Servo) |
+| `motorSetOverhead` (0.1.5) | 42,0625 | | phần tính của helper `motorSet` ngoài 3 lời gọi Arduino: `(abs(speed) · 255 + 50) / 100` bằng nhân/chia `long` của libgcc, giữa IN2 và EN. `motorSet(50)` đo 58,875 µs = 2 × 4,5625 + 7,6875 + 42,0625; `motorSet(-100)` 63,75 µs (phần tính 42,75) (EMU-17) |
 | `serialWriteByte` | 4,625 | 74 cycle | 1 byte vào hàng rỗng |
 | `serialQueueByte` | 6,28125 | | mỗi byte của `print(F(…))` khi hàng còn chỗ (đo 6,283) |
 | `serialLineByte` | 1040 | | một khung 10 bit ở 9615 baud (UBRR0 = 207, U2X); avr8js đo 1044,17 |
@@ -293,9 +294,22 @@ Virtual UNO (R1.3) `charge(costsUs[call])` cho mỗi lời gọi Arduino mà dri
 | `serialPrintLongSign` | 6,8125 | 109 cycle | dấu trừ |
 | `serialPrintln` | 17,25 | 276 cycle | `\r\n` |
 
-**Virtual UNO (R1.3, `src/core/hardware/virtual-uno.ts`)** charge mỗi lời gọi bằng khoá của bảng này (bản sao trong `uno-r3.board.json`, test so với contract): `digitalWrite`/`digitalRead` lấy biến thể `…TimerPin` trên D3, D5, D6, D9, D10, D11; `analogWrite` giá trị 1…254 trên chân PWM charge `analogWrite`, còn 0, 255 và chân không PWM charge `analogWriteDigital` (core gọi `digitalWrite`; đo 178/186/190 cycle); `pinMode(INPUT)` charge `pinMode` (chỉ OUTPUT được đo); `tone` không duration (2145 cycle) cũng charge `tone`, nhưng helper luôn truyền duration. Không charge tải ngắt (§4.5, §13). Driver `hcsr04-pulsein` (R1.4): có echo thì cả helper = chờ + echo + `ultrasonicCmOverhead` (đúng 1675,5625 µs của EMU-13 ở 450 + 1160); không echo xem §13.
+**Virtual UNO (R1.3, `src/core/hardware/virtual-uno.ts`)** charge mỗi lời gọi bằng khoá của bảng này (bản sao trong `uno-r3.board.json`, test so với contract): `digitalWrite`/`digitalRead` lấy biến thể `…TimerPin` trên D3, D5, D6, D9, D10, D11; `analogWrite` giá trị 1…254 trên chân PWM charge `analogWrite`, còn 0, 255 và chân không PWM charge `analogWriteDigital` (core gọi `digitalWrite`; đo 178/186/190 cycle); `pinMode(INPUT)` charge `pinMode` (chỉ OUTPUT được đo); `tone` charge theo băng tần số của bảng `toneUs` (0.1.5): `silentUs` trên chân không kêu, `playingUs` trên chân đang kêu; `tone` lên chân khác khi một tone đang kêu charge `tone`. Driver `hbridge-en-in1-in2` charge thêm `motorSetOverhead` giữa IN2 và EN (0.1.5). Không charge tải ngắt (§4.5, §13). Driver `hcsr04-pulsein` (R1.4): có echo thì cả helper = chờ + echo + `ultrasonicCmOverhead` (đúng 1675,5625 µs của EMU-13 ở 450 + 1160); không echo xem §13.
 
 **Độ lệch theo chương trình:** `-flto` inline/gập hằng tuỳ cả chương trình: cùng lời gọi trong sketch nhỏ chỉ có hằng (`costs-const`, EMU-09) rẻ hơn 8…41 %, và `tone(10, 1000)` hằng chỉ còn 94 cycle. Bảng trên là của lời gọi thật; parity thời gian ±1 % chỉ hứa cho khoảng ≥ 1 ms mà `delay`/`pulseIn`/Serial chiếm phần lớn (ADR 0003 §7 điều kiện 1).
+
+**Bảng `toneUs` (0.1.5, EMU-17, `node spikes/avr8js/run-helper-costs.mjs`, mẫu nhỏ nhất của 8):** `tone()` thử lần lượt prescaler của Timer2 (1, 8, 32, 64, 128, 256, 1024), mỗi lần một phép chia `long`, tới khi giá trị so sánh vừa 8 bit; băng của prescaler nó dừng ở quyết định chi phí. Trên chân không kêu, `tone()` còn đăng ký chân và đặt Timer2 (thêm 11,5625 µs ở mọi băng).
+
+| Prescaler | Từ Hz (31 250 / p) | Chân không kêu (µs) | Chân đang kêu (µs) | Tần số đã đo |
+|---|---|---|---|---|
+| 1024 | 30,52 | 308,8125 | 297,25 | 31 (và 100: 307,125 / 295,5625) |
+| 256 | 122,07 | 301,6875 | 290,125 | 200 |
+| 128 | 244,14 | 262,25 | 250,6875 | 440 |
+| 64 | 488,28 | 224,375 | 212,8125 | 500 |
+| 32 | 976,56 | 184,8125 | 173,25 | 1000 (1500: 184,625 / 173,0625; 3000: 184,4375 / 172,875) |
+| 8 | 3906,25 | 145,625 | 134,0625 | 4000 |
+
+Bản sao trong `uno-r3.board.json` (`toneUs`), test so với contract (`unoContract.toneUs`). Trong một băng, tần số khác nhau lệch ≤ 1,7 µs.
 
 ### 4.5 Tải ngắt (đo, simulator v0 **không** charge)
 
@@ -366,6 +380,7 @@ void motorSet(uint8_t en, uint8_t in1, uint8_t in2, long speed) {
 
 - `speed` −100…100, ngoài khoảng kẹp (+ cảnh báo). **duty = round(|s| × 255 / 100)**, làm tròn nửa lên = `(|s|·255 + 50) / 100`: 50 → 128, 30 → 77, 1 → 3, 60 → 153, 40 → 102 (EMU-02, EMU-13). Simulator: `Math.round(Math.abs(s) * 255 / 100)` (bằng nhau với mọi |s| ≤ 100).
 - Chiều: `s > 0` IN1 HIGH IN2 LOW; `s < 0` IN1 LOW IN2 HIGH; **`stop` (s = 0) = cả hai IN LOW** và EN LOW.
+- Thời gian (0.1.5): virtual UNO charge 2 × `digitalWrite` + `motorSetOverhead` (42,0625 µs, phần nhân/chia `long`) + `analogWrite`, đúng thứ tự của helper: `motorSet(50)` = 58,875 µs như board (EMU-17).
 - `drive.move` (U-21): `speed` đánh giá một lần vào `_s`; tiến (+s, +s), lùi (−s, −s), xoay trái (−s, +s), xoay phải (+s, −s) cho (trái, phải); `−s` là `neg32(_s)`, rồi mỗi motor tự kẹp. Cần cả `motorLeft` và `motorRight` (`capability-unavailable` nếu thiếu). `drive.stop` (U-22): hai `motorSet(…, 0L)`.
 
 ### 6.2 Servo `servo-lib` (U-23)
@@ -396,6 +411,7 @@ void buzzerTone(uint8_t pin, long hz, long ms) {
 - `hz` 31…4000 (ARD-03: không dưới 31 Hz; 4000 Hz là trần contract để tải ngắt ≤ 6 %, B7 = 3951 Hz vẫn nằm trong), `ms` 1…60000 (0 sẽ phát mãi). Kẹp + cảnh báo.
 - **Không chặn**: tone phát nền `ms` ms (ARD-03, EMU-05); tone mới trên cùng chân thay tone cũ (tần số và thời lượng mới, EMU-13).
 - Board phát `floor(2 × hz × ms / 1000)` nửa chu kỳ của tần số timer làm được (440 → 440,141 Hz; 31 Hz × 40 ms chỉ là một xung 16 ms). Simulator phát `hz` trong `ms` (khác biệt ghi ở §13).
+- Thời gian (0.1.5): `tone()` tốn theo băng tần số (bảng `toneUs`, §4.4): 145,625…308,8125 µs trên chân không kêu, 134,0625…297,25 µs trên chân đang kêu.
 - `buzzer.stop` (U-26, Advanced): `noTone(<ROLE>_PIN);`, chân LOW ngay.
 
 ### 6.4 LED `led-digital` (U-24), nút `button-pullup` (U-30)
@@ -574,7 +590,7 @@ Advanced là tập cha thật sự của Basic. Một profile liệt kê dòng c
 | U-05 | add, subtract, multiply (int32, wrap) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-11, EMU-13, EMU-15, EMU-16) | PENDING (M06) |
 | U-06 | divide (truncating) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-10, EMU-13, EMU-15, EMU-16) | PENDING (M06) |
 | U-07 | remainder (sign of the dividend) | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-10, EMU-13, EMU-15, EMU-16) | PENDING (M06) |
-| U-08 | negate | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
+| U-08 | negate | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13, EMU-16) | PENDING (M06) |
 | U-09 | compare | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13, EMU-15, EMU-16) | PENDING (M06) |
 | U-10 | and, or, not, true, false | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13, EMU-16) | PENDING (M06) |
 | U-11 | if / else if / else | ELIGIBLE | PENDING (R2.3) | PASS (CC-03) | PASS (EMU-13, EMU-16) | PENDING (M06) |
@@ -597,10 +613,10 @@ Advanced là tập cha thật sự của Basic. Một profile liệt kê dòng c
 | U-28 | line sensor sees dark | ELIGIBLE | PENDING (R1.4, R3) | PASS (CC-03) | PASS (EMU-13, EMU-16) | PENDING (M06) |
 | U-29 | line sensor raw value | ELIGIBLE | PENDING (R1.4, R3) | PASS (CC-03) | PASS (EMU-07, EMU-13, EMU-16) | PENDING (M06) |
 | U-30 | button pressed | ELIGIBLE | PENDING (R1.4) | PASS (CC-03) | PASS (EMU-07, EMU-13, EMU-16) | PENDING (M06) |
-| U-31 | digital write (raw pin) | RESTRICTED | PENDING (R1.2, R1.3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
-| U-32 | PWM write 0..255 (raw pin) | RESTRICTED | PENDING (R1.2, R1.3) | PASS (CC-03) | PASS (EMU-06, EMU-13) | PENDING (M06) |
-| U-33 | digital read (raw pin) | RESTRICTED | PENDING (R1.2, R1.3) | PASS (CC-03) | PASS (EMU-13) | PENDING (M06) |
-| U-34 | analog read 0..1023 (raw pin) | RESTRICTED | PENDING (R1.2, R1.3) | PASS (CC-03) | PASS (EMU-07, EMU-13) | PENDING (M06) |
+| U-31 | digital write (raw pin) | RESTRICTED | PENDING (R1.2, R1.3) | PASS (CC-03) | PASS (EMU-13, EMU-16) | PENDING (M06) |
+| U-32 | PWM write 0..255 (raw pin) | RESTRICTED | PENDING (R1.2, R1.3) | PASS (CC-03) | PASS (EMU-06, EMU-13, EMU-16) | PENDING (M06) |
+| U-33 | digital read (raw pin) | RESTRICTED | PENDING (R1.2, R1.3) | PASS (CC-03) | PASS (EMU-13, EMU-16) | PENDING (M06) |
+| U-34 | analog read 0..1023 (raw pin) | RESTRICTED | PENDING (R1.2, R1.3) | PASS (CC-03) | PASS (EMU-07, EMU-13, EMU-16) | PENDING (M06) |
 | U-40 | float numbers, real division | EXCLUDED | n/a | n/a | n/a | n/a |
 | U-41 | text variables, String objects | EXCLUDED | n/a | n/a | n/a | n/a |
 | U-42 | learner functions | DEFERRED | n/a | n/a | n/a | n/a |
@@ -630,13 +646,16 @@ Không bao giờ ghi "100 % tương thích". Câu trên UI về mức tương th
 | Thời lượng tone | `ms` chính xác | `floor(2·hz·ms/1000)` nửa chu kỳ | như L2e | khác rõ chỉ ở Hz thấp × ms ngắn |
 | Duty D5/D6 | v/255 | v/256 | (v+1)/256 (DS-01) | ≤ 1/256 chu kỳ |
 | USART | 1040 µs/byte, hàng 64 | 1044,17 µs/byte, hàng 64 | 1040, hàng 65 | ≤ 0,4 % + 1 byte |
-| Chi phí lệnh ngắn | bảng `costsUs` | tuỳ LTO của chương trình (−8…−41 %, `tone` hằng −96 %) | như L2e | parity thời gian chỉ cho khoảng ≥ 1 ms |
+| Chi phí lệnh ngắn | bảng `costsUs` | tuỳ LTO của chương trình: −8…−41 % khi gập với hằng (`tone` hằng −96 %, EMU-09); +7 % khi `tone()` được inline vào một `setup()` dài (`sequenced-reads`: ≥ 240,1 µs so với 224,375, EMU-16) | như L2e | parity thời gian chỉ cho khoảng ≥ 1 ms; harness C2: lời gọi −41 % / +8 % (`call-costs`) |
 | Chân thả nổi / pull-up | không cho đọc (domain) | đọc LOW | ngẫu nhiên / HIGH | bị domain loại |
 | Xung servo đầu tiên sau `attach` (0.1.4) | góc có ngay từ `attach` trong `setup()` | xung đầu sau **52 802 µs**: `attach` xoá Timer1 về 0 ở /8, so khớp đầu tiên khi bộ đếm tràn về 0 (65 536 × 0,5 µs = 32 768 µs), rồi một khung 20 ms (EMU-16) | như L2e | servo trên board bắt đầu chậm ≈ 53 ms; đổi góc sau đó hiện trong một khung (20 ms) |
 | Pha của PWM, xung servo, tone (0.1.4) | đổi ngay trong lời gọi | hiện ở chu kỳ kế tiếp của timer: ≤ 1024 µs (T0), 2040 µs (T1/T2), 20 ms (servo), một chu kỳ tone (EMU-16) | như L2e | harness C2 so sự kiện waveform như một khoảng một chu kỳ |
-| Chi phí helper `motorSet` (0.1.4) | charge 2 × `digitalWrite` + `analogWrite` (16,8125 / 21 µs) | `motorSet(50)` 58,875 µs, `motorSet(-100)` 63,75 µs: thêm 42,0625…42,75 µs nhân/chia `long` của libgcc (EMU-17) | như L2e | khoảng dày `motorSet` dài hơn trên board; ±1 % chỉ hứa cho khoảng ≥ 1 ms mà `delay`/`pulseIn`/Serial chiếm phần lớn (§4.4) |
-| Chi phí `tone` theo tần số (0.1.4) | `costsUs.tone` = 174,0625 µs (đo khi chân đang kêu, 1000 Hz) | chân đang im: 145,625 µs (4000 Hz), 184,4375…184,8125 (1000–3000 Hz), 224,375 (500), 262,25 (440), 301,6875 (200), 307,125 (100), 308,8125 (31): `tone()` thử lần lượt prescaler của Timer2, mỗi lần một phép chia `long`; thay tone đang kêu 173,0625 µs (EMU-17) | như L2e | lệch tới +134,75 µs mỗi lần gọi ở Hz thấp; chưa có khoá `costsUs` theo tần số |
-| Thời gian Serial (0.1.4) | **chưa charge** (§7, ghi chú C1 fix round 1) | mô hình §7: 6,28 µs mỗi byte vào hàng, `print(long)` 9,375 + 45,1875 µs mỗi chữ số, `println` 17,25 µs, hàng 64 byte rồi 1044,17 µs/byte (EMU-08) | §7 với 1040 µs/byte, hàng 65 | giá trị in khớp (EMU-16); khoảng có in dài hơn trên board đúng chừng đó |
+| Thời gian Serial (0.1.4) | **chưa charge** (§7, ghi chú C1 fix round 1) | mô hình §7: 6,28 µs mỗi byte vào hàng, `print(long)` 9,375 + 45,1875 µs mỗi chữ số, `println` 17,25 µs, hàng 64 byte rồi 1044,17 µs/byte (EMU-08); `Serial.begin(9600)` 4,75 µs (EMU-17) | §7 với 1040 µs/byte, hàng 65 | giá trị in khớp (EMU-16); khoảng có in dài hơn trên board đúng chừng đó; harness C2 tính giờ từng dòng trên USART (`serial-time`) |
+| Join in từng phần (0.1.5) | đánh giá mọi phần rồi in cả dòng | mỗi phần một `Serial.print`, đánh giá lần lượt: byte đầu có thể ra trước khi đọc phần sau (§7, ghi chú) | như L2e | dòng của join có thể bắt đầu ngay từ đầu câu lệnh in (`join-by-parts`) |
+| Chân thành OUTPUT LOW trước (0.1.5) | INPUT → mức hay waveform ngay | `analogWrite`, `Servo.attach`, `tone` đầu tiên gọi `pinMode(OUTPUT)` trước: chân LOW rồi mới HIGH/PWM/xung (EMU-16) | như L2e | harness C2 thêm LOW đó vào trace simulator trong cùng lời gọi (`output-low-first`) |
+| Rung xung servo, tone (0.1.5) | chu kỳ và độ rộng chính xác | xung servo và đảo chân tone do ngắt đặt: chu kỳ servo 20 002,8…20 005,6 µs, độ rộng ±1 µs (EMU-03) | như L2e | harness C2 cho chu kỳ trong một waveform lệch ≤ 1 % (≥ 8 µs), PWM ≤ 4 µs (`waveform-jitter`) |
+| Gốc thời gian của `millis()` (0.1.5) | t từ đầu `setup()` | Timer0 bắt đầu 0…7,9 µs trước `setup()` (EMU-12) | như L2e | chương trình chờ `millis()` đổi giá trị: lúc nó đổi là mốc, trên board trong khoảng 7,9 µs (`millis-origin`) |
+| Tần số tone (0.1.5) | `hz` đúng như hỏi | tần số Timer2 làm được: 440 → 440,141 Hz (EMU-13) | như L2e | harness C2 so tần số ±1 % (`tone-frequency`) |
 
 Diagnostics (`unoContract.diagnostics`):
 
@@ -676,8 +695,8 @@ Ngày quan sát/truy cập: **2026-10-25**. EMU: avr8js 0.21.1 trên Node 24.22.
 | EMU-13 | EMU | avr8js 0.21.1 (đầu §14) | sketches/contract-forms: every C++ form and helper of this contract, with scripted echo, line, button and ADC | 29 of 29 checks: int32 helpers, bool 1/0, repeat and count up order, if / else if / else and while, UTF-8 and escaped text, (long)millis() on the model, motorSet and drive forms, servoSet clamps, buzzerTone clamps and re-tone, noTone, ultrasonicCm 19 cm (call 1675.5625 µs) and 400 (call 20812 µs; 1675.375 and 20806.3125 in the build without the if/while section), line, button, raw pins | emu-trace | unit, range, default, clamp, round, block, yield, return, error, content |
 | EMU-14 | EMU | avr8js 0.21.1 (đầu §14); `node spikes/avr8js/run-tone-notone.mjs` (R1, không có trong `results.json`) | sketches/tone-notone: analogWrite(11/3, 100), tone(10, 1000), noTone with no new analogWrite, analogWrite again, tone(10, 1000, 30) that ends by itself, analogWrite again | alone 490.196 Hz duty 0.39216; tone: D3/D11 LOW; after noTone with no new analogWrite: D3/D11 LOW; a new analogWrite: 490.196 Hz again; after the 30 ms tone ended by itself: D3/D11 LOW; a new analogWrite: 490.196 Hz again | emu-trace | content |
 | EMU-15 | EMU | avr8js 0.21.1 (đầu §14); `node spikes/avr8js/run-eval-order.mjs` (C1, không có trong `results.json`) | sketches/eval-order: se(v) and sb(v) print their value when they are evaluated, in the plain forms and in the sequenced form of §3.5 | plain: add32(se(1L), se(2L)) eval=2, eval=1; sub32(se(3L), se(4L)) 4, 3; f3(10, se(7L), se(8L)) 8, 7; add32(mul32(se(9L), se(10L)), se(11L)) 11, 10, 9; (se(5L) < se(6L)) 5, 6. Sequenced: (_s1 = se(1L), _s2 = se(2L), add32(_s1, _s2)) eval=1, eval=2; sub32 3, 4; (_s1 = se(7L), _s2 = se(8L), f3(10, _s1, _s2)) 7, 8; three temporaries 9, 10, 11; while ((_s1 = se(x), _s2 = se(2L), (_s1 < _s2))) evaluates both each time (0, 2, 1, 2, 2, 2); (sb(false) && sb(true)) and (sb(true) \|\| sb(false)) evaluate the left side only; (_s4 = (sb(true) && sb(false)), _s5 = sb(true), (_s4 == _s5)) 1, 0, 1, then prints 0 | emu-trace | content |
-| EMU-16 | EMU | avr8js 0.21.1 (đầu §14); HEX của `scripts/build-parity-hex.mjs` (`tests/__parity__`), `pnpm test tests/uno-emulator-parity.test.ts` (N18 C2) | C2 parity: the generated sketch of every C1 language golden and of one program per driver op of ref-uno-rover@0 (21 fixtures), its HEX on avr8js against the simulator with the same scripted inputs; pin events and Serial lines compared | 21 of 21 agree: every Serial line and pin state (duty, angle, tone ±1 %); every interval from 1 ms within ±1 % and the allowed differences (largest with no line printed in it 0.250 %, driver-motor); Servo 1.3.0 sends its first pulse 52802 µs after attach(); a PWM, servo or tone change shows within one timer period | emu-trace | block, yield, return, content |
-| EMU-17 | EMU | avr8js 0.21.1 (đầu §14); `node spikes/avr8js/run-helper-costs.mjs` (N18 C2, không có trong `results.json`) | sketches/helper-costs: motorSet with run-time speeds against its Arduino calls; tone(10, f, 100) on a silent pin at 31..4000 Hz and replacing a playing tone | motorSet(50) 58.875 µs, motorSet(-100) 63.75 µs (42.0625 / 42.75 µs beyond 2 digitalWrite + analogWrite as the simulator charges them); tone on a silent pin 145.625 µs at 4000 Hz, 184.4375..184.8125 at 1000..3000 Hz, 224.375 at 500, 262.25 at 440, 301.6875 at 200, 307.125 at 100, 308.8125 at 31; replacing a playing tone 173.0625 µs | emu-trace | block |
+| EMU-16 | EMU | avr8js 0.21.1 (đầu §14); HEX của `scripts/build-parity-hex.mjs` (`tests/__parity__`), `pnpm test tests/uno-emulator-parity.test.ts` (N18 C2) | C2 parity: the generated sketch of every C1 language golden, of the raw-pins golden, of one program per driver op of ref-uno-rover@0 and of negate-drive (23 fixtures), its HEX on avr8js against the simulator with the same scripted inputs; pin events and Serial lines compared, each timed from the anchor it depends on | 23 of 23 agree: every Serial line and pin state (duty, angle, tone ±1 %); every interval within its waits ±1 % and the allowed differences (largest with no line printed in it 0.291 %, driver-buzzer; lines queued behind the one before ≤ 0.58 µs); Servo 1.3.0 sends its first pulse 52802 µs after attach(); a PWM, servo or tone change shows within one timer period; tone() inlined in sequenced-reads took ≥ 240.1 µs (224.375 alone) | emu-trace | block, yield, return, content |
+| EMU-17 | EMU | avr8js 0.21.1 (đầu §14); `node spikes/avr8js/run-helper-costs.mjs` (N18 C2, không có trong `results.json`) | sketches/helper-costs: motorSet with run-time speeds against its Arduino calls; tone(10, f, 100) at 31..4000 Hz on a silent pin and on a pin playing 1000 Hz; Serial.begin(9600) | motorSet(50) 58.875 µs, motorSet(-100) 63.75 µs (42.0625 / 42.75 µs beyond 2 digitalWrite + analogWrite as the simulator charges them); tone on a silent pin 308.8125 µs at 31 Hz, 307.125 at 100, 301.6875 at 200, 262.25 at 440, 224.375 at 500, 184.8125 at 1000, 184.625 at 1500, 184.4375 at 3000, 145.625 at 4000; on a playing pin 297.25, 295.5625, 290.125, 250.6875, 212.8125, 173.25, 173.0625, 172.875, 134.0625; Serial.begin(9600) 4.75 µs | emu-trace | block |
 | CC-01 | CC | arduino-cli 1.5.1 (đầu §14) | Compiled the 15 spike sketches (ram-threshold 8 times) | All compile (ram-threshold refuses its 2049 B probe by design, CC-02); e.g. kit-rover 4752 B flash (14 %), 247 B RAM (12 %); 300 * 200 warns -Woverflow | compile-ok, compile-size, snapshot | call, import, module |
 | CC-02 | CC | arduino-cli 1.5.1 (đầu §14) | sketches/ram-threshold with -DBIG=1000..2040 | 1536 B of globals (75.000 %): no warning; 1537 B (75.049 %) and above: "Low memory available, stability problems may occur."; 2049 B: "Not enough memory", the build fails; flash maximum 32256 B | compile-size | — |
 | CC-03 | CC | arduino-cli 1.5.1 (đầu §14) | Compiled sketches/contract-forms with --warnings all | Compiles; no warning from the sketch (only from the core); 7474 B flash (23 %), 258 B RAM (12 %) | compile-ok, compile-size | call, import, module |
@@ -789,5 +808,6 @@ Tái lập toàn bộ EMU/CC: `node spikes/avr8js/run-all.mjs` (≈ 20 s; cần 
 | 0.1.2 | 2026-10-25 | C1: allowlist thêm hai dạng đã có trong `contract-forms.ino` (CC-03) và trong evidence `call` của dòng, nhưng thiếu trong data: literal INT32_MIN `(-2147483647L - 1L)` của U-04 và phần chữ `Serial.print(F("<text>"));` của U-17 (field `cpp.variants`). Không đổi ngữ nghĩa dòng nào, nên giữ version |
 | 0.1.3 | 2026-10-25 | C1 fix round 1: §7 ghi chú cho mô hình hàng TX (join in từng phần khi thời gian Serial được tính). Chỉ là tài liệu, không đổi data hay ngữ nghĩa dòng nào, nên giữ version |
 | 0.1.3 | 2026-10-25 | C1 (ruling của controller): §3.5 thứ tự toán hạng. Toán hạng trái sang phải, mỗi cái một lần; C++ không cố định thứ tự đối số và toán hạng (CXX-10), avr-gcc 7.3 đánh giá đối số phải sang trái (EMU-15); hai lần đọc robot trở lên trong một vùng không tuần tự → dạng tuần tự bằng toán tử phẩy với biến tạm `_s<k>` (CXX-09, CC-05, EMU-15); `&&`/`\|\|` giữ nguyên. Sửa U-05, U-06, U-07, U-09, U-25 (restriction, `cpp.variants`, field `content`, L2e); thêm EMU-15, CC-05, CXX-09, CXX-10 |
+| 0.1.5 | 2026-10-25 | C2 fix round 1: virtual UNO charge phần tính của `motorSet` (`costsUs.motorSetOverhead` 42,0625 µs) và `tone()` theo băng prescaler của Timer2, chân không kêu và chân đang kêu (`toneUs`, §4.4), từ EMU-17 (thêm phép đo chân đang kêu và `Serial.begin`). Bỏ hai dòng §13 tương ứng (không còn là khác biệt); thêm 5 dòng §13 (join in từng phần, OUTPUT LOW trước, rung xung servo/tone, gốc `millis()`, tần số tone) và sửa dòng chi phí lệnh ngắn (+7 % khi `tone()` inline, EMU-16). L2e của U-08 và U-31…U-34 trích thêm EMU-16 (fixture `negate-drive` và golden `raw-pins`): mọi dòng mở có parity. Đổi thời gian simulator (không đổi ngữ nghĩa giá trị nào) |
 | 0.1.4 | 2026-10-25 | C2: harness parity avr8js (`tests/uno-emulator-parity.test.ts`, `scripts/build-parity-hex.mjs`, HEX trong `tests/__parity__`). L2e của U-01…U-07, U-09…U-30 (mọi dòng mở có fixture parity phủ) trích thêm EMU-16; U-08, U-31…U-34 chưa có fixture. Thêm EMU-16, EMU-17 và 5 dòng §13 (xung servo đầu tiên, pha waveform, chi phí `motorSet`, chi phí `tone` theo tần số, thời gian Serial). Không đổi ngữ nghĩa dòng nào |
 | 0.1.1 | 2026-10-25 | R1 fix round 1: sửa claim của U-48 và §5.3 (sau `noTone` hay khi tone tự hết, D3/D11 không có PWM tới khi `analogWrite` mới; EMU-05 gọi lại `analogWrite` nên không chứng minh PWM tự trở lại), thêm EMU-14 (`spikes/avr8js/run-tone-notone.mjs`) |

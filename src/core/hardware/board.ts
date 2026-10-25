@@ -34,6 +34,7 @@ export const arduinoCalls = [
   'pulseInNoPulse30000',
   'ultrasonicCmOverhead',
   'ultrasonicCmNoEcho',
+  'motorSetOverhead',
   'serialWriteByte',
   'serialQueueByte',
   'serialLineByte',
@@ -46,6 +47,13 @@ export type ArduinoCall = (typeof arduinoCalls)[number];
 
 /** µs per Arduino call: the shortest of the measured samples of a call the compiler did not fold (contract §4.4). */
 export type CostsUs = Readonly<Record<ArduinoCall, number>>;
+
+/**
+ * What tone() costs for the frequencies of one band (contract 0.1.5 §4.4): tone() tries the timer's prescalers in turn, one long
+ * division each, until the compare value fits, so the band of the prescaler it ends on sets the cost. `silentUs` on a pin that plays
+ * no tone (tone() also registers the pin and sets the timer up), `playingUs` on the pin that plays one.
+ */
+export type ToneCostBand = { readonly prescaler: number; readonly fromHz: number; readonly silentUs: number; readonly playingUs: number };
 
 export type BoardPin = {
   /** The header name: `D5`, `A0`. */
@@ -73,6 +81,8 @@ export type BoardProfile = {
   /** What takes a timer away from PWM: `servo` (the Servo library) and `tone` (contract §5.3). */
   readonly timerClaims: Readonly<Record<string, string>>;
   readonly costsUs: CostsUs;
+  /** tone()'s cost by frequency band, from the lowest frequency up (each band from its `fromHz`). */
+  readonly toneUs: readonly ToneCostBand[];
   /**
    * millis() as the board computes it (contract §4.3, EMU-12): with t the µs since setup() began, n = floor(t / overflowUs),
    * millis = n + floor(fractPerOverflow · n / fractMax).

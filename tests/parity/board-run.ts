@@ -6,13 +6,17 @@ import { parseIntelHex } from './intel-hex';
 import type { PinEvent, PrintedLine } from './trace';
 
 // The L2e side of the parity harness (N18 C2): the fixture's HEX on the emulated UNO, with the scripted inputs at the same µs from
-// the start of setup() as the simulator gets them, then the recorded edges read back into events (board-trace.ts) and the USART's
-// bytes into lines.
+// the start of setup() as the simulator gets them, for `recordUs` from the start of setup() and no further (the CPU runs in steps of
+// SETUP_STEP_US until setup() starts, then to its end; a change or a byte past it is dropped), then the recorded edges read back into
+// events (board-trace.ts) and the USART's bytes into lines.
 
 export type BoardRun = {
   /** Every pin's events, in time order per pin. */
   events: PinEvent[];
+  /** Each line the USART sent, at the time its first byte started (µs from setup()). */
   lines: PrintedLine[];
+  /** The bytes of a line the USART had not finished when the recording ended ('' when none). */
+  unfinishedLine: string;
   /** When the last byte the program printed has left the USART, in µs from setup(); 0 when it printed nothing. */
   serialDoneUs: number;
   /** µs from reset to the start of setup(). */
@@ -21,6 +25,8 @@ export type BoardRun = {
 
 /** What a cycle counter reads before setup() at most: init() ends within a few hundred µs of reset (ADR 0003 §3.9). */
 const SETUP_DEADLINE_US = 100_000;
+/** The step of the CPU until setup() starts: it never runs more than this past it before the recording is bounded. */
+const SETUP_STEP_US = 50;
 
 export function runBoard(
   hex: string,
@@ -70,17 +76,22 @@ export function runBoard(
     });
   }
 
-  uno.runUntil(cyclesOfUs(SETUP_DEADLINE_US));
+  while (uno.setupCycle === null && uno.cpu.cycles < cyclesOfUs(SETUP_DEADLINE_US)) {
+    uno.runUntil(uno.cpu.cycles + cyclesOfUs(SETUP_STEP_US));
+  }
   const setupCycle = uno.setupCycle;
   if (setupCycle === null) {
     throw new Error(`setup() did not start within ${SETUP_DEADLINE_US} µs of reset`);
   }
-  uno.runUntil(setupCycle + cyclesOfUs(recordUs));
+  const endCycle = setupCycle + cyclesOfUs(recordUs);
+  uno.runUntil(endCycle);
   const sinceSetup = (cycle: number) => usOfCycles(cycle - setupCycle);
+  const recorded = uno.changes.filter((change) => change.cycle <= endCycle);
+  const sent = uno.serial.filter((byte) => byte.cycle <= endCycle);
 
   const events: PinEvent[] = [];
   for (const { id: pin } of board.pins) {
-    const own = uno.changes.filter((change) => change.pin === pin);
+    const own = recorded.filter((change) => change.pin === pin);
     const initial = own.filter((change) => change.cycle <= setupCycle).at(-1)?.state ?? 'INPUT';
     const changes: RawChange[] = own.filter((change) => change.cycle > setupCycle).map((change) => ({ atUs: sinceSetup(change.cycle), state: change.state }));
     events.push(...decodePin(pin, initial, changes, recordUs, decodings.get(pin)));
@@ -89,7 +100,7 @@ export function runBoard(
   const lines: PrintedLine[] = [];
   let bytes: number[] = [];
   let lineStart: number | null = null;
-  for (const { cycle, byte } of uno.serial) {
+  for (const { cycle, byte } of sent) {
     lineStart ??= cycle;
     if (byte === 0x0a) {
       lines.push({ atUs: sinceSetup(lineStart), text: new TextDecoder().decode(Uint8Array.from(bytes)).replace(/\r$/, '') });
@@ -99,13 +110,11 @@ export function runBoard(
       bytes.push(byte);
     }
   }
-  if (bytes.length > 0) {
-    throw new Error(`The program left a line unfinished on the USART: ${JSON.stringify(new TextDecoder().decode(Uint8Array.from(bytes)))}`);
-  }
-  const last = uno.serial.at(-1);
+  const last = sent.at(-1);
   return {
     events,
     lines,
+    unfinishedLine: new TextDecoder().decode(Uint8Array.from(bytes)),
     serialDoneUs: last ? sinceSetup(last.cycle + uno.serialFrameCycles) : 0,
     setupStartUs: usOfCycles(setupCycle),
   };

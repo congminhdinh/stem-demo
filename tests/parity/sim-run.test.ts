@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { logicalStateOf, outputBeforeWaveform, settleTones } from './sim-run';
+import { compileFixture, parityFixtures } from './fixtures';
+import { logicalStateOf, outputLowFirst, printsOfJoins, settleTones } from './sim-run';
 import type { PinEvent } from './trace';
 
 // N18 C2: how the simulator's pin changes become the harness's events.
@@ -32,13 +33,40 @@ describe('the simulator’s events', () => {
     expect(settleTones([at('D10', tone, 1, 175.0625)], [{ ...record, settledByCall: true }], 230_000)).toHaveLength(1);
   });
 
-  it('gives a waveform started on an input pin the LOW of its pinMode first, in the same call', () => {
-    const events = [at('D9', { kind: 'input', pullup: false }, 0), at('D9', { kind: 'servo', deg: 90 }, 0, 49.5), at('D9', { kind: 'servo', deg: 45 }, 80_061, 80_110.5)];
-    expect(outputBeforeWaveform(events).map((event) => [event.state.kind, event.fromUs, event.toUs])).toEqual([
-      ['input', 0, 0],
-      ['low', 0, 49.5],
-      ['servo', 0, 49.5],
-      ['servo', 80_061, 80_110.5],
+  it('gives an analogWrite, an attach or a first tone on an input pin the LOW of its pinMode first, in the same call (output-low-first)', () => {
+    const events = [
+      at('D9', { kind: 'input', pullup: false }, 0),
+      at('D9', { kind: 'servo', deg: 90 }, 0, 49.5),
+      at('D9', { kind: 'servo', deg: 45 }, 80_061, 80_110.5),
+      at('A4', { kind: 'input', pullup: false }, 0),
+      at('A4', { kind: 'high' }, 30, 41.875),
+      at('A3', { kind: 'input', pullup: false }, 0),
+      at('A3', { kind: 'low' }, 10, 14.375),
+      at('A3', { kind: 'high' }, 15, 19.5625),
+    ];
+    const calls = new Map([
+      [events[1], 'servoWrite'],
+      [events[2], 'servoWrite'],
+      [events[4], 'pwmWrite'],
+      [events[6], 'pinMode'],
+      [events[7], 'digitalWrite'],
+    ] as const);
+    expect(outputLowFirst(events, (event) => calls.get(event) ?? null).map((event) => [event.pin, event.state.kind, event.fromUs, event.toUs])).toEqual([
+      ['D9', 'input', 0, 0],
+      ['D9', 'low', 0, 49.5],
+      ['D9', 'servo', 0, 49.5],
+      ['D9', 'servo', 80_061, 80_110.5],
+      ['A4', 'input', 0, 0],
+      ['A4', 'low', 30, 41.875],
+      ['A4', 'high', 30, 41.875],
+      ['A3', 'input', 0, 0],
+      ['A3', 'low', 10, 14.375],
+      ['A3', 'high', 15, 19.5625],
     ]);
+  });
+
+  it('knows which prints print a join (join-by-parts): sequenced-reads ends with one, logic-reads has none', () => {
+    const joins = (name: string) => printsOfJoins(compileFixture(parityFixtures.find((fixture) => fixture.name === name) as (typeof parityFixtures)[number]).ir).size;
+    expect([joins('sequenced-reads'), joins('logic-reads'), joins('print-mixed')]).toEqual([1, 0, 4]);
   });
 });

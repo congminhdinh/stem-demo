@@ -22,7 +22,7 @@ describe('the C++ variants of a row (N18 C1)', () => {
   });
 
   it('admits the sequenced form of contract 0.1.3 §3.5 on the rows whose operands C++ leaves unsequenced, and on buzzerTone', () => {
-    expect(unoContract.version).toBe('0.1.4');
+    expect(unoContract.version).toBe('0.1.5');
     for (const id of ['U-05', 'U-06', 'U-07', 'U-09']) {
       expect(row(id)?.cpp?.variants, id).toEqual(sequenced);
       expect(row(id)?.levels?.L2e, id).toMatchObject({ status: 'PASS', evidence: expect.arrayContaining(['EMU-15']) });

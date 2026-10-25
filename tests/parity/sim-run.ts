@@ -13,7 +13,8 @@ import { isWaveform, withoutRepeats, type PinEvent, type PinLogicalState, type P
 // program's sensors. The harness only listens, and nothing the program sees changes:
 //   - each pin change the virtual UNO tells (onChange, after the Arduino call), as a range from the call's start to its end: the
 //     simulator does not say when inside its call a pin changes, and the board changes it inside the call;
-//   - each Arduino call (its name, pin and range), each line printed and each loop() iteration, with the program time;
+//   - each Arduino call (its name, pin and range), each line printed (with the start of its print statement, and whether it prints
+//     a join), each wait and each loop() iteration, with the program time;
 //   - each tone's own end, at the call's range + ms (the virtual UNO tells it at the next call, or never when none comes).
 
 export type SimCall = {
@@ -21,18 +22,25 @@ export type SimCall = {
   readonly pin: string | null;
   /** The call's number arguments (a tone's hz and ms). */
   readonly args: readonly number[];
+  /** What a read returned (millis, digitalRead, analogRead, pulseIn). */
+  readonly result?: number;
   readonly fromUs: number;
   readonly toUs: number;
 };
 
+/** A printed line, with the program time its print statement began and whether it prints a join (allowed difference `join-by-parts`). */
+export type SimLine = PrintedLine & { readonly statementUs: number; readonly join: boolean };
+
 export type SimRun = {
   events: PinEvent[];
-  lines: PrintedLine[];
+  lines: SimLine[];
   calls: SimCall[];
   /** The program time (µs) at which each loop() iteration began. */
   loopStartsUs: number[];
   /** Each wait of the program (Arduino's delay()), from its start to the time it resumed, µs. */
   sleeps: { fromUs: number; toUs: number }[];
+  /** The program time of each IR node the simulator charged NODE_US for (the budget's work and step). */
+  nodesUs: number[];
   outcome: YbcRunOutcome | undefined;
   warnings: RunWarning[];
   /** The program clock when the run was stopped. */
@@ -65,16 +73,18 @@ export type ToneRecord = { pin: string; endFromUs: number; endToUs: number; sett
  * The virtual UNO of a run with its io and millis wrapped to record each call and its range (the onChange listener reads the call
  * under way), and when each tone ends by itself.
  */
-function recording(uno: VirtualUno, nowUs: () => number, calls: SimCall[], tones: ToneRecord[], current: { fromUs: number }): VirtualUno {
-  /** Wraps an io call: its first argument is the pin, `null` for millis. */
+function recording(uno: VirtualUno, nowUs: () => number, calls: SimCall[], tones: ToneRecord[], current: { fromUs: number; name: SimCall['name'] | null }): VirtualUno {
+  /** Wraps an io call: its first argument is the pin, `null` for millis, delayMicroseconds and compute. */
   const record =
     <A extends unknown[], R>(name: SimCall['name'], real: (...args: A) => R) =>
     (...args: A): R => {
       const fromUs = nowUs();
       current.fromUs = fromUs;
+      current.name = name;
       const result = real(...args);
       const pin = typeof args[0] === 'string' ? args[0] : null;
-      calls.push({ name, pin, args: args.filter((arg): arg is number => typeof arg === 'number'), fromUs, toUs: nowUs() });
+      const numbers = args.filter((arg): arg is number => typeof arg === 'number');
+      calls.push({ name, pin, args: numbers, ...(typeof result === 'number' ? { result } : {}), fromUs, toUs: nowUs() });
       return result;
     };
   const playing = (id: string) => tones.find((tone) => tone.pin === id && !tone.settledByCall && tone.endToUs > nowUs());
@@ -88,6 +98,8 @@ function recording(uno: VirtualUno, nowUs: () => number, calls: SimCall[], tones
     pwmWrite: record('pwmWrite', real.pwmWrite),
     servoWrite: record('servoWrite', real.servoWrite),
     pulseIn: record('pulseIn', real.pulseIn),
+    delayMicroseconds: record('delayMicroseconds', real.delayMicroseconds),
+    compute: record('compute', real.compute),
     tone: record('tone', (id: string, hz: number, ms?: number) => {
       const before = playing(id);
       const fromUs = nowUs();
@@ -122,14 +134,22 @@ export async function runSimulator(program: SimProgram, inputs: ParityInputs, du
   const scheduler = createVirtualScheduler({ signal: controller.signal, delayOverheadUs: board.costsUs.delayOverhead });
   const clock = scheduler.programClock;
   const nowUs = () => clock.now() * 1000;
-  const lines: PrintedLine[] = [];
+  const lines: SimLine[] = [];
+  const joins = printsOfJoins(ir);
+  /** The block of the statement under way and when it began (services.trace, told as each statement starts). */
+  const statement = { blockId: '', atUs: 0 };
   const loopStartsUs: number[] = [];
   const sleeps: { fromUs: number; toUs: number }[] = [];
+  const nodesUs: number[] = [];
   const warnings: RunWarning[] = [];
   const budget = scheduler.budget(controller.signal);
   const services = createRuntimeServices({
     signal: controller.signal,
-    console: { write: (text) => void lines.push({ atUs: nowUs(), text }) },
+    console: { write: (text) => void lines.push({ atUs: nowUs(), text, statementUs: statement.atUs, join: joins.has(statement.blockId) }) },
+    trace: (blockId) => {
+      statement.blockId = blockId;
+      statement.atUs = nowUs();
+    },
     clock,
     sleep: async (ms, signal) => {
       const fromUs = nowUs();
@@ -139,6 +159,14 @@ export async function runSimulator(program: SimProgram, inputs: ParityInputs, du
     scheduler: createRunScheduler(scheduler.timers),
     budget: {
       ...budget,
+      work() {
+        nodesUs.push(nowUs());
+        budget.work();
+      },
+      step() {
+        nodesUs.push(nowUs());
+        return budget.step();
+      },
       loopIteration() {
         loopStartsUs.push(nowUs());
         budget.loopIteration();
@@ -163,8 +191,14 @@ export async function runSimulator(program: SimProgram, inputs: ParityInputs, du
   const told: PinEvent[] = board.pins.map((pin) => ({ pin: pin.id, state: { kind: 'input', pullup: false }, fromUs: 0, toUs: 0 }));
   const calls: SimCall[] = [];
   const tones: ToneRecord[] = [];
-  const current = { fromUs: 0 };
-  uno.onChange((state, atMs) => void told.push({ pin: state.pin, state: logicalStateOf(state, board.pwmMax), fromUs: Math.min(current.fromUs, atMs * 1000), toUs: atMs * 1000 }));
+  const current: { fromUs: number; name: SimCall['name'] | null } = { fromUs: 0, name: null };
+  /** The call that told each event: an analogWrite, an attach or a tone on an input pin is an OUTPUT LOW first. */
+  const toldBy = new Map<PinEvent, SimCall['name'] | null>();
+  uno.onChange((state, atMs) => {
+    const event: PinEvent = { pin: state.pin, state: logicalStateOf(state, board.pwmMax), fromUs: Math.min(current.fromUs, atMs * 1000), toUs: atMs * 1000 };
+    toldBy.set(event, current.name);
+    told.push(event);
+  });
   const capabilities = createProgramIO(kit, recording(uno, nowUs, calls, tones, current), uses);
   const { done } = runYbcProgram(ir, capabilities, services);
   let outcome: YbcRunOutcome | undefined;
@@ -179,11 +213,12 @@ export async function runSimulator(program: SimProgram, inputs: ParityInputs, du
   await done.catch(() => undefined);
 
   return {
-    events: outputBeforeWaveform(settleTones(told, tones, durationUs)),
+    events: outputLowFirst(settleTones(told, tones, durationUs), (event) => toldBy.get(event) ?? null),
     lines: lines.filter((line) => line.atUs <= durationUs),
     calls,
     loopStartsUs,
     sleeps,
+    nodesUs,
     outcome,
     warnings,
     endUs,
@@ -209,19 +244,42 @@ export function settleTones(events: readonly PinEvent[], tones: readonly ToneRec
   return withoutRepeats(timed.filter((event) => event.fromUs <= durationUs).sort((a, b) => a.toUs - b.toUs));
 }
 
+/** The calls that begin with pinMode(pin, OUTPUT) on the board: analogWrite (the pwmWrite helper), Servo.attach, tone(). */
+const OUTPUT_FIRST: ReadonlySet<SimCall['name'] | null> = new Set(['pwmWrite', 'servoWrite', 'tone']);
+
 /**
- * A waveform started on a pin that was an input (Servo.attach, the first tone()) makes the pin an OUTPUT LOW first, on the board
- * as in any pinMode: the simulator's trace gets that LOW, in the same call, so both sides have it (board-trace.ts).
+ * Allowed difference `output-low-first`: an analogWrite, a Servo.attach or a first tone() on a pin that was an input makes it an OUTPUT
+ * LOW first on the board (their pinMode), then HIGH, PWM or the waveform. The simulator's trace gets that LOW, in the same call, so both
+ * sides have it (board-trace.ts).
  */
-export function outputBeforeWaveform(events: readonly PinEvent[]): PinEvent[] {
+export function outputLowFirst(events: readonly PinEvent[], callOf: (event: PinEvent) => SimCall['name'] | null): PinEvent[] {
   const last = new Map<string, PinLogicalState>();
   const out: PinEvent[] = [];
   for (const event of events) {
-    if (isWaveform(event.state) && last.get(event.pin)?.kind === 'input') {
+    const fromInput = last.get(event.pin)?.kind === 'input';
+    if (fromInput && event.state.kind !== 'low' && event.state.kind !== 'input' && (isWaveform(event.state) || OUTPUT_FIRST.has(callOf(event)))) {
       out.push({ ...event, state: { kind: 'low' } });
     }
     last.set(event.pin, event.state);
     out.push(event);
   }
   return out;
+}
+
+/** The blocks of the print statements of `ir` that print a join. */
+export function printsOfJoins(ir: YbcProgramIR): Set<string> {
+  const found = new Set<string>();
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+    } else if (node !== null && typeof node === 'object') {
+      const record = node as { kind?: unknown; value?: { kind?: unknown }; blockId?: unknown };
+      if (record.kind === 'print' && record.value?.kind === 'join' && typeof record.blockId === 'string') {
+        found.add(record.blockId);
+      }
+      Object.values(node).forEach(walk);
+    }
+  };
+  walk([ir.onStart, ir.forever]);
+  return found;
 }

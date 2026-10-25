@@ -46,6 +46,7 @@ export const boardProfileSchema = z.strictObject({
   reserved: z.array(z.strictObject({ pin: z.string(), when: z.literal('serial') })),
   timerClaims: z.record(z.string(), z.string()),
   costsUs: z.strictObject(Object.fromEntries(arduinoCalls.map((call) => [call, positive])) as Record<(typeof arduinoCalls)[number], typeof positive>),
+  toneUs: z.array(z.strictObject({ prescaler: positiveInt, fromHz: positive, silentUs: positive, playingUs: positive })).min(1),
   millis: z.strictObject({ overflowUs: positive, fractPerOverflow: positiveInt, fractMax: positiveInt }),
   emulator: z.literal('avr8js').optional(),
 });
@@ -80,6 +81,12 @@ function boardRuleIssues(board: z.infer<typeof boardProfileSchema>): DataIssue[]
       issues.push({ path: `timerClaims.${claimer}`, message: `no pin of the board has timer ${timer}` });
     }
   }
+  board.toneUs.forEach((band, index) => {
+    const before = board.toneUs[index - 1];
+    if (before && !(band.fromHz > before.fromHz)) {
+      issues.push({ path: `toneUs.${String(index)}.fromHz`, message: `tone cost bands go from the lowest frequency up: ${String(band.fromHz)} Hz after ${String(before.fromHz)} Hz` });
+    }
+  });
   return issues;
 }
 

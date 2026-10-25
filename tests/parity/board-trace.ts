@@ -1,3 +1,4 @@
+import { allowedDifferences } from './allowed-differences';
 import type { RawPinState } from './emulated-uno';
 import type { PinEvent, PinLogicalState } from './trace';
 
@@ -23,18 +24,22 @@ export type WaveformDecoding =
   | { readonly kind: 'servo'; readonly frameUs: number; readonly minUs: number; readonly maxUs: number }
   | { readonly kind: 'tone'; readonly minHz: number; readonly maxHz: number };
 
-/** A waveform is found from this many whole periods on (three rising edges): fewer cannot show a period. */
-export const MIN_RUN_PERIODS = 2;
+const wander = allowedDifferences['waveform-jitter'];
 
-/** How far a period or a HIGH time may wander inside one run: hardware PWM is exact, interrupts make servo and tone pulses jitter. */
+/** A waveform is found from this many whole periods on (three rising edges): fewer cannot show a period (waveform-jitter). */
+export const MIN_RUN_PERIODS = wander.minRunPeriods;
+
+/** How far a period or a HIGH time may wander inside one run (allowed difference `waveform-jitter`). */
 export function jitterUs(decoding: WaveformDecoding, periodUs: number): { period: number; high: number } {
   switch (decoding.kind) {
     case 'pwm':
-      return { period: 4, high: 4 };
+      return { period: wander.pwm.periodUs, high: wander.pwm.highUs };
     case 'servo':
-      return { period: Math.max(8, periodUs * 0.01), high: 4 };
-    case 'tone':
-      return { period: Math.max(8, periodUs * 0.01), high: Math.max(8, periodUs * 0.01) };
+      return { period: Math.max(wander.servo.periodMinUs, periodUs * wander.servo.frameShare), high: wander.servo.highUs };
+    case 'tone': {
+      const us = Math.max(wander.tone.minUs, periodUs * wander.tone.share);
+      return { period: us, high: us };
+    }
   }
 }
 
@@ -45,10 +50,14 @@ function regular(decoding: WaveformDecoding, periodUs: number, highUs: number): 
   switch (decoding.kind) {
     case 'pwm':
       return Math.abs(periodUs - decoding.periodUs) <= jitterUs(decoding, periodUs).period;
-    case 'servo':
-      return Math.abs(periodUs - decoding.frameUs) <= decoding.frameUs * 0.01 && highUs >= decoding.minUs - 4 && highUs <= decoding.maxUs + 4;
-    case 'tone':
-      return periodUs >= (1e6 / decoding.maxHz) * 0.99 && periodUs <= (1e6 / decoding.minHz) * 1.01 && Math.abs(highUs - periodUs / 2) <= jitterUs(decoding, periodUs).high;
+    case 'servo': {
+      const slack = wander.servo.widthSlackUs;
+      return Math.abs(periodUs - decoding.frameUs) <= decoding.frameUs * wander.servo.frameShare && highUs >= decoding.minUs - slack && highUs <= decoding.maxUs + slack;
+    }
+    case 'tone': {
+      const share = wander.tone.share;
+      return periodUs >= (1e6 / decoding.maxHz) * (1 - share) && periodUs <= (1e6 / decoding.minHz) * (1 + share) && Math.abs(highUs - periodUs / 2) <= jitterUs(decoding, periodUs).high;
+    }
   }
 }
 

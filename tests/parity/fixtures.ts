@@ -3,14 +3,15 @@ import { generateUnoSketch } from '../../src/core/codegen/arduino/generate';
 import {
   buttonPressed, buzzerStop, buzzerTone, driveMove, driveStop, led, lineDark, lineRaw, motorSet, servoSet, ultrasonic,
 } from '../../src/core/program/__fixtures__/uno-blocks';
-import { ifThen, num, print, wait } from '../../src/core/program/__fixtures__/ybc-blocks';
+import { getVar, ifThen, num, print, setVar, wait } from '../../src/core/program/__fixtures__/ybc-blocks';
 import type { ParityInputs } from './inputs';
 import type { SimProgram } from './sim-run';
 
 // The parity fixtures (N18 C2, controller ruling): every C1 language golden (the sketch cases that end on their own and print what
-// the contract's arithmetic says, codegen/arduino/__fixtures__/sketch-cases.ts) and one fixture per driver op of ref-uno-rover@0:
-// motor PWM and direction (with the drive), servo, ultrasonic with a scripted echo, line (dark and raw), LED, button with a scripted
-// press, buzzer tone and stop. Each runs for `durationMs` of virtual time on both sides with the same scripted `inputs`.
+// the contract's arithmetic says, codegen/arduino/__fixtures__/sketch-cases.ts), the C1 golden of the raw pins (U-31…U-34), one
+// fixture per driver op of ref-uno-rover@0 (motor PWM and direction with the drive, servo, ultrasonic with a scripted echo, line
+// dark and raw, LED, button with a scripted press, buzzer tone and stop) and one for negate (U-08). Each runs for `durationMs` of
+// virtual time on both sides with the same scripted `inputs`.
 //
 // Short on purpose (ADR 0003 §7: avr8js runs about 6× realtime): the whole suite is a few seconds of virtual time. Waveforms last
 // at least a few of their periods, so the board shows them (board-trace.ts), and echoes sit near the top of a 58 µs centimetre,
@@ -20,8 +21,8 @@ import type { SimProgram } from './sim-run';
 // the sha256 of the sketch next to it; tests/uno-emulator-parity.test.ts refuses a HEX whose sketch the generator no longer writes.
 
 export type ParityFixture = Pick<SketchCase, 'name' | 'covers' | 'profile' | 'onStart' | 'forever' | 'variables'> & {
-  /** `golden`: a C1 language golden, as sketch-cases.ts has it; `driver`: a driver op of the reference kit. */
-  readonly origin: 'golden' | 'driver';
+  /** `golden`: a C1 golden, as sketch-cases.ts has it; `driver`: a driver op of the reference kit; `language`: a language row no golden runs. */
+  readonly origin: 'golden' | 'driver' | 'language';
   readonly durationMs: number;
   readonly inputs: ParityInputs;
 };
@@ -47,6 +48,14 @@ const goldenInputs: Readonly<Record<string, ParityInputs>> = {
   },
   // The left sensor reads 0, 10, … and the right one 35: four turns of the while, then 50 > 35.
   'while-two-reads': { analog: [{ pins: ['A0'], values: [0, 10, 20, 30, 40, 50] }, { pins: ['A2'], values: [35, 35, 35, 35, 35, 35] }] },
+  // The button held (D3 LOW behind its pull-up), the center line sensor HIGH, 700 on A0.
+  'raw-pins': {
+    levels: [
+      { pin: 'D3', atUs: 0, level: 0 },
+      { pin: 'A1', atUs: 0, level: 1 },
+    ],
+    analog: [{ pins: ['A0'], values: [700] }],
+  },
   // Left and right line dark, center not, the button held: the || never reads the distance, the print's read is 10 cm.
   'logic-reads': {
     levels: [
@@ -75,10 +84,14 @@ const goldenDurationMs: Readonly<Record<string, number>> = {
   'sequenced-reads': 80,
   'while-two-reads': 30,
   'logic-reads': 40,
+  'raw-pins': 20,
 };
 
+/** The C1 goldens a parity fixture runs: the language ones (they print what the contract says) and the raw pins. */
+export const PARITY_GOLDENS: readonly string[] = [...sketchCases.filter((sketchCase) => sketchCase.console !== undefined).map((sketchCase) => sketchCase.name), 'raw-pins'];
+
 const goldens: ParityFixture[] = sketchCases
-  .filter((sketchCase) => sketchCase.console !== undefined)
+  .filter((sketchCase) => PARITY_GOLDENS.includes(sketchCase.name))
   .map((sketchCase) => {
     const durationMs = goldenDurationMs[sketchCase.name];
     if (durationMs === undefined) {
@@ -229,7 +242,37 @@ const drivers: ParityFixture[] = [
   },
 ];
 
-export const parityFixtures: readonly ParityFixture[] = [...goldens, ...drivers];
+/** INT32_MIN, written as a number block, as int32-wrap does. */
+const INT32_MIN = -2_147_483_648;
+
+const language: ParityFixture[] = [
+  {
+    // Negate (U-08) has no block of its own (constructs/uno.ts): its C++, neg32, is the −s of the drive and the helper div32 uses
+    // for a division by −1. A computed speed through neg32: −(−50) = 50 forward on both motors; INT32_MIN, which neg32 wraps to
+    // itself, clamped to −100 on both sides of the spin; −70 on the left of a spin left.
+    name: 'negate-drive',
+    covers: ['U-08', 'U-03', 'U-04', 'U-21', 'U-22', 'U-18'],
+    profile: 'uno-basic',
+    onStart: [
+      setVar('x', num(-50)),
+      driveMove('backward', getVar('x')),
+      wait(num(30)),
+      setVar('x', num(INT32_MIN)),
+      driveMove('spinRight', getVar('x')),
+      wait(num(30)),
+      driveMove('spinLeft', num(70)),
+      wait(num(30)),
+      driveStop(),
+      wait(num(10)),
+    ],
+    variables: [['x', 'x']],
+    origin: 'language',
+    durationMs: 105,
+    inputs: {},
+  },
+];
+
+export const parityFixtures: readonly ParityFixture[] = [...goldens, ...drivers, ...language];
 
 /** A fixture's program, compiled as the robot lab compiles it (compileUnoProject against ref-uno-rover@0). */
 export const compileFixture = (fixture: ParityFixture): SimProgram => compileCase(fixture);

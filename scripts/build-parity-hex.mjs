@@ -5,15 +5,17 @@
 //
 //   tests/__parity__/<name>.hex          the Intel HEX arduino-cli built
 //   tests/__parity__/<name>.ino.sha256   `<sha256 of the sketch>  <name>.ino`
-//   tests/__parity__/toolchain.json      the pinned versions and each sketch's flash and RAM, as arduino-cli reported them
+//   tests/__parity__/toolchain.json      the pinned versions, each sketch's flash and RAM as arduino-cli reported them, and the
+//                                        sha256 of each HEX (the test checks the HEX it runs is the one built)
 //
 // The HEX and hash files are committed, so tests/uno-emulator-parity.test.ts runs on Node with no tool (avr8js runs the HEX). That
 // test fails when a fixture's sketch is no longer the one hashed: run this script again (`pnpm build:parity-hex`) and commit.
 //
 //   node scripts/build-parity-hex.mjs [fixture-name ...]
 //
-// ARDUINO_CLI names the arduino-cli to run (default: the one on PATH). Exit codes: 0 built, 1 a sketch failed or a fixture is
-// unknown, 2 the pinned toolchain is missing (nothing is written).
+// ARDUINO_CLI names the arduino-cli to run (default: the one on PATH). The script never installs anything: a missing arduino-cli,
+// core or library (or another version) is PENDING. Exit codes: 0 built, 1 a sketch failed or a fixture is unknown, 2 PENDING
+// (nothing is written).
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -35,7 +37,7 @@ const run = (args) => spawnSync(cli, args, { encoding: 'utf8', maxBuffer: 64 * 1
 const output = (result) => `${result.stdout ?? ''}\n${result.stderr ?? ''}`.replace(ansi, '');
 const sha256 = (text) => createHash('sha256').update(text, 'utf8').digest('hex');
 
-/** Why the pinned toolchain cannot build here, or null when it can (the Servo library is installed at its version if missing). */
+/** Why the pinned toolchain cannot build here, or null when it can. It only looks: nothing is installed. */
 function missingToolchain() {
   const version = run(['version']);
   if (version.error || version.status !== 0) {
@@ -66,13 +68,10 @@ function missingToolchain() {
     if (installed === library.version) {
       continue;
     }
-    if (installed !== undefined) {
-      return `the library ${library.name} is ${installed}, the contract pins ${library.version}`;
-    }
-    const result = run(['lib', 'install', `${library.name}@${library.version}`]);
-    if (result.status !== 0) {
-      return `arduino-cli lib install ${library.name}@${library.version} failed`;
-    }
+    // Never installed from here (no network in a build of evidence): a missing or other version is PENDING.
+    return installed === undefined
+      ? `the library ${library.name}@${library.version} is not installed (arduino-cli lib install ${library.name}@${library.version})`
+      : `the library ${library.name} is ${installed}, the contract pins ${library.version}`;
   }
   return null;
 }
@@ -140,9 +139,10 @@ try {
       continue;
     }
     // LF line ends, as the repository stores text (.gitattributes): the same bytes on every checkout.
-    writeFileSync(join(outDir, `${name}.hex`), readFileSync(join(buildDir, `${name}.ino.hex`), 'utf8').replace(/\r\n/g, '\n'));
+    const hex = readFileSync(join(buildDir, `${name}.ino.hex`), 'utf8').replace(/\r\n/g, '\n');
+    writeFileSync(join(outDir, `${name}.hex`), hex);
     writeFileSync(join(outDir, `${name}.ino.sha256`), `${sha256(source)}  ${name}.ino\n`);
-    sketches[name] = sizesOf(text);
+    sketches[name] = { ...sizesOf(text), hexSha256: sha256(hex) };
     log(`BUILT ${name}: flash ${sketches[name].flashBytes} B, RAM ${sketches[name].ramBytes} B`);
   }
 } finally {

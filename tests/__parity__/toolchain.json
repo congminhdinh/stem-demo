@@ -8,87 +8,118 @@
   "sketches": {
     "count-up-body-changes-variable": {
       "flashBytes": 1934,
-      "ramBytes": 192
+      "ramBytes": 192,
+      "hexSha256": "79e071594c26cee3bb65b079c71e63035a5ebdb5945fc69f5cc0b8d72a93dd01"
     },
     "count-up-bounds-once": {
       "flashBytes": 2062,
-      "ramBytes": 196
+      "ramBytes": 196,
+      "hexSha256": "bcd55666d9eef327ebce1f2901c87f1ef0f0c30d2bcd28fb040fea6696b9e877"
     },
     "deep-nesting": {
       "flashBytes": 1520,
-      "ramBytes": 188
+      "ramBytes": 188,
+      "hexSha256": "1cf708d89369a0427d550976031c49e6c2c81bc9a7c6ac928a124e73a79fb5ca"
     },
     "division-by-zero": {
       "flashBytes": 1988,
-      "ramBytes": 192
+      "ramBytes": 192,
+      "hexSha256": "2867772255988117fa5b22b77a54a7ffc7db62486ce724b8d4869d0d396a23ee"
     },
     "driver-button": {
       "flashBytes": 892,
-      "ramBytes": 9
+      "ramBytes": 9,
+      "hexSha256": "c7c7fef9da2a225bc8770e87a649293ebbaf7f807fed62261cc46ef776ca3ead"
     },
     "driver-buzzer": {
       "flashBytes": 2360,
-      "ramBytes": 28
+      "ramBytes": 28,
+      "hexSha256": "9087b261cdb96a9083c45e4a3a31db49228c2b0b7350cd7a67c7e08690de2616"
     },
     "driver-led": {
       "flashBytes": 968,
-      "ramBytes": 9
+      "ramBytes": 9,
+      "hexSha256": "91c2fc2438b51ee421917cb7ee9f462ad374efc8dd565df5596066d2c8329843"
     },
     "driver-line": {
       "flashBytes": 2534,
-      "ramBytes": 188
+      "ramBytes": 188,
+      "hexSha256": "7077fdbd23aca98ae40cc12cac04eedac21c747e8fa77955d2bdc5e4d03fed48"
     },
     "driver-motor": {
       "flashBytes": 1730,
-      "ramBytes": 9
+      "ramBytes": 9,
+      "hexSha256": "00da40f2b0665f51ffb8e44924f3a48800ef1dd0491a2128b7d1b133f7e96ca0"
     },
     "driver-servo": {
       "flashBytes": 2098,
-      "ramBytes": 50
+      "ramBytes": 50,
+      "hexSha256": "bce4a6f56da94df31749d5034313c378c03566b2ccd2f490961ad03d8ba8cb17"
     },
     "driver-ultrasonic": {
       "flashBytes": 2682,
-      "ramBytes": 188
+      "ramBytes": 188,
+      "hexSha256": "bd85dafae3ae7fced2504e8af95c03974854a1bf7e89bb4d4186ed41bc1f2264"
     },
     "empty-program": {
       "flashBytes": 444,
-      "ramBytes": 9
+      "ramBytes": 9,
+      "hexSha256": "6b88d93709db2381f17bb7c769b27c343009a3e4b47c2f7cb2a7d928823a39a2"
     },
     "int32-wrap": {
       "flashBytes": 1956,
-      "ramBytes": 192
+      "ramBytes": 192,
+      "hexSha256": "0cd53125129c7000f11d3e89b6ee0d84a918c59e28f3bd002fd488c8dbbf941b"
     },
     "logic-reads": {
       "flashBytes": 2966,
-      "ramBytes": 192
+      "ramBytes": 192,
+      "hexSha256": "8a95e41cfc8598fb915bbc49130d54cb9447b38fb3fb21f03f80859c9fdb9211"
     },
     "millis-compare": {
       "flashBytes": 1900,
-      "ramBytes": 188
+      "ramBytes": 188,
+      "hexSha256": "bd8a4410d808652ca3cafd6eb704cf376d4deb417fd18c335c7540d794dbc291"
     },
     "mul-literal": {
       "flashBytes": 1694,
-      "ramBytes": 188
+      "ramBytes": 188,
+      "hexSha256": "0a5d12b3497510fd40d4aafe5dc293ab731fea6cd014ba6bad5c4df7737b382e"
     },
     "names": {
       "flashBytes": 1520,
-      "ramBytes": 188
+      "ramBytes": 188,
+      "hexSha256": "5003b5def3f947a55c80ca9527581753b3d77255baf454efa7cfdfd617a49d1b"
+    },
+    "negate-drive": {
+      "flashBytes": 1710,
+      "ramBytes": 9,
+      "hexSha256": "b2a1ca2df5ce696144d334b4eaa5dbada5c189fb8bd35fad50992a647e309dee"
     },
     "nested-control": {
       "flashBytes": 2134,
-      "ramBytes": 196
+      "ramBytes": 196,
+      "hexSha256": "314ca41d0fff20c87d97e6b4de0a616597b611f46191e58a5704e093bd25565a"
     },
     "print-mixed": {
       "flashBytes": 2200,
-      "ramBytes": 192
+      "ramBytes": 192,
+      "hexSha256": "54934e0293cf2f91084dce4adeb4274b83f4d4bcb73fcb48c75b20ad13bf6b2d"
+    },
+    "raw-pins": {
+      "flashBytes": 2568,
+      "ramBytes": 188,
+      "hexSha256": "d17529d937aa313d51359aa3ae2ce416066b2c4a4f03867ea825c94625f5c02f"
     },
     "sequenced-reads": {
       "flashBytes": 4658,
-      "ramBytes": 205
+      "ramBytes": 205,
+      "hexSha256": "d344713d651b29c47ea23ec19a02291972d8342b84871677c78f2752045833c4"
     },
     "while-two-reads": {
       "flashBytes": 1978,
-      "ramBytes": 192
+      "ramBytes": 192,
+      "hexSha256": "79b86712100e3a1e8c9ee93f5c43edebac071fe570156edc0d0d15d34742f845"
     }
   }
 }

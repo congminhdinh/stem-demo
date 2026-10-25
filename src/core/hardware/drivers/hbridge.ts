@@ -4,6 +4,9 @@ import { clampTo, defineDriver, defineOp, pinMacro, pinOf, type ArgRange } from 
 // round(|speed| × 255 / 100), written half up as (|speed| · 255 + 50) / 100: 50 → 128, 30 → 77, 1 → 3 (EMU-02, EMU-13).
 // speed > 0: IN1 HIGH, IN2 LOW; speed < 0: IN1 LOW, IN2 HIGH; 0: both IN LOW and EN LOW. The robot's drive (U-21, U-22) is
 // two of these, in the binding.
+//
+// Time (contract 0.1.5 §4.4, EMU-17): the helper's own long multiply and divide, between IN2 and EN, take costsUs.motorSetOverhead
+// (42.0625 µs) besides its three Arduino calls: motorSet(50) is 58.875 µs on the board.
 
 export const MOTOR_SPEED: ArgRange = { name: 'speed', min: -100, max: 100 };
 
@@ -35,6 +38,7 @@ export const hbridgeDriver = defineDriver('hbridge-en-in1-in2', {
       const clamped = clampTo(MOTOR_SPEED, speed);
       io.digitalWrite(pinOf(port, 'IN1'), clamped > 0 ? 1 : 0);
       io.digitalWrite(pinOf(port, 'IN2'), clamped < 0 ? 1 : 0);
+      io.compute(io.costsUs.motorSetOverhead);
       io.pwmWrite(pinOf(port, 'EN'), motorDuty(clamped));
     },
     cpp: {

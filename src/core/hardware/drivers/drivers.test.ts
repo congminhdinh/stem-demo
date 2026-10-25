@@ -78,11 +78,12 @@ describe('hbridge-en-in1-in2 (U-20)', () => {
     expect([state('D5').duty, state('D8').level]).toEqual([255, 1]);
   });
 
-  it('charges two digitalWrite and one analogWrite (contract U-20 block), the setup three pinMode', () => {
+  it('charges two digitalWrite, the helper’s own arithmetic (motorSetOverhead, contract 0.1.5) and one analogWrite, the setup three pinMode', () => {
     const { run, setup, charged } = bench();
     expect(charged(() => setup('M1', 'motor.set'))).toBe(3 * 4.375);
-    expect(charged(() => run('M1', 'motor.set', [50]))).toBe(2 * 4.5625 + 7.6875);
-    expect(charged(() => run('M1', 'motor.set', [100]))).toBe(2 * 4.5625 + 11.875);
+    // 58.875 µs: what motorSet(50) measured on avr8js (EMU-17).
+    expect(charged(() => run('M1', 'motor.set', [50]))).toBe(2 * 4.5625 + 42.0625 + 7.6875);
+    expect(charged(() => run('M1', 'motor.set', [100]))).toBe(2 * 4.5625 + 42.0625 + 11.875);
   });
 });
 

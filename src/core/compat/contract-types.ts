@@ -419,6 +419,7 @@ export const arduinoCalls = [
   'pulseInNoPulse30000',
   'ultrasonicCmOverhead',
   'ultrasonicCmNoEcho',
+  'motorSetOverhead',
   'serialWriteByte',
   'serialQueueByte',
   'serialLineByte',
@@ -505,6 +506,11 @@ export type UnoContract = {
   /** µs per Arduino call, measured (contract §4.4, ADR 0003 §4). Exact binary fractions where the cycle count is exact. */
   costsUs: Readonly<Record<ArduinoCall, number>>;
   costsEvidence: readonly EvidenceRef[];
+  /**
+   * 0.1.5: what tone() costs (contract §4.4, EMU-17), by the band of Timer2 prescaler its frequency needs (`fromHz` up, the lowest
+   * band first): on a pin that plays no tone (it registers the pin and sets Timer2 up first) and on the pin that plays one.
+   */
+  toneUs: { bands: readonly { prescaler: number; fromHz: number; silentUs: number; playingUs: number }[]; evidence: readonly EvidenceRef[] };
   /** Interrupt load measured on the emulated board; the simulator v0 does not charge it (contract §4.5). */
   isrLoad: { timer0: number; perServo: number; tonePerHz: number; charged: false };
   /** `millis()` as the board computes it (contract §4.3): n = floor(t / 1024 µs) since setup(); n + floor(3n / 125). */
@@ -830,6 +836,12 @@ export const unoContractSchema = z.object({
   )).strict(),
   costsUs: z.object(Object.fromEntries(arduinoCalls.map((call) => [call, z.number().positive()]))).strict(),
   costsEvidence: z.array(z.string()).min(1),
+  toneUs: z
+    .object({
+      bands: z.array(z.object({ prescaler: z.number().int().positive(), fromHz: z.number().positive(), silentUs: z.number().positive(), playingUs: z.number().positive() }).strict()).min(1),
+      evidence: z.array(z.string()).min(1),
+    })
+    .strict(),
   isrLoad: z.object({ timer0: z.number().positive(), perServo: z.number().positive(), tonePerHz: z.number().positive(), charged: z.literal(false) }).strict(),
   millis: z.object({ overflowUs: z.literal(1024), fractPerOverflow: z.literal(3), fractMax: z.literal(125), evidence: z.array(z.string()).min(1) }).strict(),
   helpers: z.record(z.string(), z.object({ text: z.string().min(1), usedBy: z.array(z.string()).min(1) }).strict()),

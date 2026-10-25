@@ -9,10 +9,14 @@ import type { HardwareDiagnostic } from './pin-rules';
 // without PWM drives HIGH from 128 up, a servo takes Timer1 and a tone Timer2 away from PWM (the pin stays LOW; after a
 // tone, D3/D11 have no PWM until a new analogWrite), a digital read or write stops a pin's PWM.
 //
+// tone() costs by the Timer2 prescaler band of its frequency, on a silent pin or on the one that plays (board.toneUs, contract
+// 0.1.5 §4.4, EMU-17).
+//
 // What it does not model (contract §13, L1 ≠ L2e): the load of interrupts (Timer0, the Servo, tone: 0.58 %, 0.16 %, 1.49 %
 // at 1 kHz), so pulseIn without echo charges the 20 752 µs measured without a Servo (20 785.44 µs with one, EMU-03); the
 // change of a playing tone's frequency by an analogWrite on D11 (EMU-05), which checkKit refuses before any run; I²C costs
-// and pins (U-46 is DEFERRED, so no cost is measured).
+// and pins (U-46 is DEFERRED, so no cost is measured); Serial time (contract §7); the 52.8 ms before Servo 1.3.0's first pulse
+// (contract §13).
 
 export type PinMode = 'INPUT' | 'OUTPUT' | 'INPUT_PULLUP';
 
@@ -113,6 +117,8 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
   const reported = new Set<string>();
 
   const charge = (call: ArduinoCall) => clock.charge(costs[call]);
+  /** The tone cost band of a frequency: the last one it reaches (bands go up from the lowest frequency); the lowest below it. */
+  const toneBandOf = (hz: number) => board.toneUs.filter((band) => hz >= band.fromHz).at(-1) ?? (board.toneUs[0] as BoardProfile['toneUs'][number]);
   const record = (id: string): PinRecord => {
     const found = pins.get(id);
     if (!found) {
@@ -392,8 +398,11 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
     tone: (id, hz, ms) =>
       changing([id, ...timerPins(board.timerClaims.tone)], () => {
         const pin = record(id);
-        charge('tone');
         const playing = toneNow();
+        // By the band of its frequency (contract 0.1.5 §4.4, EMU-17): on a pin that plays nothing (tone() registers the pin and
+        // sets Timer2 up first), on the pin that plays; a tone on another pin, which does nothing, at the table's cost.
+        const band = toneBandOf(hz);
+        clock.charge(playing === null ? band.silentUs : playing.pin === id ? band.playingUs : costs.tone);
         if (playing !== null && playing.pin !== id) {
           return; // ARD-03: one tone at a time; a tone on another pin has no effect.
         }

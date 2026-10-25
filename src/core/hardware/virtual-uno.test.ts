@@ -194,10 +194,11 @@ describe('servo', () => {
 describe('tone', () => {
   it('plays in the background for ms and ends by itself (ARD-03, EMU-05); a new tone on the pin replaces it (EMU-13)', () => {
     const { io, clock, charged, state } = setup();
-    expect(charged(() => io.tone('D10', 440, 100))).toBe(174.0625);
+    // Contract 0.1.5 §4.4 (EMU-17): 440 Hz needs Timer2's /128 band; on a silent pin 262.25 µs, on the playing pin (880 Hz, /64) 212.8125.
+    expect(charged(() => io.tone('D10', 440, 100))).toBe(262.25);
     expect(state('D10')).toMatchObject({ mode: 'OUTPUT', toneHz: 440 });
     clock.charge(50_000);
-    io.tone('D10', 880, 30);
+    expect(charged(() => io.tone('D10', 880, 30))).toBe(212.8125);
     expect(state('D10').toneHz).toBe(880);
     clock.charge(29_000);
     expect(state('D10').toneHz).toBe(880);
@@ -383,7 +384,8 @@ describe('onChange', () => {
     expect(state('D10').toneHz).toBeNull();
     expect(changes).toEqual([]);
     io.digitalWrite('D13', 1);
-    expect(changes).toEqual(['D10 null @20178.625', 'D13 null @20178.625']);
+    // tone(1000) on a silent pin: 184.8125 µs (contract 0.1.5 §4.4); + 20 000 + digitalWrite 4.5625.
+    expect(changes).toEqual(['D10 null @20189.375', 'D13 null @20189.375']);
     // A call that touches no pin tells it too.
     const again = setup();
     const told: string[] = [];

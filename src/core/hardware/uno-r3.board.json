@@ -53,6 +53,7 @@
     "pulseInNoPulse30000": 20752,
     "ultrasonicCmOverhead": 65.5625,
     "ultrasonicCmNoEcho": 20812,
+    "motorSetOverhead": 42.0625,
     "serialWriteByte": 4.625,
     "serialQueueByte": 6.28125,
     "serialLineByte": 1040,
@@ -61,6 +62,14 @@
     "serialPrintLongSign": 6.8125,
     "serialPrintln": 17.25
   },
+  "toneUs": [
+    { "prescaler": 1024, "fromHz": 30.517578125, "silentUs": 308.8125, "playingUs": 297.25 },
+    { "prescaler": 256, "fromHz": 122.0703125, "silentUs": 301.6875, "playingUs": 290.125 },
+    { "prescaler": 128, "fromHz": 244.140625, "silentUs": 262.25, "playingUs": 250.6875 },
+    { "prescaler": 64, "fromHz": 488.28125, "silentUs": 224.375, "playingUs": 212.8125 },
+    { "prescaler": 32, "fromHz": 976.5625, "silentUs": 184.8125, "playingUs": 173.25 },
+    { "prescaler": 8, "fromHz": 3906.25, "silentUs": 145.625, "playingUs": 134.0625 }
+  ],
   "millis": { "overflowUs": 1024, "fractPerOverflow": 3, "fractMax": 125 },
   "emulator": "avr8js"
 }
