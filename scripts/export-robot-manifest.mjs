@@ -47,13 +47,17 @@ const isFile = (path) => existsSync(path) && statSync(path).isFile();
 const plural = (count) => `${count} scenario file${count === 1 ? '' : 's'}`;
 const messageOf = (error) => (error instanceof Error ? error.message : String(error));
 
-/** The Vite config of the script's server: the repo's, with the server of a script (no HMR, no watcher) and a cache of its own (see the header). */
+/**
+ * The Vite config of the script's server: the repo's, with the server of a script (no HMR, no watcher, no WebSocket server: with `hmr: false`
+ * alone Vite still opens one on port 24678, so a run next to `pnpm dev` or another script wrote a port error) and a cache of its own (see the
+ * header).
+ */
 const viteOptions = {
   root,
   configFile: join(root, 'vite.config.ts'),
   appType: 'custom',
   logLevel: 'error',
-  server: { middlewareMode: true, hmr: false, watch: null },
+  server: { middlewareMode: true, hmr: false, ws: false, watch: null },
   cacheDir: join(root, 'node_modules', '.vite-export-robot-manifest'),
   optimizeDeps: { noDiscovery: true, include: [] },
 };
