@@ -7,9 +7,10 @@ import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { paintZonePattern, patternDots, patternInk, patternSegments, zonePattern, type PatternPaintContext } from './zone-pattern';
 
 // N18 R8: zones told apart by pattern as well as colour, for learners who cannot tell the pastel fills apart: the start by dots, a target by
-// diagonal hatching, an area (forbidden or an obstacle) by cross-hatching; a checkpoint by its numbered tag, so no pattern. The patterns are
-// visual only (the 3D mat texture and the 2D map): the line sensor reads the scenario's vector paint, never this, and they are drawn light
-// (luma above the sensor's 0.5) so that nothing on the mat reads dark that the sensor would not.
+// diagonal hatching, an area (the schema's generic region) by cross-hatching; a checkpoint by its numbered tag, so no pattern. The patterns
+// are visual only (the 3D mat texture, the fallback floor and the 2D map): the line sensor reads the scenario's vector paint, never this.
+// On the mat they are drawn light (luma above the sensor's 0.5) so that nothing there reads dark that the sensor would not: a recorded
+// exception to WCAG 1.4.11 (below 3:1 on the palest fill). The 2D map is never printed or sensed: its ink has 3:1 on every fill.
 
 const square = [[0, 0], [10, 0], [10, 10], [0, 10]] as const;
 const length = ([x0, y0, x1, y1]: readonly number[]) => Math.hypot(x1! - x0!, y1! - y0!);
@@ -95,30 +96,84 @@ describe('patternDots', () => {
   });
 });
 
-describe('patternInk', () => {
+describe('patternInk on the mat (a recorded exception to WCAG 1.4.11)', () => {
   const pilotFills = [...new Set(scenarioCatalog.scenarios.flatMap((scenario) => scenario.arena.paint.zones.map((zone) => zone.color)))];
 
   it('is the zone’s own hue, darkened to a luma just above the sensor’s 0.5, so that it is never printed darker than the sensor reads as light', () => {
     expect(pilotFills.length).toBeGreaterThanOrEqual(3);
     for (const fill of pilotFills) {
-      const ink = patternInk(fill);
+      const ink = patternInk(fill, 'mat');
       expect(ink).toMatch(/^#[0-9a-f]{6}$/);
       expect(colorReflectance(ink), fill).toBeGreaterThan(0.5);
       expect(colorReflectance(ink), fill).toBeLessThan(0.52);
     }
   });
 
-  it('shows against the pastel fills of the lessons at about 3:1 (the most the light-ink rule allows on the palest blue)', () => {
-    for (const fill of pilotFills) expect(contrastRatio(patternInk(fill), fill), fill).toBeGreaterThanOrEqual(2.9);
+  it('shows against the lessons’ fills at 2.96 to 3.53:1, under 3:1 on the palest blue: the exception, held by the luma floor and recorded here', () => {
+    const ratios = Object.fromEntries(pilotFills.map((fill) => [fill, contrastRatio(patternInk(fill, 'mat'), fill)]));
+    // The floor of what the mat's ink can do: do not let it get worse.
+    for (const [fill, ratio] of Object.entries(ratios)) expect(ratio, fill).toBeGreaterThanOrEqual(2.9);
+    // And the exception is real: the start's light blue cannot have 3:1 with an ink of luma above 0.5 (that is why the map has its own ink).
+    expect(ratios['#cfe2f3']).toBeLessThan(3);
+    expect(ratios['#cfe2f3']).toBeCloseTo(2.96, 2);
   });
 
   it('is lighter than the fill when the fill is dark, and still above 0.5; white and black fills both get a visible one', () => {
     for (const fill of ['#000000', '#222222', '#442200', '#334455', '#ffffff', '#fff2cc', '#808080']) {
-      const ink = patternInk(fill);
+      const ink = patternInk(fill, 'mat');
       expect(colorReflectance(ink), fill).toBeGreaterThan(0.5);
       expect(Math.abs(colorReflectance(ink) - colorReflectance(fill)), fill).toBeGreaterThan(0.1);
     }
-    expect(colorReflectance(patternInk('#222222'))).toBeGreaterThan(colorReflectance('#222222'));
+    expect(colorReflectance(patternInk('#222222', 'mat'))).toBeGreaterThan(colorReflectance('#222222'));
+  });
+});
+
+describe('patternInk on the 2D map', () => {
+  const catalogueFills = [...new Set(scenarioCatalog.scenarios.flatMap((scenario) => [scenario.arena.ground.color, ...scenario.arena.paint.zones.map((zone) => zone.color)]))];
+
+  it('has at least 3:1 against every zone and ground colour of the catalogue, with no floor on its luma', () => {
+    expect(catalogueFills.length).toBeGreaterThanOrEqual(4);
+    for (const fill of catalogueFills) {
+      const ink = patternInk(fill, 'screen');
+      expect(ink, fill).toMatch(/^#[0-9a-f]{6}$/);
+      expect(contrastRatio(ink, fill), fill).toBeGreaterThanOrEqual(3);
+    }
+    // It goes below the mat's floor where it has to: the start's ink is darker than a luma of 0.5.
+    expect(colorReflectance(patternInk('#cfe2f3', 'screen'))).toBeLessThan(0.5);
+  });
+
+  it('keeps the zone’s own hue where a shade of it is far enough, so that a pattern still says which zone it is', () => {
+    const [r, g, b] = [1, 3, 5].map((at) => Number.parseInt(patternInk('#cfe2f3', 'screen').slice(at, at + 2), 16));
+    // A light blue stays a (dark) blue: blue the largest channel, red the smallest.
+    expect(b!).toBeGreaterThan(g!);
+    expect(g!).toBeGreaterThan(r!);
+  });
+
+  it('has 3:1 against every colour of the RGB cube (4 096 of them, a step of 17): an author’s fill that no shade of its hue can get away from still gets an ink', () => {
+    const steps = [0, 17, 34, 51, 68, 85, 102, 119, 136, 153, 170, 187, 204, 221, 238, 255];
+    const hex = (value: number) => value.toString(16).padStart(2, '0');
+    for (const r of steps) {
+      for (const g of steps) {
+        for (const b of steps) {
+          const fill = `#${hex(r)}${hex(g)}${hex(b)}`;
+          const ink = patternInk(fill, 'screen');
+          expect(ink, fill).toMatch(/^#[0-9a-f]{6}$/);
+          expect(contrastRatio(ink, fill), `${fill} → ${ink}`).toBeGreaterThanOrEqual(3);
+        }
+      }
+    }
+  });
+
+  it('works at the ends: black and white fills, and the greys that are the farthest from both (relative luminance about 0.18)', () => {
+    for (const fill of ['#000000', '#ffffff', '#767676', '#777777', '#7a7a7a', '#7f7f7f', '#808080', '#bcbcbc', '#464646']) {
+      expect(contrastRatio(patternInk(fill, 'screen'), fill), fill).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('is a darker shade of a pale fill, a lighter one of a dark fill, and not the fill', () => {
+    expect(colorReflectance(patternInk('#fff2cc', 'screen'))).toBeLessThan(colorReflectance('#fff2cc'));
+    expect(colorReflectance(patternInk('#101820', 'screen'))).toBeGreaterThan(colorReflectance('#101820'));
+    expect(patternInk('#7f7f7f', 'screen')).not.toBe('#7f7f7f');
   });
 });
 
@@ -161,8 +216,8 @@ const zone = (kind: PaintZone['kind'], color = '#d9ead3'): PaintZone => ({ id: '
 describe('paintZonePattern', () => {
   it('strokes the hatching in the zone’s ink in pixels, rows down from the far edge, as one path', () => {
     const { ctx, log } = recorder();
-    paintZonePattern(ctx, zone('target'), { pxPerCm: 4, depthCm: 50 });
-    expect(log.slice(0, 4)).toEqual([['strokeStyle', patternInk('#d9ead3')], ['lineWidth', 1.6], ['lineCap', 'butt'], ['beginPath']]);
+    paintZonePattern(ctx, zone('target'), { pxPerCm: 4, depthCm: 50, surface: 'mat' });
+    expect(log.slice(0, 4)).toEqual([['strokeStyle', patternInk('#d9ead3', 'mat')], ['lineWidth', 1.6], ['lineCap', 'butt'], ['beginPath']]);
     const moves = log.filter(([op]) => op === 'moveTo');
     const lines = log.filter(([op]) => op === 'lineTo');
     expect(moves.length).toBeGreaterThan(5);
@@ -179,14 +234,14 @@ describe('paintZonePattern', () => {
 
   it('draws a hatch line as wide as it is in the world when the picture is large, at least 1.6 px when it is small, and dots as round-capped specks', () => {
     const large = recorder();
-    paintZonePattern(large.ctx, zone('target'), { pxPerCm: 10, depthCm: 50 });
+    paintZonePattern(large.ctx, zone('target'), { pxPerCm: 10, depthCm: 50, surface: 'mat' });
     expect(large.log.find(([op]) => op === 'lineWidth')).toEqual(['lineWidth', 3.2]);
     const small = recorder();
-    paintZonePattern(small.ctx, zone('target'), { pxPerCm: 2, depthCm: 50 });
+    paintZonePattern(small.ctx, zone('target'), { pxPerCm: 2, depthCm: 50, surface: 'mat' });
     expect(small.log.find(([op]) => op === 'lineWidth')).toEqual(['lineWidth', 1.6]);
     const dots = recorder();
-    paintZonePattern(dots.ctx, zone('start', '#cfe2f3'), { pxPerCm: 10, depthCm: 50 });
-    expect(dots.log.slice(0, 4)).toEqual([['strokeStyle', patternInk('#cfe2f3')], ['lineWidth', 9], ['lineCap', 'round'], ['beginPath']]);
+    paintZonePattern(dots.ctx, zone('start', '#cfe2f3'), { pxPerCm: 10, depthCm: 50, surface: 'mat' });
+    expect(dots.log.slice(0, 4)).toEqual([['strokeStyle', patternInk('#cfe2f3', 'mat')], ['lineWidth', 9], ['lineCap', 'round'], ['beginPath']]);
     const moves = dots.log.filter(([op]) => op === 'moveTo');
     expect(moves.length).toBeGreaterThan(20);
     // A speck is a stroke of next to no length: its two ends are one point.
@@ -196,9 +251,19 @@ describe('paintZonePattern', () => {
     expect(Math.hypot((x1 as number) - (x0 as number), (y1 as number) - (y0 as number))).toBeLessThan(0.2);
   });
 
+  it('strokes the map’s pattern in the map’s ink and the mat’s in the mat’s: the same zone, two inks', () => {
+    const map = recorder();
+    paintZonePattern(map.ctx, zone('start', '#cfe2f3'), { pxPerCm: 4, depthCm: 50, surface: 'screen' });
+    expect(map.log[0]).toEqual(['strokeStyle', patternInk('#cfe2f3', 'screen')]);
+    const mat = recorder();
+    paintZonePattern(mat.ctx, zone('start', '#cfe2f3'), { pxPerCm: 4, depthCm: 50, surface: 'mat' });
+    expect(mat.log[0]).toEqual(['strokeStyle', patternInk('#cfe2f3', 'mat')]);
+    expect(map.log[0]![1]).not.toBe(mat.log[0]![1]);
+  });
+
   it('paints nothing for a checkpoint (its tag is its mark)', () => {
     const { ctx, log } = recorder();
-    paintZonePattern(ctx, zone('checkpoint', '#fff2cc'), { pxPerCm: 4, depthCm: 50 });
+    paintZonePattern(ctx, zone('checkpoint', '#fff2cc'), { pxPerCm: 4, depthCm: 50, surface: 'mat' });
     expect(log).toEqual([]);
   });
 });

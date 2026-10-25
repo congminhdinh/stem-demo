@@ -142,7 +142,7 @@ type TextBox = { text: string; fontPx: number; bold: boolean; color: string; bac
 /**
  * Every piece of text of the lab in view, with its colour and the backgrounds up its ancestors, from the page. Elements over the 3D view are
  * judged over its worst case (pure black or pure white, whichever is worse), as the tokens' own test does; a control that is disabled is
- * exempt (WCAG 1.4.3). The program's editor is Blockly's and not looked at.
+ * exempt (WCAG 1.4.3). The program's tabs are looked at (C++, ports and pins); the block editor is Blockly's and is not.
  */
 async function textBoxes(frame: Frame): Promise<TextBox[]> {
   return frame.evaluate(() => {
@@ -151,7 +151,8 @@ async function textBoxes(frame: Frame): Promise<TextBox[]> {
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       const text = node.textContent?.trim() ?? '';
       const element = node.parentElement;
-      if (text === '' || !element || element.closest('.robot-program, script, style, .visually-hidden, [hidden], [inert]')) continue;
+      // The program's tabs (C++, ports and pins) are in; the block editor is Blockly's, drawn with its own theme (src/ui/blockly/theme.ts).
+      if (text === '' || !element || element.closest('.blocklyDiv, .injectionDiv, .blocklyWidgetDiv, .blocklyDropDownDiv, script, style, .visually-hidden, [hidden], [inert]')) continue;
       const style = getComputedStyle(element);
       const rect = element.getBoundingClientRect();
       // Off-screen text (a 1 px clipped box: the live regions, the view's hint) is read, not seen.
@@ -160,17 +161,33 @@ async function textBoxes(frame: Frame): Promise<TextBox[]> {
       const backgrounds: string[] = [];
       let overCanvas = false;
       let opacity = 1;
+      const withAlpha = (colour: string, alpha: number) => (colour.startsWith('rgba') || alpha === 1 ? colour : colour.replace('rgb(', 'rgba(').replace(')', `, ${alpha})`));
+      if (element instanceof SVGElement) {
+        // Text of a drawing (the board of the ports and pins tab) is painted with `fill`, over the shapes under it: what the page hits at
+        // its middle, from the top down, then the page's own backgrounds up from the drawing.
+        const middle = [rect.x + rect.width / 2, rect.y + rect.height / 2] as const;
+        for (const under of document.elementsFromPoint(middle[0], middle[1])) {
+          if (under === element || element.contains(under) || under.contains(element)) continue;
+          const underStyle = getComputedStyle(under);
+          if (under instanceof SVGElement) {
+            // Only a shape paints (a group or the drawing's root has a `fill` of its own that nothing shows).
+            if (under instanceof SVGGeometryElement && underStyle.fill !== 'none') backgrounds.push(withAlpha(underStyle.fill, Number(underStyle.fillOpacity)));
+          } else {
+            backgrounds.push(underStyle.backgroundColor);
+          }
+        }
+      }
       for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
         const ancestorStyle = getComputedStyle(ancestor);
         opacity *= Number(ancestorStyle.opacity);
-        backgrounds.push(ancestorStyle.backgroundColor);
+        if (!(element instanceof SVGElement) || !(ancestor instanceof SVGElement)) backgrounds.push(ancestorStyle.backgroundColor);
         if (ancestor.classList.contains('robot-stage')) {
           overCanvas = true;
           break;
         }
       }
       if (opacity < 1) continue;
-      boxes.push({ text, fontPx: Number.parseFloat(style.fontSize), bold: Number(style.fontWeight) >= 700, color: style.color, backgrounds, overCanvas });
+      boxes.push({ text, fontPx: Number.parseFloat(style.fontSize), bold: Number(style.fontWeight) >= 700, color: element instanceof SVGElement ? withAlpha(style.fill, Number(style.fillOpacity)) : style.color, backgrounds, overCanvas });
     }
     return boxes;
   });
@@ -247,7 +264,8 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
     expect(named(idle, 'radio', '1×').map((radio) => radio.checked)).toEqual([true, true]);
     expect(named(idle, 'group', 'Kiểm tra')).toHaveLength(1);
     expect(named(idle, 'region', 'Khung nhìn robot')).toHaveLength(1);
-    expect(named(idle, 'group', 'Khung nhìn 3D của robot')).toHaveLength(1);
+    // The 3D view is the one `application` of the lab (the block editor's own is Blockly's, in the program).
+    expect(named(idle, 'application', 'Khung nhìn 3D của robot')).toHaveLength(1);
     expect(named(idle, 'group', 'Góc nhìn')).toHaveLength(1);
     expect(named(idle, 'button', 'Tự do')[0]?.pressed).toBe(true);
     expect(named(idle, 'button', 'Hiện cảm biến')).toHaveLength(1);
@@ -395,7 +413,9 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
     await expect(view).toHaveAttribute('tabindex', '0');
     await expect(view).toHaveAccessibleName('Khung nhìn 3D của robot');
     await expect(view).toHaveAccessibleDescription(/^Phím: 1 Tự do, 2 Theo xe, 3 Nhìn từ trên; 0 hoặc Home đặt lại góc nhìn; \+ và − phóng to, thu nhỏ; Shift cùng các phím mũi tên để xoay\./);
-    await expect(view).toHaveAccessibleDescription(/phím cách dừng$/);
+    await expect(view).toHaveAccessibleDescription(/phím cách dừng\. Khi công cụ Di chuyển robot đang bật, Shift cùng các phím mũi tên dịch robot 5 cm và không xoay góc nhìn\.$/);
+    await expect(view).toHaveAttribute('role', 'application');
+    await expect(view).toHaveAttribute('aria-roledescription', 'khung nhìn có phím tắt');
     const buttons = frame.locator('[data-testid=robot-camera] button');
     await expect(buttons.nth(0)).toHaveAttribute('title', 'Tự do (phím 1)');
     await expect(buttons.nth(1)).toHaveAttribute('title', 'Theo xe (phím 2)');
@@ -511,7 +531,18 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
     await frame.getByTestId('robot-run').click();
     await expect.poll(async () => ((await frame.evaluate(() => window.__stem?.robot.getSnapshot())) as { t: number } | null)?.t ?? 0).toBeGreaterThan(2);
     await expectContrast(frame, 'a run');
+    // The program's other tabs while the robot runs (their values are live): the C++ source with its marked line, the ports and pins.
+    await frame.getByRole('tab', { name: 'Cổng & chân' }).click();
+    await expect(frame.getByTestId('hub-table')).toBeVisible();
+    await expectContrast(frame, 'ports and pins during a run');
+    await frame.getByRole('tab', { name: 'C++' }).click();
+    await expect(frame.getByTestId('cpp-source')).toBeVisible();
+    await expectContrast(frame, 'C++ during a run');
+    await frame.getByRole('tab', { name: 'Khối lệnh' }).click();
     await frame.getByTestId('robot-stop').click();
+    await frame.getByRole('tab', { name: 'Cổng & chân' }).click();
+    await expectContrast(frame, 'ports and pins after a run');
+    await frame.getByRole('tab', { name: 'Khối lệnh' }).click();
 
     await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('rb-stop-at-wall', 'crash-and-back-off'));
     await frame.locator('[data-testid=robot-check-speed] [data-speed="fast"]').click();
@@ -577,7 +608,67 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
     await frame.locator('.robot-messages-close').focus();
     await page.keyboard.press('Escape');
     await expect(frame.getByTestId('robot-messages')).toHaveCount(0);
-    await expect(frame.locator('.robot-stage')).toBeFocused();
+    // The 3D view's stop, which is named, and not the stage.
+    await expect(frame.getByTestId('robot-scene')).toBeFocused();
+    await expect(frame.getByTestId('robot-scene')).toHaveAccessibleName('Khung nhìn 3D của robot');
+  });
+
+  test('Escape in a result card closes the card and not Lái tay, which is on', async ({ page, baseURL }) => {
+    const frame = await openInLesson(page, labUrl(baseURL));
+    await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('rb-drive-to-zone', 'reference'));
+    await frame.locator('[data-testid=robot-check-speed] [data-speed="fast"]').click();
+    await frame.getByTestId('robot-check-start').click();
+    await expect(frame.getByTestId('robot-check-heading')).toBeFocused({ timeout: 60_000 });
+    await frame.getByTestId('robot-tool-teleop').click();
+    await expect(frame.getByTestId('robot-tool-teleop')).toHaveAttribute('aria-pressed', 'true');
+    await frame.getByTestId('robot-check-heading').focus();
+    await page.keyboard.press('Escape');
+    await expect(frame.getByTestId('robot-check-results')).toHaveCount(0);
+    await expect(frame.getByTestId('robot-tool-teleop')).toHaveAttribute('aria-pressed', 'true');
+    await expect(frame.getByTestId('robot-teleop')).toBeVisible();
+  });
+
+  test('the covered 3D view is no Tab stop, has no name or hint, while the 2D map stands in for graphics that are gone; a card closed there gives the focus to the named map', async ({ page, baseURL }) => {
+    const errors = collectErrors(page);
+    const frame = await openInLesson(page, labUrl(baseURL, 'rb-stop-at-wall'));
+    // The browser takes the WebGL context away and does not give it back (the extension is taken before it goes: a lost context has none).
+    await frame.evaluate(() => {
+      const canvas = document.querySelector('[data-testid=robot-canvas] canvas') as HTMLCanvasElement;
+      const gl = (canvas.getContext('webgl2') ?? canvas.getContext('webgl')) as WebGL2RenderingContext;
+      const extension = gl.getExtension('WEBGL_lose_context')!;
+      (window as unknown as { __loseContext: WEBGL_lose_context }).__loseContext = extension;
+      extension.loseContext();
+    });
+    await expect(frame.getByTestId('robot-topview')).toBeVisible({ timeout: 8000 });
+    const view = frame.getByTestId('robot-scene');
+    for (const attribute of ['tabindex', 'role', 'aria-label', 'aria-roledescription', 'aria-describedby', 'data-view-focus']) {
+      await expect(view).not.toHaveAttribute(attribute, /.*/);
+    }
+    await expect(view).toHaveAttribute('inert', '');
+    await expect(frame.getByTestId('robot-view-hint')).toHaveCount(0);
+    // Tab walks the lab and never lands on it.
+    await frame.getByTestId('robot-run').focus();
+    for (let i = 0; i < 18; i++) {
+      await page.keyboard.press('Tab');
+      expect(await frame.evaluate(() => document.activeElement?.closest('[data-testid=robot-scene]') ?? null), `Tab ${i + 1}`).toBeNull();
+    }
+    // A card closed over the map: the focus goes to the map, which is named.
+    await frame.evaluate((document) => window.__stem?.loadProject(document), programOf('rb-stop-at-wall', brokenDrive));
+    await frame.getByTestId('robot-run').click();
+    await expect(frame.getByTestId('robot-messages')).toBeVisible();
+    await frame.locator('.robot-messages-close').focus();
+    await page.keyboard.press('Escape');
+    await expect(frame.getByTestId('robot-messages')).toHaveCount(0);
+    await expect(frame.getByTestId('robot-topview')).toBeFocused();
+    await expect(frame.getByTestId('robot-topview')).toHaveAccessibleName(/Bản đồ 2D/);
+    // And when the graphics return, the view is a stop again.
+    await frame.evaluate(() => (window as unknown as { __loseContext: WEBGL_lose_context }).__loseContext.restoreContext());
+    await expect(frame.getByTestId('robot-topview')).toHaveCount(0);
+    await expect(view).toHaveAttribute('tabindex', '0');
+    await expect(view).toHaveAttribute('role', 'application');
+    await expect(view).not.toHaveAttribute('inert', /.*/);
+    await expect(frame.getByTestId('robot-view-hint')).toHaveCount(1);
+    expect(errors).toEqual([]);
   });
 
   test('ends Lái tay with Escape, as it clears the ruler', async ({ page, baseURL }) => {
@@ -773,7 +864,7 @@ test.describe('the zones’ patterns on the 2D map (N18 R8)', () => {
     // The HUD and the tools float over the map: fold the HUD away so that the zones show.
     await page.waitForTimeout(500);
     const zones = readJson('../src/samples/robot-scenarios/rb-mini-mission.json').arena.paint.zones as { kind: string; color: string }[];
-    const ink = (kind: string) => patternInk(zones.find((zone) => zone.kind === kind)!.color);
+    const ink = (kind: string) => patternInk(zones.find((zone) => zone.kind === kind)!.color, 'screen');
     const png = decodePng(await frame.getByTestId('robot-topview').screenshot());
     const near = (hex: string) => {
       const [r, g, b] = [1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16));
@@ -786,7 +877,8 @@ test.describe('the zones’ patterns on the 2D map (N18 R8)', () => {
     const counts = { start: near(ink('start')), target: near(ink('target')), checkpoint: near(ink('checkpoint')) };
     expect(counts.start, 'dots on the start').toBeGreaterThan(30);
     expect(counts.target, 'hatching on the target').toBeGreaterThan(60);
-    expect(counts.checkpoint, 'nothing on a checkpoint').toBeLessThan(5);
+    // Nothing on a checkpoint: its ink turns up only by chance (an edge of the tape or of an object blends to it), a few pixels against the hundreds of a pattern.
+    expect(counts.checkpoint, `nothing on a checkpoint (${JSON.stringify(counts)})`).toBeLessThan(Math.min(counts.start, counts.target) / 10);
     await screenshot(page, '08-zone-patterns-2d-map.png');
     expect(errors).toEqual([]);
   });

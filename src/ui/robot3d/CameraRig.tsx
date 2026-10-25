@@ -120,9 +120,12 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
   useEffect(() => {
     const onChange = () => {
       invalidate();
-      // Where the camera is, for the E2E and a curious developer (like the lens shift's): its distance from what it looks at (m), the
-      // turn about the vertical and the angle from the vertical (degrees).
-      dom.dataset.camera = `${camera.position.distanceTo(controls.target).toFixed(3)} ${((controls.getAzimuthalAngle() * 180) / Math.PI).toFixed(1)} ${((controls.getPolarAngle() * 180) / Math.PI).toFixed(1)}`;
+      // Where the camera is, for the E2E and a curious developer: its distance from what it looks at (m), the turn about the vertical and
+      // the angle from the vertical (degrees). Dev builds only, like the other test hooks (a change comes every frame of a glide, a drag
+      // and a followed robot: production formats nothing).
+      if (import.meta.env.DEV) {
+        dom.dataset.camera = `${camera.position.distanceTo(controls.target).toFixed(3)} ${((controls.getAzimuthalAngle() * 180) / Math.PI).toFixed(1)} ${((controls.getPolarAngle() * 180) / Math.PI).toFixed(1)}`;
+      }
     };
     const onStart = () => {
       dragging.current = true;

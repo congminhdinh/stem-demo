@@ -46,8 +46,8 @@ describe('the printed mat’s patterns (N18 R8)', () => {
     paintMat(ctx, scenario, { pxPerCm: 3 });
     const start = scenario.arena.paint.zones.find((zone) => zone.kind === 'start')!;
     const target = scenario.arena.paint.zones.find((zone) => zone.kind === 'target')!;
-    const dots = calls.findIndex((call) => call.op === 'stroke' && call.style === patternInk(start.color));
-    const hatch = calls.findIndex((call) => call.op === 'stroke' && call.style === patternInk(target.color));
+    const dots = calls.findIndex((call) => call.op === 'stroke' && call.style === patternInk(start.color, 'mat'));
+    const hatch = calls.findIndex((call) => call.op === 'stroke' && call.style === patternInk(target.color, 'mat'));
     expect(calls[dots]!.cap).toBe('round');
     expect(calls[hatch]!.cap).toBe('butt');
     const tape = calls.findIndex((call) => call.op === 'stroke' && call.style === '#15171c');

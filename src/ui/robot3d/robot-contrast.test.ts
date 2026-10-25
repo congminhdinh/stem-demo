@@ -157,3 +157,69 @@ describe('the focus ring (N18 R8)', () => {
     expect(tokenRatio('primary', 'surface')).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+/**
+ * WCAG 1.4.11 for the lab's toggles: the cue that says a control is on or selected has at least 3:1 against what it is not (the off
+ * control's own fill or border, or the panel it stands on). Each state is the indicator that changes, as tokens: a tint of the fill alone,
+ * or a change of the icon's colour (the primary colour against the text colour is 2.3:1), is not enough, and where the rule has one of those
+ * it has a ring or a bar as well. A state that is a shape (a cap that goes down) is a cue that is not a colour.
+ */
+type StateCue = { on: string; off: string; via: RegExp } | { shape: string };
+const fill = /^background(-color)?$/;
+const edge = /^(border(-bottom)?-color|box-shadow)$/;
+const stateCues: Readonly<Record<string, StateCue>> = {
+  // Fills (a button, a radio, a tool): the primary colour, against the card or the surface it stands on.
+  ".robot-tool[aria-pressed='true']": { on: 'primary', off: 'overlay', via: fill },
+  ".robot-pad-button[aria-pressed='true']": { on: 'primary', off: 'surface', via: fill },
+  ".app-header .robot-speed [role='radio'][aria-checked='true']": { on: 'primary', off: 'surface', via: fill },
+  ".robot-camera button[aria-pressed='true']": { on: 'primary', off: 'overlay', via: fill },
+  // A bar under the control.
+  ".robot-tool-action[aria-expanded='true']": { on: 'primary', off: 'overlay', via: edge },
+  ".robot-program-tabs [role='tab'][aria-selected='true']": { on: 'primary', off: 'surface', via: edge },
+  // A border or a ring: against the border it has when it is off, or the panel's.
+  ".robot-header .robot-button[aria-pressed='true']": { on: 'warning-text', off: 'border-strong', via: edge },
+  ".robot-hold-button[aria-pressed='true']": { on: 'text', off: 'border-strong', via: edge },
+  ".robot-camera .robot-sensors-camera[aria-pressed='true']": { on: 'primary', off: 'overlay', via: edge },
+  ".robot-sensors-panel[aria-pressed='true']": { on: 'primary', off: 'border', via: edge },
+  // Not a colour.
+  ".robot-hold-button[aria-pressed='true'] .robot-hold-cap": { shape: 'the cap goes down 3 px and loses its shadow' },
+};
+
+/** The icon-only controls: what identifies them is the icon (3:1), not their border (2.2:1 against the surface, which no control relies on). */
+const iconControls: readonly { name: string; icon: string; on: string }[] = [
+  { name: 'a tool of the strip', icon: 'text', on: 'overlay' },
+  { name: 'an arrow of the pad', icon: 'primary', on: 'surface' },
+  { name: 'the pad’s stop', icon: 'danger', on: 'surface' },
+  { name: 'the pad’s fold', icon: 'text-muted', on: 'overlay' },
+  { name: 'the sound button', icon: 'text', on: 'surface' },
+  { name: 'a camera button and the reset', icon: 'text', on: 'overlay' },
+  { name: 'the sensors panel', icon: 'text', on: 'overlay' },
+];
+
+describe('the on and off of every toggle, and what identifies a control (N18 R8, WCAG 1.4.11)', () => {
+  it.each(Object.entries(stateCues).filter(([, cue]) => 'on' in cue))('%s shows its state with at least 3:1', (selector, cue) => {
+    const { on, off, via } = cue as { on: string; off: string; via: RegExp };
+    expect(tokenRatio(on, off)).toBeGreaterThanOrEqual(3);
+    // The rule really paints that indicator (the fill, or the border or ring or bar) with that token: not only the icon's colour.
+    const rule = sheets.flatMap(({ rules }) => rules).find((candidate) => candidate.selector === selector);
+    expect(rule, `a rule for ${selector}`).toBeDefined();
+    expect(Object.entries(rule!.props).some(([property, value]) => via.test(property) && value.includes(`var(--stem-color-${on})`)), `${selector} paints ${on} as ${via}`).toBe(true);
+  });
+
+  it('has every state rule of the lab’s sheets in the table above: a new toggle must be audited', () => {
+    const found = sheets.flatMap(({ rules }) => rules.map((rule) => rule.selector)).filter((selector) => /\[aria-(pressed|checked|selected|expanded)='true'\]/.test(selector));
+    expect(found.length).toBeGreaterThanOrEqual(Object.keys(stateCues).length);
+    expect(found.filter((selector) => !(selector in stateCues))).toEqual([]);
+    // And the table has no rule that is gone.
+    expect(Object.keys(stateCues).filter((selector) => !found.includes(selector))).toEqual([]);
+  });
+
+  it.each(iconControls)('$name is identified by its icon at 3:1 or more', ({ icon, on }) => {
+    expect(tokenRatio(icon, on)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('records what the tint of a selected fill and the colour of an icon are on their own, which is why the rules above add a ring or a bar', () => {
+    expect(tokenRatio('primary-soft', 'overlay')).toBeLessThan(1.3);
+    expect(tokenRatio('primary', 'text')).toBeLessThan(3);
+  });
+});

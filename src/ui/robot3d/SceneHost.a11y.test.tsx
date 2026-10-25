@@ -21,9 +21,11 @@ import { SceneHost } from './SceneHost';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const scenes = vi.hoisted(() => ({ props: null as SceneProps | null }));
+const scenes = vi.hoisted(() => ({ props: null as SceneProps | null, fail: false }));
 vi.mock('./Scene', () => ({
   default: function SceneStandIn(props: SceneProps) {
+    // A canvas that cannot get its renderer throws while it is made.
+    if (scenes.fail) throw new Error('The stand-in could not make its renderer.');
     scenes.props = props;
     return <canvas data-testid="scene-stand-in" data-tier={props.tier} data-mode={props.cameraMode} data-reset={props.resetKey} />;
   },
@@ -38,6 +40,8 @@ let host: HTMLElement;
 let root: Root;
 beforeEach(() => {
   installFakeCanvas2d();
+  scenes.fail = false;
+  scenes.props = null;
   host = document.createElement('div');
   document.body.append(host);
   root = createRoot(host);
@@ -82,11 +86,19 @@ const byId = (testId: string) => host.querySelector<HTMLElement>(`[data-testid=$
 const click = (testId: string) => act(() => byId(testId)!.click());
 
 describe('the 3D view as a stop of its own (N18 R8)', () => {
-  it('takes the focus, is a named group, and points at the hint that lists its keys', () => {
+  it('takes the focus, is a named application that says it takes keys, and points at the hint that lists them', () => {
     render();
     const view = byId('robot-scene')!;
     expect(view.tabIndex).toBe(0);
-    expect([view.getAttribute('role'), view.getAttribute('aria-label'), view.getAttribute('aria-describedby')]).toEqual(['group', 'Khung nhìn 3D của robot', 'view-hint']);
+    // `application`, so that a screen reader's browse mode hands the keys to the view; on this element only (the lab around it is a page).
+    expect([view.getAttribute('role'), view.getAttribute('aria-roledescription'), view.getAttribute('aria-label'), view.getAttribute('aria-describedby')]).toEqual([
+      'application',
+      'khung nhìn có phím tắt',
+      'Khung nhìn 3D của robot',
+      'view-hint',
+    ]);
+    expect(host.querySelectorAll('[role=application]')).toHaveLength(1);
+    expect(view.hasAttribute('inert')).toBe(false);
     expect(view.hasAttribute('data-view-focus')).toBe(true);
     expect(view.getAttribute('aria-keyshortcuts')).toBe('1 2 3 0 Home + - Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown');
     const hint = byId('robot-view-hint')!;
@@ -98,7 +110,48 @@ describe('the 3D view as a stop of its own (N18 R8)', () => {
 
   it('names itself in English when the lab is read in English', () => {
     render({ locale: 'en' });
-    expect(byId('robot-scene')!.getAttribute('aria-label')).toBe('Robot 3D view');
+    expect([byId('robot-scene')!.getAttribute('aria-label'), byId('robot-scene')!.getAttribute('aria-roledescription')]).toEqual(['Robot 3D view', 'view with key shortcuts']);
+  });
+
+  // The canvas stays mounted under the map (a context that may come back; a canvas that failed): it must not stay a stop of the Tab key
+  // that does nothing, with a name and a hint for keys that act on nothing.
+  it.each([
+    ['a canvas that failed', () => void (scenes.fail = true), () => undefined],
+    [
+      'a context that is gone',
+      () => undefined,
+      () => {
+        act(() => scenes.props!.onContextLost());
+        act(() => vi.advanceTimersByTime(2000));
+      },
+    ],
+  ])('is no stop, has no name or hint, and is inert while the 2D map stands in for %s', (_name, before, lose) => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      before();
+      render();
+      lose();
+      expect(byId('robot-fallback')).not.toBeNull();
+      const view = byId('robot-scene')!;
+      expect(view).not.toBeNull();
+      for (const attribute of ['tabindex', 'role', 'aria-label', 'aria-roledescription', 'aria-describedby', 'aria-keyshortcuts', 'data-view-focus']) {
+        expect(view.hasAttribute(attribute), attribute).toBe(false);
+      }
+      expect(view.hasAttribute('inert')).toBe(true);
+      expect(byId('robot-view-hint')).toBeNull();
+      expect(host.querySelectorAll('[role=application], [data-view-focus]')).toHaveLength(0);
+      // Back to 3D (the canvas works again): the stop, its name and its hint come back.
+      scenes.fail = false;
+      act(() => byId('robot-viewmode')!.click());
+      expect(byId('robot-fallback')).toBeNull();
+      const again = byId('robot-scene')!;
+      expect([again.tabIndex, again.getAttribute('role'), again.hasAttribute('inert')]).toEqual([0, 'application', false]);
+      expect(byId('robot-view-hint')).not.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('is not there in the 2D map, which has no camera: no stop, no hint', () => {
@@ -178,12 +231,31 @@ describe('what the view says to the announcer (N18 R8)', () => {
     expect(announce).toHaveBeenCalledTimes(2);
   });
 
+  it('says the graphics are lost at once, while it waits for them, and that they are back if they come back in time', () => {
+    vi.useFakeTimers();
+    try {
+      const { announce } = render();
+      act(() => scenes.props!.onContextLost());
+      expect(announce).toHaveBeenCalledTimes(1);
+      expect(announce).toHaveBeenLastCalledWith('Khung nhìn 3D bị mất đồ hoạ. Đang khôi phục…');
+      act(() => vi.advanceTimersByTime(1500));
+      act(() => scenes.props!.onContextRestored());
+      expect(announce).toHaveBeenCalledTimes(2);
+      expect(announce).toHaveBeenLastCalledWith('Đã quay lại khung nhìn 3D.');
+      // No map came in: nothing more is said.
+      act(() => vi.advanceTimersByTime(3000));
+      expect(announce).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('says the reason the map took over from a lost context, after the wait', () => {
     vi.useFakeTimers();
     try {
       const { announce } = render();
       act(() => scenes.props!.onContextLost());
-      expect(announce).not.toHaveBeenCalled();
+      expect(announce).toHaveBeenLastCalledWith('Khung nhìn 3D bị mất đồ hoạ. Đang khôi phục…');
       act(() => vi.advanceTimersByTime(2000));
       expect(announce).toHaveBeenLastCalledWith('Khung nhìn 3D bị mất đồ hoạ, đang dùng bản đồ 2D. Khi đồ hoạ trở lại, 3D sẽ tự quay về.');
       act(() => scenes.props!.onContextRestored());

@@ -311,8 +311,13 @@ export default function RobotLab({
     [t],
   );
 
-  // The keys of the 3D view, said to whoever focuses it: the camera's, and teleop's when the robot can be driven.
-  const viewHint = [t('robot.camera.keys', { orbit: t('robot.camera.orbit'), follow: t('robot.camera.follow'), top: t('robot.camera.top') }), ...(drivable ? [t('robot.teleop.keys')] : [])].join(' ');
+  // The keys of the 3D view, said to whoever focuses it: the camera's, teleop's when the robot can be driven, and the move tool's Shift.
+  const viewHint = [
+    t('robot.camera.keys', { orbit: t('robot.camera.orbit'), follow: t('robot.camera.follow'), top: t('robot.camera.top') }),
+    ...(drivable ? [`${t('robot.teleop.keys')}.`] : []),
+    // The move tool takes Shift with the arrows (R4.8: 5 cm) before the camera can.
+    t('robot.view.moveKeys', { tool: t('robot.move') }),
+  ].join(' ');
   const viewport = (
     <section className="robot-viewport" aria-label={t('robot.viewport')} data-testid="robot-viewport">
       <div className="robot-stage" ref={stageRef} tabIndex={-1} {...(teleopOn ? { role: 'group', 'aria-label': t('robot.view.keys') } : {})}>

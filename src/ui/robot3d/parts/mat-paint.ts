@@ -51,7 +51,7 @@ export function paintMat(ctx: PaintContext & Pick<CanvasRenderingContext2D, 'set
   const px = (x: number) => x * pxPerCm;
   const py = (y: number) => (depthCm - y) * pxPerCm;
   // N18 R8: each zone's pattern (dots, hatching) over its fill, in a light shade of the zone's own colour, under the borders and the tape.
-  paintGround(ctx, { ground: arena.ground, paint: { zones: arena.paint.zones, lines: [] } }, { pxPerCm, zoneLabel: () => null, patterns: true });
+  paintGround(ctx, { ground: arena.ground, paint: { zones: arena.paint.zones, lines: [] } }, { pxPerCm, zoneLabel: () => null, patterns: 'mat' });
   for (const zone of arena.paint.zones) {
     const box = boundsOf(zone);
     // A printed border 3 mm wide, 6 mm inside the zone's edge.

@@ -65,7 +65,7 @@ function useMat(arena: Arena, scale: number | null, zoneLabel: TopView2DProps['z
     canvas.height = Math.ceil(depthCm * pxPerCm);
     const ctx = canvas.getContext('2d');
     if (ctx === null) return null;
-    paintGround(ctx, arena, { pxPerCm, zoneLabel, patterns: true });
+    paintGround(ctx, arena, { pxPerCm, zoneLabel, patterns: 'screen' });
     return canvas;
   }, [arena, wanted, zoneLabel]);
 }
@@ -189,7 +189,8 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
   const barY = fit && Math.min(fit.originY + 17, (size?.height ?? 0) - 10);
 
   return (
-    <div ref={containerRef} className="robot-topview" role="img" aria-label={t('robot.topview.label')} data-testid="robot-topview" data-reason={reason ?? 'chosen'}>
+    // tabIndex -1: not a Tab stop, the named place the focus goes back to in the 2D view (a card closed: RunMessages).
+    <div ref={containerRef} className="robot-topview" role="img" aria-label={t('robot.topview.label')} tabIndex={-1} data-testid="robot-topview" data-reason={reason ?? 'chosen'}>
       {fit && world && bar && size && (
         <Stage width={size.width} height={size.height} listening={false}>
           <Layer listening={false}>

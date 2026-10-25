@@ -3,12 +3,20 @@ import { colorReflectance } from '../../core/world/arena/ground-paint';
 import { contrastRatio } from '../a11y/contrast';
 
 // The patterns that tell the zones apart for a learner who cannot tell their pastel colours apart (N18 R8): the start is dotted, a target
-// is hatched with diagonal lines, an area (a place the robot must keep out of, or an obstacle) is cross-hatched; a checkpoint has its
-// numbered tag (zone-tags.ts), so no pattern. The patterns are visual only: the 3D mat's texture (mat-paint.ts) and the 2D map
-// (ground-paint.ts `patterns`) draw them over a zone's fill; the line sensor reads the scenario's vector paint (core/world/arena/
-// ground-paint.ts), never the texture. Even so they are drawn light, in a shade of the zone's own colour with a luma above the sensor's
-// dark threshold (0.5), so that nothing on the mat looks dark that the sensor would not read as dark (R4.7's rule for the mat's borders),
-// and the printed mat (core/scenario/arena-mat.ts, which does not share this painter) is left as it is.
+// is hatched with diagonal lines, an `area` (the schema's generic region: it means nothing to the world, and none of the lessons paints one;
+// an author who wants a place to keep out of paints it as an area) is cross-hatched; a checkpoint has its numbered tag (zone-tags.ts), so
+// no pattern. The patterns are visual only: the 3D mat's texture (mat-paint.ts), R4.2's fallback floor and the 2D map (ground-paint.ts
+// `patterns`) draw them over a zone's fill; the line sensor reads the scenario's vector paint (core/world/arena/ground-paint.ts), never a
+// texture, and the printed mat (core/scenario/arena-mat.ts, which does not share this painter) is left as it is.
+//
+// The ink depends on where the picture is:
+//   - 'screen' (the 2D map): drawn only on a screen, never printed, never sensed. Its ink is the zone's own hue, darkened (or lightened,
+//     for a dark fill) until it has at least WCAG 1.4.11's 3:1 against the fill, with no floor on its luma (at worst black or white itself,
+//     which has 4.58:1 with any fill). So every fill, any author's, has a pattern of 3:1 or more on the map.
+//   - 'mat' (the 3D mat and R4.2's floor): it looks like the paper a robot drives on, so nothing on it may look darker than the line
+//     sensor's dark threshold: R4.7's rule for the mat's borders, the pattern's ink has a luma above 0.5. That caps its contrast against
+//     the pale fills of the lessons at 2.96 to 3.53:1, **a recorded exception to 1.4.11** (2.96 on the start's light blue): the zone's tag
+//     (its name, its number) and its colour are the redundant cue there, and the map, one click away, has the 3:1 ink.
 //
 // The shapes are worked out here in centimetres, cut to the zone with the even-odd rule the fill uses (a concave zone, a zone with a
 // hole), kept a margin clear of its edge, and laid on a grid of the whole mat (so that the hatching of two zones side by side lines up).
@@ -179,22 +187,24 @@ export function patternDots(polygon: Polygon, dots: { spacingCm: number; radiusC
 
 // The ink -------------------------------------------------------------------------------------------------------------------------------
 
+/** Where a pattern is drawn: the 3D mat (and R4.2's floor), which looks like paper, or the 2D map, which is only ever a screen's. */
+export type PatternSurface = 'mat' | 'screen';
+
 /** The reflectance a line sensor reads as light: nothing printed on the mat may be darker than this (R4.7). */
 const SENSOR_LIGHT = 0.5;
-/** The luma of a pattern drawn darker than its zone's fill: just above that floor, as dark as the rule lets it be. */
+/** The luma of a mat pattern drawn darker than its zone's fill: just above that floor, as dark as the rule lets it be. */
 const DARK_INK_LUMA = 0.502;
-/** How far towards white a pattern drawn lighter than its fill is mixed. */
+/** How far towards white a mat pattern drawn lighter than its fill is mixed. */
 const LIGHT_INK_MIX = 0.75;
+/** The contrast a screen pattern is made to have: WCAG 1.4.11's 3, and a margin, so that rounding to 8 bits never takes it under. */
+const SCREEN_INK_RATIO = 3.2;
 
 const toHex = (channels: readonly number[]) => `#${channels.map((channel) => Math.max(0, Math.min(255, Math.round(channel))).toString(16).padStart(2, '0')).join('')}`;
+const channelsOf = (fill: string) => [1, 3, 5].map((at) => Number.parseInt(fill.slice(at, at + 2), 16));
 
-/**
- * The colour a zone's pattern is drawn in, `#rrggbb`: its fill's own hue, as far from the fill as keeping a luma above the sensor's 0.5
- * allows. On a light fill (all of the lessons') that is the fill darkened until its luma is just above 0.5, about 3:1 against the fill; on a
- * fill too dark for that, the fill mixed towards white.
- */
-export function patternInk(fill: string): string {
-  const channels = [1, 3, 5].map((at) => Number.parseInt(fill.slice(at, at + 2), 16));
+/** The ink of the mat: see the top of this file. */
+function matInk(fill: string): string {
+  const channels = channelsOf(fill);
   const luma = colorReflectance(fill);
   const light = toHex(channels.map((channel) => channel + (255 - channel) * LIGHT_INK_MIX));
   if (luma <= DARK_INK_LUMA + 0.01) return light;
@@ -206,6 +216,28 @@ export function patternInk(fill: string): string {
     dark = toHex(channels.map((channel) => channel * scale));
   }
   return contrastRatio(dark, fill) >= contrastRatio(light, fill) ? dark : light;
+}
+
+/** The ink of the 2D map: the fill's hue, shaded in 1 % steps towards black or white until it has SCREEN_INK_RATIO against the fill. */
+function screenInk(fill: string): string {
+  const channels = channelsOf(fill);
+  const shade = (towards: 0 | 255): { ink: string; steps: number } | null => {
+    for (let steps = 1; steps <= 100; steps++) {
+      const ink = toHex(channels.map((channel) => channel + (towards - channel) * (steps / 100)));
+      if (contrastRatio(ink, fill) >= SCREEN_INK_RATIO) return { ink, steps };
+    }
+    return null;
+  };
+  // The nearer of the two that get there. The last step of each is black or white itself, whose contrast with any fill is at least 4.58:1
+  // (the smaller of (L + 0.05) / 0.05 and 1.05 / (L + 0.05) is lowest, 4.58, at a relative luminance of 0.179), so one of them always does:
+  // every fill, an author's too, has a pattern of 3:1 or more on the map.
+  const found = [shade(0), shade(255)].filter((candidate) => candidate !== null).sort((a, b) => a.steps - b.steps);
+  return found[0]?.ink ?? (contrastRatio('#000000', fill) >= contrastRatio('#ffffff', fill) ? '#000000' : '#ffffff');
+}
+
+/** The colour a zone's pattern is drawn in on `surface`, `#rrggbb`, from the zone's fill `#rrggbb` (see the top of this file). */
+export function patternInk(fill: string, surface: PatternSurface): string {
+  return surface === 'screen' ? screenInk(fill) : matInk(fill);
 }
 
 // The painter ---------------------------------------------------------------------------------------------------------------------------
@@ -228,18 +260,18 @@ const SPECK_PX = 0.01;
 /**
  * Paints `zone`'s pattern over its fill: the lines of a hatch as one stroked path, the dots of a dotted zone as specks (a stroke of next
  * to no length with round ends) in another. `pxPerCm` and `depthCm` place it as ground-paint.ts places the zone: rows run down from the
- * arena's far edge. A zone with no pattern is left alone.
+ * arena's far edge; `surface` says which ink. A zone with no pattern is left alone.
  */
-export function paintZonePattern(ctx: PatternPaintContext, zone: Pick<PaintZone, 'kind' | 'color' | 'polygonCm'>, frame: { pxPerCm: number; depthCm: number }): void {
+export function paintZonePattern(ctx: PatternPaintContext, zone: Pick<PaintZone, 'kind' | 'color' | 'polygonCm'>, frame: { pxPerCm: number; depthCm: number; surface: PatternSurface }): void {
   const spec = zonePattern(zone.kind);
   if (spec === null) return;
-  const { pxPerCm, depthCm } = frame;
+  const { pxPerCm, depthCm, surface } = frame;
   const px = (xCm: number) => xCm * pxPerCm;
   const py = (yCm: number) => (depthCm - yCm) * pxPerCm;
   if (spec.kind === 'hatch') {
     const lines = patternSegments(zone.polygonCm, spec, PATTERN_MARGIN_CM);
     if (lines.length === 0) return;
-    ctx.strokeStyle = patternInk(zone.color);
+    ctx.strokeStyle = patternInk(zone.color, surface);
     ctx.lineWidth = Math.max(spec.widthCm * pxPerCm, MIN_LINE_PX);
     ctx.lineCap = 'butt';
     ctx.beginPath();
@@ -252,7 +284,7 @@ export function paintZonePattern(ctx: PatternPaintContext, zone: Pick<PaintZone,
   }
   const dots = patternDots(zone.polygonCm, spec, PATTERN_MARGIN_CM);
   if (dots.length === 0) return;
-  ctx.strokeStyle = patternInk(zone.color);
+  ctx.strokeStyle = patternInk(zone.color, surface);
   ctx.lineWidth = Math.max(2 * spec.radiusCm * pxPerCm, MIN_DOT_PX);
   ctx.lineCap = 'round';
   ctx.beginPath();

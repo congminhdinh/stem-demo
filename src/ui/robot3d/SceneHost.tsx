@@ -115,6 +115,8 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, .
   const fallback = fallbackReason({ webgl: probed.ok, context, chosen2d, canvasFailed: failedAttempt === attempt });
   const { scenario, kit, model, store, zoneLabel, tools } = sceneProps;
   const toggle = viewToggleAction(fallback);
+  /** The 3D view is what the learner sees: nothing stands in for it. */
+  const live = fallback === null;
   const fallbackView = fallback !== null && <ViewFallback reason={fallback} scenario={scenario} kit={kit} model={model} store={store} zoneLabel={zoneLabel} {...(tools ? { tools } : {})} {...(alert ? { alert } : {})} />;
 
   // N18 R8: the switch to the 2D map (and why), and back, are said once; so is the light graphics the view chose for itself.
@@ -131,6 +133,16 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, .
   useEffect(() => {
     if (autoLow === 'shown') latestWords.current.announce?.(latestWords.current.t('robot.quality.autoLow'));
   }, [autoLow]);
+  // The browser took the graphics away: said at once, while the view waits for them (its message is on the view too), and said again
+  // when they come back within the wait (after the wait the 2D map says why it is there, and says when 3D is back).
+  const shownContext = useRef<ContextState>('ok');
+  useEffect(() => {
+    const before = shownContext.current;
+    shownContext.current = context;
+    if (chosen2d) return;
+    if (context === 'lost') latestWords.current.announce?.(latestWords.current.t('robot.webgl.lost'));
+    else if (context === 'ok' && before === 'lost') latestWords.current.announce?.(latestWords.current.t('robot.announce.view.3d'));
+  }, [context, chosen2d]);
   // N18 R8: the keyboard's views and reset (the zoom and the orbit are the rig's). Only while the 3D view is up.
   const commands = sceneProps.commands;
   useEffect(() => {
@@ -175,12 +187,21 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, .
           data-testid="robot-scene"
           data-drawn={drawn}
           ref={sceneBox}
-          data-view-focus=""
-          tabIndex={0}
-          role="group"
-          aria-label={t('robot.view.name')}
-          aria-keyshortcuts="1 2 3 0 Home + - Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown"
-          {...(hintId ? { 'aria-describedby': hintId } : {})}
+          // The stop of the camera's keys, named, with the keys as its description, while the 3D view is what is seen. `application` so that a
+          // screen reader in browse mode hands the keys to the view (it says what it is in `aria-roledescription`); while the 2D map stands
+          // in (a canvas that failed, a context that is not coming back), the canvas under it is no stop, has no name and no hint: it is
+          // inert (a Tab stop that is covered, announcing keys that do nothing, would be a dead one).
+          {...(live
+            ? {
+                'data-view-focus': '',
+                tabIndex: 0,
+                role: 'application',
+                'aria-roledescription': t('robot.view.role'),
+                'aria-label': t('robot.view.name'),
+                'aria-keyshortcuts': '1 2 3 0 Home + - Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown',
+                ...(hintId ? { 'aria-describedby': hintId } : {}),
+              }
+            : { inert: true })}
         >
           <ErrorBoundary
             key={attempt}
@@ -213,7 +234,7 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, .
           )}
         </div>
       )}
-      {!chosen2d && hintId && hint && (
+      {live && hintId && hint && (
         <p className="robot-view-hint" id={hintId} data-testid="robot-view-hint">
           {hint}
         </p>

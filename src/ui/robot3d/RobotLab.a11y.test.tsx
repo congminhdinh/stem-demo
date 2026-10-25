@@ -23,6 +23,10 @@ import RobotLab, { type RobotLabProps } from './RobotLab';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+// jsdom cannot make the 3D canvas: where a test wants the 3D view (probe ok), a stand-in stands for the scene. With no WebGL the lab draws
+// its 2D map and never makes it.
+vi.mock('./Scene', () => ({ default: () => <canvas data-testid="scene-stand-in" /> }));
+
 const registry = createDeviceRegistry(localDeviceDefinitions);
 const packs = createBlockPackCatalog(registry);
 const toolbox = buildToolbox(productionProfiles.get('uno-basic')!.blockPacks, packs);
@@ -356,27 +360,58 @@ describe('Escape and the 3D view’s keys (N18 R8)', () => {
     expect(polite()).toBe('Đã tắt lái tay.');
   });
 
-  it('closes the message card with Escape and gives the focus back to the view', async () => {
-    const { render, willStart } = setup();
-    willStart(Promise.resolve({ ok: false, reason: 'compile', diagnostics: [] }));
-    await render();
-    await click('robot-run');
-    await frame();
-    const close = host.querySelector<HTMLButtonElement>('.robot-messages-close')!;
-    close.focus();
-    await act(async () => close.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })));
-    expect(byId('robot-messages')).toBeNull();
-    expect(document.activeElement).toBe(host.querySelector('.robot-stage'));
+  it('closes the message card with Escape and gives the focus back to the view: the 3D view’s stop, or the named 2D map', async () => {
+    for (const probe of [() => ({ ok: true as const, renderer: 'Google SwiftShader' }), () => ({ ok: false as const })]) {
+      const { render, willStart } = setup();
+      willStart(Promise.resolve({ ok: false, reason: 'compile', diagnostics: [] }));
+      await render({ probe });
+      await click('robot-run');
+      await frame();
+      const close = host.querySelector<HTMLButtonElement>('.robot-messages-close')!;
+      close.focus();
+      await act(async () => close.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })));
+      expect(byId('robot-messages')).toBeNull();
+      const home = probe().ok ? byId('robot-scene') : byId('robot-topview');
+      expect(home).not.toBeNull();
+      expect(document.activeElement).toBe(home);
+      // Neither is the unnamed stage.
+      expect(document.activeElement).not.toBe(host.querySelector('.robot-stage'));
+      expect(home!.getAttribute('aria-label')).not.toBeNull();
+      act(() => root.unmount());
+      root = createRoot(host);
+    }
   });
 
-  it('lists the camera’s keys and, when the robot can be driven, teleop’s, as the description of the 3D view', async () => {
+  it('Escape in a card closes the card and nothing else: teleop goes on', async () => {
+    const { render, checks } = setup('rb-drive-to-zone');
+    await render();
+    await click('robot-check-start');
+    await act(async () => checks.last().check.settle(crashedResult));
+    await frame();
+    await click('robot-tool-teleop');
+    expect(byId('robot-tool-teleop')!.getAttribute('aria-pressed')).toBe('true');
+    const heading = byId('robot-check-heading')!;
+    heading.focus();
+    await act(async () => heading.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })));
+    expect(byId('robot-check-results')).toBeNull();
+    expect(byId('robot-tool-teleop')!.getAttribute('aria-pressed')).toBe('true');
+    // A second Escape, with no card, ends teleop.
+    await act(async () => host.querySelector('.robot-stage')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })));
+    expect(byId('robot-tool-teleop')!.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('lists the camera’s keys, teleop’s when the robot can be driven, and the move tool’s Shift, as the description of the 3D view', async () => {
     const { render } = setup('rb-drive-to-zone', 'vi');
     await render({ probe: () => ({ ok: true, renderer: 'Google SwiftShader' }) });
-    // The scene itself is the canvas jsdom cannot make; the lab still says its keys in the hint.
     const hint = byId('robot-view-hint');
     expect(hint?.textContent).toBe(
-      'Phím: 1 Tự do, 2 Theo xe, 3 Nhìn từ trên; 0 hoặc Home đặt lại góc nhìn; + và − phóng to, thu nhỏ; Shift cùng các phím mũi tên để xoay. Phím: ↑ hoặc W tiến, ↓ hoặc S lùi, ← hoặc A quay trái, → hoặc D quay phải, phím cách dừng',
+      'Phím: 1 Tự do, 2 Theo xe, 3 Nhìn từ trên; 0 hoặc Home đặt lại góc nhìn; + và − phóng to, thu nhỏ; Shift cùng các phím mũi tên để xoay. ' +
+        'Phím: ↑ hoặc W tiến, ↓ hoặc S lùi, ← hoặc A quay trái, → hoặc D quay phải, phím cách dừng. ' +
+        'Khi công cụ Di chuyển robot đang bật, Shift cùng các phím mũi tên dịch robot 5 cm và không xoay góc nhìn.',
     );
     expect(byId('robot-scene')?.getAttribute('aria-describedby')).toBe(hint?.id);
+    // Only the view is an application: the lab around it is a page.
+    expect(host.querySelectorAll('[role=application]')).toHaveLength(1);
+    expect(byId('robot-scene')?.getAttribute('role')).toBe('application');
   });
 });

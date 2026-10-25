@@ -1,13 +1,13 @@
 import type { Arena, PaintZone, PointCm } from '../../core/world/arena/arena-schema';
 import { robot3dColors } from './colors';
-import { paintZonePattern } from './zone-pattern';
+import { paintZonePattern, type PatternSurface } from './zone-pattern';
 
 // The floor of the robot lab's 3D view (N18 R4.2), drawn from the arena's vector paint, the same data the line sensors read
 // (core/world/arena/ground-paint.ts): the ground's colour, the zones in order (a later one over an earlier one, even-odd fill), then the
 // black tape along each line with round ends and joins. It is painted once on a 2D canvas, which becomes the floor's texture: one mesh,
 // one draw call, however many lines and zones. Canvas rows run down from the arena's far edge (y = depth), so that the texture, which
-// three.js flips, lies on the floor the right way up. N18 R8: with `patterns`, each zone's pattern (dots, hatching: zone-pattern.ts) is
-// drawn right over its fill, for learners who cannot tell the zones' colours apart.
+// three.js flips, lies on the floor the right way up. N18 R8: with `patterns` (the surface it is for: 'mat', or the 2D map's 'screen'), each
+// zone's pattern (dots, hatching: zone-pattern.ts) is drawn right over its fill, for learners who cannot tell the zones' colours apart.
 
 /** What `paintGround` uses of a 2D context (a real CanvasRenderingContext2D, or a recorder in tests). */
 export type PaintContext = Pick<CanvasRenderingContext2D, 'fillRect' | 'beginPath' | 'moveTo' | 'lineTo' | 'closePath' | 'fill' | 'stroke' | 'fillText' | 'strokeText'> & {
@@ -37,7 +37,7 @@ const labelFont = (px: number) => `600 ${px}px "Be Vietnam Pro", system-ui, sans
  * Paints `arena`'s floor on `ctx`, `pxPerCm` pixels a centimetre, origin at the canvas's top left = the arena's far left corner.
  * `zoneLabel` names a zone on the floor (the learner's words for "start", "target"…), or null to leave it unnamed.
  */
-export function paintGround(ctx: PaintContext, arena: Pick<Arena, 'ground' | 'paint'>, options: { pxPerCm: number; zoneLabel: (zone: PaintZone) => string | null; patterns?: boolean }): void {
+export function paintGround(ctx: PaintContext, arena: Pick<Arena, 'ground' | 'paint'>, options: { pxPerCm: number; zoneLabel: (zone: PaintZone) => string | null; patterns?: PatternSurface }): void {
   const { pxPerCm } = options;
   const [widthCm, depthCm] = arena.ground.sizeCm;
   const px = (xCm: number) => xCm * pxPerCm;
@@ -55,7 +55,7 @@ export function paintGround(ctx: PaintContext, arena: Pick<Arena, 'ground' | 'pa
     trace(zone.polygonCm);
     ctx.closePath();
     ctx.fill('evenodd');
-    if (options.patterns === true) paintZonePattern(ctx, zone, { pxPerCm, depthCm });
+    if (options.patterns !== undefined) paintZonePattern(ctx, zone, { pxPerCm, depthCm, surface: options.patterns });
     const label = options.zoneLabel(zone);
     if (label !== null) {
       const xs = zone.polygonCm.map(([x]) => x);
@@ -66,7 +66,7 @@ export function paintGround(ctx: PaintContext, arena: Pick<Arena, 'ground' | 'pa
       ctx.font = labelFont(size);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      if (options.patterns === true) {
+      if (options.patterns !== undefined) {
         // N18 R8: a pale halo, so that the name reads over the pattern's lines.
         ctx.lineJoin = 'round';
         ctx.lineWidth = Math.max(2.5, size * 0.3);

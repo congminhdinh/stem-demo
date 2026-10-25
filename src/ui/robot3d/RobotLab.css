@@ -671,9 +671,12 @@
   transition: transform 60ms, box-shadow 60ms;
 }
 
+/* N18 R8 (WCAG 1.4.11): pressed differs from not pressed by a ring 2 px wide in the text colour (6.7:1 against the unpressed border), and
+   by the cap going down; the tint of the fill alone is 1.1:1. */
 .robot-hold-button[aria-pressed='true'] {
-  border-color: var(--stem-color-pressed-border);
+  border-color: var(--stem-color-text);
   background: var(--stem-color-primary-soft);
+  box-shadow: inset 0 0 0 1px var(--stem-color-text);
 }
 
 .robot-hold-button[aria-pressed='true'] .robot-hold-cap {

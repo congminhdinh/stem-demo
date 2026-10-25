@@ -141,6 +141,9 @@ function useViewKeys(stage: RefObject<HTMLElement | null>, store: RobotRunStore,
     const onButton = (event: KeyboardEvent) => event.target instanceof Element && event.target.closest('button') !== null;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || isTypingTarget(event.target, event.key)) return;
+      // N18 R8: Esc in a card (a check's result, a run's message) closes that card and nothing else: this listener, on the stage, comes
+      // before the card's own (React's, on the root), so it cannot rely on `defaultPrevented`.
+      if (event.key === 'Escape' && event.target instanceof Element && event.target.closest('[data-escape-closes]') !== null) return;
       const { tool } = tools.getState();
       if (event.key === 'Escape' && tool !== null) {
         event.preventDefault();

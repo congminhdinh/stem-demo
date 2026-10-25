@@ -96,6 +96,7 @@ export function CheckResults({ checks, store, projectStore, scenario, startButto
         className="robot-check-panel robot-check-failure"
         aria-label={t('robot.check.results')}
         data-testid="robot-check-failure"
+        data-escape-closes=""
         onKeyDown={(event) => {
           if (event.key === 'Escape') {
             event.preventDefault();
@@ -157,6 +158,7 @@ function CheckPanel({ checks, store, scenario, record, startButton }: CheckPanel
       data-testid="robot-check-results"
       data-passed={report.passed}
       data-open={open}
+      data-escape-closes=""
       onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
         if (event.key === 'Escape') {
           event.preventDefault();

@@ -45,17 +45,17 @@ const arena = parseArena({
 describe('paintGround patterns (N18 R8)', () => {
   it('draws each zone’s pattern over its own fill and before the next zone’s, a checkpoint’s none, and the tape over all', () => {
     const { ctx, log } = recorder();
-    paintGround(ctx, arena, { pxPerCm: 4, zoneLabel: () => null, patterns: true });
+    paintGround(ctx, arena, { pxPerCm: 4, zoneLabel: () => null, patterns: 'mat' });
     expect(log[0]).toBe('fill #cfe2f3');
     // start: its fill, then dots in its ink (round caps); the checkpoint: its fill only; the target: fill, hatching; the area: fill, cross-hatching.
     expect(log).toEqual([
       'fill #cfe2f3',
-      expect.stringMatching(new RegExp(`^stroke ${patternInk('#cfe2f3')} 3.6 round$`)),
+      expect.stringMatching(new RegExp(`^stroke ${patternInk('#cfe2f3', 'mat')} 3.6 round$`)),
       'fill #fff2cc',
       'fill #d9ead3',
-      expect.stringMatching(new RegExp(`^stroke ${patternInk('#d9ead3')} 1.6 butt$`)),
+      expect.stringMatching(new RegExp(`^stroke ${patternInk('#d9ead3', 'mat')} 1.6 butt$`)),
       'fill #f4cccc',
-      expect.stringMatching(new RegExp(`^stroke ${patternInk('#f4cccc')} 1.6 butt$`)),
+      expect.stringMatching(new RegExp(`^stroke ${patternInk('#f4cccc', 'mat')} 1.6 butt$`)),
       expect.stringMatching(/^stroke #15171c 8 round$/),
     ]);
   });
@@ -68,8 +68,8 @@ describe('paintGround patterns (N18 R8)', () => {
 
   it('keeps a pattern under the zone’s label, which has a pale halo of its own over the lines', () => {
     const { ctx, log } = recorder();
-    paintGround(ctx, arena, { pxPerCm: 4, zoneLabel: (zone) => (zone.kind === 'target' ? 'Đích' : null), patterns: true });
-    const hatch = log.findIndex((entry) => entry.startsWith(`stroke ${patternInk('#d9ead3')}`));
+    paintGround(ctx, arena, { pxPerCm: 4, zoneLabel: (zone) => (zone.kind === 'target' ? 'Đích' : null), patterns: 'mat' });
+    const hatch = log.findIndex((entry) => entry.startsWith(`stroke ${patternInk('#d9ead3', 'mat')}`));
     expect(log[hatch + 1]).toBe(`halo ${robot3dColors.zoneLabelHalo}`);
     expect(log[hatch + 2]).toBe('text');
   });
