@@ -1,5 +1,5 @@
 // N18 C2 cost sketch (evidence for the parity harness's allowed differences): what a driver helper costs beyond the Arduino calls
-// the simulator charges, what tone() costs at each frequency on a silent pin and on a pin that already plays (costsUs.tone was
+// the simulator charges (motorSet at speeds across its range: its long division takes a time that depends on the value), what tone() costs at each frequency on a silent pin and on a pin that already plays (costsUs.tone was
 // measured at 1000 Hz on a playing pin only), and what Serial.begin(9600) costs.
 // Same method as costs.ino: D8 (PB0) marks the call (so no measured call may touch D8) by direct port writes; the shortest of N samples minus the empty baseline.
 #define MARK_ON() (PORTB |= _BV(PB0))
@@ -40,6 +40,7 @@ void group(const __FlashStringHelper *name) {
     }                                            \
   } while (0)
 
+#define MOTOR_AT(v) MEASURE("motorSet speed " #v, vSpeed = v, motorSet(5, 7, 4, vSpeed))
 #define TONE_AT(hz) MEASURE("tone D10 fresh " #hz " Hz", (noTone(10), vHz = hz), tone(10, vHz, vMs))
 #define RETONE_AT(hz) MEASURE("tone D10 replacing " #hz " Hz", (noTone(10), tone(10, 1000, 100UL), vHz = hz), tone(10, vHz, vMs))
 
@@ -56,6 +57,16 @@ void setup() {
   MEASURE("analogWrite D5 v=128", (void)0, analogWrite(5, vDuty));
   MEASURE("motorSet v=50", (void)0, motorSet(5, 7, 4, vSpeed));
   MEASURE("motorSet v=-100", (void)0, motorSet(5, 7, 4, vSpeedMinus));
+  MOTOR_AT(1);
+  MOTOR_AT(30);
+  MOTOR_AT(60);
+  MOTOR_AT(70);
+  MOTOR_AT(99);
+  MOTOR_AT(100);
+  MOTOR_AT(-1);
+  MOTOR_AT(-30);
+  MOTOR_AT(-70);
+  MOTOR_AT(0);
   TONE_AT(31);
   TONE_AT(100);
   TONE_AT(200);

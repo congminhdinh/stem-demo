@@ -12,6 +12,7 @@ export function runHelperCosts() {
     size: measured.size,
     costs: measured.costs,
     motorSetBeyondCallsUs: { 'v=50': round(us('motorSet v=50') - parts, 4), 'v=-100': round(us('motorSet v=-100') - parts, 4) },
+    motorSetUs: Object.fromEntries(Object.keys(measured.costs).filter((name) => name.startsWith('motorSet speed ')).map((name) => [name.replace('motorSet speed ', ''), us(name)])),
     toneFreshUs: Object.fromEntries(Object.keys(measured.costs).filter((name) => name.startsWith('tone D10 fresh')).map((name) => [name.replace('tone D10 fresh ', ''), us(name)])),
     toneReplacingUs: Object.fromEntries(Object.keys(measured.costs).filter((name) => /^tone D10 replacing \d+ Hz$/.test(name)).map((name) => [name.replace('tone D10 replacing ', ''), us(name)])),
     serialBeginUs: us('Serial.begin 9600'),
