@@ -699,6 +699,16 @@ body {
   inset: 0;
 }
 
+/*
+ * N18 R2.4: the block the running program is in (BlocklyPanel `highlightBlockId`, Blockly's `blocklyHighlighted`): a green outline
+ * with a glow, apart from the orange of a selected block. Blockly's own highlight is a faint emboss.
+ */
+.blockly-panel .blocklyHighlighted > .blocklyPath {
+  stroke: var(--stem-color-success);
+  stroke-width: 4px;
+  filter: drop-shadow(0 0 4px var(--stem-color-success));
+}
+
 /* A Yolo:Bit-compatible project also shows its Python below the blocks (YB plan §13.7). */
 .program-region-with-python .blockly-panel {
   bottom: 38%;

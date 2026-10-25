@@ -15,6 +15,16 @@ import { stemTheme } from './theme';
 
 const saveDelayMs = 250;
 
+/**
+ * N18 R2.4: how long the highlighted block must stay the same before the panel shows it. The robot reports its active block on every
+ * tick, a loop of quick statements changes it faster than anyone can read, and a debounce lights the block the program dwells in (a
+ * `wait`, a pause) instead of flickering through every statement.
+ */
+export const highlightDelayMs = 100;
+
+/** The id of the warnings this panel puts on blocks, so it never clears one a block raised itself (Blockly keeps one text per id). */
+const diagnosticWarningId = 'stem-diagnostics';
+
 export type BlocklyPanelHandle = {
   /**
    * Writes the workspace to the document right away. Saving is otherwise
@@ -37,14 +47,71 @@ type BlocklyPanelProps = {
    * panel shows nothing and saves nothing for that document, so it is never overwritten; its owner opens another one.
    */
   onLoadFailed?(): void;
+  /**
+   * N18 R2.4: the block the running program is in (`RobotSnapshot.activeBlockId`), shown with Blockly's own block highlight; `null` or
+   * absent shows none. A change is shown after `highlightDelayMs` of staying the same. An id the workspace does not have (a block
+   * deleted during the run, or one of another program) shows nothing and is not an error. Not part of the document.
+   */
+  highlightBlockId?: string | null;
+  /**
+   * N18 R2.4: a warning on each block named, by block id (a diagnostic with a `blockId`: `capability-unavailable`, `pin-conflict`,
+   * `timer-claimed`, `pin-unavailable`, a run warning). The text is the caller's, already in the learner's language. A block that
+   * leaves the record, or a record that is absent, has its warning taken off; an id the workspace does not have is skipped. Not part of
+   * the document.
+   */
+  blockWarnings?: Readonly<Record<string, string>>;
   ref?: Ref<BlocklyPanelHandle>;
 };
 
-export function BlocklyPanel({ projectStore, packs, toolbox, fitOnLoad = false, onLoadFailed, ref }: BlocklyPanelProps) {
+/** Shows `blockId` as the highlighted block (or none). Never throws: the block may be gone (Blockly then shows none). */
+function showHighlight(workspace: Blockly.WorkspaceSvg | null, blockId: string | null) {
+  if (workspace === null) {
+    return;
+  }
+  try {
+    workspace.highlightBlock(blockId);
+  } catch (error) {
+    console.warn('The running block could not be highlighted.', error);
+  }
+}
+
+/**
+ * Makes the warnings on `workspace` the record `wanted`, changing only what differs from `applied` (what this panel put there
+ * before, id to text); `applied` is updated. A block that is not in the workspace is skipped, and stays unrecorded so that a later
+ * call sets it once the block exists.
+ */
+function syncWarnings(workspace: Blockly.WorkspaceSvg | null, applied: Map<string, string>, wanted: Readonly<Record<string, string>>) {
+  if (workspace === null) {
+    return;
+  }
+  for (const blockId of [...applied.keys()]) {
+    if (Object.hasOwn(wanted, blockId)) {
+      continue;
+    }
+    applied.delete(blockId);
+    workspace.getBlockById(blockId)?.setWarningText(null, diagnosticWarningId);
+  }
+  for (const [blockId, text] of Object.entries(wanted)) {
+    const block = workspace.getBlockById(blockId);
+    if (block === null) {
+      applied.delete(blockId);
+    } else if (applied.get(blockId) !== text) {
+      block.setWarningText(text, diagnosticWarningId);
+      applied.set(blockId, text);
+    }
+  }
+}
+
+export function BlocklyPanel({ projectStore, packs, toolbox, fitOnLoad = false, onLoadFailed, highlightBlockId = null, blockWarnings, ref }: BlocklyPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const saveNowRef = useRef<() => void>(() => {});
   const loadRevision = useStore(projectStore, (state) => state.loadRevision);
   const loadFailed = useEffectEvent(() => onLoadFailed?.());
+  // N18 R2.4: the workspace of the current load (null between loads), what it shows of the run, and what the caller last asked for.
+  const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
+  const shownHighlightRef = useRef<string | null>(null);
+  const appliedWarningsRef = useRef(new Map<string, string>());
+  const wantedWarningsRef = useRef<Readonly<Record<string, string>>>({});
   useImperativeHandle(ref, () => ({ saveNow: () => saveNowRef.current() }), []);
 
   // Rebuilt whenever a project is loaded (even one with the same id) or the
@@ -122,11 +189,18 @@ export function BlocklyPanel({ projectStore, packs, toolbox, fitOnLoad = false, 
     const resizeObserver = new ResizeObserver(() => Blockly.svgResize(workspace));
     resizeObserver.observe(container);
 
+    // N18 R2.4: a new workspace has none of the run's marks: put back what the run showed and what the caller asked for.
+    workspaceRef.current = workspace;
+    appliedWarningsRef.current = new Map();
+    syncWarnings(workspace, appliedWarningsRef.current, wantedWarningsRef.current);
+    showHighlight(workspace, shownHighlightRef.current);
+
     if (!loaded) {
       loadFailed();
     }
 
     return () => {
+      workspaceRef.current = null;
       saveNowRef.current = () => {};
       resizeObserver.disconnect();
       if (pendingSave !== undefined) {
@@ -135,6 +209,24 @@ export function BlocklyPanel({ projectStore, packs, toolbox, fitOnLoad = false, 
       workspace.dispose();
     };
   }, [loadRevision, projectStore, packs, toolbox, fitOnLoad]);
+
+  // N18 R2.4: the block the program is in. Debounced; the workspace is read when the timer fires, so a project loaded meanwhile gets it.
+  useEffect(() => {
+    if (highlightBlockId === shownHighlightRef.current) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      shownHighlightRef.current = highlightBlockId;
+      showHighlight(workspaceRef.current, highlightBlockId);
+    }, highlightDelayMs);
+    return () => clearTimeout(timer);
+  }, [highlightBlockId]);
+
+  // N18 R2.4: the warnings on blocks. Compared with what is shown, so a caller that builds a new record every render costs nothing.
+  useEffect(() => {
+    wantedWarningsRef.current = blockWarnings ?? {};
+    syncWarnings(workspaceRef.current, appliedWarningsRef.current, wantedWarningsRef.current);
+  }, [blockWarnings]);
 
   return <div ref={containerRef} className="blockly-panel" data-testid="blockly-panel" />;
 }
