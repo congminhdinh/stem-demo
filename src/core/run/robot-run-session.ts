@@ -52,10 +52,11 @@ import { createVirtualScheduler, type VirtualScheduler } from './virtual-clock';
 // Driving it:
 //   - `advance(wallMs, speed)`, the realtime mode (from requestAnimationFrame): the owed virtual time grows by wallMs × speed, a frame
 //     runs the whole ticks it owes, at most MAX_TICKS_PER_FRAME; more is dropped and the snapshot says `slowerThanRealtime`. It is
-//     single-flight: a call while a frame runs adds its time and returns that frame, whose ticks run one after the other.
+//     single-flight: the frame starts in a microtask after the call, so every call of the same turn adds its time to it; a call while
+//     it runs adds its time for the next frame and returns the one in flight. Ticks always run one after the other.
 //   - `runUntil(tS)`, the headless mode: ticks until the world's time reaches tS, giving the browser a turn every EXEC_SLICE_MS of wall
 //     time through a fresh MessageChannel (`VirtualScheduler.yieldNow`: never setTimeout(0), clamped and throttled in a hidden tab).
-//     It waits for a frame in flight, and a frame asked for meanwhile waits for it.
+//     It waits for the frame in flight; an `advance` meanwhile adds its time for the next frame and returns the headless run.
 //   Neither the frame rate, the speed, a hidden tab nor the mode changes what happens: only the tick index does.
 //
 // The hardware's time. The virtual UNO times what runs by itself (a tone of `ms`, which ends on its own) on the clock it is given. The
@@ -72,7 +73,8 @@ import { createVirtualScheduler, type VirtualScheduler } from './virtual-clock';
 //
 // What ends a run: the program finishing leaves it `finished` and the world goes on (the motors keep what the pins say, as the board
 // does); a program fault (`error`, with its block) and a failure of the simulation itself (a timer task that throws, which rejects
-// advanceTo, or the world refusing a step: `error`, `internal-error`, with a diagnostic) end the ticks: the world stays at that moment.
+// advanceTo, the world refusing a step, a scorer that throws: `error`, `internal-error`, with a diagnostic) end the ticks: the world
+// stays at that moment.
 
 /** The most ticks one `advance` runs (one frame): 4× speed at 60 frames per second. */
 export const MAX_TICKS_PER_FRAME = 8;
