@@ -58,9 +58,14 @@ biến line bằng độ cao gắn, dải góc servo hợp lệ và tay servo kh
 T_s = 0,08 N·m (0,8 kgf·cm), T_f = 0,025 N·m, τ = 0,05 s; servo cỡ SG90 (0,1 s/60°, 0–180°, 0,18 N·m). `mount` của LED,
 còi, nút chỉ để vẽ.
 
-**Ma sát hộp số** (`gearFrictionNm`): giữ robot đứng yên khi bị đẩy (hai bánh giữ tới 2·T_f/r ≈ 1,5 N với số trên) và là
-lực cản lăn khi chạy. Bánh chạy tự do ở ω₀·(1 − T_f/T_s), không phải ω₀: với số trên là 69 % (0,48 m/s ở duty 255), và
-duty dưới T_f/T_s · 255 ≈ 80 không khởi động được robot (như motor TT thật ở PWM thấp). Khi nhà cung cấp cho tốc độ không
+**Ma sát hộp số** (`gearFrictionNm`): giữ robot đứng yên khi bị đẩy và là lực cản lăn khi chạy. Đo với số trên (lực đẩy
+tác dụng trong bước, 2 s): robot phanh hay thả trôi giữ **sạch tới khoảng 1,1 N** (lệch < 0,1 mm); 1,2 N làm nó nhích
+khoảng 1 mm, 1,5 N đẩy robot thả trôi đi 20 cm. Con số danh nghĩa 2·T_f/r = 1,52 N cao hơn vì ma sát tĩnh của solver
+không giữ trọn. Bánh chạy tự do ở ω₀·(1 − T_f/T_s), không phải ω₀: với số trên là 69 % (0,48 m/s ở duty 255). Khởi động
+không có ngưỡng cứng: duty ≤ 75 đứng yên (< 0,2 mm trong 2 s), 78 bò khoảng 2 mm, từ T_f/T_s · 255 ≈ 80 thì chạy, lúc đầu
+rất chậm (1 cm trong 2 s ở duty 80, 3,6 cm ở 85, 11 cm ở 100), như motor TT thật ở PWM thấp. Dừng theo contract (IN1, IN2,
+EN đều LOW) là **thả trôi**: motor hở mạch, chỉ ma sát hộp số giữ và hãm; phanh (IN1 = IN2, EN HIGH) thêm mô-men hãm tỉ lệ
+tốc độ. Khi nhà cung cấp cho tốc độ không
 tải đo được n₀ (đã gồm ma sát), đặt `maxRpm = n₀ / (1 − T_f/T_s)`.
 
 ## Thay bằng kit của nhà cung cấp
