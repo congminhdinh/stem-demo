@@ -26,8 +26,11 @@ export type RandomInt = (low: number, high: number) => number;
 /**
  * N17 B5: a warning of a run that does not stop it (a value outside its range, clamped). It joins the run's diagnostics, once per
  * code and message, as the board's warnings do (RunEnvironment.warn, N17 B4).
+ *
+ * N18 R2.3: `blockId` names the block the warning is about (a division by zero in a uno program, contract UNO U-06: once per block
+ * in a run). A warning with one is kept once per code, message and block; one without stays once per code and message.
  */
-export type RunWarning = { code: string; message: string };
+export type RunWarning = { code: string; message: string; blockId?: string };
 
 /** Where `print` writes. The run console (500 lines / 256 KB, plan §6.7) is one; it is runtime state, never the document. */
 export type ConsoleSink = Pick<RunConsole, 'write'>;
@@ -63,7 +66,7 @@ export type RuntimeServices = {
   signal: AbortSignal;
   /** N17 B4: the run's random numbers (`random.randint`): Math.random's, or a seeded run's own. */
   randomInt: RandomInt;
-  /** N17 B5: tells the run something it should know and goes on (a value clamped). Inert once the run is over. */
+  /** N17 B5: tells the run something it should know and goes on (a value clamped; N18 R2.3: a division by zero, with its block). Inert once the run is over. */
   warn(warning: RunWarning): void;
 };
 

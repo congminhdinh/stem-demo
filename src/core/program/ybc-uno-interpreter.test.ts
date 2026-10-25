@@ -85,15 +85,22 @@ describe('a cxx-int32 program (contract UNO §3)', () => {
     expect((await run(irOf(compileUno(blocks)))).lines).toEqual(['-2147483648', '-2147483648', '0', '0', '-2147483648']);
   });
 
-  it('gives 0 for a division or a remainder by zero, goes on, and warns division-by-zero once in a run', async () => {
-    const blocks = prog([repeat(num(3), [print(idiv(num(7), num(0))), print(mod(getVar('x'), num(0)))]), print(text('after'))]);
+  it('gives 0 for a division or a remainder by zero, goes on, and warns division-by-zero once per block in a run (U-06)', async () => {
+    const division = idiv(num(7), num(0));
+    const remainder = mod(getVar('x'), num(0));
+    const blocks = prog([repeat(num(3), [print(division), print(remainder)]), print(text('after'))]);
     const ir = irOf(compileUno(blocks));
     const first = await run(ir);
     expect(first.outcome).toEqual({ status: 'finished' });
     expect(first.lines).toEqual(['0', '0', '0', '0', '0', '0', 'after']);
-    expect(first.warnings).toEqual([{ code: 'division-by-zero', message: 'A division or a remainder by 0 gave 0, as on the board.' }]);
-    // Once per run: the next run warns again, once.
-    expect((await run(ir)).warnings).toHaveLength(1);
+    // Two blocks give two warnings; the same block three times in the loop gives one.
+    const message = 'A division or a remainder by 0 gave 0, as on the board.';
+    expect(first.warnings).toEqual([
+      { code: 'division-by-zero', message, blockId: division.id },
+      { code: 'division-by-zero', message, blockId: remainder.id },
+    ]);
+    // Once per block per run: the next run warns again, once per block.
+    expect((await run(ir)).warnings).toHaveLength(2);
   });
 
   it('keeps the Python fault for a ybc program: a division by zero stops it at its block', async () => {

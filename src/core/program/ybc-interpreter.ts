@@ -71,7 +71,7 @@ import { loopPauseUsOf, numericOf, type ButtonOperand, type CallStatement, type 
 //
 // N18 R2.3: the numeric model and the forever pause come from the IR (robot plan §4.4). `python` and 10 ms (a ybc IR) are exactly
 // what they always were. A uno IR computes with C++'s `long` (values.ts `valuesFor`, contract UNO §3: a division by zero gives 0 and
-// warns once in the run), takes the loop domains of its model (limits.ts `numericDomains`), and its forever has no pause of its own:
+// warns once per block in the run, U-06), takes the loop domains of its model (limits.ts `numericDomains`), and its forever has no pause of its own:
 // every iteration is a `budget.loopIteration()`, which the virtual budget of a robot run charges (run/virtual-clock.ts). Every
 // statement still begins with its budget step, then names its block: the one place a per-statement hook belongs.
 
@@ -80,7 +80,7 @@ type Sounding = { hz: number | null; ms: number };
 
 const isNumericModel = (numeric: unknown): numeric is NumericModel => numeric === 'python' || numeric === 'cxx-int32';
 
-/** N18 R2.3: the warning of a division or a remainder by zero in a cxx-int32 program (contract UNO §3.1): once in a run. */
+/** N18 R2.3: the warning of a division or a remainder by zero in a cxx-int32 program (contract UNO §3.1, U-06): once per block in a run. */
 const divisionByZeroWarning = { code: 'division-by-zero', message: 'A division or a remainder by 0 gave 0, as on the board.' } as const;
 
 /** A runtime fault carries a diagnostic code that the legacy outcome has no field for. */
@@ -115,12 +115,15 @@ async function execute(ir: YbcProgramIR, capabilities: Capabilities, services: R
   // starts (an internal error, never a crash); until then the python model stands in.
   const numeric = numericOf(ir);
   const loopPauseUs = loopPauseUsOf(ir);
-  let divisionByZeroWarned = false;
+  /** The blocks whose division by zero the run was warned about. */
+  const divisionByZeroWarned = new Set<string | undefined>();
   const ops = values.valuesFor(isNumericModel(numeric) ? numeric : 'python', {
     divisionByZero() {
-      if (!divisionByZeroWarned) {
-        divisionByZeroWarned = true;
-        services.warn(divisionByZeroWarning);
+      // The arithmetic block that divides: `evaluate` names it just before the operation.
+      const at = blockId;
+      if (!divisionByZeroWarned.has(at)) {
+        divisionByZeroWarned.add(at);
+        services.warn(at === undefined ? divisionByZeroWarning : { ...divisionByZeroWarning, blockId: at });
       }
     },
   });

@@ -223,9 +223,9 @@ export type RunEnvironment = {
   drivePin(pin: string, level: PinOutput): void;
   /**
    * N17 B4: a warning of the board for this run (a floating pin that reads 0), added to the snapshot's diagnostics after the compile
-   * warnings and published. A warning the run already has (the same code and message) is not added again.
+   * warnings and published. A warning the run already has (the same code and message, and block when it names one) is not added again.
    */
-  warn(warning: { code: string; message: string }): void;
+  warn(warning: RunWarning): void;
 };
 
 export type CapabilityFactory = (environment: RunEnvironment) => Capabilities;
@@ -301,14 +301,17 @@ export function createRunSession(registry: DeviceRegistry, options: RunSessionOp
 
   /**
    * A warning for `run` (N17 B4: the board's, a floating pin; N17 B5: the program's, a value clamped), added to the snapshot's
-   * diagnostics after the compile warnings and published, once per code and message. Nothing for a run that is not the current one.
+   * diagnostics after the compile warnings and published, once per code and message. N18 R2.3: a warning that names its block (a
+   * division by zero) is once per code, message and block, and its diagnostic carries the block id; one that names none is as
+   * before. Nothing for a run that is not the current one.
    */
-  const addWarning = (run: ActiveRun | undefined, { code, message }: RunWarning) => {
+  const addWarning = (run: ActiveRun | undefined, { code, message, blockId }: RunWarning) => {
     const now = fresh();
-    if (run === undefined || current !== run || now.diagnostics.some((known) => known.code === code && known.message === message)) {
+    const known = now.diagnostics.some((diagnostic) => diagnostic.code === code && diagnostic.message === message && (blockId === undefined || diagnostic.blockId === blockId));
+    if (run === undefined || current !== run || known) {
       return;
     }
-    publish({ ...now, diagnostics: [...now.diagnostics, { severity: 'warning', code, message }] });
+    publish({ ...now, diagnostics: [...now.diagnostics, { severity: 'warning', code, message, ...(blockId === undefined ? {} : { blockId }) }] });
   };
 
   /**
