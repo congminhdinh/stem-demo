@@ -8,21 +8,24 @@ import type { MessageKey } from '../i18n/messages';
 //                    CONTEXT_RESTORE_WAIT_MS: 2D until it does. The scene stays mounted meanwhile, so the browser's `webglcontextrestored`
 //                    brings 3D back by itself.
 //   chosen           the learner picked "Xem 2D" (a slow computer, or they like the map).
+//   canvas failed    the 3D canvas threw while it was made or drawn (a driver that passes the probe and then refuses the renderer): 2D,
+//                    with "Thử lại 3D" to make a new canvas. The learner is never left on an error panel.
 //
 // The run, the check and the controls live outside both views and read the same snapshot, so a switch never touches the simulation.
 
 /** How long a lost WebGL context may take to come back before the 2D view takes over. */
 export const CONTEXT_RESTORE_WAIT_MS = 2000;
 
-export type ViewFallbackReason = 'no-webgl' | 'context-lost' | 'chosen';
+export type ViewFallbackReason = 'no-webgl' | 'context-lost' | 'chosen' | 'canvas-failed';
 
 /** The scene's WebGL context: working, lost and waited for, or lost for longer than CONTEXT_RESTORE_WAIT_MS. */
 export type ContextState = 'ok' | 'lost' | 'gone';
 
-/** Why the 2D view stands in for the 3D scene now, or null while the 3D scene is shown. */
-export function fallbackReason({ webgl, context, chosen2d }: { webgl: boolean; context: ContextState; chosen2d: boolean }): ViewFallbackReason | null {
+/** Why the 2D view stands in for the 3D scene now, or null while the 3D scene is shown. The learner's own choice outranks a failure. */
+export function fallbackReason({ webgl, context, chosen2d, canvasFailed = false }: { webgl: boolean; context: ContextState; chosen2d: boolean; canvasFailed?: boolean }): ViewFallbackReason | null {
   if (!webgl) return 'no-webgl';
   if (chosen2d) return 'chosen';
+  if (canvasFailed) return 'canvas-failed';
   return context === 'gone' ? 'context-lost' : null;
 }
 
@@ -30,6 +33,7 @@ export function fallbackReason({ webgl, context, chosen2d }: { webgl: boolean; c
 export const fallbackNoteKey: Readonly<Record<ViewFallbackReason, MessageKey | null>> = {
   'no-webgl': 'robot.topview.noWebgl',
   'context-lost': 'robot.topview.contextLost',
+  'canvas-failed': 'robot.topview.canvasFailed',
   chosen: null,
 };
 

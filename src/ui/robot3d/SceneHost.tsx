@@ -11,9 +11,10 @@ import { CONTEXT_RESTORE_WAIT_MS, fallbackReason, viewToggleAction, viewToggleTe
 // Where the robot lab's 3D view lives (N18 R4.2, the R4.1 carry): its own error handling, apart from the chunk loader's. Before the canvas
 // is made, WebGL is probed: without it the 2D top view (TopView2D, N18 R4.6) stands in for the scene, with a note saying why. So it does
 // when the browser takes the WebGL context away and does not give it back within CONTEXT_RESTORE_WAIT_MS (the scene stays mounted
-// underneath, and comes back by itself when the context does), and when the learner picks "Xem 2D". A canvas that throws while it is made
-// or drawn shows a message with Try again, which makes a new canvas. The program and the blocks are never touched: they live outside, and
-// the run store they all read is not either, so a switch between the views never resets the simulation.
+// underneath, and comes back by itself when the context does), and when the learner picks "Xem 2D". So does a canvas that throws while it
+// is made or drawn (the learner is never left on an error panel): the map, a note, and "Thử lại 3D", which makes a new canvas. The program
+// and the blocks are never touched: they live outside, and the run store they all read is not either, so a switch between the views never
+// resets the simulation.
 // The view's own controls float over it: the camera's three views, and the quality tier (a new tier is a new canvas). Until a canvas
 // has drawn its first frame (about 2 s on a software renderer), "Đang tải 3D…" stands over it instead of the empty page behind.
 
@@ -27,18 +28,6 @@ type SceneHostProps = Omit<SceneProps, 'tier' | 'cameraMode' | 'onContextLost' |
   /** Tests: whether WebGL is there and what draws it (the browser's own probe by default). */
   probe?: () => WebglProbe;
 };
-
-function ViewportMessage({ text, onRetry, testId }: { text: string; onRetry: () => void; testId: string }) {
-  const t = useText();
-  return (
-    <div className="robot-viewport-message" role="alert" data-testid={testId}>
-      <p>{text}</p>
-      <button type="button" onClick={onRetry}>
-        {t('robot.webgl.retry')}
-      </button>
-    </div>
-  );
-}
 
 export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps) {
   const t = useText();
@@ -54,7 +43,7 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
   const [drawnKey, setDrawnKey] = useState<string | null>(null);
   const drawn = drawnKey === canvasKey;
   const onFirstFrame = useCallback(() => setDrawnKey(canvasKey), [canvasKey]);
-  // The attempt whose canvas failed: its message shows, not the loading one.
+  // The attempt whose canvas failed: the 2D map shows, not the loading sign.
   const [failedAttempt, setFailedAttempt] = useState<number | null>(null);
 
   useEffect(() => {
@@ -65,8 +54,9 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
 
   const retry = () => {
     const next = probe();
+    // The tier follows the renderer when there was none to follow (WebGL was missing); after that it is the learner's (the quality button).
+    if (!probed.ok && next.ok) setTier(tierForRenderer(next.renderer));
     setProbed(next);
-    setTier(tierForRenderer(next.ok ? next.renderer : null));
     setContext('ok');
     setChosen2d(false);
     setAttempt((count) => count + 1);
@@ -75,7 +65,7 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
   const onContextRestored = useCallback(() => setContext('ok'), []);
 
   // The 2D top view stands in for the 3D scene, and the view button changes between them (N18 R4.6).
-  const fallback = fallbackReason({ webgl: probed.ok, context, chosen2d });
+  const fallback = fallbackReason({ webgl: probed.ok, context, chosen2d, canvasFailed: failedAttempt === attempt });
   const { scenario, kit, model, store, zoneLabel } = sceneProps;
   const toggle = viewToggleAction(fallback);
   const fallbackView = fallback !== null && <ViewFallback reason={fallback} scenario={scenario} kit={kit} model={model} store={store} zoneLabel={zoneLabel} />;
@@ -110,7 +100,7 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
               setFailedAttempt(attempt);
               console.warn('The robot lab’s 3D view failed.', error);
             }}
-            fallback={<ViewportMessage text={t('robot.webgl.failed')} onRetry={retry} testId="robot-webgl-failed" />}
+            fallback={null}
           >
             <Scene
               key={tier}

@@ -450,7 +450,7 @@
   cursor: pointer;
 }
 
-/* The 3D view could not be drawn: a message in its place, the rest of the lab as it was. */
+/* The 3D view lost its graphics: a message over it while they are restored, the rest of the lab as it was. */
 .robot-viewport-message {
   position: absolute;
   inset: 0;
@@ -474,17 +474,6 @@
   background: var(--stem-color-overlay);
 }
 
-.robot-viewport-message button {
-  min-height: 32px;
-  padding: 4px 14px;
-  border: 1px solid var(--stem-color-border-strong);
-  border-radius: var(--stem-radius);
-  background: var(--stem-color-surface);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-
 /* The 2D top view (N18 R4.6) stands where the 3D scene is when the computer cannot draw 3D, the browser took its graphics away, or the
    learner asked for it: the map fills the stage, a note under it says why, and the view button switches back. The 3D view's own controls
    (the camera, the quality) are hidden meanwhile. */
@@ -501,12 +490,6 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
-}
-
-/* The stage is out of the flow, so that the map never keeps its container from shrinking. */
-.robot-topview > div {
-  position: absolute;
-  inset: 0;
 }
 
 .robot-fallback-note,

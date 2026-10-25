@@ -27,10 +27,24 @@ describe('fallbackReason (N18 R4.6)', () => {
   });
 });
 
+describe('fallbackReason with a canvas that failed (N18 R4.6 fix round 1, ruling a)', () => {
+  it('falls back when the 3D canvas threw while it was made or drawn, with its own reason', () => {
+    expect(fallbackReason({ webgl: true, context: 'ok', chosen2d: false, canvasFailed: true })).toBe('canvas-failed');
+    expect(fallbackReason({ webgl: true, context: 'gone', chosen2d: false, canvasFailed: true })).toBe('canvas-failed');
+    expect(fallbackReason({ webgl: true, context: 'ok', chosen2d: false, canvasFailed: false })).toBeNull();
+  });
+
+  it('keeps no WebGL and the learner’s own choice as the reasons before it', () => {
+    expect(fallbackReason({ webgl: false, context: 'ok', chosen2d: false, canvasFailed: true })).toBe('no-webgl');
+    expect(fallbackReason({ webgl: true, context: 'ok', chosen2d: true, canvasFailed: true })).toBe('chosen');
+  });
+});
+
 describe('fallbackNoteKey (N18 R4.6)', () => {
   it('tells the learner why they see 2D, except when they asked for it themselves', () => {
     expect(fallbackNoteKey['no-webgl']).toBe('robot.topview.noWebgl');
     expect(fallbackNoteKey['context-lost']).toBe('robot.topview.contextLost');
+    expect(fallbackNoteKey['canvas-failed']).toBe('robot.topview.canvasFailed');
     expect(fallbackNoteKey.chosen).toBeNull();
   });
 });
@@ -41,6 +55,7 @@ describe('the view button (N18 R4.6)', () => {
     expect(viewToggleAction('chosen')).toBe('show3d');
     expect(viewToggleAction('no-webgl')).toBe('retry3d');
     expect(viewToggleAction('context-lost')).toBe('retry3d');
+    expect(viewToggleAction('canvas-failed')).toBe('retry3d');
   });
 
   it('names each action in the learner’s words', () => {

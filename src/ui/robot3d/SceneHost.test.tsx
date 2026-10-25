@@ -21,11 +21,13 @@ import { readTopViewState } from './top-view-state';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const scenes = vi.hoisted(() => ({ mounted: 0, unmounted: 0, props: null as SceneProps | null }));
+const scenes = vi.hoisted(() => ({ mounted: 0, unmounted: 0, props: null as SceneProps | null, fail: false }));
 vi.mock('./Scene', async () => {
   const { useEffect } = await import('react');
   return {
     default: function SceneStandIn(props: SceneProps) {
+      // A canvas that cannot get its renderer throws while it is made.
+      if (scenes.fail) throw new Error('The stand-in could not make its renderer.');
       scenes.props = props;
       useEffect(() => {
         scenes.mounted += 1;
@@ -50,6 +52,7 @@ beforeEach(() => {
   scenes.mounted = 0;
   scenes.unmounted = 0;
   scenes.props = null;
+  scenes.fail = false;
   host = document.createElement('div');
   document.body.append(host);
   root = createRoot(host);
@@ -210,5 +213,70 @@ describe('SceneHost when the browser takes the WebGL context away (N18 R4.6)', (
     expect(byId('robot-topview')).toBeNull();
     expect(scenes.unmounted).toBe(1);
     expect(scenes.mounted).toBe(2);
+  });
+});
+
+describe('SceneHost when the 3D canvas throws (N18 R4.6 fix round 1, ruling a)', () => {
+  it('falls back to the map by itself, with a note and "Thử lại 3D", and not to an error panel', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    scenes.fail = true;
+    render(() => gpu);
+    expect(readTopViewState()?.reason).toBe('canvas-failed');
+    expect(byId('robot-webgl-failed')).toBeNull();
+    expect(text('robot-fallback-note')).toBe('Khung nhìn 3D gặp lỗi và đã dừng, đang dùng bản đồ 2D. Chương trình của bạn vẫn được giữ.');
+    expect(text('robot-viewmode')).toBe('Thử lại 3D');
+    expect(byId('robot-viewmode')?.getAttribute('data-action')).toBe('retry3d');
+    expect(byId('robot-camera')?.hidden).toBe(true);
+    expect(byId('robot-quality')?.hidden).toBe(true);
+    // No loading sign over a canvas that is gone.
+    expect(byId('robot-3d-loading')).toBeNull();
+  });
+
+  it('makes a new canvas on "Thử lại 3D", and the map goes when it works', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    scenes.fail = true;
+    render(() => gpu);
+    click('robot-viewmode');
+    // Still failing: still the map.
+    expect(readTopViewState()?.reason).toBe('canvas-failed');
+    scenes.fail = false;
+    click('robot-viewmode');
+    expect(byId('robot-topview')).toBeNull();
+    expect(byId('scene-stand-in')).not.toBeNull();
+    expect(text('robot-viewmode')).toBe('Xem 2D');
+  });
+
+  it('keeps the map when the learner chose it and the canvas that was made before had failed', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    scenes.fail = true;
+    render(() => gpu);
+    scenes.fail = false;
+    click('robot-viewmode');
+    expect(byId('scene-stand-in')).not.toBeNull();
+    click('robot-viewmode');
+    expect(readTopViewState()?.reason).toBe('chosen');
+    expect(byId('robot-fallback-note')).toBeNull();
+  });
+});
+
+describe('SceneHost’s quality tier across a round trip (N18 R4.6 fix round 1)', () => {
+  it('keeps the tier the learner chose after "Xem 2D" and "Xem 3D", and after "Thử lại 3D" over a lost context', () => {
+    render(() => gpu);
+    expect(byId('scene-stand-in')?.getAttribute('data-tier')).toBe('high');
+    click('robot-quality');
+    expect(byId('scene-stand-in')?.getAttribute('data-tier')).toBe('low');
+    click('robot-viewmode');
+    expect(byId('robot-topview')).not.toBeNull();
+    click('robot-viewmode');
+    expect(byId('scene-stand-in')?.getAttribute('data-tier')).toBe('low');
+    expect(byId('robot-quality')?.getAttribute('data-tier')).toBe('low');
+
+    act(() => scenes.props!.onContextLost());
+    advance(2000);
+    click('robot-viewmode');
+    expect(byId('scene-stand-in')?.getAttribute('data-tier')).toBe('low');
   });
 });

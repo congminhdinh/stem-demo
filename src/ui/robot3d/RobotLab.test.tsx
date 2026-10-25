@@ -190,7 +190,7 @@ describe('RobotLab without WebGL (N18 R4.2, R4.6)', () => {
     expect(text('robot-status')).toBe('Chưa chạy');
   });
 
-  it('shows its own message with Try again when the 3D canvas cannot be made, not the chunk loader’s', async () => {
+  it('falls back to the 2D map by itself, with a note and Thử lại 3D, when the 3D canvas cannot be made (N18 R4.6, not the chunk loader’s message)', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     // A container with a size (jsdom lays nothing out), so that the canvas makes its renderer, which jsdom's WebGL-less canvas refuses.
@@ -205,15 +205,18 @@ describe('RobotLab without WebGL (N18 R4.2, R4.6)', () => {
         disconnect() {}
       },
     );
-    // As a browser without WebGL answers (jsdom's own canvas would also print that it has no 2D or WebGL).
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    // The canvas gets no WebGL context (the fake canvas of beforeEach answers null for it) and the map gets its 2D one.
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 0, left: 0, top: 0, right: 600, bottom: 400, width: 600, height: 400, toJSON: () => ({}) });
     const { render } = setup('rb-drive-to-zone', { probe: () => ({ ok: true, renderer: 'Test GPU' }) });
     await render();
     // The canvas measures its container after a debounce of 50 ms, then makes its renderer.
     await act(() => new Promise((resolve) => setTimeout(resolve, 300)));
-    expect(text('robot-webgl-failed')).toBe('Khung nhìn 3D gặp lỗi và đã dừng. Chương trình của bạn vẫn được giữ.Thử lại');
-    // N18 R4.2 fix round 1: the loading sign gives way to the failure's message.
+    // N18 R4.6 (controller ruling a): R4.2's error panel (`robot-webgl-failed`, "Thử lại") is the map and a note now, never a dead end.
+    expect(host.querySelector('[data-testid=robot-webgl-failed]')).toBeNull();
+    expect(readTopViewState()?.reason).toBe('canvas-failed');
+    expect(text('robot-fallback-note')).toBe('Khung nhìn 3D gặp lỗi và đã dừng, đang dùng bản đồ 2D. Chương trình của bạn vẫn được giữ.');
+    expect(text('robot-viewmode')).toBe('Thử lại 3D');
+    // N18 R4.2 fix round 1: the loading sign gives way to the failure.
     expect(host.querySelector('[data-testid=robot-3d-loading]')).toBeNull();
     expect(text('blocks')).toBe('khối lệnh');
     expect(host.querySelector('[data-testid=robot-load-failed]')).toBeNull();
