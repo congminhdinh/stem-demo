@@ -17,8 +17,10 @@ import { insidePolygon } from '../src/core/scenario/goals/geometry';
 import { circleShape, insideGround, rectShape, shapesOverlap, wallShape, type Shape } from '../src/core/scenario/overlap';
 import { polygonsOverlap } from '../src/core/scenario/polygon-overlap';
 import { SCENARIO_MAX_SCORE, scenarioMaxScore, type RobotGoalSpec, type Scenario } from '../src/core/scenario/scenario';
-import { applyVariant, variantOffsets } from '../src/core/scenario/variants';
+import { applyVariant, ROBOT_FOOTPRINT_RADIUS_CM, variantOffsets } from '../src/core/scenario/variants';
 import type { Arena } from '../src/core/world/arena/arena-schema';
+import { robotFootprint, startFootprintIssues } from '../src/core/world/robot/footprint';
+import { createScenarioWorld } from '../src/core/world/world';
 import { scenarioCatalog } from '../src/samples/robot-scenarios';
 import { robotScenarioManifest, serializeManifest } from '../src/samples/robot-scenarios/manifest';
 import { robotSolutions, type BlocklyJson, type RobotScoredKey } from '../src/samples/robot-solutions';
@@ -47,10 +49,9 @@ const scenarioOf = (key: string): Scenario => {
 };
 const lessonsWithBlind: readonly RobotScoredKey[] = ['rb-stop-at-wall', 'rb-line-follow', 'rb-servo-gate', 'rb-mini-mission'];
 
-/** The robot's footprint (R3.5: 11 cm, the wheel corners of ref-uno-rover@0 reach 10.27 cm) and the air the arenas keep around a start. */
-const FOOTPRINT_RADIUS_CM = 11;
+/** The air the arenas keep around a start, beyond the footprint the variants use (R3.5: 11 cm; the rover's wheel corners reach 10.27 cm). */
 const START_CLEARANCE_CM = 2;
-const START_ROOM_CM = FOOTPRINT_RADIUS_CM + START_CLEARANCE_CM;
+const START_ROOM_CM = ROBOT_FOOTPRINT_RADIUS_CM + START_CLEARANCE_CM;
 /** The slowest speed a solution may use, %: well clear of the placeholder kit's dead band (no motion under a duty of about 80, 31 %). */
 const MIN_SOLUTION_SPEED = 40;
 
@@ -116,24 +117,6 @@ function solids(arena: Arena): { name: string; shape: Shape }[] {
       shape: object.shape === 'box' ? rectShape(object.centerCm[0], object.centerCm[1], object.sizeCm[0] / 2, object.sizeCm[1] / 2, object.yawDeg) : circleShape(object.centerCm[0], object.centerCm[1], object.radiusCm),
     })),
   ];
-}
-
-/** The kit's floor footprint, the body box and the drive wheels, as boxes in the robot frame (x forward, y left): [x, y, half x, half y]. */
-function kitFootprint(robot: Kit): [number, number, number, number][] {
-  const [length, width] = robot.chassis!.bodyCm;
-  const wheels = robot.modules
-    .filter((module) => module.kind === 'dc-motor')
-    .map((module) => {
-      const spec = module.spec as { wheelRadiusCm: number; wheelWidthCm: number };
-      return [module.mount.posCm[0], module.mount.posCm[1], spec.wheelRadiusCm, spec.wheelWidthCm / 2] as [number, number, number, number];
-    });
-  return [[0, 0, length / 2, width / 2], ...wheels];
-}
-
-/** The kit's footprint at a pose, as arena shapes. */
-function footprintAt(robot: Kit, pose: { xCm: number; yCm: number; yawDeg: number }): Shape[] {
-  const a = (pose.yawDeg * Math.PI) / 180;
-  return kitFootprint(robot).map(([x, y, hx, hy]) => rectShape(pose.xCm + x * Math.cos(a) - y * Math.sin(a), pose.yCm + x * Math.sin(a) + y * Math.cos(a), hx, hy, pose.yawDeg));
 }
 
 /** A polygon around a circle (its edges outside the circle), to ask polygonsOverlap whether a zone and the circle share an area. */
@@ -253,10 +236,10 @@ describe('the robot scenarios of this build (N18 R5.2)', () => {
 });
 
 describe('the variants of every scenario (N18 R5.2)', () => {
-  it('ref-uno-rover@0 fits the footprint the variants and the world use: its body and wheels lie within 11 cm of its middle', () => {
-    const corners = kitFootprint(kit).flatMap(([x, y, hx, hy]) => [Math.hypot(Math.abs(x) + hx, Math.abs(y) + hy)]);
-    expect(Math.max(...corners)).toBeCloseTo(10.27, 2);
-    expect(Math.max(...corners)).toBeLessThan(FOOTPRINT_RADIUS_CM);
+  it('ref-uno-rover@0 fits the footprint the variants use: every part, the servo arm at every angle, lies within 11 cm of its middle', () => {
+    expect(ROBOT_FOOTPRINT_RADIUS_CM).toBe(11);
+    expect(robotFootprint(kit).radiusCm).toBeCloseTo(10.27, 2);
+    expect(robotFootprint(kit).radiusCm).toBeLessThan(ROBOT_FOOTPRINT_RADIUS_CM);
   });
 
   for (const scenario of scenarioCatalog.scenarios) {
@@ -278,10 +261,8 @@ describe('the variants of every scenario (N18 R5.2)', () => {
         for (const { name, shape } of things) {
           expect(shapesOverlap(room, shape), `variant ${index} against ${name}`).toBe(false);
         }
-        for (const part of footprintAt(kit, start)) {
-          expect(insideGround(part, width, depth)).toBe(true);
-          for (const { name, shape } of things) expect(shapesOverlap(part, shape), `kit at variant ${index} against ${name}`).toBe(false);
-        }
+        // What createWorld checks: no part of the kit's robot (body, wheels, caster, the servo arm at every angle) stands in anything.
+        expect(startFootprintIssues(arena, kit, start, index)).toEqual([]);
         // The obstacles stay on the ground and apart, wherever the variant put them.
         const obstacles = things.filter(({ name }) => !arena.walls.some((wall, i) => (wall.id ?? `wall ${i}`) === name));
         for (const [i, { name, shape }] of obstacles.entries()) {
@@ -291,6 +272,25 @@ describe('the variants of every scenario (N18 R5.2)', () => {
       }
     });
   }
+
+  it.each(scenarioCatalog.scenarios.map((scenario) => [scenario.key, scenario] as const))(
+    '%s: the world of every variant builds (createScenarioWorld): the start is clear, and the robot rests where the variant puts it',
+    async (_key, scenario) => {
+      for (let index = 0; index < scenario.variants.count; index++) {
+        const world = await createScenarioWorld(scenario, kit, index);
+        try {
+          const { start } = applyVariant(scenario, variantOffsets(scenario, index));
+          const robot = world.snapshot().robot;
+          expect(Math.hypot(robot.xCm - start.xCm, robot.yCm - start.yCm), `variant ${index} settles in place`).toBeLessThan(0.5);
+          expect(world.outOfArena).toBe(false);
+          expect(world.sense.contacts().filter((contact) => contact.kind !== 'ground')).toEqual([]);
+        } finally {
+          world.dispose();
+        }
+      }
+    },
+    30_000,
+  );
 
   it('lessons 3 and 5 move a jittered start so far along the way that a fixed drive stops at least 4 cm out of the zone', () => {
     for (const key of ['rb-stop-at-wall', 'rb-servo-gate'] as const) {
