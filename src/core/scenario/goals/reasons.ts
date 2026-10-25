@@ -35,6 +35,11 @@ export const goalReasons = {
    * before the goal had the hold or the stop it needs (`stop-in-zone`, `servo-angle`). The check (R6.2) gives it; no goal reads contacts for it.
    */
   runEndedContact: 'robot.goal.reason.run-ended-contact',
+  /**
+   * N18 R6.2 fix round 1 (controller ruling): the run ended in an error (a fault of the program, or of the simulation), so the check (R6.2)
+   * fails every goal of that variant with it, however far the frozen world got. No goal gives it.
+   */
+  programError: 'robot.goal.reason.program-error',
 } as const;
 
 export type GoalReasonKey = (typeof goalReasons)[keyof typeof goalReasons];

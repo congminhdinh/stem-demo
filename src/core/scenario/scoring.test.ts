@@ -8,9 +8,7 @@ import {
   checkResultOf,
   checkScore,
   createScenarioScorer,
-  PROGRAM_ERROR_REASON,
   programErrorScore,
-  RUN_ENDED_CONTACT_REASON,
   timeBonus,
   variantScore,
   type RunScore,
@@ -176,11 +174,10 @@ describe('the scorer of a run', () => {
       expect(before.map((goal) => goal.passed)).toEqual([false, false, true, false]);
       scorer.end({ reason: 'contact', atS: 3, tag: 'obstacle' });
       const after = scorer.result().goals;
-      expect(after[0]).toEqual({ ...before[0], reasonKey: RUN_ENDED_CONTACT_REASON, atS: 3 });
-      expect(after[1]).toEqual({ ...before[1], reasonKey: RUN_ENDED_CONTACT_REASON, atS: 3 });
+      expect(after[0]).toEqual({ ...before[0], reasonKey: goalReasons.runEndedContact, atS: 3 });
+      expect(after[1]).toEqual({ ...before[1], reasonKey: goalReasons.runEndedContact, atS: 3 });
       expect(after.slice(2)).toEqual(before.slice(2));
-      expect(scorer.score().goals.map((goal) => goal.reasonKey)).toEqual([RUN_ENDED_CONTACT_REASON, RUN_ENDED_CONTACT_REASON, undefined, goalReasons.zoneNotReached]);
-      expect(RUN_ENDED_CONTACT_REASON).toBe('robot.goal.reason.run-ended-contact');
+      expect(scorer.score().goals.map((goal) => goal.reasonKey)).toEqual([goalReasons.runEndedContact, goalReasons.runEndedContact, undefined, goalReasons.zoneNotReached]);
     });
 
     it('a contact end keeps a stop that passed, and a hold that failed for good by leaving the arena', () => {
@@ -221,14 +218,13 @@ describe('programErrorScore', () => {
   it('a run whose program ended in an error: 0 points, failed, every goal failed with program-error at the time of the error, no bonus', () => {
     const scenario = scenarioWith([dock, crate, inTime(45)], 10);
     expect(programErrorScore(scenario, 2.5)).toEqual({
-      goals: ['reach-dock', 'push-crate', 'in-time'].map((id) => ({ id, passed: false, points: 0, progress: 0, reasonKey: PROGRAM_ERROR_REASON, atS: 2.5 })),
+      goals: ['reach-dock', 'push-crate', 'in-time'].map((id) => ({ id, passed: false, points: 0, progress: 0, reasonKey: goalReasons.programError, atS: 2.5 })),
       passed: false,
       finishedAtS: null,
       timeBonus: 0,
       points: 0,
       maxScore: 100,
     } satisfies RunScore);
-    expect(PROGRAM_ERROR_REASON).toBe('robot.goal.reason.program-error');
   });
 });
 

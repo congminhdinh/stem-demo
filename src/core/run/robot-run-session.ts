@@ -15,8 +15,8 @@ import { createRunConsole, type ConsoleSnapshot, type RunConsole } from '../prog
 import { EXEC_SLICE_MS } from '../program/limits';
 import { runYbcProgram } from '../program/ybc-interpreter';
 import type { YbcProgramIR } from '../program/ybc-ir';
-import type { GoalContact, GoalFrame } from '../scenario/goals/frame';
-import { inputsDueBetween, type Scenario } from '../scenario/scenario';
+import type { GoalFrame } from '../scenario/goals/frame';
+import { inputsDueBetween, runEndingContact, type Scenario } from '../scenario/scenario';
 import type { Arena } from '../world/arena/arena-schema';
 import { PHYSICS_DT_S, PHYSICS_HZ } from '../world/rapier';
 import type { RobotSnapshot, RunStatus, ScoreState } from '../world/snapshot';
@@ -86,9 +86,8 @@ import { createVirtualScheduler, type VirtualScheduler } from './virtual-clock';
 // N18 R6.2 adds the scenario's own ends (`end` of the snapshot, `RobotRunEnd`), in every run, a check or not:
 //   - the time limit: a run is the ticks up to t = timeLimitS (the first tick at or after it, when the limit is not a whole number of
 //     ticks), every one judged; the next tick, which would go past it, ends the run instead (`time-limit`);
-//   - the first contact with a tag of the scenario's `endOnContact` (`endingTag`): that tick is the last, its frame judged (`contact`).
-//     R5.2a adds `endOnContact?: string[]` to the scenario schema (tags something in the arena has); until it merges the session reads it
-//     from the scenario object by that exact name.
+//   - the first contact with a tag of the scenario's `endOnContact` (scenario.ts `runEndingContact`): that tick is the last, its frame
+//     judged (`contact`).
 // Either way the program is stopped, the status is `finished`, the scorer is told (`RobotScorer.end`) and the world stays at that moment:
 // nothing more is owed, pressed or ticked, as after an error.
 //
@@ -315,8 +314,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
   const buttonRoles = new Set<string>(kit.modules.filter((module) => module.kind === 'button').map((module) => module.role));
   /** The first tick at or after the time limit: the run is the ticks before it, and the next one would go past the limit. */
   const limitTick = Math.ceil(scenario.timeLimitS * PHYSICS_HZ - LIMIT_EPSILON_TICKS);
-  const endTags = endOnContactOf(scenario);
-  const endsOnContact = endTags.length > 0;
+  const endsOnContact = (scenario.endOnContact ?? []).length > 0;
 
   let snapshot = idle;
   const listeners = new Set<(snapshot: RobotRunSnapshot) => void>();
@@ -547,7 +545,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
     if (!ticking(run) || frame === undefined) {
       return ticking(run);
     }
-    const tag = endsOnContact ? endingTag(endTags, frame.contacts) : null;
+    const tag = endsOnContact ? runEndingContact(scenario, frame.contacts) : null;
     if (tag !== null) {
       endRun(run, { reason: 'contact', atS: frame.tS, tag });
       return false;
@@ -931,27 +929,6 @@ export function robotKitCatalog(kit: Kit, board: BoardProfile): KitCatalog {
 
 /** What an error says, for a diagnostic. */
 const detailOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
-
-/**
- * N18 R6.2: the scenario's `endOnContact`, the tags whose first contact ends the run (none when it has none). R5.2a adds the field to the
- * scenario schema; it is read from the object by that name until then, so a scenario of either branch works.
- */
-function endOnContactOf(scenario: Scenario): readonly string[] {
-  const tags = (scenario as { endOnContact?: unknown }).endOnContact;
-  return Array.isArray(tags) ? tags.filter((tag): tag is string => typeof tag === 'string' && tag !== '') : [];
-}
-
-/**
- * The tag of `tags` that one of this tick's contacts has, or null: the first of the list that any contact has, so the same tick names the
- * same tag on every engine. A contact names its collider's tags, its kind among them (build-arena.ts); a whole tag matches, not a part of
- * one. (R5.2a's `runEndingContact` of scenario.ts gives the same answer.)
- */
-export function endingTag(tags: readonly string[], contacts: readonly GoalContact[]): string | null {
-  for (const tag of tags) {
-    if (contacts.some((contact) => contact.tags.includes(tag))) return tag;
-  }
-  return null;
-}
 
 /** What a snapshot shows of a score that the ticks alone do not change: the points and each goal's verdict and reason. */
 const verdictOf = (score: ScoreState): string =>

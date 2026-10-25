@@ -4,9 +4,8 @@ import { add, getVar, num, print, setVar, wait } from '../program/__fixtures__/y
 import type { GoalFrame } from '../scenario/goals/frame';
 import { loadScenario, type Scenario, type ScenarioJson } from '../scenario/scenario';
 import { initPhysics, PHYSICS_DT_S, PHYSICS_HZ } from '../world/rapier';
-import { published, robotProject, roverSession, withEndOnContact, worldOf } from './__fixtures__/robot-session';
+import { published, robotProject, roverSession, worldOf } from './__fixtures__/robot-session';
 import {
-  endingTag,
   MAX_TICKS_PER_FRAME,
   REST_HOLD_S,
   REST_SPEED_CM_S,
@@ -29,7 +28,7 @@ const tickOf = (session: RobotRunSession) => Math.round(worldOf(session).t * PHY
  * the run ends at a contact with `endOnContact` when it is given.
  */
 function arenaScenario(change: Partial<ScenarioJson> = {}, endOnContact?: string[]): Scenario {
-  const scenario = loadScenario({
+  return loadScenario({
     key: 'rb-sandbox',
     version: 1,
     title: { vi: 'Bài thử', en: 'Fixture' },
@@ -43,8 +42,8 @@ function arenaScenario(change: Partial<ScenarioJson> = {}, endOnContact?: string
     goals: [],
     starter: {},
     ...change,
+    ...(endOnContact === undefined ? {} : { endOnContact }),
   });
-  return endOnContact === undefined ? scenario : withEndOnContact(scenario, endOnContact);
 }
 
 /** A scorer that keeps every frame it is fed and every end it is told; its verdict is `passed(frame)` of the latest frame. */
@@ -165,18 +164,6 @@ describe('a run ends at the first contact with a tag of endOnContact', () => {
       expect([tickOf(session), session.getSnapshot().status, session.getSnapshot().end]).toEqual([10 * PHYSICS_HZ, 'running', undefined]);
       session.stop();
     }
-  });
-
-  it('names the first tag of the list that a contact of the tick has, the whole tag, or null', () => {
-    const wall = { otherId: '#wall-0', tags: ['wall'] };
-    const cone = { otherId: 'cone-1', tags: ['box', 'obstacle'] };
-    const crate = { otherId: 'crate', tags: ['object', 'pushable'] };
-    expect(endingTag(['wall', 'obstacle'], [crate])).toBeNull();
-    expect(endingTag(['wall', 'obstacle'], [])).toBeNull();
-    expect(endingTag(['wall', 'obstacle'], [crate, cone])).toBe('obstacle');
-    expect(endingTag(['wall', 'obstacle'], [cone, wall])).toBe('wall');
-    expect(endingTag([], [wall])).toBeNull();
-    expect(endingTag(['wall', 'obstacle'], [{ otherId: 'x', tags: ['walls', 'obstacles', 'Wall'] }])).toBeNull();
   });
 
   it('a scorer that throws when told the end ends the run in internal-error', async () => {

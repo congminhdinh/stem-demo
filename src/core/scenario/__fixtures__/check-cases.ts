@@ -1,5 +1,5 @@
 import type { ProjectDocument } from '../../circuit/document';
-import { robotProject, withEndOnContact } from '../../run/__fixtures__/robot-session';
+import { robotProject } from '../../run/__fixtures__/robot-session';
 import { driveMove, driveStop, unoDivide } from '../../program/__fixtures__/uno-blocks';
 import { num, wait } from '../../program/__fixtures__/ybc-blocks';
 import { loadScenario, type Scenario, type ScenarioJson } from '../scenario';
@@ -46,7 +46,7 @@ export const parkScenario = (): Scenario => loadScenario(parkScenarioJson);
 
 /** The park scenario with a wall across x = 100 (cm), whose first contact ends the run (`endOnContact: ["wall"]`). */
 export const crashScenario = (): Scenario =>
-  withEndOnContact(loadScenario({ ...parkScenarioJson, arena: { ...parkScenarioJson.arena, walls: [{ id: 'wall', fromCm: [100, 0], toCm: [100, 100] }] } }), ['wall']);
+  loadScenario({ ...parkScenarioJson, arena: { ...parkScenarioJson.arena, walls: [{ id: 'wall', fromCm: [100, 0], toCm: [100, 100] }] }, endOnContact: ['wall'] });
 
 /**
  * The park scenario's floor and zone with a wall across x = 100 (cm) and other goals: reach the target (50) and never touch the wall (30,

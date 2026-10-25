@@ -10,8 +10,8 @@ import { initPhysics } from '../world/rapier';
 import { crashScenario, dasher, faulter, overshooter, parker, parkScenario, rammer, wallScenario } from './__fixtures__/check-cases';
 import { checkRobot, RobotCheckError, type CheckProgress, type CheckRobotOptions } from './check-robot';
 import { robotCheckResultProblems, ROBOT_ENGINE, type RobotCheckResult } from './check-result';
+import { goalReasons } from './goals';
 import { hashProgramIr } from './program-hash';
-import { PROGRAM_ERROR_REASON, RUN_ENDED_CONTACT_REASON } from './scoring';
 import { variantSeed } from './variants';
 
 // N18 R6.2: checkRobot runs a learner's project in every variant of a scenario, one after the other, and gives the check's result (robot
@@ -81,7 +81,7 @@ describe('checkRobot', () => {
       expect(progress.end).toMatchObject({ reason: 'contact', tag: 'wall' });
       expect(progress.variant.simTimeMs).toBe(Math.round(progress.end!.atS * 1000));
       expect(progress.variant.simTimeMs).toBeLessThan(5000);
-      expect(progress.goals.find((goal) => goal.id === 'park')).toMatchObject({ passed: false, reasonKey: RUN_ENDED_CONTACT_REASON, atS: progress.end!.atS });
+      expect(progress.goals.find((goal) => goal.id === 'park')).toMatchObject({ passed: false, reasonKey: goalReasons.runEndedContact, atS: progress.end!.atS });
     }
     expect(result.simTimeMs).toBe(Math.max(...result.variants.map((variant) => variant.simTimeMs)));
   });
@@ -99,8 +99,8 @@ describe('checkRobot', () => {
       expect(progress.error).toMatchObject({ code: 'out-of-domain' });
       expect(progress.end).toBeNull();
       expect(progress.goals).toEqual([
-        { id: 'reach', passed: false, points: 0, progress: 0, reasonKey: PROGRAM_ERROR_REASON, atS: 0.8 },
-        { id: 'no-wall', passed: false, points: 0, progress: 0, reasonKey: PROGRAM_ERROR_REASON, atS: 0.8 },
+        { id: 'reach', passed: false, points: 0, progress: 0, reasonKey: goalReasons.programError, atS: 0.8 },
+        { id: 'no-wall', passed: false, points: 0, progress: 0, reasonKey: goalReasons.programError, atS: 0.8 },
       ]);
     }
     // Full speed for ever reaches the target and hits the wall: 50. The same dash without the fault passes: the fault is what fails it.
@@ -248,7 +248,7 @@ describe('checkRobot', () => {
       for (const progress of ended) {
         if (progress.kind !== 'variant-ended') continue;
         expect(progress.error).toMatchObject({ code: 'out-of-domain' });
-        expect(progress.goals.map((goal) => goal.reasonKey)).toEqual([PROGRAM_ERROR_REASON, PROGRAM_ERROR_REASON, PROGRAM_ERROR_REASON]);
+        expect(progress.goals.map((goal) => goal.reasonKey)).toEqual([goalReasons.programError, goalReasons.programError, goalReasons.programError]);
       }
     });
   });

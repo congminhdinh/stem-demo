@@ -2,7 +2,7 @@ import type { RobotRunEnd, RobotScorer, RobotScorerFactory } from '../run/robot-
 import type { Arena } from '../world/arena/arena-schema';
 import type { ScoreState } from '../world/snapshot';
 import { ROBOT_ENGINE, type RobotCheckResult } from './check-result';
-import { createGoal, goalReasons, type Goal, type GoalFrame, type GoalReasonKey, type GoalResult } from './goals';
+import { createGoal, goalReasons, type Goal, type GoalFrame, type GoalResult } from './goals';
 import { SCENARIO_MAX_SCORE, scenarioMaxScore, type RobotGoalSpec, type Scenario } from './scenario';
 
 // The score of a robot run and of a check (N18 R6.2, robot plan §4.6, controller rulings). The goals (R6.1) judge each run; this adds them up.
@@ -30,19 +30,6 @@ import { SCENARIO_MAX_SCORE, scenarioMaxScore, type RobotGoalSpec, type Scenario
 //
 // Every number here comes from the frames' simulated times and the scenario: no wall clock, nothing that depends on how fast the run was
 // driven. The same frames give the same score on every engine.
-
-/**
- * The reason of a hold or a stop that a contact end cut short (controller ruling for R6.2: given by the scorer, no goal reads contacts for
- * it). R5.2a adds it to the goal library's list (`goalReasons.runEndedContact`, goals/reasons.ts); until it merges it is written here,
- * and messages.ts has its words in vi and en.
- */
-export const RUN_ENDED_CONTACT_REASON = 'robot.goal.reason.run-ended-contact' as string as GoalReasonKey;
-
-/**
- * The reason of every goal of a run whose program ended in an error (R6.2 fix round 1, controller ruling): the scorer's own, like
- * RUN_ENDED_CONTACT_REASON, with its words in messages.ts.
- */
-export const PROGRAM_ERROR_REASON = 'robot.goal.reason.program-error' as string as GoalReasonKey;
 
 /** A bonus this close below a whole point is that point: 10 × (1 − 54/60) is 0.9999999999999998 in doubles. */
 export const TIME_BONUS_EPSILON = 1e-9;
@@ -72,11 +59,11 @@ function scoreOf(scenario: Pick<Scenario, 'key' | 'goals' | 'scoring' | 'timeLim
 
 /**
  * The score of a run whose program ended in an error at `atS` (see the top of this file): 0 points, failed, every goal failed with
- * PROGRAM_ERROR_REASON at that time, no bonus. It reads no goal: after a failure of the simulation the scorer may be the broken part.
+ * `program-error` (goalReasons.programError) at that time, no bonus. It reads no goal: after a failure of the simulation the scorer may be the broken part.
  */
 export function programErrorScore(scenario: Pick<Scenario, 'key' | 'goals' | 'scoring'>, atS: number): RunScore {
   return {
-    goals: scenario.goals.map((spec) => ({ id: spec.id, passed: false, points: 0, progress: 0, reasonKey: PROGRAM_ERROR_REASON, atS })),
+    goals: scenario.goals.map((spec) => ({ id: spec.id, passed: false, points: 0, progress: 0, reasonKey: goalReasons.programError, atS })),
     passed: false,
     finishedAtS: null,
     timeBonus: 0,
@@ -138,7 +125,7 @@ export function createScenarioScorer(run: { scenario: Scenario; arena: Arena; pr
     if (contactEnd === null || result.passed || !HOLD_KINDS.has(spec.kind) || result.reasonKey === goalReasons.outOfArena) {
       return result;
     }
-    return { ...result, reasonKey: RUN_ENDED_CONTACT_REASON, atS: contactEnd.atS };
+    return { ...result, reasonKey: goalReasons.runEndedContact, atS: contactEnd.atS };
   };
 
   const result = (): RunScore => {
