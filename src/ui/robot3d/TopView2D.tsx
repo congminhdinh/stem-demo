@@ -65,7 +65,7 @@ function useMat(arena: Arena, scale: number | null, zoneLabel: TopView2DProps['z
     canvas.height = Math.ceil(depthCm * pxPerCm);
     const ctx = canvas.getContext('2d');
     if (ctx === null) return null;
-    paintGround(ctx, arena, { pxPerCm, zoneLabel });
+    paintGround(ctx, arena, { pxPerCm, zoneLabel, patterns: true });
     return canvas;
   }, [arena, wanted, zoneLabel]);
 }

@@ -9,7 +9,7 @@ import { wallBox } from '../scene-math';
 // zones as the view's tags (zone-tags.ts), readable from any camera. Two more maps are painted from the same data: the roughness (the
 // tape as matte as the paper) and the baked contact shading under the walls and the fixed bodies. Nothing dark is printed that the
 // sensors do not read as the zone it is on: the borders are shades of the zone's own colour with a luma above the line sensor's dark
-// threshold (0.5), never black.
+// threshold (0.5), never black; the same goes for the zones' patterns (zone-pattern.ts, N18 R8).
 
 export type MatLabels = {
   /** A zone's name (the learner's words), or null to leave it unnamed. */
@@ -50,7 +50,8 @@ export function paintMat(ctx: PaintContext & Pick<CanvasRenderingContext2D, 'set
   const depthCm = arena.ground.sizeCm[1];
   const px = (x: number) => x * pxPerCm;
   const py = (y: number) => (depthCm - y) * pxPerCm;
-  paintGround(ctx, { ground: arena.ground, paint: { zones: arena.paint.zones, lines: [] } }, { pxPerCm, zoneLabel: () => null });
+  // N18 R8: each zone's pattern (dots, hatching) over its fill, in a light shade of the zone's own colour, under the borders and the tape.
+  paintGround(ctx, { ground: arena.ground, paint: { zones: arena.paint.zones, lines: [] } }, { pxPerCm, zoneLabel: () => null, patterns: true });
   for (const zone of arena.paint.zones) {
     const box = boundsOf(zone);
     // A printed border 3 mm wide, 6 mm inside the zone's edge.

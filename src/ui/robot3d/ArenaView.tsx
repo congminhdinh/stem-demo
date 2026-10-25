@@ -33,7 +33,7 @@ function useFloorTexture(arena: Arena, zoneLabel: ArenaViewProps['zoneLabel']): 
     if (ctx === null) {
       return null;
     }
-    paintGround(ctx, arena, { pxPerCm, zoneLabel });
+    paintGround(ctx, arena, { pxPerCm, zoneLabel, patterns: true });
     const painted = new CanvasTexture(canvas);
     painted.colorSpace = SRGBColorSpace;
     painted.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
