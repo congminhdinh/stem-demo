@@ -9,8 +9,8 @@ def build(lib, tex, kit, col):
     root = lib.empty('part_ultrasonic', col=col)
     blue = lib.material('pcb_blue', image=lib.image_from_array('pcb_blue', tex.pcb(256, 112, '#1a4aa6', '#2f66c4', '#d8d2c0', '#eef2f6', 52, traces=30,
                                                                                     outlines=((0.04, 0.08, 0.36, 0.92), (0.64, 0.08, 0.96, 0.92)), pads=((0.5, 0.86, 0.02),))), roughness=0.36, coat=0.25)
-    can = lib.material('transducer_can', '#d3d7dd', metallic=1.0, roughness=0.28)
-    grille = lib.material('grille', image=lib.image_from_array('grille', tex.grille(128, 22)), metallic=0.7, roughness=0.5)
+    can = lib.material('transducer_can', '#e6e9ee', metallic=0.55, roughness=0.32)
+    grille = lib.material('grille', image=lib.image_from_array('grille', tex.grille(128, 22)), metallic=0.4, roughness=0.55)
     dark = lib.material('abs_black', '#1d1f23', roughness=0.42)
     gold = lib.material('gold', '#e2bd5f', metallic=1.0, roughness=0.24)
     acrylic = lib.material('acrylic_black', '#141518', roughness=0.12)

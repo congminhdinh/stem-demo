@@ -96,11 +96,11 @@ def build_robot(kit):
         ('caster', 'parts/caster.py', 'build'),
         ('ultrasonic', 'parts/ultrasonic.py', 'build'),
         ('line_bar', 'parts/line_bar.py', 'build'),
+        ('line_leds', 'parts/line_bar.py', 'build_leds'),
         ('servo', 'parts/servo.py', 'build'),
         ('led', 'parts/modules.py', 'build_led'),
         ('buzzer', 'parts/modules.py', 'build_buzzer'),
         ('button', 'parts/modules.py', 'build_button'),
-        ('dupont', 'parts/modules.py', 'build_dupont'),
     ]:
         started = time.time()
         parts[name] = getattr(load(script), fn)(lib, tex, kit, col)
@@ -114,21 +114,20 @@ def build_robot(kit):
     place(parts['caster'], kit['caster']['at'])
     place(parts['ultrasonic'], kit['ultrasonic']['at'])
     place(parts['line_bar'], kit['line']['at'])
+    place(parts['line_leds'], (b['L'] / 2 - 0.05, 0, b['top']))
     place(parts['servo'], (kit['servo']['x'], kit['servo']['y'], kit['servo']['z']))
     bpy.data.objects['servo_horn'].rotation_euler = (0, 0, math.radians(kit['servo']['yaw'] + kit['servo']['rest']))
     for role, name in (('led1', 'led'), ('buzzer', 'buzzer'), ('button1', 'button')):
         place(parts[name], kit['mods'][role]['mount']['posCm'])
-    place(parts['dupont'], (0, 0, -20))
     temporary = []
     for name in ('tt_motor', 'wheel'):
         copy, objects = duplicate_tree(parts[name], '__mirror')
         place(copy, (left['mount']['posCm'][0], -left['mount']['posCm'][1], left['mount']['posCm'][2]), mirror=True)
         temporary += objects
     bpy.context.view_layer.update()
-    meshes = [o for o in col.all_objects if o.type == 'MESH' and not o.name.startswith('dupont')]
+    meshes = [o for o in col.all_objects if o.type == 'MESH']
     started = time.time()
     lib.bake_ao(meshes, distance_cm=1.6, samples=32, floor=0.5)
-    lib.bake_ao([o for o in col.all_objects if o.type == 'MESH' and o.name.startswith('dupont')], distance_cm=0.3, samples=8, floor=0.8, ground=False)
     print(f'robot ao: {time.time() - started:.1f} s, {len(meshes)} meshes')
     for obj in temporary:
         bpy.data.objects.remove(obj)

@@ -18,7 +18,7 @@ def build_all(lib, tex, kit):
     col = lib.collection('props')
     wood = _load('wood')
     builders = [
-        ('wall', 'build'), ('block', 'build'), ('cardboard_box', 'build'), ('cone', 'build'), ('tin_can', 'build'), ('post', 'build'),
+        ('wall', 'build'), ('block', 'build'), ('cardboard_box', 'build'), ('marker', 'build'), ('tin_can', 'build'), ('post', 'build'),
         ('barrier', 'build'), ('garage', 'build_roof'), ('garage', 'build_sign'), ('dock', 'build'), ('fence', 'build_post'),
         ('fence', 'build_rail'), ('table', 'build_top'), ('table', 'build_leg'), ('table_props', 'build_ball'),
         ('table_props', 'build_crate'), ('table_props', 'build_tape'), ('banner', 'build'),

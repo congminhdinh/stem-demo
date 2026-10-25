@@ -30,7 +30,8 @@ def build(lib, tex, kit, col):
     R, W = kit['wheel']['R'], kit['wheel']['W']
     root = lib.empty('part_wheel', col=col)
     spin = lib.empty('wheel_spin', parent=root, col=col)
-    rubber = lib.material('rubber', '#1b1c1f', roughness=0.84)
+    # The low tier's Lambert rubber is a shade lighter (fix round 1): black there reads as a flat cut-out.
+    rubber = lib.material('rubber', '#1b1c1f' if lib.DETAIL == 'high' else '#3a3d43', roughness=0.84)
     rim = lib.material('rim_white', '#f2f3f5', roughness=0.32)
     cap = lib.material('anodised_orange', '#f26419', metallic=0.65, roughness=0.34)
     steel = lib.material('steel', '#c5cad1', metallic=1.0, roughness=0.24)

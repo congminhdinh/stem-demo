@@ -96,6 +96,21 @@ def bands(w, h, colours, widths):
     return _rgba(np.repeat(row[:, None, :], w, axis=1))
 
 
+def parking_sign(size, fg, bg, border):
+    """A parking sign's face: a white P on blue inside a thin white border, drawn 4× and averaged (smooth edges)."""
+    n = size * 4
+    y, x = (np.mgrid[0:n, 0:n] + 0.5) / n
+    y = 1 - y  # rows from the top; y up
+    inset = 0.06
+    frame = (np.minimum.reduce([x, y, 1 - x, 1 - y]) < inset) & (np.minimum.reduce([x, y, 1 - x, 1 - y]) > inset - 0.035)
+    stem = (x >= 0.3) & (x <= 0.44) & (y >= 0.17) & (y <= 0.83)
+    r = np.hypot(x - 0.47, y - 0.645)
+    bowl = (x >= 0.44) & (r >= 0.08) & (r <= 0.185) | ((x >= 0.44) & (x <= 0.47) & (((y >= 0.46) & (y <= 0.565)) | ((y >= 0.725) & (y <= 0.83))))
+    mask = (stem | bowl | frame).astype(np.float64)
+    mask = mask.reshape(size, 4, size, 4).mean(axis=(1, 3))[..., None]
+    return _rgba(rgb(bg) * (1 - mask) + rgb(fg) * mask)
+
+
 def cardboard(w, h, seed):
     fibre = fbm(w, h, 24, 24, seed, octaves=3)
     flute = np.sin(np.arange(w)[None, :] / w * np.pi * 2 * 40) * 0.025

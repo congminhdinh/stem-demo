@@ -4,8 +4,9 @@ import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 // N18 R4.7: the robot lab's modelled 3D assets (public/robot3d/*.glb) are built by `pnpm build:robot-assets` from the committed Blender
-// scripts of assets-src/robot3d/, which src/ui/robot3d/assets/robot-assets.manifest.json records by their SHA-256 with each GLB's. A script changed after the
-// last build (a stale asset) or a GLB that is not the build's fails here: run `pnpm build:robot-assets` and commit both.
+// scripts of assets-src/robot3d/, which src/ui/robot3d/assets/robot-assets.manifest.json records by their SHA-256 with each GLB's, and
+// with the reference kit the scripts read their sizes from (fix round 1). A script or the kit changed after the last build (a stale
+// asset) or a GLB that is not the build's fails here: run `pnpm build:robot-assets` and commit both.
 
 const root = join(import.meta.dirname, '..');
 const sources = join(root, 'assets-src', 'robot3d');
@@ -24,8 +25,11 @@ type Manifest = { blender: string; sources: Record<string, string>; assets: Reco
 const manifest = JSON.parse(readFileSync(join(root, 'src', 'ui', 'robot3d', 'assets', 'robot-assets.manifest.json'), 'utf8')) as Manifest;
 
 describe('the robot lab’s 3D assets (N18 R4.7)', () => {
-  it('were built from the scripts as they are now (no script changed since)', () => {
-    const now = Object.fromEntries(walk(sources).map((path) => [relative(sources, path).split('\\').join('/'), sha256(path)]));
+  it('were built from the scripts and the reference kit as they are now (none changed since)', () => {
+    const now = {
+      ...Object.fromEntries(walk(sources).map((path) => [relative(sources, path).split('\\').join('/'), sha256(path)])),
+      'kit:ref-uno-rover.kit.json': sha256(join(root, 'src', 'core', 'hardware', 'kits', 'ref-uno-rover.kit.json')),
+    };
     expect(Object.keys(now)).toContain('lib.py');
     expect(Object.keys(now)).toContain('parts/chassis.py');
     expect(now).toEqual(manifest.sources);

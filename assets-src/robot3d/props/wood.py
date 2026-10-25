@@ -1,9 +1,9 @@
-# Shared wood materials of the arena props (N18 R4.7): birch plywood (face grain and the edge's plies), beech for blocks, walnut for
-# the table. Drawn by tex.py, original.
+# Shared wood materials of the arena props (N18 R4.7): birch plywood (face grain and the edge's plies, 20 px a cm along the walls since
+# fix round 1), beech for blocks, walnut for the table (a fine, quiet grain; the view repeats it at its real size). Drawn by tex.py, original.
 
 
 def birch_face(lib, tex):
-    return lib.material('plywood_face', image=lib.image_from_array('birch_face', lambda: tex.wood(1024, 128, '#ead8b6', '#cfae80', 21, lines=5, warp=1.6, fibre=0.3)), roughness=0.62)
+    return lib.material('plywood_face', image=lib.image_from_array('birch_face', lambda: tex.wood(2048, 256, '#ead8b6', '#cfae80', 21, lines=5, warp=1.6, fibre=0.3)), roughness=0.62)
 
 
 def birch_edge(lib, tex):
@@ -15,7 +15,7 @@ def beech(lib, tex):
 
 
 def walnut(lib, tex):
-    return lib.material('walnut', image=lib.image_from_array('walnut', lambda: tex.wood(512, 512, '#6d4a31', '#3b2618', 31, lines=12, warp=2.8, fibre=0.4)), roughness=0.5)
+    return lib.material('walnut', image=lib.image_from_array('walnut', lambda: tex.wood(512, 512, '#6a4831', '#503420', 31, lines=26, warp=1.4, fibre=0.25)), roughness=0.5)
 
 
 def face_uvs(lib, obj, size, faces):

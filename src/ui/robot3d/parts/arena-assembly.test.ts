@@ -4,11 +4,12 @@ import { scenarioCatalog } from '../../../samples/robot-scenarios';
 import { loadTestAssets } from '../__fixtures__/load-glb';
 import type { RobotAssets } from '../assets/robot-assets';
 import { freeViewForward } from '../camera-studio';
-import { wallBox } from '../scene-math';
-import { arenaDressing, assembleArena, boxProp, cylinderProp } from './arena-assembly';
+import { boxBody, cylinderBody, wallBox, type BoxPlacement } from '../scene-math';
+import { arenaDressing, assembleArena, boxProp, cylinderProp, fixedBodyProps } from './arena-assembly';
 
 // N18 R4.7: each pilot arena is drawn from the modelled props (arena-props.glb) as what its bodies are, at their exact place and size,
-// with dressing that fits the lesson and never stands where the robot drives: the garage's carport roof and P sign, hazard boards on
+// each body's prop the shape of its collider (fix round 1: its bounding box the collider's within 0.5 cm), with dressing that fits the
+// lesson and never stands where the robot drives: the garage's carport roof and P sign, hazard boards on
 // the wall behind a dock or a stop zone, a finish gantry over a plain target; and round it the table, the fence, the studio.
 
 const scenario = (key: string) => scenarioCatalog.get(key)!;
@@ -23,9 +24,9 @@ const build = (key: string, low = false) => {
 };
 
 describe('the pilot arenas’ props (N18 R4.7)', () => {
-  it('draws the gate as a barricade, small obstacles as cones, a block and a pole as what they are', () => {
+  it('draws the gate as a solid barrier, small obstacles as marker blocks, a block and a pole as what they are', () => {
     expect(boxProp(scenario('rb-servo-gate').arena.boxes[0]!)).toBe('prop_barrier');
-    expect(scenario('rb-mini-mission').arena.boxes.map(boxProp)).toEqual(['prop_cone', 'prop_cone']);
+    expect(scenario('rb-mini-mission').arena.boxes.map(boxProp)).toEqual(['prop_marker', 'prop_marker']);
     expect(boxProp(scenario('rb-sandbox').arena.boxes[0]!)).toBe('prop_cardboard');
     expect(cylinderProp(scenario('rb-sandbox').arena.cylinders[0]!)).toBe('prop_post');
     expect(cylinderProp({ radiusCm: 4, heightCm: 10 })).toBe('prop_tin');
@@ -63,6 +64,44 @@ describe('the pilot arenas’ props (N18 R4.7)', () => {
     expect(box.min.z).toBeCloseTo(-1.41, 3);
     expect(box.max.z).toBeCloseTo(0.01, 3);
     arena.dispose();
+  });
+
+  it('gives every fixed body of every pilot arena a prop whose bounding box is its collider’s, within 0.5 cm', () => {
+    /** A collider's box on the floor, turned by its yaw: its bounding box in three's frame. */
+    const turnedBox = ({ position, size, yawRad }: BoxPlacement) => {
+      const box = new Box3();
+      for (const dx of [-1, 1]) {
+        for (const dz of [-1, 1]) {
+          const [x, z] = [(dx * size[0]) / 2, (dz * size[2]) / 2];
+          // three turns by −yaw about +Y for an arena yaw (scene-math): x' = x cos + z sin, z' = −x sin + z cos.
+          const [c, s] = [Math.cos(yawRad), Math.sin(yawRad)];
+          box.expandByPoint({ x: position[0] + x * c + z * s, y: 0, z: position[2] - x * s + z * c } as never);
+        }
+      }
+      box.max.y = size[1];
+      return box;
+    };
+    let checked = 0;
+    for (const s of [...scenarioCatalog.scenarios]) {
+      for (const body of fixedBodyProps(s.arena, assets.prop)) {
+        body.prop.updateMatrixWorld(true);
+        const shown = new Box3().setFromObject(body.prop, true);
+        let collider: Box3;
+        if (body.kind === 'wall') collider = turnedBox(wallBox(s.arena.walls[body.index]!));
+        else if (body.kind === 'box') collider = turnedBox(boxBody(s.arena.boxes[body.index]!));
+        else {
+          const { position, radiusM, heightM } = cylinderBody(s.arena.cylinders[body.index]!);
+          collider = new Box3().set({ x: position[0] - radiusM, y: 0, z: position[2] - radiusM } as never, { x: position[0] + radiusM, y: heightM, z: position[2] + radiusM } as never);
+        }
+        for (const axis of ['x', 'y', 'z'] as const) {
+          expect(Math.abs(shown.min[axis] - collider.min[axis]), `${s.key} ${body.kind} ${body.index} min ${axis}`).toBeLessThanOrEqual(0.005);
+          expect(Math.abs(shown.max[axis] - collider.max[axis]), `${s.key} ${body.kind} ${body.index} max ${axis}`).toBeLessThanOrEqual(0.005);
+        }
+        checked++;
+      }
+    }
+    // The pilots' walls, the gate, the two markers, the sandbox's block and pole.
+    expect(checked).toBeGreaterThan(30);
   });
 
   it('keeps a node for each body that moves, and frees what it made', () => {

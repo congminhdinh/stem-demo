@@ -55,10 +55,10 @@ describe('the modelled robot (N18 R4.7)', () => {
       expect(robot.handles.wheels.map((wheel) => wheel.role)).toEqual(['motorLeft', 'motorRight']);
       robot.handles.wheels.forEach((wheel, i) => {
         close(worldOf(wheel.spin), model.wheels[i]!.position);
-        expect(tyreRadius(wheel.spin)).toBeCloseTo(0.033, 4);
+        expect(tyreRadius(wheel.spin)).toBeCloseTo(model.wheels[i]!.radiusM, 4);
         // The tread's width across the axle is the kit's wheel width.
         const box = boundsOf(wheel.spin);
-        expect(box.max.z - box.min.z).toBeCloseTo(0.026, 3);
+        expect(box.max.z - box.min.z).toBeCloseTo(model.wheels[i]!.widthM, 3);
       });
       robot.dispose();
     });
@@ -87,9 +87,23 @@ describe('the modelled robot (N18 R4.7)', () => {
     close(worldOf(named('part_led')[0]!), model.leds[0]!.position);
     close(worldOf(named('part_buzzer')[0]!), model.buzzers[0]!.position);
     close(worldOf(named('part_button')[0]!), model.buttons[0]!.position);
-    // Each line sensor's lamp sits over its own eye, across the bar (three's z); the lamps follow the sensors' order in the snapshot.
-    const lamps = robot.handles.lineLamps.map((lamp) => ({ index: lamp.sensorIndex, z: lamp.glow.parent!.getWorldPosition(new Vector3()).z }));
-    for (const sensor of model.lineSensors) expect(lamps.find((lamp) => lamp.index === sensor.sensorIndex)!.z).toBeCloseTo(sensor.position[2], 4);
+    // Each line sensor's lamp sits in line with its own eye across the robot (three's z), the lamps in the sensors' order in the snapshot,
+    // on the deck's top at its front edge, where it shows from behind and above, inside the body the physics drives (its nose); its red
+    // spot lies on the mat right under the eye.
+    const deck = model.body.bottomM + model.body.heightM;
+    for (const sensor of model.lineSensors) {
+      const lamp = robot.handles.lineLamps.find((item) => item.sensorIndex === sensor.sensorIndex)!;
+      const at = lamp.glow.parent!.getWorldPosition(new Vector3());
+      expect(at.z).toBeCloseTo(sensor.position[2], 4);
+      expect(at.x).toBeGreaterThan(model.body.lengthM / 2 - 0.012);
+      expect(at.y).toBeGreaterThan(deck);
+      // The LED itself (not its halo, a sprite).
+      const mesh = lamp.glow.parent as Mesh;
+      mesh.geometry.computeBoundingBox();
+      const led = mesh.geometry.boundingBox!.clone().applyMatrix4(mesh.matrixWorld);
+      expect(led.max.x).toBeLessThanOrEqual(model.body.lengthM / 2 + 1e-6);
+      close(lamp.spot.getWorldPosition(new Vector3()).toArray(), [sensor.position[0], 0.0009, sensor.position[2]]);
+    }
     robot.dispose();
   });
 
@@ -109,11 +123,12 @@ describe('the modelled robot (N18 R4.7)', () => {
     const box = new Box3().setFromObject(merged, true);
     close(box.min.toArray(), [-0.09, 0.02, -0.07], 4);
     close(box.max.toArray(), [0.09, 0.08, 0.07], 4);
-    for (const wheel of robot.handles.wheels) {
+    robot.handles.wheels.forEach((wheel, i) => {
+      close(worldOf(wheel.spin), big.wheels[i]!.position);
       expect(tyreRadius(wheel.spin)).toBeCloseTo(0.04, 4);
       const bounds = boundsOf(wheel.spin);
       expect(bounds.max.z - bounds.min.z).toBeCloseTo(0.03, 3);
-    }
+    });
     robot.dispose();
   });
 
@@ -188,6 +203,7 @@ describe('what the modelled robot shows (N18 R4.7)', () => {
     expect(robot.handles.leds[0]!.material.emissiveIntensity).toBeGreaterThan(0);
     expect(robot.handles.leds[0]!.light!.intensity).toBeGreaterThan(0);
     expect(robot.handles.lineLamps.map((lamp) => lamp.glow.visible)).toEqual(robot.handles.lineLamps.map((lamp) => lamp.sensorIndex === 2));
+    expect(robot.handles.lineLamps.map((lamp) => lamp.spot.visible)).toEqual(robot.handles.lineLamps.map((lamp) => lamp.sensorIndex === 2));
     expect(robot.handles.boardLed!.material.emissiveIntensity).toBeGreaterThan(0);
     // Pressed: the button's cap goes down by its travel.
     const button = robot.handles.buttons[0]!;

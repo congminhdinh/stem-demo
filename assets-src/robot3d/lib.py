@@ -377,6 +377,10 @@ def image_from_array(name, pixels):
         return bpy.data.images[name]
     if callable(pixels):
         pixels = pixels()
+    # The low tier's images at half the resolution (2 × 2 averaged): a software renderer uploads and filters every texel.
+    if DETAIL == 'low' and min(pixels.shape[:2]) >= 64:
+        h, w = pixels.shape[0] // 2 * 2, pixels.shape[1] // 2 * 2
+        pixels = pixels[:h, :w].reshape(h // 2, 2, w // 2, 2, pixels.shape[2]).mean(axis=(1, 3))
     h, w = pixels.shape[:2]
     img = bpy.data.images.new(name, width=w, height=h, alpha=False)
     img.pixels.foreach_set(np.ascontiguousarray(pixels[::-1]).astype(np.float32).ravel())

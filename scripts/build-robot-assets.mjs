@@ -1,7 +1,8 @@
 // Builds the robot lab's 3D assets (N18 R4.7) with Blender, headless, from the committed scripts of assets-src/robot3d/, into
 // public/robot3d/robot-kit.glb and arena-props.glb (the high tier's) and robot-kit-low.glb and arena-props-low.glb (the low tier's
 // level of detail), and writes src/ui/robot3d/assets/robot-assets.manifest.json: the SHA-256 of every source script (lib.py, tex.py,
-// build.py, parts/*.py, props/*.py) and of each GLB with its size, and the Blender that made them. The 3D view fetches each GLB with
+// build.py, parts/*.py, props/*.py) and of the reference kit the scripts read their sizes from (src/core/hardware/kits/
+// ref-uno-rover.kit.json, under `kit:`), and of each GLB with its size, and the Blender that made them. The 3D view fetches each GLB with
 // its hash in the URL (`?v=`), so a host may cache it for good and a rebuild still reaches every learner. tests/robot-assets.test.ts
 // hashes the scripts again and fails when one changed since the GLBs were built (a stale asset), and when a GLB is not the one the
 // manifest names.
@@ -38,8 +39,11 @@ function walk(directory) {
     .sort();
 }
 
+/** The reference kit build.py reads every size it models from: a change to it is a stale asset too. */
+const referenceKit = join(root, 'src', 'core', 'hardware', 'kits', 'ref-uno-rover.kit.json');
+
 function sourceHashes() {
-  return Object.fromEntries(walk(sources).map((path) => [relative(sources, path).split('\\').join('/'), sha256(path)]));
+  return { ...Object.fromEntries(walk(sources).map((path) => [relative(sources, path).split('\\').join('/'), sha256(path)])), 'kit:ref-uno-rover.kit.json': sha256(referenceKit) };
 }
 
 function blender() {

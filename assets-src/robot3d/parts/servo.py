@@ -73,12 +73,12 @@ def build(lib, tex, kit, col):
     # The flag at the tip: a mast with a finial, and the pennant that slides up it.
     tip = arm_len - arm_w / 2
     mast_node = lib.empty('flag_mast', parent=horn, at=(tip, 0, beam_z0 + beam_h), col=col)
-    height = 8.5
+    height = 11.0
     rod = lib.cylinder('mast_rod', 0.12, height, at=(0, 0, height / 2), material=mast, segments=12, col=col, parent=mast_node)
     finial = lib.sphere('mast_finial', 0.24, at=(0, 0, height + 0.12), material=lib.material('finial_gold', '#e2bd5f', metallic=1.0, roughness=0.25), segments=16, rings=8, col=col, parent=mast_node)
     clamp = lib.cylinder('mast_clamp', 0.28, 0.4, at=(0, 0, 0.2), material=yellow, segments=14, col=col, parent=mast_node)
     lib.join([rod, finial, clamp], 'mast')
-    pennant_h, pennant_l = 3.4, 5.2
+    pennant_h, pennant_l = 4.6, 7.4
     pennant_node = lib.empty('flag_pennant', parent=mast_node, at=(0, 0, height - 0.35), col=col)
     pennant_node['low'] = lib.cm(0.6 + pennant_h)
     pennant_node['high'] = lib.cm(height - 0.35)

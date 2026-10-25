@@ -71,13 +71,3 @@ def build_button(lib, tex, kit, col):
     cap['travel'] = lib.cm(0.15)
     return root
 
-
-def build_dupont(lib, tex, kit, col):
-    """part_dupont: a jumper wire's plug housing, 2.54 mm square, its long axis z; the view puts one at each end of a wire."""
-    root = lib.empty('part_dupont', col=col)
-    body = lib.material('abs_black', '#1d1f23', roughness=0.42)
-    steel = lib.material('steel', '#c5cad1', metallic=1.0, roughness=0.24)
-    housing = lib.box('dupont_housing', (0.25, 0.25, 1.4), at=(0, 0, 0.7), material=body, bevel=0.02, segments=1, col=col, parent=root)
-    tip = lib.box('dupont_tip', (0.08, 0.08, 0.3), at=(0, 0, -0.15), material=steel, col=col, parent=root)
-    lib.join([housing, tip], 'dupont')
-    return root

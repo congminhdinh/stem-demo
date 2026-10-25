@@ -5,11 +5,12 @@ import { arenaToThree, boxBody, cylinderBody, dynamicBodyIds, wallBox } from '..
 import { bakeMovingPlain, lowTierMaterials, mergeStatic, swapMaterials } from './merge';
 
 // The arena of the 3D view built from the modelled props (N18 R4.7, arena-props.glb): every body the scenario defines drawn as what it
-// is, at its exact place and size (a wall as a plywood strip, the gate as a road barricade, a small obstacle as a traffic cone, a
-// bigger box as a cardboard box or a wooden block, a cylinder as a tin or a striped pole), and dressing that never stands where the
-// robot can drive: a carport roof on top of a garage's walls and a P sign on a wall's end, hazard boards on a wall's face behind a
+// is, at its exact place and size, its shape the collider's (a wall as a plywood strip, the gate as a solid road barrier, a small
+// obstacle as a traffic marker block, a bigger box as a cardboard box or a wooden block, a cylinder as a tin or a striped pole: fix
+// round 1, every body's bounding box is its collider's), and dressing that never stands where the robot can drive: a carport roof on top of a garage's walls and a P sign on a wall's end, hazard boards on a wall's face behind a
 // zone, a finish gantry over a target zone from the table outside the walls. Round it: the table the arena stands on, a low pipe
-// fence along the table's far edges, a crate, balls and tape on the table's far corners, and the studio. The mat itself (its paint) is
+// fence along the table's far edges, a crate, balls and tape on the table's far corners, and the studio with the table's soft shadow
+// on its floor. The mat itself (its paint) is
 // MatView's. The static props are merged by material; the moving bodies keep a node each, which the view puts at its pose.
 
 type PropSource = (name: string) => Object3D | null;
@@ -19,15 +20,17 @@ const MODELLED = {
   prop_wall: [1, 0.1, 0.02],
   prop_block: [0.1, 0.1, 0.1],
   prop_cardboard: [0.2, 0.15, 0.2],
-  prop_cone: [0.08, 0.12, 0.08],
+  prop_marker: [0.08, 0.12, 0.08],
   prop_barrier: [0.06, 0.12, 0.6],
   prop_tin: [0.08, 0.1, 0.08],
   prop_post: [0.08, 0.2, 0.08],
 } as const;
 
 /** The table's margin round the arena, and how thick the mat lies on it (m). */
-export const TABLE_MARGIN_M = 0.32;
+export const TABLE_MARGIN_M = 0.5;
 export const MAT_THICKNESS_M = 0.0015;
+/** How far below its top the table's legs reach the studio's floor (m): the modelled table's 3 cm top and 72 cm legs. */
+export const TABLE_HEIGHT_M = 0.75;
 
 export type ArenaMovers = Map<string, { node: Object3D; heightM: number }>;
 /** `overhead`: the dressing over the mat (a gantry, a carport roof), which the plan view hides so the floor reads. */
@@ -46,7 +49,7 @@ export type ArenaAssemblyOptions = {
 export function boxProp(box: { sizeCm: readonly [number, number, number]; tags: readonly string[] }): keyof typeof MODELLED {
   const [sx, sy] = box.sizeCm;
   if (box.tags.includes('gate')) return 'prop_barrier';
-  if (Math.max(sx, sy) <= 10) return box.tags.includes('obstacle') ? 'prop_cone' : 'prop_block';
+  if (Math.max(sx, sy) <= 10) return box.tags.includes('obstacle') ? 'prop_marker' : 'prop_block';
   return Math.min(sx, sy) >= 14 ? 'prop_cardboard' : 'prop_block';
 }
 
@@ -142,6 +145,56 @@ export function arenaDressing(scenario: Pick<Scenario, 'arena'>): Dressing[] {
   return dressing;
 }
 
+/** A copy of a prop's template at the origin, unturned, unscaled; throws when the file has none of that name. */
+function propOf(source: PropSource, name: string): Object3D {
+  const template = source(name);
+  if (!template) throw new Error(`The arena props file has no ${name}.`);
+  const copy = template.clone(true);
+  copy.position.set(0, 0, 0);
+  copy.rotation.set(0, 0, 0);
+  copy.scale.set(1, 1, 1);
+  return copy;
+}
+
+/** A prop scaled from its modelled size to `size` (m, three's x, y, z). */
+function scaledProp(source: PropSource, name: keyof typeof MODELLED, size: readonly [number, number, number]): Object3D {
+  const prop = propOf(source, name);
+  const [mx, my, mz] = MODELLED[name];
+  prop.scale.set(size[0] / mx, size[1] / my, size[2] / mz);
+  return prop;
+}
+
+/** A fixed body of the arena as the view draws it: the wall, box or cylinder the physics builds, and its prop, placed. */
+export type BodyProp = { kind: 'wall' | 'box' | 'cylinder'; index: number; prop: Object3D };
+
+/** The props of the arena's fixed bodies (its walls, its fixed boxes and cylinders), each at its body's place, turn and size. */
+export function fixedBodyProps(arena: Arena, source: PropSource): BodyProp[] {
+  const bodies: BodyProp[] = [];
+  arena.walls.forEach((wall, index) => {
+    const { position, size, yawRad } = wallBox(wall);
+    const prop = scaledProp(source, 'prop_wall', size);
+    prop.position.set(position[0], 0, position[2]);
+    prop.rotation.y = yawRad;
+    bodies.push({ kind: 'wall', index, prop });
+  });
+  arena.boxes.forEach((box, index) => {
+    if (box.body !== 'fixed') return;
+    const { position, size, yawRad } = boxBody(box);
+    const prop = scaledProp(source, boxProp(box), size);
+    prop.position.set(position[0], 0, position[2]);
+    prop.rotation.y = yawRad;
+    bodies.push({ kind: 'box', index, prop });
+  });
+  arena.cylinders.forEach((cylinder, index) => {
+    if (cylinder.body !== 'fixed') return;
+    const { position, radiusM, heightM } = cylinderBody(cylinder);
+    const prop = scaledProp(source, cylinderProp(cylinder), [radiusM * 2, heightM, radiusM * 2]);
+    prop.position.set(position[0], 0, position[2]);
+    bodies.push({ kind: 'cylinder', index, prop });
+  });
+  return bodies;
+}
+
 /** Builds the arena's props for `scenario` from `source`. Throws when a prop it needs is missing (the caller then draws the procedural arena). */
 export function assembleArena(scenario: Pick<Scenario, 'arena'>, source: PropSource, options: ArenaAssemblyOptions): AssembledArena {
   const { arena } = scenario;
@@ -153,47 +206,13 @@ export function assembleArena(scenario: Pick<Scenario, 'arena'>, source: PropSou
   const overhead = new Group();
   root.add(overhead);
   const owned = { geometries: [] as BufferGeometry[], materials: [] as Material[] };
-  const need = (name: string) => {
-    const template = source(name);
-    if (!template) throw new Error(`The arena props file has no ${name}.`);
-    const copy = template.clone(true);
-    copy.position.set(0, 0, 0);
-    copy.rotation.set(0, 0, 0);
-    copy.scale.set(1, 1, 1);
-    return copy;
-  };
-  const scaled = (name: keyof typeof MODELLED, size: readonly [number, number, number]) => {
-    const prop = need(name);
-    const [mx, my, mz] = MODELLED[name];
-    prop.scale.set(size[0] / mx, size[1] / my, size[2] / mz);
-    return prop;
-  };
+  const need = (name: string) => propOf(source, name);
+  const scaled = (name: keyof typeof MODELLED, size: readonly [number, number, number]) => scaledProp(source, name, size);
   const [widthCm, depthCm] = arena.ground.sizeCm;
   const [W, D] = [widthCm / 100, depthCm / 100];
   const centre = arenaToThree(widthCm / 2, depthCm / 2, 0);
 
-  for (const wall of arena.walls) {
-    const { position, size, yawRad } = wallBox(wall);
-    const prop = scaled('prop_wall', size);
-    prop.position.set(position[0], 0, position[2]);
-    prop.rotation.y = yawRad;
-    statics.add(prop);
-  }
-  for (const box of arena.boxes) {
-    if (box.body !== 'fixed') continue;
-    const { position, size, yawRad } = boxBody(box);
-    const prop = scaled(boxProp(box), size);
-    prop.position.set(position[0], 0, position[2]);
-    prop.rotation.y = yawRad;
-    statics.add(prop);
-  }
-  for (const cylinder of arena.cylinders) {
-    if (cylinder.body !== 'fixed') continue;
-    const { position, radiusM, heightM } = cylinderBody(cylinder);
-    const prop = scaled(cylinderProp(cylinder), [radiusM * 2, heightM, radiusM * 2]);
-    prop.position.set(position[0], 0, position[2]);
-    statics.add(prop);
-  }
+  for (const { prop } of fixedBodyProps(arena, source)) statics.add(prop);
 
   // Dressing.
   for (const item of arenaDressing(scenario)) {
@@ -223,7 +242,8 @@ export function assembleArena(scenario: Pick<Scenario, 'arena'>, source: PropSou
         post.scale.set(1.2, 2.2, 1.2);
         if (item.along === 'y') post.position.set(x, -MAT_THICKNESS_M, centre[2] + side * half);
         else post.position.set(centre[0] + side * half, -MAT_THICKNESS_M, z);
-        statics.add(post);
+        // With the beam: the plan view hides the gantry whole (its posts were white stubs there).
+        overhead.add(post);
       }
       const beam = need('prop_fence_rail');
       beam.scale.set((2 * half) / 1, 1.2, 1.2);
@@ -245,6 +265,15 @@ export function assembleArena(scenario: Pick<Scenario, 'arena'>, source: PropSou
   const top = need('prop_table_top');
   top.position.set(centre[0], -MAT_THICKNESS_M, centre[2]);
   top.scale.set(tableW, 1, tableD);
+  // The walnut at its real size: the top's uvs (a tile per 50 cm of the modelled 1 m top) repeated as far as the table is stretched.
+  top.traverse((node) => {
+    if (!(node instanceof Mesh) || !(node.material as Material).name.startsWith('walnut')) return;
+    const geometry = (node.geometry as BufferGeometry).clone();
+    const uv = geometry.getAttribute('uv');
+    if (uv) for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * tableW, uv.getY(i) * tableD);
+    owned.geometries.push(geometry);
+    node.geometry = geometry;
+  });
   statics.add(top);
   for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) {
@@ -324,6 +353,21 @@ export function assembleArena(scenario: Pick<Scenario, 'arena'>, source: PropSou
     }
   });
   root.add(studio);
+  // The table's soft shadow on the studio's floor, and a darker one under each foot: it stands on the floor, it does not float.
+  const floorY = -MAT_THICKNESS_M - TABLE_HEIGHT_M + 0.002;
+  const shade = (width: number, depth: number, opacity: number, x: number, z: number) => {
+    const geometry = new PlaneGeometry(width, depth).rotateX(-Math.PI / 2);
+    const material = new MeshBasicMaterial({ color: '#000000', alphaMap: options.blob, transparent: true, opacity, depthWrite: false, fog: false });
+    owned.geometries.push(geometry);
+    owned.materials.push(material);
+    const mesh = new Mesh(geometry, material);
+    mesh.name = 'table-shadow';
+    mesh.position.set(x, floorY, z);
+    mesh.userData.moves = true;
+    root.add(mesh);
+  };
+  shade(tableW * 1.45, tableD * 1.45, 0.42, centre[0], centre[2]);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) shade(0.16, 0.16, 0.5, centre[0] + sx * (tableW / 2 - 0.06), centre[2] + sz * (tableD / 2 - 0.06));
 
   for (const node of statics.children) {
     node.traverse((child) => {

@@ -1,4 +1,5 @@
 import {
+  AdditiveBlending,
   CatmullRomCurve3,
   Color,
   DoubleSide,
@@ -12,6 +13,8 @@ import {
   PointLight,
   RingGeometry,
   SphereGeometry,
+  Sprite,
+  SpriteMaterial,
   TubeGeometry,
   Vector3,
   type BufferGeometry,
@@ -32,7 +35,9 @@ import { bakeMovingPlain, lambertOf, lowTierMaterials, mergeStatic, swapMaterial
 // from the reference kit the parts are modelled to: the chassis to the body box, a wheel to its radius and width, the caster to its
 // ball, the servo's arm to its length, the line bar to its eyes' spacing. The parts that never move are merged into one mesh per
 // material; what moves or lights up keeps its node, found by name, and `applyRobotWorld` drives it from the snapshot every frame:
-// `wheel_spin`, `servo_horn` with the flag's `flag_pennant`, `led_dome`, `line_led_<i>`, `button_cap`, `board_led_l`.
+// `wheel_spin`, `servo_horn` with the flag's `flag_pennant`, `led_dome`, `line_led_<i>`, `button_cap`, `board_led_l`. A line sensor that
+// sees dark lights its LED on the bar's indicator board at the deck's front edge (with a red halo), and a red spot on the mat under its
+// eye.
 
 /** The reference kit's numbers the parts are modelled to (m, three's frame of the robot group). */
 export type ReferenceSizes = {
@@ -72,6 +77,12 @@ export function boardPlacement(model: RobotModel): { x: number; z: number } {
   return { x: Math.max(-half + BOARD_M.short / 2, front - BOARD_M.short / 2), z: 0 };
 }
 
+/** How far the line LEDs' board stands back from the deck's front edge (m): inside the body the physics drives. */
+const LINE_LEDS_INSET_M = 0.0005;
+/** The red halo round a lit line LED and the red spot on the mat under a dark eye, m across. */
+const LINE_HALO_M = 0.022;
+const LINE_SPOT_M = 0.03;
+
 /** A material whose glow the robot view sets: the high tier's standard one, or the low tier's Lambert copy. */
 export type GlowMaterial = MeshStandardMaterial | MeshLambertMaterial;
 
@@ -79,7 +90,7 @@ export type RobotHandles = {
   wheels: { role: string; spin: Object3D }[];
   servos: { role: string; mountYawDeg: number; horn: Object3D; pennant: { node: Object3D; low: number; high: number; fromDeg: number; toDeg: number } | null }[];
   leds: { role: string; material: GlowMaterial; light: PointLight | null; halo: Object3D }[];
-  lineLamps: { sensorIndex: number; material: GlowMaterial; glow: Object3D }[];
+  lineLamps: { sensorIndex: number; material: GlowMaterial; glow: Object3D; spot: Object3D }[];
   buzzers: { pinIndex: number; waves: Object3D }[];
   buttons: { pinIndex: number; cap: Object3D; up: number; down: number }[];
   boardLed: { pinIndex: number; material: GlowMaterial } | null;
@@ -255,18 +266,37 @@ export function assembleRobot(model: RobotModel, reference: ReferenceSizes, sour
     const spacing = eyes.length > 1 ? (zs[zs.length - 1]! - zs[0]!) / (eyes.length - 1) : reference.lineSpacingM;
     bar.scale.set(1, 1, spacing / reference.lineSpacingM);
     root.add(bar);
+    // The bar's indicator board on the deck's front edge, its lamps in line with the eyes.
+    const board = need('part_line_leds');
+    board.position.set(body.lengthM / 2 - LINE_LEDS_INSET_M, deck, middle);
+    board.scale.set(1, 1, spacing / reference.lineSpacingM);
+    root.add(board);
+    // What a dark eye lights: a halo round its LED, a spot on the mat under the eye (both added light, drawn over what is there).
+    const haloMaterial = new SpriteMaterial({ name: 'line-halo', color: colors.lineSensorDark, map: options.blob, blending: AdditiveBlending, transparent: true, depthWrite: false, toneMapped: false });
+    const spotMaterial = new MeshBasicMaterial({ name: 'line-spot', color: colors.lineSensorDark, map: options.blob, blending: AdditiveBlending, transparent: true, depthWrite: false, toneMapped: false });
+    const spotGeometry = new PlaneGeometry(LINE_SPOT_M, LINE_SPOT_M).rotateX(-Math.PI / 2);
+    owned.materials.push(haloMaterial, spotMaterial);
+    owned.geometries.push(spotGeometry);
     eyes.forEach((eye, i) => {
-      const node = bar.getObjectByName(`line_led_${i}`);
+      const node = board.getObjectByName(`line_led_${i}`);
       const material = ownMaterial(node, owned.materials, low !== null);
       if (!node || !material) return;
       node.userData.moves = true;
-      const glow = new Mesh(new SphereGeometry(0.0035, 12, 8), new MeshBasicMaterial({ color: colors.lineSensorDark, transparent: true, opacity: 0.45, depthWrite: false }));
-      owned.geometries.push(glow.geometry);
-      owned.materials.push(glow.material);
+      const glow = new Sprite(haloMaterial);
+      glow.name = `line_halo_${i}`;
+      glow.scale.set(LINE_HALO_M, LINE_HALO_M, 1);
+      glow.position.y = 0.0028;
       glow.visible = false;
       glow.userData.moves = true;
       node.add(glow);
-      handles.lineLamps.push({ sensorIndex: eye.sensorIndex, material, glow });
+      const spot = new Mesh(spotGeometry, spotMaterial);
+      spot.name = `line_spot_${i}`;
+      spot.position.set(eye.position[0], 0.0009, eye.position[2]);
+      spot.renderOrder = 1;
+      spot.visible = false;
+      spot.userData.moves = true;
+      root.add(spot);
+      handles.lineLamps.push({ sensorIndex: eye.sensorIndex, material, glow, spot });
     });
   }
 
@@ -388,6 +418,8 @@ export function assembleRobot(model: RobotModel, reference: ReferenceSizes, sour
 }
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+/** A lit LED's light, candela: a red pool on the deck round it a few centimetres across (0.02 cd is 22 lux at 3 cm). */
+const LED_LIGHT_CD = 0.02;
 
 /** Shows `world` on the assembled robot: wheels, servo arms and the flag, LEDs, line lamps, buzzer waves, buttons, the board's L LED. */
 export function applyRobotWorld(handles: RobotHandles, world: RobotSnapshot, ledOn: string, ledOff: string): void {
@@ -406,13 +438,14 @@ export function applyRobotWorld(handles: RobotHandles, world: RobotSnapshot, led
     led.material.emissive.set(lit ? ledOn : ledOff);
     led.material.emissiveIntensity = lit ? 3.2 : 0;
     led.halo.visible = lit;
-    if (led.light) led.light.intensity = lit ? 0.004 : 0;
+    if (led.light) led.light.intensity = lit ? LED_LIGHT_CD : 0;
   }
   for (const lamp of handles.lineLamps) {
     const dark = lineSeesDark(world, lamp.sensorIndex);
     lamp.material.emissive.set(dark ? colors.lineSensorDark : '#000000');
-    lamp.material.emissiveIntensity = dark ? 3 : 0;
+    lamp.material.emissiveIntensity = dark ? 6 : 0;
     lamp.glow.visible = dark;
+    lamp.spot.visible = dark;
   }
   for (const buzzer of handles.buzzers) buzzer.waves.visible = toneHzOf(world, buzzer.pinIndex) !== null;
   for (const button of handles.buttons) button.cap.position.y = buttonPressed(world, button.pinIndex) ? button.down : button.up;
