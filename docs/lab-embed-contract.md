@@ -132,7 +132,8 @@ hợp lệ và lab nằm trong một frame.
        để chương trình được chấm đã nằm trong document mà `project-changed` đang chờ mang đi; gọi nó khi đang có một lần Kiểm tra là lỗi lập trình
        của lab (bridge ném lỗi), còn `endCheck()` không có `beginCheck()` tương ứng thì không làm gì. Một sửa đổi lọt qua giữa hai lời gọi (khoá
        rò) **không** được gửi trong lúc chấm: bridge chỉ giữ document mới nhất, và `endCheck()` cho nó đi như một sửa đổi bình thường (debounce
-       1 giây), tức là **một lần, sau `check-result`**; nếu trang `pagehide` giữa chừng thì nó được gửi ngay.
+       1 giây), tức là **một lần, sau `check-result`**; nếu trang `pagehide` giữa chừng thì nó được gửi ngay, trừ khi trang chỉ vào bfcache
+       (`event.persisted`): trang có thể quay lại với lần Kiểm tra đang chạy, nên nó vẫn đi sau `endCheck()` như thường.
     3. Vậy `project-changed` cuối cùng trước một `check-result` chính là chương trình được chấm, cái `programHash` băm. Một lần Kiểm tra
        đi theo thứ tự: `project-changed` (nếu có sửa chưa gửi) → [`run-started` → `run-stopped` nếu lab chạy hiển thị lượt chấm] → `check-result`.
     4. Phía host: lưu project cùng lần chấm khi đã có `project-changed` sau `check-result` trước của cùng lần tải, hoặc khi lần chấm trước
