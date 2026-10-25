@@ -28,6 +28,10 @@ export const GOAL_ID_MAX_CHARS = 50;
 export const GOAL_LABEL_MAX_CHARS = 200;
 /** The most variants a check runs, the LMS cap on `variants` of a check result. */
 export const VARIANTS_MAX = 10;
+/** N18 R6.2 fix round 1: the most goals a scenario has, the LMS cap on the goals of a lab attempt (LearningService LabAttemptRules.MaxGoals). */
+export const GOALS_MAX = 20;
+/** N18 R6.2 fix round 1: the highest `version`, which a check result reports as a 32-bit int (`scenarioVersion`, check-result.ts). */
+export const SCENARIO_VERSION_MAX = 2_147_483_647;
 /** A servo turns 0..180° (the `servo-lib` driver clamps to it). */
 const SERVO_DEG_MAX = 180;
 const SEED_MAX = 4294967295;
@@ -120,7 +124,7 @@ const scenarioShape = z.strictObject({
   key: z.string().refine(isRobotTemplateKey, {
     error: (issue) => `unknown scenario key ${JSON.stringify(issue.input)}; the keys are ${robotTemplateKeys.join(', ')}`,
   }),
-  version: wholeFrom(1, 'must be a whole number from 1'),
+  version: wholeFrom(1, 'must be a whole number from 1').max(SCENARIO_VERSION_MAX, `must be a whole number from 1 to ${SCENARIO_VERSION_MAX}`),
   title: localized(TITLE_MAX_CHARS),
   profile: z.enum(robotLabProfiles),
   kit: z.string(),
@@ -130,7 +134,7 @@ const scenarioShape = z.strictObject({
   /** The script of button presses, from the first to the last; sorted by time when loaded. */
   inputs: z.array(inputSchema).max(INPUTS_MAX, `at most ${INPUTS_MAX} inputs`).default([]),
   timeLimitS: z.number().positive('must be more than 0 s').max(TIME_LIMIT_MAX_S, `must be at most ${TIME_LIMIT_MAX_S} s`),
-  goals: z.array(goalSchema),
+  goals: z.array(goalSchema).max(GOALS_MAX, `at most ${GOALS_MAX} goals (the LMS stores ${GOALS_MAX} a lab)`),
   scoring: scoringSchema.default({}),
   /** A Blockly workspace as `Blockly.serialization.workspaces.save` writes it (`{}` when empty): opaque here, the UI loads it. */
   starter: z.record(z.string(), z.unknown()),

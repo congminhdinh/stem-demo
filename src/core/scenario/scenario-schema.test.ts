@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import fixture from './__fixtures__/all-goals.scenario.json';
+import { ROBOT_CHECK_LIMITS } from './check-result';
 import { loadScenario } from './scenario';
-import { ScenarioError } from './scenario-schema';
+import { GOALS_MAX, SCENARIO_VERSION_MAX, ScenarioError } from './scenario-schema';
 
 /** A fresh copy of the fixture, as plain JSON an edit may change. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -421,5 +422,31 @@ describe('startJitterAlongCm', () => {
     expect(loadScenario(authored()).variants.startJitterAlongCm).toBeUndefined();
     expect(loadScenario(edited((s) => (s.variants.startJitterAlongCm = 15))).variants.startJitterAlongCm).toBe(15);
     expect(issuesOf(edited((s) => (s.variants.startJitterAlongCm = -1)))).toEqual(['variants.startJitterAlongCm: must be 0 or more']);
+  });
+});
+
+// N18 R6.2 fix round 1 (controller ruling): what the LMS stores bounds a scenario. LearningService keeps at most 20 goals of a lab attempt
+// (LabAttemptRules.MaxGoals), and a check result's scenarioVersion is a 32-bit int (ROBOT_CHECK_LIMITS, the host's ROBOT_LIMITS).
+describe('the bounds the LMS stores', () => {
+  const reach = (i: number, points: number) => ({ id: `g${i}`, kind: 'reach-zone', label: { vi: `Mục tiêu ${i}`, en: `Goal ${i}` }, points, zone: 'dock' });
+  const withGoals = (goals: unknown[]) => edited((s) => {
+    s.goals = goals;
+    s.scoring = {};
+  });
+
+  it('are the host’s: 20 goals at most, within its 50, and the version of a 32-bit int', () => {
+    expect(GOALS_MAX).toBe(20);
+    expect(GOALS_MAX).toBeLessThanOrEqual(ROBOT_CHECK_LIMITS.maxGoals);
+    expect(SCENARIO_VERSION_MAX).toBe(ROBOT_CHECK_LIMITS.scenarioVersionMax);
+  });
+
+  it('takes 20 goals and refuses 21', () => {
+    expect(loadScenario(withGoals(Array.from({ length: 20 }, (_, i) => reach(i, 5)))).goals).toHaveLength(20);
+    expect(issuesOf(withGoals(Array.from({ length: 21 }, (_, i) => reach(i, i < 20 ? 5 : 0))))).toEqual(['goals: at most 20 goals (the LMS stores 20 a lab)']);
+  });
+
+  it('takes a version up to 2147483647 and refuses one more', () => {
+    expect(loadScenario(edited((s) => (s.version = 2_147_483_647))).version).toBe(2_147_483_647);
+    expect(issuesOf(edited((s) => (s.version = 2_147_483_648)))).toEqual(['version: must be a whole number from 1 to 2147483647']);
   });
 });
