@@ -3,16 +3,14 @@
   "version": "0",
   "board": "uno-r3",
   "chassis": {
-    "bodyLengthCm": 15,
-    "bodyHeightCm": 5,
-    "bodyWidthCm": 10,
-    "massG": 500,
-    "groundClearanceCm": 1.5,
-    "wheelRadiusCm": 3.3,
-    "trackCm": 14,
-    "axleXCm": -2,
-    "casterXCm": 5.5,
-    "casterRadiusCm": 1
+    "bodyCm": [15, 12, 5],
+    "clearanceCm": 1.5,
+    "massG": 400,
+    "comCm": [-0.5, 0, 3.5],
+    "trackCm": 15,
+    "casterCm": [5.5, 0, 0.75],
+    "casterRadiusCm": 0.75,
+    "frictionWheel": 1
   },
   "ports": [
     { "id": "M1", "driver": "hbridge-en-in1-in2", "pins": { "EN": "D5", "IN1": "D7", "IN2": "D8" } },
@@ -27,15 +25,39 @@
     { "id": "BZ1", "driver": "buzzer-tone", "pins": { "PIN": "D10" } }
   ],
   "modules": [
-    { "role": "motorLeft", "kind": "dc-motor", "port": "M1", "mount": { "posCm": [-2, 3.3, -7], "yawDeg": 0 }, "spec": {} },
-    { "role": "motorRight", "kind": "dc-motor", "port": "M2", "mount": { "posCm": [-2, 3.3, 7], "yawDeg": 0 }, "spec": {} },
-    { "role": "ultrasonic", "kind": "ultrasonic", "port": "US1", "mount": { "posCm": [7.5, 4, 0], "yawDeg": 0 }, "spec": {} },
-    { "role": "lineLeft", "kind": "line-sensor", "port": "LN1", "mount": { "posCm": [6, 1.5, -1.5], "yawDeg": 0 }, "spec": {} },
-    { "role": "lineCenter", "kind": "line-sensor", "port": "LN2", "mount": { "posCm": [6, 1.5, 0], "yawDeg": 0 }, "spec": {} },
-    { "role": "lineRight", "kind": "line-sensor", "port": "LN3", "mount": { "posCm": [6, 1.5, 1.5], "yawDeg": 0 }, "spec": {} },
-    { "role": "servo1", "kind": "servo", "port": "SV1", "mount": { "posCm": [0, 6.5, 0], "yawDeg": 0 }, "spec": {} },
-    { "role": "led1", "kind": "led", "port": "LED1", "mount": { "posCm": [-5, 6.5, 3], "yawDeg": 0 }, "spec": {} },
-    { "role": "buzzer", "kind": "buzzer", "port": "BZ1", "mount": { "posCm": [-5, 6.5, -3], "yawDeg": 0 }, "spec": {} },
-    { "role": "button1", "kind": "button", "port": "BTN1", "mount": { "posCm": [-6.5, 6.5, 0], "yawDeg": 0 }, "spec": {} }
+    {
+      "role": "motorLeft", "kind": "dc-motor", "port": "M1", "mount": { "posCm": [-2, 7.5, 3.3], "yawDeg": 0 },
+      "spec": { "maxRpm": 200, "tauS": 0.05, "stallTorqueNm": 0.15, "wheelRadiusCm": 3.3, "wheelWidthCm": 2.6 }
+    },
+    {
+      "role": "motorRight", "kind": "dc-motor", "port": "M2", "mount": { "posCm": [-2, -7.5, 3.3], "yawDeg": 0 },
+      "spec": { "maxRpm": 200, "tauS": 0.05, "stallTorqueNm": 0.15, "wheelRadiusCm": 3.3, "wheelWidthCm": 2.6 }
+    },
+    {
+      "role": "ultrasonic", "kind": "ultrasonic", "port": "US1", "mount": { "posCm": [7.5, 0, 4], "yawDeg": 0 },
+      "spec": { "coneHalfDeg": 15, "minCm": 2, "maxCm": 400 }
+    },
+    {
+      "role": "lineLeft", "kind": "line-sensor", "port": "LN1", "mount": { "posCm": [7, 1.5, 1], "yawDeg": 0 },
+      "spec": { "heightCm": 1, "spotRadiusCm": 0.3, "darkBelow": 0.5 }
+    },
+    {
+      "role": "lineCenter", "kind": "line-sensor", "port": "LN2", "mount": { "posCm": [7, 0, 1], "yawDeg": 0 },
+      "spec": { "heightCm": 1, "spotRadiusCm": 0.3, "darkBelow": 0.5 }
+    },
+    {
+      "role": "lineRight", "kind": "line-sensor", "port": "LN3", "mount": { "posCm": [7, -1.5, 1], "yawDeg": 0 },
+      "spec": { "heightCm": 1, "spotRadiusCm": 0.3, "darkBelow": 0.5 }
+    },
+    {
+      "role": "servo1", "kind": "servo", "port": "SV1", "mount": { "posCm": [4.5, 0, 7], "yawDeg": -90 },
+      "spec": {
+        "sPer60Deg": 0.1, "minDeg": 0, "maxDeg": 180, "restDeg": 90, "stallTorqueNm": 0.18,
+        "armLengthCm": 6, "armWidthCm": 0.8, "armHeightCm": 1.5, "armMassG": 5
+      }
+    },
+    { "role": "led1", "kind": "led", "port": "LED1", "mount": { "posCm": [-5, -3, 6.5], "yawDeg": 0 }, "spec": {} },
+    { "role": "buzzer", "kind": "buzzer", "port": "BZ1", "mount": { "posCm": [-5, 3, 6.5], "yawDeg": 0 }, "spec": {} },
+    { "role": "button1", "kind": "button", "port": "BTN1", "mount": { "posCm": [-6.5, 0, 6.5], "yawDeg": 0 }, "spec": {} }
   ]
 }

@@ -2,11 +2,13 @@ import { z } from 'zod';
 import { boardPin, type BoardProfile } from './board';
 import { HardwareDataError, zodIssues, type DataIssue } from './board-schema';
 import { driverIds, driverPortSpecs, moduleKinds, robotRoles, roleKinds, type Kit } from './kit';
+import { chassisSchema, mechanicsIssues } from './kit-mechanics';
 
 // Validation of a kit against its board (N18 R1.1, robot plan §4.2, B6): the shape with Zod, then what only the board and the
 // drivers know: every driver pin wired once, to a pin of the board that has the capability the driver needs; every module on
 // an existing port whose driver drives that kind, one module per port, each role once. Rules that depend on the program
 // (timers, Serial) and pins shared between ports are pin-rules.ts's `checkKit`: they are diagnostics, not invalid data.
+// The mechanical half (the chassis, each module's spec by kind, the drive geometry) is kit-mechanics.ts's (N18 R3.3).
 
 const finite = z.number().refine(Number.isFinite, 'must be a finite number');
 
@@ -29,7 +31,7 @@ export const kitSchema = z.strictObject({
   id: z.string().min(1),
   version: z.string().min(1),
   board: z.string().min(1),
-  chassis: z.record(z.string(), finite).optional(),
+  chassis: chassisSchema.optional(),
   ports: z.array(kitPortSchema),
   modules: z.array(kitModuleSchema),
 });
@@ -101,6 +103,7 @@ function kitRuleIssues(kit: Kit, board: BoardProfile): DataIssue[] {
       holders.set(port.id, module.role);
     }
   });
+  issues.push(...mechanicsIssues(kit));
   return issues;
 }
 

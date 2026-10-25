@@ -9,6 +9,7 @@ export * from './board-target';
 export * from './catalog';
 export * from './drivers';
 export * from './kit';
+export * from './kit-mechanics';
 export * from './kit-schema';
 export * from './pin-rules';
 export * from './virtual-uno';

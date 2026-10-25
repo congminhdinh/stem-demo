@@ -22,15 +22,47 @@ chân nào của board. Driver là code TS/C++ đã review, tham chiếu bằng 
 | `buzzer` | BZ1 | `buzzer-tone` | D10 |
 
 Thứ tự `ports` là thứ tự sketch sinh ra viết `setup()` (sau `Serial.begin` khi program có in), nên kit này giữ đúng thứ tự
-của `spikes/avr8js/sketches/contract-forms/contract-forms.ino`. `chassis` lấy kích thước robot của spike vật lý
-(`docs/adr/0001-robot-physics.md` §2); `mount` là vị trí PLACEHOLDER (cm, khung robot +x phía trước, +y lên, +z bên phải);
-`spec` của module để trống cho tới khi world (R3.3, R3.4) cần tham số và nhà cung cấp gửi số đo.
+của `spikes/avr8js/sketches/contract-forms/contract-forms.ino`.
+
+## Phần cơ khí: `chassis`, `mount`, `spec` (N18 R3.3)
+
+World (`src/core/world/robot/assembly.ts`) dựng robot từ phần này; `loadKit` kiểm nó bằng `kit-mechanics.ts` và chỉ đường
+dẫn của từng lỗi (`modules.0.spec.maxRpm: …`, `chassis.comCm.0: …`). Mọi khoá đều **bắt buộc**, không có giá trị mặc định,
+và khoá lạ bị từ chối.
+
+**Khung robot** (cho `mount.posCm`, `chassis.comCm`, `chassis.casterCm`): lấy tâm chassis làm gốc, gốc nằm **trên mặt sàn**,
+ngay dưới tâm của hộp thân (`bodyCm`) khi robot đứng yên trên sàn phẳng. **x phía trước, y bên trái, z hướng lên**, đơn vị cm.
+Vì vậy z là độ cao so với sàn. `mount.yawDeg` quay module quanh z, ngược chiều kim đồng hồ (về phía +y) tính từ phía trước.
+
+| Phần | Khoá | Ý nghĩa |
+|---|---|---|
+| `chassis` | `bodyCm` [dài x, rộng y, cao z], `clearanceCm` | hộp thân, đáy hộp cao `clearanceCm` so với sàn |
+| | `massG`, `comCm` | khối lượng cả robot (gồm tay servo), tâm khối lượng (không gồm tay servo) |
+| | `trackCm` | khoảng cách hai tâm bánh; bánh trái ở y = +trackCm/2 |
+| | `casterCm`, `casterRadiusCm` | tâm và bán kính bánh tự lựa (bi cầu), chạm sàn: z = bán kính |
+| | `frictionWheel` | hệ số ma sát lốp–sàn: độ bám giới hạn lực đẩy của bánh |
+| `dc-motor` | `maxRpm`, `tauS`, `stallTorqueNm` | ω₀ (tốc độ không tải ở duty 255), hằng số thời gian bậc 1, mô-men kẹt T_s; đường mô-men T = T_s·(u − ω/ω₀) |
+| | `wheelRadiusCm`, `wheelWidthCm` | bánh trên trục motor; `mount` là tâm bánh, z = bán kính, `yawDeg` = 0 |
+| `servo` | `sPer60Deg`, `minDeg`, `maxDeg`, `restDeg`, `stallTorqueNm` | tốc độ (s cho 60°), dải góc, góc lúc dựng world, mô-men giữ tối đa |
+| | `armLengthCm`, `armWidthCm`, `armHeightCm`, `armMassG` | tay servo: thanh quay trong mặt phẳng ngang quanh trục z của `mount`; góc 0 chỉ theo `yawDeg`, tăng ngược chiều kim đồng hồ |
+| `ultrasonic` | `coneHalfDeg`, `minCm`, `maxCm` | nửa góc chùm, khoảng đo (R3.4 dùng) |
+| `line-sensor` | `heightCm`, `spotRadiusCm`, `darkBelow` | độ cao so với sàn (phải bằng z của `mount`), bán kính vùng đọc, ngưỡng phản xạ coi là "tối" (R3.4 dùng) |
+| `led`, `buzzer`, `button` | (không có) | `spec` là `{}` |
+
+`loadKit` còn kiểm hình học: đủ `motorLeft` và `motorRight` khi có `chassis`, hai bánh chung một trục (cùng x) cách nhau
+`trackCm`, bánh và caster chạm sàn, tâm khối lượng nằm giữa trục bánh và caster (không thì robot lật), `heightCm` của cảm
+biến line bằng độ cao gắn, dải góc servo hợp lệ và tay servo không chạm sàn.
+
+**Số của `ref-uno-rover@0` là PLACEHOLDER** cho một rover UNO nhỏ, tới khi nhà cung cấp gửi số đo (§3, §4 của
+`docs/uno-vendor-questions.md`): thân 15 × 12 × 5 cm, 400 g, bánh 6,6 cm, motor giảm tốc TT 200 rpm ở duty 255 (T_s =
+0,15 N·m, τ = 0,05 s), servo cỡ SG90 (0,1 s/60°, 0–180°, 0,18 N·m). `mount` của LED, còi, nút chỉ để vẽ.
 
 ## Thay bằng kit của nhà cung cấp
 
 1. Lấy câu trả lời của `docs/uno-vendor-questions.md`: §1 (MCU, phải là ATmega328P để giữ board `uno-r3` và kiểm chứng
    avr8js), §2 (schematic, bảng **cổng → chân**, IC driver motor và kiểu điều khiển), §3 (cực tính cảm biến line, thông số
-   motor/servo/siêu âm), §4 (vị trí gắn module, kích thước thân).
+   motor/servo/siêu âm: điền vào `spec` theo bảng ở trên), §4 (vị trí gắn module theo khung robot, kích thước và khối lượng
+   thân: điền `chassis`).
 2. Tạo `src/core/hardware/kits/<vendor-kit>.kit.json`, bản sao của `ref-uno-rover.kit.json`, với `id`, `version` mới và
    `board: "uno-r3"`. Mỗi port: `id` theo nhãn trên robot, `driver` là một id có sẵn, `pins` dùng đúng tên chân của driver
    (`EN`/`IN1`/`IN2`, `TRIG`/`ECHO`, `PIN`), `params` nếu driver có (`activeLow` của `line-digital`: vạch đen là LOW thì
