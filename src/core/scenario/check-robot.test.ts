@@ -119,11 +119,8 @@ describe('checkRobot', () => {
         return progress.timeBonus;
       });
     };
-    // Parked about 3.4 s into an 8 s limit: 20 × (8 − tFinish) / 8 is 11 or 12.
-    for (const bonus of await bonuses(parker(), parkScenario())) {
-      expect(bonus).toBeGreaterThanOrEqual(9);
-      expect(bonus).toBeLessThanOrEqual(13);
-    }
+    // Every goal passed from 3.0417 s (the park, 365 ticks) of an 8 s limit in each variant: floor(20 × (8 − 3.0417) / 8) = floor(12.40) = 12.
+    expect(await bonuses(parker(), parkScenario())).toEqual([12, 12, 12]);
     // No bonus without every goal, nor for a variant that ended in an error.
     expect(await bonuses(overshooter(), parkScenario())).toEqual([0, 0, 0]);
     expect(await bonuses(faulter(), wallScenario())).toEqual([0, 0, 0]);
