@@ -24,6 +24,8 @@ import { arduinoTarget } from './target';
 // - repeat and count up evaluate their bounds once, in the contract's order, into the generator's own `_n`, `_from`, `_to`; count up
 //   assigns the learner's variable from `_c`, so it keeps the last value (U-12, U-14);
 // - a module op is its driver's C++ (`Driver.ops[op].cpp`, on the kit's port), the drive is `driveCall` (U-21, U-22);
+// - the interpreter evaluates operands left to right, C++ leaves a call's arguments and a comparison's operands unordered (avr-gcc
+//   evaluates call arguments right to left, spike eval-order): two of them may not both read the robot (`unsequenced-reads`);
 // - setup() starts with `Serial.begin(9600);` when the program prints, then the setup lines of the ports the program uses in kit port
 //   order (`kitCpp`), then the pinMode of each module-wired pin the program reads raw (U-33, `uses.inputPins`) and of each pin it
 //   writes (U-31, `uses.outputPins`), as the binding sets them up in the simulator (hardware/binding.ts `createProgramIO`).
