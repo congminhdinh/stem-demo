@@ -1,7 +1,7 @@
 // The robot lab's small icons (N18 R4.4): drawn here, in the button's text colour (currentColor), hidden from screen readers (the
 // button's text names it). No icon font, nothing loaded.
 
-type IconName = 'run' | 'stop' | 'pause' | 'resume' | 'step' | 'reset' | 'orbit' | 'follow' | 'top' | 'sound' | 'muted' | 'check' | 'replay';
+type IconName = 'run' | 'stop' | 'pause' | 'resume' | 'step' | 'reset' | 'orbit' | 'follow' | 'top' | 'sound' | 'muted' | 'check' | 'replay' | 'recenter';
 
 const paths: Readonly<Record<IconName, string>> = {
   run: 'M5 3.5v9l7.5-4.5z',
@@ -18,6 +18,8 @@ const paths: Readonly<Record<IconName, string>> = {
   // N18 R6.3: Kiểm tra (a tick) and Xem lại (the reset arrow round a play mark).
   check: 'M6.4 12.2 2.6 8.4l1.3-1.3 2.5 2.5 5.7-5.7 1.3 1.3z',
   replay: 'M8 3a5 5 0 1 1-4.6 3.1l1.4.6A3.5 3.5 0 1 0 8 4.5V7L4.8 4 8 1zM6.8 6.2v3.6L9.8 8z',
+  // N18 R4.7, "đặt lại góc nhìn": a frame's four corners round a dot.
+  recenter: 'M2 2h4v1.5H3.5V6H2zM10 2h4v4h-1.5V3.5H10zM2 10h1.5v2.5H6V14H2zM12.5 10H14v4h-4v-1.5h2.5zM6.5 6.5h3v3h-3z',
 };
 
 export function Icon({ name }: { name: IconName }) {

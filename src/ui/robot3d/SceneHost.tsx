@@ -34,6 +34,8 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
   const [probed, setProbed] = useState(probe);
   const [tier, setTier] = useState<QualityTier>(() => tierForRenderer(probed.ok ? probed.renderer : null));
   const [cameraMode, setCameraMode] = useState<CameraMode>('orbit');
+  // N18 R4.7: "đặt lại góc nhìn" puts the current view's camera back where that view starts.
+  const [resetKey, setResetKey] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const [context, setContext] = useState<ContextState>('ok');
   // The learner picked the 2D view (N18 R4.6): the canvas is gone while they have it, and made again when they go back.
@@ -110,6 +112,7 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
               onContextLost={onContextLost}
               onContextRestored={onContextRestored}
               onFirstFrame={onFirstFrame}
+              resetKey={resetKey}
             />
           </ErrorBoundary>
           {!drawn && failedAttempt !== attempt && context === 'ok' && (
@@ -133,6 +136,9 @@ export function SceneHost({ probe = probeWebgl, ...sceneProps }: SceneHostProps)
             <span>{t(label)}</span>
           </button>
         ))}
+        <button type="button" className="robot-camera-reset" onClick={() => setResetKey((count) => count + 1)} title={t('robot.camera.reset')} aria-label={t('robot.camera.reset')} data-testid="robot-camera-reset">
+          <Icon name="recenter" />
+        </button>
       </div>
       <button
         type="button"

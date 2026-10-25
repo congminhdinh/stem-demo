@@ -390,6 +390,13 @@
   color: var(--stem-color-on-primary);
 }
 
+/* N18 R4.7: "đặt lại góc nhìn", an icon after the three views. */
+.robot-camera .robot-camera-reset {
+  padding: 2px 6px;
+  border-left: 1px solid var(--stem-color-border);
+  border-radius: 0 6px 6px 0;
+}
+
 .robot-quality {
   right: 10px;
   bottom: 10px;
