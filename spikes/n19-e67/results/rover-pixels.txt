@@ -68,3 +68,89 @@ servo-gate-high-step.png: 0.001 % over 8, largest 56, box x 320–434 y 143–15
 ### branch-sg4 vs master-1
 servo-gate-high-idle.png: 0.000 % over 8, largest 0
 servo-gate-high-step.png: 0.000 % over 8, largest 0
+
+## HEAD (vite build of 6abf16e, after the refactor cd1417a) vs master-1, all 44 (load 22-38)
+drive-to-zone-high-follow.png: 0.000 % over 8, largest 0
+drive-to-zone-high-idle.png: 0.000 % over 8, largest 0
+drive-to-zone-high-step.png: 0.000 % over 8, largest 0
+drive-to-zone-high-top.png: 0.000 % over 8, largest 0
+drive-to-zone-low-follow.png: 0.000 % over 8, largest 0
+drive-to-zone-low-idle.png: 0.000 % over 8, largest 0
+drive-to-zone-low-step.png: 0.000 % over 8, largest 0
+drive-to-zone-low-top.png: 0.000 % over 8, largest 0
+line-follow-high-follow.png: 0.000 % over 8, largest 0
+line-follow-high-idle.png: 0.000 % over 8, largest 0
+line-follow-high-step.png: 0.000 % over 8, largest 0
+line-follow-high-top.png: 0.000 % over 8, largest 0
+line-follow-low-follow.png: 0.000 % over 8, largest 0
+line-follow-low-idle.png: 0.000 % over 8, largest 0
+line-follow-low-step.png: 0.000 % over 8, largest 0
+line-follow-low-top.png: 0.000 % over 8, largest 0
+mini-mission-high-follow.png: 0.000 % over 8, largest 0
+mini-mission-high-idle.png: 0.000 % over 8, largest 0
+mini-mission-high-step.png: 0.000 % over 8, largest 0
+mini-mission-high-top.png: 0.000 % over 8, largest 0
+mini-mission-low-follow.png: 0.000 % over 8, largest 0
+mini-mission-low-idle.png: 0.000 % over 8, largest 0
+mini-mission-low-step.png: 0.000 % over 8, largest 0
+mini-mission-low-top.png: 0.000 % over 8, largest 0
+sandbox-high-follow.png: 0.000 % over 8, largest 0
+sandbox-high-idle.png: 0.001 % over 8, largest 49, box x 60–68 y 407–416
+sandbox-high-step.png: 0.001 % over 8, largest 49, box x 60–68 y 407–416
+sandbox-high-top.png: 0.001 % over 8, largest 45, box x 83–85 y 91–91
+sandbox-low-follow.png: 0.000 % over 8, largest 0
+sandbox-low-idle.png: 0.000 % over 8, largest 0
+sandbox-low-step.png: 0.000 % over 8, largest 0
+sandbox-low-top.png: 0.000 % over 8, largest 0
+servo-gate-high-idle.png: 0.001 % over 8, largest 56, box x 320–434 y 143–155
+servo-gate-high-step.png: 0.001 % over 8, largest 56, box x 320–434 y 143–155
+servo-gate-low-idle.png: 0.000 % over 8, largest 0
+servo-gate-low-step.png: 0.000 % over 8, largest 0
+square-route-high-idle.png: 0.000 % over 8, largest 0
+square-route-high-step.png: 0.000 % over 8, largest 0
+square-route-low-idle.png: 0.000 % over 8, largest 0
+square-route-low-step.png: 0.000 % over 8, largest 0
+stop-at-wall-high-idle.png: 0.000 % over 8, largest 0
+stop-at-wall-high-step.png: 0.000 % over 8, largest 0
+stop-at-wall-low-idle.png: 0.000 % over 8, largest 0
+stop-at-wall-low-step.png: 0.000 % over 8, largest 0
+5 picture(s) changed
+
+## sandbox high again: three more runs of each build against master-1 (a second spot that flips run to run, on master too)
+### master-sb2 vs master-1
+sandbox-high-follow.png: 0.000 % over 8, largest 0
+sandbox-high-idle.png: 0.001 % over 8, largest 49, box x 60–68 y 407–416
+sandbox-high-step.png: 0.001 % over 8, largest 49, box x 60–68 y 407–416
+sandbox-high-top.png: 0.001 % over 8, largest 45, box x 83–85 y 91–91
+### head-sb2 vs master-1
+sandbox-high-follow.png: 0.000 % over 8, largest 0
+sandbox-high-idle.png: 0.000 % over 8, largest 0
+sandbox-high-step.png: 0.000 % over 8, largest 0
+sandbox-high-top.png: 0.000 % over 8, largest 0
+### master-sb3 vs master-1
+sandbox-high-follow.png: 0.000 % over 8, largest 0
+sandbox-high-idle.png: 0.001 % over 8, largest 49, box x 60–68 y 407–416
+sandbox-high-step.png: 0.001 % over 8, largest 49, box x 60–68 y 407–416
+sandbox-high-top.png: 0.001 % over 8, largest 45, box x 83–85 y 91–91
+### head-sb3 vs master-1
+sandbox-high-follow.png: 0.000 % over 8, largest 0
+sandbox-high-idle.png: 0.000 % over 8, largest 0
+sandbox-high-step.png: 0.000 % over 8, largest 0
+sandbox-high-top.png: 0.000 % over 8, largest 0
+### master-sb4 vs master-1
+sandbox-high-follow.png: 0.000 % over 8, largest 0
+sandbox-high-idle.png: 0.000 % over 8, largest 0
+sandbox-high-step.png: 0.000 % over 8, largest 0
+sandbox-high-top.png: 0.000 % over 8, largest 0
+### head-sb4 vs master-1
+sandbox-high-follow.png: 0.000 % over 8, largest 0
+sandbox-high-idle.png: 0.001 % over 8, largest 49, box x 60–68 y 407–416
+sandbox-high-step.png: 0.001 % over 8, largest 49, box x 60–68 y 407–416
+sandbox-high-top.png: 0.001 % over 8, largest 45, box x 83–85 y 91–91
+
+## HEAD's sandbox-high-idle against master-sb2 (both of the flipped kind):
+sandbox-high-follow.png: 0.000 % over 8, largest 0
+sandbox-high-idle.png: 0.000 % over 8, largest 0
+sandbox-high-step.png: 0.000 % over 8, largest 0
+sandbox-high-top.png: 0.000 % over 8, largest 0
+0 picture(s) changed
