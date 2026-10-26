@@ -25,7 +25,9 @@ const stub = [
   '  version) echo "arduino-cli  Version: ${STUB_VERSION:-1.5.1} Commit: stub Date: 2026-06-05"; exit 0;;',
   `  core) echo '{"platforms":[{"id":"arduino:avr","installed_version":"1.8.8"}]}'; exit 0;;`,
   '  lib)',
-  `    if [ "$2" = "list" ]; then echo '{"installed_libraries":[{"library":{"name":"Servo","version":"1.3.0"}}]}'; exit 0; fi`,
+  // `lib list` alone gives the user's libraries; `--all` adds the ones the core ships (Wire 1.0 of arduino:avr 1.8.8, location platform).
+  `    if [ "$2" = "list" ] && [ "$3" = "--all" ]; then echo '{"installed_libraries":[{"library":{"name":"Wire","version":"1.0","location":"platform"}},{"library":{"name":"Servo","version":"1.3.0","location":"user"}}]}'; exit 0; fi`,
+  `    if [ "$2" = "list" ]; then echo '{"installed_libraries":[{"library":{"name":"Servo","version":"1.3.0","location":"user"}}]}'; exit 0; fi`,
   '    if [ "$2" = "install" ]; then echo "$3" >> "$STUB_LOG"; exit 0; fi;;',
   '  compile)',
   '    for last; do :; done',
@@ -121,6 +123,14 @@ describe.skipIf(process.platform === 'win32')('pnpm check:arduino (stand-in ardu
     const { report } = check([sketchDir({ servo: header('arduino:avr@1.8.8 (LGPL-2.1), Servo@1.3.0 (LGPL-2.1), Other@2.0.1 (MIT)') })]);
     expect(report.status).toBe('pass');
     expect(readFileSync(installs, 'utf8')).toBe(`Other@2.0.1${nl}`);
+  });
+
+  it('counts a library the core ships (Wire 1.0 of arduino:avr 1.8.8) as installed: it never asks to install it (N19 A3, review I1)', () => {
+    const before = readFileSync(installs, 'utf8');
+    const { report } = check([sketchDir({ colour: header('arduino:avr@1.8.8 (LGPL-2.1), Servo@1.3.0 (LGPL-2.1), Wire@1.0 (LGPL-2.1)') })], { flags: ['--require'] });
+    expect(report.status).toBe('pass');
+    expect(report.results).toEqual([expect.objectContaining({ status: 'pass', problems: [], libraries: ['arduino:avr@1.8.8', 'Servo@1.3.0', 'Wire@1.0'] })]);
+    expect(readFileSync(installs, 'utf8')).toBe(before);
   });
 
   it('finds every golden sketch of the repository by default', () => {

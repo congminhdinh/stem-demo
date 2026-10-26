@@ -4,8 +4,8 @@
 // goldens and the sketches of the scenarios' reference solutions (tests/robot-solutions/, N18 R5.2):
 //
 //   - the libraries a sketch names in its header (`// … Libraries: Servo@1.3.0 (LGPL-2.1), …`, written from the drivers'
-//     `cpp.libraries`) are installed at that exact version when they are missing (`arduino-cli lib install Servo@1.3.0`); a GPL
-//     library is refused (LGPL is allowed);
+//     `cpp.libraries`) are installed at that exact version when they are missing (`arduino-cli lib install Servo@1.3.0`); one the core
+//     ships at that version (Wire@1.0 of arduino:avr@1.8.8) counts as installed; a GPL library is refused (LGPL is allowed);
 //   - `arduino-cli compile --fqbn arduino:avr:uno --warnings all`: the sketch must compile with no warning of its own (warnings of the
 //     core and of libraries are not the sketch's) and use at most 75 % of the RAM (1536 of 2048 bytes, contract §8); flash and RAM are
 //     reported as arduino-cli measures them.
@@ -101,11 +101,15 @@ function librariesOf(source) {
 const isGpl = (license) => /(^|[^L])GPL/.test(license);
 
 let installed;
-/** Installs `name@version` when it is not installed at that version; an error text, or null. */
+/**
+ * Installs `name@version` when it is not installed at that version; an error text, or null. Installed means in any location: the user's
+ * libraries and the ones the core ships (`lib list --all`; N19 A3: Wire 1.0 comes with arduino:avr 1.8.8 and is in no library index, so
+ * `lib install Wire@1.0` would fail).
+ */
 function ensureLibrary(library) {
   if (!installed) {
     try {
-      const listed = JSON.parse(run(cli, ['lib', 'list', '--format', 'json']).stdout || '{}');
+      const listed = JSON.parse(run(cli, ['lib', 'list', '--all', '--format', 'json']).stdout || '{}');
       installed = new Set((listed.installed_libraries ?? []).map((entry) => `${entry.library?.name}@${entry.library?.version}`));
     } catch {
       installed = new Set();
