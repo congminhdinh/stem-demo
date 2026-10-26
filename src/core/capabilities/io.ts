@@ -75,11 +75,12 @@ export interface PulseIO {
 
 /**
  * N18 R2.1: the module-level ops of a robot program (plan §4.4), addressed by the kit's role (`motorLeft`, `ultrasonic`, …).
- * `call` is a statement (`motor.set`, `drive.move`, `servo.set`, …), `read` an expression (`ultrasonic.cm`, `line.dark`, …).
+ * `call` is a statement (`motor.set`, `drive.move`, `servo.set`, …), `read` an expression (`ultrasonic.cm`, `line.dark`, …). N19 A3:
+ * a read may take arguments (`color.is(color1, n)`, `color.raw(color1, k)`); one without any leaves them out.
  */
 export interface ModuleIO {
   call(role: string, op: string, args: readonly number[]): void;
-  read(role: string, op: string): number | boolean;
+  read(role: string, op: string, args?: readonly number[]): number | boolean;
 }
 
 /** N18 R2.1: I²C at the transaction level (plan §4.3, D-R5); a device model answers at its address. */

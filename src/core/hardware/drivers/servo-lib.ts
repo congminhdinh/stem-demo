@@ -14,6 +14,7 @@ export const servoDriver = defineDriver('servo-lib', {
     kind: 'call',
     row: 'U-23',
     args: [SERVO_ANGLE],
+    claims: 'servo',
     setup: [{ kind: 'servoAttach', pin: 'PIN', angle: SERVO_START_DEG }],
     sim(io, port, [angle = 0]) {
       io.servoWrite(pinOf(port, 'PIN'), clampTo(SERVO_ANGLE, angle));

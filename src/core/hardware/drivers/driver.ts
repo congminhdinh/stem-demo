@@ -17,11 +17,22 @@ export type CppLibrary = { readonly name: string; readonly version: string; read
 export const arduinoCore: CppLibrary = { name: 'arduino:avr', version: '1.8.8', license: 'LGPL-2.1' };
 export const servoLibrary: CppLibrary = { name: 'Servo', version: '1.3.0', license: 'LGPL-2.1' };
 
+/** The helpers a driver may call in setup() (N19 A3: the colour sensor's `colorBegin`). */
+export type SetupHelperName = 'colorBegin';
+
 /** One line of the generated setup() for a port, and the same step on the virtual UNO. Pins are the driver's pin names. */
 export type SetupStep =
   | { readonly kind: 'pinMode'; readonly pin: string; readonly mode: PinMode }
-  /** `<role>.attach(<ROLE>_PIN); <role>.write(angle);`: the servo starts at a known angle on both sides (contract D5). */
-  | { readonly kind: 'servoAttach'; readonly pin: string; readonly angle: number };
+  /**
+   * `<role>.attach(<ROLE>_PIN); <role>.write(angle);`: the servo starts at a known angle on both sides (contract D5). N19 A3: a module with
+   * two servos names each (`object`), so the gripper's claw is `gripperClaw.attach(GRIPPER_CLAW);`.
+   */
+  | { readonly kind: 'servoAttach'; readonly pin: string; readonly angle: number; readonly object?: 'Claw' | 'Lift' }
+  /** N19 A3: `<name>();`, a helper of the driver's C++ (its text is the op's helper); the virtual UNO runs the driver's `setupHelpers`. */
+  | { readonly kind: 'helper'; readonly name: SetupHelperName };
+
+/** N19 A3: what a helper step runs on the virtual UNO, by name. */
+export type SetupHelpers = Readonly<Partial<Record<SetupHelperName, (io: DriverIO, port: KitPort) => void>>>;
 
 /** The range an op clamps an argument to, warning value-clamped once per role per run (contract §0.5). */
 export type ArgRange = { readonly name: string; readonly min: number; readonly max: number };
@@ -45,6 +56,11 @@ export type DriverOp = {
   readonly args: readonly (ArgRange | null)[];
   /** Present when the op exists only if a pin of the port has a capability (`line.raw` needs an analog pin). */
   readonly requires?: { readonly pin: string; readonly cap: PinCap };
+  /**
+   * N19 A3: the board `timerClaims` entry a program takes by using this op (the Servo library: `servo`; tone: `tone`), which the pin
+   * rules read (program/uno-uses.ts `usage`). An op that only stops what another started (`buzzer.stop`) claims nothing.
+   */
+  readonly claims?: 'servo' | 'tone';
   readonly setup: readonly SetupStep[];
   sim(io: DriverIO, port: KitPort, args: readonly number[]): void | number | boolean;
   readonly cpp: DriverOpCpp;
@@ -56,6 +72,8 @@ export type Driver = {
   readonly ops: Readonly<Record<string, DriverOp>>;
   /** Every library the driver's ops may need. */
   readonly libraries: readonly CppLibrary[];
+  /** N19 A3: the helpers its setup steps call, on the virtual UNO. */
+  readonly setupHelpers: SetupHelpers;
   /** `#define <ROLE>_<PIN> <n>` for each pin of the port (contract §2.1). */
   defines(port: KitPort, role: string): string[];
 };
@@ -80,20 +98,38 @@ export function pinOf(port: KitPort, name: string): string {
 
 /** The setup lines of steps, as C++. */
 export function setupLines(steps: readonly SetupStep[], role: string): string[] {
-  return steps.flatMap((step) =>
-    step.kind === 'pinMode'
-      ? [`pinMode(${pinMacro(role, step.pin)}, ${step.mode});`]
-      : [`${role}.attach(${pinMacro(role, step.pin)});`, `${role}.write(${String(step.angle)});`],
-  );
+  return steps.flatMap((step) => {
+    switch (step.kind) {
+      case 'pinMode':
+        return [`pinMode(${pinMacro(role, step.pin)}, ${step.mode});`];
+      case 'servoAttach': {
+        const servo = `${role}${step.object ?? ''}`;
+        return [`${servo}.attach(${pinMacro(role, step.pin)});`, `${servo}.write(${String(step.angle)});`];
+      }
+      case 'helper':
+        return [`${step.name}();`];
+    }
+  });
 }
 
-/** Runs setup steps on the virtual UNO. */
-export function runSetup(io: DriverIO, port: KitPort, steps: readonly SetupStep[]): void {
+/** Runs setup steps on the virtual UNO; a helper step runs the driver's helper of that name (`helpers`). */
+export function runSetup(io: DriverIO, port: KitPort, steps: readonly SetupStep[], helpers: SetupHelpers = {}): void {
   for (const step of steps) {
-    if (step.kind === 'pinMode') {
-      io.pinMode(pinOf(port, step.pin), step.mode);
-    } else {
-      io.servoWrite(pinOf(port, step.pin), step.angle);
+    switch (step.kind) {
+      case 'pinMode':
+        io.pinMode(pinOf(port, step.pin), step.mode);
+        break;
+      case 'servoAttach':
+        io.servoWrite(pinOf(port, step.pin), step.angle);
+        break;
+      case 'helper': {
+        const helper = helpers[step.name];
+        if (helper === undefined) {
+          throw new Error(`Port ${port.id} (${port.driver}) has no setup helper ${step.name}`);
+        }
+        helper(io, port);
+        break;
+      }
     }
   }
 }
@@ -121,7 +157,7 @@ export function defineOp(op: OpDefinition): DriverOp {
   };
 }
 
-export function defineDriver(id: DriverId, ops: Record<string, DriverOp>): Driver {
+export function defineDriver(id: DriverId, ops: Record<string, DriverOp>, setupHelpers: SetupHelpers = {}): Driver {
   const libraries = new Map<string, CppLibrary>();
   for (const op of Object.values(ops)) {
     for (const library of op.cpp.libraries) {
@@ -132,6 +168,7 @@ export function defineDriver(id: DriverId, ops: Record<string, DriverOp>): Drive
     id,
     ops,
     libraries: [...libraries.values()],
+    setupHelpers,
     defines: (port, role) => Object.entries(port.pins).map(([name, pin]) => `#define ${pinMacro(role, name)} ${arduinoPin(pin)}`),
   };
 }

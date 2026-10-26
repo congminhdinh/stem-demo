@@ -22,6 +22,7 @@ export const buzzerDriver = defineDriver('buzzer-tone', {
     kind: 'call',
     row: 'U-25',
     args: [TONE_HZ, TONE_MS],
+    claims: 'tone',
     setup: [],
     sim(io, port, [hz = 0, ms = 0]) {
       io.tone(pinOf(port, 'PIN'), clampTo(TONE_HZ, hz), clampTo(TONE_MS, ms));

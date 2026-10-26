@@ -104,7 +104,7 @@ export function setupPinsOf(kit: Kit, uses: readonly ModuleUse[]): Set<string> {
     const port = module ? kitPort(kit, module.port) : undefined;
     const op = port ? drivers[port.driver].ops[use.op] : undefined;
     for (const step of op?.setup ?? []) {
-      const pin = port?.pins[step.pin];
+      const pin = step.kind === 'helper' ? undefined : port?.pins[step.pin];
       if (pin !== undefined) {
         pins.add(pin);
       }

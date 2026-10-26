@@ -29,7 +29,7 @@ export function kitInputDefaults(kit: Kit): Map<string, 0 | 1> {
   for (const port of kit.ports) {
     for (const op of Object.values(drivers[port.driver].ops)) {
       for (const step of op.setup) {
-        const pin = port.pins[step.pin];
+        const pin = step.kind === 'pinMode' ? port.pins[step.pin] : undefined;
         if (step.kind === 'pinMode' && step.mode !== 'OUTPUT' && pin !== undefined) {
           defaults.set(pin, step.mode === 'INPUT_PULLUP' ? allowedDifferences['pull-up'].releasedLevel : 0);
         }

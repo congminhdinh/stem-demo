@@ -1,5 +1,5 @@
-import { DRIVE_ROLE, driverPinMode, setupPinsOf, type ModuleUse } from '../hardware/drivers';
-import type { Kit } from '../hardware/kit';
+import { DRIVE_ROLE, driverPinMode, drivers, setupPinsOf, type ModuleUse } from '../hardware/drivers';
+import { portOfRole, type Kit } from '../hardware/kit';
 import type { KitUsage } from '../hardware/pin-rules';
 import type { PinMode } from '../hardware/virtual-uno';
 import { isBoardPinOp, isModuleCall, isModuleRead, type Expr, type YbcProgramIR, type YbcStatement } from './ybc-ir';
@@ -44,6 +44,11 @@ export function unoUsesAndBlocks(ir: YbcProgramIR, kit: Kit): { uses: UnoProgram
       seen.add(key);
       modules.push({ role, op });
     }
+  };
+  /** N19 A3: the timer the kit's driver for `role` takes when the program uses `op` (DriverOp.claims); the drive claims none. */
+  const claimOf = (role: string, op: string) => {
+    const port = portOfRole(kit, role);
+    return port === undefined ? undefined : drivers[port.driver].ops[op]?.claims;
   };
 
   const expression = (expr: Expr): void => {
@@ -117,11 +122,11 @@ export function unoUsesAndBlocks(ir: YbcProgramIR, kit: Kit): { uses: UnoProgram
             statement.args.forEach(expression);
           }
           if (isModuleCall(statement)) {
-            use(statement.op === 'drive.move' || statement.op === 'drive.stop' ? DRIVE_ROLE : statement.operand.role, statement.op);
-            if (statement.op === 'servo.set') {
-              blocks.servo ??= statement.blockId;
-            } else if (statement.op === 'buzzer.tone') {
-              blocks.tone ??= statement.blockId;
+            const role = statement.op === 'drive.move' || statement.op === 'drive.stop' ? DRIVE_ROLE : statement.operand.role;
+            use(role, statement.op);
+            const claim = claimOf(role, statement.op);
+            if (claim !== undefined) {
+              blocks[claim] ??= statement.blockId;
             }
           } else if (statement.op === 'digital.write' && isBoardPinOp(statement) && !outputPins.includes(statement.operand.pin)) {
             outputPins.push(statement.operand.pin);

@@ -4,7 +4,7 @@ import { kitPort, type Kit, type KitPort } from './kit';
 import type { PinMode, VirtualUno } from './virtual-uno';
 
 // The module binding (N18 R1.4, robot plan §4.3): the `modules` capability of a robot program. `call(role, op, args)` and
-// `read(role, op)` take the IR's module ops (plan §4.4: `motor.set`, `servo.set`, `led.set`, `buzzer.tone`, `buzzer.stop`,
+// `read(role, op, args?)` (N19 A3: a read may take arguments, `color.is(color1, n)`) take the IR's module ops (plan §4.4: `motor.set`, `servo.set`, `led.set`, `buzzer.tone`, `buzzer.stop`,
 // `ultrasonic.cm`, `line.dark`, `line.raw`, `button.pressed`, and `drive.move` / `drive.stop` on the role `drive`) to the
 // kit's driver for the role, on the virtual UNO's pins; N18 R2.2 adds the board's `time.millis` on the role `clock`. An argument
 // outside its range is clamped with a value-clamped warning, once per role per run (contract §0.5); the driver clamps again, as
@@ -16,7 +16,7 @@ import type { PinMode, VirtualUno } from './virtual-uno';
 // the kit is set up. A role or op the kit lacks is refused by the compiler (capability-unavailable); reaching one here is a
 // programmer error and throws.
 
-/** The arguments of a read (N18 P1: one array for every read, never written). */
+/** The arguments of a read that has none (N18 P1: one array for every such read, never written). */
 const NO_ARGS: readonly number[] = Object.freeze([]);
 
 export type ModuleBinding = ModuleIO & {
@@ -149,7 +149,7 @@ export function createModuleIO(kit: Kit, uno: VirtualUno, uses: readonly ModuleU
       }
       const steps = op.setup.filter((step) => !done.has(JSON.stringify(step)));
       steps.forEach((step) => done.add(JSON.stringify(step)));
-      runSetup(io, port, steps);
+      runSetup(io, port, steps, drivers[port.driver].setupHelpers);
     }
   }
 
@@ -162,13 +162,13 @@ export function createModuleIO(kit: Kit, uno: VirtualUno, uses: readonly ModuleU
       }
       callOp(role, op, args);
     },
-    read(role, op) {
+    read(role, op, args = NO_ARGS) {
       if (role === CLOCK_ROLE && op === MILLIS_OP) {
         return uno.millis();
       }
       const entry = entryOf(role);
       const driverOp = driverOpOf(role, entry, op, 'read');
-      const value = driverOp.sim(io, entry.port, NO_ARGS);
+      const value = driverOp.sim(io, entry.port, clampArgs(role, op, driverOp, args));
       if (typeof value !== 'number' && typeof value !== 'boolean') {
         throw new Error(`${op} on ${role} gave no value`);
       }
