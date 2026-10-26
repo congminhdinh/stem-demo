@@ -296,6 +296,20 @@ Các bước sửa hay thêm một kịch bản:
    trượt ≥ 1 biến thể; ghi số đo vào `notes`.
 4. Chạy hai file test của Kiểm tra thật (trên); xem `pnpm export:arena-mat <key>` để chắc sa bàn đúng như định.
 5. `pnpm export:robot-manifest`, cập nhật golden nếu lời giải chuẩn đổi, `pnpm check:arduino --require`, `pnpm verify`.
+6. **Phía STEMLearning, cùng đợt phát hành** (N18 final fix M9; như `docs/lab-embed-contract.md` §1, mục manifest). Thiếu bước này thì
+   CourseService từ chối key mới, còn LearningService từ chối mọi lần chấm của kịch bản đã đổi:
+   - Chép `docs/fixtures/robot-scenarios.v1.json` mới, giống từng byte, sang `STEMLearning/Web/packages/api/src/lab/__fixtures__/robot-scenarios.v1.json`
+     và sửa sha256 ghim nó trong `Web/packages/api/src/lab/lab-templates.test.ts`.
+   - Mỗi kịch bản có key mới, `version` mới hay `goals` khác: chép `version` và `goalIds` (đúng thứ tự của manifest) vào
+     `Services/CourseService/Config/appsettings.json` `CourseService:LabTemplates:Robot` (mỗi mục `{ "Key", "Version", "GoalIds" }`, theo
+     thứ tự manifest; `rb-sandbox` có `[]`) và vào `LabTemplateCatalog.DefaultRobotScenarios`
+     (`Services/CourseService/Features/Activities/LabTemplateCatalog.cs`). LearningService từ chối lần chấm robot có goal id khác hay sai thứ
+     tự, hoặc `templateVersion` mới hơn `version` này; test ghim trong `lab-templates.test.ts` so cả hai với manifest, nên chúng đỏ tới khi
+     ba bản khớp nhau. CourseService và LearningService deploy cùng nhau.
+   - Một key mới còn cần: `LAB_TEMPLATES.robot` (`Web/packages/api/src/lab/lab-templates.ts`, đúng thứ tự manifest; thêm vào
+     `ADVANCED_ROBOT_SCENARIOS` nếu kịch bản cần `uno-advanced`), tên và tóm tắt trong `Web/packages/i18n/messages/vi/admin.json`
+     (`builder.labs.templates.<key>.title` và `.summary`), và hình nhỏ trong `ScenarioThumbnail.tsx` của admin (test đòi mỗi kịch bản robot có
+     một hình).
 
 **Engine version (N18 final fix M6).** Lần chấm của thí điểm đã được lưu (từ browser test R8). Từ nay mọi thay đổi world, cảm biến hay chi
 phí (`costsUs`, `toneUs`, mô hình motor…) làm một chương trình chạy khác đi phải tăng `ROBOT_ENGINE_VERSION` (`src/core/world/snapshot.ts`)
