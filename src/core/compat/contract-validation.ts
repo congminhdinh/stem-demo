@@ -360,12 +360,12 @@ export function cppAllowlist(contract: UnoContract): { forms: string[]; includes
 /**
  * What the UNO contract adds to the shared invariants (its §15): no INFERRED label and no owner-opened UNVERIFIED
  * field or form (an open row has evidence for every field, R0.3 acceptance); every row carries its claim levels, a
- * PASS names evidence of the right kind (L2 compile, L2e emulator), L3 is never PASS; a C++ mapping names only known
- * helpers and the libraries of its modules; no Python mapping.
+ * PASS names evidence of the right kind (L1 a test of the simulator, since N18 final fix M4; L2 compile, L2e emulator), L3
+ * is never PASS; a C++ mapping names only known helpers and the libraries of its modules; no Python mapping.
  */
 function unoProblems(contract: UnoContract): string[] {
   const problems: string[] = [];
-  const levelKind: Record<'L2' | 'L2e', AnyEvidenceKind> = { L2: 'CC', L2e: 'EMU' };
+  const levelKind: Record<'L1' | 'L2' | 'L2e', AnyEvidenceKind> = { L1: 'TST', L2: 'CC', L2e: 'EMU' };
   for (const construct of contract.constructs) {
     for (const [field, entry] of Object.entries(construct.fields)) {
       if (entry.label === 'INFERRED') {
@@ -386,8 +386,8 @@ function unoProblems(contract: UnoContract): string[] {
         if (status.status !== 'PASS') {
           continue;
         }
-        if (level === 'L1' || level === 'L3') {
-          problems.push(`${construct.id}.${level} is PASS, but no ${level === 'L1' ? 'simulator test' : 'physical'} evidence exists in contract v0`);
+        if (level === 'L3') {
+          problems.push(`${construct.id}.${level} is PASS, but no physical evidence exists in contract v0`);
           continue;
         }
         for (const id of status.evidence) {

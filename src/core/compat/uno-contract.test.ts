@@ -183,12 +183,45 @@ describe('profiles (contract §11)', () => {
 });
 
 describe('claim levels L1 / L2 / L2e / L3 (contract §12)', () => {
-  it('has every open row compiled (L2, CC-03), its simulator semantics pending (L1) and the board pending (L3, M06)', () => {
+  it('has every open row compiled (L2, CC-03), its simulator semantics tested (L1, N18 final fix M4) and the board pending (L3, M06)', () => {
     for (const construct of exposed()) {
       expect(construct.levels?.L2, construct.id).toEqual({ status: 'PASS', evidence: ['CC-03'] });
-      expect(construct.levels?.L1, construct.id).toMatchObject({ status: 'PENDING' });
+      // Ruling L110, carried out at N18 final fix M4: L1 is PASS once tests of the simulator run the row.
+      const l1 = construct.levels?.L1;
+      expect(l1?.status, construct.id).toBe('PASS');
+      expect((l1?.status === 'PASS' ? l1.evidence : []).map((id) => contract.evidence[id]?.kind), construct.id).toEqual(expect.arrayContaining(['TST']));
       expect(construct.levels?.L3, construct.id).toEqual({ status: 'PENDING', by: 'M06' });
     }
+  });
+
+  it('rests L1 on tests of this repository: each TST entry names a test file that exists and the titles of tests in it (N18 final fix M4)', () => {
+    const tests = Object.entries(contract.evidence).filter(([, entry]) => entry.kind === 'TST');
+    expect(tests.map(([id]) => id)).toEqual(['TST-01', 'TST-02', 'TST-03', 'TST-04', 'TST-05', 'TST-06']);
+    for (const [id, entry] of tests) {
+      expect(entry, id).toMatchObject({ supports: ['sim-semantic'], establishes: [] });
+      expect(entry.source, id).toMatch(/^(src|tests)\/[\w./-]+\.test\.tsx?$/);
+      const file = readFileSync(join(process.cwd(), entry.source), 'utf8');
+      const titles = entry.action.split(' · ');
+      expect(titles.length, id).toBeGreaterThan(0);
+      for (const title of titles) {
+        expect(file.includes(`'${title}'`), `${id}: ${entry.source} has no test "${title}"`).toBe(true);
+      }
+    }
+    // A test establishes no field: the fields stay on the emulator, the compiler and the documents.
+    expect(UNO_EVIDENCE_SCOPE.TST).toEqual([]);
+    // U-48 is not offered, but its refusal (timer-claimed) is the simulator's: tested too.
+    expect(row('U-48').levels?.L1).toEqual({ status: 'PASS', evidence: ['TST-04', 'TST-06'] });
+  });
+
+  it('refuses an L1 PASS that cites anything but a test of this repository, and takes one that does (N18 final fix M4)', () => {
+    const withL1 = (evidence: string[]): UnoContract => ({
+      ...contract,
+      constructs: contract.constructs.map((c) => (c.id === 'U-20' && c.levels ? { ...c, levels: { ...c.levels, L1: { status: 'PASS', evidence } } } : c)),
+    });
+    expect(validateContract(withL1(['TST-03']))).toEqual([]);
+    expect(validateContract(withL1(['TST-03', 'CC-03']))).toEqual(['U-20.L1 cites CC-03, which is not TST evidence']);
+    expect(validateContract(withL1(['EMU-13']))).toEqual(['U-20.L1 cites EMU-13, which is not TST evidence']);
+    expect(validateContract(withL1(['TST-99']))).toEqual(['U-20.L1 cites TST-99, which is not TST evidence']);
   });
 
   it('has every open row traced in avr8js (L2e) by the contract-forms run, with the sketches that measured it', () => {

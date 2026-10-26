@@ -119,8 +119,11 @@ export const FIELD_CLAIM_KINDS: Readonly<Record<OfField, readonly ClaimKind[]>> 
   content: ['documented', 'ui-statement', 'encoding', 'call-shape', 'display-transition', 'sound-indicator'],
 };
 
-/** Ledger entries may also support things that are not field claims. */
-export type LedgerSupport = ClaimKind | 'snapshot' | 'method' | 'context';
+/**
+ * Ledger entries may also support things that are not field claims. `sim-semantic`: a test of this repository that runs a row on the
+ * simulator, the evidence of the UNO contract's L1 level (N18 final fix M4).
+ */
+export type LedgerSupport = ClaimKind | 'snapshot' | 'method' | 'context' | 'sim-semantic';
 
 export type EvidenceRef = string;
 
@@ -335,9 +338,10 @@ export type YolobitContract = {
 /**
  * Where UNO evidence comes from (contract §0.2): EMU an avr8js trace of a HEX we compiled from our own sketch;
  * CC arduino-cli output for our own sketch (compile, sizes, disassembly); ARD the Arduino reference and library
- * docs; DS the ATmega328P datasheet; CXX the C++ draft and the GCC manual; PKG release listings (snapshot only).
+ * docs; DS the ATmega328P datasheet; CXX the C++ draft and the GCC manual; PKG release listings (snapshot only);
+ * TST a test of this repository that runs the row on the simulator, its file and the titles of its tests (L1 only, N18 final fix M4).
  */
-export const unoEvidenceKinds = ['EMU', 'CC', 'ARD', 'DS', 'CXX', 'PKG'] as const;
+export const unoEvidenceKinds = ['EMU', 'CC', 'ARD', 'DS', 'CXX', 'PKG', 'TST'] as const;
 export type UnoEvidenceKind = (typeof unoEvidenceKinds)[number];
 export type AnyEvidenceKind = EvidenceKind | UnoEvidenceKind;
 
@@ -349,6 +353,8 @@ export const UNO_EVIDENCE_SCOPE: Readonly<Record<UnoEvidenceKind, readonly Claim
   DS: ['documented'],
   CXX: ['documented', 'language'],
   PKG: [],
+  // A test says the simulator does what the contract says; what the board does stays the emulator's, the compiler's and the documents'.
+  TST: [],
 };
 
 /** Claims the emulator can never establish: it is not the board (contract §0.4, L3). */
@@ -392,7 +398,10 @@ export type CppMapping = {
   setup?: readonly string[];
 };
 
-/** The claim levels of plan D-R11 (contract §12). L3 is never PASS here: no physical evidence exists yet. */
+/**
+ * The claim levels of plan D-R11 (contract §12). L1 is PASS on tests of the simulator (TST, N18 final fix M4); L3 is never PASS here: no
+ * physical evidence exists yet.
+ */
 export const claimLevels = ['L1', 'L2', 'L2e', 'L3'] as const;
 export type ClaimLevel = (typeof claimLevels)[number];
 export type LevelStatus = { status: 'PASS'; evidence: readonly EvidenceRef[] } | { status: 'PENDING'; by: string } | { status: 'n/a'; note: string };

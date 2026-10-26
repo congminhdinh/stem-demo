@@ -138,6 +138,142 @@ const evidence: Record<EvidenceRef, EvidenceEntry> = {
   ),
 };
 
+// --- Tests of the simulator (contract §12 L1, ruling L110, N18 final fix M4) -------------------------------------------------------
+
+/**
+ * A test file of this repository and the titles of its tests (exactly as written there) that run rows on the simulator: the IR on the
+ * interpreter, the virtual clock and the virtual UNO, its drivers, and the world (plan D-R11 L1). uno-contract.test.ts checks that each
+ * file and title exists. Run with `pnpm test <file>`.
+ */
+const simTest = (file: string, titles: readonly string[], observed: string): EvidenceEntry => ({
+  kind: 'TST',
+  date: '2026-10-26',
+  source: file,
+  action: titles.join(' · '),
+  observed,
+  supports: ['sim-semantic'],
+  establishes: [],
+});
+
+const testEvidence: Record<EvidenceRef, EvidenceEntry> = {
+  'TST-01': simTest(
+    'src/core/codegen/arduino/generate.parity.test.ts',
+    [
+      'the interpreter prints what the contract says the sketch prints',
+      'runs the language goldens, the names golden, the deepest nesting and the sequenced reads (contract §3.5)',
+      'checks something: the wrap, the truncation and the zero of the board, not of JavaScript or Python',
+    ],
+    'The 14 C1 goldens that end on their own (empty-program, mul-literal, int32-wrap, division-by-zero, count-up-bounds-once, count-up-body-changes-variable, millis-compare, print-mixed, nested-control, names, deep-nesting, sequenced-reads, while-two-reads, logic-reads) run in the interpreter on the virtual clock and the virtual UNO to their end and print exactly what the arithmetic of contract §3 gives (contract-int32.ts, not the simulator\'s code); a division or a remainder by 0 gives 0 and warns division-by-zero',
+  ),
+  'TST-02': simTest(
+    'src/core/program/ybc-uno-interpreter.test.ts',
+    [
+      'wraps, truncates, takes the sign of the dividend and prints a truth value as 1 / 0',
+      'gives INT32_MIN for INT32_MIN / -1 and 0 for x % -1',
+      'gives 0 for a division or a remainder by zero, goes on, and warns division-by-zero once per block in a run (U-06)',
+      'counts up with the start evaluated before the end, each once, and leaves the variable at the last value',
+      'leaves the variable as it was when the start is past the end at run time, and stops at a computed end past 2147483646',
+      'runs a repeat of any long count: zero or less runs none, where Python would refuse a count past a million',
+      'gives a uno forever no pause of its own: each iteration is one loop() call of the budget, then its step',
+    ],
+    'A cxx-int32 program: 2147483647 + 1 = -2147483648, -7 / 2 = -3, -7 % 2 = -1, 7 % -2 = 1, true and false print 1 and 0, a join prints its parts; INT32_MIN / -1 and 0 - INT32_MIN are INT32_MIN, x % -1 is 0; x / 0 = x % 0 = 0 with one warning per block per run; count up reads start then end, once each, and leaves the variable at the last value, none for a start past the end, out-of-domain past 2147483646; repeat N <= 0 runs none; forever has no pause of its own',
+  ),
+  'TST-03': simTest(
+    'src/core/program/uno-modules-interpreter.test.ts',
+    [
+      'motor.set(motorLeft, 50) → D5 duty 128, D7 HIGH, D8 LOW; the other motor is not even set up',
+      'drives forward 60, spins left 40, then stops, as the contract traced it (EMU-13)',
+      'negates a computed drive speed of INT32_MIN as neg32 does, so both motors run full backward, each warned once',
+      'turns the servo (90° from setup), the LED, and plays and stops the buzzer',
+      'clamps a computed speed of 150 and warns once, however often and from whichever block of that role',
+      'clamps a buzzer tone’s Hz and ms, one warning for the buzzer',
+      'ultrasonic.cm returns 400 when nothing echoes, and charges 20 752 µs + the trigger',
+      'reads an echo of 1160 µs after 450 µs as 20 cm, in the 1675.5625 µs the contract measured (EMU-13)',
+      'reads the line sensors, the raw line value and the button from the pins the world drives',
+      'reads millis on the board’s Timer0 model: n + floor(3n / 125) with n Timer0 overflows of 1024 µs (EMU-12)',
+      'sets a digital-write pin OUTPUT in setup(), then HIGH; reads the button pin and an analog line pin',
+      'reads the button pin raw with no button block as the board does: HIGH released (its INPUT_PULLUP in setup), LOW pressed (fix round 1)',
+      'clamps a computed PWM value to 0..255 and warns once per pin',
+    ],
+    'Module calls on ref-uno-rover@0 through the drivers and the virtual UNO: motor 50 → D5 duty 128, D7 HIGH, D8 LOW; forward 60 [153, 153, 1, 0, 1, 0], spin left 40 [102, 102, 0, 1, 1, 0], stop all 0; a speed of INT32_MIN through neg32 clamped to -100 on both motors; a speed of 150 clamped to 100 with one warning; servo 90° from setup then 45°; LED D13 HIGH / LOW; tone 880 Hz on D10, stop: none; 9000 Hz clamped to 4000; no echo 400 cm in 20 777.6875 µs, an echo of 1160 µs 20 cm; line dark 1 / 0, line raw 900, button 1; millis 99 after a wait of 100 ms (Timer0 model); raw digital write OUTPUT HIGH, digital read 1, analog read 512, the button pin raw HIGH released (INPUT_PULLUP) and LOW pressed; PWM 300 clamped to 255 with one warning',
+  ),
+  'TST-04': simTest(
+    'src/core/run/robot-run-session.test.ts',
+    [
+      '“drive forward 50 % for 2 s then stop” moves the rover about the distance the kit’s speed gives, into the zone; reach-zone passes',
+      'tells the block the program is in: the wait while it waits, none once it finished',
+      'the ultrasonic hears the wall ahead through pulseIn (cm·58 µs), and nothing in an open arena (400 cm)',
+      'a line sensor over the tape reads dark through line.dark (the LED shows it)',
+      'the scenario’s inputs press the button at their atS; pressButton presses it from the next tick, but not during a check',
+      'the servo, the LED and the buzzer reach the world, the snapshot and the goal frame',
+      'refuses a program whose servo takes the timer its motor needs (timer-claimed), and a program that does not compile',
+    ],
+    'The session runs the program in the world: forward 50 % for 2 s then stop travels the kit\'s v·(2 s - τ) within 5 % into the zone; a wait of 500 ms is the running block at 0.25 s and the program has finished at 0.6 s; the ultrasonic reads the wall as trunc(cm·58) µs and 400 cm in an open arena; a line sensor over the tape reads dark; the scenario\'s button presses reach the program at their tick; the servo turns the arm to 45°, the LED and a 440 Hz tone reach the world and end when the tone does; a servo on the timer its motor needs is refused with timer-claimed',
+  ),
+  'TST-05': simTest(
+    'tests/uno-blockly-conformance.test.ts',
+    [
+      'Basic: motor, servo, LED, buzzer tone and the three sensor reads compile and run on the virtual UNO',
+      'Basic: the drive in each direction Blockly offers, and stop',
+      'Advanced: the raw line value, buzzer stop, millis and the raw pins',
+      'Advanced: a PWM write is pin-unavailable on ref-uno-rover@0 at the pin Blockly starts with, and drives a pin a kit leaves free',
+      'Basic: the UNO’s own division and count up (fix round 1): -7 / 2 is -3, the count goes by 1 and saves no step',
+    ],
+    'The robot\'s blocks as Blockly 13 saves them, compiled and run on the virtual UNO: motor 50 → D5 duty 128, servo 45°, LED HIGH, tone 880 Hz, ultrasonic 30 cm, line dark 1, button 1; forward, backward, spin left and right set IN1/IN2 as the contract says, stop sets both duties 0; a wait of 100 ms then millis 99, line raw 700, buzzer stop, raw digital write OUTPUT HIGH, digital read 1, analog read 300; PWM 200 on a free D10; -7 / 2 = -3 and a count up 1..3 by 1',
+  ),
+  'TST-06': simTest(
+    'src/core/hardware/virtual-uno.test.ts',
+    [
+      'drives a pin without PWM HIGH from 128 up and LOW below (EMU-06), warning once per pin',
+      'drives a duty on a PWM pin (v/255, contract §5.1), 0 LOW and 255 HIGH, and charges each its measured cost',
+      'clamps to 0..255 as the pwmWrite helper does (U-32), with value-clamped once per pin',
+      'a servo takes Timer1: PWM on D10 stays LOW and warns timer-claimed, also when the PWM came first (EMU-04)',
+      'a tone takes Timer2 while it plays: D3/D11 PWM stays LOW, and stays off after noTone until a new analogWrite (Tone.cpp:449)',
+      'a tone that ends by itself frees Timer2 the same way: no PWM on D3/D11 until a new analogWrite (contract EMU-14, phase E)',
+    ],
+    'The virtual UNO\'s analogWrite: on a pin without PWM HIGH from 128 and LOW below; a duty of v/255 on a PWM pin, 0 LOW and 255 HIGH; values clamped to 0..255; a servo holds Timer1 and a tone Timer2: PWM on D9/D10 and D3/D11 stays LOW with timer-claimed, also after noTone or a tone that ended, until a new analogWrite',
+  ),
+};
+
+/** The L1 evidence of each row: the tests above that run it. A row with none stays PENDING. */
+const simTests: Readonly<Record<string, readonly EvidenceRef[]>> = {
+  'U-01': ['TST-01', 'TST-02'],
+  'U-02': ['TST-02'],
+  'U-03': ['TST-01', 'TST-02'],
+  'U-04': ['TST-01', 'TST-02'],
+  'U-05': ['TST-01', 'TST-02'],
+  'U-06': ['TST-01', 'TST-02', 'TST-05'],
+  'U-07': ['TST-01', 'TST-02'],
+  'U-08': ['TST-02', 'TST-03'],
+  'U-09': ['TST-01', 'TST-02'],
+  'U-10': ['TST-01'],
+  'U-11': ['TST-01'],
+  'U-12': ['TST-01', 'TST-02'],
+  'U-13': ['TST-01'],
+  'U-14': ['TST-01', 'TST-02', 'TST-05'],
+  'U-15': ['TST-01', 'TST-02'],
+  'U-16': ['TST-01', 'TST-02'],
+  'U-17': ['TST-01', 'TST-02'],
+  'U-18': ['TST-04', 'TST-05'],
+  'U-19': ['TST-01', 'TST-03', 'TST-05'],
+  'U-20': ['TST-03', 'TST-05'],
+  'U-21': ['TST-03', 'TST-04', 'TST-05'],
+  'U-22': ['TST-03', 'TST-04', 'TST-05'],
+  'U-23': ['TST-03', 'TST-04', 'TST-05'],
+  'U-24': ['TST-03', 'TST-04', 'TST-05'],
+  'U-25': ['TST-03', 'TST-04', 'TST-05'],
+  'U-26': ['TST-03', 'TST-05'],
+  'U-27': ['TST-03', 'TST-04', 'TST-05'],
+  'U-28': ['TST-03', 'TST-04', 'TST-05'],
+  'U-29': ['TST-03', 'TST-05'],
+  'U-30': ['TST-03', 'TST-04', 'TST-05'],
+  'U-31': ['TST-03', 'TST-05'],
+  'U-32': ['TST-03', 'TST-05', 'TST-06'],
+  'U-33': ['TST-03', 'TST-05'],
+  'U-34': ['TST-03', 'TST-05'],
+  'U-48': ['TST-04', 'TST-06'],
+};
+
 // --- Builders ------------------------------------------------------------------------------
 
 const claim = (kind: ClaimKind, sources: EvidenceRef | readonly EvidenceRef[], statement: string): Claim => ({
@@ -180,12 +316,17 @@ const ADVANCED: Profiles = ['uno-advanced'];
 const tierBoth = { 'uno-basic': 'MUST', 'uno-advanced': 'MUST' } as const;
 const tierAdvanced = { 'uno-advanced': 'MUST' } as const;
 
-const levels = (l1By: string, l2e: readonly EvidenceRef[]): ClaimLevels => ({
-  L1: { status: 'PENDING', by: l1By },
+/** An open row's levels: L1 from the tests that run it (`simTests`), L2 the contract-forms compile, L2e its traces, L3 the board (M06). */
+const levels = (id: string, l2e: readonly EvidenceRef[]): ClaimLevels => ({
+  L1: l1Of(id),
   L2: { status: 'PASS', evidence: ['CC-03'] },
   L2e: { status: 'PASS', evidence: l2e },
   L3: { status: 'PENDING', by: 'M06' },
 });
+const l1Of = (id: string): ClaimLevels['L1'] => {
+  const tests = simTests[id];
+  return tests === undefined ? { status: 'PENDING', by: 'a test of the simulator that runs the row' } : { status: 'PASS', evidence: tests };
+};
 const notOfferedLevels: ClaimLevels = {
   L1: { status: 'n/a', note: 'Not offered.' },
   L2: { status: 'n/a', note: 'Not offered.' },
@@ -330,7 +471,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['The on-start body is written inside void setup(), after the setup lines the rows need (Serial.begin, pinMode, attach).'],
     modules: ['U-M1'],
     cpp: cpp('void setup() {\n  <setup lines>\n  <body>\n}'),
-    levels: levels('R2.3', ['EMU-13']),
+    levels: levels('U-01', ['EMU-13']),
     fields: open({
       call: field([compiles('void setup() { … } holds the start body.')]),
       block: field([doc('ARD-11', 'setup() runs once, after each power-up or reset.')], ['EMU-13']),
@@ -349,7 +490,7 @@ const exposedRows: readonly ConstructContract[] = [
     ],
     modules: ['U-M1'],
     cpp: cpp('void loop() {\n  <body>\n}'),
-    levels: levels('R2.3', ['EMU-08', 'EMU-13']),
+    levels: levels('U-02', ['EMU-08', 'EMU-13']),
     fields: open({
       call: field([compiles('void loop() { <body> }; without forever, void loop() {}.')]),
       block: field([doc('ARD-11', 'loop() loops consecutively.')], ['EMU-08']),
@@ -365,7 +506,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['Every learner variable is a long at file scope, set to 0L. A comparison stored in it is 1 or 0.'],
     modules: ['U-M1'],
     cpp: cpp('long <name> = 0L; · <name> = <expr>;'),
-    levels: levels('R2.3', ['EMU-10', 'EMU-13']),
+    levels: levels('U-03', ['EMU-10', 'EMU-13']),
     fields: open({
       call: field([compiles('long <name> = 0L; at file scope; <name> = <expr>; in a body.')]),
       range: field([doc('ARD-09', 'A long stores 32 bits, from -2,147,483,648 to 2,147,483,647.')], ['EMU-10']),
@@ -386,7 +527,7 @@ const exposedRows: readonly ConstructContract[] = [
     ],
     modules: ['U-M1'],
     cpp: cpp('<n>L', { variants: ['(-2147483647L - 1L)'] }),
-    levels: levels('R2.3', ['EMU-10', 'EMU-13']),
+    levels: levels('U-04', ['EMU-10', 'EMU-13']),
     fields: open({
       call: field([compiles('300L, (-2147483647L - 1L).')]),
       range: field(
@@ -414,7 +555,7 @@ const exposedRows: readonly ConstructContract[] = [
     ],
     modules: ['U-M1'],
     cpp: cpp('add32(<a>, <b>) · sub32(<a>, <b>) · mul32(<a>, <b>)', { variants: sequencedForms, helpers: ['int32'] }),
-    levels: levels('R2.3', ['EMU-11', 'EMU-13', 'EMU-15']),
+    levels: levels('U-05', ['EMU-11', 'EMU-13', 'EMU-15']),
     fields: open({
       call: field([compiles('add32, sub32 and mul32 compile and inline.'), sequencedCall('(_s1 = <read>, _s2 = <read>, sub32(_s1, _s2)).')]),
       content: sequencedContent('The two arguments of add32, sub32 and mul32'),
@@ -438,7 +579,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['Truncates toward zero (-7 / 2 = -3).', 'INT32_MIN / -1 is INT32_MIN (wrap).', 'x / 0 is 0 on the board and in the simulator, which also warns division-by-zero once per block per run.', sequencing],
     modules: ['U-M1'],
     cpp: cpp('div32(<a>, <b>)', { variants: sequencedForms, helpers: ['int32'] }),
-    levels: levels('R2.3', ['EMU-10', 'EMU-13', 'EMU-15']),
+    levels: levels('U-06', ['EMU-10', 'EMU-13', 'EMU-15']),
     fields: open({
       call: field([compiles('div32 compiles.'), sequencedCall('(_s1 = <read>, _s2 = <read>, div32(_s1, _s2)).')]),
       content: sequencedContent('The two arguments of div32'),
@@ -456,7 +597,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['The remainder takes the sign of the dividend (-7 % 2 = -1, 7 % -2 = 1).', 'x % -1 is 0, INT32_MIN % -1 included.', 'x % 0 is 0, with the division-by-zero warning in the simulator.', sequencing],
     modules: ['U-M1'],
     cpp: cpp('mod32(<a>, <b>)', { variants: sequencedForms, helpers: ['int32'] }),
-    levels: levels('R2.3', ['EMU-10', 'EMU-13', 'EMU-15']),
+    levels: levels('U-07', ['EMU-10', 'EMU-13', 'EMU-15']),
     fields: open({
       call: field([compiles('mod32 compiles.'), sequencedCall('(_s1 = <read>, _s2 = <read>, mod32(_s1, _s2)).')]),
       content: sequencedContent('The two arguments of mod32'),
@@ -474,7 +615,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['-INT32_MIN is INT32_MIN (wrap).'],
     modules: ['U-M1'],
     cpp: cpp('neg32(<a>)', { helpers: ['int32'] }),
-    levels: levels('R2.3', ['EMU-13']),
+    levels: levels('U-08', ['EMU-13']),
     fields: open({
       call: field([compiles('neg32 compiles.')]),
       return: field([language('CXX-02', '0UL - (unsigned long)a is modulo 2^32.'), language('CXX-03', 'and converts back to long modulo 2^32.')], ['EMU-10', 'EMU-13']),
@@ -489,7 +630,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['< <= > >= == != on two longs: no arithmetic, so no overflow.', sequencing],
     modules: ['U-M1'],
     cpp: cpp('(<a> < <b>) · (<a> <= <b>) · (<a> > <b>) · (<a> >= <b>) · (<a> == <b>) · (<a> != <b>)', { variants: sequencedForms }),
-    levels: levels('R2.3', ['EMU-13', 'EMU-15']),
+    levels: levels('U-09', ['EMU-13', 'EMU-15']),
     fields: open({
       call: field([compiles('The six comparisons compile on long operands.'), sequencedCall('(_s1 = <read>, _s2 = <read>, (_s1 < _s2)).')]),
       content: sequencedContent('The two operands of a comparison'),
@@ -505,7 +646,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['&& and || evaluate the right side only when needed, as in the simulator.'],
     modules: ['U-M1'],
     cpp: cpp('(<a> && <b>) · (<a> || <b>) · !(<a>) · true · false'),
-    levels: levels('R2.3', ['EMU-13']),
+    levels: levels('U-10', ['EMU-13']),
     fields: open({
       call: field([compiles('&&, ||, ! and the bool literals compile.')]),
       return: field([language('CXX-05', '&& skips the right side when the left is false, || when it is true; the result is a bool.')], ['EMU-13']),
@@ -520,7 +661,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: [],
     modules: ['U-M1'],
     cpp: cpp('if (<c>) {\n  <body>\n} else if (<c2>) {\n  <body2>\n} else {\n  <body3>\n}'),
-    levels: levels('R2.3', ['EMU-13']),
+    levels: levels('U-11', ['EMU-13']),
     fields: open({ call: field([compiles('if / else if / else compiles.')]) }),
   },
   {
@@ -532,7 +673,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['N is evaluated once, before the loop; N <= 0 runs no iteration.', '_r < _n with _n <= INT32_MAX: _r += 1L never overflows.'],
     modules: ['U-M1'],
     cpp: cpp('{ const long _n = (<count>); for (long _r = 0L; _r < _n; _r += 1L) { <body> } }'),
-    levels: levels('R2.3', ['EMU-13']),
+    levels: levels('U-12', ['EMU-13']),
     fields: open({
       call: field([compiles('The repeat form compiles; nested repeats shadow _n and _r in their own block.')]),
       range: field([language('CXX-07', 'The for statement tests _r < _n before each iteration: N <= 0 runs none.')], ['EMU-13']),
@@ -548,7 +689,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['No hidden delay: a while without wait spins on the board; the simulator charges NODE_US per node and never runs ahead of the world.'],
     modules: ['U-M1'],
     cpp: cpp('while (<c>) {\n  <body>\n}'),
-    levels: levels('R2.3', ['EMU-13']),
+    levels: levels('U-13', ['EMU-13']),
     fields: open({ call: field([compiles('while compiles.')]) }),
   },
   {
@@ -565,7 +706,7 @@ const exposedRows: readonly ConstructContract[] = [
     ],
     modules: ['U-M1'],
     cpp: cpp('{ const long _from = (<start>); const long _to = (<end>); for (long _c = _from; _c <= _to; _c += 1L) { <var> = _c; <body> } }'),
-    levels: levels('R2.3', ['EMU-10', 'EMU-13']),
+    levels: levels('U-14', ['EMU-10', 'EMU-13']),
     fields: open({
       call: field([compiles('The count up form compiles; nested ones shadow _from, _to and _c in their own block.')]),
       range: byDomain('end > 2147483646 is outside the domain.'),
@@ -599,7 +740,7 @@ const exposedRows: readonly ConstructContract[] = [
     ],
     modules: ['U-M1'],
     cpp: cpp('Serial.println(<expr>);', { setup: ['Serial.begin(9600);'] }),
-    levels: levels('R2.3', ['EMU-08', 'EMU-10', 'EMU-13']),
+    levels: levels('U-15', ['EMU-08', 'EMU-10', 'EMU-13']),
     fields: open({
       call: field([compiles('Serial.begin(9600); in setup, Serial.println(<long or bool>).')]),
       block: field([doc('ARD-08', 'A write returns at once while the transmit buffer has room, and blocks while it is full.')], ['EMU-08']),
@@ -622,7 +763,7 @@ const exposedRows: readonly ConstructContract[] = [
     ],
     modules: ['U-M1'],
     cpp: cpp('Serial.println(F("<text>"));', { setup: ['Serial.begin(9600);'] }),
-    levels: levels('R2.3', ['EMU-13']),
+    levels: levels('U-16', ['EMU-13']),
     fields: open({
       call: field([compiles('Serial.println(F("…")) with \\" and \\\\ escapes and UTF-8 text.')]),
       range: byDomain('Control characters are outside the domain: a compile error.'),
@@ -640,7 +781,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['Each part is its own Serial.print, the last a Serial.println; text parts use F().'],
     modules: ['U-M1'],
     cpp: cpp('Serial.print(<part>); … Serial.println(<last>);', { variants: ['Serial.print(F("<text>"));'], setup: ['Serial.begin(9600);'] }),
-    levels: levels('R2.3', ['EMU-13']),
+    levels: levels('U-17', ['EMU-13']),
     fields: open({
       call: field([compiles('Serial.print(F("x = ")); Serial.println(x);')]),
       block: field([doc('ARD-08', 'As U-15.')], ['EMU-08']),
@@ -656,7 +797,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['ms is 0..60000 (a limit of the domain, not of the board).', 'The board waits ms × 1000 µs plus 5..13 µs; the simulator charges ms × 1000 + delayOverhead.'],
     modules: ['U-M1'],
     cpp: cpp('delay(<ms>);'),
-    levels: levels('R2.3', ['EMU-01', 'EMU-08', 'EMU-13']),
+    levels: levels('U-18', ['EMU-01', 'EMU-08', 'EMU-13']),
     fields: open({
       call: field([compiles('delay(<long>) compiles; the long converts to unsigned long within the domain.')]),
       unit: field([doc('ARD-17', 'delay takes milliseconds.')], ['EMU-01']),
@@ -680,7 +821,7 @@ const exposedRows: readonly ConstructContract[] = [
     ],
     modules: ['U-M1'],
     cpp: cpp('(long)millis()'),
-    levels: levels('R1.3, R2.3', ['EMU-12', 'EMU-13']),
+    levels: levels('U-19', ['EMU-12', 'EMU-13']),
     fields: open({
       call: field([compiles('(long)millis() compiles.')]),
       unit: field([doc('ARD-05', 'Milliseconds since the program started.')], ['EMU-12']),
@@ -706,7 +847,7 @@ const exposedRows: readonly ConstructContract[] = [
       helpers: ['hbridge-en-in1-in2'],
       setup: ['pinMode(<ROLE>_EN, OUTPUT);', 'pinMode(<ROLE>_IN1, OUTPUT);', 'pinMode(<ROLE>_IN2, OUTPUT);'],
     }),
-    levels: levels('R1.4', ['EMU-02', 'EMU-07', 'EMU-13']),
+    levels: levels('U-20', ['EMU-02', 'EMU-07', 'EMU-13']),
     fields: open({
       call: field([compiles('motorSet(EN, IN1, IN2, speed) with the pins of the kit as #define.')]),
       unit: field([doc('ARD-01', 'The EN duty is analogWrite 0..255.'), trace('EMU-02', 'D5/D6 run at 976.5625 Hz.')]),
@@ -733,7 +874,7 @@ const exposedRows: readonly ConstructContract[] = [
     cpp: cpp('{ const long _s = (<speed>); motorSet(MOTOR_LEFT_EN, MOTOR_LEFT_IN1, MOTOR_LEFT_IN2, <_s|neg32(_s)>); motorSet(MOTOR_RIGHT_EN, MOTOR_RIGHT_IN1, MOTOR_RIGHT_IN2, <_s|neg32(_s)>); }', {
       helpers: ['hbridge-en-in1-in2', 'int32'],
     }),
-    levels: levels('R1.4', ['EMU-13']),
+    levels: levels('U-21', ['EMU-13']),
     fields: open({
       call: field([compiles('The drive form compiles with both motors of the kit.')]),
       clamp: field([trace('EMU-13', 'As U-20: each motor clamps its own speed.')]),
@@ -752,7 +893,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['Both motors 0: all four IN pins and both EN LOW.'],
     modules: ['U-M1'],
     cpp: cpp('motorSet(MOTOR_LEFT_EN, MOTOR_LEFT_IN1, MOTOR_LEFT_IN2, 0L); motorSet(MOTOR_RIGHT_EN, MOTOR_RIGHT_IN1, MOTOR_RIGHT_IN2, 0L);', { helpers: ['hbridge-en-in1-in2'] }),
-    levels: levels('R1.4', ['EMU-02', 'EMU-13']),
+    levels: levels('U-22', ['EMU-02', 'EMU-13']),
     fields: open({
       call: field([compiles('Two motorSet(…, 0L) calls.')]),
       block: field([costs('two motorSet calls')]),
@@ -778,7 +919,7 @@ const exposedRows: readonly ConstructContract[] = [
       globals: ['Servo <role>;'],
       setup: ['<role>.attach(<ROLE>_PIN);', '<role>.write(90);'],
     }),
-    levels: levels('R1.4', ['EMU-03', 'EMU-07', 'EMU-13']),
+    levels: levels('U-23', ['EMU-03', 'EMU-07', 'EMU-13']),
     fields: open({
       call: field([compiles('Servo <role>; attach and write(90) in setup; servoSet(<role>, angle).')]),
       import: field([compiles('#include <Servo.h>')]),
@@ -801,7 +942,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['pinMode OUTPUT in setup(); the LED starts off.'],
     modules: ['U-M1'],
     cpp: cpp('digitalWrite(<ROLE>_PIN, (<on>) ? HIGH : LOW);', { setup: ['pinMode(<ROLE>_PIN, OUTPUT);'] }),
-    levels: levels('R1.4', ['EMU-01', 'EMU-13']),
+    levels: levels('U-24', ['EMU-01', 'EMU-13']),
     fields: open({
       call: field([compiles('digitalWrite(PIN, (cond) ? HIGH : LOW).')]),
       default: field([trace('EMU-01', 'pinMode OUTPUT drives the pin LOW.')]),
@@ -824,7 +965,7 @@ const exposedRows: readonly ConstructContract[] = [
     ],
     modules: ['U-M1'],
     cpp: cpp('buzzerTone(<ROLE>_PIN, <hz>, <ms>);', { variants: ['(_s<k> = <read>, … buzzerTone(<ROLE>_PIN, <hz>, <ms>));'], helpers: ['buzzer-tone'] }),
-    levels: levels('R1.4', ['EMU-05', 'EMU-07', 'EMU-13', 'EMU-15']),
+    levels: levels('U-25', ['EMU-05', 'EMU-07', 'EMU-13', 'EMU-15']),
     fields: open({
       call: field([compiles('buzzerTone(PIN, hz, ms) compiles.'), sequencedCall('(_s1 = <read>, _s2 = <read>, buzzerTone(PIN, _s1, _s2));')]),
       unit: field([doc('ARD-03', 'Frequency in Hz, duration in milliseconds.')], ['EMU-13']),
@@ -850,7 +991,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['noTone: the pin goes LOW at once.'],
     modules: ['U-M1'],
     cpp: cpp('noTone(<ROLE>_PIN);'),
-    levels: levels('R1.4', ['EMU-05', 'EMU-13']),
+    levels: levels('U-26', ['EMU-05', 'EMU-13']),
     fields: open({
       call: field([compiles('noTone(PIN).')]),
       block: field([costs('noTone takes 6.375 µs')]),
@@ -870,7 +1011,7 @@ const exposedRows: readonly ConstructContract[] = [
     ],
     modules: ['U-M1'],
     cpp: cpp('ultrasonicCm(<ROLE>_TRIG, <ROLE>_ECHO)', { helpers: ['hcsr04-pulsein'], setup: ['pinMode(<ROLE>_TRIG, OUTPUT);', 'pinMode(<ROLE>_ECHO, INPUT);'] }),
-    levels: levels('R1.4, R3', ['EMU-03', 'EMU-07', 'EMU-13']),
+    levels: levels('U-27', ['EMU-03', 'EMU-07', 'EMU-13']),
     fields: open({
       call: field([compiles('ultrasonicCm(TRIG, ECHO) compiles.')]),
       unit: field([doc('ARD-04', 'pulseIn returns microseconds.'), trace('EMU-03', '1160 µs → 19 or 20 cm at 58 µs per cm.')]),
@@ -891,7 +1032,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['Driver line-digital: dark when the pin reads LOW if the kit says activeLow, HIGH otherwise; the generator writes the level the kit gives.'],
     modules: ['U-M1'],
     cpp: cpp('(digitalRead(<ROLE>_PIN) == <LOW|HIGH>)', { setup: ['pinMode(<ROLE>_PIN, INPUT);'] }),
-    levels: levels('R1.4, R3', ['EMU-13']),
+    levels: levels('U-28', ['EMU-13']),
     fields: open({
       call: field([compiles('(digitalRead(A0) == HIGH), (digitalRead(A1) == LOW).')]),
       block: field([costs('digitalRead on A0..A2 takes 3.9375 µs')]),
@@ -908,7 +1049,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['analogRead 0..1023 on an analog pin; the first read of a run costs 201.8125 µs, the next ones 105.8125 µs.'],
     modules: ['U-M1'],
     cpp: cpp('(long)analogRead(<ROLE>_PIN)'),
-    levels: levels('R1.4, R3', ['EMU-07', 'EMU-13']),
+    levels: levels('U-29', ['EMU-07', 'EMU-13']),
     fields: open({
       call: field([compiles('(long)analogRead(A2).')]),
       range: field([doc('ARD-02', '0..1023.'), trace('EMU-07', '0 V → 0, 5 V → 1023.')]),
@@ -926,7 +1067,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['Driver button-pullup: INPUT_PULLUP in setup(); pressed when the pin reads LOW. No debounce.'],
     modules: ['U-M1'],
     cpp: cpp('(digitalRead(<ROLE>_PIN) == LOW)', { setup: ['pinMode(<ROLE>_PIN, INPUT_PULLUP);'] }),
-    levels: levels('R1.4', ['EMU-07', 'EMU-13']),
+    levels: levels('U-30', ['EMU-07', 'EMU-13']),
     fields: open({
       call: field([compiles('pinMode(PIN, INPUT_PULLUP); (digitalRead(PIN) == LOW).')]),
       default: field([doc('ARD-16', 'INPUT_PULLUP turns on the internal pull-up: a released button reads HIGH.')]),
@@ -943,7 +1084,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['Only a pin the kit leaves free and that is not reserved (D0/D1 with Serial): otherwise a compile error pin-unavailable.', 'pinMode OUTPUT in setup().'],
     modules: ['U-M1'],
     cpp: cpp('digitalWrite(<pin>, (<v>) ? HIGH : LOW);', { setup: ['pinMode(<pin>, OUTPUT);'] }),
-    levels: levels('R1.2, R1.3', ['EMU-13']),
+    levels: levels('U-31', ['EMU-13']),
     fields: open({
       call: field([compiles('digitalWrite(A3, (cond) ? HIGH : LOW).')]),
       range: byDomain('A pin the kit uses, or D0/D1 with Serial, is outside the domain.'),
@@ -967,7 +1108,7 @@ const exposedRows: readonly ConstructContract[] = [
     ],
     modules: ['U-M1'],
     cpp: cpp('pwmWrite(<pin>, <value>);', { helpers: ['pwm-write'] }),
-    levels: levels('R1.2, R1.3', ['EMU-06', 'EMU-13']),
+    levels: levels('U-32', ['EMU-06', 'EMU-13']),
     fields: open({
       call: field([compiles('pwmWrite(A3, value).')]),
       unit: field([doc('ARD-01', 'value is the duty cycle, 0 (always off) to 255 (always on).'), trace('EMU-06', '490.196 Hz and 976.5625 Hz.')]),
@@ -993,7 +1134,7 @@ const exposedRows: readonly ConstructContract[] = [
     ],
     modules: ['U-M1'],
     cpp: cpp('(digitalRead(<pin>) == HIGH)', { setup: ['pinMode(<pin>, <mode>);'] }),
-    levels: levels('R1.2, R1.3', ['EMU-13']),
+    levels: levels('U-33', ['EMU-13']),
     fields: open({
       call: field([compiles('(digitalRead(3) == HIGH).')]),
       default: field([
@@ -1015,7 +1156,7 @@ const exposedRows: readonly ConstructContract[] = [
     restrictions: ['A0..A5 only, and only one the kit wires to an analog module (line sensors).'],
     modules: ['U-M1'],
     cpp: cpp('(long)analogRead(<pin>)'),
-    levels: levels('R1.2, R1.3', ['EMU-07', 'EMU-13']),
+    levels: levels('U-34', ['EMU-07', 'EMU-13']),
     fields: open({
       call: field([compiles('(long)analogRead(A2).')]),
       range: field([doc('ARD-02', '0..1023.')], ['EMU-07']),
@@ -1064,7 +1205,7 @@ const closedRows: readonly ConstructContract[] = [
         doc(['ARD-12', 'ARD-03'], 'Servo disables PWM on pins 9 and 10; tone interferes with PWM on pins 3 and 11.'),
       ]),
     },
-    { L1: { status: 'PENDING', by: 'R1.2: timer-claimed' }, L2: { status: 'PASS', evidence: ['CC-01'] }, L2e: { status: 'PASS', evidence: ['EMU-04', 'EMU-05'] }, L3: { status: 'PENDING', by: 'M06' } },
+    { L1: l1Of('U-48'), L2: { status: 'PASS', evidence: ['CC-01'] }, L2e: { status: 'PASS', evidence: ['EMU-04', 'EMU-05'] }, L3: { status: 'PENDING', by: 'M06' } },
   ),
   closedRow('U-49', 'Servo.detach, writeMicroseconds, a servo on a pin outside the kit', 'EXCLUDED', 'detach leaves Timer1 in normal mode (no PWM on D9/D10 until reset, EMU-04); the block sets angles only.'),
   closedRow('U-50', 'tone on a pin other than the buzzer, two tones at once', 'EXCLUDED', 'The core plays one tone at a time (ARD-03); the buzzer role owns it.'),
@@ -1088,7 +1229,7 @@ const withParity = (row: ConstructContract): ConstructContract =>
 export const unoContract: UnoContract = {
   contractId: 'uno-arduino-avr',
   version: '0.1.7',
-  status: 'v0 (R0.3): every open row is established; L1 waits for R1/R2, L3 for M06.',
+  status: 'v0 (R0.3): every open row is established; L1 rests on tests of the simulator (N18 final fix M4), L3 waits for M06.',
   snapshot: {
     pinnedOn: day,
     fqbn: 'arduino:avr:uno',
@@ -1104,7 +1245,7 @@ export const unoContract: UnoContract = {
       'The exact board (MCU, USB-serial chip, bootloader) is UNKNOWN; this contract is pinned to arduino-cli 1.5.1, arduino:avr@1.8.8, Servo 1.3.0 and avr8js 0.21.1 for an ATmega328P at 16 MHz as of 2026-10-25, and is not a timeless compatibility guarantee.',
   },
   rv1: 'ACCEPT_WITH_RESTRICTIONS',
-  evidence,
+  evidence: { ...evidence, ...testEvidence },
   board: {
     mcu: 'atmega328p',
     clockHz: 16_000_000,
