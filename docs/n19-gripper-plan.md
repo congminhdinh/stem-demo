@@ -421,7 +421,7 @@ Số đo và lệnh tái lập: `spikes/n19-b56/results.md`. Test: `world/robot/
   - Danh sách tên mà test giữ là `determinismFixtures` (đọc từ file fixture, không có list chữ ở `robot-determinism.test.ts:73`). Một test mới pin cả 6 tên.
 - **M7 (B2 review 3):** test kẹp ngang ghi đúng trạng thái dừng. Khối 60 g lệch tâm giữ một ngón lún 2,11–2,99 mm khi càng còn được lệnh đóng. Test assert dải đó, ngoài đỉnh 3,82 mm.
 
-### 4.12 Ghi lại khi làm E4 + E5 (bản đồ 2D, overlay 3D, tag; thắng §7 E4/E5 khi mâu thuẫn)
+### 4.13 Ghi lại khi làm E4 + E5 (bản đồ 2D, overlay 3D, tag; thắng §7 E4/E5 khi mâu thuẫn)
 
 - **Vẽ lại lúc nằm yên (việc của E5 từ review B3/B4 M1):**
   - `sameSensorView` so theo từng kiểu readout. IR so `detected` và `hitId`. Cảm biến màu so `hitId`, `distanceCm` (trong 0,05 cm), có `rgbc` hay chưa, và **tên màu** đọc được (`shownColor` = `classifyColor`, cùng `COLOR_RULES` với `color.is`). Số đếm đổi mà vẫn cùng màu thì không vẽ lại.
@@ -450,10 +450,17 @@ Số đo và lệnh tái lập: `spikes/n19-b56/results.md`. Test: `world/robot/
     - pose của `gripper-pose.ts` 265 byte/lần (double trong field). Overlay tự tính chỗ giá kẹp, chỉ khi tay đổi góc. `poseGripper` của E6 vẫn gọi hàm này mỗi frame có vẽ; ghi cho E9;
     - truyền màu dạng số khi vẽ lại đốm: 48 byte.
 - **Bản đồ 2D:** boom, giá kẹp, hai ngàm có viền tối và đệm cao su, vẽ theo `robot.gripper`; vòng tím quanh vật đang giữ; vật tô màu riêng kèm hoa văn; tia IR, đốm màu và tag giống overlay 3D. Rover không có node nào mới.
-- **Màu vật trong view theo arena (lượt 0).** `variants.objectColors` của lượt khác không đổi màu vẽ trong 3D lẫn 2D (đã vậy từ E7), còn chip HUD và tag vật thì đọc tên theo lượt. Ghi cho D4/E8: bài phân loại xem lại lượt 2 sẽ vẽ màu của lượt 0.
+- **Màu vật theo lượt đang xem** (phán quyết 8, vòng 2):
+  - Snapshot của lượt chạy (`RobotRunSnapshot.objectColors`) mang màu từng vật trong arena của chính world lượt đó (`applyVariant`), tức đúng màu cảm biến màu đọc. Field này không thuộc world nên hash không đổi, là cùng một object đông cứng cho mọi lần publish của lượt, và chỉ có khi kịch bản có `variants.objectColors`; rover không có.
+  - Các view đọc nó qua `shownObjectColors` (`round-colors.ts`): Chạy, mọi lượt Kiểm tra 1×/4×, lượt mà check để lại trên màn hình, và "Xem lại lượt N". Không chạy gì thì dùng màu của arena (lượt 1). UI không tự tính lại biến thể.
+  - Bản đồ 2D tô màu và hoa văn theo nó. View 3D dựng sẵn, cho mỗi vật được biến thể đổi màu, một prop cho mỗi màu nó có (khối của bài phân loại: 3), rồi `paint` chỉ hiện prop của lượt; không dựng lại, không vẽ thêm frame nào lúc nằm yên. Scene dự phòng (hình đơn giản) cũng tô theo nó.
+  - Mỗi lượt chỉ có một lần render React. Chip HUD và tag vật vẫn đặt tên theo chỉ số lượt (`variantObjectColors`, cùng hàm mà `applyVariant` dùng), nên khớp với màu tô.
 - **Cho D4 (đo trong e2e của E4/E5):** hạ tay lên khối 4 cm có tâm cách gốc giá kẹp ≤ 3 cm thì giá kẹp đè lên khối làm khối nghiêng (z 2,34–2,48). Ở 3,5–4,5 cm thì gắp được; ở 3,5 và 4 cm IR thấy khối, ở 4,5 cm thì không (mặt gần ở u 2,5 > 2,3).
 - **Pixel rover** (`spikes/n19-e45/results/rover-pixels.txt`): 44 ảnh 3D và 14 ảnh bản đồ 2D có lớp cảm biến, so BASE 0a7a479 với HEAD: trùng bit. Riêng sandbox-high lật giữa hai trạng thái giữa các lần chạy ở cả hai bản; mỗi ảnh HEAD trùng bit một ảnh BASE.
-- **Vùng của goal tiếp theo** (`nextGoalZoneId`) chưa biết các goal gắp/đặt, nên bài gắp chưa có vùng sáng. Ngoài phạm vi E4/E5; ghi cho D4.
+- **Vùng của goal tiếp theo** (concern 3, vòng 2): `nextGoalZoneId` biết `object-placed`. Nó trả về `zone` của goal, hoặc với `zoneByColor` thì trả về vùng ứng với màu của vật trong lượt đang xem. Nhờ đó bài gắp làm sáng vùng thả như bài rover làm sáng vùng đích.
+  - `goalZoneIds` là bộ vùng dùng chung cho hai overlay.
+  - Vùng theo màu được nhớ theo cặp goal × màu, nên frame callback của overlay 3D không tạo rác: đo 63,9–65,9 byte/update, như trước.
+  - Kết quả của rover được ghim bằng bản N18 của hàm, trên mọi bài và mọi trạng thái điểm.
 
 ## 5. Review Focus
 
