@@ -3,6 +3,8 @@ import type { GoalContact } from '../../core/scenario/goals/frame';
 import type { RobotCheckResult } from '../../core/scenario/check-result';
 import { goalReasons, type GoalResult } from '../../core/scenario/goals';
 import type { RobotGoalSpec, Scenario } from '../../core/scenario/scenario';
+import { variantObjectColors } from '../../core/scenario/variants';
+import { bodyColorName } from '../../core/world/arena/body-colors';
 import { isMessageKey, type Locale, type MessageKey } from '../i18n/messages';
 import type { Text } from '../i18n/text';
 import { formatNumber } from './format';
@@ -15,6 +17,10 @@ import { formatNumber } from './format';
 //     N18 bt-lab-fix (c3): a wall that carries that tag (the dock wall is an `obstacle` by its tag and a wall by its kind) is named a wall,
 //     from the collider the run ended on (`endContact`), when the report has it.
 //   - A round whose program ended in an error fails every goal with `program-error` (R6.2): that is said once, on the round, not on each goal.
+//   - N19 D3: a pick-and-place reason names its objects and zones as the learner sees them in that round: an object by its noun, its colour
+//     in that round (variants.ts `variantObjectColors`) and, when two objects share both, its number among them in arena order ("khối đỏ",
+//     "kiện hàng 2", "bệ vàng"); a zone by its name ("vùng xanh dương"). "Xe làm rơi kiện hàng 2 lúc 8,2 s ở lượt 2", "Khối đỏ nằm ở vùng
+//     xanh dương ở lượt 3". A clause may start with a name, so its first letter is made upper case, in the learner's language.
 //   - The numbers are the check's (RobotCheckResult and each round's end), never a live score: a round that ended in an error scores 0 here.
 
 /** One round of a check as it ended (the check's `variant-ended` progress). */
@@ -67,17 +73,84 @@ const hitOf = (t: Text, tag: string | undefined, variant: VariantOutcome): strin
   return thingOf(t, tag !== undefined && hit !== undefined && hit.tags.includes(tag) && hit.tags.includes('wall') ? 'wall' : tag);
 };
 
-/** A clause with its time and round. */
+/** N19 D3: the text with its first letter in upper case, as the learner's language writes it ("khối đỏ…" is "Khối đỏ…"). */
+export function capitalise(text: string, locale: Locale): string {
+  const first = text.codePointAt(0);
+  if (first === undefined) return text;
+  const letter = String.fromCodePoint(first);
+  return letter.toLocaleUpperCase(locale) + text.slice(letter.length);
+}
+
+/** A clause with its time and round, its first letter in upper case. */
 const when = (t: Text, locale: Locale, what: string, index: number, atS: number | undefined): string =>
   atS === undefined
-    ? t('robot.check.explain.round', { what, round: index + 1 })
-    : t('robot.check.explain.at', { what, time: formatNumber(atS, locale, 1), round: index + 1 });
+    ? t('robot.check.explain.round', { what: capitalise(what, locale), round: index + 1 })
+    : t('robot.check.explain.at', { what: capitalise(what, locale), time: formatNumber(atS, locale, 1), round: index + 1 });
+
+/** What a report needs of the scenario to name its objects and zones (a `Scenario` is one). */
+export type NamingScenario = Pick<Scenario, 'arena' | 'variants'>;
+
+/** The colour of each object in round `index`: the variant's, or the arena's for a round the scenario does not have. */
+function roundColors(scenario: NamingScenario, index: number): Readonly<Record<string, string>> {
+  if (Number.isInteger(index) && index >= 0 && index < scenario.variants.count) return variantObjectColors(scenario, index);
+  return Object.fromEntries(scenario.arena.objects.flatMap((object) => (object.color === undefined ? [] : [[object.id, object.color] as const])));
+}
+
+/**
+ * N19 D3: what the learner calls the object `id` in round `index`: its noun ("khối"; "vật" without one), its colour in that round when the
+ * palette has a word for it, and its number among the objects with the same noun and colour when there are more than one. An object the
+ * arena does not have, or no scenario, is "the object".
+ */
+export function objectName(t: Text, scenario: NamingScenario | undefined, id: string | undefined, index: number): string {
+  const object = id === undefined ? undefined : scenario?.arena.objects.find((candidate) => candidate.id === id);
+  if (scenario === undefined || object === undefined) return t('robot.object.name', { noun: t('robot.object.noun.other') });
+  const colors = roundColors(scenario, index);
+  const colorOf = (candidate: { id: string }) => bodyColorName(Object.hasOwn(colors, candidate.id) ? colors[candidate.id] : undefined);
+  const color = colorOf(object);
+  const twins = scenario.arena.objects.filter((candidate) => candidate.noun === object.noun && colorOf(candidate) === color);
+  const noun = t(`robot.object.noun.${object.noun ?? 'other'}`);
+  const number = twins.length > 1 ? twins.indexOf(object) + 1 : undefined;
+  if (color === undefined) return number === undefined ? t('robot.object.name', { noun }) : t('robot.object.name.index', { noun, index: number });
+  const colorWord = t(`robot.color.${color}`);
+  return number === undefined ? t('robot.object.name.color', { noun, color: colorWord }) : t('robot.object.name.color.index', { noun, color: colorWord, index: number });
+}
+
+/** N19 D3: what the learner calls the zone `id`: its name ("vùng xanh dương"), or `fallback` for a zone without one (or none). */
+function zoneName(t: Text, scenario: NamingScenario | undefined, id: string | undefined, fallback: 'robot.zone.name.other' | 'robot.zone.name.target'): string {
+  const name = id === undefined ? undefined : scenario?.arena.paint.zones.find((zone) => zone.id === id)?.name;
+  return t(name === undefined ? fallback : `robot.zone.name.${name}`);
+}
+
+/** The zone an `object-placed` goal sends its object to in round `index`: its `zone`, or the zone of the object's colour in that round. */
+function targetZoneOf(spec: RobotGoalSpec, scenario: NamingScenario | undefined, index: number): string | undefined {
+  if (spec.kind !== 'object-placed') return undefined;
+  if (spec.zone !== undefined || scenario === undefined) return spec.zone;
+  const colors = roundColors(scenario, index);
+  const color = Object.hasOwn(colors, spec.object) ? colors[spec.object]!.toLowerCase() : undefined;
+  return Object.entries(spec.zoneByColor ?? {}).find(([key]) => key.toLowerCase() === color)?.[1];
+}
+
+/** The objects a goal is about: the one it moves, or the top and the bottom of a stack. */
+function goalObjects(spec: RobotGoalSpec): { object?: string; base?: string } {
+  switch (spec.kind) {
+    case 'object-held':
+    case 'object-placed':
+    case 'object-unmoved':
+    case 'object-in-zone':
+      return { object: spec.object };
+    case 'object-on-object':
+      return { object: spec.top, base: spec.bottom };
+    default:
+      return {};
+  }
+}
 
 /**
  * Why `result`, the goal `spec`'s in the round `variant`, did not pass, or null when it passed or when the round ended in an error (that is
- * the round's to say, `variantFailureText`).
+ * the round's to say, `variantFailureText`). `scenario` names the objects and zones of a pick-and-place reason (N19 D3); without it they are
+ * "the object" and "another zone".
  */
-export function goalFailureText(t: Text, locale: Locale, spec: RobotGoalSpec, result: GoalResult, variant: VariantOutcome): string | null {
+export function goalFailureText(t: Text, locale: Locale, spec: RobotGoalSpec, result: GoalResult, variant: VariantOutcome, scenario?: NamingScenario): string | null {
   if (result.passed || result.reasonKey === undefined || result.reasonKey === goalReasons.programError) {
     return null;
   }
@@ -91,7 +164,14 @@ export function goalFailureText(t: Text, locale: Locale, spec: RobotGoalSpec, re
       : result.reasonKey === goalReasons.runEndedContact
         ? hitOf(t, variant.end?.tag, variant)
         : '';
-  return when(t, locale, t(key, { thing }), variant.index, result.atS);
+  const { object, base } = goalObjects(spec);
+  const names = {
+    object: objectName(t, scenario, object, variant.index),
+    base: objectName(t, scenario, base, variant.index),
+    zone: zoneName(t, scenario, result.detail?.zoneId, 'robot.zone.name.other'),
+    target: zoneName(t, scenario, targetZoneOf(spec, scenario, variant.index), 'robot.zone.name.target'),
+  };
+  return when(t, locale, t(key, { thing, ...names }), variant.index, result.atS);
 }
 
 /** Why the round `variant` failed as a whole: its program (or the simulation) stopped with an error, at that time. Null otherwise. */
@@ -113,7 +193,7 @@ export function checkReport(scenario: Scenario, result: RobotCheckResult, varian
     passed: result.goals[index]?.passed === true,
     why: variants.flatMap((variant) => {
       const outcome = variant.goals.find((goal) => goal.id === spec.id);
-      const text = outcome === undefined ? null : goalFailureText(t, locale, spec, outcome, variant);
+      const text = outcome === undefined ? null : goalFailureText(t, locale, spec, outcome, variant, scenario);
       return text === null ? [] : [text];
     }),
   }));

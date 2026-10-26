@@ -15,6 +15,8 @@ export type FrameInit = {
   contacts?: GoalFrame['contacts'];
   servoDeg?: GoalFrame['servoDeg'];
   outOfArena?: boolean;
+  /** N19 D2: the gripper of a kit with one; left out, the frame has none. */
+  gripper?: GoalFrame['gripper'];
 };
 
 export function frameAt(init: FrameInit = {}): GoalFrame {
@@ -34,6 +36,7 @@ export function frameAt(init: FrameInit = {}): GoalFrame {
     leds: {},
     buzzerHz: null,
     outOfArena: init.outOfArena ?? false,
+    ...(init.gripper === undefined ? {} : { gripper: init.gripper }),
   };
 }
 

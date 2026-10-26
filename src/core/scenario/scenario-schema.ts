@@ -60,6 +60,10 @@ const goalIdSchema = z
 const pointsSchema = wholeFrom(0, 'must be a whole number, 0 or more');
 const positive = z.number().positive('must be more than 0');
 const servoDeg = z.number().min(0, `must be from 0 to ${SERVO_DEG_MAX}`).max(SERVO_DEG_MAX, `must be from 0 to ${SERVO_DEG_MAX}`);
+const lengthCm = z.number().min(0, 'must be 0 or more');
+/** N19 D2: how far an object may lean, degrees (frame.ts `tiltDeg`). */
+const TILT_DEG_MAX = 90;
+const tiltDeg = z.number().min(0, `must be from 0 to ${TILT_DEG_MAX}`).max(TILT_DEG_MAX, `must be from 0 to ${TILT_DEG_MAX}`);
 
 const goalBase = { id: goalIdSchema, label: localized(GOAL_LABEL_MAX_CHARS), points: pointsSchema };
 
@@ -74,6 +78,16 @@ export const goalKinds = [
   'finish-within',
   'uses-block',
 ] as const;
+
+/**
+ * N19 D2 (plan §4.5): the kinds of goal about an object the robot picks up and puts down, which read the gripper's side of the goal frame
+ * (frame.ts `held`, `zCm`, `tiltDeg`). Listed apart from the N18 kinds above, whose schema fixture (all-goals.scenario.json) has one of each;
+ * the pick-and-place fixture (pick-place.scenario.json) has one of each of these.
+ */
+export const pickPlaceGoalKinds = ['object-held', 'object-placed', 'object-on-object', 'object-unmoved'] as const;
+
+/** Every kind of goal a scenario can have: the N18 kinds, then the N19 pick-and-place ones. */
+export const allGoalKinds = [...goalKinds, ...pickPlaceGoalKinds] as const;
 
 /** What a goal asks; each kind is judged by `core/scenario/goals/<kind>.ts` (R6.1). Zones and objects are named by arena id. */
 const goalSchema = z.discriminatedUnion('kind', [
@@ -97,8 +111,35 @@ const goalSchema = z.discriminatedUnion('kind', [
   }),
   z.strictObject({ ...goalBase, kind: z.literal('finish-within'), seconds: positive }),
   z.strictObject({ ...goalBase, kind: z.literal('uses-block'), blockType: z.string() }),
+  // N19 D2 (plan §4.5): goals/<kind>.ts says what each asks; the defaults are the plan's.
+  z.strictObject({ ...goalBase, kind: z.literal('object-held'), object: z.string(), holdS: positive.default(0.5), minLiftCm: lengthCm.default(0) }),
+  z.strictObject({
+    ...goalBase,
+    kind: z.literal('object-placed'),
+    object: z.string(),
+    /** The zone the object goes to; or, with `zoneByColor`, the zone of the colour the object has in the variant. Exactly one of the two. */
+    zone: z.string().optional(),
+    /** By colour ("#rrggbb", any case): the keys are checked with the rules, so that a bad one is named like a bad colour anywhere. */
+    zoneByColor: z.record(z.string(), z.string()).optional(),
+    fully: z.boolean().default(true),
+    maxTiltDeg: tiltDeg.default(15),
+    restS: positive.default(0.5),
+    carried: z.boolean().default(true),
+    maxSlideCm: lengthCm.default(3),
+  }),
+  z.strictObject({
+    ...goalBase,
+    kind: z.literal('object-on-object'),
+    top: z.string(),
+    bottom: z.string(),
+    maxOffsetCm: lengthCm,
+    maxTiltDeg: tiltDeg,
+    restS: positive,
+    carried: z.boolean().default(true),
+  }),
+  z.strictObject({ ...goalBase, kind: z.literal('object-unmoved'), object: z.string(), maxMoveCm: lengthCm, maxTiltDeg: tiltDeg.default(20) }),
 ], {
-  error: (issue) => `unknown goal kind ${JSON.stringify((issue.input as { kind?: unknown } | null)?.kind)}; the kinds are ${goalKinds.join(', ')}`,
+  error: (issue) => `unknown goal kind ${JSON.stringify((issue.input as { kind?: unknown } | null)?.kind)}; the kinds are ${allGoalKinds.join(', ')}`,
 });
 
 /** Where the robot starts: the point of the floor under the middle of its body, and its heading. */
@@ -319,7 +360,7 @@ function variantIssues(scenario: ScenarioShape, add: Add): void {
       continue;
     }
     if (colors.length !== variants.count) add(at, `needs one colour per variant (${variants.count}), not ${colors.length}`);
-    if (colors.length > 0 && !sameColor(colors[0], object.color)) {
+    if (colors.length > 0 && colorSchema.safeParse(colors[0]).success && !sameColor(colors[0], object.color)) {
       add([...at, 0], `variant 0 is the arena as authored, so this must be the colour the arena gives "${id}" (${object.color ?? 'it gives none'})`);
     }
   }
@@ -364,6 +405,11 @@ function goalIssues(scenario: ScenarioShape, add: Add): void {
 
   const zoneAt = (path: (string | number)[], zone: string) => {
     if (!zoneIds.includes(zone)) add(path, `no zone "${zone}" in the arena (${zoneIds.length > 0 ? `zones: ${zoneIds.join(', ')}` : 'the arena has no zones'})`);
+  };
+  const objectAt = (path: (string | number)[], object: string): boolean => {
+    if (objectIds.includes(object)) return true;
+    add(path, noObjectMessage(arena, object));
+    return false;
   };
   const withinTimeLimit = (path: (string | number)[], seconds: number) => {
     if (seconds > scenario.timeLimitS) add(path, `must not be more than the time limit (${scenario.timeLimitS} s)`);
@@ -417,7 +463,69 @@ function goalIssues(scenario: ScenarioShape, add: Add): void {
           add(at('blockType'), `the toolbox does not list "${goal.blockType}"`);
         }
         break;
+      case 'object-held':
+        objectAt(at('object'), goal.object);
+        withinTimeLimit(at('holdS'), goal.holdS);
+        break;
+      case 'object-placed':
+        if (objectAt(at('object'), goal.object)) placedZoneIssues(scenario, goal, i, add);
+        else if (goal.zone !== undefined) zoneAt(at('zone'), goal.zone);
+        withinTimeLimit(at('restS'), goal.restS);
+        break;
+      case 'object-on-object':
+        objectAt(at('top'), goal.top);
+        objectAt(at('bottom'), goal.bottom);
+        if (goal.top === goal.bottom) add(at('bottom'), `must be another object than top ("${goal.top}")`);
+        withinTimeLimit(at('restS'), goal.restS);
+        break;
+      case 'object-unmoved':
+        objectAt(at('object'), goal.object);
+        break;
     }
+  });
+}
+
+/**
+ * N19 D2: `object-placed` goes to one zone, or to the zone of the object's colour, never both; every colour the object has in a variant (the
+ * arena's, or its list in `variants.objectColors`) has a zone of the arena, and each colour is listed once whatever the case of its digits.
+ */
+function placedZoneIssues(scenario: ScenarioShape, goal: Extract<ScenarioShape['goals'][number], { kind: 'object-placed' }>, index: number, add: Add): void {
+  const at = (...path: (string | number)[]) => ['goals', index, ...path];
+  const zoneIds = scenario.arena.paint.zones.map((zone) => zone.id);
+  const noZone = (zone: string) => `no zone "${zone}" in the arena (${zoneIds.length > 0 ? `zones: ${zoneIds.join(', ')}` : 'the arena has no zones'})`;
+  if ((goal.zone === undefined) === (goal.zoneByColor === undefined)) {
+    add(at(), 'needs a zone or a zoneByColor, one of the two');
+    return;
+  }
+  if (goal.zone !== undefined) {
+    if (!zoneIds.includes(goal.zone)) add(at('zone'), noZone(goal.zone));
+    return;
+  }
+  const byColor = Object.entries(goal.zoneByColor ?? {});
+  const seen = new Map<string, string>();
+  for (const [color, zone] of byColor) {
+    if (!colorSchema.safeParse(color).success) {
+      add(at('zoneByColor', color), 'a colour is "#rrggbb"');
+      continue;
+    }
+    if (!zoneIds.includes(zone)) add(at('zoneByColor', color), noZone(zone));
+    const earlier = seen.get(color.toLowerCase());
+    if (earlier !== undefined) add(at('zoneByColor', color), `the colour ${color} is listed already (${earlier})`);
+    else seen.set(color.toLowerCase(), color);
+  }
+  const object = scenario.arena.objects.find((candidate) => candidate.id === goal.object)!;
+  const listed = scenario.variants.objectColors;
+  const colors = listed !== undefined && Object.hasOwn(listed, goal.object) ? listed[goal.object]! : object.color === undefined ? [] : [object.color];
+  if (colors.length === 0) {
+    add(at('zoneByColor'), `needs an object with a colour ("${goal.object}" has none)`);
+    return;
+  }
+  const told = new Set<string>();
+  colors.forEach((color, variant) => {
+    // A colour that is not one is told where it is written (variants.objectColors); the rules still run after a format issue.
+    if (!colorSchema.safeParse(color).success || seen.has(color.toLowerCase()) || told.has(color.toLowerCase())) return;
+    told.add(color.toLowerCase());
+    add(at('zoneByColor'), `no zone for ${color}, the colour of "${goal.object}" in variant ${variant} (colours: ${[...seen.values()].join(', ') || 'none'})`);
   });
 }
 

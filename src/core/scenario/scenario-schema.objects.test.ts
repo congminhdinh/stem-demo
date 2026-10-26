@@ -71,6 +71,7 @@ describe('variants.objectJitter and variants.objectColors', () => {
       'variants.objectColors.parcel-1[0]: variant 0 is the arena as authored, so this must be the colour the arena gives "parcel-1" (it gives none)',
     ]);
     expect(issuesOf(edited((s) => (s.variants.objectColors.cube[2] = 'blue')))).toEqual(['variants.objectColors.cube[2]: a colour is "#rrggbb"']);
+    expect(issuesOf(edited((s) => (s.variants.objectColors.cube[0] = 'red')))).toEqual(['variants.objectColors.cube[0]: a colour is "#rrggbb"']);
   });
 
   it('takes the arena’s colour in another case for the first entry: a colour is the same whatever the case of its hex digits', () => {

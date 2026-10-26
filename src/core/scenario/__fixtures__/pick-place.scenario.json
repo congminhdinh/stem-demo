@@ -46,7 +46,12 @@
   },
   "timeLimitS": 60,
   "goals": [
-    { "id": "push-cube", "kind": "object-in-zone", "label": { "vi": "Đẩy khối vào vùng thả", "en": "Push the cube into the drop zone" }, "points": 100, "object": "cube", "zone": "drop" }
+    { "id": "grab-cube", "kind": "object-held", "label": { "vi": "Gắp khối lên", "en": "Pick the cube up" }, "points": 20, "object": "cube", "minLiftCm": 2 },
+    { "id": "place-cube", "kind": "object-placed", "label": { "vi": "Đặt khối vào vùng thả", "en": "Put the cube in the drop zone" }, "points": 20, "object": "cube", "zone": "drop" },
+    { "id": "stack-cube", "kind": "object-on-object", "label": { "vi": "Xếp khối lên bệ", "en": "Stack the cube on the base" }, "points": 20, "top": "cube", "bottom": "base", "maxOffsetCm": 1.5, "maxTiltDeg": 10, "restS": 0.5 },
+    { "id": "base-still", "kind": "object-unmoved", "label": { "vi": "Không xê dịch bệ", "en": "Do not move the base" }, "points": 10, "object": "base", "maxMoveCm": 1 },
+    { "id": "sort-cube", "kind": "object-placed", "label": { "vi": "Đặt khối vào vùng cùng màu", "en": "Put the cube in the zone of its colour" }, "points": 20, "object": "cube", "zoneByColor": { "#d32f2f": "red-zone", "#388e3c": "green-zone", "#1976d2": "blue-zone" } },
+    { "id": "deliver-2", "kind": "object-placed", "label": { "vi": "Giao kiện hàng 2", "en": "Deliver parcel 2" }, "points": 10, "object": "parcel-2", "zone": "drop" }
   ],
   "scoring": {},
   "starter": { "blocks": { "languageVersion": 0, "blocks": [] } }

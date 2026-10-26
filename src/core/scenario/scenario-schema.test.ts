@@ -223,7 +223,7 @@ describe('goals', () => {
 
   it('refuses an unknown kind, a missing field of its kind and a field of another kind', () => {
     expect(issuesOf(editGoal(0, (g) => (g.kind = 'win')))).toEqual([
-      'goals[0].kind: unknown goal kind "win"; the kinds are reach-zone, checkpoints-in-order, stay-on-line, avoid-contact, object-in-zone, stop-in-zone, servo-angle, finish-within, uses-block',
+      'goals[0].kind: unknown goal kind "win"; the kinds are reach-zone, checkpoints-in-order, stay-on-line, avoid-contact, object-in-zone, stop-in-zone, servo-angle, finish-within, uses-block, object-held, object-placed, object-on-object, object-unmoved',
     ]);
     expect(issuesOf(editGoal(0, (g) => delete g.zone))).toEqual(['goals[0].zone: Invalid input: expected string, received undefined']);
     expect(issuesOf(editGoal(0, (g) => (g.minRatio = 0.5)))).toEqual(['goals[0]: Unrecognized key: "minRatio"']);

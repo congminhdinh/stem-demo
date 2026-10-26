@@ -38,7 +38,15 @@ export type GoalResult = {
   readonly reasonKey?: GoalReasonKey;
   /** The simulated time, in seconds, of the event that settled the goal. */
   readonly atS?: number;
+  /**
+   * N19 D2: what the reason is about, when the report needs more than the key: the zone an object ended in (`object-wrong-zone`). Left
+   * out when there is nothing to add, so the result of every N18 goal is what it was.
+   */
+  readonly detail?: GoalResultDetail;
 };
+
+/** N19 D2: the zone a reason is about, by arena id. */
+export type GoalResultDetail = { readonly zoneId: string };
 
 export type Goal = {
   /** The next tick: the world as it is after the step, and the length of the step in seconds. Ticks are fed in time order. */
@@ -66,13 +74,30 @@ export type GoalContext = {
 export type GoalSpec<K extends RobotGoalSpec['kind']> = Extract<RobotGoalSpec, { kind: K }>;
 
 type Met = { readonly passed: true; readonly atS?: number };
-type NotMet = { readonly passed: false; readonly progress: number; readonly reasonKey: GoalReasonKey; readonly atS?: number };
+type NotMet = {
+  readonly passed: false;
+  readonly progress: number;
+  readonly reasonKey: GoalReasonKey;
+  readonly atS?: number;
+  readonly detail?: GoalResultDetail;
+};
 
-/** Builds a result: the points follow from `passed`, a goal that has passed has no reason, and every goal that has not has one. */
+/**
+ * Builds a result: the points follow from `passed`, a goal that has passed has no reason, and every goal that has not has one. `atS` and
+ * `detail` are left out when they are undefined.
+ */
 export function outcome(spec: Pick<RobotGoalSpec, 'id' | 'points'>, o: Met | NotMet): GoalResult {
   if (o.passed) {
     return { id: spec.id, passed: true, points: spec.points, progress: 1, ...(o.atS === undefined ? {} : { atS: o.atS }) };
   }
   const progress = Number.isFinite(o.progress) ? Math.min(1, Math.max(0, o.progress)) : 0;
-  return { id: spec.id, passed: false, points: 0, progress, reasonKey: o.reasonKey, ...(o.atS === undefined ? {} : { atS: o.atS }) };
+  return {
+    id: spec.id,
+    passed: false,
+    points: 0,
+    progress,
+    reasonKey: o.reasonKey,
+    ...(o.atS === undefined ? {} : { atS: o.atS }),
+    ...(o.detail === undefined ? {} : { detail: { zoneId: o.detail.zoneId } }),
+  };
 }

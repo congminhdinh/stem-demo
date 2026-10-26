@@ -40,6 +40,40 @@ export const goalReasons = {
    * fails every goal of that variant with it, however far the frozen world got. No goal gives it.
    */
   programError: 'robot.goal.reason.program-error',
+
+  // N19 D2 (plan §4.5): the pick-and-place goals (object-held, object-placed, object-on-object, object-unmoved). `object-placed` gives the
+  // first that applies, in this order: out-of-arena, then these nine (object-pushed and object-never-held are one step: which of the two
+  // depends on whether the object was ever held). object-placed.ts says what each means.
+  /** `object-placed`, `object-on-object`: the robot still holds the object at the end. */
+  objectStillHeld: 'robot.goal.reason.object-still-held',
+  /** `object-placed`, `object-on-object` (carried): the object was pushed, never held, or slid farther than allowed since it was let go. */
+  objectPushed: 'robot.goal.reason.object-pushed',
+  /** `object-placed`, `object-on-object` (carried): the object was never held, and never pushed either. */
+  objectNeverHeld: 'robot.goal.reason.object-never-held',
+  /** `object-placed`: the object ended in another zone (the result's `detail.zoneId`): another named zone, or the zone of another colour. */
+  objectWrongZone: 'robot.goal.reason.object-wrong-zone',
+  /** `object-placed`: the robot let go of the object outside its zone (`atS` is when). */
+  objectDropped: 'robot.goal.reason.object-dropped',
+  /** `object-placed`: the object was let go over its zone and ended outside it. */
+  objectMovedOut: 'robot.goal.reason.object-moved-out',
+  /** `object-placed` (fully): the middle of the object is in its zone, but not all of it. */
+  objectPartlyInZone: 'robot.goal.reason.object-partly-in-zone',
+  /** `object-placed`, `object-on-object`, `object-unmoved`: the object leans more than the goal allows. */
+  objectTipped: 'robot.goal.reason.object-tipped',
+  /** `object-placed`, `object-on-object`: the object still moved, or the robot touched it, in the last `restS` of the run. */
+  objectNotAtRest: 'robot.goal.reason.object-not-at-rest',
+  /** `object-held`: the robot never touched the object. */
+  objectNotReached: 'robot.goal.reason.object-not-reached',
+  /** `object-held`: the robot touched the object but never held it for long enough. */
+  objectNotGrasped: 'robot.goal.reason.object-not-grasped',
+  /** `object-held`: the robot held the object for long enough, but never as high as the goal asks. */
+  objectNotLifted: 'robot.goal.reason.object-not-lifted',
+  /** `object-on-object`: the top object does not rest on the other one (it is not at the height of its top). */
+  objectNotStacked: 'robot.goal.reason.object-not-stacked',
+  /** `object-on-object`: the top object rests on the other one, but too far from its middle. */
+  stackOffCentre: 'robot.goal.reason.stack-off-centre',
+  /** `object-unmoved`: the object was moved farther than the goal allows (`atS` is when). */
+  objectMoved: 'robot.goal.reason.object-moved',
 } as const;
 
 export type GoalReasonKey = (typeof goalReasons)[keyof typeof goalReasons];

@@ -6,7 +6,7 @@ import { en, isMessageKey, vi } from './messages';
 // the goal library can give must be a message key with a text in both languages.
 describe('the reasons a robot goal can give', () => {
   it('has a reason for each kind of failure', () => {
-    expect(goalReasonKeys.length).toBe(15);
+    expect(goalReasonKeys.length).toBe(30);
     expect(new Set(goalReasonKeys).size).toBe(goalReasonKeys.length);
   });
 

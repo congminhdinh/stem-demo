@@ -14,6 +14,36 @@ export type GoalFootprint =
 /** A thing standing on the floor: the point under its centre, and its heading. */
 export type GoalPose = { readonly xCm: number; readonly yCm: number; readonly yawDeg: number };
 
+/**
+ * An arena object on this tick: where it stands, and (N19 D2, plan §4.4) how a kit with a gripper sees it. The N19 fields are types only
+ * here: the world fills them (N19 B4) for a kit with a gripper, and a world that does not (the rover's, D-G10) leaves them out. The
+ * pick-and-place goals read them as follows when they are left out: not held, resting on nothing, upright (a tilt of 0), and of no known
+ * height, which no goal that needs a height accepts.
+ */
+export type GoalObject = GoalPose & {
+  /** The height of the middle of the object above the floor, cm. */
+  readonly zCm?: number;
+  /**
+   * How far the object leans from standing on a face, in degrees, 0 or more: the world's own measure (dmath `atan2`), so a goal compares it
+   * as it comes and does no trigonometry of its own. A cube on any of its faces stands (0).
+   */
+  readonly tiltDeg?: number;
+  /** The gripper holds it (attached by the grasp, world/robot/grasp.ts). */
+  readonly held?: boolean;
+  /** The ids of the objects it rests on, in arena order. No goal kind reads it yet. */
+  readonly restingOn?: readonly string[];
+};
+
+/** N19 D2 (plan §4.4): the gripper of a kit that has one, on this tick. Types only here; N19 B4 fills it. */
+export type GoalGripper = {
+  /** The claw's angle, degrees: 0 open, 80 closed (the jaws meet). */
+  readonly clawDeg: number;
+  /** The lift's angle, degrees: 0 down, 90 up. */
+  readonly liftDeg: number;
+  /** The id of the object it holds, or null. */
+  readonly heldId: string | null;
+};
+
 /** One collider the robot touches on this tick, as the contact sensor names it. */
 export type GoalContact = {
   /** The id of the collider (an arena id, or a generated one that starts with "#"). */
@@ -45,7 +75,7 @@ export type GoalFrame = {
     readonly lineSpotsCm?: readonly PointCm[];
   };
   /** Every arena object (`arena.objects`) by id; a goal that names an object the frame lacks treats it as nowhere. */
-  readonly objects: Readonly<Record<string, GoalPose>>;
+  readonly objects: Readonly<Record<string, GoalObject>>;
   /** What the robot touches on this tick: a contact that lasts is in each of its frames. The floor and the robot's own parts are not contacts. */
   readonly contacts: readonly GoalContact[];
   /**
@@ -59,4 +89,6 @@ export type GoalFrame = {
   readonly buzzerHz: number | null;
   /** The robot has left the arena (fallen off the ground). The run is over for the goals that depend on where things are. */
   readonly outOfArena: boolean;
+  /** N19 D2: the gripper, for a kit that has one; left out for one that has none. */
+  readonly gripper?: GoalGripper;
 };
