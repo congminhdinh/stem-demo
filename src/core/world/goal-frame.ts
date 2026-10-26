@@ -1,6 +1,8 @@
 import type { PointCm } from './arena/arena-schema';
-import type { GoalFootprint, GoalFrame, GoalPose } from '../scenario/goals/frame';
-import type { ContactEvent, Pose, RobotSnapshot, SensorReadout, SnapshotObject } from './snapshot';
+import type { GoalFootprint, GoalFrame, GoalGripper, GoalObject, GoalPose } from '../scenario/goals/frame';
+import { atan2 } from './dmath';
+import type { ContactEvent, Pose, RobotSnapshot, SensorReadout, SnapshotGripper, SnapshotObject, SnapshotQuat } from './snapshot';
+import { radToDeg } from './units';
 
 // The goals' view of a tick (N18 R3.5, R6.1 ruling): a RobotSnapshot turned into the `GoalFrame` the goal library judges
 // (scenario/goals/frame.ts), plain centimetres and degrees in the arena's frame. Pure, no Rapier: the world gives the snapshot and
@@ -22,6 +24,14 @@ import type { ContactEvent, Pose, RobotSnapshot, SensorReadout, SnapshotObject }
 //     for the view.
 //   - `objects`: the arena's objects (`arena.objects`) by id; the dynamic boxes and cylinders of the snapshot are not goals' objects.
 //   - `servoDeg` by role, `leds` by role, `outOfArena` latched, `tS` the snapshot's `t`.
+//
+// N19 B4 (plan §4.4, §4.5, D-G10), for a kit with a gripper only (the snapshot's `robot.gripper`); a frame of a kit without one has none of
+// these fields, absent rather than undefined, so the rover's frames are byte for byte what they were:
+//   - `gripper`: the snapshot's, its angles snapped to a thousandth of a degree and clamped to 0..90 (GOAL_GRIPPER_RANGE_DEG), as `servoDeg`
+//     is (the physics leaves the claw at −0.5° on a held box and the lift a hair past 90°).
+//   - each arena object's `zCm`, the height of its middle (the snapshot's); `tiltDeg`, how far it leans off standing on a face
+//     (`tiltDegOf`, from its rotation and its shape, which the world gives: `extras.objects`); `held`, whether it is the gripper's `heldId`;
+//     `restingOn`, what the world measured it rests on (`extras.objects`, sensors/resting.ts).
 
 /** What a goal frame needs besides the snapshot. */
 export type GoalFrameExtras = {
@@ -35,6 +45,16 @@ export type GoalFrameExtras = {
   readonly servoRangeDeg: Readonly<Record<string, readonly [number, number]>>;
   /** The frequency the buzzer plays, Hz, or null when it is silent (R3.6 reads it from the pins). Left out: null. */
   readonly buzzerHz?: number | null;
+  /** N19 B4: for a kit with a gripper, each arena object's shape and what it rests on, by id. Left out for a kit without one. */
+  readonly objects?: Readonly<Record<string, GoalFrameObjectExtras>>;
+};
+
+/** N19 B4: what a goal frame needs of an arena object besides its pose (world.ts measures it). */
+export type GoalFrameObjectExtras = {
+  /** Its shape: a box stands on any face, a cylinder on an end (`tiltDegOf`). */
+  readonly shape: 'box' | 'cylinder';
+  /** The ids of the arena's colliders it rests on (the floor's `#ground` among them), sorted by id (sensors/resting.ts `restingOn`). */
+  readonly restingOn: readonly string[];
 };
 
 /** Where a thing stands, as a goal frame reads it: a snapshot's `Pose` is one. */
@@ -46,8 +66,10 @@ type StandingPose = Pick<Pose, 'xCm' | 'yCm' | 'yawDeg'>;
  */
 export type GoalFrameSource = {
   readonly t: number;
-  readonly robot: StandingPose & { readonly servoDeg: RobotSnapshot['robot']['servoDeg'] };
-  readonly objects: readonly { readonly id: string; readonly kind: SnapshotObject['kind']; readonly pose: StandingPose }[];
+  /** N19 B4: `gripper` for a kit that has one (the snapshot's). */
+  readonly robot: StandingPose & { readonly servoDeg: RobotSnapshot['robot']['servoDeg']; readonly gripper?: SnapshotGripper };
+  /** N19 B4: with a gripper, each object's height (`zCm`) and rotation, which the goals' height and tilt are read from. */
+  readonly objects: readonly { readonly id: string; readonly kind: SnapshotObject['kind']; readonly pose: StandingPose & { readonly zCm?: number; readonly rotation?: SnapshotQuat } }[];
   /** The line sensors' spots are read; any other sensor is skipped. */
   readonly sensors: readonly (Pick<Extract<SensorReadout, { kind: 'line-sensor' }>, 'kind' | 'spotCm'> | Pick<SensorReadout, 'kind'>)[];
   readonly leds: RobotSnapshot['leds'];
@@ -65,6 +87,27 @@ function goalServoDeg(deg: number, range: readonly [number, number] | undefined)
   return (range === undefined ? snapped : Math.min(range[1], Math.max(range[0], snapped))) + 0;
 }
 
+/** N19 B4: the range the goal frame clamps the gripper's angles to, degrees: claw 0 open … 80 closed, lift 0 down … 90 up (D-G3). */
+export const GOAL_GRIPPER_RANGE_DEG: readonly [number, number] = Object.freeze([0, 90] as const);
+
+/**
+ * N19 B4: how far a body leans off standing, degrees, 0..90: atan2(√(1 − m²), m) through dmath, m the largest |local axis · up| over a box's
+ * three axes (it stands on any face: a cube tipped onto a side reads 0, on an edge 45) or |axis · up| of a cylinder's axis (it stands on an
+ * end). `rotation` is a snapshot's, in the arena frame (z up): the up components of the body's local axes are the third row of its matrix.
+ */
+export function tiltDegOf(rotation: SnapshotQuat, shape: 'box' | 'cylinder'): number {
+  const { x, y, z, w } = rotation;
+  const upOfZ = Math.abs(1 - 2 * (x * x + y * y));
+  const m = shape === 'cylinder' ? upOfZ : Math.max(Math.abs(2 * (x * z - w * y)), Math.abs(2 * (y * z + w * x)), upOfZ);
+  const near = Math.min(1, m);
+  return radToDeg(atan2(Math.sqrt(Math.max(0, 1 - near * near)), near)) + 0;
+}
+
+/** N19 B4: the gripper as a goal reads it: each angle snapped to a thousandth of a degree and clamped to 0..90. */
+function goalGripper(gripper: SnapshotGripper): GoalGripper {
+  return { clawDeg: goalServoDeg(gripper.clawDeg, GOAL_GRIPPER_RANGE_DEG), liftDeg: goalServoDeg(gripper.liftDeg, GOAL_GRIPPER_RANGE_DEG), heldId: gripper.heldId };
+}
+
 /** The goal frame of a snapshot (see the top of this file), or of the world's lighter view of a tick. A new object each call; neither argument is changed. */
 export function toGoalFrame(snapshot: GoalFrameSource, extras: GoalFrameExtras): GoalFrame {
   const lineSpotsCm: PointCm[] = [];
@@ -73,8 +116,22 @@ export function toGoalFrame(snapshot: GoalFrameSource, extras: GoalFrameExtras):
     if (spotCm !== null) lineSpotsCm.push([spotCm[0], spotCm[1]]);
   }
   // fromEntries defines each id as an own field, so an id such as "__proto__" (letters and "_" are allowed) is an object like any other.
-  const objects: Record<string, GoalPose> = Object.fromEntries(
-    snapshot.objects.filter((object) => object.kind === 'object').map((object) => [object.id, goalPose(object.pose)]),
+  const gripper = snapshot.robot.gripper;
+  /** N19 B4: an object of a gripper car's frame, with its height, tilt, hold and support (see the top of this file). */
+  const gripperObject = (id: string, pose: GoalFrameSource['objects'][number]['pose'], held: string | null): GoalObject => {
+    const known = extras.objects !== undefined && Object.hasOwn(extras.objects, id) ? extras.objects[id] : undefined;
+    return {
+      ...goalPose(pose),
+      ...(pose.zCm === undefined ? {} : { zCm: pose.zCm }),
+      ...(pose.rotation === undefined ? {} : { tiltDeg: tiltDegOf(pose.rotation, known?.shape ?? 'box') }),
+      held: held === id,
+      restingOn: known === undefined ? [] : [...known.restingOn],
+    };
+  };
+  const objects: Record<string, GoalObject> = Object.fromEntries(
+    snapshot.objects
+      .filter((object) => object.kind === 'object')
+      .map((object) => [object.id, gripper === undefined ? goalPose(object.pose) : gripperObject(object.id, object.pose, gripper.heldId)]),
   );
   return {
     tS: snapshot.t,
@@ -87,5 +144,6 @@ export function toGoalFrame(snapshot: GoalFrameSource, extras: GoalFrameExtras):
     leds: snapshot.leds,
     buzzerHz: extras.buzzerHz ?? null,
     outOfArena: snapshot.outOfArena,
+    ...(gripper === undefined ? {} : { gripper: goalGripper(gripper) }),
   };
 }

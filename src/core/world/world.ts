@@ -7,7 +7,7 @@ import type { Arena, PointCm } from './arena/arena-schema';
 import { buildArena, type ArenaColliderInfo, type BuiltArena } from './arena/build-arena';
 import { createGroundPaint } from './arena/ground-paint';
 import type { GoalFrame } from '../scenario/goals/frame';
-import { toGoalFrame, type GoalFrameExtras, type GoalFrameSource } from './goal-frame';
+import { toGoalFrame, type GoalFrameExtras, type GoalFrameObjectExtras, type GoalFrameSource } from './goal-frame';
 import { createPhysicsWorld, initPhysics, PHYSICS_DT_S, PHYSICS_HZ, type Collider, type PhysicsWorld, type RigidBody } from './rapier';
 import { assembleRobot, stepWorld, type ActuatorTargets, type RobotBody, type RobotStart } from './robot/assembly';
 import { robotFootprint, startFootprintIssues } from './robot/footprint';
@@ -18,6 +18,7 @@ import type { ColliderLookup, SensedCollider } from './sensors/collider-lookup';
 import { measureColor } from './sensors/color';
 import { readContacts } from './sensors/contacts';
 import { measureIr } from './sensors/ir';
+import { restingOn } from './sensors/resting';
 import { LIFTED_HEIGHT_CM, measureLine, type LineReading } from './sensors/line';
 import { isOutOfArena } from './sensors/out-of-arena';
 import { sensedBodies } from './sensors/sensed-bodies';
@@ -86,6 +87,9 @@ import { CM_PER_M, degToRad, radToDeg, worldToArena, yawOfQuaternion, yawToQuate
 //     which is what the guard goals' reach (the farthest from the start, R5.2a fix round 1) is measured from.
 //   - `servoRangeDeg`, each servo's minDeg..maxDeg, which the adapter clamps the arm's physical angle to (the snapshot keeps it).
 //   - the contacts of the tick and the robot's outline on the floor.
+//   - N19 B4, for a kit with a gripper only: each arena object's shape and what it rests on (`objects`, sensors/resting.ts), for the frame's
+//     `tiltDeg` and `restingOn`; its source then carries the gripper and each object's height and rotation (goal-frame.ts). A kit without a
+//     gripper gives exactly what it gave before.
 
 /** What a world is built from. The arena and the start are the variant's already (`applyVariant`). */
 export type WorldInput = {
@@ -439,14 +443,15 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
     });
   };
 
-  /** What toGoalFrame reads of this tick, without what only a view needs (see `World.goalFrame`). */
+  /** What toGoalFrame reads of this tick, without what only a view needs (see `World.goalFrame`). N19 B4: with a gripper, its snapshot's gripper and each object's height and rotation. */
   const goalSource = (leds: Readonly<Record<string, boolean>>): GoalFrameSource => {
     const sensors: GoalFrameSource['sensors'][number][] = [];
     for (const sensor of lines) sensors.push({ kind: 'line-sensor', spotCm: seen.get(sensor.role)!.spotCm });
+    const objectPose = gripper === null ? standingPoseOf : poseOf;
     return {
       t: tick / PHYSICS_HZ,
-      robot: { ...standingPoseOf(robot.chassis.translation(), robot.chassis.rotation()), servoDeg: servoDegOf() },
-      objects: built.dynamicBodies.filter(({ kind }) => kind === 'object').map(({ id, kind, body }) => ({ id, kind, pose: standingPoseOf(body.translation(), body.rotation()) })),
+      robot: { ...standingPoseOf(robot.chassis.translation(), robot.chassis.rotation()), servoDeg: servoDegOf(), ...gripperOf() },
+      objects: built.dynamicBodies.filter(({ kind }) => kind === 'object').map(({ id, kind, body }) => ({ id, kind, pose: objectPose(body.translation(), body.rotation()) })),
       sensors,
       leds,
       outOfArena,
@@ -471,8 +476,18 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
       const point = worldToArena(localToWorld(position, rotation, local));
       return [plain(point.xCm), plain(point.yCm)];
     });
-    return deepFreeze({ contacts, speedCmS: plain(speedCmS), footprint: { kind: 'polygon', pointsCm }, servoRangeDeg });
+    const objects = gripper === null ? {} : { objects: objectExtras() };
+    return deepFreeze({ contacts, speedCmS: plain(speedCmS), footprint: { kind: 'polygon', pointsCm }, servoRangeDeg, ...objects });
   };
+
+  /** N19 B4: each arena object's shape and what it rests on, for a gripper car's goal frame (see the top of this file). */
+  const objectShapes = new Map(arena.objects.map((object) => [object.id, object.shape]));
+  const objectExtras = (): Record<string, GoalFrameObjectExtras> =>
+    Object.fromEntries(
+      built.dynamicBodies
+        .filter(({ kind }) => kind === 'object')
+        .map(({ id, body }) => [id, { shape: objectShapes.get(id) ?? 'box', restingOn: restingOn(physics, built, body.collider(0)) }]),
+    );
 
   try {
     measure(null);

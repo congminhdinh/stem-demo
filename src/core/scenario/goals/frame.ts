@@ -15,10 +15,10 @@ export type GoalFootprint =
 export type GoalPose = { readonly xCm: number; readonly yCm: number; readonly yawDeg: number };
 
 /**
- * An arena object on this tick: where it stands, and (N19 D2, plan §4.4) how a kit with a gripper sees it. The N19 fields are types only
- * here: the world fills them (N19 B4) for a kit with a gripper, and a world that does not (the rover's, D-G10) leaves them out. The
- * pick-and-place goals read them as follows when they are left out: not held, resting on nothing, upright (a tilt of 0), and of no known
- * height, which no goal that needs a height accepts.
+ * An arena object on this tick: where it stands, and (N19 D2, plan §4.4) how a kit with a gripper sees it. The world fills the N19 fields
+ * (N19 B4, world/goal-frame.ts) for a kit with a gripper, every one on every object, and a world that does not (the rover's, D-G10) leaves
+ * them out. The pick-and-place goals read them as follows when they are left out: not held, resting on nothing, upright (a tilt of 0), and
+ * of no known height, which no goal that needs a height accepts.
  */
 export type GoalObject = GoalPose & {
   /** The height of the middle of the object above the floor, cm. */
@@ -30,11 +30,17 @@ export type GoalObject = GoalPose & {
   readonly tiltDeg?: number;
   /** The gripper holds it (attached by the grasp, world/robot/grasp.ts). */
   readonly held?: boolean;
-  /** The ids of the objects it rests on, in arena order. No goal kind reads it yet. */
+  /**
+   * The ids of the arena's colliders it rests on (the floor's `#ground` among them; never the robot), sorted by id (UTF-16 code units): those
+   * it touches within 1 mm where their surface faces up (world/sensors/resting.ts). No goal kind reads it yet.
+   */
   readonly restingOn?: readonly string[];
 };
 
-/** N19 D2 (plan §4.4): the gripper of a kit that has one, on this tick. Types only here; N19 B4 fills it. */
+/**
+ * N19 D2 (plan §4.4): the gripper of a kit that has one, on this tick (N19 B4 fills it: the snapshot's, the angles snapped to 0.001° and
+ * clamped to 0..90).
+ */
 export type GoalGripper = {
   /** The claw's angle, degrees: 0 open, 80 closed (the jaws meet). */
   readonly clawDeg: number;
