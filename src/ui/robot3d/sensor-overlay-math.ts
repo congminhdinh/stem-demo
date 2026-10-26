@@ -189,18 +189,20 @@ function sameReadout(sa: SensorReadout, sb: SensorReadout): boolean {
       return sb.kind === 'ultrasonic' && sa.hitId === sb.hitId && Math.abs(sa.cm - sb.cm) < SAME_RAY_CM && Math.round(sa.cm * 10) === Math.round(sb.cm * 10);
     case 'line-sensor':
       return sb.kind === 'line-sensor' && sa.dark === sb.dark && (sa.spotCm === null) === (sb.spotCm === null);
+    // Fix round 1 (review M1): what is drawn, and only that. The IR beam shows whether it sees (not what its ray met: a black cube met and
+    // not seen is drawn as nothing met); the colour ray whether it meets something (its spot, or a dashed ray), how far, and the colour read.
     case 'ir-obstacle':
-      return sb.kind === 'ir-obstacle' && sa.detected === sb.detected && sa.hitId === sb.hitId;
+      return sb.kind === 'ir-obstacle' && sa.detected === sb.detected;
     case 'color-sensor':
-      return sb.kind === 'color-sensor' && sa.hitId === sb.hitId && sameReach(sa.distanceCm, sb.distanceCm) && (sa.rgbc === undefined) === (sb.rgbc === undefined) && shownColor(sa) === shownColor(sb);
+      return sb.kind === 'color-sensor' && (sa.hitId === null) === (sb.hitId === null) && sameReach(sa.distanceCm, sb.distanceCm) && (sa.rgbc === undefined) === (sb.rgbc === undefined) && shownColor(sa) === shownColor(sb);
   }
 }
 
 /**
  * Whether two worlds draw the same overlays, apart from where the robot is (the view's own picture, `sameView`, sees that): each
  * ultrasonic reading to 0.05 cm and to the tenth the label writes, and its echo, what a line sensor sees (the colour, and whether it is
- * lifted), N19 E5: whether the IR sees and what its ray meets, what the colour sensor's ray meets, how far (to 0.05 cm) and the colour its
- * counts read; the zone the next goal needs (in the round's `objectColors`, for a goal placed by colour) and the run's status (the pulse runs
+ * lifted), N19 E5: whether the IR sees, whether the colour sensor's ray meets something, how far (to 0.05 cm) and the colour its counts
+ * read; the zone the next goal needs (in the round's `objectColors`, for a goal placed by colour) and the run's status (the pulse runs
  * while it is `running`). A robot at rest changes none of these, so the overlays ask for no frame.
  */
 export function sameSensorView(a: RobotSnapshot | null, b: RobotSnapshot | null, goals: Scenario['goals'], objectColors: Readonly<Record<string, string>> = NO_COLORS): boolean {

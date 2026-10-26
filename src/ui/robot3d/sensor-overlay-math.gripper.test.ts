@@ -38,18 +38,18 @@ describe('when a gripper car’s overlays changed (N19 E5)', () => {
     expect(sameSensorView(a, world([ir(true, 'cube'), color('cube', 1.449, red)]), goals)).toBe(true);
   });
 
-  it('changes when the IR sees or stops seeing, or its ray meets another body', () => {
+  it('changes when the IR sees or stops seeing, and not for what its ray met, which nothing draws (fix round 1, review M1)', () => {
     const a = world([ir(false, null), color(null, null)]);
     expect(sameSensorView(a, world([ir(true, 'cube'), color(null, null)]), goals)).toBe(false);
-    // A black cube: met, not seen.
-    expect(sameSensorView(a, world([ir(false, 'cube'), color(null, null)]), goals)).toBe(false);
-    expect(sameSensorView(world([ir(true, 'cube'), color(null, null)]), world([ir(true, 'base'), color(null, null)]), goals)).toBe(false);
+    // A black cube: met, not seen: drawn as nothing seen.
+    expect(sameSensorView(a, world([ir(false, 'cube'), color(null, null)]), goals)).toBe(true);
+    expect(sameSensorView(world([ir(true, 'cube'), color(null, null)]), world([ir(true, 'base'), color(null, null)]), goals)).toBe(true);
   });
 
-  it('changes when the colour sensor’s ray meets something else or moves 0.05 cm or more, or its counts read another colour, or the first window ends', () => {
+  it('changes when the colour sensor’s ray meets something or nothing, moves 0.05 cm or more, its counts read another colour, or the first window ends; not for which body it met', () => {
     const a = world([ir(true, 'cube'), color('cube', 1.4, red)]);
     expect(sameSensorView(a, world([ir(true, 'cube'), color('cube', 1.46, red)]), goals)).toBe(false);
-    expect(sameSensorView(a, world([ir(true, 'cube'), color('#gripper', 1.4, red)]), goals)).toBe(false);
+    expect(sameSensorView(a, world([ir(true, 'cube'), color('#gripper', 1.4, red)]), goals)).toBe(true);
     expect(sameSensorView(a, world([ir(true, 'cube'), color(null, null, red)]), goals)).toBe(false);
     expect(sameSensorView(a, world([ir(true, 'cube'), color('cube', 1.4, blue)]), goals)).toBe(false);
     expect(sameSensorView(world([ir(true, 'cube'), color('cube', 1.4)]), a, goals)).toBe(false);

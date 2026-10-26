@@ -7,7 +7,8 @@ import { classifyColor, COLOR_RULES, COLOR_UNKNOWN } from './color-rules';
 // N19 E5: the 3D view's colour overlay classifies the sensor's counts in its frame callback (when they change: a new window, about every
 // 53 ms), so classifyColor makes no object (N18 P2: no garbage per frame). It was written with an object for the shares and a `for…of`
 // that destructured each rule, about 1.5 KB a call (measured). Its answers are the same: the reference below is that code, as it was
-// (A3, plan §4.3), and the two are held together over every boundary of COLOR_RULES and 20 000 readings of a seeded walk.
+// (A3, plan §4.3), and the two are held together over every boundary of COLOR_RULES (exact shares, shares that truncate, and shares
+// that truncate onto a bound from just above or fall just under it), and 20 000 readings of a seeded walk.
 
 /** classifyColor as A3 wrote it: the reference. */
 function reference(reading: Rgbc): number {
@@ -35,15 +36,43 @@ describe('classifyColor makes no garbage and answers as before (N19 E5)', () => 
       for (const r of shares) {
         for (const g of shares) {
           if (r + g > 1000) continue;
-          // r g b as counts with these shares of 10 000 (and the rest blue), and the same scaled by 7 (a share one count off its boundary).
-          for (const scale of [10, 70]) {
-            const reading = { c, r: r * scale, g: g * scale, b: (1000 - r - g) * scale };
+          // r g b as counts with exactly these shares (of 10 000, the rest blue), and with red one count more: then no share is a whole
+          // per mille, and each truncates (fix round 1, review M2: scaling all three by the same factor gave the same exact shares).
+          for (const reading of [
+            { c, r: r * 10, g: g * 10, b: (1000 - r - g) * 10 },
+            { c, r: r * 10 + 1, g: g * 10, b: (1000 - r - g) * 10 },
+          ]) {
             expect(classifyColor(reading), JSON.stringify(reading)).toBe(reference(reading));
             checked += 1;
           }
         }
       }
     }
+    // The truncation sitting on a rule's boundary: a channel whose exact share is a hair under, at, or a hair over each bound of the rules
+    // (229.6 truncates to 229, 230.0 is 230, 499.97 to 499, 500.03 to 500…), for each of r, g, b, with sums that make the shares inexact.
+    const bounds = [...new Set(COLOR_RULES.flatMap((rule) => [rule[3], rule[4], rule[5], rule[6], rule[7], rule[8]]).filter((bound) => bound > 0 && bound < 1000))];
+    let onBoundary = 0;
+    for (const bound of bounds) {
+      for (const sum of [2003, 3001, 7777, 65_521]) {
+        for (const offset of [-0.4, -0.03, 0, 0.03, 0.4, 0.97]) {
+          const counts = Math.floor(((bound + offset) * sum) / 1000);
+          if (counts <= 0 || counts >= sum) continue;
+          const rest = sum - counts;
+          for (const channel of ['r', 'g', 'b'] as const) {
+            const [first, second] = channel === 'r' ? (['g', 'b'] as const) : channel === 'g' ? (['r', 'b'] as const) : (['r', 'g'] as const);
+            for (const c of [250, 3999, 12_000, 40_000]) {
+              const reading = { c, r: 0, g: 0, b: 0, [channel]: counts, [first]: Math.floor(rest / 3), [second]: rest - Math.floor(rest / 3) } as Rgbc;
+              expect(classifyColor(reading), JSON.stringify(reading)).toBe(reference(reading));
+              // A share truncated onto the bound itself, from just above: what the truncation decides.
+              const exact = (counts * 1000) / sum;
+              if (Math.floor(exact) === bound && exact !== bound) onBoundary += 1;
+            }
+          }
+        }
+      }
+    }
+    expect(bounds.length).toBeGreaterThanOrEqual(8);
+    expect(onBoundary).toBeGreaterThan(100);
     let seed = 12_345;
     const next = (max: number) => {
       seed = (Math.imul(seed, 1_103_515_245) + 12_345) >>> 0;
