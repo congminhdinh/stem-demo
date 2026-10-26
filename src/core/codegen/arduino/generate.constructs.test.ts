@@ -48,7 +48,7 @@ describe('the generator’s copies of the contract', () => {
 
   it('covers every open C++ row of the contract that is an op', () => {
     const rows = new Set(Object.values(unoOps).map((entry) => entry.row));
-    expect([...rows].sort()).toEqual(['U-05', 'U-06', 'U-07', 'U-19', 'U-20', 'U-21', 'U-22', 'U-23', 'U-24', 'U-25', 'U-26', 'U-27', 'U-28', 'U-29', 'U-30', 'U-31', 'U-32', 'U-33', 'U-34']);
+    expect([...rows].sort()).toEqual(['U-05', 'U-06', 'U-07', 'U-19', 'U-20', 'U-21', 'U-22', 'U-23', 'U-24', 'U-25', 'U-26', 'U-27', 'U-28', 'U-29', 'U-30', 'U-31', 'U-32', 'U-33', 'U-34', 'U-35', 'U-36', 'U-37', 'U-38', 'U-39']);
   });
 
   it('says the contract it follows and the board it is for', () => {

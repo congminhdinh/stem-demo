@@ -76,9 +76,9 @@ const evidence: Record<EvidenceRef, EvidenceEntry> = {
   ),
   'EMU-16': entry(
     'EMU',
-    'avr8js 0.21.1 on Node 24.22.1 (Apple M4 Pro); HEX built by scripts/build-parity-hex.mjs with arduino-cli 1.5.1 for arduino:avr:uno (arduino:avr@1.8.8, Servo 1.3.0), tests/__parity__; pnpm test tests/uno-emulator-parity.test.ts (N18 C2)',
-    'C2 parity: the generated sketch of every C1 language golden, of the raw-pins golden, of one program per driver op of ref-uno-rover@0, of five with an LED right after tone() (literal, computed, and a loop of one literal call site at 31, 121 and 200 Hz) and of negate-drive (28 fixtures), its HEX on avr8js against the simulator with the same scripted inputs; pin events and Serial lines compared, each timed from the anchor it depends on',
-    '28 of 28 agree: every Serial line and pin state (duty, angle, tone ±1 %); every interval within its waits ±1 % and the allowed differences (largest with no line printed in it 0.276 %, driver-buzzer, but for the end of a tone that ends by itself: at 31 Hz a 40 ms tone is one pulse, its end 7246 µs early, tone-duration; lines queued behind the one before ≤ 0.58 µs; an LED right after a computed tone() in driver-tone-computed ≤ 5.94 µs, after a literal one, folded, up to 87.25 µs early in driver-tone-led and 290.69 µs in the 121 Hz loop); a simulator 200 µs late after a first tone(), 950 µs inside a literal one or 2000 µs inside a first one fails; Servo 1.3.0 sends its first pulse 52802 µs after attach(); a PWM, servo or tone change shows within one timer period; tone() inlined in sequenced-reads took ≥ 240.1 µs (224.375 alone)',
+    'avr8js 0.21.1 on Node 24.22.1 (Apple M4 Pro); HEX built by scripts/build-parity-hex.mjs with arduino-cli 1.5.1 for arduino:avr:uno (arduino:avr@1.8.8, Servo 1.3.0, Wire 1.0), tests/__parity__; the TWI through tests/parity/twi-device.ts (each phase after its bus time) to the TCS34725 model on both sides; pnpm test tests/uno-emulator-parity.test.ts (N18 C2; N19 C2 the gripper car\'s)',
+    'C2 parity: the generated sketch of every C1 language golden, of the raw-pins golden, of one program per driver op of ref-uno-rover@0, of five with an LED right after tone() (literal, computed, and a loop of one literal call site at 31, 121 and 200 Hz) and of negate-drive (28 fixtures); N19: of the gripper car\'s claw and arm, IR sensor, colour sensor with a scripted light and with none, and of every op of ref-uno-gripper@0 at once (5 fixtures, 33 in all); its HEX on avr8js against the simulator with the same scripted inputs; pin events and Serial lines compared, each timed from the anchor it depends on',
+    '28 of 28 agree: every Serial line and pin state (duty, angle, tone ±1 %); every interval within its waits ±1 % and the allowed differences (largest with no line printed in it 0.276 %, driver-buzzer, but for the end of a tone that ends by itself: at 31 Hz a 40 ms tone is one pulse, its end 7246 µs early, tone-duration; lines queued behind the one before ≤ 0.58 µs; an LED right after a computed tone() in driver-tone-computed ≤ 5.94 µs, after a literal one, folded, up to 87.25 µs early in driver-tone-led and 290.69 µs in the 121 Hz loop); a simulator 200 µs late after a first tone(), 950 µs inside a literal one or 2000 µs inside a first one fails; Servo 1.3.0 sends its first pulse 52802 µs after attach(); a PWM, servo or tone change shows within one timer period; tone() inlined in sequenced-reads took ≥ 240.1 µs (224.375 alone); N19: 5 of 5 gripper fixtures agree (every interval of 1 ms or more within 0.874 % with Serial in it, 0.013 % without; a gripper servo pulse within 6 µs; the lift, Timer1\'s second servo, pulses once at Timer1\'s first wrap, 32 817 µs after attach, and next a frame and the claw\'s 544 µs later; SDA and SCL INPUT_PULLUP from Wire.begin on both sides; a window ending between the first and the third data byte gives C from the window before and R, G, B from the next on both sides; no device: zeros and unknown)',
     ['emu-trace'],
     ['block', 'yield', 'return', 'content'],
   ),
@@ -97,6 +97,44 @@ const evidence: Record<EvidenceRef, EvidenceEntry> = {
     'computed, silent pin, longest per band: 306.5625 µs (31..121 Hz), 298.1875 (122..243), 258.9375 (244..486), 219.6875 (487..972), 181.5625 (973..3891), 143.3125 (3892..4000); playing pin 300.5625, 293.4375, 254, 214.625, 176.5625, 138.5; inside a band up to 5.3125 µs shorter on a silent pin, 6.5 µs (31..121 Hz) and 5.375 µs (244..486 Hz) on a playing one, 2.80 % at most (3892..4000 Hz, playing); with 75 call sites a literal frequency 0.25..6.25 µs shorter on a silent pin, -5.6875..+0.6875 µs on a playing one (longer at 122, 150, 200 Hz); at 1000 Hz with 1, 2, 3, 5 call sites: literal 17.6875, 99.75, 138.9375, 178.5625 µs (folded), computed 213.375, 187.9375, 187.9375, 181.5625; with 5 call sites at 31 Hz literal 308 µs (0.47 % over the band), computed 311; one literal call site at 31, 60, 121, 122, 200, 244, 440, 487, 1000, 4000 Hz: 17.625..17.75 µs',
     ['emu-trace'],
     ['block'],
+  ),
+  // N19 A5 (ADR 0004 §11; G0.2 and A3): the gripper car's forms, costs and compile, the TCS34725 datasheet and Wire's own documentation.
+  'EMU-19': entry(
+    'EMU',
+    'avr8js 0.21.1 on Node 24.22.1 (Apple M4 Pro); HEX built by arduino-cli 1.5.1 for arduino:avr:uno (arduino:avr@1.8.8, Servo 1.3.0, Wire 1.0); the TWI through spikes/avr8js/twi-device.ts (each phase completes after its bus time from TWBR, datasheet 7810D §21.5.2) to the TS TCS34725 (src/core/hardware/devices/tcs34725.ts); node spikes/avr8js/run-gripper.ts (N19 G0.2, spikes/avr8js/out/gripper-results.json)',
+    'sketches/gripper-forms: gripperSet(gripperClaw / gripperLift) on D9 / D10 with 80, 0, 120, -10, 45, 0 after attach + write(0) / write(90); (digitalRead(A3) == LOW) with A3 scripted HIGH then LOW; colorBegin(), then colorRaw(3, 0, 1, 2) and colorIs(0..6) under seven scripted lights of 250 ms (red, green, blue, yellow, white, black, none), read 150 ms into each; ID, STATUS, ATIME, CONTROL read back; the same HEX with no device at 0x29',
+    'every line as the TS side: C R G B red 11100 8047 1675 1377, green 8892 2165 4979 1747, blue 11150 988 4144 6017, yellow 17605 9565 6719 1320, white 21504 9717 8910 7297, black 3460 1292 1188 979, none 120 40 40 40; colorIs one 1 at the TS class of each (red, green, blue, yellow, white, black, unknown); ID 68, STATUS 1, ATIME 235, CONTROL 1; IR 0 then 1; Wire timeout flag 0; no device: every reading 0 0 0 0 and colorIs(6) only, ID 0, every transaction SLA+W NACK + STOP (85), no timeout; SCL 100000 Hz (TWBR 72, 160 cycles): every phase completes 160 × (1 START, 9 a byte, 1 STOP) cycles after its TWCR write, ≤ 5 cycles later (the instruction under way and an interrupt entry); transactions (START → STOP) against bus time + the CPU\'s uninterrupted service: W2 307.375 µs, W1 213, R1 213.125, R8 877.6875, NACK 118.1875 (bus 0.9457 of R8); with no other interrupt in them ≤ 0.899 % longer; with one, up to 3.081 % longer, never by more than the Servo, Timer0 and USART interrupts that ran in them; windows every 52800 µs (2.4 ms Init + 50.4 ms), the first ending 52800 µs after the ENABLE byte with AEN was written; every 8-byte read from a window wholly in its light; the eight data bytes read 336.5625…1021.4375 µs after the command write\'s START; servo pulses 544 / 1368 / 1472 / 544 µs (claw) and 1472 / 544 / 1008 µs (lift), 120 → 1472 and -10 → 544, each from the next frame; both on Timer1, the lift\'s pulse rising 10.75 µs after the claw\'s falls, frames 20003.0625 µs; a pulse 5.1875 µs long at most when a TWI or Timer0 interrupt held the Servo interrupt (TWI interrupt ≤ 20.125 µs: twi_stop() waits for the STOP inside it); avr8js sets TWINT after a STOP, the datasheet does not (§21.6): twi-device.ts clears it (left in place: +6.1875 µs a transaction, +12.375 µs a colorFetch)',
+    ['emu-trace'],
+    ['range', 'default', 'clamp', 'round', 'block', 'yield', 'return', 'error', 'content'],
+  ),
+  'EMU-20': entry(
+    'EMU',
+    'as EMU-19 (node spikes/avr8js/run-gripper.ts, out/gripper-results.json); where each bus event of colorBegin and colorFetch falls from the call: node spikes/avr8js/run-gripper-timeline.ts (N19 A3, out/gripper-timeline.json)',
+    'sketches/gripper-costs: each helper call between port-write markers, 8 samples (colorFetch 32, colorBegin 4), shortest minus the baseline; the TCS34725 on the bus under white light, and the same HEX with no device at 0x29; for the shortest sample of colorBegin and colorFetch, every TWI phase (when the program asked for it and when it completed) and every call the bus made on the device',
+    'gripperSet 51.4375 / 51.4375 / 51.625 / 50.8125 µs (claw 45, lift 45, 120 clamped, -5 clamped; Servo.write 45 50.4375, 120 50.8125): gripperSet 51.625; digitalRead(A3) 3.9375 µs (A1 3.9375, D4 3.9375), (digitalRead(A3) == LOW) 4.1875; colorFetch 1158.5 µs (median 1159.625, max 1169.125; with both servos 1159.4375…1184.4375), NACK 146.0625; colorBegin 58367.6875 µs = 1350.5625 + delay(3) + delay(54) as the simulator charges them (its statements without the delays 1349.625); NACK 57606.5625 (589.4375); one register write (colorWrite) 334 µs (NACK 144.9375); colorClassify 128.125…147.25 µs by the rule that matches (zeros, no division: 12.5625); colorIs(4) on white 1299.75 (NACK 158.9375), colorRaw(3) 1160.4375 (NACK 148.1875); Wire\'s service before a bus phase 4.9375 µs (79 cycles between two bytes read: wirePhase); a helper\'s statements before Wire\'s first service: colorWrite 11.625 µs, colorFetch 9.1875; colorFetch between its command write and its read 10.5625',
+    ['emu-trace'],
+    ['block'],
+  ),
+  'CC-06': entry(
+    'CC',
+    'arduino-cli 1.5.1 compile --fqbn arduino:avr:uno --warnings all (arduino:avr@1.8.8, avr-gcc 7.3.0-atmel3.6.1-arduino7, Servo 1.3.0, Wire 1.0)',
+    'Compiled sketches/gripper-forms and sketches/gripper-costs with --warnings all; avr-nm -S of gripper-forms.ino.elf',
+    'Both compile; no warning from the sketches, Wire or Servo (only the core\'s new.cpp, 4); gripper-forms 7240 B flash (22 %), 456 B RAM (22 %); gripper-costs 9784 B (30 %), 491 B (23 %); Wire\'s RAM 216 B (five 32 B buffers, its state, the TwoWire object and vtable); COLOR_RULES in PROGMEM',
+    ['compile-ok', 'compile-size'],
+    ['call', 'import', 'module'],
+  ),
+  'DS-02': entry(
+    'DS',
+    `TCS3472 color light-to-digital converter with IR filter, TAOS135, ams/TAOS, August 2012 (cdn-shop.adafruit.com/datasheets/TCS34725.pdf, sha256 acf2584428f14e925436c0038c863041fd73a6a10efc87049fdd3da60e466295, downloaded 2026-10-26)`,
+    'Read and quoted',
+    'Table 6 (ATIME): "Max RGBC Count = (256 − ATIME) × 1024 up to a maximum of 65535", 2.4 ms per integration cycle; Table 5 note 2: "A minimum interval of 2.4 ms must pass after PON is asserted before an RGBC can be initiated."; System Timing: "Upon completion and return to Idle, the device will automatically begin a new Wait-RGBC cycle" (each cycle runs RGBC Init 2.4 ms, Figure 9); RGBC Channel Data Registers: "when the lower byte register is read, the upper eight bits are stored into a shadow register, which is read by a subsequent read to the upper byte"; the command register\'s auto-increment (TYPE 01) and the TCS34725\'s address 0x29 and ID 0x44 (Table 12)',
+    ['documented'],
+    ['unit', 'range', 'default', 'round', 'block', 'content'],
+  ),
+  'ARD-18': ard(
+    'Wire 1.0 of arduino:avr 1.8.8, libraries/Wire/src/Wire.cpp and utility/twi.c (installed; LGPL-2.1-or-later; sha256 in spikes/avr8js/out/gripper-results.json wire.sha256)',
+    'Wire.cpp setWireTimeout: "This limits the maximum time to wait for the TWI hardware. If more time passes, the bus is assumed to have locked up … and the transaction is aborted. Optionally, the TWI hardware is also reset"; "@param reset_with_timeout if true then TWI interface will be automatically reset on timeout"; twi.c twi_writeTo: "Output 0 .. success, 1 .. length to long for buffer, 2 .. address send, NACK received, 3 .. data send, NACK received, 4 .. other twi error"; twi_init sets TWBR = ((F_CPU / TWI_FREQ) - 16) / 2 with TWI_FREQ 100000L',
+    ['call', 'error', 'block'],
   ),
   'CC-01': entry('CC', compiled, 'Compiled the 15 spike sketches (ram-threshold 8 times)', 'All compile (ram-threshold refuses its 2049 B probe by design, CC-02); e.g. kit-rover 4752 B flash (14 %), 247 B RAM (12 %); 300 * 200 warns -Woverflow', ['compile-ok', 'compile-size', 'snapshot'], ['call', 'import', 'module']),
   'CC-02': entry('CC', compiled, 'sketches/ram-threshold with -DBIG=1000..2040', '1536 B of globals (75.000 %): no warning; 1537 B (75.049 %) and above: "Low memory available, stability problems may occur."; 2049 B: "Not enough memory", the build fails; flash maximum 32256 B', ['compile-size']),
@@ -243,6 +281,37 @@ const testEvidence: Record<EvidenceRef, EvidenceEntry> = {
     ],
     'The interpreter on the virtual clock: 100 waits of 10 ms end at exactly 1000 ms, 1000.85625 ms with the delay() overhead of 8.5625 µs each (ms × 1000 + delayOverhead, U-18), 1001.15825 ms with the program\'s own 302 nodes, and no tick rounds a wait up; the k-th wait ends on its own mark (running time 10k ms, 10k + 1 from k = 74 as the overhead adds up); an empty uno forever charges LOOP_MIN_US + 1 node, 51 µs an iteration',
   ),
+  // N19 A5: the gripper car's drivers (A3), its ops as IR on the interpreter and the virtual UNO (A4), its blocks as Blockly saves them.
+  'TST-08': simTest(
+    'src/core/hardware/drivers/gripper-drivers.test.ts',
+    [
+      'attaches both servos in setup(), claw 0° (open) and lift 90° (up), whichever op the program uses, and takes Timer1',
+      'turns the claw on D9 and the lift on D10, each call gripperSet’s 51.625 µs; with both ops used, setup() still attaches each servo once',
+      'sees an object while A3 reads LOW (activeLow), sets A3 up as an INPUT, and costs one digitalRead',
+      'every palette colour (#d32f2f, #388e3c, #1976d2, #fbc02d, #f5f5f5, #212121) classifies the same in the TS rules and in the C++ table text',
+      'first integration ready 2.4 ms + 50.4 ms after the AEN byte (the 52.8 ms cycle of §11): after setup() a read has the first window',
+      'NACK gives zeros, which classify as không rõ (unknown): setup() and each read take their NACK times and warn wire-nack once',
+      'charges colorFetch (1158.5 µs) for a raw read and colorClassify for color.is: the longest rule, or the no-division path on zeros',
+      'a window ending mid-read gives the board’s result: C (read first) from the window before, R, G, B from the window after',
+    ],
+    'The gripper car\'s drivers on the virtual UNO through the module binding: both servos attached in setup() at claw 0° and lift 90°, gripperSet 51.625 µs a call; the IR sensor on A3 an INPUT, an object while it reads LOW; every palette colour classified alike by the TS rules and the C++ table; the first window 2.4 + 50.4 ms after AEN; no sensor reads zeros, unknown, at the NACK times; colorFetch 1158.5 µs and colorClassify per rule; a window ending inside the read gives C from the window before and R, G, B from the next',
+  ),
+  'TST-09': simTest(
+    'src/core/program/ybc-uno-gripper.test.ts',
+    [
+      'claw 120 clamps to 90 and warns once',
+      'reads the IR sensor on A3: true while the module pulls it LOW (activeLow), false while it is HIGH',
+      'color.is red true for the red palette window',
+      'color.raw c in 0..21504: a light that saturates the window reads 21504, no sensor reads 0 and is unknown',
+      'a color.is read never leads the world by more than one tick: every bus event within [world.t, world.t + dt + 1123.8125 µs)',
+    ],
+    'The gripper car\'s ops as IR on the interpreter, the virtual clock, the module binding, the virtual UNO and the TCS34725 model: a computed claw angle of 120 clamped to 90 with one warning for the gripper (its lift too); the IR sensor true while A3 is LOW; color.is red true and green and unknown false under the red palette light; a saturating light reads 21504 on clear and red, no sensor 0 and unknown; every bus event and light integral of a color.is loop within [world.t, world.t + dt + 1123.8125 µs)',
+  ),
+  'TST-10': simTest(
+    'tests/uno-blockly-conformance.test.ts',
+    ['Basic: the gripper car’s claw, arm, IR and colour compile and run on the virtual UNO', 'Advanced: the raw colour value, 0 to 21504 (the window saturates at its ATIME)'],
+    'The gripper car\'s blocks as Blockly 13 saves them, compiled for ref-uno-gripper@0 and run on the virtual UNO: close → 80 and down → 0 as literals, then the claw at 40° on D9 and the arm at 45° on D10; the IR sensor 1 with A3 LOW; red 1 and green 0 under a red light; the raw clear and red values 21504 under a saturating light',
+  ),
 };
 
 /** The L1 evidence of each row: the tests above that run it. A row with none stays PENDING. */
@@ -282,6 +351,12 @@ const simTests: Readonly<Record<string, readonly EvidenceRef[]>> = {
   'U-33': ['TST-03', 'TST-05'],
   'U-34': ['TST-03', 'TST-05'],
   'U-48': ['TST-04', 'TST-06'],
+  // N19 A5.
+  'U-35': ['TST-08', 'TST-09', 'TST-10'],
+  'U-36': ['TST-08', 'TST-09', 'TST-10'],
+  'U-37': ['TST-08', 'TST-09', 'TST-10'],
+  'U-38': ['TST-08', 'TST-09', 'TST-10'],
+  'U-39': ['TST-08', 'TST-09', 'TST-10'],
 };
 
 // --- Builders ------------------------------------------------------------------------------
@@ -292,6 +367,8 @@ const claim = (kind: ClaimKind, sources: EvidenceRef | readonly EvidenceRef[], s
   sources: typeof sources === 'string' ? [sources] : sources,
 });
 const compiles = (statement: string) => claim('compile-ok', 'CC-03', statement);
+/** N19 A5: a form of the gripper car, compiled in sketches/gripper-forms (CC-06). */
+const compilesGripper = (statement: string) => claim('compile-ok', 'CC-06', statement);
 const trace = (sources: EvidenceRef | readonly EvidenceRef[], statement: string) => claim('emu-trace', sources, statement);
 const doc = (sources: EvidenceRef | readonly EvidenceRef[], statement: string) => claim('documented', sources, statement);
 const language = (sources: EvidenceRef | readonly EvidenceRef[], statement: string) => claim('language', sources, statement);
@@ -333,6 +410,13 @@ const levels = (id: string, l2e: readonly EvidenceRef[]): ClaimLevels => ({
   L2e: { status: 'PASS', evidence: l2e },
   L3: { status: 'PENDING', by: 'M06' },
 });
+/** N19 A5: an open row of the gripper car: its forms compiled in sketches/gripper-forms (CC-06), traced there (EMU-19) and by its parity. */
+const gripperLevels = (id: string, l2e: readonly EvidenceRef[]): ClaimLevels => ({
+  L1: l1Of(id),
+  L2: { status: 'PASS', evidence: ['CC-06'] },
+  L2e: { status: 'PASS', evidence: l2e },
+  L3: { status: 'PENDING', by: 'M06' },
+});
 const l1Of = (id: string): ClaimLevels['L1'] => {
   const tests = simTests[id];
   return tests === undefined ? { status: 'PENDING', by: 'a test of the simulator that runs the row' } : { status: 'PASS', evidence: tests };
@@ -352,6 +436,8 @@ const structural = (args: Domain['args']): Domain => ({ args, compileTime: [], r
 
 const core: CppLibrary = { name: 'arduino:avr', version: '1.8.8', license: 'LGPL-2.1' };
 const servoLibrary: CppLibrary = { name: 'Servo', version: '1.3.0', license: 'LGPL-2.1' };
+/** N19 A5: Wire 1.0, as arduino:avr 1.8.8 ships it (ARD-18, its headers LGPL-2.1-or-later). */
+const wireLibrary: CppLibrary = { name: 'Wire', version: '1.0', license: 'LGPL-2.1' };
 const cpp = (form: string, extra: Partial<CppMapping> = {}): CppMapping => ({ form, includes: [], libraries: [core], ...extra });
 
 // --- Helpers the generator writes verbatim (contract §3.2, §6). Same text as spikes/avr8js/sketches/contract-forms. --
@@ -419,6 +505,96 @@ const helpers = {
     text: ['void pwmWrite(uint8_t pin, long value) {', '  if (value < 0L) value = 0L;', '  if (value > 255L) value = 255L;', '  analogWrite(pin, (int)value);', '}'].join('\n'),
     usedBy: ['U-32'],
   },
+  // N19 A5: the gripper car's (plan §4.3, ADR 0004 §11). Same text as spikes/avr8js/sketches/gripper-forms (EMU-19, CC-06): gripperSet,
+  // then the colour sensor's table (COLOR_RULES, written from the driver's integer rules) and functions.
+  'gripper-servo2': {
+    text: [
+      'void gripperSet(Servo &servo, long angle) {',
+      '  if (angle < 0L) angle = 0L;',
+      '  if (angle > 90L) angle = 90L;',
+      '  servo.write((int)angle);',
+      '}',
+    ].join('\n'),
+    usedBy: ['U-35', 'U-36'],
+  },
+  'tcs34725-wire': {
+    text: [
+      '#define COLOR_ADDR 0x29',
+      '#define COLOR_RULE_COUNT 7',
+      'const uint16_t COLOR_RULES[COLOR_RULE_COUNT][9] PROGMEM = {',
+      '  {6, 0, 299, 0, 1000, 0, 1000, 0, 1000},',
+      '  {0, 0, 65535, 500, 1000, 0, 299, 0, 1000},',
+      '  {1, 0, 65535, 0, 329, 420, 1000, 0, 1000},',
+      '  {2, 0, 65535, 0, 299, 0, 1000, 420, 1000},',
+      '  {4, 12000, 65535, 0, 419, 0, 1000, 230, 1000},',
+      '  {3, 0, 65535, 380, 1000, 330, 1000, 0, 229},',
+      '  {5, 0, 3999, 0, 1000, 0, 1000, 0, 1000},',
+      '};',
+      'void colorWrite(uint8_t reg, uint8_t value) {',
+      '  Wire.beginTransmission(COLOR_ADDR);',
+      '  Wire.write((uint8_t)(0x80 | reg));',
+      '  Wire.write(value);',
+      '  Wire.endTransmission();',
+      '}',
+      'void colorBegin() {',
+      '  Wire.begin();',
+      '  Wire.setWireTimeout(3000, true);',
+      '  colorWrite(0x01, 0xEB);',
+      '  colorWrite(0x0F, 0x01);',
+      '  colorWrite(0x00, 0x01);',
+      '  delay(3);',
+      '  colorWrite(0x00, 0x03);',
+      '  delay(54);',
+      '}',
+      'void colorFetch() {',
+      '  Wire.beginTransmission(COLOR_ADDR);',
+      '  Wire.write((uint8_t)0xB4);',
+      '  if (Wire.endTransmission() != 0 || Wire.requestFrom((uint8_t)COLOR_ADDR, (uint8_t)8) != 8) {',
+      '    colorC = 0;',
+      '    colorR = 0;',
+      '    colorG = 0;',
+      '    colorB = 0;',
+      '    return;',
+      '  }',
+      '  uint8_t bytes[8];',
+      '  for (uint8_t i = 0; i < 8; i++) {',
+      '    bytes[i] = (uint8_t)Wire.read();',
+      '  }',
+      '  colorC = (uint16_t)bytes[0] | ((uint16_t)bytes[1] << 8);',
+      '  colorR = (uint16_t)bytes[2] | ((uint16_t)bytes[3] << 8);',
+      '  colorG = (uint16_t)bytes[4] | ((uint16_t)bytes[5] << 8);',
+      '  colorB = (uint16_t)bytes[6] | ((uint16_t)bytes[7] << 8);',
+      '}',
+      'uint8_t colorClassify() {',
+      '  unsigned long sum = (unsigned long)colorR + colorG + colorB;',
+      '  uint16_t r = sum == 0UL ? 0 : (uint16_t)((colorR * 1000UL) / sum);',
+      '  uint16_t g = sum == 0UL ? 0 : (uint16_t)((colorG * 1000UL) / sum);',
+      '  uint16_t b = sum == 0UL ? 0 : (uint16_t)((colorB * 1000UL) / sum);',
+      '  for (uint8_t i = 0; i < COLOR_RULE_COUNT; i++) {',
+      '    const uint16_t *rule = COLOR_RULES[i];',
+      '    if (colorC >= pgm_read_word(&rule[1]) && colorC <= pgm_read_word(&rule[2]) &&',
+      '        r >= pgm_read_word(&rule[3]) && r <= pgm_read_word(&rule[4]) &&',
+      '        g >= pgm_read_word(&rule[5]) && g <= pgm_read_word(&rule[6]) &&',
+      '        b >= pgm_read_word(&rule[7]) && b <= pgm_read_word(&rule[8])) {',
+      '      return (uint8_t)pgm_read_word(&rule[0]);',
+      '    }',
+      '  }',
+      '  return 6;',
+      '}',
+      'bool colorIs(uint8_t n) {',
+      '  colorFetch();',
+      '  return colorClassify() == n;',
+      '}',
+      'long colorRaw(uint8_t k) {',
+      '  colorFetch();',
+      '  if (k == 0) return (long)colorR;',
+      '  if (k == 1) return (long)colorG;',
+      '  if (k == 2) return (long)colorB;',
+      '  return (long)colorC;',
+      '}',
+    ].join('\n'),
+    usedBy: ['U-38', 'U-39'],
+  },
 } as const;
 
 // --- Modules (contract §2.2) -------------------------------------------------------------------
@@ -443,6 +619,18 @@ const modules: readonly ModuleContract[] = [
     fields: {
       import: field([compiles('#include <Servo.h> compiles with Servo 1.3.0 installed.')]),
       module: field([compiles('Servo 1.3.0 (LGPL-2.1) links for arduino:avr:uno: the Servo class, attach and write.')], ['CC-01']),
+    },
+    eligibility: 'ELIGIBLE',
+  },
+  {
+    // N19 A5: Wire, which the colour sensor's driver talks to the TCS34725 with (D-G7: raw Wire, no Adafruit library).
+    id: 'U-M3',
+    module: 'wire',
+    importForm: '#include <Wire.h>',
+    library: wireLibrary,
+    fields: {
+      import: field([compilesGripper('#include <Wire.h> compiles with the Wire 1.0 arduino:avr 1.8.8 ships.')]),
+      module: field([compilesGripper('Wire 1.0 (LGPL-2.1-or-later) links for arduino:avr:uno: begin, setWireTimeout, beginTransmission, write, endTransmission, requestFrom, read; 216 B of RAM.')], ['ARD-18']),
     },
     eligibility: 'ELIGIBLE',
   },
@@ -1178,6 +1366,163 @@ const exposedRows: readonly ConstructContract[] = [
   },
 ];
 
+// --- The gripper car's rows (N19 A5, plan §4.3, ADR 0004 §11) -------------------------------------------------------------------
+//
+// ref-uno-gripper@0: the claw and the arm on one port of two servos (gripper-servo2), the IR sensor between the jaws (ir-digital) and
+// the TCS34725 colour sensor on Wire (tcs34725-wire). Their forms were compiled (CC-06) and traced (EMU-19) in
+// spikes/avr8js/sketches/gripper-forms, their costs measured in gripper-costs (EMU-20); the parity fixtures of the gripper car run
+// them against the simulator (EMU-16). The numbers of the kit and the colour thresholds are PLACEHOLDER data until a real kit is
+// measured (VG/L3); the forms are not.
+
+const gripperCpp = (form: string, extra: Partial<CppMapping> = {}) =>
+  cpp(form, {
+    includes: ['#include <Servo.h>'],
+    libraries: [core, servoLibrary],
+    helpers: ['gripper-servo2'],
+    globals: ['Servo <role>Claw;', 'Servo <role>Lift;'],
+    setup: ['<role>Claw.attach(<ROLE>_CLAW);', '<role>Claw.write(0);', '<role>Lift.attach(<ROLE>_LIFT);', '<role>Lift.write(90);'],
+    ...extra,
+  });
+const colorCpp = (form: string) =>
+  cpp(form, {
+    includes: ['#include <Wire.h>'],
+    libraries: [core, wireLibrary],
+    helpers: ['tcs34725-wire'],
+    globals: ['uint16_t colorC = 0;', 'uint16_t colorR = 0;', 'uint16_t colorG = 0;', 'uint16_t colorB = 0;'],
+    setup: ['colorBegin();'],
+  });
+const gripperServoRestrictions = (which: string) => [
+  `angle 0..90; outside is clamped (with a warning once per role per run) before Servo.write: past 90 the ${which} would only stall.`,
+  'setup() attaches both servos of the gripper, whichever op the program uses: the claw written 0 (open), the lift 90 (up), as the real arm starts.',
+  'The gripper\'s servos hold Timer1: no PWM on D9 or D10 while the kit has a gripper (U-48).',
+  'No speed (plan D-G4): the servo turns at its own rate; a slower sweep is a loop of the program\'s.',
+];
+const colorRestrictions = [
+  'setup() calls colorBegin(): Wire.begin(), Wire.setWireTimeout(3000, true), ATIME 0xEB (21 cycles of 2.4 ms: 50.4 ms), gain 4×, PON, 3 ms, AEN, then 54 ms for the first window (2.4 ms RGBC Init + 50.4 ms); a new window ends every 52.8 ms.',
+  'Each read fetches C, R, G, B of the last window in one auto-increment read from CDATAL (1158.5 µs, the eight data bytes 336.5625…1021.4375 µs into it); a window that ends during the read gives C from the window before and R, G, B from the next (the shadow registers).',
+  'No sensor, or a NACK, reads zeros (unknown for colorIs); a hung bus never blocks: the 3 ms timeout resets the TWI.',
+  'The colour sensor holds A4 (SDA) and A5 (SCL), the board\'s I²C pins (kit rule wrong-i2c-pin), at its one address 0x29 (i2c-address-conflict).',
+];
+
+const gripperRows: readonly ConstructContract[] = [
+  {
+    id: 'U-35',
+    capability: 'gripper claw (open, close, angle)',
+    tier: tierBoth,
+    profiles: BOTH,
+    eligibility: 'ELIGIBLE',
+    restrictions: ['The claw block writes 0 (open) or 80 (closed: the jaws meet, GripperSpec.jawsMeetDeg); the angle block any angle.', ...gripperServoRestrictions('claw')],
+    modules: ['U-M1', 'U-M2'],
+    cpp: gripperCpp('gripperSet(<role>Claw, <angle>);'),
+    levels: gripperLevels('U-35', ['EMU-19']),
+    fields: open({
+      call: field([compilesGripper('Servo <role>Claw; and Servo <role>Lift; attached and written in setup(); gripperSet(<role>Claw, angle).')]),
+      import: field([compilesGripper('#include <Servo.h>')]),
+      module: field([compilesGripper('Servo 1.3.0 links with the two servos of the gripper.')]),
+      unit: field([doc('ARD-13', 'write takes an angle from 0 to 180.'), trace('EMU-03', 'One pulse every 20 ms.')]),
+      range: field([doc('ARD-13', '0° is 544 µs, 180° is 2400 µs by default.'), trace('EMU-19', 'Claw 0° → 544 µs, 80° → 1368 µs.')]),
+      default: field([trace('EMU-19', 'attach and write(0) in setup(): the claw pulses 544 µs (open) from its first pulse.')]),
+      clamp: field([trace('EMU-19', 'gripperSet(gripperClaw, 120) → 1472 µs (90°).')]),
+      round: field([trace(['EMU-03', 'EMU-19'], 'pulse = 544 + angle × 1856 / 180 µs, the division truncated (80° → 1368 µs).')]),
+      block: field([trace('EMU-20', 'gripperSet takes 51.625 µs at most (Servo.write 50.4375 of it); the simulator charges it.')]),
+      yield: field([trace('EMU-19', 'A Timer1 interrupt makes both servos\' pulses in each 20 ms frame (the lift\'s rising 10.75 µs after the claw\'s falls) while the program runs or waits.')]),
+    }),
+  },
+  {
+    id: 'U-36',
+    capability: 'gripper arm (up, down, angle)',
+    tier: tierBoth,
+    profiles: BOTH,
+    eligibility: 'ELIGIBLE',
+    restrictions: ['The arm block writes 90 (up) or 0 (down); the angle block any angle.', ...gripperServoRestrictions('arm')],
+    modules: ['U-M1', 'U-M2'],
+    cpp: gripperCpp('gripperSet(<role>Lift, <angle>);'),
+    levels: gripperLevels('U-36', ['EMU-19']),
+    fields: open({
+      call: field([compilesGripper('Servo <role>Claw; and Servo <role>Lift; attached and written in setup(); gripperSet(<role>Lift, angle).')]),
+      import: field([compilesGripper('#include <Servo.h>')]),
+      module: field([compilesGripper('Servo 1.3.0 links with the two servos of the gripper.')]),
+      unit: field([doc('ARD-13', 'write takes an angle from 0 to 180.'), trace('EMU-03', 'One pulse every 20 ms.')]),
+      range: field([doc('ARD-13', '0° is 544 µs, 180° is 2400 µs by default.'), trace('EMU-19', 'Lift 0° → 544 µs, 45° → 1008 µs, 90° → 1472 µs.')]),
+      default: field([trace('EMU-19', 'attach and write(90) in setup(): the lift pulses 1472 µs (up) from its first pulse.')]),
+      clamp: field([trace('EMU-19', 'gripperSet(gripperLift, -10) → 544 µs (0°).')]),
+      round: field([trace(['EMU-03', 'EMU-19'], 'pulse = 544 + angle × 1856 / 180 µs, the division truncated (45° → 1008 µs).')]),
+      block: field([trace('EMU-20', 'gripperSet takes 51.625 µs at most; the simulator charges it.')]),
+      yield: field([trace('EMU-19', 'A Timer1 interrupt makes both servos\' pulses in each 20 ms frame while the program runs or waits.')]),
+    }),
+  },
+  {
+    id: 'U-37',
+    capability: 'IR obstacle between the jaws',
+    tier: tierBoth,
+    profiles: BOTH,
+    eligibility: 'ELIGIBLE',
+    restrictions: [
+      'Driver ir-digital: an object is seen while the pin reads LOW if the kit says activeLow (the driver\'s default: the common modules pull it LOW), HIGH otherwise; the generator writes the level the kit gives. pinMode INPUT in setup().',
+      'What the module sees is the world\'s (a short beam between the jaws; a black object reflects too little): PLACEHOLDER until a real kit is measured.',
+    ],
+    modules: ['U-M1'],
+    cpp: cpp('(digitalRead(<ROLE>_PIN) == <LOW|HIGH>)', { setup: ['pinMode(<ROLE>_PIN, INPUT);'] }),
+    levels: gripperLevels('U-37', ['EMU-19']),
+    fields: open({
+      call: field([compilesGripper('(digitalRead(A3) == LOW).')]),
+      block: field([trace('EMU-20', 'digitalRead(A3) takes 3.9375 µs, as on A1 (the digitalRead of contract §4.4).')]),
+      return: field([trace('EMU-19', 'A bool: 0 with A3 HIGH, 1 with A3 LOW (activeLow).')]),
+      content: field([trace('EMU-19', 'The level the pin reads, compared with the kit\'s level for an object: IR 0, then 1.')]),
+    }),
+  },
+  {
+    id: 'U-38',
+    capability: 'colour sensor sees a colour (TCS34725 on Wire)',
+    tier: tierBoth,
+    profiles: BOTH,
+    eligibility: 'ELIGIBLE',
+    restrictions: [
+      'colorIs(<value>): the colour\'s index, a literal the block fixes: 0 red, 1 green, 2 blue, 3 yellow, 4 white, 5 black, 6 unknown; the reading is classified by COLOR_RULES (per-mille of R, G, B over R + G + B, truncated, the first rule that holds; PLACEHOLDER thresholds tied to the driver\'s version).',
+      ...colorRestrictions,
+    ],
+    modules: ['U-M1', 'U-M3'],
+    cpp: colorCpp('colorIs(<value>)'),
+    levels: gripperLevels('U-38', ['EMU-19']),
+    fields: open({
+      call: field([compilesGripper('#include <Wire.h>, colorBegin() in setup(), colorIs(n) with the table in PROGMEM.')]),
+      import: field([compilesGripper('#include <Wire.h> (Wire 1.0 of arduino:avr 1.8.8).')]),
+      module: field([compilesGripper('Wire 1.0 links: 216 B of RAM.')], ['ARD-18']),
+      unit: field([doc('DS-02', 'A channel is the counts of one integration window: (256 − ATIME) cycles of 2.4 ms.')]),
+      range: field([doc('DS-02', 'Max RGBC Count = (256 − ATIME) × 1024, at most 65535.'), trace('EMU-19', 'One class 0..6 for each reading; white saturates C at 21504.')]),
+      default: field([doc('DS-02', 'PON needs 2.4 ms before an RGBC; each cycle runs its 2.4 ms RGBC Init.'), trace('EMU-19', 'The first window ends 52800 µs after AEN; colorBegin waits for it.')]),
+      round: field([trace('EMU-19', 'Per-mille truncated (unsigned long), the first rule that holds: each palette light gives the class the TS rules give.')]),
+      block: field([trace('EMU-20', 'colorIs is colorFetch (1158.5 µs; NACK 146.0625) and colorClassify (147.25 µs at most; zeros 12.5625); colorBegin 1350.5625 µs and its delays.'), doc('ARD-18', 'Wire waits for the TWI hardware at most the timeout it is given.')]),
+      return: field([trace('EMU-19', 'colorIs returns one 1 among colorIs(0..6), at the class of the reading: red, green, blue, yellow, white, black, unknown.')]),
+      error: field([trace('EMU-19', 'No device at 0x29: every transaction an address NACK and a STOP, every reading 0 0 0 0, colorIs(6) true, no timeout.'), doc('ARD-18', 'endTransmission gives 2 when the address is NACKed; setWireTimeout(3000, true) resets the TWI on a timeout.')]),
+      content: field([doc('DS-02', 'A low byte read stores the high byte in a shadow register; auto-increment reads C, R, G, B in order.'), trace('EMU-19', 'Every 8-byte read came from a window wholly in its light; the bytes read 336.5625…1021.4375 µs into colorFetch.')]),
+    }),
+  },
+  {
+    id: 'U-39',
+    capability: 'colour sensor raw value',
+    tier: tierAdvanced,
+    profiles: ADVANCED,
+    eligibility: 'ELIGIBLE',
+    restrictions: ['colorRaw(<value>): the channel, a literal the block fixes: 0 red, 1 green, 2 blue, 3 clear; 0..21504 at ATIME 0xEB (1024 × 21); no sensor reads 0.', ...colorRestrictions],
+    modules: ['U-M1', 'U-M3'],
+    cpp: colorCpp('colorRaw(<value>)'),
+    levels: gripperLevels('U-39', ['EMU-19']),
+    fields: open({
+      call: field([compilesGripper('#include <Wire.h>, colorBegin() in setup(), colorRaw(k).')]),
+      import: field([compilesGripper('#include <Wire.h> (Wire 1.0 of arduino:avr 1.8.8).')]),
+      module: field([compilesGripper('Wire 1.0 links: 216 B of RAM.')], ['ARD-18']),
+      unit: field([doc('DS-02', 'Counts of one integration window: (256 − ATIME) cycles of 2.4 ms.')]),
+      range: field([doc('DS-02', 'Max RGBC Count = (256 − ATIME) × 1024, at most 65535: 21504 at ATIME 0xEB.'), trace('EMU-19', 'White saturates C at 21504.')]),
+      default: field([doc('DS-02', 'PON needs 2.4 ms before an RGBC.'), trace('EMU-19', 'The first window ends 52800 µs after AEN; colorBegin waits for it.')]),
+      block: field([trace('EMU-20', 'colorRaw is colorFetch: 1158.5 µs (1160.4375 for colorRaw(3)); NACK 146.0625.')]),
+      return: field([trace('EMU-19', 'C R G B as the TS model gives them, e.g. red 11100 8047 1675 1377, none 120 40 40 40.')]),
+      error: field([trace('EMU-19', 'No device at 0x29: every reading 0 0 0 0, no timeout.'), doc('ARD-18', 'endTransmission gives 2 when the address is NACKed.')]),
+      content: field([doc('DS-02', 'Auto-increment reads C, R, G, B in order; a low byte read latches its high byte.'), trace('EMU-19', 'colorRaw(3, 0, 1, 2) read C, R, G, B of the last window.')]),
+    }),
+  },
+];
+
 // --- Rows that are not shown (contract §10.2) ------------------------------------------------------
 
 const closedRow = (id: string, capability: string, eligibility: 'EXCLUDED' | 'DEFERRED', exclusionReason: string, partial: Partial<Record<OfField, FieldEntry>> = {}, rowLevels: ClaimLevels = notOfferedLevels): ConstructContract => ({
@@ -1200,13 +1545,13 @@ const closedRows: readonly ConstructContract[] = [
   closedRow('U-43', 'interrupts and events (attachInterrupt)', 'DEFERRED', 'The program model is setup + loop; events wait for their own gate.'),
   closedRow('U-44', 'reading the serial monitor', 'EXCLUDED', 'No input from the lab to the program in v0.'),
   closedRow('U-45', 'random numbers', 'EXCLUDED', 'Not in the v0 IR; a seeded model would have to match the AVR random().'),
-  closedRow('U-46', 'I²C modules (Wire)', 'DEFERRED', 'WireIO exists in the driver interface, but ref-uno-rover@0 has no I²C module.'),
+  closedRow('U-46', 'I²C modules (Wire)', 'DEFERRED', 'A block of the learner\'s own on Wire is not offered: the TCS34725 colour sensor\'s driver uses Wire (U-38, U-39, U-M3), and ref-uno-rover@0 has no I²C module.'),
   closedRow('U-47', 'delayMicroseconds, raw pulseIn, micros', 'EXCLUDED', 'Only the drivers use them; no block in v0.'),
   closedRow(
     'U-48',
     'PWM on a timer a servo or a tone holds',
     'EXCLUDED',
-    'VERIFIED (R0.4): with a servo, analogWrite(9/10) gives no PWM (the pin stays LOW, also after detach); with a tone, D3/D11 PWM stops and analogWrite(11) changes the tone to 2475 Hz. The program would not do what it says: refused with timer-claimed.',
+    'VERIFIED (R0.4): with a servo (the rover\'s, or the gripper\'s two, N19: both on Timer1, EMU-19), analogWrite(9/10) gives no PWM (the pin stays LOW, also after detach); with a tone, D3/D11 PWM stops and analogWrite(11) changes the tone to 2475 Hz. The program would not do what it says: refused with timer-claimed.',
     {
       content: field([
         trace('EMU-04', 'Servo on Timer1: analogWrite(10, 200) gives a constant LOW; after detach still LOW.'),
@@ -1226,9 +1571,9 @@ const closedRows: readonly ConstructContract[] = [
 /**
  * The open rows a C2 parity fixture covers (tests/parity/fixtures.ts, the `covers` of each fixture): their L2e also cites the parity
  * run of the generated sketch's HEX against the simulator, EMU-16. Since 0.1.5 every open row: the raw-pins golden runs U-31…U-34
- * and the fixture negate-drive U-08.
+ * and the fixture negate-drive U-08; N19 A5 (task C2) the gripper car's U-35…U-39, by its driver fixtures on ref-uno-gripper@0.
  */
-export const UNO_PARITY_ROWS: readonly string[] = Array.from({ length: 34 }, (_, index) => `U-${String(index + 1).padStart(2, '0')}`);
+export const UNO_PARITY_ROWS: readonly string[] = Array.from({ length: 39 }, (_, index) => `U-${String(index + 1).padStart(2, '0')}`);
 const withParity = (row: ConstructContract): ConstructContract =>
   UNO_PARITY_ROWS.includes(row.id) && row.levels?.L2e.status === 'PASS'
     ? { ...row, levels: { ...row.levels, L2e: { status: 'PASS', evidence: [...row.levels.L2e.evidence, 'EMU-16'] } } }
@@ -1247,12 +1592,13 @@ export const unoContract: UnoContract = {
     core: { ...core, published: '2026-05-21' },
     toolchain: 'avr-gcc 7.3.0-atmel3.6.1-arduino7',
     compilerFlags: '-Os -flto -std=gnu++11 -fpermissive -fno-exceptions -ffunction-sections -fdata-sections -fno-threadsafe-statics',
-    libraries: [{ ...servoLibrary, published: '2025-11-06' }],
+    // N19 A5: Wire 1.0 ships in arduino:avr 1.8.8 (published with the core).
+    libraries: [{ ...servoLibrary, published: '2025-11-06' }, { ...wireLibrary, published: '2026-05-21' }],
     emulator: { name: 'avr8js', version: '0.21.1', license: 'MIT', published: '2026-08-31' },
     mcuAssumed: 'atmega328p',
     boardIdentity: 'UNKNOWN',
     statement:
-      'The exact board (MCU, USB-serial chip, bootloader) is UNKNOWN; this contract is pinned to arduino-cli 1.5.1, arduino:avr@1.8.8, Servo 1.3.0 and avr8js 0.21.1 for an ATmega328P at 16 MHz as of 2026-10-25, and is not a timeless compatibility guarantee.',
+      'The exact board (MCU, USB-serial chip, bootloader) is UNKNOWN; this contract is pinned to arduino-cli 1.5.1, arduino:avr@1.8.8 (with the Wire 1.0 it ships), Servo 1.3.0 and avr8js 0.21.1 for an ATmega328P at 16 MHz as of 2026-10-25, and is not a timeless compatibility guarantee.',
   },
   rv1: 'ACCEPT_WITH_RESTRICTIONS',
   evidence: { ...evidence, ...testEvidence },
@@ -1365,7 +1711,7 @@ export const unoContract: UnoContract = {
     colorFetchLead: 9.1875,
     colorFetchGap: 10.5625,
   },
-  costsEvidence: ['EMU-08', 'EMU-03', 'EMU-13', 'EMU-17', 'EMU-18'],
+  costsEvidence: ['EMU-08', 'EMU-03', 'EMU-13', 'EMU-17', 'EMU-18', 'EMU-20'],
   toneUs: {
     // Tone.cpp takes prescaler p once floor(8e6 / (p · f)) ≤ 256: a band starts at floor(16e6 / (514 · p)) + 1 Hz. Measured on the
     // sketch the generator writes, the frequency computed at run time, the longest of the band's frequencies (EMU-18).
@@ -1389,11 +1735,11 @@ export const unoContract: UnoContract = {
     { id: 'timer-claimed', severity: 'error', when: 'PWM on a pin whose timer the kit\'s servo (T1) or buzzer (T2) holds (U-48).' },
     { id: 'pin-unavailable', severity: 'error', when: 'A raw pin the kit uses, a floating pin read, or D0/D1 while the program prints.' },
     { id: 'capability-unavailable', severity: 'error', when: 'A block names a role the kit does not have.' },
-    { id: 'value-clamped', severity: 'warning', when: 'A motor speed, servo angle, tone or PWM value outside its range, clamped; once per role (pin) per run.' },
+    { id: 'value-clamped', severity: 'warning', when: 'A motor speed, servo or gripper angle, tone or PWM value outside its range, clamped; once per role (pin) per run.' },
     { id: 'not-pwm', severity: 'warning', when: 'PWM write on a pin without PWM: 128 and above HIGH, below LOW.' },
     { id: 'division-by-zero', severity: 'warning', when: 'A division or remainder by 0 gave 0; once per block per run.' },
     { id: 'low-memory', severity: 'warning', when: 'L2: global variables above 1536 bytes (75 % of 2 KB), as arduino-cli warns.' },
   ],
   modules,
-  constructs: [...exposedRows.map(withParity), ...closedRows],
+  constructs: [...exposedRows.map(withParity), ...gripperRows.map(withParity), ...closedRows],
 };

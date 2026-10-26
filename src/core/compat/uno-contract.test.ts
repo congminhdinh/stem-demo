@@ -46,10 +46,10 @@ const withField = (id: string, field: OfField, entry: FieldEntry): UnoContract =
 });
 const exposed = () => contract.constructs.filter((c) => c.eligibility === 'ELIGIBLE' || c.eligibility === 'RESTRICTED');
 
-const BOTH = ['U-01', 'U-02', 'U-03', 'U-04', 'U-05', 'U-06', 'U-07', 'U-08', 'U-09', 'U-10', 'U-11', 'U-12', 'U-13', 'U-14', 'U-15', 'U-16', 'U-17', 'U-18', 'U-20', 'U-21', 'U-22', 'U-23', 'U-24', 'U-25', 'U-27', 'U-28', 'U-30'];
-const ADVANCED_ONLY = ['U-19', 'U-26', 'U-29', 'U-31', 'U-32', 'U-33', 'U-34'];
+const BOTH = ['U-01', 'U-02', 'U-03', 'U-04', 'U-05', 'U-06', 'U-07', 'U-08', 'U-09', 'U-10', 'U-11', 'U-12', 'U-13', 'U-14', 'U-15', 'U-16', 'U-17', 'U-18', 'U-20', 'U-21', 'U-22', 'U-23', 'U-24', 'U-25', 'U-27', 'U-28', 'U-30', 'U-35', 'U-36', 'U-37', 'U-38'];
+const ADVANCED_ONLY = ['U-19', 'U-26', 'U-29', 'U-31', 'U-32', 'U-33', 'U-34', 'U-39'];
 const LANGUAGE = ['U-01', 'U-02', 'U-03', 'U-04', 'U-05', 'U-06', 'U-07', 'U-08', 'U-09', 'U-10', 'U-11', 'U-12', 'U-13', 'U-14', 'U-15', 'U-16', 'U-17', 'U-18'];
-const MODULES_AND_PINS = ['U-19', 'U-20', 'U-21', 'U-22', 'U-23', 'U-24', 'U-25', 'U-26', 'U-27', 'U-28', 'U-29', 'U-30', 'U-31', 'U-32', 'U-33', 'U-34'];
+const MODULES_AND_PINS = ['U-19', 'U-20', 'U-21', 'U-22', 'U-23', 'U-24', 'U-25', 'U-26', 'U-27', 'U-28', 'U-29', 'U-30', 'U-31', 'U-32', 'U-33', 'U-34', 'U-35', 'U-36', 'U-37', 'U-38', 'U-39'];
 const CLOSED: [string, 'EXCLUDED' | 'DEFERRED'][] = [
   ['U-40', 'EXCLUDED'], ['U-41', 'EXCLUDED'], ['U-42', 'DEFERRED'], ['U-43', 'DEFERRED'], ['U-44', 'EXCLUDED'], ['U-45', 'EXCLUDED'],
   ['U-46', 'DEFERRED'], ['U-47', 'EXCLUDED'], ['U-48', 'EXCLUDED'], ['U-49', 'EXCLUDED'], ['U-50', 'EXCLUDED'],
@@ -83,7 +83,7 @@ describe('the UNO contract data', () => {
       arduinoCli: '1.5.1',
       core: { name: 'arduino:avr', version: '1.8.8', published: '2026-05-21', license: 'LGPL-2.1' },
       toolchain: 'avr-gcc 7.3.0-atmel3.6.1-arduino7',
-      libraries: [{ name: 'Servo', version: '1.3.0', published: '2025-11-06', license: 'LGPL-2.1' }],
+      libraries: [{ name: 'Servo', version: '1.3.0', published: '2025-11-06', license: 'LGPL-2.1' }, { name: 'Wire', version: '1.0', published: '2026-05-21', license: 'LGPL-2.1' }],
       emulator: { name: 'avr8js', version: '0.21.1', published: '2026-08-31', license: 'MIT' },
       mcuAssumed: 'atmega328p',
       boardIdentity: 'UNKNOWN',
@@ -96,6 +96,7 @@ describe('the UNO contract data', () => {
     expect(contract.modules.map((m) => [m.id, m.library])).toEqual([
       ['U-M1', { name: 'arduino:avr', version: '1.8.8', license: 'LGPL-2.1' }],
       ['U-M2', { name: 'Servo', version: '1.3.0', license: 'LGPL-2.1' }],
+      ['U-M3', { name: 'Wire', version: '1.0', license: 'LGPL-2.1' }],
     ]);
   });
 });
@@ -196,7 +197,7 @@ describe('claim levels L1 / L2 / L2e / L3 (contract §12)', () => {
 
   it('rests L1 on tests of this repository: each TST entry names a test file that exists and the titles of tests in it, none skipped (N18 final fix M4, review 2 N3)', () => {
     const tests = Object.entries(contract.evidence).filter(([, entry]) => entry.kind === 'TST');
-    expect(tests.map(([id]) => id)).toEqual(['TST-01', 'TST-02', 'TST-03', 'TST-04', 'TST-05', 'TST-06', 'TST-07']);
+    expect(tests.map(([id]) => id)).toEqual(['TST-01', 'TST-02', 'TST-03', 'TST-04', 'TST-05', 'TST-06', 'TST-07', 'TST-08', 'TST-09', 'TST-10']);
     for (const [id, entry] of tests) {
       expect(entry, id).toMatchObject({ supports: ['sim-semantic'], establishes: [] });
       expect(entry.source, id).toMatch(/^(src|tests)\/[\w./-]+\.test\.tsx?$/);
@@ -433,7 +434,7 @@ describe('time, costs and the board (contract §4, §5)', () => {
       colorFetchLead: 9.1875,
       colorFetchGap: 10.5625,
     });
-    expect(contract.costsEvidence).toEqual(['EMU-08', 'EMU-03', 'EMU-13', 'EMU-17', 'EMU-18']);
+    expect(contract.costsEvidence).toEqual(['EMU-08', 'EMU-03', 'EMU-13', 'EMU-17', 'EMU-18', 'EMU-20']);
   });
 
   it('keeps the loop policy of the simulator: no hidden delay, 50 µs per loop() iteration, 1 µs per node', () => {
@@ -500,9 +501,9 @@ describe('time, costs and the board (contract §4, §5)', () => {
 describe('the C++ the generator may write (contract §15 invariant 9)', () => {
   it('is exactly what the open rows list', () => {
     const allowed = cppAllowlist(contract);
-    expect(allowed.includes).toEqual(['#include <Servo.h>']);
-    expect(allowed.libraries.sort()).toEqual(['Servo@1.3.0', 'arduino:avr@1.8.8'].sort());
-    expect(allowed.helpers.sort()).toEqual(['buzzer-tone', 'hbridge-en-in1-in2', 'hcsr04-pulsein', 'int32', 'pwm-write', 'servo-lib'].sort());
+    expect(allowed.includes).toEqual(['#include <Servo.h>', '#include <Wire.h>']);
+    expect(allowed.libraries.sort()).toEqual(['Servo@1.3.0', 'arduino:avr@1.8.8', 'Wire@1.0'].sort());
+    expect(allowed.helpers.sort()).toEqual(['buzzer-tone', 'hbridge-en-in1-in2', 'hcsr04-pulsein', 'int32', 'pwm-write', 'servo-lib', 'gripper-servo2', 'tcs34725-wire'].sort());
     expect(allowed.setup).toContain('Serial.begin(9600);');
     expect(allowed.forms).not.toContain(undefined);
     expect(allowed.forms.some((form) => /analogWrite\((9|10|3|11),/.test(form))).toBe(false);

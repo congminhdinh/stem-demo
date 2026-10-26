@@ -207,8 +207,8 @@ export type Domain = {
 
 export const moduleIds = ['C-03a', 'C-03b', 'C-03c', 'C-03d', 'C-03e'] as const;
 export type ModuleId = (typeof moduleIds)[number];
-/** UNO (N18 R0.3, contract §2): the Arduino AVR core and the Servo library. */
-export const unoModuleIds = ['U-M1', 'U-M2'] as const;
+/** UNO (N18 R0.3, contract §2): the Arduino AVR core and the Servo library; N19 A5 Wire, which the colour sensor's driver uses. */
+export const unoModuleIds = ['U-M1', 'U-M2', 'U-M3'] as const;
 export type UnoModuleId = (typeof unoModuleIds)[number];
 
 /** A pinned library or core: what `arduino-cli lib install <name>@<version>` (or `core install`) installs. */
@@ -217,7 +217,7 @@ export type CppLibrary = { name: string; version: string; license: string };
 /** Availability of a module is separate from the syntax that imports it (contract §2.2, N2). */
 export type ModuleContract = {
   id: ModuleId | UnoModuleId;
-  module: 'time' | 'yolobit' | 'music' | 'random' | 'builtins' | 'arduino-core' | 'servo';
+  module: 'time' | 'yolobit' | 'music' | 'random' | 'builtins' | 'arduino-core' | 'servo' | 'wire';
   /** The text a program writes to import it; builtins (and the Arduino core, which the .ino build includes) have none. */
   importForm: string | null;
   /** UNO: the pinned core or library the module is. */
@@ -755,7 +755,7 @@ const levelStatusSchema = z.discriminatedUnion('status', [
 const unoModuleSchema = z
   .object({
     id: z.enum(unoModuleIds),
-    module: z.enum(['arduino-core', 'servo']),
+    module: z.enum(['arduino-core', 'servo', 'wire']),
     importForm: z.string().nullable(),
     library: librarySchema,
     fields: z.object({ import: fieldEntrySchema, module: fieldEntrySchema }).strict(),

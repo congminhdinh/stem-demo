@@ -3,7 +3,8 @@ import { exposureViolations, isExposable, profileConstructViolations } from '../
 import { unoContract } from '../compat/uno-contract';
 import { localDeviceDefinitions } from '../devices/local-catalog';
 import { createDeviceRegistry } from '../devices/registry';
-import { drivers, SERVO_START_DEG } from '../hardware/drivers';
+import { productionKits } from '../hardware/catalog';
+import { COLOR_CHANNELS, COLOR_NAMES, drivers, SERVO_START_DEG } from '../hardware/drivers';
 import { productionProfiles } from '../profiles';
 import { buildToolbox, createBlockPackCatalog } from '../program/block-packs';
 import { unoLanguageBlockTypes } from '../program/__fixtures__/uno-language';
@@ -14,6 +15,8 @@ import { HZ_RANGE, MS_RANGE } from './uno.output';
 import { PWM_RANGE } from './uno.pins';
 import { ULTRASONIC_CM, UNO_ADC_MAX } from './uno.sensors';
 import { ANGLE_RANGE } from './uno.servo';
+import { COLOR_RAW_RANGE } from './uno.color';
+import { clawPositions, GRIPPER_ANGLE_RANGE, liftPositions } from './uno.gripper';
 
 // The uno constructs against the UNO contract (N18 R2.2, docs/uno-compatibility-contract.md §10, §11; the contract is test data):
 // every block a uno profile shows is a row that passes the exposure gate and is meant for that profile, the packs own exactly
@@ -72,7 +75,7 @@ describe('every uno construct is a row of the UNO contract that passes the expos
     expect(unoModuleConstructs.map((construct) => `${construct.contractId} ${construct.op}`)).toEqual([
       'U-21 drive.move', 'U-22 drive.stop', 'U-20 motor.set', 'U-27 ultrasonic.cm', 'U-28 line.dark', 'U-30 button.pressed', 'U-23 servo.set',
       'U-24 led.set', 'U-25 buzzer.tone', 'U-29 line.raw', 'U-26 buzzer.stop', 'U-31 digital.write', 'U-32 pwm.write', 'U-33 digital.read',
-      'U-34 analogIn.read', 'U-19 time.millis',
+      'U-34 analogIn.read', 'U-19 time.millis', 'U-35 gripper.claw', 'U-36 gripper.lift', 'U-37 ir.detect', 'U-38 color.is', 'U-39 color.raw',
     ]);
   });
 });
@@ -94,14 +97,17 @@ describe('profile exposure (N18 R2.2)', () => {
     const advancedTypes = packs.typesOf(advanced?.blockPacks ?? []);
     expect([...basicTypes].filter((type) => !advancedTypes.has(type))).toEqual([]);
     expect([...advancedTypes].filter((type) => !basicTypes.has(type)).sort()).toEqual(
-      ['uno_line_raw', 'uno_buzzer_stop', 'uno_digital_write', 'uno_pwm_write', 'uno_digital_read', 'uno_analog_read', 'uno_millis'].sort(),
+      ['uno_line_raw', 'uno_buzzer_stop', 'uno_digital_write', 'uno_pwm_write', 'uno_digital_read', 'uno_analog_read', 'uno_millis', 'uno_color_raw'].sort(),
     );
   });
 
   it('shows the brief’s Basic blocks: drive, stop, motor, ultrasonic, line, servo, LED, buzzer tone, button', () => {
     const robot = [...packs.typesOf(basic?.blockPacks ?? [])].filter((type) => unoModuleConstructOf(type) !== undefined).sort();
     expect(robot).toEqual(
-      ['uno_drive_move', 'uno_drive_stop', 'uno_motor_set', 'uno_ultrasonic_cm', 'uno_line_dark', 'uno_servo_set', 'uno_led_set', 'uno_buzzer_tone', 'uno_button_pressed'].sort(),
+      [
+        'uno_drive_move', 'uno_drive_stop', 'uno_motor_set', 'uno_ultrasonic_cm', 'uno_line_dark', 'uno_servo_set', 'uno_led_set', 'uno_buzzer_tone', 'uno_button_pressed',
+        'uno_gripper_claw', 'uno_gripper_claw_angle', 'uno_gripper_lift', 'uno_gripper_lift_angle', 'uno_ir_detect', 'uno_color_is',
+      ].sort(),
     );
   });
 
@@ -121,8 +127,8 @@ describe('profile exposure (N18 R2.2)', () => {
       expect(typesIn(toolbox.contents).filter((type) => !shown.has(type)), profile?.id).toEqual([]);
       expect(toolbox.contents.map((category) => category.name), profile?.id).toEqual(
         profile === basic
-          ? ['Program', 'Motors', 'Sensors', 'Servo', 'Light & Sound', 'Logic', 'Loops', 'Time', 'Math', 'Text', 'Variables']
-          : ['Program', 'Motors', 'Sensors', 'Servo', 'Light & Sound', 'Logic', 'Loops', 'Time', 'Math', 'Text', 'Variables', 'Pins'],
+          ? ['Program', 'Motors', 'Sensors', 'Servo', 'Gripper', 'Light & Sound', 'Logic', 'Loops', 'Time', 'Math', 'Text', 'Variables']
+          : ['Program', 'Motors', 'Sensors', 'Servo', 'Gripper', 'Light & Sound', 'Logic', 'Loops', 'Time', 'Math', 'Text', 'Variables', 'Pins'],
       );
     }
   });
@@ -182,6 +188,25 @@ describe('the ranges and answers of the robot’s blocks are the contract’s (d
     expect(ULTRASONIC_CM).toEqual([constants.ULTRASONIC_MIN_CM, constants.ULTRASONIC_MAX_CM]);
     expect(constants.ULTRASONIC_NO_ECHO_CM).toBe(constants.ULTRASONIC_MAX_CM);
     expect(UNO_ADC_MAX).toBe(unoContract.board.adcMax);
+  });
+
+  it('N19 A5: clamps the claw and the arm to 0..90 as the contract’s gripperSet does, writes open 0, close 80 (the kit’s jaws meet), up 90, down 0, and reads a colour index 0..6 and a raw count 0..21504 as the contract’s helper', () => {
+    const gripperSet = unoContract.helpers['gripper-servo2']?.text ?? '';
+    expect(gripperSet).toContain(`if (angle < ${GRIPPER_ANGLE_RANGE.min}L) angle = ${GRIPPER_ANGLE_RANGE.min}L;`);
+    expect(gripperSet).toContain(`if (angle > ${GRIPPER_ANGLE_RANGE.max}L) angle = ${GRIPPER_ANGLE_RANGE.max}L;`);
+    const gripper = productionKits.get({ id: 'ref-uno-gripper', version: '0' })?.modules.find((module) => module.role === 'gripper');
+    expect([clawPositions.OPEN, clawPositions.CLOSE, liftPositions.UP, liftPositions.DOWN]).toEqual([0, gripper?.spec.jawsMeetDeg, GRIPPER_ANGLE_RANGE.max, 0]);
+    expect(row('U-35').restrictions[0]).toContain(`writes ${clawPositions.OPEN} (open) or ${clawPositions.CLOSE} (closed`);
+    expect(row('U-36').restrictions[0]).toContain(`writes ${liftPositions.UP} (up) or ${liftPositions.DOWN} (down)`);
+    // The colour helper: ATIME 0xEB gives (256 − ATIME) × 1024 counts at most (DS-02); its classes are COLOR_NAMES, unknown the last.
+    const colour = unoContract.helpers['tcs34725-wire']?.text ?? '';
+    const atime = Number.parseInt(/colorWrite\(0x01, 0x([0-9A-F]{2})\);/.exec(colour)?.[1] ?? '', 16);
+    expect(COLOR_RAW_RANGE).toEqual([0, Math.min(65535, (256 - atime) * 1024)]);
+    expect(COLOR_RAW_RANGE[1]).toBe(21504);
+    expect(colour).toContain(`return ${COLOR_NAMES.length - 1};`);
+    expect(COLOR_NAMES.at(-1)).toBe('unknown');
+    expect(row('U-38').restrictions[0]).toContain(COLOR_NAMES.map((name, index) => `${index} ${name}`).join(', '));
+    expect(row('U-39').restrictions[0]).toContain(`${COLOR_CHANNELS.map((channel, index) => `${index} ${channel}`).join(', ')}; 0..${COLOR_RAW_RANGE[1]}`);
   });
 
   it('reports with the codes and severities the contract names (§13)', () => {

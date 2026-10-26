@@ -57,6 +57,27 @@ describe('every driver op writes its contract row’s C++ exactly', () => {
     },
   );
 
+  // N19 A5: the gripper car's drivers on ref-uno-gripper@0's ports, against the rows U-35…U-39.
+  const gripperKit = loadKit(refUnoGripperJson, board);
+  const gripperPlaceholders: Record<string, string[]> = { 'U-35': ['<angle>'], 'U-36': ['<angle>'], 'U-38': ['<value>'], 'U-39': ['<value>'] };
+  it.each(
+    gripperKit.modules
+      .filter((module) => ['gripper', 'irClaw', 'color1'].includes(module.role))
+      .flatMap((module) => {
+        const port = gripperKit.ports.find((candidate) => candidate.id === module.port) as KitPort;
+        return Object.entries(drivers[port.driver].ops).map(([op, driverOp]) => ({ name: `${port.driver} ${op} (${driverOp.row}) on ${port.id}`, driverOp, port, role: module.role }));
+      }),
+  )('N19 A5: $name', ({ driverOp, port, role }) => {
+    const contract = row(driverOp.row);
+    expect(driverOp.cpp.call(port, role, gripperPlaceholders[driverOp.row] ?? [])).toBe(forRole(contract.form, role, port));
+    expect(driverOp.cpp.setup(port, role)).toEqual((contract.setup ?? []).map((line) => forRole(line, role, port)));
+    expect(driverOp.cpp.globals(port, role)).toEqual((contract.globals ?? []).map((line) => forRole(line, role, port)));
+    expect(driverOp.cpp.includes).toEqual(contract.includes);
+    expect(driverOp.cpp.libraries).toEqual(contract.libraries);
+    const helperIds = contract.helpers ?? [];
+    expect(driverOp.cpp.helper).toEqual(helperIds.length === 0 ? null : { id: helperIds[0], text: unoContract.helpers[helperIds[0] ?? '']?.text });
+  });
+
   it('covers every module row of the contract: U-20, U-23…U-30 by a driver op, U-21 and U-22 by the drive', () => {
     const rows = new Set(Object.values(drivers).flatMap((driver) => Object.values(driver.ops).map((op) => op.row)));
     // N19 A3: and the gripper car's U-35…U-39, whose contract rows task A5 writes.
