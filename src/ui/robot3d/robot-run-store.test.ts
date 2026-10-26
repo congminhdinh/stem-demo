@@ -765,7 +765,6 @@ describe('the score the HUD shows (N18 R6.3)', () => {
 });
 
 describe('a replay on the real session (N18 R6.3)', () => {
-
   // Determinism (robot plan §5): the same project, scenario, seed and engine give the same run, so a replay is a run of the round again,
   // not a recording; it must end in the very world the check ended that round in.
   it('replays each round of a check at 1× to the world the check ended it in: the same final hash', async () => {
