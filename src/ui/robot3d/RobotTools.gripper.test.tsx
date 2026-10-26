@@ -97,12 +97,78 @@ describe('the gripper’s keys (N19 E3)', () => {
     expect(commands(session)).toEqual([claw(0), claw(80), lift(90), lift(75), lift(60)]);
   });
 
-  it('a held R or F repeats its step, and the lift stops at 0° and 90°', async () => {
+  it('a held F or R steps at once, then 10 a second from 0.4 s, the same whatever the system’s key repeat rate; the lift stops at 0° and 90°', async () => {
+    vi.useFakeTimers();
+    // The operating system's repeat events come every 25 ms (a fast keyboard) or every 125 ms (a slow one); neither changes what is commanded.
+    const held = async (code: 'KeyF' | 'KeyR', everyMs: number, forMs: number) => {
+      const { session, stage } = await setup(gripperKit);
+      await click('robot-tool-teleop');
+      await key(stage(), 'keydown', { key: 'x', code });
+      for (let at = everyMs; at <= forMs; at += everyMs) {
+        await act(async () => void vi.advanceTimersByTime(everyMs));
+        await key(stage(), 'keydown', { key: 'x', code, repeat: true });
+      }
+      const at1000 = commands(session);
+      await key(stage(), 'keyup', { key: 'x', code });
+      await act(async () => void vi.advanceTimersByTime(5000));
+      expect(commands(session), 'nothing after the key is let go').toEqual(at1000);
+      act(() => root.unmount());
+      host.replaceChildren();
+      root = createRoot(host);
+      return at1000;
+    };
+    // 1 s of F from the top: 75 at once, then 60 (0.4 s), 45, 30, 15, 0 (0.8 s) and the lift stays at 0 for the steps after it.
+    const lowering = [lift(75), lift(60), lift(45), lift(30), lift(15), lift(0), lift(0), lift(0)];
+    expect(await held('KeyF', 25, 1000)).toEqual(lowering);
+    expect(await held('KeyF', 125, 1000)).toEqual(lowering);
+    // R from the top is already at 90: every step stays there.
+    expect(await held('KeyR', 25, 1000)).toEqual(Array(8).fill(lift(90)));
+  });
+
+  it('a key held after the schedule was dropped (the window lost the focus) is a new press, and the other lift key takes over from the first', async () => {
+    vi.useFakeTimers();
     const { session, stage } = await setup(gripperKit);
     await click('robot-tool-teleop');
-    for (let repeat = 0; repeat < 8; repeat++) await key(stage(), 'keydown', { key: 'f', code: 'KeyF', repeat: repeat > 0 });
-    for (let repeat = 0; repeat < 2; repeat++) await key(stage(), 'keydown', { key: 'r', code: 'KeyR', repeat: repeat > 0 });
-    expect(commands(session)).toEqual([lift(75), lift(60), lift(45), lift(30), lift(15), lift(0), lift(0), lift(0), lift(15), lift(30)]);
+    await key(stage(), 'keydown', { key: 'f', code: 'KeyF' });
+    await act(async () => void window.dispatchEvent(new Event('blur')));
+    await act(async () => void vi.advanceTimersByTime(2000));
+    expect(commands(session)).toEqual([lift(75)]);
+    // The key is still down and the OS goes on repeating: that is a press again.
+    await key(stage(), 'keydown', { key: 'f', code: 'KeyF', repeat: true });
+    await act(async () => void vi.advanceTimersByTime(400));
+    expect(commands(session)).toEqual([lift(75), lift(60), lift(45)]);
+    // R takes over while F is held; F let go leaves R's schedule alone, R let go ends it.
+    await key(stage(), 'keydown', { key: 'r', code: 'KeyR' });
+    await key(stage(), 'keyup', { key: 'f', code: 'KeyF' });
+    await act(async () => void vi.advanceTimersByTime(500));
+    expect(commands(session)).toEqual([lift(75), lift(60), lift(45), lift(60), lift(75), lift(90)]);
+    await key(stage(), 'keyup', { key: 'r', code: 'KeyR' });
+    await act(async () => void vi.advanceTimersByTime(2000));
+    expect(commands(session)).toHaveLength(6);
+  });
+
+  it('ends the schedule of a held key when teleop goes off or the view loses the focus', async () => {
+    vi.useFakeTimers();
+    const { session, stage } = await setup(gripperKit);
+    await click('robot-tool-teleop');
+    const idle = vi.getTimerCount();
+    await key(stage(), 'keydown', { key: 'f', code: 'KeyF' });
+    expect(vi.getTimerCount()).toBe(idle + 1);
+    await act(async () => void stage().dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: document.body })));
+    expect(vi.getTimerCount()).toBe(idle);
+    await key(stage(), 'keydown', { key: 'f', code: 'KeyF' });
+    expect(vi.getTimerCount()).toBe(idle + 1);
+    await click('robot-tool-teleop');
+    expect(vi.getTimerCount()).toBeLessThanOrEqual(idle);
+    expect(commands(session)).toEqual([lift(75), lift(60)]);
+  });
+
+  it('a held Q or E is one command: the system’s repeats of a claw key are ignored', async () => {
+    const { session, stage } = await setup(gripperKit);
+    await click('robot-tool-teleop');
+    await key(stage(), 'keydown', { key: 'e', code: 'KeyE' });
+    for (let repeat = 0; repeat < 5; repeat++) await key(stage(), 'keydown', { key: 'e', code: 'KeyE', repeat: true });
+    expect(commands(session)).toEqual([claw(80)]);
   });
 
   it('keeps the camera’s and the drive’s keys: they drive and orbit as before, and take no gripper step', async () => {
@@ -209,6 +275,16 @@ describe('the gripper’s buttons (N19 E3)', () => {
     await pointer('robot-gripper-up', 'pointercancel');
     await act(async () => void vi.advanceTimersByTime(1000));
     expect(commands(session)).toEqual([lift(75), lift(60), lift(45), lift(30), lift(45)]);
+  });
+
+  it('a held arm button lets go when it loses the focus, as the D-pad’s arrows do', async () => {
+    vi.useFakeTimers();
+    const { session } = await setup(gripperKit);
+    await click('robot-tool-teleop');
+    await pointer('robot-gripper-down', 'pointerdown');
+    await act(async () => void el('robot-gripper-down')!.dispatchEvent(new FocusEvent('focusout', { bubbles: true })));
+    await act(async () => void vi.advanceTimersByTime(2000));
+    expect(commands(session)).toEqual([lift(75)]);
   });
 
   it('a claw button acts once however long it is held', async () => {

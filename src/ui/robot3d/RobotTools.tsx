@@ -6,7 +6,7 @@ import type { MessageKey } from '../i18n/messages';
 import { useLocale, useText } from '../i18n/text';
 import { formatNumber } from './format';
 import { isRunOver, type RobotRunStore } from './robot-run-store';
-import { driveKeyOf, gripperKeyOf, isTypingTarget, measure, TURN_STEP_DEG, type GripperAction } from './robot-tools';
+import { createRepeater, driveKeyOf, gripperKeyOf, isTypingTarget, measure, TURN_STEP_DEG, type GripperAction, type Repeater } from './robot-tools';
 import { TELEOP_SPEED, type RobotToolsStore, type RulerPoint } from './robot-tools-store';
 import './RobotTools.css';
 
@@ -19,7 +19,8 @@ import './RobotTools.css';
 //     that move it, W A S D and Space drive from it);
 //   - with the move tool the arrows nudge a ghost 1 cm (Shift: 5 cm), Enter places it, Q and E turn it or the robot 15°;
 //   - Esc clears the ruler, or drops the move tool's ghost, then puts the robot back at the start.
-// N19 E3: on the gripper car Q E R F move the claw and the arm in teleop, and four buttons beside the D-pad do the same (the arm's repeat while held).
+// N19 E3: on the gripper car Q E R F move the claw and the arm in teleop, and four buttons beside the D-pad do the same. A held R, F or arm button
+// steps 10 times a second (robot-tools.ts `createRepeater`), whatever the system's key repeat rate: the system's repeat events are ignored.
 // A key typed into a field or the block editor is never taken. During Kiểm tra (the run store's lock) the tools are off and hidden; during
 // a replay of a round they are off and disabled, and the move tool also while a run goes on. Without the drive (both motors) Lái tay is
 // disabled and says why. Every target is 44 px or more.
@@ -141,7 +142,14 @@ function useViewKeys(stage: RefObject<HTMLElement | null>, store: RobotRunStore,
     if (element === null) return undefined;
     const held: DriveDirection[] = [];
     const drive = () => tools.getState().hold(held.at(-1) ?? null);
+    // N19 E3: the lift key held now (R or F) and its schedule of repeats; the last one pressed has it.
+    let lift: { code: string; repeater: Repeater } | null = null;
+    const stopLift = () => {
+      lift?.repeater.stop();
+      lift = null;
+    };
     const letGo = () => {
+      stopLift();
       if (held.length === 0) return;
       held.length = 0;
       drive();
@@ -189,7 +197,20 @@ function useViewKeys(stage: RefObject<HTMLElement | null>, store: RobotRunStore,
       // N19 E3: Q E R F move the gripper's claw and arm (by the key's place, held R and F repeat); a kit without a gripper leaves them alone.
       const gripperAction = gripperKeyOf(event);
       if (gripperAction !== null) {
-        if (tools.getState().moveGripper(gripperAction)) event.preventDefault();
+        // The system's repeats of a held key are not steps: the arm's own schedule steps (10 a second), and a claw key is one command. A repeat
+        // with no schedule behind it (the key was held through a loss of the focus) is a press again.
+        if (event.repeat && (gripperAction.part === 'claw' || lift?.code === event.code)) {
+          event.preventDefault();
+          return;
+        }
+        stopLift();
+        if (!tools.getState().moveGripper(gripperAction)) return;
+        event.preventDefault();
+        if (gripperAction.part === 'lift') {
+          const repeater = createRepeater(() => void tools.getState().moveGripper(gripperAction));
+          lift = { code: event.code, repeater };
+          repeater.start();
+        }
         return;
       }
       const action = driveKeyOf(event);
@@ -210,6 +231,7 @@ function useViewKeys(stage: RefObject<HTMLElement | null>, store: RobotRunStore,
       drive();
     };
     const onKeyUp = (event: KeyboardEvent) => {
+      if (lift?.code === event.code) stopLift();
       const action = driveKeyOf(event);
       const at = action === null || action === 'stop' ? -1 : held.indexOf(action);
       if (at < 0) return;
@@ -223,6 +245,7 @@ function useViewKeys(stage: RefObject<HTMLElement | null>, store: RobotRunStore,
     const stopWatching = store.subscribe((state, previous) => {
       if (previous.teleop && !state.teleop) {
         held.length = 0;
+        stopLift();
         tools.getState().release();
       }
       // N19 E3: a new world (a teleop start, Đặt lại robot) has the gripper as setup() leaves it.
@@ -237,6 +260,7 @@ function useViewKeys(stage: RefObject<HTMLElement | null>, store: RobotRunStore,
       element.removeEventListener('keyup', onKeyUp);
       element.removeEventListener('focusout', onFocusOut);
       window.removeEventListener('blur', letGo);
+      stopLift();
       stopWatching();
     };
   }, [stage, store, tools]);
@@ -308,10 +332,6 @@ function PadButton({ direction, icon, label, area, tools, usable }: { direction:
   );
 }
 
-/** How long a held button of the arm waits before it repeats, and how often it repeats then (a key's own auto-repeat, about). */
-const REPEAT_DELAY_MS = 400;
-const REPEAT_INTERVAL_MS = 100;
-
 const gripperButtons: readonly { id: string; action: GripperAction; icon: ToolIconName; label: MessageKey; keys: string; repeats: boolean }[] = [
   { id: 'open', action: { part: 'claw', to: 'open' }, icon: 'clawOpen', label: 'robot.teleop.clawOpen', keys: 'Q', repeats: false },
   { id: 'close', action: { part: 'claw', to: 'close' }, icon: 'clawClose', label: 'robot.teleop.clawClose', keys: 'E', repeats: false },
@@ -320,19 +340,15 @@ const gripperButtons: readonly { id: string; action: GripperAction; icon: ToolIc
 ];
 
 /**
- * One button of the gripper (N19 E3): a press by the pointer acts at once and, for the arm, repeats while held (after `REPEAT_DELAY_MS`, every
- * `REPEAT_INTERVAL_MS`); a keyboard's Enter or Space on it (a click without a pointer) acts once. Taking the pointer away lets go.
+ * One button of the gripper (N19 E3): a press by the pointer acts at once and, for the arm, repeats while held as the keys do (robot-tools.ts
+ * `createRepeater`); a keyboard's Enter or Space on it (a click without a pointer) acts once. Taking the pointer away, or the focus, lets go.
  */
 function GripperButton({ id, action, icon, label, keys, repeats, tools, usable }: { id: string; action: GripperAction; icon: ToolIconName; label: string; keys: string; repeats: boolean; tools: RobotToolsStore; usable: boolean }) {
   const pointerId = useRef<number | null>(null);
-  const timers = useRef<{ delay: ReturnType<typeof setTimeout> | null; interval: ReturnType<typeof setInterval> | null }>({ delay: null, interval: null });
   const step = () => void tools.getState().moveGripper(action);
-  const stopRepeating = () => {
-    if (timers.current.delay !== null) clearTimeout(timers.current.delay);
-    if (timers.current.interval !== null) clearInterval(timers.current.interval);
-    timers.current = { delay: null, interval: null };
-  };
-  useEffect(() => stopRepeating, []);
+  const repeater = useRef<Repeater | null>(null);
+  repeater.current ??= createRepeater(step);
+  useEffect(() => () => repeater.current?.stop(), []);
   const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.button !== 0 || !usable) return;
     pointerId.current = event.pointerId;
@@ -342,18 +358,16 @@ function GripperButton({ id, action, icon, label, keys, repeats, tools, usable }
       // A pointer that is not active has no capture: its up event still lets go.
     }
     step();
-    if (repeats) {
-      stopRepeating();
-      timers.current.delay = setTimeout(() => {
-        step();
-        timers.current.interval = setInterval(step, REPEAT_INTERVAL_MS);
-      }, REPEAT_DELAY_MS);
-    }
+    if (repeats) repeater.current?.start();
   };
   const onPointerEnd = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (pointerId.current !== event.pointerId) return;
     pointerId.current = null;
-    stopRepeating();
+    repeater.current?.stop();
+  };
+  const onBlur = () => {
+    pointerId.current = null;
+    repeater.current?.stop();
   };
   return (
     <button
@@ -368,6 +382,7 @@ function GripperButton({ id, action, icon, label, keys, repeats, tools, usable }
       onPointerUp={onPointerEnd}
       onPointerCancel={onPointerEnd}
       onLostPointerCapture={onPointerEnd}
+      onBlur={onBlur}
       // A click made by a pointer (it has a detail) was acted on at its press; one made by a key has none.
       onClick={(event) => {
         if (event.detail === 0 && usable) step();
