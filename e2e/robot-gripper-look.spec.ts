@@ -4,6 +4,9 @@ import { expect, test } from '@playwright/test';
 // snapshot; no gripper scenario ships yet, plan D4) are the modelled scene on both tiers, holding the red cube, with no error. The gallery
 // itself (spikes/n19-e67/shots.mjs) and its review are E8's.
 
+// A busy machine draws SwiftShader's first high-tier frame slowly: the limit is for a hang (as robot-lab-look.spec.ts's).
+test.describe.configure({ timeout: 120_000 });
+
 for (const tier of ['high', 'low'] as const) {
   test(`the gripper car holding a cube is the modelled scene (${tier})`, async ({ page }) => {
     const errors: string[] = [];
