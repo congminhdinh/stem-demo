@@ -141,6 +141,35 @@ test.describe('a robot lab in a lesson (stem-lab/v1)', () => {
     expect(await frame.evaluate(() => window.__stem?.getProject())).toEqual(saved);
   });
 
+  test('checks at Nhanh in a fresh tab; a reload keeps the learner’s 1×, and a new tab starts at Nhanh again (N18 final fix I1, review 2 N1–N2)', async ({ page, context, baseURL }) => {
+    const url = labUrl(baseURL, `lab=robot&template=rb-drive-to-zone&origin=${encodeURIComponent(lessonOrigin)}`);
+    const speeds = (frame: Frame) =>
+      frame.locator('[data-testid=robot-check-speed] [role=radio]').evaluateAll((radios) => radios.map((radio) => [radio.textContent, radio.getAttribute('aria-checked')]));
+    const fresh = [
+      ['1×', 'false'],
+      ['4×', 'false'],
+      ['Nhanh', 'true'],
+    ];
+    const frame = await openInLesson(page, url);
+    expect(await speeds(frame)).toEqual(fresh);
+    await frame.locator('[data-testid=robot-check-speed] [data-speed="1x"]').click();
+    expect((await speeds(frame))[0]).toEqual(['1×', 'true']);
+    // The tab keeps the choice (sessionStorage) …
+    await page.reload();
+    const reloaded = await (await page.locator('iframe').elementHandle())?.contentFrame();
+    if (!reloaded) throw new Error('The lab iframe has no frame');
+    await reloaded.getByTestId('robot-check-speed').waitFor();
+    expect(await speeds(reloaded)).toEqual([
+      ['1×', 'true'],
+      ['4×', 'false'],
+      ['Nhanh', 'false'],
+    ]);
+    // … and no other tab does: the next student at a shared PC starts at Nhanh.
+    const other = await context.newPage();
+    expect(await speeds(await openInLesson(other, url))).toEqual(fresh);
+    await other.close();
+  });
+
   test('has the dev-only robot hooks: no snapshot before a run, and a speed to set', async ({ page, baseURL }) => {
     const frame = await openInLesson(page, labUrl(baseURL, 'lab=robot&template=rb-sandbox'));
     expect(await frame.evaluate(() => window.__stem?.robot.getSnapshot())).toBeNull();
