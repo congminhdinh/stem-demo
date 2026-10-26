@@ -307,3 +307,8 @@ nghĩa `RobotSnapshot`, R4.2 phục vụ nó), `setSpeed(n)` lưu hệ số tố
 ("Di chuyển robot") và chưa có lượt chạy, `getSnapshot()` (và `snapshotHash()`) trả snapshot của khung nhìn lúc chưa chạy với robot ở chỗ đã đặt
 (`status: "idle"`, `t: 0`, không có chân; đúng thứ khung nhìn 3D và bản đồ 2D vẽ) thay cho `null`; về chỗ xuất phát của bài thì lại là `null`. Trong
 Lái tay nó trả world của lượt lái tay như của một lượt chạy. Không phải một phần của `stem-lab/v1`.
+N18 P2 (fix round 1, 2026-10-26) thêm hai hook chỉ cho E2E, **không enumerable** (để test của R4.1 về đúng bốn key ở trên vẫn đúng; TypeScript
+`RobotTestHooks` và e2e gọi chúng theo tên): `setLowTierChain('off' | 'auto')` ghim chuỗi tier thấp khi không có GPU (giới hạn 30 hình/giây
+rồi mời bản đồ 2D) tắt hay để nó tự chạy, giữ cho mọi lab trang mở sau đó (helper `e2e/robot-chain.ts` ghim tắt cho các spec robot); và
+`forceLowTierStep('cap' | 'offer')` ép một bước của chuỗi trên lab đang mở (ném lỗi khi chưa có lab robot nào). Giá trị khác ném `RangeError`.
+Bản production không có hai hook này, cũng không có phần điều khiển chúng (`low-tier-control.ts`).
