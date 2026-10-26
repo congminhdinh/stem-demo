@@ -1,4 +1,5 @@
 import { classifyColor, COLOR_NAMES, type ColorName } from '../../core/hardware/drivers';
+import { placedZoneFor } from '../../core/scenario/goals/object-placed';
 import type { Scenario } from '../../core/scenario/scenario';
 import type { RobotSnapshot, ScoreState, SensorReadout } from '../../core/world/snapshot';
 
@@ -82,13 +83,39 @@ export function pulseLevel(running: boolean, reducedMotion: boolean, seconds: nu
   return running && !reducedMotion ? 0.5 + 0.5 * Math.sin((2 * Math.PI * seconds) / PULSE_PERIOD_S) : 0.5;
 }
 
+/** No colours: an object then has none (a scenario that paints none, or a caller that knows none). */
+const NO_COLORS: Readonly<Record<string, string>> = Object.freeze({});
+
+type PlacedGoal = Extract<Scenario['goals'][number], { kind: 'object-placed' }>;
+/**
+ * N19 E4/E5: the zone of an `object-placed` goal for its object's colour, cached by goal and colour after the first time, so that the 3D
+ * overlay's frame callback asks it with no garbage (core's `placedZoneFor` makes an array; it is the one answer, asked once a colour).
+ */
+const placedZones = new WeakMap<PlacedGoal, Map<string, string | null>>();
+function placedZone(goal: PlacedGoal, color: string | undefined): string | null {
+  if (goal.zone !== undefined) return goal.zone;
+  if (color === undefined) return null;
+  let byColor = placedZones.get(goal);
+  if (byColor === undefined) {
+    byColor = new Map();
+    placedZones.set(goal, byColor);
+  }
+  let zone = byColor.get(color);
+  if (zone === undefined) {
+    zone = placedZoneFor(goal, color) ?? null;
+    byColor.set(color, zone);
+  }
+  return zone;
+}
+
 /**
  * The zone the next unmet goal needs: the first goal, in the scenario's order, that has not passed and names a zone. A route of
- * checkpoints needs the one after those counted (its `progress` is the counted share of the list); a servo goal the zone it waits in.
- * Null when every goal that names a zone has passed, or the scenario names none. `results` is the snapshot's score (none before the
- * first tick: every goal is unmet then).
+ * checkpoints needs the one after those counted (its `progress` is the counted share of the list); a servo goal the zone it waits in;
+ * N19 E4/E5, an `object-placed` goal its zone, or (`zoneByColor`) the zone of its object's colour in `objectColors`, the round shown's
+ * (round-colors.ts; the arena's own colours when no round is shown). Null when every goal that names a zone has passed, or the scenario
+ * names none. `results` is the snapshot's score (none before the first tick: every goal is unmet then).
  */
-export function nextGoalZoneId(goals: Scenario['goals'], results: ScoreState['goals']): string | null {
+export function nextGoalZoneId(goals: Scenario['goals'], results: ScoreState['goals'], objectColors: Readonly<Record<string, string>> = NO_COLORS): string | null {
   for (let g = 0; g < goals.length; g++) {
     const goal = goals[g]!;
     let result: ScoreState['goals'][number] | undefined;
@@ -111,11 +138,34 @@ export function nextGoalZoneId(goals: Scenario['goals'], results: ScoreState['go
       case 'servo-angle':
         if (goal.whenInZone !== undefined) return goal.whenInZone;
         break;
+      case 'object-placed': {
+        const zone = placedZone(goal, Object.hasOwn(objectColors, goal.object) ? objectColors[goal.object] : undefined);
+        if (zone !== null) return zone;
+        break;
+      }
       default:
         break;
     }
   }
   return null;
+}
+
+/**
+ * Every zone a goal of `goals` can need (`nextGoalZoneId`), in the goals' order, once each: the overlays build a highlight for each. N19
+ * E4/E5: an `object-placed` goal's zone, or every zone of its `zoneByColor`.
+ */
+export function goalZoneIds(goals: Scenario['goals']): Set<string> {
+  const named = new Set<string>();
+  for (const goal of goals) {
+    if (goal.kind === 'reach-zone' || goal.kind === 'object-in-zone' || goal.kind === 'stop-in-zone') named.add(goal.zone);
+    else if (goal.kind === 'checkpoints-in-order') goal.zones.forEach((zone) => named.add(zone));
+    else if (goal.kind === 'servo-angle' && goal.whenInZone !== undefined) named.add(goal.whenInZone);
+    else if (goal.kind === 'object-placed') {
+      if (goal.zone !== undefined) named.add(goal.zone);
+      for (const zone of Object.values(goal.zoneByColor ?? {})) named.add(zone);
+    }
+  }
+  return named;
 }
 
 /** An ultrasonic reading changes the picture from this much (cm): below it the ray is as long to the eye, even close up. */
@@ -150,14 +200,14 @@ function sameReadout(sa: SensorReadout, sb: SensorReadout): boolean {
  * Whether two worlds draw the same overlays, apart from where the robot is (the view's own picture, `sameView`, sees that): each
  * ultrasonic reading to 0.05 cm and to the tenth the label writes, and its echo, what a line sensor sees (the colour, and whether it is
  * lifted), N19 E5: whether the IR sees and what its ray meets, what the colour sensor's ray meets, how far (to 0.05 cm) and the colour its
- * counts read; the zone the next goal needs and the run's status (the pulse runs while it is `running`). A robot at rest changes none of
- * these, so the overlays ask for no frame.
+ * counts read; the zone the next goal needs (in the round's `objectColors`, for a goal placed by colour) and the run's status (the pulse runs
+ * while it is `running`). A robot at rest changes none of these, so the overlays ask for no frame.
  */
-export function sameSensorView(a: RobotSnapshot | null, b: RobotSnapshot | null, goals: Scenario['goals']): boolean {
+export function sameSensorView(a: RobotSnapshot | null, b: RobotSnapshot | null, goals: Scenario['goals'], objectColors: Readonly<Record<string, string>> = NO_COLORS): boolean {
   if (a === b) return true;
   if (a === null || b === null) return false;
   if (a.status !== b.status || a.sensors.length !== b.sensors.length) return false;
-  if (nextGoalZoneId(goals, a.score.goals) !== nextGoalZoneId(goals, b.score.goals)) return false;
+  if (nextGoalZoneId(goals, a.score.goals, objectColors) !== nextGoalZoneId(goals, b.score.goals, objectColors)) return false;
   for (let i = 0; i < a.sensors.length; i++) {
     if (!sameReadout(a.sensors[i]!, b.sensors[i]!)) return false;
   }

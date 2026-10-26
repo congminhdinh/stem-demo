@@ -1,5 +1,6 @@
 import { addTail, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
+import { useStore } from 'zustand';
 import { Vector3 } from 'three';
 import type { Kit } from '../../../core/hardware/kit';
 import type { Scenario } from '../../../core/scenario/scenario';
@@ -10,6 +11,7 @@ import type { Detail } from '../lighting/look';
 import type { RobotModel } from '../robot-model';
 import type { RobotRunStore } from '../robot-run-store';
 import type { RobotToolsStore } from '../robot-tools-store';
+import { shownObjectColors } from '../round-colors';
 import { labelBoxes, LABEL_CENTERS, LABEL_REACH_SHARES, MAX_LABEL_BOXES, placeLabel, type LabelPlace } from '../sensor-label-boxes';
 import { registerSensorOverlay } from '../sensor-overlay-state';
 import { pulseLevel, sameSensorView } from '../sensor-overlay-math';
@@ -75,6 +77,16 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
     }
   }, [kit, model, scenario, decimal, unit, noEchoText, fovDeg, detail, gripperWords]);
   useEffect(() => () => overlay?.dispose(), [overlay]);
+  // N19 E4/E5: the round's colours, for the zone a goal placed by colour needs; a frame when they change (a new round), none else.
+  const roundColors = useStore(store, shownObjectColors);
+  const colorsRef = useRef(roundColors);
+  useEffect(() => {
+    overlay?.setRoundColors(roundColors);
+    if (colorsRef.current !== roundColors) {
+      colorsRef.current = roundColors;
+      invalidate();
+    }
+  }, [overlay, roundColors, invalidate]);
   useEffect(() => (overlay ? registerSensorOverlay(gl.domElement, overlay) : undefined), [gl, overlay]);
 
   // A frame when the overlay's picture changes. The run's own snapshots that move the robot ask for theirs in Scene.tsx (RedrawOnChange);
@@ -87,7 +99,7 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
     };
     const check = () => {
       const next = store.getState().latestWorld();
-      if (!sameSensorView(shown, next, scenario.goals)) {
+      if (!sameSensorView(shown, next, scenario.goals, colorsRef.current ?? undefined)) {
         shown = next;
         ask();
       }

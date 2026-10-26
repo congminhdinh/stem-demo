@@ -1,6 +1,7 @@
 import type Konva from 'konva';
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { Circle, Group, Label, Layer, Line, Tag, Text } from 'react-konva';
+import { useStore } from 'zustand';
 import type { ColorSensorSpec, IrObstacleSpec, Kit, LineSensorSpec, UltrasonicSpec } from '../../core/hardware/kit';
 import type { Scenario } from '../../core/scenario/scenario';
 import type { RobotSnapshot } from '../../core/world/snapshot';
@@ -11,9 +12,10 @@ import type { RobotModel } from './robot-model';
 import type { RobotRunStore } from './robot-run-store';
 import { robotToArena } from './robot-tools';
 import type { RobotToolsStore } from './robot-tools-store';
+import { shownObjectColors } from './round-colors';
 import { idleSnapshot } from './scene-math';
 import { readingTints, sensorColors as colors } from './sensor-colors';
-import { highlightColor, nextGoalZoneId, pulseLevel, sameSensorView, sectorPointsCm, SECTOR_POINTS_LENGTH, shownColor, spotDrawRadiusCm } from './sensor-overlay-math';
+import { goalZoneIds, highlightColor, nextGoalZoneId, pulseLevel, sameSensorView, sectorPointsCm, SECTOR_POINTS_LENGTH, shownColor, spotDrawRadiusCm } from './sensor-overlay-math';
 import { createGripperTopView, gripperTopViewInto } from './top-view-gripper';
 import { arenaToStage, rayLengthCm, sameTopView, type TopViewFit } from './top-view-math';
 
@@ -65,14 +67,9 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
   // current answer, and a browser without the query, or a test, has none).
   const motion = useMemo(() => (typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia(reducedMotionQuery) : null), []);
   const nodes = useRef<Nodes>({ layer: null, zones: new Map(), cones: [], labels: [], texts: [], spots: [], ir: { beam: null, end: null }, color: { ray: null, spot: null }, gripperLabel: null, gripperText: null });
-  // The zones goals name.
+  // The zones goals name (N19 E4/E5: a placed object's too).
   const zones = useMemo(() => {
-    const named = new Set<string>();
-    for (const goal of goals) {
-      if (goal.kind === 'reach-zone' || goal.kind === 'object-in-zone' || goal.kind === 'stop-in-zone') named.add(goal.zone);
-      else if (goal.kind === 'checkpoints-in-order') goal.zones.forEach((zone) => named.add(zone));
-      else if (goal.kind === 'servo-angle' && goal.whenInZone !== undefined) named.add(goal.whenInZone);
-    }
+    const named = goalZoneIds(goals);
     return scenario.arena.paint.zones.filter((zone) => named.has(zone.id)).map((zone) => ({ id: zone.id, points: zone.polygonCm.flatMap(([x, y]) => [x, y]), color: highlightColor(zone.color) }));
   }, [goals, scenario.arena.paint.zones]);
   // The sensors, from the kit: where each is mounted, how wide its cone, how big its spot. The cones' points are written in place by
@@ -102,6 +99,12 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
     };
     return { gripper, ir: rider(gripper.ir), color: rider(gripper.color), view: createGripperTopView(), irPoints: [0, 0, 0, 0], colorPoints: [0, 0, 0, 0] };
   }, [kit, model]);
+  // N19 E4/E5: the objects' colours a goal placed by colour reads: the round shown's (round-colors.ts), else the arena's own.
+  const roundColors = useStore(store, shownObjectColors);
+  const objectColors = useMemo(
+    () => roundColors ?? Object.freeze(Object.fromEntries(scenario.arena.objects.flatMap((object) => (object.color === undefined ? [] : [[object.id, object.color] as const])))),
+    [roundColors, scenario.arena.objects],
+  );
   const shownFit = useRef(fit);
   const shownText = useRef(t);
 
@@ -118,7 +121,7 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
       layer.visible(on);
       if (on) {
         const pulse = pulseLevel(world.status === 'running', motion?.matches === true, performance.now() / 1000);
-        const next = nextGoalZoneId(goals, world.score.goals);
+        const next = nextGoalZoneId(goals, world.score.goals, objectColors);
         for (const [id, zone] of n.zones) {
           const lit = id === next;
           zone.group.visible(lit);
@@ -241,7 +244,7 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
 
     const refresh = (force: boolean) => {
       const next = store.getState().latestWorld() ?? idle;
-      if (!force && sameTopView(drawn, next) && sameSensorView(drawn, next, goals)) return;
+      if (!force && sameTopView(drawn, next) && sameSensorView(drawn, next, goals, objectColors)) return;
       drawn = next;
       apply(next);
     };
@@ -256,7 +259,7 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
       stopState();
       stopTools?.();
     };
-  }, [fit, t, locale, store, tools, idle, goals, beams, spots, motion, carried]);
+  }, [fit, t, locale, store, tools, idle, goals, beams, spots, motion, carried, objectColors]);
 
   const world = { x: fit.originX, y: fit.originY, scaleX: fit.scale, scaleY: -fit.scale };
   return (

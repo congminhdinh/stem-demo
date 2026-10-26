@@ -8,7 +8,7 @@ import { gripperStateOf } from '../gripper-pose';
 import type { Detail } from '../lighting/look';
 import type { RobotModel } from '../robot-model';
 import { readingTints, sensorColors as colors } from '../sensor-colors';
-import { GLYPH, highlightColor, labelGlyphs, LABEL_GLYPHS_MAX, nextGoalZoneId, spotDrawRadiusCm } from '../sensor-overlay-math';
+import { GLYPH, goalZoneIds, highlightColor, labelGlyphs, LABEL_GLYPHS_MAX, nextGoalZoneId, spotDrawRadiusCm } from '../sensor-overlay-math';
 import { NO_ECHO_RAY_CM } from '../top-view-math';
 import { createDistanceLabel, type DistanceLabel, type DistanceLabelOptions } from './distance-label';
 import { beamAxisEcho, beamWrite, buildBeam, buildGripperRays, buildSpots, gripperRaysColor, gripperRaysIr, gripperRaysWrite, rgba, spotColor, spotsHide, spotsWrite, type Beam, type GripperRays, type Rgba, type Spots } from './overlay-geometry';
@@ -95,6 +95,11 @@ export type SensorOverlay = {
   update(world: RobotSnapshot, shown: boolean, pulse: number, timeS: number): void;
   /** Paints the tags that were held back to their latest reading; true when it did, so that a frame shows them. */
   flushLabels(): boolean;
+  /**
+   * N19 E4/E5: the objects' colours of the round shown (round-colors.ts), for the zone a goal placed by colour needs; null for the arena's
+   * own. Kept until told again; the next `update` lights by it.
+   */
+  setRoundColors(colors: Readonly<Record<string, string>> | null): void;
   /** The distance tags (null where a canvas could not be made), one for each ultrasonic sensor, in the kit's order. */
   labels: readonly (DistanceLabel | null)[];
   /** Whether the tag of the sensor at `index` is on the screen now: the overlay is shown and the sensor has a reading. */
@@ -219,13 +224,11 @@ export function createSensorOverlay({ kit, model, scenario, decimal, unit, noEch
   spotMesh.visible = false;
   root.add(spotMesh);
 
-  // The zones goals name, each one mesh (a fill and an outline) in the zone's own hue, shown one at a time.
-  const named = new Set<string>();
-  for (const goal of scenario.goals) {
-    if (goal.kind === 'reach-zone' || goal.kind === 'object-in-zone' || goal.kind === 'stop-in-zone') named.add(goal.zone);
-    else if (goal.kind === 'checkpoints-in-order') goal.zones.forEach((zone) => named.add(zone));
-    else if (goal.kind === 'servo-angle' && goal.whenInZone !== undefined) named.add(goal.whenInZone);
-  }
+  // The zones goals name (N19 E4/E5: a placed object's too), each one mesh (a fill and an outline) in the zone's own hue, shown one at a time.
+  const named = goalZoneIds(scenario.goals);
+  // N19 E4/E5: the objects' colours a goal placed by colour reads: the arena's own until a round is shown.
+  const arenaColors: Readonly<Record<string, string>> = Object.freeze(Object.fromEntries(scenario.arena.objects.flatMap((object) => (object.color === undefined ? [] : [[object.id, object.color] as const]))));
+  const round = { colors: arenaColors };
   const zones: ZonePart[] = scenario.arena.paint.zones
     .filter((zone) => named.has(zone.id))
     .map((zone) => {
@@ -348,7 +351,7 @@ export function createSensorOverlay({ kit, model, scenario, decimal, unit, noEch
       }
       spotMesh.visible = anySpot;
 
-      const next = nextGoalZoneId(scenario.goals, world.score.goals);
+      const next = nextGoalZoneId(scenario.goals, world.score.goals, round.colors);
       last.zone = next;
       clock[1] = pulse;
       for (let i = 0; i < zones.length; i++) zones[i]!.mesh.visible = zones[i]!.id === next;
@@ -379,6 +382,9 @@ export function createSensorOverlay({ kit, model, scenario, decimal, unit, noEch
         pulse: clock[1]!,
         gripper: carried?.probe(last.shown) ?? null,
       };
+    },
+    setRoundColors(colors) {
+      round.colors = colors ?? arenaColors;
     },
     gripperLabel: carried?.label ?? null,
     gripperLabelShown: () => last.shown && carried !== null && carried.labelShown(),

@@ -15,6 +15,7 @@ import { createRobotRunStore } from './robot-run-store';
 import { robotModel } from './robot-model';
 import { TopView2D } from './TopView2D';
 import { readTopViewGripper } from './top-view-gripper-state';
+import { readTopViewSensors } from './top-view-sensors-state';
 import { readTopViewState } from './top-view-state';
 
 // N19 E4/E5 (ruling 8 on the E4/E5 report): the 2D map paints each object in the colour of the round it shows, the run's world's
@@ -63,8 +64,8 @@ function fakeFrames() {
   };
 }
 
-function mount() {
-  const fake = fakeSession(scenario, gripperKit);
+function mount(on: Scenario = scenario) {
+  const fake = fakeSession(on, gripperKit);
   const frames = fakeFrames();
   const store = createRobotRunStore(fake.session, { requestFrame: frames.requestFrame, cancelFrame: frames.cancelFrame });
   store.getState().connect();
@@ -73,7 +74,7 @@ function mount() {
     root.render(
       <TextProvider locale="vi">
         <Profiler id="map" onRender={() => void renders.push(renders.length)}>
-          <TopView2D scenario={scenario} kit={gripperKit} model={robotModel(gripperKit, unoR3Board)} store={store} zoneLabel={() => null} reason="no-webgl" />
+          <TopView2D scenario={on} kit={gripperKit} model={robotModel(gripperKit, unoR3Board)} store={store} zoneLabel={() => null} reason="no-webgl" />
         </Profiler>
       </TextProvider>,
     ),
@@ -116,5 +117,37 @@ describe('the 2D map paints the round it shows (N19 E4/E5, ruling 8)', () => {
     expect(readTopViewState()!.draws).toBe(draws);
     expect(renders.length).toBe(rendered);
     expect(cube()!.fill).toBe(bodyPalette.red);
+  });
+});
+
+describe('the zone a goal placed by colour needs, lit on the 2D map (N19 E4/E5, concern 3)', () => {
+  const sort = {
+    ...scenario,
+    goals: [
+      {
+        id: 'sort',
+        kind: 'object-placed',
+        label: { vi: 'Phân loại', en: 'Sort' },
+        points: 100,
+        object: 'cube',
+        zoneByColor: { [bodyPalette.green]: 'kho', [bodyPalette.red]: 'red-zone', [bodyPalette.blue]: 'blue-zone' },
+        fully: true,
+        maxTiltDeg: 15,
+        restS: 0.5,
+        carried: true,
+        maxSlideCm: 3,
+        minCarryLiftCm: 1,
+        minCarryCm: 5,
+      },
+    ],
+  } as unknown as Scenario;
+
+  it('lights the zone of the cube’s colour in the round shown: the warehouse for green (nothing run), the red zone in round 2', () => {
+    const { publish, world } = mount(sort);
+    expect(readTopViewSensors()!.zone).toBe('kho');
+    publish({ status: 'running', world: world(0.5), objectColors: variantObjectColors(sort, 1) });
+    expect(readTopViewSensors()!.zone).toBe('red-zone');
+    publish({ status: 'running', world: world(0.6), objectColors: variantObjectColors(sort, 2) });
+    expect(readTopViewSensors()!.zone).toBe('blue-zone');
   });
 });
