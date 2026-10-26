@@ -1,7 +1,7 @@
 # UNO Compatibility Contract
 
-> **Version:** 0.1.7 (v0) · **Date:** 2026-10-25 · **Task:** N18 R0.3 · **Status:** v0: mọi construct được mở đã có evidence cho mọi field; L1 PASS bằng test của simulator (N18 final fix M4), L3 chờ M06.
-> **Target snapshot (pin):** `arduino-cli 1.5.1`, FQBN `arduino:avr:uno`, core `arduino:avr@1.8.8` (2026-05-21), avr-gcc `7.3.0-atmel3.6.1-arduino7`, library `Servo 1.3.0` (2025-11-06, LGPL-2.1), emulator `avr8js@0.21.1` (2026-08-31, MIT). MCU giả định **ATmega328P, 16 MHz**. **Board chính xác: UNKNOWN** (§1).
+> **Version:** 0.1.7 (v0) · **Date:** 2026-10-25 (N19 A5: thêm U-35…U-39 ngày 2026-10-27, giữ version, xem luật version ở §16.4) · **Task:** N18 R0.3 · **Status:** v0: mọi construct được mở đã có evidence cho mọi field; L1 PASS bằng test của simulator (N18 final fix M4), L3 chờ M06.
+> **Target snapshot (pin):** `arduino-cli 1.5.1`, FQBN `arduino:avr:uno`, core `arduino:avr@1.8.8` (2026-05-21), avr-gcc `7.3.0-atmel3.6.1-arduino7`, library `Servo 1.3.0` (2025-11-06, LGPL-2.1), `Wire 1.0` có sẵn trong core (N19, LGPL-2.1-or-later), emulator `avr8js@0.21.1` (2026-08-31, MIT). MCU giả định **ATmega328P, 16 MHz**. **Board chính xác: UNKNOWN** (§1).
 > **Evidence:** spike R0.4 `spikes/avr8js/` (số liệu `spikes/avr8js/out/results.json`), ADR `docs/adr/0003-avr8js-parity.md`, ledger §14. **Bản máy đọc được:** `src/core/compat/uno-contract.ts` (§15).
 > **Quan hệ tài liệu:** spec `docs/uno-robot-direction.md`, plan `docs/robot-3d-implementation-plan.md` (R0.3, R0.4; §4.1 board, §4.2 kit, §4.3 driver, §4.4 IR). Kỷ luật evidence theo `docs/yolobit-compatibility-contract.md` (§0, §15, §21). Từ R1, tài liệu này là **source of truth** cho hành vi của mọi block robot trong simulator và trong C++ Arduino sinh ra (C1, C2, R1, R2).
 
@@ -875,6 +875,8 @@ Tái lập toàn bộ EMU/CC: `node spikes/avr8js/run-all.mjs` (≈ 20 s; cần 
 | `contract-types.ts` mở rộng cộng thêm; test Yolo:Bit không đổi | ✓ |
 
 ### 16.4 Lịch sử
+
+**Luật version (ruling của controller, N19 A5):** version của contract đổi khi **ngữ nghĩa, data hoặc thời gian của một dòng đã mở** đổi (như 0.1.4…0.1.7). Thêm dòng cho **một kit mới** mà không đổi dòng nào đã mở thì **giữ version**: version nằm trong header của mọi sketch sinh ra (`contract uno-arduino-avr 0.1.7`), nên đổi nó là đổi C++ của mọi bài rover dù chương trình không đổi. Theo luật này, N19 A5 thêm U-35 (kẹp), U-36 (tay nâng), U-37 (IR giữa càng), U-38 (màu vật), U-39 (giá trị thô cảm biến màu, Advanced) và module U-M3 (Wire) của `ref-uno-gripper@0` mà vẫn là 0.1.7; header sketch của rover giữ nguyên byte.
 
 | Version | Ngày | Nội dung |
 |---|---|---|
