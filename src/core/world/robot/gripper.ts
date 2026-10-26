@@ -284,8 +284,8 @@ export function createGripper(world: PhysicsWorld, chassis: RigidBody, module: K
   const fingers = [makeFinger(1, built.fingers[0]), makeFinger(-1, built.fingers[1])] as const;
 
   // ---- the claw servo's case on the carriage (B5, ruling E67 I4): the kit's box, the one the 3D view draws ----
-  // The ultrasonic hears it (a servo raised in front of an HC-SR04 blocks it, at lift ~10–35°); the IR and the colour sensor leave the
-  // carriage's colliders out, and it sits above their rays. Made after the fingers, so every other collider keeps the handle it had.
+  // The ultrasonic hears it (a servo raised in front of an HC-SR04 blocks it, at lift 8–40° on ref-uno-gripper@0); the IR and the colour
+  // sensor leave the carriage's colliders out, and it sits above their rays. Made after the fingers, so every other collider keeps its handle.
   // Massless: the carriage's mass already counts the servo. A density of 0 is not enough to leave the carriage as it was: Rapier adds every
   // collider's mass properties to its body's, and a sum with a massless part still rebuilds the inertia matrix and diagonalises it again
   // (measured: the carriage's principal axes came back permuted, its inertia off in the last bits, and the claw of a held cube 0.15° off).

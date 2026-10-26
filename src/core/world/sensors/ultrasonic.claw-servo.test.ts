@@ -127,6 +127,10 @@ describe('the gripper car’s ultrasonic and the claw servo’s case (N19 B5)', 
       expect(runsOf(clear.map(String)), `claw ${clawDeg}`).toEqual(['0–3: true', '4–55: false', '56–90: true']);
       // Lift 4–7°: only the lowest ray (the fifth) meets the case, on its top at more than 60° from its normal: no echo, the wall is heard.
       for (let liftDeg = 4; liftDeg <= 7; liftDeg++) expect(rays[liftDeg], `lift ${liftDeg}`).toEqual(['none', 'none', 'none', 'none', 'claw servo']);
+      // From 12° to 32° the case is the first part all five rays meet (world.gripper-sensors.test.ts reads it there).
+      for (let liftDeg = 12; liftDeg <= 32; liftDeg++) expect(rays[liftDeg], `lift ${liftDeg}`).toEqual(Array(5).fill('claw servo'));
+      expect(rays[11]!.every((part) => part === 'claw servo')).toBe(false);
+      expect(rays[33]!.every((part) => part === 'claw servo')).toBe(false);
       // The case is in the cone from 4° to 41°, and the first part any ray meets there; never a finger.
       for (let liftDeg = 4; liftDeg <= 55; liftDeg++) {
         expect(rays[liftDeg]!.includes('claw servo'), `lift ${liftDeg}`).toBe(liftDeg <= 41);
