@@ -1,0 +1,2120 @@
+{
+  "evidence": {
+    "EMU-19": {
+      "kind": "EMU",
+      "source": "avr8js 0.21.1 on Node 24.22.1 (Apple M4 Pro); HEX built by arduino-cli 1.5.1 for arduino:avr:uno (arduino:avr@1.8.8, Servo 1.3.0, Wire 1.0); the TWI through spikes/avr8js/twi-device.ts (each phase completes after its bus time from TWBR, datasheet 7810D §21.5.2) to the TS TCS34725 of spikes/avr8js/tcs34725-model.ts; node spikes/avr8js/run-gripper.ts (N19 G0.2, spikes/avr8js/out/gripper-results.json)",
+      "action": "sketches/gripper-forms: gripperSet(gripperClaw / gripperLift) on D9 / D10 with 80, 0, 120, -10, 45, 0 after attach + write(0) / write(90); (digitalRead(A3) == LOW) with A3 scripted HIGH then LOW; colorBegin(), then colorRaw(3, 0, 1, 2) and colorIs(0..6) under seven scripted lights of 250 ms (red, green, blue, yellow, white, black, none), read 150 ms into each; ID, STATUS, ATIME, CONTROL read back; the same HEX with no device at 0x29",
+      "observed": "every line as the TS side: C R G B red 11100 8047 1675 1377, green 8892 2165 4979 1747, blue 11150 988 4144 6017, yellow 17605 9565 6719 1320, white 21504 9717 8910 7297, black 3460 1292 1188 979, none 120 40 40 40; colorIs one 1 at the TS class of each (red, green, blue, yellow, white, black, unknown); ID 68, STATUS 1, ATIME 235, CONTROL 1; IR 0 then 1; Wire timeout flag 0; no device: every reading 0 0 0 0 and colorIs(6) only, ID 0, every transaction SLA+W NACK + STOP (85), no timeout; SCL 100000 Hz (TWBR 72, 160 cycles): every phase completes 160 × (1 START, 9 a byte, 1 STOP) cycles after its TWCR write, ≤ 5 cycles later (the instruction under way and an interrupt entry); transactions (START → STOP) against bus time + the CPU's uninterrupted service: W2 307.375 µs, W1 213, R1 213.125, R8 877.6875, NACK 118.1875 (bus 0.9457 of R8); with no other interrupt in them ≤ 0.899 % longer; with one, up to 3.081 % longer, never by more than the Servo, Timer0 and USART interrupts that ran in them; windows every 52800 µs (2.4 ms Init + 50.4 ms), the first ending 52800 µs after the ENABLE byte with AEN was written; every 8-byte read from a window wholly in its light; the eight data bytes read 336.5625…1021.4375 µs after the command write's START; servo pulses 544 / 1368 / 1472 / 544 µs (claw) and 1472 / 544 / 1008 µs (lift), 120 → 1472 and -10 → 544, each from the next frame; both on Timer1, the lift's pulse rising 10.75 µs after the claw's falls, frames 20003.0625 µs; a pulse 5.1875 µs long at most when a TWI or Timer0 interrupt held the Servo interrupt (TWI interrupt ≤ 20.125 µs: twi_stop() waits for the STOP inside it); avr8js sets TWINT after a STOP, the datasheet does not (§21.6): twi-device.ts clears it (left in place: +6.1875 µs a transaction, +12.375 µs a colorFetch)",
+      "establishes": [
+        "range",
+        "default",
+        "clamp",
+        "round",
+        "block",
+        "yield",
+        "return",
+        "error",
+        "content"
+      ]
+    },
+    "EMU-20": {
+      "kind": "EMU",
+      "source": "as EMU-19 (node spikes/avr8js/run-gripper.ts)",
+      "action": "sketches/gripper-costs: each helper call between port-write markers, 8 samples (colorFetch 32, colorBegin 4), shortest minus the baseline; the TCS34725 on the bus under white light, and the same HEX with no device at 0x29",
+      "observed": "gripperSet 51.4375 / 51.4375 / 51.625 / 50.8125 µs (claw 45, lift 45, 120 clamped, -5 clamped; Servo.write 45 50.4375, 120 50.8125); digitalRead(A3) 3.9375 µs (A1 3.9375, D4 3.9375), (digitalRead(A3) == LOW) 4.1875; colorFetch 1158.5 µs (median 1159.625, max 1169.125; with both servos 1159.4375…1184.4375), NACK 146.0625; colorBegin 58367.6875 µs = 1350.5625 + delay(3) + delay(54) as the simulator charges them (its statements without the delays 1349.625); NACK 57606.5625 (589.4375); one register write 334 µs (NACK 144.9375); colorClassify 128.125…147.25 µs by the rule that matches (zeros 12.5625); colorIs(4) on white 1299.75 (NACK 158.9375), colorRaw(3) 1160.4375 (NACK 148.1875)",
+      "establishes": [
+        "block"
+      ]
+    },
+    "CC-06": {
+      "kind": "CC",
+      "source": "arduino-cli 1.5.1 compile --fqbn arduino:avr:uno --warnings all (arduino:avr@1.8.8, avr-gcc 7.3.0-atmel3.6.1-arduino7, Servo 1.3.0, Wire 1.0)",
+      "action": "Compiled sketches/gripper-forms and sketches/gripper-costs with --warnings all; avr-nm -S of gripper-forms.ino.elf",
+      "observed": "Both compile; no warning from the sketches, Wire or Servo (only the core's new.cpp, 4); gripper-forms 7240 B flash (22 %), 456 B RAM (22 %); gripper-costs 9784 B (30 %), 491 B (23 %); Wire's RAM 216 B (five 32 B buffers, its state, the TwoWire object and vtable); COLOR_RULES in PROGMEM",
+      "establishes": [
+        "call",
+        "import",
+        "module"
+      ]
+    }
+  },
+  "takenOn": "2026-10-26T14:12:42.297Z",
+  "command": "node spikes/avr8js/run-gripper.ts",
+  "machine": {
+    "cpu": "Apple M4 Pro",
+    "cores": 12,
+    "loadavg": [
+      24.6,
+      19.62,
+      16.13
+    ],
+    "node": "v24.22.1",
+    "platform": "darwin arm64"
+  },
+  "toolchain": {
+    "arduinoCli": "arduino-cli  Version: 1.5.1 Commit: Homebrew Date: 2026-06-05T09:39:33Z",
+    "cores": "ID          Installed Latest Name\narduino:avr 1.8.8     1.8.8  Arduino AVR Boards",
+    "libs": "Name  Installed     Available         Location Description\nServo 1.3.0         -                 user     -",
+    "avr8js": "0.21.1"
+  },
+  "compile": {
+    "forms": {
+      "command": "arduino-cli compile --fqbn arduino:avr:uno --warnings all --clean --build-path spikes/avr8js/build/gripper-forms spikes/avr8js/sketches/gripper-forms",
+      "flashBytes": 7240,
+      "flashPercent": 22,
+      "ramBytes": 456,
+      "ramPercent": 22,
+      "ramMax": 2048,
+      "warnings": [
+        "cores/arduino/new.cpp:59:60: warning: unused parameter 'tag' [-Wunused-parameter]",
+        "cores/arduino/new.cpp:68:63: warning: unused parameter 'tag' [-Wunused-parameter]",
+        "cores/arduino/new.cpp:103:55: warning: unused parameter 'tag' [-Wunused-parameter]",
+        "cores/arduino/new.cpp:106:57: warning: unused parameter 'tag' [-Wunused-parameter]"
+      ],
+      "sketchWarnings": []
+    },
+    "costs": {
+      "command": "arduino-cli compile --fqbn arduino:avr:uno --warnings all --clean --build-path spikes/avr8js/build/gripper-costs spikes/avr8js/sketches/gripper-costs",
+      "flashBytes": 9784,
+      "flashPercent": 30,
+      "ramBytes": 491,
+      "ramPercent": 23,
+      "ramMax": 2048,
+      "warnings": [
+        "cores/arduino/new.cpp:59:60: warning: unused parameter 'tag' [-Wunused-parameter]",
+        "cores/arduino/new.cpp:68:63: warning: unused parameter 'tag' [-Wunused-parameter]",
+        "cores/arduino/new.cpp:103:55: warning: unused parameter 'tag' [-Wunused-parameter]",
+        "cores/arduino/new.cpp:106:57: warning: unused parameter 'tag' [-Wunused-parameter]"
+      ],
+      "sketchWarnings": []
+    },
+    "wireRam": {
+      "bytes": 216,
+      "symbols": {
+        "TwoWire::transmitting": 1,
+        "TwoWire::rxBufferIndex": 1,
+        "TwoWire::txBufferIndex": 1,
+        "TwoWire::rxBufferLength": 1,
+        "TwoWire::txBufferLength": 1,
+        "TwoWire::txAddress": 1,
+        "twi_do_reset_on_timeout": 1,
+        "twi_error": 1,
+        "twi_inRepStart": 1,
+        "twi_masterBufferIndex": 1,
+        "twi_masterBufferLength": 1,
+        "twi_rxBufferIndex": 1,
+        "twi_sendStop": 1,
+        "twi_slarw": 1,
+        "twi_state": 1,
+        "twi_timed_out_flag": 1,
+        "twi_txBufferIndex": 1,
+        "twi_txBufferLength": 1,
+        "twi_onSlaveReceive": 2,
+        "twi_onSlaveTransmit": 2,
+        "twi_timeout_us": 4,
+        "Wire": 12,
+        "vtable for TwoWire": 18,
+        "TwoWire::rxBuffer": 32,
+        "TwoWire::txBuffer": 32,
+        "twi_masterBuffer": 32,
+        "twi_rxBuffer": 32,
+        "twi_txBuffer": 32
+      }
+    }
+  },
+  "wire": {
+    "path": "~/Library/Arduino15/packages/arduino/hardware/avr/1.8.8/libraries/Wire",
+    "version": "1.0",
+    "license": "LGPL-2.1-or-later",
+    "sha256": {
+      "library.properties": "175b7bec13aa47a986d8dfe60169dfd18d077b5631c3423d0313e1b5762de239",
+      "src/Wire.cpp": "e56c6ff92128cc1334b8e112fc463396646166e2dc8f99178b45d5201bb607c3",
+      "src/Wire.h": "e08adefc3c3b31d9444ba8bd28d67beef1efff310cdef4d8f8aa4ad88542da92",
+      "src/utility/twi.c": "846c0a685d1796990c8c5d06df4364fcf8d4657c2221161a613f8cafb232301d",
+      "src/utility/twi.h": "a8551bcf840a1d17dfa435fb6f299726bf45abfe75018ddc860a7788053a0f30"
+    },
+    "headerQuote": "This library is free software; you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation; either version 2.1 of the License, or (at your option) any later version."
+  },
+  "colorRules": {
+    "sketchCopyMatchesTs": true,
+    "helpersIdentical": true
+  },
+  "forms": {
+    "withDevice": {
+      "device": true,
+      "setupStartUs": 194.875,
+      "sclCycles": 160,
+      "sclHz": 100000,
+      "phaseSclPeriods": {
+        "start": 1,
+        "address": 9,
+        "write": 9,
+        "read": 9,
+        "stop": 1
+      },
+      "emulatedUs": 3189805.1,
+      "wallMs": 1879,
+      "sections": {
+        "id": [
+          "68",
+          "1",
+          "235",
+          "1"
+        ],
+        "grip": [],
+        "ir": [
+          "0",
+          "1"
+        ],
+        "color": [
+          "11100 8047 1675 1377",
+          "1000000",
+          "8892 2165 4979 1747",
+          "0100000",
+          "11150 988 4144 6017",
+          "0010000",
+          "17605 9565 6719 1320",
+          "0001000",
+          "21504 9717 8910 7297",
+          "0000100",
+          "3460 1292 1188 979",
+          "0000010",
+          "120 40 40 40",
+          "0000001"
+        ],
+        "end": [
+          "0"
+        ]
+      },
+      "serialChecks": {
+        "id": true,
+        "ir": true,
+        "color": true,
+        "end": true
+      },
+      "classes": [
+        {
+          "light": "red",
+          "printedRaw": "11100 8047 1675 1377",
+          "printedIs": "1000000",
+          "hexClass": "red",
+          "tsClass": "red",
+          "irradiancePerS": {
+            "c": 55061,
+            "r": 39917,
+            "g": 8309,
+            "b": 6835
+          },
+          "modelReading": {
+            "c": 11100,
+            "r": 8047,
+            "g": 1675,
+            "b": 1377
+          }
+        },
+        {
+          "light": "green",
+          "printedRaw": "8892 2165 4979 1747",
+          "printedIs": "0100000",
+          "hexClass": "green",
+          "tsClass": "green",
+          "irradiancePerS": {
+            "c": 44112,
+            "r": 10741,
+            "g": 24701,
+            "b": 8670
+          },
+          "modelReading": {
+            "c": 8892,
+            "r": 2165,
+            "g": 4979,
+            "b": 1747
+          }
+        },
+        {
+          "light": "blue",
+          "printedRaw": "11150 988 4144 6017",
+          "printedIs": "0010000",
+          "hexClass": "blue",
+          "tsClass": "blue",
+          "irradiancePerS": {
+            "c": 55312,
+            "r": 4905,
+            "g": 20560,
+            "b": 29847
+          },
+          "modelReading": {
+            "c": 11150,
+            "r": 988,
+            "g": 4144,
+            "b": 6017
+          }
+        },
+        {
+          "light": "yellow",
+          "printedRaw": "17605 9565 6719 1320",
+          "printedIs": "0001000",
+          "hexClass": "yellow",
+          "tsClass": "yellow",
+          "irradiancePerS": {
+            "c": 87328,
+            "r": 47447,
+            "g": 33329,
+            "b": 6552
+          },
+          "modelReading": {
+            "c": 17605,
+            "r": 9565,
+            "g": 6719,
+            "b": 1320
+          }
+        },
+        {
+          "light": "white",
+          "printedRaw": "21504 9717 8910 7297",
+          "printedIs": "0000100",
+          "hexClass": "white",
+          "tsClass": "white",
+          "irradiancePerS": {
+            "c": 128600,
+            "r": 48200,
+            "g": 44200,
+            "b": 36200
+          },
+          "modelReading": {
+            "c": 21504,
+            "r": 9717,
+            "g": 8910,
+            "b": 7297
+          }
+        },
+        {
+          "light": "black",
+          "printedRaw": "3460 1292 1188 979",
+          "printedIs": "0000010",
+          "hexClass": "black",
+          "tsClass": "black",
+          "irradiancePerS": {
+            "c": 17163,
+            "r": 6411,
+            "g": 5894,
+            "b": 4858
+          },
+          "modelReading": {
+            "c": 3460,
+            "r": 1292,
+            "g": 1188,
+            "b": 979
+          }
+        },
+        {
+          "light": "none",
+          "printedRaw": "120 40 40 40",
+          "printedIs": "0000001",
+          "hexClass": "unknown",
+          "tsClass": "unknown",
+          "irradiancePerS": {
+            "c": 600,
+            "r": 200,
+            "g": 200,
+            "b": 200
+          },
+          "modelReading": {
+            "c": 120,
+            "r": 40,
+            "g": 40,
+            "b": 40
+          }
+        }
+      ],
+      "transactions": {
+        "count": 166,
+        "timing": {
+          "W2": {
+            "count": 4,
+            "busModelUs": 290,
+            "busMeasuredEqualsModel": true,
+            "maxPhaseLateCycles": 3,
+            "cpuRefUs": 17.375,
+            "modelUs": 307.375,
+            "busShareOfModel": 0.9435,
+            "durationUs": {
+              "min": 307.5,
+              "median": 307.6875,
+              "max": 307.75
+            },
+            "maxDeviationPercent": 0.122,
+            "quiet": {
+              "count": 3,
+              "maxDeviationPercent": 0.122
+            },
+            "withOtherIsr": {
+              "count": 1,
+              "maxDeviationPercent": 0.041,
+              "maxOtherIsrUs": 6,
+              "maxResidualPercent": -1.911,
+              "isrs": [
+                "TIMER0_OVF (millis)"
+              ]
+            },
+            "within1Percent": true,
+            "worst": {
+              "startUs": 4189.5,
+              "durationUs": 307.75,
+              "otherIsrUs": 0,
+              "otherIsrs": []
+            }
+          },
+          "W1": {
+            "count": 81,
+            "busModelUs": 200,
+            "busMeasuredEqualsModel": true,
+            "maxPhaseLateCycles": 5,
+            "cpuRefUs": 13,
+            "modelUs": 213,
+            "busShareOfModel": 0.939,
+            "durationUs": {
+              "min": 213,
+              "median": 213.1875,
+              "max": 219.5625
+            },
+            "maxDeviationPercent": 3.081,
+            "quiet": {
+              "count": 53,
+              "maxDeviationPercent": 0.528
+            },
+            "withOtherIsr": {
+              "count": 28,
+              "maxDeviationPercent": 3.081,
+              "maxOtherIsrUs": 23.9375,
+              "maxResidualPercent": -1.849,
+              "isrs": [
+                "TIMER0_OVF (millis)",
+                "TIMER1_COMPA (Servo)",
+                "USART_UDRE (Serial TX)"
+              ]
+            },
+            "within1Percent": true,
+            "worst": {
+              "startUs": 2154507.5,
+              "durationUs": 219.5625,
+              "otherIsrUs": 16.125,
+              "otherIsrs": [
+                "TIMER1_COMPA (Servo)"
+              ]
+            }
+          },
+          "R1": {
+            "count": 4,
+            "busModelUs": 200,
+            "busMeasuredEqualsModel": true,
+            "maxPhaseLateCycles": 2,
+            "cpuRefUs": 13.125,
+            "modelUs": 213.125,
+            "busShareOfModel": 0.9384,
+            "durationUs": {
+              "min": 213.3125,
+              "median": 213.3125,
+              "max": 213.875
+            },
+            "maxDeviationPercent": 0.352,
+            "quiet": {
+              "count": 2,
+              "maxDeviationPercent": 0.088
+            },
+            "withOtherIsr": {
+              "count": 2,
+              "maxDeviationPercent": 0.352,
+              "maxOtherIsrUs": 7.75,
+              "maxResidualPercent": -3.284,
+              "isrs": [
+                "USART_UDRE (Serial TX)"
+              ]
+            },
+            "within1Percent": true,
+            "worst": {
+              "startUs": 60578.6875,
+              "durationUs": 213.875,
+              "otherIsrUs": 7.75,
+              "otherIsrs": [
+                "USART_UDRE (Serial TX)"
+              ]
+            }
+          },
+          "R8": {
+            "count": 77,
+            "busModelUs": 830,
+            "busMeasuredEqualsModel": true,
+            "maxPhaseLateCycles": 5,
+            "cpuRefUs": 47.6875,
+            "modelUs": 877.6875,
+            "busShareOfModel": 0.9457,
+            "durationUs": {
+              "min": 877.9375,
+              "median": 879,
+              "max": 890.6875
+            },
+            "maxDeviationPercent": 1.481,
+            "quiet": {
+              "count": 0,
+              "maxDeviationPercent": null
+            },
+            "withOtherIsr": {
+              "count": 77,
+              "maxDeviationPercent": 1.481,
+              "maxOtherIsrUs": 53.4375,
+              "maxResidualPercent": -0.413,
+              "isrs": [
+                "TIMER0_OVF (millis)",
+                "TIMER1_COMPA (Servo)",
+                "USART_UDRE (Serial TX)"
+              ]
+            },
+            "within1Percent": true,
+            "worst": {
+              "startUs": 2654480.375,
+              "durationUs": 890.6875,
+              "otherIsrUs": 29.875,
+              "otherIsrs": [
+                "USART_UDRE (Serial TX)",
+                "TIMER1_COMPA (Servo)",
+                "TIMER0_OVF (millis)"
+              ]
+            }
+          }
+        },
+        "fetchTiming": {
+          "fetches": 77,
+          "readStartUs": {
+            "min": 228.6875,
+            "max": 247.6875
+          },
+          "byteReadUs": [
+            {
+              "min": 336.5625,
+              "max": 356.25
+            },
+            {
+              "min": 431.5625,
+              "max": 451.25
+            },
+            {
+              "min": 526.625,
+              "max": 546.3125
+            },
+            {
+              "min": 621.625,
+              "max": 641.25
+            },
+            {
+              "min": 716.5625,
+              "max": 736.375
+            },
+            {
+              "min": 811.5625,
+              "max": 831.3125
+            },
+            {
+              "min": 906.5,
+              "max": 926.25
+            },
+            {
+              "min": 1001.5,
+              "max": 1021.4375
+            }
+          ],
+          "stopUs": {
+            "min": 1106.8125,
+            "max": 1126.6875
+          }
+        }
+      },
+      "aenAtUs": 4189.5,
+      "firstWindowAfterEnableUs": 52800,
+      "windows": {
+        "count": 59,
+        "first": [
+          {
+            "fromUs": 6883.1875,
+            "toUs": 57283.1875
+          },
+          {
+            "fromUs": 59683.1875,
+            "toUs": 110083.1875
+          },
+          {
+            "fromUs": 112483.1875,
+            "toUs": 162883.1875
+          }
+        ],
+        "periodUs": 52800
+      },
+      "devicePeek": {
+        "enable": 3,
+        "atime": 235,
+        "control": 1,
+        "status": 1,
+        "id": 68,
+        "data": {
+          "c": 120,
+          "r": 40,
+          "g": 40,
+          "b": 40
+        },
+        "nextWindowEndUs": 3225283.1875
+      },
+      "servo": {
+        "runs": {
+          "D9": [
+            {
+              "fromUs": 52811.81,
+              "toUs": 192833.44,
+              "pulses": 8,
+              "widthUs": {
+                "min": 543.4375,
+                "median": 543.65625,
+                "max": 544.0625
+              }
+            },
+            {
+              "fromUs": 212836.38,
+              "toUs": 432872.38,
+              "pulses": 12,
+              "widthUs": {
+                "min": 1367.4375,
+                "median": 1367.65625,
+                "max": 1368.1875
+              }
+            },
+            {
+              "fromUs": 452875.94,
+              "toUs": 792927.88,
+              "pulses": 18,
+              "widthUs": {
+                "min": 1471.4375,
+                "median": 1471.625,
+                "max": 1471.9375
+              }
+            },
+            {
+              "fromUs": 812930.94,
+              "toUs": 2133136.88,
+              "pulses": 67,
+              "widthUs": {
+                "min": 543.4375,
+                "median": 543.8125,
+                "max": 544.4375
+              }
+            },
+            {
+              "fromUs": 2153139.88,
+              "toUs": 2153139.88,
+              "pulses": 1,
+              "widthUs": {
+                "min": 548.5,
+                "median": 548.5,
+                "max": 548.5
+              }
+            },
+            {
+              "fromUs": 2173143,
+              "toUs": 3173306.38,
+              "pulses": 51,
+              "widthUs": {
+                "min": 543.4375,
+                "median": 543.8125,
+                "max": 544.5625
+              }
+            }
+          ],
+          "D10": [
+            {
+              "fromUs": 32819.69,
+              "toUs": 314232.06,
+              "pulses": 15,
+              "widthUs": {
+                "min": 1471.6875,
+                "median": 1471.8125,
+                "max": 1472.1875
+              }
+            },
+            {
+              "fromUs": 334235.06,
+              "toUs": 674391.75,
+              "pulses": 18,
+              "widthUs": {
+                "min": 543.625,
+                "median": 543.8125,
+                "max": 544.375
+              }
+            },
+            {
+              "fromUs": 694395.13,
+              "toUs": 2313718.56,
+              "pulses": 82,
+              "widthUs": {
+                "min": 1007.4375,
+                "median": 1007.875,
+                "max": 1008.25
+              }
+            },
+            {
+              "fromUs": 2333721.5,
+              "toUs": 2333721.5,
+              "pulses": 1,
+              "widthUs": {
+                "min": 1012.125,
+                "median": 1012.125,
+                "max": 1012.125
+              }
+            },
+            {
+              "fromUs": 2353724.63,
+              "toUs": 3173860.56,
+              "pulses": 42,
+              "widthUs": {
+                "min": 1007.625,
+                "median": 1007.8125,
+                "max": 1007.875
+              }
+            }
+          ]
+        },
+        "widthChecks": {
+          "D9": {
+            "expected": [
+              544,
+              1368,
+              1472,
+              544
+            ],
+            "got": [
+              544,
+              1368,
+              1472,
+              544
+            ],
+            "exact": true
+          },
+          "D10": {
+            "expected": [
+              1472,
+              544,
+              1008
+            ],
+            "got": [
+              1472,
+              544,
+              1008
+            ],
+            "exact": true
+          }
+        },
+        "pulseJitter": {
+          "D9": {
+            "pulsesOffByMoreThan1Us": 1,
+            "maxDeviationUs": 4.5,
+            "allExplained": true,
+            "off": [
+              {
+                "riseUs": 2153139.875,
+                "widthUs": 548.5,
+                "nominalUs": 544,
+                "deviationUs": 4.5,
+                "blockedBy": [
+                  "TWI"
+                ]
+              }
+            ]
+          },
+          "D10": {
+            "pulsesOffByMoreThan1Us": 1,
+            "maxDeviationUs": 4.125,
+            "allExplained": true,
+            "off": [
+              {
+                "riseUs": 2333721.5,
+                "widthUs": 1012.125,
+                "nominalUs": 1008,
+                "deviationUs": 4.125,
+                "blockedBy": [
+                  "TIMER0_OVF (millis)"
+                ]
+              }
+            ]
+          }
+        },
+        "changeTimes": [
+          {
+            "ms": 200,
+            "pin": "D9",
+            "angle": 80,
+            "widthUs": 1368,
+            "runFromUs": 212836.38,
+            "lagUs": 12836.38
+          },
+          {
+            "ms": 320,
+            "pin": "D10",
+            "angle": 0,
+            "widthUs": 544,
+            "runFromUs": 334235.06,
+            "lagUs": 14235.06
+          },
+          {
+            "ms": 440,
+            "pin": "D9",
+            "angle": 120,
+            "widthUs": 1472,
+            "runFromUs": 452875.94,
+            "lagUs": 12875.94
+          },
+          {
+            "ms": 560,
+            "pin": "D10",
+            "angle": -10,
+            "widthUs": 544,
+            "runFromUs": null,
+            "lagUs": null
+          },
+          {
+            "ms": 680,
+            "pin": "D10",
+            "angle": 45,
+            "widthUs": 1008,
+            "runFromUs": 694395.13,
+            "lagUs": 14395.13
+          },
+          {
+            "ms": 800,
+            "pin": "D9",
+            "angle": 0,
+            "widthUs": 544,
+            "runFromUs": 812930.94,
+            "lagUs": 12930.94
+          }
+        ],
+        "together": {
+          "pairs": 154,
+          "d10RiseAfterD9FallUs": {
+            "min": 10.75,
+            "median": 10.75,
+            "max": 10.75
+          },
+          "framesUs": {
+            "D9": {
+              "min": 20002.8125,
+              "median": 20003.0625,
+              "max": 20010.875
+            },
+            "D10": {
+              "min": 19075.5,
+              "median": 20003.125,
+              "max": 20826.3125
+            }
+          },
+          "widthJitter": {
+            "quiet": {
+              "D9": {
+                "pulses": 27,
+                "nominalUs": 543.8125,
+                "maxAboveUs": 0.625,
+                "maxBelowUs": 0.375
+              },
+              "D10": {
+                "pulses": 27,
+                "nominalUs": 1007.875,
+                "maxAboveUs": 0,
+                "maxBelowUs": 0.125
+              }
+            },
+            "colour": {
+              "D9": {
+                "pulses": 84,
+                "nominalUs": 543.8125,
+                "maxAboveUs": 4.6875,
+                "maxBelowUs": 0.375
+              },
+              "D10": {
+                "pulses": 84,
+                "nominalUs": 1007.875,
+                "maxAboveUs": 4.25,
+                "maxBelowUs": 0.25
+              }
+            }
+          }
+        }
+      },
+      "isrUs": {
+        "TIMER1_COMPA (Servo)": {
+          "count": 473,
+          "min": 15.75,
+          "median": 16.125,
+          "max": 23.9375
+        },
+        "TIMER0_OVF (millis)": {
+          "count": 3115,
+          "min": 6,
+          "median": 6,
+          "max": 6.3125
+        },
+        "USART_UDRE (Serial TX)": {
+          "count": 259,
+          "min": 7.75,
+          "median": 7.75,
+          "max": 8.3125
+        },
+        "TWI": {
+          "count": 1041,
+          "min": 6.25,
+          "median": 7.375,
+          "max": 20.125
+        }
+      },
+      "checks": {
+        "serial": true,
+        "classesMatchTs": true,
+        "transactionsAsExpected": true,
+        "colorBeginWrites": true,
+        "busTimeIsTheDatasheets": true,
+        "transactionsWithin1Percent": true,
+        "readsInPureWindows": true,
+        "servoWidthsExact": true,
+        "servoJitterExplainedByIsrs": true,
+        "servoChangesWithinAFrame": true,
+        "servosTogetherOnTimer1": true
+      },
+      "pass": true
+    },
+    "nack": {
+      "device": false,
+      "setupStartUs": 194.875,
+      "sclCycles": 160,
+      "sclHz": 100000,
+      "phaseSclPeriods": {
+        "start": 1,
+        "address": 9,
+        "write": 9,
+        "read": 9,
+        "stop": 1
+      },
+      "emulatedUs": 3189805.1,
+      "wallMs": 1507,
+      "sections": {
+        "id": [
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "grip": [],
+        "ir": [
+          "0",
+          "1"
+        ],
+        "color": [
+          "0 0 0 0",
+          "0000001",
+          "0 0 0 0",
+          "0000001",
+          "0 0 0 0",
+          "0000001",
+          "0 0 0 0",
+          "0000001",
+          "0 0 0 0",
+          "0000001",
+          "0 0 0 0",
+          "0000001",
+          "0 0 0 0",
+          "0000001"
+        ],
+        "end": [
+          "0"
+        ]
+      },
+      "serialChecks": {
+        "id": true,
+        "ir": true,
+        "color": true,
+        "end": true
+      },
+      "classes": [
+        {
+          "light": "red",
+          "printedRaw": "0 0 0 0",
+          "printedIs": "0000001",
+          "hexClass": "unknown",
+          "tsClass": "unknown",
+          "irradiancePerS": {
+            "c": 55061,
+            "r": 39917,
+            "g": 8309,
+            "b": 6835
+          },
+          "modelReading": {
+            "c": 0,
+            "r": 0,
+            "g": 0,
+            "b": 0
+          }
+        },
+        {
+          "light": "green",
+          "printedRaw": "0 0 0 0",
+          "printedIs": "0000001",
+          "hexClass": "unknown",
+          "tsClass": "unknown",
+          "irradiancePerS": {
+            "c": 44112,
+            "r": 10741,
+            "g": 24701,
+            "b": 8670
+          },
+          "modelReading": {
+            "c": 0,
+            "r": 0,
+            "g": 0,
+            "b": 0
+          }
+        },
+        {
+          "light": "blue",
+          "printedRaw": "0 0 0 0",
+          "printedIs": "0000001",
+          "hexClass": "unknown",
+          "tsClass": "unknown",
+          "irradiancePerS": {
+            "c": 55312,
+            "r": 4905,
+            "g": 20560,
+            "b": 29847
+          },
+          "modelReading": {
+            "c": 0,
+            "r": 0,
+            "g": 0,
+            "b": 0
+          }
+        },
+        {
+          "light": "yellow",
+          "printedRaw": "0 0 0 0",
+          "printedIs": "0000001",
+          "hexClass": "unknown",
+          "tsClass": "unknown",
+          "irradiancePerS": {
+            "c": 87328,
+            "r": 47447,
+            "g": 33329,
+            "b": 6552
+          },
+          "modelReading": {
+            "c": 0,
+            "r": 0,
+            "g": 0,
+            "b": 0
+          }
+        },
+        {
+          "light": "white",
+          "printedRaw": "0 0 0 0",
+          "printedIs": "0000001",
+          "hexClass": "unknown",
+          "tsClass": "unknown",
+          "irradiancePerS": {
+            "c": 128600,
+            "r": 48200,
+            "g": 44200,
+            "b": 36200
+          },
+          "modelReading": {
+            "c": 0,
+            "r": 0,
+            "g": 0,
+            "b": 0
+          }
+        },
+        {
+          "light": "black",
+          "printedRaw": "0 0 0 0",
+          "printedIs": "0000001",
+          "hexClass": "unknown",
+          "tsClass": "unknown",
+          "irradiancePerS": {
+            "c": 17163,
+            "r": 6411,
+            "g": 5894,
+            "b": 4858
+          },
+          "modelReading": {
+            "c": 0,
+            "r": 0,
+            "g": 0,
+            "b": 0
+          }
+        },
+        {
+          "light": "none",
+          "printedRaw": "0 0 0 0",
+          "printedIs": "0000001",
+          "hexClass": "unknown",
+          "tsClass": "unknown",
+          "irradiancePerS": {
+            "c": 600,
+            "r": 200,
+            "g": 200,
+            "b": 200
+          },
+          "modelReading": {
+            "c": 0,
+            "r": 0,
+            "g": 0,
+            "b": 0
+          }
+        }
+      ],
+      "transactions": {
+        "count": 85,
+        "timing": {
+          "W-nack": {
+            "count": 85,
+            "busModelUs": 110,
+            "busMeasuredEqualsModel": true,
+            "maxPhaseLateCycles": 5,
+            "cpuRefUs": 8.1875,
+            "modelUs": 118.1875,
+            "busShareOfModel": 0.9307,
+            "durationUs": {
+              "min": 118.25,
+              "median": 118.3125,
+              "max": 119.25
+            },
+            "maxDeviationPercent": 0.899,
+            "quiet": {
+              "count": 85,
+              "maxDeviationPercent": 0.899
+            },
+            "withOtherIsr": {
+              "count": 0,
+              "maxDeviationPercent": null,
+              "maxOtherIsrUs": null,
+              "maxResidualPercent": null,
+              "isrs": []
+            },
+            "within1Percent": true,
+            "worst": {
+              "startUs": 1902459.375,
+              "durationUs": 119.25,
+              "otherIsrUs": 0,
+              "otherIsrs": []
+            }
+          }
+        },
+        "fetchTiming": {
+          "fetches": 0,
+          "readStartUs": null,
+          "byteReadUs": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "stopUs": null
+        }
+      },
+      "aenAtUs": null,
+      "firstWindowAfterEnableUs": null,
+      "windows": {
+        "count": 0,
+        "first": [],
+        "periodUs": null
+      },
+      "devicePeek": null,
+      "servo": {
+        "runs": {
+          "D9": [
+            {
+              "fromUs": 52811.38,
+              "toUs": 192833,
+              "pulses": 8,
+              "widthUs": {
+                "min": 543.4375,
+                "median": 543.71875,
+                "max": 544.0625
+              }
+            },
+            {
+              "fromUs": 212836.25,
+              "toUs": 432871.44,
+              "pulses": 12,
+              "widthUs": {
+                "min": 1367.4375,
+                "median": 1367.71875,
+                "max": 1368.1875
+              }
+            },
+            {
+              "fromUs": 452874.81,
+              "toUs": 792927.94,
+              "pulses": 18,
+              "widthUs": {
+                "min": 1471.4375,
+                "median": 1471.625,
+                "max": 1472.3125
+              }
+            },
+            {
+              "fromUs": 812930.88,
+              "toUs": 3173301.38,
+              "pulses": 119,
+              "widthUs": {
+                "min": 543.4375,
+                "median": 543.8125,
+                "max": 544.4375
+              }
+            }
+          ],
+          "D10": [
+            {
+              "fromUs": 32819.56,
+              "toUs": 314232.06,
+              "pulses": 15,
+              "widthUs": {
+                "min": 1471.75,
+                "median": 1471.8125,
+                "max": 1472.1875
+              }
+            },
+            {
+              "fromUs": 334235.06,
+              "toUs": 674391.69,
+              "pulses": 18,
+              "widthUs": {
+                "min": 543.625,
+                "median": 543.8125,
+                "max": 544.375
+              }
+            },
+            {
+              "fromUs": 694395.06,
+              "toUs": 2313717.56,
+              "pulses": 82,
+              "widthUs": {
+                "min": 1007.5,
+                "median": 1007.875,
+                "max": 1008.1875
+              }
+            },
+            {
+              "fromUs": 2333720.5,
+              "toUs": 2333720.5,
+              "pulses": 1,
+              "widthUs": {
+                "min": 1013.1875,
+                "median": 1013.1875,
+                "max": 1013.1875
+              }
+            },
+            {
+              "fromUs": 2353723.63,
+              "toUs": 3173855.56,
+              "pulses": 42,
+              "widthUs": {
+                "min": 1007.75,
+                "median": 1007.875,
+                "max": 1008.1875
+              }
+            }
+          ]
+        },
+        "widthChecks": {
+          "D9": {
+            "expected": [
+              544,
+              1368,
+              1472,
+              544
+            ],
+            "got": [
+              544,
+              1368,
+              1472,
+              544
+            ],
+            "exact": true
+          },
+          "D10": {
+            "expected": [
+              1472,
+              544,
+              1008
+            ],
+            "got": [
+              1472,
+              544,
+              1008
+            ],
+            "exact": true
+          }
+        },
+        "pulseJitter": {
+          "D9": {
+            "pulsesOffByMoreThan1Us": 0,
+            "maxDeviationUs": 0,
+            "allExplained": true,
+            "off": []
+          },
+          "D10": {
+            "pulsesOffByMoreThan1Us": 1,
+            "maxDeviationUs": 5.1875,
+            "allExplained": true,
+            "off": [
+              {
+                "riseUs": 2333720.5,
+                "widthUs": 1013.1875,
+                "nominalUs": 1008,
+                "deviationUs": 5.1875,
+                "blockedBy": [
+                  "TIMER0_OVF (millis)"
+                ]
+              }
+            ]
+          }
+        },
+        "changeTimes": [
+          {
+            "ms": 200,
+            "pin": "D9",
+            "angle": 80,
+            "widthUs": 1368,
+            "runFromUs": 212836.25,
+            "lagUs": 12836.25
+          },
+          {
+            "ms": 320,
+            "pin": "D10",
+            "angle": 0,
+            "widthUs": 544,
+            "runFromUs": 334235.06,
+            "lagUs": 14235.06
+          },
+          {
+            "ms": 440,
+            "pin": "D9",
+            "angle": 120,
+            "widthUs": 1472,
+            "runFromUs": 452874.81,
+            "lagUs": 12874.81
+          },
+          {
+            "ms": 560,
+            "pin": "D10",
+            "angle": -10,
+            "widthUs": 544,
+            "runFromUs": null,
+            "lagUs": null
+          },
+          {
+            "ms": 680,
+            "pin": "D10",
+            "angle": 45,
+            "widthUs": 1008,
+            "runFromUs": 694395.06,
+            "lagUs": 14395.06
+          },
+          {
+            "ms": 800,
+            "pin": "D9",
+            "angle": 0,
+            "widthUs": 544,
+            "runFromUs": 812930.88,
+            "lagUs": 12930.88
+          }
+        ],
+        "together": {
+          "pairs": 154,
+          "d10RiseAfterD9FallUs": {
+            "min": 10.75,
+            "median": 10.75,
+            "max": 10.75
+          },
+          "framesUs": {
+            "D9": {
+              "min": 20002.8125,
+              "median": 20003.0625,
+              "max": 20003.8125
+            },
+            "D10": {
+              "min": 19074.3125,
+              "median": 20003.125,
+              "max": 20827
+            }
+          },
+          "widthJitter": {
+            "quiet": {
+              "D9": {
+                "pulses": 27,
+                "nominalUs": 543.8125,
+                "maxAboveUs": 0.25,
+                "maxBelowUs": 0.375
+              },
+              "D10": {
+                "pulses": 27,
+                "nominalUs": 1007.8125,
+                "maxAboveUs": 0.0625,
+                "maxBelowUs": 0.0625
+              }
+            },
+            "colour": {
+              "D9": {
+                "pulses": 84,
+                "nominalUs": 543.8125,
+                "maxAboveUs": 0.625,
+                "maxBelowUs": 0.375
+              },
+              "D10": {
+                "pulses": 84,
+                "nominalUs": 1007.875,
+                "maxAboveUs": 5.3125,
+                "maxBelowUs": 0.375
+              }
+            }
+          }
+        }
+      },
+      "isrUs": {
+        "TIMER1_COMPA (Servo)": {
+          "count": 473,
+          "min": 15.75,
+          "median": 16.125,
+          "max": 23.9375
+        },
+        "TIMER0_OVF (millis)": {
+          "count": 3115,
+          "min": 6,
+          "median": 6,
+          "max": 6.3125
+        },
+        "USART_UDRE (Serial TX)": {
+          "count": 177,
+          "min": 7.75,
+          "median": 7.75,
+          "max": 8.3125
+        },
+        "TWI": {
+          "count": 170,
+          "min": 6.4375,
+          "median": 12.75,
+          "max": 19.0625
+        }
+      },
+      "checks": {
+        "serial": true,
+        "classesMatchTs": true,
+        "transactionsAsExpected": true,
+        "colorBeginWrites": true,
+        "busTimeIsTheDatasheets": true,
+        "transactionsWithin1Percent": true,
+        "readsInPureWindows": null,
+        "servoWidthsExact": true,
+        "servoJitterExplainedByIsrs": true,
+        "servoChangesWithinAFrame": true,
+        "servosTogetherOnTimer1": true
+      },
+      "pass": true
+    }
+  },
+  "costs": {
+    "table": {
+      "gripperSet": {
+        "us": 51.625,
+        "variantsUs": {
+          "gripperSet claw v=45": 51.4375,
+          "gripperSet lift v=45": 51.4375,
+          "gripperSet claw v=120 (clamped to 90)": 51.625,
+          "gripperSet lift v=-5 (clamped to 0)": 50.8125
+        },
+        "servoWriteUs": 50.4375,
+        "servoWrite120Us": 50.8125
+      },
+      "colorFetch": {
+        "us": 1158.5,
+        "servosAttached": {
+          "samples": 32,
+          "minCycles": 18551,
+          "medianCycles": 18554,
+          "maxCycles": 18951,
+          "minUs": 1159.4375,
+          "medianUs": 1159.625,
+          "maxUs": 1184.4375
+        },
+        "servosDetached": {
+          "samples": 32,
+          "minCycles": 18536,
+          "medianCycles": 18554,
+          "maxCycles": 18706,
+          "minUs": 1158.5,
+          "medianUs": 1159.625,
+          "maxUs": 1169.125
+        }
+      },
+      "colorFetchNack": {
+        "us": 146.0625,
+        "servosAttached": {
+          "samples": 32,
+          "minCycles": 2337,
+          "medianCycles": 2337,
+          "maxCycles": 2731,
+          "minUs": 146.0625,
+          "medianUs": 146.0625,
+          "maxUs": 170.6875
+        }
+      },
+      "colorBegin": {
+        "us": 1350.5625,
+        "rule": "colorBegin (min of 4) − 57000 − 2 × delayOverhead (8.5625): what the simulator adds for delay(3) and delay(54)",
+        "totalUs": 58367.6875,
+        "withoutDelaysCopyUs": 1349.625,
+        "minusMeasuredDelaysUs": 1355.1875,
+        "delay3Us": 3006.6875,
+        "delay54Us": 54005.8125
+      },
+      "colorBeginNack": {
+        "us": 589.4375,
+        "totalUs": 57606.5625,
+        "withoutDelaysCopyUs": 592.6875
+      },
+      "colorWrite": {
+        "us": 334,
+        "nackUs": 144.9375
+      },
+      "avr8jsStopInterrupt": {
+        "reason": "avr8js 0.21.1 completeStop() sets TWINT; the datasheet sets none after a STOP. twi-device.ts clears it; this is what leaving it would add.",
+        "colorFetchUs": 1170.875,
+        "colorFetchExtraUs": 12.375,
+        "colorWriteExtraUs": 6.1875
+      },
+      "digitalReadA3": {
+        "us": 3.9375,
+        "irDetectUs": 4.1875,
+        "a1Us": 3.9375,
+        "d4Us": 3.9375
+      },
+      "colorIs": {
+        "us": 1299.75,
+        "nackUs": 158.9375
+      },
+      "colorRaw": {
+        "us": 1160.4375,
+        "nackUs": 148.1875
+      },
+      "colorClassify": {
+        "longestUs": 147.25,
+        "byReading": {
+          "colorClassify red": {
+            "us": 130.3125,
+            "printedClass": "red"
+          },
+          "colorClassify green": {
+            "us": 132.75,
+            "printedClass": "green"
+          },
+          "colorClassify blue": {
+            "us": 137.6875,
+            "printedClass": "blue"
+          },
+          "colorClassify yellow": {
+            "us": 147.25,
+            "printedClass": "yellow"
+          },
+          "colorClassify white": {
+            "us": 141.125,
+            "printedClass": "white"
+          },
+          "colorClassify black": {
+            "us": 145.6875,
+            "printedClass": "black"
+          },
+          "colorClassify none": {
+            "us": 128.125,
+            "printedClass": "unknown"
+          },
+          "colorClassify zeros (NACK)": {
+            "us": 12.5625,
+            "printedClass": "unknown"
+          },
+          "colorClassify grey (no rule)": {
+            "us": 140.9375,
+            "printedClass": "unknown"
+          }
+        }
+      }
+    },
+    "classifyAsExpected": true,
+    "withDevice": {
+      "device": true,
+      "baselineCycles": 2,
+      "costs": {
+        "baseline": {
+          "samples": 8,
+          "minCycles": 0,
+          "medianCycles": 0,
+          "maxCycles": 0,
+          "minUs": 0,
+          "medianUs": 0,
+          "maxUs": 0
+        },
+        "digitalRead A3": {
+          "samples": 8,
+          "minCycles": 63,
+          "medianCycles": 63,
+          "maxCycles": 63,
+          "minUs": 3.9375,
+          "medianUs": 3.9375,
+          "maxUs": 3.9375
+        },
+        "digitalRead A1 (as EMU-08)": {
+          "samples": 8,
+          "minCycles": 63,
+          "medianCycles": 63,
+          "maxCycles": 63,
+          "minUs": 3.9375,
+          "medianUs": 3.9375,
+          "maxUs": 3.9375
+        },
+        "digitalRead D4 (as EMU-08)": {
+          "samples": 8,
+          "minCycles": 63,
+          "medianCycles": 63,
+          "maxCycles": 63,
+          "minUs": 3.9375,
+          "medianUs": 3.9375,
+          "maxUs": 3.9375
+        },
+        "ir detect A3 (digitalRead == LOW)": {
+          "samples": 8,
+          "minCycles": 67,
+          "medianCycles": 67,
+          "maxCycles": 163,
+          "minUs": 4.1875,
+          "medianUs": 4.1875,
+          "maxUs": 10.1875
+        },
+        "Servo.write claw v=45": {
+          "samples": 8,
+          "minCycles": 807,
+          "medianCycles": 807,
+          "maxCycles": 1190,
+          "minUs": 50.4375,
+          "medianUs": 50.4375,
+          "maxUs": 74.375
+        },
+        "Servo.write claw v=120": {
+          "samples": 8,
+          "minCycles": 813,
+          "medianCycles": 813,
+          "maxCycles": 813,
+          "minUs": 50.8125,
+          "medianUs": 50.8125,
+          "maxUs": 50.8125
+        },
+        "gripperSet claw v=45": {
+          "samples": 8,
+          "minCycles": 823,
+          "medianCycles": 823,
+          "maxCycles": 823,
+          "minUs": 51.4375,
+          "medianUs": 51.4375,
+          "maxUs": 51.4375
+        },
+        "gripperSet lift v=45": {
+          "samples": 8,
+          "minCycles": 823,
+          "medianCycles": 823,
+          "maxCycles": 823,
+          "minUs": 51.4375,
+          "medianUs": 51.4375,
+          "maxUs": 51.4375
+        },
+        "gripperSet claw v=120 (clamped to 90)": {
+          "samples": 8,
+          "minCycles": 826,
+          "medianCycles": 826,
+          "maxCycles": 826,
+          "minUs": 51.625,
+          "medianUs": 51.625,
+          "maxUs": 51.625
+        },
+        "gripperSet lift v=-5 (clamped to 0)": {
+          "samples": 8,
+          "minCycles": 813,
+          "medianCycles": 813,
+          "maxCycles": 813,
+          "minUs": 50.8125,
+          "medianUs": 50.8125,
+          "maxUs": 50.8125
+        },
+        "colorBegin": {
+          "samples": 4,
+          "minCycles": 933883,
+          "medianCycles": 933951.5,
+          "maxCycles": 934006,
+          "minUs": 58367.6875,
+          "medianUs": 58371.96875,
+          "maxUs": 58375.375
+        },
+        "colorBegin without its delays": {
+          "samples": 8,
+          "minCycles": 21594,
+          "medianCycles": 21598,
+          "maxCycles": 21679,
+          "minUs": 1349.625,
+          "medianUs": 1349.875,
+          "maxUs": 1354.9375
+        },
+        "delay v=3": {
+          "samples": 8,
+          "minCycles": 48107,
+          "medianCycles": 48114,
+          "maxCycles": 48174,
+          "minUs": 3006.6875,
+          "medianUs": 3007.125,
+          "maxUs": 3010.875
+        },
+        "delay v=54": {
+          "samples": 8,
+          "minCycles": 864093,
+          "medianCycles": 864142.5,
+          "maxCycles": 864162,
+          "minUs": 54005.8125,
+          "medianUs": 54008.90625,
+          "maxUs": 54010.125
+        },
+        "colorWrite": {
+          "samples": 8,
+          "minCycles": 5344,
+          "medianCycles": 5344,
+          "maxCycles": 5360,
+          "minUs": 334,
+          "medianUs": 334,
+          "maxUs": 335
+        },
+        "colorFetch, servos attached": {
+          "samples": 32,
+          "minCycles": 18551,
+          "medianCycles": 18554,
+          "maxCycles": 18951,
+          "minUs": 1159.4375,
+          "medianUs": 1159.625,
+          "maxUs": 1184.4375
+        },
+        "colorFetch, servos detached": {
+          "samples": 32,
+          "minCycles": 18536,
+          "medianCycles": 18554,
+          "maxCycles": 18706,
+          "minUs": 1158.5,
+          "medianUs": 1159.625,
+          "maxUs": 1169.125
+        },
+        "colorIs v=4": {
+          "samples": 32,
+          "minCycles": 20796,
+          "medianCycles": 20817,
+          "maxCycles": 21236,
+          "minUs": 1299.75,
+          "medianUs": 1301.0625,
+          "maxUs": 1327.25
+        },
+        "colorRaw v=3": {
+          "samples": 32,
+          "minCycles": 18567,
+          "medianCycles": 18588,
+          "maxCycles": 18773,
+          "minUs": 1160.4375,
+          "medianUs": 1161.75,
+          "maxUs": 1173.3125
+        },
+        "colorClassify red": {
+          "samples": 8,
+          "minCycles": 2085,
+          "medianCycles": 2085,
+          "maxCycles": 2181,
+          "minUs": 130.3125,
+          "medianUs": 130.3125,
+          "maxUs": 136.3125
+        },
+        "colorClassify green": {
+          "samples": 8,
+          "minCycles": 2124,
+          "medianCycles": 2124,
+          "maxCycles": 2124,
+          "minUs": 132.75,
+          "medianUs": 132.75,
+          "maxUs": 132.75
+        },
+        "colorClassify blue": {
+          "samples": 8,
+          "minCycles": 2203,
+          "medianCycles": 2203,
+          "maxCycles": 2299,
+          "minUs": 137.6875,
+          "medianUs": 137.6875,
+          "maxUs": 143.6875
+        },
+        "colorClassify yellow": {
+          "samples": 8,
+          "minCycles": 2356,
+          "medianCycles": 2356,
+          "maxCycles": 2508,
+          "minUs": 147.25,
+          "medianUs": 147.25,
+          "maxUs": 156.75
+        },
+        "colorClassify white": {
+          "samples": 8,
+          "minCycles": 2258,
+          "medianCycles": 2258,
+          "maxCycles": 2354,
+          "minUs": 141.125,
+          "medianUs": 141.125,
+          "maxUs": 147.125
+        },
+        "colorClassify black": {
+          "samples": 8,
+          "minCycles": 2331,
+          "medianCycles": 2331,
+          "maxCycles": 2427,
+          "minUs": 145.6875,
+          "medianUs": 145.6875,
+          "maxUs": 151.6875
+        },
+        "colorClassify none": {
+          "samples": 8,
+          "minCycles": 2050,
+          "medianCycles": 2050,
+          "maxCycles": 2146,
+          "minUs": 128.125,
+          "medianUs": 128.125,
+          "maxUs": 134.125
+        },
+        "colorClassify zeros (NACK)": {
+          "samples": 8,
+          "minCycles": 201,
+          "medianCycles": 201,
+          "maxCycles": 201,
+          "minUs": 12.5625,
+          "medianUs": 12.5625,
+          "maxUs": 12.5625
+        },
+        "colorClassify grey (no rule)": {
+          "samples": 8,
+          "minCycles": 2255,
+          "medianCycles": 2255,
+          "maxCycles": 2351,
+          "minUs": 140.9375,
+          "medianUs": 140.9375,
+          "maxUs": 146.9375
+        }
+      },
+      "classifyPrinted": {
+        "colorClassify red": 0,
+        "colorClassify green": 1,
+        "colorClassify blue": 2,
+        "colorClassify yellow": 3,
+        "colorClassify white": 4,
+        "colorClassify black": 5,
+        "colorClassify none": 6,
+        "colorClassify zeros (NACK)": 6,
+        "colorClassify grey (no rule)": 6
+      },
+      "wallMs": 1297,
+      "transactions": 312
+    },
+    "nack": {
+      "device": false,
+      "baselineCycles": 2,
+      "costs": {
+        "baseline": {
+          "samples": 8,
+          "minCycles": 0,
+          "medianCycles": 0,
+          "maxCycles": 0,
+          "minUs": 0,
+          "medianUs": 0,
+          "maxUs": 0
+        },
+        "digitalRead A3": {
+          "samples": 8,
+          "minCycles": 63,
+          "medianCycles": 63,
+          "maxCycles": 63,
+          "minUs": 3.9375,
+          "medianUs": 3.9375,
+          "maxUs": 3.9375
+        },
+        "digitalRead A1 (as EMU-08)": {
+          "samples": 8,
+          "minCycles": 63,
+          "medianCycles": 63,
+          "maxCycles": 63,
+          "minUs": 3.9375,
+          "medianUs": 3.9375,
+          "maxUs": 3.9375
+        },
+        "digitalRead D4 (as EMU-08)": {
+          "samples": 8,
+          "minCycles": 63,
+          "medianCycles": 63,
+          "maxCycles": 63,
+          "minUs": 3.9375,
+          "medianUs": 3.9375,
+          "maxUs": 3.9375
+        },
+        "ir detect A3 (digitalRead == LOW)": {
+          "samples": 8,
+          "minCycles": 67,
+          "medianCycles": 67,
+          "maxCycles": 163,
+          "minUs": 4.1875,
+          "medianUs": 4.1875,
+          "maxUs": 10.1875
+        },
+        "Servo.write claw v=45": {
+          "samples": 8,
+          "minCycles": 807,
+          "medianCycles": 807,
+          "maxCycles": 1190,
+          "minUs": 50.4375,
+          "medianUs": 50.4375,
+          "maxUs": 74.375
+        },
+        "Servo.write claw v=120": {
+          "samples": 8,
+          "minCycles": 813,
+          "medianCycles": 813,
+          "maxCycles": 813,
+          "minUs": 50.8125,
+          "medianUs": 50.8125,
+          "maxUs": 50.8125
+        },
+        "gripperSet claw v=45": {
+          "samples": 8,
+          "minCycles": 823,
+          "medianCycles": 823,
+          "maxCycles": 823,
+          "minUs": 51.4375,
+          "medianUs": 51.4375,
+          "maxUs": 51.4375
+        },
+        "gripperSet lift v=45": {
+          "samples": 8,
+          "minCycles": 823,
+          "medianCycles": 823,
+          "maxCycles": 823,
+          "minUs": 51.4375,
+          "medianUs": 51.4375,
+          "maxUs": 51.4375
+        },
+        "gripperSet claw v=120 (clamped to 90)": {
+          "samples": 8,
+          "minCycles": 826,
+          "medianCycles": 826,
+          "maxCycles": 826,
+          "minUs": 51.625,
+          "medianUs": 51.625,
+          "maxUs": 51.625
+        },
+        "gripperSet lift v=-5 (clamped to 0)": {
+          "samples": 8,
+          "minCycles": 813,
+          "medianCycles": 813,
+          "maxCycles": 813,
+          "minUs": 50.8125,
+          "medianUs": 50.8125,
+          "maxUs": 50.8125
+        },
+        "colorBegin": {
+          "samples": 4,
+          "minCycles": 921705,
+          "medianCycles": 921746.5,
+          "maxCycles": 921791,
+          "minUs": 57606.5625,
+          "medianUs": 57609.15625,
+          "maxUs": 57611.9375
+        },
+        "colorBegin without its delays": {
+          "samples": 8,
+          "minCycles": 9483,
+          "medianCycles": 9494,
+          "maxCycles": 9579,
+          "minUs": 592.6875,
+          "medianUs": 593.375,
+          "maxUs": 598.6875
+        },
+        "delay v=3": {
+          "samples": 8,
+          "minCycles": 48107,
+          "medianCycles": 48112,
+          "maxCycles": 48155,
+          "minUs": 3006.6875,
+          "medianUs": 3007,
+          "maxUs": 3009.6875
+        },
+        "delay v=54": {
+          "samples": 8,
+          "minCycles": 864093,
+          "medianCycles": 864118.5,
+          "maxCycles": 864163,
+          "minUs": 54005.8125,
+          "medianUs": 54007.40625,
+          "maxUs": 54010.1875
+        },
+        "colorWrite": {
+          "samples": 8,
+          "minCycles": 2319,
+          "medianCycles": 2319,
+          "maxCycles": 2330,
+          "minUs": 144.9375,
+          "medianUs": 144.9375,
+          "maxUs": 145.625
+        },
+        "colorFetch, servos attached": {
+          "samples": 32,
+          "minCycles": 2337,
+          "medianCycles": 2337,
+          "maxCycles": 2731,
+          "minUs": 146.0625,
+          "medianUs": 146.0625,
+          "maxUs": 170.6875
+        },
+        "colorFetch, servos detached": {
+          "samples": 32,
+          "minCycles": 2337,
+          "medianCycles": 2337,
+          "maxCycles": 2489,
+          "minUs": 146.0625,
+          "medianUs": 146.0625,
+          "maxUs": 155.5625
+        },
+        "colorIs v=4": {
+          "samples": 32,
+          "minCycles": 2543,
+          "medianCycles": 2543,
+          "maxCycles": 2639,
+          "minUs": 158.9375,
+          "medianUs": 158.9375,
+          "maxUs": 164.9375
+        },
+        "colorRaw v=3": {
+          "samples": 32,
+          "minCycles": 2371,
+          "medianCycles": 2371,
+          "maxCycles": 2467,
+          "minUs": 148.1875,
+          "medianUs": 148.1875,
+          "maxUs": 154.1875
+        },
+        "colorClassify red": {
+          "samples": 8,
+          "minCycles": 2085,
+          "medianCycles": 2085,
+          "maxCycles": 2181,
+          "minUs": 130.3125,
+          "medianUs": 130.3125,
+          "maxUs": 136.3125
+        },
+        "colorClassify green": {
+          "samples": 8,
+          "minCycles": 2124,
+          "medianCycles": 2124,
+          "maxCycles": 2369,
+          "minUs": 132.75,
+          "medianUs": 132.75,
+          "maxUs": 148.0625
+        },
+        "colorClassify blue": {
+          "samples": 8,
+          "minCycles": 2203,
+          "medianCycles": 2203,
+          "maxCycles": 2299,
+          "minUs": 137.6875,
+          "medianUs": 137.6875,
+          "maxUs": 143.6875
+        },
+        "colorClassify yellow": {
+          "samples": 8,
+          "minCycles": 2356,
+          "medianCycles": 2356,
+          "maxCycles": 2457,
+          "minUs": 147.25,
+          "medianUs": 147.25,
+          "maxUs": 153.5625
+        },
+        "colorClassify white": {
+          "samples": 8,
+          "minCycles": 2258,
+          "medianCycles": 2258,
+          "maxCycles": 2354,
+          "minUs": 141.125,
+          "medianUs": 141.125,
+          "maxUs": 147.125
+        },
+        "colorClassify black": {
+          "samples": 8,
+          "minCycles": 2331,
+          "medianCycles": 2331,
+          "maxCycles": 2427,
+          "minUs": 145.6875,
+          "medianUs": 145.6875,
+          "maxUs": 151.6875
+        },
+        "colorClassify none": {
+          "samples": 8,
+          "minCycles": 2050,
+          "medianCycles": 2050,
+          "maxCycles": 2224,
+          "minUs": 128.125,
+          "medianUs": 128.125,
+          "maxUs": 139
+        },
+        "colorClassify zeros (NACK)": {
+          "samples": 8,
+          "minCycles": 201,
+          "medianCycles": 201,
+          "maxCycles": 201,
+          "minUs": 12.5625,
+          "medianUs": 12.5625,
+          "maxUs": 12.5625
+        },
+        "colorClassify grey (no rule)": {
+          "samples": 8,
+          "minCycles": 2255,
+          "medianCycles": 2255,
+          "maxCycles": 2351,
+          "minUs": 140.9375,
+          "medianUs": 140.9375,
+          "maxUs": 146.9375
+        }
+      },
+      "classifyPrinted": {
+        "colorClassify red": 0,
+        "colorClassify green": 1,
+        "colorClassify blue": 2,
+        "colorClassify yellow": 3,
+        "colorClassify white": 4,
+        "colorClassify black": 5,
+        "colorClassify none": 6,
+        "colorClassify zeros (NACK)": 6,
+        "colorClassify grey (no rule)": 6
+      },
+      "wallMs": 936,
+      "transactions": 184
+    }
+  },
+  "totalWallMs": 16401
+}
