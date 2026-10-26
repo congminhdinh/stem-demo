@@ -68,7 +68,8 @@ describe('the zone of the next goal, for a pick-and-place goal (N19 E4/E5)', () 
 
   it('gives every rover lesson’s goals the very zones N18 lit, at every count of passed goals and route progress, and builds the same highlights', () => {
     let compared = 0;
-    for (const scenario of scenarioCatalog.scenarios) {
+    // The rover's lessons (N19 D4's gripper lessons have pick-and-place goals, which N18 had no zone for).
+    for (const scenario of scenarioCatalog.scenarios.filter((candidate) => candidate.kit === 'ref-uno-rover')) {
       const states: Results[] = [[]];
       scenario.goals.forEach((_, n) => states.push(scenario.goals.slice(0, n + 1).map((goal) => result(goal.id, true))));
       for (const goal of scenario.goals) {

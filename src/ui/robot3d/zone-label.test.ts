@@ -46,7 +46,8 @@ describe('the tags of named zones (N19 E5)', () => {
   });
 
   it('gives the rover’s lessons the very tags they had (none of their zones has a name)', () => {
-    for (const scenario of scenarioCatalog.scenarios) {
+    // The rover's lessons (N19 D4's gripper lessons name their zones).
+    for (const scenario of scenarioCatalog.scenarios.filter((candidate) => candidate.kit === 'ref-uno-rover')) {
       expect(scenario.arena.paint.zones.filter((candidate) => candidate.name !== undefined)).toEqual([]);
       const byKind = (candidate: PaintZone) => (candidate.kind === 'start' ? 'Xuất phát' : candidate.kind === 'target' ? 'Đích' : candidate.kind === 'checkpoint' ? 'Điểm kiểm tra' : null);
       expect(zoneTags(scenario, { zoneLabel: (candidate) => zoneLabelOf(textOf('vi'), candidate) })).toEqual(zoneTags(scenario, { zoneLabel: byKind }));
