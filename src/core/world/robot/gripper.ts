@@ -4,6 +4,7 @@ import type { KitMechanicalModule } from '../../hardware/kit-mechanics';
 import { atan2, cos, sin } from '../dmath';
 import { getRapier, type Collider, type ColliderDesc, type PhysicsWorld, type RapierModule, type RigidBody } from '../rapier';
 import { cmToM, degToRad, gToKg, radToDeg, yawToQuaternion, type Quat, type Vec3 } from '../units';
+import { BOOM_BAR_HALF_CM, BOOM_PLATE_HALF_CM, CARRIAGE_HALF_CM } from './gripper-geometry';
 import { conjugate, IDENTITY_ROTATION, localToWorld, multiplyQuaternions, robotPointToLocal } from './robot-frame';
 import { SERVO_MOTOR_GAIN } from './servo-arm';
 
@@ -61,12 +62,8 @@ export const GRIPPER_EXTRA_SOLVER_ITERATIONS = 4;
 export const LIFT_BRAKE_DECEL_RAD_S2 = 125.2;
 /** The servo angles the gripper is built at: what setup() writes (D-G3), which the driver owns (drivers/gripper-servo2.ts): claw open, lift up. */
 export { GRIPPER_START };
-/** The carriage box (it holds the claw servo), half extents in the carriage frame, cm. Geometry the kit does not name (ADR 0004 §2). */
-export const CARRIAGE_HALF_CM: Readonly<{ u: number; v: number; w: number }> = Object.freeze({ u: 0.5, v: 2.6, w: 0.6 });
-/** A boom side plate's half extents across (y) and up, cm; it runs the boom's length. Geometry the kit does not name (ADR 0004 §2). */
-export const BOOM_PLATE_HALF_CM: Readonly<{ across: number; up: number }> = Object.freeze({ across: 0.2, up: 0.5 });
-/** The boom's cross bar at the tip: half its square section, cm; it spans both plates. Geometry the kit does not name (ADR 0004 §2). */
-export const BOOM_BAR_HALF_CM = 0.3;
+/** The geometry the kit does not name: the carriage box, the boom's plates and cross bar (gripper-geometry.ts, which footprint.ts reads too). */
+export { BOOM_BAR_HALF_CM, BOOM_PLATE_HALF_CM, CARRIAGE_HALF_CM };
 /** The boom↔carriage hinge may turn this far past the lift's range, degrees: a margin only, the AngZ lock holds the carriage level. */
 const LINK_LIMIT_MARGIN_DEG = 10;
 /** The reflected rotor inertia is set on the boom as additional mass properties with this (negligible) mass, kg. */
