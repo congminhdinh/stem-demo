@@ -318,3 +318,137 @@ export function spotColor(spots: Spots, i: number, dark: boolean, color: { dark:
   paintRange(colors, eye.tick.start, eye.tick.count, r, g, b, color.tick);
   attribute.needsUpdate = true;
 }
+
+// N19 E5: the gripper's sensors ---------------------------------------------------------------------------------------------------------
+
+/** The looks of the gripper's sensors: the IR beam quiet and seeing (and the dot at its end), the colour sensor's ray and the ring of its spot. */
+export type GripperRaysLook = { irQuiet: Rgba; irSeen: Rgba; colorRay: Rgba; colorRayQuiet: Rgba; spotRing: Rgba };
+
+export const IR_RADIUS_M = 0.0022;
+export const IR_DOT_RADIUS_M = 0.0045;
+export const COLOR_RAY_RADIUS_M = 0.0012;
+/** The colour spot's disc and the ring round it (m), standing this far off the face it is on, towards the sensor. */
+export const COLOR_SPOT_RADIUS_M = 0.007;
+export const COLOR_RING_RADIUS_M = 0.0095;
+const COLOR_SPOT_STANDOFF_M = 0.001;
+const DISC_SEGMENTS = 18;
+
+/**
+ * The IR beam and the colour sensor's ray and spot, one mesh in the carriage's frame (three: forward +X, up +Y). The IR beam is fixed: a
+ * tube from its mount `irRangeM` forward and a dot at its end. The colour ray reaches as far as `GripperRays.reach[0]` (m) from its mount, its
+ * spot (a disc in a dark ring, facing back at the sensor) at that end: a vertex's position is `fixed + along × reach` on X.
+ */
+export type GripperRays = {
+  geometry: BufferGeometry;
+  /** Each vertex's position with no reach, and how much of the reach it moves along X (0 or 1). */
+  fixed: Float32Array;
+  along: Float32Array;
+  irTube: Range | null;
+  irDot: Range | null;
+  colorRay: Range | null;
+  ring: Range | null;
+  spot: Range | null;
+  look: GripperRaysLook;
+  /** The colour ray's reach `gripperRaysWrite` draws (m), set by the caller before it (see `Beam.length`). */
+  reach: Float64Array;
+};
+
+/** The gripper's rays for an IR at `ir` (its mount, m, and range) and a colour sensor at `color` (its mount); either may be missing. */
+export function buildGripperRays(ir: { at: V3; rangeM: number } | null, color: { at: V3 } | null, look: GripperRaysLook): GripperRays {
+  const mesher = new Mesher();
+  const along: number[] = [];
+  let irTube: Range | null = null;
+  let irDot: Range | null = null;
+  if (ir !== null) {
+    const [x, y, z] = ir.at;
+    irTube = mesher.tube([x, y, z], [x + ir.rangeM, y, z], IR_RADIUS_M, 6, look.irQuiet);
+    irDot = mesher.ball([x + ir.rangeM, y, z], IR_DOT_RADIUS_M, 8, 5, [look.irSeen[0], look.irSeen[1], look.irSeen[2], 0]);
+    while (along.length < mesher.count) along.push(0);
+  }
+  let colorRay: Range | null = null;
+  let ring: Range | null = null;
+  let spot: Range | null = null;
+  if (color !== null) {
+    const [x, y, z] = color.at;
+    // The tube's first ring at the mount (along 0), its second at the reach (along 1): built 1 m long, its far ring then moved back.
+    const start = mesher.count;
+    colorRay = mesher.tube([x, y, z], [x + 1, y, z], COLOR_RAY_RADIUS_M, 5, look.colorRayQuiet);
+    for (let v = start; v < start + colorRay.count; v++) along.push(v - start >= colorRay.count / 2 ? 1 : 0);
+    const back: V3 = [-1, 0, 0];
+    const disc = (radius: number, color: Rgba): Range => {
+      const first = mesher.vertex([x - COLOR_SPOT_STANDOFF_M, y, z], [0, 0, 0], color);
+      for (let k = 0; k < DISC_SEGMENTS; k++) {
+        const angle = (2 * Math.PI * k) / DISC_SEGMENTS;
+        mesher.vertex([x - COLOR_SPOT_STANDOFF_M, y, z], [0, Math.cos(angle) * radius, Math.sin(angle) * radius], color);
+      }
+      for (let k = 0; k < DISC_SEGMENTS; k++) mesher.triangle(first, first + 1 + k, first + 1 + ((k + 1) % DISC_SEGMENTS), back);
+      return { start: first, count: 1 + DISC_SEGMENTS };
+    };
+    // The ring under the disc: drawn first, a hair further from the sensor (the disc covers its middle).
+    ring = disc(COLOR_RING_RADIUS_M, [look.spotRing[0], look.spotRing[1], look.spotRing[2], 0]);
+    spot = disc(COLOR_SPOT_RADIUS_M, [0, 0, 0, 0]);
+    // The spot stands off the face a little more than the ring, towards the sensor, so that it is drawn over it.
+    for (let v = spot.start; v < spot.start + spot.count; v++) mesher.centers[3 * v] = mesher.centers[3 * v]! - 0.0003;
+    while (along.length < mesher.count) along.push(1);
+  }
+  const geometry = mesher.geometry();
+  const count = mesher.count;
+  const fixed = new Float32Array(3 * count);
+  for (let i = 0; i < 3 * count; i++) fixed[i] = mesher.centers[i]! + mesher.offsets[i]!;
+  // The colour ray's far ring was built at +1 m: with `along` 1 it is placed by the reach instead.
+  if (colorRay !== null) for (let v = colorRay.start + colorRay.count / 2; v < colorRay.start + colorRay.count; v++) fixed[3 * v] = fixed[3 * v]! - 1;
+  const rays: GripperRays = { geometry, fixed, along: Float32Array.from(along), irTube, irDot, colorRay, ring, spot, look, reach: new Float64Array([0]) };
+  gripperRaysWrite(rays);
+  return rays;
+}
+
+/** Puts the colour ray's far end and its spot at `rays.reach[0]` along X from its mount, writing the position attribute in place. */
+export function gripperRaysWrite(rays: GripperRays): void {
+  const reach = rays.reach[0]!;
+  const attribute = rays.geometry.getAttribute('position');
+  const position = attribute.array as Float32Array;
+  const { fixed, along } = rays;
+  for (let v = 0; v < along.length; v++) {
+    position[3 * v] = fixed[3 * v]! + along[v]! * reach;
+    position[3 * v + 1] = fixed[3 * v + 1]!;
+    position[3 * v + 2] = fixed[3 * v + 2]!;
+  }
+  attribute.needsUpdate = true;
+}
+
+/** Paints the IR beam for what it reads: quiet (faint, no dot) or seeing (strong, with its dot). */
+export function gripperRaysIr(rays: GripperRays, detected: boolean): void {
+  if (rays.irTube === null || rays.irDot === null) return;
+  const attribute = rays.geometry.getAttribute('color');
+  const colors = attribute.array as Float32Array;
+  paintLook(colors, rays.irTube, detected ? rays.look.irSeen : rays.look.irQuiet, true);
+  paintLook(colors, rays.irDot, rays.look.irSeen, detected);
+  attribute.needsUpdate = true;
+}
+
+/**
+ * Paints the vertices of `range` the colour `look`, its alpha or none (`shown` false). It takes the colour as its array and a flag, not
+ * as numbers: four doubles passed to a call V8 does not inline are boxed, 16 bytes each (measured: 48 bytes a repaint of the spot).
+ */
+function paintLook(colors: Float32Array, range: Range, look: Rgba, shown: boolean): void {
+  for (let v = range.start; v < range.start + range.count; v++) {
+    colors[4 * v] = look[0];
+    colors[4 * v + 1] = look[1];
+    colors[4 * v + 2] = look[2];
+    colors[4 * v + 3] = shown ? look[3] : 0;
+  }
+}
+
+/**
+ * Paints the colour sensor's ray and spot: the ray strong when it meets something (`hit`), the spot shown then, in its ring, tinted
+ * `tint` (none: the ring alone, for a colour it cannot tell or before its first window).
+ */
+export function gripperRaysColor(rays: GripperRays, hit: boolean, tint: Rgba | null): void {
+  if (rays.colorRay === null || rays.ring === null || rays.spot === null) return;
+  const attribute = rays.geometry.getAttribute('color');
+  const colors = attribute.array as Float32Array;
+  paintLook(colors, rays.colorRay, hit ? rays.look.colorRay : rays.look.colorRayQuiet, true);
+  paintLook(colors, rays.ring, rays.look.spotRing, hit);
+  paintLook(colors, rays.spot, tint ?? rays.look.spotRing, hit && tint !== null);
+  attribute.needsUpdate = true;
+}

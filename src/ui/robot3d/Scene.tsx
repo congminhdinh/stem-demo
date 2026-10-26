@@ -2,6 +2,7 @@ import { addTail, Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Suspense, use, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { NeutralToneMapping, NoToneMapping, type DirectionalLight, type Object3D, type Texture } from 'three';
 import { useStore } from 'zustand';
+import { COLOR_NAMES, type ColorName } from '../../core/hardware/drivers';
 import type { Kit } from '../../core/hardware/kit';
 import type { Scenario } from '../../core/scenario/scenario';
 import type { PaintZone } from '../../core/world/arena/arena-schema';
@@ -21,6 +22,7 @@ import { StudioLighting } from './lighting/StudioLighting';
 import { GltfArena } from './parts/GltfArena';
 import { flagOf, GltfRobot } from './parts/GltfRobot';
 import { neededParts } from './parts/robot-assembly';
+import type { GripperWords } from './parts/sensor-overlay';
 import { SensorOverlay } from './parts/SensorOverlay';
 import type { RobotTagBox } from './parts/ZoneTags';
 import { tierSettings, type QualityTier } from './quality';
@@ -420,6 +422,19 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
   const t = useText();
   const decimal = useLocale() === 'vi' ? ',' : '.';
   const unit = t('robot.ruler.cm', { value: '' }).trim();
+  // N19 E5: every line the gripper's tag can say, made once (only a car with a gripper's sensors has the tag).
+  const gripperWords = useMemo<GripperWords | undefined>(
+    () =>
+      model.gripper === null
+        ? undefined
+        : {
+            irSeen: t('robot.overlay.ir', { state: t('robot.pins.ir.seen') }),
+            irClear: t('robot.overlay.ir', { state: t('robot.pins.ir.clear') }),
+            color: Object.fromEntries(COLOR_NAMES.map((name) => [name, t('robot.overlay.color', { color: t(`robot.color.${name}`) })])) as Record<ColorName, string>,
+            noReading: t('robot.overlay.color', { color: t('robot.pins.color.noReading') }),
+          },
+    [model, t],
+  );
   return (
     <Canvas
       className="robot-canvas"
@@ -440,7 +455,7 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
       <ContextWatch onLost={onContextLost} onRestored={onContextRestored} />
       {onSlowFrames && <SlowFrames store={store} onSlow={onSlowFrames} />}
       {tools && <FloorPicker tools={tools} store={store} kit={kit} scenario={scenario} />}
-      <SensorOverlay scenario={scenario} kit={kit} model={model} view={view} store={store} tools={tools} reducedMotion={reducedMotion} decimal={decimal} unit={unit} noEchoText={t('robot.pins.ultra.noEcho')} detail={tierLook[tier].detail} overlays={overlays} />
+      <SensorOverlay scenario={scenario} kit={kit} model={model} view={view} store={store} tools={tools} reducedMotion={reducedMotion} decimal={decimal} unit={unit} noEchoText={t('robot.pins.ultra.noEcho')} detail={tierLook[tier].detail} overlays={overlays} gripperWords={gripperWords} />
     </Canvas>
   );
 }

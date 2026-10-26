@@ -14,7 +14,7 @@ import { labelBoxes, LABEL_CENTERS, LABEL_REACH_SHARES, MAX_LABEL_BOXES, placeLa
 import { registerSensorOverlay } from '../sensor-overlay-state';
 import { pulseLevel, sameSensorView } from '../sensor-overlay-math';
 import { LABEL_PILL_HEIGHT_SHARE } from './distance-label';
-import { createSensorOverlay } from './sensor-overlay';
+import { createSensorOverlay, GRIPPER_LABEL_LIFT_M, type GripperWords } from './sensor-overlay';
 import type { ScreenBox } from './zone-tag-layout';
 
 // The sensor overlays in the 3D canvas (N18 R4.3, sensor-overlay.ts): what the robot "sees" over the arena. This only mounts the
@@ -41,7 +41,12 @@ type SensorOverlayProps = {
   detail: Detail;
   /** Where the HUD, the results card and the view tools cover the view (NDC): the distance tag keeps clear of them. */
   overlays: { hud: HudCorner | null; card: CardEdge | null; tools: ToolsCorner | null };
+  /** N19 E5: the words of the gripper's tag ("IR: có vật", "Màu: đỏ"), made once; a car without a gripper's sensors needs none. */
+  gripperWords?: GripperWords | undefined;
 };
+
+/** N19 E5: how far over the carriage the gripper's tag may stand, m, in the order tried: its own height, higher, lower. */
+const GRIPPER_LABEL_LIFTS_M = [GRIPPER_LABEL_LIFT_M, GRIPPER_LABEL_LIFT_M + 0.04, GRIPPER_LABEL_LIFT_M - 0.02] as const;
 
 /** What the tag keeps clear of: the strips at the top and the bottom, the HUD's corner, the card's side and the tools' corner. */
 const MAX_AVOID = 5;
@@ -54,7 +59,7 @@ function cover(box: ScreenBox, left: number, right: number, bottom: number, top:
   box.top = top;
 }
 
-export function SensorOverlay({ scenario, kit, model, view, store, tools, reducedMotion, decimal, unit, noEchoText, detail, overlays }: SensorOverlayProps) {
+export function SensorOverlay({ scenario, kit, model, view, store, tools, reducedMotion, decimal, unit, noEchoText, detail, overlays, gripperWords }: SensorOverlayProps) {
   const gl = useThree((state) => state.gl);
   const camera = useThree((state) => state.camera);
   const invalidate = useThree((state) => state.invalidate);
@@ -62,13 +67,13 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
   const fovDeg = 'fov' in camera && typeof camera.fov === 'number' ? camera.fov : 40;
   const overlay = useMemo(() => {
     try {
-      return createSensorOverlay({ kit, model, scenario, decimal, unit, noEchoText, fovDeg, detail });
+      return createSensorOverlay({ kit, model, scenario, decimal, unit, noEchoText, fovDeg, detail, gripperWords });
     } catch (error) {
       // An overlay that cannot be built is no reason to lose the view.
       console.warn('The robot lab’s sensor overlay could not be built; the view draws without it.', error);
       return null;
     }
-  }, [kit, model, scenario, decimal, unit, noEchoText, fovDeg, detail]);
+  }, [kit, model, scenario, decimal, unit, noEchoText, fovDeg, detail, gripperWords]);
   useEffect(() => () => overlay?.dispose(), [overlay]);
   useEffect(() => (overlay ? registerSensorOverlay(gl.domElement, overlay) : undefined), [gl, overlay]);
 
@@ -115,7 +120,8 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
     () => ({
       anchor: new Vector3(),
       anchors: new Float64Array(2 * LABEL_REACH_SHARES.length),
-      avoid: Array.from({ length: MAX_AVOID }, (): ScreenBox => ({ left: 0, right: 0, bottom: 0, top: 0 })),
+      // What floats over the view, and (N19 E5, for the gripper's tag) the distance tags placed before it this frame.
+      avoid: Array.from({ length: MAX_AVOID + MAX_LABEL_BOXES }, (): ScreenBox => ({ left: 0, right: 0, bottom: 0, top: 0 })),
       place: { reach: 0, center: 0, clear: false } as LabelPlace,
     }),
     [],
@@ -168,6 +174,32 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
       // The pill is centred on its canvas: `center.x` puts the share of it that the place says to the left of the anchor.
       sprite.center.x = (1 - label.widthShare) / 2 + LABEL_CENTERS[place.center]! * label.widthShare;
       count += 1;
+    }
+    // N19 E5: the gripper's tag over the jaws, at the first height over the carriage where it is in the view and clear of what floats over
+    // it and of the distance tags; the zones' tags keep clear of it as of them.
+    const words = overlay.gripperLabel;
+    if (words !== null && count < MAX_LABEL_BOXES && overlay.gripperLabelShown()) {
+      const sprite = words.sprite;
+      for (let a = 0; a < GRIPPER_LABEL_LIFTS_M.length; a++) {
+        sprite.position.y = GRIPPER_LABEL_LIFTS_M[a]!;
+        sprite.getWorldPosition(anchor).project(camera);
+        const seen = anchor.z <= 1 && anchor.z >= -1;
+        anchors[2 * a] = seen ? anchor.x : Number.NaN;
+        anchors[2 * a + 1] = seen ? anchor.y : Number.NaN;
+      }
+      sprite.position.y = GRIPPER_LABEL_LIFTS_M[0];
+      if (!Number.isNaN(anchors[0]!)) {
+        for (let i = 0; i < count; i++) {
+          const from = labelBoxes.boxes[i]!;
+          cover(avoid[avoidCount + i]!, from.left, from.right, from.bottom, from.top);
+        }
+        const width = sprite.scale.x * elements[0]! * words.widthShare;
+        const height = sprite.scale.y * elements[5]! * words.heightShare;
+        placeLabel(labelBoxes.boxes[count]!, place, anchors, GRIPPER_LABEL_LIFTS_M.length, width, height, avoid, avoidCount + count);
+        sprite.position.y = GRIPPER_LABEL_LIFTS_M[place.reach]!;
+        sprite.center.x = (1 - words.widthShare) / 2 + LABEL_CENTERS[place.center]! * words.widthShare;
+        count += 1;
+      }
     }
     labelBoxes.count = count;
   }, -1);

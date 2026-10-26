@@ -1,15 +1,18 @@
 import { Group, Mesh, MeshBasicMaterial, Quaternion, Vector3, type BufferGeometry, type Material, type Object3D } from 'three';
-import type { Kit, LineSensorSpec, UltrasonicSpec } from '../../../core/hardware/kit';
+import { classifyColor, COLOR_NAMES, type ColorName } from '../../../core/hardware/drivers';
+import type { ColorSensorSpec, IrObstacleSpec, Kit, LineSensorSpec, UltrasonicSpec } from '../../../core/hardware/kit';
 import type { Scenario } from '../../../core/scenario/scenario';
 import type { Pose, RobotSnapshot, SensorReadout } from '../../../core/world/snapshot';
 import { CM_PER_M } from '../../../core/world/units';
+import { gripperStateOf } from '../gripper-pose';
 import type { Detail } from '../lighting/look';
 import type { RobotModel } from '../robot-model';
-import { sensorColors as colors } from '../sensor-colors';
+import { readingTints, sensorColors as colors } from '../sensor-colors';
 import { GLYPH, highlightColor, labelGlyphs, LABEL_GLYPHS_MAX, nextGoalZoneId, spotDrawRadiusCm } from '../sensor-overlay-math';
 import { NO_ECHO_RAY_CM } from '../top-view-math';
 import { createDistanceLabel, type DistanceLabel, type DistanceLabelOptions } from './distance-label';
-import { beamAxisEcho, beamWrite, buildBeam, buildSpots, rgba, spotColor, spotsHide, spotsWrite, type Beam, type Spots } from './overlay-geometry';
+import { beamAxisEcho, beamWrite, buildBeam, buildGripperRays, buildSpots, gripperRaysColor, gripperRaysIr, gripperRaysWrite, rgba, spotColor, spotsHide, spotsWrite, type Beam, type GripperRays, type Rgba, type Spots } from './overlay-geometry';
+import { createWordsLabel, type WordsLabel, type WordsLabelOptions } from './words-label';
 import { zoneHighlightGeometry } from './zone-highlight';
 
 // The sensor overlays of the 3D view (N18 R4.3): what the robot "sees", drawn over the arena for a learner to read, from the snapshot's
@@ -24,6 +27,10 @@ import { zoneHighlightGeometry } from './zone-highlight';
 //     reads bright, with a thin tick down from the eye. They are tested against the robot's depth like everything else: the spots are under
 //     the chassis, and show where it does not cover them.
 //   - The goal's zone: a soft fill and outline, in the zone's own hue, on the zone the next unmet goal needs, pulsing while a run goes on.
+//   - N19 E5, on a gripper car: the IR sensor's short beam between the jaws (its 2 cm range, faint, strong with a dot at its end when it
+//     sees something), the colour sensor's ray to what it meets and a spot there tinted with the colour its counts read (`shownColor`; a
+//     ring alone for one it cannot tell), both on the carriage where the boom holds it (gripper-pose.ts), and a tag over the jaws that says
+//     them ("IR: có vật", "Màu: đỏ"), painted only when those words change. One more mesh and one more tag: two draw calls.
 //
 // It is plain three with no React, and its whole cost is four draw calls (a beam's mesh, the spots' mesh, the zone's mesh, the tag): each
 // is a vertex-coloured mesh (overlay-geometry.ts) built once, whose positions `update` writes in place. `update` makes no object. All of
@@ -53,7 +60,14 @@ export type SensorOverlayOptions = {
   detail: Detail;
   /** Makes the distance tag; tests give none, or their own. */
   makeLabel?: ((options: DistanceLabelOptions) => DistanceLabel | null) | undefined;
+  /** N19 E5: the words of the gripper's tag, made once (the messages'); without them a gripper car's tag says nothing. */
+  gripperWords?: GripperWords | undefined;
+  /** N19 E5: makes the gripper's tag; tests give none, or their own. */
+  makeWordsLabel?: ((options: WordsLabelOptions) => WordsLabel | null) | undefined;
 };
+
+/** N19 E5: every line the gripper's tag can say: the IR's two, the colour sensor's for each colour and before its first window. */
+export type GripperWords = { irSeen: string; irClear: string; color: Readonly<Record<ColorName, string>>; noReading: string };
 
 /** What the overlay shows now, for a test or the E2E (made on demand: it allocates). */
 export type SensorOverlayProbe = {
@@ -63,6 +77,15 @@ export type SensorOverlayProbe = {
   zone: string | null;
   /** The glow level the zone was last drawn at, 0 to 1. */
   pulse: number;
+  /**
+   * N19 E5: the gripper's sensors (null on a car without them): the IR beam (whether it sees), the colour ray (how far it reaches, whether
+   * it meets something, the colour its spot is tinted for) and the tag's lines as painted.
+   */
+  gripper: {
+    ir: { role: string; visible: boolean; detected: boolean } | null;
+    color: { role: string; visible: boolean; hit: boolean; reachCm: number; color: ColorName | null } | null;
+    label: string[] | null;
+  } | null;
 };
 
 export type SensorOverlay = {
@@ -80,6 +103,11 @@ export type SensorOverlay = {
   labelReach(index: number): number;
   /** The beams, for a test. */
   beams: readonly Beam[];
+  /** N19 E5: the gripper's tag (null without a gripper's sensors, or where a canvas could not be made), and whether it is on the screen now. */
+  gripperLabel: WordsLabel | null;
+  gripperLabelShown(): boolean;
+  /** N19 E5: the gripper's rays, for a test. */
+  gripperRays: GripperRays | null;
   probe(): SensorOverlayProbe;
   dispose(): void;
 };
@@ -108,7 +136,7 @@ type UltrasonicPart = {
 
 type ZonePart = { id: string; mesh: Mesh };
 
-export function createSensorOverlay({ kit, model, scenario, decimal, unit, noEchoText, fovDeg, detail, makeLabel = createDistanceLabel }: SensorOverlayOptions): SensorOverlay {
+export function createSensorOverlay({ kit, model, scenario, decimal, unit, noEchoText, fovDeg, detail, makeLabel = createDistanceLabel, gripperWords, makeWordsLabel = createWordsLabel }: SensorOverlayOptions): SensorOverlay {
   const geometries: BufferGeometry[] = [];
   const materials: Material[] = [];
   const own = (geometry: BufferGeometry): BufferGeometry => {
@@ -209,6 +237,9 @@ export function createSensorOverlay({ kit, model, scenario, decimal, unit, noEch
       root.add(mesh);
       return { id: zone.id, mesh };
     });
+
+  const carried = carriedSensors(kit, model, drawn, own, fovDeg, gripperWords, makeWordsLabel);
+  if (carried !== null) robot.add(carried.group);
 
   root.traverse((node: Object3D) => {
     node.userData.compileWithScene = true;
@@ -322,6 +353,7 @@ export function createSensorOverlay({ kit, model, scenario, decimal, unit, noEch
       clock[1] = pulse;
       for (let i = 0; i < zones.length; i++) zones[i]!.mesh.visible = zones[i]!.id === next;
       zoneMaterial.opacity = 0.75 + 0.4 * pulse;
+      carried?.update(world);
     },
     probe() {
       const sign = decimal;
@@ -345,12 +377,170 @@ export function createSensorOverlay({ kit, model, scenario, decimal, unit, noEch
         spots: eyes.map((eye, i) => ({ role: eye.role, visible: last.shown && eyeShown[i]!, dark: eyeDark[i]! })),
         zone: last.shown ? last.zone : null,
         pulse: clock[1]!,
+        gripper: carried?.probe(last.shown) ?? null,
       };
     },
+    gripperLabel: carried?.label ?? null,
+    gripperLabelShown: () => last.shown && carried !== null && carried.labelShown(),
+    gripperRays: carried?.rays ?? null,
     dispose() {
       for (const geometry of geometries) geometry.dispose();
       for (const made of materials) made.dispose();
       for (const part of ultrasonics) part.label?.dispose();
+      carried?.label?.dispose();
+    },
+  };
+}
+
+/** N19 E5: where the gripper's tag stands over the jaws' middle, m above the carriage's origin (SensorOverlay.tsx may lift it more). */
+export const GRIPPER_LABEL_LIFT_M = 0.045;
+
+type Carried = {
+  group: Group;
+  rays: GripperRays;
+  label: WordsLabel | null;
+  update(world: RobotSnapshot): void;
+  labelShown(): boolean;
+  probe(shown: boolean): NonNullable<SensorOverlayProbe['gripper']>;
+};
+
+/**
+ * N19 E5: the sensors the gripper's carriage carries (null for a car without them): one mesh of their rays in a group the boom holds, and
+ * their tag. `update` moves the group to the carriage (its pose from robot.gripper, gripper-pose.ts: level, at the boom's tip), paints the
+ * IR beam and the colour spot only when what they read changes, and the tag only when its words do. It makes nothing.
+ */
+function carriedSensors(
+  kit: Kit,
+  model: RobotModel,
+  material: MeshBasicMaterial,
+  own: (geometry: BufferGeometry) => BufferGeometry,
+  fovDeg: number,
+  words: GripperWords | undefined,
+  makeWordsLabel: (options: WordsLabelOptions) => WordsLabel | null,
+): Carried | null {
+  const gripper = model.gripper;
+  if (gripper === null || (gripper.ir === null && gripper.color === null)) return null;
+  const specOf = <T,>(role: string) => kit.modules.find((module) => module.role === role)?.spec as unknown as T | undefined;
+  const ir = gripper.ir;
+  const color = gripper.color;
+  const irRangeM = ir === null ? 0 : (specOf<IrObstacleSpec>(ir.role)?.rangeCm ?? 2) / CM_PER_M;
+  const colorRangeM = color === null ? 0 : (specOf<ColorSensorSpec>(color.role)?.rangeCm ?? 4) / CM_PER_M;
+  const rays = buildGripperRays(ir === null ? null : { at: ir.position, rangeM: irRangeM }, color === null ? null : { at: color.position }, {
+    irQuiet: rgba(colors.ir, 0.35),
+    irSeen: rgba(colors.ir, 0.95),
+    colorRay: rgba(colors.spotRing, 0.75),
+    colorRayQuiet: rgba(colors.spotRing, 0.3),
+    spotRing: rgba(colors.spotRing, 0.95),
+  });
+  // The tints, by the colour's index in COLOR_NAMES (none for "không rõ").
+  const tints: (Rgba | null)[] = COLOR_NAMES.map((name) => {
+    const hex = readingTints[name];
+    return hex === null ? null : rgba(hex, 1);
+  });
+  gripperRaysIr(rays, false);
+  gripperRaysColor(rays, false, null);
+  const group = new Group();
+  group.name = 'sensor-gripper';
+  group.visible = false;
+  const mesh = new Mesh(own(rays.geometry), material);
+  mesh.name = 'sensor-gripper-rays';
+  mesh.renderOrder = 23;
+  // Its positions are written as the colour ray's reach changes: its bounding sphere would cull it wrongly.
+  mesh.frustumCulled = false;
+  group.add(mesh);
+  const label = words === undefined ? null : makeWordsLabel({ fovDeg });
+  if (label !== null) {
+    // Over the jaws' middle.
+    label.sprite.position.set(gripper.hinge.uM + gripper.finger.lengthM / 2, GRIPPER_LABEL_LIFT_M, 0);
+    group.add(label.sprite);
+  }
+  // What is painted now, as small integers in one typed array (a number in a closure's variable or an object's field makes garbage often
+  // enough to measure): the IR beam (−1 not yet, 0 quiet, 1 seeing), the colour ray (−1 not yet, 0 no hit, 1 a hit), the spot's tint
+  // (−2 not yet, −1 none, else the colour's index in COLOR_NAMES), the class of the last counts (−1 none yet), the tag's two lines (−3
+  // never painted, −2 left out; the IR's 0/1; the colour's index, −1 for no reading), and whether each sensor is shown now (0/1).
+  const S = { ir: 0, hit: 1, tint: 2, classified: 3, lineIr: 4, lineColor: 5, irOn: 6, colorOn: 7 } as const;
+  const state = new Int8Array([-1, -1, -2, -1, -3, -3, 0, 0]);
+  // The colour sensor's last counts (r, g, b, c), the ray's reach (m) and the lift the carriage was placed at (degrees), for what changed.
+  const last = new Float64Array([Number.NaN, Number.NaN, Number.NaN, Number.NaN, Number.NaN, Number.NaN]);
+  const [pivotX, pivotY, pivotZ] = gripper.position;
+  const colorText = (index: number): string | null => (words === undefined ? null : index === -1 ? words.noReading : words.color[COLOR_NAMES[index]!]);
+  return {
+    group,
+    rays,
+    label,
+    update(world) {
+      // The carriage at the boom's tip, level (gripper-pose.ts's pose, written here: its pose object stores doubles in fields, which makes
+      // garbage a call), placed again only when the lift moves.
+      const liftDeg = gripperStateOf(world).liftDeg;
+      if (liftDeg !== last[5]) {
+        last[5] = liftDeg;
+        const elevation = ((gripper.elevationAtLift0Deg + liftDeg) * Math.PI) / 180;
+        // The fields written one by one: a call's three doubles are boxed (48 bytes), a Vector3's fields are written in place.
+        const at = group.position;
+        at.x = pivotX + gripper.boomLengthM * Math.cos(elevation);
+        at.y = pivotY + gripper.boomLengthM * Math.sin(elevation);
+        at.z = pivotZ;
+      }
+      const irReading = ir === null ? undefined : world.sensors[ir.sensorIndex];
+      const irOn = irReading?.kind === 'ir-obstacle';
+      if (irOn) {
+        const seeing = irReading.detected ? 1 : 0;
+        if (seeing !== state[S.ir]) {
+          gripperRaysIr(rays, seeing === 1);
+          state[S.ir] = seeing;
+        }
+      }
+      const colorReading = color === null ? undefined : world.sensors[color.sensorIndex];
+      const colorOn = colorReading?.kind === 'color-sensor';
+      if (colorOn) {
+        const reach = colorReading.distanceCm === null ? colorRangeM : colorReading.distanceCm / CM_PER_M;
+        if (reach !== last[4]) {
+          last[4] = reach;
+          rays.reach[0] = reach;
+          gripperRaysWrite(rays);
+        }
+        // The colour is classified again only when the counts change (a new window, about every 53 ms).
+        const rgbc = colorReading.rgbc;
+        if (rgbc === undefined) {
+          state[S.classified] = -1;
+          last[0] = Number.NaN;
+        } else if (rgbc.r !== last[0] || rgbc.g !== last[1] || rgbc.b !== last[2] || rgbc.c !== last[3]) {
+          last[0] = rgbc.r;
+          last[1] = rgbc.g;
+          last[2] = rgbc.b;
+          last[3] = rgbc.c;
+          state[S.classified] = classifyColor(rgbc);
+        }
+        const hit = colorReading.hitId === null ? 0 : 1;
+        const tint = state[S.classified]!;
+        if (hit !== state[S.hit] || tint !== state[S.tint]) {
+          gripperRaysColor(rays, hit === 1, tint === -1 ? null : tints[tint]!);
+          state[S.hit] = hit;
+          state[S.tint] = tint;
+        }
+      }
+      state[S.irOn] = irOn ? 1 : 0;
+      state[S.colorOn] = colorOn ? 1 : 0;
+      group.visible = irOn || colorOn;
+      // The tag: painted when its words change.
+      const irLine = irOn ? state[S.ir]! : -2;
+      const colorLine = colorOn ? state[S.classified]! : -2;
+      if (words !== undefined && (irLine !== state[S.lineIr] || colorLine !== state[S.lineColor])) {
+        label?.show(irLine === -2 ? null : irLine === 1 ? words.irSeen : words.irClear, colorLine === -2 ? null : colorText(colorLine));
+        state[S.lineIr] = irLine;
+        state[S.lineColor] = colorLine;
+      }
+    },
+    labelShown: () => group.visible && label !== null && label.widthShare > 0,
+    probe(on) {
+      const [irLine, colorLine] = [state[S.lineIr]!, state[S.lineColor]!];
+      const lines = words === undefined || irLine === -3 ? null : [...(irLine === -2 ? [] : [irLine === 1 ? words.irSeen : words.irClear]), ...(colorLine === -2 ? [] : [colorText(colorLine)!])];
+      const tint = state[S.tint]!;
+      return {
+        ir: ir === null ? null : { role: ir.role, visible: on && state[S.irOn] === 1, detected: state[S.ir] === 1 },
+        color: color === null ? null : { role: color.role, visible: on && state[S.colorOn] === 1, hit: state[S.hit] === 1, reachCm: Number.isNaN(last[4]!) ? 0 : last[4]! * CM_PER_M, color: state[S.colorOn] === 1 && tint >= 0 ? COLOR_NAMES[tint]! : null },
+        label: on && group.visible ? lines : null,
+      };
     },
   };
 }

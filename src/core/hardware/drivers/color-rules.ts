@@ -42,22 +42,23 @@ function floorDiv(a: number, b: number): number {
   return q;
 }
 
-/** r, g, b per mille of r + g + b, truncated (all 0 when the sum is 0). */
-function perMille(reading: Rgbc): { r: number; g: number; b: number } {
-  const sum = reading.r + reading.g + reading.b;
-  if (sum === 0) {
-    return { r: 0, g: 0, b: 0 };
-  }
-  return { r: floorDiv(reading.r * 1000, sum), g: floorDiv(reading.g * 1000, sum), b: floorDiv(reading.b * 1000, sum) };
-}
+/** One channel per mille of `sum` (r + g + b), truncated; 0 when the sum is 0. */
+const perMille = (channel: number, sum: number): number => (sum === 0 ? 0 : floorDiv(channel * 1000, sum));
 
-/** The colour index of a reading: 0 red, 1 green, 2 blue, 3 yellow, 4 white, 5 black, 6 unknown. */
+/**
+ * The colour index of a reading: 0 red, 1 green, 2 blue, 3 yellow, 4 white, 5 black, 6 unknown. N19 E5: it makes no object (the 3D view
+ * classifies the counts in its frame callback when they change): the shares are numbers and the rules are read by index.
+ */
 export function classifyColor(reading: Rgbc): number {
-  const share = perMille(reading);
-  const inside = (value: number, min: number, max: number) => value >= min && value <= max;
-  for (const [colour, cMin, cMax, rMin, rMax, gMin, gMax, bMin, bMax] of COLOR_RULES) {
-    if (inside(reading.c, cMin, cMax) && inside(share.r, rMin, rMax) && inside(share.g, gMin, gMax) && inside(share.b, bMin, bMax)) {
-      return colour;
+  const sum = reading.r + reading.g + reading.b;
+  const r = perMille(reading.r, sum);
+  const g = perMille(reading.g, sum);
+  const b = perMille(reading.b, sum);
+  const c = reading.c;
+  for (let k = 0; k < COLOR_RULES.length; k++) {
+    const rule = COLOR_RULES[k]!;
+    if (c >= rule[1] && c <= rule[2] && r >= rule[3] && r <= rule[4] && g >= rule[5] && g <= rule[6] && b >= rule[7] && b <= rule[8]) {
+      return rule[0];
     }
   }
   return COLOR_UNKNOWN;
