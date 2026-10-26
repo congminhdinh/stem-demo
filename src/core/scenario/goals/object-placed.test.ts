@@ -23,7 +23,7 @@ describe('object-placed', () => {
     expect(run(carryTo(130, 60))).toEqual({ id: 'place-cube', passed: true, points: 20, progress: 1 });
   });
 
-  it('gives its reasons in the order of plan §4.5', () => {
+  it('gives its reasons in the order of plan §4.5, the order its steps are tried (N18’s object-not-in-zone only without carried)', () => {
     expect(OBJECT_PLACED_REASONS).toEqual([
       'robot.goal.reason.out-of-arena',
       'robot.goal.reason.object-still-held',
@@ -32,6 +32,7 @@ describe('object-placed', () => {
       'robot.goal.reason.object-wrong-zone',
       'robot.goal.reason.object-dropped',
       'robot.goal.reason.object-moved-out',
+      'robot.goal.reason.object-not-in-zone',
       'robot.goal.reason.object-partly-in-zone',
       'robot.goal.reason.object-tipped',
       'robot.goal.reason.object-not-at-rest',
@@ -136,6 +137,41 @@ describe('object-placed', () => {
     });
   });
 
+  describe('carried: a grip counts only when it lifted the object minCarryLiftCm (1 cm by default) above where it lay (fix round 1, I1)', () => {
+    const pinchAt = (x: number, y: number, zCm = 2) => [heldAt(x, y, zCm), heldAt(x, y, zCm), cubeAt(x, y), cubeAt(x, y), cubeAt(x, y)];
+
+    it('takes a grip that never lifted it for no carry: never held, and a push before it stands', () => {
+      expect(place.minCarryLiftCm).toBe(1);
+      expect(run([cubeAt(130, 60), ...pinchAt(130, 60)])).toMatchObject({ passed: false, reasonKey: goalReasons.objectNeverHeld });
+      expect(run([cubeAt(85, 60), cubeAt(110, 60), cubeAt(130, 60), ...pinchAt(130, 60)])).toMatchObject({ reasonKey: goalReasons.objectPushed, atS: 0.25 });
+    });
+
+    it('measures the lift from where the grip took it, and reads a grip with no height as no lift', () => {
+      const liftedBy = (dz: number) => run([cubeAt(85, 60), heldAt(85, 60, 2), heldAt(85, 60, 2 + dz), heldAt(130, 60, 2.1), ...carryTo(130, 60).slice(5)]);
+      expect(liftedBy(1)).toMatchObject({ passed: true });
+      expect(liftedBy(0.99)).toMatchObject({ reasonKey: goalReasons.objectPushed });
+      expect(run(carryTo(130, 60), { ...place, minCarryLiftCm: 3.5 })).toMatchObject({ reasonKey: goalReasons.objectPushed }); // carryTo lifts 3 cm
+      const noHeight = carryTo(130, 60).map((frame) => ({ ...frame, objects: { ...frame.objects, cube: { ...frame.objects!.cube!, zCm: undefined } } }));
+      expect(run(noHeight)).toMatchObject({ reasonKey: goalReasons.objectPushed });
+      expect(run(noHeight, { ...place, minCarryLiftCm: 0 })).toMatchObject({ passed: true });
+    });
+
+    it('lets a later grip that does not lift neither make nor undo a carry: a drag in it is a slide from where it was let go', () => {
+      const carried = carryTo(130, 60);
+      expect(run([...carried, ...pinchAt(130, 60)])).toMatchObject({ passed: true });
+      expect(run([...carried, heldAt(132, 60, 2), heldAt(134, 60, 2), cubeAt(134, 60), cubeAt(134, 60), cubeAt(134, 60)])).toMatchObject({
+        reasonKey: goalReasons.objectPushed,
+      });
+    });
+
+    it('keeps where it was let go when the frame of the release has no pose for it (review M1)', () => {
+      const lost = [...carryTo(130, 60).slice(0, 5), { objects: {} }, cubeAt(130, 60), cubeAt(140, 60), cubeAt(140, 60), cubeAt(140, 60)];
+      expect(run(lost)).toMatchObject({ passed: false, reasonKey: goalReasons.objectPushed, atS: 1.75 });
+      const still = [...carryTo(130, 60).slice(0, 5), { objects: {} }, ...carryTo(130, 60).slice(6), cubeAt(130, 60)];
+      expect(run(still)).toMatchObject({ passed: true });
+    });
+  });
+
   it('is the state at the end that counts: out of its zone and carried back in passes; in it and carried out does not', () => {
     expect(run([...carryTo(90, 70), heldAt(90, 70, 3), ...carryTo(130, 60).slice(3)])).toMatchObject({ passed: true });
     expect(run([...carryTo(130, 60), heldAt(130, 60, 3), ...carryTo(105, 100).slice(3)])).toMatchObject({ reasonKey: goalReasons.objectDropped, atS: 3 });
@@ -157,7 +193,7 @@ describe('object-placed', () => {
   });
 
   it('treats an object the frame does not have as nowhere', () => {
-    expect(run([...carryTo(130, 60), { objects: {} }])).toMatchObject({ passed: false });
+    expect(run([...carryTo(130, 60), { objects: {} }])).toMatchObject({ passed: false, reasonKey: goalReasons.objectMovedOut });
   });
 
   it('refuses an object or a zone the arena does not have', () => {

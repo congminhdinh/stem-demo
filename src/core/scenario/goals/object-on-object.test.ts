@@ -49,7 +49,8 @@ describe('object-on-object', () => {
 
   it('says object-not-stacked for a top put down beside the bottom, or with no height to read', () => {
     expect(run(carryTo(140, 100))).toEqual({ id: 'stack-cube', passed: false, points: 0, progress: 0.25, reasonKey: goalReasons.objectNotStacked });
-    const noHeight = onBase().map((frame) => ({ ...frame, objects: { ...frame.objects, cube: { ...frame.objects!.cube!, zCm: undefined } } }));
+    // Carried up there (the grip's heights are read), then no height on the frames after it was let go
+    const noHeight = onBase().map((frame, k) => (k < 5 ? frame : { ...frame, objects: { ...frame.objects, cube: { ...frame.objects!.cube!, zCm: undefined } } }));
     expect(run(noHeight)).toMatchObject({ reasonKey: goalReasons.objectNotStacked });
   });
 

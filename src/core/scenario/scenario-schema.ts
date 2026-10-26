@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { roleKinds, robotRoles, type ModuleKind, type RobotRole } from '../hardware/kit';
-import { arenaSchema, colorSchema } from '../world/arena/arena-schema';
+import { arenaSchema, colorKey, colorSchema, sameColor } from '../world/arena/arena-schema';
 import { hasHiddenCharacter, trimLikeDotNet } from './goal-text';
 import { polygonsOverlap } from './polygon-overlap';
 import { isRobotTemplateKey, robotLabProfiles, robotSandboxKey, robotTemplateKeys, robotTemplates } from '../../samples/robot-keys';
@@ -126,6 +126,8 @@ const goalSchema = z.discriminatedUnion('kind', [
     restS: positive.default(0.5),
     carried: z.boolean().default(true),
     maxSlideCm: lengthCm.default(3),
+    /** N19 D1–D3 fix round 1 (review I1): how high a grip must have lifted the object, cm, for it to have been carried (a pinch is not). */
+    minCarryLiftCm: lengthCm.default(1),
   }),
   z.strictObject({
     ...goalBase,
@@ -136,6 +138,8 @@ const goalSchema = z.discriminatedUnion('kind', [
     maxTiltDeg: tiltDeg,
     restS: positive,
     carried: z.boolean().default(true),
+    /** As for object-placed: how high a grip must have lifted the top, cm, for it to have been carried. */
+    minCarryLiftCm: lengthCm.default(1),
   }),
   z.strictObject({ ...goalBase, kind: z.literal('object-unmoved'), object: z.string(), maxMoveCm: lengthCm, maxTiltDeg: tiltDeg.default(20) }),
 ], {
@@ -327,9 +331,6 @@ function inputIssues(scenario: ScenarioShape, add: Add): void {
   }
 }
 
-/** The same colour, whatever the case of its hex digits ("#D32F2F" is "#d32f2f"). */
-export const sameColor = (a: string | undefined, b: string | undefined): boolean => a !== undefined && b !== undefined && a.toLowerCase() === b.toLowerCase();
-
 const noObjectMessage = (arena: ScenarioShape['arena'], id: string) => {
   const ids = arena.objects.map((object) => object.id);
   return `no object "${id}" in the arena (${ids.length > 0 ? `objects: ${ids.join(', ')}` : 'the arena has no objects'})`;
@@ -509,9 +510,9 @@ function placedZoneIssues(scenario: ScenarioShape, goal: Extract<ScenarioShape['
       continue;
     }
     if (!zoneIds.includes(zone)) add(at('zoneByColor', color), noZone(zone));
-    const earlier = seen.get(color.toLowerCase());
+    const earlier = seen.get(colorKey(color));
     if (earlier !== undefined) add(at('zoneByColor', color), `the colour ${color} is listed already (${earlier})`);
-    else seen.set(color.toLowerCase(), color);
+    else seen.set(colorKey(color), color);
   }
   const object = scenario.arena.objects.find((candidate) => candidate.id === goal.object)!;
   const listed = scenario.variants.objectColors;
@@ -523,8 +524,8 @@ function placedZoneIssues(scenario: ScenarioShape, goal: Extract<ScenarioShape['
   const told = new Set<string>();
   colors.forEach((color, variant) => {
     // A colour that is not one is told where it is written (variants.objectColors); the rules still run after a format issue.
-    if (!colorSchema.safeParse(color).success || seen.has(color.toLowerCase()) || told.has(color.toLowerCase())) return;
-    told.add(color.toLowerCase());
+    if (!colorSchema.safeParse(color).success || seen.has(colorKey(color)) || told.has(colorKey(color))) return;
+    told.add(colorKey(color));
     add(at('zoneByColor'), `no zone for ${color}, the colour of "${goal.object}" in variant ${variant} (colours: ${[...seen.values()].join(', ') || 'none'})`);
   });
 }

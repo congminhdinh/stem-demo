@@ -2,6 +2,7 @@ import type { RobotRunEnd, RobotRunError } from '../../core/run/robot-run-sessio
 import type { GoalContact } from '../../core/scenario/goals/frame';
 import type { RobotCheckResult } from '../../core/scenario/check-result';
 import { goalReasons, type GoalResult } from '../../core/scenario/goals';
+import { placedZoneFor } from '../../core/scenario/goals/object-placed';
 import type { RobotGoalSpec, Scenario } from '../../core/scenario/scenario';
 import { variantObjectColors } from '../../core/scenario/variants';
 import { bodyColorName } from '../../core/world/arena/body-colors';
@@ -124,10 +125,9 @@ function zoneName(t: Text, scenario: NamingScenario | undefined, id: string | un
 /** The zone an `object-placed` goal sends its object to in round `index`: its `zone`, or the zone of the object's colour in that round. */
 function targetZoneOf(spec: RobotGoalSpec, scenario: NamingScenario | undefined, index: number): string | undefined {
   if (spec.kind !== 'object-placed') return undefined;
-  if (spec.zone !== undefined || scenario === undefined) return spec.zone;
+  if (scenario === undefined) return spec.zone;
   const colors = roundColors(scenario, index);
-  const color = Object.hasOwn(colors, spec.object) ? colors[spec.object]!.toLowerCase() : undefined;
-  return Object.entries(spec.zoneByColor ?? {}).find(([key]) => key.toLowerCase() === color)?.[1];
+  return placedZoneFor(spec, Object.hasOwn(colors, spec.object) ? colors[spec.object] : undefined);
 }
 
 /** The objects a goal is about: the one it moves, or the top and the bottom of a stack. */

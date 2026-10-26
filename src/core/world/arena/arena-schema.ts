@@ -17,6 +17,10 @@ const pointCmSchema = z.tuple([z.number(), z.number()]);
 const lengthCmSchema = z.number().positive();
 /** An sRGB colour, "#rrggbb". */
 export const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'a colour is "#rrggbb"');
+/** N19 D1: the same colour, whatever the case of its hex digits ("#D32F2F" is "#d32f2f"). Undefined is no colour, and the same as none. */
+export const sameColor = (a: string | undefined, b: string | undefined): boolean => a !== undefined && b !== undefined && a.toLowerCase() === b.toLowerCase();
+/** The form of a colour that two of the same colour share (lower case), for a key of a map by colour. */
+export const colorKey = (color: string): string => color.toLowerCase();
 /**
  * N19 D1 (plan §4.4): the colour of a body the robot can touch (an object, a box, a cylinder, a wall), which the colour sensor reads and
  * the renderer paints (body-colors.ts). Optional and without a default: a body without one looks as it did before N19.

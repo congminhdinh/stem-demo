@@ -195,6 +195,14 @@ describe('the objects of a variant (N19 D1)', () => {
     for (const index of [1, 2]) expect(variantOffsets(boxedIn, index, RADIUS).objects![0]).toEqual(ZERO);
   });
 
+  it('keeps variant 0 the arena itself when its list gives the arena’s colour in another case (review M2)', () => {
+    const upper = edited((json) => (json.variants.objectColors.cube = ['#D32F2F', '#388e3c', '#1976d2']));
+    const { arena } = applyVariant(upper, variantOffsets(upper, 0, RADIUS));
+    expect(arena).toBe(upper.arena);
+    expect(arena.objects[0]!.color).toBe('#d32f2f');
+    expect(applyVariant(upper, variantOffsets(upper, 1, RADIUS)).arena.objects[0]!.color).toBe('#388e3c');
+  });
+
   it('refuses offsets that are not of the arena: one per object when it has any', () => {
     const offsets = variantOffsets(scenario, 1, RADIUS);
     expect(() => applyVariant(scenario, { ...offsets, objects: offsets.objects!.slice(1) })).toThrow(RangeError);

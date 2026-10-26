@@ -1,5 +1,5 @@
 import type { Kit } from '../hardware/kit';
-import type { Arena, ArenaBox, ArenaCylinder, ArenaObject } from '../world/arena/arena-schema';
+import { sameColor, type Arena, type ArenaBox, type ArenaCylinder, type ArenaObject } from '../world/arena/arena-schema';
 import { createWorldRng } from '../world/rng';
 import { circleShape, cosSin, insideGround, rectShape, shapesOverlap, wallShape, type Shape } from './overlap';
 import type { PoseCm, Scenario } from './scenario-schema';
@@ -294,12 +294,13 @@ export function applyVariant(scenario: VariantSource, offsets: VariantOffsets): 
   const moves = (list: readonly ObstacleOffset[]) => list.some((move) => move.dxCm !== 0 || move.dyCm !== 0);
   const shifted = <T extends { centerCm: readonly [number, number] }>(item: T, move: ObstacleOffset): T =>
     move.dxCm === 0 && move.dyCm === 0 ? item : { ...item, centerCm: [item.centerCm[0] + move.dxCm, item.centerCm[1] + move.dyCm] };
-  // N19 D1: an object moves by its offset and takes its colour of the variant; one that does neither is the same object.
+  // N19 D1: an object moves by its offset and takes its colour of the variant; one that does neither is the same object. A colour that is
+  // the arena's in another case is the arena's (review M2), so variant 0 is the arena as authored.
   const colors = scenario.variants.objectColors === undefined ? undefined : variantObjectColors(scenario, offsets.index);
   const varied = (object: ArenaObject, i: number): ArenaObject => {
     const moved = offsets.objects === undefined ? object : shifted(object, offsets.objects[i]!);
     const color = colors !== undefined && Object.hasOwn(colors, object.id) ? colors[object.id] : object.color;
-    return color === object.color ? moved : { ...moved, color };
+    return color === undefined || sameColor(color, object.color) ? moved : { ...moved, color };
   };
   const objects = offsets.objects === undefined && colors === undefined ? arena.objects : arena.objects.map(varied);
   const objectsChanged = objects.some((object, i) => object !== arena.objects[i]);

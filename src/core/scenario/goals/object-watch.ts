@@ -4,6 +4,7 @@ import type { GoalFrame, GoalObject } from './frame';
 import type { GoalContext } from './goal';
 import { insidePolygon } from './geometry';
 import { TIME_EPSILON_S } from './hold';
+import type { GoalReasonKey } from './reasons';
 
 // What the pick-and-place goals (N19 D2, plan §4.5) watch of an object over a run: whether the gripper holds it, whether the robot touches
 // it, whether it was carried there (held, let go, and not pushed since), whether it has come to rest, and whether it lies wholly in a zone.
@@ -64,60 +65,89 @@ export function floorDistanceCm(a: Pick<GoalObject, 'xCm' | 'yCm'>, b: Pick<Goal
 export const tiltOf = (pose: GoalObject): number => pose.tiltDeg ?? 0;
 
 /**
- * Whether an object was carried (plan §4.5 `carried`): held by the gripper, let go, and slid no more than `maxSlideCm` on the floor since it
- * was let go. Fed every frame. It also tells an object that was pushed without ever being held from one that was left alone: before the first
- * hold, its slide is from where it was on the first frame.
+ * Whether an object was carried (plan §4.5 `carried`): lifted by the gripper, let go, and slid no more than `maxSlideCm` on the floor since.
+ * N19 D1–D3 fix round 1 (review I1, controller ruling): a grip counts as a carry only when it lifted the object at least `minCarryLiftCm`
+ * above where it lay when the grip took it (its height on the last frame before the grip; a grip with no height to read lifted nothing, which
+ * only a `minCarryLiftCm` of 0 accepts).
+ * Otherwise the grip is as if it had not happened: it neither makes the object carried nor forgives a push before it, and a drag in it is
+ * part of the slide. So a push into the zone and a pinch there is still a push.
+ *
+ * The slide is measured from where the object was let go after its last carry, or, never carried, from where it was on the first frame;
+ * it is the farthest it has been from there. Fed every frame.
  */
 export type CarryWatch = {
   update(frame: GoalFrame): void;
   /** Held on the last frame. */
   readonly heldNow: boolean;
-  /** Held on some frame. */
-  readonly everHeld: boolean;
-  /** Where and when it was last let go (the first frame not held after a hold); undefined while it is held or has never been. */
+  /** Let go after a grip that lifted it (see above), at least once. */
+  readonly carried: boolean;
+  /**
+   * Where and when it was last let go, after any grip: the first frame not held after a hold, at its place there or, when that frame has
+   * no place for it, at its last place in the grip. Undefined while it is held or has never been.
+   */
   readonly release: { readonly xCm: number; readonly yCm: number; readonly tS: number } | undefined;
-  /** The farthest it has been, on the floor, from where it was let go (or, never held, from where it started), cm. */
+  /** The farthest it has been, on the floor, from where the slide is measured (see above), cm. */
   readonly slideCm: number;
-  /** When `slideCm` first went past the limit, since the last release (or, never held, since the start); undefined while it has not. */
+  /** When `slideCm` first went past the limit, since the slide was last measured from a new place; undefined while it has not. */
   readonly pushedAtS: number | undefined;
 };
 
-export function createCarryWatch(id: string, maxSlideCm: number): CarryWatch {
-  let start: { xCm: number; yCm: number } | undefined;
+type FloorPoint = { readonly xCm: number; readonly yCm: number };
+
+export function createCarryWatch(id: string, maxSlideCm: number, minCarryLiftCm: number): CarryWatch {
   let heldNow = false;
-  let everHeld = false;
+  let carried = false;
   let release: CarryWatch['release'];
+  /** Where the slide is measured from: the first place, then where it was let go after each carry. */
+  let origin: FloorPoint | undefined;
   let slideCm = 0;
   let pushedAtS: number | undefined;
+  /** Its height on the last frame it was not held, and, during a grip, the height the grip took it from and the highest it has been. */
+  let restZCm: number | undefined;
+  let takenFromZCm: number | undefined;
+  let highestZCm: number | undefined;
+  let lastHeldAt: FloorPoint | undefined;
   return {
     update(frame) {
       const pose = objectOn(frame, id);
-      const held = isHeld(frame, id);
-      if (pose === undefined || !Number.isFinite(pose.xCm) || !Number.isFinite(pose.yCm)) {
-        heldNow = held;
-        return;
-      }
-      start ??= { xCm: pose.xCm, yCm: pose.yCm };
-      if (held) {
+      const placed = pose !== undefined && Number.isFinite(pose.xCm) && Number.isFinite(pose.yCm) ? pose : undefined;
+      if (isHeld(frame, id)) {
+        if (!heldNow) {
+          takenFromZCm = restZCm ?? placed?.zCm;
+          highestZCm = undefined;
+          lastHeldAt = undefined;
+          release = undefined;
+        }
         heldNow = true;
-        everHeld = true;
-        release = undefined;
-        slideCm = 0;
-        pushedAtS = undefined;
+        if (placed !== undefined) lastHeldAt = { xCm: placed.xCm, yCm: placed.yCm };
+        if (placed?.zCm !== undefined) highestZCm = Math.max(highestZCm ?? placed.zCm, placed.zCm);
         return;
       }
-      if (heldNow) release = { xCm: pose.xCm, yCm: pose.yCm, tS: frame.tS };
-      heldNow = false;
-      const from = everHeld ? release : start;
-      if (from === undefined) return;
-      slideCm = Math.max(slideCm, floorDistanceCm(pose, from));
+      if (heldNow) {
+        // Let go on this frame.
+        heldNow = false;
+        const at = placed ?? lastHeldAt;
+        release = at === undefined ? undefined : { xCm: at.xCm, yCm: at.yCm, tS: frame.tS };
+        const lifted =
+          minCarryLiftCm <= 0 || (takenFromZCm !== undefined && highestZCm !== undefined && highestZCm - takenFromZCm >= minCarryLiftCm - LENGTH_EPSILON_CM);
+        if (lifted && release !== undefined) {
+          carried = true;
+          origin = { xCm: release.xCm, yCm: release.yCm };
+          slideCm = 0;
+          pushedAtS = undefined;
+        }
+      }
+      if (placed === undefined) return;
+      restZCm = placed.zCm;
+      origin ??= { xCm: placed.xCm, yCm: placed.yCm };
+      slideCm = Math.max(slideCm, floorDistanceCm(placed, origin));
       if (pushedAtS === undefined && slideCm > maxSlideCm + LENGTH_EPSILON_CM) pushedAtS = frame.tS;
     },
     get heldNow() {
       return heldNow;
     },
-    get everHeld() {
-      return everHeld;
+    get carried() {
+      return carried;
     },
     get release() {
       return release;
@@ -218,4 +248,29 @@ function squaredDistanceToSegment(px: number, py: number, [ax, ay]: PointCm, [bx
 function segmentsCross(a: PointCm, b: PointCm, c: PointCm, d: PointCm): boolean {
   const side = (p: PointCm, q: PointCm, r: PointCm) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
   return side(a, b, c) * side(a, b, d) < 0 && side(c, d, a) * side(c, d, b) < 0;
+}
+
+/** Why an end-judged pick-and-place goal has not passed (yet): its reason, when it was settled, the zone it is about, and its progress. */
+export type ObjectFailure = { readonly reasonKey: GoalReasonKey; readonly atS?: number; readonly zoneId?: string; readonly progress: number };
+
+/**
+ * N19 D1–D3 fix round 1 (review M4): one step of an end-judged goal's judgement. The steps run in order and the first that fails is the
+ * reason, so the order of the reasons a goal can give is the order of its steps (`reasonsOf`), not a list kept beside the code.
+ */
+export type JudgeStep<V> = { readonly reasons: readonly GoalReasonKey[]; readonly judge: (view: V) => ObjectFailure | null };
+
+export const judgeStep = <V>(reasons: readonly GoalReasonKey[], judge: (view: V) => ObjectFailure | null): JudgeStep<V> => ({ reasons, judge });
+
+/** The reasons of the steps, in the order they are tried. */
+export const reasonsOf = <V>(steps: readonly JudgeStep<V>[]): readonly GoalReasonKey[] => steps.flatMap((step) => step.reasons);
+
+/** The first step that fails, or null when every one passes. A step that gives a reason it does not declare is a bug: it throws. */
+export function firstFailure<V>(steps: readonly JudgeStep<V>[], view: V): ObjectFailure | null {
+  for (const step of steps) {
+    const failure = step.judge(view);
+    if (failure === null) continue;
+    if (!step.reasons.includes(failure.reasonKey)) throw new Error(`A step of ${step.reasons.join(', ')} gave ${failure.reasonKey}.`);
+    return failure;
+  }
+  return null;
 }

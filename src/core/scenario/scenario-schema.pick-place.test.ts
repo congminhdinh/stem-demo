@@ -48,6 +48,9 @@ describe('the pick-and-place goal kinds (N19 D2)', () => {
     expect(sorted).toMatchObject({ zoneByColor: { '#d32f2f': 'red-zone', '#388e3c': 'green-zone', '#1976d2': 'blue-zone' } });
     expect(sorted).not.toHaveProperty('zone');
     expect(loadScenario(editGoal(0, (g) => delete g.minLiftCm)).goals[0]).toMatchObject({ holdS: 0.5, minLiftCm: 0 });
+    // N19 fix round 1 (review I1): a grip carries only when it lifted the object 1 cm, unless the goal says another height.
+    expect([placed, stacked, sorted].map((goal) => (goal as { minCarryLiftCm?: number }).minCarryLiftCm)).toEqual([1, 1, 1]);
+    expect(loadScenario(editGoal(1, (g) => (g.minCarryLiftCm = 2.5))).goals[1]).toMatchObject({ minCarryLiftCm: 2.5 });
   });
 
   it('want the objects and zones they name to be the arena’s', () => {
@@ -92,6 +95,8 @@ describe('the pick-and-place goal kinds (N19 D2)', () => {
     expect(issuesOf(editGoal(0, (g) => (g.holdS = 0)))).toEqual(['goals[0].holdS: must be more than 0']);
     expect(issuesOf(editGoal(1, (g) => (g.maxTiltDeg = 91)))).toEqual(['goals[1].maxTiltDeg: must be from 0 to 90']);
     expect(issuesOf(editGoal(1, (g) => (g.maxSlideCm = -0.5)))).toEqual(['goals[1].maxSlideCm: must be 0 or more']);
+    expect(issuesOf(editGoal(1, (g) => (g.minCarryLiftCm = -1)))).toEqual(['goals[1].minCarryLiftCm: must be 0 or more']);
+    expect(issuesOf(editGoal(2, (g) => (g.minCarryLiftCm = -1)))).toEqual(['goals[2].minCarryLiftCm: must be 0 or more']);
     expect(issuesOf(editGoal(2, (g) => delete g.maxOffsetCm))).toEqual(['goals[2].maxOffsetCm: Invalid input: expected number, received undefined']);
     expect(issuesOf(editGoal(3, (g) => (g.maxMoveCm = -1)))).toEqual(['goals[3].maxMoveCm: must be 0 or more']);
     expect(issuesOf(editGoal(3, (g) => (g.zone = 'drop')))).toEqual(['goals[3]: Unrecognized key: "zone"']);
