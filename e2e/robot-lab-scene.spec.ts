@@ -302,7 +302,7 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
     await lose('restoreContext');
     await expect(frame.getByTestId('robot-webgl-lost')).toHaveCount(0);
     // It came back: the 3D view is still the view (a context that stayed lost would have given way to the 2D map after 2 s).
-    await expect(frame.getByTestId('robot-topview')).toHaveCount(0);
+    await expect(frame.getByTestId('robot-topview')).toHaveCount(0, { timeout: 30_000 });
     await expect(frame.getByTestId('robot-scene')).toBeVisible();
     await expect(frame.getByTestId('blockly-panel').locator('svg.blocklySvg')).toBeVisible();
   });

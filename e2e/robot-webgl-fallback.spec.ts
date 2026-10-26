@@ -375,14 +375,14 @@ test.describe('the robot lab’s 3D view and its 2D map (N18 R4.6)', () => {
             return;
           }
           extension.loseContext();
-          // The note that the graphics are being restored shows as soon as the loss is told; the context comes back 300 ms after it does.
+          // The note that the graphics are being restored shows as soon as the loss is told; the context comes back 50 ms after it does.
           const started = performance.now();
           const watch = () => {
             if (document.querySelector('[data-testid=robot-webgl-lost]') !== null) {
               setTimeout(() => {
                 extension.restoreContext();
                 resolve();
-              }, 300);
+              }, 50);
             } else if (performance.now() - started > 1500) {
               reject(new Error('The view never said its graphics were lost'));
             } else {

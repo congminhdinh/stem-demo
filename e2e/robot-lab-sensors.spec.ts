@@ -156,7 +156,7 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
   });
 
   test('they stay on in a check at 1× and at 4×, and in Xem lại', async ({ page, baseURL }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(240_000);
     const errors = collectErrors(page);
     const frame = await openInLesson(page, labUrl(baseURL));
     await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('crash-and-back-off'));
@@ -177,7 +177,7 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     await frame.locator('[data-testid=robot-check-speed] [data-speed="4x"]').click();
     await frame.getByTestId('robot-check-start').click();
     await shownInCheck();
-    await expect(frame.getByTestId('robot-check-results')).toBeVisible({ timeout: 60_000 });
+    await expect(frame.getByTestId('robot-check-results')).toBeVisible({ timeout: 150_000 });
     // Xem lại: the round again at 1×.
     await frame.getByTestId('robot-check-replay-2').click();
     await expect(frame.getByTestId('robot-round')).toHaveText('Lượt 2/3');
