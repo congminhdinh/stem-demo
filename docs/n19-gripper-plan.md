@@ -98,7 +98,7 @@ Với 2–3 người làm song song, mất khoảng 5–6 tuần lịch.
 | D-G4 | **Không có tham số tốc độ quét chậm.** World đã giới hạn tốc độ servo 60° mỗi 0,1 s như MG90S thật. Học sinh muốn quét chậm thì tự viết vòng lặp + `wait` | Một op chặn sẽ tính thời gian một cục mà world không thấy các góc giữa chừng. Ghi góc tức thì là trung thực |
 | D-G5 | **Gắp = attach + hysteresis** (`world/robot/grasp.ts`). Điều kiện, ngưỡng và trường hợp đặc biệt ở §4.4. Dự phòng: biến collider ngón thành sensor, giữ nguyên máy trạng thái | Ổn định và tất định. Đã kiểm chứng trong ngành (Gazebo, Isaac) |
 | D-G6 | **Tay nâng kiểu hình bình hành**: giá kẹp luôn nằm ngang nhờ motor giữ khớp tương đối | Có vậy bài xếp chồng mới đặt khối đứng thẳng được. Phải hỏi nhà cung cấp loại tay gắp của họ (§10) |
-| D-G7 | **Cảm biến màu đọc bằng Wire thô, không dùng Adafruit.** Thanh ghi TCS3472 (ATIME `0xEB` 50,4 ms, gain 4×). `Wire.setWireTimeout(3000,true)`. Phân loại màu bằng **một bảng số nguyên** `COLOR_RULES` dùng chung cho TS và C++ | Wire có sẵn trong core (LGPL-2.1, chỉ là tool/core), RAM khoảng 190 B, không chặn chờ. Một chuỗi thanh ghi dùng chung cho sim, C++ và parity |
+| D-G7 | **Cảm biến màu đọc bằng Wire thô, không dùng Adafruit.** Thanh ghi TCS3472 (ATIME `0xEB` 50,4 ms, gain 4×). `Wire.setWireTimeout(3000,true)`. Phân loại màu bằng **một bảng số nguyên** `COLOR_RULES` dùng chung cho TS và C++ | Wire có sẵn trong core (LGPL-2.1, chỉ là tool/core), RAM 216 B (đo ở G0.2, CC-06), không chặn chờ. Một chuỗi thanh ghi dùng chung cho sim, C++ và parity |
 | D-G8 | Chống lật **theo từng kit**: `chassis.footprintRadiusCm` (gripper 16, rover giữ 11), quét toàn bộ góc tay, có test phanh và đâm tường. Quy tắc "không nhô ra ngoài thân" của ADR 0001 §9 được miễn cho kit gripper, ghi trong một addendum, đổi lại bằng các test có giới hạn | Tay gắp phía trước buộc phải nhô ra. Ngân sách khối tâm ở §4.4 |
 | D-G9 | **Bỏ biến thể "tay xuất phát nâng/hạ"** (ý tưởng từ CS2N). Lượt kiểm tra thay đổi vị trí xuất phát và vị trí, màu của vật | `setup()` thật luôn ghi góc đầu. Một servo chưa có xung giữ được tay chống trọng lực hay không là UNKNOWN, không được đoán. Thói quen "hạ, mở trước khi tiến" vẫn được chấm tự nhiên, vì không hạ tay thì không gắp được |
 | D-G10 | `ROBOT_ENGINE_VERSION` **giữ 1**: không kết quả cũ nào thay đổi. Field mới đều tùy chọn và không có default; code chỉ chạy khi kit có module tương ứng; `snapshotText` bỏ qua field undefined. Có test chặn cho việc này | Tránh làm `verify:attempt` báo các attempt thí điểm đã lưu là không kiểm được |
@@ -212,7 +212,7 @@ Toàn bộ §5 của plan N18 vẫn áp dụng: B1, Rapier chỉ ở `src/core/w
 - **Màu:**
   - Một tia dài 4 cm, nhìn về phía trước giá kẹp; không nhìn xuống thảm.
   - Bức xạ chỉ tính bằng + × / floor.
-  - Model thanh ghi `hardware/devices/tcs34725.ts`: ENABLE, ATIME, CONTROL, ID `0x44`, STATUS, CRGB; lần đầu chờ 2,4 ms.
+  - Model thanh ghi `hardware/devices/tcs34725.ts`: ENABLE, ATIME, CONTROL, ID `0x44`, STATUS, CRGB. Mỗi chu kỳ có RGBC Init 2,4 ms rồi mới tích phân (datasheet TAOS135 Figure 9), nên với ATIME `0xEB` cửa sổ 50,4 ms kết thúc mỗi 52,8 ms; cửa sổ đầu xong 2,4 + 50,4 ms sau AEN (G0.2, EMU-19).
   - Cửa sổ tích phân lấy trung bình lịch sử bức xạ theo tick, nên kết quả không phụ thuộc lúc chương trình đọc.
   - Nhiễu tắt mặc định, nếu bật thì dùng luồng seed riêng.
 - **Siêu âm** (riêng kit gripper): bỏ qua collider thân xe nhưng **thấy ngàm**, như HC-SR04 thật.
