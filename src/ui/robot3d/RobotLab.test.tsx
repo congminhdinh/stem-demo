@@ -18,6 +18,7 @@ import { createProjectStore } from '../state/project-store';
 import { ROBOT_ENGINE, type RobotCheckResult } from '../../core/scenario/check-result';
 import { goalReasons } from '../../core/scenario/goals';
 import { fakeChecks } from './__fixtures__/fake-check';
+import { CHECK_SPEED_KEY } from './check-speed-memory';
 import { CANCEL_GUARD_MS } from './robot-check-store';
 import { installFakeCanvas2d } from './__fixtures__/fake-canvas-2d';
 import { fakeSession, idleRun } from './__fixtures__/fake-session';
@@ -536,7 +537,8 @@ describe('RobotLab checks (N18 R6.3)', () => {
     const lab = setup(template);
     const checks = fakeChecks();
     const onCheck = { begin: vi.fn(), result: vi.fn(), end: vi.fn() };
-    const render = (changes: Partial<RobotLabProps> = {}) => lab.render({ createCheck: checks.createCheck, onCheck, ...changes });
+    // N18 final fix I1: these checks start at 1×, as for a learner who chose it last time; the default (Nhanh) has its own test.
+    const render = (changes: Partial<RobotLabProps> = {}) => lab.render({ createCheck: checks.createCheck, onCheck, checkSpeeds: { read: () => '1x', write: () => {} }, ...changes });
     /** checkRobot's progress for three rounds, the second hitting the wall at 6.6 s. */
     const tellRounds = () => {
       const { onProgress } = checks.last();
@@ -590,6 +592,32 @@ describe('RobotLab checks (N18 R6.3)', () => {
     root = createRoot(host);
     await checkSetup('rb-sandbox').render();
     expect(host.querySelector('[data-testid=robot-check]')).toBeNull();
+  });
+
+  it('checks at Nhanh unless the viewer chose another speed, which the next lab opens with (N18 final fix I1, localStorage)', async () => {
+    localStorage.removeItem(CHECK_SPEED_KEY);
+    try {
+      const lab = checkSetup('rb-drive-to-zone');
+      await lab.render({ checkSpeeds: undefined });
+      expect(speeds()).toEqual([
+        ['1×', 'false'],
+        ['4×', 'false'],
+        ['Nhanh', 'true'],
+      ]);
+      // Nhanh says it gives the score the other speeds give.
+      expect(host.querySelector('[data-testid=robot-check-speed] [data-speed=fast]')?.getAttribute('title')).toBe('Chấm ngay, không chiếu các lượt: điểm như ở 1× và 4×');
+      await click('robot-check-start');
+      expect(lab.checks.last().mode).toBe('headless');
+      await act(async () => lab.checks.last().check.settle(null));
+      await act(async () => host.querySelector<HTMLButtonElement>('[data-testid=robot-check-speed] [data-speed="4x"]')!.click());
+      expect(localStorage.getItem(CHECK_SPEED_KEY)).toBe('4x');
+      act(() => root.unmount());
+      root = createRoot(host);
+      await checkSetup('rb-drive-to-zone').render({ checkSpeeds: undefined });
+      expect(speeds()[1]).toEqual(['4×', 'true']);
+    } finally {
+      localStorage.removeItem(CHECK_SPEED_KEY);
+    }
   });
 
   it('saves the blocks and tells the host it begins, holds the lab and says its round; its result says why, and goes to the host', async () => {

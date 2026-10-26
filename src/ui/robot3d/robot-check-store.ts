@@ -15,8 +15,9 @@ import type { CheckLeft, RobotRunStore, ShownRound } from './robot-run-store';
 //     (`host.begin`: the bridge's beginCheck sends the pending project-changed, the checked program, and holds the edits made meanwhile), the
 //     lab is held (`setLocked`: the blocks, the run's controls, the robot's button; R4.8's teleop and tools take the same lock), then the
 //     check of that document starts.
-//   - Speeds: 1× and 4× show the check's run in the lab's view (the run store's `attach`): every animation frame drives it, so a hidden tab
-//     (no frames) pauses it and the result is the same (Review Focus 2). The run is attached once it has a world (its first round started),
+//   - Speeds: Nhanh by default (N18 final fix I1: a check at 1× of lesson 4 takes six minutes), or the speed the learner chose last
+//     (`memory`, the viewer's localStorage: check-speed-memory.ts). 1× and 4× show the check's run in the lab's view (the run store's
+//     `attach`): every animation frame drives it, so a hidden tab (no frames) pauses it and the result is the same (Review Focus 2). The run is attached once it has a world (its first round started),
 //     so a check that cannot start (the program does not compile) shows no run and the host hears none, as a Run that cannot start. "Nhanh" is headless: checkRobot drives itself, the view stays as it
 //     was under a progress view, and the host hears no run (lab-embed-contract §2: run-started / run-stopped only when the lab shows the run).
 //   - Progress: "Lượt k/N" and the simulated time of the round (`running`), from the check's own progress.
@@ -41,6 +42,20 @@ export const CANCEL_GUARD_MS = 400;
 /** The speeds a check is offered at: shown at 1× or 4×, or fast (headless, not shown). */
 export const CHECK_SPEEDS = ['1x', '4x', 'fast'] as const;
 export type CheckSpeed = (typeof CHECK_SPEEDS)[number];
+
+/**
+ * N18 final fix I1: the speed a check runs at until the learner chooses another. Fast (headless) gives the result 1× and 4× give, by
+ * construction (Review Focus 2), and "Xem lại" shows any of its rounds at 1×.
+ */
+export const DEFAULT_CHECK_SPEED: CheckSpeed = 'fast';
+
+/** Where the learner's choice of speed is kept for the next lab (check-speed-memory.ts: the viewer's localStorage). */
+export type CheckSpeedMemory = {
+  /** The speed chosen last, or DEFAULT_CHECK_SPEED when none is kept. */
+  read(): CheckSpeed;
+  /** Keeps a choice; never throws. */
+  write(speed: CheckSpeed): void;
+};
 
 /** How a speed runs: the check's mode and its multiplier of real time. */
 const runOf: Readonly<Record<CheckSpeed, { mode: CheckMode; factor: number }>> = {
@@ -99,6 +114,8 @@ export type RobotCheckStoreOptions = {
   host(): CheckHost | undefined;
   /** The clock of the cancel guard, ms; `performance.now` by default. */
   now?: () => number;
+  /** N18 final fix I1: the learner's speed, read when the store is made and written at each choice; by default none is kept (fast). */
+  memory?: CheckSpeedMemory;
 };
 
 /** How far a running check has got, 0..1: the rounds that ended, and the part of the running one its simulated time has reached. */
@@ -116,14 +133,14 @@ const scoreOf = (scenario: Scenario, round: CheckedRound): ScoreState => ({
 
 const detailOf = (error: unknown) => (error instanceof Error ? `${error.name}: ${error.message}` : String(error));
 
-export function createRobotCheckStore({ runStore, scenario, createCheck, document, flushProgram, host, now = () => performance.now() }: RobotCheckStoreOptions) {
+export function createRobotCheckStore({ runStore, scenario, createCheck, document, flushProgram, host, now = () => performance.now(), memory }: RobotCheckStoreOptions) {
   return createStore<RobotCheckState>()((set, get) => {
     /** The running check, to cancel it, and when it started. */
     let current: RobotCheck | null = null;
     let startedAt = 0;
 
     return {
-      speed: '1x',
+      speed: memory?.read() ?? DEFAULT_CHECK_SPEED,
       running: null,
       report: null,
       failure: null,
@@ -134,6 +151,7 @@ export function createRobotCheckStore({ runStore, scenario, createCheck, documen
         }
         if (get().running === null) {
           set({ speed });
+          memory?.write(speed);
         }
       },
 

@@ -185,6 +185,8 @@ test.describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
   test('Dừng kiểm tra ends the check without a result: the host is sent no check-result', async ({ page, baseURL }) => {
     const frame = await openInLesson(page, labUrl(baseURL, 'rb-drive-to-zone'));
     await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('rb-drive-to-zone', 'reference'));
+    // N18 final fix I1: a check runs fast by default; this one is shown at 1×.
+    await frame.locator('[data-testid=robot-check-speed] [data-speed="1x"]').click();
     await frame.getByTestId('robot-check-start').click();
     await expect.poll(async () => ((await frame.evaluate(() => window.__stem?.robot.getSnapshot())) as { t: number } | null)?.t ?? 0, { timeout: 30_000 }).toBeGreaterThan(0.5);
     await frame.getByTestId('robot-check-cancel').click();

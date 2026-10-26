@@ -255,6 +255,8 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
   test('has names and roles on every control: the accessibility tree of the lab, idle, with the tools open, and after a check', async ({ page, baseURL }) => {
     const errors = collectErrors(page);
     const frame = await openInLesson(page, labUrl(baseURL));
+    // N18 final fix I1: a check runs fast by default; this lab's learner chose 1×.
+    await frame.locator('[data-testid=robot-check-speed] [data-speed="1x"]').click();
     const idle = await tree(frame);
     expectNamed(idle, 'idle');
 
@@ -452,6 +454,8 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
         const area = active.closest('.robot-header') ? 'header' : active.closest('.robot-stage') ? 'view' : active.closest('.robot-dock') ? 'dock' : active.closest('.lab-gutter') ? 'gutter' : active.closest('.robot-program') ? 'program' : 'other';
         return `${area}: ${active.getAttribute('aria-label') ?? (active.innerText || active.getAttribute('data-testid') || active.tagName).trim().slice(0, 30)}`;
       });
+    // N18 final fix I1: a check runs fast by default; this lab's learner chose 1×.
+    await frame.locator('[data-testid=robot-check-speed] [data-speed="1x"]').click();
     await frame.getByTestId('robot-run').focus();
     const order = [await where()];
     for (let i = 0; i < 28; i++) {

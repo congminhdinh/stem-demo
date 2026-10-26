@@ -15,7 +15,7 @@ import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { robotStarterDocument } from '../../samples/robot-templates';
 import { fakeCheck } from './__fixtures__/fake-check';
 import { fakeSession, idleRun } from './__fixtures__/fake-session';
-import { CANCEL_GUARD_MS, checkFraction, createRobotCheckStore, type CheckHost, type CheckSpeed, type CreateCheck } from './robot-check-store';
+import { CANCEL_GUARD_MS, checkFraction, createRobotCheckStore, DEFAULT_CHECK_SPEED, type CheckHost, type CheckSpeed, type CreateCheck } from './robot-check-store';
 import { createRobotRunStore, labStatus } from './robot-run-store';
 
 // N18 R6.3: Kiểm tra in the robot lab. The check is R6.2's checkRobot; this store starts it from the saved document, holds the lab while it
@@ -99,6 +99,8 @@ function setup(options: { host?: CheckHost } = {}) {
     },
     host: () => host,
     now: () => clock,
+    // N18 final fix I1: these checks start at 1×, as for a learner who chose it last time; the default (Nhanh) is tested on its own.
+    memory: { read: () => '1x', write: () => {} },
   });
   const later = (ms = CANCEL_GUARD_MS) => {
     clock += ms;
@@ -378,6 +380,48 @@ describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
     expect(session.start).toHaveBeenCalledTimes(1);
     store.getState().dismiss();
     expect(store.getState().report).toBeNull();
+  });
+});
+
+describe('the speed a check runs at (N18 final fix I1)', () => {
+  const options = () => {
+    const fake = fakeSession(stopAtWall, kit);
+    const runStore = createRobotRunStore(fake.session, { requestFrame: () => 0, cancelFrame: () => {} });
+    const checks: ReturnType<typeof fakeCheck>[] = [];
+    const createCheck: CreateCheck = () => {
+      const check = fakeCheck();
+      checks.push(check);
+      return check.check;
+    };
+    return { runStore, scenario: stopAtWall, createCheck, document: () => document, flushProgram: () => {}, host: () => undefined, checks };
+  };
+
+  it('is Nhanh (headless) by default: the result of 1× and 4×, at once', async () => {
+    expect(DEFAULT_CHECK_SPEED).toBe('fast');
+    const { checks, ...rest } = options();
+    const store = createRobotCheckStore(rest);
+    expect(store.getState().speed).toBe('fast');
+    const started = store.getState().start();
+    expect(store.getState().running?.speed).toBe('fast');
+    checks[0]!.settle(null);
+    await started;
+  });
+
+  it('starts at the speed the learner chose last, and keeps each choice, but not one refused or made while a check runs', async () => {
+    const written: CheckSpeed[] = [];
+    const { checks, ...rest } = options();
+    const store = createRobotCheckStore({ ...rest, memory: { read: () => '4x', write: (speed) => void written.push(speed) } });
+    expect(store.getState().speed).toBe('4x');
+    store.getState().setSpeed('1x');
+    store.getState().setSpeed('fast');
+    expect(written).toEqual(['1x', 'fast']);
+    expect(() => store.getState().setSpeed('2x' as CheckSpeed)).toThrow(RangeError);
+    const started = store.getState().start();
+    store.getState().setSpeed('4x');
+    expect(store.getState().speed).toBe('fast');
+    expect(written).toEqual(['1x', 'fast']);
+    checks[0]!.settle(null);
+    await started;
   });
 });
 

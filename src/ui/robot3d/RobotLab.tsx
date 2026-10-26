@@ -30,7 +30,8 @@ import { CheckResults, FastCheckView } from './CheckResults';
 import { Hud } from './Hud';
 import { LabAnnouncer } from './LabAnnouncer';
 import { ProgramPane, type ProgramPaneLab, type RobotProgramView } from './ProgramPane';
-import { createRobotCheckStore, type CheckHost, type CreateCheck, type RobotCheckStore } from './robot-check-store';
+import { checkSpeedMemory } from './check-speed-memory';
+import { createRobotCheckStore, type CheckHost, type CheckSpeedMemory, type CreateCheck, type RobotCheckStore } from './robot-check-store';
 import { robotModel, toneHzOf } from './robot-model';
 import { createRobotRunStore, labBusy, selectHostRun, type RobotRunStore } from './robot-run-store';
 import { createRobotToolsStore, type RobotToolsStore } from './robot-tools-store';
@@ -52,7 +53,7 @@ import './RobotLab.css';
 // idle after the first use, or with the first Run before that; N18 P2).
 //
 //   header      the lab's title, the scenario's, the run's controls (Chạy, Dừng, Tạm dừng, Bước 0,1 s, Đặt lại robot, Tốc độ), and for a
-//               scenario with a score Kiểm tra with its speeds (N18 R6.3: 1×, 4×, Nhanh)
+//               scenario with a score Kiểm tra with its speeds (N18 R6.3: 1×, 4×, Nhanh; Nhanh unless the viewer chose another, final fix I1)
 //   left ~60 %  the 3D view (SceneHost: the arena and the robot, the camera's views, the quality tier, WebGL's own errors; the 2D top view
 //               in its place where the computer cannot draw 3D, N18 R4.6), the HUD over it, the view tools at its bottom left (N18 R4.8:
 //               Lái tay, Thước đo, Di chuyển robot, RobotTools), why a run did not start or failed, and under it the robot's button, the
@@ -105,6 +106,8 @@ export type RobotLabProps = {
   scorer?: RobotScorerFactory;
   /** Tests: the check of a project (R6.2's checkRobot on the scenario, its kit and the lab's catalogs by default). */
   createCheck?: CreateCheck;
+  /** Tests: where the learner's check speed is kept (N18 final fix I1: the viewer's localStorage by default, check-speed-memory.ts). */
+  checkSpeeds?: CheckSpeedMemory;
   /** Tests: the session of the scenario (the real one by default). */
   createSession?(options: { scenario: Scenario; kit: Kit; board: BoardProfile }): RobotRunSession;
   /** Tests: the WebGL probe (the browser's by default). */
@@ -150,6 +153,7 @@ export default function RobotLab({
   scorer = scenarioScorer,
   createSession,
   createCheck,
+  checkSpeeds,
   probe,
   labUse,
 }: RobotLabProps) {
@@ -186,6 +190,7 @@ export default function RobotLab({
       document: () => projectStore.getState().document,
       flushProgram: () => latest.current.flushProgram(),
       host: () => latest.current.onCheck,
+      memory: checkSpeeds ?? checkSpeedMemory(),
     });
     return { scenario, kit, board, store, checks, tools };
   });

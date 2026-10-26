@@ -78,6 +78,8 @@ function setup(template: RobotTemplateKey = 'rb-stop-at-wall', locale: 'vi' | 'e
     createSession: () => fake.session,
     createCheck: checks.createCheck,
     onCheck: { begin: vi.fn(), result: vi.fn(), end: vi.fn() },
+    // N18 final fix I1: these checks start at 1×, as for a learner who chose it last time (the default is Nhanh, RobotLab.test.tsx).
+    checkSpeeds: { read: () => '1x', write: () => {} },
     probe: () => ({ ok: false }),
   };
   const render = (changes: Partial<RobotLabProps> = {}) =>
