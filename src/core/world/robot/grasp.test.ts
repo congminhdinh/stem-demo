@@ -688,7 +688,7 @@ describe('the grasp machine (N19 B2)', () => {
         const closedOn = { oneOnly: 0, unclamped: 0 };
         let stalledAt: number | null = null;
         let stalledTick: number | null = null;
-        const steady = { least: Number.POSITIVE_INFINITY, most: Number.NEGATIVE_INFINITY };
+        const steady = { samples: 0, least: Number.POSITIVE_INFINITY, most: Number.NEGATIVE_INFINITY };
         let firstNearV: number | null = null;
         const after = { least: Number.POSITIVE_INFINITY, most: Number.NEGATIVE_INFINITY };
         let deepest = 0;
@@ -707,6 +707,7 @@ describe('the grasp machine (N19 B2)', () => {
           if (stalledAt !== null && stalledTick === null) stalledTick = scene.tick;
           if (stalledTick !== null && scene.tick >= stalledTick + seconds(1)) {
             const depthMm = penetrationM(scene.gripper.fingers.map((finger) => finger.collider), object) * 1000;
+            steady.samples += 1;
             steady.least = Math.min(steady.least, depthMm);
             steady.most = Math.max(steady.most, depthMm);
           }
@@ -721,6 +722,8 @@ describe('the grasp machine (N19 B2)', () => {
         expect(after.least, c.name).toBeGreaterThan(c.stall[0] - 4);
         expect(after.most, c.name).toBeLessThan(c.stall[1]);
         expect(deepest * 1000, c.name).toBeLessThan(c.deepestMm);
+        // Not vacuous: the window holds more than a second of ticks in both cases (the runs go on 2 s or more past it).
+        expect(steady.samples, c.name).toBeGreaterThan(seconds(1));
         expect(steady.least, c.name).toBeGreaterThanOrEqual(c.steadyMm[0]);
         expect(steady.most, c.name).toBeLessThanOrEqual(c.steadyMm[1]);
         expect(scene.grasp.heldId).toBeNull();
