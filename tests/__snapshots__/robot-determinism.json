@@ -4,7 +4,10 @@
   "fixtures": {
     "boxes-script": { "final": "4927ee22", "trajectory": "abf46454" },
     "line-follow": { "final": "17c47f8d", "trajectory": "3e412cc4" },
-    "mini-mission-v1-noise": { "final": "d02081f3", "trajectory": "2693afb5" }
+    "mini-mission-v1-noise": { "final": "d02081f3", "trajectory": "2693afb5" },
+    "gripper-pick-place": { "final": "b3414f0e", "trajectory": "abafe587" },
+    "gripper-stack": { "final": "9378dcbe", "trajectory": "60ce8067" },
+    "gripper-sensors": { "final": "f3b0127d", "trajectory": "22615357" }
   },
   "checks": {
     "rb-mini-mission-reference": {

@@ -59,6 +59,11 @@ describe('robot world determinism', () => {
     120_000,
   );
 
+  it('pins the gripper car’s fixtures after the rover’s, on the same engine version (N19 B6)', () => {
+    expect(determinismFixtures.map((fixture) => fixture.name)).toEqual(['boxes-script', 'line-follow', 'mini-mission-v1-noise', 'gripper-pick-place', 'gripper-stack', 'gripper-sensors']);
+    expect(golden.engineVersion).toBe(1);
+  });
+
   it('pins a whole check of each closed-loop case: its result and the last world of each variant (N18 final fix M3)', () => {
     expect(Object.keys(golden.checks)).toEqual(determinismChecks.map((check) => check.name));
     expect(determinismChecks.map(({ check }) => check.name)).toEqual(['rb-mini-mission: the reference solution', 'rb-line-follow: the reference solution']);

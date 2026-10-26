@@ -26,6 +26,15 @@ import { createScenarioWorld, createWorld, type World } from '../src/core/world/
 //   - line-follow: a three-sensor line follower on the taped loop, 25 s.
 //   - mini-mission-v1-noise: variant 1 of a scenario (jittered start and obstacles, the variant's seed), an obstacle avoider on the
 //     ultrasonic with ±1 cm of seeded noise, the servo sweeping.
+// N19 B6, the gripper car (ref-uno-gripper@0; the rover's fixtures and hashes are as they were). Each a scripted controller over the world's
+// sensors, so the grasp machine, the gripper's bodies and its sensors (IR, colour, the ultrasonic that hears the gripper) are hashed too:
+//   - gripper-pick-place: lower and open, drive in until the IR sees the 50 g parcel, close, lift, carry, let it go 1 cm above the floor
+//     (lift 14°), back off, then drive the raised claw into a wall at full speed and on (it noses up), back off and spin.
+//   - gripper-stack: lesson 11's move: grip the red cube, lift to 55°, drive on for a time to over the base (6 × 6 × 4 cm, 40 g), let it go
+//     onto it, back off.
+//   - gripper-sensors: a closed loop on all three sensors with ±1 cm of seeded ultrasonic noise in a walled arena of coloured cubes: drive in
+//     until the IR sees the cube ahead, read its colour, grip it and lift it; then roam on the ultrasonic, turning away from what it hears
+//     near the way the colour said (red more than blue: left), the arm dipping to 25° every 3 s, where the claw servo blocks the ultrasonic.
 //
 // N18 final fix M3: whole checks too (`determinismChecks`), the learner's program through the compiler, the interpreter on the virtual clock
 // and the virtual UNO, the world and the scorer: checkRobot headless, as Kiểm tra and verify:attempt run it. Two closed loops, whose every
@@ -51,6 +60,7 @@ export type DeterminismFixture = {
 };
 
 const kit = (): Kit => productionKits.get(referenceKitRef) as Kit;
+const gripperKit = (): Kit => productionKits.get({ id: 'ref-uno-gripper', version: '0' }) as Kit;
 const run = (duty: number, dir: -1 | 0 | 1): MotorCommand => ({ duty, dir, brake: false });
 const brake: MotorCommand = { duty: 255, dir: 0, brake: true };
 const both = (command: MotorCommand): ActuatorTargets => ({ motors: { motorLeft: command, motorRight: command } });
@@ -72,6 +82,142 @@ function script(tick: number): ActuatorTargets {
   if (s < 19) return both(brake);
   return { ...both(run(255, 1)), servos: { servo1: 135 } };
 }
+
+/** N19 B6: a run of phases, each holding its targets until its `until` says so (a sensor) or its ticks run out; the last holds to the end. */
+type Phase = { readonly targets: (world: World) => ActuatorTargets; readonly ticks: number; readonly until?: (world: World) => boolean };
+function phases(list: readonly Phase[]): Controller {
+  let index = 0;
+  let entered = 0;
+  return (world, tick) => {
+    while (index < list.length - 1) {
+      const phase = list[index]!;
+      if (tick - entered < phase.ticks && !(phase.until?.(world) ?? false)) break;
+      index += 1;
+      entered = tick;
+    }
+    return list[index]!.targets(world);
+  };
+}
+const second = (s: number) => Math.round(s * 120);
+const hold = (targets: ActuatorTargets): ((world: World) => ActuatorTargets) => () => targets;
+const irSees = (world: World) => world.sense.ir('irClaw').detected;
+const cube = (id: string, xCm: number, yCm: number, massG: number, color: string) =>
+  ({ id, shape: 'box', centerCm: [xCm, yCm], sizeCm: [4, 4, 4], massG, noun: 'cube', color }) as const;
+const ground = (sizeCm: readonly [number, number]) => ({ sizeCm: [sizeCm[0], sizeCm[1]] as [number, number], color: '#f5f5f5' });
+
+/** N19 B6: the gripper car's fixtures, after the rover's in `determinismFixtures` (whose three come first, as they always have). */
+const gripperFixtures: readonly DeterminismFixture[] = [
+  {
+    name: 'gripper-pick-place',
+    make: () =>
+      createWorld({
+        arena: parseArena({
+          ground: ground([250, 100]),
+          walls: [{ id: 'wall', fromCm: [200, 5], toCm: [200, 95] }],
+          objects: [{ ...cube('parcel', 66, 50, 50, '#1976d2'), noun: 'parcel' }],
+        }),
+        start: { xCm: 30, yCm: 50, yawDeg: 0 },
+        kit: gripperKit(),
+        seed: 11,
+      }),
+    controller: () =>
+      phases([
+        { targets: hold({ ...both(brake), gripper: { liftDeg: 0, clawDeg: 0 } }), ticks: second(0.4) },
+        { targets: hold(both(run(150, 1))), ticks: second(4), until: irSees },
+        { targets: hold({ ...both(brake), gripper: { clawDeg: 80 } }), ticks: second(0.8) },
+        { targets: hold({ ...both(brake), gripper: { liftDeg: 90 } }), ticks: second(0.4) },
+        { targets: hold(both(run(200, 1))), ticks: second(1.5) },
+        { targets: hold(both(brake)), ticks: second(0.5) },
+        { targets: hold({ ...both(brake), gripper: { liftDeg: 14 } }), ticks: second(0.5) },
+        { targets: hold({ ...both(brake), gripper: { clawDeg: 0 } }), ticks: second(0.6) },
+        { targets: hold(both(run(150, -1))), ticks: second(0.8) },
+        { targets: hold({ ...both(brake), gripper: { liftDeg: 45 } }), ticks: second(0.5) },
+        { targets: hold(both(run(255, 1))), ticks: second(6), until: (world) => world.sense.contacts().some((contact) => contact.otherId === 'wall') },
+        { targets: hold(both(run(255, 1))), ticks: second(2) },
+        { targets: hold(both(run(0, 0))), ticks: second(1) },
+        { targets: hold(both(run(150, -1))), ticks: second(1.2) },
+        { targets: hold({ ...pair(run(160, 1), run(160, -1)), gripper: { liftDeg: 90, clawDeg: 80 } }), ticks: 1 },
+      ]),
+  },
+  {
+    name: 'gripper-stack',
+    make: () =>
+      createWorld({
+        arena: parseArena({
+          ground: ground([220, 80]),
+          walls: [{ id: 'end-wall', fromCm: [175, 5], toCm: [175, 75] }],
+          objects: [cube('red', 95, 40, 15, '#d32f2f'), { id: 'base', shape: 'box', centerCm: [140, 40], sizeCm: [6, 6, 4], massG: 40, noun: 'base', color: '#fbc02d' }],
+        }),
+        start: { xCm: 40, yCm: 40, yawDeg: 0 },
+        kit: gripperKit(),
+        seed: 12,
+      }),
+    controller: () =>
+      phases([
+        { targets: hold({ ...both(brake), gripper: { liftDeg: 0, clawDeg: 0 } }), ticks: second(0.4) },
+        { targets: hold(both(run(140, 1))), ticks: second(6), until: irSees },
+        { targets: hold({ ...both(brake), gripper: { clawDeg: 80 } }), ticks: second(0.8) },
+        { targets: hold({ ...both(brake), gripper: { liftDeg: 55 } }), ticks: second(0.5) },
+        // Timed, as lesson 11's line follower would be: holding the cube at 55°, the ultrasonic hears the cube itself (3.7 cm).
+        { targets: hold(both(run(140, 1))), ticks: second(2.9) },
+        { targets: hold(both(brake)), ticks: second(0.6) },
+        { targets: hold({ ...both(brake), gripper: { clawDeg: 0 } }), ticks: second(0.8) },
+        { targets: hold(both(run(150, -1))), ticks: second(0.8) },
+        { targets: hold({ ...both(brake), gripper: { liftDeg: 90 } }), ticks: 1 },
+      ]),
+  },
+  {
+    name: 'gripper-sensors',
+    make: () =>
+      createWorld({
+        arena: parseArena({
+          ground: ground([200, 200]),
+          walls: [
+            { fromCm: [0, 1], toCm: [200, 1] },
+            { fromCm: [0, 199], toCm: [200, 199] },
+            { fromCm: [1, 0], toCm: [1, 200] },
+            { fromCm: [199, 0], toCm: [199, 200] },
+          ],
+          objects: [cube('red', 95, 100, 15, '#d32f2f'), cube('blue', 70, 160, 15, '#1976d2'), cube('black', 150, 50, 15, '#212121'), cube('yellow', 160, 150, 15, '#fbc02d')],
+        }),
+        start: { xCm: 40, yCm: 100, yawDeg: 0 },
+        kit: gripperKit(),
+        seed: 13,
+        ultrasonicNoiseCm: 1,
+      }),
+    controller: () => {
+      let phase: 'seek' | 'grip' | 'raise' | 'roam' = 'seek';
+      let since = 0;
+      let left = true;
+      let turning = 0;
+      return (world, tick) => {
+        if (phase === 'seek') {
+          if (!irSees(world)) return { ...both(run(150, 1)), gripper: { liftDeg: 0, clawDeg: 0 } };
+          // What the colour sensor sees of the cube in the jaws: more red than blue turns left from now on.
+          const { light } = world.sense.color('color1');
+          left = light.r > light.b;
+          [phase, since] = ['grip', tick];
+        }
+        if (phase === 'grip') {
+          if (tick - since < second(0.8)) return { ...both(brake), gripper: { clawDeg: 80 } };
+          [phase, since] = ['raise', tick];
+        }
+        if (phase === 'raise') {
+          if (tick - since < second(0.4)) return { ...both(brake), gripper: { liftDeg: 90 } };
+          [phase, since] = ['roam', tick];
+        }
+        // Every 3 s the arm dips to 25° for half a second: the claw servo's case before the ultrasonic, which reads 2 cm and turns the car.
+        const gripper = { clawDeg: 80, liftDeg: (tick - since) % second(3) < second(0.5) ? 25 : 90 };
+        if (turning === 0 && world.sense.distanceCm('ultrasonic') < 25) turning = 48;
+        if (turning > 0) {
+          turning -= 1;
+          return { ...(left ? pair(run(160, -1), run(160, 1)) : pair(run(160, 1), run(160, -1))), gripper };
+        }
+        return { ...both(run(170, 1)), gripper };
+      };
+    },
+  },
+];
 
 export const determinismFixtures: readonly DeterminismFixture[] = [
   {
@@ -106,6 +252,7 @@ export const determinismFixtures: readonly DeterminismFixture[] = [
       };
     },
   },
+  ...gripperFixtures,
 ];
 
 /** Runs a fixture for `ticks` ticks (DETERMINISM_TICKS for the golden ones) and hashes it. */
