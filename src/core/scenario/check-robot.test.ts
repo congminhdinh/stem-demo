@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { productionProfiles } from '../profiles';
 import { createBlockPackCatalog } from '../program/block-packs';
 import { compileUnoProject } from '../program/compile-uno-program';
@@ -18,6 +18,9 @@ import { variantSeed } from './variants';
 // plan §4.6, §4.7): the result the host bridge sends and the LMS stores and ranks.
 
 beforeAll(() => initPhysics(), 30_000);
+
+// N19 D1–D3 (controller ruling): each test runs whole checks (about 9 s for the file's 15 alone), which the 5 s default timed out under load.
+vi.setConfig({ testTimeout: 30_000 });
 
 const headless: CheckRobotOptions = { mode: 'headless', kit: rover, board: unoR3Board, registry };
 const realtime = (speed = 1): CheckRobotOptions => ({ ...headless, mode: 'realtime', speed });
