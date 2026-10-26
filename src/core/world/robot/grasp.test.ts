@@ -649,11 +649,15 @@ describe('the grasp machine (N19 B2)', () => {
     // there, short of 80°, and stays. A 4 cm cube centred (picked as a lesson does) stalls with the fingers flat on its faces (β 0, claw
     // 26.97°). A 3 cm cube 0.6 cm off centre in the open jaws (placed there, so the approach does not centre it first) is met by the left
     // finger first; the claw closes on, pushing it to the middle, and stalls where both fingers clamp it.
+    // `steadyMm`: how deep a finger is in the cube once stalled and settled, from 1 s after the stall to the end (N19 B5, B2 review 3 M7).
     const cases = [
-      { name: '4 cm centred', size: 4, place: null, stall: [24, 30], deepestMm: 2.1 },
-      // One 3 g finger pushing a 60 g cube across at the servo's speed sinks into it before the other meets it: 3.82 mm (measured; the cube
-      // turns a little as it is pushed, and the clamp waits for the gap to come down to its own 3 cm).
-      { name: '3 cm 0.6 cm off centre', size: 3, place: { u: 3.5, v: 0.6 }, stall: [40, 56], deepestMm: 4 },
+      { name: '4 cm centred', size: 4, place: null, stall: [24, 30], deepestMm: 2.1, steadyMm: [0, 0.05] },
+      // A 60 g cube (over the payload: it never attaches) 0.6 cm off centre. One 3 g finger pushes it across at the servo's speed and sinks
+      // into it before the other meets it, 3.82 mm at most (measured; the cube turns a little as it is pushed, and the clamp waits for the gap
+      // to come down to its own 3 cm). That is not only a push: stalled, a finger stays about 3 mm inside it (2.11–2.99 mm, measured: the cube
+      // creeps and the stall takes the face again) for as long as the claw is told to close. A placeholder-kit artifact of an object too heavy
+      // to hold, which no lesson has; a held object's fingers stay within 2.1 mm (the off-centre suite).
+      { name: '3 cm 0.6 cm off centre', size: 3, place: { u: 3.5, v: 0.6 }, stall: [40, 56], deepestMm: 4, steadyMm: [2, 3.05] },
     ] as const;
     for (const c of cases) {
       const scene = gripperScene({ ground: floor(), objects: [cubeAhead('cube', 60, { sizeCm: c.size, offset: c.place === null ? [0, 0] : [0, 30] })] }, START);
@@ -683,6 +687,8 @@ describe('the grasp machine (N19 B2)', () => {
         let before = at();
         const closedOn = { oneOnly: 0, unclamped: 0 };
         let stalledAt: number | null = null;
+        let stalledTick: number | null = null;
+        const steady = { least: Number.POSITIVE_INFINITY, most: Number.NEGATIVE_INFINITY };
         let firstNearV: number | null = null;
         const after = { least: Number.POSITIVE_INFINITY, most: Number.NEGATIVE_INFINITY };
         let deepest = 0;
@@ -698,6 +704,12 @@ describe('the grasp machine (N19 B2)', () => {
             after.most = Math.max(after.most, now.claw);
           }
           if (scene.gripper.clawCommandDeg === 80) deepest = Math.max(deepest, penetrationM(scene.gripper.fingers.map((finger) => finger.collider), object));
+          if (stalledAt !== null && stalledTick === null) stalledTick = scene.tick;
+          if (stalledTick !== null && scene.tick >= stalledTick + seconds(1)) {
+            const depthMm = penetrationM(scene.gripper.fingers.map((finger) => finger.collider), object) * 1000;
+            steady.least = Math.min(steady.least, depthMm);
+            steady.most = Math.max(steady.most, depthMm);
+          }
           before = now;
         });
         expect(closedOn.unclamped, c.name).toBeGreaterThan(0);
@@ -709,6 +721,8 @@ describe('the grasp machine (N19 B2)', () => {
         expect(after.least, c.name).toBeGreaterThan(c.stall[0] - 4);
         expect(after.most, c.name).toBeLessThan(c.stall[1]);
         expect(deepest * 1000, c.name).toBeLessThan(c.deepestMm);
+        expect(steady.least, c.name).toBeGreaterThanOrEqual(c.steadyMm[0]);
+        expect(steady.most, c.name).toBeLessThanOrEqual(c.steadyMm[1]);
         expect(scene.grasp.heldId).toBeNull();
         if (c.place === null) {
           // Centred: both fingers flat on the faces, within half a degree of parallel (β 0 is claw 26.97°).
