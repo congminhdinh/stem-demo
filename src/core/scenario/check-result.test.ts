@@ -7,6 +7,7 @@ import {
   type RobotCheckResult,
 } from './check-result';
 import { SCENARIO_MAX_SCORE, VARIANTS_MAX } from './scenario-schema';
+import { ROBOT_ENGINE_VERSION } from '../world/snapshot';
 
 // The result of a robot check as the lab reports it to the host (N18 R7.1, robot plan §4.6 and §4.7): the type R6.2 produces, and the
 // bounds the host's parser holds it to (the shared fixture, docs/fixtures/stem-lab-v1-robot.json). A result outside them is a bug of
@@ -43,6 +44,11 @@ describe('the robot check result (N18 R7.1)', () => {
     expect(ROBOT_ENGINE).toBe('robot-engine@1');
     expect(ROBOT_CHECK_LIMITS.maxScore).toBe(SCENARIO_MAX_SCORE);
     expect(ROBOT_CHECK_LIMITS.maxVariants).toBe(VARIANTS_MAX);
+  });
+
+  it('names the engine version the world has: one source, though the leaf imports nothing (N18 final fix M6)', () => {
+    // verify:attempt expects robot-engine@ROBOT_ENGINE_VERSION; a check that named another engine would be unverifiable.
+    expect(ROBOT_ENGINE).toBe(`robot-engine@${ROBOT_ENGINE_VERSION}`);
   });
 
   it('has no problem when it is complete and within the bounds of the host', () => {

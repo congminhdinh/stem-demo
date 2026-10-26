@@ -297,6 +297,12 @@ Các bước sửa hay thêm một kịch bản:
 4. Chạy hai file test của Kiểm tra thật (trên); xem `pnpm export:arena-mat <key>` để chắc sa bàn đúng như định.
 5. `pnpm export:robot-manifest`, cập nhật golden nếu lời giải chuẩn đổi, `pnpm check:arduino --require`, `pnpm verify`.
 
+**Engine version (N18 final fix M6).** Lần chấm của thí điểm đã được lưu (từ browser test R8). Từ nay mọi thay đổi world, cảm biến hay chi
+phí (`costsUs`, `toneUs`, mô hình motor…) làm một chương trình chạy khác đi phải tăng `ROBOT_ENGINE_VERSION` (`src/core/world/snapshot.ts`)
+cùng `ROBOT_ENGINE` (`src/core/scenario/check-result.ts`; test ghim `ROBOT_ENGINE` = `robot-engine@<ROBOT_ENGINE_VERSION>`) và golden
+tất định (`tests/__snapshots__/robot-determinism.json`). Không tăng thì `verify:attempt` gọi lần chấm trung thực cũ là `mismatch`; tăng
+thì nó báo `unverifiable` `engine` (chạy lại bằng bản build cũ). Đổi một kịch bản là việc của `version` của kịch bản đó (bước 2).
+
 ## 9. Sáu kịch bản của khóa pilot
 
 | Key | Bài | Sa bàn | Goal (điểm) | Biến thể |

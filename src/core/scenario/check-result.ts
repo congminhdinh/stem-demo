@@ -7,7 +7,10 @@
 // A leaf, like robot-keys.ts: it imports nothing, so the host bridge in the main bundle reads it without pulling the scenario schema in.
 // Its numbers are pinned to the scenario schema's by check-result.test.ts.
 
-/** The simulator and its version, which a check names so a result can be replayed with the engine that made it (plan §3, determinism). */
+/**
+ * The simulator and its version, which a check names so a result can be replayed with the engine that made it (plan §3, determinism).
+ * Written here so that the leaf imports nothing; check-result.test.ts holds it to `robot-engine@${ROBOT_ENGINE_VERSION}` (world/snapshot.ts).
+ */
 export const ROBOT_ENGINE = 'robot-engine@1';
 
 /** What the host accepts of the robot fields (the fixture's `bounds`, the host's `ROBOT_LIMITS`). */

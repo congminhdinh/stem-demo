@@ -19,7 +19,9 @@ import type { ArenaBodyKind } from './arena/arena-schema';
 
 /**
  * The version of the robot engine: physics, robot, sensors and what a snapshot holds. The golden hashes of
- * tests/__snapshots__/robot-determinism.json are this version's; a change that moves one bumps this number on purpose, with the file.
+ * tests/__snapshots__/robot-determinism.json are this version's; a change that moves one bumps this number on purpose, with the file and
+ * with ROBOT_ENGINE (scenario/check-result.ts), which a test holds to this number. N18 final fix M6: pilot attempts are stored, so any change
+ * of the world, the sensors or the costs that changes what a program does is a bump, or verify:attempt calls honest old attempts mismatches.
  */
 export const ROBOT_ENGINE_VERSION = 1;
 

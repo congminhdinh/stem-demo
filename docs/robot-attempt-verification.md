@@ -77,6 +77,11 @@ không phân biệt hoa thường), `passed`, `score` (bằng **chính xác**), 
 đổi chỗ một goal là `mismatch` trên `goals`, kèm hai danh sách id; rồi `passed` của từng goal), và với từng variant `seed`, `passed`, `score`,
 `simTimeMs`. Nhãn của goal không so (nó theo ngôn ngữ của lab).
 
+**Engine version (N18 final fix M6).** Đã có lần chấm của thí điểm được lưu, nên từ nay mọi thay đổi world, cảm biến hay chi phí làm một
+chương trình chạy khác đi phải tăng `ROBOT_ENGINE_VERSION` (và `ROBOT_ENGINE`, golden tất định cùng lúc;
+`docs/robot-scenario-authoring.md` §8). Không tăng thì script này gọi lần chấm trung thực cũ là `mismatch`; tăng thì chúng thành
+`unverifiable` `engine`, và chỉ bản build cũ kiểm được chúng.
+
 **Lý do của `unverifiable`:**
 
 | `reason` | Khi nào | Nên làm |
@@ -84,7 +89,7 @@ không phân biệt hoa thường), `passed`, `score` (bằng **chính xác**), 
 | `invalid-attempt` | Đầu vào không qua schema Zod hoặc giới hạn của LMS (xem §4); kèm `problems` (`đường dẫn: lỗi`) | Sửa file xuất |
 | `unknown-key` | Bản build không có scenario có điểm mang `templateKey` (key lạ, hoặc `rb-sandbox` không có điểm) | Dùng đúng bản build |
 | `scenario-version` | `templateVersion` khác version scenario của bản build: scenario đã đổi | Chạy bằng bản build có version đó |
-| `engine` | `engine` khác `robot-engine@<ROBOT_ENGINE_VERSION>` của bản build | Chạy bằng bản build có engine đó |
+| `engine` | `engine` khác `robot-engine@<ROBOT_ENGINE_VERSION>` của bản build (`ROBOT_ENGINE` của lab, ghim bằng test với `ROBOT_ENGINE_VERSION`) | Chạy bằng bản build có engine đó |
 | `seed-mismatch` | Seed của các variant (thứ tự và số lượng) khác seed của scenario (`variantOffsets`). Lab không bao giờ báo seed khác, nên đây là **dấu hiệu bị sửa** | Xem như đáng ngờ |
 | `no-project` | Lần chấm không có project, và không có lần chấm hợp lệ nào trước nó cùng hash và key có project | Xuất kèm lần chấm cũ hơn, hoặc không kiểm được |
 | `project-invalid` | Project không phải JSON, không qua schema document, hoặc không compile (L-1 đến L-3, luật chân của kit) | Xem như đáng ngờ |

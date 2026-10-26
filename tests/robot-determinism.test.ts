@@ -16,8 +16,9 @@ import { DETERMINISM_TICKS, determinismChecks, determinismFixtures, runCheckFixt
 // the same golden file, so the four runtimes agree.
 //
 // The golden hashes are ROBOT_ENGINE_VERSION's. A change that moves one (physics, robot, sensors, what a snapshot holds) is a new
-// engine: bump ROBOT_ENGINE_VERSION and this file's engineVersion together, with the new hashes. N18 final fix M3: the golden file
-// holds whole checks too (`checks`), which the browsers compare with the same values.
+// engine: bump ROBOT_ENGINE_VERSION, ROBOT_ENGINE (check-result.ts, which check-result.test.ts ties to it) and this file's engineVersion
+// together, with the new hashes. N18 final fix M3: the golden file holds whole checks too (`checks`), which the browsers compare with the
+// same values.
 
 const goldenPath = join(import.meta.dirname, '__snapshots__', 'robot-determinism.json');
 type Golden = { engineVersion: number; ticks: number; fixtures: Record<string, FixtureHashes>; checks: Record<string, CheckHashes> };
