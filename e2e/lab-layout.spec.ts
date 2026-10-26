@@ -476,3 +476,31 @@ test.describe('outside a lab', () => {
     expect((await canvasState(page)).viewport).toEqual({ scale: 1, x: 0, y: 0 });
   });
 });
+
+// N18 bt-lab-fix (review M1): the robot lab's way of putting a loaded program in sight (a smaller smallest zoom, a scroll to its top-left when it
+// fits but is out of sight) is the robot lab's alone: a Yolo:Bit or Blockly lab opens its starter as it did on a257eb6. These are that
+// starter's view there (the block canvas's scale and offset), measured on a257eb6 for the program that the robot lab's scroll would have
+// moved (ybc-servo-gate at 760 px is cut off at the bottom on a257eb6 and stays so).
+for (const { width, height, scale, x, y } of [
+  { width: 1100, height: 640, scale: 0.963, x: 112, y: 0 },
+  { width: 948, height: 450, scale: 0.675, x: 119, y: -6 },
+  { width: 760, height: 640, scale: 1, x: 135, y: 0 },
+]) {
+  test.describe(`the starter of a Yolo:Bit lab, as it was (${width} × ${height})`, () => {
+    test.use({ viewport: { width, height } });
+
+    test('opens ybc-servo-gate at the zoom and offset it had before the robot lab’s fit', async ({ page }) => {
+      await page.goto('/?embed=1&lab=yolobit&template=ybc-servo-gate&profile=ybc-advanced');
+      await page.locator('[data-testid=blockly-panel] svg.blocklySvg').first().waitFor({ state: 'attached' });
+      // Blockly places the program a moment after it injects.
+      await expect
+        .poll(async () => page.evaluate(() => document.querySelector('[data-testid=blockly-panel] svg.blocklySvg > g.blocklyWorkspace > g.blocklyBlockCanvas')?.getAttribute('transform') ?? ''))
+        .toMatch(/^translate\(/);
+      const transform = await page.evaluate(() => document.querySelector('[data-testid=blockly-panel] svg.blocklySvg > g.blocklyWorkspace > g.blocklyBlockCanvas')!.getAttribute('transform')!);
+      const [tx, ty, zoom] = [...transform.matchAll(/-?\d+(?:\.\d+)?(?:e-?\d+)?/g)].map((match) => Number(match[0]));
+      expect(zoom).toBeCloseTo(scale, 3);
+      expect(tx).toBeCloseTo(x, 0);
+      expect(ty).toBeCloseTo(y, 0);
+    });
+  });
+}
