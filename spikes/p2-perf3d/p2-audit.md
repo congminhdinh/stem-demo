@@ -1020,7 +1020,7 @@ renderer at 1.08–1.48 s, assembly (61 + 39 ms), the compile, and the first sce
 - The 30 fps cap holds p95 at 35–36 ms by construction (a capped frame is 33.3 ms): where the chain engages, the 33 ms target cannot.
 - `robot-lab-a11y.spec.ts`'s contrast test times out in the full e2e suite under load 13–18, on master 16407b8 as on this branch
   (`results/phase-b/final/e2e-*.txt`); it passes alone, three times in a row, and in the robot project alone (63 of 63). Fix round
-  1 found the same on both (§10.5).
+  1 found the same on both (§10.5); fix round 2 gives that wait 30 s, the same assertion, and it passed in all 4 runs (§11).
 - Real hardware (§7) is still the open question; `busy.mjs` stands in for fewer cores, not for slower ones.
 
 ### 9.8 Reproduction
@@ -1140,3 +1140,37 @@ node spikes/p2-perf3d/heap-switch.mjs --dist=<build> --switches=20 --label=<name
 node spikes/p2-perf3d/offer-over-result.mjs --out=<png>                                # M8
 node spikes/p2-perf3d/shots.mjs --dist=<build> --out=<dir> && node spikes/p2-perf3d/shots-diff.mjs <master-dir> <dir>
 ```
+
+## 11. Fix round 2 (2026-10-26, after review 2)
+
+Review 2 (`p2-review-2.md`) found every finding of review 1 addressed, one new Important finding (N1) and four Minor ones (N2–N5); the
+coordinator folded the a11y contrast test's load flake into this round. Commits: `cca3657` (N1), `f133048` (the contrast wait),
+`f3bfedb` (N2), `c171711` (N4), `3b7f5f2` (N3), `c770e13` (N5), and this section's. Same machine, shared with the coordinator's
+browser test; ports 5308/5309 only.
+
+- **N1:** `robot-lab-chain.spec.ts` has `test.describe.configure({ timeout: 120_000 })`, as `robot-lab-a11y.spec.ts` does: its first
+  test makes two 4× runs to the 15 s time limit, at most 8 ticks a drawn frame, and took 27.0–29.5 s of the default 30 s in fix round 1's
+  first 3 robot-project runs (14–25 s in the other 10). No assertion changed.
+- **The contrast test's wait** (`robot-lab-a11y.spec.ts:512`): the poll for its 4× run to pass t = 2 s now waits up to 30 s
+  (`expect.poll(…, { timeout: 30_000 })`), the same `> 2` and the same contrast checks; at the 5 s default it reached only 0.47–1.26 s
+  under load (§10.5). The test took 13–25 s when it failed, so the spec's 120 s holds with the longer wait; the optional wait for
+  "Đang chạy" is not added (the poll's window already covers a slow start).
+- **N2:** RobotLab makes the low tier's control only in DEV (`import.meta.env.DEV ? createLowTierControl() : undefined`; SceneHost takes
+  it as optional, as before). The production `RobotLab-*.js` no longer has its strings (fix round 1's build: 1; this one: 0) and is 399
+  bytes smaller.
+- **N3:** `docs/lab-embed-contract.md`'s dev-hook paragraph lists `setLowTierChain` and `forceLowTierStep`, E2E only and not enumerable
+  on purpose.
+- **N4: fixed, not removed.** No app path needs the fallback today (main.tsx passes `labUse` to every robot launch), but RobotLab's own
+  tests use it and the next mount site would. It is now made and stopped in one effect (state set from the effect), so StrictMode's
+  mount, unmount, mount leaves a live watch; the warm-up effect waits for it. New test: under `<StrictMode>`, no `labUse`, a press →
+  `preparePhysics` once (it failed on fix round 1's code).
+- **N5:** the heap that still grows after the leak's fix is V8's compiled code, per review 2's heap snapshots (switch 5 → 20: +1.38 MB,
+  InstructionStream +761 KB, TrustedByteArray +176 KB, Code +78 KB, FeedbackVector +61 KB, the app's Objects +6 KB): V8's JIT tiering of
+  code that runs once a mount, not the lab's data. §9.7, §10.3, the plan's addendum and ADR 0002 §11.10 say so.
+- **Verification:**
+  - `pnpm verify` (load 7.8–12.1): 399 files, 9 105 passed, 1 skipped (the new StrictMode test is the 9 105th).
+  - the chromium-robot project 3 times (load 10.0–18.1): 67, 67, 67 of 67; then the full `pnpm e2e` once (load 14.9–22.3): **316 of
+    316**, no retry, no flake (`results/fix2/e2e/`, from the scratch copy on 5308/5309). The chain's first test took 23.1–23.2 s in the
+    robot runs and 19.7 s in the full one; capped draws 63–70 of 90 display frames with 67–72 allowed in the robot runs, 47 of 52 in the
+    full one. The contrast test passed in all 4: 16.8–17.4 s in the robot runs, 26.6 s in the full suite (at the old 5 s it failed in every
+    full-suite run of fix round 1, master's too).

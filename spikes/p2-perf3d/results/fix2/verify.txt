@@ -1,0 +1,25 @@
+$ pnpm typecheck && pnpm lint && pnpm test
+$ tsc --noEmit
+$ eslint .
+$ vitest run
+
+ RUN  v4.1.11 /Users/hoangminh/Desktop/stem/.worktrees/sd-p2-perf3d
+
+(node:52344) [THREE_CJS_DEPRECATED] DeprecationWarning: `require("three")` is deprecated and will be removed.
+Replace `const THREE = require("three")` with `import * as THREE from "three"`.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:53394) [THREE_CJS_DEPRECATED] DeprecationWarning: `require("three")` is deprecated and will be removed.
+Replace `const THREE = require("three")` with `import * as THREE from "three"`.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:53399) [THREE_CJS_DEPRECATED] DeprecationWarning: `require("three")` is deprecated and will be removed.
+Replace `const THREE = require("three")` with `import * as THREE from "three"`.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:53641) [THREE_CJS_DEPRECATED] DeprecationWarning: `require("three")` is deprecated and will be removed.
+Replace `const THREE = require("three")` with `import * as THREE from "three"`.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+ Test Files  399 passed (399)
+      Tests  9105 passed | 1 skipped (9106)
+   Start at  14:11:47
+   Duration  70.78s (transform 17.08s, setup 0ms, import 97.69s, tests 476.86s, environment 27.69s)
+

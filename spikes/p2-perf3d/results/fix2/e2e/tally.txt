@@ -1,0 +1,9 @@
+robot-1 start 14:13:15 load 9.98 8.93 13.00
+robot-1 end 14:15:30 load 17.37 14.27 14.68    67 passed (2.2m) 
+robot-2 start 14:15:30 load 17.37 14.27 14.68
+robot-2 end 14:17:46 load 14.16 16.50 15.68    67 passed (2.2m) 
+robot-3 start 14:17:46 load 14.16 16.50 15.68
+robot-3 end 14:20:03 load 14.87 18.11 16.60    67 passed (2.3m) 
+full-1 start 14:20:03 load 14.87 18.11 16.60
+full-1 end 14:23:31 load 22.27 21.87 18.54    316 passed (3.5m) 
+FIX2 RUNS DONE
