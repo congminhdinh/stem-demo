@@ -30,7 +30,11 @@ import { conjugate, multiplyQuaternions } from './robot-frame';
 //   2. while nothing is held, the claw stops only when an object is clamped across it: both fingers within CONTACT_GAP_M and the jaw gap at
 //      its centre no wider than its width + 0.05 cm; each finger then stops where it touches. A finger touching on its own keeps closing
 //      and pushes a light object to the middle, as a real claw centres a cube (stalling each finger on its own contact shoved a 15 g cube
-//      0.5 cm off centre sideways; stalling on "both touch" alone stopped the claw with a finger leaning on the cube, 4.48 cm apart);
+//      0.5 cm off centre sideways; stalling on "both touch" alone stopped the claw with a finger leaning on the cube, 4.48 cm apart).
+//      A stalled finger stops, it is never opened (B2): the spike's stall also opened a finger that was into the object, by the depth over a
+//      lever of 1 cm, and with a 60 g cube 0.25–1 cm off centre (funnelled in by the open jaws, up to 2 mm into a finger by the hinge) that
+//      finger went to its open stop while the other pushed the cube round by 5.7–7.4°, β +12° / −5.4° (measured); stopped, the claw stalls at
+//      25–28° with the cube turned 1.1–3.8° (centred: 26.95°, the same either way);
 //   3. while held, each finger's target follows the held object's face every tick (the attach comes up to 2 mm early, and a contact by
 //      the hinge has almost no lever: `touchingBeta`);
 //   4. the gripper's colliders are members of GRIPPER_GROUP only for the solver too (gripper.ts), so that a held object leaving that group
@@ -207,7 +211,10 @@ export function createGrasp(world: PhysicsWorld, gripper: Gripper, objects: read
     return finger.betaDeg() - radToDeg(contact.distance / lever);
   };
 
-  /** Rule 2: the claw's stall while nothing is held, each finger's least β, or nulls when no object is clamped across the jaws. */
+  /**
+   * Rule 2: the claw's stall while nothing is held, each finger's least β (where it touches, and never more open than it is), or nulls when
+   * no object is clamped across the jaws.
+   */
   const stallLimits = (): [number | null, number | null] => {
     for (const object of ordered) {
       const left = contactOf(gripper.fingers[0], object);
@@ -216,7 +223,8 @@ export function createGrasp(world: PhysicsWorld, gripper: Gripper, objects: read
       if (right === null) continue;
       const at = view(object);
       if (jawGapCm(at.u) > at.widthCm + CLAMP_GAP_SLACK_CM) continue;
-      return [touchingBeta(gripper.fingers[0], left), touchingBeta(gripper.fingers[1], right)];
+      const stop = (finger: GripperFinger, contact: NonNullable<typeof left>) => Math.min(touchingBeta(finger, contact), finger.betaDeg());
+      return [stop(gripper.fingers[0], left), stop(gripper.fingers[1], right)];
     }
     return [null, null];
   };

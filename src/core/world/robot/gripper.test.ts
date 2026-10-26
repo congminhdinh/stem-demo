@@ -133,8 +133,8 @@ describe('the gripper of ref-uno-gripper@0 (N19 B1)', () => {
   });
 
   it('lift 0→90° in 22 ±2 ticks', () => {
-    // The braking servo law (§4.6): speed = min(60°/liftSPer60Deg, |e|/dt, √(2·a·|e|)), a = 139.4 rad/s².
-    expect(LIFT_BRAKE_DECEL_RAD_S2).toBe(139.4);
+    // The braking servo law (§4.6): speed = min(60°/liftSPer60Deg, |e|/dt, √(2·a·|e|)), a = 125.2 rad/s² (the spike's; see gripper.ts).
+    expect(LIFT_BRAKE_DECEL_RAD_S2).toBe(125.2);
     const scene = gripperScene(open(), START);
     try {
       scene.set({ liftDeg: 0 });

@@ -239,6 +239,23 @@ Không dùng tài liệu web.
 
 Spike giữ tới khi B1/B2 có test tương đương, rồi xoá như `spikes/robot-physics/`.
 
+## 10b. Bổ sung khi làm B1/B2 (production, `src/core/world/robot/gripper.ts`, `grasp.ts`)
+
+Đo trên cùng máy §3 (Apple M4 Pro, Node v24.22.1, Vitest 4.1.11); test ở `src/core/world/robot/gripper.test.ts`, `grasp.test.ts`, `src/core/world/world.gripper.test.ts`.
+
+- **Gia tốc hãm của tay nâng là 125,2 rad/s², không phải 139,4.** Con số 139,4 ở §5.2 là nửa của 278,8 = (T_s − τ_g)/I với I chưa có quán tính rotor. Code spike tính `liftDecelRadS2(rotor 5e-5) = 250,47`, nửa là 125,235, và mọi số đo ở §4 đều chạy với giá trị đó. Ngoài ra, "quán tính riêng của boom" 2,22·10⁻⁵ trong công thức là quán tính chính quanh trục **đứng** của boom (đọc từ engine). Quanh trục nâng nó chỉ là 1,71·10⁻⁶ kg·m², cộng 5·10⁻⁵ của rotor. World production với 125,2 cho lại đúng các số của §4.1 và §4.2:
+  - hàng "chọn": sụt −0,009°, 0→90 trong 22 tick, vượt 0,045°;
+  - giữ 50 g: lệch ngang đứng −0,231°, lỗi góc 0,049°, vượt 1,273°;
+  - kịch bản 1: attach ở 1,208 s, θc 19,94°.
+
+  Với 139,4 thì 0→90 trong 21 tick, vượt khi giữ 50 g 1,67°, và khối 50 g lệch 1 cm lún 2,154 mm, quá 2,1 mm của test B2.
+- **Luật kẹt (§5.4 luật 2): ngón dừng, không bị mở ra.** Spike đặt giới hạn của mỗi ngón ở góc chạm ước tính, nên một ngón đang lún vào vật bị mở ra theo độ lún / đòn bẩy (tối thiểu 1 cm). Kết quả đo với khối 60 g (không bao giờ attach), lệch ngang 0,25–1 cm:
+  - ngàm mở lùa khối vào giữa, một ngón lún 1,3–2,1 mm sát bản lề;
+  - ngón đó bị mở tới chặn (β 12°), ngón kia đẩy khối xoay 5,7–7,4° (β −5,4°).
+
+  Production lấy min(góc chạm, góc hiện tại): càng kẹt ở 25–28°, khối xoay 1,1–3,8°. Lấy trung bình hai góc chạm cho cả hai ngón (như một servo qua bánh răng) thì tệ hơn: càng ở 9–17°, khối xoay 3,3–3,6°. Khối 15/50 g không đổi kết quả, vì attach (khe ≤ bề rộng + 0,3) luôn đến trước kẹt (+ 0,05).
+- **Xe gắp đứng yên từ trạng thái nghỉ thì có khi không khởi động được ở duty ≤ 160** (việc của B5, ghi lại để B5 biết). Đo: duty 140 trong 1 s đi 0,001–0,005 cm ở sa bàn 300 × 300 hoặc 400 × 400 với tay 0° hoặc 45°. Ở sa bàn 200 × 100, điểm (40, 50), tay 45° cũng vậy. Các trường hợp khác đi 15,4–15,6 cm. Từ duty 200 thì luôn đi. Builder của spike (`spikes/n19-grasp/sim.ts`, cấu hình `tuned-collider`) cho đúng các số này, nên đây là tính chất của mô hình đã đo, không phải của bản viết lại; bỏ +4 solver iteration cũng không hết. Rover khởi động ở mọi trường hợp đó (duty 120: 10,7 cm). Test B1/B2 dùng sa bàn 200 × 100 và điểm (40, 50), nơi duty 140 khởi động được.
+
 ## 11. I²C (G0.2): parity cảm biến màu TCS34725 trên avr8js — **GO**
 
 **Bối cảnh.** Bài 10 (Phân loại theo màu) và U-38/U-39 cần cảm biến TCS34725 đọc qua Wire thô (D-G7). Câu hỏi: harness C2 của N18 có so được trace của simulator với HEX thật trên avr8js 0.21.1 khi chương trình nói chuyện I²C hay không, và mỗi lời gọi tốn bao nhiêu µs.

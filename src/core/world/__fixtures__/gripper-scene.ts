@@ -33,8 +33,8 @@ export type GripperScene = {
   drive(command: MotorCommand): void;
   /** The gripper's servo targets (a field left out holds). */
   set(targets: GripperTargets): void;
-  /** One tick: stepWorld, then the grasp machine (world.ts's order). */
-  step(): void;
+  /** One tick: stepWorld, then the grasp machine (world.ts's order); `between` runs after the step, before the grasp machine. */
+  step(between?: () => void): void;
   object(id: string): GraspObject;
   dispose(): void;
 };
@@ -67,9 +67,10 @@ export function gripperScene(input: ArenaInput, start: RobotStart, kit: Kit = gr
       set(targets) {
         robot.applyActuators({ motors: { motorLeft: motor, motorRight: motor }, gripper: targets });
       },
-      step() {
+      step(between) {
         stepWorld(world, robot);
         tick += 1;
+        between?.();
         grasp.update(DT);
       },
       object(id) {
@@ -99,11 +100,14 @@ export function* until(done: () => boolean, maxTicks: number): Script {
   for (let i = 0; i < maxTicks && !done(); i++) yield;
 }
 
-/** Runs `script` for `ticks` ticks: each tick the script's next step, then one step of the scene, then `onTick`. */
-export function run(scene: GripperScene, script: Script, ticks: number, onTick?: () => void): void {
+/**
+ * Runs `script` for `ticks` ticks: each tick the script's next step, then one step of the scene (`between` after the physics step, before
+ * the grasp machine), then `onTick`.
+ */
+export function run(scene: GripperScene, script: Script, ticks: number, onTick?: () => void, between?: () => void): void {
   for (let t = 0; t < ticks; t++) {
     script.next();
-    scene.step();
+    scene.step(between);
     onTick?.();
   }
 }

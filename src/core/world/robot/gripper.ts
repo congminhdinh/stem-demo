@@ -49,10 +49,12 @@ export const GRIPPER_EXTRA_PGS_ITERATIONS = 8;
 export const GRIPPER_EXTRA_SOLVER_ITERATIONS = 4;
 /**
  * The deceleration the lift servo's braking law plans for, rad/s² (plan §4.6, ADR 0004 §5.2): half of (stall torque − worst gravity torque)
- * / worst inertia, boom level and maxPayloadG held at carriage u 3 cm, for ref-uno-gripper@0's PLACEHOLDER numbers. A vendor's arm derives
- * its own (VG).
+ * / worst inertia, boom level and maxPayloadG held at carriage u 3 cm, the reflected rotor inertia included, for ref-uno-gripper@0's
+ * PLACEHOLDER numbers: the 125.235 the G0.1 spike ran with (spikes/n19-grasp/gripper.ts `liftDecelRadS2(5e-5) / 2`), rounded. ADR 0004 §5.2
+ * wrote 139.4, the same half without the rotor; with it, a 50 g cube 1 cm off centre sinks 2.154 mm into the fingers (B2: ≤ 2.1), with
+ * 125.2 2.05 mm, and every number of ADR 0004 §4.1's chosen row comes back. A vendor's arm derives its own (VG).
  */
-export const LIFT_BRAKE_DECEL_RAD_S2 = 139.4;
+export const LIFT_BRAKE_DECEL_RAD_S2 = 125.2;
 /** The servo angles the gripper is built at: what setup() writes (D-G3, drivers/gripper-servo2.ts): claw open, lift up. */
 export const GRIPPER_START: Readonly<{ clawDeg: number; liftDeg: number }> = Object.freeze({ clawDeg: 0, liftDeg: 90 });
 /** The carriage box (it holds the claw servo), half extents in the carriage frame, cm. Geometry the kit does not name (ADR 0004 §2). */
