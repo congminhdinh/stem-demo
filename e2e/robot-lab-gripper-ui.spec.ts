@@ -1,6 +1,9 @@
-import { expect, test, type Page } from '@playwright/test';
+import { chromium, expect, test, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import type { SensorOverlayProbe } from '../src/ui/robot3d/parts/sensor-overlay';
+import type { TopViewGripperState } from '../src/ui/robot3d/top-view-gripper-state';
+import type { ZoneTagsProbe } from '../src/ui/robot3d/zone-tags-state';
 import { pinLowTierChainOff } from './robot-chain';
 
 // N19 E1-E3: the gripper car's UI in the robot lab, drawn by SwiftShader (playwright.config.ts, project chromium-robot). No gripper lesson
@@ -257,3 +260,213 @@ test.describe('the rover’s tools are as they were (N19 E3)', () => {
     expect(errors).toEqual([]);
   });
 });
+
+// N19 E4/E5: the gripper car on the 2D map and its overlays and tags in the 3D view, on the test arena with the pick-and-place lessons'
+// named zones (?arena=pick: a pickup area round the red cube, a warehouse, a red zone, a drop zone, and goals that name the red cube and a
+// blue cube by the warehouse).
+//   - The 3D view: the zones' tags in Vietnamese whatever their kind, the objects' tags ("Khối đỏ", "Khối xanh dương": the red cube's, at the
+//     car's nose, the layout keeps off the car; it is hidden while held), the IR beam seeing the cube, the colour spot reading it red, and
+//     their tag saying so; a car at rest holding the cube draws no frame for them (N18 P2).
+//   - The 2D map, chosen ("Xem 2D") and on a computer without WebGL (Review Focus 5): the jaws closed on the cube, the ring round it, the IR
+//     beam and the spot with their tag, the named zones' names on the mat.
+const pickUrl = `${labUrl}&arena=pick`;
+
+/** The readers of what the view drew (the very instances the lab runs on, from the dev server). */
+async function installReaders(page: Page) {
+  await page.evaluate(async () => {
+    const w = window as unknown as { __overlay: unknown; __tags: unknown; __map: unknown };
+    const [overlayPath, tagsPath, mapPath] = ['/src/ui/robot3d/sensor-overlay-state.ts', '/src/ui/robot3d/zone-tags-state.ts', '/src/ui/robot3d/top-view-gripper-state.ts'];
+    w.__overlay = await import(/* @vite-ignore */ overlayPath);
+    w.__tags = await import(/* @vite-ignore */ tagsPath);
+    w.__map = await import(/* @vite-ignore */ mapPath);
+  });
+}
+const overlay = (page: Page) => page.evaluate(() => (window as unknown as { __overlay: { readSensorOverlay(): SensorOverlayProbe | null } }).__overlay.readSensorOverlay());
+const tags = (page: Page) => page.evaluate(() => (window as unknown as { __tags: { readZoneTags(): ZoneTagsProbe | null } }).__tags.readZoneTags());
+const map = (page: Page) => page.evaluate(() => (window as unknown as { __map: { readTopViewGripper(): TopViewGripperState | null } }).__map.readTopViewGripper());
+
+/** By hand: the arm down round the cube (it is open from setup()), the claw closed on it, until the world holds it. */
+async function grabCube(page: Page) {
+  await page.locator('.robot-stage').focus();
+  for (let step = 0; step < 6; step++) await page.keyboard.press('f');
+  await expect.poll(async () => (await gripper(page))?.liftDeg ?? 90, { timeout: 60_000 }).toBeLessThan(1);
+  await page.keyboard.press('e');
+  await expect.poll(async () => (await gripper(page))?.heldId, { timeout: 60_000 }).toBe('cube');
+}
+
+const zoneWords = ['Khu lấy hàng', 'Kho', 'Vùng đỏ', 'Vùng thả'];
+
+test.describe('the gripper car’s overlays, tags and 2D map (N19 E4/E5)', () => {
+  test('3D: the named zones’ tags in Vietnamese, the cube’s tag hidden while held, the IR and colour overlays and their tag', async ({ page }) => {
+    const errors = collectErrors(page);
+    await page.goto(pickUrl);
+    await page.getByTestId('robot-lab').waitFor();
+    await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 60_000 });
+    await pinLowTierChainOff(page);
+    await installReaders(page);
+    // The tags come a frame after the first: every named zone has one with its Vietnamese name, whatever its kind (the pickup area is an
+    // `area`), the unnamed garage its kind's word, and the cube one with its name.
+    await expect.poll(async () => (await tags(page))?.length ?? 0, { timeout: 30_000 }).toBeGreaterThan(0);
+    const before = (await tags(page))!;
+    expect(before.filter((tag) => tag.kind === 'zone').map((tag) => tag.text)).toEqual(['Đích', ...zoneWords]);
+    expect(before.filter((tag) => tag.kind === 'object').map(({ id, text }) => [id, text])).toEqual([
+      ['cube', 'Khối đỏ'],
+      ['cube-blue', 'Khối xanh dương'],
+    ]);
+    await expect.poll(async () => (await tags(page))!.filter((tag) => tag.visible).map((tag) => tag.text), { timeout: 30_000 }).toEqual(expect.arrayContaining([...zoneWords, 'Khối xanh dương']));
+    await screenshot(page, '07-pick-tags.png');
+
+    await startTeleop(page);
+    await grabCube(page);
+    // Held: the cube's tag is not shown (the HUD's chip names the cube now); the blue cube's and the zones' stay.
+    await expect.poll(async () => (await tags(page))!.find((tag) => tag.id === 'cube')?.visible, { timeout: 30_000 }).toBe(false);
+    expect((await tags(page))!.find((tag) => tag.id === 'cube-blue')?.visible).toBe(true);
+    await expect(page.getByTestId('robot-held')).toHaveText('Đang giữ: khối đỏ');
+    // The IR between the jaws sees the cube, the colour sensor reads it red (once its first window is in), and their tag says so.
+    await expect.poll(async () => (await overlay(page))?.gripper?.color?.color, { timeout: 30_000 }).toBe('red');
+    const probe = (await overlay(page))!.gripper!;
+    expect(probe.ir).toEqual({ role: 'irClaw', visible: true, detected: true });
+    expect(probe.color).toMatchObject({ role: 'color1', visible: true, hit: true, color: 'red' });
+    expect(probe.label).toEqual(['IR: có vật', 'Màu: đỏ']);
+    await screenshot(page, '08-pick-held-overlays.png');
+    // Let go: the claw opens, the IR still sees the cube between the jaws.
+    await page.keyboard.press('q');
+    await expect.poll(async () => (await gripper(page))?.heldId, { timeout: 60_000 }).toBeNull();
+    expect((await overlay(page))!.gripper!.ir).toEqual({ role: 'irClaw', visible: true, detected: true });
+    expect(errors).toEqual([]);
+  });
+
+  test('3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again', async ({ page }) => {
+    await page.goto(pickUrl);
+    await page.getByTestId('robot-lab').waitFor();
+    await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 60_000 });
+    await pinLowTierChainOff(page);
+    await installReaders(page);
+    await page.evaluate(() => {
+      // Counts the canvas's draws to the screen: three clears WebGL's default framebuffer once per render (robot-lab-sensors.spec.ts).
+      const gl = (document.querySelector('[data-testid=robot-canvas] canvas') as HTMLCanvasElement).getContext('webgl2')!;
+      const counter = window as unknown as { __draws: number };
+      counter.__draws = 0;
+      const clear = gl.clear.bind(gl);
+      gl.clear = (mask: number) => {
+        if (gl.getParameter(gl.FRAMEBUFFER_BINDING) === null) counter.__draws += 1;
+        clear(mask);
+      };
+    });
+    const draws = () => page.evaluate(() => (window as unknown as { __draws: number }).__draws);
+    await startTeleop(page);
+    await grabCube(page);
+    // The arm all the way up (at its stop: the steadiest pose), the cube held.
+    for (let step = 0; step < 6; step++) await page.keyboard.press('r');
+    await expect.poll(async () => (await gripper(page))?.liftDeg ?? 0, { timeout: 60_000 }).toBeGreaterThan(89);
+    await expect.poll(async () => (await overlay(page))?.gripper?.color?.color, { timeout: 30_000 }).toBe('red');
+    // Held still (teleop runs, nothing moves: the world the same to a hundredth of a cm and a degree, 400 ms apart), the scene and its
+    // overlays draw nothing more.
+    await settled(async () => {
+      const world = (await page.evaluate(() => window.__stem?.robot.getSnapshot())) as { robot: { xCm: number; gripper?: { clawDeg: number; liftDeg: number } }; objects: { pose: { xCm: number; zCm: number } }[] } | null;
+      return world && [world.robot.xCm, world.robot.gripper?.clawDeg, world.robot.gripper?.liftDeg, world.objects[0]?.pose.xCm, world.objects[0]?.pose.zCm].map((value) => Math.round((value ?? 0) * 100));
+    });
+    const rested = await settled(draws);
+    await page.waitForTimeout(1500);
+    expect(await draws()).toBe(rested);
+    expect((await overlay(page))!.gripper!.ir).toEqual({ role: 'irClaw', visible: true, detected: true });
+    await page.getByTestId('robot-sensors').click();
+    await expect.poll(draws, { timeout: 30_000 }).toBeGreaterThan(rested);
+    const after = await settled(draws);
+    await page.waitForTimeout(1200);
+    expect(await draws()).toBe(after);
+  });
+
+  test('2D (“Xem 2D”): the jaws closed on the cube, the ring round it, the IR beam, the red spot and their tag, the zones’ Vietnamese names', async ({ page }) => {
+    const errors = collectErrors(page);
+    await page.goto(pickUrl);
+    await page.getByTestId('robot-lab').waitFor();
+    await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 60_000 });
+    await pinLowTierChainOff(page);
+    await installReaders(page);
+    await page.getByTestId('robot-viewmode').click();
+    await page.getByTestId('robot-topview').waitFor();
+    await expect.poll(async () => (await map(page))?.gripper?.liftDeg, { timeout: 30_000 }).toBe(90);
+    expect((await map(page))!.zoneLabels).toEqual(['Xuất phát', 'Đích', ...zoneWords]);
+    expect((await map(page))!.objects).toEqual([
+      { id: 'cube', fill: '#d32f2f', mark: 'stripes' },
+      { id: 'cube-blue', fill: '#1976d2', mark: 'dots' },
+    ]);
+    await startTeleop(page);
+    await grabCube(page);
+    await expectHeldOnMap(page);
+    await screenshot(page, '09-map-held.png');
+    expect(errors).toEqual([]);
+  });
+
+  test('WebGL off: the 2D map stands in, and shows the jaws, the held cube with its ring and the gripper’s sensors (Review Focus 5)', async ({ baseURL }) => {
+    const browser = await chromium.launch({ args: ['--disable-webgl', '--disable-3d-apis'] });
+    try {
+      const page = await (await browser.newContext({ baseURL: baseURL ?? '', viewport: { width: 1280, height: 720 } })).newPage();
+      const errors = collectErrors(page);
+      await page.goto(pickUrl);
+      await page.getByTestId('robot-lab').waitFor();
+      expect(await page.evaluate(() => document.createElement('canvas').getContext('webgl2') ?? document.createElement('canvas').getContext('webgl'))).toBeNull();
+      await expect(page.getByTestId('robot-topview')).toHaveAttribute('data-reason', 'no-webgl', { timeout: 60_000 });
+      await expect(page.getByTestId('robot-canvas')).toHaveCount(0);
+      await installReaders(page);
+      await expect.poll(async () => (await map(page))?.gripper?.liftDeg, { timeout: 30_000 }).toBe(90);
+      expect((await map(page))!.zoneLabels).toEqual(['Xuất phát', 'Đích', ...zoneWords]);
+      await startTeleop(page);
+      await grabCube(page);
+      await expectHeldOnMap(page);
+      await screenshot(page, '10-no-webgl-map-held.png');
+      expect(errors).toEqual([]);
+    } finally {
+      await browser.close();
+    }
+  });
+});
+
+/** The 2D map of the car holding the cube lowered: the jaws closed on it (turned in from 12°), the ring round the cube, the sensors and their tag. */
+async function expectHeldOnMap(page: Page) {
+  await expect.poll(async () => (await map(page))?.held?.visible, { timeout: 30_000 }).toBe(true);
+  await expect.poll(async () => (await map(page))?.color?.color, { timeout: 30_000 }).toBe('red');
+  const drawn = (await map(page))!;
+  const world = (await view(page))!;
+  expect(drawn.gripper).toMatchObject({ heldId: 'cube' });
+  expect(drawn.gripper!.liftDeg).toBeLessThan(1);
+  // The claw clamped on the cube short of its 80° (B2: about 26°): the fingers nearly straight, both turned in from 12°.
+  expect(drawn.gripper!.clawDeg).toBeGreaterThan(15);
+  expect(drawn.gripper!.clawDeg).toBeLessThan(40);
+  expect(drawn.gripper!.jaws.map((jaw) => jaw.side)).toEqual([1, -1]);
+  expect(drawn.gripper!.jaws[0]!.turnDeg).toBeCloseTo(12 - 0.445 * drawn.gripper!.clawDeg, 6);
+  expect(drawn.gripper!.jaws[1]!.turnDeg).toBeCloseTo(-(12 - 0.445 * drawn.gripper!.clawDeg), 6);
+  // Lowered: the boom's reach is 5·cos 40° (within the arm's last hundredths of a degree).
+  expect(drawn.gripper!.reachCm).toBeCloseTo(5 * Math.cos((40 * Math.PI) / 180), 2);
+  // The ring round the cube, at the cube: between the jaws' tips and hinges.
+  expect(drawn.held).toMatchObject({ visible: true, id: 'cube' });
+  expect(drawn.held!.radiusCm).toBeCloseTo(2 * Math.SQRT2 + 0.8, 9);
+  const [left, right] = drawn.gripper!.jaws;
+  expect(drawn.held!.xCm).toBeGreaterThan(left!.hinge.xCm);
+  expect(drawn.held!.xCm).toBeLessThan(left!.tip.xCm);
+  expect(drawn.held!.yCm).toBeLessThan(left!.hinge.yCm);
+  expect(drawn.held!.yCm).toBeGreaterThan(right!.hinge.yCm);
+  expect(world.robot.xCm).toBeLessThan(drawn.held!.xCm);
+  // The IR sees the cube; the spot reads it red; the tag says both.
+  expect(drawn.ir).toMatchObject({ visible: true, detected: true, hitId: 'cube', end: true });
+  expect(drawn.color).toMatchObject({ rayVisible: true, spotVisible: true, color: 'red', tint: '#d32f2f' });
+  expect(drawn.label).toEqual({ visible: true, lines: ['IR: có vật', 'Màu: đỏ'] });
+}
+
+/** Reads `read` until it gives the same value twice, 400 ms apart (robot-lab-sensors.spec.ts). */
+async function settled<T>(read: () => Promise<T>): Promise<T> {
+  let last: { value: T } | null = null;
+  await expect
+    .poll(
+      async () => {
+        const value = await read();
+        const same = last !== null && JSON.stringify(last.value) === JSON.stringify(value);
+        last = { value };
+        return same;
+      },
+      { timeout: 30_000, intervals: [400] },
+    )
+    .toBe(true);
+  return (last as { value: T } | null)!.value;
+}
