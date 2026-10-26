@@ -506,8 +506,10 @@ R4.2 vẽ hình thủ tục (plan D-R7: "procedural geometry first, home-made GL
 | frame đầu ≤ 2,5 s (ấm) | 2 353–2 762 ms | 2 482–2 870 ms | **chưa đạt, sàn như master** |
 | heap tăng ≤ 5 % trong 10 phút | P2 Phase A: −2,2 / +0,2 / −1,8 % | −2,4 / −2,7 / −2,4 %, không long task > 100 ms trong 30 phút | đạt |
 | không tăng tài nguyên GPU sau 20 lần đổi (gpu-high) | 0 | 0 context, geometry, texture, program; 0 listener (trước +19 và +18) | đạt |
+| không rò canvas khi đổi view (fix round 1, không probe) | +14 node DOM mỗi lần đổi 2D ↔ 3D, +6 mỗi lần đổi tier; listener `dispose` trên geometry Sprite 2 → 41 | node DOM và listener phẳng; listener trên geometry còn 1 | đạt |
 | GPU tier cao p95 ≤ 20 ms | 17,9–18,5 ms | 17,7–18,3 ms | đạt |
-| Chạy lần đầu → robot chạy | school 389–460, ss-low-4x 267–309, GPU 71–87 ms | 78–127, 51–55, 13–26 ms | |
+| Chạy lần đầu → robot chạy, thứ tự của LMS (`load-project` lúc `ready`, không bấm gì; fix round 1) | school 403–463, GPU 76–98 ms | **71–81, 17–19 ms** | |
+| (cùng số đo, thứ tự của bench: `load-project` sau frame đầu) | school 389–460, ss-low-4x 267–309, GPU 71–87 ms | 78–127, 51–55, 13–26 ms | |
 
       Load 4,6–13,5 (agent khác cùng máy), vòng lặp CPU 96–105 ms ở mọi ô school. Frame đầu: P2 không đổi nó (hai khoảng chồng lên
       nhau); trong đó có script của entry, Blockly và zod, tải và parse GLB (0,25–0,33 s), dựng cảnh, và lần vẽ cảnh đầu chờ link
@@ -518,7 +520,15 @@ R4.2 vẽ hình thủ tục (plan D-R7: "procedural geometry first, home-made GL
       16,7 ms một khung, còn 4 nhân 23,1–23,5 ms (43 fps) thì không động; còn 2 nhân 31–32 ms thì giới hạn còn 29–30 fps, CPU của GPU
       process 84–88 → 46–48 ms một khung, renderer 33–35 → 19–20 ms. Khi giới hạn, p95 khung là 35–36 ms do chính giới hạn (33,3 ms):
       mục tiêu 33 ms không đạt được ở đó. Đã kiểm tra đầu cuối: giới hạn sau 3,3 s chạy khi còn 2 nhân, lời mời 2D khi gần như không còn
-      nhân, chọn 2D thì lượt chạy tiếp tục trên bản đồ.
+      nhân, chọn 2D thì lượt chạy tiếp tục trên bản đồ. Ngưỡng còn tạm. Giới hạn đã biết (giữ theo phán quyết): chuỗi đi một chiều suốt
+      đời lab, một lúc chậm ngắn giữ 30 hình/giây tới khi tải lại trang, trình duyệt vẽ 30 Hz cũng bị giới hạn. E2E ghim chuỗi tắt qua
+      hook dev và có spec riêng ép từng bước (fix round 1).
+    - **Rò canvas khi đổi view** (có từ master; sửa ở fix round 1, `shared-gpu.ts`): three giữ geometry chung của Sprite và texture DFG
+      (`DFG_LUT`) của material standard suốt trang, và mỗi WebGLRenderer vẽ chúng gắn một listener `dispose`, nên mỗi canvas 3D đã đi vẫn
+      sống cùng wrapper context và canvas đã tách khỏi trang. Canvas đi thì lab dispose cả hai (texture tìm qua `renderer.properties`,
+      nội bộ của three 0.186.1, có test chốt). Heap sau 19 lần đổi 2D ↔ 3D: +4,0 → +2,9–3,0 MB; phần còn tăng chưa truy.
+    - **Build** (fix round 1): `pnpm build [tuỳ chọn của vite build]` (`scripts/build.mjs`), ví dụ `pnpm build --base /lab/`, rồi nén sẵn
+      `.gz`/`.br`; phục vụ trên VPS: `docs/lab-embed-contract.md` §4.1.
     - **Hai việc chậm còn lại khi không có GPU:** (a) lần vẽ đầu của nhãn zone (144–154 ms ở 6×) là `onFirstUse` của program của nhãn chờ
       GPU process (SwiftShader không có `KHR_parallel_shader_compile`), một lần mỗi canvas, trước lượt chạy; (b) trình duyệt mới mở cần
       thêm khoảng 1,3 s trước khi có WebGL renderer (main thread rảnh suốt lúc đó: GPU process đang khởi động), không phải việc của app.

@@ -930,7 +930,7 @@ after interleaved round by round on the same base (`spikes/p2-perf3d/phase-b-ab.
 | # | commit | what | before → after (interleaved, 3 rounds) | pixels |
 |---|---|---|---|---|
 | 1 | `5680ab2`, `af79b0f` | the free view's fit test with the same arithmetic (140 golden poses equal to the last digit), poses kept per scene and safe rect (16 a scene) | school Kiểm tra 4×: long tasks ≥ 50 ms 17–20 → 1 (the last is #1b's), their time 1 152–1 357 → 313–338 ms, p99 74–78 → 45–52 ms; mini-mission's 53 ms task gone (`b1`, load 1.2–6.1). After `af79b0f` (reframing mid-run as master; #1b in both builds): long tasks 0, animation-frame p99 16.8 ms (`b1fix`) | all 36 equal |
-| 1b | `dd4c309` | Rapier loaded and warmed at idle once the lab is used (a press, a key, the host's load-project), after the view is up | first Run → moving school 363–380 → 70–73 ms, GPU 81–89 → 24–25 ms; school Kiểm tra 4× long tasks 1 (308–326 ms) → 0 (`b1b`, load 2.1–6.1). The warm-up is one task of 312–393 ms at 6× right after the load-project (Rapier's wasm 219–293 of it): the same cost, at an idle moment. A lab only opened loads no Rapier | equal |
+| 1b | `dd4c309`, `e301de3` | Rapier loaded and warmed at idle once the lab is used (a press, a key, the host's load-project), after the view is up; fix round 1 (I1): watched from before the lab renders, never beside a run | in the bench's order: first Run → moving school 363–380 → 70–73 ms, GPU 81–89 → 24–25 ms; in the LMS's order (§10): school 403–463 → 71–81 ms, GPU 76–98 → 17–19 ms; school Kiểm tra 4× long tasks 1 (308–326 ms) → 0 (`b1b`, load 2.1–6.1). The warm-up is one task of 312–393 ms at 6× right after the load-project (Rapier's wasm 219–293 of it): the same cost, at an idle moment. A lab only opened loads no Rapier | equal |
 | 2 | `aff9dbc` | OrbitControls' keydown listener removed from the root it was added to | listeners after 20 × 2D ↔ 3D +19 → 0, after 20 tier switches +18 → 0; GPU resources 0 growth (`b2`) | equal |
 | 3 | `f2ff258` | the low tier's chain: 30 fps cap, then the 2D map offered | thresholds from `b3-busy` (busy.mjs): a free M4 16.7 ms a frame and 4 cores left 23.1–23.5 ms (43 fps) stay dormant; 2 cores left 31–32 ms → capped at 29–30 fps, the same rate at half the CPU (GPU process 84–88 → 46–48 ms a frame, renderer 33–35 → 19–20). The final build end to end (`b3-chain.txt`): no step at 0 and 8 busy threads, the cap at 3.3 s with 10, 11 and 16, the offer once with 16, taken, the run going on in the 2D map | equal (dormant) |
 | 4 | `919c644` | the tags' layout without garbage, skipped when nothing it reads moved | the tags' allocation a frame: school line-follow 6.5–7.0 → 0.6–0.7 KB, mini-mission 15.0–15.6 → 3.6–4.0, GPU 6.7–7.0 → 0.7–0.8; the same spots (1.4 changes/s) (`b4-profile`, `b4-fps`) | equal |
@@ -957,7 +957,8 @@ School PC profile (SwiftShader, the low tier, CPU 6×) unless noted; load 4.6–
 | no GPU-resource growth over 20 switches (gpu-high) | 0 | 0 contexts, geometries, textures, programs after 20 × 2D ↔ 3D and 20 tier switches, 3 runs; listeners 0; heap +4.02–4.05 MB and +1.45–1.46 MB | met |
 | GPU high p95 ≤ 20 ms | 17.9–18.5 ms | 17.7–18.3 ms | met |
 
-Beside them: first Run → moving school 389–460 → 78–127 ms, ss-low-4x 267–309 → 51–55 ms, GPU 71–87 → 13–26 ms (#1b); GPU high
+Beside them, in the bench's order (its load-project after the first frame, which the LMS does not use; the LMS's order is §10, I1):
+first Run → moving school 389–460 → 78–127 ms, ss-low-4x 267–309 → 51–55 ms, GPU 71–87 → 13–26 ms (#1b); GPU high
 59.9–60.2 fps median in every cell, before and after.
 
 **The first frame's floor.** P2 did not move the warm first frame (2.35–2.76 s on master, 2.48–2.87 s here, the ranges overlapping;
@@ -985,9 +986,10 @@ renderer at 1.08–1.48 s, assembly (61 + 39 ms), the compile, and the first sce
 ### 9.5 Corrections to Phase A
 
 - **§0.4 / §3.6:** the 186–212 KB a mount was not the listener's. With the listener gone (#2) the heap after 20 × 2D ↔ 3D grows the
-  same (+4.04–4.08 → +4.00–4.01 MB, gpu-high; +3.66–3.69 → +3.56–3.60 MB, school; `b2`). It grows less with each switch (+0.87 MB
-  after the second, +0.06–0.13 MB after the 15th to 19th), and soaks are flat, so it reads as caches filling rather than a leak; no
-  heap snapshot was compared (§9.7).
+  same (+4.04–4.08 → +4.00–4.01 MB, gpu-high; +3.66–3.69 → +3.56–3.60 MB, school; `b2`). **Corrected in fix round 1 (§10, I2):** it is
+  a leak, master's too, not "caches filling" as this section first said. three keeps the Sprite's geometry and the DFG texture of the
+  standard materials for the whole page, and each renderer that draws them adds a 'dispose' listener, so every 3D canvas the lab made
+  stayed alive with its detached canvas (+14 DOM nodes a 2D ↔ 3D switch on master). Fixed: §10.
 - **`5680ab2`'s message:** servo-gate high's 3 pixels are run-to-run noise (§9.1), not the camera's last bits.
 - **§3.2 "not reframing while a run goes on"** was a behaviour change; the ruling took it out (§9.1).
 
@@ -1013,10 +1015,12 @@ renderer at 1.08–1.48 s, assembly (61 + 39 ms), the compile, and the first sce
 - The free view still allocates when it reframes: about 27 KB a frame averaged over mini-mission's school run (camera-studio.ts,
   `b4-profile`), from 5–10 reframes as the HUD's width changes with its text (its corner moves more than 0.01 NDC); 70–80 ms of CPU
   in 8 s at 6×, no long task. The search's remaining arrays (the sliding rounds, the choices) could go the way of the fit test.
-- The heap after many 2D ↔ 3D switches (§9.5): a heap snapshot comparison would say what fills.
+- The heap after many 2D ↔ 3D switches (§9.5): a leak, fixed in fix round 1 (§10, I2); what still grows (+2.9–3.0 MB over 19 switches,
+  30–80 KB each at the end) is not traced.
 - The 30 fps cap holds p95 at 35–36 ms by construction (a capped frame is 33.3 ms): where the chain engages, the 33 ms target cannot.
 - `robot-lab-a11y.spec.ts`'s contrast test times out in the full e2e suite under load 13–18, on master 16407b8 as on this branch
-  (`results/phase-b/final/e2e-*.txt`); it passes alone, three times in a row, and in the robot project alone (63 of 63).
+  (`results/phase-b/final/e2e-*.txt`); it passes alone, three times in a row, and in the robot project alone (63 of 63). Fix round
+  1 found the same on both (§10.5).
 - Real hardware (§7) is still the open question; `busy.mjs` stands in for fewer cores, not for slower ones.
 
 ### 9.8 Reproduction
@@ -1029,4 +1033,110 @@ zsh spikes/p2-perf3d/busy-ab.sh <name> line-follow,teleop "0 8 10" <builds...>
 node spikes/p2-perf3d/chain-check.mjs --dist=<build> --seconds=20 [--accept] [--shot=<png>]    # beside busy.mjs
 node spikes/p2-perf3d/loading-trace.mjs --profile=school --dist=<build> [--cold | --warmup | --check]
 zsh spikes/p2-perf3d/final-run.sh <after-build>
+```
+
+
+## 10. Fix round 1 (2026-10-26, after review 1)
+
+Review 1 (`p2-review-1.md`) found 1 critical, 2 important and 8 minor issues; the coordinator's rulings are in `progress.md`. Commits:
+`51a783b` (M1, M2), `5dd33d3` (M6), `301b201` (C1), `e301de3` (I1, M3), `d927bd3` (M5), `0671298` (M8), `4792205` (M7), `5c3097f`
+(I2), `e0282f9` (M4), `6fc71a8` (the I1 and C1 measurements), and this section's. The machine was shared: the coordinator's
+browser test (AppHost, Postgres, a dev server on :5173 and a Chrome) ran beside every measurement below, so each one is interleaved
+with master `16407b8` and records `uptime`. Ports used: 5302–5309 only; the E2E ran from a scratch copy on 5308/5309
+(`spikes/p2-perf3d/e2e-on-ports.sh`), never on 5190; master's side from a `git archive` of `16407b8` in the scratchpad (no worktree).
+
+### 10.1 C1: the E2E is load-proof
+
+- **Hooks** (DEV only, not enumerable on `window.__stem.robot`, so R4.1's test of its keys holds): `setLowTierChain('off' | 'auto')`,
+  kept for every lab the page mounts after it, and `forceLowTierStep('cap' | 'offer')`. RobotLab serves them through
+  `low-tier-control.ts`; SceneHost gives the low tier no frame watch while it is off, and forced steps still apply.
+- **Helpers:** `e2e/robot-chain.ts` `pinLowTierChainOff`, called by every robot entry helper (`openInLesson` in the ten robot specs) and
+  by the robot lab's direct opens. No assertion changed.
+- **The chain's own spec** (`e2e/robot-lab-chain.spec.ts`, chromium-robot, SwiftShader, the low tier, 4 tests): a capped run has the
+  same `snapshotHash` after 1.0 s of steps and at its 15 s time limit as an uncapped one; capped draws never exceed what `drawDue`
+  allows over the same display frames and are at least 60 % of it, about 0.5 a changed snapshot where the display keeps up (45–56 of 90
+  at 60 Hz) and up to 0.9 when the suite's load stretches the frames (the cap then allows 72–81 of 90); "Xem 2D" shows the map and
+  the run goes on; "Giữ 3D" keeps 3D and the offer does not come again. It also covers `CompiledDraw`'s skip and the offer's UI.
+- **Tallies, chromium-robot** (its own 6 workers, beside the browser test):
+  - 5 runs, load 5.2–24.4: 66, 65, 66, 67, 67 of 67 (`results/fix1/c1/branch-*`);
+  - 4 rounds alternating with master's own specs, load 14.8–24.9: master 63, 63, 62, 63 of 63; branch 67, 67, 66, 67 of 67
+    (`results/fix1/c1/interleaved-*`);
+  - the chain spec passed in all 9; no failure was the chain's. The failures: the a11y contrast spec (its 4× run on SwiftShader's
+    high tier must pass 2 s within 5 s) 3 times in the first 5; the context-loss spec once; and robot-lab-sensors' "a robot at rest
+    draws no frame" once on each side in the same interleaved round.
+
+### 10.2 I1: the warm-up in the LMS's order
+
+- `src/ui/app/lab-use.ts` `watchLabUse`: main.tsx starts it before the lab renders (a pointer press, a key), and the host loader calls
+  `markUsed` when it applies a project (`createHostLoader` `onApplied`, also after a busy lab lets it go). RobotLab warms at idle once
+  its view is up and the lab was used, never once a start, a run, teleop or a check began; `preparePhysics` itself returns false
+  without building anything when the page has the engine or a run exists, and a run started while it builds its world stops it
+  before a tick. Tests: the load before the mount warms with no press; a run first means no warm-up; the race; the loader.
+- **First Run → moving, LMS order** (`spikes/p2-perf3d/lms-order.mjs`: load-project on `ready`, no press, 3 s at rest, then Chạy;
+  master and the branch interleaved, 3 rounds, load 8.3–18.4): school (SwiftShader, CPU 6×) **403–463 → 71–81 ms**; GPU
+  **76–98 → 17–19 ms**. On master Rapier is fetched at the click; on the branch before it. (The bench's order, §9.3, gave 389–460 →
+  78–127 ms and is kept only labelled as such.)
+
+### 10.3 I2: the canvas leak
+
+- `src/ui/robot3d/shared-gpu.ts`: as a 3D canvas goes, `CompiledDraw` disposes three's shared Sprite geometry (`new Sprite().geometry`,
+  public) and the DFG lookup texture it found once after its first draw (through `renderer.properties` of a standard material it drew:
+  three's internals). Each renderer then drops its copy and its listener; the next canvas uploads them again. `shared-gpu.test.ts` pins
+  what it reaches in three 0.186.1 (the version, `lut.name = 'DFG_LUT'`, `m_uniforms.dfgLUT.value = getDFGLUT()`, the shared
+  `_geometry`) and fails when three changes it.
+- **Re-measured without the probe's retention** (`spikes/p2-perf3d/heap-switch.mjs`, GPU, 20 × 2D ↔ 3D then 20 tier switches,
+  interleaved with master, 3 rounds, load 5.9–10.1, `results/fix1/i2/heap-switch.txt`):
+
+| | master `16407b8` | fix round 1 |
+|---|---|---|
+| DOM nodes, 2D ↔ 3D | 1087 → 1353 (+14 a switch) | 1074, flat |
+| DOM nodes, tier | 1364 → 1418 (+6 a switch) | 1079, flat |
+| JS listeners | 342 → 361 → 381 (+1, +2 a switch) | 342, flat |
+| 'dispose' listeners on the Sprite geometry | 2 → 21, 23 → 41 | 1 (the live renderer's) |
+| heap over the 19 switches after the first | +4.04–4.05 MB, the last five 60–140 KB each | +2.92–2.97 MB, the last five 30–80 KB each |
+| heap over 18 tier switches | +1.11–1.13 MB | +0.61–0.68 MB |
+
+  The branch's heap starts 1.66 MB higher at the first switch: that click is the lab's first use, and Rapier loads. What still grows
+  is not traced.
+- The bench's probe (M6) now counts the renderers and holds the latest one weakly, so `bench:robot3d`'s own switch numbers no longer
+  include it.
+
+### 10.4 Minors
+
+- **M1, M2:** `pnpm build` is `scripts/build.mjs`: `vite build` with its arguments (`pnpm build --base /lab/` builds with base /lab/),
+  then the copies in vite's outDir; the helper is plain JavaScript (`scripts/lib/precompress.mjs`), `engines` unchanged; it runs with
+  `--no-experimental-strip-types`.
+- **M3:** the two comments say Rapier loads after the first use, at idle.
+- **M4:** kept one way, as ruled, and written down as a known limit next to the provisional thresholds (`frame-watch.ts`, §10 here,
+  the plan's addendum, ADR 0002 §11.10): a short slow spell caps the low tier until the page reloads; a 30 Hz browser caps it and
+  shows the note though nothing changes.
+- **M5:** `holdShadows` (out of ShadowsOnChange) has its tests (autoUpdate off and back, needsUpdate on a caster's move and not for an
+  LED, the restored-context listener); the layout test is named for what it shows.
+- **M7:** §4.1 of the hosting docs explains `?v=0` (a GLB missing from the manifest; `tests/robot-assets.test.ts` now holds that none
+  is) and caches `/blockly-media/*` and `/favicon.svg` for a day with revalidation.
+- **M8:** the offer has z-index 2, over the results card (z-index 1); `results/fix1/offer-over-result.png` (rb-mini-mission, a Nhanh
+  check, five goals): the card's bottom is under the offer's top, and the element there is the offer.
+
+### 10.5 Verification
+
+- **Pixels:** the 36 shots of the fix build equal 16407b8's; servo-gate high's run-to-run flip in 1 of 4 shots of this build, as of
+  master (`results/fix1/shots-diff.txt`).
+- **`pnpm verify`:** 399 files, 9 104 passed, 1 skipped.
+- **`pnpm e2e`** (the full suite, all projects, from the scratch copy on 5308/5309):
+  - the branch alone, 2 runs, load 8.9–21.2: 315 of 316 each;
+  - 2 rounds alternating with master (312 tests; the branch's 4 more are the chain spec), load 15.0–50.8: master 311 and 308 of
+    312, the branch 315 and 315 of 316 (`results/fix1/e2e/`).
+  - The branch's one failure, in all 4 runs, is the a11y contrast test (`robot-lab-a11y.spec.ts:512`, master's `:509`): its 4× run
+    reached t = 0.93–1.26 s of the 2 s it waits 5 s for (master's 0.47–0.93 s), and master lost it in both its runs too (§9.7: it
+    passes alone and in the robot project). Master's second run, at load up to 50.8, also lost robot-lab-check's "a tab hidden … at
+    4×" and two of robot-lab-sensors' tests. No assertion of an existing spec changed; the specs gained only the chain's pin.
+
+### 10.6 Reproduction
+
+```sh
+zsh spikes/p2-perf3d/e2e-on-ports.sh <scratch-dir> --project=chromium-robot          # SRC=<master export> for master's side
+node spikes/p2-perf3d/lms-order.mjs --dist=<build> --profile=school|gpu --label=<name>  # I1, beside the same on master's build
+node spikes/p2-perf3d/heap-switch.mjs --dist=<build> --switches=20 --label=<name>       # I2, idem
+node spikes/p2-perf3d/offer-over-result.mjs --out=<png>                                # M8
+node spikes/p2-perf3d/shots.mjs --dist=<build> --out=<dir> && node spikes/p2-perf3d/shots-diff.mjs <master-dir> <dir>
 ```
