@@ -931,7 +931,7 @@
   color: var(--stem-color-neutral-text);
 }
 
-.robot-held-swatch {
+.color-swatch {
   flex: none;
 }
 

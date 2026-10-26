@@ -4,7 +4,7 @@ import { useLocale, useText, type Text } from '../i18n/text';
 import type { Locale } from '../i18n/messages';
 import { formatNumber } from './format';
 import { arcPath, needleAngle, polar } from './gauge';
-import { ColorSwatch, swatchMark, type SwatchColor } from './HeldChip';
+import { ColorSwatch, isSwatchColor, swatchMark } from './ColorSwatch';
 import { hubCards, type HubCard, type HubMap, type HubModule, type HubValues, type ModuleView } from './pin-map';
 import { clawStateText, colorNameText, colorRawText, irLevelText, irStateText, moduleValueText, roleName } from './pin-text';
 
@@ -110,7 +110,7 @@ function GripperBody({ module, view, t, locale }: { module: HubModule; view: Mod
 /** N19 E2: the colour sensor: a swatch of the colour it names (with its mark), the name, the raw counts, and the pins it is on. */
 function ColorBody({ module, view, t }: { module: HubModule; view: ModuleView | undefined; t: Text }) {
   const sensor = view?.kind === 'color-sensor' ? view : null;
-  const swatch: SwatchColor | undefined = sensor?.color === 'white' || sensor?.color === 'black' || sensor?.color === 'red' || sensor?.color === 'green' || sensor?.color === 'blue' || sensor?.color === 'yellow' ? sensor.color : undefined;
+  const swatch = isSwatchColor(sensor?.color) ? sensor.color : undefined;
   const pin = (name: string) => module.pins.find((candidate) => candidate.name === name)?.pin ?? NONE;
   return (
     <>

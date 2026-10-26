@@ -224,7 +224,7 @@ export const en = {
   'robot.teleop.unfold': 'Show the driving pad',
   'robot.teleop.keys': 'Keys: ↑ or W forward, ↓ or S back, ← or A spin left, → or D spin right, Space stop',
   'robot.view.keys': '3D view of the robot: the arrow keys or W A S D drive, Space stops',
-  // N19 E3: the gripper car's keys and buttons in teleop.
+  // N19 E3: the gripper car's keys and buttons in teleop. robot.view.keys.gripper is robot.view.keys with the gripper's keys added: keep the two alike.
   'robot.teleop.keys.gripper': 'Gripper: Q opens the claw, E closes it, R raises the arm, F lowers it',
   'robot.view.keys.gripper': '3D view of the robot: the arrow keys or W A S D drive, Space stops; Q opens the claw, E closes it, R raises the arm, F lowers it',
   'robot.teleop.gripper': 'Gripper',

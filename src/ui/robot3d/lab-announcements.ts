@@ -6,8 +6,9 @@ import { fallbackNoteKey, type ViewFallbackReason } from './webgl-support';
 
 // What the robot lab says politely (N18 R8), as events worked out from the state, so that it is told once when something happens and
 // never while a value moves: a run started, paused, resumed, stopped, finished or over (and why, with its score when the lesson has one),
-// the robot put back, teleop on or off, N19 E1 an object picked up or put down (`createGripAnnouncer`); a check started, each round's end and its result (`checkAnnouncement`, R6.3's, which
-// the announcer reuses). Errors are not here: they are the assertive region's (the run's messages, a check that did not finish).
+// the robot put back, teleop on or off, N19 E1 an object picked up or put down (`createGripAnnouncer`); a check started, each round's end and
+// its result (`checkAnnouncement`, R6.3's, which the announcer reuses). Errors are not here: they are the assertive region's (the run's
+// messages, a check that did not finish).
 
 /** What the announcements read of the run store at one moment. */
 export type RunMoment = {

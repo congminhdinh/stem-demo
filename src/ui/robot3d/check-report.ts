@@ -97,6 +97,9 @@ function roundColors(scenario: NamingScenario, index: number): Readonly<Record<s
   return Object.fromEntries(scenario.arena.objects.flatMap((object) => (object.color === undefined ? [] : [[object.id, object.color] as const])));
 }
 
+/** N19 D3, E1: the palette colour of the object `id` among a round's `colors`, or undefined: the one reading of it that the object's name and the HUD's swatch share. */
+const colorOfObject = (colors: Readonly<Record<string, string>>, id: string): BodyColorName | undefined => bodyColorName(Object.hasOwn(colors, id) ? colors[id] : undefined);
+
 /**
  * N19 D3: what the learner calls the object `id` in round `index`: its noun ("khối"; "vật" without one), its colour in that round when the
  * palette has a word for it, and its number among the objects with the same noun and colour when there are more than one. An object the
@@ -106,9 +109,8 @@ export function objectName(t: Text, scenario: NamingScenario | undefined, id: st
   const object = id === undefined ? undefined : scenario?.arena.objects.find((candidate) => candidate.id === id);
   if (scenario === undefined || object === undefined) return t('robot.object.name', { noun: t('robot.object.noun.other') });
   const colors = roundColors(scenario, index);
-  const colorOf = (candidate: { id: string }) => bodyColorName(Object.hasOwn(colors, candidate.id) ? colors[candidate.id] : undefined);
-  const color = colorOf(object);
-  const twins = scenario.arena.objects.filter((candidate) => candidate.noun === object.noun && colorOf(candidate) === color);
+  const color = colorOfObject(colors, object.id);
+  const twins = scenario.arena.objects.filter((candidate) => candidate.noun === object.noun && colorOfObject(colors, candidate.id) === color);
   const noun = t(`robot.object.noun.${object.noun ?? 'other'}`);
   const number = twins.length > 1 ? twins.indexOf(object) + 1 : undefined;
   if (color === undefined) return number === undefined ? t('robot.object.name', { noun }) : t('robot.object.name.index', { noun, index: number });
@@ -118,12 +120,11 @@ export function objectName(t: Text, scenario: NamingScenario | undefined, id: st
 
 /**
  * N19 E1: the colour of the object `id` in round `index` as the palette has a word for it ("red" of "khối đỏ"), or undefined without one.
- * `objectName` says it in words; the HUD's swatch draws it. Both read the round's colours (`roundColors`), so they cannot disagree.
+ * `objectName` says it in words; the HUD's swatch draws it. Both read the round's colours through `colorOfObject`, so they cannot disagree.
  */
 export function objectColorName(scenario: NamingScenario | undefined, id: string | undefined, index: number): BodyColorName | undefined {
   if (scenario === undefined || id === undefined || !scenario.arena.objects.some((candidate) => candidate.id === id)) return undefined;
-  const colors = roundColors(scenario, index);
-  return bodyColorName(Object.hasOwn(colors, id) ? colors[id] : undefined);
+  return colorOfObject(roundColors(scenario, index), id);
 }
 
 /** N19 D3: what the learner calls the zone `id`: its name ("vùng xanh dương"), or `fallback` for a zone without one (or none). */
