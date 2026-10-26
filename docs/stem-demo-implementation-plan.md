@@ -1707,6 +1707,15 @@ method tuỳ chọn `atHardware?()` (budget ảo park program trước op module
 Mã compile mới (`n18CompileDiagnosticCodes`): `pin-unavailable`, `timer-claimed`, `not-pwm`, `value-clamped`, `pin-conflict`,
 `pin-reserved`. Chi tiết ở plan robot R2.2.
 
+### N19 — Xe robot tay gắp 2 bậc (gắp, chở, phân loại, xếp chồng)
+
+`Ngoài roadmap PoC · L (~340h) · Spec: docs/n19-gripper-direction.md · Plan: docs/n19-gripper-plan.md`
+
+Kit thứ hai `ref-uno-gripper@0` (tay gắp 2 bậc kẹp + nâng, cảm biến hồng ngoại giữa càng, cảm biến màu TCS34725 qua I²C)
+bên cạnh `ref-uno-rover@0`, không đổi kit rover nên 6 bài N18 và các attempt đã lưu giữ nguyên. Gắp mô phỏng bằng attach +
+hysteresis (fixed joint trên giá kẹp). Bốn bài mới `rb-grip-pick`, `rb-grip-deliver`, `rb-grip-sort`, `rb-grip-stack` vào
+module 4 "Tay gắp" của khóa "Lập trình robot UNO".
+
 ---
 
 ## 10. Dependency và critical path
