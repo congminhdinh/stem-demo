@@ -143,7 +143,8 @@ const evidence: Record<EvidenceRef, EvidenceEntry> = {
 /**
  * A test file of this repository and the titles of its tests (exactly as written there) that run rows on the simulator: the IR on the
  * interpreter, the virtual clock and the virtual UNO, its drivers, and the world (plan D-R11 L1). uno-contract.test.ts checks that each
- * file and title exists. Run with `pnpm test <file>`.
+ * file has a test, or a describe, of exactly each title, and that nothing in the file is skipped or left to do. Run with
+ * `pnpm test <file>`.
  */
 const simTest = (file: string, titles: readonly string[], observed: string): EvidenceEntry => ({
   kind: 'TST',
@@ -233,12 +234,21 @@ const testEvidence: Record<EvidenceRef, EvidenceEntry> = {
     ],
     'The virtual UNO\'s analogWrite: on a pin without PWM HIGH from 128 and LOW below; a duty of v/255 on a PWM pin, 0 LOW and 255 HIGH; values clamped to 0..255; a servo holds Timer1 and a tone Timer2: PWM on D9/D10 and D3/D11 stays LOW with timer-claimed, also after noTone or a tone that ended, until a new analogWrite',
   ),
+  'TST-07': simTest(
+    'src/core/run/virtual-clock.program.test.ts',
+    [
+      'repeat 100 × wait 10 ends at exactly 1000 ms virtual',
+      'ends every wait on its own mark, not on the tick after it',
+      'charges every uno forever iteration LOOP_MIN_US plus its nodes: an empty loop() is 51 µs',
+    ],
+    'The interpreter on the virtual clock: 100 waits of 10 ms end at exactly 1000 ms, 1000.85625 ms with the delay() overhead of 8.5625 µs each (ms × 1000 + delayOverhead, U-18), 1001.15825 ms with the program\'s own 302 nodes, and no tick rounds a wait up; the k-th wait ends on its own mark (running time 10k ms, 10k + 1 from k = 74 as the overhead adds up); an empty uno forever charges LOOP_MIN_US + 1 node, 51 µs an iteration',
+  ),
 };
 
 /** The L1 evidence of each row: the tests above that run it. A row with none stays PENDING. */
 const simTests: Readonly<Record<string, readonly EvidenceRef[]>> = {
   'U-01': ['TST-01', 'TST-02'],
-  'U-02': ['TST-02'],
+  'U-02': ['TST-02', 'TST-07'],
   'U-03': ['TST-01', 'TST-02'],
   'U-04': ['TST-01', 'TST-02'],
   'U-05': ['TST-01', 'TST-02'],
@@ -254,7 +264,7 @@ const simTests: Readonly<Record<string, readonly EvidenceRef[]>> = {
   'U-15': ['TST-01', 'TST-02'],
   'U-16': ['TST-01', 'TST-02'],
   'U-17': ['TST-01', 'TST-02'],
-  'U-18': ['TST-04', 'TST-05'],
+  'U-18': ['TST-04', 'TST-05', 'TST-07'],
   'U-19': ['TST-01', 'TST-03', 'TST-05'],
   'U-20': ['TST-03', 'TST-05'],
   'U-21': ['TST-03', 'TST-04', 'TST-05'],

@@ -194,17 +194,20 @@ describe('claim levels L1 / L2 / L2e / L3 (contract §12)', () => {
     }
   });
 
-  it('rests L1 on tests of this repository: each TST entry names a test file that exists and the titles of tests in it (N18 final fix M4)', () => {
+  it('rests L1 on tests of this repository: each TST entry names a test file that exists and the titles of tests in it, none skipped (N18 final fix M4, review 2 N3)', () => {
     const tests = Object.entries(contract.evidence).filter(([, entry]) => entry.kind === 'TST');
-    expect(tests.map(([id]) => id)).toEqual(['TST-01', 'TST-02', 'TST-03', 'TST-04', 'TST-05', 'TST-06']);
+    expect(tests.map(([id]) => id)).toEqual(['TST-01', 'TST-02', 'TST-03', 'TST-04', 'TST-05', 'TST-06', 'TST-07']);
     for (const [id, entry] of tests) {
       expect(entry, id).toMatchObject({ supports: ['sim-semantic'], establishes: [] });
       expect(entry.source, id).toMatch(/^(src|tests)\/[\w./-]+\.test\.tsx?$/);
       const file = readFileSync(join(process.cwd(), entry.source), 'utf8');
       const titles = entry.action.split(' · ');
       expect(titles.length, id).toBeGreaterThan(0);
+      // Exactly the title of an it, a test or a describe (not a part of a longer one), in a file where nothing is skipped or left to do.
+      expect(file.match(/\.(skip|todo|skipIf|runIf)\b/g), `${id}: ${entry.source} skips a test`).toBeNull();
       for (const title of titles) {
-        expect(file.includes(`'${title}'`), `${id}: ${entry.source} has no test "${title}"`).toBe(true);
+        const called = ['it', 'test', 'describe'].some((call) => file.includes(`${call}('${title}', `));
+        expect(called, `${id}: ${entry.source} has no test or describe titled exactly "${title}"`).toBe(true);
       }
     }
     // A test establishes no field: the fields stay on the emulator, the compiler and the documents.
