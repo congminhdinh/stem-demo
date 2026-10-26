@@ -16,7 +16,12 @@ const idSchema = z.string().regex(/^[A-Za-z0-9_-]+$/, 'an id is letters, digits,
 const pointCmSchema = z.tuple([z.number(), z.number()]);
 const lengthCmSchema = z.number().positive();
 /** An sRGB colour, "#rrggbb". */
-const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'a colour is "#rrggbb"');
+export const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'a colour is "#rrggbb"');
+/**
+ * N19 D1 (plan §4.4): the colour of a body the robot can touch (an object, a box, a cylinder, a wall), which the colour sensor reads and
+ * the renderer paints (body-colors.ts). Optional and without a default: a body without one looks as it did before N19.
+ */
+const bodyColorSchema = colorSchema.optional();
 /**
  * How much infrared light a surface sends back to a line sensor, 0 (black) to 1 (white). When a surface
  * gives none, its colour's luma stands in (ground-paint.ts, `colorReflectance`).
@@ -35,6 +40,15 @@ const massGSchema = z.number().positive();
  * never changes physics or reflectance.
  */
 export const zoneKinds = ['start', 'target', 'checkpoint', 'area'] as const;
+
+/**
+ * N19 D1 (plan §4.5): what the learner calls a zone, which the check's report says ("Khối đỏ nằm ở vùng xanh dương"). Optional: a zone
+ * without a name is one the report does not name. Only the report reads it; goals name zones by `id`.
+ */
+export const zoneNames = ['pickup', 'drop', 'warehouse', 'red', 'green', 'blue', 'stack'] as const;
+
+/** N19 D1 (plan §4.5): what the learner calls an object ("khối", "kiện hàng", "bệ"). Optional: an object without one is "the object". */
+export const objectNouns = ['cube', 'parcel', 'base'] as const;
 
 const groundSchema = z.strictObject({
   /** Width (along x) and depth (along y). */
@@ -56,6 +70,7 @@ const zoneSchema = z.strictObject({
   polygonCm: z.array(pointCmSchema).min(3),
   color: colorSchema,
   reflectance: reflectanceSchema.optional(),
+  name: z.enum(zoneNames).optional(),
 });
 
 const paintSchema = z.strictObject({
@@ -72,6 +87,7 @@ const wallSchema = z.strictObject({
   heightCm: lengthCmSchema.default(10),
   tags: tagsSchema,
   ultrasonic: ultrasonicSchema,
+  color: bodyColorSchema,
 });
 
 /** A box standing on the floor: `sizeCm` is [along x, along y, height] before the yaw turns it. */
@@ -95,6 +111,7 @@ const boxSchema = z.strictObject({
   massG: massGSchema.optional(),
   tags: tagsSchema,
   ultrasonic: ultrasonicSchema,
+  color: bodyColorSchema,
 });
 
 const cylinderSchema = z.strictObject({
@@ -104,12 +121,18 @@ const cylinderSchema = z.strictObject({
   massG: massGSchema.optional(),
   tags: tagsSchema,
   ultrasonic: ultrasonicSchema,
+  color: bodyColorSchema,
 });
 
-/** A named thing to push (`object-in-zone` goals, the snapshot's `objects`): always dynamic, always weighed. */
+/**
+ * A named thing to push or to pick up (`object-in-zone` and the N19 pick-and-place goals, the snapshot's `objects`): always dynamic, always
+ * weighed. N19 D1: `noun` and `color` say what it is to the learner and to the colour sensor; a variant may give it another colour
+ * (`variants.objectColors`, variants.ts).
+ */
+const objectLooks = { noun: z.enum(objectNouns).optional(), color: bodyColorSchema };
 const objectSchema = z.discriminatedUnion('shape', [
-  z.strictObject({ shape: z.literal('box'), id: idSchema, ...boxShape, massG: massGSchema, tags: tagsSchema, ultrasonic: ultrasonicSchema }),
-  z.strictObject({ shape: z.literal('cylinder'), id: idSchema, ...cylinderShape, massG: massGSchema, tags: tagsSchema, ultrasonic: ultrasonicSchema }),
+  z.strictObject({ shape: z.literal('box'), id: idSchema, ...boxShape, massG: massGSchema, tags: tagsSchema, ultrasonic: ultrasonicSchema, ...objectLooks }),
+  z.strictObject({ shape: z.literal('cylinder'), id: idSchema, ...cylinderShape, massG: massGSchema, tags: tagsSchema, ultrasonic: ultrasonicSchema, ...objectLooks }),
 ]);
 
 export const arenaSchema = z
@@ -138,6 +161,8 @@ export type ArenaInput = z.input<typeof arenaSchema>;
 /** A validated arena, defaults filled in. */
 export type Arena = z.output<typeof arenaSchema>;
 export type ZoneKind = (typeof zoneKinds)[number];
+export type ZoneName = (typeof zoneNames)[number];
+export type ObjectNoun = (typeof objectNouns)[number];
 export type PointCm = Arena['paint']['lines'][number]['pointsCm'][number];
 export type PaintLine = Arena['paint']['lines'][number];
 export type PaintZone = Arena['paint']['zones'][number];
