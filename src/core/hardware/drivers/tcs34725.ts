@@ -28,9 +28,10 @@ import { arduinoCore, defineDriver, defineOp, type ArgRange, type CppLibrary, ty
 // helper's own time after it is the address NACK's.
 //
 // How far ahead of the world a read goes (the B3 contract): a module op starts inside its tick (the interpreter's `atHardware`), and a
-// colour read's last bus event, its STOP, comes 1123.8125 µs after the op starts (`COLOR_READ_LAST_EVENT_US`), so the model never asks for
-// light past `world.t + dt + 1124 µs`: the world's light history must reach that far. colorBegin's last bus event comes 4346.5625 µs into
-// setup(), inside tick 0, and setup() ends 58367.6875 µs in with its delays, so the first statement after it runs in tick 7 (driver test).
+// colour read's last bus event, its STOP, comes 1123.8125 µs after the op starts (`colorReadLastEventUs(io)`), so the model never asks
+// for light past `world.t + dt + 1124 µs`: the world's light history must reach that far. colorBegin's last bus event comes 4346.5625 µs
+// into setup(), inside tick 0, and setup() ends 58367.6875 µs in with its delays, so the first statement after it runs in tick 7 (driver
+// test).
 //
 // The libraries: Wire 1.0 of arduino:avr 1.8.8 (LGPL-2.1).
 
