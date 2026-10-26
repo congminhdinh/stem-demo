@@ -23,7 +23,9 @@ export { MOTOR_SPEED, motorDuty } from './hbridge';
 export { SERVO_ANGLE, SERVO_START_DEG } from './servo-lib';
 export { echoToCm, MAX_CM, MIN_CM, NO_ECHO_CM, PULSE_TIMEOUT_US, US_PER_CM } from './hcsr04';
 export { TONE_HZ, TONE_MS } from './buzzer';
-export { classifyColor, COLOR_NAMES, COLOR_RULES, colorRulesCpp } from './color-rules';
+export { classifyColor, COLOR_NAMES, COLOR_RULES, colorRulesCpp, type ColorName } from './color-rules';
+export { GRIPPER_ANGLE } from './gripper-servo2';
+export { COLOR_CHANNELS, COLOR_RAW_MAX, type ColorChannel } from './tcs34725';
 
 export const drivers: Readonly<Record<DriverId, Driver>> = {
   'hbridge-en-in1-in2': hbridgeDriver,

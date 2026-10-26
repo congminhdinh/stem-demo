@@ -59,6 +59,12 @@ export const unoOps: Readonly<Record<ArithOp | UnoCallOp | UnoReadOp, { readonly
   'pwm.write': { row: 'U-32', helpers: ['pwm-write'] },
   'digital.read': { row: 'U-33', helpers: [] },
   'analogIn.read': { row: 'U-34', helpers: [] },
+  // N19 A4 (plan §4.3): the gripper car's. Their helpers are their drivers' (gripperSet, the colour helpers).
+  'gripper.claw': { row: 'U-35', helpers: [] },
+  'gripper.lift': { row: 'U-36', helpers: [] },
+  'ir.detect': { row: 'U-37', helpers: [] },
+  'color.is': { row: 'U-38', helpers: [] },
+  'color.raw': { row: 'U-39', helpers: [] },
 };
 
 export type SketchParts = {

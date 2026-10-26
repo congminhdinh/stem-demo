@@ -47,12 +47,17 @@
 // level are typed arguments. A typed-in number outside its range is written clamped by the compiler (with a warning), so the IR
 // holds only numbers the generator can write as they are; a computed one is clamped when it runs. The raw pin ops are the header
 // pin ops of YB-4 (same names, same node) with the pin as an operand instead of the argument `args[0]`: the operand tells them apart.
+//
+// N19 A4 (plan §4.3, rows U-35…U-39) adds the gripper car's: the claw and the lift (`gripper.claw`, `gripper.lift`, an angle each),
+// whether the IR sensor between the jaws sees something (`ir.detect`), whether the colour sensor sees a colour (`color.is`) and one
+// channel's raw count (`color.raw`). The colour and the channel are what the block's dropdown fixed, by name, as the drive's direction
+// is: the run and the generator turn them into the index the driver takes (`colorIs(n)`, `colorRaw(k)`).
 
 import type { HexColour } from '../capabilities/frame';
 import type { BuiltinImageName } from '../constructs/ybc.images';
 import type { AxisName, ButtonName, GestureName } from '../constructs/ybc.input';
 import type { MelodyName, NoteName, NoteTicks } from '../constructs/ybc.sound';
-import type { DriveDirection } from '../hardware/drivers';
+import type { ColorChannel, ColorName, DriveDirection } from '../hardware/drivers';
 import type { RobotRole } from '../hardware/kit';
 
 export type Type = 'int' | 'bool' | 'str';
@@ -209,7 +214,11 @@ export type ModuleCallStatement =
   /** U-25: hz 31..4000, ms 1..60000, clamped; plays in the background. */
   | { kind: 'call'; op: 'buzzer.tone'; operand: RoleOperand; args: [hz: Expr, ms: Expr]; blockId: string }
   /** U-26 (Advanced): the tone stops at once. */
-  | { kind: 'call'; op: 'buzzer.stop'; operand: RoleOperand; blockId: string };
+  | { kind: 'call'; op: 'buzzer.stop'; operand: RoleOperand; blockId: string }
+  /** U-35 (N19 A4): the claw, 0 open … 80 the jaws meet; 0..90 (°), clamped. */
+  | { kind: 'call'; op: 'gripper.claw'; operand: RoleOperand; args: [angle: Expr]; blockId: string }
+  /** U-36 (N19 A4): the lift, 0 down … 90 up; 0..90 (°), clamped. */
+  | { kind: 'call'; op: 'gripper.lift'; operand: RoleOperand; args: [angle: Expr]; blockId: string };
 
 export type ModuleCallOp = ModuleCallStatement['op'];
 
@@ -265,16 +274,36 @@ export type ModuleReadExpr =
   /** U-30: the button is held down (its pin reads LOW). */
   | { kind: 'read'; op: 'button.pressed'; operand: RoleOperand }
   /** U-19 (Advanced): `(long)millis()`, the board's whole ms since setup() began. */
-  | { kind: 'read'; op: 'time.millis' };
+  | { kind: 'read'; op: 'time.millis' }
+  /** U-37 (N19 A4): the IR sensor between the jaws sees something (the driver knows the kit's polarity). */
+  | { kind: 'read'; op: 'ir.detect'; operand: RoleOperand }
+  /** U-38 (N19 A4): the colour sensor's reading is of `color` by COLOR_RULES (no sensor, or a NACK, reads unknown). */
+  | { kind: 'read'; op: 'color.is'; operand: RoleOperand; color: ColorName }
+  /** U-39 (N19 A4, Advanced): one channel's count of the last window, 0..21504 (COLOR_RAW_MAX); no sensor reads 0. */
+  | { kind: 'read'; op: 'color.raw'; operand: RoleOperand; channel: ColorChannel };
 
 export type ModuleReadOp = ModuleReadExpr['op'];
+
+/** N19 A4: the type of a module read's value: a truth value for what the robot sees or senses, a whole number for a measure. */
+export const moduleReadType = (op: ModuleReadOp): 'bool' | 'int' =>
+  op === 'line.dark' || op === 'button.pressed' || op === 'ir.detect' || op === 'color.is' ? 'bool' : 'int';
 
 /** N18 R2.2: the ops of a uno program (robot plan §4.4): through the kit, and on a raw pin of the board (Advanced). */
 export type UnoCallOp = ModuleCallOp | 'digital.write' | 'pwm.write';
 export type UnoReadOp = ModuleReadOp | 'digital.read' | 'analogIn.read';
 
-const moduleCallOps: ReadonlySet<string> = new Set<ModuleCallOp>(['motor.set', 'drive.move', 'drive.stop', 'servo.set', 'led.set', 'buzzer.tone', 'buzzer.stop']);
-const moduleReadOps: ReadonlySet<string> = new Set<ModuleReadOp>(['ultrasonic.cm', 'line.dark', 'line.raw', 'button.pressed', 'time.millis']);
+const moduleCallOps: ReadonlySet<string> = new Set<ModuleCallOp>([
+  'motor.set',
+  'drive.move',
+  'drive.stop',
+  'servo.set',
+  'led.set',
+  'buzzer.tone',
+  'buzzer.stop',
+  'gripper.claw',
+  'gripper.lift',
+]);
+const moduleReadOps: ReadonlySet<string> = new Set<ModuleReadOp>(['ultrasonic.cm', 'line.dark', 'line.raw', 'button.pressed', 'time.millis', 'ir.detect', 'color.is', 'color.raw']);
 
 /** N18 R2.2: whether a statement is a module op of a uno program. */
 export function isModuleCall(statement: YbcStatement): statement is ModuleCallStatement {

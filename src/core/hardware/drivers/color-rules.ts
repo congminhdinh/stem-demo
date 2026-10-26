@@ -10,6 +10,8 @@ import type { Rgbc } from '../devices/tcs34725';
 
 /** The colours, by index: what `color.is` asks and `colorClassify` answers. */
 export const COLOR_NAMES = ['red', 'green', 'blue', 'yellow', 'white', 'black', 'unknown'] as const;
+/** N19 A4: a colour by name, as a colour block asks for it (`color.is`); its index in COLOR_NAMES is what the C++ compares. */
+export type ColorName = (typeof COLOR_NAMES)[number];
 export const COLOR_UNKNOWN = 6;
 
 /** [colour, cMin, cMax, rMin, rMax, gMin, gMax, bMin, bMax]: bounds inclusive, C in counts, r g b in per-mille of r + g + b. */

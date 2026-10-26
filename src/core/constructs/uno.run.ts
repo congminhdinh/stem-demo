@@ -1,5 +1,5 @@
 import type { Capabilities } from '../capabilities/io';
-import { clampTo, CLOCK_ROLE, DRIVE_ROLE, MILLIS_OP, type ArgRange } from '../hardware/drivers';
+import { clampTo, CLOCK_ROLE, COLOR_CHANNELS, COLOR_NAMES, COLOR_RAW_MAX, DRIVE_ROLE, GRIPPER_ANGLE, MILLIS_OP, type ArgRange } from '../hardware/drivers';
 import { robotRoles, type RobotRole } from '../hardware/kit';
 import { RuntimeFault, asBool, asInt, bool, int, type Value } from '../program/values';
 import type { BoardPinOperand, ModuleCallStatement, ModuleReadExpr, RoleOperand } from '../program/ybc-ir';
@@ -15,6 +15,9 @@ import { ANGLE_RANGE } from './uno.servo';
 // value, and call the board: a module op through `capabilities.modules` (role → port → driver, hardware/binding.ts), a raw pin
 // through the UnoPinIO-backed `digital`, `pwm` and `analogIn` of the virtual UNO. What the board answers is checked against the
 // contract domain of the row: an answer outside it is a broken capability, an internal error, never a crash.
+//
+// N19 A4: the claw and the lift clamp their angle to 0..90 and warn once per role (both are the role `gripper`); a colour read asks the
+// board with the index of its colour or channel (`modules.read(role, op, [n])`, one frozen array per index: a read allocates nothing).
 
 /** A clamped value: the role or pin it is about (the run warns once per one), and the warning. */
 export type UnoClamp = { key: string; warning: { code: 'value-clamped'; message: string } };
@@ -118,6 +121,12 @@ export function runModuleCall(statement: ModuleCallStatement, args: readonly Val
     case 'buzzer.stop':
       modules.call(roleOf(statement.operand), 'buzzer.stop', []);
       return;
+    case 'gripper.claw':
+    case 'gripper.lift': {
+      const role = roleOf(statement.operand);
+      modules.call(role, statement.op, [clamped(asInt(argument(args, 0)), GRIPPER_ANGLE, role, roleNames[role], onClamp)]);
+      return;
+    }
   }
 }
 
@@ -144,7 +153,21 @@ function boardBool(value: number | boolean): Value {
   return truthValue(value);
 }
 
-/** A module read of a uno program (U-19, U-27…U-30), as the board answers it. */
+/** N19 A4: the argument of a colour read, by index: one array each, never written (N18 P1). */
+const indexArgs = (count: number): readonly (readonly number[])[] => Array.from({ length: count }, (_, index) => Object.freeze([index]));
+const colorArgs = indexArgs(COLOR_NAMES.length);
+const channelArgs = indexArgs(COLOR_CHANNELS.length);
+
+/** The argument of `color.is` for its colour, or of `color.raw` for its channel. */
+function choiceArgs(list: readonly string[], args: readonly (readonly number[])[], choice: unknown, what: string): readonly number[] {
+  const found = args[list.indexOf(choice as string)];
+  if (found === undefined) {
+    throw new RuntimeFault('internal-error', `A colour block names a ${what} that does not exist.`);
+  }
+  return found;
+}
+
+/** A module read of a uno program (U-19, U-27…U-30; N19 A4: U-37…U-39), as the board answers it. */
 export function runModuleRead(expr: ModuleReadExpr, capabilities: Capabilities): Value {
   const modules = required(capabilities, 'modules');
   switch (expr.op) {
@@ -152,7 +175,12 @@ export function runModuleRead(expr: ModuleReadExpr, capabilities: Capabilities):
       return boardInt(modules.read(roleOf(expr.operand), expr.op), ULTRASONIC_CM[0], ULTRASONIC_CM[1], 'The ultrasonic distance');
     case 'line.dark':
     case 'button.pressed':
+    case 'ir.detect':
       return boardBool(modules.read(roleOf(expr.operand), expr.op));
+    case 'color.is':
+      return boardBool(modules.read(roleOf(expr.operand), expr.op, choiceArgs(COLOR_NAMES, colorArgs, expr.color, 'colour')));
+    case 'color.raw':
+      return boardInt(modules.read(roleOf(expr.operand), expr.op, choiceArgs(COLOR_CHANNELS, channelArgs, expr.channel, 'channel')), 0, COLOR_RAW_MAX, 'The raw colour value');
     case 'line.raw':
       return boardInt(modules.read(roleOf(expr.operand), expr.op), 0, UNO_ADC_MAX, 'The raw line value');
     case 'time.millis': {

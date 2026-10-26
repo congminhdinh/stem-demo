@@ -35,9 +35,9 @@ export function robot(
         ...io,
         modules: {
           call: (role, op, args) => io.modules.call(role, op, args),
-          read(role, op) {
+          read(role, op, args) {
             const startMs = clock.now();
-            const value = io.modules.read(role, op);
+            const value = io.modules.read(role, op, args);
             reads.push({ role, op, value, startMs, chargedUs: (clock.now() - startMs) * 1000, worldMs: worldMs() });
             return value;
           },

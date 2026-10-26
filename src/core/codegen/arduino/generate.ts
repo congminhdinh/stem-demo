@@ -1,11 +1,11 @@
 import { boardPin, hasCap, type BoardProfile } from '../../hardware/board';
-import { arduinoCore, arduinoPin, DRIVE_ROLE, driveCall, drivers, kitCpp, roleOps, type CppLibrary, type DriverOp } from '../../hardware/drivers';
+import { arduinoCore, arduinoPin, COLOR_CHANNELS, COLOR_NAMES, DRIVE_ROLE, driveCall, drivers, kitCpp, roleOps, type CppLibrary, type DriverOp } from '../../hardware/drivers';
 import { kitKey, portOfRole, type Kit, type KitPort } from '../../hardware/kit';
 import { INT32_COUNT_UP_MAX_END, INT32_MAX, INT32_MIN, MAX_TEXT_CHARS, MAX_WAIT_MS } from '../../program/limits';
 import { unoUsesOf } from '../../program/uno-uses';
 import {
-  isBoardPinOp, isModuleCall, isModuleRead, loopPauseUsOf, numericOf, type Expr, type ModuleCallStatement, type ModuleReadExpr, type Type, type YbcProgramIR,
-  type YbcStatement,
+  isBoardPinOp, isModuleCall, isModuleRead, loopPauseUsOf, moduleReadType, numericOf, type Expr, type ModuleCallStatement, type ModuleReadExpr, type Type,
+  type YbcProgramIR, type YbcStatement,
 } from '../../program/ybc-ir';
 import { MAX_EXPRESSION_DEPTH, MAX_GENERATED_BYTES, MAX_STATEMENT_DEPTH } from './limits';
 import { assignCppNames } from './names';
@@ -368,17 +368,34 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
     }
   };
 
-  /** U-19, U-27…U-30 through the kit's drivers, U-33 and U-34 on a raw pin. */
+  /**
+   * N19 A4: the argument a read's driver takes, as C++: the index of a colour (`colorIs(n)`) or of a channel (`colorRaw(k)`) as a long
+   * literal; none for the other reads. Null after a diagnostic.
+   */
+  const readArgs = (read: Expr & ModuleReadExpr): string[] | null => {
+    const choice = read.op === 'color.is' ? COLOR_NAMES.indexOf(read.color) : read.op === 'color.raw' ? COLOR_CHANNELS.indexOf(read.channel) : null;
+    if (choice === null) {
+      return [];
+    }
+    if (choice < 0) {
+      report('value-out-of-range', `"${read.op}" names a ${read.op === 'color.is' ? 'colour' : 'channel'} the colour sensor does not have.`, read.blockId);
+      return null;
+    }
+    return [longLiteral(choice)];
+  };
+
+  /** U-19, U-27…U-30 (N19 A4: U-37…U-39) through the kit's drivers, U-33 and U-34 on a raw pin. */
   const renderRead = (expr: Expr & { kind: 'read' }): string => {
     if (isModuleRead(expr)) {
       const read = expr as Expr & ModuleReadExpr;
       useOp(read.op);
-      expectType(expr, read.op === 'line.dark' || read.op === 'button.pressed' ? 'bool' : 'int', `"${read.op}"`);
+      expectType(expr, moduleReadType(read.op), `"${read.op}"`);
       if (read.op === 'time.millis') {
         return '(long)millis()';
       }
       const found = driverOpOf(read.operand.role, read.op, 'read', expr.blockId);
-      return found ? found.driverOp.cpp.call(found.port, read.operand.role, []) : '';
+      const args = readArgs(read);
+      return found && args ? found.driverOp.cpp.call(found.port, read.operand.role, args) : '';
     }
     if ((expr.op === 'digital.read' || expr.op === 'analogIn.read') && isBoardPinOp(expr)) {
       useOp(expr.op);

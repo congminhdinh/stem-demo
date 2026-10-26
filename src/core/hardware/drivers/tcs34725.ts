@@ -41,10 +41,18 @@ export const wireLibrary: CppLibrary = { name: 'Wire', version: '1.0', license: 
 /** `color.is(color1, n)`: the colour index 0..6. `color.raw(color1, k)`: 0 red, 1 green, 2 blue, 3 clear. */
 const COLOR_INDEX: ArgRange = { name: 'colour', min: 0, max: 6 };
 const COLOR_CHANNEL: ArgRange = { name: 'channel', min: 0, max: 3 };
+/** N19 A4: the channels of `color.raw`, by the index `colorRaw(k)` takes. */
+export const COLOR_CHANNELS = ['red', 'green', 'blue', 'clear'] as const;
+export type ColorChannel = (typeof COLOR_CHANNELS)[number];
 
 /** colorBegin's registers (datasheet TAOS135 Tables 6 and 11): ATIME 0xEB, 21 integration cycles of 2.4 ms; AGAIN 1, gain 4×. */
 const COLOR_ATIME = 0xeb;
 const COLOR_AGAIN = 0x01;
+/**
+ * N19 A4: the most a channel counts in one window at this ATIME (datasheet Table 6: (256 − ATIME) × 1024, at most 65535): 21504. The
+ * domain of `color.raw` (U-39).
+ */
+export const COLOR_RAW_MAX = Math.min(65535, (256 - COLOR_ATIME) * 1024);
 /** colorBegin's waits, ms: after PON (> the 2.4 ms warm-up, Table 5 note 2), and for the first window (2.4 ms Init + 50.4 ms). */
 const COLOR_PON_WAIT_MS = 3;
 const COLOR_FIRST_WINDOW_MS = 54;
