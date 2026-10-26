@@ -475,7 +475,6 @@ function carriedSensors(
       if (liftDeg !== last[5]) {
         last[5] = liftDeg;
         const elevation = ((gripper.elevationAtLift0Deg + liftDeg) * Math.PI) / 180;
-        // The fields written one by one: a call's three doubles are boxed (48 bytes), a Vector3's fields are written in place.
         const at = group.position;
         at.x = pivotX + gripper.boomLengthM * Math.cos(elevation);
         at.y = pivotY + gripper.boomLengthM * Math.sin(elevation);

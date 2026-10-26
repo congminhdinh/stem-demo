@@ -1,0 +1,25 @@
+# N19 E4/E5: draws while a gripper car holds a cube still, in the browser (spikes/n19-e45/rest-draws.mjs), BASE 0a7a479 against HEAD.
+# Apple M4 Pro, macOS 26 (Darwin 25.5.0), Node v24.22.1, Playwright's Chromium with SwiftShader (as the e2e's chromium-robot), 1280 x 720.
+# 2026-10-27 05:08-05:11, load (uptime, 1 min) 8.2-12.9. The page: e2e/robot-lab-gripper-ui.html (E1-E3's entry, on BASE too), teleop on, the
+# arm lowered round the red cube, the claw closed on it, the arm raised to its stop, 4 s to settle; then 6 s of the 3D view, then 6 s of "Xem 2D".
+#
+#   node spikes/n19-e45/rest-draws.mjs --src=<git archive 0a7a479, node_modules linked> --port=5527 --label=BASE
+#   node spikes/n19-e45/rest-draws.mjs --src=. --port=5527 --label=HEAD
+#
+# The cube is held at u 4.5 on this entry (E1-E3's arena): the IR does not see its face (u 2.5 > 2.3), the colour sensor reads it (hit, 2.17 cm, rgbc).
+
+run   | WebGL frames in 6 s | 2D sensor layer draws in 6 s | 2D moving layer draws in 6 s
+BASE  | 357                 | 360                          | 2
+BASE  | 353                 | 361                          | 2
+HEAD  | 4                   | 2                            | 2
+HEAD  | 4                   | 2                            | 2
+
+# BASE: under teleop the world publishes every frame, and every publish was a change to sameSensorView (the shim), so the 3D overlay asked for
+# frames continuously (about 59 a second) and the 2D sensor layer redrew on every publish (about 60 a second).
+# HEAD: the 2D sensor layer redraws exactly as often as the moving layer (2, the same on BASE): the world's own slow settling crossing a
+# threshold of sameView twice (the scene redraws for it, 2 frames each); the overlays add none.
+#
+# The same finding in the session alone (spikes/n19-b34/redraw-at-rest.test.ts, a finished run at rest, 70 publishes in 6.9 s):
+#   BASE: {"kit":"ref-uno-gripper","publishesAtRest":70,"spanS":6.9,"overlayChanges":69,"sceneChanges":0,"topViewRedraws":69}
+#   HEAD: {"kit":"ref-uno-gripper","publishesAtRest":70,"spanS":6.9,"overlayChanges":0,"sceneChanges":0,"topViewRedraws":0}
+#   (the rover 0/0/0 on both; 2026-10-27 04:09 and 04:13, load 6.1-9.1)
