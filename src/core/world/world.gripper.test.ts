@@ -8,7 +8,7 @@ import { initPhysics, PHYSICS_DT_S } from './rapier';
 import type { ActuatorTargets } from './robot/assembly';
 import type { MotorCommand } from './robot/dc-motor';
 import type { GripperTargets } from './robot/gripper';
-import { snapshotText, type RobotSnapshot } from './snapshot';
+import { hashSnapshot, snapshotText, type RobotSnapshot } from './snapshot';
 import { createWorld, type World } from './world';
 
 // N19 B1/B2 in the world facade (world.ts): the gripper car's snapshot, the grasp machine run after each step and before the sensors are
@@ -273,6 +273,39 @@ describe('the gripper car in the world (N19 B1/B2)', () => {
     } finally {
       world.dispose();
     }
+  }, 60_000);
+
+  it('the same pick, lift and release twice gives the same snapshot every tick (the cross-engine goldens are B6’s)', async () => {
+    const arena = parseArena({ ground: { sizeCm: [200, 100], color: '#ffffff' }, objects: [cube('cube', START.xCm + tipX(0) + 3 + 8, 15)] });
+    const once = async () => {
+      const world = await createWorld({ arena, start: START, kit: gripperKit, seed: 1 });
+      try {
+        const control = driver(world);
+        const script = (function* () {
+          yield* pick(world, control, 'cube', 3);
+          control.set({ liftDeg: 60 });
+          for (let i = 0; i < seconds(0.4); i++) yield;
+          control.set({ clawDeg: 0 });
+          for (let i = 0; i < seconds(0.4); i++) yield;
+        })();
+        const hashes: string[] = [];
+        let held = 0;
+        for (let tick = 0; tick < seconds(0.35 + 4 + 0.8); tick++) {
+          script.next();
+          control.step();
+          hashes.push(hashSnapshot(world.snapshot()));
+          if (world.snapshot().robot.gripper!.heldId !== null) held += 1;
+        }
+        return { hashes, held };
+      } finally {
+        world.dispose();
+      }
+    };
+    const first = await once();
+    made.length = 0;
+    const second = await once();
+    expect(first.held).toBeGreaterThan(seconds(0.5));
+    expect(second.hashes).toEqual(first.hashes);
   }, 60_000);
 
   it('stop while holding leaves no impulse joint after dispose', async () => {

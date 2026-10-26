@@ -17,6 +17,7 @@ import {
   GRIPPER_SOLVER_GROUPS,
   GRIPPER_START,
   LIFT_BRAKE_DECEL_RAD_S2,
+  type GripperTargets,
 } from './gripper';
 
 // N19 B1 (plan §4.4 with §4.6, §4.7; ADR 0004 §5.2): the 2-DOF gripper of ref-uno-gripper@0 as Rapier bodies on the chassis: a boom on the
@@ -112,6 +113,7 @@ describe('the gripper of ref-uno-gripper@0 (N19 B1)', () => {
       expect([scene.gripper.clawCommandDeg, scene.gripper.liftCommandDeg]).toEqual([30, 0]);
       expect(() => scene.set({ liftDeg: Number.NaN })).toThrow(RangeError);
       expect(() => scene.set({ clawDeg: undefined })).toThrow(RangeError);
+      expect(() => scene.robot.applyActuators({ gripper: { clawDeg: 10, wristDeg: 5 } as GripperTargets })).toThrow(new RangeError('The gripper has no target wristDeg: clawDeg or liftDeg.'));
       expect([scene.gripper.clawCommandDeg, scene.gripper.liftCommandDeg]).toEqual([30, 0]);
     } finally {
       scene.dispose();
