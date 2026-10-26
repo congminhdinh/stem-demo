@@ -46,13 +46,23 @@ describe('the printed mat’s start for the kit of the scenario', () => {
     json.toolbox = undefined;
     json.arena = { ground: { sizeCm: [170, 140], color: '#f2f2f2' }, paint: { zones: [{ id: 'start', kind: 'start', polygonCm: [[20, 0], [80, 0], [80, 60], [20, 60]], color: '#cfe2f3' }] } };
     const scenario = loadScenario(json);
-    const middleOf = (radiusCm?: number) => {
+    const labelOf = (radiusCm?: number) => {
       const document = parse(buildArenaMat(scenario, radiusCm === undefined ? {} : { footprintRadiusCm: radiusCm }).svg);
       const id = document.querySelector('#label-zone-start .zone-id')!;
       const kind = document.querySelector('#label-zone-start .zone-kind')!;
-      const middleY = 140 - (Number(id.getAttribute('y')) + Number(kind.getAttribute('y'))) / 2;
-      return Math.hypot(Number(id.getAttribute('x')) - 50, middleY - 30);
+      return { x: id.getAttribute('x'), idY: id.getAttribute('y'), kindY: kind.getAttribute('y'), size: id.getAttribute('font-size') };
     };
+    const middleOf = (radiusCm?: number) => {
+      const label = labelOf(radiusCm);
+      const middleY = 140 - (Number(label.idY) + Number(label.kindY)) / 2;
+      return Math.hypot(Number(label.x) - 50, middleY - 30);
+    };
+    // The rover's ring: the label's middle straight above the start, 15.9984 cm from it (sheet y 94.0016), clear of the 11.4 cm keep-off but
+    // inside a 16 cm ring. With the 16 cm ring it moves aside to x 35.6288, 21.5 cm from the robot's middle.
+    expect(labelOf()).toEqual({ x: '50', idY: '93.0656', kindY: '94.9376', size: '2.4' });
+    expect(labelOf(16)).toEqual({ x: '35.6288', idY: '93.0656', kindY: '94.9376', size: '2.4' });
+    expect(middleOf()).toBeCloseTo(15.9984, 4);
+    expect(middleOf(16)).toBeCloseTo(Math.hypot(50 - 35.6288, 15.9984), 4);
     expect(middleOf()).toBeGreaterThan(11);
     expect(middleOf()).toBeLessThan(16);
     expect(middleOf(16)).toBeGreaterThan(16);

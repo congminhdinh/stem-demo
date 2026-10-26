@@ -67,6 +67,10 @@ const tiltDeg = z.number().min(0, `must be from 0 to ${TILT_DEG_MAX}`).max(TILT_
 
 const goalBase = { id: goalIdSchema, label: localized(GOAL_LABEL_MAX_CHARS), points: pointsSchema };
 
+/**
+ * The N18 kinds of goal only, the ones the schema fixture (all-goals.scenario.json) has one of each of. Every kind a scenario can have is
+ * `allGoalKinds` (N19 D1–D3 fix round 1, review M9: scenario-schema.pick-place.test.ts holds it to the schema's union at compile time).
+ */
 export const goalKinds = [
   'reach-zone',
   'checkpoints-in-order',

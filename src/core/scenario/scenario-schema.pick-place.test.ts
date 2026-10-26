@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import fixture from './__fixtures__/pick-place.scenario.json';
 import { loadScenario } from './scenario';
-import { allGoalKinds, goalKinds, pickPlaceGoalKinds, ScenarioError } from './scenario-schema';
+import { allGoalKinds, goalKinds, pickPlaceGoalKinds, ScenarioError, type GoalKind } from './scenario-schema';
 
 // N19 D2 (plan §4.5): the four pick-and-place goal kinds in the schema: their fields and defaults, and the rules the shape cannot say (the
 // objects and zones they name are the arena's, one zone or a zone per colour, every colour the object takes has a zone, a stack is of two
@@ -34,6 +34,11 @@ describe('the pick-and-place goal kinds (N19 D2)', () => {
   it('are four, after the nine of N18', () => {
     expect(pickPlaceGoalKinds).toEqual(['object-held', 'object-placed', 'object-on-object', 'object-unmoved']);
     expect(allGoalKinds).toEqual([...goalKinds, ...pickPlaceGoalKinds]);
+  });
+
+  it('make allGoalKinds every kind of the schema’s union, and nothing else (checked when the tests compile; review M9)', () => {
+    expectTypeOf<(typeof allGoalKinds)[number]>().toEqualTypeOf<GoalKind>();
+    expect(new Set(allGoalKinds).size).toBe(13);
   });
 
   it('load from the fixture, which has one of each, with the defaults of plan §4.5 filled in', () => {

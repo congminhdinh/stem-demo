@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import pickPlaceJson from '../__fixtures__/pick-place.scenario.json';
+import { loadScenario } from '../scenario';
 import { feed, type FrameInit } from './__fixtures__/frames';
 import { carryTo, ctx, cubeAt, heldAt, RELEASE_AT_S, specOf, variantCtx } from './__fixtures__/pick-place';
 import { createObjectPlacedGoal, OBJECT_PLACED_REASONS, placedTargetZone } from './object-placed';
@@ -169,6 +171,24 @@ describe('object-placed', () => {
       expect(run(lost)).toMatchObject({ passed: false, reasonKey: goalReasons.objectPushed, atS: 1.75 });
       const still = [...carryTo(130, 60).slice(0, 5), { objects: {} }, ...carryTo(130, 60).slice(6), cubeAt(130, 60)];
       expect(run(still)).toMatchObject({ passed: true });
+    });
+  });
+
+  // Review M6: a cube across the edge two zones share. The drop zone (x 110..150) gets a named neighbour, the warehouse shelf x 150..158.
+  describe('across two zones that share an edge', () => {
+    const json = structuredClone(pickPlaceJson);
+    json.arena.paint.zones.push({ id: 'shelf', kind: 'area', polygonCm: [[150, 40], [158, 40], [158, 80], [150, 80]], color: '#fff2cc', name: 'warehouse' });
+    const shelved = loadScenario(json);
+    const shelvedCtx = { arena: shelved.arena, scenario: shelved };
+    const runShelved = (frames: readonly FrameInit[]) => run(frames, shelved.goals.find((goal) => goal.id === 'place-cube') as GoalSpec<'object-placed'>, shelvedCtx);
+
+    it('is partly in its zone when its middle is in it and its footprint reaches into the other', () => {
+      expect(runShelved(carryTo(149, 60))).toEqual({ id: 'place-cube', passed: false, points: 0, progress: 0.75, reasonKey: goalReasons.objectPartlyInZone });
+    });
+
+    it('is in the wrong zone, which detail.zoneId names, when its middle is in the other one, the shared edge included (geometry.ts)', () => {
+      expect(runShelved(carryTo(151, 60))).toEqual({ id: 'place-cube', passed: false, points: 0, progress: 0.25, reasonKey: goalReasons.objectWrongZone, detail: { zoneId: 'shelf' } });
+      expect(runShelved(carryTo(150, 60))).toMatchObject({ reasonKey: goalReasons.objectWrongZone, detail: { zoneId: 'shelf' } });
     });
   });
 
