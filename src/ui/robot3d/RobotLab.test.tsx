@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, type ReactNode } from 'react';
+import { act, StrictMode, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createNewProject } from '../../core/circuit/document';
@@ -57,7 +57,7 @@ const text = (testId: string) => host.querySelector(`[data-testid=${testId}]`)?.
 const button = (testId: string) => host.querySelector<HTMLButtonElement>(`[data-testid=${testId}]`)!;
 const click = (testId: string) => act(async () => button(testId).click());
 
-function setup(template: RobotTemplateKey = 'rb-drive-to-zone', options: { locale?: 'en' | 'vi'; probe?: RobotLabProps['probe'] } = {}) {
+function setup(template: RobotTemplateKey = 'rb-drive-to-zone', options: { locale?: 'en' | 'vi'; probe?: RobotLabProps['probe']; strict?: boolean } = {}) {
   const scenario = scenarioCatalog.get(template)!;
   const fake = fakeSession(scenario, kit);
   const projectStore = createProjectStore(robotStarterDocument(template));
@@ -83,14 +83,14 @@ function setup(template: RobotTemplateKey = 'rb-drive-to-zone', options: { local
     createSession: () => fake.session,
     probe: options.probe ?? (() => ({ ok: false })),
   };
-  const render = (changes: Partial<RobotLabProps> = {}) =>
-    act(() =>
-      root.render(
-        <TextProvider locale={options.locale ?? 'vi'}>
-          <RobotLab {...props} {...changes} />
-        </TextProvider>,
-      ),
+  const render = (changes: Partial<RobotLabProps> = {}) => {
+    const lab = (
+      <TextProvider locale={options.locale ?? 'vi'}>
+        <RobotLab {...props} {...changes} />
+      </TextProvider>
     );
+    return act(() => root.render(options.strict ? <StrictMode>{lab}</StrictMode> : lab));
+  };
   return { ...fake, scenario, projectStore, views, flushProgram, onRunChange, render, lastView: () => views[views.length - 1]! };
 }
 
@@ -689,6 +689,17 @@ describe('the physics engine before the first run (N18 P2)', () => {
     await wait(300);
     expect(session.preparePhysics).toHaveBeenCalledTimes(1);
     act(() => void window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' })));
+    await wait(400);
+    expect(session.preparePhysics).toHaveBeenCalledTimes(1);
+  });
+
+  it('is loaded at idle after a press under React’s StrictMode too, with no labUse: its own watch outlives the double effect (fix round 2, N4)', async () => {
+    vi.stubGlobal('requestIdleCallback', undefined);
+    const { render, session } = setup('rb-drive-to-zone', { strict: true });
+    await render();
+    await wait(400);
+    expect(session.preparePhysics).not.toHaveBeenCalled();
+    act(() => void window.dispatchEvent(new Event('pointerdown')));
     await wait(400);
     expect(session.preparePhysics).toHaveBeenCalledTimes(1);
   });

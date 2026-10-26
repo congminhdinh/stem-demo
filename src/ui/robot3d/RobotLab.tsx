@@ -212,9 +212,16 @@ export default function RobotLab({
   // the first Run nor the first Kiểm tra waits for it then (about 250 ms of wasm on a school PC, and the download). A lab that is only
   // opened downloads none of it. Fix round 1 (I1): never once a run, a drive or a check has started (it loads the engine itself; a scratch
   // world beside it would only add work), nor twice.
-  const [ownUse] = useState(() => (labUse ? null : watchLabUse(window)));
-  useEffect(() => () => ownUse?.dispose(), [ownUse]);
-  const use = labUse ?? ownUse!;
+  // Without `labUse` (a mount site that does not watch for it) the lab watches from its mount, in an effect that also stops it, so React's
+  // StrictMode (mount, unmount, mount) leaves a live watch (fix round 2, N4).
+  const [ownUse, setOwnUse] = useState<LabUse | null>(null);
+  useEffect(() => {
+    if (labUse) return undefined;
+    const watch = watchLabUse(window);
+    setOwnUse(watch);
+    return () => watch.dispose();
+  }, [labUse]);
+  const use = labUse ?? ownUse;
   const started = useRef(false);
   useEffect(() => {
     const note = (state: ReturnType<typeof store.getState>) => {
@@ -226,7 +233,7 @@ export default function RobotLab({
   const [viewUp, setViewUp] = useState(false);
   const onViewUp = useCallback(() => setViewUp(true), []);
   useEffect(() => {
-    if (!viewUp) return undefined;
+    if (!viewUp || use === null) return undefined;
     let cancel = () => {};
     const stop = use.onUsed(() => {
       cancel = whenIdle(() => {
