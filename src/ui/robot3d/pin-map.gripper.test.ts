@@ -7,6 +7,7 @@ import { createVirtualUno, type PinState } from '../../core/hardware/virtual-uno
 import type { RobotSnapshot } from '../../core/world/snapshot';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { hubCards, hubMap, hubValues, type ModuleView } from './pin-map';
+import { robotModel } from './robot-model';
 import { idleSnapshot } from './scene-math';
 
 // N19 E2: what the "Cổng & chân" tab works out for the gripper car: the gripper's two servos (the snapshot's `robot.gripper`, as the 3D view
@@ -87,6 +88,19 @@ describe('hubMap of the gripper car (N19 E2)', () => {
     expect(map.modules.map((module) => [module.role, module.activeLow]).filter(([, low]) => low !== null)).toEqual([['irClaw', true]]);
     const rover_ = hubMap(rover, unoR3Board);
     expect(rover_.modules.every((module) => module.activeLow === null)).toBe(true);
+  });
+
+  it('takes the IR’s active level from the port, or the driver’s default when the kit says none (what ir.detect does)', () => {
+    const withParams = (params: Record<string, boolean> | undefined): Kit => ({
+      ...gripperKit,
+      ports: gripperKit.ports.map((port) => {
+        if (port.id !== 'IR1') return port;
+        const bare = { id: port.id, driver: port.driver, pins: port.pins };
+        return params === undefined ? bare : { ...bare, params };
+      }),
+    });
+    const activeLow = (kit: Kit) => hubMap(kit, unoR3Board).modules.find((module) => module.role === 'irClaw')!.activeLow;
+    expect([activeLow(withParams(undefined)), activeLow(withParams({ activeLow: true })), activeLow(withParams({ activeLow: false }))]).toEqual([true, true, false]);
   });
 
   it('gives one card each to the gripper, the IR and the colour sensor, in kit order after the line sensors’ one', () => {
@@ -200,5 +214,36 @@ describe('the rover’s tab is as it was (N19 E2)', () => {
     const { modules } = hubValues(roverMap, { ...idleSnapshot(scenario, rover), t: 1, status: 'running', pins: createVirtualUno(unoR3Board, { now: () => 0, charge: () => {} }).pins() });
     expect(Object.keys(modules).sort()).toEqual(['buzzer', 'button1', 'led1', 'motorLeft', 'motorRight', 'servo1'].sort());
     expect(roverMap.modules.map((module) => module.sensorIndex)).toEqual([-1, -1, 0, 1, 2, 3, -1, -1, -1, -1]);
+  });
+});
+
+describe('the same sensor indices as the 3D view, in any order of the kit (N19 E2)', () => {
+  /** The kit with its modules in `order` (roles), the way a vendor's file might list them: nothing else changes. */
+  const reordered = (order: readonly string[]): Kit => ({ ...gripperKit, modules: order.map((role) => gripperKit.modules.find((module) => module.role === role)!) });
+  const roles = gripperKit.modules.map((module) => module.role);
+  const orders: Record<string, readonly string[]> = {
+    'the kit’s own order': roles,
+    'reversed': [...roles].reverse(),
+    'the IR and colour sensors first': ['irClaw', 'color1', ...roles.filter((role) => role !== 'irClaw' && role !== 'color1')],
+    'the colour sensor between the line sensors': ['motorLeft', 'motorRight', 'ultrasonic', 'lineLeft', 'color1', 'lineCenter', 'irClaw', 'lineRight', 'led1', 'button1', 'gripper'],
+  };
+
+  it.each(Object.entries(orders))('counts the ultrasonic, line, IR and colour sensors as robot-model.ts does, %s', (_name, order) => {
+    const kit = reordered(order);
+    const hub = hubMap(kit, unoR3Board);
+    const model = robotModel(kit, unoR3Board);
+    const hubIndex = (role: string) => hub.modules.find((module) => module.role === role)!.sensorIndex;
+    // Every sensor of the model, by role: the line sensors, and the IR and colour sensors on the gripper.
+    const modelled = new Map<string, number>([
+      ...model.lineSensors.map((sensor) => [sensor.role, sensor.sensorIndex] as const),
+      ...(model.gripper?.ir ? [[model.gripper.ir.role, model.gripper.ir.sensorIndex] as const] : []),
+      ...(model.gripper?.color ? [[model.gripper.color.role, model.gripper.color.sensorIndex] as const] : []),
+    ]);
+    expect([...modelled.keys()].sort()).toEqual(['color1', 'irClaw', 'lineCenter', 'lineLeft', 'lineRight']);
+    for (const [role, index] of modelled) expect(hubIndex(role), role).toBe(index);
+    // The five sensors and the ultrasonic fill 0..5 once each, and no other part takes a place.
+    const sensorRoles = ['ultrasonic', ...modelled.keys()];
+    expect(sensorRoles.map(hubIndex).sort()).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(hub.modules.filter((module) => !sensorRoles.includes(module.role)).map((module) => module.sensorIndex)).toEqual(Array(hub.modules.length - 6).fill(-1));
   });
 });

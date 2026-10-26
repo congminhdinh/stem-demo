@@ -1,7 +1,7 @@
 import type { BoardProfile } from '../../core/hardware/board';
 import type { Rgbc } from '../../core/hardware/devices/tcs34725';
 import { classifyColor, COLOR_NAMES, type ColorName } from '../../core/hardware/drivers';
-import { driverPortSpecs, kitPort, type DriverId, type Kit, type ModuleKind } from '../../core/hardware/kit';
+import { driverPortSpecs, kitPort, portParam, type DriverId, type Kit, type ModuleKind } from '../../core/hardware/kit';
 import type { PinMode, PinState } from '../../core/hardware/virtual-uno';
 import type { RobotSnapshot } from '../../core/world/snapshot';
 import { buttonPressed, lineSeesDark, toneHzOf } from './robot-model';
@@ -32,7 +32,7 @@ export type HubModule = {
   pins: HubPin[];
   /** The part's place among the snapshot's `sensors` (the kit's ultrasonic, line, IR and colour sensors in kit order); -1 for a part that has none. */
   sensorIndex: number;
-  /** N19 E2: whether an IR sensor's output is LOW while it sees something (the port's `activeLow`, true by default as the driver has it); null for any other part. */
+  /** N19 E2: whether an IR sensor's output is LOW while it sees something (the port's `activeLow`, or the driver's default); null for any other part. */
   activeLow: boolean | null;
 };
 
@@ -80,7 +80,8 @@ export function hubMap(kit: Kit, board: BoardProfile): HubMap {
       driver: port?.driver ?? 'led-digital',
       pins,
       sensorIndex: sensors.findIndex((sensor) => sensor === module),
-      activeLow: module.kind === 'ir-obstacle' ? (typeof port?.params?.activeLow === 'boolean' ? port.params.activeLow : true) : null,
+      // The port's `activeLow`, or the driver's default for it: what `ir.detect` reads the level by (drivers/ir-digital.ts).
+      activeLow: module.kind === 'ir-obstacle' && port !== undefined ? portParam(port, 'activeLow') !== false : null,
     };
   });
   return {
@@ -204,7 +205,7 @@ function moduleView(module: HubModule, world: RobotSnapshot, pwmMax: number): Mo
     case 'ir-obstacle': {
       const level = pinOf('PIN')?.level;
       if (level === undefined) return undefined;
-      return { kind: 'ir-obstacle', level: level === 1 ? 'high' : 'low', detected: (level === 0) === (module.activeLow ?? true) };
+      return { kind: 'ir-obstacle', level: level === 1 ? 'high' : 'low', detected: (level === 0) === (module.activeLow !== false) };
     }
     case 'color-sensor': {
       const counts = colorCounts(world, module.sensorIndex);
