@@ -1,0 +1,53 @@
+shots (36) of the fix round 1 build against 16407b8 (base-a), then servo-gate high shot 3 more times
+drive-to-zone-high-follow.png: 0.000 % over 8, largest 0
+drive-to-zone-high-idle.png: 0.000 % over 8, largest 0
+drive-to-zone-high-step.png: 0.000 % over 8, largest 0
+drive-to-zone-high-top.png: 0.000 % over 8, largest 0
+drive-to-zone-low-follow.png: 0.000 % over 8, largest 0
+drive-to-zone-low-idle.png: 0.000 % over 8, largest 0
+drive-to-zone-low-step.png: 0.000 % over 8, largest 0
+drive-to-zone-low-top.png: 0.000 % over 8, largest 0
+line-follow-high-follow.png: 0.000 % over 8, largest 0
+line-follow-high-idle.png: 0.000 % over 8, largest 0
+line-follow-high-step.png: 0.000 % over 8, largest 0
+line-follow-high-top.png: 0.000 % over 8, largest 0
+line-follow-low-follow.png: 0.000 % over 8, largest 0
+line-follow-low-idle.png: 0.000 % over 8, largest 0
+line-follow-low-step.png: 0.000 % over 8, largest 0
+line-follow-low-top.png: 0.000 % over 8, largest 0
+mini-mission-high-follow.png: 0.000 % over 8, largest 0
+mini-mission-high-idle.png: 0.000 % over 8, largest 0
+mini-mission-high-step.png: 0.000 % over 8, largest 0
+mini-mission-high-top.png: 0.000 % over 8, largest 0
+mini-mission-low-follow.png: 0.000 % over 8, largest 0
+mini-mission-low-idle.png: 0.000 % over 8, largest 0
+mini-mission-low-step.png: 0.000 % over 8, largest 0
+mini-mission-low-top.png: 0.000 % over 8, largest 0
+servo-gate-high-idle.png: 0.001 % over 8, largest 56, box x 320–434 y 143–155
+servo-gate-high-step.png: 0.001 % over 8, largest 56, box x 320–434 y 143–155
+servo-gate-low-idle.png: 0.000 % over 8, largest 0
+servo-gate-low-step.png: 0.000 % over 8, largest 0
+square-route-high-idle.png: 0.000 % over 8, largest 0
+square-route-high-step.png: 0.000 % over 8, largest 0
+square-route-low-idle.png: 0.000 % over 8, largest 0
+square-route-low-step.png: 0.000 % over 8, largest 0
+stop-at-wall-high-idle.png: 0.000 % over 8, largest 0
+stop-at-wall-high-step.png: 0.000 % over 8, largest 0
+stop-at-wall-low-idle.png: 0.000 % over 8, largest 0
+stop-at-wall-low-step.png: 0.000 % over 8, largest 0
+2 picture(s) changed
+servo-gate high, shot 2:
+servo-gate-high-idle.png: 0.001 % over 8, largest 56, box x 320–434 y 143–155
+servo-gate-high-step.png: 0.001 % over 8, largest 56, box x 320–434 y 143–155
+servo-gate-low-idle.png: missing after
+servo-gate-low-step.png: missing after
+servo-gate high, shot 3:
+servo-gate-high-idle.png: 0.000 % over 8, largest 0
+servo-gate-high-step.png: 0.000 % over 8, largest 0
+servo-gate-low-idle.png: missing after
+servo-gate-low-step.png: missing after
+servo-gate high, shot 4:
+servo-gate-high-idle.png: 0.000 % over 8, largest 0
+servo-gate-high-step.png: 0.000 % over 8, largest 0
+servo-gate-low-idle.png: missing after
+servo-gate-low-step.png: missing after

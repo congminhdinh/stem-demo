@@ -1,0 +1,9 @@
+master full run 1 start 13:21:36 load 14.95 19.01 16.78
+master full run 1 end 13:24:17 load 21.37 21.23 18.12   1 failed   311 passed (2.7m) 
+branch full run 1 start 13:24:17 load 21.37 21.23 18.12
+branch full run 1 end 13:26:57 load 20.01 20.85 18.46   1 failed   315 passed (2.6m) 
+master full run 2 start 13:26:57 load 20.01 20.85 18.46
+master full run 2 end 13:30:26 load 50.82 34.23 24.47   4 failed   308 passed (3.5m) 
+branch full run 2 start 13:30:26 load 50.82 34.23 24.47
+branch full run 2 end 13:33:09 load 25.21 30.06 24.39   1 failed   315 passed (2.7m) 
+FULL AB DONE

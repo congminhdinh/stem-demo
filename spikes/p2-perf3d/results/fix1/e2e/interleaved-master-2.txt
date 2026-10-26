@@ -1,0 +1,794 @@
+
+Running 312 tests using 6 workers
+
+[1/312] [chromium] › e2e/mp-led-on.spec.ts:12:1 › Run lights the LED on the canvas and Stop turns it off
+[2/312] [chromium] › e2e/canvas.spec.ts:10:1 › renders the led-on sample on the canvas from the document
+[3/312] [chromium] › e2e/embed.spec.ts:47:3 › /?embed=1&template=blink opens the "Blink" sample
+[4/312] [chromium] › e2e/persistence.spec.ts:31:1 › keeps the circuit and the program as edited across a reload (E2E-4)
+[5/312] [chromium] › e2e/lab-layout.spec.ts:20:3 › a lab fits its circuit into the canvas › shows every port of the Blink circuit inside the canvas, shrunk to fit the narrower circuit column
+[6/312] [chromium] › e2e/lab-check.spec.ts:47:1 › Button A/B: the check presses A then B on the board and the controls, and the board shows ✓ then ✗
+[7/312] [chromium] › e2e/embed.spec.ts:47:3 › /?embed=1&template=led-on opens the "LED on" sample
+[8/312] [chromium] › e2e/canvas.spec.ts:42:1 › moves, adds and deletes components with the mouse and keyboard
+[9/312] [chromium] › e2e/lab-layout.spec.ts:34:3 › a lab fits its circuit into the canvas › picks the port under the pointer at the fitted scale
+[10/312] [chromium] › e2e/mp-led-on.spec.ts:40:1 › Run right after a Blockly edit runs the edited program, not the saved one
+[11/312] [chromium] › e2e/embed.spec.ts:47:3 › /?embed=1&template=button-direct opens the "Button without a program" sample
+[12/312] [chromium] › e2e/lab-layout.spec.ts:73:3 › a lab in a wide frame (1000 × 640, a lesson column) › gives the program the wider part, with the starter block in sight and nothing to scroll
+[13/312] [chromium] › e2e/canvas.spec.ts:94:1 › locks the circuit while a program runs
+[14/312] [chromium] › e2e/embed.spec.ts:47:3 › /?embed=1&template=button-led opens the "Button and LED" sample
+[15/312] [chromium] › e2e/lab-layout.spec.ts:86:3 › a lab in a wide frame (1000 × 640, a lesson column) › moves the separator with the keyboard and the pointer
+[16/312] [chromium] › e2e/program.spec.ts:24:1 › shows the led-on program in Blockly, whose stored JSON compiles to the MP IR
+[17/312] [chromium] › e2e/embed.spec.ts:61:1 › /?embed=1&template=empty opens an empty project
+[18/312] [chromium] › e2e/persistence.spec.ts:64:1 › opens the new project again after New and a reload
+[19/312] [chromium] › e2e/canvas.spec.ts:131:1 › refuses a circuit edit made in the same task as Run
+[20/312] [chromium] › e2e/lab-check.spec.ts:69:1 › Night light: the check slides the light down then up, and the board lights then goes dark
+[21/312] [chromium] › e2e/program.spec.ts:34:1 › editing a field writes the serialized workspace back to the document
+[22/312] [chromium] › e2e/lab-layout.spec.ts:109:3 › a lab in a wide frame (1000 × 640, a lesson column) › folds the circuit away for the blocks, and unfolds it for a run
+[23/312] [chromium] › e2e/embed.spec.ts:76:1 › a Button LED lab neither shows nor replaces the standalone last project
+[24/312] [chromium] › e2e/canvas.spec.ts:145:1 › cancels a drag that a Run interrupts, also after Stop
+[25/312] [chromium] › e2e/lab-layout.spec.ts:125:3 › a lab whose starter is wider than its program column (820 × 600) › shrinks the blocks until every one is in sight, and saves nothing for it
+[26/312] [chromium] › e2e/persistence.spec.ts:79:1 › never saves a Blockly edit that was still pending when New replaced the project
+[27/312] [chromium] › e2e/canvas.spec.ts:182:3 › wires › draws a wire from port to port, picking the nearest port of an off-target click
+[28/312] [chromium] › e2e/program.spec.ts:47:1 › a block disabled from the context menu stays disabled in the document and does not compile
+[29/312] [chromium] › e2e/lab-layout.spec.ts:143:3 › a lab in a narrow frame (670 × 600, a tablet in portrait) › shows the program or the circuit, in tabs, with nothing to scroll
+[30/312] [chromium] › e2e/canvas.spec.ts:200:3 › wires › refuses an invalid wire with a message, and cancels on Esc or an empty click
+[31/312] [chromium] › e2e/lab-layout.spec.ts:168:3 › a lab in a narrow frame (670 × 600, a tablet in portrait) › turns to the circuit when the program runs
+[32/312] [chromium] › e2e/lab-check.spec.ts:78:1 › an edit after a check drops the frame it left
+[33/312] [chromium] › e2e/canvas.spec.ts:228:3 › wires › never drags a component from a port, nor while a wire is being drawn
+[34/312] [chromium] › e2e/program.spec.ts:64:3 › loading a project with the same id › replaces the program in Blockly, and Run runs the loaded program
+[35/312] [chromium] › e2e/lab-layout.spec.ts:182:3 › a frame that changes size (a tablet turned) › switches between the split and the tabs, keeping the blocks and the circuit
+[36/312] [chromium] › e2e/persistence.spec.ts:106:1 › restores the design only: a reload during a run with the button held starts idle (B2)
+[37/312] [chromium] › e2e/embed.spec.ts:114:1 › a Blink lab shows the bundled Blink, not a standalone Blink edited under the same id
+[38/312] [chromium] › e2e/program.spec.ts:75:3 › loading a project with the same id › runs the loaded program even when Run comes before Blockly has reloaded
+[39/312] [chromium] › e2e/canvas.spec.ts:254:3 › wires › ends the wire being drawn when the user turns to the palette or Blockly
+[40/312] [chromium] › e2e/lab-layout.spec.ts:230:5 › a Yolo:Bit lab with every runtime control in a short frame (1440 × 620) › keeps the board at least 240 px tall and whole, the goals and the toolbar in sight, and scrolls the controls on their own
+[41/312] [chromium] › e2e/program.spec.ts:88:3 › loading a project with the same id › never lets an edit still waiting to be saved overwrite the loaded project
+[42/312] [chromium] › e2e/lab-check.spec.ts:87:1 › a Blockly lab: the check holds the push button, drawn closed, and the LED follows it
+[43/312] [chromium] › e2e/lab-layout.spec.ts:230:5 › a Yolo:Bit lab with every runtime control in a short frame (1280 × 600) › keeps the board at least 240 px tall and whole, the goals and the toolbar in sight, and scrolls the controls on their own
+[44/312] [chromium] › e2e/canvas.spec.ts:281:3 › wires › selects a wire with a click and deletes it with Delete
+[45/312] [chromium] › e2e/persistence.spec.ts:164:1 › starts a new project with a notice, without crashing, when the saved project is corrupt
+[46/312] [chromium] › e2e/lab-layout.spec.ts:230:5 › a Yolo:Bit lab with every runtime control in a short frame (1024 × 700) › keeps the board at least 240 px tall and whole, the goals and the toolbar in sight, and scrolls the controls on their own
+[47/312] [chromium] › e2e/push-button.spec.ts:17:1 › holding the button lights the LED without a program, and releasing turns it off
+[48/312] [chromium] › e2e/canvas.spec.ts:297:3 › wires › a Run cancels the wire being drawn, also after Stop
+[49/312] [chromium] › e2e/lab-layout.spec.ts:230:5 › a Yolo:Bit lab with every runtime control in a short frame (1022 × 581) › keeps the board at least 240 px tall and whole, the goals and the toolbar in sight, and scrolls the controls on their own
+[50/312] [chromium] › e2e/canvas.spec.ts:312:3 › wires › changes nothing on canvas clicks while a program runs
+[51/312] [chromium] › e2e/push-button.spec.ts:44:1 › never leaves the button held: release outside the canvas, a cancelled pointer, Stop
+[52/312] [chromium] › e2e/lab-check.spec.ts:105:3 › in a narrow frame › Kiểm tra turns to the circuit, so the check is seen
+[53/312] [chromium] › e2e/lab-layout.spec.ts:266:3 › the night light in the frame the LMS gives it (1022 × 581) › runs with the light slider in sight beside a board that keeps its size, and lights the display in the dark
+[54/312] [chromium] › e2e/embed.spec.ts:139:1 › a broken launch URL shows an error, never the standalone last project
+[55/312] [chromium] › e2e/robot-bundle.spec.ts:28:5 › bundle isolation of the robot lab › the standalone editor requests no robot chunk, three, Rapier or wasm
+[56/312] [chromium] › e2e/persistence.spec.ts:200:1 › starts a new project with a notice when a saved program would make Blockly throw
+[57/312] [chromium] › e2e/lab-layout.spec.ts:301:5 › the night light in the LMS lesson's frame at 1280 × 720 (862 × 402) › runs with the board whole, A, B and both sliders in sight beside it without scrolling, and lights the display in the dark
+[58/312] [chromium] › e2e/robot-determinism.spec.ts:15:1 › the robot world hashes the same in this browser as on Node
+[59/312] [chromium] › e2e/robot-bundle.spec.ts:28:5 › bundle isolation of the robot lab › lab=blockly requests no robot chunk, three, Rapier or wasm
+[60/312] [chromium] › e2e/embed.spec.ts:224:5 › in an iframe of another site › loads the blink lab, cross-site, and it can be run there
+[61/312] [chromium] › e2e/lab-layout.spec.ts:301:5 › the night light in the LMS lesson's frame at 1366 × 768 (948 × 450) › runs with the board whole, A, B and both sliders in sight beside it without scrolling, and lights the display in the dark
+[62/312] [chromium] › e2e/persistence.spec.ts:219:1 › starts a new project with a notice at once when a saved "if" claims a billion else-ifs (F4)
+[63/312] [chromium] › e2e/robot-lab.spec.ts:50:3 › a robot lab in a lesson (stem-lab/v1) › renders its shell in the 1100 x 640 frame and says ready with lab: robot
+[64/312] [chromium] › e2e/robot-bundle.spec.ts:28:5 › bundle isolation of the robot lab › lab=yolobit requests no robot chunk, three, Rapier or wasm
+[65/312] [chromium] › e2e/embed.spec.ts:224:5 › in an iframe of another site › loads the button-led lab, cross-site, and it can be run there
+[WebServer] 1:27:09 PM [vite] (client) [console.error] probe from the lab frame
+
+[66/312] [chromium] › e2e/robot-pins.spec.ts:59:3 › the ports & pins and C++ tabs of the robot lab (N18 R4.5) › Cổng & chân follows a run of the drive-to-zone lesson: the live motor %, the pins, the board and the table, then the stopped motors
+[67/312] [chromium] › e2e/lab-layout.spec.ts:301:5 › the night light in the LMS lesson's frame at 1280 × 800 (862 × 482) › runs with the board whole, A, B and both sliders in sight beside it without scrolling, and lights the display in the dark
+[68/312] [chromium] › e2e/persistence.spec.ts:240:1 › keeps the notice that saving is off after New, until dismissed
+[WebServer] 1:27:10 PM [vite] (client) [console.error] probe from the lab frame
+
+[69/312] [chromium] › e2e/embed.spec.ts:261:3 › in an iframe of another site › loads a lab in a sandboxed iframe that allows scripts and its own origin
+[WebServer] 1:27:10 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:27:10 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:27:10 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[70/312] [chromium] › e2e/robot-bundle.spec.ts:28:5 › bundle isolation of the robot lab › the legacy lab requests no robot chunk, three, Rapier or wasm
+[WebServer] 1:27:10 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[71/312] [chromium] › e2e/lab-layout.spec.ts:301:5 › the night light in the LMS lesson's frame at 1024 × 768, tabs (670 × 450) › runs with the board whole, A, B and both sliders in sight beside it without scrolling, and lights the display in the dark
+[72/312] [chromium] › e2e/smoke.spec.ts:3:1 › app shell loads
+[73/312] [chromium] › e2e/vs1-blink.spec.ts:10:1 › blinks, stops during a wait, and runs the program as edited in Blockly
+[74/312] [chromium] › e2e/smoke.spec.ts:11:1 › has its own icon, and the page asks for nothing that is missing
+[75/312] [chromium] › e2e/lab-layout.spec.ts:301:5 › the night light in the LMS lesson's frame at 1440 × 900 (1022 × 581) › runs with the board whole, A, B and both sliders in sight beside it without scrolling, and lights the display in the dark
+[76/312] [chromium] › e2e/robot-bundle.spec.ts:28:5 › bundle isolation of the robot lab › a broken robot launch requests no robot chunk, three, Rapier or wasm
+[77/312] [chromium] › e2e/vs2-build.spec.ts:27:1 › builds, programs and runs a circuit from an empty project (VS-2)
+[78/312] [chromium] › e2e/lab-layout.spec.ts:353:3 › a run warning in a lab (1440 × 620) › shows under the goals and moves no button of the toolbar
+[79/312] [chromium] › e2e/robot-bundle.spec.ts:39:3 › bundle isolation of the robot lab › lab=robot loads the RobotLab chunk
+[WebServer] 1:27:12 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:27:13 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[80/312] [chromium] › e2e/robot-lab.spec.ts:114:3 › a robot lab in a lesson (stem-lab/v1) › the sandbox says ready without a maxScore; a lab=robot launch with profile=uno-advanced opens that profile
+[81/312] [chromium] › e2e/vs3-button.spec.ts:47:1 › holding the button lights the LED through the program, and releasing turns it off (VS-3)
+[82/312] [chromium] › e2e/vs2-build.spec.ts:126:3 › New starts without the Run messages of the previous project › after a circuit that cannot run
+[83/312] [chromium] › e2e/robot-lab.spec.ts:124:3 › a robot lab in a lesson (stem-lab/v1) › opens the robot project of the host and ignores a generic one
+[84/312] [chromium] › e2e/vs2-build.spec.ts:139:3 › New starts without the Run messages of the previous project › after a program with compile errors
+[85/312] [chromium] › e2e/vs3-button.spec.ts:74:1 › runs the program as edited in Blockly: swapping the levels inverts the button
+[WebServer] 1:27:14 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:27:14 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[86/312] [chromium] › e2e/lab-layout.spec.ts:401:3 › the toolbar of a narrow lab (670 × 450, a lesson at 1024 × 768) › stays on the title's line, and keeps its buttons in place while Check reads "Đang kiểm tra…"
+[87/312] [chromium] › e2e/ybc-board.spec.ts:48:3 › generic project (unchanged) › offers the four generic devices and the PoC toolbox, never the Yolo:Bit-compatible board
+[88/312] [chromium] › e2e/ybc-board.spec.ts:56:3 › generic project (unchanged) › opens the empty template state, edits it, and Run says it needs a board (GB12)
+[89/312] [chromium] › e2e/robot-lab.spec.ts:142:3 › a robot lab in a lesson (stem-lab/v1) › has the dev-only robot hooks: no snapshot before a run, and a speed to set
+[90/312] [chromium] › e2e/ybc-embed.spec.ts:48:3 › a Yolo:Bit lab in a lesson (stem-lab/v1) › says ready, checks the starter (not passed), loads the host’s project and checks it (passed)
+[91/312] [chromium] › e2e/robot-lab.spec.ts:151:3 › a robot lab on its own › opens without origin, and in a frame narrower than 800 px the parts share the width
+[92/312] [chromium] › e2e/ybc-board.spec.ts:71:3 › generic project (unchanged) › opens a project with two boards, and Run says it can have only one
+[93/312] [chromium] › e2e/ybc-full-board.spec.ts:73:1 › the rainbow on the Basic board (profile=ybc-basic): the solution passes Kiểm tra; the board has no sensor controls or readings
+[94/312] [chromium] › e2e/robot-lab.spec.ts:162:3 › a robot lab on its own › speaks English with lang=en
+[95/312] [chromium] › e2e/lab-layout.spec.ts:448:5 › the starters in a lesson's frame (862 × 402) › lay no loose block on the program, in Vietnamese and in English
+[96/312] [chromium] › e2e/ybc-board.spec.ts:85:5 › ybc-basic project › offers the Yolo:Bit-compatible board only, and the structure and language in the toolbox
+[WebServer] 1:27:17 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:27:17 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[97/312] [chromium] › e2e/robot-pins.spec.ts:130:3 › the ports & pins and C++ tabs of the robot lab (N18 R4.5) › C++ shows the golden sketch of the lesson’s reference solution, marks the block the robot is in, and downloads it
+[98/312] [chromium] › e2e/ybc-board.spec.ts:95:5 › ybc-basic project › runs the empty program and stops it
+[WebServer] 1:27:18 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:27:18 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[99/312] [chromium] › e2e/robot-lab.spec.ts:174:5 › a robot lab on its own › shows the error screen, not a project, for lab=robot&template=rb-unknown
+[100/312] [chromium] › e2e/ybc-board.spec.ts:105:5 › ybc-basic project › keeps the profile, the board and the toolbox across a reload
+[101/312] [chromium] › e2e/robot-lab.spec.ts:174:5 › a robot lab on its own › shows the error screen, not a project, for lab=robot&template=blink
+[102/312] [chromium] › e2e/robot-lab.spec.ts:174:5 › a robot lab on its own › shows the error screen, not a project, for lab=robot&template=rb-sandbox&profile=ybc-basic
+[103/312] [chromium] › e2e/ybc-full-board.spec.ts:89:1 › the rainbow with profile=ybc-advanced passes as well
+[104/312] [chromium] › e2e/robot-lab.spec.ts:174:5 › a robot lab on its own › shows the error screen, not a project, for lab=blockly&template=rb-sandbox
+[105/312] [chromium] › e2e/ybc-board.spec.ts:123:5 › ybc-basic project › keeps its profile and toolbox when the board is deleted, Run needs a board, a new board makes it run again
+[106/312] [chromium] › e2e/robot-lab.spec.ts:187:3 › a robot lab on its own › the legacy launch (no lab) has no robot scenario: it is the error screen too
+[107/312] [chromium] › e2e/ybc-embed.spec.ts:100:3 › a Yolo:Bit lab in a lesson (stem-lab/v1) › talks to no other origin: a lab launched for another page sends nothing here and ignores this page
+[108/312] [chromium] › e2e/robot-lab.spec.ts:195:3 › a robot lab whose chunk does not load › says so, with a Reload button, instead of a blank page; one click on Reload brings the lab once the chunk can be fetched
+[109/312] [chromium] › e2e/lab-layout.spec.ts:448:5 › the starters in a lesson's frame (1022 × 581) › lay no loose block on the program, in Vietnamese and in English
+[110/312] [chromium] › e2e/ybc-board.spec.ts:85:5 › ybc-advanced project › offers the Yolo:Bit-compatible board only, and the structure and language in the toolbox
+[111/312] [chromium] › e2e/robot-pins.spec.ts:172:3 › the ports & pins and C++ tabs of the robot lab (N18 R4.5) › a program that does not compile shows why in the C++ tab, not an older sketch
+[WebServer] 1:27:20 PM [vite] (client) [console.error] TypeError: Failed to fetch dynamically imported module: http://localhost:5308/src/ui/robot3d/RobotLab.tsx
+[WebServer] 
+[WebServer] The above error occurred in one of your React components.
+[WebServer] 
+[WebServer] React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
+[WebServer] 
+
+[WebServer] 1:27:20 PM [vite] (client) [console.warn] The robot lab could not be loaded. TypeError: Failed to fetch dynamically imported module: http://localhost:5308/src/ui/robot3d/RobotLab.tsx
+
+[112/312] [chromium] › e2e/ybc-board.spec.ts:95:5 › ybc-advanced project › runs the empty program and stops it
+[113/312] [chromium] › e2e/ybc-full-board.spec.ts:95:1 › A pressed on the drawing of the board turns the whole display to the next colour: red, green, blue
+[WebServer] 1:27:21 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[114/312] [chromium] › e2e/ybc-board.spec.ts:105:5 › ybc-advanced project › keeps the profile, the board and the toolbox across a reload
+[WebServer] 1:27:21 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[115/312] [chromium] › e2e/ybc-embed.spec.ts:115:3 › a Yolo:Bit lab in a lesson (stem-lab/v1) › starts the sound with the click of Chạy inside the frame, without another click, and with Kiểm tra too (N17 B3)
+[116/312] [chromium] › e2e/ybc-full-board.spec.ts:107:1 › the thermometer on the Advanced board: the temperature set on the slider is what B scrolls, and Kiểm tra passes
+[117/312] [chromium] › e2e/ybc-board.spec.ts:123:5 › ybc-advanced project › keeps its profile and toolbox when the board is deleted, Run needs a board, a new board makes it run again
+[WebServer] 1:27:22 PM [vite] (client) [console.error] TypeError: Failed to fetch dynamically imported module: http://localhost:5308/src/ui/robot3d/RobotLab.tsx
+[WebServer] 
+[WebServer] The above error occurred in one of your React components.
+[WebServer] 
+[WebServer] React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
+[WebServer] 
+
+[WebServer] 1:27:22 PM [vite] (client) [console.warn] The robot lab could not be loaded. TypeError: Failed to fetch dynamically imported module: http://localhost:5308/src/ui/robot3d/RobotLab.tsx
+
+[118/312] [chromium] › e2e/robot-pins.spec.ts:189:3 › the tabs in a narrow frame (N18 R4.5) › neither tab scrolls sideways at 760 px, and Copy puts the sketch on the clipboard
+[119/312] [chromium] › e2e/lab-layout.spec.ts:468:3 › outside a lab › keeps the standalone layout: no tabs, no separator, the circuit the wider part
+[120/312] [chromium] › e2e/ybc-board.spec.ts:154:3 › a device of the wrong family in a Yolo:Bit-compatible project › is kept and marked, and Run names the problem; reloading changes nothing
+[121/312] [chromium] › e2e/ybc-hardware.spec.ts:61:3 › P1 (B1): a picture of its own, then a text › shows the ring, waits, scrolls "Hi" across and ends on an empty display
+[WebServer] 1:27:24 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:27:24 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:27:24 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[122/312] [chromium] › e2e/ybc-language.spec.ts:23:1 › runs x = 1; x = x + 2; print(x), and shows 3 on the console
+[123/312] [chromium] › e2e/ybc-pins.spec.ts:49:1 › the knob decides the LED through the program: P7 end to end (digital write, analog read, runtime slider)
+[124/312] [chromium] › e2e/ybc-board.spec.ts:173:1 › a stored project with a profile nobody knows does not open: the saved project could not be opened
+[125/312] [chromium] › e2e/ybc-language.spec.ts:36:1 › branches, prints Python-style division, and keeps forever printing until Stop
+[126/312] [chromium] › e2e/ybc-embed.spec.ts:182:3 › a Yolo:Bit lab in a lesson (stem-lab/v1) › a Blockly lab checks the finished Blink and passes
+[127/312] [chromium] › e2e/ybc-python.spec.ts:20:1 › shows the Python of the program, with only the claims that are true
+[128/312] [chromium] › e2e/ybc-language.spec.ts:50:1 › names the block and the fault when a program divides by zero, keeping the earlier output
+[129/312] [chromium] › e2e/ybc-full-board.spec.ts:135:5 › every new lab: the starter does not pass, the solution does › ybc-rainbow (ybc-basic)
+[130/312] [chromium] › e2e/ybc-python.spec.ts:44:1 › shows loops, count up with its bounds taken once, and text
+[131/312] [chromium] › e2e/ybc-language.spec.ts:60:1 › does not start a program with a type mistake, and says so
+[132/312] [chromium] › e2e/ybc-python.spec.ts:61:1 › follows a change of the project, and Advanced generates the same way
+[133/312] [chromium] › e2e/ybc-pins.spec.ts:96:1 › the same project runs in Advanced
+[134/312] [chromium] › e2e/ybc-language.spec.ts:70:1 › keeps at most 500 lines when a program prints without end
+[135/312] [chromium] › e2e/ybc-python.spec.ts:70:1 › downloads program.py with exactly the shown source, and copies it
+[136/312] [chromium] › e2e/ybc-hardware.spec.ts:81:3 › P1 (B1): a picture of its own, then a text › scrolls a number, and keeps a one-character text still
+[137/312] [chromium] › e2e/ybc-pins.spec.ts:104:1 › offers the parts of the pins in the palette and the three blocks in the Pins category
+[138/312] [chromium] › e2e/ybc-python.spec.ts:94:1 › says why there is no Python, with the diagnostics Run gives, and offers no download
+[139/312] [chromium] › e2e/ybc-hardware.spec.ts:97:3 › P2 (B3): buttons A and B change the picture › polls the buttons: held with the mouse the picture follows, released it clears
+[140/312] [chromium] › e2e/ybc-python.spec.ts:106:1 › says there is no Python for a circuit without a board, and for text the target file cannot hold
+[141/312] [chromium] › e2e/ybc-pins.spec.ts:122:1 › a pin the circuit leaves open reads off (0) on/off, says so once as a warning, and the program goes on (N17 B4)
+[142/312] [chromium] › e2e/ybc-embed.spec.ts:199:3 › a Yolo:Bit lab in a lesson (stem-lab/v1) › opens the template again, with a notice, when a project does not open in the block editor, and tells the host (Fix 6, N17 m2)
+[143/312] [chromium] › e2e/ybc-python.spec.ts:118:1 › has no Python panel in a generic project
+[144/312] [chromium] › e2e/ybc-full-board.spec.ts:135:5 › every new lab: the starter does not pass, the solution does › ybc-thermometer (ybc-advanced)
+[145/312] [chromium] › e2e/ybc-pins.spec.ts:133:1 › a pin the circuit leaves open still stops an analog read at that block, and says so in words
+[146/312] [chromium] › e2e/ybc-hardware.spec.ts:119:3 › P2 (B3): buttons A and B change the picture › is operable from the keyboard: Space holds the focused button, key repeat does not release it
+[WebServer] 1:27:31 PM [vite] (client) [console.warn] The program could not be opened in the block editor. Error: The block "text" block (id="text-4") could not connect its
+[WebServer] output connection to its parent, because: Connection checks failed. Output Connection of "text" block (id="text-4") expected String, found Colour
+[WebServer]     at fe (http://localhost:5308/node_modules/.vite/deps/blockly.js?v=bfdfd96c:1168:65)
+[WebServer]     at ne (http://localhost:5308/node_modules/.vite/deps/blockly.js?v=bfdfd96c:1211:15)
+[WebServer]     at fe (http://localhost:5308/node_modules/.vite/deps/blockly.js?v=bfdfd96c:1189:5)
+[WebServer]     at ne (http://localhost:5308/node_modules/.vite/deps/blockly.js?v=bfdfd96c:1211:15)
+[WebServer]     at fe (http://localhost:5308/node_modules/.vite/deps/blockly.js?v=bfdfd96c:1189:5)
+[WebServer]     at de (http://localhost:5308/node_modules/.vite/deps/blockly.js?v=bfdfd96c:1127:13)
+[WebServer]     at ee (http://localhost:5308/node_modules/.vite/deps/blockly.js?v=bfdfd96c:1116:8)
+[WebServer]     at hn.load (http://localhost:5308/node_modules/.vite/deps/blockly.js?v=bfdfd96c:8595:22)
+[WebServer]     at Object.load (http://localhost:5308/node_modules/.vite/deps/blockly.js?v=bfdfd96c:19783:29)
+[WebServer]     at http://localhost:5308/src/ui/blockly/BlocklyPanel.tsx:154:38
+
+[147/312] [chromium] › e2e/ybc-python.spec.ts:169:3 › export is never older than the blocks on screen › Download right after an invalid edit (1 to 1.5) exports nothing, and the panel says why
+[148/312] [chromium] › e2e/ybc-pins.spec.ts:143:1 › shows the MicroPython of the pins: the yolobit import, its preamble and the three forms
+[149/312] [chromium] › e2e/ybc-hardware.spec.ts:138:3 › P2 (B3): buttons A and B change the picture › releases a held button when focus leaves it, so it never sticks
+[150/312] [chromium] › e2e/ybc-pins.spec.ts:153:1 › builds a pin block from the toolbox, with its real dropdowns, and the LED follows it
+[151/312] [chromium] › e2e/ybc-embed.spec.ts:241:3 › a Yolo:Bit lab with every runtime control in a lesson frame of 1440 × 620 › keeps the board in sight, at least 240 px tall, with the toolbar, and scrolls only the controls
+[152/312] [chromium] › e2e/ybc-python.spec.ts:178:3 › export is never older than the blocks on screen › Copy right after an invalid edit leaves the clipboard alone
+[153/312] [chromium] › e2e/ybc-hardware.spec.ts:151:3 › P2 (B3): buttons A and B change the picture › gives the controls nothing to do before Run and after Stop
+[154/312] [chromium] › e2e/ybc-embed.spec.ts:284:5 › a lab opened on its own (a new tab) › checks ybc-heart: the starter does not pass, the finished program does
+[155/312] [chromium] › e2e/ybc-pins.spec.ts:181:3 › analog write and the servo (N17 B5) › offers the servo in the Advanced palette and the two blocks in its Pins category; Basic has neither
+[156/312] [chromium] › e2e/ybc-python.spec.ts:186:3 › export is never older than the blocks on screen › Download right after a valid edit (1 to 2) exports print(2), never print(1)
+[157/312] [chromium] › e2e/ybc-hardware.spec.ts:165:1 › P3 (B2): a picture blinks with show, wait and clear
+[158/312] [chromium] › e2e/ybc-language.spec.ts:82:1 › offers the language blocks, a variables category without "change by", and the onboard hardware categories
+[159/312] [chromium] › e2e/ybc-python.spec.ts:194:3 › export is never older than the blocks on screen › Copy right after a valid edit (1 to 2) copies print(2), never print(1)
+[160/312] [chromium] › e2e/ybc-pins.spec.ts:203:3 › analog write and the servo (N17 B5) › dims the LED and turns the servo; Stop puts the servo at 90° and the LED out at once, and Run starts clean (Review Focus 1)
+[161/312] [chromium] › e2e/ybc-language.spec.ts:117:1 › saves the program, not the run: a reload brings the same document back, with no console
+[162/312] [chromium] › e2e/ybc-python.spec.ts:203:3 › export is never older than the blocks on screen › an invalid edit that is fixed again exports the fixed program
+[163/312] [chromium] › e2e/ybc-hardware.spec.ts:180:3 › P4 (B6): a night light on the light level › lights up when the slider goes below 30, and starts every run half way
+[164/312] [chromium] › e2e/ybc-language.spec.ts:134:1 › leaves the generic editor as it was: no console, the PoC toolbox
+[165/312] [chromium] › e2e/ybc-full-board.spec.ts:135:5 › every new lab: the starter does not pass, the solution does › ybc-dice (ybc-advanced)
+[166/312] [chromium] › e2e/ybc-language.spec.ts:142:1 › the arithmetic block offers + − × and nothing else, and each operator runs
+[167/312] [chromium] › e2e/ybc-hardware.spec.ts:211:3 › get_presses (C-13) › counts three clicks made during one wait, then starts again from 0
+[168/312] [chromium] › e2e/ybc-embed.spec.ts:284:5 › a lab opened on its own (a new tab) › checks ybc-button-ab: the starter does not pass, the finished program does
+[169/312] [chromium] › e2e/ybc-language.spec.ts:160:1 › runs repeat, while, count up and else-if, and prints their results
+[170/312] [chromium] › e2e/ybc-python.spec.ts:212:1 › when the clipboard is refused, the source is selected and the copy key is explained, with no false Copied
+[171/312] [chromium] › e2e/ybc-language.spec.ts:181:1 › waits, and is still Running (and stoppable) while it waits
+[172/312] [chromium] › e2e/robot-layout.spec.ts:131:3 › the robot lab at 1100 x 640, the size of a lesson’s frame (N18 R4.6) › puts the 3D view at about 60 % with the program and its three tabs beside it, the camera over the view, and nothing scrolls
+[173/312] [chromium] › e2e/ybc-language.spec.ts:194:1 › keeps the page responsive and stops a tight while true at once
+[174/312] [chromium] › e2e/ybc-hardware.spec.ts:224:3 › get_presses (C-13) › keeps A and B apart
+[WebServer] 1:27:39 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[175/312] [chromium] › e2e/ybc-pins.spec.ts:229:3 › analog write and the servo (N17 B5) › clamps a value outside its range and says so once, as a warning; the program goes on
+[176/312] [chromium] › e2e/ybc-language.spec.ts:207:1 › stops a million-step count up, nested repeats and a forever with a tight loop
+[177/312] [chromium] › e2e/ybc-pins.spec.ts:243:3 › analog write and the servo (N17 B5) › writes the Python: pin0.write_analog(512) and pin1.servo_write(30)
+[178/312] [chromium] › e2e/ybc-full-board.spec.ts:135:5 › every new lab: the starter does not pass, the solution does › ybc-servo-gate (ybc-advanced)
+[179/312] [chromium] › e2e/ybc-pins.spec.ts:251:3 › analog write and the servo (N17 B5) › a Basic project cannot hold the servo: the part is marked and the run does not start
+[WebServer] 1:27:41 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[180/312] [chromium] › e2e/ybc-embed.spec.ts:284:5 › a lab opened on its own (a new tab) › checks ybc-night-light: the starter does not pass, the finished program does
+[181/312] [chromium] › e2e/ybc-hardware.spec.ts:236:3 › get_presses (C-13) › a counter that adds the presses of A shows the count once a click has come
+[182/312] [chromium] › e2e/robot-webgl-fallback.spec.ts:105:3 › the robot lab on a computer without WebGL (N18 R4.6) › shows the 2D top view with the reason, and Chạy moves the map’s robot as it moves the snapshot’s
+[183/312] [chromium] › e2e/ybc-language.spec.ts:223:1 › shows the faults of the new constructs: a bad repeat count and a bad wait
+[184/312] [chromium] › e2e/ybc-hardware.spec.ts:303:3 › sound (C-50, C-51) › is on from the start and starts with the click of Run, in that gesture: no other click; the text says each note, silent between and after
+[185/312] [chromium] › e2e/ybc-language.spec.ts:236:1 › offers the loop, time and join blocks, with no "repeat until" and nothing else
+[186/312] [chromium] › e2e/robot-layout.spec.ts:146:3 › the robot lab at 1100 x 640, the size of a lesson’s frame (N18 R4.6) › keeps the same layout when the 2D map takes the 3D view’s place: it fills the stage, with its scale bar and its note inside it
+[WebServer] 1:27:43 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:27:43 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[187/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:227:3 › the robot lab’s accessibility (N18 R8) › opens inside the lesson without taking the focus of the page that frames it
+[188/312] [chromium] › e2e/ybc-hardware.spec.ts:335:3 › sound (C-50, C-51) › turned off with the switch, Run makes no sound while the text still says what plays; the choice stays for the tab
+[189/312] [chromium] › e2e/ybc-full-board.spec.ts:149:5 › a lab of the Advanced board › ybc-thermometer refuses profile=ybc-basic, saying why in Vietnamese
+[WebServer] 1:27:44 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[190/312] [chromium] › e2e/robot-layout.spec.ts:182:3 › the robot lab at 1100 x 640, the size of a lesson’s frame (N18 R4.6) › keeps the header on one row with a run in progress, the HUD’s goals open and a long scenario name
+[191/312] [chromium] › e2e/ybc-full-board.spec.ts:149:5 › a lab of the Advanced board › ybc-dice refuses profile=ybc-basic, saying why in Vietnamese
+[192/312] [chromium] › e2e/ybc-full-board.spec.ts:149:5 › a lab of the Advanced board › ybc-servo-gate refuses profile=ybc-basic, saying why in Vietnamese
+[193/312] [chromium] › e2e/ybc-embed.spec.ts:284:5 › a lab opened on its own (a new tab) › checks ybc-melody: the starter does not pass, the finished program does
+[WebServer] 1:27:45 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:27:45 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[194/312] [chromium] › e2e/ybc-full-board.spec.ts:158:3 › a lab of the Advanced board › opens without a profile on its own level, and in the legacy launch
+[195/312] [chromium] › e2e/ybc-full-board.spec.ts:170:1 › a check whose tab is hidden is interrupted, not passed; checked again with the tab open, it passes (Review Focus 4)
+[196/312] [chromium] › e2e/ybc-hardware.spec.ts:359:3 › sound (C-50, C-51) › plays at the tone of the note, and Stop silences it at once
+[WebServer] 1:27:46 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[197/312] [chromium] › e2e/robot-layout.spec.ts:204:3 › the robot lab at 760 px, narrower than 800 (N18 R4.6) › shows one side at a time in two tabs: Chương trình first, and the robot’s tab, 3D view over the whole width, once Chạy is pressed
+[198/312] [chromium] › e2e/robot-webgl-fallback.spec.ts:149:3 › the robot lab on a computer without WebGL (N18 R4.6) › draws the ultrasonic ray to the wall it hears, and nothing once the robot rests
+[199/312] [chromium] › e2e/ybc-hardware.spec.ts:379:3 › sound (C-50, C-51) › a rest is silent
+[WebServer] 1:27:48 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:27:48 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[200/312] [chromium] › e2e/ybc-hardware.spec.ts:398:5 › the toolbox and the dropdowns › ybc-basic offers the display, input and sound blocks and nothing excluded
+[201/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:252:3 › the robot lab’s accessibility (N18 R8) › has names and roles on every control: the accessibility tree of the lab, idle, with the tools open, and after a check
+[202/312] [chromium-robot] › e2e/robot-lab-check.spec.ts:106:3 › Kiểm tra in the robot lab (N18 R6.3) › checks the reference at 4×: its run in the view, Lượt 1/1, then a check-result with its score after the run stopped
+[WebServer] 1:27:49 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:27:49 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[203/312] [chromium] › e2e/ybc-hardware.spec.ts:398:5 › the toolbox and the dropdowns › ybc-advanced offers the display, input and sound blocks and nothing excluded
+[204/312] [chromium] › e2e/robot-layout.spec.ts:246:3 › the robot lab at 760 px, narrower than 800 (N18 R4.6) › draws the 2D map over the width of the robot tab, scaled to fit, with the run going on
+[WebServer] 1:27:50 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:27:50 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:27:50 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[205/312] [chromium] › e2e/ybc-embed.spec.ts:301:3 › a lab opened on its own (a new tab) › Stop during a check ends it without a result; Reset asks twice, then brings the template back
+[206/312] [chromium] › e2e/ybc-hardware.spec.ts:446:3 › the toolbox and the dropdowns › offers the buttons A, B and (N17 B4) A+B, the 15 natural notes and the lengths 1, 2 and 4
+[207/312] [chromium] › e2e/ybc-embed.spec.ts:319:3 › a lab opened on its own (a new tab) › a broken lab launch says so in Vietnamese and lists that lab’s templates
+[208/312] [chromium] › e2e/ybc-hardware.spec.ts:474:3 › the RGB display (N17 B1) › fills the display blue, lights one green light at column 2, row 3, then turns it off, then shows the heart
+[209/312] [chromium] › e2e/ybc-embed.spec.ts:332:3 › a lab opened on its own (a new tab) › says what the core reports and what the board is in Vietnamese; the legacy lab keeps English (N8s)
+[WebServer] 1:27:52 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:27:52 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[210/312] [chromium] › e2e/ybc-embed.spec.ts:353:3 › a lab opened on its own (a new tab) › offers the RGB display in Vietnamese: the colours by name, the built-in pictures, one light and all lights (N17 B1)
+[211/312] [chromium] › e2e/ybc-embed.spec.ts:371:3 › a lab opened on its own (a new tab) › offers the melodies, the tone and stop of the Advanced board in Vietnamese under "Âm thanh"; a Basic lab does not (N17 B3)
+[212/312] [chromium] › e2e/robot-layout.spec.ts:274:3 › a frame that changes size under the 2D map (N18 R4.6 fix round 1) › shrinks the map’s stage with a shorter and a narrower frame, and grows it with a larger one, never scrolling
+[213/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:324:3 › the robot lab’s accessibility (N18 R8) › has exactly two live regions, a polite one and an assertive one, and a run and a check update them in words, once
+[214/312] [chromium] › e2e/ybc-hardware.spec.ts:488:3 › the RGB display (N17 B1) › shows a picture in yellow and scrolls a green text; a picture saved before N17 is still red
+[WebServer] 1:27:54 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:27:54 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[215/312] [chromium] › e2e/ybc-embed.spec.ts:397:3 › a lab opened on its own (a new tab) › offers the sensors of the Advanced board in Vietnamese: the blocks under "Đầu vào", the controls and the gesture (N17 B2)
+[WebServer] 1:27:55 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:27:55 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[216/312] [chromium] › e2e/ybc-hardware.spec.ts:497:3 › the RGB display (N17 B1) › writes the Python of the RGB display: set_pixel, set_all, clear_pixel, Image.HEART, a palette digit and a coloured scroll
+[217/312] [chromium] › e2e/robot-layout.spec.ts:308:5 › where the robot lab turns to tabs (N18 R4.6) › at 800 px it is side by side
+[218/312] [chromium] › e2e/robot-webgl-fallback.spec.ts:179:3 › the robot lab on a computer without WebGL (N18 R4.6) › lights the line sensors’ dots with what the snapshot says they see
+[219/312] [chromium] › e2e/ybc-hardware.spec.ts:511:3 › the RGB display (N17 B1) › runs a stored colour that is not one in red, and says so as a warning, not an error
+[WebServer] 1:27:56 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[220/312] [chromium-robot] › e2e/robot-lab-look.spec.ts:61:5 › the robot lab’s 3D look (N18 R4.7) › rb-drive-to-zone: the modelled scene, with shading and many colours
+[WebServer] 1:27:56 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:27:56 PM [vite] (client) [console.warn] Cannot set the dropdown's value to an unavailable option. Block type: ybc_colour, Field name: COLOUR, Value: red
+
+[WebServer] 1:27:56 PM [vite] (client) [console.warn] Cannot set the dropdown's value to an unavailable option. Block type: ybc_colour, Field name: COLOUR, Value: red
+
+[221/312] [chromium] › e2e/ybc-hardware.spec.ts:520:3 › the RGB display (N17 B1) › chooses another colour in the colour block of the workspace
+[WebServer] 1:27:57 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[222/312] [chromium] › e2e/robot-layout.spec.ts:308:5 › where the robot lab turns to tabs (N18 R4.6) › at 799 px it is in tabs
+[223/312] [chromium] › e2e/ybc-hardware.spec.ts:540:3 › the sensors of the Advanced board (N17 B2) › the temperature slider (−10..50 °C, 25 °C at the start): the program reads it, the board writes it under the display
+[WebServer] 1:27:58 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:27:58 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:27:59 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[224/312] [chromium] › e2e/ybc-hardware.spec.ts:568:3 › the sensors of the Advanced board (N17 B2) › the tilt pad: the arrow keys and a drag tilt the board, the gesture is named, and the program sees it
+[225/312] [chromium-robot] › e2e/robot-lab-check.spec.ts:149:3 › Kiểm tra in the robot lab (N18 R6.3) › an exploit fails with the reasons in Vietnamese, and Xem lại replays its round to the world the check ended it in
+[WebServer] 1:27:59 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:00 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[226/312] [chromium] › e2e/ybc-hardware.spec.ts:605:3 › the sensors of the Advanced board (N17 B2) › "Face down" turns the board over: z is positive and the program sees face down
+[227/312] [chromium-robot] › e2e/robot-lab-scene.spec.ts:66:3 › the robot lab in a lesson (N18 R4.2, R4.4) › runs the reference solution: the robot drives, its running block lights up, Đặt lại starts the run again and Dừng ends it
+[228/312] [chromium-robot] › e2e/robot-lab-look.spec.ts:61:5 › the robot lab’s 3D look (N18 R4.7) › rb-square-route: the modelled scene, with shading and many colours
+[229/312] [chromium] › e2e/ybc-hardware.spec.ts:616:3 › the sensors of the Advanced board (N17 B2) › "Shake": the program sees a shake for 1 s, the gesture says so, and the board is drawn shaken meanwhile
+[WebServer] 1:28:01 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:01 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:01 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[230/312] [chromium-robot] › e2e/robot-lab-look.spec.ts:61:5 › the robot lab’s 3D look (N18 R4.7) › rb-stop-at-wall: the modelled scene, with shading and many colours
+[WebServer] 1:28:02 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:28:03 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[231/312] [chromium] › e2e/robot-webgl-fallback.spec.ts:217:3 › the robot lab on a computer without WebGL (N18 R4.6) › Kiểm tra at 4× shows the check’s run on the map, then its check-result is sent and its results card stands over the map
+[WebServer] 1:28:03 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[232/312] [chromium] › e2e/ybc-hardware.spec.ts:631:3 › the sensors of the Advanced board (N17 B2) › prints the readings: whole degrees and whole mg on every axis
+[233/312] [chromium] › e2e/ybc-hardware.spec.ts:639:3 › the sensors of the Advanced board (N17 B2) › writes the Python of the sensors: int(temperature()), accelerometer.get_x() and is_gesture("shake")
+[234/312] [chromium] › e2e/ybc-hardware.spec.ts:647:3 › the sensors of the Advanced board (N17 B2) › a Basic board has no sensor control, and a sensor block in a Basic project does not run
+[235/312] [chromium] › e2e/ybc-hardware.spec.ts:662:3 › the melodies, the tone and stop of the Advanced board (N17 B3) › a melody in the background plays while the program goes on, is heard, and Stop silences it at once
+[236/312] [chromium-robot] › e2e/robot-lab-look.spec.ts:61:5 › the robot lab’s 3D look (N18 R4.7) › rb-line-follow: the modelled scene, with shading and many colours
+[WebServer] 1:28:06 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:06 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[237/312] [chromium] › e2e/ybc-hardware.spec.ts:684:3 › the melodies, the tone and stop of the Advanced board (N17 B3) › a melody that waits holds the program until its last note; a tone does not wait, and stop silences it
+[238/312] [chromium-robot] › e2e/robot-lab-scene.spec.ts:112:3 › the robot lab in a lesson (N18 R4.2, R4.4) › scores the reference solution 100 at 4×, the HUD showing both goals met and the run’s end
+[239/312] [chromium-robot] › e2e/robot-lab-look.spec.ts:61:5 › the robot lab’s 3D look (N18 R4.7) › rb-servo-gate: the modelled scene, with shading and many colours
+[WebServer] 1:28:08 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:08 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:28:08 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[240/312] [chromium] › e2e/robot-webgl-fallback.spec.ts:249:3 › the robot lab on a computer without WebGL (N18 R4.6) › a fast Kiểm tra shows its progress over the map and ends in the same card and check-result, with the map back as the check left it
+[WebServer] 1:28:08 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[241/312] [chromium] › e2e/ybc-hardware.spec.ts:700:3 › the melodies, the tone and stop of the Advanced board (N17 B3) › writes the Python of the melodies, the tone and stop
+[242/312] [chromium] › e2e/ybc-hardware.spec.ts:709:3 › the melodies, the tone and stop of the Advanced board (N17 B3) › a Basic board has no melody, tone or stop: a melody block in a Basic project does not run
+[243/312] [chromium-robot] › e2e/robot-lab-check.spec.ts:179:3 › Kiểm tra in the robot lab (N18 R6.3) › Dừng kiểm tra ends the check without a result: the host is sent no check-result
+[244/312] [chromium] › e2e/ybc-hardware.spec.ts:717:3 › Python (YB-3 owns the Python of its constructs) › shows the headers and the exact forms of the contract
+[WebServer] 1:28:10 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[245/312] [chromium] › e2e/ybc-hardware.spec.ts:742:3 › Python (YB-3 owns the Python of its constructs) › a program with no hardware has no yolobit import (only the modules used are imported)
+[WebServer] 1:28:10 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[246/312] [chromium] › e2e/ybc-hardware.spec.ts:751:3 › the project and the generic editor › a hardware program comes back from a reload as it was saved, with its controls
+[247/312] [chromium-robot] › e2e/robot-lab-look.spec.ts:61:5 › the robot lab’s 3D look (N18 R4.7) › rb-mini-mission: the modelled scene, with shading and many colours
+[248/312] [chromium] › e2e/robot-webgl-fallback.spec.ts:305:3 › the robot lab’s 3D view and its 2D map (N18 R4.6) › a lost WebGL context that does not come back within 2 s falls back to the map, the run goes on, and 3D returns when the context does
+[WebServer] 1:28:12 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:12 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:28:12 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[249/312] [chromium] › e2e/ybc-hardware.spec.ts:766:3 › the project and the generic editor › a run does not change the saved document: nothing of the display, the buttons or the tone is stored
+[250/312] [chromium] › e2e/ybc-hardware.spec.ts:776:3 › the project and the generic editor › replaces a run by loading another project: the old picture does not stay
+[251/312] [chromium-robot] › e2e/robot-lab-look.spec.ts:77:3 › the robot lab’s 3D look (N18 R4.7) › the high tier draws the modelled scene too, with its soft shadows
+[252/312] [chromium] › e2e/ybc-hardware.spec.ts:789:3 › the project and the generic editor › the generic editor has no controls, no sound indicator, no display text and the PoC toolbox
+[WebServer] 1:28:14 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[253/312] [chromium] › e2e/ybc-hardware.spec.ts:797:3 › the project and the generic editor › without a board there is nothing to control, and Run says it needs a board
+[WebServer] 1:28:14 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:28:14 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[254/312] [chromium] › e2e/ybc-hardware.spec.ts:805:1 › fits the lesson frame: the board, its controls and the sound switch are all in view at 1100x640
+[255/312] [chromium] › e2e/ybc-hardware.spec.ts:823:1 › touch: a tap on a button holds it for the tap and releases it
+[256/312] [chromium-robot] › e2e/robot-lab-check.spec.ts:193:3 › Kiểm tra in the robot lab (N18 R6.3) › a load-project from the host during a check opens after it: the check-result first, then the project it loaded
+[257/312] [chromium] › e2e/ybc-hardware.spec.ts:859:3 › pressing the board, A+B, the running time and random numbers (N17 B4) › A held on the drawing: the program sees it and both A buttons show it; dragged off the board before the release, it does not stick
+[WebServer] 1:28:16 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:16 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:16 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[258/312] [chromium] › e2e/ybc-hardware.spec.ts:888:3 › pressing the board, A+B, the running time and random numbers (N17 B4) › the drawing takes no press before Run, and after Stop
+[259/312] [chromium] › e2e/ybc-hardware.spec.ts:902:3 › pressing the board, A+B, the running time and random numbers (N17 B4) › A+B: the panel button holds both; A on the drawing with B held on the panel is A+B too
+[260/312] [chromium-robot] › e2e/robot-lab-scene.spec.ts:139:3 › the robot lab in a lesson (N18 R4.2, R4.4) › draws the idle view before any run: the canvas shows the arena and the robot, not the page behind it
+[WebServer] 1:28:19 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:19 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[261/312] [chromium] › e2e/ybc-hardware.spec.ts:931:3 › pressing the board, A+B, the running time and random numbers (N17 B4) › the running time and a random number: printed, in range, in both profiles
+[262/312] [chromium-robot] › e2e/robot-lab-scene.spec.ts:179:3 › the robot lab in a lesson (N18 R4.2, R4.4) › draws the run in every frame its snapshot changes, and nothing once the robot rests (the canvas draws on demand)
+[263/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:389:3 › the robot lab’s accessibility (N18 R8) › the Serial console is a labelled region of its own that never speaks, and can be reached by the keyboard
+[WebServer] 1:28:21 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:21 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[264/312] [chromium] › e2e/ybc-hardware.spec.ts:945:3 › pressing the board, A+B, the running time and random numbers (N17 B4) › writes the Python of A+B, the running time and a random number, with import random once
+[WebServer] 1:28:21 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:21 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[265/312] [chromium] › e2e/robot-webgl-fallback.spec.ts:359:3 › the robot lab’s 3D view and its 2D map (N18 R4.6) › a context that comes back within 2 s keeps the 3D scene
+[266/312] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:77:3 › the sensor overlays in the robot lab (N18 R4.3) › stop-at-wall: the goal’s zone is lit before the run, then the ray, its echo and its tag in cm appear and match the reading
+[WebServer] 1:28:22 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:22 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[267/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:410:3 › the robot lab’s accessibility (N18 R8) › has the 3D view as a named stop, which describes its keys, and the camera buttons say theirs
+[WebServer] 1:28:23 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[268/312] [chromium-robot] › e2e/robot-lab-look.spec.ts:87:3 › the robot lab’s 3D look (N18 R4.7) › "Đặt lại góc nhìn" puts a moved camera back where the view starts
+[WebServer] 1:28:23 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:23 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:28:24 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:24 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[269/312] [chromium-robot] › e2e/robot-lab-check.spec.ts:217:3 › Kiểm tra in the robot lab (N18 R6.3) › same score/passed/hash for 1×, 4× and headless
+[WebServer] 1:28:25 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:28:25 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[270/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:439:3 › the robot lab’s accessibility (N18 R8) › puts the Tab order header, the 3D view, the camera and the tools, then the program’s tabs, and traps the keyboard nowhere
+[WebServer] 1:28:25 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:28:25 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:25 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[271/312] [chromium] › e2e/robot-webgl-fallback.spec.ts:371:3 › the robot lab’s 3D view and its 2D map (N18 R4.6) › "Xem 2D" and "Xem 3D" change the view in the middle of a run without resetting it
+[272/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:485:3 › the robot lab’s accessibility (N18 R8) › has a visible focus ring of at least 3:1 on every control the Tab key reaches in the view
+[WebServer] 1:28:27 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:28 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:28:28 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:28 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[273/312] [chromium-robot] › e2e/robot-lab-scene.spec.ts:226:3 › the robot lab in a lesson (N18 R4.2, R4.4) › steps 0.1 s of simulated time from idle, paused, then runs on with Tiếp tục
+[WebServer] 1:28:29 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[274/312] [chromium-robot] › e2e/robot-lab-look.spec.ts:107:3 › the robot lab’s 3D look (N18 R4.7) › model files that do not load: R4.2’s simple shapes are drawn, and no 2D map stands in
+[WebServer] 1:28:29 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[275/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:509:3 › the robot lab’s accessibility (N18 R8) › keeps the text over the 3D view and in the controls at AA contrast: idle, in a run, with the tools open and over a result, on both graphics
+[276/312] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:109:3 › the sensor overlays in the robot lab (N18 R4.3) › "Hiện cảm biến" takes the overlays off and brings them back with the reading, and a click on it asks for a frame
+[WebServer] 1:28:29 PM [vite] (client) [console.warn] The robot lab’s 3D models did not load; the view draws its simple shapes. Error: fetch for "http://localhost:5308/robot3d/robot-kit-low.glb?v=bbefe179d6e1" responded with 404: Not Found
+[WebServer]     at http://localhost:5308/node_modules/.vite/deps/three.module-QAJAubfM.js?v=bfdfd96c:31861:17
+
+[WebServer] 1:28:30 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:30 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:28:30 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:30 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:30 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:28:30 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[277/312] [chromium-robot] › e2e/robot-lab-look.spec.ts:118:3 › the robot lab’s 3D look (N18 R4.7) › a results card slides the picture after Xem 2D and Xem 3D: the view made again is the one measured
+[WebServer] 1:28:31 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[278/312] [chromium-robot] › e2e/robot-lab-scene.spec.ts:241:3 › the robot lab in a lesson (N18 R4.2, R4.4) › says when the browser takes the 3D view’s WebGL away, and draws again when it comes back; the run goes on
+[WebServer] 1:28:31 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:32 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:32 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:28:32 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:32 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[279/312] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:129:3 › the sensor overlays in the robot lab (N18 R4.3) › they stay on in a check at 1× and at 4×, and in Xem lại
+[WebServer] 1:28:33 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[280/312] [chromium-robot] › e2e/robot-lab-tools.spec.ts:72:3 › the robot lab’s view tools (N18 R4.8) › Lái tay: the keyboard drives the robot through the simulated hardware, the D-pad shows, and the host hears of no run
+[WebServer] 1:28:33 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:33 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:28:34 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[281/312] [chromium-robot] › e2e/robot-lab-scene.spec.ts:273:3 › the robot lab’s layout (N18 R4.2) › at 1100 x 640 in the lesson frame: the view about 60 %, the program beside it, nothing scrolls
+[WebServer] 1:28:36 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:28:37 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:37 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[282/312] [firefox] › e2e/robot-determinism.spec.ts:15:1 › the robot world hashes the same in this browser as on Node
+[283/312] [chromium-robot] › e2e/robot-lab-scene.spec.ts:289:3 › the robot lab’s layout (N18 R4.2) › at 760 px: Robot and Chương trình are tabs, a Run shows the robot, nothing scrolls
+[WebServer] 1:28:39 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:39 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[284/312] [chromium-robot] › e2e/robot-lab-tools.spec.ts:118:3 › the robot lab’s view tools (N18 R4.8) › Thước đo in the top view: two clicks on the mat read their distance within 0.5 cm, and the angle to the robot’s heading
+[WebServer] 1:28:43 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[285/312] [webkit] › e2e/robot-determinism.spec.ts:15:1 › the robot world hashes the same in this browser as on Node
+[WebServer] 1:28:44 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[286/312] [chromium-robot] › e2e/robot-lab-tools.spec.ts:148:3 › the robot lab’s view tools (N18 R4.8) › Di chuyển robot: a drag in the top view puts the robot at a new start, which a Run starts from
+[WebServer] 1:28:49 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:49 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[287/312] [chromium-robot] › e2e/robot-lab-check.spec.ts:230:3 › Kiểm tra in the robot lab (N18 R6.3) › a tab hidden in the middle of a check at 4× pauses it, and gives the result a fast check gives
+[WebServer] 1:28:51 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:52 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+  1) [chromium-robot] › e2e/robot-lab-a11y.spec.ts:509:3 › the robot lab’s accessibility (N18 R8) › keeps the text over the 3D view and in the controls at AA contrast: idle, in a run, with the tools open and over a result, on both graphics 
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 2
+    Received:   0.4666666666666667
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      530 |     await frame.evaluate(() => window.__stem?.robot.setSpeed(4));
+      531 |     await frame.getByTestId('robot-run').click();
+    > 532 |     await expect.poll(async () => ((await frame.evaluate(() => window.__stem?.robot.getSnapshot())) as { t: number } | null)?.t ?? 0).toBeGreaterThan(2);
+          |                                                                                                                                       ^
+      533 |     await expectContrast(frame, 'a run');
+      534 |     // The program's other tabs while the robot runs (their values are live): the C++ source with its marked line, the ports and pins.
+      535 |     await frame.getByRole('tab', { name: 'Cổng & chân' }).click();
+        at /private/tmp/claude-501/-Users-hoangminh-Desktop-stem/60e77082-0771-4f85-b850-8e5e11aaf3ca/scratchpad/p2/e2e-ports-master/e2e/robot-lab-a11y.spec.ts:532:135
+
+    Error Context: test-results/robot-lab-a11y-the-robot-l-d603b-r-a-result-on-both-graphics-chromium-robot/error-context.md
+
+
+[288/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:555:3 › the robot lab’s accessibility (N18 R8) › takes the focus to the result’s heading when a check ends, and gives it back to Kiểm tra when the result is closed with Escape or ×
+[289/312] [chromium-robot] › e2e/robot-lab-tools.spec.ts:188:3 › the robot lab’s view tools (N18 R4.8) › the tools are small over the arena: icon toggles, the D-pad panel, and the D-pad folded away
+[WebServer] 1:28:56 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:57 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:28:57 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:28:59 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[chromium-robot] › e2e/robot-lab-tools.spec.ts:188:3 › the robot lab’s view tools (N18 R4.8) › the tools are small over the arena: icon toggles, the D-pad panel, and the D-pad folded away
+R4.8 tools at 1100 x 640: strip 50x142, with the D-pad 206x192, folded 160x142
+
+[290/312] [chromium-robot] › e2e/robot-lab-tools.spec.ts:218:3 › the robot lab’s view tools (N18 R4.8) › on the 2D map (Xem 2D) the ruler measures there too, within 0.5 cm
+[WebServer] 1:29:01 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:29:01 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[291/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:585:3 › the robot lab’s accessibility (N18 R8) › does not take the focus from the page for a check that ends while the learner is elsewhere
+[WebServer] 1:29:06 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[292/312] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:160:3 › the sensor overlays in the robot lab (N18 R4.3) › the goal’s zone pulses while a run goes on, and stands still with reduced motion
+[WebServer] 1:29:06 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:29:06 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:29:06 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[293/312] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:174:3 › the sensor overlays in the robot lab (N18 R4.3) › with reduced motion the zone does not pulse
+[WebServer] 1:29:10 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:29:10 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[294/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:603:3 › the robot lab’s accessibility (N18 R8) › closes the message card with Escape and gives the focus back to the view
+  2) [chromium-robot] › e2e/robot-lab-sensors.spec.ts:174:3 › the sensor overlays in the robot lab (N18 R4.3) › with reduced motion the zone does not pulse 
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 1.5
+    Received:   0.5583333333333333
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      177 |     await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('reference'));
+      178 |     await frame.getByTestId('robot-run').click();
+    > 179 |     await expect.poll(async () => (await view(frame))?.t ?? 0).toBeGreaterThan(1.5);
+          |                                                                ^
+      180 |     const levels = new Set<number>();
+      181 |     for (let i = 0; i < 12; i++) {
+      182 |       const probe = await overlay(frame);
+        at /private/tmp/claude-501/-Users-hoangminh-Desktop-stem/60e77082-0771-4f85-b850-8e5e11aaf3ca/scratchpad/p2/e2e-ports-master/e2e/robot-lab-sensors.spec.ts:179:64
+
+    Error Context: test-results/robot-lab-sensors-the-sens-82bfd-ion-the-zone-does-not-pulse-chromium-robot/error-context.md
+
+
+[WebServer] 1:29:17 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[295/312] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:190:3 › the sensor overlays in the robot lab (N18 R4.3) › a robot at rest draws no frame for the overlays: they ask for one only when their picture changes
+[WebServer] 1:29:18 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+  3) [chromium-robot] › e2e/robot-lab-check.spec.ts:230:3 › Kiểm tra in the robot lab (N18 R6.3) › a tab hidden in the middle of a check at 4× pauses it, and gives the result a fast check gives 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 2
+    Received: 1
+
+    Call Log:
+    - Test timeout of 30000ms exceeded
+
+       97 |   await frame.getByTestId('robot-check-start').click();
+       98 |   await during?.();
+    >  99 |   await expect.poll(async () => (await checkResults(page)).length, { timeout: 60_000 }).toBe(before + 1);
+          |                                                                                         ^
+      100 |   await expect(frame.getByTestId('robot-check-results')).toBeVisible();
+      101 |   const hashes = await frame.locator('[data-testid=robot-check-rounds] > li').evaluateAll((items) => items.map((item) => item.getAttribute('data-world-hash')));
+      102 |   return { result: (await checkResults(page))[before]!, hashes };
+        at check (/private/tmp/claude-501/-Users-hoangminh-Desktop-stem/60e77082-0771-4f85-b850-8e5e11aaf3ca/scratchpad/p2/e2e-ports-master/e2e/robot-lab-check.spec.ts:99:89)
+        at /private/tmp/claude-501/-Users-hoangminh-Desktop-stem/60e77082-0771-4f85-b850-8e5e11aaf3ca/scratchpad/p2/e2e-ports-master/e2e/robot-lab-check.spec.ts:235:20
+
+    Error Context: test-results/robot-lab-check-Kiểm-tra-i-bbdd0-e-result-a-fast-check-gives-chromium-robot/error-context.md
+
+
+[WebServer] 1:29:21 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[296/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:616:3 › the robot lab’s accessibility (N18 R8) › Escape in a result card closes the card and not Lái tay, which is on
+[WebServer] 1:29:22 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:29:22 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:29:25 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[297/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:631:3 › the robot lab’s accessibility (N18 R8) › the covered 3D view is no Tab stop, has no name or hint, while the 2D map stands in for graphics that are gone; a card closed there gives the focus to the named map
+[WebServer] 1:29:27 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:29:27 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+  4) [chromium-robot] › e2e/robot-lab-sensors.spec.ts:190:3 › the sensor overlays in the robot lab (N18 R4.3) › a robot at rest draws no frame for the overlays: they ask for one only when their picture changes 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 5
+    Received: 6
+
+      217 |     const after = await draws();
+      218 |     await page.waitForTimeout(1200);
+    > 219 |     expect(await draws()).toBe(after);
+          |                           ^
+      220 |   });
+      221 |
+      222 |   test('line-follow: a spot on the mat under each eye, a red disc where it reads dark, from the free view and from behind the robot', async ({ page, baseURL }) => {
+        at /private/tmp/claude-501/-Users-hoangminh-Desktop-stem/60e77082-0771-4f85-b850-8e5e11aaf3ca/scratchpad/p2/e2e-ports-master/e2e/robot-lab-sensors.spec.ts:219:27
+
+    Error Context: test-results/robot-lab-sensors-the-sens-e828f--when-their-picture-changes-chromium-robot/error-context.md
+
+
+[298/312] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:222:3 › the sensor overlays in the robot lab (N18 R4.3) › line-follow: a spot on the mat under each eye, a red disc where it reads dark, from the free view and from behind the robot
+[WebServer] 1:29:34 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[299/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:674:3 › the robot lab’s accessibility (N18 R8) › ends Lái tay with Escape, as it clears the ruler
+[WebServer] 1:29:36 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:29:36 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:29:37 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[300/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:711:3 › the camera by keyboard (N18 R8) › 1, 2 and 3 choose the views, 0 and Home put the view back, + and − zoom, Shift with the arrows orbit, and each says what it did
+[WebServer] 1:29:38 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:29:38 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[301/312] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:247:3 › the sensor overlays in the robot lab (N18 R4.3) › the ray is on the canvas: pixels of the beam’s blue appear beside the robot with the overlays on and go with the switch
+[WebServer] 1:29:43 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:29:43 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[302/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:773:3 › the camera by keyboard (N18 R8) › takes the keys only when the 3D view has the focus: not from a button, a field or the program’s editor, and a plain arrow is the robot’s
+[WebServer] 1:29:47 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:29:47 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[303/312] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:303:3 › the sensor overlays in the robot lab (N18 R4.3) › a run that goes on with the robot at rest draws no frame: the pulse is no frame of its own, and the tag settles to the exact reading
+[WebServer] 1:29:48 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:29:48 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[304/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:806:3 › the camera by keyboard (N18 R8) › in Lái tay the plain arrows drive the robot and Shift with them orbits the camera instead
+[WebServer] 1:29:50 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:29:51 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[305/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:829:3 › the camera by keyboard (N18 R8) › reduced motion: the camera jumps to a view where it otherwise glides for a moment
+[WebServer] 1:29:57 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:29:57 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[306/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:859:3 › the zones’ patterns on the 2D map (N18 R8) › the start is dotted, a target hatched and a checkpoint plain, each in its zone’s ink
+[WebServer] 1:30:03 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:30:03 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[307/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:886:3 › the zones’ patterns on the 2D map (N18 R8) › are on the 3D mat too: the views a learner opens are drawn with it (screenshots for the report; the texture is held by mat-paint.patterns.test.ts)
+[WebServer] 1:30:05 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:30:05 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[308/312] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:335:3 › the sensor overlays in the robot lab (N18 R4.3) › no shader program is compiled once the scene is up: the overlays’ is compiled with it, before the first frame
+[WebServer] 1:30:06 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:30:06 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[309/312] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:904:3 › the lab at a browser zoom of 200 % (N18 R8) › keeps every control whole and in reach at 550 x 320 CSS pixels: no scrolling sideways, none clipped, the 3D view shrinks
+[WebServer] 1:30:08 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:30:10 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[310/312] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:372:3 › the sensor overlays in the robot lab (N18 R4.3) › the switch has a hit area of 44 px in the camera’s panel and over the 2D map: a point 21 px from its middle, every way, is its own
+[WebServer] 1:30:12 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:30:13 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[311/312] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:397:3 › the sensor overlays in the robot lab (N18 R4.3) › on the detailed graphics tier the overlays are drawn too
+[WebServer] 1:30:16 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:30:17 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 1:30:18 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[312/312] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:415:3 › the sensor overlays in the robot lab (N18 R4.3) › the 2D map (Xem 2D) has the cone, the tag, the spots and the zone, and the same switch
+[WebServer] 1:30:25 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 1:30:25 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+  4 failed
+    [chromium-robot] › e2e/robot-lab-a11y.spec.ts:509:3 › the robot lab’s accessibility (N18 R8) › keeps the text over the 3D view and in the controls at AA contrast: idle, in a run, with the tools open and over a result, on both graphics 
+    [chromium-robot] › e2e/robot-lab-check.spec.ts:230:3 › Kiểm tra in the robot lab (N18 R6.3) › a tab hidden in the middle of a check at 4× pauses it, and gives the result a fast check gives 
+    [chromium-robot] › e2e/robot-lab-sensors.spec.ts:174:3 › the sensor overlays in the robot lab (N18 R4.3) › with reduced motion the zone does not pulse 
+    [chromium-robot] › e2e/robot-lab-sensors.spec.ts:190:3 › the sensor overlays in the robot lab (N18 R4.3) › a robot at rest draws no frame for the overlays: they ask for one only when their picture changes 
+  308 passed (3.5m)
