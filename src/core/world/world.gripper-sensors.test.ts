@@ -130,6 +130,32 @@ describe('the gripper car’s sensors in the world (N19 B3)', () => {
     }
   });
 
+  it('raised to 8–40° the claw servo’s case stands in front of the ultrasonic: it reads it at its near end, at any claw angle (N19 B5)', async () => {
+    // Ruling E67 I4: the case is a collider the ultrasonic hears (sensors/ultrasonic.claw-servo.test.ts names the parts: the case alone from
+    // 12° to 32°). Without it, the wall 60 cm away. The world names every part of the gripper `#gripper`. At 7° and 53° the wall (59.9–60.0 cm:
+    // the arm's weight tilts the car a little).
+    const faceX = START.xCm + 7.5 + 60;
+    const world = await createWorld({ arena: floor({ walls: [{ id: 'wall', fromCm: [faceX + 1, 5], toCm: [faceX + 1, 95] }] }), start: START, kit: gripperKit, seed: 1 });
+    try {
+      const control = driver(world);
+      const heard: string[] = [];
+      for (const [liftDeg, clawDeg] of [[20, 0], [20, 80], [30, 40], [7, 0], [53, 0]] as const) {
+        control.set({ liftDeg, clawDeg });
+        control.step(seconds(0.4));
+        const echo = world.sense.ultrasonic('ultrasonic');
+        heard.push(`${liftDeg}/${clawDeg}: ${echo.hitId} ${echo.cm.toFixed(1)} (${echo.echoUs} µs)`);
+      }
+      expect(heard).toEqual([`20/0: ${GRIPPER_PART_ID} 2.0 (116 µs)`, `20/80: ${GRIPPER_PART_ID} 2.0 (116 µs)`, `30/40: ${GRIPPER_PART_ID} 2.0 (116 µs)`, expect.stringMatching(/^7\/0: wall (59\.9|60\.0) /), expect.stringMatching(/^53\/0: wall (59\.9|60\.0) /)]);
+      // What a program reads (hcsr04 truncates): 2 cm, so a "go while the distance > 15 cm" loop with the arm raised there never starts.
+      expect(world.sense.distanceCm('ultrasonic')).toBeGreaterThan(15);
+      control.set({ liftDeg: 20 });
+      control.step(seconds(0.4));
+      expect(world.sense.distanceCm('ultrasonic')).toBe(2);
+    } finally {
+      world.dispose();
+    }
+  });
+
   it('a 4 cm cube between the jaws reads 3.8 ± 0.2 cm: the last the cone hears of it, its near face between the jaws, before it passes under', async () => {
     const world = await createWorld({ arena: floor({ objects: [cube('cube', START.xCm + tipX(0) + 3 + 8)] }), start: START, kit: gripperKit, seed: 1 });
     try {

@@ -45,16 +45,17 @@ describe('the gripper of ref-uno-gripper@0 (N19 B1)', () => {
       expect(gripper.fingers.map((finger) => finger.body.mass())).toEqual([expect.closeTo(0.003, 8), expect.closeTo(0.003, 8)]);
       expect(robot.bodies.reduce((sum, body) => sum + body.mass(), 0)).toBeCloseTo(0.46, 6);
       // The arena's fixed body and the five; the ground and the chassis' six colliders (body, two wheel sides, two support balls,
-      // caster) and the gripper's six (two boom plates, the boom's cross bar, the carriage, two fingers); five joints (boom on the
-      // chassis, carriage on the boom, the AngZ lock chassis↔carriage, a finger on the carriage each).
-      expect([world.bodies.len(), world.colliders.len(), world.impulseJoints.len(), world.multibodyJoints.len()]).toEqual([6, 13, 5, 0]);
-      expect(gripper.colliders).toHaveLength(6);
+      // caster) and the gripper's seven (two boom plates, the boom's cross bar, the carriage, two fingers, and since B5 the claw servo's
+      // case on the carriage); five joints (boom on the chassis, carriage on the boom, the AngZ lock chassis↔carriage, a finger on the
+      // carriage each).
+      expect([world.bodies.len(), world.colliders.len(), world.impulseJoints.len(), world.multibodyJoints.len()]).toEqual([6, 14, 5, 0]);
+      expect(gripper.colliders).toHaveLength(7);
       let own = 0;
       world.forEachCollider((collider) => {
         if (robot.ownsCollider(collider)) own += 1;
         expect(robot.ownsCollider(collider)).toBe(scene.arena.infoOf(collider) === undefined);
       });
-      expect(own).toBe(12);
+      expect(own).toBe(13);
       for (const collider of gripper.colliders) expect(gripper.ownsCollider(collider)).toBe(true);
       expect(gripper.ownsCollider(robot.chassis.collider(0))).toBe(false);
     } finally {
@@ -316,6 +317,48 @@ describe('the gripper of ref-uno-gripper@0 (N19 B1)', () => {
     }
     expect(rows).toHaveLength(6);
   }, 60_000);
+
+  it('the claw servo’s case is a collider on the carriage: the kit’s clawServo* box, massless, in GRIPPER_GROUP only (N19 B5, ruling E67 I4)', () => {
+    // GripperSpec clawServoCenter{U,V,W}Cm [-0.13, 0, 1.535] and clawServoSize{U,V,W}Cm 1.22 × 2.28 × 2.27 (PLACEHOLDER), in the carriage frame,
+    // which is Rapier local (x = u, y = w, z = −v) of the carriage body: what the 3D view draws (E6), so the visual is the collider.
+    expect([spec.clawServoCenterUCm, spec.clawServoCenterVCm, spec.clawServoCenterWCm]).toEqual([-0.13, 0, 1.535]);
+    expect([spec.clawServoSizeUCm, spec.clawServoSizeVCm, spec.clawServoSizeWCm]).toEqual([1.22, 2.28, 2.27]);
+    const scene = gripperScene(open(), START);
+    try {
+      const { gripper, robot } = scene;
+      expect(gripper.carriage.numColliders()).toBe(2);
+      const servo = gripper.carriage.collider(1);
+      expect(servo.shape.type).toBe(robot.chassis.collider(0).shape.type);
+      // (Rapier keeps lengths as float32: compared to a micrometre.)
+      const um = (m: number) => Math.round(m * 1e6);
+      const half = servo.halfExtents()!;
+      expect([um(half.x), um(half.y), um(half.z)]).toEqual([6100, 11350, 11400]);
+      const at = servo.translationWrtParent()!;
+      expect([um(at.x), um(at.y), um(at.z) + 0]).toEqual([-1300, 15350, 0]);
+      // The carriage's 22 g already counts the servo (§4.1): the case adds no mass nor inertia; the carriage is the 1 × 1.2 × 5.2 cm box's,
+      // about the box's own axes (u, w, −v). Not diagonalised again: a density-0 case left the same inertia with its principal axes permuted
+      // (the frame turned 180° about u) and its last bits changed, which moved a held cube's claw 0.15° (gripper.ts).
+      expect(servo.mass()).toBe(0);
+      expect(gripper.carriage.mass()).toBeCloseTo(0.022, 8);
+      expect(gripper.carriage.localCom()).toEqual({ x: 0, y: 0, z: 0 });
+      expect(gripper.carriage.principalInertiaLocalFrame()).toEqual({ x: 0, y: 0, z: 0, w: 1 });
+      const box = (a: number, b: number) => (0.022 * (a * a + b * b)) / 12;
+      const inertia = gripper.carriage.principalInertia();
+      for (const [got, want] of [
+        [inertia.x, box(0.012, 0.052)],
+        [inertia.y, box(0.01, 0.052)],
+        [inertia.z, box(0.01, 0.012)],
+      ] as const) {
+        expect(Math.abs(got - want) / want).toBeLessThan(1e-6);
+      }
+      // One of the gripper's: GRIPPER_GROUP only for collisions and the solver; the ultrasonic hears it (world.ts: the gripper's colliders).
+      expect(gripper.colliders).toContain(servo);
+      expect([gripper.ownsCollider(servo), robot.ownsCollider(servo), servo.isSensor()]).toEqual([true, true, false]);
+      expect([servo.collisionGroups(), servo.solverGroups()]).toEqual([GRIPPER_COLLISION_GROUPS, GRIPPER_SOLVER_GROUPS]);
+    } finally {
+      scene.dispose();
+    }
+  });
 
   it('never touches its own chassis (a contact is a positive impulse or a gap ≤ 0.5 mm: the manifold’s distance alone misses predicted ones)', () => {
     const scene = gripperScene(open(), START);

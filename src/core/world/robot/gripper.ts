@@ -30,6 +30,9 @@ import { SERVO_MOTOR_GAIN } from './servo-arm';
 //     through the gear ratio (`fingerTorqueNm`). Solid colliders with no friction (§4.6): an attached joint holds an object, not friction;
 //     `jawFriction` is only the grasp's slip threshold. The grasp machine (grasp.ts) freezes the fingers on a held object and stalls the
 //     claw on an object pinched across it.
+//   - The claw servo's case (B5, ruling E67 I4): a second collider on the carriage, the kit's `clawServo*` box that the 3D view draws, so
+//     the visual is the collider; massless (the carriage's mass counts it). The ultrasonic hears it where it is raised in front of the
+//     HC-SR04 (lift 8–40° on ref-uno-gripper@0).
 //
 // Frames: the carriage frame of kit.ts `GripperSpec` (u forward, v left, w up, cm, from the boom's tip; the chassis' axes while level) is
 // Rapier local (x = u, y = w, z = −v) of the carriage body. The lift angle 0..90° turns the boom's elevation from boomElevationAtLift0Deg up
@@ -282,6 +285,22 @@ export function createGripper(world: PhysicsWorld, chassis: RigidBody, module: K
     };
   };
   const fingers = [makeFinger(1, built.fingers[0]), makeFinger(-1, built.fingers[1])] as const;
+
+  // ---- the claw servo's case on the carriage (B5, ruling E67 I4): the kit's box, the one the 3D view draws ----
+  // The ultrasonic hears it (a servo raised in front of an HC-SR04 blocks it, at lift ~10–35°); the IR and the colour sensor leave the
+  // carriage's colliders out, and it sits above their rays. Made after the fingers, so every other collider keeps the handle it had.
+  // Massless: the carriage's mass already counts the servo. A density of 0 is not enough to leave the carriage as it was: Rapier adds every
+  // collider's mass properties to its body's, and a sum with a massless part still rebuilds the inertia matrix and diagonalises it again
+  // (measured: the carriage's principal axes came back permuted, its inertia off in the last bits, and the claw of a held cube 0.15° off).
+  // Only mass properties that are exactly zero once moved by the collider's offset are skipped, so the case's are: no mass, no inertia, and
+  // its (meaningless) centre of mass at the carriage's origin, the offset's opposite.
+  const servoAt = { x: cmToM(spec.clawServoCenterUCm), y: cmToM(spec.clawServoCenterWCm), z: 0 - cmToM(spec.clawServoCenterVCm) };
+  attach(
+    R.ColliderDesc.cuboid(cmToM(spec.clawServoSizeUCm / 2), cmToM(spec.clawServoSizeWCm / 2), cmToM(spec.clawServoSizeVCm / 2))
+      .setTranslation(servoAt.x, servoAt.y, servoAt.z)
+      .setMassProperties(0, { x: 0 - servoAt.x, y: 0 - servoAt.y, z: 0 - servoAt.z }, { x: 0, y: 0, z: 0 }, IDENTITY_ROTATION),
+    carriage,
+  );
 
   if (spec.liftRotorInertiaKgM2 > 0) {
     boom.setAdditionalMassProperties(ROTOR_MASS_KG, { x: 0, y: 0, z: 0 }, { x: ROTOR_OFF_AXIS_INERTIA, y: ROTOR_OFF_AXIS_INERTIA, z: spec.liftRotorInertiaKgM2 }, IDENTITY_ROTATION, true);

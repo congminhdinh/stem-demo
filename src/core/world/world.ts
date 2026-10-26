@@ -73,8 +73,9 @@ import { CM_PER_M, degToRad, radToDeg, worldToArena, yawOfQuaternion, yawToQuate
 // along the mount's yaw and meet the bodies `sensedBodies` names: the arena's, each with its colour, and the gripper's own parts
 // (`#gripper`); they pass through the carriage they sit in and the boom's cross bar at its hinge, and the colour sensor through the floor
 // (it looks ahead, never at the mat).
-// Its ultrasonic reads the same lookup and leaves out the chassis only: it hears the jaws and the carriage when they are in its cone, as a
-// real HC-SR04 does (never at lift 0° nor 90°: world.gripper-sensors.test.ts). A kit without a gripper (the rover) measures its ultrasonic
+// Its ultrasonic reads the same lookup and leaves out the chassis only: it hears the jaws, the carriage and the claw servo's case on it (B5)
+// when they are in its cone, as a real HC-SR04 does (never at lift 0–3° nor 56–90°; the case blocks it at 8–40°, the carriage at 41–52°:
+// sensors/ultrasonic.claw-servo.test.ts). A kit without a gripper (the rover) measures its ultrasonic
 // exactly as before: the arena's lookup, the robot's every collider left out.
 //
 // What the goals need besides the snapshot (`frameExtras`, goal-frame.ts):
@@ -305,8 +306,10 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
   const ultrasonicExclude: (collider: Collider) => boolean = gripper === null ? robot.ownsCollider : (collider) => robot.ownsCollider(collider) && !gripper.ownsCollider(collider);
   // The sensors on the carriage sit in it, by its hinge, where the boom's cross bar meets it: their mount (u 0.3) lies inside the carriage's
   // box (u ±0.5) and inside the bar's square section (0.3 cm half, turned with the boom: from its centre at u 0, 0.39 cm along u at lift 0°).
-  // A ray from inside a solid meets it at once, so both are left out; behind the sensors, neither is ever ahead of them. The fingers, the one
-  // part of the gripper ahead of them, stay in: with nothing between the jaws the rays never meet them (world.gripper-sensors.test.ts).
+  // A ray from inside a solid meets it at once, so both are left out; behind the sensors, neither is ever ahead of them. The carriage's other
+  // collider, the claw servo's case (B5), goes with it: its front face (u 0.48) is ahead of the mounts but above their rays (w 0.4 up, the
+  // rays at w 0). The fingers, the one part of the gripper ahead of them, stay in: with nothing between the jaws the rays never meet them
+  // (world.gripper-sensors.test.ts).
   const onMount = (collider: Collider) => {
     const handle = collider.parent()?.handle;
     return gripper !== null && (handle === gripper.carriage.handle || handle === gripper.boom.handle);

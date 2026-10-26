@@ -183,9 +183,9 @@ describe('the gripper car in the world (N19 B1/B2)', () => {
     const world = await createWorld({ arena: parseArena({ ground: { sizeCm: [200, 100], color: '#ffffff' }, objects: [cube('cube', 70, 15)] }), start: START, kit: gripperKit, seed: 1 });
     try {
       const physics = physicsOf();
-      // The arena's fixed body, the cube, the chassis and the gripper's four; the ground, the cube, the chassis' six and the gripper's six;
-      // the gripper's five joints.
-      expect([physics.bodies.len(), physics.colliders.len(), physics.impulseJoints.len()]).toEqual([7, 14, 5]);
+      // The arena's fixed body, the cube, the chassis and the gripper's four; the ground, the cube, the chassis' six and the gripper's seven
+      // (the claw servo's case since B5); the gripper's five joints.
+      expect([physics.bodies.len(), physics.colliders.len(), physics.impulseJoints.len()]).toEqual([7, 15, 5]);
       const gripper = world.snapshot().robot.gripper!;
       expect(Object.keys(gripper).sort()).toEqual(['clawDeg', 'heldId', 'liftDeg']);
       expect(gripper.clawDeg).toBeCloseTo(0, 1);
