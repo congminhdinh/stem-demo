@@ -2,8 +2,8 @@ import { capabilityKeys } from '../capabilities/io';
 import type { BoardTarget } from '../devices/board-pins';
 import type { BoardContext, CapabilitySet } from '../profiles/board-context';
 import { boardPin, reservedPins, type BoardProfile } from './board';
-import { DRIVE_ROLE, roleOps } from './drivers';
-import { driverPortSpecs, robotRoles, type Kit, type KitRef, type RobotRole } from './kit';
+import { DRIVE_ROLE, drivers, roleOps } from './drivers';
+import { driverPortSpecs, portOfRole, robotRoles, type Kit, type KitRef, type RobotRole } from './kit';
 
 // What the compiler knows of a kit (N18 R1.2, robot plan §4.2): the roles present (a role the kit lacks is
 // capability-unavailable), the pins a raw Advanced op may name (contract §9), and the capability set. It extends the
@@ -43,6 +43,11 @@ export type KitBoardTarget = BoardTarget & {
   readonly timerClaims: Readonly<Record<string, string>>;
   /** The timer claims the kit's drivers can take (`servo` for servo-lib, `tone` for buzzer-tone), in board order of the claims. */
   readonly claimers: readonly string[];
+  /**
+   * N19 A4: the claim each op of a role takes when a program uses it (its driver's `DriverOp.claims`: the servo's and the gripper's ops take
+   * `servo`, the buzzer's tone `tone`); an op without one is not listed.
+   */
+  readonly opClaims: Readonly<Record<string, Readonly<Record<string, 'servo' | 'tone'>>>>;
 };
 
 const known = new Set<string>(capabilityKeys);
@@ -89,6 +94,13 @@ export function kitBoardTarget(kit: Kit, board: BoardProfile): KitBoardTarget {
   const ops = Object.fromEntries(
     [...roles, DRIVE_ROLE].map((role) => [role, roleOps(kit, board, role)] as const).filter(([, list]) => list.length > 0),
   );
+  const opClaims = Object.fromEntries(
+    roles.flatMap((role) => {
+      const port = portOfRole(kit, role);
+      const claimed = port === undefined ? [] : Object.entries(drivers[port.driver].ops).flatMap(([op, driverOp]) => (driverOp.claims === undefined ? [] : [[op, driverOp.claims] as const]));
+      return claimed.length > 0 ? [[role, Object.fromEntries(claimed)] as const] : [];
+    }),
+  );
 
   return {
     capabilities: kitCapabilities(boardCapabilities(board), kit),
@@ -102,6 +114,7 @@ export function kitBoardTarget(kit: Kit, board: BoardProfile): KitBoardTarget {
     pwmTimers,
     timerClaims: board.timerClaims,
     claimers,
+    opClaims,
   };
 }
 

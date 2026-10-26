@@ -7,10 +7,11 @@ import type { Notice } from '../../core/persistence/project-repository';
 import { resolveBoardContext } from '../../core/profiles/board-context';
 import type { ProfileCatalog } from '../../core/profiles/profile';
 import type { RobotCheckResult } from '../../core/scenario/check-result';
-import { buildToolbox, type BlockPackCatalog } from '../../core/program/block-packs';
+import { productionKits } from '../../core/hardware/catalog';
+import { kitBlockPacks, toolboxOfPacks, type BlockPackCatalog, type ToolboxRobot } from '../../core/program/block-packs';
 import { buzzerPartId, displayPartId } from '../../core/simulation/peripherals/onboard-capabilities';
 import type { ComponentInput, SimulationResult } from '../../core/simulation/simulate-circuit';
-import { isRobotTemplateKey } from '../../samples/robot-templates';
+import { isRobotTemplateKey, robotTemplateKitRef } from '../../samples/robot-templates';
 import type { LabKind, LabTemplateKey } from '../../samples/templates';
 import { SoundIndicator } from '../audio/SoundIndicator';
 import { toneHz } from '../audio/tone';
@@ -110,9 +111,21 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
   // N17 B3: the buzzer's sound is on from the start, in the editor and in a lab (also inside the LMS's frame), and is started by
   // the click of Run or Check (a user gesture, which a browser asks for before it plays). The switch turns it off for the tab.
   const sound = useBuzzerSound(tones, true);
-  // Only a different set of packs is a different toolbox, so circuit edits keep the Blockly workspace.
+  // Only a different set of packs is a different toolbox, so circuit edits keep the Blockly workspace. N19 A4: a robot lab's toolbox is its
+  // kit's (kitBlockPacks): a block whose role the kit lacks is not offered, so the rover's toolbox is what it was before the gripper car.
   const packKey = context.blockPacks.join('|');
-  const toolbox = useMemo(() => localizeToolbox(buildToolbox(packKey === '' ? [] : packKey.split('|'), packs), locale), [packKey, packs, locale]);
+  const robotTemplate = lab?.kind === 'robot' && isRobotTemplateKey(lab.template) ? lab.template : null;
+  const robot = useMemo((): ToolboxRobot | undefined => {
+    if (robotTemplate === null) return undefined;
+    const ref = robotTemplateKitRef(robotTemplate);
+    const kit = productionKits.get(ref);
+    const board = productionKits.boardOf(ref);
+    return kit && board ? { kit, board } : undefined;
+  }, [robotTemplate]);
+  const toolbox = useMemo(
+    () => localizeToolbox(toolboxOfPacks(kitBlockPacks({ blockPacks: packKey === '' ? [] : packKey.split('|') }, robot, packs)), locale),
+    [packKey, packs, locale, robot],
+  );
   const [noticeDismissed, setNoticeDismissed] = useState(false);
   // Counts Run clicks. The runtime controls start from their initial place in every run (inputs belong to a run, B2).
   // A lab also brings its circuit into sight on every new value (LabWorkspace `showBoard`, N8s).

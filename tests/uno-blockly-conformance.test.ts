@@ -4,6 +4,7 @@ import * as En from 'blockly/msg/en';
 import { describe, expect, it } from 'vitest';
 import type { ProjectDocument } from '../src/core/circuit/document';
 import { createProgramIO, createVirtualUno, productionKits, robotRoles, type KitCatalog, type PinState, type VirtualUno } from '../src/core/hardware';
+import { createTcs34725 } from '../src/core/hardware/devices/tcs34725';
 import { productionProfiles } from '../src/core/profiles';
 import { unoDocument } from '../src/core/profiles/__fixtures__/uno-document';
 import { buildToolbox, type ToolboxCategory } from '../src/core/program/block-packs';
@@ -221,6 +222,57 @@ describe('the robot’s blocks as real Blockly saves them', () => {
     expect(canOpenProgram(saved, packs)).toBe(true);
     const { lines } = await runOn(compile(project(saved, 'uno-basic')));
     expect(lines).toEqual(['-3', '1', '2', '3']);
+  });
+
+  // N19 A4: the gripper car's blocks (plan §4.3) on ref-uno-gripper@0: the claw and the arm, the IR sensor between the jaws on A3 (LOW
+  // while it sees something), the colour sensor on the I²C bus (the TCS34725 model of A3 under a steady light).
+  const onGripper = { id: 'ref-uno-gripper', version: '0' };
+  /** A steady light on the sensor, counts per second at 1× gain on each channel (C the sum). */
+  const steadyLight = (r: number, g: number, b: number) => (from: number, to: number) => {
+    const span = Math.round(to - from);
+    return { c: (r + g + b) * span, r: r * span, g: g * span, b: b * span };
+  };
+  const sensorsOn = (light: ReturnType<typeof steadyLight>, ir: 0 | 1) => (uno: VirtualUno) => {
+    const device = createTcs34725(light);
+    uno.attachWireDevice(device.address, device);
+    uno.attachDigitalSource('A3', () => ir);
+  };
+
+  it('Basic: the gripper car’s claw, arm, IR and colour compile and run on the virtual UNO', async () => {
+    const saved = build((workspace) => {
+      const clawAngle = newBlock(workspace, 'uno_gripper_claw_angle', 'claw-angle');
+      plug(clawAngle, 'ANGLE', number(workspace, 'claw-deg', 40));
+      const liftAngle = newBlock(workspace, 'uno_gripper_lift_angle', 'lift-angle');
+      plug(liftAngle, 'ANGLE', number(workspace, 'lift-deg', 45));
+      return [
+        newBlock(workspace, 'uno_gripper_claw', 'close', { STATE: 'CLOSE' }),
+        newBlock(workspace, 'uno_gripper_lift', 'down', { STATE: 'DOWN' }),
+        clawAngle,
+        liftAngle,
+        print(workspace, 'p1', newBlock(workspace, 'uno_ir_detect', 'ir')),
+        print(workspace, 'p2', newBlock(workspace, 'uno_color_is', 'red', { COLOR: 'red' })),
+        print(workspace, 'p3', newBlock(workspace, 'uno_color_is', 'green', { COLOR: 'green' })),
+      ];
+    });
+    expect(canOpenProgram(saved, packs)).toBe(true);
+    const compiled = compile(project(saved, 'uno-basic', onGripper));
+    expect(compiled.ok && compiled.ir.onStart.slice(0, 2).map((statement) => (statement.kind === 'call' && 'args' in statement ? statement.args[0] : null))).toEqual([
+      { blockId: 'close', type: 'int', kind: 'int', value: 80 },
+      { blockId: 'down', type: 'int', kind: 'int', value: 0 },
+    ]);
+    const { lines, pin } = await runOn(compiled, sensorsOn(steadyLight(38_431, 7_431, 6_729), 0));
+    expect([pin('D9').servoDeg, pin('D10').servoDeg]).toEqual([40, 45]);
+    expect(lines).toEqual(['1', '1', '0']);
+  });
+
+  it('Advanced: the raw colour value, 0 to 21504 (the window saturates at its ATIME)', async () => {
+    const saved = build((workspace) => [
+      print(workspace, 'p1', newBlock(workspace, 'uno_color_raw', 'clear', { CHANNEL: 'clear' })),
+      print(workspace, 'p2', newBlock(workspace, 'uno_color_raw', 'red', { CHANNEL: 'red' })),
+    ]);
+    expect(canOpenProgram(saved, packs)).toBe(true);
+    const { lines } = await runOn(compile(project(saved, 'uno-advanced', onGripper)), sensorsOn(steadyLight(1_000_000, 10_000, 10_000), 1));
+    expect(lines).toEqual(['21504', '21504']);
   });
 
   it('builds every uno_* block the packs register', () => {

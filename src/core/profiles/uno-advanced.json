@@ -3,8 +3,8 @@
   "family": "uno",
   "boardType": "uno-r3",
   "extends": "uno-basic",
-  "constructs": ["U-19", "U-26", "U-29", "U-31", "U-32", "U-33", "U-34"],
-  "blockPacks": ["uno.sensors.advanced", "uno.output.advanced", "uno.pins"],
+  "constructs": ["U-19", "U-26", "U-29", "U-31", "U-32", "U-33", "U-34", "U-39"],
+  "blockPacks": ["uno.sensors.advanced", "uno.color.advanced", "uno.output.advanced", "uno.pins"],
   "palette": ["uno-r3"],
   "controls": []
 }

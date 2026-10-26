@@ -43,6 +43,9 @@ const terms: Readonly<Record<string, string>> = {
   motor: 'motor',
   'buzzer tone': 'còi kêu',
   'PWM write': 'ghi PWM',
+  // N19 A4: the gripper car's.
+  'claw angle': 'kẹp góc',
+  'arm angle': 'tay góc',
 };
 
 /** Blockly's own blocks that the core may name by type; the custom blocks are named by their Vietnamese text. */
@@ -96,6 +99,8 @@ const quantities: Readonly<Record<string, string>> = {
   'A PWM value': 'Giá trị PWM',
   'The ultrasonic distance': 'Khoảng cách siêu âm',
   'The raw line value': 'Giá trị thô của cảm biến line',
+  // N19 A4: what the colour sensor answers.
+  'The raw colour value': 'Giá trị thô của cảm biến màu',
   'The analog value': 'Giá trị analog',
 };
 
@@ -348,6 +353,15 @@ export const coreMessageRules: readonly Rule[] = [
   [/^An LED is on or off\.$/, () => 'Đèn chỉ bật hoặc tắt.'],
   [/^A digital write needs HIGH or LOW\.$/, () => 'Khối ghi số cần mức HIGH hoặc LOW.'],
   [/^A pin is written HIGH or LOW\.$/, () => 'Chân chỉ ghi được mức HIGH hoặc LOW.'],
+  // N19 A4: the gripper car's blocks.
+  [/^A claw block needs open or close\.$/, () => 'Khối kẹp cần chọn mở hoặc đóng.'],
+  [/^A claw is open or closed\.$/, () => 'Kẹp chỉ mở hoặc đóng.'],
+  [/^An arm block needs up or down\.$/, () => 'Khối tay cần chọn nâng hoặc hạ.'],
+  [/^An arm is up or down\.$/, () => 'Tay chỉ nâng hoặc hạ.'],
+  [/^A colour block needs its colour\.$/, () => 'Khối màu cần chọn màu.'],
+  [/^That is not a colour the colour sensor knows\.$/, () => 'Cảm biến màu không biết màu này.'],
+  [/^A raw colour block needs its channel\.$/, () => 'Khối giá trị thô cảm biến màu cần chọn kênh.'],
+  [/^A channel is red, green, blue or clear\.$/, () => 'Kênh là đỏ, xanh lá, xanh dương hoặc không lọc (C).'],
   [/^(.+) cannot use (.+): (.+)\.$/, (op, pin, why) => `Khối ${own(rawPinOps, op) ?? op} không dùng được chân ${pin}: ${pinReason(why)}.`],
   [/^(.+) has no PWM: pwm\.write drives it HIGH from 128 up and LOW below\.$/, (pin) => `Chân ${pin} không có PWM: ghi PWM từ 128 trở lên là HIGH, dưới 128 là LOW.`],
   [
@@ -383,6 +397,8 @@ export const coreMessageRules: readonly Rule[] = [
   [/^A robot block names a module that does not exist\.$/, () => 'Khối robot gọi một mô-đun không tồn tại.'],
   [/^A robot block was given the wrong number of values\.$/, () => 'Khối robot nhận sai số giá trị.'],
   [/^A drive block names a direction that does not exist\.$/, () => 'Khối robot đi gọi một hướng không tồn tại.'],
+  // N19 A4: a colour block's colour or channel (constructs/uno.run.ts).
+  [/^A colour block names a (.+) that does not exist\.$/, (what) => `Khối cảm biến màu gọi một ${what === 'channel' ? 'kênh' : 'màu'} không tồn tại.`],
   [/^A pin block names a pin that does not exist\.$/, () => 'Khối chân gọi một chân không tồn tại.'],
   [/^A read of the robot came without its wait for the world\.$/, () => 'Một lần đọc của robot không chờ thế giới mô phỏng theo kịp.'],
   [/^A gesture block names a gesture that does not exist\.$/, () => 'Khối cử chỉ gọi một cử chỉ không tồn tại.'],

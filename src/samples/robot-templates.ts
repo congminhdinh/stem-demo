@@ -35,6 +35,12 @@ export {
 // SCENARIO (the arena, the goals and the score come with R3.x and R6); what this module owns is the project it opens with
 // (plan §4.0) and the profile it needs.
 
+/** N19 A4: the kit a robot lab runs on, at the version it launches it at (robot-keys.ts `robotTemplates`, `robotKitVersionOf`). */
+export function robotTemplateKitRef(key: RobotTemplateKey): { readonly id: string; readonly version: string } {
+  const id = robotTemplates[key].kit;
+  return { id, version: robotKitVersionOf(id) };
+}
+
 /**
  * Why `profile` cannot open `key` (English, for the page that built the launch URL, in the words of the Yolo:Bit labs), or null when
  * it can: it has all the scenario needs. `needed` is that profile, the scenario's own by default; a test that wants to see a

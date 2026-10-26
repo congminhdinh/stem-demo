@@ -36,6 +36,14 @@ export const pwmWrite = (pin: string, value: Json, blockId = id('pwm-write')): J
 export const digitalRead = (pin: string, blockId = id('digital-read')): Json => ({ type: 'uno_digital_read', id: blockId, fields: { PIN: pin } });
 export const analogRead = (pin: string, blockId = id('analog-read')): Json => ({ type: 'uno_analog_read', id: blockId, fields: { PIN: pin } });
 export const millis = (blockId = id('millis')): Json => ({ type: 'uno_millis', id: blockId });
+/** N19 A4: the gripper car's blocks (plan §4.3). */
+export const claw = (state: 'OPEN' | 'CLOSE', blockId = id('claw')): Json => ({ type: 'uno_gripper_claw', id: blockId, fields: { STATE: state } });
+export const clawAngle = (angle: Json, blockId = id('claw-angle')): Json => ({ type: 'uno_gripper_claw_angle', id: blockId, inputs: { ANGLE: input(angle) } });
+export const lift = (state: 'UP' | 'DOWN', blockId = id('lift')): Json => ({ type: 'uno_gripper_lift', id: blockId, fields: { STATE: state } });
+export const liftAngle = (angle: Json, blockId = id('lift-angle')): Json => ({ type: 'uno_gripper_lift_angle', id: blockId, inputs: { ANGLE: input(angle) } });
+export const irDetect = (blockId = id('ir')): Json => ({ type: 'uno_ir_detect', id: blockId });
+export const colorIs = (color: string, blockId = id('color-is')): Json => ({ type: 'uno_color_is', id: blockId, fields: { COLOR: color } });
+export const colorRaw = (channel: string, blockId = id('color-raw')): Json => ({ type: 'uno_color_raw', id: blockId, fields: { CHANNEL: channel } });
 /** The UNO's division (U-06) and count up (U-14), as their own blocks save them. */
 export const unoDivide = (a: Json, b: Json, blockId = id('divide')): Json => ({ type: 'uno_int_divide', id: blockId, inputs: { A: input(a), B: input(b) } });
 export const unoCountUp = (variable: string, from: Json, to: Json, body: Json[], blockId = id('count-up')): Json => ({
@@ -48,6 +56,10 @@ export const unoCountUp = (variable: string, from: Json, to: Json, body: Json[],
 export const registry = createDeviceRegistry(localDeviceDefinitions);
 export const packs = createBlockPackCatalog(registry);
 export const rover = productionKits.get(referenceKitRef) as Kit;
+/** N19 A4: the gripper car, ref-uno-gripper@0, as a project names it and with the catalog that has it. */
+export const gripperKitRef = { id: 'ref-uno-gripper', version: '0' } as const;
+export const gripperKit = productionKits.get(gripperKitRef) as Kit;
+export const onGripper = { ref: gripperKitRef, kits: productionKits };
 
 /** The kit JSON as a test edits it. */
 type RawKit = Omit<typeof refUnoRoverJson, 'ports'> & { ports: { id: string; driver: string; pins: Record<string, string>; params?: Record<string, boolean> }[] };

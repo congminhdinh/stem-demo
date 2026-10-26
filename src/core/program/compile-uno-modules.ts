@@ -4,14 +4,16 @@ import { HZ_RANGE, LED_STATE_FIELD, ledStates, MS_RANGE } from '../constructs/un
 import { LEVEL_FIELD, PIN_FIELD, pinLevels, PWM_RANGE } from '../constructs/uno.pins';
 import { clampWarning, DRIVE_NAME, ROLE_FIELD, roleNames } from '../constructs/uno.roles';
 import { ANGLE_RANGE } from '../constructs/uno.servo';
+import { CHANNEL_FIELD, COLOR_FIELD } from '../constructs/uno.color';
+import { CLAW_FIELD, clawPositions, clawType, GRIPPER_ANGLE_RANGE, LIFT_FIELD, liftPositions, liftType } from '../constructs/uno.gripper';
 import type { BoardTarget } from '../devices/board-pins';
 import type { KitBoardTarget } from '../hardware/board-target';
-import { clampTo, DRIVE_ROLE, driveDirections, type ArgRange, type DriveDirection } from '../hardware/drivers';
+import { clampTo, COLOR_CHANNELS, COLOR_NAMES, DRIVE_ROLE, driveDirections, type ArgRange, type DriveDirection } from '../hardware/drivers';
 import { kitKey, type RobotRole } from '../hardware/kit';
 import { rawPinCheck, type KitUsage, type RawPinOp } from '../hardware/pin-rules';
 import { INT32_MIN } from './limits';
 import type { YbcDiagnosticCode } from './compile-ybc-program';
-import type { Expr, Type, YbcStatement } from './ybc-ir';
+import { moduleReadType, type Expr, type Type, type YbcStatement } from './ybc-ir';
 
 // The robot's blocks in the compiler of the uno family (N18 R2.2, robot plan §4.4), a part of compileYbcProgram: every module op of
 // a uno IR with its operand and its typed arguments, against the kit's board target (kitBoardTarget, with the capabilities of
@@ -23,7 +25,10 @@ import type { Expr, Type, YbcStatement } from './ybc-ir';
 //   block (contract UNO §0.5), so the generator can write the IR's literals as they are. The drive's speed is clamped per motor
 //   after its sign; INT32_MIN is kept (neg32 leaves it negative), and the run clamps it.
 // - A raw pin (Advanced) is checked by the kit's pin rules (`rawPinCheck`, contract §9) once the whole program is known, since what
-//   the program uses decides them: a servo claims Timer1, a tone Timer2, printing holds D0/D1.
+//   the program uses decides them: a servo claims Timer1, a tone Timer2, printing holds D0/D1. N19 A4: what an op claims is its
+//   driver's (`KitBoardTarget.opClaims`), so the gripper's claw and arm claim Timer1 as the servo does.
+// - N19 A4: the claw's and the arm's two positions are their angles as literals (open 0, close 80; up 90, down 0); the colour and the
+//   channel of a colour block are the names the dropdown saved.
 
 type RawBlock = { type: string; id: string; fields?: Record<string, unknown> };
 
@@ -53,8 +58,7 @@ export type UnoModuleCompiler = {
 const isKitTarget = (target: BoardTarget | undefined): target is KitBoardTarget =>
   target !== undefined && 'roles' in target && 'ops' in target && 'raw' in target;
 
-const valueOps = new Set(['ultrasonic.cm', 'line.dark', 'line.raw', 'button.pressed', 'digital.read', 'analogIn.read', 'time.millis']);
-const boolOps = new Set(['line.dark', 'button.pressed', 'digital.read']);
+const valueOps = new Set(['ultrasonic.cm', 'line.dark', 'line.raw', 'button.pressed', 'digital.read', 'analogIn.read', 'time.millis', 'ir.detect', 'color.is', 'color.raw']);
 /** The capability a raw pin op or millis needs on the board; every other op needs `modules`. */
 const capabilityOf: Readonly<Record<string, string>> = { 'digital.write': 'digital', 'digital.read': 'digital', 'pwm.write': 'pwm', 'analogIn.read': 'analogIn' };
 
@@ -146,6 +150,20 @@ export function createUnoModuleCompiler(context: UnoModuleContext): UnoModuleCom
     return found ?? null;
   };
 
+  /** N19 A4: `choice` with the two diagnostics said by the caller (so each block's own words are in its code). */
+  const pick = <Value extends string>(block: RawBlock, field: string, options: readonly Value[], missing: () => void, wrong: () => void): Value | null => {
+    const value = block.fields?.[field];
+    if (typeof value !== 'string') {
+      missing();
+      return null;
+    }
+    const found = options.find((option) => option === value);
+    if (found === undefined) {
+      wrong();
+    }
+    return found ?? null;
+  };
+
   const pinOf = (block: RawBlock, op: RawPinOp): string | null => {
     const pin = block.fields?.[PIN_FIELD];
     if (typeof pin !== 'string') {
@@ -158,6 +176,37 @@ export function createUnoModuleCompiler(context: UnoModuleContext): UnoModuleCom
 
   const truth = (value: boolean, blockId: string): Expr => ({ blockId, type: 'bool', kind: 'bool', value });
 
+  /**
+   * N19 A4: the angle of a claw or arm block: the literal of its position (claw open 0, close 80; arm up 90, down 0), or its ANGLE input,
+   * a typed-in one clamped to 0..90 with a warning.
+   */
+  const gripperAngle = (block: RawBlock, op: 'gripper.claw' | 'gripper.lift', depth: number, who: string): Expr | null => {
+    const literal = (value: number | undefined): Expr | null => (value === undefined ? null : { blockId: block.id, type: 'int', kind: 'int', value });
+    if (block.type === clawType) {
+      const position = pick(
+        block,
+        CLAW_FIELD,
+        Object.keys(clawPositions) as (keyof typeof clawPositions)[],
+        () => report('error', 'malformed-program', 'A claw block needs open or close.', block.id),
+        () => report('error', 'value-out-of-range', 'A claw is open or closed.', block.id),
+      );
+      return literal(position === null ? undefined : clawPositions[position]);
+    }
+    if (block.type === liftType) {
+      const position = pick(
+        block,
+        LIFT_FIELD,
+        Object.keys(liftPositions) as (keyof typeof liftPositions)[],
+        () => report('error', 'malformed-program', 'An arm block needs up or down.', block.id),
+        () => report('error', 'value-out-of-range', 'An arm is up or down.', block.id),
+      );
+      return literal(position === null ? undefined : liftPositions[position]);
+    }
+    return op === 'gripper.claw'
+      ? intArg(block, 'ANGLE', 'claw angle', 'The angle', depth, GRIPPER_ANGLE_RANGE, who)
+      : intArg(block, 'ANGLE', 'arm angle', 'The angle', depth, GRIPPER_ANGLE_RANGE, who);
+  };
+
   const compileStatement = (block: RawBlock, depth: number): YbcStatement | null => {
     const construct = unoModuleConstructOf(block.type);
     if (!construct || valueOps.has(construct.op)) {
@@ -167,6 +216,11 @@ export function createUnoModuleCompiler(context: UnoModuleContext): UnoModuleCom
     const role = roleOf(block, construct);
     if ((construct.roleField && role === null) || !available(block, construct, role)) {
       return null;
+    }
+    // What the op takes of the board's timers, by its driver (N19 A4).
+    const claim = kit?.opClaims[role ?? DRIVE_ROLE]?.[construct.op];
+    if (claim !== undefined) {
+      usage[claim] = true;
     }
     const blockId = block.id;
     switch (construct.op) {
@@ -182,7 +236,6 @@ export function createUnoModuleCompiler(context: UnoModuleContext): UnoModuleCom
         return role !== null && speed ? { kind: 'call', op: 'motor.set', operand: { kind: 'role', role }, args: [speed], blockId } : null;
       }
       case 'servo.set': {
-        usage.servo = true;
         const angle = role === null ? null : intArg(block, 'ANGLE', 'servo', 'The angle', depth, ANGLE_RANGE, roleNames[role]);
         return role !== null && angle ? { kind: 'call', op: 'servo.set', operand: { kind: 'role', role }, args: [angle], blockId } : null;
       }
@@ -191,7 +244,6 @@ export function createUnoModuleCompiler(context: UnoModuleContext): UnoModuleCom
         return role !== null && state !== null ? { kind: 'call', op: 'led.set', operand: { kind: 'role', role }, args: [truth(ledStates[state], blockId)], blockId } : null;
       }
       case 'buzzer.tone': {
-        usage.tone = true;
         if (role === null) {
           return null;
         }
@@ -201,6 +253,14 @@ export function createUnoModuleCompiler(context: UnoModuleContext): UnoModuleCom
       }
       case 'buzzer.stop':
         return role === null ? null : { kind: 'call', op: 'buzzer.stop', operand: { kind: 'role', role }, blockId };
+      case 'gripper.claw':
+      case 'gripper.lift': {
+        if (role === null) {
+          return null;
+        }
+        const angle = gripperAngle(block, construct.op, depth, roleNames[role]);
+        return angle ? { kind: 'call', op: construct.op, operand: { kind: 'role', role }, args: [angle], blockId } : null;
+      }
       case 'digital.write': {
         const pin = pinOf(block, 'digital.write');
         const level = choice(block, LEVEL_FIELD, ['HIGH', 'LOW'] as const, 'A digital write needs HIGH or LOW.', 'A pin is written HIGH or LOW.');
@@ -227,19 +287,40 @@ export function createUnoModuleCompiler(context: UnoModuleContext): UnoModuleCom
     if ((construct.roleField && role === null) || !available(block, construct, role)) {
       return null;
     }
-    const base = { blockId: block.id, type: (boolOps.has(construct.op) ? 'bool' : 'int') as Type };
+    const blockId = block.id;
     switch (construct.op) {
       case 'ultrasonic.cm':
       case 'line.dark':
       case 'line.raw':
       case 'button.pressed':
-        return role === null ? null : { ...base, kind: 'read', op: construct.op, operand: { kind: 'role', role } };
+      case 'ir.detect':
+        return role === null ? null : { blockId, type: moduleReadType(construct.op), kind: 'read', op: construct.op, operand: { kind: 'role', role } };
+      case 'color.is': {
+        const color = pick(
+          block,
+          COLOR_FIELD,
+          COLOR_NAMES,
+          () => report('error', 'malformed-program', 'A colour block needs its colour.', block.id),
+          () => report('error', 'value-out-of-range', 'That is not a colour the colour sensor knows.', block.id),
+        );
+        return role === null || color === null ? null : { blockId, type: 'bool', kind: 'read', op: 'color.is', operand: { kind: 'role', role }, color };
+      }
+      case 'color.raw': {
+        const channel = pick(
+          block,
+          CHANNEL_FIELD,
+          COLOR_CHANNELS,
+          () => report('error', 'malformed-program', 'A raw colour block needs its channel.', block.id),
+          () => report('error', 'value-out-of-range', 'A channel is red, green, blue or clear.', block.id),
+        );
+        return role === null || channel === null ? null : { blockId, type: 'int', kind: 'read', op: 'color.raw', operand: { kind: 'role', role }, channel };
+      }
       case 'time.millis':
-        return { ...base, kind: 'read', op: 'time.millis' };
+        return { blockId, type: 'int', kind: 'read', op: 'time.millis' };
       case 'digital.read':
       case 'analogIn.read': {
         const pin = pinOf(block, construct.op);
-        return pin === null ? null : { ...base, kind: 'read', op: construct.op, operand: { kind: 'pin', pin }, args: [] };
+        return pin === null ? null : { blockId, type: construct.op === 'digital.read' ? 'bool' : 'int', kind: 'read', op: construct.op, operand: { kind: 'pin', pin }, args: [] };
       }
       default:
         report('error', 'unsupported-construct', `"${block.type}" cannot be used as a value.`, block.id);

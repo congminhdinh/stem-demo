@@ -4,6 +4,8 @@ import { driveConstructs } from './uno.drive';
 import { unoCountUpType, unoIntDivideType } from './uno.lang';
 import { advancedOutputConstructs, outputConstructs } from './uno.output';
 import { pinConstructs } from './uno.pins';
+import { advancedColorConstructs, colorConstructs } from './uno.color';
+import { gripperConstructs } from './uno.gripper';
 import { advancedSensorConstructs, sensorConstructs } from './uno.sensors';
 import { servoConstructs } from './uno.servo';
 
@@ -15,13 +17,17 @@ import { servoConstructs } from './uno.servo';
 // The language rows (U-01…U-18) are the blocks of the Yolo:Bit dialect, in packs of the uno family that leave out what the UNO
 // contract does not open (random numbers U-45, the running time: U-19 is the board's millis, Advanced), except the two whose UNO
 // meaning differs: division truncates toward zero (U-06) and count up counts by 1 (U-14), blocks of their own (uno.lang.ts). The module rows are the
-// files uno.drive, uno.sensors, uno.servo, uno.output and uno.pins: one block per row, one IR op per block (robot plan §4.4).
+// files uno.drive, uno.sensors, uno.servo, uno.output and uno.pins: one block per row, one IR op per block (robot plan §4.4). N19 A4 adds the
+// gripper car's rows, uno.gripper and uno.color (plan §4.3): the claw and the arm each have two blocks of one op, the two positions and
+// any angle.
 
 export type UnoPackId =
   | 'uno.structure'
   | 'uno.drive'
   | 'uno.sensors'
   | 'uno.servo'
+  | 'uno.gripper'
+  | 'uno.color'
   | 'uno.output'
   | 'uno.logic'
   | 'uno.loops'
@@ -29,6 +35,7 @@ export type UnoPackId =
   | 'uno.text'
   | 'uno.variables'
   | 'uno.sensors.advanced'
+  | 'uno.color.advanced'
   | 'uno.output.advanced'
   | 'uno.pins';
 
@@ -68,7 +75,11 @@ export const unoLangConstructs: readonly UnoConstruct[] = [
   { contractId: 'U-18', pack: 'uno.loops', blockTypes: ['ybc_wait_ms'] },
 ];
 
-/** The module rows: drive, sensors, servo, light and sound of both profiles; the raw line value, buzzer stop and raw pins of Advanced. */
+/**
+ * The module rows: drive, sensors, servo, light and sound of both profiles; the raw line value, buzzer stop and raw pins of Advanced. N19 A4:
+ * the gripper car's claw, arm, IR and colour of both profiles, its raw colour of Advanced, after them (a new row goes last, so every row before
+ * it keeps its place).
+ */
 export const unoModuleConstructs: readonly UnoModuleConstruct[] = [
   ...driveConstructs,
   ...sensorConstructs,
@@ -77,11 +88,14 @@ export const unoModuleConstructs: readonly UnoModuleConstruct[] = [
   ...advancedSensorConstructs,
   ...advancedOutputConstructs,
   ...pinConstructs,
+  ...gripperConstructs,
+  ...colorConstructs,
+  ...advancedColorConstructs,
 ];
 
 export const unoConstructs: readonly UnoConstruct[] = [...unoLangConstructs, ...unoModuleConstructs];
 
-/** The packs of the uno family, in toolbox order: Basic's, then what Advanced adds. */
+/** The packs of the uno family, in toolbox order: Basic's, then what Advanced adds (N19 A4: then the gripper car's, in the catalog's order). */
 export const unoPackIds: readonly UnoPackId[] = [
   'uno.structure',
   'uno.drive',
@@ -96,6 +110,10 @@ export const unoPackIds: readonly UnoPackId[] = [
   'uno.sensors.advanced',
   'uno.output.advanced',
   'uno.pins',
+  // N19 A4: the gripper car's, last, so every pack and block known before keeps its place (the profiles say where they show).
+  'uno.gripper',
+  'uno.color',
+  'uno.color.advanced',
 ];
 
 /** The block types a pack owns: those of its constructs. */

@@ -3,6 +3,8 @@ import { HZ_RANGE, MS_RANGE } from '../../core/constructs/uno.output';
 import { PWM_RANGE } from '../../core/constructs/uno.pins';
 import { ULTRASONIC_CM, UNO_ADC_MAX } from '../../core/constructs/uno.sensors';
 import { ANGLE_RANGE } from '../../core/constructs/uno.servo';
+import { COLOR_RAW_RANGE } from '../../core/constructs/uno.color';
+import { clawPositions, GRIPPER_ANGLE_RANGE, liftPositions } from '../../core/constructs/uno.gripper';
 import { SERVO_START_DEG } from '../../core/hardware/drivers';
 import { ANALOG_MAX, PWM_MAX, SERVO_MAX_ANGLE } from '../../core/constructs/ybc.pins';
 import { melodyLabels, type MelodyName } from '../../core/constructs/ybc.sound';
@@ -115,6 +117,17 @@ export const viRoleLabels: Readonly<Record<string, string>> = {
   servo1: '1',
 };
 
+/** N19 A4: the colours of the colour sensor (hardware/drivers COLOR_NAMES), by the name each option saves. */
+export const viColorNames: Readonly<Record<string, string>> = {
+  red: 'đỏ',
+  green: 'xanh lá',
+  blue: 'xanh dương',
+  yellow: 'vàng',
+  white: 'trắng',
+  black: 'đen',
+  unknown: 'không rõ',
+};
+
 /** N18 R2.2: where the robot goes (constructs/uno.drive.ts), by the direction each option saves. */
 export const viDriveDirections: Readonly<Record<string, string>> = { forward: 'tới', backward: 'lùi', spinLeft: 'xoay trái', spinRight: 'xoay phải' };
 
@@ -157,6 +170,36 @@ const viRobotBlockText: Readonly<Record<string, BlockText>> = {
   // The UNO's division and count up (contract UNO U-06, U-14), whose meaning is not the Yolo:Bit dialect's.
   uno_int_divide: { message0: '%1 / %2', tooltip: 'Chia lấy phần nguyên như trên bo mạch: bỏ phần lẻ về phía 0 (-7 / 2 là -3). Chia cho 0 thì được 0.' },
   uno_count_up: { message0: 'đếm lên với %1 từ %2 tới %3 %4', tooltip: 'Đếm lên từng 1 từ số thứ nhất tới số thứ hai.' },
+  // N19 A4: the gripper car's (plan §4.3).
+  uno_gripper_claw: {
+    message0: 'kẹp %1',
+    tooltip: `Mở kẹp (${clawPositions.OPEN}°) hoặc đóng kẹp (${clawPositions.CLOSE}°, hai ngàm chạm nhau). Lúc đầu kẹp mở.`,
+    options: { STATE: { OPEN: 'mở', CLOSE: 'đóng' } },
+  },
+  uno_gripper_claw_angle: {
+    message0: 'kẹp góc %1 °',
+    tooltip: `Quay kẹp tới một góc từ ${GRIPPER_ANGLE_RANGE.min} (mở) tới ${GRIPPER_ANGLE_RANGE.max}; hai ngàm chạm nhau ở ${clawPositions.CLOSE}.`,
+  },
+  uno_gripper_lift: {
+    message0: 'tay %1',
+    tooltip: `Nâng tay lên (${liftPositions.UP}°) hoặc hạ tay xuống (${liftPositions.DOWN}°). Lúc đầu tay nâng.`,
+    options: { STATE: { UP: 'nâng', DOWN: 'hạ' } },
+  },
+  uno_gripper_lift_angle: {
+    message0: 'tay góc %1 °',
+    tooltip: `Quay tay tới một góc từ ${GRIPPER_ANGLE_RANGE.min} (hạ) tới ${GRIPPER_ANGLE_RANGE.max} (nâng).`,
+  },
+  uno_ir_detect: { message0: 'có vật giữa càng?', tooltip: 'Đúng khi cảm biến hồng ngoại giữa hai càng thấy vật. Vật màu đen phản xạ quá ít nên không thấy.' },
+  uno_color_is: {
+    message0: 'màu vật là %1 ?',
+    tooltip: 'Đúng khi cảm biến màu thấy một vật có màu này. Không có gì phía trước thì là "không rõ".',
+    options: { COLOR: viColorNames },
+  },
+  uno_color_raw: {
+    message0: 'giá trị thô cảm biến màu %1',
+    tooltip: `Số đếm của một kênh trong lần đọc gần nhất của cảm biến màu, từ ${COLOR_RAW_RANGE[0]} tới ${COLOR_RAW_RANGE[1]}.`,
+    options: { CHANNEL: { red: 'đỏ', green: 'xanh lá', blue: 'xanh dương', clear: 'không lọc (C)' } },
+  },
 };
 
 export const viBlockText: Readonly<Record<string, BlockText>> = {
@@ -252,6 +295,8 @@ export const viCategoryNames: Readonly<Record<string, string>> = {
   Sensors: 'Cảm biến',
   Servo: 'Servo',
   'Light & Sound': 'Đèn & còi',
+  // N19 A4: the gripper car's.
+  Gripper: 'Tay gắp',
 };
 
 /** `args` with the shown label of each option of the dropdowns `options` names replaced; the values, and everything else, kept. */

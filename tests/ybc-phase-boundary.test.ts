@@ -102,6 +102,31 @@ describe('the blocks a Yolo:Bit-compatible project has', () => {
   });
 });
 
+describe('the gripper car’s blocks (N19 A4, plan §4.3)', () => {
+  const gripperTypes = ['uno_gripper_claw', 'uno_gripper_claw_angle', 'uno_gripper_lift', 'uno_gripper_lift_angle', 'uno_ir_detect', 'uno_color_is', 'uno_color_raw'];
+
+  it('are the uno family’s, in the gripper car’s three packs, and never a Yolo:Bit profile’s', () => {
+    const owners = packs.list().filter((pack) => pack.blockTypes.some((type) => gripperTypes.includes(type)));
+    expect(owners.map((pack) => [pack.id, pack.family])).toEqual([
+      ['uno.gripper', 'uno'],
+      ['uno.color', 'uno'],
+      ['uno.color.advanced', 'uno'],
+    ]);
+    expect(owners.flatMap((pack) => pack.blockTypes)).toEqual(gripperTypes);
+    for (const profile of profiles) {
+      const shown = packs.typesOf(profile?.blockPacks ?? []);
+      expect(gripperTypes.filter((type) => shown.has(type)), profile?.id).toEqual([]);
+    }
+  });
+
+  it('show the raw colour to Advanced only, and the rest to both UNO profiles', () => {
+    const basic = packs.typesOf(productionProfiles.get('uno-basic')?.blockPacks ?? []);
+    const advanced = packs.typesOf(productionProfiles.get('uno-advanced')?.blockPacks ?? []);
+    expect(gripperTypes.filter((type) => basic.has(type))).toEqual(gripperTypes.slice(0, 6));
+    expect(gripperTypes.filter((type) => advanced.has(type))).toEqual(gripperTypes);
+  });
+});
+
 describe('the contract rows a profile shows', () => {
   const exposed = [
     'C-01', 'C-02', 'C-04', 'C-05', 'C-06', 'C-07', 'C-08', 'C-09', 'C-10', 'C-12', 'C-13', 'C-15', 'C-19', 'C-23', 'C-24', 'C-25', 'C-29', 'C-30', 'C-31',

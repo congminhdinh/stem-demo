@@ -61,7 +61,13 @@ import {
   type PinChoices,
 } from '../constructs/ybc.pins';
 import { melodyType, musicDefinitions, pitchType, playNoteType, restType, soundDefinitions, soundStopType } from '../constructs/ybc.sound';
-import { unoBlockTypesOf, unoPackIds, type UnoPackId } from '../constructs/uno';
+import { unoBlockTypesOf, unoModuleConstructOf, unoPackIds, type UnoModuleConstruct, type UnoPackId } from '../constructs/uno';
+import { advancedColorDefinitions, colorDefinitions, colorIsType, colorRawType } from '../constructs/uno.color';
+import { clawAngleType, clawType, gripperDefinitions, irDetectType, liftAngleType, liftType } from '../constructs/uno.gripper';
+import { ROLE_FIELD } from '../constructs/uno.roles';
+import type { BoardProfile } from '../hardware/board';
+import { DRIVE_ROLE, roleOps } from '../hardware/drivers';
+import type { Kit } from '../hardware/kit';
 import { unoCountUpDefinition, unoCountUpType, unoIntDivideDefinition, unoIntDivideType } from '../constructs/uno.lang';
 import { driveDefinitions, driveMoveType, driveStopType, motorSetType } from '../constructs/uno.drive';
 import { advancedOutputDefinitions, buzzerStopType, buzzerToneType, ledSetType, outputDefinitions } from '../constructs/uno.output';
@@ -445,6 +451,24 @@ const unoCategories: Readonly<Record<UnoPackId, ToolboxCategory[]>> = {
       contents: [block(servoSetType, { fields: { ROLE: 'servo1' }, inputs: { ANGLE: shadowNumber(90) } })],
     },
   ],
+  // N19 A4: the gripper's two positions and any angle of the claw and the arm; the IR sensor between the jaws joins Sensors.
+  'uno.gripper': [
+    {
+      kind: 'category',
+      name: 'Gripper',
+      colour: '300',
+      contents: [
+        block(clawType, { fields: { STATE: 'OPEN' } }),
+        block(clawType, { fields: { STATE: 'CLOSE' } }),
+        block(clawAngleType, { inputs: { ANGLE: shadowNumber(40) } }),
+        block(liftType, { fields: { STATE: 'UP' } }),
+        block(liftType, { fields: { STATE: 'DOWN' } }),
+        block(liftAngleType, { inputs: { ANGLE: shadowNumber(45) } }),
+      ],
+    },
+    { kind: 'category', name: 'Sensors', colour: '195', contents: [block(irDetectType)] },
+  ],
+  'uno.color': [{ kind: 'category', name: 'Sensors', colour: '195', contents: [block(colorIsType, { fields: { COLOR: 'red' } })] }],
   'uno.output': [
     {
       kind: 'category',
@@ -491,6 +515,7 @@ const unoCategories: Readonly<Record<UnoPackId, ToolboxCategory[]>> = {
   'uno.text': langCategories['lang.text'],
   'uno.variables': langCategories['lang.variables'],
   'uno.sensors.advanced': [{ kind: 'category', name: 'Sensors', colour: '195', contents: [block(lineRawType, { fields: { ROLE: 'lineCenter' } })] }],
+  'uno.color.advanced': [{ kind: 'category', name: 'Sensors', colour: '195', contents: [block(colorRawType, { fields: { CHANNEL: 'clear' } })] }],
   'uno.output.advanced': [{ kind: 'category', name: 'Light & Sound', colour: '60', contents: [block(buzzerStopType)] }],
   'uno.pins': [
     {
@@ -520,6 +545,8 @@ export function createUnoPacks(choices: PinChoices): BlockPack[] {
     'uno.drive': driveDefinitions,
     'uno.sensors': unoSensorDefinitions,
     'uno.servo': servoDefinitions,
+    'uno.gripper': gripperDefinitions,
+    'uno.color': colorDefinitions,
     'uno.output': outputDefinitions,
     'uno.logic': [],
     'uno.loops': [whileDefinition, unoCountUpDefinition, waitDefinition],
@@ -527,6 +554,7 @@ export function createUnoPacks(choices: PinChoices): BlockPack[] {
     'uno.text': [],
     'uno.variables': [],
     'uno.sensors.advanced': advancedSensorDefinitions,
+    'uno.color.advanced': advancedColorDefinitions,
     'uno.output.advanced': advancedOutputDefinitions,
     'uno.pins': createUnoPinBlockDefinitions(choices),
   };
@@ -609,12 +637,84 @@ export function createBlockPackCatalog(
  * category (variables) is never merged.
  */
 export function buildToolbox(packIds: readonly string[], catalog: BlockPackCatalog): Toolbox {
-  const contents: ToolboxCategory[] = [];
-  for (const id of packIds) {
+  return toolboxOfPacks(
+    packIds.map((id) => {
+      const pack = catalog.get(id);
+      if (!pack) {
+        throw new Error(`Unknown block pack "${id}"`);
+      }
+      return pack;
+    }),
+  );
+}
+
+/** N19 A4: the robot a toolbox is for: its kit, on its board (the kit's ops depend on the board's pins, `line.raw`). */
+export type ToolboxRobot = { readonly kit: Kit; readonly board: BoardProfile };
+
+/**
+ * N19 A4 (D-G11): the packs of `profile` as the robot `robot` can use them. A block of the robot is offered when the kit offers its op on
+ * one of its roles (as the compiler decides capability-unavailable): a rover has no claw or colour block, a gripper car no servo or
+ * buzzer. A toolbox entry that names its role (`ROLE`) is offered when that role does. A category left empty goes, and so does a pack.
+ * Every other block (the language, millis, the raw pins) stays. Without a robot, the profile's packs as they are.
+ */
+export function kitBlockPacks(profile: { readonly blockPacks: readonly string[] }, robot: ToolboxRobot | undefined, catalog: BlockPackCatalog): BlockPack[] {
+  const packs = profile.blockPacks.map((id) => {
     const pack = catalog.get(id);
     if (!pack) {
       throw new Error(`Unknown block pack "${id}"`);
     }
+    return pack;
+  });
+  if (robot === undefined) {
+    return packs;
+  }
+  const offersOp = (role: string, op: string) => roleOps(robot.kit, robot.board, role).includes(op);
+  const offers = (construct: UnoModuleConstruct, role?: string): boolean => {
+    if (role !== undefined) {
+      return offersOp(role, construct.op);
+    }
+    if (construct.roles.length > 0) {
+      return construct.roles.some((candidate) => offersOp(candidate, construct.op));
+    }
+    // The drive is both motors; millis and a raw pin are the board's.
+    return construct.op === 'drive.move' || construct.op === 'drive.stop' ? offersOp(DRIVE_ROLE, construct.op) : true;
+  };
+  const offeredType = (type: string) => {
+    const construct = unoModuleConstructOf(type);
+    return construct === undefined || offers(construct);
+  };
+  const offeredEntry = (entry: unknown) => {
+    const item = entry as { kind?: string; type?: string; fields?: Record<string, unknown> };
+    const construct = item.kind === 'block' && typeof item.type === 'string' ? unoModuleConstructOf(item.type) : undefined;
+    if (construct === undefined) {
+      return true;
+    }
+    const role = item.fields?.[ROLE_FIELD];
+    return offers(construct, typeof role === 'string' ? role : undefined);
+  };
+  return packs.flatMap((pack) => {
+    const categories = pack.categories.flatMap((category) => {
+      if (category.contents === undefined) {
+        return [category];
+      }
+      const contents = category.contents.filter(offeredEntry);
+      if (contents.length === category.contents.length) {
+        return [category];
+      }
+      return contents.length > 0 ? [{ ...category, contents }] : [];
+    });
+    const blockTypes = pack.blockTypes.filter(offeredType);
+    if (categories.length === pack.categories.length && blockTypes.length === pack.blockTypes.length && categories.every((category, index) => category === pack.categories[index])) {
+      return [pack];
+    }
+    return categories.length > 0 || blockTypes.length > 0 ? [{ ...pack, categories, blockTypes }] : [];
+  });
+}
+
+/** The toolbox of `packs`, in that order, merging the categories of one name (`buildToolbox`). */
+export function toolboxOfPacks(packs: readonly BlockPack[]): Toolbox {
+  const contents: ToolboxCategory[] = [];
+  for (const pack of packs) {
     for (const category of pack.categories) {
       const index = contents.findIndex((shown) => category.name !== undefined && shown.name === category.name && shown.custom === undefined && category.custom === undefined);
       const shown = contents[index];
