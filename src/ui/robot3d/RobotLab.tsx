@@ -46,6 +46,7 @@ import { restrictToolbox } from './toolbox';
 import { useCheckAnnouncements, useRunAnnouncements } from './use-announcements';
 import { useCameraKeys } from './use-camera-keys';
 import { whenIdle } from './when-idle';
+import { zoneLabelOf } from './zone-label';
 import './RobotLab.css';
 
 // The robot lab (`lab=robot`, N18 R4.1 shell, R4.2 scene, R4.4 HUD and controls), loaded on its own with React.lazy (RobotLabLoader.tsx)
@@ -364,11 +365,8 @@ export default function RobotLab({
     void checks.getState().start();
   };
 
-  const zoneLabel = useCallback(
-    (zone: PaintZone) =>
-      zone.kind === 'start' ? t('robot.zone.start') : zone.kind === 'target' ? t('robot.zone.target') : zone.kind === 'checkpoint' ? t('robot.zone.checkpoint') : null,
-    [t],
-  );
+  // N19 E5: a named zone by its name ("Kho", "Vùng đỏ"), whatever its kind; any other by its kind's word (zone-label.ts).
+  const zoneLabel = useCallback((zone: PaintZone) => zoneLabelOf(t, zone), [t]);
 
   // The keys of the 3D view, said to whoever focuses it: the camera's, teleop's when the robot can be driven, and the move tool's Shift.
   const viewHint = [

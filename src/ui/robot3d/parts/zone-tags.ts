@@ -7,7 +7,7 @@ import { checkpointNumbers, type MatLabels } from './mat-paint';
 // The zones' tags in the 3D view (N18 R4.7 fix round 1): the names of the zones the lesson sends the robot to and the checkpoints'
 // numbers float over their zones as labels of the view (a rounded tag that faces the camera, a thin line down to the zone's middle),
 // readable from any camera, never printed sideways on the mat. They are no part of the world: nothing collides with them, no sensor
-// sees them. The start zone has none (the robot stands on it). A checkpoint with its number shows the number alone, in a disc (fix
+// sees them. The start zone has none (the robot stands on it); N19 E5: a zone the lesson names has its name, whatever its kind. A checkpoint with its number shows the number alone, in a disc (fix
 // round 2: "Điểm kiểm tra" four times over cluttered the view); its name goes on one without a number.
 
 export type ZoneTag = {
@@ -28,13 +28,17 @@ const middleOf = (zone: PaintZone): [number, number] => {
   return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
 };
 
-/** The tags of `scenario`'s zones: every target and checkpoint that has a name or a number, in the paint's order. */
+/**
+ * The tags of `scenario`'s zones: every target and checkpoint that has a name or a number, and (N19 E5) every zone the lesson names
+ * (`zones[].name`: "Kho", "Vùng đỏ"), whatever its kind, in the paint's order.
+ */
 export function zoneTags(scenario: Pick<Scenario, 'arena' | 'goals'>, labels: MatLabels): ZoneTag[] {
   const numbers = checkpointNumbers(scenario);
   return scenario.arena.paint.zones.flatMap((zone) => {
-    if (zone.kind !== 'target' && zone.kind !== 'checkpoint') return [];
+    if (zone.kind !== 'target' && zone.kind !== 'checkpoint' && zone.name === undefined) return [];
     const number = numbers.get(zone.id) ?? null;
-    const text = zone.kind === 'checkpoint' && number !== null ? null : labels.zoneLabel(zone);
+    // A numbered checkpoint shows its number alone, unless the lesson names it (N19 E5): then its name too.
+    const text = zone.kind === 'checkpoint' && number !== null && zone.name === undefined ? null : labels.zoneLabel(zone);
     return text === null && number === null ? [] : [{ zoneId: zone.id, text, number, color: zone.color, centerCm: middleOf(zone) }];
   });
 }

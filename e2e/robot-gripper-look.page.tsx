@@ -7,6 +7,8 @@ import type { QualityTier } from '../src/ui/robot3d/quality';
 import { robotModel } from '../src/ui/robot3d/robot-model';
 import { createRobotRunStore } from '../src/ui/robot3d/robot-run-store';
 import Scene from '../src/ui/robot3d/Scene';
+import { translate } from '../src/ui/i18n/messages';
+import { zoneLabelOf } from '../src/ui/robot3d/zone-label';
 
 // N19 E6/E7: the robot lab's 3D view (Scene.tsx, as the lab mounts it) of the gripper car in the test arena of
 // src/ui/robot3d/__fixtures__/gripper-scene.ts, its world a fixture snapshot from the query: ?tier=high|low&claw=0&lift=90&held=cube-red
@@ -54,7 +56,7 @@ createRoot(document.getElementById('view')!).render(
     tier={tier}
     cameraMode={camera}
     reducedMotion
-    zoneLabel={(zone) => zone.name ?? null}
+    zoneLabel={(zone) => zoneLabelOf((key, params) => translate('vi', key, params), zone)}
     onContextLost={() => {}}
     onContextRestored={() => {}}
     onFirstFrame={() => {
