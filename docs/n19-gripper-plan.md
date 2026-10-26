@@ -249,6 +249,31 @@ Toàn bộ §5 của plan N18 vẫn áp dụng: B1, Rapier chỉ ở `src/core/w
 - `GoalResult.detail?: {zoneId}`.
 - **Đẩy vật vào vùng mà không gắp = 0 điểm** ở cả 4 bài. Bài đẩy vật thì dùng `object-in-zone` với kit rover.
 
+### 4.6 Sửa sau Gate G0 (ADR 0004 §5 và §7; khi mâu thuẫn với §4.1/§4.4 thì mục này thắng)
+
+- **Khung tay nâng:**
+  - Hình bình hành = **khoá góc chassis↔giá kẹp** (`JointData.generic`, khoá `AngZ`), không dùng motor giữ `LINK_HOLD_NM`. Khớp boom↔giá kẹp là revolute không motor.
+  - Luật servo tay nâng **có hãm**: tốc độ = min(60°/`liftSPer60Deg`, |e|/dt, √(2·a·|e|)), a = 139,4 rad/s².
+  - Thêm `GripperSpec.liftRotorInertiaKgM2 = 5e-5` (PLACEHOLDER).
+- **Solver và ngón:**
+  - Mỗi body bộ gắp có +8 PGS và +4 solver iteration.
+  - Ngón là collider thật với **ma sát 0**; `jawFriction` chỉ dùng cho ngưỡng tuột. Không dùng ngón-sensor: lún 7,7–19,3 mm và đi xuyên tường.
+  - Solver group của mọi collider bộ gắp chỉ là thành viên `GRIPPER_GROUP`.
+- **Máy trạng thái gắp:**
+  - `CONTACT_GAP_M = 2 mm`; "chạm" nghĩa là `contactImpulse > 0` hoặc khoảng cách ≤ 0,5 mm.
+  - Lực kẹp 8,09 N; ngưỡng tuột 9,71 N.
+  - Thêm bốn luật:
+    1. chốt sau khi tuột: không attach lại tới khi lệnh kẹp ≤ θc − 6°;
+    2. càng chỉ dừng khi vật bị kẹp ngang (khe ≤ bề rộng + 0,05 cm), mỗi ngón dừng ở góc chạm;
+    3. ngón bám mặt vật đang giữ (đòn bẩy kẹp trong 1–5,5 cm);
+    4. solver group như trên.
+- **Khối lượng:** `massG 460` là cả xe; body chassis = 426 g.
+- **Chống lật:**
+  - Càng đâm tường mà motor vẫn đẩy thì xe chổng đầu 15,7–17,2°. Đây là vật lý thật, giống tay servo ở ADR 0001 §9. Vì vậy **mọi kịch bản kit gripper `endOnContact` với tường nằm trên đường đi của càng**.
+  - Teleop đẩy tường vẫn chổng đầu như xe thật; chỉ cần không có NaN và xe trở lại đứng trên bánh.
+  - Hạ tay lên vật hay sàn thì đầu xe nhấc (3,85°): lực ấn bị giới hạn bởi trọng lượng xe.
+- **Hiệu năng:** chi phí khoảng 0,19–0,28 ms/tick (gấp khoảng 4 lần rover). E9 đo trên profile máy trường; nếu vượt ngân sách thì bỏ +4 solver iteration (giá kẹp lệch 0,91° khi giữ 50 g).
+
 ## 5. Review Focus
 
 1. **Vật đang giữ đâm tường hoặc vật khác, hoặc bị ép xuống sàn.** Tuột đúng ngưỡng, va chạm tính cho xe, không có NaN, xe không lật. *Test (B3):* `held cube hitting a wall at 0.4 m/s breaks the grasp and counts as robot contact`; `pressing a held cube on the floor at lift stall keeps the grasp`.
@@ -270,7 +295,7 @@ Toàn bộ §5 của plan N18 vẫn áp dụng: B1, Rapier chỉ ở `src/core/w
   - bài 8: hạ, mở → tiến khi siêu âm > 15 cm → tiến chậm tới khi IR thấy vật → dừng, đóng, nâng → chở → hạ, mở, lùi;
   - bài 9: `repeat 3` gồm dò line tới khi IR thấy vật → gắp → xoay trái 830 ms → tiến → thả → lùi → xoay phải tới khi gặp vạch;
   - bài 10: gắp → `if màu đỏ` rẽ trái / `else if xanh dương` rẽ phải / còn lại đi thẳng;
-  - bài 11: dò line tới khi IR thấy vật → gắp → tay 45° → dò line tới cuối vạch → thả nhẹ.
+  - bài 11: dò line tới khi IR thấy vật → gắp → tay **55°** (ở 45° khối đẩy bệ 4,66 cm, ADR 0004 §4.2) → dò line tới cuối vạch → thả nhẹ.
 - **Starter:** khối mũ `stem_on_start` cộng một khối gợi ý chưa nối.
 - **Thời gian tham khảo** đo trên kit placeholder; đổi kit thì phải đo lại (VG).
 
@@ -302,11 +327,11 @@ Thứ tự: **G0 → A ∥ (D1–D3) → B → C ∥ E(asset) → D4–D8 → E(
 - **A5 Hợp đồng (6h):** U-35…U-39, `U-M3 wire`, chỉnh U-46/U-48, `UNO_PARITY_ROWS` 34 → 39, bằng chứng CC-06/EMU-19/EMU-20/DS-02/ARD-18/TST-08…10; `docs/uno-compatibility-contract.md`. *Test:* `uno-contract.test.ts`: tên test khớp chính xác, không có `.skip`.
 
 ### B — World (56h)
-- **B1 Lắp ráp tay gắp (14h):** `world/robot/gripper.ts`, `assembly.ts`, `run/robot-modules.ts`. *Test:* `lift 0→90° in 0.15 s ±2 ticks`; `carriage level within 0.5° at every lift angle`; `jaws stop at 80°`.
-- **B2 Máy trạng thái gắp (10h):** `world/robot/grasp.ts`, `world.ts`. *Test:* `attach needs all five conditions`; `release at θc−6° not at θc−3°`; `payload 60 g never attaches`; `released cube lands within 5° of upright`.
+- **B1 Lắp ráp tay gắp (14h):** `world/robot/gripper.ts`, `assembly.ts`, `run/robot-modules.ts`. *Test:* `lift 0→90° in 22 ±2 ticks` (luật hãm §4.6); `carriage level within 0.5° at every lift angle, 50 g held`; `jaws stop at 80°`.
+- **B2 Máy trạng thái gắp (10h):** `world/robot/grasp.ts`, `world.ts`. *Test:* `attach needs all five conditions`; `release at θc−6° not at θc−3°`; `no re-attach after a break until the claw opens past θc−6°`; `claw stops only on a sideways clamp`; `payload 60 g never attaches`; `released cube lands within 5° of upright`; `off-centre cube (≤ 1 cm) penetrates ≤ 2.1 mm`.
 - **B3 Cảm biến + màu (8h):** IR và màu bằng tia, màu trong arena, `body-colors.ts`, loại trừ trong siêu âm. *Test:* `ultrasonic clear of jaws at lift 0° and 90°`; `IR sees nothing without an object`; `black cube not seen by IR`; Review Focus 1.
 - **B4 Session + frame (8h):** `robot-run-session.ts` (lịch sử bức xạ 80 tick), `snapshot.ts`, `goal-frame.ts`, `goals/frame.ts`. *Test:* TST-09; Review Focus 2.
-- **B5 Ổn định (10h):** `footprint.ts` quét toàn bộ góc tay; `gripper.test.ts`; addendum cho ADR 0001 §9. *Test:* `brake from top speed with 50 g held tips < 3°`; `claw into a wall tips < 8° and settles within 0.5 s`; `caster always loaded`.
+- **B5 Ổn định (10h):** `footprint.ts` quét toàn bộ góc tay; `gripper.test.ts`; addendum cho ADR 0001 §9. *Test:* `brake from top speed with 50 g held tips < 3°, caster loaded`; `claw into a wall with the drive released on contact tips < 8° and settles within 0.5 s`; `drive still pushing into a wall noses up but stays finite and lands back on its wheels`; `full-speed lift moves lift the caster ≤ 4 mm for ≤ 0.2 s`; `starts from rest at the lowest duty the lesson solutions use (≥ 50 %), 50 g held at lift 0°` (tune the gripper kit placeholder, never the rover, if not).
 - **B6 Golden (6h):** fixture `gripper-pick-place`, `gripper-stack`, `gripper-sensors` trên 4 engine; guard đếm bodies/colliders/joints của rover; sửa danh sách tên ở `robot-determinism.test.ts:73`.
 
 ### C — Codegen (14h)
@@ -355,7 +380,7 @@ Thứ tự: **G0 → A ∥ (D1–D3) → B → C ∥ E(asset) → D4–D8 → E(
     - bài 8: thứ tự hạ → mở → tiến → có vật → đóng → nâng; vùng chết 2 cm của siêu âm;
     - bài 9: `repeat 3`;
     - bài 10: TCS34725 + if/else-if;
-    - bài 11: bảng góc tay ↔ độ cao.
+    - bài 11: bảng góc tay ↔ độ cao (đặt lên bệ ở tay 55°).
   - Hướng dẫn ghi "<goal> (N điểm)", thời gian và các lượt.
   - `passScore` để null cho cả 4 bài.
   - Viết lại `robot-course.test.ts`: tra theo `scenarioKey` thay cho index; sân tập là bài cuối của module 3.

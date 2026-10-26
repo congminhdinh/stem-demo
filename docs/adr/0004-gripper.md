@@ -239,6 +239,29 @@ Không dùng tài liệu web.
 
 Spike giữ tới khi B1/B2 có test tương đương, rồi xoá như `spikes/robot-physics/`.
 
-## 11. I²C (G0.2)
+## 11. I²C (G0.2): parity cảm biến màu TCS34725 trên avr8js — **GO**
 
-*(Chỗ để spike G0.2 điền: adapter `AVRTWI`, bằng chứng EMU-19/EMU-20/CC-06, `costsUs` mới và quyết định go/no-go cho U-38/U-39.)*
+**Bối cảnh.** Bài 10 (Phân loại theo màu) và U-38/U-39 cần cảm biến TCS34725 đọc qua Wire thô (D-G7). Câu hỏi: harness C2 của N18 có so được trace của simulator với HEX thật trên avr8js 0.21.1 khi chương trình nói chuyện I²C hay không, và mỗi lời gọi tốn bao nhiêu µs.
+
+**Đã làm** (`spikes/avr8js/`, `node spikes/avr8js/run-gripper.ts`, kết quả `out/gripper-results.json`):
+- `tcs34725-model.ts`: model thanh ghi TS thuần (không import, chỉ + × / floor), dùng chung cho cả hai phía; A3 chuyển nguyên file sang `src/core/hardware/devices/tcs34725.ts`.
+- `twi-device.ts`: `TWIEventHandler` cho avr8js, hoàn tất mỗi pha sau đúng thời gian bus tính từ TWBR (datasheet 7810D §21.5.2: SCL = 16 MHz / (16 + 2·TWBR·prescaler); TWBR = 72 → 160 cycle, 100 kHz; byte 9 SCL, START/STOP 1 SCL mỗi cái — PLACEHOLDER đến L3).
+- Sketch `gripper-forms` (servo, IR, cảm biến màu dưới 7 vùng sáng, và chạy lại không có thiết bị → NACK), `gripper-costs` (µs mỗi lời gọi, như EMU-08).
+
+**Kết quả** (Apple M4 Pro, Node 24.22.1, arduino-cli 1.5.1, arduino:avr 1.8.8, Servo 1.3.0, Wire 1.0; số đo bằng cycle nên không phụ thuộc tải máy):
+- Mọi dòng Serial khớp phía TS: C R G B của từng màu và lớp màu (đỏ, xanh lá, xanh dương, vàng, trắng, đen, không rõ); NACK → 0 0 0 0, "không rõ", không timeout.
+- Thời gian bus của từng pha đúng datasheet (trễ ≤ 5 cycle: lệnh đang chạy + vào ngắt). Mỗi transaction (START → STOP) so với model = thời gian bus + phần CPU không bị ngắt: không có ngắt khác chen vào thì ≤ +0,9 %; có ngắt khác (Servo, Timer0, USART) thì dài thêm tối đa 3,08 % nhưng không bao giờ quá thời gian các ngắt đó chạy (`isr-load` của harness).
+- Cửa sổ tích phân kết thúc mỗi 52,8 ms (RGBC Init 2,4 ms mỗi chu kỳ, datasheet TAOS135 Figure 9), cửa sổ đầu 52,8 ms sau khi ghi AEN.
+- Servo: độ rộng xung đúng Servo.h (kẹp 544 → 1368 → 1472 (120 bị kẹp) → 544; tay 1472 → 544 → 1008), cả hai trên Timer1 trong cùng khung 20 ms (xung tay lên 10,75 µs sau khi xung kẹp xuống).
+- Chi phí (EMU-20, µs): `gripperSet` 51,625; `colorFetch` 1158,5 (NACK 146,0625); `colorBegin` 1350,5625 + delay(3) + delay(54) (NACK 589,4375); `colorClassify` 128,1…147,25; `digitalRead(A3)` 3,9375 (bằng khoá `digitalRead` hiện có).
+- Biên dịch (CC-06): gripper-forms 7240 B flash (22 %), 456 B RAM (22 %); Wire chiếm 216 B RAM; không cảnh báo nào từ sketch, Wire hay Servo.
+
+**Một khác biệt của avr8js đã sửa trong adapter:** `completeStop()` bật TWINT sau STOP, datasheet thì không (§21.6). Để nguyên thì mỗi transaction chạy thêm một ngắt TWI (+6,19 µs; +12,4 µs mỗi colorFetch, tức +1,07 %). `twi-device.ts` xoá cờ đó.
+
+**Quyết định: GO.** U-38/U-39 và bài 10 giữ trong N19. Điều kiện cho C2/A3:
+1. `tests/parity/emulated-uno.ts` gắn `AVRTWI` + `TimedTwiBus` (có sửa TWINT sau STOP); model TS là một, phía board gọi ở thời gian bus, phía simulator ở thời gian chương trình.
+2. Dung sai độ rộng xung servo của kit gripper phải rộng hơn 4 µs của N18 (đo được +5,19 µs do Timer0, ngắt TWI dài tới 20,1 µs vì `twi_stop()` chờ STOP ngay trong ngắt) — theo kit, để assertion của rover không đổi.
+3. Board đọc 8 byte dữ liệu trải trong 336…1021 µs; simulator đọc một lúc. Driver đọc từng byte ở offset bus của nó, hoặc fixture giữ ánh sáng không đổi quanh lúc đọc.
+4. `costsUs` mới: `gripperSet`, `colorFetch`, `colorFetchNack`, `colorBegin`, `colorBeginNack`, `colorClassify` (số ở trên); evidence EMU-19, EMU-20, CC-06.
+
+**Nếu sau này no-go** (chưa xảy ra): U-38/U-39 DEFERRED, bài 10 hoãn; tay gắp và IR vẫn ship.
