@@ -1,5 +1,4 @@
 import type { BoardProfile } from '../../core/hardware/board';
-import type { Rgbc } from '../../core/hardware/devices/tcs34725';
 import { classifyColor, COLOR_NAMES, type ColorName } from '../../core/hardware/drivers';
 import { driverPortSpecs, kitPort, portParam, type DriverId, type Kit, type ModuleKind } from '../../core/hardware/kit';
 import type { PinMode, PinState } from '../../core/hardware/virtual-uno';
@@ -150,13 +149,11 @@ export const idleHubValues: HubValues = Object.freeze({ live: false, pins: Objec
 const rounded = (value: number) => Math.round(value) + 0;
 
 /**
- * N19 E2: what the colour sensor's entry among the snapshot's `sensors` holds that the tab reads: the counts of the sensor's registers, when the
- * world gives them. Read through this, and only when the entry is there: a snapshot without the entry (before B3/B4, or a rover's) has none.
+ * N19 E2: the counts of the colour sensor's registers, from its entry among the snapshot's `sensors` (N19 B4: `rgbc`, the register model's last
+ * completed window, which the run session adds), only when the entry has them: before the sensor's first window, or for a rover, none.
  */
-type ColorEntry = { readonly kind: 'color-sensor'; readonly rgbc?: Rgbc };
-
 function colorCounts(world: RobotSnapshot, index: number): ColorCounts | null {
-  const entry = world.sensors[index] as unknown as ColorEntry | undefined;
+  const entry = world.sensors[index];
   if (entry?.kind !== 'color-sensor' || entry.rgbc === undefined) return null;
   const { r, g, b, c } = entry.rgbc;
   return { r, g, b, c };
