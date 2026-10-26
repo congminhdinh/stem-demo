@@ -36,7 +36,8 @@ import { variantSeed } from './variants';
 //     Realtime: the caller drives it with its frames (`frame(wallMs)` from requestAnimationFrame, at `speed`) and draws `run`'s snapshots.
 //     The mode only decides who calls the ticks: the ticks, and so the result, are the same (Review Focus 2, check-robot.determinism.test.ts).
 //   - `cancel()` ends the check without a result: `result` resolves null, as a cancelled check of App.tsx gives no verdict and sends nothing.
-//     It is the only way to get null.
+//     It is the only way to get null, and it does not wait for a world still being built (N18 final fix M7: the session disposes that
+//     world when it comes).
 //   - A check that cannot be made rejects `result` with a RobotCheckError: the program does not compile, or is for another kit (the start's
 //     reason and diagnostics, as Run gives them), or a variant's world or scorer cannot be made. The host is sent nothing then: there is no
 //     result to send.
@@ -195,6 +196,14 @@ export function checkRobot(project: ProjectDocument, scenario: Scenario, opts: C
 
   let cancelled = false;
   let settled = false;
+  /**
+   * N18 final fix M7: settles when the check is cancelled. A variant's start waits for its world, which the first time waits for Rapier
+   * (1.18 MB of wasm on a school network); a cancel then gives no result at once instead of after the download.
+   */
+  let onCancel = () => {};
+  const cancelling = new Promise<'cancelled'>((resolve) => {
+    onCancel = () => resolve('cancelled');
+  });
 
   /** Headless: the variant's ticks, a second at a time, until it ends; each whole second reached is told. */
   const runHeadless = async () => {
@@ -234,8 +243,11 @@ export function checkRobot(project: ProjectDocument, scenario: Scenario, opts: C
       if (cancelled) return null;
       const seed = variantSeed(scenario, index);
       tell({ kind: 'variant-started', index, count, seed });
-      const started = await session.start(project, index, { check: true });
-      if (cancelled) return null;
+      // A cancel does not wait for the start: the session's stop already superseded it, so the world it builds is disposed once it comes.
+      const starting = session.start(project, index, { check: true });
+      starting.catch(() => {});
+      const started = await Promise.race([starting, cancelling]);
+      if (cancelled || started === 'cancelled') return null;
       if (!started.ok) {
         if (started.reason === 'superseded' || started.reason === 'idle') return null;
         throw new RobotCheckError(started.reason, started.diagnostics, index);
@@ -286,6 +298,7 @@ export function checkRobot(project: ProjectDocument, scenario: Scenario, opts: C
       if (settled || cancelled) return;
       cancelled = true;
       session.stop();
+      onCancel();
     },
     frame(wallMs, speed = defaultSpeed) {
       if (!(Number.isFinite(wallMs) && wallMs >= 0) || !(Number.isFinite(speed) && speed > 0)) {
