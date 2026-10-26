@@ -21,8 +21,20 @@ export type RawChange = { readonly atUs: number; readonly state: RawPinState };
 
 export type WaveformDecoding =
   | { readonly kind: 'pwm'; readonly periodUs: number; readonly scale: number }
-  /** N19 C2: `highUs`, a servo's own HIGH-time jitter (waveform-jitter: 6 µs on the gripper car, whose TWI interrupt holds the Servo's). */
-  | { readonly kind: 'servo'; readonly frameUs: number; readonly minUs: number; readonly maxUs: number; readonly highUs?: number }
+  /**
+   * N19 C2: `highUs`, a servo's own HIGH-time jitter (waveform-jitter: 6 µs on the gripper car, whose TWI interrupt holds the Servo's).
+   * `timerWrapExtraUs` (servo-first-pulse, timerWrapUs): this servo is not the first on Timer1, so it may pulse once at Timer1's first wrap
+   * after attach(), and that first period is a frame and at most this much longer (the widest pulse the servos before it can send). Absent:
+   * no such pulse is joined to a run (a single servo, the rover's).
+   */
+  | {
+      readonly kind: 'servo';
+      readonly frameUs: number;
+      readonly minUs: number;
+      readonly maxUs: number;
+      readonly highUs?: number;
+      readonly timerWrapExtraUs?: number;
+    }
   | { readonly kind: 'tone'; readonly minHz: number; readonly maxHz: number };
 
 const wander = allowedDifferences['waveform-jitter'];
@@ -118,15 +130,14 @@ function firstPulseAfterAttach(changes: readonly RawChange[], initial: RawPinSta
  */
 export function findRuns(changes: readonly RawChange[], decoding: WaveformDecoding, initial: RawPinState = 'INPUT'): Run[] {
   const attachRise = decoding.kind === 'servo' ? firstPulseAfterAttach(changes, initial) : -1;
-  // N19 C2 (servo-first-pulse, timerWrapUs): the second servo of Timer1 pulses once at Timer1's first wrap after attach(), and its first
-  // period is longer by the pulse of the servo before it. Only a first pulse at that wrap is such a pulse: the rover's single servo first
-  // pulses a frame later, so its runs are what they were.
+  // N19 C2 (servo-first-pulse, timerWrapUs): a servo that is not the first on Timer1 (its decoding says by how much: timerWrapExtraUs)
+  // pulses once at Timer1's first wrap after attach(), and its first period is longer by the pulse of the servo before it. Only such a
+  // decoding, and only a first pulse at that wrap, get the longer first period: a single servo (the rover's) has neither.
+  const wrapExtraUs = decoding.kind === 'servo' ? (decoding.timerWrapExtraUs ?? 0) : 0;
   const attachLowUs = attachRise > 0 ? (changes[attachRise - 1]?.atUs ?? 0) : 0;
   const atTimerWrap =
-    decoding.kind === 'servo' &&
-    attachRise > 0 &&
-    Math.abs((changes[attachRise]?.atUs ?? 0) - attachLowUs - firstServoPulse.timerWrapUs) <= firstServoPulse.slackUs;
-  const firstFrameExtraUs = atTimerWrap && decoding.kind === 'servo' ? decoding.maxUs : 0;
+    wrapExtraUs > 0 && attachRise > 0 && Math.abs((changes[attachRise]?.atUs ?? 0) - attachLowUs - firstServoPulse.timerWrapUs) <= firstServoPulse.slackUs;
+  const firstFrameExtraUs = atTimerWrap ? wrapExtraUs : 0;
   const periods: { rise: number; next: number; periodUs: number; highUs: number }[] = [];
   for (let rise = 1; rise + 2 < changes.length; rise++) {
     const [before, start, fall, next] = [changes[rise - 1], changes[rise], changes[rise + 1], changes[rise + 2]];

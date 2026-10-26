@@ -1,8 +1,7 @@
 import type { BoardProfile, Kit } from '../../src/core/hardware';
 import { decodePin, type RawChange, type WaveformDecoding } from './board-trace';
 import { cyclesOfUs, EmulatedUno, usOfCycles, type RawPinState } from './emulated-uno';
-import { createTcs34725 } from '../../src/core/hardware/devices/tcs34725';
-import { adcValueOf, analogFeed, colorIntegral, echoFeed, levelTimeline, type ParityInputs } from './inputs';
+import { adcValueOf, analogFeed, echoFeed, levelTimeline, recordedColorSensor, type ColorBusEvent, type ParityInputs } from './inputs';
 import { parseIntelHex } from './intel-hex';
 import type { PinEvent, PrintedLine } from './trace';
 
@@ -22,6 +21,8 @@ export type BoardRun = {
   serialDoneUs: number;
   /** µs from reset to the start of setup(). */
   setupStartUs: number;
+  /** N19 C2: every call the timed TWI made on the colour sensor, µs from the start of setup() (none without `inputs.colors`). */
+  colorBus: ColorBusEvent[];
 };
 
 /** What a cycle counter reads before setup() at most: init() ends within a few hundred µs of reset (ADR 0003 §3.9). */
@@ -78,8 +79,9 @@ export function runBoard(
   }
 
   // N19 C2: the TWI with its timed bus, and the colour sensor on it under the scripted light (none: an empty bus, every address NACKed).
+  const colorBus: ColorBusEvent[] = [];
   if (inputs.colors) {
-    const device = inputs.colors.absent ? null : createTcs34725(colorIntegral(inputs.colors));
+    const device = inputs.colors.absent ? null : recordedColorSensor(inputs.colors, colorBus);
     uno.attachI2c(new Map(device ? [[device.address, device]] : []));
   }
 
@@ -124,5 +126,6 @@ export function runBoard(
     unfinishedLine: new TextDecoder().decode(Uint8Array.from(bytes)),
     serialDoneUs: last ? sinceSetup(last.cycle + uno.serialFrameCycles) : 0,
     setupStartUs: usOfCycles(setupCycle),
+    colorBus,
   };
 }

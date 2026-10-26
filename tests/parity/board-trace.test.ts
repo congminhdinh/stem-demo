@@ -157,6 +157,28 @@ describe('decodePin', () => {
     expect(findRuns(steady, servo, 'INPUT').map((run) => run.first)[0]).toBe(1);
   });
 
+  it('joins the pulse a second servo sends at Timer1\'s first wrap to its run, its first period a frame and at most the servo before it\'s widest pulse longer (N19 C2, timerWrapUs); a single servo is unchanged', () => {
+    // The gripper's lift (D10), Timer1's second servo, after attach() at 6.625 µs: one pulse at the wrap (32 768 µs on, + the library's
+    // ticks), the next a frame and the claw's pulse (90°, 1471.5 µs) later, then every frame; the lift at 45° (1007.5 µs) throughout.
+    const lift: WaveformDecoding = { ...servo, highUs: 6, timerWrapExtraUs: 1472 };
+    const wrapRise = 6.625 + 32_768 + 30;
+    const wrapTrain = (firstPeriodUs: number) => [low(6.625), ...pulses(wrapRise, 1, firstPeriodUs, 1007.5), ...pulses(wrapRise + firstPeriodUs, 4, 20_003, 1007.5)];
+    const spans = (changes: RawChange[], decoding: WaveformDecoding) => findRuns(changes, decoding, 'INPUT').map((run) => [run.first, run.last, run.highUs]);
+    // A frame and the claw's 90° pulse: one run from the wrap's pulse on (the LOW after it: the train ends).
+    expect(spans(wrapTrain(20_003 + 1471.5), lift)).toEqual([[1, 9, 1007.5]]);
+    expect(events('D10', wrapTrain(20_003 + 1471.5), 140_000, lift).slice(1).map(([state]) => state)).toEqual([{ kind: 'low' }, { kind: 'servo', deg: 45 }, { kind: 'low' }]);
+    // A frame and 2500 µs (wider than any pulse the claw sends, GRIPPER_ANGLE 90°): the wrap's pulse stays exact edges.
+    expect(spans(wrapTrain(20_003 + 2500), lift)).toEqual([[3, 9, 1007.5]]);
+    expect(events('D10', wrapTrain(20_003 + 2500), 140_000, lift).slice(1).map(([state]) => state)).toEqual([{ kind: 'low' }, { kind: 'high' }, { kind: 'low' }, { kind: 'servo', deg: 45 }, { kind: 'low' }]);
+    // Without timerWrapExtraUs (the rover's servo, or the claw, Timer1's first): the long first period is not joined either.
+    expect(spans(wrapTrain(20_003 + 1471.5), { ...servo, highUs: 6 })).toEqual([[3, 9, 1007.5]]);
+    // A first pulse off the wrap (a frame later, as a single servo's at 52.8 ms) gets no longer period, with or without the opt-in.
+    const offWrap = [low(6.625), ...pulses(6.625 + 32_768 + 300, 1, 20_003 + 1471.5, 1007.5), ...pulses(6.625 + 32_768 + 300 + 20_003 + 1471.5, 4, 20_003, 1007.5)];
+    expect(spans(offWrap, lift)).toEqual([[3, 9, 1007.5]]);
+    const rover = [low(2.8125), ...pulses(52_804.8125, 3, 20_003, 1471.4375), ...pulses(52_804.8125 + 3 * 20_003, 3, 20_003, 1007.4375)];
+    expect(findRuns(rover, lift, 'INPUT')).toEqual(findRuns(rover, servo, 'INPUT'));
+  });
+
   it('needs MIN_RUN_PERIODS whole periods for a waveform: fewer stay exact edges', () => {
     expect(events('D5', [low(3), ...pulses(600, 2, 1024, 512)], 9000, pwm).slice(1)).toEqual([
       [{ kind: 'low' }, 3, 3],

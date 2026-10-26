@@ -1,5 +1,6 @@
 import { drivers, type Kit, type PulseReading } from '../../src/core/hardware';
-import { TCS34725_ADDRESS, type LightIntegral, type Rgbc } from '../../src/core/hardware/devices/tcs34725';
+import type { I2cDevice } from '../../src/core/hardware';
+import { createTcs34725, TCS_STEP_US, type LightIntegral, type Rgbc } from '../../src/core/hardware/devices/tcs34725';
 import { allowedDifferences } from './allowed-differences';
 
 // The scripted inputs of a parity fixture (N18 C2): what the robot's sensors give the program, said once and applied the same
@@ -34,8 +35,67 @@ export type ParityInputs = {
   readonly colors?: ColorScript;
 };
 
-/** The TCS34725's address (datasheet TAOS135 Table 12; the tcs34725-wire driver's). */
-export const COLOR_SENSOR_ADDRESS = TCS34725_ADDRESS;
+/** N19 C2 (fix round 1, I1): one call the bus made on the colour sensor, µs from the start of setup(). */
+export type ColorBusEvent =
+  | { readonly kind: 'connect'; readonly atUs: number; readonly read: boolean; readonly ack: boolean }
+  | { readonly kind: 'write'; readonly atUs: number; readonly byte: number }
+  | { readonly kind: 'read'; readonly atUs: number; readonly byte: number }
+  | { readonly kind: 'stop'; readonly atUs: number };
+
+/** N19 C2: the TCS34725 model under the scripted light, each bus call on it recorded in `events` (both sides of a run use one each). */
+export function recordedColorSensor(script: ColorScript, events: ColorBusEvent[]): I2cDevice & { readonly address: number } {
+  const model = createTcs34725(colorIntegral(script));
+  return {
+    address: model.address,
+    connect: (atUs, read) => {
+      const ack = model.connect(atUs, read);
+      events.push({ kind: 'connect', atUs, read, ack });
+      return ack;
+    },
+    write: (atUs, byte) => {
+      events.push({ kind: 'write', atUs, byte });
+      return model.write(atUs, byte);
+    },
+    read: (atUs) => {
+      const byte = model.read(atUs);
+      events.push({ kind: 'read', atUs, byte });
+      return byte;
+    },
+    stop: (atUs) => {
+      events.push({ kind: 'stop', atUs });
+      model.stop(atUs);
+    },
+  };
+}
+
+/** The TCS34725's integration cycle at colorBegin's ATIME 0xEB: RGBC Init (one step) and 21 steps of ADC, 52.8 ms (datasheet TAOS135). */
+export const COLOR_WINDOW_US = (1 + (256 - 0xeb)) * TCS_STEP_US;
+
+/**
+ * N19 C2 (I1): where the end of integration window `n` (1-based) falls in the 8-byte read that straddles it, on one side of a run: the
+ * window ends `n` cycles after the byte with AEN (ENABLE 0x03) reached the sensor (devices/tcs34725.ts); `beforeUs` is how long after the
+ * read's first data byte (C low) it ends, `afterUs` how long before its third (R low, the first byte of the next window's data when the
+ * end falls between them: C high comes from the shadow register of C low). Null when no read has that end between its first and last
+ * data byte.
+ */
+export function windowEndInRead(events: readonly ColorBusEvent[], n: number): { endUs: number; beforeUs: number; afterUs: number } | null {
+  const aen = events.find((event, index) => event.kind === 'write' && event.byte === 0x03 && events[index - 1]?.kind === 'write' && (events[index - 1] as { byte: number }).byte === 0x80);
+  if (aen === undefined) {
+    return null;
+  }
+  const endUs = aen.atUs + n * COLOR_WINDOW_US;
+  for (let index = 0; index < events.length; index++) {
+    const reads = events.slice(index, index + 8);
+    if (reads.length === 8 && reads.every((event) => event.kind === 'read') && events[index - 1]?.kind === 'connect') {
+      const first = reads[0]?.atUs ?? 0;
+      const last = reads[7]?.atUs ?? 0;
+      if (first < endUs && endUs < last) {
+        return { endUs, beforeUs: endUs - first, afterUs: (reads[2]?.atUs ?? 0) - endUs };
+      }
+    }
+  }
+  return null;
+}
 
 /**
  * N19 C2: the light of `script` integrated over [fromUs, toUs), whole µs (the TCS34725 model's units: counts per second × µs, safe

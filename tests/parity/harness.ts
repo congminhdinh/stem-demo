@@ -1,5 +1,5 @@
 import { unoContract } from '../../src/core/compat/uno-contract';
-import type { Kit } from '../../src/core/hardware';
+import { GRIPPER_ANGLE, type Kit } from '../../src/core/hardware';
 import { allowedDifferences, SERVO_PULSE } from './allowed-differences';
 import { runBoard, type BoardRun } from './board-run';
 import type { WaveformDecoding } from './board-trace';
@@ -10,6 +10,12 @@ import { runSimulator, toneFormsOf, type SimInjection, type SimRun } from './sim
 
 // One parity run (N18 C2): a fixture on the simulator and its HEX on avr8js, for the same virtual time with the same inputs, and
 // the comparison of their traces.
+
+/**
+ * N19 C2: the claw's widest pulse, at its widest angle (GRIPPER_ANGLE 90°): Servo 1.3.0's 544 + 90 × 1856 / 180 µs, truncated as its
+ * ticks are (contract §6.2), 1472 µs.
+ */
+export const GRIPPER_CLAW_WIDEST_PULSE_US = Math.trunc(SERVO_PULSE.minUs + (GRIPPER_ANGLE.max * (SERVO_PULSE.maxUs - SERVO_PULSE.minUs)) / 180);
 
 /** Which pins of the kit carry a waveform, and how the board decoder reads it (board-trace.ts). */
 export function decodingsOf(kit: Kit): Map<string, WaveformDecoding> {
@@ -25,11 +31,15 @@ export function decodingsOf(kit: Kit): Map<string, WaveformDecoding> {
     } else if (port.driver === 'servo-lib' && port.pins.PIN !== undefined) {
       decodings.set(port.pins.PIN, { kind: 'servo', ...SERVO_PULSE });
     } else if (port.driver === 'gripper-servo2') {
-      // N19 C2: the gripper's two servos, with the gripper car's servo jitter (waveform-jitter, G0.2 ruling c1).
-      for (const pin of [port.pins.CLAW, port.pins.LIFT]) {
-        if (pin !== undefined) {
-          decodings.set(pin, { kind: 'servo', ...SERVO_PULSE, highUs: allowedDifferences['waveform-jitter'].servo.gripperHighUs });
-        }
+      // N19 C2: the gripper's two servos, with the gripper car's servo jitter (waveform-jitter, G0.2 ruling c1). The lift is the second
+      // Servo on Timer1 (the sketch declares the claw's first): its first period after Timer1's wrap is a frame and at most the claw's
+      // widest pulse longer (servo-first-pulse, timerWrapUs).
+      const highUs = allowedDifferences['waveform-jitter'].servo.gripperHighUs;
+      if (port.pins.CLAW !== undefined) {
+        decodings.set(port.pins.CLAW, { kind: 'servo', ...SERVO_PULSE, highUs });
+      }
+      if (port.pins.LIFT !== undefined) {
+        decodings.set(port.pins.LIFT, { kind: 'servo', ...SERVO_PULSE, highUs, timerWrapExtraUs: GRIPPER_CLAW_WIDEST_PULSE_US });
       }
     } else if (port.driver === 'buzzer-tone' && port.pins.PIN !== undefined) {
       decodings.set(port.pins.PIN, { kind: 'tone', minHz: unoContract.constants.TONE_MIN_HZ, maxHz: unoContract.constants.TONE_MAX_HZ });

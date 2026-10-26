@@ -5,8 +5,7 @@ import type { YbcProgramIR } from '../../src/core/program/ybc-ir';
 import type { UnoProgramUses } from '../../src/core/program/uno-uses';
 import { createVirtualScheduler, WORLD_TICK_MS } from '../../src/core/run/virtual-clock';
 import { allowedDifferences } from './allowed-differences';
-import { createTcs34725 } from '../../src/core/hardware/devices/tcs34725';
-import { analogFeed, colorIntegral, echoFeed, levelAt, levelTimeline, type ParityInputs } from './inputs';
+import { analogFeed, echoFeed, levelAt, levelTimeline, recordedColorSensor, type ColorBusEvent, type ParityInputs } from './inputs';
 import { isWaveform, withoutRepeats, type PinEvent, type PinLogicalState, type PrintedLine } from './trace';
 
 // The L1 side of the parity harness (N18 C2): the program's IR in the real interpreter, on the virtual UNO and the module binding,
@@ -49,6 +48,8 @@ export type SimRun = {
   warnings: RunWarning[];
   /** The program clock when the run was stopped. */
   endUs: number;
+  /** N19 C2: every call the virtual UNO's bus made on the colour sensor (none without `inputs.colors`). */
+  colorBus: ColorBusEvent[];
 };
 
 export type SimProgram = { ir: YbcProgramIR; kit: Kit; board: BoardProfile; uses: UnoProgramUses };
@@ -213,9 +214,10 @@ export async function runSimulator(program: SimProgram, inputs: ParityInputs, du
     const echoes = echoFeed(inputs.echoes);
     uno.attachPulseSource(inputs.echoes.echo, () => echoes.next() ?? 0);
   }
-  // N19 C2: the colour sensor on the bus, under the scripted light (none: an empty bus).
+  // N19 C2: the colour sensor on the bus, under the scripted light (none: an empty bus), every call on it recorded.
+  const colorBus: ColorBusEvent[] = [];
   if (inputs.colors && !inputs.colors.absent) {
-    const device = createTcs34725(colorIntegral(inputs.colors));
+    const device = recordedColorSensor(inputs.colors, colorBus);
     uno.attachWireDevice(device.address, device);
   }
 
@@ -253,6 +255,7 @@ export async function runSimulator(program: SimProgram, inputs: ParityInputs, du
     outcome,
     warnings,
     endUs,
+    colorBus,
   };
 }
 

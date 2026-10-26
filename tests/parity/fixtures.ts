@@ -377,8 +377,14 @@ function lightOf(hex: string): Rgbc {
  * so neither window has two lights in it.
  */
 const COLOR_LIGHT_SWITCH_US = 58_400;
-/** The wait that puts driver-color's colorIs read across the end of the second window (measured on the simulator, checked on the board). */
+/** The wait that puts driver-color's colorIs read across the end of the second window (measured on both sides). */
 const COLOR_STRADDLE_WAIT_MS = 51;
+/**
+ * LED toggles that move driver-color's read later, to centre the window's end between its 1st and 3rd data byte on both sides: each moves
+ * the simulator's read 6.5625 µs (digitalWrite and two nodes) and the board's 3.59 µs (its -flto build), so five leave each side about
+ * 34.5 µs of the tighter margin. A change of the costs moves the simulator's side, a change of the sketch the board's: re-measure both.
+ */
+const COLOR_STRADDLE_NUDGE = [led('ON'), led('OFF'), led('ON'), led('OFF'), led('ON')];
 const RED = lightOf('#d32f2f');
 const WHITE = lightOf('#f5f5f5');
 const YELLOW = lightOf('#fbc02d');
@@ -438,12 +444,15 @@ export const gripperDriverFixtures: readonly ParityFixture[] = [
     },
   },
   {
-    // TCS34725 at 0x29 on A4/A5 (Wire): colorBegin in setup() (its AEN byte 4362.25 µs into setup() on the simulator: the second window
-    // ends at 109 962.25 µs); red light until the RGBC Init after the first window, white after it (COLOR_LIGHT_SWITCH_US). A colorIs
-    // read placed so that the second window ends during its eight data bytes, after the first (C low, which latches C high) and before
-    // the third (R low), 74 µs from the one and 116 µs from the other (ADR 0004 §11 condition 3, G0.2 ruling c2): C from the red window,
-    // R, G, B from the white one, which is no colour (C below white's 12000): unknown, where a read of the red window alone is red and of
-    // the white one white. Then every channel and two colours of the white window; the LED and the motors' stop at the end.
+    // TCS34725 at 0x29 on A4/A5 (Wire): colorBegin in setup() (its AEN byte 4362.25 µs into setup() on the simulator, 4367.375 on the
+    // board: the second window ends at 109 962.25 / 109 967.375 µs); red light until the RGBC Init after the first window, white after it
+    // (COLOR_LIGHT_SWITCH_US). A colorIs read placed so that the second window ends during its eight data bytes, after the first (C low,
+    // which latches C high) and before the third (R low), on both sides (ADR 0004 §11 condition 3, G0.2 ruling c2): C from the red
+    // window, R, G, B from the white one, which is no colour (C below white's 12000): unknown, where a read of the red window alone is red
+    // and of the white one white. The board reaches the read about 116 µs before the simulator (its calls run faster than charged), so the
+    // end falls after byte 0 on the simulator and before byte 2 on the board; COLOR_STRADDLE_NUDGE centres the two: the end is 34.875 µs
+    // after C low (and 155 µs before R low) on the simulator, 155.8125 µs after C low and 34.25 µs before R low on the board (fix round
+    // 1, I1; the parity test asserts both). Then every channel and two colours of the white window; the LED and the motors' stop at the end.
     name: 'driver-color',
     covers: ['U-38', 'U-39', 'U-15', 'U-11', 'U-03', 'U-18'],
     profile: 'uno-advanced',
@@ -451,6 +460,7 @@ export const gripperDriverFixtures: readonly ParityFixture[] = [
     onStart: [
       wait(num(COLOR_STRADDLE_WAIT_MS)),
       driveStop(),
+      ...COLOR_STRADDLE_NUDGE,
       ifThen(colorIs('unknown'), [setVar('x', num(1))], [setVar('x', num(0))]),
       print(getVar('x')),
       print(colorRaw('clear')),

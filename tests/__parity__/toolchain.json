@@ -38,9 +38,9 @@
       "hexSha256": "9087b261cdb96a9083c45e4a3a31db49228c2b0b7350cd7a67c7e08690de2616"
     },
     "driver-color": {
-      "flashBytes": 5610,
+      "flashBytes": 5650,
       "ramBytes": 416,
-      "hexSha256": "2e0b6d5b55789df10b408918e372c25c7146ce49f1cf84950f2191e23152f588"
+      "hexSha256": "24cd3454476838882ad24724536ca31105d9efd4817383055f58557deffcc155"
     },
     "driver-color-nack": {
       "flashBytes": 5362,

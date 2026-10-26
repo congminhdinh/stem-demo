@@ -7,6 +7,7 @@ import { led, lineDark, motorSet } from '../src/core/program/__fixtures__/uno-bl
 import { num, print, wait } from '../src/core/program/__fixtures__/ybc-blocks';
 import { allowedDifferences, intervalRule } from './parity/allowed-differences';
 import { compileFixture, ECHO_INTO_CM_US, PARITY_GOLDENS, parityFixtures, sketchOf, type ParityFixture } from './parity/fixtures';
+import { windowEndInRead } from './parity/inputs';
 import { decodingsOf, runParity, type ParityRun } from './parity/harness';
 
 // N18 C2, the avr8js parity harness (robot plan C2, ADR 0003 §7): the L2e evidence of the simulator. Every fixture runs both ways for
@@ -192,6 +193,21 @@ describe('the gripper car’s fixtures (N19 C2)', () => {
     expect(run.comparison.problems).toEqual([]);
     // 1: the mixed reading is no colour; a read of either window alone (red, white) would print 0.
     expect(run.board.lines.map((line) => line.text)).toEqual(['1', '21504', '9337', '8562', '7013', '1', '0']);
+    // Fix round 1 (I1): on each side the second window ends between the read's first data byte (C low) and its third (R low), with room
+    // (each side about 34.5 µs at its tighter end): a change that moves one side's read says which side and by how much.
+    for (const [side, bus] of [
+      ['simulator', run.sim.colorBus],
+      ['board', run.board.colorBus],
+    ] as const) {
+      const straddle = windowEndInRead(bus, 2);
+      expect(straddle, `straddle lost on the ${side}: the second window does not end inside any 8-byte read`).not.toBeNull();
+      expect(straddle?.beforeUs ?? 0, `straddle lost on the ${side}: the window ends ${(-(straddle?.beforeUs ?? 0)).toFixed(4)} µs before C low`).toBeGreaterThan(20);
+      expect(straddle?.afterUs ?? 0, `straddle lost on the ${side}: the window ends ${(-(straddle?.afterUs ?? 0)).toFixed(4)} µs after R low`).toBeGreaterThan(20);
+    }
+    expect([windowEndInRead(run.sim.colorBus, 2), windowEndInRead(run.board.colorBus, 2)]).toEqual([
+      { endUs: 109_962.25, beforeUs: 34.875, afterUs: 155 },
+      { endUs: 109_967.375, beforeUs: 155.8125, afterUs: 34.25 },
+    ]);
   });
 
   it('holds a servo pulse of the gripper car to 6 µs and the rover’s to 4 (G0.2 ruling c1)', () => {
@@ -200,7 +216,8 @@ describe('the gripper car’s fixtures (N19 C2)', () => {
     const roverKit = compileFixture(fixture('driver-servo')).kit;
     expect([decodingsOf(gripperKit).get('D9'), decodingsOf(gripperKit).get('D10')]).toEqual([
       { kind: 'servo', minUs: 544, maxUs: 2400, frameUs: 20_000, highUs: 6 },
-      { kind: 'servo', minUs: 544, maxUs: 2400, frameUs: 20_000, highUs: 6 },
+      // The lift, Timer1's second servo: its first period after Timer1's wrap is at most the claw's widest pulse (90°) longer.
+      { kind: 'servo', minUs: 544, maxUs: 2400, frameUs: 20_000, highUs: 6, timerWrapExtraUs: 1472 },
     ]);
     expect(decodingsOf(roverKit).get('D9')).toEqual({ kind: 'servo', minUs: 544, maxUs: 2400, frameUs: 20_000 });
   });
