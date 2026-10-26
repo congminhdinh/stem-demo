@@ -194,8 +194,9 @@ export default function RobotLab({
   // N18 R8: what the lab tells a screen reader, and the camera's keys.
   const [announcer] = useState(createAnnouncer);
   const [commands] = useState(createCameraCommands);
-  // N18 P2 fix round 1: the dev hooks' hold on the low tier's chain (DEV only; a production build never calls it: the chain runs by itself).
-  const [lowTier] = useState(createLowTierControl);
+  // N18 P2 fix round 1: the dev hooks' hold on the low tier's chain. DEV only (fix round 2, N2): a production build has none, and the
+  // chain runs by itself.
+  const [lowTier] = useState(() => (import.meta.env.DEV ? createLowTierControl() : undefined));
   const { say, alert } = announcer;
   const hintId = useId();
   const startButton = useRef<HTMLButtonElement>(null);
@@ -285,7 +286,7 @@ export default function RobotLab({
 
   // The dev hooks (window.__stem.robot) read this lab's run. Dev builds only: a production build drops this code and the hash it needs.
   useEffect(() => {
-    if (!import.meta.env.DEV) {
+    if (!import.meta.env.DEV || lowTier === undefined) {
       return undefined;
     }
     return attachRobotTestTarget({
