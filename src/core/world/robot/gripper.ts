@@ -289,8 +289,8 @@ export function createGripper(world: PhysicsWorld, chassis: RigidBody, module: K
   // Massless: the carriage's mass already counts the servo. A density of 0 is not enough to leave the carriage as it was: Rapier adds every
   // collider's mass properties to its body's, and a sum with a massless part still rebuilds the inertia matrix and diagonalises it again
   // (measured: the carriage's principal axes came back permuted, its inertia off in the last bits, and the claw of a held cube 0.15° off).
-  // Only mass properties that are exactly zero once moved by the collider's offset are skipped, so the case's are: no mass, no inertia, and
-  // its (meaningless) centre of mass at the carriage's origin, the offset's opposite.
+  // Mass properties that are exactly zero once moved by the collider's offset are skipped (measured: the carriage then keeps the box's own,
+  // bit for bit), so the case's are: no mass, no inertia, and its (meaningless) centre of mass at the carriage's origin, the offset's opposite.
   const servoAt = { x: cmToM(spec.clawServoCenterUCm), y: cmToM(spec.clawServoCenterWCm), z: 0 - cmToM(spec.clawServoCenterVCm) };
   attach(
     R.ColliderDesc.cuboid(cmToM(spec.clawServoSizeUCm / 2), cmToM(spec.clawServoSizeWCm / 2), cmToM(spec.clawServoSizeVCm / 2))
