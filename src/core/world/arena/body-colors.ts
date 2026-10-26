@@ -34,7 +34,7 @@ export const bodyKindColors: Readonly<Record<ColoredBodyKind, string>> = Object.
   object: '#f2c14e',
 });
 
-/** N19 B3: the colour of the gripper's fingers where they face each other, the rubber of their pads (robot3dColors `gripperPad`, N19 E6). */
+/** N19 B3: the colour of the gripper's fingers where they face each other, the rubber of their pads: the 3D view's `gripperPad` (tests/body-colors-renderer.test.ts). */
 export const GRIPPER_FINGER_COLOR = '#2b2e33';
 
 /** N19 B3: what the sensors see of a body: its own colour, or its kind's. */

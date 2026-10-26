@@ -142,6 +142,9 @@ describe('the gripper car’s sensors in the world (N19 B3)', () => {
       expect(last).not.toBeNull();
       const { cm, nearFaceU } = last!;
       expect(Math.abs(cm - 3.8)).toBeLessThanOrEqual(0.2);
+      // Measured (N19 B3): the echo off its near face at u 2.97, the cone's lowest ray just under the cube's top edge.
+      expect(cm).toBe(3.9355);
+      expect(nearFaceU).toBeCloseTo(2.9658, 4);
       // Between the jaws: the fingers run from u 0.5 (their hinges) to 5.5.
       expect(nearFaceU).toBeGreaterThan(0.5);
       expect(nearFaceU).toBeLessThan(5.5);
@@ -192,6 +195,7 @@ describe('the gripper car’s sensors in the world (N19 B3)', () => {
       expect(firstSeenNearFaceU).not.toBeNull();
       expect(firstSeenNearFaceU!).toBeLessThanOrEqual(2.3);
       expect(firstSeenNearFaceU!).toBeGreaterThan(2.1);
+      expect(firstSeenNearFaceU!).toBeCloseTo(2.2806, 4);
       control.set({ clawDeg: 80 });
       control.step(seconds(0.6));
       control.set({ liftDeg: 90 });
@@ -203,6 +207,7 @@ describe('the gripper car’s sensors in the world (N19 B3)', () => {
       expect(color.hitId).toBe('cube');
       // Held at u ≈ 3, its near face 0.7 cm from the sensors (u 0.3).
       expect(Math.abs(color.distanceCm! - 0.7)).toBeLessThan(0.3);
+      expect(color.distanceCm).toBe(0.6214);
       expect(snapshot.sensors.find((sensor) => sensor.kind === 'ir-obstacle')).toEqual({ role: 'irClaw', kind: 'ir-obstacle', detected: true, hitId: 'cube' });
       expect(snapshot.sensors.find((sensor) => sensor.kind === 'color-sensor')).toEqual({ role: 'color1', kind: 'color-sensor', hitId: 'cube', distanceCm: color.distanceCm });
     } finally {

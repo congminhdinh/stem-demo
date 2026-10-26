@@ -112,6 +112,7 @@ describe('the gripper car’s goal frame (N19 B4)', () => {
       // Attached at θc 19.94°, the fingers then follow the cube's faces (grasp.ts rule 3): parallel on a 4 cm cube at 26.97°. Measured 26.473.
       expect(frame.gripper!.clawDeg).toBeGreaterThan(25);
       expect(frame.gripper!.clawDeg).toBeLessThan(27);
+      expect(frame.gripper!.clawDeg).toBe(26.473);
       expect(frame.gripper!.clawDeg).toBe(Math.round(frame.gripper!.clawDeg * 1000) / 1000);
       const cube = frame.objects.cube!;
       expect([cube.held, cube.restingOn]).toEqual([true, []]);
@@ -153,7 +154,8 @@ describe('the gripper car’s goal frame (N19 B4)', () => {
       // The nose lifts a few degrees and the lift still reaches 0° (measured 3.70° and 0.023°; the spike: 3.85° and 0.023°), never tips.
       expect(mostPitchDeg).toBeGreaterThan(3);
       expect(mostPitchDeg).toBeLessThan(4.5);
-      expect(frame.gripper!.liftDeg).toBeLessThan(0.1);
+      expect(mostPitchDeg).toBeCloseTo(3.7028, 4);
+      expect(frame.gripper!.liftDeg).toBe(0.023);
     } finally {
       world.dispose();
     }
