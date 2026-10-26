@@ -5,7 +5,7 @@ import type { PhysicsWorld } from '../src/core/world/rapier';
 import { PHYSICS_DT_S } from '../src/core/world/rapier';
 import { createScenarioWorld } from '../src/core/world/world';
 import { scenarioCatalog } from '../src/samples/robot-scenarios';
-import { robotTemplateKeys } from '../src/samples/robot-templates';
+import { robotTemplateKeys, robotTemplates } from '../src/samples/robot-templates';
 
 // N19 A1 guard (docs/n19-gripper-plan.md §5 item 3): "a rover world creates the same number of bodies, colliders and impulse joints as
 // before". Every later N19 task (the gripper's assembly, the held-object joint, the grasp) adds code to the world; none of it may add a
@@ -59,16 +59,20 @@ const ROVER_COUNTS: Readonly<Record<string, Counts>> = {
   'rb-sandbox': { bodies: 3, colliders: 14, impulseJoints: 1, multibodyJoints: 0 },
 };
 
+/** The scenarios that run on the rover: the keys of the pilot course and the sandbox. A scenario of another kit has no row here. */
+const roverKeys = robotTemplateKeys.filter((key) => robotTemplates[key].kit === 'ref-uno-rover');
+
 describe('a rover world creates the same bodies, colliders and joints as before (N19 A1 guard)', () => {
   beforeEach(() => {
     made.length = 0;
   });
 
-  it('is written for every shipped scenario, in the order of the lessons', () => {
-    expect(Object.keys(ROVER_COUNTS)).toEqual([...robotTemplateKeys]);
+  it('is written for every scenario that runs on the rover, in the order of the lessons', () => {
+    expect(Object.keys(ROVER_COUNTS)).toEqual(roverKeys);
+    expect(roverKeys).toEqual(['rb-drive-to-zone', 'rb-square-route', 'rb-stop-at-wall', 'rb-line-follow', 'rb-servo-gate', 'rb-mini-mission', 'rb-sandbox']);
   });
 
-  it.each(robotTemplateKeys)('%s: the counts after the build and after 120 ticks, in every variant', async (key) => {
+  it.each(roverKeys)('%s: the counts after the build and after 120 ticks, in every variant', async (key) => {
     const scenario = scenarioCatalog.get(key);
     if (scenario === undefined) throw new Error(`no scenario ${key}`);
     for (let variant = 0; variant < scenario.variants.count; variant++) {
