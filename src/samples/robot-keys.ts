@@ -1,4 +1,4 @@
-// The keys of the robot labs, the profiles they launch with and the kit they use (N18 R4.1, R5.1): the table every other part reads. A leaf: it
+// The keys of the robot labs, the profiles they launch with and the kit each uses (N18 R4.1, R5.1; N19 D-G1): the table every other part reads. A leaf: it
 // imports nothing, so the scenario schema (src/core/scenario), the scenario catalog (src/samples/robot-scenarios) and robot-templates.ts can
 // all read it without importing one another (robot-templates.ts is to read the catalog, N18 R5.2; the catalog and the schema read this).
 // Like the generic and Yolo:Bit keys the robot keys are a public contract: course content stores them (LabTemplateCatalog, STEMLearning),
@@ -25,9 +25,31 @@ export const robotLabProfiles = ['uno-basic', 'uno-advanced'] as const;
 
 export type RobotLabProfile = (typeof robotLabProfiles)[number];
 
-/** The kit of every robot scenario for now (plan §4.0, §4.2): which modules the robot has and on which ports. */
-export const robotKitId = 'ref-uno-rover';
-export const robotKitVersion = '0';
+/**
+ * The kits the robot labs run on, each with the version a lab launches it at (plan §4.0, §4.2; N19 D-G1): which modules the robot has and on
+ * which ports lives in the kit's file (src/core/hardware/kits), the table here only says which kits there are. A kit is added by adding it
+ * here, one line, and to `productionKits` (src/core/hardware/catalog.ts): never renamed, and a change of its data is a new version.
+ */
+export const robotKits = { 'ref-uno-rover': '0' } as const;
+
+export type RobotKitId = keyof typeof robotKits;
+
+/** The version of `id` a robot lab launches it at. */
+export function robotKitVersionOf(id: RobotKitId): string {
+  return robotKits[id];
+}
+
+/** Exact, case-sensitive match against the table; no lookup that finds "constructor". */
+export const isRobotKitId = (id: string): id is RobotKitId => Object.hasOwn(robotKits, id);
+
+/**
+ * The kit before there was a choice of two, and its version.
+ * @deprecated Read the kit of the scenario: `robotTemplates[key].kit` (or `scenario.kit`) and `robotKitVersionOf`. Kept so that the
+ * tests written for the single kit keep reading what they read.
+ */
+export const robotKitId = 'ref-uno-rover' satisfies RobotKitId;
+/** @deprecated See `robotKitId`. */
+export const robotKitVersion = robotKitVersionOf(robotKitId);
 
 /** The message key of a scenario's title, which the UI says in its language (src/ui/i18n/messages.ts). */
 export type RobotTitleKey = `robot.scenario.${RobotTemplateKey}`;
@@ -35,13 +57,28 @@ export type RobotTitleKey = `robot.scenario.${RobotTemplateKey}`;
 export type RobotTemplate = {
   /** The profile the scenario needs, which it opens with when the launch names none; a launch with a lower one is refused. */
   profile: RobotLabProfile;
-  kit: typeof robotKitId;
+  /** The kit the scenario runs on (N19 D-G1): its modules, ports and mechanics. The scenario file's own `kit` must be this one. */
+  kit: RobotKitId;
   titleKey: RobotTitleKey;
+};
+
+/**
+ * The kit of each scenario, key by key: a Record, so that a key added to the list above without a kit does not compile. Every scenario of
+ * the pilot course and the sandbox run on the rover.
+ */
+const templateKits: Readonly<Record<RobotTemplateKey, RobotKitId>> = {
+  'rb-drive-to-zone': 'ref-uno-rover',
+  'rb-square-route': 'ref-uno-rover',
+  'rb-stop-at-wall': 'ref-uno-rover',
+  'rb-line-follow': 'ref-uno-rover',
+  'rb-servo-gate': 'ref-uno-rover',
+  'rb-mini-mission': 'ref-uno-rover',
+  [robotSandboxKey]: 'ref-uno-rover',
 };
 
 /** Every scenario needs the Basic board today; the table, not the launch parser, is where a scenario that needs more says so. */
 export const robotTemplates: Readonly<Record<RobotTemplateKey, Readonly<RobotTemplate>>> = Object.fromEntries(
-  robotTemplateKeys.map((key) => [key, { profile: 'uno-basic', kit: robotKitId, titleKey: `robot.scenario.${key}` }]),
+  robotTemplateKeys.map((key) => [key, { profile: 'uno-basic', kit: templateKits[key], titleKey: `robot.scenario.${key}` }]),
 ) as Record<RobotTemplateKey, RobotTemplate>;
 
 /** Exact, case-sensitive match against the list; no lookup on an object, so "constructor" is not a key. */

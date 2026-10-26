@@ -4,7 +4,7 @@ import keysSource from './robot-keys.ts?raw';
 import templatesSource from './robot-templates.ts?raw';
 import schemaSource from '../core/scenario/scenario-schema.ts?raw';
 import scenarioSource from '../core/scenario/scenario.ts?raw';
-import { robotKitId, robotLabProfiles, robotSandboxKey, robotTemplateKeys, robotTemplates } from './robot-keys';
+import { isRobotKitId, robotKitId, robotKits, robotKitVersion, robotKitVersionOf, robotLabProfiles, robotSandboxKey, robotTemplateKeys, robotTemplates } from './robot-keys';
 import * as templates from './robot-templates';
 
 // robot-keys.ts is the leaf under robot-templates.ts, the scenario schema and the scenario catalog. R5.2 makes robot-templates.ts read the
@@ -45,6 +45,32 @@ describe('robot-keys.ts', () => {
     expect(templates.robotKitId).toBe(robotKitId);
     expect(templates.robotSandboxKey).toBe(robotSandboxKey);
     expect(robotTemplateKeys).toEqual(['rb-drive-to-zone', 'rb-square-route', 'rb-stop-at-wall', 'rb-line-follow', 'rb-servo-gate', 'rb-mini-mission', 'rb-sandbox']);
+  });
+});
+
+describe('the kits of the robot labs (N19 A1, plan D-G1)', () => {
+  it('knows the rover at version 0, and nothing else until a task registers it', () => {
+    expect(robotKits).toEqual({ 'ref-uno-rover': '0' });
+    expect(robotKitVersionOf('ref-uno-rover')).toBe('0');
+  });
+
+  it.each(robotTemplateKeys)('%s runs on the rover', (key) => {
+    expect(robotTemplates[key].kit).toBe('ref-uno-rover');
+  });
+
+  it('says which ids are kits: an exact match, not a lookup that finds "constructor"', () => {
+    expect(isRobotKitId('ref-uno-rover')).toBe(true);
+    expect(['ref-uno-gripper', 'constructor', 'toString', '__proto__', '', 'REF-UNO-ROVER'].map(isRobotKitId)).toEqual([false, false, false, false, false, false]);
+  });
+
+  it('keeps the two old names as aliases of the rover and its version, for the readers that have not moved', () => {
+    expect([robotKitId, robotKitVersion]).toEqual(['ref-uno-rover', robotKitVersionOf('ref-uno-rover')]);
+  });
+
+  it('is what robot-templates.ts re-exports, the same objects', () => {
+    expect(templates.robotKits).toBe(robotKits);
+    expect(templates.robotKitVersionOf).toBe(robotKitVersionOf);
+    expect(templates.isRobotKitId).toBe(isRobotKitId);
   });
 });
 

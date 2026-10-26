@@ -1,7 +1,6 @@
 import { projectDocumentSchema, type ProjectDocument } from '../core/circuit/document';
 import {
-  robotKitId,
-  robotKitVersion,
+  robotKitVersionOf,
   robotLabProfiles,
   robotTemplates,
   type RobotLabProfile,
@@ -13,14 +12,18 @@ import { scenarioReadyFields, scenarioReadyGoals } from './robot-scenarios/ready
 // and the scenario catalog can read it without importing this file (which reads the scenario files, N18 R5.2: that would be a cycle).
 // It is re-exported here, so that everything that reads the table through this module keeps doing so.
 export {
+  isRobotKitId,
   isRobotLabProfile,
   isRobotTemplateKey,
   robotKitId,
+  robotKits,
   robotKitVersion,
+  robotKitVersionOf,
   robotLabProfiles,
   robotSandboxKey,
   robotTemplateKeys,
   robotTemplates,
+  type RobotKitId,
   type RobotLabProfile,
   type RobotTemplate,
   type RobotTemplateKey,
@@ -88,7 +91,7 @@ export function robotStarterDocument(key: RobotTemplateKey, profile?: RobotLabPr
     id: `template-${key}`,
     name: 'Robot',
     profile: profile ?? needed,
-    kit: { id: robotKitId, version: robotKitVersion },
+    kit: { id: robotTemplates[key].kit, version: robotKitVersionOf(robotTemplates[key].kit) },
     circuit: { components: [{ id: 'uno', deviceType: 'uno-r3', position: { x: 300, y: 200 } }], wires: [] },
     program: { blocks: {} },
   });
