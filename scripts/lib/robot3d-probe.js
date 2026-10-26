@@ -21,8 +21,11 @@
 (() => {
   if (!/[?&]lab=robot(&|$)/.test(location.search)) return;
   const now = () => performance.now();
+  // The renderers are counted, and the latest one, its scene and camera are held weakly (fix round 1, M6): the probe keeps no dead
+  // renderer alive, so the switches' heap is the lab's.
+  const live = (ref) => ref?.deref() ?? null;
   const state = {
-    renderers: [],
+    renderersMade: 0,
     renderer: null,
     scene: null,
     camera: null,
@@ -99,7 +102,7 @@
 
   // three's devtools seam: the renderer (its render and compileAsync timed), and each GLTFLoader (its parse timed: decoding included).
   const hookRenderer = (renderer) => {
-    state.renderers.push(renderer);
+    state.renderersMade += 1;
     if (state.rendererMadeAt === undefined) {
       state.rendererMadeAt = now();
       performance.mark('p2:renderer');
@@ -112,9 +115,9 @@
       const result = render.call(this, scene, camera);
       const ms = now() - begin;
       if (target === null) {
-        state.renderer = renderer;
-        state.scene = scene;
-        state.camera = camera;
+        if (live(state.renderer) !== renderer) state.renderer = new WeakRef(renderer);
+        if (live(state.scene) !== scene) state.scene = new WeakRef(scene);
+        if (live(state.camera) !== camera) state.camera = new WeakRef(camera);
         const { calls, triangles } = renderer.info.render;
         state.frames.push([begin, ms, state.draws.screen - screen, state.draws.offscreen - offscreen, calls, triangles]);
         if (state.firstRender === null) {
@@ -331,7 +334,7 @@
       };
     },
     rendererInfo() {
-      const renderer = state.renderer;
+      const renderer = live(state.renderer);
       if (!renderer) return null;
       const gl = renderer.getContext();
       return {
@@ -363,7 +366,7 @@
         resources,
         timeOrigin: performance.timeOrigin,
         entryTypes: PerformanceObserver.supportedEntryTypes ?? null,
-        renderersMade: state.renderers.length,
+        renderersMade: state.renderersMade,
         rendererMadeAt: state.rendererMadeAt ?? null,
         parses: state.parses,
         compiles: state.compiles,
@@ -376,7 +379,7 @@
     },
     /** What the scene holds and an estimate of the GPU memory it takes (textures, geometry, shadow maps, environment, drawing buffer). */
     inventory() {
-      const { scene, renderer } = state;
+      const [scene, renderer] = [live(state.scene), live(state.renderer)];
       if (!scene || !renderer) return null;
       const geometries = new Set();
       const materials = new Set();
@@ -478,7 +481,7 @@
      * from where it stood (the "Run → moving" of robot plan §5), or null after `timeoutMs`.
      */
     clickAndWatch(selector, timeoutMs) {
-      const robot = state.scene?.getObjectByName('robot');
+      const robot = live(state.scene)?.getObjectByName('robot');
       const at = robot ? robot.matrixWorld.elements : null;
       const watch = { from: at ? [at[12], at[13], at[14]] : null, at: null, start: now() };
       state.watch = watch;

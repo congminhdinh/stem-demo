@@ -573,7 +573,7 @@ async function switches(page, frame, cdp, options) {
     await p2(frame, 'window.__p2.trim()');
     const heapB = await heapAfterGc(cdp);
     const dom = await cdp.send('Memory.getDOMCounters');
-    const summary = await p2(frame, '({ contexts: window.__p2.summary().contexts, renderer: window.__p2.rendererInfo(), renderers: window.__p2.state.renderers.length })');
+    const summary = await p2(frame, '({ contexts: window.__p2.summary().contexts, renderer: window.__p2.rendererInfo(), renderers: window.__p2.state.renderersMade })');
     return { kind, index, heapB, documents: dom.documents, nodes: dom.nodes, listeners: dom.jsEventListeners, ...summary };
   };
   let step = 'start';
