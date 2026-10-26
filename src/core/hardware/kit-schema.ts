@@ -9,6 +9,8 @@ import { chassisSchema, mechanicsIssues } from './kit-mechanics';
 // an existing port whose driver drives that kind, one module per port, each role once. Rules that depend on the program
 // (timers, Serial) and pins shared between ports are pin-rules.ts's `checkKit`: they are diagnostics, not invalid data.
 // The mechanical half (the chassis, each module's spec by kind, the drive geometry) is kit-mechanics.ts's (N18 R3.3).
+// N19 A2 adds the two I²C rules: a pin of an I²C line is the board's pin of that line (wrong-i2c-pin), and no two ports' devices answer
+// at one address (i2c-address-conflict). The ports of one bus share SDA and SCL, which is not a pin conflict of checkKit.
 
 const finite = z.number().refine(Number.isFinite, 'must be a finite number');
 
@@ -23,7 +25,7 @@ const kitModuleSchema = z.strictObject({
   role: z.enum(robotRoles),
   kind: z.enum(moduleKinds),
   port: z.string().min(1),
-  mount: z.strictObject({ posCm: z.tuple([finite, finite, finite]), yawDeg: finite }),
+  mount: z.strictObject({ posCm: z.tuple([finite, finite, finite]), yawDeg: finite, on: z.literal('gripper').optional() }),
   spec: z.record(z.string(), z.union([finite, z.boolean(), z.string()])),
 });
 
@@ -36,9 +38,13 @@ export const kitSchema = z.strictObject({
   modules: z.array(kitModuleSchema),
 });
 
+const hex = (address: number) => `0x${address.toString(16).padStart(2, '0')}`;
+const i2cLineNames = { sda: 'data', scl: 'clock' } as const;
+
 function kitRuleIssues(kit: Kit, board: BoardProfile): DataIssue[] {
   const issues: DataIssue[] = [];
-  const add = (path: string, message: string) => issues.push({ path, message });
+  const add = (path: string, message: string, code?: DataIssue['code']) => issues.push(code === undefined ? { path, message } : { path, message, code });
+  const addresses = new Map<number, string>();
   if (kit.board !== board.id) {
     add('board', `the kit is for ${kit.board}, not ${board.id}`);
   }
@@ -57,8 +63,24 @@ function kitRuleIssues(kit: Kit, board: BoardProfile): DataIssue[] {
         add(`${at}.pins.${name}`, `${port.driver} needs pin ${name}`);
       } else if (boardPin(board, pin) === undefined) {
         add(`${at}.pins.${name}`, `${pin} is not a pin of ${board.id}`);
+      } else if (pinSpec.i2c !== undefined) {
+        // An I²C line is the board's own pin of it (the TWI's), not any pin with the capability.
+        const own = board.i2c?.[pinSpec.i2c];
+        if (own === undefined) {
+          add(`${at}.pins.${name}`, `${board.id} has no I²C for ${name} (wrong-i2c-pin)`, 'wrong-i2c-pin');
+        } else if (pin !== own) {
+          add(`${at}.pins.${name}`, `${name} is ${board.id}’s I²C ${i2cLineNames[pinSpec.i2c]} pin, ${own}, not ${pin} (wrong-i2c-pin)`, 'wrong-i2c-pin');
+        }
       } else if (!boardPin(board, pin)?.caps.includes(pinSpec.needs)) {
         add(`${at}.pins.${name}`, `${pin} has no ${pinSpec.needs}`);
+      }
+    }
+    if (spec.i2cAddress !== undefined) {
+      const holder = addresses.get(spec.i2cAddress);
+      if (holder !== undefined) {
+        add(at, `${port.id} answers at I²C address ${hex(spec.i2cAddress)}, as ${holder} does (i2c-address-conflict)`, 'i2c-address-conflict');
+      } else {
+        addresses.set(spec.i2cAddress, port.id);
       }
     }
     for (const name of Object.keys(port.pins)) {

@@ -3,7 +3,7 @@ import { HardwareDataError, pathOf, type DataIssue } from './board-schema';
 import { MAX_CM, MIN_CM } from './drivers/hcsr04';
 import { kitKey, type ChassisSpec, type Kit, type KitModule, type ModuleKind, type ModuleSpecs, type RobotRole } from './kit';
 
-// The mechanical half of a kit (N18 R3.3): the chassis and each module's physical spec, which the world builds the robot from
+// The mechanical half of a kit (N18 R3.3; N19 A2 the gripper car's kinds): the chassis and each module's physical spec, which the world builds the robot from
 // (src/core/world/robot). loadKit runs `mechanicsIssues` after the wiring rules, so a kit file with a missing motor constant,
 // an unknown key or wheels that cannot rest on the floor is refused with the path of each problem, like a bad pin.
 //
@@ -55,18 +55,88 @@ export const moduleSpecSchemas: { readonly [K in ModuleKind]: z.ZodType<ModuleSp
   led: z.strictObject({}),
   buzzer: z.strictObject({}),
   button: z.strictObject({}),
+  // N19 A2 (plan §4.1, §4.6, PLACEHOLDER values in ref-uno-gripper.kit.json).
+  gripper: z.strictObject({
+    liftSPer60Deg: positive,
+    liftStallTorqueNm: positive,
+    liftRotorInertiaKgM2: z.number().min(0),
+    boomLengthCm: positive,
+    boomHalfSpanCm: positive,
+    boomMassG: positive,
+    // Lift 0..90° turns the boom from this up by 90°: from −90 to 0 the lift's lowest point is lift 0°.
+    boomElevationAtLift0Deg: z.number().min(-90).max(0),
+    carriageMassG: positive,
+    clawSPer60Deg: positive,
+    clawStallTorqueNm: positive,
+    // The claw's driver clamps to 0..90 (gripper-servo2): a stop past 90 is never reached.
+    jawsMeetDeg: z.number().positive().max(90),
+    fingerOpenDeg: positive,
+    fingerDegPerServoDeg: positive,
+    fingerHingeUCm: z.number().min(0),
+    fingerHingeVCm: positive,
+    fingerLengthCm: positive,
+    fingerThicknessCm: positive,
+    jawHeightCm: positive,
+    fingerMassG: positive,
+    jawFriction: positive,
+    maxPayloadG: positive,
+  }),
+  'ir-obstacle': z.strictObject({ rangeCm: positive, minReflectance: z.number().gt(0).max(1) }),
+  'color-sensor': z.strictObject({
+    rangeCm: positive,
+    halfLightCm: positive,
+    whiteRPerMs: positive,
+    whiteGPerMs: positive,
+    whiteBPerMs: positive,
+    ambientPerMs: z.number().min(0),
+  }),
 };
 
 /** A kit module of one kind, its spec typed. */
 export type KitMechanicalModule<K extends ModuleKind> = Omit<KitModule, 'kind' | 'spec'> & { readonly kind: K; readonly spec: ModuleSpecs[K] };
 
-/** What the world needs to build a drivable robot: the chassis, the two drive motors and every servo, in kit order. */
+/**
+ * What the world needs to build a drivable robot: the chassis, the two drive motors and every servo, in kit order; N19 A2: the gripper
+ * (a kit has one at most here: null without), and the IR and colour sensors, in kit order.
+ */
 export type RobotMechanics = {
   readonly chassis: ChassisSpec;
   readonly motorLeft: KitMechanicalModule<'dc-motor'>;
   readonly motorRight: KitMechanicalModule<'dc-motor'>;
   readonly servos: readonly KitMechanicalModule<'servo'>[];
+  readonly gripper: KitMechanicalModule<'gripper'> | null;
+  readonly irSensors: readonly KitMechanicalModule<'ir-obstacle'>[];
+  readonly colorSensors: readonly KitMechanicalModule<'color-sensor'>[];
 };
+
+/** The kinds of module that may ride on the gripper's carriage (`mount.on: 'gripper'`): its sensors. */
+const RIDES_ON_GRIPPER: ReadonlySet<ModuleKind> = new Set<ModuleKind>(['ir-obstacle', 'color-sensor']);
+
+const DEG = Math.PI / 180;
+
+/** The gripper's moving parts (the chassis body is the rest of `massG`, §4.6): boom, carriage and two fingers, g. */
+export const gripperMovingMassG = (spec: ModuleSpecs['gripper']): number => spec.boomMassG + spec.carriageMassG + 2 * spec.fingerMassG;
+
+/**
+ * N19 A2: where the jaws are at a lift angle, in the robot frame (cm), seen from the side, the fingers straight ahead: from the finger
+ * hinges to the tips along x, the jaw's height about the boom's tip along z; and how far apart the open tips are. Plan §4.1 derives the
+ * lowered jaws of ref-uno-gripper@0 from it (x 8.83–13.83, z 1.09–2.29, tips 6.08 cm apart). A data check, not world code (the world's
+ * trigonometry is dmath's): Math.sin and Math.cos.
+ */
+export function gripperJawsCm(gripper: Pick<KitMechanicalModule<'gripper'>, 'mount' | 'spec'>, liftDeg: number) {
+  const { spec } = gripper;
+  const [x, , z] = gripper.mount.posCm;
+  const elevation = (spec.boomElevationAtLift0Deg + liftDeg) * DEG;
+  const tipX = x + spec.boomLengthCm * Math.cos(elevation);
+  const tipZ = z + spec.boomLengthCm * Math.sin(elevation);
+  return {
+    xMin: tipX + spec.fingerHingeUCm,
+    xMax: tipX + spec.fingerHingeUCm + spec.fingerLengthCm,
+    zMin: tipZ - spec.jawHeightCm / 2,
+    zMax: tipZ + spec.jawHeightCm / 2,
+    openTipGapCm: 2 * (spec.fingerHingeVCm + spec.fingerLengthCm * Math.sin(spec.fingerOpenDeg * DEG)) - spec.fingerThicknessCm,
+  };
+}
 
 /** Lengths authored as decimals compare equal when they agree to a billionth of a centimetre. */
 const SAME_CM = 1e-9;
@@ -92,9 +162,23 @@ export function mechanicsIssues(kit: Kit): DataIssue[] {
     return issues;
   }
 
+  const hasGripper = kit.modules.some((module) => module.kind === 'gripper');
   kit.modules.forEach((module, index) => {
     const at = (...path: PropertyKey[]) => ['modules', index, ...path];
     const [, , z] = module.mount.posCm;
+    if (module.mount.on === 'gripper') {
+      if (!RIDES_ON_GRIPPER.has(module.kind)) {
+        add(at('mount', 'on'), `only an IR or a colour sensor rides on the gripper, not a ${module.kind}`);
+      } else if (!hasGripper) {
+        add(at('mount', 'on'), `the kit has no gripper for ${module.role} to ride on`);
+      }
+    }
+    if (module.kind === 'gripper') {
+      const { zMin } = gripperJawsCm(module as unknown as KitMechanicalModule<'gripper'>, 0);
+      if (!(zMin > 0)) {
+        add(at('mount', 'posCm', 2), `the jaws clear the floor at lift 0°: their bottom is at z = 0 cm or below (${Math.round(zMin * 100) / 100} cm), so the mount is higher`);
+      }
+    }
     if (module.kind === 'dc-motor') {
       const spec = module.spec as unknown as ModuleSpecs['dc-motor'];
       if (module.mount.yawDeg !== 0) add(at('mount', 'yawDeg'), 'a wheel rolls along x: yawDeg is 0');
@@ -169,7 +253,15 @@ function chassisIssues(kit: Kit, chassis: ChassisSpec): DataIssue[] {
   if (!(comZ > 0)) add(['chassis', 'comCm', 2], 'the centre of mass is above the floor (z > 0)');
 
   const armsG = kit.modules.reduce((sum, module) => sum + (module.kind === 'servo' ? (module.spec as unknown as ModuleSpecs['servo']).armMassG : 0), 0);
-  if (!(chassis.massG > armsG)) add(['chassis', 'massG'], `the whole robot (${chassis.massG} g) weighs more than its servo arms (${armsG} g)`);
+  // N19 §4.6: massG is the whole car, so the gripper's moving parts are in it too.
+  const gripperG = kit.modules.reduce((sum, module) => sum + (module.kind === 'gripper' ? gripperMovingMassG(module.spec as unknown as ModuleSpecs['gripper']) : 0), 0);
+  if (gripperG > 0) {
+    if (!(chassis.massG > armsG + gripperG)) {
+      add(['chassis', 'massG'], `the whole robot (${chassis.massG} g) weighs more than its servo arms and its gripper’s moving parts (${armsG + gripperG} g)`);
+    }
+  } else if (!(chassis.massG > armsG)) {
+    add(['chassis', 'massG'], `the whole robot (${chassis.massG} g) weighs more than its servo arms (${armsG} g)`);
+  }
   return issues;
 }
 
@@ -192,10 +284,14 @@ export function robotMechanics(kit: Kit): RobotMechanics {
   }
   throwIfInvalid(kit, mechanicsIssues(kit));
   const motors = kit.modules.filter((module) => module.kind === 'dc-motor') as unknown as KitMechanicalModule<'dc-motor'>[];
+  const ofKind = <K extends ModuleKind>(kind: K) => kit.modules.filter((module) => module.kind === kind) as unknown as KitMechanicalModule<K>[];
   return {
     chassis: kit.chassis,
     motorLeft: motors.find((module) => module.role === 'motorLeft')!,
     motorRight: motors.find((module) => module.role === 'motorRight')!,
-    servos: kit.modules.filter((module) => module.kind === 'servo') as unknown as KitMechanicalModule<'servo'>[],
+    servos: ofKind('servo'),
+    gripper: ofKind('gripper')[0] ?? null,
+    irSensors: ofKind('ir-obstacle'),
+    colorSensors: ofKind('color-sensor'),
   };
 }

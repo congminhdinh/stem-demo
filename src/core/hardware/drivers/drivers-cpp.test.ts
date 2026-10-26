@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { unoContract } from '../../compat/uno-contract';
 import { productionKits, referenceKitRef, unoR3Board as board } from '../catalog';
+import refUnoGripperJson from '../kits/ref-uno-gripper.kit.json';
+import { loadKit } from '../kit-schema';
 import type { Kit, KitPort } from '../kit';
 import { allUses, driveCall, driveDirections, drivers, kitCpp, roleMacro, type Driver } from './index';
 
@@ -57,7 +59,8 @@ describe('every driver op writes its contract row’s C++ exactly', () => {
 
   it('covers every module row of the contract: U-20, U-23…U-30 by a driver op, U-21 and U-22 by the drive', () => {
     const rows = new Set(Object.values(drivers).flatMap((driver) => Object.values(driver.ops).map((op) => op.row)));
-    expect([...rows].sort()).toEqual(['U-20', 'U-23', 'U-24', 'U-25', 'U-26', 'U-27', 'U-28', 'U-29', 'U-30']);
+    // N19 A3: and the gripper car's U-35…U-39, whose contract rows task A5 writes.
+    expect([...rows].sort()).toEqual(['U-20', 'U-23', 'U-24', 'U-25', 'U-26', 'U-27', 'U-28', 'U-29', 'U-30', 'U-35', 'U-36', 'U-37', 'U-38', 'U-39']);
   });
 
   it('writes the drive as U-21 (one evaluation of the speed, neg32 for −s) and U-22', () => {
@@ -74,7 +77,8 @@ describe('every driver op writes its contract row’s C++ exactly', () => {
     const core = { name: 'arduino:avr', version: unoContract.snapshot.core.version, license: unoContract.snapshot.core.license };
     const servo = unoContract.snapshot.libraries.find((library) => library.name === 'Servo');
     expect(drivers['servo-lib'].libraries).toEqual([core, { name: 'Servo', version: servo?.version, license: servo?.license }]);
-    for (const driver of Object.values(drivers).filter((candidate) => candidate.id !== 'servo-lib')) {
+    // N19 A3: gripper-servo2 (Servo) and tcs34725-wire (Wire) declare theirs too (gripper-drivers.test.ts).
+    for (const driver of Object.values(drivers).filter((candidate) => !['servo-lib', 'gripper-servo2', 'tcs34725-wire'].includes(candidate.id))) {
       expect(driver.libraries, driver.id).toEqual([core]);
     }
   });
@@ -118,7 +122,25 @@ describe('the C++ of the reference kit, all ops used', () => {
 
 describe('driver C++ snapshots (C1 reuses them)', () => {
   /** Argument expressions as the generator writes literals (contract U-04), the values of the contract sketch. */
-  const sampleArgs: Record<string, string[]> = { 'motor.set': ['50L'], 'servo.set': ['45L'], 'led.set': ['true'], 'buzzer.tone': ['440L', '100L'] };
+  const sampleArgs: Record<string, string[]> = {
+    'motor.set': ['50L'],
+    'servo.set': ['45L'],
+    'led.set': ['true'],
+    'buzzer.tone': ['440L', '100L'],
+    'gripper.claw': ['80L'],
+    'gripper.lift': ['0L'],
+    'color.is': ['0L'],
+    'color.raw': ['3L'],
+  };
+  /** N19 A3: the drivers the reference kit does not use, on the ports of ref-uno-gripper@0. */
+  const gripper = loadKit(refUnoGripperJson, board);
+  const snapshotCases = [
+    ...cases,
+    ...gripper.modules
+      .map((module) => ({ module, port: gripper.ports.find((candidate) => candidate.id === module.port) as KitPort }))
+      .filter(({ port }) => !cases.some((entry) => entry.driver === drivers[port.driver]))
+      .map(({ module, port }) => ({ driver: drivers[port.driver], port, role: module.role })),
+  ];
 
   /** One driver on one port, as the generator would write it: defines, includes, globals, helper, then each op's setup and call. */
   function render(driver: Driver, port: KitPort, role: string): string {
@@ -139,7 +161,7 @@ describe('driver C++ snapshots (C1 reuses them)', () => {
     return `${[...new Set(parts)].join('\n')}\n`;
   }
 
-  it.each(Object.values(drivers).map((driver) => cases.find((entry) => entry.driver === driver) as (typeof cases)[number]))(
+  it.each(Object.values(drivers).map((driver) => snapshotCases.find((entry) => entry.driver === driver) as (typeof cases)[number]))(
     '$driver.id',
     async ({ driver, port, role }) => {
       await expect(render(driver, port, role)).toMatchFileSnapshot(`./__golden__/${driver.id}.cpp`);

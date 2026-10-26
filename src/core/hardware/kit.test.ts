@@ -32,13 +32,14 @@ function thrown(run: () => unknown): string {
 
 describe('the vocabulary', () => {
   it('has the robot roles of plan §4.2, each of one module kind', () => {
-    expect([...robotRoles]).toEqual(['motorLeft', 'motorRight', 'ultrasonic', 'lineLeft', 'lineCenter', 'lineRight', 'servo1', 'led1', 'buzzer', 'button1']);
+    expect([...robotRoles]).toEqual(['motorLeft', 'motorRight', 'ultrasonic', 'lineLeft', 'lineCenter', 'lineRight', 'servo1', 'led1', 'buzzer', 'button1', 'gripper', 'irClaw', 'color1']);
     expect(roleKinds).toEqual({
       motorLeft: 'dc-motor', motorRight: 'dc-motor', ultrasonic: 'ultrasonic', lineLeft: 'line-sensor', lineCenter: 'line-sensor',
       lineRight: 'line-sensor', servo1: 'servo', led1: 'led', buzzer: 'buzzer', button1: 'button',
+      gripper: 'gripper', irClaw: 'ir-obstacle', color1: 'color-sensor',
     });
-    expect([...moduleKinds]).toEqual(['dc-motor', 'servo', 'ultrasonic', 'line-sensor', 'led', 'buzzer', 'button']);
-    expect([...driverIds]).toEqual(['hbridge-en-in1-in2', 'servo-lib', 'hcsr04-pulsein', 'line-digital', 'line-analog', 'led-digital', 'buzzer-tone', 'button-pullup']);
+    expect([...moduleKinds]).toEqual(['dc-motor', 'servo', 'ultrasonic', 'line-sensor', 'led', 'buzzer', 'button', 'gripper', 'ir-obstacle', 'color-sensor']);
+    expect([...driverIds]).toEqual(['hbridge-en-in1-in2', 'servo-lib', 'hcsr04-pulsein', 'line-digital', 'line-analog', 'led-digital', 'buzzer-tone', 'button-pullup', 'gripper-servo2', 'ir-digital', 'tcs34725-wire']);
   });
 });
 
@@ -48,9 +49,9 @@ describe('ref-uno-rover@0', () => {
     return kit.ports.find((port) => port.id === module?.port)?.pins;
   };
 
-  it('is for uno-r3 and has every role of the vocabulary', () => {
+  it('is for uno-r3 and has every role of the vocabulary but the gripper car’s three (N19 A2: ref-uno-gripper@0 has them)', () => {
     expect(kit).toMatchObject({ id: 'ref-uno-rover', version: '0', board: 'uno-r3' });
-    expect(kit.modules.map((module) => module.role)).toEqual([...robotRoles]);
+    expect(kit.modules.map((module) => module.role)).toEqual(robotRoles.filter((role) => !['gripper', 'irClaw', 'color1'].includes(role)));
   });
 
   it('wires the PLACEHOLDER pins of plan §4.2 verbatim', () => {

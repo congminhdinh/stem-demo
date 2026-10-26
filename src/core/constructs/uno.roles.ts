@@ -19,6 +19,9 @@ export const roleLabels: Readonly<Record<RobotRole, string>> = {
   led1: 'LED',
   buzzer: 'buzzer',
   button1: 'button',
+  gripper: 'gripper',
+  irClaw: 'IR',
+  color1: 'colour',
 };
 
 /** A role as a diagnostic names it. */
@@ -33,6 +36,9 @@ export const roleNames: Readonly<Record<RobotRole, string>> = {
   led1: 'the LED',
   buzzer: 'the buzzer',
   button1: 'the button',
+  gripper: 'the gripper',
+  irClaw: 'the IR sensor between the jaws',
+  color1: 'the colour sensor',
 };
 
 /** What the drive needs of the kit, as a diagnostic names it (the drive is both motors, contract UNO U-21). */

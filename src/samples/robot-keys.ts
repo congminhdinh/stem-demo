@@ -30,7 +30,7 @@ export type RobotLabProfile = (typeof robotLabProfiles)[number];
  * which ports lives in the kit's file (src/core/hardware/kits), the table here only says which kits there are. A kit is added by adding it
  * here, one line, and to `productionKits` (src/core/hardware/catalog.ts): never renamed, and a change of its data is a new version.
  */
-export const robotKits = { 'ref-uno-rover': '0' } as const;
+export const robotKits = { 'ref-uno-rover': '0', 'ref-uno-gripper': '0' } as const;
 
 export type RobotKitId = keyof typeof robotKits;
 

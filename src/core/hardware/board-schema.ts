@@ -4,8 +4,11 @@ import { arduinoCalls, pinCaps, type BoardProfile } from './board';
 // Validation of a board profile (N18 R1.1, robot plan §4.1, B6): the shape with Zod, then the rules between fields. Bad data
 // is refused with every problem and its path (`pins.5.pwmTimer: …`), so a vendor board file says where it is wrong.
 
-/** One problem of hardware data: where (`ports.0.pins.EN`) and what. */
-export type DataIssue = { path: string; message: string };
+/** N19 A2: the kit rules a problem may be named by: an I²C port off the board's SDA/SCL, two I²C devices at one address. */
+export type DataIssueCode = 'wrong-i2c-pin' | 'i2c-address-conflict';
+
+/** One problem of hardware data: where (`ports.0.pins.EN`) and what; the rule's code when it has one. */
+export type DataIssue = { path: string; message: string; code?: DataIssueCode };
 
 /** Hardware data (a board profile, a kit) that is not valid. The message lists every issue, one per line. */
 export class HardwareDataError extends Error {

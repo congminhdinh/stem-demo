@@ -1,0 +1,76 @@
+{
+  "id": "ref-uno-gripper",
+  "version": "0",
+  "board": "uno-r3",
+  "chassis": {
+    "bodyCm": [15, 12, 5],
+    "clearanceCm": 1.5,
+    "massG": 460,
+    "comCm": [-1.2, 0, 3.6],
+    "trackCm": 15,
+    "casterCm": [5.5, 0, 0.75],
+    "casterRadiusCm": 0.75,
+    "frictionWheel": 1,
+    "footprintRadiusCm": 16
+  },
+  "ports": [
+    { "id": "M1", "driver": "hbridge-en-in1-in2", "pins": { "EN": "D5", "IN1": "D7", "IN2": "D8" } },
+    { "id": "M2", "driver": "hbridge-en-in1-in2", "pins": { "EN": "D6", "IN1": "D4", "IN2": "D2" } },
+    { "id": "US1", "driver": "hcsr04-pulsein", "pins": { "TRIG": "D12", "ECHO": "D11" } },
+    { "id": "LN1", "driver": "line-digital", "pins": { "PIN": "A0" }, "params": { "activeLow": false } },
+    { "id": "LN2", "driver": "line-digital", "pins": { "PIN": "A1" }, "params": { "activeLow": false } },
+    { "id": "LN3", "driver": "line-digital", "pins": { "PIN": "A2" }, "params": { "activeLow": false } },
+    { "id": "LED1", "driver": "led-digital", "pins": { "PIN": "D13" } },
+    { "id": "BTN1", "driver": "button-pullup", "pins": { "PIN": "D3" } },
+    { "id": "GR1", "driver": "gripper-servo2", "pins": { "CLAW": "D9", "LIFT": "D10" } },
+    { "id": "IR1", "driver": "ir-digital", "pins": { "PIN": "A3" }, "params": { "activeLow": true } },
+    { "id": "CS1", "driver": "tcs34725-wire", "pins": { "SDA": "A4", "SCL": "A5" } }
+  ],
+  "modules": [
+    {
+      "role": "motorLeft", "kind": "dc-motor", "port": "M1", "mount": { "posCm": [-2, 7.5, 3.3], "yawDeg": 0 },
+      "spec": { "maxRpm": 200, "tauS": 0.05, "stallTorqueNm": 0.08, "gearFrictionNm": 0.025, "wheelRadiusCm": 3.3, "wheelWidthCm": 2.6 }
+    },
+    {
+      "role": "motorRight", "kind": "dc-motor", "port": "M2", "mount": { "posCm": [-2, -7.5, 3.3], "yawDeg": 0 },
+      "spec": { "maxRpm": 200, "tauS": 0.05, "stallTorqueNm": 0.08, "gearFrictionNm": 0.025, "wheelRadiusCm": 3.3, "wheelWidthCm": 2.6 }
+    },
+    {
+      "role": "ultrasonic", "kind": "ultrasonic", "port": "US1", "mount": { "posCm": [7.5, 0, 5], "yawDeg": 0 },
+      "spec": { "coneHalfDeg": 15, "minCm": 2, "maxCm": 400 }
+    },
+    {
+      "role": "lineLeft", "kind": "line-sensor", "port": "LN1", "mount": { "posCm": [7, 1.5, 1], "yawDeg": 0 },
+      "spec": { "heightCm": 1, "spotRadiusCm": 0.3, "darkBelow": 0.5 }
+    },
+    {
+      "role": "lineCenter", "kind": "line-sensor", "port": "LN2", "mount": { "posCm": [7, 0, 1], "yawDeg": 0 },
+      "spec": { "heightCm": 1, "spotRadiusCm": 0.3, "darkBelow": 0.5 }
+    },
+    {
+      "role": "lineRight", "kind": "line-sensor", "port": "LN3", "mount": { "posCm": [7, -1.5, 1], "yawDeg": 0 },
+      "spec": { "heightCm": 1, "spotRadiusCm": 0.3, "darkBelow": 0.5 }
+    },
+    { "role": "led1", "kind": "led", "port": "LED1", "mount": { "posCm": [-5, -3, 6.5], "yawDeg": 0 }, "spec": {} },
+    { "role": "button1", "kind": "button", "port": "BTN1", "mount": { "posCm": [-6.5, 0, 6.5], "yawDeg": 0 }, "spec": {} },
+    {
+      "role": "gripper", "kind": "gripper", "port": "GR1", "mount": { "posCm": [4.5, 0, 4.9], "yawDeg": 0 },
+      "spec": {
+        "liftSPer60Deg": 0.1, "liftStallTorqueNm": 0.18, "liftRotorInertiaKgM2": 0.00005,
+        "boomLengthCm": 5, "boomHalfSpanCm": 6.6, "boomMassG": 6, "boomElevationAtLift0Deg": -40, "carriageMassG": 22,
+        "clawSPer60Deg": 0.1, "clawStallTorqueNm": 0.18, "jawsMeetDeg": 80,
+        "fingerOpenDeg": 12, "fingerDegPerServoDeg": 0.445, "fingerHingeUCm": 0.5, "fingerHingeVCm": 2.2,
+        "fingerLengthCm": 5, "fingerThicknessCm": 0.4, "jawHeightCm": 1.2, "fingerMassG": 3,
+        "jawFriction": 0.6, "maxPayloadG": 50
+      }
+    },
+    {
+      "role": "irClaw", "kind": "ir-obstacle", "port": "IR1", "mount": { "posCm": [0.3, 0.6, 0], "yawDeg": 0, "on": "gripper" },
+      "spec": { "rangeCm": 2, "minReflectance": 0.15 }
+    },
+    {
+      "role": "color1", "kind": "color-sensor", "port": "CS1", "mount": { "posCm": [0.3, -0.6, 0], "yawDeg": 0, "on": "gripper" },
+      "spec": { "rangeCm": 4, "halfLightCm": 1.5, "whiteRPerMs": 48, "whiteGPerMs": 44, "whiteBPerMs": 36, "ambientPerMs": 0.2 }
+    }
+  ]
+}

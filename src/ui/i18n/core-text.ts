@@ -130,6 +130,9 @@ const robotRoles: Readonly<Record<string, string>> = {
   'the LED': 'đèn',
   'the buzzer': 'còi',
   'the button': 'nút',
+  'the gripper': 'tay gắp',
+  'the IR sensor between the jaws': 'cảm biến hồng ngoại giữa càng',
+  'the colour sensor': 'cảm biến màu',
   'the left and the right motor': 'motor trái và motor phải',
 };
 

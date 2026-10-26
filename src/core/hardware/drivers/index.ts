@@ -9,6 +9,9 @@ import { hcsr04Driver } from './hcsr04';
 import { ledDriver } from './led';
 import { lineAnalogDriver, lineDigitalDriver } from './line-sensor';
 import { servoDriver } from './servo-lib';
+import { gripperDriver } from './gripper-servo2';
+import { irDigitalDriver } from './ir-digital';
+import { tcs34725Driver } from './tcs34725';
 
 // The drivers by id (N18 R1.4), and what a program's module uses need from the kit's drivers: the C++ parts of a sketch
 // (for C1) and the ops each role offers (for the compiler). Order rule of the generated setup() (contract §2.1, §7): the
@@ -20,6 +23,8 @@ export { MOTOR_SPEED, motorDuty } from './hbridge';
 export { SERVO_ANGLE, SERVO_START_DEG } from './servo-lib';
 export { echoToCm, MAX_CM, MIN_CM, NO_ECHO_CM, PULSE_TIMEOUT_US, US_PER_CM } from './hcsr04';
 export { TONE_HZ, TONE_MS } from './buzzer';
+export { GRIPPER_ANGLE, GRIPPER_CLAW_START_DEG, GRIPPER_LIFT_START_DEG } from './gripper-servo2';
+export { classifyColor, COLOR_CHANNEL, COLOR_INDEX, COLOR_NAMES, COLOR_RULES, COLOR_UNKNOWN, colorRulesCpp, perMille, type ColorName, type ColorRule } from './tcs34725';
 
 export const drivers: Readonly<Record<DriverId, Driver>> = {
   'hbridge-en-in1-in2': hbridgeDriver,
@@ -30,6 +35,9 @@ export const drivers: Readonly<Record<DriverId, Driver>> = {
   'led-digital': ledDriver,
   'buzzer-tone': buzzerDriver,
   'button-pullup': buttonDriver,
+  'gripper-servo2': gripperDriver,
+  'ir-digital': irDigitalDriver,
+  'tcs34725-wire': tcs34725Driver,
 };
 
 /** The robot's drive (contract U-21, U-22) is not a module: it is both motors. A program calls it on this role. */

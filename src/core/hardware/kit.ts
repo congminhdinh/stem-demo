@@ -1,12 +1,16 @@
 import type { PinCap } from './board';
+import { TCS34725_ADDRESS } from './devices/tcs34725';
 
 // The kit (N18 R1.1, robot plan §4.2): which modules a robot has and how they are wired, as data (`kits/*.kit.json`,
 // validated by kit-schema.ts). The chain is role → port → driver → pins: a program names a role (`motorLeft`), the kit says
 // which port holds it (`M1`), the port says which driver runs it (`hbridge-en-in1-in2`) and on which board pins (EN=D5…).
 // A vendor kit is a new JSON file; a new module kind or driver is engine work (plan VG).
 
-/** What a module is. Closed: a new kind needs a block, an IR op, a contract row, a model and a goal (plan VG). */
-export const moduleKinds = ['dc-motor', 'servo', 'ultrasonic', 'line-sensor', 'led', 'buzzer', 'button'] as const;
+/**
+ * What a module is. Closed: a new kind needs a block, an IR op, a contract row, a model and a goal (plan VG). N19 A2 adds the gripper car's:
+ * the two-servo gripper (claw and lift), the IR obstacle sensor between its jaws and the TCS34725 colour sensor.
+ */
+export const moduleKinds = ['dc-motor', 'servo', 'ultrasonic', 'line-sensor', 'led', 'buzzer', 'button', 'gripper', 'ir-obstacle', 'color-sensor'] as const;
 export type ModuleKind = (typeof moduleKinds)[number];
 
 /** The drivers: reviewed TS (simulator) and C++ (generated sketch) code, referenced by id (B6). */
@@ -19,11 +23,30 @@ export const driverIds = [
   'led-digital',
   'buzzer-tone',
   'button-pullup',
+  // N19 A3: the gripper's two servos on the Servo library, a digital IR obstacle sensor, the TCS34725 on raw Wire.
+  'gripper-servo2',
+  'ir-digital',
+  'tcs34725-wire',
 ] as const;
 export type DriverId = (typeof driverIds)[number];
 
 /** The role vocabulary of the robot (plan §4.2): the blocks' dropdowns list all of it; a role the kit lacks is capability-unavailable. */
-export const robotRoles = ['motorLeft', 'motorRight', 'ultrasonic', 'lineLeft', 'lineCenter', 'lineRight', 'servo1', 'led1', 'buzzer', 'button1'] as const;
+export const robotRoles = [
+  'motorLeft',
+  'motorRight',
+  'ultrasonic',
+  'lineLeft',
+  'lineCenter',
+  'lineRight',
+  'servo1',
+  'led1',
+  'buzzer',
+  'button1',
+  // N19 A2: the gripper, the IR sensor between its jaws, the colour sensor.
+  'gripper',
+  'irClaw',
+  'color1',
+] as const;
 export type RobotRole = (typeof robotRoles)[number];
 
 /** The module kind each role is. */
@@ -38,6 +61,9 @@ export const roleKinds: Readonly<Record<RobotRole, ModuleKind>> = {
   led1: 'led',
   buzzer: 'buzzer',
   button1: 'button',
+  gripper: 'gripper',
+  irClaw: 'ir-obstacle',
+  color1: 'color-sensor',
 };
 
 export type DriverPinSpec = {
@@ -47,6 +73,11 @@ export type DriverPinSpec = {
   readonly dir: 'out' | 'in';
   /** The program may also read the module's signal on this pin as an analog value (`line.raw`, contract U-29) when the board pin has analogIn. */
   readonly analog?: true;
+  /**
+   * N19 A2: the I²C line this pin is (with `needs: 'i2c'`): it must be the board's own pin of that line (`BoardProfile.i2c`), since Wire
+   * runs on the MCU's TWI there and nowhere else (kit rule wrong-i2c-pin). Neither line is a raw input, so both are `dir: 'out'`.
+   */
+  readonly i2c?: 'sda' | 'scl';
 };
 
 export type DriverParamSpec = { readonly type: 'boolean'; readonly default: boolean };
@@ -58,6 +89,8 @@ export type DriverPortSpec = {
   readonly params?: Readonly<Record<string, DriverParamSpec>>;
   /** The board `timerClaims` entry the driver's code takes while the program uses it (Servo library: servo; tone: tone). */
   readonly claims?: string;
+  /** N19 A2: the I²C address the device answers at; two devices of a kit at one address is the kit rule i2c-address-conflict. */
+  readonly i2cAddress?: number;
 };
 
 export const driverPortSpecs: Readonly<Record<DriverId, DriverPortSpec>> = {
@@ -77,6 +110,20 @@ export const driverPortSpecs: Readonly<Record<DriverId, DriverPortSpec>> = {
   'led-digital': { kind: 'led', pins: { PIN: { needs: 'digital', dir: 'out' } } },
   'buzzer-tone': { kind: 'buzzer', pins: { PIN: { needs: 'digital', dir: 'out' } }, claims: 'tone' },
   'button-pullup': { kind: 'button', pins: { PIN: { needs: 'digital', dir: 'in' } } },
+  // N19 A3 (plan §4.1, D-G2): one port, two servos on the Servo library, which takes Timer1 as servo-lib does (U-48).
+  'gripper-servo2': {
+    kind: 'gripper',
+    pins: { CLAW: { needs: 'digital', dir: 'out' }, LIFT: { needs: 'digital', dir: 'out' } },
+    claims: 'servo',
+  },
+  // An IR obstacle module's output: LOW while it sees something when the kit says activeLow (the common modules do, hence the default).
+  'ir-digital': { kind: 'ir-obstacle', pins: { PIN: { needs: 'digital', dir: 'in' } }, params: { activeLow: { type: 'boolean', default: true } } },
+  // The TCS34725 on Wire (D-G7): the board's SDA and SCL, at the part's one address (datasheet TAOS135: 0x29).
+  'tcs34725-wire': {
+    kind: 'color-sensor',
+    pins: { SDA: { needs: 'i2c', dir: 'out', i2c: 'sda' }, SCL: { needs: 'i2c', dir: 'out', i2c: 'scl' } },
+    i2cAddress: TCS34725_ADDRESS,
+  },
 };
 
 export type KitPort = {
@@ -160,6 +207,61 @@ export type LineSensorSpec = {
   readonly darkBelow: number;
 };
 
+/**
+ * N19 A2 (plan §4.1, §4.4, §4.6; ADR 0004 §2, §5): the two-servo gripper, PLACEHOLDER numbers until a vendor's arm is measured. A boom
+ * turns about the mount's y axis (the lift servo, 0° down … 90° up) and carries a carriage that stays level (a parallel link); on the
+ * carriage, the claw servo (0° open … `jawsMeetDeg` closed) turns two fingers that mirror each other. The carriage frame (for the mount of a
+ * module that rides on it, `KitModule.mount.on`): u forward, v left, w up, cm, from the boom's tip, the chassis' axes while it is level.
+ */
+export type GripperSpec = {
+  /** The lift servo: s per 60° unloaded, its stall torque (N·m) and its rotor's inertia as the boom feels it (kg·m², §4.6). */
+  readonly liftSPer60Deg: number;
+  readonly liftStallTorqueNm: number;
+  readonly liftRotorInertiaKgM2: number;
+  /** The boom: from its pivot (the mount) to the carriage hinge, cm; its side plates at y = ±boomHalfSpanCm; its mass, g. */
+  readonly boomLengthCm: number;
+  readonly boomHalfSpanCm: number;
+  readonly boomMassG: number;
+  /** The boom's elevation at lift 0°, degrees above level (−40: down); a degree of lift raises it a degree, so lift 0° is its lowest. */
+  readonly boomElevationAtLift0Deg: number;
+  readonly carriageMassG: number;
+  /** The claw servo: s per 60°, stall torque (N·m), and the claw angle at which the fingers meet (its stop), 0 < … ≤ 90. */
+  readonly clawSPer60Deg: number;
+  readonly clawStallTorqueNm: number;
+  readonly jawsMeetDeg: number;
+  /** Each finger's angle out from straight ahead at claw 0°, degrees, and how far it turns in a degree of claw (one servo, gears). */
+  readonly fingerOpenDeg: number;
+  readonly fingerDegPerServoDeg: number;
+  /** A finger's hinge in the carriage frame (u, ±v), its length, thickness and height (the jaw's), cm; its mass, g. */
+  readonly fingerHingeUCm: number;
+  readonly fingerHingeVCm: number;
+  readonly fingerLengthCm: number;
+  readonly fingerThicknessCm: number;
+  readonly jawHeightCm: number;
+  readonly fingerMassG: number;
+  /** How hard the jaws hold (friction coefficient): for the slip threshold only, the fingers' colliders have none (§4.6). */
+  readonly jawFriction: number;
+  /** The heaviest object the gripper lifts, g. */
+  readonly maxPayloadG: number;
+};
+
+/** N19 A2: an IR obstacle sensor between the jaws (PLACEHOLDER): it sees what is within `rangeCm` and reflects at least `minReflectance` (0..1]. */
+export type IrObstacleSpec = { readonly rangeCm: number; readonly minReflectance: number };
+
+/**
+ * N19 A2: the TCS34725 colour sensor and its light (PLACEHOLDER): it looks `rangeCm` ahead; the counts per ms at 1× gain each channel reads
+ * in front of a white object (`whiteR/G/BPerMs`), with nothing in front (`ambientPerMs`), and the distance at which the light of an object
+ * falls to half (`halfLightCm`). The world turns them into the light the register model integrates (task B3).
+ */
+export type ColorSensorSpec = {
+  readonly rangeCm: number;
+  readonly halfLightCm: number;
+  readonly whiteRPerMs: number;
+  readonly whiteGPerMs: number;
+  readonly whiteBPerMs: number;
+  readonly ambientPerMs: number;
+};
+
 /** A module the world does not move or measure (LED, buzzer, button): no parameters. */
 export type EmptySpec = Readonly<Record<string, never>>;
 
@@ -172,6 +274,9 @@ export type ModuleSpecs = {
   readonly led: EmptySpec;
   readonly buzzer: EmptySpec;
   readonly button: EmptySpec;
+  readonly gripper: GripperSpec;
+  readonly 'ir-obstacle': IrObstacleSpec;
+  readonly 'color-sensor': ColorSensorSpec;
 };
 
 /** A point of the robot frame, in cm: [x forward, y left, z up] (see `KitModule.mount`). */
@@ -187,9 +292,9 @@ export type ChassisSpec = {
   readonly bodyCm: RobotPointCm;
   /** How high the underside of the body box is above the floor. */
   readonly clearanceCm: number;
-  /** The whole robot as weighed, servo arms included. */
+  /** The whole robot as weighed, servo arms and (N19 §4.6) the gripper included. */
   readonly massG: number;
-  /** Centre of mass of the robot without its servo arms. */
+  /** Centre of mass of the robot without its servo arms (and without its gripper's moving parts). */
   readonly comCm: RobotPointCm;
   /** Distance between the two wheel centres; the left wheel is at y = +trackCm / 2. */
   readonly trackCm: number;
@@ -217,7 +322,15 @@ export type KitModule = {
    * y left, z up, in cm. So z is a height above the floor. `yawDeg` turns the module about z, counter-clockwise (towards +y)
    * from forward. A wheel's mount is its centre; a servo's is the point of its axis where the arm is fixed.
    */
-  readonly mount: { readonly posCm: RobotPointCm; readonly yawDeg: number };
+  readonly mount: {
+    readonly posCm: RobotPointCm;
+    readonly yawDeg: number;
+    /**
+     * N19 A2: the module rides on the gripper's carriage (only an IR or a colour sensor does): `posCm` and `yawDeg` are then in the carriage
+     * frame (GripperSpec), so the sensor moves with the jaws.
+     */
+    readonly on?: 'gripper';
+  };
   readonly spec: ModuleSpec;
 };
 

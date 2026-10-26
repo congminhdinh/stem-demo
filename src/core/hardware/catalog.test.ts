@@ -5,8 +5,8 @@ import refUnoRoverJson from './kits/ref-uno-rover.kit.json';
 // N18 R1.1: whether the kit a project names is known is the kit catalog's job (document.ts, R2.1).
 
 describe('the kit catalog', () => {
-  it('knows ref-uno-rover@0 on uno-r3, and nothing else', () => {
-    expect(productionKits.refs()).toEqual([{ id: 'ref-uno-rover', version: '0' }]);
+  it('knows ref-uno-rover@0 and (N19 A2) ref-uno-gripper@0 on uno-r3, and nothing else', () => {
+    expect(productionKits.refs()).toEqual([{ id: 'ref-uno-rover', version: '0' }, { id: 'ref-uno-gripper', version: '0' }]);
     expect(productionKits.get(referenceKitRef)?.board).toBe('uno-r3');
     expect(productionKits.get({ id: 'ref-uno-rover', version: '1' })).toBeUndefined();
     expect(productionKits.boardOf(referenceKitRef)).toBe(unoR3Board);

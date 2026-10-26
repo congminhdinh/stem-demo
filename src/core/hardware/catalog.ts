@@ -2,6 +2,7 @@ import type { BoardProfile } from './board';
 import { loadBoard } from './board-schema';
 import { kitKey, type Kit, type KitRef } from './kit';
 import { loadKit } from './kit-schema';
+import refUnoGripperJson from './kits/ref-uno-gripper.kit.json';
 import refUnoRoverJson from './kits/ref-uno-rover.kit.json';
 import unoR3Json from './uno-r3.board.json';
 
@@ -44,7 +45,8 @@ export const unoR3Board: BoardProfile = loadBoard(unoR3Json);
 /** The kit of a robot project that names none (plan §4.0): its pins are PLACEHOLDERs until the vendor answers (kits/README.md). */
 export const referenceKitRef: KitRef = { id: 'ref-uno-rover', version: '0' };
 
-export const productionKits: KitCatalog = createKitCatalog([refUnoRoverJson], [unoR3Board]);
+/** The kits of the robot labs, in robot-keys.ts `robotKits` order: the rover, and (N19 A2) the gripper car. */
+export const productionKits: KitCatalog = createKitCatalog([refUnoRoverJson, refUnoGripperJson], [unoR3Board]);
 
 /** N18 R2.2: what a learner is told of a kit the catalog does not know (L-1 `unknown-kit`; the compile of such a project says the same). */
 export const unknownKitMessage = (ref: KitRef): string => `The robot kit "${kitKey(ref)}" is not one this app knows.`;

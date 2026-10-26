@@ -41,19 +41,22 @@ function claimedTimers(board: Pick<BoardProfile, 'timerClaims'>, usage: Pick<Kit
  * prints). Every one is an error: Run and Check are refused. In board order of the pin, conflicts first.
  */
 export function checkKit(kit: Kit, board: BoardProfile, usage: KitUsage): HardwareDiagnostic[] {
-  const users = new Map<string, { port: string; name: string }[]>();
+  const users = new Map<string, { port: string; name: string; bus?: 'sda' | 'scl' }[]>();
   for (const port of kit.ports) {
     for (const [name, pin] of Object.entries(port.pins)) {
-      users.set(pin, [...(users.get(pin) ?? []), { port: port.id, name }]);
+      const bus = driverPortSpecs[port.driver].pins[name]?.i2c;
+      users.set(pin, [...(users.get(pin) ?? []), bus === undefined ? { port: port.id, name } : { port: port.id, name, bus }]);
     }
   }
+  /** N19 A2: the devices of one I²C bus share its SDA and SCL; that is the bus, not a conflict (their addresses are kit-schema's rule). */
+  const sharedBus = (wired: readonly { bus?: 'sda' | 'scl' }[]) => wired[0]?.bus !== undefined && wired.every((user) => user.bus === wired[0]?.bus);
   const boardOrder = board.pins.map((pin) => pin.id).filter((pin) => users.has(pin));
   const portsOf = (pin: string) => [...new Set((users.get(pin) ?? []).map((user) => user.port))];
   const diagnostics: HardwareDiagnostic[] = [];
 
   for (const pin of boardOrder) {
     const wired = users.get(pin) ?? [];
-    if (wired.length > 1) {
+    if (wired.length > 1 && !sharedBus(wired)) {
       diagnostics.push({
         severity: 'error',
         code: 'pin-conflict',
