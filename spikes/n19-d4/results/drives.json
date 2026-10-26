@@ -1,0 +1,262 @@
+{
+ "rb-grip-pick": {
+  "headless": {
+   "score": 100,
+   "programHash": "b71d5f5afb020554",
+   "variants": [
+    [
+     23,
+     100,
+     "8ba5a014"
+    ],
+    [
+     24,
+     100,
+     "aefefac0"
+    ],
+    [
+     25,
+     100,
+     "778c4485"
+    ]
+   ]
+  },
+  "realtime 1×": {
+   "score": 100,
+   "programHash": "b71d5f5afb020554",
+   "variants": [
+    [
+     23,
+     100,
+     "8ba5a014"
+    ],
+    [
+     24,
+     100,
+     "aefefac0"
+    ],
+    [
+     25,
+     100,
+     "778c4485"
+    ]
+   ]
+  },
+  "realtime 4×": {
+   "score": 100,
+   "programHash": "b71d5f5afb020554",
+   "variants": [
+    [
+     23,
+     100,
+     "8ba5a014"
+    ],
+    [
+     24,
+     100,
+     "aefefac0"
+    ],
+    [
+     25,
+     100,
+     "778c4485"
+    ]
+   ]
+  }
+ },
+ "rb-grip-deliver": {
+  "headless": {
+   "score": 97,
+   "programHash": "12b1f432f405eb4a",
+   "variants": [
+    [
+     430,
+     97,
+     "4139d036"
+    ],
+    [
+     431,
+     97,
+     "b5779bbe"
+    ],
+    [
+     432,
+     97,
+     "02ab692c"
+    ]
+   ]
+  },
+  "realtime 1×": {
+   "score": 97,
+   "programHash": "12b1f432f405eb4a",
+   "variants": [
+    [
+     430,
+     97,
+     "4139d036"
+    ],
+    [
+     431,
+     97,
+     "b5779bbe"
+    ],
+    [
+     432,
+     97,
+     "02ab692c"
+    ]
+   ]
+  },
+  "realtime 4×": {
+   "score": 97,
+   "programHash": "12b1f432f405eb4a",
+   "variants": [
+    [
+     430,
+     97,
+     "4139d036"
+    ],
+    [
+     431,
+     97,
+     "b5779bbe"
+    ],
+    [
+     432,
+     97,
+     "02ab692c"
+    ]
+   ]
+  }
+ },
+ "rb-grip-sort": {
+  "headless": {
+   "score": 100,
+   "programHash": "fe8b83b33e9c63aa",
+   "variants": [
+    [
+     8,
+     100,
+     "8c60c9a1"
+    ],
+    [
+     9,
+     100,
+     "0e3bbe2f"
+    ],
+    [
+     10,
+     100,
+     "bd401fe3"
+    ]
+   ]
+  },
+  "realtime 1×": {
+   "score": 100,
+   "programHash": "fe8b83b33e9c63aa",
+   "variants": [
+    [
+     8,
+     100,
+     "8c60c9a1"
+    ],
+    [
+     9,
+     100,
+     "0e3bbe2f"
+    ],
+    [
+     10,
+     100,
+     "bd401fe3"
+    ]
+   ]
+  },
+  "realtime 4×": {
+   "score": 100,
+   "programHash": "fe8b83b33e9c63aa",
+   "variants": [
+    [
+     8,
+     100,
+     "8c60c9a1"
+    ],
+    [
+     9,
+     100,
+     "0e3bbe2f"
+    ],
+    [
+     10,
+     100,
+     "bd401fe3"
+    ]
+   ]
+  }
+ },
+ "rb-grip-stack": {
+  "headless": {
+   "score": 97,
+   "programHash": "9243bbc3916beacb",
+   "variants": [
+    [
+     217,
+     97,
+     "14603576"
+    ],
+    [
+     218,
+     97,
+     "60686846"
+    ],
+    [
+     219,
+     97,
+     "3ca8a6ec"
+    ]
+   ]
+  },
+  "realtime 1×": {
+   "score": 97,
+   "programHash": "9243bbc3916beacb",
+   "variants": [
+    [
+     217,
+     97,
+     "14603576"
+    ],
+    [
+     218,
+     97,
+     "60686846"
+    ],
+    [
+     219,
+     97,
+     "3ca8a6ec"
+    ]
+   ]
+  },
+  "realtime 4×": {
+   "score": 97,
+   "programHash": "9243bbc3916beacb",
+   "variants": [
+    [
+     217,
+     97,
+     "14603576"
+    ],
+    [
+     218,
+     97,
+     "60686846"
+    ],
+    [
+     219,
+     97,
+     "3ca8a6ec"
+    ]
+   ]
+  }
+ }
+}
