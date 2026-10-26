@@ -11,15 +11,17 @@ import { arduinoCore, clampTo, defineDriver, defineOp, pinOf, servoLibrary, type
 
 /** U-35, U-36: 0..90°, clamped (D-G3), for the claw and the lift alike. */
 export const GRIPPER_ANGLE: ArgRange = { name: 'angle', min: 0, max: 90 };
-/** setup() writes the claw open and the lift up (D-G3). */
-const GRIPPER_CLAW_START_DEG = 0;
-const GRIPPER_LIFT_START_DEG = 90;
+/**
+ * setup() writes the claw open and the lift up (D-G3): the angles the gripper car starts at. The one place they are written: the world builds
+ * the gripper at them (world/robot/gripper.ts) and a teleop run starts its keys from them (the lab's tools store).
+ */
+export const GRIPPER_START: Readonly<{ clawDeg: number; liftDeg: number }> = Object.freeze({ clawDeg: 0, liftDeg: 90 });
 
 const helper = ['void gripperSet(Servo &servo, long angle) {', '  if (angle < 0L) angle = 0L;', '  if (angle > 90L) angle = 90L;', '  servo.write((int)angle);', '}'].join('\n');
 
 const setup: readonly SetupStep[] = [
-  { kind: 'servoAttach', pin: 'CLAW', angle: GRIPPER_CLAW_START_DEG, object: 'Claw' },
-  { kind: 'servoAttach', pin: 'LIFT', angle: GRIPPER_LIFT_START_DEG, object: 'Lift' },
+  { kind: 'servoAttach', pin: 'CLAW', angle: GRIPPER_START.clawDeg, object: 'Claw' },
+  { kind: 'servoAttach', pin: 'LIFT', angle: GRIPPER_START.liftDeg, object: 'Lift' },
 ];
 
 const servoOp = (pin: 'CLAW' | 'LIFT', object: 'Claw' | 'Lift', row: string): DriverOp =>

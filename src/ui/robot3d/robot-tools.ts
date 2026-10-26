@@ -126,8 +126,37 @@ export function driveKeyOf(event: { readonly key: string; readonly code?: string
 /** N19 E3: R and F move the gripper's arm this much (degrees), and a held key repeats the step. */
 export const LIFT_STEP_DEG = 15;
 
-/** N19 D-G3: what setup() leaves the gripper at, and so what a teleop world starts as: the claw open (0°), the arm up (90°). */
-export const GRIPPER_START = { clawDeg: 0, liftDeg: 90 } as const;
+/**
+ * N19 E3: a held R, F or arm button steps once at once, then after `GRIPPER_REPEAT_DELAY_MS` every `GRIPPER_REPEAT_INTERVAL_MS`: 10 steps a
+ * second, however fast the operating system repeats a held key (the arm's servo does 600° a second: 15° a step is a quarter of its reach in
+ * the time of one). The keys and the buttons share it (`createRepeater`).
+ */
+export const GRIPPER_REPEAT_DELAY_MS = 400;
+export const GRIPPER_REPEAT_INTERVAL_MS = 100;
+
+/** The repeats of a held step: `start` schedules them (the first step is the caller's, made at once), `stop` ends them; `stop` is safe at any time. */
+export type Repeater = { start(): void; stop(): void };
+
+export function createRepeater(step: () => void): Repeater {
+  let delay: ReturnType<typeof setTimeout> | null = null;
+  let interval: ReturnType<typeof setInterval> | null = null;
+  const stop = () => {
+    if (delay !== null) clearTimeout(delay);
+    if (interval !== null) clearInterval(interval);
+    delay = null;
+    interval = null;
+  };
+  return {
+    start() {
+      stop();
+      delay = setTimeout(() => {
+        step();
+        interval = setInterval(step, GRIPPER_REPEAT_INTERVAL_MS);
+      }, GRIPPER_REPEAT_DELAY_MS);
+    },
+    stop,
+  };
+}
 
 /** What a gripper key asks for: the claw open or closed, or the lift moved a step (positive: up). */
 export type GripperAction = { readonly part: 'claw'; readonly to: 'open' | 'close' } | { readonly part: 'lift'; readonly stepDeg: number };

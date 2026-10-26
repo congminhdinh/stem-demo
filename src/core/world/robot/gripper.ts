@@ -1,3 +1,4 @@
+import { GRIPPER_START } from '../../hardware/drivers/gripper-servo2';
 import type { ModuleSpecs } from '../../hardware/kit';
 import type { KitMechanicalModule } from '../../hardware/kit-mechanics';
 import { atan2, cos, sin } from '../dmath';
@@ -55,8 +56,8 @@ export const GRIPPER_EXTRA_SOLVER_ITERATIONS = 4;
  * with 139.4, 21 ticks and 0.069°, and holding 50 g 1.67° past a lift move against 1.09°. A vendor's arm derives its own (VG).
  */
 export const LIFT_BRAKE_DECEL_RAD_S2 = 125.2;
-/** The servo angles the gripper is built at: what setup() writes (D-G3, drivers/gripper-servo2.ts): claw open, lift up. */
-export const GRIPPER_START: Readonly<{ clawDeg: number; liftDeg: number }> = Object.freeze({ clawDeg: 0, liftDeg: 90 });
+/** The servo angles the gripper is built at: what setup() writes (D-G3), which the driver owns (drivers/gripper-servo2.ts): claw open, lift up. */
+export { GRIPPER_START };
 /** The carriage box (it holds the claw servo), half extents in the carriage frame, cm. Geometry the kit does not name (ADR 0004 §2). */
 export const CARRIAGE_HALF_CM: Readonly<{ u: number; v: number; w: number }> = Object.freeze({ u: 0.5, v: 2.6, w: 0.6 });
 /** A boom side plate's half extents across (y) and up, cm; it runs the boom's length. Geometry the kit does not name (ADR 0004 §2). */

@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { productionKits, referenceKitRef } from '../../core/hardware/catalog';
+import { GRIPPER_ANGLE, GRIPPER_START } from '../../core/hardware/drivers';
 import type { Kit } from '../../core/hardware/kit';
 import { cameraKeyOf, type KeyLike } from './camera-keys';
-import { driveKeyOf, GRIPPER_START, gripperKeyOf, gripperLimits, LIFT_STEP_DEG } from './robot-tools';
+import { createRepeater, driveKeyOf, GRIPPER_REPEAT_DELAY_MS, GRIPPER_REPEAT_INTERVAL_MS, gripperKeyOf, gripperLimits, LIFT_STEP_DEG } from './robot-tools';
 
 // N19 E3: the gripper's keys in teleop. They are matched by the key's place (KeyboardEvent.code), so a layout or an input method that
 // types another letter on that place still works; Q opens the claw, E closes it, R raises the arm 15°, F lowers it 15° (a held key repeats
@@ -44,13 +45,53 @@ describe('gripperKeyOf', () => {
   });
 });
 
-describe('gripperLimits and GRIPPER_START', () => {
+afterEach(() => void vi.useRealTimers());
+
+describe('gripperLimits and the driver’s start angles', () => {
   it('the claw closes to the angle its jaws meet at (80° on ref-uno-gripper@0) and opens at 0°; the rover has none', () => {
     expect(gripperLimits(gripperKit)).toEqual({ clawOpenDeg: 0, clawClosedDeg: 80 });
     expect(gripperLimits(rover)).toBeNull();
   });
 
-  it('a teleop run starts as setup() leaves the gripper: claw 0° (open), lift 90° (up)', () => {
+  it('a teleop run starts as setup() leaves the gripper, and the lift keeps the range the driver clamps to: one place, the driver’s (D-G3)', () => {
     expect(GRIPPER_START).toEqual({ clawDeg: 0, liftDeg: 90 });
+    expect([GRIPPER_ANGLE.min, GRIPPER_ANGLE.max]).toEqual([0, 90]);
+  });
+});
+
+describe('createRepeater: a held step is 10 a second', () => {
+  it('steps nothing of its own at once, then after 0.4 s and every 0.1 s until stopped, however it is asked', () => {
+    vi.useFakeTimers();
+    expect([GRIPPER_REPEAT_DELAY_MS, GRIPPER_REPEAT_INTERVAL_MS]).toEqual([400, 100]);
+    const step = vi.fn();
+    const repeater = createRepeater(step);
+    repeater.start();
+    expect(step).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(399);
+    expect(step).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(step).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(300);
+    expect(step).toHaveBeenCalledTimes(4);
+    repeater.stop();
+    vi.advanceTimersByTime(5000);
+    expect(step).toHaveBeenCalledTimes(4);
+  });
+
+  it('starting again restarts it (never two schedules), and stopping when nothing runs is safe', () => {
+    vi.useFakeTimers();
+    const step = vi.fn();
+    const repeater = createRepeater(step);
+    repeater.stop();
+    repeater.start();
+    vi.advanceTimersByTime(450);
+    repeater.start();
+    vi.advanceTimersByTime(399);
+    expect(step).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1 + 100);
+    expect(step).toHaveBeenCalledTimes(3);
+    repeater.stop();
+    repeater.stop();
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

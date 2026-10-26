@@ -1,6 +1,6 @@
 import type { ModuleIO } from '../capabilities/io';
 import type { BoardProfile } from '../hardware/board';
-import { DRIVE_ROLE, driveDirections, MOTOR_SPEED, roleOps, type DriveDirection, type ModuleUse } from '../hardware/drivers';
+import { DRIVE_ROLE, driveDirections, GRIPPER_ANGLE, MOTOR_SPEED, roleOps, type DriveDirection, type ModuleUse } from '../hardware/drivers';
 import type { Kit } from '../hardware/kit';
 
 // Teleop, "Lái tay" (N18 R4.8): the learner drives the robot by hand, with the 3D view's D-pad or the keyboard, while no program runs.
@@ -27,8 +27,6 @@ export type GripperPart = (typeof gripperParts)[number];
 
 /** N19 E3: the role of the kit's gripper (robotRoles `gripper`). */
 export const GRIPPER_ROLE = 'gripper';
-/** N19 E3: the angles of the gripper's servos (contract U-35, U-36; the driver clamps to the same range). */
-const GRIPPER_DEG = { min: 0, max: 90 } as const;
 const gripperOps: Readonly<Record<GripperPart, string>> = { claw: 'gripper.claw', lift: 'gripper.lift' };
 
 /**
@@ -106,8 +104,9 @@ function checkCommand(command: TeleopCommand): TeleopCommand {
       throw new RangeError(`A teleop gripper command moves the claw or the lift, not ${String(command.part)}.`);
     }
     const { deg } = command;
-    if (!Number.isInteger(deg) || deg < GRIPPER_DEG.min || deg > GRIPPER_DEG.max) {
-      throw new RangeError(`A teleop gripper angle is a whole number from ${GRIPPER_DEG.min} to ${GRIPPER_DEG.max}, not ${String(deg)}.`);
+    // The driver's own range (U-35, U-36): the claw and the lift both take 0..90 and the driver clamps to it.
+    if (!Number.isInteger(deg) || deg < GRIPPER_ANGLE.min || deg > GRIPPER_ANGLE.max) {
+      throw new RangeError(`A teleop gripper angle is a whole number from ${GRIPPER_ANGLE.min} to ${GRIPPER_ANGLE.max}, not ${String(deg)}.`);
     }
     return Object.freeze({ op: 'gripper', part: command.part, deg });
   }

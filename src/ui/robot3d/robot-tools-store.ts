@@ -1,10 +1,10 @@
 import { createStore } from 'zustand/vanilla';
-import type { DriveDirection } from '../../core/hardware/drivers';
+import { GRIPPER_ANGLE, GRIPPER_START, type DriveDirection } from '../../core/hardware/drivers';
 import type { Kit } from '../../core/hardware/kit';
 import { checkPlacement, robotOutlineCm, type PlacementPose } from '../../core/scenario/placement';
 import type { Scenario } from '../../core/scenario/scenario';
 import { isRunOver, type RobotRunStore } from './robot-run-store';
-import { dragPose, GRIPPER_START, gripperLimits, onRobot, rulerTargets, sensorBarCm, snapPoint, type ArenaPoint, type GripperAction, type SnapKind } from './robot-tools';
+import { dragPose, gripperLimits, onRobot, rulerTargets, sensorBarCm, snapPoint, type ArenaPoint, type GripperAction, type SnapKind } from './robot-tools';
 
 // The robot lab's view tools (N18 R4.8), as one store the 3D view (FloorPicker), the 2D map (TopViewTools) and the tool strip
 // (RobotTools) share: the views turn the pointer into arena points and call `pick`, `grab`, `drag` and `drop`; the strip turns the tools
@@ -21,15 +21,11 @@ import { dragPose, GRIPPER_START, gripperLimits, onRobot, rulerTargets, sensorBa
 //     go, and sent again when the speed changes while it is held. Nothing is held while teleop is off.
 //   - N19 E3, the gripper car's claw and lift (`moveGripper`, by the keys Q E R F or the four buttons): sent to the run store as a gripper
 //     command with the angle it was last told, plus a step (the lift, 0..90) or the claw's open or closed angle. What it was told is
-//     `gripper`, back at setup()'s angles with each new teleop world.
+//     `gripper`, back at setup()'s angles (the driver's `GRIPPER_START`) with each new teleop world; the lift's range is the driver's `GRIPPER_ANGLE`.
 // The robot's pose is the one the view shows (the run store's latestWorld), else the scenario's start.
 
 /** The teleop speed slider (%): from just above the kit's dead band (about 31 %) to full speed, 50 % at first. */
 export const TELEOP_SPEED = { min: 30, max: 100, step: 5, initial: 50 } as const;
-
-/** N19 E3: the lift's angles (contract U-36): 0° down … 90° up. */
-const GRIPPER_MIN_DEG = 0;
-const GRIPPER_MAX_DEG = 90;
 
 export type RobotTool = 'ruler' | 'move';
 
@@ -253,7 +249,7 @@ export function createRobotToolsStore({ runStore, scenario, kit }: RobotToolsSto
           set({ gripper: { ...gripper, clawDeg: deg } });
           runStore.getState().teleopCommand({ op: 'gripper', part: 'claw', deg });
         } else {
-          const deg = Math.min(GRIPPER_MAX_DEG, Math.max(GRIPPER_MIN_DEG, Math.round(gripper.liftDeg + action.stepDeg)));
+          const deg = Math.min(GRIPPER_ANGLE.max, Math.max(GRIPPER_ANGLE.min, Math.round(gripper.liftDeg + action.stepDeg)));
           set({ gripper: { ...gripper, liftDeg: deg } });
           runStore.getState().teleopCommand({ op: 'gripper', part: 'lift', deg });
         }
