@@ -1,6 +1,7 @@
-import { Group, Mesh, MeshBasicMaterial, PlaneGeometry, type BufferGeometry, type Material, type Object3D, type Texture } from 'three';
+import { Color, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, type BufferGeometry, type Material, type Object3D, type Texture } from 'three';
 import type { Scenario } from '../../../core/scenario/scenario';
-import type { Arena, ArenaWall, PaintZone } from '../../../core/world/arena/arena-schema';
+import { bodyColorName } from '../../../core/world/arena/body-colors';
+import type { Arena, ArenaObject, ArenaWall, PaintZone } from '../../../core/world/arena/arena-schema';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { arenaToThree, boxBody, cylinderBody, dynamicBodyIds, wallBox } from '../scene-math';
 import { bakeMovingPlain, lowTierMaterials, mergeStatic, swapMaterials } from './merge';
@@ -13,6 +14,9 @@ import { bakeMovingPlain, lowTierMaterials, mergeStatic, swapMaterials } from '.
 // fence along the table's far edges, a crate, balls and tape on the table's far corners, and the studio with the table's soft shadow
 // on its floor. The mat itself (its paint) is
 // MatView's. The static props are merged by material; the moving bodies keep a node each, which the view puts at its pose.
+// N19 E7: a pick-and-place lesson's objects drawn as their noun (a foam cube, a parcel, a base: arena-props.glb's N19 props) in their
+// colour (body-colors.ts), a cube with the marks of its colour on top for a learner who cannot tell the colours apart; a wall tagged
+// `kho-wall` as a warehouse shelf. A file without these props draws them as N18's props did.
 
 type PropSource = (name: string) => Object3D | null;
 
@@ -25,7 +29,61 @@ const MODELLED = {
   prop_barrier: [0.06, 0.12, 0.6],
   prop_tin: [0.08, 0.1, 0.08],
   prop_post: [0.08, 0.2, 0.08],
+  // N19 E7 (assets-src/robot3d/props/pick_place.py): along three's x, y (up), z.
+  prop_cube: [0.04, 0.04, 0.04],
+  prop_parcel: [0.06, 0.05, 0.06],
+  prop_base: [0.06, 0.04, 0.06],
+  prop_kho_shelf: [0.4, 0.12, 0.04],
 } as const;
+
+type PropName = keyof typeof MODELLED;
+
+/** N19 E7: the prop of an object with a noun (a box of the scenario: a cube, a parcel, a base), or null for N18's choice. */
+export function nounProp(object: Pick<ArenaObject, 'shape' | 'noun'>): PropName | null {
+  if (object.shape !== 'box' || !object.noun) return null;
+  return ({ cube: 'prop_cube', parcel: 'prop_parcel', base: 'prop_base' } as const)[object.noun];
+}
+
+/** N19 E7: a wall the lesson stocks as its warehouse (`kho-wall`) is drawn as a shelf. */
+export const KHO_WALL_TAG = 'kho-wall';
+
+/** The beech a base is without a colour of its own (its pale grain tinted). */
+const BASE_WOOD = '#e2b98a';
+
+/**
+ * N19 E7: a noun's prop in its colour: a cube's foam (and its top, its map moved to the marks of its palette colour: `extras.marks`), a
+ * parcel's tape, a base's wood (beech without one). Each tinted material made once an assembly (`cache`), its texture shared.
+ */
+function tintNounProp(prop: Object3D, name: PropName, color: string | undefined, cache: Map<string, Material>, owned: { materials: Material[]; textures: Texture[] }): void {
+  const marks = (prop.userData.marks ?? {}) as Partial<Record<string, readonly [number, number]>>;
+  const markName = bodyColorName(color);
+  const tint: Record<string, string | undefined> = { foam: color, foam_top: color, parcel_tape: color, base_wood: color ?? BASE_WOOD };
+  prop.traverse((node) => {
+    if (!(node instanceof Mesh) || !(node.material instanceof MeshStandardMaterial)) return;
+    const original = node.material;
+    const colour = tint[original.name];
+    if (colour === undefined) return;
+    const key = `${name}:${original.name}:${colour}`;
+    let material = cache.get(key) as MeshStandardMaterial | undefined;
+    if (!material) {
+      material = original.clone();
+      material.color = new Color(colour);
+      if (original.name === 'foam_top') {
+        material.userData.marks = markName && marks[markName] ? markName : null;
+        const offset = markName ? marks[markName] : undefined;
+        if (offset && original.map) {
+          // The same image (one upload), another quadrant of it.
+          material.map = original.map.clone();
+          material.map.offset.set(offset[0], offset[1]);
+          owned.textures.push(material.map);
+        }
+      }
+      cache.set(key, material);
+      owned.materials.push(material);
+    }
+    node.material = material;
+  });
+}
 
 /** The table's margin round the arena, and how thick the mat lies on it (m). */
 export const TABLE_MARGIN_M = 0.5;
@@ -93,7 +151,8 @@ export function arenaDressing(scenario: Pick<Scenario, 'arena'>): Dressing[] {
   const lines = arena.walls.map((wall) => ({ wall, line: axisLine(wall), perimeter: onPerimeter(wall, arena) }));
   const dressing: Dressing[] = [];
   const used = new Set<ArenaWall>();
-  for (const zone of arena.paint.zones.filter((z) => z.kind === 'target')) {
+  // N19 E7: a named zone (a pick-and-place lesson's pickup, drop, colour or warehouse zone) gets no finish dressing: its tag names it.
+  for (const zone of arena.paint.zones.filter((z) => z.kind === 'target' && z.name === undefined)) {
     const box = boundsOf(zone);
     // A garage: two parallel inside walls with the zone between them.
     const inside = lines.filter((l) => !l.perimeter && l.line);
@@ -124,7 +183,8 @@ export function arenaDressing(scenario: Pick<Scenario, 'arena'>): Dressing[] {
     // Hazard boards: a named wall close behind the zone, facing it.
     let hazard = false;
     for (const { wall, line } of lines) {
-      if (!line || !wall.id || used.has(wall)) continue;
+      // N19 E7: a warehouse shelf is its own dressing.
+      if (!line || !wall.id || used.has(wall) || wall.tags.includes(KHO_WALL_TAG)) continue;
       const [lo, hi] = line.along === 'x' ? [box.minY, box.maxY] : [box.minX, box.maxX];
       const gap = line.at > hi ? line.at - hi : lo - line.at;
       if (gap < 0 || gap > 20) continue;
@@ -173,7 +233,7 @@ export function fixedBodyProps(arena: Arena, source: PropSource): BodyProp[] {
   const bodies: BodyProp[] = [];
   arena.walls.forEach((wall, index) => {
     const { position, size, yawRad } = wallBox(wall);
-    const prop = scaledProp(source, 'prop_wall', size);
+    const prop = scaledProp(source, wall.tags.includes(KHO_WALL_TAG) && source('prop_kho_shelf') ? 'prop_kho_shelf' : 'prop_wall', size);
     prop.position.set(position[0], 0, position[2]);
     prop.rotation.y = yawRad;
     bodies.push({ kind: 'wall', index, prop });
@@ -206,7 +266,7 @@ export function assembleArena(scenario: Pick<Scenario, 'arena'>, source: PropSou
   // What hangs over the mat casts no shadow on it: a shadow's band across the floor would look like tape the sensors do not see.
   const overhead = new Group();
   root.add(overhead);
-  const owned = { geometries: [] as BufferGeometry[], materials: [] as Material[] };
+  const owned = { geometries: [] as BufferGeometry[], materials: [] as Material[], textures: [] as Texture[] };
   const need = (name: string) => propOf(source, name);
   const scaled = (name: keyof typeof MODELLED, size: readonly [number, number, number]) => scaledProp(source, name, size);
   const [widthCm, depthCm] = arena.ground.sizeCm;
@@ -392,19 +452,23 @@ export function assembleArena(scenario: Pick<Scenario, 'arena'>, source: PropSou
   // The moving bodies: a node each at its pose (the body's middle), the prop under it standing on its base, a soft shadow beneath.
   const movers: ArenaMovers = new Map();
   const ids = dynamicBodyIds(arena);
-  const bodies: { prop: keyof typeof MODELLED; size: [number, number, number] }[] = [
+  const bodies: { prop: keyof typeof MODELLED; size: [number, number, number]; noun?: boolean; color?: string | undefined }[] = [
     ...arena.boxes.filter((box) => box.body === 'dynamic').map((box) => ({ prop: boxProp(box), size: [...boxBody(box).size] as [number, number, number] })),
     ...arena.cylinders.filter((c) => c.body === 'dynamic').map((c) => ({ prop: cylinderProp(c), size: [c.radiusCm / 50, c.heightCm / 100, c.radiusCm / 50] as [number, number, number] })),
-    ...arena.objects.map((object) =>
-      object.shape === 'box'
+    ...arena.objects.map((object) => {
+      const noun = nounProp(object);
+      if (noun && object.shape === 'box' && source(noun)) return { prop: noun, size: [...boxBody(object).size] as [number, number, number], noun: true, color: object.color };
+      return object.shape === 'box'
         ? { prop: boxProp({ sizeCm: object.sizeCm, tags: object.tags }), size: [...boxBody(object).size] as [number, number, number] }
-        : { prop: cylinderProp(object), size: [object.radiusCm / 50, object.heightCm / 100, object.radiusCm / 50] as [number, number, number] },
-    ),
+        : { prop: cylinderProp(object), size: [object.radiusCm / 50, object.heightCm / 100, object.radiusCm / 50] as [number, number, number] };
+    }),
   ];
+  const tinted = new Map<string, Material>();
   bodies.forEach((body, i) => {
     const node = new Group();
     node.name = `mover_${ids[i]}`;
     const prop = scaled(body.prop, body.size);
+    if (body.noun) tintNounProp(prop, body.prop, body.color, tinted, owned);
     prop.position.y = -body.size[1] / 2;
     prop.traverse((child) => {
       if (child instanceof Mesh) {
@@ -439,6 +503,7 @@ export function assembleArena(scenario: Pick<Scenario, 'arena'>, source: PropSou
     dispose() {
       for (const geometry of owned.geometries) geometry.dispose();
       for (const material of owned.materials) material.dispose();
+      for (const texture of owned.textures) texture.dispose();
     },
   };
 }
