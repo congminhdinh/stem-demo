@@ -5,7 +5,7 @@ import { productionKits, unoR3Board, type Kit } from '../../core/hardware';
 import { productionProfiles } from '../../core/profiles';
 import { buildToolbox, createBlockPackCatalog, kitBlockPacks, toolboxOfPacks, type Toolbox } from '../../core/program/block-packs';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
-import { robotTemplateKeys, robotTemplateKitRef } from '../../samples/robot-templates';
+import { robotTemplateKeys, robotTemplateKitRef, robotTemplateToolboxRobot } from '../../samples/robot-templates';
 import { localizeToolbox } from '../i18n/blocks';
 import { restrictToolbox } from './toolbox';
 
@@ -28,12 +28,24 @@ const outline = (toolbox: Toolbox) => toolbox.contents.map((category) => [catego
 
 describe('the toolbox of a robot lab is its kit’s (N19 A4, D-G11)', () => {
   it('rover sandbox toolbox unchanged', () => {
+    // App's path: the robot of the template (robotTemplateToolboxRobot), whose toolbox kitBlockPacks gives.
+    const sandbox = robotTemplateToolboxRobot('rb-sandbox');
     for (const id of ['uno-basic', 'uno-advanced'] as const) {
       const n18 = buildToolbox(n18Packs[id], packs);
       for (const locale of ['en', 'vi'] as const) {
-        expect(JSON.stringify(localizeToolbox(kitToolbox(id, rover), locale)), `${id} ${locale}`).toBe(JSON.stringify(localizeToolbox(n18, locale)));
+        expect(JSON.stringify(localizeToolbox(kitToolbox(id, sandbox), locale)), `${id} ${locale}`).toBe(JSON.stringify(localizeToolbox(n18, locale)));
       }
     }
+  });
+
+  it('gives each robot template its kit and board, and throws on a kit the build does not have (review M3: no silent full toolbox)', () => {
+    for (const key of robotTemplateKeys) {
+      const robot = robotTemplateToolboxRobot(key);
+      expect([robot.kit.id, robot.kit.version, robot.board], key).toEqual([robotTemplateKitRef(key).id, '0', unoR3Board]);
+    }
+    expect(robotTemplateKeys.filter((key) => robotTemplateToolboxRobot(key).kit === rover.kit)).toHaveLength(7);
+    const empty = { get: () => undefined, boardOf: () => undefined, refs: () => [] };
+    expect(() => robotTemplateToolboxRobot('rb-sandbox', empty)).toThrow('The robot template "rb-sandbox" names kit ref-uno-rover@0, which this build does not have');
   });
 
   it('every N18 scenario toolbox unchanged', () => {
@@ -43,7 +55,7 @@ describe('the toolbox of a robot lab is its kit’s (N19 A4, D-G11)', () => {
       const scenario = scenarioCatalog.get(key);
       const id = scenario?.profile as 'uno-basic' | 'uno-advanced';
       for (const locale of ['en', 'vi'] as const) {
-        const now = restrictToolbox(localizeToolbox(kitToolbox(id, rover), locale), scenario?.toolbox);
+        const now = restrictToolbox(localizeToolbox(kitToolbox(id, robotTemplateToolboxRobot(key)), locale), scenario?.toolbox);
         const before = restrictToolbox(localizeToolbox(buildToolbox(n18Packs[id], packs), locale), scenario?.toolbox);
         expect(JSON.stringify(now), `${key} ${locale}`).toBe(JSON.stringify(before));
       }

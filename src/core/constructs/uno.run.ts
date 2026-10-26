@@ -79,7 +79,7 @@ function driveSpeed(direction: unknown, speed: number, motor: 'left' | 'right'):
   }
 }
 
-/** A module op of a uno program with its arguments evaluated (U-20…U-26). */
+/** A module op of a uno program with its arguments evaluated (U-20…U-26; N19: the claw and the lift, U-35/U-36). */
 export function runModuleCall(statement: ModuleCallStatement, args: readonly Value[], capabilities: Capabilities, onClamp: (clamp: UnoClamp) => void): void {
   const modules = required(capabilities, 'modules');
   switch (statement.op) {

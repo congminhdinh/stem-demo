@@ -7,11 +7,10 @@ import type { Notice } from '../../core/persistence/project-repository';
 import { resolveBoardContext } from '../../core/profiles/board-context';
 import type { ProfileCatalog } from '../../core/profiles/profile';
 import type { RobotCheckResult } from '../../core/scenario/check-result';
-import { productionKits } from '../../core/hardware/catalog';
 import { kitBlockPacks, toolboxOfPacks, type BlockPackCatalog, type ToolboxRobot } from '../../core/program/block-packs';
 import { buzzerPartId, displayPartId } from '../../core/simulation/peripherals/onboard-capabilities';
 import type { ComponentInput, SimulationResult } from '../../core/simulation/simulate-circuit';
-import { isRobotTemplateKey, robotTemplateKitRef } from '../../samples/robot-templates';
+import { isRobotTemplateKey, robotTemplateToolboxRobot } from '../../samples/robot-templates';
 import type { LabKind, LabTemplateKey } from '../../samples/templates';
 import { SoundIndicator } from '../audio/SoundIndicator';
 import { toneHz } from '../audio/tone';
@@ -115,13 +114,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
   // kit's (kitBlockPacks): a block whose role the kit lacks is not offered, so the rover's toolbox is what it was before the gripper car.
   const packKey = context.blockPacks.join('|');
   const robotTemplate = lab?.kind === 'robot' && isRobotTemplateKey(lab.template) ? lab.template : null;
-  const robot = useMemo((): ToolboxRobot | undefined => {
-    if (robotTemplate === null) return undefined;
-    const ref = robotTemplateKitRef(robotTemplate);
-    const kit = productionKits.get(ref);
-    const board = productionKits.boardOf(ref);
-    return kit && board ? { kit, board } : undefined;
-  }, [robotTemplate]);
+  const robot = useMemo((): ToolboxRobot | undefined => (robotTemplate === null ? undefined : robotTemplateToolboxRobot(robotTemplate)), [robotTemplate]);
   const toolbox = useMemo(
     () => localizeToolbox(toolboxOfPacks(kitBlockPacks({ blockPacks: packKey === '' ? [] : packKey.split('|') }, robot, packs)), locale),
     [packKey, packs, locale, robot],

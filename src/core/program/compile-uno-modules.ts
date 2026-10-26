@@ -150,7 +150,7 @@ export function createUnoModuleCompiler(context: UnoModuleContext): UnoModuleCom
     return found ?? null;
   };
 
-  /** N19 A4: `choice` with the two diagnostics said by the caller (so each block's own words are in its code). */
+  /** N19 A4: `choice` with the two diagnostics said by the caller, as literal `report` calls, so the core-text scan (core-text.test.ts) reads each message. */
   const pick = <Value extends string>(block: RawBlock, field: string, options: readonly Value[], missing: () => void, wrong: () => void): Value | null => {
     const value = block.fields?.[field];
     if (typeof value !== 'string') {

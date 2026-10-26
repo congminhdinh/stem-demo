@@ -654,8 +654,10 @@ export type ToolboxRobot = { readonly kit: Kit; readonly board: BoardProfile };
 /**
  * N19 A4 (D-G11): the packs of `profile` as the robot `robot` can use them. A block of the robot is offered when the kit offers its op on
  * one of its roles (as the compiler decides capability-unavailable): a rover has no claw or colour block, a gripper car no servo or
- * buzzer. A toolbox entry that names its role (`ROLE`) is offered when that role does. A category left empty goes, and so does a pack.
- * Every other block (the language, millis, the raw pins) stays. Without a robot, the profile's packs as they are.
+ * buzzer. A toolbox entry that names its role (`ROLE`) is offered when that role does. A category left empty goes, and so does a pack
+ * left without one. Every other block (the language, millis, the raw pins) stays. Only the categories are filtered: a pack's `blockTypes`
+ * (what a project may contain) stay as they are, since the compiler, not the toolbox, refuses an op the kit lacks (capability-unavailable).
+ * Without a robot, the profile's packs as they are.
  */
 export function kitBlockPacks(profile: { readonly blockPacks: readonly string[] }, robot: ToolboxRobot | undefined, catalog: BlockPackCatalog): BlockPack[] {
   const packs = profile.blockPacks.map((id) => {
@@ -679,10 +681,6 @@ export function kitBlockPacks(profile: { readonly blockPacks: readonly string[] 
     // The drive is both motors; millis and a raw pin are the board's.
     return construct.op === 'drive.move' || construct.op === 'drive.stop' ? offersOp(DRIVE_ROLE, construct.op) : true;
   };
-  const offeredType = (type: string) => {
-    const construct = unoModuleConstructOf(type);
-    return construct === undefined || offers(construct);
-  };
   const offeredEntry = (entry: unknown) => {
     const item = entry as { kind?: string; type?: string; fields?: Record<string, unknown> };
     const construct = item.kind === 'block' && typeof item.type === 'string' ? unoModuleConstructOf(item.type) : undefined;
@@ -703,11 +701,10 @@ export function kitBlockPacks(profile: { readonly blockPacks: readonly string[] 
       }
       return contents.length > 0 ? [{ ...category, contents }] : [];
     });
-    const blockTypes = pack.blockTypes.filter(offeredType);
-    if (categories.length === pack.categories.length && blockTypes.length === pack.blockTypes.length && categories.every((category, index) => category === pack.categories[index])) {
+    if (categories.length === pack.categories.length && categories.every((category, index) => category === pack.categories[index])) {
       return [pack];
     }
-    return categories.length > 0 || blockTypes.length > 0 ? [{ ...pack, categories, blockTypes }] : [];
+    return categories.length > 0 ? [{ ...pack, categories }] : [];
   });
 }
 

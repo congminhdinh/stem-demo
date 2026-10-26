@@ -101,7 +101,7 @@ describe('profile exposure (N18 R2.2)', () => {
     );
   });
 
-  it('shows the brief’s Basic blocks: drive, stop, motor, ultrasonic, line, servo, LED, buzzer tone, button', () => {
+  it('shows the brief’s Basic blocks: drive, stop, motor, ultrasonic, line, servo, LED, buzzer tone, button; N19: the claw, the lift, IR and colour', () => {
     const robot = [...packs.typesOf(basic?.blockPacks ?? [])].filter((type) => unoModuleConstructOf(type) !== undefined).sort();
     expect(robot).toEqual(
       [
