@@ -45,6 +45,11 @@ const withField = (id: string, field: OfField, entry: FieldEntry): UnoContract =
   constructs: contract.constructs.map((construct) => (construct.id === id ? { ...construct, fields: { ...construct.fields, [field]: entry } } : construct)),
 });
 const exposed = () => contract.constructs.filter((c) => c.eligibility === 'ELIGIBLE' || c.eligibility === 'RESTRICTED');
+/**
+ * N19 A5: the rows of the gripper car (ref-uno-gripper@0), whose forms were compiled and traced in their own sketch,
+ * spikes/avr8js/sketches/gripper-forms (CC-06, EMU-19): contract-forms.ino is ref-uno-rover@0's, and its A4 marker is the gripper's SDA.
+ */
+const GRIPPER_ROWS = ['U-35', 'U-36', 'U-37', 'U-38', 'U-39'];
 
 const BOTH = ['U-01', 'U-02', 'U-03', 'U-04', 'U-05', 'U-06', 'U-07', 'U-08', 'U-09', 'U-10', 'U-11', 'U-12', 'U-13', 'U-14', 'U-15', 'U-16', 'U-17', 'U-18', 'U-20', 'U-21', 'U-22', 'U-23', 'U-24', 'U-25', 'U-27', 'U-28', 'U-30', 'U-35', 'U-36', 'U-37', 'U-38'];
 const ADVANCED_ONLY = ['U-19', 'U-26', 'U-29', 'U-31', 'U-32', 'U-33', 'U-34', 'U-39'];
@@ -184,9 +189,25 @@ describe('profiles (contract §11)', () => {
 });
 
 describe('claim levels L1 / L2 / L2e / L3 (contract §12)', () => {
+  it('N19 A5: splits the open rows in two, by the forms sketch that compiled and traced them: the rover’s (CC-03, EMU-13, contract-forms.ino) and the gripper car’s (CC-06, EMU-19, gripper-forms.ino), disjoint, every open row in one', () => {
+    const open = exposed().map((construct) => construct.id);
+    const byL2 = (id: string) => exposed().filter((construct) => construct.levels?.L2.status === 'PASS' && construct.levels.L2.evidence.includes(id)).map((construct) => construct.id);
+    const rover = byL2('CC-03');
+    const gripper = byL2('CC-06');
+    expect(gripper).toEqual(GRIPPER_ROWS);
+    expect(rover.filter((id) => gripper.includes(id))).toEqual([]);
+    expect([...rover, ...gripper].sort()).toEqual([...open].sort());
+    // Every rover row stays as N18 pinned it: its compile is CC-03 alone and its trace cites EMU-13, never the gripper car's evidence.
+    for (const construct of exposed().filter((candidate) => rover.includes(candidate.id))) {
+      const l2e = construct.levels?.L2e;
+      expect(construct.levels?.L2, construct.id).toEqual({ status: 'PASS', evidence: ['CC-03'] });
+      expect(l2e?.status === 'PASS' ? l2e.evidence.filter((id) => id === 'EMU-13' || id === 'EMU-19' || id === 'CC-06') : [], construct.id).toEqual(['EMU-13']);
+    }
+  });
+
   it('has every open row compiled (L2, CC-03), its simulator semantics tested (L1, N18 final fix M4) and the board pending (L3, M06)', () => {
     for (const construct of exposed()) {
-      expect(construct.levels?.L2, construct.id).toEqual({ status: 'PASS', evidence: ['CC-03'] });
+      expect(construct.levels?.L2, construct.id).toEqual({ status: 'PASS', evidence: [GRIPPER_ROWS.includes(construct.id) ? 'CC-06' : 'CC-03'] });
       // Ruling L110, carried out at N18 final fix M4: L1 is PASS once tests of the simulator run the row.
       const l1 = construct.levels?.L1;
       expect(l1?.status, construct.id).toBe('PASS');
@@ -232,7 +253,7 @@ describe('claim levels L1 / L2 / L2e / L3 (contract §12)', () => {
     for (const construct of exposed()) {
       const l2e = construct.levels?.L2e;
       expect(l2e?.status, construct.id).toBe('PASS');
-      expect(l2e?.status === 'PASS' ? l2e.evidence : [], construct.id).toContain('EMU-13');
+      expect(l2e?.status === 'PASS' ? l2e.evidence : [], construct.id).toContain(GRIPPER_ROWS.includes(construct.id) ? 'EMU-19' : 'EMU-13');
     }
   });
 
@@ -514,10 +535,20 @@ describe('the C++ the generator may write (contract §15 invariant 9)', () => {
     const traced = Object.fromEntries(
       [...sketch.matchAll(/\/\/ --- contract helper: ([a-z0-9-]+) ---\n([\s\S]*?)\/\/ --- end contract helper ---/g)].map((match) => [match[1], match[2]?.trimEnd()]),
     );
-    expect(Object.keys(traced).sort()).toEqual(Object.keys(contract.helpers).sort());
-    for (const [id, helper] of Object.entries(contract.helpers)) {
+    // N19 A5: the gripper car's two helpers were compiled and traced in its own sketch, gripper-forms (EMU-19), as one block.
+    const gripperHelpers = ['gripper-servo2', 'tcs34725-wire'];
+    expect(Object.keys(traced).sort()).toEqual(Object.keys(contract.helpers).filter((id) => !gripperHelpers.includes(id)).sort());
+    for (const [id, helper] of Object.entries(contract.helpers).filter(([candidate]) => !gripperHelpers.includes(candidate))) {
       expect(helper.text, id).toBe(traced[id]);
     }
+    const forms = readFileSync(join(process.cwd(), 'spikes/avr8js/sketches/gripper-forms/gripper-forms.ino'), 'utf8');
+    const block = forms.slice(forms.indexOf('// GRIPPER HELPERS begin'), forms.indexOf('// GRIPPER HELPERS end'));
+    const code = (text: string) => text.split('\n').filter((line) => line.trim() !== '' && !line.trim().startsWith('//'));
+    // The sketch defines COLOR_ADDR before the block (its own address line); the code of the block is the two helpers' after it.
+    const [addressLine, ...colour] = code(contract.helpers['tcs34725-wire']?.text ?? '');
+    expect(addressLine).toBe('#define COLOR_ADDR 0x29');
+    expect(forms).toContain('#define COLOR_ADDR 0x29\n');
+    expect(code(block)).toEqual([...code(contract.helpers['gripper-servo2']?.text ?? ''), ...colour]);
   });
 });
 

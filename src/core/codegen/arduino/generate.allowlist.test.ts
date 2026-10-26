@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { cppAllowlist } from '../../compat/contract-validation';
 import { unoContract } from '../../compat/uno-contract';
 import { drivers } from '../../hardware/drivers';
-import { robotRoles } from '../../hardware/kit';
+import { productionKits } from '../../hardware/catalog';
+import { robotRoles, type Kit } from '../../hardware/kit';
 import { compileCase, referenceBoard as board, referenceKit as kit, sketchCases } from './__fixtures__/sketch-cases';
 import { generateUnoSketch } from './generate';
 
@@ -114,14 +115,24 @@ function reduce(code: string, learnerNames: readonly string[]): string {
 }
 
 const helperTexts = new Map(allowed.helpers.map((id) => [unoContract.helpers[id]?.text ?? '', id]));
-const kitDefines = new Set(kit.modules.flatMap((module) => {
-  const port = kit.ports.find((candidate) => candidate.id === module.port);
-  return port ? drivers[port.driver].defines(port, module.role) : [];
-}));
+/** The pin defines a kit can write. */
+const definesOf = (of: Kit) =>
+  new Set(
+    of.modules.flatMap((module) => {
+      const port = of.ports.find((candidate) => candidate.id === module.port);
+      return port ? drivers[port.driver].defines(port, module.role) : [];
+    }),
+  );
+/** N19 A4: the kit a sketch names in its header (`kit: ref-uno-gripper@0`); the reference kit when it names none this app knows. */
+const kitOfSketch = (source: string): Kit => {
+  const named = /, kit: ([a-z0-9-]+)@([0-9A-Za-z.-]+),/.exec(source.split('\n')[0] ?? '');
+  return (named && productionKits.get({ id: named[1] ?? '', version: named[2] ?? '' })) || kit;
+};
 
 /** Every way a sketch steps outside the allowlist; empty when it does not. */
 function audit(source: string): string[] {
   const problems: string[] = [];
+  const kitDefines = definesOf(kitOfSketch(source));
   const setupAt = source.indexOf('void setup() {');
   const head = source.slice(0, setupAt).split('\n\n').map((block) => block.trim()).filter(Boolean);
   const learnerNames: string[] = [];
@@ -160,8 +171,8 @@ describe('the C++ allowlist (contract §15 invariant 9)', () => {
   });
 
   it.each(sketchCases)('$name writes only what the contract allows', (sketchCase) => {
-    const { ir } = compileCase(sketchCase);
-    const generated = generateUnoSketch(ir, { kit, board });
+    const { ir, kit: caseKit } = compileCase(sketchCase);
+    const generated = generateUnoSketch(ir, { kit: caseKit, board });
     if (!generated.ok) {
       throw new Error(JSON.stringify(generated.diagnostics));
     }
@@ -191,7 +202,8 @@ describe('the C++ allowlist (contract §15 invariant 9)', () => {
     expect(audit(sketch('  long _s1;\n  x = (_s1 = (long)analogRead(A0), sub32(_s1, x + 1L));'))[0]).toMatch(/^code outside the forms/);
     expect(audit(sketch('  int _s1;'))[0]).toMatch(/^code outside the forms/);
     expect(audit(sketch('', 'long x = 0L;\nint y = 0;'))).toEqual(['global or helper: int y = 0;']);
-    expect(audit(`#include <Wire.h>\n\n${sketch('')}`)).toEqual(['include: #include <Wire.h>']);
+    // N19 A5: Wire.h is the colour sensor's (U-38, U-39); a library no row opens is still refused.
+    expect(audit(`#include <SPI.h>\n\n${sketch('')}`)).toEqual(['include: #include <SPI.h>']);
     expect(audit(`#define MOTOR_LEFT_EN 6\n\n${sketch('')}`)).toEqual(['define: #define MOTOR_LEFT_EN 6']);
   });
 });

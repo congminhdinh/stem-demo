@@ -23,9 +23,11 @@ const basicModules = {
   sensor: ['U-27', 'U-28', 'U-30'],
   servo: ['U-23'],
   led: ['U-24', 'U-25'],
+  // N19 A4: the gripper car's claw, arm, IR sensor and colour.
+  gripper: ['U-35', 'U-36', 'U-37', 'U-38'],
 };
-/** What only Advanced adds: millis, buzzer stop, the raw line value and the raw pins. */
-const advancedOnly = ['U-19', 'U-26', 'U-29', 'U-31', 'U-32', 'U-33', 'U-34'];
+/** What only Advanced adds: millis, buzzer stop, the raw line value and the raw pins (N19 A4: and the raw colour). */
+const advancedOnly = ['U-19', 'U-26', 'U-29', 'U-31', 'U-32', 'U-33', 'U-34', 'U-39'];
 
 describe('the UNO profiles (N18 R2.1)', () => {
   it('are of the uno family, on the UNO board, with only that board in the palette and no runtime control', () => {
@@ -59,9 +61,9 @@ describe('the UNO profiles (N18 R2.1)', () => {
 
   it('show the uno packs of R2.2: Basic the structure, the robot and the language, Advanced adds the raw line value, buzzer stop and the raw pins', () => {
     const packs = createBlockPackCatalog(registry);
-    const basicPacks = ['uno.structure', 'uno.drive', 'uno.sensors', 'uno.servo', 'uno.output', 'uno.logic', 'uno.loops', 'uno.math', 'uno.text', 'uno.variables'];
+    const basicPacks = ['uno.structure', 'uno.drive', 'uno.sensors', 'uno.servo', 'uno.gripper', 'uno.color', 'uno.output', 'uno.logic', 'uno.loops', 'uno.math', 'uno.text', 'uno.variables'];
     expect(basic?.blockPacks).toEqual(basicPacks);
-    expect(advanced?.blockPacks).toEqual([...basicPacks, 'uno.sensors.advanced', 'uno.output.advanced', 'uno.pins']);
+    expect(advanced?.blockPacks).toEqual([...basicPacks, 'uno.sensors.advanced', 'uno.color.advanced', 'uno.output.advanced', 'uno.pins']);
     for (const profile of [basic, advanced]) {
       expect(() => packs.typesOf(profile?.blockPacks ?? [])).not.toThrow();
       expect((profile?.blockPacks ?? []).map((id) => packs.get(id)?.family), profile?.id).toEqual((profile?.blockPacks ?? []).map(() => 'uno'));

@@ -34,7 +34,7 @@ const row = (id: string) => {
   return found;
 };
 /** The packs only Advanced shows. */
-const advancedPacks: readonly UnoPackId[] = ['uno.sensors.advanced', 'uno.output.advanced', 'uno.pins'];
+const advancedPacks: readonly UnoPackId[] = ['uno.sensors.advanced', 'uno.output.advanced', 'uno.pins', 'uno.color.advanced'];
 const typesIn = (contents: readonly unknown[]): string[] =>
   contents.flatMap((item) => {
     const entry = item as { kind?: string; type?: string; contents?: readonly unknown[] };
@@ -147,8 +147,11 @@ describe('the uno packs', () => {
 
   it('give each module block one construct, and the language the blocks R2.3 compiled the UNO language with', () => {
     for (const construct of unoModuleConstructs) {
-      expect(construct.blockTypes, construct.contractId).toHaveLength(1);
-      expect(unoModuleConstructOf(construct.blockTypes[0] ?? ''), construct.contractId).toBe(construct);
+      // N19 A4 (plan §4.3): the claw and the arm have two blocks of their one op, the two positions and any angle.
+      expect(construct.blockTypes, construct.contractId).toHaveLength(['U-35', 'U-36'].includes(construct.contractId) ? 2 : 1);
+      for (const type of construct.blockTypes) {
+        expect(unoModuleConstructOf(type), `${construct.contractId} ${type}`).toBe(construct);
+      }
     }
     const language = new Set(unoLangConstructs.flatMap((construct) => construct.blockTypes));
     // The dialect's division and count up are the UNO's own blocks here (fix round 1): their UNO meaning is not the dialect's.

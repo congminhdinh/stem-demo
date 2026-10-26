@@ -277,7 +277,7 @@ describe('the robot’s blocks as real Blockly saves them', () => {
 
   it('builds every uno_* block the packs register', () => {
     expect([...covered].filter((type) => type.startsWith('uno_')).sort()).toEqual([...unoTypes].sort());
-    expect(unoTypes).toHaveLength(18);
+    expect(unoTypes).toHaveLength(25);
   });
 });
 
@@ -331,6 +331,10 @@ describe('the robot’s blocks as Blockly registers them', () => {
         ['uno_analog_read', 'Number'],
         ['uno_millis', 'Number'],
         ['uno_int_divide', 'Number'],
+        // N19 A4: the gripper car's reads.
+        ['uno_ir_detect', 'Boolean'],
+        ['uno_color_is', 'Boolean'],
+        ['uno_color_raw', 'Number'],
       ]);
       for (const type of unoTypes) {
         const block = workspace.newBlock(type);

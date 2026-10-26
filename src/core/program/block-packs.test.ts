@@ -48,6 +48,10 @@ describe('block packs', () => {
       'uno.sensors.advanced',
       'uno.output.advanced',
       'uno.pins',
+      // N19 A4: the gripper car's, after every pack known before.
+      'uno.gripper',
+      'uno.color',
+      'uno.color.advanced',
     ]);
   });
 
@@ -139,6 +143,14 @@ describe('block packs', () => {
       'uno_digital_read',
       'uno_analog_read',
       'uno_millis',
+      // N19 A4: the gripper car's claw, arm, IR sensor and colour, then its raw colour.
+      'uno_gripper_claw',
+      'uno_gripper_claw_angle',
+      'uno_gripper_lift',
+      'uno_gripper_lift_angle',
+      'uno_ir_detect',
+      'uno_color_is',
+      'uno_color_raw',
     ]);
   });
 
