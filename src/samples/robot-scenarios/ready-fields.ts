@@ -18,9 +18,9 @@ import stopAtWall from './rb-stop-at-wall.json' with { type: 'json' };
 // lab, and the catalog's scenario schema pulls in the arena's (src/core/world), which only the robot lab may load (e2e/robot-bundle.spec.ts).
 // And Playwright imports robot-templates.ts into plain Node (e2e/robot-lab.spec.ts), where `import.meta.glob` (the catalog's) does not exist
 // and a JSON module needs the `type: 'json'` attribute and has a default export only. So this leaf imports each file that way, by name (the
-// keys never change; N19 D5 added the four gripper lessons' files), and reads three fields of it as the catalog does (`scenarioMaxScore`: the goals' points plus the time bonus,
-// none for the sandbox); ready-fields.test.ts holds the two to the same numbers for every key. The files' JSON (about 13 kB minified)
-// rides in the main bundle; the schema and the world do not.
+// keys never change; N19 D5 added the four gripper lessons' files), and reads three fields of it as the catalog does (`scenarioMaxScore`:
+// the goals' points plus the time bonus, none for the sandbox); ready-fields.test.ts holds the two to the same numbers for every key. The
+// files' JSON (22.8 kB minified, 9.8 kB of it the gripper lessons') rides in the main bundle; the schema and the world do not.
 
 export type ScenarioReadyFields = { scenarioVersion: number; maxScore?: number };
 

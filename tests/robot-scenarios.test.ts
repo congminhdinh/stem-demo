@@ -663,7 +663,9 @@ describe('the gripper car’s lessons 8-11 (N19 D4, plan §6)', () => {
   });
 
   it('ask for the goals of plan §6, with their parameters', () => {
-    const params = (key: (typeof gripperKeys)[number]) => scenarioOf(key).goals.map(({ id, label: _label, points: _points, kind: _kind, ...rest }) => [id, rest]);
+    /** Each goal's parameters: what it has besides its id, label, points and kind. */
+    const params = (key: (typeof gripperKeys)[number]) =>
+      scenarioOf(key).goals.map((goal) => [goal.id, Object.fromEntries(Object.entries(goal).filter(([field]) => !['id', 'label', 'points', 'kind'].includes(field)))]);
     expect(params('rb-grip-pick')).toEqual([
       ['grab-cube', { object: 'cube', holdS: 0.5, minLiftCm: 2 }],
       ['place-cube', { object: 'cube', zone: 'drop', fully: true, maxTiltDeg: 15, restS: 0.5, carried: true, maxSlideCm: 3, minCarryLiftCm: 1, minCarryCm: 5 }],

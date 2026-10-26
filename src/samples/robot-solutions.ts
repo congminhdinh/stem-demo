@@ -194,9 +194,9 @@ const leg = (id: string, ms: number, turnMs?: number): Json[] => [
 // --- N19 D4: the gripper car's lessons 8-11 (ref-uno-gripper@0) -------------------------------------------------------------------------
 //
 // PLACEHOLDER KIT. Every time and distance below is for `ref-uno-gripper@0`, whose mechanics are placeholders like the rover's
-// (src/core/hardware/kits/README.md; spikes/n19-d4/results.md measured them): 13.2 cm/s at 50 % and 19 cm/s at 60 % once moving; a
+// (src/core/hardware/kits/README.md; spikes/n19-d4/results.md measured them): 13.2 cm/s at 50 %, 20.0 at 60 % and 27.0 at 70 % once moving; a
 // spin at 50 % turns about 103°/s (830 ms is 82°, 900 ms is 91.5°, where the rover's 830 ms was 90°); it stops within 0.3 cm of where it
-// is told to. The arm takes 0.15 s from 90° to 0° and the claw grips a 4 cm cube 0.05 s after "claw close". The IR between the jaws sees a
+// is told to. The arm takes 0.15 s from 90° to 0° and the claw holds a 4 cm cube 0.04 s after "claw close". The IR between the jaws sees a
 // cube centred 12.55 cm ahead of the robot's middle (its near face 2 cm from the sensor); held, the cube rides 12.3 cm ahead at the arm's 0°
 // and 11.65 cm ahead at 90°. When the vendor's gripper replaces it (plan VG) the timed parts (the turns, the carries and every blind
 // program) must be measured again and the scenarios' `version` raised.
@@ -205,7 +205,7 @@ const leg = (id: string, ms: number, turnMs?: number): Json[] => [
 //   - the ultrasonic hears the claw servo at the arm's 8-40° and the carriage at 41-52° (it reads 2 cm), so a program reads it with the arm
 //     at 0° (after the 0.15 s the arm takes to come down: "arm down" then a wait) or at 80-90° while it holds a cube; a 4 cm cube is heard
 //     only by the cone's lower edge, from 18.7 cm, and not at all once it is between the jaws (the cone's blind spot near the jaws);
-//   - a cube 1.5 cm or more off the robot's axis is pushed ahead by a finger (6-33 cm) and turns the robot (up to 8°) before the IR sees it
+//   - a cube 1.5 cm or more off the robot's axis is pushed ahead by a finger (4.8-33 cm) and turns the robot (up to 9.4°) before the IR sees it
 //     and the jaws catch it (spikes/n19-d4 capture): the lessons keep the cube within 1 cm of the axis (sort: 19 cm ahead) or measure
 //     where to put it down from a wall (pick), not from where it was caught.
 
