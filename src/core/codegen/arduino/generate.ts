@@ -149,7 +149,7 @@ export function generateUnoSketch(ir: YbcProgramIR, options: UnoSketchOptions): 
     report('capability-unavailable', `The kit ${kitKey(kit)} is for the board ${kit.board}, not ${board.id}.`);
     return { ok: false, diagnostics };
   }
-  const assigned = assignCppNames(ir.variables);
+  const assigned = assignCppNames(ir.variables, kit);
   if (!assigned.ok) {
     report('invalid-identifier', assigned.message);
     return { ok: false, diagnostics };
