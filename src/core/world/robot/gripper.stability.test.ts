@@ -110,7 +110,17 @@ function runThrough(scene: GripperScene, script: Script, maxTicks = seconds(20))
 }
 
 type WallCase = { readonly duty: number; readonly liftDeg: number; readonly massG: number; readonly graspU: number };
-type WallOutcome = { name: string; speedMS: number; heldAtContact: string | null; mostPitchDeg: number; finalPitchDeg: number; settledS: number | null; finite: boolean };
+type WallOutcome = {
+  name: string;
+  speedMS: number;
+  heldAtContact: string | null;
+  mostPitchDeg: number;
+  finalPitchDeg: number;
+  settledS: number | null;
+  finite: boolean;
+  /** The caster's ball: how high its bottom rose over the floor at most (mm), on how many ticks it was more than 0.1 mm off, its least load (N). */
+  caster: { highestMm: number; offTicks: number; lightestN: number };
+};
 
 /**
  * ADR 0004 §4.2 scenario 5 in production: holding a cube gripped at carriage u `graspU` (u 4: it sticks 0.5 cm past the fingertips and meets
@@ -131,6 +141,7 @@ function wallHit(c: WallCase): WallOutcome {
     let speedMS = 0;
     let heldAtContact: string | null = null;
     const log: { pitch: number; turn: number }[] = [];
+    const caster = { highestMm: -Infinity, offTicks: 0, lightestN: Infinity };
     let finite = true;
     const script = (function* (): Script {
       if (c.massG > 0) yield* pick(scene, 'cube', { liftDeg: 0, u: c.graspU });
@@ -153,6 +164,10 @@ function wallHit(c: WallCase): WallOutcome {
       if (contact >= 0) {
         log.push({ pitch: gauge.pitchDeg(), turn: gauge.turnRadS() });
         finite &&= gauge.finite();
+        const gapMm = gauge.casterGapMm();
+        caster.highestMm = Math.max(caster.highestMm, gapMm);
+        if (gapMm > 0.1) caster.offTicks += 1;
+        caster.lightestN = Math.min(caster.lightestN, gauge.casterLoadN());
       }
     }
     if (contact < 0) throw new Error('never met the wall');
@@ -168,6 +183,7 @@ function wallHit(c: WallCase): WallOutcome {
       finalPitchDeg,
       settledS: settled === null ? null : settled / 120,
       finite,
+      caster,
     };
   } finally {
     scene.dispose();
@@ -245,6 +261,8 @@ describe('the gripper car’s stability (N19 B5)', () => {
       ...[45, 90].map((liftDeg) => wallHit({ duty: 226, liftDeg, massG: 15, graspU: 4 })),
       ...wallCases(128).map(wallHit),
       ...wallCases(160).map(wallHit),
+      // The spike's speed with the fingertips first at lift 45°: under 8°, but the caster lifts (ruling G0 caster's limit, below).
+      wallHit({ duty: 226, liftDeg: 45, massG: 15, graspU: 3 }),
     ];
     for (const outcome of outcomes) {
       expect(outcome.finite, outcome.name).toBe(true);
@@ -252,7 +270,7 @@ describe('the gripper car’s stability (N19 B5)', () => {
       expect(outcome.settledS, outcome.name).not.toBeNull();
       expect(outcome.settledS!, outcome.name).toBeLessThanOrEqual(0.5);
     }
-    expect(outcomes).toHaveLength(2 + 11 + 11);
+    expect(outcomes).toHaveLength(2 + 11 + 11 + 1);
     // The spike's case: 0.398 m/s; the cube breaks off (24.9 / 17.3 N in the spike, past 9.71 N); 0.17° and 2.31°, settled in 0.058 and 0.125 s
     // (the spike: 1.00° and 2.39°, 0.083 and 0.175 s).
     const [at45, at90] = outcomes;
@@ -262,6 +280,20 @@ describe('the gripper car’s stability (N19 B5)', () => {
     }
     expect(at45!.mostPitchDeg).toBeCloseTo(0.17, 2);
     expect(at90!.mostPitchDeg).toBeCloseTo(2.31, 2);
+    // Ruling G0 caster: on a wall hit at lift 90° the caster lifts ≤ 3 mm, at lift ≤ 45° it stays on the floor. True when the cube meets the
+    // wall first (measured 2.862 mm for 12 ticks; 0.080 mm, never off, though its load touches 0 N on a tick of the impact). With the
+    // fingertips first it is not: 5.01 mm at lift 45° here, up to 23.7 mm in the next test.
+    expect(at90!.caster.highestMm).toBeLessThanOrEqual(3);
+    expect(at90!.caster.highestMm).toBeCloseTo(2.862, 3);
+    expect(at90!.caster.offTicks).toBe(12);
+    expect(at45!.caster.highestMm).toBeLessThanOrEqual(0.1);
+    expect(at45!.caster.highestMm).toBeCloseTo(0.08, 3);
+    expect(at45!.caster.offTicks).toBe(0);
+    const tipsFirst = outcomes.at(-1)!;
+    expect(tipsFirst.name).toBe('duty 226, lift 45°, 15 g at u 3');
+    expect(tipsFirst.mostPitchDeg).toBeCloseTo(3.95, 2);
+    expect(tipsFirst.caster.highestMm).toBeGreaterThan(3);
+    expect(tipsFirst.caster.highestMm).toBeCloseTo(5.01, 2);
     const worst = outcomes.reduce((a, b) => (b.mostPitchDeg > a.mostPitchDeg ? b : a));
     expect(worst.name).toBe('duty 160, lift 45°, empty claw');
     expect(worst.mostPitchDeg).toBeCloseTo(7.71, 2);
@@ -270,7 +302,7 @@ describe('the gripper car’s stability (N19 B5)', () => {
     expect(Math.max(...outcomes.map((outcome) => outcome.settledS!))).toBeLessThan(0.25);
   }, 120_000);
 
-  it('a raised claw meeting a wall at 0.4 m/s or more tips past 8° even released (up to 17.2° at full speed), but stays finite and settles within 0.5 s', () => {
+  it('with the fingertips or the empty claw first, a claw raised to 45–90° meeting a wall at 0.4 m/s or more tips past 8° even released (up to 17.2°), but stays finite and settles within 0.5 s', () => {
     // Why every gripper scenario ends the run on contact with a wall on the claw's path (ruling G0 wall): with the fingertips (frictionless,
     // they slide up the wall) or the empty claw first, at lift 45–90°, the car noses up past 8° though the drive lets go at the contact.
     const outcomes = [
@@ -284,6 +316,9 @@ describe('the gripper car’s stability (N19 B5)', () => {
     // Measured: 8.35, 14.22, 11.44, 12.47, 17.16 and 15.70°; settled in 0.24–0.39 s. Some stay leaning on the wall a few degrees up, the
     // caster off the floor (final 0.06–4.86°): the coasting motors' gearbox friction holds the wheels (as ADR 0001 §9's servo arm did).
     expect(outcomes.map((outcome) => Math.round(outcome.mostPitchDeg * 100) / 100)).toEqual([8.35, 14.22, 11.44, 12.47, 17.16, 15.7]);
+    // The fingertips or the empty claw first, the caster lifts far past ruling G0 caster's 3 mm (measured, mm).
+    expect(outcomes.map((outcome) => Math.round(outcome.caster.highestMm * 100) / 100)).toEqual([10.78, 18.42, 14.81, 16.15, 23.68, 20.45]);
+    for (const outcome of outcomes) expect(outcome.caster.highestMm, outcome.name).toBeGreaterThan(3);
     for (const outcome of outcomes) {
       expect(outcome.finite, outcome.name).toBe(true);
       expect(outcome.mostPitchDeg, outcome.name).toBeGreaterThan(8);
