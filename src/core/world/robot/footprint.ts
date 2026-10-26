@@ -245,7 +245,10 @@ function armSample(axisCm: RobotPointCm, deg: number, lengthCm: number, widthCm:
   };
 }
 
-/** The gripper's lift is checked at every whole degree of its range and its fingers at every whole degree of theirs (and at their ends). */
+/**
+ * The gripper's lift is checked at every whole degree of its range (and at its end); its fingers, as servo arms are, every ARM_SWEEP_STEP_DEG
+ * of theirs.
+ */
 export const GRIPPER_SWEEP_STEP_DEG = 1;
 /** 2·sin(¼°): the chord of half a step, as a part of the radius: how far a point turns between a sample and the next half-way. */
 const HALF_STEP_CHORD = 2 * sin(degToRad(GRIPPER_SWEEP_STEP_DEG) / 4);
@@ -333,16 +336,18 @@ function gripperParts(gripper: KitMechanicalModule<'gripper'>): Part[] {
     }
     return shapes;
   };
-  /** From `from` to `to` in whole steps of GRIPPER_SWEEP_STEP_DEG, `to` included. */
-  const steps = (from: number, to: number) => {
+  /** From `from` to `to` in whole steps of `step` degrees, `to` included. */
+  const steps = (from: number, to: number, step: number) => {
     const out: number[] = [];
-    for (let deg = from; ; deg = Math.min(to, deg + GRIPPER_SWEEP_STEP_DEG)) {
+    for (let deg = from; ; deg = Math.min(to, deg + step)) {
       out.push(deg);
       if (deg >= to) return out;
     }
   };
-  const betas = steps(betaMin, betaMax);
-  const swept = steps(GRIPPER_ANGLE.min, GRIPPER_ANGLE.max).flatMap((liftDeg) => at(liftDeg, betas));
+  // Each sample's growth is for its own step: the fingers are `armSample`s, grown for ARM_SWEEP_STEP_DEG; the lift's HALF_STEP_CHORD is
+  // for GRIPPER_SWEEP_STEP_DEG.
+  const betas = steps(betaMin, betaMax, ARM_SWEEP_STEP_DEG);
+  const swept = steps(GRIPPER_ANGLE.min, GRIPPER_ANGLE.max, GRIPPER_SWEEP_STEP_DEG).flatMap((liftDeg) => at(liftDeg, betas));
   const start = at(GRIPPER_START.liftDeg, [betaOfClaw(GRIPPER_START.clawDeg)]);
   // A circle about the pivot that holds every sample: their farthest corner from it.
   let r = 0;
