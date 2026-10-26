@@ -232,7 +232,11 @@ Mỗi lab mở project của **một họ board** (`labFamilies` ở `src/ui/app
   (đường dẫn dưới đây là của base `/`; build với `--base /lab/` thì thành `/lab/assets/*`, `/lab/robot3d/*`):
   - `/assets/*`: tên file có hash nội dung, nên `Cache-Control: public, max-age=31536000, immutable`.
   - `/robot3d/*.glb`: lab luôn xin kèm `?v=<sha256>` của manifest (`robot-assets.manifest.json`), nên cũng `immutable` (trình duyệt
-    cache theo URL đầy đủ).
+    cache theo URL đầy đủ). File nào không có trong manifest thì `robot-assets.ts` xin với `?v=0`, URL không đổi khi file đổi: không được
+    cache `immutable`. Với manifest đã commit thì không có file nào như vậy (`tests/robot-assets.test.ts` giữ: mọi file lab tải có hash);
+    thêm GLB mới mà quên `pnpm build:robot-assets` thì test đó đỏ trước khi deploy.
+  - `/blockly-media/*` (media của Blockly, chép từ package lúc build, tên không có hash) và `/favicon.svg`: không `immutable`; cache
+    ngắn và hỏi lại (`Cache-Control: public, max-age=86400` với ETag/Last-Modified), để bản Blockly mới tới trong một ngày.
   - `index.html` (và mọi trang HTML): `Cache-Control: no-cache`, để bản deploy mới tới ngay.
   - `.wasm` phải là `application/wasm` (trình duyệt biên dịch wasm trong lúc tải chỉ với kiểu này).
 - **nginx** (`gzip_static` có sẵn trong gói nginx của Debian/Ubuntu; `brotli_static` cần module `ngx_brotli`, không có thì bỏ dòng đó:
@@ -247,6 +251,8 @@ server {
 
   location /assets/  { add_header Cache-Control "public, max-age=31536000, immutable"; }
   location /robot3d/ { add_header Cache-Control "public, max-age=31536000, immutable"; }
+  location /blockly-media/ { add_header Cache-Control "public, max-age=86400"; }
+  location = /favicon.svg  { add_header Cache-Control "public, max-age=86400"; }
   location ~ \.html$ { add_header Cache-Control "no-cache"; }
   location ~ \.wasm$ { types { application/wasm wasm; } add_header Cache-Control "public, max-age=31536000, immutable"; }
 }
@@ -264,6 +270,8 @@ lab.example.vn {
   header @immutable Cache-Control "public, max-age=31536000, immutable"
   @html path *.html /
   header @html Cache-Control "no-cache"
+  @short path /blockly-media/* /favicon.svg
+  header @short Cache-Control "public, max-age=86400"
 }
 ```
 

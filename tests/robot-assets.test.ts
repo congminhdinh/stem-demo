@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { ROBOT_ASSET_FILES } from '../src/ui/robot3d/assets/robot-assets';
 
 // N18 R4.7: the robot lab's modelled 3D assets (public/robot3d/*.glb) are built by `pnpm build:robot-assets` from the committed Blender
 // scripts of assets-src/robot3d/, which src/ui/robot3d/assets/robot-assets.manifest.json records by their SHA-256 with each GLB's, and
@@ -45,5 +46,11 @@ describe('the robot lab’s 3D assets (N18 R4.7)', () => {
     const pair = (suffix: string) => manifest.assets[`robot-kit${suffix}.glb`]!.bytes + manifest.assets[`arena-props${suffix}.glb`]!.bytes;
     expect(pair('')).toBeLessThan(2_000_000);
     expect(pair('-low')).toBeLessThan(pair(''));
+  });
+
+  it('has the hash of every file the lab loads, so none is asked for with ?v=0 (N18 P2 fix round 1: what lets a host cache /robot3d/* for good)', () => {
+    const loaded = Object.values(ROBOT_ASSET_FILES).flatMap(({ kit, props }) => [kit, props]);
+    expect(loaded.sort()).toEqual(['robot3d/arena-props-low.glb', 'robot3d/arena-props.glb', 'robot3d/robot-kit-low.glb', 'robot3d/robot-kit.glb']);
+    for (const file of loaded) expect(manifest.assets[file.split('/').pop()!]?.sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 });
