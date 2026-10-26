@@ -174,7 +174,9 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
   const frictionless = (desc: ColliderDesc) => desc.setFriction(0).setFrictionCombineRule(R.CoefficientCombineRule.Min);
 
   // Static load on each wheel (the caster takes the rest), from where the centre of mass is between the axle and the caster. A gripper
-  // hangs ahead of the caster, so its weight does not load the wheels: the load is the rest of the car's (ADR 0004 §2 measured it so).
+  // hangs ahead of the caster, so its weight loads the caster and lightens the wheels a little; leaving it out is close enough (ADR 0004 §2
+  // measured the car so): measured at rest, 1.80 N a wheel against the 1.867 N this gives. It only seeds the first tick's gear friction
+  // (beforeStep follows the real load from then on) and the drive's grip limit.
   const axleX = motorLeft.mount.posCm[0];
   const [comX, comY] = spec.comCm;
   const halfTrackCm = spec.trackCm / 2;

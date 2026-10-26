@@ -4,7 +4,7 @@ import { atan2, cos, sin } from '../dmath';
 import { getRapier, type Collider, type ColliderDesc, type PhysicsWorld, type RapierModule, type RigidBody } from '../rapier';
 import { cmToM, degToRad, gToKg, radToDeg, yawToQuaternion, type Quat, type Vec3 } from '../units';
 import { conjugate, IDENTITY_ROTATION, localToWorld, multiplyQuaternions, robotPointToLocal } from './robot-frame';
-import { checkServoAngle, SERVO_MOTOR_GAIN } from './servo-arm';
+import { SERVO_MOTOR_GAIN } from './servo-arm';
 
 // The 2-DOF gripper of a kit's `gripper` module (N19 B1, plan §4.4 with §4.6 and §4.7; ADR 0004 §2, §5.2, measured by the G0.1 spike in
 // spikes/n19-grasp/gripper.ts), as dynamic bodies on the chassis. Built only for a kit that has one (assembly.ts): a rover world never
@@ -48,11 +48,11 @@ export const GRIPPER_EXTRA_PGS_ITERATIONS = 8;
 /** Extra solver iterations each gripper body asks for its island (§4.6). E9 drops them if the school-PC budget needs it (0.91° held). */
 export const GRIPPER_EXTRA_SOLVER_ITERATIONS = 4;
 /**
- * The deceleration the lift servo's braking law plans for, rad/s² (plan §4.6, ADR 0004 §5.2): half of (stall torque − worst gravity torque)
- * / worst inertia, boom level and maxPayloadG held at carriage u 3 cm, the reflected rotor inertia included, for ref-uno-gripper@0's
+ * The deceleration the lift servo's braking law plans for, rad/s² (plan §4.6, ADR 0004 §5.2, §10b): half of (stall torque − worst gravity
+ * torque) / worst inertia, boom level and maxPayloadG held at carriage u 3 cm, the reflected rotor inertia included, for ref-uno-gripper@0's
  * PLACEHOLDER numbers: the 125.235 the G0.1 spike ran with (spikes/n19-grasp/gripper.ts `liftDecelRadS2(5e-5) / 2`), rounded. ADR 0004 §5.2
- * wrote 139.4, the same half without the rotor; with it, a 50 g cube 1 cm off centre sinks 2.154 mm into the fingers (B2: ≤ 2.1), with
- * 125.2 2.05 mm, and every number of ADR 0004 §4.1's chosen row comes back. A vendor's arm derives its own (VG).
+ * wrote 139.4, the same half without the rotor. With 125.2 ADR 0004 §4.1's chosen row comes back (0→90° in 22 ticks, 0.045° past 90→40);
+ * with 139.4, 21 ticks and 0.069°, and holding 50 g 1.67° past a lift move against 1.09°. A vendor's arm derives its own (VG).
  */
 export const LIFT_BRAKE_DECEL_RAD_S2 = 125.2;
 /** The servo angles the gripper is built at: what setup() writes (D-G3, drivers/gripper-servo2.ts): claw open, lift up. */
@@ -95,7 +95,7 @@ export type Gripper = {
   readonly bodies: readonly RigidBody[];
   readonly colliders: readonly Collider[];
   ownsCollider(collider: Collider): boolean;
-  /** Takes new servo targets, each clamped to 0..90; throws a RangeError (and takes none) for a field that is not a number. */
+  /** Takes new servo targets, each clamped to 0..90 (the caller has checked them: assembly.ts `applyActuators`). */
   setTargets(targets: GripperTargets): void;
   readonly clawCommandDeg: number;
   readonly liftCommandDeg: number;
@@ -164,7 +164,8 @@ function liftSpeed(error: number, dt: number, maxRadS: number): number {
   return clamp(error / dt, 0 - limit, limit);
 }
 
-export function createGripper(world: PhysicsWorld, chassis: RigidBody, module: KitMechanicalModule<'gripper'>, start: { readonly clawDeg: number; readonly liftDeg: number } = GRIPPER_START): Gripper {
+/** The kit's gripper on `chassis`, built at GRIPPER_START (what setup() writes). */
+export function createGripper(world: PhysicsWorld, chassis: RigidBody, module: KitMechanicalModule<'gripper'>): Gripper {
   const R = getRapier();
   const { spec } = module;
   const liftMaxRadS = degToRad(60 / spec.liftSPer60Deg);
@@ -175,8 +176,8 @@ export function createGripper(world: PhysicsWorld, chassis: RigidBody, module: K
   const elevationOf = (liftDeg: number) => liftDeg + spec.boomElevationAtLift0Deg;
   const fingerTorque = fingerTorqueNm(spec);
 
-  let liftCommand = clamp(start.liftDeg, 0, 90);
-  let clawCommand = clamp(start.clawDeg, 0, 90);
+  let liftCommand = GRIPPER_START.liftDeg;
+  let clawCommand = GRIPPER_START.clawDeg;
   let frozen: readonly [number, number] | null = null;
   let stall: readonly [number | null, number | null] = [null, null];
 
@@ -297,11 +298,6 @@ export function createGripper(world: PhysicsWorld, chassis: RigidBody, module: K
     colliders,
     ownsCollider: (collider) => owned.has(collider.handle),
     setTargets(targets) {
-      const entries = Object.entries(targets) as [string, unknown][];
-      for (const [, deg] of entries) {
-        if (deg === undefined) throw new RangeError('A gripper target named with the value undefined: leave the field out to hold it.');
-        checkServoAngle(deg);
-      }
       if (targets.clawDeg !== undefined) clawCommand = clamp(targets.clawDeg, 0, 90);
       if (targets.liftDeg !== undefined) liftCommand = clamp(targets.liftDeg, 0, 90);
     },

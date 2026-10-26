@@ -254,7 +254,7 @@ Toàn bộ §5 của plan N18 vẫn áp dụng: B1, Rapier chỉ ở `src/core/w
 - **Khung tay nâng:**
   - Hình bình hành = **khoá góc chassis↔giá kẹp** (`JointData.generic`, khoá `AngZ`), không dùng motor giữ `LINK_HOLD_NM`. Khớp boom↔giá kẹp là revolute không motor.
   - Luật servo tay nâng **có hãm**: tốc độ = min(60°/`liftSPer60Deg`, |e|/dt, √(2·a·|e|)), a = **125,2** rad/s².
-    - *Sửa khi làm B1:* ADR 0004 §5.2 ghi 139,4, tức nửa của (T_s − mô-men trọng lực xấu nhất)/quán tính xấu nhất khi **chưa** tính quán tính rotor. Code spike (`liftDecelRadS2(5e-5) / 2`) và mọi số đo của G0.1 đều dùng 125,235 (có rotor 5·10⁻⁵). World production với 125,2 cho lại đúng hàng "chọn" của ADR §4.1 (sụt −0,009°, 0→90 trong 22 tick, vượt 90→40 0,045°, vượt khi giữ 50 g 1,27°). Với 139,4 thì khối 50 g lệch ngang 1 cm lún 2,154 mm, quá giới hạn 2,1 mm của test B2 (125,2: 2,065 mm).
+    - *Sửa khi làm B1:* ADR 0004 §5.2 ghi 139,4, tức nửa của (T_s − mô-men trọng lực xấu nhất)/quán tính xấu nhất khi **chưa** tính quán tính rotor. Code spike (`liftDecelRadS2(5e-5) / 2`) và mọi số đo của G0.1 đều dùng 125,235 (có rotor 5·10⁻⁵). World production với 125,2 cho lại đúng hàng "chọn" của ADR §4.1 (sụt −0,009°, 0→90 trong 22 tick, vượt 90→40 0,045°, vượt khi giữ 50 g 1,27°). Với 139,4 thì khối 50 g lệch ngang 1 cm lún 2,154 mm, quá giới hạn 2,1 mm của test B2 (125,2: 2,065 mm). Sau khi bi đỡ được làm mới ma sát (fix round 1) thì số đó là 1,794 / 2,067 mm, nên độ lún không còn phân biệt hai giá trị; controller giữ 125,2 vì là giá trị spike đã đo (ADR 0004 §10b).
   - Thêm `GripperSpec.liftRotorInertiaKgM2 = 5e-5` (PLACEHOLDER).
 - **Solver và ngón:**
   - Mỗi body bộ gắp có +8 PGS và +4 solver iteration.
@@ -268,6 +268,10 @@ Toàn bộ §5 của plan N18 vẫn áp dụng: B1, Rapier chỉ ở `src/core/w
     2. càng chỉ dừng khi vật bị kẹp ngang (khe ≤ bề rộng + 0,05 cm), mỗi ngón dừng ở góc chạm. *Sửa khi làm B2:* ngón chỉ **dừng**, không bị mở ra. Spike còn mở một ngón đang lún vào vật thêm (độ lún / đòn bẩy 1 cm). Với khối 60 g lệch 0,25–1 cm, ngàm mở lùa khối vào và một ngón lún tới 2 mm sát bản lề; ngón đó bị mở tới chặn trong khi ngón kia xoay khối 5,7–7,4° (β +12° / −5,4°, đo được). Khi ngón chỉ dừng thì càng kẹt ở 25–28°, khối xoay 1,1–3,8°; khối nằm giữa thì như cũ (26,95°);
     3. ngón bám mặt vật đang giữ (đòn bẩy kẹp trong 1–5,5 cm);
     4. solver group như trên.
+  - *Thêm khi làm B2, fix round 1* (ADR 0004 §10b):
+    5. không attach khi càng < 6° (= độ trễ thả). Lệnh kẹp chỉ từ 0 tới 90, nên vật attach ở θc < 6° không bao giờ thả được. Ngàm mở kẹt được mọi hộp rộng từ khoảng 4,5 cm ở khoảng 0°, kể cả bệ 6×6×4 cm của bài 11;
+    6. không attach vật rộng (ngang qua ngàm) hơn khe hai ngón khi song song + 0,3 cm (`gripWidthCm`, 4,3 cm). Vật rộng hơn thì hai ngón đều nằm trong nó lúc thỏa điều kiện 4: hộp 5 cm vẫn attach ở 9,08° với hai ngón lún 3,3 mm.
+  - **Drive của kit gripper:** mỗi tick làm mới contact của hai bi đỡ (`setTranslationWrtParent` tại chỗ), để ma sát hộp số vừa đặt tới được solver. Không có bước này, Rapier giữ ma sát cũ của manifold (tới 0,97) và xe đứng yên ở duty ≤ 160. Rover không đổi (ADR 0004 §10b).
 - **Khối lượng:** `massG 460` là cả xe; body chassis = 426 g.
 - **Chống lật:**
   - Càng đâm tường mà motor vẫn đẩy thì xe chổng đầu 15,7–17,2°. Đây là vật lý thật, giống tay servo ở ADR 0001 §9. Vì vậy **mọi kịch bản kit gripper `endOnContact` với tường nằm trên đường đi của càng**.

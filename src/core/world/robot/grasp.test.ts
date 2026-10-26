@@ -317,6 +317,81 @@ describe('the grasp machine (N19 B2)', () => {
     });
   });
 
+  describe('condition 2, the window, at each of its edges', () => {
+    /** The car at rest, lift 0°, the claw at 26.97° (β 0: the inner faces parallel and 4.0 cm apart), a box placed in the jaws. */
+    const placed = (sizeCm: [number, number, number], u: number, v: number, options: { clawDeg?: number; betaDeg?: readonly [number, number]; yawDeg?: number } = {}) => {
+      const scene = gripperScene({ ground: floor(), objects: [{ shape: 'box', id: 'box', centerCm: [START.xCm, START.yCm + 30], sizeCm, massG: 15 }] }, START);
+      const watcher = watch(scene, 'box');
+      try {
+        scene.set({ liftDeg: 0, clawDeg: options.clawDeg ?? 12 / 0.445 });
+        if (options.betaDeg !== undefined) scene.gripper.freezeFingers(options.betaDeg);
+        run(scene, wait(seconds(0.5)), seconds(0.5));
+        placeInJaws(scene, scene.object('box'), u, v, options.yawDeg ?? 0);
+        const at = scene.grasp.view(scene.object('box'));
+        run(scene, wait(seconds(0.2)), seconds(0.2), watcher.after, watcher.between);
+        return { held: scene.grasp.heldId, at, stats: watcher.stats };
+      } finally {
+        scene.dispose();
+      }
+    };
+
+    it('u ∈ [1.0, 5.5]: a 3.8 cm wide, 0.6 cm deep box between parallel jaws attaches at u 1.15 and 5.35, not at 0.85 nor 5.65', () => {
+      const rows = [0.85, 1.15, 5.35, 5.65].map((u) => ({ u, ...placed([0.6, 3.8, 3], u, 0) }));
+      expect(rows.map((row) => [row.u, row.held])).toEqual([
+        [0.85, null],
+        [1.15, 'box'],
+        [5.35, 'box'],
+        [5.65, null],
+      ]);
+      for (const row of rows) {
+        expect(Math.abs(row.at.u - row.u), `u ${row.u}`).toBeLessThan(0.01);
+        expect(row.stats.mismatches, `u ${row.u}`).toEqual([]);
+      }
+      // Outside, the window alone said no.
+      expect(rows[0]!.stats.failedAlone.window).toBeGreaterThan(0);
+      expect(rows[3]!.stats.failedAlone.window).toBeGreaterThan(0);
+    });
+
+    it('|w| ≤ half the height: a 4 × 4 × 1 cm plate under the lowered jaws, the claw closed above it, is not attached', () => {
+      // The jaws' bottom is at 1.09 cm, the plate's top at 1 cm: both fingers are within 2 mm of it, the claw closes to 80° over it, and its
+      // centre is 1.19 cm under the carriage's, more than its half height of 0.5 cm.
+      const result = placed([4, 4, 1], 3, 0, { clawDeg: 80 });
+      expect(result.held).toBeNull();
+      expect(result.at.w).toBeLessThan(-1.1);
+      expect(result.stats.mismatches).toEqual([]);
+      expect(result.stats.failedAlone.window).toBeGreaterThan(0);
+    });
+
+    it('|v| ≤ 1.5: in jaws turned 12° to the left (β +12° and −12°, still parallel), a box 1.0 cm left of the centre line attaches', () => {
+      // The inner faces 3.90 cm apart across the turned jaws; a 3.8 cm box turned with them, its centre on their middle line at u 5.2, is at
+      // v (5.2 − 0.5)·tan 12° = 1.0 cm.
+      const result = placed([1, 3.8, 3], 5.2, 4.7 * Math.tan(12 * DEG), { betaDeg: [12, -12], yawDeg: 12 });
+      expect(Math.abs(result.at.v - 1)).toBeLessThan(0.01);
+      expect(result.held).toBe('box');
+      expect(result.stats.mismatches).toEqual([]);
+    });
+  });
+
+  it('tries the objects in id order (UTF-16 code units) whatever order the arena lists them: of two in the jaws, the lower id is held', () => {
+    const plate = (id: string) => ({ shape: 'box' as const, id, centerCm: [START.xCm, START.yCm + (id === 'b' ? 30 : -30)] as [number, number], sizeCm: [1, 3.8, 3] as [number, number, number], massG: 15 });
+    // The arena lists 'b' first; 'b' sits deeper in the jaws.
+    const scene = gripperScene({ ground: floor(), objects: [plate('b'), plate('a')] }, START);
+    try {
+      expect(scene.arena.dynamicBodies.map((body) => body.id)).toEqual(['b', 'a']);
+      expect(scene.grasp.objects.map((object) => object.id)).toEqual(['a', 'b']);
+      scene.set({ liftDeg: 0, clawDeg: 12 / 0.445 });
+      run(scene, wait(seconds(0.5)), seconds(0.5));
+      placeInJaws(scene, scene.object('b'), 2, 0);
+      placeInJaws(scene, scene.object('a'), 4, 0);
+      run(scene, wait(seconds(0.2)), seconds(0.2));
+      expect(scene.grasp.heldId).toBe('a');
+      expect(scene.grasp.liveJoints).toBe(1);
+      expect(scene.world.impulseJoints.len()).toBe(6);
+    } finally {
+      scene.dispose();
+    }
+  });
+
   describe('an attach is always one the claw can let go of: θc ≥ 6° (§4.6 rule 5)', () => {
     /** Lower and open, drive the open jaws into the box (duty 140, 3 s at most, until its centre is at u ≤ 3.25), brake, then 80°, lift 60°, 0°. */
     const wide = (box: ReturnType<typeof cube>) => {
@@ -373,6 +448,25 @@ describe('the grasp machine (N19 B2)', () => {
       expect(result.held, result.seen.join('; ')).toBe(0);
       expect(result.stats.mismatches).toEqual([]);
       expect(Math.abs(result.bottomCm)).toBeLessThan(0.05);
+    });
+
+    it('rule 5 alone: a 4.2 cm box (within the 4.3 cm of rule 6) wedged by the hinges of the open jaws is not attached at θc 0°', () => {
+      // 1 cm deep, its centre at u 1.5: the open fingers' inner faces are 2.10 cm from the middle at its back and 2.31 at its front, so both
+      // are within 2 mm of it, and the gap at its centre (4.42 cm) is within 0.3 cm of its width. The claw is at 0° (told 0°): taken now,
+      // it could never be told θc − 6°.
+      const scene = gripperScene({ ground: floor(), objects: [{ shape: 'box', id: 'box', centerCm: [START.xCm, START.yCm + 30], sizeCm: [1, 4.2, 3], massG: 15 }] }, START);
+      try {
+        const watcher = watch(scene, 'box');
+        scene.set({ liftDeg: 0, clawDeg: 0 });
+        run(scene, wait(seconds(0.5)), seconds(0.5));
+        placeInJaws(scene, scene.object('box'), 1.5, 0);
+        run(scene, wait(seconds(0.3)), seconds(0.3), watcher.after, watcher.between);
+        expect(scene.grasp.heldId).toBeNull();
+        expect(watcher.stats.mismatches).toEqual([]);
+        expect(watcher.stats.failedAlone.releasable).toBeGreaterThan(0);
+      } finally {
+        scene.dispose();
+      }
     });
 
     it('a 4 cm cube still attaches at about 19.94°', () => {
@@ -641,6 +735,36 @@ describe('the grasp machine (N19 B2)', () => {
     }
     expect(rows).toHaveLength(12);
   }, 60_000);
+
+  it('placeAt forgets a latch and a stall: a reset robot takes an object again at once', () => {
+    // A held cube broken off against a wall at lift 0° (the latch test's way), the claw still told 80°: latched, and clamping the cube.
+    const graspU = 4;
+    const wallX = START.xCm + TIP0 + graspU + 8 + 40;
+    const scene = gripperScene({ ground: floor([250, 100]), walls: [{ id: 'wall', fromCm: [wallX + 1, 10], toCm: [wallX + 1, 90] }], objects: [cubeAhead('cube', 15, { u: graspU })] }, START);
+    try {
+      const script = (function* (): Script {
+        yield* pick(scene, 'cube', { liftDeg: 0, u: graspU });
+        scene.drive(forward(226));
+        yield* until(() => scene.grasp.heldId === null, seconds(4));
+        scene.drive(BRAKE);
+        yield* wait(seconds(0.3));
+      })();
+      run(scene, script, seconds(0.35 + 4 + 4 + 0.3));
+      expect(scene.grasp.latchDeg).not.toBeNull();
+      const clampedAt = scene.gripper.clawDeg();
+      expect(clampedAt).toBeLessThan(40);
+      scene.robot.placeAt({ xCm: 40, yCm: 50, yawDeg: 0 });
+      expect([scene.grasp.heldId, scene.grasp.latchDeg, scene.grasp.liveJoints]).toEqual([null, null, 0]);
+      // Nothing is in the jaws at the new place, so the claw (still told 80°) closes on from the first tick, no stale stall holding a finger
+      // where it clamped the cube, and on to its stop.
+      scene.step();
+      expect(scene.gripper.clawDeg()).toBeGreaterThan(clampedAt + 2);
+      run(scene, wait(seconds(0.4)), seconds(0.4));
+      expect(scene.gripper.clawDeg()).toBeCloseTo(80, 0);
+    } finally {
+      scene.dispose();
+    }
+  });
 
   it('placeAt lets the held object go first: its joint is removed and it keeps its own pose', () => {
     const scene = gripperScene({ ground: floor(), objects: [cubeAhead('cube', 15)] }, START);

@@ -103,7 +103,7 @@ export type GraspObject = {
   readonly shape: { readonly kind: 'box'; readonly halfM: { readonly x: number; readonly y: number; readonly z: number } } | { readonly kind: 'cylinder'; readonly radiusM: number; readonly halfHeightM: number };
 };
 
-/** The arena's objects (`arena.objects`, as built by buildArena) for the grasp machine, in id order (UTF-16 code units). */
+/** The arena's objects (`arena.objects`, as built by buildArena) for the grasp machine, in the arena's order (createGrasp orders them by id). */
 export function graspObjects(arena: Arena, built: BuiltArena): GraspObject[] {
   const specs = new Map(arena.objects.map((object) => [object.id, object]));
   const out: GraspObject[] = [];
@@ -118,7 +118,7 @@ export function graspObjects(arena: Arena, built: BuiltArena): GraspObject[] {
         : { kind: 'cylinder', radiusM: cmToM(spec.radiusCm), halfHeightM: cmToM(spec.heightCm) / 2 };
     out.push({ id: dynamic.id, body: dynamic.body, collider: dynamic.body.collider(0), massG: spec.massG, shape });
   }
-  return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return out;
 }
 
 /** Where an object is in the carriage frame, cm (u forward, v left, w up), and how wide (across v) and high (along w) it is there. */
@@ -137,11 +137,12 @@ export type Grasp = {
   readonly latchDeg: number | null;
   /** The fixed joints it has alive: 0 or 1. */
   readonly liveJoints: number;
-  /** The contact force on the held object from colliders that are not the gripper's on the last step, N (0 when nothing is held). */
-  readonly lastExternalN: number;
   /** After each world step of `dt` seconds. */
   update(dt: number): void;
-  /** Lets go of the held object, if any, removing its joint (placeAt, dispose): no latch. */
+  /**
+   * Lets go of the held object, if any, removing its joint, and forgets the rest of the machine's state: no latch, no stall (placeAt, a
+   * teleport such as a reset; dispose). Nothing of the run before it holds the claw back after.
+   */
   release(): void;
   view(object: GraspObject): CarriageView;
 };
@@ -154,7 +155,6 @@ export function createGrasp(world: PhysicsWorld, gripper: Gripper, objects: read
   const widest = gripWidthCm(spec);
   let held: { readonly object: GraspObject; readonly joint: FixedJoint; readonly thetaC: number } | null = null;
   let latch: number | null = null;
-  let lastExternalN = 0;
 
   /** The object's centre and rotation in the carriage frame (Rapier's local axes of the carriage body). */
   const relative = (object: GraspObject) => {
@@ -300,26 +300,22 @@ export function createGrasp(world: PhysicsWorld, gripper: Gripper, objects: read
     get liveJoints() {
       return held === null ? 0 : 1;
     },
-    get lastExternalN() {
-      return lastExternalN;
-    },
     view,
     update(dt) {
       if (held !== null) {
         const { object, thetaC } = held;
-        lastExternalN = externalForceN(object, dt);
+        const externalN = externalForceN(object, dt);
         const left = contactOf(gripper.fingers[0], object);
         const right = contactOf(gripper.fingers[1], object);
         if (left !== null && right !== null) gripper.freezeFingers([touchingBeta(gripper.fingers[0], left), touchingBeta(gripper.fingers[1], right)]);
         if (gripper.clawCommandDeg <= thetaC - RELEASE_HYSTERESIS_DEG) {
           detach();
-        } else if (lastExternalN > breakN) {
+        } else if (externalN > breakN) {
           latch = thetaC;
           detach();
         }
         return;
       }
-      lastExternalN = 0;
       gripper.stallFingers(stallLimits());
       if (latch !== null) {
         if (gripper.clawCommandDeg <= latch - RELEASE_HYSTERESIS_DEG) latch = null;
@@ -327,6 +323,10 @@ export function createGrasp(world: PhysicsWorld, gripper: Gripper, objects: read
       }
       tryAttach();
     },
-    release: detach,
+    release() {
+      detach();
+      latch = null;
+      gripper.stallFingers([null, null]);
+    },
   };
 }

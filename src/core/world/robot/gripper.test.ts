@@ -150,9 +150,9 @@ describe('the gripper of ref-uno-gripper@0 (N19 B1)', () => {
         most = Math.max(most, scene.gripper.liftDeg());
         if (reached < 0 && Math.abs(scene.gripper.liftDeg() - 90) < 0.5) reached = tick;
       }
-      expect(reached).toBeGreaterThanOrEqual(20);
-      expect(reached).toBeLessThanOrEqual(24);
-      expect(most).toBeLessThan(90.5);
+      // 22 ticks, within the plan's 22 ± 2 (ADR 0004 §4.1: 22 up, 21 down; with a = 139.4 it is 21), and 0.011° past 90 at most.
+      expect(reached).toBe(22);
+      expect(most).toBeLessThan(90.05);
       expect(scene.gripper.liftDeg()).toBeCloseTo(90, 1);
       // And down again (ADR 0004 §4.1: 21 ticks).
       scene.set({ liftDeg: 0 });
@@ -161,8 +161,7 @@ describe('the gripper of ref-uno-gripper@0 (N19 B1)', () => {
         scene.step();
         if (Math.abs(scene.gripper.liftDeg()) < 0.5) down = tick;
       }
-      expect(down).toBeGreaterThanOrEqual(19);
-      expect(down).toBeLessThanOrEqual(23);
+      expect(down).toBe(21);
     } finally {
       scene.dispose();
     }

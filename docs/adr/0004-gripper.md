@@ -249,12 +249,49 @@ Spike giữ tới khi B1/B2 có test tương đương, rồi xoá như `spikes/r
   - kịch bản 1: attach ở 1,208 s, θc 19,94°.
 
   Với 139,4 thì 0→90 trong 21 tick, vượt khi giữ 50 g 1,67°, và khối 50 g lệch 1 cm lún 2,154 mm, quá 2,1 mm của test B2.
+
+  *Fix round 1:* sau khi bi đỡ được làm mới ma sát mỗi tick (mục cuối), khối 50 g lệch 1 cm lún 2,067 mm với 125,2 và 1,794 mm với 139,4. Vậy độ lún không còn phân biệt được hai giá trị. Controller giữ 125,2, vì đó là giá trị spike đã đo.
+
+  Số đo với 125,2 sau fix:
+  - sụt −0,0095°, 0→90 trong 22 tick, 90→0 trong 21 tick, vượt 90→40 0,045°;
+  - giữ 50 g: lệch ngang đứng 0,232°, lỗi góc 0,049°, vượt 1,09°.
+
+  Với 139,4: 0→90 trong 21 tick, vượt 0,069°, vượt khi giữ 50 g 1,67°. Test pin đúng 22 và 21 tick.
 - **Luật kẹt (§5.4 luật 2): ngón dừng, không bị mở ra.** Spike đặt giới hạn của mỗi ngón ở góc chạm ước tính, nên một ngón đang lún vào vật bị mở ra theo độ lún / đòn bẩy (tối thiểu 1 cm). Kết quả đo với khối 60 g (không bao giờ attach), lệch ngang 0,25–1 cm:
   - ngàm mở lùa khối vào giữa, một ngón lún 1,3–2,1 mm sát bản lề;
   - ngón đó bị mở tới chặn (β 12°), ngón kia đẩy khối xoay 5,7–7,4° (β −5,4°).
 
-  Production lấy min(góc chạm, góc hiện tại): càng kẹt ở 25–28°, khối xoay 1,1–3,8°. Lấy trung bình hai góc chạm cho cả hai ngón (như một servo qua bánh răng) thì tệ hơn: càng ở 9–17°, khối xoay 3,3–3,6°. Khối 15/50 g không đổi kết quả, vì attach (khe ≤ bề rộng + 0,3) luôn đến trước kẹt (+ 0,05).
-- **Xe gắp đứng yên từ trạng thái nghỉ thì có khi không khởi động được ở duty ≤ 160** (việc của B5, ghi lại để B5 biết). Đo: duty 140 trong 1 s đi 0,001–0,005 cm ở sa bàn 300 × 300 hoặc 400 × 400 với tay 0° hoặc 45°. Ở sa bàn 200 × 100, điểm (40, 50), tay 45° cũng vậy. Các trường hợp khác đi 15,4–15,6 cm. Từ duty 200 thì luôn đi. Builder của spike (`spikes/n19-grasp/sim.ts`, cấu hình `tuned-collider`) cho đúng các số này, nên đây là tính chất của mô hình đã đo, không phải của bản viết lại; bỏ +4 solver iteration cũng không hết. Rover khởi động ở mọi trường hợp đó (duty 120: 10,7 cm). Test B1/B2 dùng sa bàn 200 × 100 và điểm (40, 50), nơi duty 140 khởi động được.
+  Production lấy min(góc chạm, góc hiện tại): càng kẹt ở 25–28°, khối xoay 1,1–3,8° (đo trước fix round 1; test ở `grasp.test.ts` pin các số hiện tại). Lấy trung bình hai góc chạm cho cả hai ngón (như một servo qua bánh răng) thì tệ hơn: càng ở 9–17°, khối xoay 3,3–3,6°. Khối 15/50 g không đổi kết quả, vì attach (khe ≤ bề rộng + 0,3) luôn đến trước kẹt (+ 0,05).
+- **Xe gắp đứng yên từ trạng thái nghỉ ở duty ≤ 160: nguyên nhân là ma sát cũ trong contact manifold của Rapier. Đã sửa ở fix round 1, chỉ cho kit gripper.**
+  - *Triệu chứng:* duty 140 trong 1 s chỉ đi 0,001–0,005 cm khi:
+    - sa bàn 300 × 300 hoặc 400 × 400, tay 0° hoặc 45°;
+    - sa bàn 200 × 100 tại (40, 50), tay 45°.
+
+    Các trường hợp khác đi 15,4–15,6 cm, và từ duty 200 thì luôn đi. Builder của spike cho đúng các số này.
+  - *Nguyên nhân* (reviewer tìm ra, `b12-review-1.md` §5):
+    - Solver dùng `TempContactManifold.friction()`, hệ số ghép **một lần cho mỗi manifold**.
+    - Rapier chỉ ghép lại khi narrow phase cập nhật cặp đó, mà bi đứng yên trên sàn thì không yêu cầu. Vì vậy hệ số `setFriction` đặt mỗi tick (ma sát hộp số T_f/(r·N) = 0,421) chỉ thỉnh thoảng tới được solver.
+    - Một tick lúc tay di chuyển làm bánh nhẹ tải thì hệ số chạm trần, và manifold giữ luôn giá trị đó: 0,913–0,968.
+    - Ma sát tĩnh khi đó là 0,968 × 1,80 N × 2 = 3,48 N, lớn hơn lực đẩy 2,28 / 2,66 / 3,04 N ở duty 120 / 140 / 160 và nhỏ hơn 3,80 N ở duty 200. Đúng là ranh giới đã thấy.
+  - *Sửa:* với kit có gripper, mỗi tick `assembly.ts` gọi `setTranslationWrtParent(translationWrtParent())` cho hai bi đỡ, tức đặt vị trí của bi trên thân xe đúng bằng chỗ nó đang ở. Collider bị đánh dấu đã sửa, nên bước đó ghép lại ma sát của contact.
+    - Đo: xe rỗng duty 140 đi 15,45 cm trong 1 s ở mọi trường hợp trên.
+    - Giữ 50 g ở tay 0°, sa bàn 300 × 300, từ đứng yên trong 0,5 s: 3,49 / 5,85 / 8,20 cm ở duty 120 / 140 / 160.
+    - Đứng yên 2 s, thả trôi hay phanh: trôi 0,0001 mm.
+  - *Rover:* cùng cơ chế, nhưng chỉ lệch khoảng 1 % (manifold 0,4827 so với collider 0,4875). Được biết và để nguyên: rover gọi Rapier y như trước, golden và guard A1 không đổi (engine version 1). Sửa cho rover là một lần tăng engine version.
+- **Hai luật attach mới (fix round 1, plan §4.6 luật 5 và 6).**
+  - *Luật 5:* không attach khi càng < 6°. Vật attach ở θc < 6° thì không bao giờ thả được, vì lệnh chỉ đi từ 0 tới 90. Ngàm mở cách nhau 5,05 cm ở u 3 và 6,08 cm ở đầu ngón, nên mọi hộp rộng từ khoảng 4,5 cm đều kẹt giữa hai ngón ở càng khoảng 0° và đủ năm điều kiện ngay đó. Đo được:
+    - hộp 5 cm attach ở θc −0,02° khi lùa ngàm mở vào;
+    - bệ 6×6×4 cm 40 g của bài 11 attach ở u 5,47;
+
+    cả hai bị chở đi dù càng được lệnh 0°.
+  - *Luật 6:* không attach vật rộng hơn khe hai ngón khi song song + 0,3 cm (= 4,3 cm). Chỉ có luật 5 thì hộp rộng vẫn attach sau khi càng đóng thêm 5° vào trong nó trong một tick:
+
+    | Hộp | θc | Hai ngón nằm trong hộp |
+    |---|---:|---:|
+    | 5 cm | 9,08° | 3,3 mm |
+    | 4,4–4,8 cm | 9,5–9,6° | 1,5–3,2 mm |
+
+    Các lần gắp đúng có nhiều nhất một ngón nằm trong vật: khối lệch 1 cm bị lùa vào, 2,07 mm. Khối 3 cm xoay 45° rộng 4,24 cm. Khối 4 cm vẫn attach ở 19,94°.
 
 ## 11. I²C (G0.2): parity cảm biến màu TCS34725 trên avr8js — **GO**
 
