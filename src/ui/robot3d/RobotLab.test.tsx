@@ -309,6 +309,73 @@ describe('RobotLab runs (N18 R4.4)', () => {
     expect(badge()).toEqual(['Lỗi', 'error']);
   });
 
+  it.each([
+    ['its time limit', { reason: 'time-limit' as const, atS: 15 }, 15, 'Lượt chạy kết thúc'],
+    ['a crash', { reason: 'contact' as const, atS: 6.6, tag: 'wall' }, 6.6, 'Hết lượt: robot đã va chạm'],
+  ])(
+    'a run that %s ends is a stopped run: the host hears run-stopped once, Dừng is off and Chạy is on, and nothing else changes (bt-lab-fix, m1)',
+    async (_name, end, endedAtS, badge) => {
+      const { render, publish, world, onRunChange } = setup();
+      await render();
+      await click('robot-run');
+      publish({ world: world(1, 50, { status: 'running' }) });
+      await frame();
+      expect(onRunChange.mock.calls).toEqual([[true]]);
+      expect(button('robot-stop').disabled).toBe(false);
+      publish({ status: 'finished', world: world(endedAtS, 90, { status: 'finished' }), end });
+      await frame();
+      expect(onRunChange.mock.calls).toEqual([[true], [false]]);
+      expect(button('robot-stop').disabled).toBe(true);
+      expect(button('robot-run').disabled).toBe(false);
+      // Nothing resets: the end badge, the final time and the final pose of the run stay, and Đặt lại robot still has a run to reset.
+      expect(text('robot-status')).toBe(badge);
+      expect(text('robot-time')).toBe(`Thời gian ${String(endedAtS).replace('.', ',')}${Number.isInteger(endedAtS) ? ',0' : ''} / 15 s`);
+      expect(button('robot-reset').disabled).toBe(false);
+      // Nothing more is said while it stands, and a Chạy after it is a run again (and a run that ends again is another stop).
+      await frame();
+      expect(onRunChange.mock.calls).toEqual([[true], [false]]);
+      await click('robot-run');
+      await frame();
+      expect(onRunChange.mock.calls).toEqual([[true], [false], [true]]);
+      expect(button('robot-stop').disabled).toBe(false);
+      await click('robot-stop');
+      await frame();
+      expect(onRunChange.mock.calls).toEqual([[true], [false], [true], [false]]);
+    },
+  );
+
+  it('Dừng or Đặt lại robot after the end of a run says nothing more to the host; Đặt lại starts a run again, which is told', async () => {
+    const { render, publish, world, onRunChange } = setup();
+    await render();
+    await click('robot-run');
+    publish({ status: 'finished', world: world(15, 90, { status: 'finished' }), end: { reason: 'time-limit', atS: 15 } });
+    await frame();
+    expect(onRunChange.mock.calls).toEqual([[true], [false]]);
+    await click('robot-reset');
+    await frame();
+    expect(onRunChange.mock.calls).toEqual([[true], [false], [true]]);
+    expect(button('robot-stop').disabled).toBe(false);
+    await click('robot-stop');
+    await frame();
+    expect(onRunChange.mock.calls).toEqual([[true], [false], [true], [false]]);
+    expect(text('robot-status')).toBe('Đã dừng');
+  });
+
+  it('an error ends the run for the host too: run-stopped once, Dừng off, and a Chạy after it is told again (bt-lab-fix, m1)', async () => {
+    const { render, publish, world, onRunChange } = setup();
+    await render();
+    await click('robot-run');
+    publish({ status: 'error', world: world(1.5, 31, { status: 'error' }), error: { message: 'Division by zero.', code: 'division-by-zero' } });
+    await frame();
+    expect(onRunChange.mock.calls).toEqual([[true], [false]]);
+    expect(button('robot-stop').disabled).toBe(true);
+    await click('robot-run');
+    await frame();
+    expect(onRunChange.mock.calls).toEqual([[true], [false], [true]]);
+    await click('robot-stop');
+    expect(onRunChange.mock.calls).toEqual([[true], [false], [true], [false]]);
+  });
+
   it('says why a run did not start, and puts the diagnostics that name a block on that block, in Vietnamese', async () => {
     const { render, willStart, lastView } = setup();
     willStart(
@@ -630,6 +697,48 @@ describe('RobotLab checks (N18 R6.3)', () => {
     expect(text('robot-round')).toBe('Lượt 2/3');
     await act(async () => projectStore.getState().setProgramBlocks({ blocks: { languageVersion: 0, blocks: [] } }));
     expect(host.querySelector('[data-testid=robot-check-results]')).toBeNull();
+  });
+
+  it('tells the host a replay stopped when it ends by itself (a crash), once; a check after a run that ended is one more pair, never two stops (bt-lab-fix, m1)', async () => {
+    const { render, checks, session, onRunChange, publish, world, tellRounds } = checkSetup();
+    await render();
+    await click('robot-check-start');
+    await act(async () => checks.last().check.publish({ status: 'running', world: world(0) }));
+    await act(async () => {
+      tellRounds();
+      checks.last().check.settle(crashed);
+    });
+    await frame();
+    expect(onRunChange.mock.calls).toEqual([[true], [false]]);
+    await click('robot-check-replay-2');
+    await frame();
+    expect(session.start).toHaveBeenCalledTimes(1);
+    expect(onRunChange.mock.calls).toEqual([[true], [false], [true]]);
+    publish({ status: 'finished', world: world(6.6, 150, { status: 'finished' }), end: { reason: 'contact', atS: 6.6, tag: 'wall' } });
+    await frame();
+    expect(onRunChange.mock.calls).toEqual([[true], [false], [true], [false]]);
+    // Dừng is off, Chạy is on, and the round stays shown with how it ended.
+    expect(button('robot-stop').disabled).toBe(true);
+    expect(button('robot-run').disabled).toBe(false);
+    expect(text('robot-round')).toBe('Lượt 2/3');
+    expect(text('robot-status')).toBe('Hết lượt: robot đã va chạm');
+    await frame();
+    expect(onRunChange.mock.calls).toEqual([[true], [false], [true], [false]]);
+    // A check right after: one pair for the whole check, whatever the replay left.
+    await click('robot-check-start');
+    await act(async () => checks.last().check.publish({ status: 'running', world: world(0) }));
+    await act(async () => {
+      checks.last().check.publish({ status: 'finished', world: world(6.6, 150, { status: 'finished' }), end: { reason: 'contact', atS: 6.6, tag: 'wall' } });
+      checks.last().check.publish({ status: 'running', world: world(0) });
+    });
+    await frame();
+    expect(onRunChange.mock.calls).toEqual([[true], [false], [true], [false], [true]]);
+    await act(async () => {
+      tellRounds();
+      checks.last().check.settle(crashed);
+    });
+    await frame();
+    expect(onRunChange.mock.calls).toEqual([[true], [false], [true], [false], [true], [false]]);
   });
 
   it('ends a check the lab leaves (unmounted): no result, the host told it ended, nothing more afterwards', async () => {

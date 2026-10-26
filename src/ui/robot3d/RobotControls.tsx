@@ -4,7 +4,7 @@ import { SteadyLabel } from '../app/RunToolbar';
 import { useLocale, useText } from '../i18n/text';
 import { formatNumber } from './format';
 import { Icon } from './icons';
-import { isRunOver, ROBOT_SPEEDS, type RobotRunStore } from './robot-run-store';
+import { isRunOver, ROBOT_SPEEDS, selectCanStop, type RobotRunStore } from './robot-run-store';
 
 // The robot lab's run controls (N18 R4.4), in the header where the other labs have Run and Stop: Chạy, Dừng, Tạm dừng / Tiếp tục,
 // Bước 0,1 s, Đặt lại robot and the speed (0,5× to 4×). Everything is locked while a check holds the lab (R6.3). Run and Step are the
@@ -21,6 +21,7 @@ export function RobotControls({ store, onRun, onStep }: RobotControlsProps) {
   const t = useText();
   const locale = useLocale();
   const active = useStore(store, (state) => state.active);
+  const canStop = useStore(store, selectCanStop);
   const starting = useStore(store, (state) => state.starting);
   const paused = useStore(store, (state) => state.paused);
   const speed = useStore(store, (state) => state.speed);
@@ -60,7 +61,7 @@ export function RobotControls({ store, onRun, onStep }: RobotControlsProps) {
         <Icon name="run" />
         {t('robot.run')}
       </button>
-      <button type="button" className="robot-button" onClick={stop} disabled={locked || (!active && !starting)} data-testid="robot-stop">
+      <button type="button" className="robot-button" onClick={stop} disabled={locked || !canStop} data-testid="robot-stop">
         <Icon name="stop" />
         {t('robot.stop')}
       </button>

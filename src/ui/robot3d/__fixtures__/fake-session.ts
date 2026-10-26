@@ -27,8 +27,8 @@ export function fakeSession(scenario: Scenario, kit: Kit) {
   const session = {
     start: vi.fn(async () => {
       const result = await startResult;
-      // A program's run, never teleop's (N18 R4.8).
-      if (result.ok) publish({ status: 'running', world: world(0), teleop: undefined });
+      // A program's run, never teleop's (N18 R4.8), and a new one: what the one before ended in does not carry over (bt-lab-fix, m1).
+      if (result.ok) publish({ status: 'running', world: world(0), teleop: undefined, end: undefined });
       return result;
     }),
     stop: vi.fn(() => publish(idleRun)),
@@ -37,13 +37,13 @@ export function fakeSession(scenario: Scenario, kit: Kit) {
     }),
     runUntil: vi.fn(async () => {}),
     resetRobot: vi.fn(async (): Promise<RobotStartResult> => {
-      publish({ status: 'running', world: world(0) });
+      publish({ status: 'running', world: world(0), end: undefined });
       return { ok: true };
     }),
     pressButton: vi.fn(),
     // N18 R4.8: teleop is a run marked `teleop`; its commands are only recorded; a placement is taken as given.
     startTeleop: vi.fn(async (): Promise<RobotTeleopResult> => {
-      publish({ status: 'running', world: world(0), teleop: true });
+      publish({ status: 'running', world: world(0), teleop: true, end: undefined });
       return { ok: true };
     }),
     teleop: vi.fn((command: TeleopCommand) => void command),

@@ -109,6 +109,19 @@ describe('the view tools in the robot lab (N18 R4.8)', () => {
     expect(host.querySelector('.robot-stage')!.getAttribute('aria-label')).toBeNull();
   });
 
+  it('a teleop run a crash or its cap ends tells the host nothing, and keeps Dừng on: teleop is as it was (bt-lab-fix, m1)', async () => {
+    const { onRunChange, publish, world } = await setup();
+    await click('robot-tool-teleop');
+    await act(async () => publish({ status: 'finished', world: world(3, 60, { status: 'finished' }), end: { reason: 'contact', atS: 3, tag: 'wall' } }));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 40)));
+    expect(el('robot-status')!.textContent).toBe('Hết lượt: robot đã va chạm');
+    expect(onRunChange).not.toHaveBeenCalled();
+    expect((el('robot-stop') as HTMLButtonElement).disabled).toBe(false);
+    expect((el('robot-run') as HTMLButtonElement).disabled).toBe(false);
+    await click('robot-stop');
+    expect(onRunChange).not.toHaveBeenCalled();
+  });
+
   it('measures on the 2D map: a click there is a point of the ruler', async () => {
     await setup();
     await click('robot-tool-ruler');

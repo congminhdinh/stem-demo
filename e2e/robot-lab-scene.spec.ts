@@ -138,6 +138,37 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
     expect(errors).toEqual([]);
   });
 
+  test('a run the time limit ends is a stopped run: the host hears run-stopped once, Dừng is off and Chạy is on, and the end stays in view (bt-lab-fix, m1)', async ({ page, baseURL }) => {
+    // A 15 s round at 4× takes about 4 s; under the suite's own load SwiftShader may draw much slower, so the waits below are conditions.
+    test.setTimeout(90_000);
+    const errors = collectErrors(page);
+    const frame = await openInLesson(page, labUrl(baseURL, `lab=robot&template=rb-drive-to-zone&origin=${encodeURIComponent(lessonOrigin)}`));
+    const runMessages = async () => (await messageTypes(page)).filter((type) => type === 'run-started' || type === 'run-stopped');
+    await frame.evaluate((document) => window.__stem?.loadProject(document), solved());
+    await frame.evaluate(() => window.__stem?.robot.setSpeed(4));
+    await frame.getByTestId('robot-run').click();
+    await expect(frame.getByTestId('robot-stop')).toBeEnabled();
+    await expect.poll(runMessages).toEqual(['run-started']);
+    // The scenario's time limit is 15 s: 4 s at 4×, with room for a slow machine. The host is told when the round is over, with no Dừng.
+    await expect.poll(runMessages, { timeout: 60_000 }).toEqual(['run-started', 'run-stopped']);
+    await expect(frame.getByTestId('robot-status')).toHaveText('Lượt chạy kết thúc');
+    await expect(frame.getByTestId('robot-stop')).toBeDisabled();
+    await expect(frame.getByTestId('robot-run')).toBeEnabled();
+    // Nothing reset: the end badge, the HUD's score and clock and the robot's final pose stay as the run left them.
+    await expect(frame.getByTestId('robot-score')).toHaveText('Điểm 100/100');
+    await expect(frame.getByTestId('robot-time')).toHaveText('Thời gian 15,0 / 15 s');
+    expect((await view(frame))?.t).toBeCloseTo(15, 3);
+    // Đặt lại robot starts the run again, which the host hears; Dừng ends it, once. No wait: each is the next thing to happen.
+    await frame.getByTestId('robot-reset').click();
+    await expect.poll(runMessages).toEqual(['run-started', 'run-stopped', 'run-started']);
+    await expect(frame.getByTestId('robot-stop')).toBeEnabled();
+    await frame.getByTestId('robot-stop').click();
+    await expect.poll(runMessages).toEqual(['run-started', 'run-stopped', 'run-started', 'run-stopped']);
+    await expect(frame.getByTestId('robot-stop')).toBeDisabled();
+    expect(await runMessages()).toEqual(['run-started', 'run-stopped', 'run-started', 'run-stopped']);
+    expect(errors).toEqual([]);
+  });
+
   test('draws the idle view before any run: the canvas shows the arena and the robot, not the page behind it', async ({ page, baseURL }) => {
     // Counts the draws to the screen and reads pixels of each one, in a microtask after it starts: after the frame's draw calls, before
     // the compositor takes the picture (the drawing buffer is not preserved).

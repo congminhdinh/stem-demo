@@ -20,6 +20,10 @@ import type { RobotSnapshot, ScoreState } from '../../core/world/snapshot';
 //     frame in flight. A run that was going is paused first; from idle, the run starts paused.
 //   - React gets at most one snapshot per frame, the latest (`snapshot`); `onPublish` tells every publish at once (the 3D view asks for a
 //     frame), and `latestWorld()` is what the view draws, read in its frame callback without a React render.
+//   - N18 bt-lab-fix (m1): a run the scenario ended by itself (its time limit, a crash) or that failed (an error) is over for the host as a
+//     Dừng would make it, and for the controls (Dừng is off, Chạy is on): `ended`, set from the session's own snapshot at once, which is
+//     what `selectHostRun` and the controls read. Nothing else changes: the run stays (`active`), with its last snapshot, the end badge and
+//     the HUD, until Dừng, Đặt lại or the next run. Teleop and an attached check are no part of it (see `ended`).
 //   - Stop keeps the stopped run's last snapshot (`held`) until Reset or the next run: the learner still sees where the robot got to, its
 //     score and what it printed.
 //     Reset of a run starts it again from t = 0 (`resetRobot`, the same as a new start); with no run, it clears what was held.
@@ -81,6 +85,13 @@ export type RobotLabState = {
   snapshot: RobotRunSnapshot;
   /** A run exists (running, finished or failed): from its start until Stop. Changes at once, not a frame later (the host's run-started). */
   active: boolean;
+  /**
+   * N18 bt-lab-fix (m1): the lab's run is over by itself: the scenario ended it (its time limit, a crash) or it failed, and it has not been
+   * stopped or replaced yet. `active` stays true then (the run, its last world and its end stay in view). Changes at once, like `active`.
+   * Never true for an attached check (its run is over between two rounds; the host hears one run for the whole check). Teleop is a run
+   * of the session like any other here (its crash or its 600 s cap set it), but never a run for the host.
+   */
+  ended: boolean;
   /** A start (Run, Step from idle, Reset of a run) is building its world. */
   starting: boolean;
   /** Time is held: no frame drives the run until Resume or a Step. */
@@ -152,8 +163,15 @@ export type RobotLabState = {
 
 export const selectRunActive = (state: RobotLabState) => state.active;
 
-/** N18 R4.8: a run the host hears of (run-started, run-stopped): the lab's run or a check's shown in it, but never teleop. */
-export const selectHostRun = (state: RobotLabState) => state.active && !state.teleop;
+/**
+ * N18 R4.8: a run the host hears of (run-started, run-stopped): the lab's run or a check's shown in it, but never teleop. N18 bt-lab-fix
+ * (m1): a run that ended by itself (`ended`) is a stopped run: the host hears run-stopped when it ends, once, and a Dừng after it says
+ * nothing more.
+ */
+export const selectHostRun = (state: RobotLabState) => state.active && !state.teleop && !state.ended;
+
+/** N18 bt-lab-fix (m1): Dừng has something to end: a start is building its world, a run goes on, or teleop is on (Dừng ends that too). */
+export const selectCanStop = (state: RobotLabState) => state.starting || (state.active && (!state.ended || state.teleop));
 
 /** What the lab says the run is doing (the HUD's status). */
 export type LabStatus = 'idle' | 'starting' | 'running' | 'paused' | 'finished' | 'stopped' | 'timeUp' | 'crashed' | 'error' | 'teleop';
@@ -230,6 +248,12 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
     let teleopStarting: number | null = null;
     let placedView: RobotSnapshot | null = null;
 
+    /** Whether the lab's own session holds a run that is over (not a check's: that one is one run to the host). */
+    const sessionEnded = () => {
+      const snapshot = session.getSnapshot();
+      return snapshot.status !== 'idle' && isRunOver(snapshot);
+    };
+
     // A check is driven by every frame until it detaches: it runs its rounds itself, and between two of them its run is over for a moment.
     const shouldDrive = () => (attached !== null ? true : !get().paused && !isRunOver(session.getSnapshot()));
 
@@ -266,8 +290,10 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
       const active = attached !== null || snapshot.status !== 'idle';
       // N18 R4.8: the lab's run is teleop when its snapshot says so (or a teleop start is still building, while it shows none).
       const teleop = attached === null && (snapshot.status !== 'idle' ? snapshot.teleop === true : teleopStarting !== null);
-      if (active !== get().active || teleop !== get().teleop) {
-        set({ active, teleop });
+      // N18 bt-lab-fix (m1): over by itself, from the snapshot at once. A check's run is over between its rounds and is one run to the host.
+      const ended = attached === null && snapshot.status !== 'idle' && isRunOver(snapshot);
+      if (active !== get().active || teleop !== get().teleop || ended !== get().ended) {
+        set({ active, teleop, ended });
       }
       for (const listener of [...listeners]) {
         listener(snapshot);
@@ -319,6 +345,7 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
     return {
       snapshot: session.getSnapshot(),
       active: session.getSnapshot().status !== 'idle',
+      ended: sessionEnded(),
       starting: false,
       paused: false,
       speed: 1,
@@ -453,7 +480,7 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
         const mine = { view, speed, unsubscribe };
         attached = mine;
         // The round is the check's to say (`setRound`): it is told before its run has a world to show.
-        set({ snapshot: view.getSnapshot(), active: true, starting: false, paused: false, held: null, startFailure: null });
+        set({ snapshot: view.getSnapshot(), active: true, ended: false, starting: false, paused: false, held: null, startFailure: null });
         ensureDriving();
         return (left) => {
           if (attached !== mine) {
@@ -462,7 +489,7 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
           stopDriving();
           unsubscribe();
           attached = null;
-          set({ snapshot: session.getSnapshot(), active: session.getSnapshot().status !== 'idle', held: left?.held ?? null, round: left?.round ?? null });
+          set({ snapshot: session.getSnapshot(), active: session.getSnapshot().status !== 'idle', ended: sessionEnded(), held: left?.held ?? null, round: left?.round ?? null });
         };
       },
 
@@ -580,7 +607,7 @@ export function createRobotRunStore(session: RobotRunSession, options: RobotRunS
           attached = null;
           visibility?.removeEventListener('visibilitychange', onVisibility);
           session.stop();
-          set({ snapshot: session.getSnapshot(), active: false, starting: false, paused: false });
+          set({ snapshot: session.getSnapshot(), active: false, ended: false, starting: false, paused: false });
         };
       },
     };

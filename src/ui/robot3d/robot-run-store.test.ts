@@ -14,7 +14,7 @@ import { hashSnapshot, type RobotSnapshot, type ScoreState } from '../../core/wo
 import { robotSolutions } from '../../samples/robot-solutions';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { robotStarterDocument } from '../../samples/robot-templates';
-import { createRobotRunStore, isRunOver, labStatus, ROBOT_SPEEDS, selectRunActive, shownRun, shownScore, type CheckRunView } from './robot-run-store';
+import { createRobotRunStore, isRunOver, labBusy, labStatus, ROBOT_SPEEDS, selectHostRun, selectRunActive, shownRun, shownScore, type CheckRunView } from './robot-run-store';
 import { fakeSession as fakeRobotSession, idleRun } from './__fixtures__/fake-session';
 import { sameView } from './scene-math';
 
@@ -565,6 +565,154 @@ describe('a check’s run in the lab’s view (N18 R6.3)', () => {
     store.getState().setLocked(true);
     await store.getState().replay(project, { index: 0, count: 3, score: noPoints });
     expect(session.start).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('a run that ends by itself is a stopped run for the host (N18 bt-lab-fix, m1)', () => {
+  const timeUp = (world: (t: number) => RobotSnapshot): Partial<RobotRunSnapshot> => ({ status: 'finished', world: world(15), end: { reason: 'time-limit', atS: 15 } });
+  const crash = (world: (t: number) => RobotSnapshot): Partial<RobotRunSnapshot> => ({ status: 'finished', world: world(6.6), end: { reason: 'contact', atS: 6.6, tag: 'wall' } });
+
+  /** What the host hears: every change of the run it is told of, in order. */
+  function hostHears(store: ReturnType<typeof setup>['store']) {
+    const heard: ('run-started' | 'run-stopped')[] = [];
+    store.subscribe((state, previous) => {
+      if (selectHostRun(state) !== selectHostRun(previous)) heard.push(selectHostRun(state) ? 'run-started' : 'run-stopped');
+    });
+    return heard;
+  }
+
+  it.each([
+    ['its time limit', timeUp, 'timeUp'],
+    ['a crash', crash, 'crashed'],
+  ] as const)('tells the host the run stopped once, at once, when %s ends it, and keeps what it left in view', async (_name, ending, status) => {
+    const { store, publish, world, frames } = setup();
+    const heard = hostHears(store);
+    await store.getState().run(project);
+    publish({ world: world(1, 40) });
+    expect(heard).toEqual(['run-started']);
+    publish(ending(world));
+    // At once: not a frame later, as the run's start is.
+    expect(heard).toEqual(['run-started', 'run-stopped']);
+    frames.frame(16);
+    frames.frame(32);
+    expect(heard).toEqual(['run-started', 'run-stopped']);
+    // Nothing resets: the run, its last snapshot, the end and the HUD's status stay; only the host's run and the Stop it offers are over.
+    expect(store.getState()).toMatchObject({ active: true, ended: true, held: null });
+    expect(store.getState().snapshot.end).toBeDefined();
+    expect(store.getState().latestWorld()?.t).toBe(status === 'timeUp' ? 15 : 6.6);
+    expect(labStatus(store.getState())).toBe(status);
+    expect(selectRunActive(store.getState())).toBe(true);
+  });
+
+  it('tells the host the run stopped when it ends in an error, and not for a program that finished within its time', async () => {
+    const { store, publish, world, frames } = setup();
+    const heard = hostHears(store);
+    await store.getState().run(project);
+    // The program ran out: the scenario goes on judging the robot until its time limit, so the run is not over.
+    publish({ status: 'finished', world: world(2) });
+    expect(heard).toEqual(['run-started']);
+    expect(store.getState().ended).toBe(false);
+    publish({ status: 'error', world: world(3), error: { message: 'Division by zero.', code: 'division-by-zero' } });
+    expect(heard).toEqual(['run-started', 'run-stopped']);
+    frames.frame(16);
+    expect(labStatus(store.getState())).toBe('error');
+  });
+
+  it('sends nothing more for a Dừng after the end, nor for the publishes of a run that is over', async () => {
+    const { store, publish, world } = setup();
+    const heard = hostHears(store);
+    await store.getState().run(project);
+    publish(timeUp(world));
+    publish(timeUp(world));
+    expect(heard).toEqual(['run-started', 'run-stopped']);
+    store.getState().stop();
+    expect(store.getState()).toMatchObject({ active: false, ended: false });
+    expect(heard).toEqual(['run-started', 'run-stopped']);
+    // Stop with nothing left to stop says nothing either.
+    store.getState().stop();
+    expect(heard).toEqual(['run-started', 'run-stopped']);
+  });
+
+  it('is a run for the host again from a Chạy or an Đặt lại robot after the end, each with its own pair', async () => {
+    const { store, publish, world } = setup();
+    const heard = hostHears(store);
+    await store.getState().run(project);
+    publish(crash(world));
+    await store.getState().run(project);
+    expect(store.getState().ended).toBe(false);
+    expect(heard).toEqual(['run-started', 'run-stopped', 'run-started']);
+    publish(timeUp(world));
+    await store.getState().resetRobot();
+    expect(store.getState().ended).toBe(false);
+    expect(heard).toEqual(['run-started', 'run-stopped', 'run-started', 'run-stopped', 'run-started']);
+    store.getState().stop();
+    expect(heard).toEqual(['run-started', 'run-stopped', 'run-started', 'run-stopped', 'run-started', 'run-stopped']);
+  });
+
+  it('tells the host the replay of a round stopped when it ends, one pair for the replay, and nothing for a Dừng after', async () => {
+    const { store, publish, world, frames } = setup();
+    const heard = hostHears(store);
+    await store.getState().replay(project, { index: 1, count: 3, score: noPoints });
+    expect(heard).toEqual(['run-started']);
+    publish(crash(world));
+    expect(heard).toEqual(['run-started', 'run-stopped']);
+    // The round stays shown, with how it ended.
+    frames.frame(16);
+    expect(store.getState().round).toEqual({ index: 1, count: 3, score: noPoints });
+    expect(labStatus(store.getState())).toBe('crashed');
+    store.getState().stop();
+    expect(heard).toEqual(['run-started', 'run-stopped']);
+  });
+
+  it('keeps one pair for a check at 1× or 4× whatever its run does between its rounds, and sends nothing for the lab’s own run it replaces', async () => {
+    const { store, publish, world } = setup();
+    const heard = hostHears(store);
+    // The lab's own run had ended by itself before the check: the host was told then.
+    await store.getState().run(project);
+    publish(timeUp(world));
+    expect(heard).toEqual(['run-started', 'run-stopped']);
+    store.getState().stop();
+    const check = fakeCheckView();
+    const detach = store.getState().attach(check.view, 1);
+    check.publish({ status: 'running', world: world(0) });
+    expect(heard).toEqual(['run-started', 'run-stopped', 'run-started']);
+    check.publish({ status: 'finished', world: world(6.6), end: { reason: 'contact', atS: 6.6, tag: 'wall' } });
+    check.publish(idleRun);
+    check.publish({ status: 'running', world: world(0) });
+    check.publish({ status: 'finished', world: world(15), end: { reason: 'time-limit', atS: 15 } });
+    expect(store.getState().ended).toBe(false);
+    expect(heard).toEqual(['run-started', 'run-stopped', 'run-started']);
+    detach({ held: { ...idleRun, status: 'finished', world: world(15), end: { reason: 'time-limit', atS: 15 } }, round: { index: 2, count: 3, score: noPoints } });
+    expect(heard).toEqual(['run-started', 'run-stopped', 'run-started', 'run-stopped']);
+    expect(store.getState().ended).toBe(false);
+  });
+
+  it('keeps teleop out of it: no run for the host when its crash or its cap ends it, and Stop still offered while it is on', async () => {
+    const { store, publish, world } = setup();
+    const heard = hostHears(store);
+    await store.getState().startTeleop();
+    publish(crash(world));
+    publish(timeUp(world));
+    expect(heard).toEqual([]);
+    expect(selectHostRun(store.getState())).toBe(false);
+    expect(labBusy(store.getState())).toBe(false);
+    expect(store.getState()).toMatchObject({ active: true, teleop: true });
+    // Chạy after teleop is a run for the host from its first snapshot, as before.
+    await store.getState().run(project);
+    expect(heard).toEqual(['run-started']);
+    publish(timeUp(world));
+    expect(heard).toEqual(['run-started', 'run-stopped']);
+  });
+
+  it('is not a run for the host while idle or once the lab goes away', async () => {
+    const { store, publish, world } = setup();
+    expect(selectHostRun(store.getState())).toBe(false);
+    await store.getState().run(project);
+    publish(timeUp(world));
+    expect(selectHostRun(store.getState())).toBe(false);
+    const disconnect = store.getState().connect();
+    disconnect();
+    expect(store.getState()).toMatchObject({ active: false, ended: false });
   });
 });
 
