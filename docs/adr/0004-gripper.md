@@ -291,7 +291,17 @@ Spike giữ tới khi B1/B2 có test tương đương, rồi xoá như `spikes/r
     | 5 cm | 9,08° | 3,3 mm |
     | 4,4–4,8 cm | 9,5–9,6° | 1,5–3,2 mm |
 
-    Các lần gắp đúng có nhiều nhất một ngón nằm trong vật: khối lệch 1 cm bị lùa vào, 2,07 mm. Khối 3 cm xoay 45° rộng 4,24 cm. Khối 4 cm vẫn attach ở 19,94°.
+    Các lần gắp đúng có nhiều nhất một ngón nằm trong vật: khối lệch 1 cm bị lùa vào, 2,07 mm. Khối 4 cm vẫn attach ở 19,94°.
+  - *Fix round 2:* luật 6 đo **bề rộng riêng** của vật (`ownWidthCm`: cạnh ngang nhỏ hơn của hộp, đường kính của trụ), không đo bề rộng ngang qua ngàm.
+    - Lý do: khối 4 cm xoay ψ rộng 4·(cos ψ + sin ψ) ngang qua ngàm, quá 4,3 cm từ khoảng 4,4°. Thêm vào đó, luật 2 kẹp khi khe bằng bề rộng ngang qua ngàm, nên càng dừng ở hai góc trước khi xoay được khối cho vuông.
+    - Đo theo cách cũ (reviewer, `b12-review-2.md`):
+      - xoay 8°: không bao giờ gắp được, càng dừng ở 14,6°;
+      - xoay 12°: không bao giờ gắp được, càng dừng ở 9,6°;
+      - xoay 20°: càng dừng ở 0,8°.
+    - Nay luật 2 cũng so khe với bề rộng riêng + 0,05 cm, nên càng đóng tiếp qua góc của khối xoay. Khối 4 cm xoay 8° / 12° / 20° attach ở 9,86° / 9,47° / 8,98° (50 g: 9,76° / 9,33° / 7,48°), lúc vẫn còn xoay (4,53–5,04 cm ngang qua ngàm). Khối được giữ ở tay 60° và thả ở càng 0°.
+    - Hộp 4,4 cm và 5 cm, xoay 0° hay 10°, và bệ 6 cm vẫn không bao giờ bị giữ.
+    - Khối 60 g 3 cm bị một ngón đẩy ngang lún 3,82 mm (trước đó 3,26 mm), vì càng đóng tới khi khe còn bằng 3 cm.
+  - *Fix round 2, luật 3:* bám mặt vật không bao giờ mở ngón quá góc β của nó lúc attach. Hộp 4,2 cm attach ở khoảng 14,7° có hai góc sau nằm trong ngón sát bản lề ở bất kỳ góc nào, nên "góc chạm" đưa hai ngón tới chặn mở: càng đọc −0,5° trong khi vẫn giữ hộp. Nay càng giữ ≥ θc trong suốt lúc giữ.
 
 ## 11. I²C (G0.2): parity cảm biến màu TCS34725 trên avr8js — **GO**
 

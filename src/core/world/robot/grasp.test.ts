@@ -35,8 +35,11 @@ type Conditions = {
   readonly releasable: boolean;
   readonly fits: boolean;
 };
-/** The five conditions of §4.4, then rules 5 and 6 of §4.6 (B2 fix round 1): θc ≥ 6°, width ≤ 4.3 cm. */
+/** The five conditions of §4.4, then rules 5 and 6 of §4.6 (B2 fix rounds 1 and 2): θc ≥ 6°, the object's own width ≤ 4.3 cm. */
 const names = ['command', 'window', 'contacts', 'gap', 'payload', 'releasable', 'fits'] as const;
+
+/** An object's own width, cm (rule 6, fix round 2): a box's smaller horizontal side, a cylinder's diameter. */
+const ownWidthOf = (object: GraspObject) => (object.shape.kind === 'box' ? 2 * Math.min(object.shape.halfM.x, object.shape.halfM.z) : 2 * object.shape.radiusM) * 100;
 
 /** The five conditions of §4.4 (§4.6: CONTACT_GAP_M = 2 mm) and §4.6's rules 5 and 6, as the oracle reads them. */
 function conditionsOf(scene: GripperScene, object: GraspObject): Conditions {
@@ -54,7 +57,7 @@ function conditionsOf(scene: GripperScene, object: GraspObject): Conditions {
     gap: gap <= at.widthCm + 0.3,
     payload: object.massG <= 50,
     releasable: gripper.clawDeg() >= 6,
-    fits: at.widthCm <= 4.3,
+    fits: ownWidthOf(object) <= 4.3,
   };
 }
 
@@ -394,7 +397,7 @@ describe('the grasp machine (N19 B2)', () => {
 
   describe('an attach is always one the claw can let go of: θc ≥ 6° (§4.6 rule 5)', () => {
     /** Lower and open, drive the open jaws into the box (duty 140, 3 s at most, until its centre is at u ≤ 3.25), brake, then 80°, lift 60°, 0°. */
-    const wide = (box: ReturnType<typeof cube>) => {
+    const wide = (box: ReturnType<typeof cube> & { yawDeg?: number }) => {
       const scene = gripperScene({ ground: floor(), objects: [box] }, START);
       const watcher = watch(scene, 'box');
       const seen: string[] = [];
@@ -450,6 +453,60 @@ describe('the grasp machine (N19 B2)', () => {
       expect(Math.abs(result.bottomCm)).toBeLessThan(0.05);
     });
 
+    it('a 4.4 cm and a 5 cm box, square or 10° off, are never held: their own width is over the 4.3 cm of rule 6', () => {
+      const rows: string[] = [];
+      for (const sizeCm of [4.4, 5]) {
+        for (const yawDeg of [0, 10]) {
+          const result = wide({ ...cubeAhead('box', 15, { sizeCm }), yawDeg });
+          rows.push(`${sizeCm} cm at ${yawDeg}°: held ${result.held} ticks; ${result.seen.join('; ')}`);
+          expect(result.held, rows.at(-1)).toBe(0);
+          expect(result.stats.mismatches, rows.at(-1)).toEqual([]);
+          expect(Math.abs(result.bottomCm), rows.at(-1)).toBeLessThan(0.05);
+        }
+      }
+      expect(rows).toHaveLength(4);
+    }, 60_000);
+
+    it('a 4 cm cube the claw meets 8°, 12° or 20° off square is gripped, carried and let go (rule 6 reads its own width, 4 cm)', () => {
+      // Turned, the cube is 4·(cos ψ + sin ψ) = 4.52, 4.74 and 5.13 cm across the jaws. The claw does not stall on its corners (rule 2 clamps
+      // on the object's own width too): it closes on, and the cube attaches as soon as the claw is past 6° with the five conditions met,
+      // still turned (measured θc 9.86°, 9.47°, 8.98°, 4.53–4.80 cm across; 50 g: 9.76°, 9.33°, 7.48°).
+      const rows: string[] = [];
+      for (const yawDeg of [8, 12, 20]) {
+        const scene = gripperScene({ ground: floor(), objects: [{ ...cubeAhead('cube', 15), yawDeg }] }, START);
+        try {
+          const watcher = watch(scene, 'cube');
+          const object = scene.object('cube');
+          const log: { thetaC?: number | null; liftedBottomCm?: number; heldUp?: string | null } = {};
+          const script = (function* (): Script {
+            yield* pick(scene, 'cube', { liftDeg: 0, u: 3 });
+            log.thetaC = scene.grasp.thetaCDeg;
+            scene.set({ liftDeg: 60 });
+            yield* wait(seconds(0.6));
+            log.heldUp = scene.grasp.heldId;
+            log.liftedBottomCm = object.body.translation().y * 100 - 2;
+            scene.set({ liftDeg: 10 });
+            yield* wait(seconds(0.6));
+            scene.set({ clawDeg: 0 });
+            yield* wait(seconds(0.8));
+          })();
+          run(scene, script, seconds(0.35 + 4 + 2), watcher.after, watcher.between);
+          rows.push(`${yawDeg}°: θc ${log.thetaC}, held at lift 60° ${log.heldUp}, bottom ${log.liftedBottomCm?.toFixed(2)} cm, end held ${scene.grasp.heldId}`);
+          expect(watcher.stats.mismatches, rows.at(-1)).toEqual([]);
+          expect(log.thetaC, rows.at(-1)).not.toBeNull();
+          expect(log.thetaC!, rows.at(-1)).toBeGreaterThanOrEqual(6);
+          expect(log.heldUp, rows.at(-1)).toBe('cube');
+          expect(log.liftedBottomCm!, rows.at(-1)).toBeGreaterThan(3);
+          // Let go at claw 0°, and back on the floor.
+          expect(scene.grasp.heldId, rows.at(-1)).toBeNull();
+          expect(Math.abs(object.body.translation().y * 100 - 2), rows.at(-1)).toBeLessThan(0.05);
+        } finally {
+          scene.dispose();
+        }
+      }
+      expect(rows).toHaveLength(3);
+    }, 60_000);
+
     it('rule 5 alone: a 4.2 cm box (within the 4.3 cm of rule 6) wedged by the hinges of the open jaws is not attached at θc 0°', () => {
       // 1 cm deep, its centre at u 1.5: the open fingers' inner faces are 2.10 cm from the middle at its back and 2.31 at its front, so both
       // are within 2 mm of it, and the gap at its centre (4.42 cm) is within 0.3 cm of its width. The claw is at 0° (told 0°): taken now,
@@ -479,6 +536,33 @@ describe('the grasp machine (N19 B2)', () => {
         scene.dispose();
       }
     });
+  });
+
+  it('a held 4.2 cm box keeps the claw at θc or more: following the faces never opens a finger past where it was at the attach', () => {
+    // The box's back corners sit by the hinges, inside the fingers wherever they are; "touching" would open them to their stop (claw −0.5°)
+    // with the box held between fully open jaws.
+    const scene = gripperScene({ ground: floor(), objects: [cubeAhead('box', 15, { sizeCm: 4.2 })] }, START);
+    try {
+      let least = Number.POSITIVE_INFINITY;
+      let heldTicks = 0;
+      const script = (function* (): Script {
+        yield* pick(scene, 'box', { liftDeg: 0, u: 3 });
+        scene.set({ liftDeg: 60 });
+        yield* wait(seconds(0.6));
+        scene.set({ liftDeg: 0 });
+        yield* wait(seconds(0.6));
+      })();
+      run(scene, script, seconds(0.35 + 4 + 1.2), () => {
+        if (scene.grasp.heldId !== 'box') return;
+        heldTicks += 1;
+        least = Math.min(least, scene.gripper.clawDeg() - scene.grasp.thetaCDeg!);
+      });
+      expect(heldTicks).toBeGreaterThan(seconds(1.2));
+      expect(scene.grasp.thetaCDeg!).toBeGreaterThanOrEqual(6);
+      expect(least).toBeGreaterThanOrEqual(-0.05);
+    } finally {
+      scene.dispose();
+    }
   });
 
   it('release at θc−6° not at θc−3°', () => {
@@ -567,8 +651,9 @@ describe('the grasp machine (N19 B2)', () => {
     // finger first; the claw closes on, pushing it to the middle, and stalls where both fingers clamp it.
     const cases = [
       { name: '4 cm centred', size: 4, place: null, stall: [24, 30], deepestMm: 2.1 },
-      // One 3 g finger pushing a 60 g cube across at the servo's speed sinks 3.26 mm into it before the other meets it (measured).
-      { name: '3 cm 0.6 cm off centre', size: 3, place: { u: 3.5, v: 0.6 }, stall: [40, 56], deepestMm: 3.5 },
+      // One 3 g finger pushing a 60 g cube across at the servo's speed sinks into it before the other meets it: 3.82 mm (measured; the cube
+      // turns a little as it is pushed, and the clamp waits for the gap to come down to its own 3 cm).
+      { name: '3 cm 0.6 cm off centre', size: 3, place: { u: 3.5, v: 0.6 }, stall: [40, 56], deepestMm: 4 },
     ] as const;
     for (const c of cases) {
       const scene = gripperScene({ ground: floor(), objects: [cubeAhead('cube', 60, { sizeCm: c.size, offset: c.place === null ? [0, 0] : [0, 30] })] }, START);

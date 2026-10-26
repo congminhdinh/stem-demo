@@ -270,7 +270,10 @@ Toàn bộ §5 của plan N18 vẫn áp dụng: B1, Rapier chỉ ở `src/core/w
     4. solver group như trên.
   - *Thêm khi làm B2, fix round 1* (ADR 0004 §10b):
     5. không attach khi càng < 6° (= độ trễ thả). Lệnh kẹp chỉ từ 0 tới 90, nên vật attach ở θc < 6° không bao giờ thả được. Ngàm mở kẹt được mọi hộp rộng từ khoảng 4,5 cm ở khoảng 0°, kể cả bệ 6×6×4 cm của bài 11;
-    6. không attach vật rộng (ngang qua ngàm) hơn khe hai ngón khi song song + 0,3 cm (`gripWidthCm`, 4,3 cm). Vật rộng hơn thì hai ngón đều nằm trong nó lúc thỏa điều kiện 4: hộp 5 cm vẫn attach ở 9,08° với hai ngón lún 3,3 mm.
+    6. không attach vật có **bề rộng riêng** (`ownWidthCm`: cạnh ngang nhỏ hơn của hộp, đường kính của trụ) lớn hơn khe hai ngón khi song song + 0,3 cm (`gripWidthCm`, 4,3 cm). Vật rộng hơn thì hai ngón đều nằm trong nó lúc thỏa điều kiện 4: hộp 5 cm vẫn attach ở 9,08° với hai ngón lún 3,3 mm.
+       - *Fix round 2:* phải đo bề rộng riêng chứ không đo bề rộng ngang qua ngàm. Khối 4 cm xoay 8° rộng 4,52 cm ngang qua ngàm, nên đo kiểu cũ thì không bao giờ gắp được.
+       - Luật 2 cũng kẹp theo bề rộng riêng, nên càng không dừng ở góc của khối bị xoay mà đóng tiếp. Đo: khối 4 cm xoay 8° / 12° / 20° attach ở 9,86° / 9,47° / 8,98° và thả bình thường.
+       - Luật 3 không bao giờ mở ngón quá góc của nó lúc attach. Nếu không, hộp 4,2 cm bị giữ giữa hai ngón mở hết cỡ, càng đọc −0,5°.
   - **Drive của kit gripper:** mỗi tick làm mới contact của hai bi đỡ (`setTranslationWrtParent` tại chỗ), để ma sát hộp số vừa đặt tới được solver. Không có bước này, Rapier giữ ma sát cũ của manifold (tới 0,97) và xe đứng yên ở duty ≤ 160. Rover không đổi (ADR 0004 §10b).
 - **Khối lượng:** `massG 460` là cả xe; body chassis = 426 g.
 - **Chống lật:**

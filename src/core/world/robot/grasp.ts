@@ -28,7 +28,8 @@ import { conjugate, multiplyQuaternions } from './robot-frame';
 //   1. latch after a break: nothing attaches again until the claw is commanded to θc − 6° or below (without it the still-closed claw
 //      re-attaches on the next tick);
 //   2. while nothing is held, the claw stops only when an object is clamped across it: both fingers within CONTACT_GAP_M and the jaw gap at
-//      its centre no wider than its width + 0.05 cm; each finger then stops where it touches. A finger touching on its own keeps closing
+//      its centre no wider than its own width (`ownWidthCm`: a turned cube is clamped once the fingers have squared it, fix round 2) +
+//      0.05 cm; each finger then stops where it touches. A finger touching on its own keeps closing
 //      and pushes a light object to the middle, as a real claw centres a cube (stalling each finger on its own contact shoved a 15 g cube
 //      0.5 cm off centre sideways; stalling on "both touch" alone stopped the claw with a finger leaning on the cube, 4.48 cm apart).
 //      A stalled finger stops, it is never opened (B2): the spike's stall also opened a finger that was into the object, by the depth over a
@@ -36,7 +37,9 @@ import { conjugate, multiplyQuaternions } from './robot-frame';
 //      finger went to its open stop while the other pushed the cube round by 5.7–7.4°, β +12° / −5.4° (measured); stopped, the claw stalls at
 //      25–28° with the cube turned 1.1–3.8° (centred: 26.95°, the same either way);
 //   3. while held, each finger's target follows the held object's face every tick (the attach comes up to 2 mm early, and a contact by
-//      the hinge has almost no lever: `touchingBeta`);
+//      the hinge has almost no lever: `touchingBeta`), never opening it past its β at the attach (fix round 2: the back corners of a 4.2 cm
+//      box lie inside the fingers by the hinges wherever they are, and "touching" took them to their open stop, the claw at −0.5° while
+//      holding the box);
 //   4. the gripper's colliders are members of GRIPPER_GROUP only for the solver too (gripper.ts), so that a held object leaving that group
 //      out takes effect: a collider is a member of every group by default.
 // And one more (B2 fix round 1, plan §4.6):
@@ -45,12 +48,12 @@ import { conjugate, multiplyQuaternions } from './robot-frame';
 //      box from about 4.5 cm wide wedges on both fingers with the claw at about 0° and meets the five conditions there (measured: a 5 cm box
 //      attached at θc −0.02° while the open jaws were driven onto it, lesson 11's 6×6×4 cm 40 g base at u 5.47, both carried with the claw
 //      told 0°). Such an object is too wide to grip; the claw told to close just stalls on it.
-//   6. nothing wider across the jaws than `gripWidthCm` attaches: the fingers' gap when parallel plus the attach's 0.3 cm (ref-uno-gripper@0:
-//      2·2.2 − 0.4 + 0.3 = 4.3 cm). Condition 4 wants the gap at the object's centre within 0.3 cm of its width; the fingers splay outwards
-//      from the hinges, so around an object wider than that they are inside it where they meet it. With rule 5 alone a 5 cm box still
-//      attached, at θc 9.08°, both fingers 3.3 mm inside it (4.4–4.8 cm boxes at 9.5–9.6°, 1.5–3.2 mm), the claw having closed 5° into it
-//      in one tick. Measured, the grasps the lessons make have one finger at most inside the object (a cube 1 cm off centre, funnelled in
-//      by the open jaws: 2.07 mm), and a 3 cm cube turned 45° is 4.24 cm across.
+//   6. nothing whose own width (`ownWidthCm`: a box's smaller horizontal side, a cylinder's diameter) is over `gripWidthCm` attaches: the
+//      fingers' gap when parallel plus the attach's 0.3 cm (ref-uno-gripper@0: 2·2.2 − 0.4 + 0.3 = 4.3 cm). Condition 4 wants the gap at the
+//      object's centre within 0.3 cm of its width; the fingers splay outwards from the hinges, so around an object wider than that they are
+//      inside it where they meet it. With rule 5 alone a 5 cm box still attached, at θc 9.08°, both fingers 3.3 mm inside it (4.4–4.8 cm
+//      boxes at 9.5–9.6°, 1.5–3.2 mm), the claw having closed 5° into it in one tick. Its own width, not its width across the jaws (fix
+//      round 2): a 4 cm cube met 8° off square is 4.52 cm across them, and read so it was never gripped.
 //
 // "Touching" in the sense of the narrow phase's manifolds (the tests' wall and chassis checks) is a positive contact impulse or a gap of at
 // most 0.5 mm: a manifold's distance ≤ 0 alone misses the contacts the solver acts on before the gap closes (ADR 0004 §8). The machine itself
@@ -84,7 +87,13 @@ export function squeezeN(spec: GripperSpec): number {
   return spec.clawStallTorqueNm / (2 * spec.fingerDegPerServoDeg) / cmToM(spec.fingerLengthCm / 2);
 }
 
-/** Rule 6: the widest object across the jaws that attaches, cm: the fingers' gap when parallel plus ATTACH_GAP_SLACK_CM. ref-uno-gripper@0: 4.3. */
+/** An object's own width, cm (rules 2 and 6): a box's smaller horizontal side, a cylinder's diameter; however it is turned. */
+export function ownWidthCm(object: GraspObject): number {
+  const { shape } = object;
+  return (shape.kind === 'box' ? 2 * Math.min(shape.halfM.x, shape.halfM.z) : 2 * shape.radiusM) * 100;
+}
+
+/** Rule 6: the widest object (its own width) that attaches, cm: the fingers' gap when parallel plus ATTACH_GAP_SLACK_CM. ref-uno-gripper@0: 4.3. */
 export function gripWidthCm(spec: GripperSpec): number {
   return 2 * spec.fingerHingeVCm - spec.fingerThicknessCm + ATTACH_GAP_SLACK_CM;
 }
@@ -153,7 +162,7 @@ export function createGrasp(world: PhysicsWorld, gripper: Gripper, objects: read
   const ordered = [...objects].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const breakN = breakForceN(spec);
   const widest = gripWidthCm(spec);
-  let held: { readonly object: GraspObject; readonly joint: FixedJoint; readonly thetaC: number } | null = null;
+  let held: { readonly object: GraspObject; readonly joint: FixedJoint; readonly thetaC: number; readonly betaAtAttach: readonly [number, number] } | null = null;
   let latch: number | null = null;
 
   /** The object's centre and rotation in the carriage frame (Rapier's local axes of the carriage body). */
@@ -240,7 +249,7 @@ export function createGrasp(world: PhysicsWorld, gripper: Gripper, objects: read
       const right = contactOf(gripper.fingers[1], object);
       if (right === null) continue;
       const at = view(object);
-      if (jawGapCm(at.u) > at.widthCm + CLAMP_GAP_SLACK_CM) continue;
+      if (jawGapCm(at.u) > ownWidthCm(object) + CLAMP_GAP_SLACK_CM) continue;
       const stop = (finger: GripperFinger, contact: NonNullable<typeof left>) => Math.min(touchingBeta(finger, contact), finger.betaDeg());
       return [stop(gripper.fingers[0], left), stop(gripper.fingers[1], right)];
     }
@@ -264,7 +273,7 @@ export function createGrasp(world: PhysicsWorld, gripper: Gripper, objects: read
       if (!(object.massG <= spec.maxPayloadG)) continue;
       const at = view(object);
       if (at.u < ATTACH_U_CM[0] || at.u > ATTACH_U_CM[1] || Math.abs(at.v) > ATTACH_V_CM || Math.abs(at.w) > at.heightCm / 2) continue;
-      if (at.widthCm > widest) continue;
+      if (ownWidthCm(object) > widest) continue;
       const left = contactOf(gripper.fingers[0], object);
       if (left === null) continue;
       const right = contactOf(gripper.fingers[1], object);
@@ -273,12 +282,13 @@ export function createGrasp(world: PhysicsWorld, gripper: Gripper, objects: read
 
       // Each finger freezes where its inner face meets the object: the attach comes up to CONTACT_GAP_M early, so the target moves by the
       // signed gap over the lever. The fingers then show touching, and push nothing (solver groups).
-      gripper.freezeFingers([touchingBeta(gripper.fingers[0], left), touchingBeta(gripper.fingers[1], right)]);
+      const betaAtAttach = [gripper.fingers[0].betaDeg(), gripper.fingers[1].betaDeg()] as const;
+      gripper.freezeFingers([Math.min(touchingBeta(gripper.fingers[0], left), betaAtAttach[0]), Math.min(touchingBeta(gripper.fingers[1], right), betaAtAttach[1])]);
       const { at: anchor, rotation: frame } = relative(object);
       const joint = world.createImpulseJoint(R.JointData.fixed(anchor, frame, { x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0, w: 1 }), gripper.carriage, object.body, true) as FixedJoint;
       joint.setContactsEnabled(false);
       object.collider.setSolverGroups(HELD_SOLVER_GROUPS);
-      held = { object, joint, thetaC: clawNow };
+      held = { object, joint, thetaC: clawNow, betaAtAttach };
       return;
     }
   };
@@ -303,11 +313,15 @@ export function createGrasp(world: PhysicsWorld, gripper: Gripper, objects: read
     view,
     update(dt) {
       if (held !== null) {
-        const { object, thetaC } = held;
+        const { object, thetaC, betaAtAttach } = held;
         const externalN = externalForceN(object, dt);
         const left = contactOf(gripper.fingers[0], object);
         const right = contactOf(gripper.fingers[1], object);
-        if (left !== null && right !== null) gripper.freezeFingers([touchingBeta(gripper.fingers[0], left), touchingBeta(gripper.fingers[1], right)]);
+        // Rule 3, never opening a finger past its β at the attach (fix round 2): an object whose back corners lie inside the fingers by the
+        // hinges (a 4.2 cm box) would otherwise have them follow it open to their stop, the claw reading −0.5° while it holds the box.
+        if (left !== null && right !== null) {
+          gripper.freezeFingers([Math.min(touchingBeta(gripper.fingers[0], left), betaAtAttach[0]), Math.min(touchingBeta(gripper.fingers[1], right), betaAtAttach[1])]);
+        }
         if (gripper.clawCommandDeg <= thetaC - RELEASE_HYSTERESIS_DEG) {
           detach();
         } else if (externalN > breakN) {
