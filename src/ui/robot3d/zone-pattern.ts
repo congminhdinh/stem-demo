@@ -1,11 +1,14 @@
 import type { PaintZone, ZoneKind } from '../../core/world/arena/arena-schema';
+import { bodyColorName } from '../../core/world/arena/body-colors';
 import { colorReflectance } from '../../core/world/arena/ground-paint';
 import { contrastRatio } from '../a11y/contrast';
+import { bodyMarks, type BodyMark } from './body-marks';
 
 // The patterns that tell the zones apart for a learner who cannot tell their pastel colours apart (N18 R8): the start is dotted, a target
 // is hatched with diagonal lines, an `area` (the schema's generic region: it means nothing to the world, and none of the lessons paints one;
 // an author who wants a place to keep out of paints it as an area) is cross-hatched; a checkpoint has its numbered tag (zone-tags.ts), so
-// no pattern. The patterns are visual only: the 3D mat's texture (mat-paint.ts), R4.2's fallback floor and the 2D map (ground-paint.ts
+// no pattern. N19 E4/E5: a zone the lesson names after a colour has that colour's mark instead (red striped across, green a grid, blue
+// large dots), as an object of that colour has on the 2D map (`markPattern`), so that a cube and its zone look alike. The patterns are visual only: the 3D mat's texture (mat-paint.ts), R4.2's fallback floor and the 2D map (ground-paint.ts
 // `patterns`) draw them over a zone's fill; the line sensor reads the scenario's vector paint (core/world/arena/ground-paint.ts), never a
 // texture, and the printed mat (core/scenario/arena-mat.ts, which does not share this painter) is left as it is.
 //
@@ -40,6 +43,45 @@ export function zonePattern(kind: ZoneKind): ZonePatternSpec | null {
       return null;
   }
 }
+
+/**
+ * N19 E4/E5: the marks of the palette's colours (body-marks.ts: red striped across, green a grid, blue large dots, as the foam cube's top
+ * face and the HUD's swatch have them) as patterns, at a zone's scale or an object's (a 4 cm cube: three stripes, three by three lines,
+ * seven dots). None of them is a kind's pattern: the start's dots are half the size of these, a target's hatch is at 45°, an area's crossed.
+ */
+export function markPattern(mark: BodyMark, scale: 'zone' | 'object'): ZonePatternSpec {
+  const zone = scale === 'zone';
+  switch (mark) {
+    case 'stripes':
+      return { kind: 'hatch', anglesDeg: [0], spacingCm: zone ? 2.6 : 1, widthCm: zone ? 0.32 : 0.3 };
+    case 'grid':
+      return { kind: 'hatch', anglesDeg: [0, 90], spacingCm: zone ? 3.2 : 1.2, widthCm: zone ? 0.32 : 0.25 };
+    case 'dots':
+      return zone ? { kind: 'dots', spacingCm: 4.4, radiusCm: 0.9 } : { kind: 'dots', spacingCm: 1.3, radiusCm: 0.38 };
+  }
+}
+
+/** The colour of a zone the lesson names after one (zones[].name red, green, blue), whose mark it then has. */
+const markOfName = (name: PaintZone['name']): BodyMark | null => (name === 'red' || name === 'green' || name === 'blue' ? bodyMarks[name] : null);
+
+/**
+ * N19 E5: the pattern a zone is drawn with: the mark of its colour for a zone the lesson names after one (so that the red zone looks like
+ * the red cube), whatever its kind; its kind's pattern for any other.
+ */
+export function zonePatternOf(zone: Pick<PaintZone, 'kind' | 'name'>): ZonePatternSpec | null {
+  const mark = markOfName(zone.name);
+  return mark === null ? zonePattern(zone.kind) : markPattern(mark, 'zone');
+}
+
+/** N19 E4: an object's mark on the 2D map, from its colour: the palette's red, green and blue have one; yellow (the light one) and any other colour none. */
+export function objectPattern(color: string | undefined): ZonePatternSpec | null {
+  const name = bodyColorName(color);
+  const mark = name === undefined ? null : bodyMarks[name];
+  return mark === null ? null : markPattern(mark, 'object');
+}
+
+/** An object's mark keeps this clear of its edge (cm): the map's outline of it is 0.25 cm wide. */
+export const OBJECT_PATTERN_MARGIN_CM = 0.3;
 
 type Point = readonly [number, number];
 type Polygon = readonly Point[];
@@ -258,12 +300,12 @@ const MIN_DOT_PX = 3;
 const SPECK_PX = 0.01;
 
 /**
- * Paints `zone`'s pattern over its fill: the lines of a hatch as one stroked path, the dots of a dotted zone as specks (a stroke of next
+ * Paints `zone`'s pattern (`zonePatternOf`: N19 E5, a zone named after a colour has its colour's mark) over its fill: the lines of a hatch as one stroked path, the dots of a dotted zone as specks (a stroke of next
  * to no length with round ends) in another. `pxPerCm` and `depthCm` place it as ground-paint.ts places the zone: rows run down from the
  * arena's far edge; `surface` says which ink. A zone with no pattern is left alone.
  */
-export function paintZonePattern(ctx: PatternPaintContext, zone: Pick<PaintZone, 'kind' | 'color' | 'polygonCm'>, frame: { pxPerCm: number; depthCm: number; surface: PatternSurface }): void {
-  const spec = zonePattern(zone.kind);
+export function paintZonePattern(ctx: PatternPaintContext, zone: Pick<PaintZone, 'kind' | 'color' | 'polygonCm' | 'name'>, frame: { pxPerCm: number; depthCm: number; surface: PatternSurface }): void {
+  const spec = zonePatternOf(zone);
   if (spec === null) return;
   const { pxPerCm, depthCm, surface } = frame;
   const px = (xCm: number) => xCm * pxPerCm;
