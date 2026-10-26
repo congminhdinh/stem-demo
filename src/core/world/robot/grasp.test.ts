@@ -103,7 +103,17 @@ describe('the grasp machine (N19 B2)', () => {
   });
 
   it('sees an object in the carriage frame: u forward, v left, w up from the boom’s tip, and its width across the jaws', () => {
-    const scene = gripperScene({ ground: floor(), objects: [cubeAhead('cube', 15), { ...cubeAhead('turned', 15, { offset: [0, 30], sizeCm: 3 }), yawDeg: 45 }] }, START);
+    const scene = gripperScene(
+      {
+        ground: floor(),
+        objects: [
+          cubeAhead('cube', 15),
+          { ...cubeAhead('turned', 15, { offset: [0, 30], sizeCm: 3 }), yawDeg: 45 },
+          { shape: 'cylinder', id: 'can', centerCm: [START.xCm + TIP0 + 11, START.yCm - 30], radiusCm: 1.5, heightCm: 5, massG: 15 },
+        ],
+      },
+      START,
+    );
     try {
       scene.set({ liftDeg: 0 });
       run(scene, wait(seconds(0.5)), seconds(0.5));
@@ -121,7 +131,15 @@ describe('the grasp machine (N19 B2)', () => {
       // Turned 45°, a 3 cm cube is 3·√2 cm across the jaws.
       expect(Math.abs(b.widthCm - 3 * Math.SQRT2)).toBeLessThan(0.01);
       expect(Math.abs(b.heightCm - 3)).toBeLessThan(0.01);
-      expect(scene.grasp.objects.map((object) => object.id)).toEqual(['cube', 'turned']);
+      // An upright cylinder is 2r across and its height high; laid on its side across the jaws, the other way round.
+      const can = scene.object('can');
+      const c = scene.grasp.view(can);
+      expect(Math.abs(c.v + 30)).toBeLessThan(0.01);
+      expect([c.widthCm, c.heightCm].map((n) => Math.round(n * 100) / 100)).toEqual([3, 5]);
+      can.body.setRotation({ x: Math.SQRT1_2, y: 0, z: 0, w: Math.SQRT1_2 }, true);
+      const lying = scene.grasp.view(can);
+      expect([lying.widthCm, lying.heightCm].map((n) => Math.round(n * 100) / 100)).toEqual([5, 3]);
+      expect(scene.grasp.objects.map((object) => object.id)).toEqual(['can', 'cube', 'turned']);
     } finally {
       scene.dispose();
     }
