@@ -464,6 +464,10 @@ Số đo và lệnh tái lập: `spikes/n19-b56/results.md`. Test: `world/robot/
   - **Chữ của overlay:** "IR: không có vật" (vi), "IR: no object" (en) (M6). Tab chân vẫn dùng chữ ngắn của nó.
   - **Overlay 3D trông gọn hơn:** tia IR bán kính 1,3 mm, chấm 3 mm, tia màu 0,9 mm, đốm 5,5 mm trong vòng 7,2 mm.
   - **Tag hai dòng tránh vùng của ngàm trên màn hình:** từ trên nhìn xuống, mọi chỗ ngay trên ngàm đều che tia và đốm, nên tag thử thêm hai chỗ hai bên.
+- **Vòng nhỏ (review E4/E5 lần 2):**
+  - **Lót 2D ít nhất 1 px mỗi bên trên màn hình** (N1). Phần lót rộng hơn mực `casingExtraCm(scale)` = `max(0,3 cm, 2 / scale)` (vòng giữ vật: `max(0,4 cm, 2 / scale)`), giống độ rộng tối thiểu theo pixel của hoa văn vật. Áp cho tia IR, tia màu, quầng đốm và vòng giữ vật. Ở 1× trên máy trường, 0,15 cm chỉ khoảng nửa pixel. Test đo trên bản đồ 300 × 200 px (1,6 px/cm) và 1600 × 1000 px.
+  - **Kiểm tra frame của overlay 3D dùng đúng màu overlay tô vùng đích** (N2): `overlay.sameView(a, b)` gọi `sameSensorView` với màu của lượt, không có lượt thì màu arena. Trước đó, khi không có lượt, check so vùng đích không có màu, nên một mục tiêu đặt theo màu qua mà không xin frame.
+  - Test heap của overlay xe kẹp lấy số nhỏ nhất của 3 lượt đo. Phần cấp phát của chính update như nhau mỗi lượt; worker cấp phát thêm khi máy tải nặng thì chỉ cộng vào.
   - Tia và đốm nằm giữa giá kẹp và khối, dưới servo kẹp, giữa hai ngón. Vì vậy chỉ thấy được khi nhìn từ cao xuống: từ 3/4 phía trước thì khối che, từ bên hông thì ngón che.
 - **Cho D4 (đo trong e2e của E4/E5):** hạ tay lên khối 4 cm có tâm cách gốc giá kẹp ≤ 3 cm thì giá kẹp đè lên khối làm khối nghiêng (z 2,34–2,48). Ở 3,5–4,5 cm thì gắp được; ở 3,5 và 4 cm IR thấy khối, ở 4,5 cm thì không (mặt gần ở u 2,5 > 2,3).
 - **Pixel rover** (`spikes/n19-e45/results/rover-pixels.txt`): 44 ảnh 3D và 14 ảnh bản đồ 2D có lớp cảm biến, so BASE 0a7a479 với HEAD: trùng bit. Riêng sandbox-high lật giữa hai trạng thái giữa các lần chạy ở cả hai bản; mỗi ảnh HEAD trùng bit một ảnh BASE.
