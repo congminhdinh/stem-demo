@@ -807,6 +807,27 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
         ),
         maxScore: 20,
       },
+      {
+        name: 'lower-arm-fully',
+        description:
+          'The reference that lowers the arm all the way (0°) at the end of the tape before it opens: the lowering stalls on the base and the ' +
+          'cube slides 1.7-1.8 cm off its middle (stack-off-centre), the base unmoved (0.05 cm). A near-miss stack, held like place-beside-base ' +
+          '(controller ruling D4 item B: plan §6\'s "hạ hết tay" is arm-too-low at 20 and this at 35).',
+        program: workspace(
+          hat('stem_on_start', [
+            ...stackGrab(STACK_LIFT_DEG),
+            ...stackToEnd,
+            lift('lower', 'DOWN'),
+            wait('lower-wait', 500),
+            claw('let-go', 'OPEN'),
+            wait('let-go-wait', 500),
+            drive('back', 'backward', CRUISE),
+            wait('back-time', 1000),
+            stop('done'),
+          ]),
+        ),
+        maxScore: 35,
+      },
     ],
   },
 };

@@ -510,6 +510,7 @@ describe('the programs of every scenario (N18 R5.2)', () => {
       'rb-grip-stack place-beside-base 35',
       'rb-grip-stack hold-over-base 35',
       'rb-grip-stack arm-too-low 20',
+      'rb-grip-stack lower-arm-fully 35',
     ]);
     for (const [key, exploit] of exploits) {
       expect(exploit.name, key).toMatch(/^[a-z0-9-]+$/);
@@ -850,6 +851,8 @@ describe('the gripper car’s lessons 8-11 (N19 D4, plan §6)', () => {
       'rb-grip-stack place-beside-base': 35,
       'rb-grip-stack hold-over-base': 35,
       'rb-grip-stack arm-too-low': 20,
+      // Controller ruling D4 item B: plan §6's "hạ hết tay (≤ 20)" is two exploits, the carry too low (20) and the arm lowered on the base (35).
+      'rb-grip-stack lower-arm-fully': 35,
     });
   });
 
