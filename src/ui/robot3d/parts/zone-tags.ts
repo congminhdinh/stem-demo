@@ -1,7 +1,11 @@
 import type { Scenario } from '../../../core/scenario/scenario';
 import type { PaintZone } from '../../../core/world/arena/arena-schema';
+import { bodyColor } from '../../../core/world/arena/body-colors';
+import type { RobotSnapshot } from '../../../core/world/snapshot';
 import { contrastRatio, parseColor } from '../../a11y/contrast';
+import type { CameraMode } from '../camera';
 import { robot3dColors } from '../colors';
+import { dynamicBodyIds } from '../scene-math';
 import { checkpointNumbers, type MatLabels } from './mat-paint';
 
 // The zones' tags in the 3D view (N18 R4.7 fix round 1): the names of the zones the lesson sends the robot to and the checkpoints'
@@ -41,6 +45,53 @@ export function zoneTags(scenario: Pick<Scenario, 'arena' | 'goals'>, labels: Ma
     const text = zone.kind === 'checkpoint' && number !== null && zone.name === undefined ? null : labels.zoneLabel(zone);
     return text === null && number === null ? [] : [{ zoneId: zone.id, text, number, color: zone.color, centerCm: middleOf(zone) }];
   });
+}
+
+/**
+ * N19 E5: a tag over an object a goal names (the learner's name of it, "Khối đỏ", and a dot of its colour), which follows the object and
+ * is hidden while the gripper holds it.
+ */
+export type ObjectTag = {
+  objectId: string;
+  text: string;
+  /** The object's colour (its own, or the 3D view's for an object): the tag's dot. */
+  color: string;
+  /** Its place among a snapshot's `objects` (scene-math.ts `dynamicBodyIds`). */
+  index: number;
+  /** Half its height, cm: its tag's line starts at its top. */
+  halfHeightCm: number;
+};
+
+/** N19 E5: the objects the goals name: the one a pick-and-place goal (or a push) moves or guards, the top and the bottom of a stack. */
+export function goalObjectIds(goals: Scenario['goals']): Set<string> {
+  const ids = new Set<string>();
+  for (const goal of goals) {
+    if (goal.kind === 'object-held' || goal.kind === 'object-placed' || goal.kind === 'object-unmoved' || goal.kind === 'object-in-zone') ids.add(goal.object);
+    else if (goal.kind === 'object-on-object') {
+      ids.add(goal.top);
+      ids.add(goal.bottom);
+    }
+  }
+  return ids;
+}
+
+/** N19 E5: the tags of the objects `scenario`'s goals name, in the arena's order: those the labels have words for (`objectLabel`). */
+export function objectTags(scenario: Pick<Scenario, 'arena' | 'goals'>, labels: MatLabels): ObjectTag[] {
+  const objectLabel = labels.objectLabel;
+  if (objectLabel === undefined) return [];
+  const named = goalObjectIds(scenario.goals);
+  const ids = dynamicBodyIds(scenario.arena);
+  return scenario.arena.objects.flatMap((object) => {
+    const text = named.has(object.id) ? objectLabel(object.id) : null;
+    if (text === null) return [];
+    const heightCm = object.shape === 'box' ? object.sizeCm[2] : object.heightCm;
+    return [{ objectId: object.id, text, color: bodyColor('object', object.color), index: ids.indexOf(object.id), halfHeightCm: heightCm / 2 }];
+  });
+}
+
+/** N19 E5: whether an object's tag is hidden: while the gripper holds its object (the HUD's chip names it then), and in "Theo xe" (N18 R4.7). */
+export function objectTagHidden(tag: Pick<ObjectTag, 'objectId'>, world: RobotSnapshot, mode: CameraMode): boolean {
+  return mode === 'follow' || world.robot.gripper?.heldId === tag.objectId;
 }
 
 /** Every text the view writes for `scenario`'s zones: what a brand check reads (no vendor's name may be shown). */

@@ -17,7 +17,9 @@ import { freeViewForward, freeViewSceneOf, sightWalls, type FreeViewScene } from
 import { FloorPicker } from './FloorPicker';
 import type { CardEdge, HudCorner, ToolsCorner } from './hud-corner';
 import { robot3dColors as colors } from './colors';
+import { capitalise, objectName } from './check-report';
 import { tierLook } from './lighting/look';
+import { goalObjectIds } from './parts/zone-tags';
 import { StudioLighting } from './lighting/StudioLighting';
 import { GltfArena } from './parts/GltfArena';
 import { flagOf, GltfRobot } from './parts/GltfRobot';
@@ -311,6 +313,8 @@ type ContentProps = {
   span: ArenaSpan;
   tier: QualityTier;
   zoneLabel: (zone: PaintZone) => string | null;
+  /** N19 E5: an object's words for its tag; none for a lesson whose goals name no object. */
+  objectLabel: ((objectId: string) => string | null) | undefined;
   viewForward: readonly [number, number];
   cameraMode: CameraMode;
   /** The zones' tags: shown from one frame after the first, laid out clear of what floats over the view. */
@@ -328,7 +332,7 @@ const NEEDED_PROPS = ['prop_wall', 'prop_block', 'prop_cardboard', 'prop_marker'
  * What the canvas shows (N18 R4.7): the modelled robot and arena under the studio light once their files are in (the canvas waits for
  * them under "Đang tải 3D…", Suspense), or R4.2's procedural shapes when the files do not load.
  */
-function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewForward, cameraMode, tagsReady, overlays }: ContentProps) {
+function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, objectLabel, viewForward, cameraMode, tagsReady, overlays }: ContentProps) {
   const look = tierLook[tier];
   const assets = use(loadRobotAssets(look.detail));
   const gl = useThree((state) => state.gl);
@@ -343,7 +347,7 @@ function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewF
   useLayoutEffect(() => {
     if (look.detail === 'high') assets?.sharpen(Math.min(8, gl.capabilities.getMaxAnisotropy()));
   }, [assets, gl, look]);
-  const labels = useMemo(() => ({ zoneLabel }), [zoneLabel]);
+  const labels = useMemo(() => (objectLabel === undefined ? { zoneLabel } : { zoneLabel, objectLabel }), [zoneLabel, objectLabel]);
   // The robot's box the zones' tags keep clear of: with the wheels, and up to a raised flag's top (about 21 cm, 10 cm round) if it has one.
   const robotBox = useMemo<RobotTagBox>(() => {
     const wheel = model.wheels[0]?.widthM ?? 0;
@@ -420,7 +424,16 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
   const replaying = useStore(store, (state) => state.round !== null && state.active && !state.locked);
   // N18 R4.3: the sensor overlays write a distance with the learner's decimal sign.
   const t = useText();
-  const decimal = useLocale() === 'vi' ? ',' : '.';
+  const locale = useLocale();
+  const decimal = locale === 'vi' ? ',' : '.';
+  // N19 E5: the objects' tags say what the learner calls each ("Khối đỏ"), in the round the view shows (as the HUD's chip does,
+  // HeldChip.tsx). Only for a lesson whose goals name objects: a rover's lessons have none, and their labels never change.
+  const hasGoalObjects = useMemo(() => goalObjectIds(scenario.goals).size > 0, [scenario]);
+  const round = useStore(store, (state) => (hasGoalObjects ? (state.round?.index ?? 0) : 0));
+  const objectLabel = useMemo(
+    () => (hasGoalObjects ? (id: string) => capitalise(objectName(t, scenario, id, round), locale) : undefined),
+    [hasGoalObjects, t, scenario, round, locale],
+  );
   const unit = t('robot.ruler.cm', { value: '' }).trim();
   // N19 E5: every line the gripper's tag can say, made once (only a car with a gripper's sensors has the tag).
   const gripperWords = useMemo<GripperWords | undefined>(
@@ -447,7 +460,7 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
       camera={{ fov: FOV_DEG, near: 0.01, far: 60, position: [span.widthM / 2, 1, 1] }}
     >
       <Suspense fallback={null}>
-        <SceneContent scenario={scenario} kit={kit} model={model} view={view} span={span} tier={tier} zoneLabel={zoneLabel} viewForward={viewForward} cameraMode={cameraMode} tagsReady={tagsReady} overlays={overlays} />
+        <SceneContent scenario={scenario} kit={kit} model={model} view={view} span={span} tier={tier} zoneLabel={zoneLabel} objectLabel={objectLabel} viewForward={viewForward} cameraMode={cameraMode} tagsReady={tagsReady} overlays={overlays} />
         <CompiledDraw onDrawn={onDrawn} cap={drawCap} onDraw={onLowStep ? lowDraw : undefined} />
       </Suspense>
       <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} resetKey={resetKey} hud={hud} card={card} tools={toolsCorner} walls={walls} props={props} replaying={replaying} {...(commands ? { commands } : {})} />

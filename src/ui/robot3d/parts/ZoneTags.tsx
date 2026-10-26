@@ -9,9 +9,10 @@ import { robot3dColors as colors } from '../colors';
 import type { CardEdge, HudCorner, ToolsCorner } from '../hud-corner';
 import { arenaToThree } from '../scene-math';
 import { labelBoxes, MAX_LABEL_BOXES } from '../sensor-label-boxes';
+import { registerZoneTags } from '../zone-tags-state';
 import type { MatLabels } from './mat-paint';
 import { boxOfInto, createTagLayout, inPolygon, TAG_LIFTS_M, TAG_PLACES, type ScreenBox, type TagPlace } from './zone-tag-layout';
-import { tagBadgeColor, zoneTags, type ZoneTag } from './zone-tags';
+import { objectTagHidden, objectTags, tagBadgeColor, zoneTags, type ObjectTag, type ZoneTag } from './zone-tags';
 
 // The zones' tags over the mat (N18 R4.7 fix round 1, zone-tags.ts): each a rounded tag drawn on a canvas (a checkpoint's number in a
 // disc of the zone's colour, or a target's dot and name), a sprite that faces the camera and keeps its size on the screen, over the
@@ -19,7 +20,9 @@ import { tagBadgeColor, zoneTags, type ZoneTag } from './zone-tags';
 // Fix round 2 (review N1): every frame they are laid out so that none covers the robot, its raised flag, what floats over the view or
 // another tag (zone-tag-layout.ts); the zone the robot is in has none shown, and "Theo xe" shows none. The lines are thin quads turned to
 // the camera and drawn with the contact shadows' shader (no program of their own); the tags' textures are made once the app's font is
-// in, and the tags come one frame after the view's first, so they cost its first frame nothing.
+// in, and the tags come one frame after the view's first, so they cost its first frame nothing. N19 E5: the objects the goals name have
+// smaller tags of the same kind ("Khối đỏ" and a dot of its colour) over their tops, laid out with the zones' and following their object;
+// one is hidden while the gripper holds its object, and in "Theo xe".
 
 /** The tag's height on the screen as a share of the canvas's, through the camera's field of view (a sprite of fixed size). */
 const TAG_SCREEN = 0.062;
@@ -30,8 +33,11 @@ const FONT = '"Be Vietnam Pro", system-ui, sans-serif';
 const TEXT_FONT = `600 32px ${FONT}`;
 /** The line's width on the screen (px). */
 const LINE_PX = 1.5;
-/** N18 P2: what the layout is made from, as numbers (ZoneTags' frame callback): two 4 × 4 matrices, 6 more and the sensors' tags. */
+/** N18 P2: what the layout is made from, as numbers (ZoneTags' frame callback): two 4 × 4 matrices, 6 more and the sensors' tags (N19 E5: then 4 for each object's tag). */
 const SEEN_LENGTH = 16 + 16 + 6 + 4 * MAX_LABEL_BOXES;
+/** N19 E5: an object's tag is this much smaller on the screen than a zone's, and its line's top this high over the object's top (m). */
+const OBJECT_TAG_SHARE = 0.8;
+const OBJECT_TAG_LIFT_M = 0.06;
 
 const hex = (colour: string): [number, number, number] => {
   const value = Number.parseInt(colour.slice(1, 7), 16);
@@ -40,6 +46,8 @@ const hex = (colour: string): [number, number, number] => {
 const shade = (colour: string, k: number) => `rgb(${hex(colour).map((c) => Math.round(c * (1 - k))).join(', ')})`;
 
 type DrawnTag = { texture: CanvasTexture; canvasWidth: number; pillWidth: number };
+/** A zone's polygon (the arena's cm), which the robot's own zone is told by. */
+type PaintZoneShape = readonly (readonly [number, number])[];
 
 /** Draws `tag` on a canvas: null where a 2D canvas cannot be made. */
 function drawTag(tag: ZoneTag): DrawnTag | null {
@@ -120,12 +128,21 @@ export function ZoneTags({ scenario, labels, view, mode, overlays, robot }: Zone
   }, [fontReady]);
   const tags = useMemo(() => {
     void fontReady;
-    return zoneTags(scenario, labels).flatMap((tag) => {
+    const material = (drawn: DrawnTag) => new SpriteMaterial({ map: drawn.texture, depthTest: false, depthWrite: false, sizeAttenuation: false, transparent: true });
+    const zones = zoneTags(scenario, labels).flatMap((tag) => {
       const drawn = drawTag(tag);
       if (!drawn) return [];
       const polygon = scenario.arena.paint.zones.find((zone) => zone.id === tag.zoneId)?.polygonCm ?? [];
-      return [{ tag, drawn, polygon, material: new SpriteMaterial({ map: drawn.texture, depthTest: false, depthWrite: false, sizeAttenuation: false, transparent: true }) }];
+      return [{ key: `zone:${tag.zoneId}`, tag, object: null as ObjectTag | null, drawn, polygon, material: material(drawn), share: 1 }];
     });
+    // N19 E5: an object's tag is drawn as a zone's with its name and its colour's dot, smaller.
+    const objects = objectTags(scenario, labels).flatMap((object) => {
+      const tag: ZoneTag = { zoneId: object.objectId, text: object.text, number: null, color: object.color, centerCm: [0, 0] };
+      const drawn = drawTag(tag);
+      if (!drawn) return [];
+      return [{ key: `object:${object.objectId}`, tag, object: object as ObjectTag | null, drawn, polygon: [] as PaintZoneShape, material: material(drawn), share: OBJECT_TAG_SHARE }];
+    });
+    return [...zones, ...objects];
   }, [scenario, labels, fontReady]);
   // The lines: a unit quad standing on its bottom edge, with an alpha map that lets all of it through (so it is drawn with the contact
   // shadows' program: MeshBasicMaterial, an alpha map, transparent).
@@ -162,6 +179,15 @@ export function ZoneTags({ scenario, labels, view, mode, overlays, robot }: Zone
   });
   const sprites = useRef<(Sprite | null)[]>([]);
   const lines = useRef<(Mesh | null)[]>([]);
+  // N19 E5: what each tag says and whether it is shown, for the E2E (zone-tags-state.ts).
+  const gl = useThree((state) => state.gl);
+  useEffect(
+    () =>
+      registerZoneTags(gl.domElement, () =>
+        tags.map(({ tag, object }, i) => ({ id: tag.zoneId, kind: object === null ? 'zone' : 'object', text: tag.text, number: tag.number, visible: sprites.current[i]?.visible === true })),
+      ),
+    [gl, tags],
+  );
   // The pill TAG_SCREEN of the canvas high (the sprite has the shadow's margin round it).
   const spriteHeight = TAG_SCREEN * 2 * Math.tan((fovDeg * Math.PI) / 360) * ((PILL_PX + 2 * MARGIN_PX) / PILL_PX);
 
@@ -193,8 +219,10 @@ export function ZoneTags({ scenario, labels, view, mode, overlays, robot }: Zone
       at: [0, 0] as [number, number],
       toPlace: tags.map(() => ({ anchors: [null, null, null] as ([number, number] | null)[], points: TAG_LIFTS_M.map((): [number, number] => [0, 0]), width: 0, height: 0, hidden: false })),
       /** What the last layout was made from: the camera's two matrices, the robot's pose, the view's height, the mode and the sensors' tags (and, by identity, the overlays and the robot's box). */
-      seen: new Float64Array(SEEN_LENGTH).fill(Number.NaN),
-      next: new Float64Array(SEEN_LENGTH),
+      seen: new Float64Array(SEEN_LENGTH + 4 * tags.length).fill(Number.NaN),
+      next: new Float64Array(SEEN_LENGTH + 4 * tags.length),
+      /** N19 E5: where each object's tag stands this frame (m: x, its line's foot, z), for its sprite and its line. */
+      objectAt: new Float64Array(3 * tags.length),
       seenOverlays: null as ZoneTagsProps['overlays'] | null,
       seenRobot: null as RobotTagBox | null,
     };
@@ -223,8 +251,19 @@ export function ZoneTags({ scenario, labels, view, mode, overlays, robot }: Zone
       next[at + 2] = used ? label.bottom : 0;
       next[at + 3] = used ? label.top : 0;
     }
+    // N19 E5: each object's place, and whether it is held (its tag hidden then).
+    const heldId = world.robot.gripper?.heldId ?? null;
+    for (let i = 0; i < tags.length; i++) {
+      const object = tags[i]!.object;
+      const at = SEEN_LENGTH + 4 * i;
+      const pose = object === null ? undefined : world.objects[object.index]?.pose;
+      next[at] = pose?.xCm ?? 0;
+      next[at + 1] = pose?.yCm ?? 0;
+      next[at + 2] = pose?.zCm ?? 0;
+      next[at + 3] = object !== null && heldId === object.objectId ? 1 : 0;
+    }
     let same = over === work.seenOverlays && box === work.seenRobot;
-    for (let i = 0; same && i < SEEN_LENGTH; i++) same = next[i] === seen[i];
+    for (let i = 0; same && i < next.length; i++) same = next[i] === seen[i];
     if (same) return;
     seen.set(next);
     work.seenOverlays = over;
@@ -273,37 +312,51 @@ export function ZoneTags({ scenario, labels, view, mode, overlays, robot }: Zone
     // N18 R4.3: the ultrasonic distance tags (sensor-label-boxes.ts).
     for (let i = 0; i < labelBoxes.count; i++) avoid.push(labelBoxes.boxes[i]!);
     for (let i = 0; i < tags.length; i++) {
-      const { tag, drawn, polygon } = tags[i]!;
+      const { tag, drawn, polygon, object, share } = tags[i]!;
       const entry = work.toPlace[i]!;
-      const x = tag.centerCm[0] / 100;
-      const z = 0 - tag.centerCm[1] / 100;
-      for (let lift = 0; lift < TAG_LIFTS_M.length; lift++) entry.anchors[lift] = project(x, ZONE_TAG_M + TAG_LIFTS_M[lift]!, z, entry.points[lift]!) ? entry.points[lift]! : null;
-      const spriteWidth = spriteHeight * (drawn.canvasWidth / (PILL_PX + 2 * MARGIN_PX));
+      // A zone's tag over its middle at ZONE_TAG_M; N19 E5: an object's over its top, wherever the world has it.
+      const pose = object === null ? undefined : world.objects[object.index]?.pose;
+      const x = pose === undefined ? tag.centerCm[0] / 100 : pose.xCm / 100;
+      const z = pose === undefined ? 0 - tag.centerCm[1] / 100 : 0 - pose.yCm / 100;
+      const foot = pose === undefined || object === null ? 0.001 : (pose.zCm + object.halfHeightCm) / 100;
+      const base = pose === undefined || object === null ? ZONE_TAG_M : foot + OBJECT_TAG_LIFT_M;
+      work.objectAt[3 * i] = x;
+      work.objectAt[3 * i + 1] = foot;
+      work.objectAt[3 * i + 2] = z;
+      for (let lift = 0; lift < TAG_LIFTS_M.length; lift++) entry.anchors[lift] = project(x, base + TAG_LIFTS_M[lift]!, z, entry.points[lift]!) ? entry.points[lift]! : null;
+      const spriteWidth = share * spriteHeight * (drawn.canvasWidth / (PILL_PX + 2 * MARGIN_PX));
       entry.width = spriteWidth * elements[0]! * (drawn.pillWidth / drawn.canvasWidth);
-      entry.height = spriteHeight * elements[5]! * (PILL_PX / (PILL_PX + 2 * MARGIN_PX));
-      entry.hidden = cameraMode === 'follow' || inPolygon(work.at, polygon);
+      entry.height = share * spriteHeight * elements[5]! * (PILL_PX / (PILL_PX + 2 * MARGIN_PX));
+      entry.hidden = object === null ? cameraMode === 'follow' || inPolygon(work.at, polygon) : pose === undefined || objectTagHidden(object, world, cameraMode);
     }
     const places = work.layout.place(work.toPlace, avoid);
     for (let i = 0; i < tags.length; i++) {
-      const { tag, drawn } = tags[i]!;
+      const { drawn, object } = tags[i]!;
       const sprite = sprites.current[i];
       const leader = lines.current[i];
       const place: TagPlace | null = places[i] ?? null;
+      const x = work.objectAt[3 * i]!;
+      const foot = work.objectAt[3 * i + 1]!;
+      const z = work.objectAt[3 * i + 2]!;
+      const top = (object === null ? ZONE_TAG_M : foot + OBJECT_TAG_LIFT_M) + (place ? TAG_LIFTS_M[place.lift] : 0);
       if (sprite) {
         sprite.visible = place !== null;
         if (place) {
           sprite.center.set((MARGIN_PX + place.centerX * drawn.pillWidth) / drawn.canvasWidth, MARGIN_PX / (PILL_PX + 2 * MARGIN_PX));
-          sprite.position.y = ZONE_TAG_M + TAG_LIFTS_M[place.lift];
+          // A zone's tag stands over its zone where it was made; N19 E5: an object's goes where its object is.
+          if (object === null) sprite.position.y = top;
+          else sprite.position.set(x, top, z);
         }
       }
       if (leader) {
         leader.visible = place !== null;
         if (place) {
-          const x = tag.centerCm[0] / 100;
-          const z = 0 - tag.centerCm[1] / 100;
-          const height = ZONE_TAG_M + TAG_LIFTS_M[place.lift];
+          // A zone's line stands on the mat (at 1 mm) and is as tall as its tag's height, as it always was; an object's from its top.
+          const bottom = object === null ? 0 : foot;
+          const height = top - bottom;
+          if (object !== null) leader.position.set(x, foot, z);
           // A line LINE_PX wide at its distance, turned to face the camera about the upright.
-          const far = work.distance.set(x, height / 2, z).distanceTo(camera.position);
+          const far = work.distance.set(x, bottom + height / 2, z).distanceTo(camera.position);
           leader.scale.set((LINE_PX * 2 * far * Math.tan((fovDeg * Math.PI) / 360)) / Math.max(1, size.height), height, 1);
           leader.rotation.y = Math.atan2(camera.position.x - x, camera.position.z - z);
         }
@@ -313,18 +366,20 @@ export function ZoneTags({ scenario, labels, view, mode, overlays, robot }: Zone
 
   return (
     <group name="zone-tags">
-      {tags.map(({ tag, drawn, material }, i) => {
+      {tags.map(({ key, tag, object, drawn, material, share }, i) => {
         const [x, , z] = arenaToThree(tag.centerCm[0], tag.centerCm[1], 0);
-        const height = spriteHeight;
+        const height = share * spriteHeight;
+        // N19 E5: an object's tag and line are placed by the frame callback alone (they follow the object), so a render never moves them.
+        const placed = object === null;
         return (
-          <group key={tag.zoneId}>
+          <group key={key}>
             <mesh
               ref={(node) => {
                 lines.current[i] = node;
               }}
               geometry={line.geometry}
               material={line.material}
-              position={[x, 0.001, z]}
+              {...(placed ? { position: [x, 0.001, z] as [number, number, number] } : { visible: false })}
               renderOrder={29}
             />
             <sprite
@@ -332,7 +387,7 @@ export function ZoneTags({ scenario, labels, view, mode, overlays, robot }: Zone
                 sprites.current[i] = node;
               }}
               material={material}
-              position={[x, ZONE_TAG_M, z]}
+              {...(placed ? { position: [x, ZONE_TAG_M, z] as [number, number, number] } : { visible: false })}
               center={[(MARGIN_PX + TAG_PLACES[0]!.centerX * drawn.pillWidth) / drawn.canvasWidth, MARGIN_PX / (PILL_PX + 2 * MARGIN_PX)]}
               scale={[height * (drawn.canvasWidth / (PILL_PX + 2 * MARGIN_PX)), height, 1]}
               renderOrder={30}

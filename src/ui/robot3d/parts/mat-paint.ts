@@ -14,6 +14,8 @@ import { wallBox } from '../scene-math';
 export type MatLabels = {
   /** A zone's name (the learner's words), or null to leave it unnamed. */
   zoneLabel(zone: PaintZone): string | null;
+  /** N19 E5: an object's name for its tag in the 3D view ("Khối đỏ"), or null for none; without it no object has a tag. */
+  objectLabel?(objectId: string): string | null;
 };
 
 /** Checkpoint zones numbered by the order the scenario's routes visit them (then by their place in the paint). */
