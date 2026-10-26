@@ -33,8 +33,9 @@ import type { CheckLeft, RobotRunStore, ShownRound } from './robot-run-store';
 //     start does (the run store's start failure: the message over the view, the warnings on the blocks), and sends no result. Anything else
 //     that throws (a bug of the lab, a result the bridge refuses to send) ends the check with `failure`: the learner is told it did not
 //     complete and nothing reached the lesson, and no result is shown as if it had. Whatever throws, the host is told the check ended.
-//   - Replay ("Xem lại"): a round of the last check, run again in the lab's session as that variant's check run, at 1× from its start
-//     (the run store's `replay`): determinism makes it the same run, so nothing was recorded.
+//   - Replay ("Xem lại", which the result panel offers for a round that failed): a round of the last check, run again in the lab's
+//     session as that variant's check run, at 1× from its start (the run store's `replay`): determinism makes it the same run, so nothing
+//     was recorded.
 
 /** How long after a start a cancel is the second click of a double click on Kiểm tra (the stop stands where it was), ms. */
 export const CANCEL_GUARD_MS = 400;
@@ -45,7 +46,7 @@ export type CheckSpeed = (typeof CHECK_SPEEDS)[number];
 
 /**
  * N18 final fix I1: the speed a check runs at until the learner chooses another. Fast (headless) gives the result 1× and 4× give, by
- * construction (Review Focus 2), and "Xem lại" shows any of its rounds at 1×.
+ * construction (Review Focus 2), and "Xem lại" shows at 1× any round that failed (the result panel offers it for those, CheckResults.tsx).
  */
 export const DEFAULT_CHECK_SPEED: CheckSpeed = 'fast';
 
