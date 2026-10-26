@@ -766,7 +766,9 @@ test.describe('the camera by keyboard (N18 R8)', () => {
     await page.keyboard.press('Shift+ArrowRight');
     const right = await settled(frame);
     expect(right.azimuth - again.azimuth).toBeCloseTo(7.5, 0);
-    expect(right.distance).toBeCloseTo(again.distance, 3);
+    // The canvas says the pose rounded to a thousandth, and this view's distance sits on a rounding edge (1.7835): the float noise of an orbit
+    // reads 1.783 or 1.784, which `toBeCloseTo(…, 3)` (a difference under 0.0005) takes for a change. It is the same distance to 0.005.
+    expect(right.distance).toBeCloseTo(again.distance, 2);
     await page.keyboard.press('Shift+ArrowLeft');
     await page.keyboard.press('Shift+ArrowLeft');
     expect((await settled(frame)).azimuth - again.azimuth).toBeCloseTo(-7.5, 0);
