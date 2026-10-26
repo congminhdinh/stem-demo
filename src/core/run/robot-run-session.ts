@@ -16,7 +16,7 @@ import { createRunConsole, type ConsoleSnapshot, type RunConsole } from '../prog
 import { EXEC_SLICE_MS } from '../program/limits';
 import { runYbcProgram } from '../program/ybc-interpreter';
 import type { YbcProgramIR } from '../program/ybc-ir';
-import type { GoalFrame } from '../scenario/goals/frame';
+import type { GoalContact, GoalFrame } from '../scenario/goals/frame';
 import { inputsDueBetween, runEndingContact, type Scenario } from '../scenario/scenario';
 import type { Arena } from '../world/arena/arena-schema';
 import { isPhysicsReady, PHYSICS_DT_S, PHYSICS_HZ } from '../world/rapier';
@@ -91,7 +91,7 @@ import { createVirtualScheduler, nextTurn, type VirtualScheduler } from './virtu
 //   - the time limit: a run is the ticks up to t = timeLimitS (the first tick at or after it, when the limit is not a whole number of
 //     ticks), every one judged; the next tick, which would go past it, ends the run instead (`time-limit`);
 //   - the first contact with a tag of the scenario's `endOnContact` (scenario.ts `runEndingContact`): that tick is the last, its frame
-//     judged (`contact`).
+//     judged (`contact`); N18 bt-lab-fix (c3): the snapshot then also holds the collider that ended it (`endContact`, its id and tags).
 // Either way the program is stopped, the status is `finished`, the scorer is told (`RobotScorer.end`) and the world stays at that moment:
 // nothing more is owed, pressed or ticked, as after an error.
 //
@@ -191,6 +191,12 @@ export type RobotRunSnapshot = {
   slowerThanRealtime: boolean;
   /** N18 R6.2: present once the scenario ended the run (its time limit or a contact); left out before and for every other state. */
   end?: RobotRunEnd;
+  /**
+   * N18 bt-lab-fix (c3): the collider that ended the run, when `end` is a contact: its id and every tag it has, its kind (`wall`, `box`…)
+   * among them, so that the UI can say "the wall" for a wall that carries the scenario's `obstacle` tag. Left out for every other end and
+   * state. It is no part of `end` (which is as it was) nor of the world (the hashes are unchanged).
+   */
+  endContact?: GoalContact;
   /** N18 R4.8: present (true) while the run is teleop (no program; the drive follows `teleop` commands); left out for every other run. */
   teleop?: true;
 };
@@ -361,6 +367,8 @@ type ActiveRun = {
   moved: boolean;
   /** N18 R6.2: how the scenario ended the run, once it did. */
   end: RobotRunEnd | null;
+  /** N18 bt-lab-fix (c3): the collider a contact end touched (a copy), else null. */
+  endContact: GoalContact | null;
   /** Once the program finished: the robot's outline on the last tick, and the ticks in a row it has been at rest (see the top of this file). */
   restPoints: readonly (readonly [number, number])[] | null;
   restTicks: number;
@@ -461,11 +469,12 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
   };
 
   /** N18 R6.2: the scenario ends the run (its time limit or a contact): the program stops, the status is finished, the scorer is told. */
-  const endRun = (run: ActiveRun, end: RobotRunEnd) => {
+  const endRun = (run: ActiveRun, end: RobotRunEnd, contact: GoalContact | null = null) => {
     run.controller.abort();
     run.timers.dispose();
     run.status = 'finished';
     run.end = end;
+    run.endContact = contact === null ? null : { otherId: contact.otherId, tags: [...contact.tags] };
     run.activeBlockId = null;
     clearBadge(run);
     run.dirty = true;
@@ -524,6 +533,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       world,
       slowerThanRealtime: run.slower,
       ...(run.end === null ? {} : { end: { ...run.end } }),
+      ...(run.endContact === null ? {} : { endContact: { otherId: run.endContact.otherId, tags: [...run.endContact.tags] } }),
       ...(run.teleop === null ? {} : { teleop: true as const }),
     });
   };
@@ -653,7 +663,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
     }
     const tag = endsOnContact ? runEndingContact(scenario, frame.contacts) : null;
     if (tag !== null) {
-      endRun(run, { reason: 'contact', atS: frame.tS, tag });
+      endRun(run, { reason: 'contact', atS: frame.tS, tag }, frame.contacts.find((contact) => contact.tags.includes(tag)) ?? null);
       return false;
     }
     if (run.status === 'finished') {
@@ -880,6 +890,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       fitFrames: 0,
       moved: false,
       end: null,
+      endContact: null,
       restPoints: null,
       restTicks: 0,
       publishedVerdict: '',

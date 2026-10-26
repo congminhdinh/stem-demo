@@ -1,4 +1,5 @@
 import type { RobotRunEnd, RobotRunError } from '../../core/run/robot-run-session';
+import type { GoalContact } from '../../core/scenario/goals/frame';
 import type { RobotCheckResult } from '../../core/scenario/check-result';
 import { goalReasons, type GoalResult } from '../../core/scenario/goals';
 import type { RobotGoalSpec, Scenario } from '../../core/scenario/scenario';
@@ -10,7 +11,9 @@ import { formatNumber } from './format';
 //
 //   - Why: each goal that failed in a round says what happened, from its `reasonKey` (`robot.check.why.<reason>`, a clause), and when and in
 //     which round: "Xe chạm tường lúc 12,4 s ở lượt 2" with its `atS` (one decimal, the learner's decimal mark), "Xe chưa tới được vùng cần
-//     đến ở lượt 1" without one. A contact names what was touched: the goal's tag, or for a stop the crash cut short the tag the run ended on.
+//     đến ở lượt 1" without one. A contact names what was touched: the goal's tag, or for a stop the crash cut short the tag the run ended on;
+//     N18 bt-lab-fix (c3): a wall that carries that tag (the dock wall is an `obstacle` by its tag and a wall by its kind) is named a wall,
+//     from the collider the run ended on (`endContact`), when the report has it.
 //   - A round whose program ended in an error fails every goal with `program-error` (R6.2): that is said once, on the round, not on each goal.
 //   - The numbers are the check's (RobotCheckResult and each round's end), never a live score: a round that ended in an error scores 0 here.
 
@@ -22,6 +25,8 @@ export type VariantOutcome = {
   readonly timeBonus: number;
   readonly goals: readonly GoalResult[];
   readonly end: RobotRunEnd | null;
+  /** N18 bt-lab-fix (c3): the collider a contact end touched (the run's `endContact`); left out when the round did not end on a contact. */
+  readonly endContact?: GoalContact;
   readonly error: RobotRunError | null;
 };
 
@@ -53,6 +58,15 @@ const thingOf = (t: Text, tag: string | undefined): string => {
   return t(isMessageKey(key) ? key : 'robot.check.thing.other');
 };
 
+/**
+ * What a contact touched, in the learner's words: a wall when the collider the round ended on is one (its kind `wall` is among its tags) and
+ * has the `tag` asked about, since the tag may be one a wall shares with other things (`obstacle`); otherwise what the tag names.
+ */
+const hitOf = (t: Text, tag: string | undefined, variant: VariantOutcome): string => {
+  const hit = variant.endContact;
+  return thingOf(t, tag !== undefined && hit !== undefined && hit.tags.includes(tag) && hit.tags.includes('wall') ? 'wall' : tag);
+};
+
 /** A clause with its time and round. */
 const when = (t: Text, locale: Locale, what: string, index: number, atS: number | undefined): string =>
   atS === undefined
@@ -73,9 +87,9 @@ export function goalFailureText(t: Text, locale: Locale, spec: RobotGoalSpec, re
   }
   const thing =
     result.reasonKey === goalReasons.contact
-      ? thingOf(t, spec.kind === 'avoid-contact' ? spec.tag : undefined)
+      ? hitOf(t, spec.kind === 'avoid-contact' ? spec.tag : undefined, variant)
       : result.reasonKey === goalReasons.runEndedContact
-        ? thingOf(t, variant.end?.tag)
+        ? hitOf(t, variant.end?.tag, variant)
         : '';
   return when(t, locale, t(key, { thing }), variant.index, result.atS);
 }

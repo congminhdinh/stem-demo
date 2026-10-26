@@ -50,6 +50,44 @@ describe('why a goal of a check was not met (N18 R6.3)', () => {
     expect(goalFailureText(viText, 'vi', odd, touched.goals[0]!, touched)).toBe('Xe chạm vật cần tránh lúc 3,0 s ở lượt 1');
   });
 
+  describe('names what was hit by the collider itself (N18 bt-lab-fix, c3)', () => {
+    const noBump = miniMission.goals.find((goal) => goal.id === 'no-bump')!;
+    const dockWall = { otherId: 'dock-wall', tags: ['wall', 'obstacle'] } as const;
+    const cone = { otherId: 'cone-2', tags: ['box', 'obstacle'] } as const;
+    const crash = (endContact: VariantOutcome['endContact']) =>
+      variant(2, {
+        end: { reason: 'contact', atS: 14.392, tag: 'obstacle' },
+        ...(endContact === undefined ? {} : { endContact }),
+        goals: [failed('no-bump', goalReasons.contact, 14.392), failed('park', goalReasons.runEndedContact, 14.392)],
+      });
+
+    it('says the wall when the dock wall (an obstacle by its tag, a wall by its kind) was hit, and the obstacle when a cone was', () => {
+      const wall = crash(dockWall);
+      expect(goalFailureText(viText, 'vi', noBump, wall.goals[0]!, wall)).toBe('Xe chạm tường lúc 14,4 s ở lượt 3');
+      expect(goalFailureText(enText, 'en', noBump, wall.goals[0]!, wall)).toBe('The robot touched a wall at 14.4 s in round 3');
+      const cones = crash(cone);
+      expect(goalFailureText(viText, 'vi', noBump, cones.goals[0]!, cones)).toBe('Xe chạm vật cản lúc 14,4 s ở lượt 3');
+      expect(goalFailureText(enText, 'en', noBump, cones.goals[0]!, cones)).toBe('The robot touched an obstacle at 14.4 s in round 3');
+    });
+
+    it('says the same of a stop the crash cut short', () => {
+      const park = miniMission.goals.find((goal) => goal.id === 'park')!;
+      const wall = crash(dockWall);
+      expect(goalFailureText(viText, 'vi', park, wall.goals[1]!, wall)).toBe('Lượt chạy dừng vì xe đâm vào tường lúc 14,4 s ở lượt 3');
+      expect(goalFailureText(enText, 'en', park, wall.goals[1]!, wall)).toBe('The run ended when the robot crashed into a wall at 14.4 s in round 3');
+      const cones = crash(cone);
+      expect(goalFailureText(viText, 'vi', park, cones.goals[1]!, cones)).toBe('Lượt chạy dừng vì xe đâm vào vật cản lúc 14,4 s ở lượt 3');
+    });
+
+    it('keeps the tag’s word when the report does not know the collider, or when it was not the one the goal is about', () => {
+      const unknown = crash(undefined);
+      expect(goalFailureText(viText, 'vi', noBump, unknown.goals[0]!, unknown)).toBe('Xe chạm vật cản lúc 14,4 s ở lượt 3');
+      // A wall without the goal's tag is not what this goal was failed by.
+      const other = crash({ otherId: 'front-wall', tags: ['wall'] });
+      expect(goalFailureText(viText, 'vi', noBump, other.goals[0]!, other)).toBe('Xe chạm vật cản lúc 14,4 s ở lượt 3');
+    });
+  });
+
   it('says nothing for a goal that passed, and leaves a program error to its round', () => {
     const fine = variant(0, { goals: [passed('no-crash', 30, 1)] });
     expect(goalFailureText(viText, 'vi', noCrash!, fine.goals[0]!, fine)).toBeNull();

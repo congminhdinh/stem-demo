@@ -164,6 +164,7 @@ export function createRobotCheckStore({ runStore, scenario, createCheck, documen
               timeBonus: progress.timeBonus,
               goals: progress.goals,
               end: progress.end,
+              ...(progress.snapshot.endContact === undefined ? {} : { endContact: progress.snapshot.endContact }),
               error: progress.error,
               snapshot: progress.snapshot,
             };
