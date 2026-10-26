@@ -412,7 +412,9 @@ Số đo và lệnh tái lập: `spikes/n19-b56/results.md`. Test: `world/robot/
   - **Quyết định cần controller xem:** tường, hộp và trụ gặp toàn bộ vùng quét, như tay servo. **Vật (`objects`) chỉ gặp tay gắp ở tư thế setup()** (tay 90°, càng mở), là tư thế world dựng.
     - Lý do: vật là thứ để gắp. Tay servo của rover thì thư viện Servo tự quay tới 90° khi chương trình bắt đầu, còn tay gắp chỉ chuyển động khi chương trình hoặc học sinh ra lệnh.
     - Nhờ vậy xe có thể xuất phát với khối nằm giữa hai ngàm mở, như sandbox teleop của E3 (`robot-run-session.teleop-gripper.test.ts`, `e2e/robot-lab-gripper-ui.entry.ts`). Nếu quét toàn bộ cả với vật thì phải viết lại test đó và 5 e2e.
-  - Chi phí: tính một lần mỗi kit 13,9 ms. Kiểm chỗ đứng trống 0,005 ms. Kiểm một thứ nằm trong vùng quét 0,755 ms.
+  - Chi phí (M4 Pro): tính một lần mỗi kit 13,9 ms. Kiểm chỗ đứng trống 0,005 ms. Kiểm một thứ nằm trong vùng quét 0,755 ms.
+    - Lần tính 13,9 ms đó chạy **trên main thread khi lab tay gắp mở**: chỉ cần outline (`robotOutlineCm` ở `robot-tools-store.ts`, `TopViewTools`, `FloorPicker`) là đã gọi `robotFootprint`, và hàm này dựng cả 7 189 mẫu. Sau đó cache theo object kit.
+    - Chưa đo trên profile máy trường. Controller chuyển số này cho bench của E9 (review B5/B6 M4: giữ code như hiện tại).
 - **Golden (B6):** thêm 3 fixture world-level vào sau 3 fixture của rover trong `determinismFixtures`: `gripper-pick-place`, `gripper-stack` và `gripper-sensors`. Fixture thứ ba có nhiễu siêu âm ±1 cm theo seed.
   - Hash giống nhau trên Node (bản split và `-compat`, 2 process) và trên Chromium 153, Firefox 155, WebKit 26.6.
   - `engineVersion` vẫn 1. Hash của rover không đổi.
