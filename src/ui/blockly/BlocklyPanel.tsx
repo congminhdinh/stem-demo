@@ -5,7 +5,7 @@ import { blockTypes } from '../../core/program/blocks';
 import type { BlockPackCatalog, Toolbox } from '../../core/program/block-packs';
 import type { ProjectStore } from '../state/project-store';
 import { registerBlocks, ybcVariablesFlyout } from './editor-blocks';
-import { fitBlocksIntoView } from './fit';
+import { fitBlocksIntoView, minFitScale } from './fit';
 import { createLatestThrottle, type LatestThrottle } from './latest-throttle';
 import { blocklyMediaUrl } from './media';
 import { stemTheme } from './theme';
@@ -48,8 +48,15 @@ type BlocklyPanelProps = {
   packs: BlockPackCatalog;
   /** What the learner sees, from the board context. Must be stable: a new one would rebuild the workspace. */
   toolbox: Toolbox;
-  /** A lab launch (N8s): every loaded program is shrunk, if needed, so that all its blocks are in sight. */
+  /**
+   * A lab launch (N8s): every loaded program (the starter, a host's load-project, the learner's last one restored) is shrunk, if needed, so
+   * that all its blocks are in sight, and scrolled so that its top-left is (N18 bt-lab-fix, c4). Only a load does it: the learner's own
+   * edits, scrolls and zooms never move the view. An editor that has no size when the program loads (a tab that is not shown) does it
+   * once it has one.
+   */
   fitOnLoad?: boolean;
+  /** The smallest scale `fitOnLoad` may zoom out to (`minFitScale` by default; the robot lab's is `minRobotFitScale`). */
+  fitMinScale?: number;
   /**
    * The document's program did not open in the editor (Fix 6, N17 m2: e.g. a block in an input whose type it does not take). The
    * panel shows nothing and saves nothing for that document, so it is never overwritten; its owner opens another one.
@@ -173,6 +180,7 @@ export function BlocklyPanel({
   packs,
   toolbox,
   fitOnLoad = false,
+  fitMinScale = minFitScale,
   onLoadFailed,
   highlightBlockId = null,
   blockWarnings,
@@ -220,6 +228,8 @@ export function BlocklyPanel({
     // that still fails (a check only the drawn editor makes, or one opened another way) must not take the whole page down. Blockly
     // stops in the middle of such a load, so the workspace is emptied and nothing of it is ever saved.
     let loaded = true;
+    // N18 bt-lab-fix (c4): the program was loaded into an editor with no size yet, so it is not in sight: fit it when the editor has one.
+    let fitPending = false;
     // N18 R4.2: what the starter (emptyProgram) saves as, while it is what the workspace shows unchanged; null otherwise.
     let pristine: string | null = null;
     try {
@@ -230,7 +240,7 @@ export function BlocklyPanel({
         Blockly.serialization.workspaces.load(blocks, workspace);
       }
       if (fitOnLoad) {
-        fitBlocksIntoView(workspace);
+        fitPending = !fitBlocksIntoView(workspace, fitMinScale);
       }
       if (showsStarter) {
         pristine = JSON.stringify(Blockly.serialization.workspaces.save(workspace));
@@ -288,7 +298,13 @@ export function BlocklyPanel({
     saveNowRef.current = () => save(true);
     saveEditsRef.current = () => save(false);
 
-    const resizeObserver = new ResizeObserver(() => Blockly.svgResize(workspace));
+    const resizeObserver = new ResizeObserver(() => {
+      Blockly.svgResize(workspace);
+      // Nothing could be done to the program while its editor had no size, so this is still the loaded view.
+      if (fitPending && loaded && fitBlocksIntoView(workspace, fitMinScale)) {
+        fitPending = false;
+      }
+    });
     resizeObserver.observe(container);
 
     // N18 R4.2: a workspace loaded while a check runs is locked too.
@@ -315,7 +331,7 @@ export function BlocklyPanel({
       }
       workspace.dispose();
     };
-  }, [loadRevision, projectStore, packs, toolbox, fitOnLoad, emptyProgram]);
+  }, [loadRevision, projectStore, packs, toolbox, fitOnLoad, fitMinScale, emptyProgram]);
 
   // N18 R4.2: a check locks the workspace and its end unlocks it.
   useEffect(() => {

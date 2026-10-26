@@ -16,6 +16,7 @@ import { SoundIndicator } from '../audio/SoundIndicator';
 import { toneHz } from '../audio/tone';
 import { useBuzzerSound } from '../audio/use-buzzer-sound';
 import { BlocklyPanel, type BlocklyPanelHandle } from '../blockly/BlocklyPanel';
+import { minRobotFitScale } from '../blockly/fit';
 import { localizeToolbox } from '../i18n/blocks';
 import type { MessageKey } from '../i18n/messages';
 import { useLocale, useText } from '../i18n/text';
@@ -439,6 +440,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
           packs={packs}
           toolbox={view.toolbox}
           fitOnLoad
+          fitMinScale={minRobotFitScale}
           onLoadFailed={recoverProgram}
           emptyProgram={view.emptyProgram}
           highlightBlockId={view.highlightBlockId}

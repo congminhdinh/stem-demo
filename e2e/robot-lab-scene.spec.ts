@@ -48,6 +48,8 @@ function collectErrors(page: Page) {
 const messageTypes = (page: Page) => page.evaluate(() => (window as unknown as { __labMessages: Recorded[] }).__labMessages.map((message) => message.data.type));
 const view = (frame: Frame) => frame.evaluate(() => window.__stem?.robot.getSnapshot() as RobotView | null);
 const status = (frame: Frame) => frame.getByTestId('robot-hud').getAttribute('data-status');
+/** A point in the frame's own pixels, in the lesson page's: the frame sits inside the iframe's 2 px border. */
+const frameOffset = (box: { x: number; y: number } | null, point: { x: number; y: number }) => ({ x: (box?.x ?? 0) + 2 + point.x, y: (box?.y ?? 0) + 2 + point.y });
 const litBlocks = (frame: Frame) => frame.locator('[data-testid=blockly-panel] g.blocklyHighlighted').evaluateAll((elements) => elements.map((element) => element.getAttribute('data-id')));
 const screenshot = async (page: Page, name: string) => {
   mkdirSync(shots, { recursive: true });
@@ -317,6 +319,100 @@ test.describe('the robot lab’s layout (N18 R4.2)', () => {
     await expect(frame.getByRole('tab', { name: 'C++' })).toBeVisible();
     await expect(frame.getByRole('tab', { name: 'Cổng & chân' })).toBeVisible();
     await screenshot(page, '06-line-follow-1100x640.png');
+  });
+
+  // N18 bt-lab-fix (c4): a program the host loads (or the learner's last one, restored) is brought into view; the learner's edits never move it.
+  type BlocksView = { scale: number; blocks: { left: number; top: number; right: number; bottom: number }; view: { left: number; top: number; right: number; bottom: number } };
+  /** The editor's zoom, the box of its top-level blocks and the part of the editor that shows the workspace (not its toolbox or scrollbars), in page pixels. */
+  const blocksView = (target: Page | Frame): Promise<BlocksView> =>
+    target.evaluate(() => {
+      const panel = document.querySelector('[data-testid=blockly-panel]')!;
+      const rect = (element: Element | null) => element?.getBoundingClientRect() ?? null;
+      const area = panel.getBoundingClientRect();
+      const toolbox = rect(panel.querySelector('.blocklyToolbox'));
+      const vertical = rect(panel.querySelector('.blocklyScrollbarVertical.blocklyMainWorkspaceScrollbar'));
+      const horizontal = rect(panel.querySelector('.blocklyScrollbarHorizontal.blocklyMainWorkspaceScrollbar'));
+      const boxes = [...panel.querySelectorAll('svg.blocklySvg > g.blocklyWorkspace > g.blocklyBlockCanvas > g.blocklyDraggable')].map((block) => block.getBoundingClientRect());
+      const canvas = panel.querySelector('svg.blocklySvg > g.blocklyWorkspace > g.blocklyBlockCanvas')!.getAttribute('transform') ?? '';
+      return {
+        scale: Number(/scale\(([\d.]+)\)/.exec(canvas)?.[1] ?? Number.NaN),
+        blocks: { left: Math.min(...boxes.map((box) => box.left)), top: Math.min(...boxes.map((box) => box.top)), right: Math.max(...boxes.map((box) => box.right)), bottom: Math.max(...boxes.map((box) => box.bottom)) },
+        view: { left: toolbox?.right ?? area.left, top: area.top, right: vertical !== null && vertical.width > 0 ? vertical.left : area.right, bottom: horizontal !== null && horizontal.height > 0 ? horizontal.top : area.bottom },
+      };
+    });
+  const missionDocument = (place?: { x: number; y: number }) => {
+    const workspace = JSON.parse(JSON.stringify(robotSolutions['rb-mini-mission'].reference)) as { blocks: { blocks: { x?: number; y?: number }[] } };
+    if (place !== undefined) Object.assign(workspace.blocks.blocks[0]!, place);
+    return { ...robotStarterDocument('rb-mini-mission'), program: { blocks: workspace } };
+  };
+  /** The top-left of the blocks is in the view (the toolbox's edge and the top are the view's own). */
+  const topLeftInView = ({ blocks, view }: BlocksView) => blocks.left >= view.left - 1 && blocks.top >= view.top - 1 && blocks.left < view.right && blocks.top < view.bottom;
+
+  test('brings the program a host loads into view: the lesson frame shows all of the mission’s reference, zoomed out a little', async ({ page, baseURL }) => {
+    const frame = await openInLesson(page, labUrl(baseURL, `lab=robot&template=rb-mini-mission&origin=${encodeURIComponent(lessonOrigin)}`));
+    const starter = await blocksView(frame);
+    await frame.evaluate((document) => window.__stem?.loadProject(document), missionDocument());
+    await expect.poll(async () => (await blocksView(frame)).blocks.bottom).toBeGreaterThan(starter.blocks.bottom);
+    const loaded = await blocksView(frame);
+    // Every block is in the view, at a scale between the lab's smallest and 1.
+    expect(loaded.blocks.left).toBeGreaterThanOrEqual(loaded.view.left);
+    expect(loaded.blocks.top).toBeGreaterThanOrEqual(loaded.view.top);
+    expect(loaded.blocks.right).toBeLessThanOrEqual(loaded.view.right);
+    expect(loaded.blocks.bottom).toBeLessThanOrEqual(loaded.view.bottom);
+    expect(loaded.scale).toBeGreaterThanOrEqual(0.5);
+    expect(loaded.scale).toBeLessThan(1);
+    await screenshot(page, '09-loaded-mission-1100x640.png');
+
+    // The learner's own edit never moves the view: dragging the program a little moves it, not the editor.
+    const from = frameOffset(await page.locator('iframe').boundingBox(), { x: loaded.blocks.left + 14, y: loaded.blocks.top + 10 });
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(from.x + 30, from.y + 15, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(async () => (await blocksView(frame)).blocks.left).toBeGreaterThan(loaded.blocks.left + 10);
+    const dragged = await blocksView(frame);
+    expect(dragged.scale).toBe(loaded.scale);
+    expect(dragged.view).toEqual(loaded.view);
+    // And it is written to the document, so the host hears of the edit (the project changes; the view is no part of it).
+    await expect.poll(async () => (await messageTypes(page)).filter((type) => type === 'project-changed').length).toBeGreaterThan(0);
+  });
+
+  test('brings the program into view even when it is placed far from where the editor starts, and keeps its top-left in sight in a narrow frame', async ({ page, baseURL }) => {
+    const errors = collectErrors(page);
+    await page.setViewportSize({ width: 948, height: 450 });
+    await page.goto(labUrl(baseURL, 'lab=robot&template=rb-mini-mission'));
+    await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 15_000 });
+    await pinLowTierChainOff(page);
+    // Placed at (1500, 1100) of the workspace: well outside the first view.
+    const starter = await blocksView(page);
+    await page.evaluate((document) => window.__stem?.loadProject(document), missionDocument({ x: 1500, y: 1100 }));
+    // The load has shown when the program is not the starter's (its height differs); then it is in view.
+    await expect.poll(async () => Math.abs((await blocksView(page)).blocks.bottom - (await blocksView(page)).blocks.top - (starter.blocks.bottom - starter.blocks.top))).toBeGreaterThan(20);
+    expect(topLeftInView(await blocksView(page))).toBe(true);
+    const narrow = await blocksView(page);
+    // The panel is about 230 px wide beside the toolbox: the reference does not fit at the lab's smallest scale, which is where it stops, and
+    // the rest of it is a scroll away.
+    expect(narrow.scale).toBe(0.5);
+    expect(narrow.blocks.right - narrow.blocks.left).toBeGreaterThan(narrow.view.right - narrow.view.left);
+    await screenshot(page, '10-loaded-mission-948x450.png');
+    expect(errors).toEqual([]);
+  });
+
+  test('brings a program loaded while the lab has no size (its frame is out of sight) into view once the frame is shown', async ({ page, baseURL }) => {
+    const frame = await openInLesson(page, labUrl(baseURL, `lab=robot&template=rb-mini-mission&origin=${encodeURIComponent(lessonOrigin)}`));
+    const starter = await blocksView(frame);
+    await page.locator('iframe').evaluate((element) => (element.style.display = 'none'));
+    await frame.evaluate((document) => window.__stem?.loadProject(document), missionDocument());
+    await page.locator('iframe').evaluate((element) => (element.style.display = ''));
+    await expect.poll(async () => Math.abs((await blocksView(frame)).blocks.bottom - (await blocksView(frame)).blocks.top - (starter.blocks.bottom - starter.blocks.top))).toBeGreaterThan(20);
+    // Fitted to the editor as it is shown (every block in view at the lab's smallest scale), not to the empty one it was loaded into, which
+    // zoomed it out to the smallest scale with the same blocks cut off.
+    await expect.poll(async () => (await blocksView(frame)).blocks.right <= (await blocksView(frame)).view.right).toBe(true);
+    const shown = await blocksView(frame);
+    expect(topLeftInView(shown)).toBe(true);
+    expect(shown.blocks.bottom).toBeLessThanOrEqual(shown.view.bottom);
+    expect(shown.scale).toBeGreaterThanOrEqual(0.5);
+    await screenshot(page, '11-loaded-while-hidden-1100x640.png');
   });
 
   test('at 760 px: Robot and Chương trình are tabs, a Run shows the robot, nothing scrolls', async ({ page }) => {
