@@ -344,6 +344,10 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
     expect(run[0]).toBe('Đã bắt đầu chạy.');
     expect(run.length).toBeLessThanOrEqual(3);
     expect(run.slice(1, -1).every((message) => message === 'Chương trình đã chạy xong.')).toBe(true);
+    // N18 bt-lab-fix (m1): a run that ended by itself is a stopped run, so Dừng is off; a run that goes on is what Dừng stops and says so.
+    await expect(frame.getByTestId('robot-stop')).toBeDisabled();
+    await frame.getByTestId('robot-run').click();
+    await expect(frame.getByTestId('robot-stop')).toBeEnabled();
     await frame.getByTestId('robot-stop').click();
     await expect.poll(async () => (await said(frame, 'robot-check-announce')).at(-1)).toBe('Đã dừng chạy.');
     expect(await said(frame, 'robot-alert-announce')).toEqual([]);

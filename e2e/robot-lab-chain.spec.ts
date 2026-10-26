@@ -56,6 +56,10 @@ test.describe('the low tier’s chain, its steps forced (N18 P2 fix round 1)', (
     const stepped = await hashAfterSteps(frame, 10);
     await frame.getByTestId('robot-stop').click();
     const ended = await hashAtTimeLimit(frame);
+    // N18 bt-lab-fix (m1): a run at its time limit has ended by itself, so Dừng is off: back to idle is a run started and stopped.
+    await expect(frame.getByTestId('robot-stop')).toBeDisabled();
+    await frame.getByTestId('robot-run').click();
+    await expect(frame.getByTestId('robot-stop')).toBeEnabled();
     await frame.getByTestId('robot-stop').click();
     await frame.evaluate(() => window.__stem?.robot.forceLowTierStep('cap'));
     await expect(frame.getByTestId('robot-quality-note')).toHaveText('Đang vẽ 30 hình mỗi giây cho mượt hơn');
