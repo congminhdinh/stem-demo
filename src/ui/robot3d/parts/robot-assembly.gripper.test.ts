@@ -119,6 +119,25 @@ describe('the modelled gripper car (N19 E6)', () => {
     robot.dispose();
   });
 
+  it('draws the claw servo as the kit’s box on the carriage (fix round 1, review I4: the visual is the collider B5 adds), within 0.5 mm', () => {
+    const robot = assembleRobot(model, reference, assets.high.part, options('high'));
+    const { carriage } = robot.handles.gripper!;
+    const { center, size } = g.clawServo;
+    // Above its tabs (0.6 cm over the top plate's top) only the servo's case is drawn: its seam, label and cover screws are on its faces.
+    const tabsTop = 0.006 + 0.0025 + 0.0003;
+    const servo = verticesOf(carriage).filter((v) => v.y > tabsTop + 0.0005);
+    for (const [axis, i] of [
+      ['x', 0],
+      ['y', 1],
+      ['z', 2],
+    ] as const) {
+      const [lo, hi] = span(servo.map((v) => v[axis]));
+      if (axis !== 'y') expect(Math.abs(lo - (center[i]! - size[i]! / 2)), `min ${axis}`).toBeLessThan(0.0005);
+      expect(Math.abs(hi - (center[i]! + size[i]! / 2)), `max ${axis}`).toBeLessThan(0.0005);
+    }
+    robot.dispose();
+  });
+
   it('puts the IR and colour modules on the carriage at their mounts, and lights the colour sensor’s LED while the robot runs', () => {
     for (const detail of ['high', 'low'] as const) {
       const robot = assembleRobot(model, reference, assets[detail].part, options(detail));
