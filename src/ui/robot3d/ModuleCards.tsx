@@ -132,10 +132,10 @@ function ColorBody({ module, view, t }: { module: HubModule; view: ModuleView | 
   );
 }
 
-function ValueBody({ module, text, children, lit }: { module: HubModule; text: string | null; children?: ReactNode; lit: boolean | null }) {
+function ValueBody({ module, text, children, lit, lampTestId }: { module: HubModule; text: string | null; children?: ReactNode; lit: boolean | null; lampTestId?: string }) {
   return (
     <>
-      <span className="hub-lamp" aria-hidden="true" data-testid={`hub-lamp-${module.role}`} data-lit={lit === null ? 'unknown' : lit}>
+      <span className="hub-lamp" aria-hidden="true" {...(lampTestId === undefined ? {} : { 'data-testid': lampTestId })} data-lit={lit === null ? 'unknown' : lit}>
         {children}
       </span>
       <span className="hub-card-value" data-testid={`hub-value-${module.role}`}>
@@ -190,7 +190,7 @@ function Card({ card, values, t, locale, ports }: CardProps & { t: Text; locale:
       const ir = view?.kind === 'ir-obstacle' ? view : null;
       body = (
         <>
-          <ValueBody module={module} text={ir === null ? null : irLevelText(ir.level)} lit={ir === null ? null : ir.detected} />
+          <ValueBody module={module} text={ir === null ? null : irLevelText(ir.level)} lit={ir === null ? null : ir.detected} lampTestId={`hub-lamp-${module.role}`} />
           <span className="hub-card-note" data-testid={`hub-note-${module.role}`}>
             {ir === null ? ' ' : irStateText(t, ir.detected)}
           </span>

@@ -6,7 +6,7 @@ import { BoardDiagram } from './BoardDiagram';
 import { boardLayout } from './board-layout';
 import { ModuleCards } from './ModuleCards';
 import { hubMap } from './pin-map';
-import { hubRows } from './pin-text';
+import { bottomLabelChars, hubRows } from './pin-text';
 import { PinTable } from './PinTable';
 import { useHubValues, type WorldSource } from './use-hub-values';
 import './PinInspector.css';
@@ -36,7 +36,7 @@ export function PinInspector({ store, kit, board, active }: PinInspectorProps) {
   const t = useText();
   const locale = useLocale();
   const map = useMemo(() => hubMap(kit, board), [kit, board]);
-  const layout = useMemo(() => boardLayout(map), [map]);
+  const layout = useMemo(() => boardLayout(map, bottomLabelChars(t, map)), [map, t]);
   const values = useHubValues(store, map, active);
   const rows = useMemo(() => hubRows(t, locale, map, values), [t, locale, map, values]);
   return (

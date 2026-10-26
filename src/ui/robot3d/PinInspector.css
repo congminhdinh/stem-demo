@@ -185,6 +185,7 @@
 
 .hub-card[data-kind='line-sensor'],
 .hub-card[data-kind='gripper'],
+.hub-card[data-kind='ir-obstacle'],
 .hub-card[data-kind='color-sensor'] {
   grid-column: span 2;
 }

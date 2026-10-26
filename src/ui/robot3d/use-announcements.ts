@@ -13,7 +13,8 @@ import type { RobotRunStore } from './robot-run-store';
 export type GripOptions = { scenario?: NamingScenario; now?: () => number };
 
 /**
- * Tells the announcer about the run (started, paused, resumed, stopped, finished, over and why, the robot put back, teleop on or off).
+ * Tells the announcer about the run (started, paused, resumed, stopped, finished, over and why, the robot put back, teleop on or off, and
+ * N19 E1 an object the gripper picked up or put down).
  * The store changes in several steps within one call (Dừng sets the snapshot, then the flags): only where it has got to by the end of the
  * tick is looked at, so that a step on the way is never said.
  */

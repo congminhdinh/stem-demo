@@ -87,6 +87,20 @@ export function padLabel(t: Text, owner: HubOwner): { part: string; signal: stri
   return { part: roleName(t, owner.role as RobotRole), signal: owner.portPins > 1 ? owner.signal : null };
 }
 
+/**
+ * N19 E2: how many characters the longest name written under the board's analog header has, part and signal as the drawing writes them
+ * (`Cảm biến màu SDA`): the layout gives the labels room for it (board-layout.ts).
+ */
+export function bottomLabelChars(t: Text, map: HubMap): number {
+  let longest = 0;
+  for (const [pin, owner] of map.owners) {
+    if (!pin.startsWith('A')) continue;
+    const { part, signal } = padLabel(t, owner);
+    longest = Math.max(longest, part.length + (signal === null ? 0 : 1 + signal.length));
+  }
+  return longest;
+}
+
 export type HubRowPin = {
   pin: string;
   /** The driver's name for the pin: `EN`. */

@@ -4,7 +4,9 @@ import type { HubMap, PinReading, PinView } from './pin-map';
 // in a drawing of 500 × 312 units. Our own artwork, like the 3D robot: a board with the digital header along the top (D13 at the left to
 // D0 at the right, with the gap after D8 that a real header has) and the analog header along the bottom right; no logo, no wordmark.
 // The part names stand outside the board, rotated, so that a pin's name never sits on a neighbour's: above the top header, below the
-// bottom one.
+// bottom one. N19 E2: a kit whose part names are long (the gripper car's "Hồng ngoại ở càng", "Cảm biến màu SDA" under the analog header)
+// asks for more room under the board (`boardLayout`'s `bottomLabelChars`); the rover's names fit the room it has always had, so its drawing is
+// the one it was.
 
 export type PadPlace = {
   id: string;
@@ -44,10 +46,18 @@ const BOTTOM_Y = BODY.y + BODY.height - 16;
 const NAME_BELOW = 21;
 const NAME_ABOVE = 13;
 const LABEL_OFFSET = 6;
+/** N19 E2: what a character of a part's name takes along its line (the labels are 12 px bold in a drawing 500 units wide), with a little to spare. */
+export const LABEL_CHAR_UNITS = 6.8;
+const LABEL_MARGIN = 4;
 /** D13…D8 are six pads; the gap follows them. */
 const FIRST_GROUP = 6;
 
-export function boardLayout(map: HubMap): BoardLayout {
+/**
+ * The drawing of `map`'s board. `bottomLabelChars` is how many characters the longest name written under the analog header has (pin-text.ts
+ * `bottomLabelChars`): the room under the board grows to fit it, and never below the usual one.
+ */
+export function boardLayout(map: HubMap, bottomLabelChars = 0): BoardLayout {
+  const labelRoom = Math.max(LABEL_ROOM, Math.ceil(bottomLabelChars * LABEL_CHAR_UNITS) + LABEL_OFFSET + LABEL_MARGIN);
   const ids = new Set(map.board.map((pin) => pin.id));
   const pads: PadPlace[] = [];
   // Digital: D13 at the left … D0 at the right.
@@ -78,7 +88,7 @@ export function boardLayout(map: HubMap): BoardLayout {
       label: { x, y: BODY.y + BODY.height + LABEL_OFFSET, rotate: 90 },
     });
   }
-  return { width: WIDTH, height: BODY.y + BODY.height + LABEL_ROOM, body: { ...BODY }, pitch: PITCH, gap: GAP, padRadius: PAD_RADIUS, labelRoom: LABEL_ROOM, pads };
+  return { width: WIDTH, height: BODY.y + BODY.height + labelRoom, body: { ...BODY }, pitch: PITCH, gap: GAP, padRadius: PAD_RADIUS, labelRoom, pads };
 }
 
 export type PadLook = {
