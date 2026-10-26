@@ -3,12 +3,14 @@ import { useEffect, useMemo, useRef } from 'react';
 import { ExtrudeGeometry, Shape, type Group, type Mesh, type MeshStandardMaterial } from 'three';
 import type { RobotSnapshot } from '../../core/world/snapshot';
 import { robot3dColors as colors } from './colors';
+import { gripperPose, gripperStateOf } from './gripper-pose';
 import { buttonPressed, lineSeesDark, toneHzOf, type RobotModel } from './robot-model';
 import { servoArmYawRad, wheelSpin, writePose } from './scene-math';
 
 // The robot in the 3D view (N18 R4.2): low-poly, the lab's own artwork (no logo), built from the kit (robot-model.ts) so every part is
 // where the physics has it. Its pose, its wheels, its servo arm and what its LED, line sensors, buzzer and button show are read from the
-// world in the frame callback (`view()`), never through a React render: a run re-renders nothing here.
+// world in the frame callback (`view()`), never through a React render: a run re-renders nothing here. N19 E6: the gripper as boxes, the
+// physics' own (the boom's plates and bar, the carriage, the fingers), posed from robot.gripper as the modelled one is (gripper-pose.ts).
 
 type RobotViewProps = {
   model: RobotModel;
@@ -52,6 +54,9 @@ export function RobotView({ model, view, shadows }: RobotViewProps) {
   const lineLamps = useRef<(MeshStandardMaterial | null)[]>([]);
   const buzzerWaves = useRef<(Group | null)[]>([]);
   const buttonCaps = useRef<(Mesh | null)[]>([]);
+  const gripperBoom = useRef<Group>(null);
+  const gripperCarriage = useRef<Group>(null);
+  const gripperJaws = useRef<(Group | null)[]>([]);
   const chassis = useMemo(() => chassisGeometry(model.body), [model.body]);
   useEffect(() => () => chassis.dispose(), [chassis]);
 
@@ -97,6 +102,17 @@ export function RobotView({ model, view, shadows }: RobotViewProps) {
       const cap = buttonCaps.current[i];
       if (cap) cap.position.y = buttonPressed(world, button.pinIndex) ? 0.0042 : 0.006;
     });
+    if (model.gripper) {
+      const pose = gripperPose(model.gripper, gripperStateOf(world));
+      if (gripperBoom.current) gripperBoom.current.rotation.z = pose.elevationRad;
+      gripperCarriage.current?.position.set(...pose.tip);
+      [pose.jawLeft, pose.jawRight].forEach((hinge, i) => {
+        const jaw = gripperJaws.current[i];
+        if (!jaw) return;
+        jaw.position.set(...hinge);
+        jaw.rotation.y = i === 0 ? pose.betaRad : 0 - pose.betaRad;
+      });
+    }
   });
 
   const lineXs = model.lineSensors.map((sensor) => sensor.position[0]);
@@ -297,6 +313,51 @@ export function RobotView({ model, view, shadows }: RobotViewProps) {
           </group>
         </group>
       ))}
+
+      {/* N19 E6: the gripper: the boom's two plates and its bar, the level carriage with its claw servo, the two fingers. */}
+      {model.gripper && (
+        <>
+          <group ref={gripperBoom} position={model.gripper.position as [number, number, number]}>
+            {[-1, 1].map((side) => (
+              <mesh key={side} position={[model.gripper!.boomLengthM / 2, 0, side * model.gripper!.boomHalfSpanM]} castShadow={shadows}>
+                <boxGeometry args={[model.gripper!.boomLengthM, 0.01, 0.004]} />
+                <meshStandardMaterial color={colors.gripperMetal} roughness={0.35} metalness={0.6} />
+              </mesh>
+            ))}
+            <mesh position={[model.gripper.boomLengthM, 0, 0]} rotation-x={Math.PI / 2} castShadow={shadows}>
+              <cylinderGeometry args={[0.003, 0.003, 2 * model.gripper.boomHalfSpanM + 0.004, 12]} />
+              <meshStandardMaterial color={colors.gripperMetal} roughness={0.35} metalness={0.6} />
+            </mesh>
+          </group>
+          <group ref={gripperCarriage}>
+            <mesh castShadow={shadows}>
+              <boxGeometry args={[0.01, 0.012, 0.052]} />
+              <meshStandardMaterial color={colors.chip} roughness={0.5} />
+            </mesh>
+            <mesh position={[-0.0012, 0.006 + 0.0114, 0]} castShadow={shadows}>
+              <boxGeometry args={[0.0122, 0.0227, 0.0228]} />
+              <meshStandardMaterial color={colors.gripperServo} roughness={0.4} />
+            </mesh>
+          </group>
+          {[1, -1].map((side, i) => (
+            <group
+              key={side}
+              ref={(group) => {
+                gripperJaws.current[i] = group;
+              }}
+            >
+              <mesh position={[model.gripper!.finger.lengthM / 2, 0, 0]} castShadow={shadows}>
+                <boxGeometry args={[model.gripper!.finger.lengthM, model.gripper!.finger.heightM, model.gripper!.finger.thicknessM]} />
+                <meshStandardMaterial color={colors.gripperMetal} roughness={0.35} metalness={0.6} />
+              </mesh>
+              <mesh position={[model.gripper!.finger.lengthM / 2 + 0.0005, 0, side * model.gripper!.finger.thicknessM * 0.3]}>
+                <boxGeometry args={[model.gripper!.finger.lengthM - 0.01, model.gripper!.finger.heightM - 0.002, model.gripper!.finger.thicknessM * 0.45]} />
+                <meshStandardMaterial color={colors.gripperPad} roughness={0.9} />
+              </mesh>
+            </group>
+          ))}
+        </>
+      )}
 
       {/* Buttons: a base and a cap that goes down while the button is held. */}
       {model.buttons.map((button, i) => (

@@ -42,6 +42,12 @@ export const robot3dColors = {
   buzzerWave: '#38bdf8',
   buttonBase: '#374151',
   buttonCap: '#3b82f6',
+  /** N19 E6: the simple robot's gripper (when the modelled parts are not there): aluminium, its fingers' rubber, the claw servo. */
+  gripperMetal: '#c2c7ce',
+  gripperPad: '#2b2e33',
+  gripperServo: '#2a5ed0',
+  /** N19 E6: the halo of the colour sensor's white LED, lit while the robot runs. */
+  colorLedLit: '#fff4d6',
   /** Lights. */
   sky: '#ffffff',
   ground: '#aab4c3',

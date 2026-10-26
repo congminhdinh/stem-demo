@@ -1,4 +1,5 @@
 import {
+  AdditiveBlending,
   CatmullRomCurve3,
   Color,
   DoubleSide,
@@ -25,7 +26,9 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { RobotSnapshot } from '../../../core/world/snapshot';
 import type { Detail } from '../lighting/look';
 import { robot3dColors as colors } from '../colors';
-import { buttonPressed, lineSeesDark, toneHzOf, type RobotModel } from '../robot-model';
+import type { Kit, ModuleKind } from '../../../core/hardware/kit';
+import { colorLedLit, gripperStateOf } from '../gripper-pose';
+import { buttonPressed, lineSeesDark, toneHzOf, type GripperModel, type RobotModel } from '../robot-model';
 import { servoArmYawRad, wheelSpin, type Vec3Tuple } from '../scene-math';
 import { bakeMovingPlain, lambertOf, lowTierMaterials, mergeStatic, swapMaterials } from './merge';
 
@@ -36,7 +39,9 @@ import { bakeMovingPlain, lambertOf, lowTierMaterials, mergeStatic, swapMaterial
 // material; what moves or lights up keeps its node, found by name, and `applyRobotWorld` drives it from the snapshot every frame:
 // `wheel_spin`, `servo_horn` with the flag's `flag_pennant`, `led_dome`, `line_led_<i>`, `button_cap`, `board_led_l`. A line sensor that
 // sees dark lights its LED on the bar's indicator board at the deck's front edge (with a red halo), and a red spot on the mat under its
-// eye.
+// eye. N19 E6: the gripper (part_gripper_*), its boom and lower link turned, its carriage (with the IR and colour modules merged into it)
+// and fingers posed from the snapshot's robot.gripper (gripper-pose.ts), the colour sensor's LED lit while the robot runs; and, for a kit
+// that mounts the ultrasonic higher than the reference kit, its standoffs (part_ultrasonic_riser).
 
 /** The reference kit's numbers the parts are modelled to (m, three's frame of the robot group). */
 export type ReferenceSizes = {
@@ -48,7 +53,17 @@ export type ReferenceSizes = {
   armLengthM: number;
   armWidthM: number;
   lineSpacingM: number;
+  /** N19 E6: how high the ultrasonic's mount is over the body's bottom (the part is modelled to stand on the lower plate from there). */
+  ultrasonicHeightM: number;
 };
+
+/** N19 E6: the gripper kit's numbers the gripper's parts are modelled to (m): a kit of other sizes scales them. */
+export type GripperReferenceSizes = { boomLengthM: number; boomHalfSpanM: number; fingerLengthM: number; fingerThicknessM: number; fingerHeightM: number };
+
+export function gripperReferenceSizes(reference: RobotModel): GripperReferenceSizes | null {
+  const g = reference.gripper;
+  return g ? { boomLengthM: g.boomLengthM, boomHalfSpanM: g.boomHalfSpanM, fingerLengthM: g.finger.lengthM, fingerThicknessM: g.finger.thicknessM, fingerHeightM: g.finger.heightM } : null;
+}
 
 export function referenceSizes(reference: RobotModel): ReferenceSizes {
   const wheel = reference.wheels[0]!;
@@ -62,17 +77,56 @@ export function referenceSizes(reference: RobotModel): ReferenceSizes {
     armLengthM: reference.servos[0]?.arm.lengthM ?? 0.055,
     armWidthM: reference.servos[0]?.arm.widthM ?? 0.008,
     lineSpacingM: zs.length > 1 ? (zs[zs.length - 1]! - zs[0]!) / (zs.length - 1) : 0.015,
+    ultrasonicHeightM: reference.ultrasonics[0] ? reference.ultrasonics[0].position[1] - reference.body.bottomM : 0.025,
   };
+}
+
+/** The parts of robot-kit.glb a kit's robot is built from (N19 E6): a file without one of them sends the view to its simple shapes. */
+export function neededParts(kit: Pick<Kit, 'modules'>): ReadonlySet<string> {
+  const byKind: Partial<Record<ModuleKind, readonly string[]>> = {
+    'dc-motor': ['part_tt_motor', 'part_wheel'],
+    ultrasonic: ['part_ultrasonic'],
+    'line-sensor': ['part_line_bar', 'part_line_leds'],
+    servo: ['part_servo'],
+    led: ['part_led'],
+    buzzer: ['part_buzzer'],
+    button: ['part_button'],
+    gripper: ['part_gripper_bracket', 'part_gripper_boom', 'part_gripper_carriage', 'part_gripper_jaw_l', 'part_gripper_jaw_r'],
+    'ir-obstacle': ['part_gripper_ir'],
+    'color-sensor': ['part_gripper_color'],
+  };
+  return new Set(['part_chassis', 'part_board', 'part_caster', ...kit.modules.flatMap((module) => byKind[module.kind] ?? [])]);
+}
+
+/**
+ * N19 E6: the ultrasonic's standoffs for a kit that mounts it higher over the body's bottom than the reference kit (the part stands on
+ * the lower plate from the reference's height): where the standoffs' top goes (under the bracket's foot, the part's `extras.drop` under
+ * the mount) and how tall they are; null when the ultrasonic is not higher (the rover).
+ */
+export function ultrasonicRiser(model: RobotModel, reference: ReferenceSizes, dropM = reference.ultrasonicHeightM - PLATE_M): { position: Vec3Tuple; heightM: number } | null {
+  const sensor = model.ultrasonics[0];
+  if (!sensor) return null;
+  const heightM = sensor.position[1] - model.body.bottomM - reference.ultrasonicHeightM;
+  if (heightM < 0.0005) return null;
+  return { position: [sensor.position[0], sensor.position[1] - dropM, sensor.position[2]], heightM };
 }
 
 /** The controller board's size (m): its short side along x, its long side across; and the gap it keeps from a servo arm. */
 export const BOARD_M = { short: 0.0533, long: 0.0686, clearance: 0.0012 } as const;
+/** The chassis plates' thickness (m, assets-src/robot3d/parts/chassis.py PLATE_T). */
+const PLATE_M = 0.002;
+/** The line sensors' indicator board (part_line_leds): how far it reaches back from the deck's front edge (m, line_bar.py `depth`). */
+const LINE_LEDS_DEPTH_M = 0.012;
 
-/** Where the board sits on the deck: as far forward as the servo arms let it, inside the deck (three's x, z of its middle). */
+/**
+ * Where the board sits on the deck: as far forward as the servo arms let it, and (N19 E6: a kit with no servo arm, the gripper car's)
+ * behind the line sensors' indicator board, inside the deck (three's x, z of its middle).
+ */
 export function boardPlacement(model: RobotModel): { x: number; z: number } {
   const half = model.body.lengthM / 2;
   const fronts = model.servos.map((servo) => servo.position[0] - servo.arm.widthM / 2 - BOARD_M.clearance);
-  const front = Math.min(half - 0.003, ...fronts);
+  const lamps = model.lineSensors.length > 0 ? [half - LINE_LEDS_INSET_M - LINE_LEDS_DEPTH_M - BOARD_M.clearance] : [];
+  const front = Math.min(half - 0.003, ...fronts, ...lamps);
   return { x: Math.max(-half + BOARD_M.short / 2, front - BOARD_M.short / 2), z: 0 };
 }
 
@@ -94,6 +148,20 @@ export type RobotHandles = {
   buzzers: { pinIndex: number; waves: Object3D }[];
   buttons: { pinIndex: number; cap: Object3D; up: number; down: number }[];
   boardLed: { pinIndex: number; material: GlowMaterial } | null;
+  /** N19 E6: the gripper's moving parts, which `applyRobotWorld` poses from robot.gripper; the colour sensor's LED (its carriage's material). */
+  gripper: GripperHandles | null;
+};
+
+export type GripperHandles = {
+  model: GripperModel;
+  boom: Object3D;
+  link: Object3D | null;
+  carriage: Object3D;
+  jawLeft: Object3D;
+  jawRight: Object3D;
+  led: GlowMaterial | null;
+  /** The lit LED's halo (a sprite of fixed size on the screen, as a line lamp's): the LED is a few millimetres across. */
+  ledHalo: Object3D | null;
 };
 
 export type AssembledRobot = { root: Group; handles: RobotHandles; dispose(): void };
@@ -107,6 +175,8 @@ export type AssemblyOptions = {
   boardLedPin: number;
   /** The soft round shadow under the robot (the low tier's only shadow). */
   blob: Texture;
+  /** N19 E6: the gripper kit's sizes its parts are modelled to (GltfRobot.tsx), for a kit with a gripper. */
+  gripperReference?: GripperReferenceSizes | null;
 };
 
 type PartSource = (name: string) => Object3D | null;
@@ -186,6 +256,106 @@ function buildWires(model: RobotModel, board: { x: number; deck: number }, owned
   return mesh;
 }
 
+/** The gripper's one material (parts/gripper.py `atlas_material`), whose glow map is the colour sensor's LED. */
+const GRIPPER_MATERIAL = 'gripper_atlas';
+/** The colour sensor's LED lit: its glow's strength through the carriage's emissive map (the atlas's LED cell). */
+const COLOR_LED_INTENSITY = 2.4;
+/** The lit LED's halo: a share of the view's height (about 24 px of a 497 px view at 40°: its soft edge leaves a glow of about 10), warm white. */
+const COLOR_LED_HALO_SCREEN = 0.036;
+
+/**
+ * N19 E6: the gripper on `root`: the bracket (static: merged with the robot), its lower link and the boom turned about the pivot, the
+ * carriage with the IR and colour modules on it merged into one mesh a material (its own material, whose glow is the colour LED), the
+ * fingers at their hinges. A kit of other sizes than the reference's scales the boom and the fingers.
+ */
+function assembleGripper(
+  g: GripperModel,
+  root: Group,
+  need: (name: string) => Object3D,
+  owned: { geometries: BufferGeometry[]; materials: Material[] },
+  options: AssemblyOptions,
+  low: ReturnType<typeof lowTierMaterials> | null,
+): GripperHandles {
+  const ref = options.gripperReference ?? null;
+  const along = ref ? g.boomLengthM / ref.boomLengthM : 1;
+  const across = ref ? g.boomHalfSpanM / ref.boomHalfSpanM : 1;
+  const moving = (node: Object3D) => {
+    node.userData.moves = true;
+    node.traverse((child) => {
+      if (child instanceof Mesh) {
+        child.castShadow = options.shadows;
+        child.receiveShadow = options.shadows;
+      }
+    });
+    return node;
+  };
+  const bracket = need('part_gripper_bracket');
+  set(bracket, g.position);
+  root.add(bracket);
+  const link = bracket.getObjectByName('gripper_link') ?? null;
+  if (link) {
+    moving(link);
+    link.scale.set(along, 1, across);
+  }
+  const boom = moving(need('part_gripper_boom'));
+  set(boom, g.position);
+  boom.scale.set(along, 1, across);
+  root.add(boom);
+  // The carriage and what rides on it, one mesh a material in the carriage's frame.
+  const carriage = need('part_gripper_carriage');
+  let ledAt: Vec3Tuple | null = null;
+  for (const [rider, name] of [
+    [g.ir, 'part_gripper_ir'],
+    [g.color, 'part_gripper_color'],
+  ] as const) {
+    if (!rider) continue;
+    const part = need(name);
+    set(part, rider.position);
+    carriage.add(part);
+    const face = part.userData.led as readonly number[] | undefined;
+    if (name === 'part_gripper_color' && face?.length === 3) ledAt = [rider.position[0] + face[0]!, rider.position[1] + face[1]!, rider.position[2] + face[2]!];
+  }
+  const merged = mergeStatic(carriage as Group, { castShadow: options.shadows, receiveShadow: options.shadows, plain: null });
+  for (const mesh of merged) owned.geometries.push(mesh.geometry);
+  for (const node of [...carriage.children]) if (!(node instanceof Mesh)) node.removeFromParent();
+  let led: GlowMaterial | null = null;
+  if (g.color) {
+    // The atlas's material: its emissive map lights the LED's cell only (assets-src/robot3d/parts/gripper.py).
+    const glowing = merged.find((mesh) => (mesh.material as Material).name === GRIPPER_MATERIAL);
+    if (glowing) {
+      const original = glowing.material as MeshStandardMaterial;
+      led = low ? lambertOf(original) : original.clone();
+      led.emissiveIntensity = 0;
+      glowing.material = led;
+      owned.materials.push(led);
+    }
+  }
+  let ledHalo: Object3D | null = null;
+  if (led && ledAt) {
+    // Added to what is behind it, as light is: a white LED's glow reads on the pale board and on a white mat alike.
+    const material = new SpriteMaterial({ name: 'color-led-halo', color: colors.colorLedLit, map: options.blob, transparent: true, blending: AdditiveBlending, depthWrite: false, sizeAttenuation: false });
+    owned.materials.push(material);
+    const halo = new Sprite(material);
+    halo.name = 'color_led_halo';
+    halo.scale.set(COLOR_LED_HALO_SCREEN, COLOR_LED_HALO_SCREEN, 1);
+    set(halo, ledAt);
+    halo.visible = false;
+    // Compiled with the scene though hidden (Scene.tsx), as a line lamp's: its program is the zones' tags'.
+    halo.userData.compileWithScene = true;
+    carriage.add(halo);
+    ledHalo = halo;
+  }
+  moving(carriage);
+  root.add(carriage);
+  const jaw = (name: string) => {
+    const part = moving(need(name));
+    if (ref) part.scale.set(g.finger.lengthM / ref.fingerLengthM, g.finger.heightM / ref.fingerHeightM, g.finger.thicknessM / ref.fingerThicknessM);
+    root.add(part);
+    return part;
+  };
+  return { model: g, boom, link, carriage, jawLeft: jaw('part_gripper_jaw_l'), jawRight: jaw('part_gripper_jaw_r'), led, ledHalo };
+}
+
 /**
  * Builds the robot for `model` from the parts in `source`. Throws when a part the model needs is missing from the kit file (the caller
  * then draws the procedural robot).
@@ -199,7 +369,7 @@ export function assembleRobot(model: RobotModel, reference: ReferenceSizes, sour
     if (!copy) throw new Error(`The robot kit file has no ${name}.`);
     return copy;
   };
-  const handles: RobotHandles = { wheels: [], servos: [], leds: [], lineLamps: [], buzzers: [], buttons: [], boardLed: null };
+  const handles: RobotHandles = { wheels: [], servos: [], leds: [], lineLamps: [], buzzers: [], buttons: [], boardLed: null, gripper: null };
   const lowCache = new Map<Material, Material>();
   const low = options.detail === 'low' ? lowTierMaterials(lowCache) : null;
   const { body } = model;
@@ -385,6 +555,20 @@ export function assembleRobot(model: RobotModel, reference: ReferenceSizes, sour
     handles.buttons.push({ pinIndex: item.pinIndex, cap, up: cap.position.y, down: cap.position.y - travel });
   }
 
+  const riser = ultrasonicRiser(model, reference);
+  if (riser) {
+    const part = source('part_ultrasonic_riser') ? need('part_ultrasonic_riser') : null;
+    if (part) {
+      const drop = Number(part.userData.drop ?? reference.ultrasonicHeightM - PLATE_M);
+      const at = ultrasonicRiser(model, reference, drop)!;
+      set(part, at.position);
+      part.scale.y = at.heightM / Number(part.userData.height ?? at.heightM);
+      root.add(part);
+    }
+  }
+
+  if (model.gripper) handles.gripper = assembleGripper(model.gripper, root, need, owned, options, low);
+
   // The parts that never move, merged by material (on the low tier: every plain one into one vertex-coloured mesh, the rest Lambert).
   const merged = mergeStatic(root, { castShadow: options.shadows, receiveShadow: options.shadows, plain: low?.plain ?? null, ...(low ? { swap: low.swap } : {}) });
   for (const mesh of merged) owned.geometries.push(mesh.geometry);
@@ -469,4 +653,29 @@ export function applyRobotWorld(handles: RobotHandles, world: RobotSnapshot, led
     handles.boardLed.material.emissive.copy(colourOf(on ? BOARD_LED_ON : UNLIT));
     handles.boardLed.material.emissiveIntensity = on ? 2.5 : 0;
   }
+  if (handles.gripper) poseGripper(handles.gripper, world);
+}
+
+const DEG = Math.PI / 180;
+
+/** N19 E6: the gripper as robot.gripper says (gripper-pose.ts's geometry, written into the nodes: nothing is made a frame). */
+function poseGripper(gripper: GripperHandles, world: RobotSnapshot): void {
+  const g = gripper.model;
+  const state = gripperStateOf(world);
+  const elevation = (g.elevationAtLift0Deg + state.liftDeg) * DEG;
+  gripper.boom.rotation.z = elevation;
+  if (gripper.link) gripper.link.rotation.z = elevation;
+  const [px, py, pz] = g.position;
+  const tx = px + g.boomLengthM * Math.cos(elevation);
+  const ty = py + g.boomLengthM * Math.sin(elevation);
+  gripper.carriage.position.set(tx, ty, pz);
+  const closed = g.fingerOpenDeg - g.fingerDegPerServoDeg * g.jawsMeetDeg;
+  const beta = Math.min(g.fingerOpenDeg, Math.max(closed, g.fingerOpenDeg - g.fingerDegPerServoDeg * state.clawDeg)) * DEG;
+  gripper.jawLeft.position.set(tx + g.hinge.uM, ty, pz - g.hinge.vM);
+  gripper.jawLeft.rotation.y = beta;
+  gripper.jawRight.position.set(tx + g.hinge.uM, ty, pz + g.hinge.vM);
+  gripper.jawRight.rotation.y = 0 - beta;
+  const lit = colorLedLit(world);
+  if (gripper.led) gripper.led.emissiveIntensity = lit ? COLOR_LED_INTENSITY : 0;
+  if (gripper.ledHalo) gripper.ledHalo.visible = lit;
 }

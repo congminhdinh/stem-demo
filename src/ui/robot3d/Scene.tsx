@@ -20,6 +20,7 @@ import { tierLook } from './lighting/look';
 import { StudioLighting } from './lighting/StudioLighting';
 import { GltfArena } from './parts/GltfArena';
 import { flagOf, GltfRobot } from './parts/GltfRobot';
+import { neededParts } from './parts/robot-assembly';
 import { SensorOverlay } from './parts/SensorOverlay';
 import type { RobotTagBox } from './parts/ZoneTags';
 import { tierSettings, type QualityTier } from './quality';
@@ -315,8 +316,10 @@ type ContentProps = {
   overlays: { hud: HudCorner | null; card: CardEdge | null; tools: ToolsCorner | null };
 };
 
-/** The parts each of the modelled files must have for the view to use them; without one, the procedural view is drawn. */
-const NEEDED_PARTS = ['part_chassis', 'part_board', 'part_tt_motor', 'part_wheel', 'part_caster', 'part_ultrasonic', 'part_line_bar', 'part_line_leds', 'part_servo', 'part_led', 'part_buzzer', 'part_button'];
+/**
+ * The parts each of the modelled files must have for the view to use them; without one, the procedural view is drawn. N19 E6: the robot's
+ * are the kit's (robot-assembly.ts `neededParts`): a file without the gripper's parts never sends a rover lesson to the simple shapes.
+ */
 const NEEDED_PROPS = ['prop_wall', 'prop_block', 'prop_cardboard', 'prop_marker', 'prop_barrier', 'prop_tin', 'prop_post', 'prop_table_top', 'prop_table_leg', 'prop_fence_post', 'prop_fence_rail', 'prop_studio'];
 
 /**
@@ -346,7 +349,8 @@ function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, viewF
     return flagOf(scenario) ? { halfLength: Math.max(halfLength, 0.1), halfWidth: Math.max(halfWidth, 0.1), height: 0.21 } : { halfLength, halfWidth, height: model.body.bottomM + model.body.heightM + 0.035 };
   }, [model, scenario]);
   const tags = useMemo(() => ({ ready: tagsReady, mode: cameraMode, overlays, robot: robotBox }), [tagsReady, cameraMode, overlays, robotBox]);
-  const usable = assets !== null && NEEDED_PARTS.every((name) => assets.part(name)) && NEEDED_PROPS.every((name) => assets.prop(name));
+  const parts = useMemo(() => [...neededParts(kit)], [kit]);
+  const usable = assets !== null && parts.every((name) => assets.part(name)) && NEEDED_PROPS.every((name) => assets.prop(name));
   // What the canvas draws, for the E2E and a curious developer: the modelled scene or the simple shapes.
   useEffect(() => {
     gl.domElement.dataset.models = usable ? 'modelled' : 'simple';

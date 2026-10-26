@@ -11,7 +11,7 @@ import type { Detail } from '../lighting/look';
 import { robotModel, type RobotModel } from '../robot-model';
 import { RobotView } from '../RobotView';
 import { writePose } from '../scene-math';
-import { applyRobotWorld, assembleRobot, referenceSizes, type AssemblyOptions } from './robot-assembly';
+import { applyRobotWorld, assembleRobot, gripperReferenceSizes, referenceSizes, type AssemblyOptions } from './robot-assembly';
 
 // The robot in the 3D view from the modelled parts (N18 R4.7): assembled once for the kit (robot-assembly.ts), disposed on unmount;
 // its pose and what its parts show are read from the world in the frame callback, never through a React render.
@@ -22,6 +22,16 @@ import { applyRobotWorld, assembleRobot, referenceSizes, type AssemblyOptions } 
 const reference = (() => {
   const kit = productionKits.get(referenceKitRef);
   return kit ? referenceSizes(robotModel(kit, unoR3Board)) : null;
+})();
+
+/**
+ * N19 E6: what the gripper's parts were modelled to: the gripper kit's numbers (the asset manifest hashes `ref-uno-gripper.kit.json` under
+ * `kits`). A kit's gripper is the parts scaled from these to its own sizes; the rover's parts keep the rover's reference above.
+ */
+export const gripperReferenceKitRef = { id: 'ref-uno-gripper', version: '0' } as const;
+const gripperReference = (() => {
+  const kit = productionKits.get(gripperReferenceKitRef);
+  return kit ? gripperReferenceSizes(robotModel(kit, unoR3Board)) : null;
 })();
 
 /** The servo a scenario's goal asks to raise, and the angle it asks for: the flag's mast and how high its pennant flies. */
@@ -47,7 +57,7 @@ export function GltfRobot({ assets, kit, model, scenario, view, detail, shadows,
     try {
       if (!reference) throw new Error('The reference kit is missing.');
       const boardLedPin = kit.board === unoR3Board.id ? unoR3Board.pins.findIndex((pin) => pin.id === 'D13') : -1;
-      return assembleRobot(model, reference, assets.part, { detail, shadows, flag, boardLedPin, blob });
+      return assembleRobot(model, reference, assets.part, { detail, shadows, flag, boardLedPin, blob, gripperReference });
     } catch (error) {
       // A kit file the robot cannot be built from: the simple robot, never the error boundary (that is for a canvas that fails).
       console.warn('The robot lab’s robot model could not be built; the view draws its simple robot.', error);

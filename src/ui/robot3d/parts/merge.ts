@@ -132,7 +132,10 @@ export function lowTierMaterials(cache: Map<Material, Material>) {
   return { swap, plain };
 }
 
-/** A Lambert material that looks like `material` without its specular light: colour, texture, vertex colours, emission, alpha. */
+/**
+ * A Lambert material that looks like `material` without its specular light: colour, texture, vertex colours, emission (N19 E6: with its
+ * emissive map, which limits the gripper's glow to its LED; N18's materials have none), alpha.
+ */
 export function lambertOf(material: MeshStandardMaterial): MeshLambertMaterial {
   return new MeshLambertMaterial({
     name: `${material.name}-low`,
@@ -141,6 +144,7 @@ export function lambertOf(material: MeshStandardMaterial): MeshLambertMaterial {
     aoMap: material.aoMap,
     vertexColors: material.vertexColors,
     emissive: material.emissive,
+    emissiveMap: material.emissiveMap,
     emissiveIntensity: material.emissiveIntensity,
     transparent: material.transparent,
     opacity: material.opacity,
