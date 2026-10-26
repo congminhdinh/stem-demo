@@ -1,6 +1,6 @@
 import type Konva from 'konva';
 import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
-import { Arrow, Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from 'react-konva';
+import { Arrow, Circle, Group, Image as KonvaImage, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import type { Kit } from '../../core/hardware/kit';
 import type { Scenario } from '../../core/scenario/scenario';
 import type { Arena, PaintZone } from '../../core/world/arena/arena-schema';
@@ -9,11 +9,13 @@ import { CM_PER_M } from '../../core/world/units';
 import { useElementSize } from '../canvas/use-element-size';
 import { useText } from '../i18n/text';
 import { groundTextureSize, paintGround } from './ground-paint';
-import { lineSeesDark, type RobotModel } from './robot-model';
+import { GRIPPER_REST, gripperStateOf } from './gripper-pose';
+import { lineSeesDark, type GripperModel, type RobotModel } from './robot-model';
 import type { RobotRunStore } from './robot-run-store';
 import type { RobotToolsStore } from './robot-tools-store';
 import { idleSnapshot } from './scene-math';
 import { topViewColors as colors } from './top-view-colors';
+import { BOOM_BAR_CM, BOOM_PLATE_CM, CARRIAGE_HALF_CM, createGripperTopView, gripperTopViewInto, heldRingRadiusCm, objectMarks } from './top-view-gripper';
 import { fitTopView, movingBodies, rayLengthCm, robotPartCm, sameTopView, scaleBar, treadOffsetCm, wheelRadIndex, type MovingBody, type StageMargins } from './top-view-math';
 import { TopViewSensorsLayer } from './TopViewSensors';
 import { TopViewToolsLayer, useTopViewPointer } from './TopViewTools';
@@ -30,7 +32,9 @@ import type { ViewFallbackReason } from './webgl-support';
 // (xCm, yCm) and a turn is its yawDeg as they are. It draws only when the picture changes (`sameTopView`): the second layer's nodes are
 // moved from the store's publishes and its `batchDraw` runs once per animation frame at most, with no React render for a snapshot.
 // The layers are not hit-tested; N18 R4.8: the view tools (the ruler, the move tool) read the pointer on the container and draw on a layer
-// of their own (TopViewTools.tsx).
+// of their own (TopViewTools.tsx). N19 E4 (Review Focus 5): a gripper car's boom, carriage and jaws, posed from `robot.gripper` (the reach
+// shortened by the cosine of the boom's elevation, the jaws opened by the claw), a ring round the object it holds, and each object of a
+// palette colour filled with it and marked as its zone is (top-view-gripper.ts); a rover draws exactly what it drew.
 
 export type TopView2DProps = {
   /** `goals` (N18 R4.3) is what the sensor overlay lights the next goal's zone from; without them no zone is lit. */
@@ -81,10 +85,15 @@ type Nodes = {
   arms: (Konva.Group | null)[];
   leds: (Konva.Circle | null)[];
   moving: Map<string, Konva.Group>;
+  /** N19 E4: the gripper's parts that move (a kit without one has none), and the ring round what it holds. */
+  gripper: GripperNodes;
+  held: Konva.Circle | null;
   draws: number;
 };
 
-const emptyNodes = (): Nodes => ({ layer: null, robot: null, treads: [], lineDots: [], rays: [], hits: [], arms: [], leds: [], moving: new Map(), draws: 0 });
+type GripperNodes = { group: Konva.Group | null; booms: (Konva.Rect | null)[]; carriage: Konva.Group | null; jaws: (Konva.Group | null)[] };
+
+const emptyNodes = (): Nodes => ({ layer: null, robot: null, treads: [], lineDots: [], rays: [], hits: [], arms: [], leds: [], moving: new Map(), gripper: { group: null, booms: [], carriage: null, jaws: [] }, held: null, draws: 0 });
 
 export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = null, tools }: TopView2DProps) {
   const t = useText();
@@ -94,8 +103,11 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
   const [widthCm, depthCm] = arena.ground.sizeCm;
   const idle = useMemo(() => idleSnapshot(scenario, kit), [scenario, kit]);
   const moving = useMemo(() => movingBodies(arena), [arena]);
+  const gripperView = useMemo(createGripperTopView, []);
   const fit = size !== null && size.width > 0 && size.height > 0 ? fitTopView([widthCm, depthCm], size, MARGINS) : null;
   const mat = useMat(arena, fit?.scale ?? null, zoneLabel);
+  // The names the mat is painted with, for the tests and the E2E (they cannot read the canvas).
+  const zoneLabels = useMemo(() => arena.paint.zones.flatMap((zone) => zoneLabel(zone) ?? []), [arena, zoneLabel]);
   const nodes = useRef<Nodes>(emptyNodes());
   const shown = fit !== null;
   useTopViewPointer(containerRef, tools, store, scenario, kit, fit);
@@ -153,11 +165,33 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
       for (const object of world.objects) {
         n.moving.get(object.id)?.position({ x: object.pose.xCm, y: object.pose.yCm }).rotation(object.pose.yawDeg);
       }
+      // N19 E4: the boom's reach, the carriage at its tip, the jaws' opening; the ring round the held object, where the world has it.
+      if (model.gripper !== null) {
+        const state = gripperStateOf(world);
+        const top = gripperTopViewInto(gripperView, model.gripper, state);
+        const g = n.gripper;
+        for (const boom of g.booms) boom?.width(top.reachCm);
+        g.carriage?.x(top.tipXCm);
+        g.jaws[0]?.rotation(top.leftDeg);
+        g.jaws[1]?.rotation(top.rightDeg);
+        g.group?.setAttrs({ clawDeg: state.clawDeg, liftDeg: state.liftDeg, heldId: state.heldId });
+        const held = state.heldId === null ? undefined : world.objects.find((object) => object.id === state.heldId);
+        const body = held === undefined ? undefined : moving.find((candidate) => candidate.id === held.id);
+        if (held !== undefined && body !== undefined) {
+          n.held?.position({ x: held.pose.xCm, y: held.pose.yCm });
+          n.held?.radius(heldRingRadiusCm(body));
+          n.held?.setAttr('heldId', held.id);
+          n.held?.visible(true);
+        } else {
+          n.held?.setAttr('heldId', null);
+          n.held?.visible(false);
+        }
+      }
       n.draws += 1;
       n.layer?.setAttr('draws', n.draws);
       n.layer?.batchDraw();
     },
-    [model, tools],
+    [model, tools, moving, gripperView],
   );
 
   // Follows the store: a publish or a change of its state draws the world if (and only if) the picture changed. The first call draws the
@@ -194,7 +228,7 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
       {fit && world && bar && size && (
         <Stage width={size.width} height={size.height} listening={false}>
           <Layer listening={false}>
-            <Group {...world} name="topview-mat">
+            <Group {...world} name="topview-mat" zoneLabels={zoneLabels}>
               <Rect x={-0.6} y={-0.6} width={widthCm + 1.2} height={depthCm + 1.2} fill={colors.slab} />
               {mat ? <KonvaImage image={mat} x={0} y={depthCm} width={widthCm} height={depthCm} scaleY={-1} /> : <Rect width={widthCm} height={depthCm} fill={arena.ground.color} />}
               {arena.walls.map((wall, i) => (
@@ -261,7 +295,7 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
                     else nodes.current.moving.delete(body.id);
                   }}
                 >
-                  <MovingShape body={body} />
+                  <MovingShape body={body} scale={fit.scale} />
                 </Group>
               ))}
               <Group
@@ -270,8 +304,23 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
                   nodes.current.robot = group;
                 }}
               >
-                <RobotParts model={model} setNode={setNode} />
+                <RobotParts model={model} setNode={setNode} gripperNodes={nodes.current.gripper} />
               </Group>
+              {/* N19 E4: the ring round the object the gripper holds (a kit without a gripper has none). */}
+              {model.gripper && (
+                <Circle
+                  name="topview-held"
+                  ref={(ring) => {
+                    nodes.current.held = ring;
+                  }}
+                  heldId={null}
+                  radius={1}
+                  stroke={colors.heldRing}
+                  strokeWidth={0.5}
+                  visible={false}
+                  perfectDrawEnabled={false}
+                />
+              )}
             </Group>
           </Layer>
           <TopViewSensorsLayer scenario={scenario} kit={kit} model={model} store={store} tools={tools} fit={fit} />
@@ -282,19 +331,54 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
   );
 }
 
-function MovingShape({ body }: { body: MovingBody }) {
-  const fill = colors[body.colorKey];
-  return body.shape === 'box' ? (
-    <Rect x={-body.widthCm / 2} y={-body.depthCm / 2} width={body.widthCm} height={body.depthCm} fill={fill} stroke={colors.bodyEdge} strokeWidth={0.25} />
-  ) : (
-    <Circle radius={body.radiusCm} fill={fill} stroke={colors.bodyEdge} strokeWidth={0.25} />
+/** A mark's line or dot is never thinner than this many pixels on the map (as the zones' patterns, zone-pattern.ts). */
+const MARK_MIN_PX = 1.5;
+
+function MovingShape({ body, scale }: { body: MovingBody; scale: number }) {
+  // N19 E4: an object with a colour of its own is filled with it, and one of a palette colour marked (red stripes, green a grid, blue dots).
+  const fill = body.fill ?? colors[body.colorKey];
+  const marks = useMemo(() => objectMarks(body), [body]);
+  const shape =
+    body.shape === 'box' ? (
+      <Rect x={-body.widthCm / 2} y={-body.depthCm / 2} width={body.widthCm} height={body.depthCm} fill={fill} stroke={colors.bodyEdge} strokeWidth={0.25} />
+    ) : (
+      <Circle radius={body.radiusCm} fill={fill} stroke={colors.bodyEdge} strokeWidth={0.25} />
+    );
+  if (marks === null) return shape;
+  return (
+    <>
+      {shape}
+      <Shape
+        name="topview-object-mark"
+        mark={marks.mark}
+        fillColor={fill}
+        stroke={marks.ink}
+        strokeWidth={Math.max(marks.widthCm, MARK_MIN_PX / scale)}
+        lineCap={marks.kind === 'dots' ? 'round' : 'butt'}
+        listening={false}
+        perfectDrawEnabled={false}
+        sceneFunc={(context, node) => {
+          context.beginPath();
+          for (const [x0, y0, x1, y1] of marks.segments) {
+            context.moveTo(x0, y0);
+            context.lineTo(x1, y1);
+          }
+          // A dot is a speck of next to no length with round ends.
+          for (const [x, y] of marks.dots) {
+            context.moveTo(x, y);
+            context.lineTo(x + 0.001, y);
+          }
+          context.strokeShape(node);
+        }}
+      />
+    </>
   );
 }
 
 type SetNode = <K extends 'treads' | 'lineDots' | 'rays' | 'hits' | 'arms' | 'leds'>(list: K, index: number) => (node: Nodes[K][number]) => void;
 
 /** The robot from above, built from the kit as the 3D one is (robot-model.ts), in its own frame: x forward, y left, cm. */
-function RobotParts({ model, setNode }: { model: RobotModel; setNode: SetNode }) {
+function RobotParts({ model, setNode, gripperNodes }: { model: RobotModel; setNode: SetNode; gripperNodes: GripperNodes }) {
   const length = model.body.lengthM * CM_PER_M;
   const width = model.body.widthM * CM_PER_M;
   // Every prop that `apply` also sets on a node (the ray's `points`, its `visible`, the dots' `fill`…) must keep the very value it has
@@ -340,6 +424,8 @@ function RobotParts({ model, setNode }: { model: RobotModel; setNode: SetNode })
         const [x, y] = robotPartCm(led.position);
         return <Circle key={led.role} ref={setNode('leds', i)} name="topview-led" role={led.role} x={x} y={y} radius={0.8} fill={colors.ledOff} stroke={colors.dotRing} strokeWidth={0.2} />;
       })}
+      {/* N19 E4: the gripper, over the deck and under the sensors' marks (the line sensors' dots under a raised carriage still show). */}
+      {model.gripper && <GripperParts gripper={model.gripper} nodes={gripperNodes} />}
       {/* The heading: an arrow from the middle to the nose. */}
       <Arrow name="topview-heading" points={[-length * 0.2, 0, length * 0.36, 0]} pointerLength={3} pointerWidth={3.4} fill={colors.arrow} stroke={colors.arrow} strokeWidth={0.7} />
       {model.ultrasonics.map((ultrasonic, i) => {
@@ -355,5 +441,73 @@ function RobotParts({ model, setNode }: { model: RobotModel; setNode: SetNode })
         return <Circle key={sensor.role} ref={setNode('lineDots', i)} name="topview-line-dot" role={sensor.role} dark={false} x={x} y={y} radius={0.9} fill={colors.lineLight} stroke={colors.dotRing} strokeWidth={0.25} />;
       })}
     </>
+  );
+}
+
+/**
+ * N19 E4: the gripper from above, at setup()'s pose until the world says otherwise (`apply` moves it): the boom's two side plates from the
+ * pivot, the carriage at their tip with the cross bar, and the two fingers at their hinges, each with its rubber pad on its inner face.
+ */
+function GripperParts({ gripper, nodes }: { gripper: GripperModel; nodes: GripperNodes }) {
+  const rest = useMemo(() => gripperTopViewInto(createGripperTopView(), gripper, GRIPPER_REST), [gripper]);
+  const span = gripper.boomHalfSpanM * CM_PER_M;
+  const length = gripper.finger.lengthM * CM_PER_M;
+  const thick = gripper.finger.thicknessM * CM_PER_M;
+  const pad = thick * 0.45;
+  return (
+    <Group
+      name="topview-gripper"
+      role={gripper.role}
+      clawDeg={GRIPPER_REST.clawDeg}
+      liftDeg={GRIPPER_REST.liftDeg}
+      heldId={GRIPPER_REST.heldId}
+      ref={(group) => {
+        nodes.group = group;
+      }}
+    >
+      {([1, -1] as const).map((side, i) => (
+        <Rect
+          key={side}
+          ref={(rect) => {
+            nodes.booms[i] = rect;
+          }}
+          name="topview-gripper-boom"
+          x={rest.pivotXCm}
+          y={rest.midYCm + side * span - BOOM_PLATE_CM / 2}
+          width={rest.reachCm}
+          height={BOOM_PLATE_CM}
+          fill={colors.gripperMetal}
+          stroke={colors.gripperEdge}
+          strokeWidth={0.12}
+        />
+      ))}
+      <Group
+        name="topview-gripper-carriage"
+        x={rest.tipXCm}
+        y={rest.midYCm}
+        ref={(group) => {
+          nodes.carriage = group;
+        }}
+      >
+        <Rect x={-BOOM_BAR_CM / 2} y={-(span + BOOM_PLATE_CM / 2)} width={BOOM_BAR_CM} height={2 * span + BOOM_PLATE_CM} fill={colors.gripperMetal} stroke={colors.gripperEdge} strokeWidth={0.12} />
+        <Rect x={-CARRIAGE_HALF_CM.u} y={-CARRIAGE_HALF_CM.v} width={2 * CARRIAGE_HALF_CM.u} height={2 * CARRIAGE_HALF_CM.v} cornerRadius={0.2} fill={colors.gripperBody} />
+        {([1, -1] as const).map((side, i) => (
+          <Group
+            key={side}
+            ref={(group) => {
+              nodes.jaws[i] = group;
+            }}
+            name="topview-jaw"
+            side={side}
+            x={rest.hingeXCm - rest.tipXCm}
+            y={side * rest.hingeYCm}
+            rotation={side === 1 ? rest.leftDeg : rest.rightDeg}
+          >
+            <Rect x={0} y={-thick / 2} width={length} height={thick} cornerRadius={0.1} fill={colors.gripperMetal} stroke={colors.gripperEdge} strokeWidth={0.12} />
+            <Rect x={0.4} y={side === 1 ? -thick / 2 : thick / 2 - pad} width={length - 0.8} height={pad} fill={colors.gripperPad} />
+          </Group>
+        ))}
+      </Group>
+    </Group>
   );
 }

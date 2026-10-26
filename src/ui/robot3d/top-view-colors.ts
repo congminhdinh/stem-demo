@@ -32,6 +32,13 @@ export const topViewColors = {
   rayHit: '#e11d48',
   /** The scale bar and its label. */
   scale: '#334155',
+  /** N19 E4: the gripper from above: its aluminium boom and fingers with a dark edge (so they read on the light mat), the carriage, the fingers' rubber. */
+  gripperMetal: robot3dColors.gripperMetal,
+  gripperEdge: robot3dColors.chip,
+  gripperBody: robot3dColors.chip,
+  gripperPad: robot3dColors.gripperPad,
+  /** N19 E4: the ring round the held object: a violet no zone, object or sensor of the map uses. */
+  heldRing: '#6d28d9',
 } as const;
 
 export type TopViewColor = keyof typeof topViewColors;

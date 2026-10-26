@@ -1,18 +1,20 @@
 import type Konva from 'konva';
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { Circle, Group, Label, Layer, Line, Tag, Text } from 'react-konva';
-import type { Kit, LineSensorSpec, UltrasonicSpec } from '../../core/hardware/kit';
+import type { ColorSensorSpec, IrObstacleSpec, Kit, LineSensorSpec, UltrasonicSpec } from '../../core/hardware/kit';
 import type { Scenario } from '../../core/scenario/scenario';
 import type { RobotSnapshot } from '../../core/world/snapshot';
 import { useLocale, useText } from '../i18n/text';
 import { formatNumber } from './format';
+import { gripperStateOf } from './gripper-pose';
 import type { RobotModel } from './robot-model';
 import type { RobotRunStore } from './robot-run-store';
 import { robotToArena } from './robot-tools';
 import type { RobotToolsStore } from './robot-tools-store';
 import { idleSnapshot } from './scene-math';
-import { sensorColors as colors } from './sensor-colors';
-import { highlightColor, nextGoalZoneId, pulseLevel, sameSensorView, sectorPointsCm, SECTOR_POINTS_LENGTH, spotDrawRadiusCm } from './sensor-overlay-math';
+import { readingTints, sensorColors as colors } from './sensor-colors';
+import { highlightColor, nextGoalZoneId, pulseLevel, sameSensorView, sectorPointsCm, SECTOR_POINTS_LENGTH, shownColor, spotDrawRadiusCm } from './sensor-overlay-math';
+import { createGripperTopView, gripperTopViewInto } from './top-view-gripper';
 import { arenaToStage, rayLengthCm, sameTopView, type TopViewFit } from './top-view-math';
 
 // The sensor overlays on the 2D map (N18 R4.3), as parts/SensorOverlay.tsx draws them in the 3D view: over the cone of each ultrasonic
@@ -22,7 +24,10 @@ import { arenaToStage, rayLengthCm, sameTopView, type TopViewFit } from './top-v
 // layer it draws only when the picture changes (`sameTopView` and `sameSensorView`), from the store's publishes, with no React render for
 // a snapshot. The readings are the snapshot's (the distance the sensor heard, the shortest of its five rays', not the rays), so the fan is an outline of the same length from the
 // sensor, as in the 3D view. A reading with no echo is drawn as long as the map's ray for it (NO_ECHO_RAY_CM) and says "không thấy vật", as the 3D view does.
-// "Hiện cảm biến" (the tools store's `sensors`) turns the whole layer, and the map's ray, off.
+// "Hiện cảm biến" (the tools store's `sensors`) turns the whole layer, and the map's ray, off. N19 E4: on a gripper car, the IR sensor's
+// beam between the jaws (its range, faint until it sees something, then strong with a dot at its end), the colour sensor's ray to what it
+// meets and a spot there tinted with the colour its counts read (a ring alone for "không rõ"), both from the carriage where the boom holds
+// it, and a tag under the jaws that says them ("IR: có vật", "Màu: đỏ").
 
 const EMPTY_GOALS: Scenario['goals'] = [];
 const reducedMotionQuery = '(prefers-reduced-motion: reduce)';
@@ -44,6 +49,11 @@ type Nodes = {
   labels: (Konva.Label | null)[];
   texts: (Konva.Text | null)[];
   spots: (Konva.Circle | null)[];
+  /** N19 E4: the gripper car's IR beam and the dot at its end, the colour sensor's ray and spot, and their tag. */
+  ir: { beam: Konva.Line | null; end: Konva.Circle | null };
+  color: { ray: Konva.Line | null; spot: Konva.Circle | null };
+  gripperLabel: Konva.Label | null;
+  gripperText: Konva.Text | null;
 };
 
 export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }: TopViewSensorsProps) {
@@ -54,7 +64,7 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
   // Whether the learner asks the system for no motion: the query is made once here (a media query list is live: `matches` is always the
   // current answer, and a browser without the query, or a test, has none).
   const motion = useMemo(() => (typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia(reducedMotionQuery) : null), []);
-  const nodes = useRef<Nodes>({ layer: null, zones: new Map(), cones: [], labels: [], texts: [], spots: [] });
+  const nodes = useRef<Nodes>({ layer: null, zones: new Map(), cones: [], labels: [], texts: [], spots: [], ir: { beam: null, end: null }, color: { ray: null, spot: null }, gripperLabel: null, gripperText: null });
   // The zones goals name.
   const zones = useMemo(() => {
     const named = new Set<string>();
@@ -80,6 +90,18 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
     () => model.lineSensors.map((sensor) => ({ role: sensor.role, sensorIndex: sensor.sensorIndex, radiusCm: spotDrawRadiusCm((kit.modules.find((module) => module.role === sensor.role)?.spec as unknown as LineSensorSpec | undefined)?.spotRadiusCm) })),
     [kit, model],
   );
+  // N19 E4: the sensors on the gripper's carriage: where each sits on it (cm: u forward, v left) and how far it reaches.
+  const carried = useMemo(() => {
+    const gripper = model.gripper;
+    if (gripper === null) return null;
+    const rider = (sensor: { role: string; position: readonly [number, number, number]; sensorIndex: number } | null) => {
+      const module = sensor === null ? undefined : kit.modules.find((candidate) => candidate.role === sensor.role);
+      if (sensor === null || module === undefined) return null;
+      const rangeCm = (module.spec as unknown as IrObstacleSpec | ColorSensorSpec).rangeCm;
+      return { role: sensor.role, sensorIndex: sensor.sensorIndex, uCm: sensor.position[0] * 100, vCm: 0 - sensor.position[2] * 100, yawDeg: module.mount.yawDeg, rangeCm };
+    };
+    return { gripper, ir: rider(gripper.ir), color: rider(gripper.color), view: createGripperTopView(), irPoints: [0, 0, 0, 0], colorPoints: [0, 0, 0, 0] };
+  }, [kit, model]);
   const shownFit = useRef(fit);
   const shownText = useRef(t);
 
@@ -144,9 +166,77 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
           circle.setAttr('dark', reading.dark);
           circle.visible(true);
         });
+        if (carried !== null) drawCarried(world);
       }
       layer.setAttr('draws', Number(layer.getAttr('draws') ?? 0) + 1);
       layer.batchDraw();
+    };
+
+    /** N19 E4: the IR beam, the colour sensor's ray and spot, and their tag, from the carriage where the boom holds it now. */
+    const drawCarried = (world: RobotSnapshot) => {
+      if (carried === null) return;
+      const top = gripperTopViewInto(carried.view, carried.gripper, gripperStateOf(world));
+      const { ir, color } = carried;
+      const lines: string[] = [];
+      // A sensor's place on the arena and its heading (the carriage is level: it faces the robot's way).
+      const place = (sensor: NonNullable<typeof ir>) => ({
+        origin: robotToArena(world.robot, [top.tipXCm + sensor.uCm, top.midYCm + sensor.vCm]),
+        heading: ((world.robot.yawDeg + sensor.yawDeg) * Math.PI) / 180,
+      });
+      const irReading = ir === null ? undefined : world.sensors[ir.sensorIndex];
+      if (ir !== null && irReading?.kind === 'ir-obstacle') {
+        const { origin, heading } = place(ir);
+        const [x1, y1] = [origin.xCm + ir.rangeCm * Math.cos(heading), origin.yCm + ir.rangeCm * Math.sin(heading)];
+        // In place: the node's own array (its prop), so that a render of the map never puts the beam back.
+        const beam = carried.irPoints;
+        [beam[0], beam[1], beam[2], beam[3]] = [origin.xCm, origin.yCm, x1, y1];
+        n.ir.beam?.points(beam);
+        n.ir.beam?.opacity(irReading.detected ? 1 : 0.4);
+        n.ir.beam?.strokeWidth(irReading.detected ? 0.55 : 0.3);
+        n.ir.beam?.setAttrs({ detected: irReading.detected, hitId: irReading.hitId });
+        n.ir.beam?.visible(true);
+        n.ir.end?.position({ x: x1, y: y1 });
+        n.ir.end?.visible(irReading.detected);
+        lines.push(shownText.current('robot.overlay.ir', { state: shownText.current(irReading.detected ? 'robot.pins.ir.seen' : 'robot.pins.ir.clear') }));
+      } else {
+        n.ir.beam?.visible(false);
+        n.ir.end?.visible(false);
+      }
+      const colorReading = color === null ? undefined : world.sensors[color.sensorIndex];
+      if (color !== null && colorReading?.kind === 'color-sensor') {
+        const { origin, heading } = place(color);
+        const reach = colorReading.distanceCm ?? color.rangeCm;
+        const [x1, y1] = [origin.xCm + reach * Math.cos(heading), origin.yCm + reach * Math.sin(heading)];
+        const ray = carried.colorPoints;
+        [ray[0], ray[1], ray[2], ray[3]] = [origin.xCm, origin.yCm, x1, y1];
+        n.color.ray?.points(ray);
+        n.color.ray?.dash(colorReading.hitId === null ? [0.5, 0.4] : []);
+        n.color.ray?.visible(true);
+        const read = shownColor(colorReading);
+        const tint = read === null ? null : readingTints[read];
+        n.color.spot?.position({ x: x1, y: y1 });
+        n.color.spot?.fill(tint ?? colors.spotRing);
+        n.color.spot?.fillEnabled(tint !== null);
+        n.color.spot?.setAttrs({ color: read, hitId: colorReading.hitId });
+        n.color.spot?.visible(colorReading.hitId !== null);
+        lines.push(shownText.current('robot.overlay.color', { color: read === null ? shownText.current('robot.pins.color.noReading') : shownText.current(`robot.color.${read}`) }));
+      } else {
+        n.color.ray?.visible(false);
+        n.color.spot?.visible(false);
+      }
+      const label = n.gripperLabel;
+      const text = n.gripperText;
+      if (label === null || text === null || lines.length === 0) {
+        label?.visible(false);
+        return;
+      }
+      // Under the jaws' tips on the screen, pointing up at them: clear of the ultrasonic's tag, which stands over its ray's end.
+      const reach = top.hingeXCm + carried.gripper.finger.lengthM * 100;
+      const at = arenaToStage(shownFit.current, robotToArena(world.robot, [reach, top.midYCm]));
+      text.text(lines.join('\n'));
+      label.position({ x: at.x, y: at.y + 12 });
+      label.offsetX(label.width() / 2);
+      label.visible(true);
     };
 
     const refresh = (force: boolean) => {
@@ -166,7 +256,7 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
       stopState();
       stopTools?.();
     };
-  }, [fit, t, locale, store, tools, idle, goals, beams, spots, motion]);
+  }, [fit, t, locale, store, tools, idle, goals, beams, spots, motion, carried]);
 
   const world = { x: fit.originX, y: fit.originY, scaleX: fit.scale, scaleY: -fit.scale };
   return (
@@ -234,6 +324,64 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
             visible={false}
           />
         ))}
+        {carried?.ir && (
+          <>
+            <Line
+              ref={(node) => {
+                nodes.current.ir.beam = node;
+              }}
+              name="topview-ir"
+              role={carried.ir.role}
+              points={carried.irPoints}
+              stroke={colors.ir}
+              strokeWidth={0.3}
+              lineCap="round"
+              opacity={0.4}
+              visible={false}
+              perfectDrawEnabled={false}
+            />
+            <Circle
+              ref={(node) => {
+                nodes.current.ir.end = node;
+              }}
+              name="topview-ir-end"
+              role={carried.ir.role}
+              radius={0.45}
+              fill={colors.ir}
+              visible={false}
+            />
+          </>
+        )}
+        {carried?.color && (
+          <>
+            <Line
+              ref={(node) => {
+                nodes.current.color.ray = node;
+              }}
+              name="topview-color-ray"
+              role={carried.color.role}
+              points={carried.colorPoints}
+              stroke={colors.spotRing}
+              strokeWidth={0.18}
+              opacity={0.7}
+              visible={false}
+              perfectDrawEnabled={false}
+            />
+            <Circle
+              ref={(node) => {
+                nodes.current.color.spot = node;
+              }}
+              name="topview-color-spot"
+              role={carried.color.role}
+              radius={0.8}
+              fill={colors.spotRing}
+              fillEnabled={false}
+              stroke={colors.spotRing}
+              strokeWidth={0.25}
+              visible={false}
+            />
+          </>
+        )}
       </Group>
       {beams.map((beam, i) => (
         <Label
@@ -259,6 +407,29 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
           />
         </Label>
       ))}
+      {carried && (carried.ir || carried.color) && (
+        <Label
+          ref={(node) => {
+            nodes.current.gripperLabel = node;
+          }}
+          name="topview-gripper-label"
+          visible={false}
+        >
+          <Tag fill={colors.labelBackground} stroke={colors.labelBorder} strokeWidth={1.5} cornerRadius={8} pointerDirection="up" pointerWidth={7} pointerHeight={5} />
+          <Text
+            ref={(node) => {
+              nodes.current.gripperText = node;
+            }}
+            text=""
+            fontFamily={labelFont}
+            fontSize={12}
+            fontStyle="700"
+            lineHeight={1.25}
+            padding={4}
+            fill={colors.labelText}
+          />
+        </Label>
+      )}
     </Layer>
   );
 }

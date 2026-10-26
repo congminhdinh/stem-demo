@@ -70,8 +70,11 @@ export function rayLengthCm(readingCm: number, echo: boolean): number {
   return echo ? readingCm : Math.min(readingCm, NO_ECHO_RAY_CM);
 }
 
-/** What a moving body of the arena looks like from above, in the order of a snapshot's `objects`; `colorKey` names its colour. */
-export type MovingBody = { id: string } & (
+/**
+ * What a moving body of the arena looks like from above, in the order of a snapshot's `objects`; `colorKey` names its colour. N19 E4: an
+ * object the arena gives a colour of its own (`objects[].color`) is filled with it (`fill`); one without has none and looks as it did.
+ */
+export type MovingBody = { id: string; fill?: string } & (
   | { shape: 'box'; widthCm: number; depthCm: number; colorKey: 'box' | 'object' }
   | { shape: 'cylinder'; radiusCm: number; colorKey: 'cylinder' | 'object' }
 );
@@ -82,11 +85,12 @@ export function movingBodies(arena: Pick<Arena, 'boxes' | 'cylinders' | 'objects
   const shapes: Omit<MovingBody, 'id'>[] = [
     ...arena.boxes.filter((box) => box.body === 'dynamic').map((box) => ({ shape: 'box' as const, widthCm: box.sizeCm[0], depthCm: box.sizeCm[1], colorKey: 'box' as const })),
     ...arena.cylinders.filter((cylinder) => cylinder.body === 'dynamic').map((cylinder) => ({ shape: 'cylinder' as const, radiusCm: cylinder.radiusCm, colorKey: 'cylinder' as const })),
-    ...arena.objects.map((object) =>
-      object.shape === 'box'
+    ...arena.objects.map((object) => ({
+      ...(object.shape === 'box'
         ? { shape: 'box' as const, widthCm: object.sizeCm[0], depthCm: object.sizeCm[1], colorKey: 'object' as const }
-        : { shape: 'cylinder' as const, radiusCm: object.radiusCm, colorKey: 'object' as const },
-    ),
+        : { shape: 'cylinder' as const, radiusCm: object.radiusCm, colorKey: 'object' as const }),
+      ...(object.color === undefined ? {} : { fill: object.color }),
+    })),
   ];
   return shapes.map((shape, i) => ({ ...shape, id: ids[i]! }) as MovingBody);
 }

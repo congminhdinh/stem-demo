@@ -3,6 +3,9 @@
 // spot a red disc where it reads dark (the lamp's red) and a blue ring where it reads bright, the next goal's zone a stronger shade of its own hue
 // (`highlightColor`). The label is a white tag with the beam's blue, like the zones' tags.
 
+import type { ColorName } from '../../core/hardware/drivers';
+import { bodyPalette } from '../../core/world/arena/body-colors';
+
 export const sensorColors = {
   /** The ultrasonic beam: its axis ray, the cone's edges and its soft fill. */
   ray: '#0284c7',
@@ -18,6 +21,24 @@ export const sensorColors = {
   labelBackground: 'rgba(255, 255, 255, 0.96)',
   labelBorder: '#0284c7',
   labelText: '#0c4a6e',
+  /** N19 E4/E5: the IR sensor's short beam between the jaws (a fuchsia no other overlay uses), faint until it sees something. */
+  ir: '#c026d3',
+  /** N19 E4/E5: the dark ring round the colour sensor's spot, so that a white or a yellow reading still shows on the light mat. */
+  spotRing: '#1e293b',
 } as const;
+
+/**
+ * N19 E4/E5: the tint of the colour sensor's spot for the colour its counts read (`shownColor`): the palette's own for its four colours
+ * (the cubes' colours, body-colors.ts), white and black for those, and none for "không rõ" (the spot is a ring alone).
+ */
+export const readingTints: Readonly<Record<ColorName, string | null>> = Object.freeze({
+  red: bodyPalette.red,
+  green: bodyPalette.green,
+  blue: bodyPalette.blue,
+  yellow: bodyPalette.yellow,
+  white: '#ffffff',
+  black: '#212121',
+  unknown: null,
+});
 
 export type SensorColor = keyof typeof sensorColors;
