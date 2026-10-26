@@ -25,7 +25,7 @@ import { assertTickS } from './tick';
 //
 //   1. out-of-arena         the robot left the arena (for good, at that time);
 //   2. object-still-held    the gripper holds either object;
-//   3. object-pushed        (carried) as `object-placed` with a slide of STACK_MAX_SLIDE_CM and `minCarryLiftCm`: the top was never carried
+//   3. object-pushed        (carried) as `object-placed`, with a slide of STACK_MAX_SLIDE_CM, `minCarryLiftCm` and `minCarryCm`: the top was never carried
 //      object-never-held    and was pushed, or it slid more than that since it was let go; never carried and not pushed: object-never-held;
 //   4. object-not-stacked   the middle of the top is not at the height of the bottom's top face plus half its own height, within
 //                           STACK_Z_TOLERANCE_CM (either height unknown is not stacked): it lies beside it, or fell off;
@@ -76,7 +76,7 @@ export const OBJECT_ON_OBJECT_REASONS = reasonsOf(STACK_STEPS);
 
 export function createObjectOnObjectGoal(spec: GoalSpec<'object-on-object'>, ctx: Pick<GoalContext, 'arena'>): Goal {
   const restingRiseCm = (objectHeightCm(arenaObject(ctx, spec.bottom)) + objectHeightCm(arenaObject(ctx, spec.top))) / 2;
-  const carry = createCarryWatch(spec.top, STACK_MAX_SLIDE_CM, spec.minCarryLiftCm);
+  const carry = createCarryWatch(spec.top, { maxSlideCm: STACK_MAX_SLIDE_CM, minCarryLiftCm: spec.minCarryLiftCm, minCarryCm: spec.minCarryCm });
   const rest = createRestWatch(spec.top, spec.restS);
   let top: GoalObject | undefined;
   let bottom: GoalObject | undefined;

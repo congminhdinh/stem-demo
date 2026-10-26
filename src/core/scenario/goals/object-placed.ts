@@ -27,9 +27,9 @@ import { assertTickS } from './tick';
 //   2. object-still-held      the gripper still holds the object;
 //   3. object-pushed          (carried) never carried, and pushed more than `maxSlideCm` from where it started; or carried, and it slid
 //      object-never-held      more than `maxSlideCm` on the floor since it was let go (a nudge of up to `maxSlideCm` is allowed). Never carried
-//                             and not pushed either: object-never-held. Carried means let go after a grip that lifted it `minCarryLiftCm`
-//                             (object-watch.ts): a grip that did not is no carry, so a push and a pinch is a push. Together they are the
-//                             plan's "pushed cube scores 0": no push or nudge into a zone counts;
+//                             and not pushed either: object-never-held. Carried means let go after a grip that lifted it `minCarryLiftCm` and
+//                             took it `minCarryCm` while it was up (object-watch.ts): any other grip is no carry, so a push and then a pinch,
+//                             or a lift in place, is a push. Together they are the plan's "pushed cube scores 0": no push into a zone counts;
 //   4. object-wrong-zone      its middle is in another zone: a named one (`paint.zones[].name`) or one of `zoneByColor`; `detail.zoneId`
 //                             names it (the one painted on top);
 //   5. object-dropped         its middle is outside its zone, and it was let go outside it (`atS` is when);
@@ -103,7 +103,7 @@ export function createObjectPlacedGoal(spec: GoalSpec<'object-placed'>, ctx: Pic
   // The zones it may end in by mistake, the one painted last first (it lies over the others, so it is what the learner sees there).
   const otherIds = new Set([...(spec.zoneByColor === undefined ? [] : Object.values(spec.zoneByColor))]);
   const others: PaintZone[] = ctx.arena.paint.zones.filter((zone) => zone.id !== targetId && (zone.name !== undefined || otherIds.has(zone.id))).reverse();
-  const carry = createCarryWatch(spec.object, spec.maxSlideCm, spec.minCarryLiftCm);
+  const carry = createCarryWatch(spec.object, spec);
   const rest = createRestWatch(spec.object, spec.restS);
   let last: GoalObject | undefined;
   let releasedOverTarget = false;

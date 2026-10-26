@@ -149,7 +149,7 @@ describe('object-placed', () => {
     });
 
     it('measures the lift from where the grip took it, and reads a grip with no height as no lift', () => {
-      const liftedBy = (dz: number) => run([cubeAt(85, 60), heldAt(85, 60, 2), heldAt(85, 60, 2 + dz), heldAt(130, 60, 2.1), ...carryTo(130, 60).slice(5)]);
+      const liftedBy = (dz: number) => run([cubeAt(85, 60), heldAt(85, 60, 2), heldAt(85, 60, 2 + dz), heldAt(130, 60, 2 + dz), heldAt(130, 60, 2.1), ...carryTo(130, 60).slice(5)]);
       expect(liftedBy(1)).toMatchObject({ passed: true });
       expect(liftedBy(0.99)).toMatchObject({ reasonKey: goalReasons.objectPushed });
       expect(run(carryTo(130, 60), { ...place, minCarryLiftCm: 3.5 })).toMatchObject({ reasonKey: goalReasons.objectPushed }); // carryTo lifts 3 cm
@@ -164,6 +164,26 @@ describe('object-placed', () => {
       expect(run([...carried, heldAt(132, 60, 2), heldAt(134, 60, 2), cubeAt(134, 60), cubeAt(134, 60), cubeAt(134, 60)])).toMatchObject({
         reasonKey: goalReasons.objectPushed,
       });
+    });
+
+    // Fix round 2 (review N1, controller ruling): and it has to have taken the object somewhere: minCarryCm (5 cm by default) on the floor,
+    // from where the object first was up to where it last was up in the grip.
+    it('wants the lifted object carried minCarryCm on the floor: 5 cm is a carry, 4.9 cm is not', () => {
+      expect(place.minCarryCm).toBe(5);
+      const carriedBy = (dx: number) => run([cubeAt(85, 60), heldAt(85, 60, 2), heldAt(85, 60, 4), heldAt(85 + dx, 60, 4), heldAt(85 + dx, 60, 2), cubeAt(85 + dx, 60), cubeAt(85 + dx, 60), cubeAt(85 + dx, 60)]);
+      expect(carriedBy(5)).toMatchObject({ reasonKey: goalReasons.objectWrongZone, detail: { zoneId: 'pickup' } }); // carried, put down in the pickup zone
+      expect(carriedBy(4.9)).toMatchObject({ reasonKey: goalReasons.objectPushed }); // no carry, so 4.9 cm from where it started is a push
+      expect(run(carryTo(130, 60), { ...place, minCarryCm: 46 })).toMatchObject({ reasonKey: goalReasons.objectPushed }); // carryTo moves it 45 cm
+      expect(run(carryTo(130, 60), { ...place, minCarryCm: 45 })).toMatchObject({ passed: true });
+    });
+
+    it('counts only the way it went while it was up, not a drag on the floor in the grip, nor a trip out and back', () => {
+      const dragThenLift = [cubeAt(85, 60), heldAt(85, 60, 2), heldAt(130, 60, 2.2), heldAt(130, 60, 4), heldAt(130, 60, 2), cubeAt(130, 60), cubeAt(130, 60), cubeAt(130, 60)];
+      expect(run(dragThenLift)).toMatchObject({ reasonKey: goalReasons.objectPushed });
+      const outAndBack = [cubeAt(130, 60), heldAt(130, 60, 2), heldAt(130, 60, 4), heldAt(140, 60, 4), heldAt(130, 60, 4), heldAt(130, 60, 2), cubeAt(130, 60), cubeAt(130, 60), cubeAt(130, 60)];
+      expect(run(outAndBack)).toMatchObject({ reasonKey: goalReasons.objectNeverHeld });
+      // With minCarryCm 0 a lift alone is a carry, as fix round 1 had it.
+      expect(run(outAndBack, { ...place, minCarryCm: 0 })).toMatchObject({ passed: true });
     });
 
     it('keeps where it was let go when the frame of the release has no pose for it (review M1)', () => {

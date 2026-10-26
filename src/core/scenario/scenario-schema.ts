@@ -132,6 +132,8 @@ const goalSchema = z.discriminatedUnion('kind', [
     maxSlideCm: lengthCm.default(3),
     /** N19 D1–D3 fix round 1 (review I1): how high a grip must have lifted the object, cm, for it to have been carried (a pinch is not). */
     minCarryLiftCm: lengthCm.default(1),
+    /** N19 D1–D3 fix round 2 (review N1): how far the grip must have taken it on the floor while it was that high, cm (a lift in place is not). */
+    minCarryCm: lengthCm.default(5),
   }),
   z.strictObject({
     ...goalBase,
@@ -142,8 +144,9 @@ const goalSchema = z.discriminatedUnion('kind', [
     maxTiltDeg: tiltDeg,
     restS: positive,
     carried: z.boolean().default(true),
-    /** As for object-placed: how high a grip must have lifted the top, cm, for it to have been carried. */
+    /** As for object-placed: how high a grip must have lifted the top, cm, and how far it must have taken it that high, for a carry. */
     minCarryLiftCm: lengthCm.default(1),
+    minCarryCm: lengthCm.default(5),
   }),
   z.strictObject({ ...goalBase, kind: z.literal('object-unmoved'), object: z.string(), maxMoveCm: lengthCm, maxTiltDeg: tiltDeg.default(20) }),
 ], {

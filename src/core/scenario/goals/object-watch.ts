@@ -65,12 +65,15 @@ export function floorDistanceCm(a: Pick<GoalObject, 'xCm' | 'yCm'>, b: Pick<Goal
 export const tiltOf = (pose: GoalObject): number => pose.tiltDeg ?? 0;
 
 /**
- * Whether an object was carried (plan §4.5 `carried`): lifted by the gripper, let go, and slid no more than `maxSlideCm` on the floor since.
- * N19 D1–D3 fix round 1 (review I1, controller ruling): a grip counts as a carry only when it lifted the object at least `minCarryLiftCm`
- * above where it lay when the grip took it (its height on the last frame before the grip; a grip with no height to read lifted nothing, which
- * only a `minCarryLiftCm` of 0 accepts).
- * Otherwise the grip is as if it had not happened: it neither makes the object carried nor forgives a push before it, and a drag in it is
- * part of the slide. So a push into the zone and a pinch there is still a push.
+ * Whether an object was carried (plan §4.5 `carried`): taken somewhere by the gripper, let go, and slid no more than `maxSlideCm` on the floor
+ * since. A grip counts as a carry only when, while it held the object, the object was up at least `minCarryLiftCm` above where it lay when
+ * the grip took it (its height on the last frame before the grip), and moved at least `minCarryCm` on the floor while it was up: from where
+ * it first was that high in the grip to where it last was (N19 D1–D3 fix round 1, review I1, and fix round 2, review N1, controller
+ * rulings). So a pinch is no carry, nor a lift in place, nor a drag on the floor and a lift where it ends, nor a trip out and back. A frame
+ * with no height to read is not up, unless `minCarryLiftCm` is 0, when every frame of the grip is.
+ *
+ * A grip that is no carry is as if it had not happened: it neither makes the object carried nor forgives a push before it, and where it
+ * leaves the object counts in the slide. So a push into the zone and a pinch or a lift there is still a push.
  *
  * The slide is measured from where the object was let go after its last carry, or, never carried, from where it was on the first frame;
  * it is the farthest it has been from there. Fed every frame.
@@ -79,7 +82,7 @@ export type CarryWatch = {
   update(frame: GoalFrame): void;
   /** Held on the last frame. */
   readonly heldNow: boolean;
-  /** Let go after a grip that lifted it (see above), at least once. */
+  /** Let go after a grip that carried it (see above), at least once. */
   readonly carried: boolean;
   /**
    * Where and when it was last let go, after any grip: the first frame not held after a hold, at its place there or, when that frame has
@@ -92,9 +95,13 @@ export type CarryWatch = {
   readonly pushedAtS: number | undefined;
 };
 
+/** What a carry is (see `CarryWatch`), cm: the slide allowed after it, how high it must lift, how far it must take the object up there. */
+export type CarryLimits = { readonly maxSlideCm: number; readonly minCarryLiftCm: number; readonly minCarryCm: number };
+
 type FloorPoint = { readonly xCm: number; readonly yCm: number };
 
-export function createCarryWatch(id: string, maxSlideCm: number, minCarryLiftCm: number): CarryWatch {
+export function createCarryWatch(id: string, limits: CarryLimits): CarryWatch {
+  const { maxSlideCm, minCarryLiftCm, minCarryCm } = limits;
   let heldNow = false;
   let carried = false;
   let release: CarryWatch['release'];
@@ -102,11 +109,13 @@ export function createCarryWatch(id: string, maxSlideCm: number, minCarryLiftCm:
   let origin: FloorPoint | undefined;
   let slideCm = 0;
   let pushedAtS: number | undefined;
-  /** Its height on the last frame it was not held, and, during a grip, the height the grip took it from and the highest it has been. */
+  /** Its height on the last frame it was not held; during a grip, the height the grip took it from. */
   let restZCm: number | undefined;
   let takenFromZCm: number | undefined;
-  let highestZCm: number | undefined;
+  /** During a grip: its last place, and where it first and last was up (lifted minCarryLiftCm). */
   let lastHeldAt: FloorPoint | undefined;
+  let firstUpAt: FloorPoint | undefined;
+  let lastUpAt: FloorPoint | undefined;
   return {
     update(frame) {
       const pose = objectOn(frame, id);
@@ -114,13 +123,21 @@ export function createCarryWatch(id: string, maxSlideCm: number, minCarryLiftCm:
       if (isHeld(frame, id)) {
         if (!heldNow) {
           takenFromZCm = restZCm ?? placed?.zCm;
-          highestZCm = undefined;
           lastHeldAt = undefined;
+          firstUpAt = undefined;
+          lastUpAt = undefined;
           release = undefined;
         }
         heldNow = true;
-        if (placed !== undefined) lastHeldAt = { xCm: placed.xCm, yCm: placed.yCm };
-        if (placed?.zCm !== undefined) highestZCm = Math.max(highestZCm ?? placed.zCm, placed.zCm);
+        if (placed === undefined) return;
+        lastHeldAt = { xCm: placed.xCm, yCm: placed.yCm };
+        const up =
+          minCarryLiftCm <= 0 ||
+          (placed.zCm !== undefined && takenFromZCm !== undefined && placed.zCm - takenFromZCm >= minCarryLiftCm - LENGTH_EPSILON_CM);
+        if (up) {
+          firstUpAt ??= lastHeldAt;
+          lastUpAt = lastHeldAt;
+        }
         return;
       }
       if (heldNow) {
@@ -128,9 +145,8 @@ export function createCarryWatch(id: string, maxSlideCm: number, minCarryLiftCm:
         heldNow = false;
         const at = placed ?? lastHeldAt;
         release = at === undefined ? undefined : { xCm: at.xCm, yCm: at.yCm, tS: frame.tS };
-        const lifted =
-          minCarryLiftCm <= 0 || (takenFromZCm !== undefined && highestZCm !== undefined && highestZCm - takenFromZCm >= minCarryLiftCm - LENGTH_EPSILON_CM);
-        if (lifted && release !== undefined) {
+        const journeyed = firstUpAt !== undefined && lastUpAt !== undefined && floorDistanceCm(lastUpAt, firstUpAt) >= minCarryCm - LENGTH_EPSILON_CM;
+        if (journeyed && release !== undefined) {
           carried = true;
           origin = { xCm: release.xCm, yCm: release.yCm };
           slideCm = 0;
