@@ -291,6 +291,16 @@ Toàn bộ §5 của plan N18 vẫn áp dụng: B1, Rapier chỉ ở `src/core/w
 - **Luật kit là issue của `loadKit`** có mã (`DataIssue.code`): `wrong-i2c-pin`, `i2c-address-conflict`. Địa chỉ I²C là của driver (`driverPortSpecs[…].i2cAddress`, TCS34725 cố định 0x29), không phải param của kit. Các thiết bị một bus dùng chung SDA/SCL nên `checkKit` không báo `pin-conflict` cho chúng.
 - **`ir-digital`:** param `activeLow` mặc định `true` (module IR thường kéo LOW khi thấy vật); kit vẫn ghi rõ.
 
+### 4.8 Ghi lại khi làm A4 + A5 + C2 (một dispatch; thắng §4.3 khi mâu thuẫn)
+
+- **Một dispatch:** contract (A5) và parity (C2) đi cùng chuỗi chương trình (A4): test của contract bắt mọi dòng mở phải có parity EMU-16, mà fixture parity cần generator của A4; generator thì cần dòng contract (`unoOps`, allowlist).
+- **IR:** `color.is(color1, color)` và `color.raw(color1, channel)` giữ lựa chọn của dropdown bằng **tên** (`ColorName`, `ColorChannel`), như hướng của khối robot đi; run và generator đổi ra chỉ số (`modules.read(role, op, [n])`, `colorIs(<n>L)`). Kẹp và tay cảnh báo `value-clamped` một lần cho role `gripper` (cả hai).
+- **Hộp khối:** pack `uno.gripper` (kẹp, tay, IR), `uno.color`, `uno.color.advanced`, đứng cuối catalog; profile đặt "Tay gắp" ngay sau Servo. `kitBlockPacks(profile, {kit, board}, catalog)` bỏ khối có role kit không có (theo `roleOps`, như compiler báo capability-unavailable); hộp khối rover trùng byte với master (cả en và vi).
+- **Tên C++ theo kit (ruling A23):** giữ role, macro chân (role của kit × tên chân của driver trong kit), tên file-scope của driver và của Wire (`twi_*` link được kiểm bằng compile). `colorRgbc` không có trong helper nên không giữ.
+- **Contract:** U-35…U-39 + U-M3 Wire; L2 = CC-06, L2e = EMU-19 + EMU-16 (sketch `gripper-forms`, không phải `contract-forms` của rover, vì A4 là mốc thời gian của nó). Dạng màu là `colorIs(<value>)`, `colorRaw(<value>)`. Version **giữ 0.1.7**: version nằm trong header của mọi sketch sinh ra.
+- **Parity C2:** bus TWI có thời gian ở `tests/parity/twi-device.ts` (xoá TWINT giả sau STOP); `inputs.colors.windows`; 5 fixture. Phát hiện thêm: servo thứ hai của Timer1 (tay) có một xung ở lần tràn đầu của Timer1 (32,8 ms, `Channel[]` của Servo 1.3.0 bắt đầu từ 0) → harness ghép nó vào run (`servo-first-pulse.timerWrapUs`). `Wire.begin` bật pull-up SDA/SCL trên board → simulator cũng làm (`colorBeginSim(io, port)`, cùng 9,6875 µs nên sự kiện bus không dời).
+- **Test session (§4.7):** `robot-run-session.color-lead.test.ts` chạy session thật với kit gripper truyền thẳng vào và sàn của sandbox (chưa có key `rb-grip-*`, D4); model TCS34725 gắn vào virtual UNO của session bằng mock, vì ánh sáng của world là B3.
+
 ## 5. Review Focus
 
 1. **Vật đang giữ đâm tường hoặc vật khác, hoặc bị ép xuống sàn.** Tuột đúng ngưỡng, va chạm tính cho xe, không có NaN, xe không lật. *Test (B3):* `held cube hitting a wall at 0.4 m/s breaks the grasp and counts as robot contact`; `pressing a held cube on the floor at lift stall keeps the grasp`.
