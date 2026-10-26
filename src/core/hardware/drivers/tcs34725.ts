@@ -1,5 +1,6 @@
 import type { CostsUs } from '../board';
 import { TCS34725_ADDRESS, TCS_COMMAND, TCS_ENABLE, TCS_REGISTER, type Rgbc } from '../devices/tcs34725';
+import type { KitPort } from '../kit';
 import type { DriverIO } from '../virtual-uno';
 import { classifyColor, COLOR_UNKNOWN, colorRulesCpp } from './color-rules';
 import { arduinoCore, defineDriver, defineOp, type ArgRange, type CppLibrary, type DriverOp, type SetupStep } from './driver';
@@ -159,12 +160,25 @@ const beginOwnUs = (costs: CostsUs) => ({ acked: costs.colorBegin - 4 * costs.co
  * totals leave (9.6875 µs; 13.0625 measured before the first write with a sensor, whose delays the board ran 1.5 µs longer than the
  * simulator charges them), the rest after the last delay, so the helper takes colorBegin (or colorBeginNack) and its two delays as the
  * simulator charges every delay (ms · 1000 + delayOverhead).
+ *
+ * N19 C2: Wire.begin's twi_init() starts with digitalWrite(SDA, 1) and digitalWrite(SCL, 1) (Wire 1.0, utility/twi.c): the pull-ups of the
+ * bus pins, which the board shows as INPUT_PULLUP from then on (the parity harness compares them). With its `port`, the helper does those
+ * two writes first, inside the same 9.6875 µs (their 2 × 4.5625 µs are part of what the board measured), so every bus event stays where
+ * it was. Without one (a test of the bus alone), it charges the time only.
  */
-export function colorBeginSim(io: DriverIO): void {
+export function colorBeginSim(io: DriverIO, port?: KitPort): void {
   const costs = io.costsUs;
   const own = beginOwnUs(costs);
   const first = Math.min(own.acked, own.nack);
-  io.compute(first);
+  const sda = port?.pins.SDA;
+  const scl = port?.pins.SCL;
+  if (sda !== undefined && scl !== undefined) {
+    io.digitalWrite(sda, 1);
+    io.digitalWrite(scl, 1);
+    io.compute(first - 2 * costs.digitalWrite);
+  } else {
+    io.compute(first);
+  }
   const acked = colorWrite(io, TCS_REGISTER.ATIME, COLOR_ATIME);
   colorWrite(io, TCS_REGISTER.CONTROL, COLOR_AGAIN);
   colorWrite(io, TCS_REGISTER.ENABLE, TCS_ENABLE.PON);
@@ -226,4 +240,4 @@ const rawOp: DriverOp = defineOp({
   cpp: { libraries, includes, helper, globals, call: (_port, _role, [k = '0L']) => `colorRaw(${k})` },
 });
 
-export const tcs34725Driver = defineDriver('tcs34725-wire', { 'color.is': isOp, 'color.raw': rawOp }, { colorBegin: (io) => colorBeginSim(io) });
+export const tcs34725Driver = defineDriver('tcs34725-wire', { 'color.is': isOp, 'color.raw': rawOp }, { colorBegin: (io, port) => colorBeginSim(io, port) });

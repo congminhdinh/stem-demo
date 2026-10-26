@@ -3,6 +3,7 @@ import {
   AVRADC,
   AVRIOPort,
   AVRTimer,
+  AVRTWI,
   AVRUSART,
   CPU,
   PinState,
@@ -14,8 +15,11 @@ import {
   timer0Config,
   timer1Config,
   timer2Config,
+  twiConfig,
   usart0Config,
 } from 'avr8js';
+import type { I2cDevice } from '../../src/core/hardware';
+import { TimedTwiBus } from './twi-device';
 
 // One emulated UNO (N18 C2, the L2e side of the parity harness; ported from spikes/avr8js/lib/uno.mjs, ADR 0003 §2): the
 // ATmega328P CPU of avr8js 0.21.1 with Timer0/1/2, ports B/C/D, USART0 and the ADC, running a HEX on Node. It records every
@@ -27,6 +31,10 @@ import {
 //
 // `setupCycle` is the cycle at which init() of the core (wiring.c, arduino:avr 1.8.8) writes `UCSR0B = 0`, its last statement:
 // main() then calls setup(). The simulator's time 0 is the start of setup() (VirtualUno), so board times are taken from there.
+//
+// N19 C2: `attachI2c` gives it the TWI of avr8js with the timed bus of twi-device.ts and the devices on it (the TCS34725 model at 0x29),
+// called at the bus time of each event, in µs from the start of setup(). A sketch without Wire never touches the TWI: the rover's
+// fixtures run without it, as before.
 
 export const CLOCK_HZ = 16_000_000;
 export const CYCLES_PER_US = CLOCK_HZ / 1_000_000;
@@ -129,6 +137,12 @@ export class EmulatedUno {
       }
       return usartHook?.(value, oldValue, address, mask);
     };
+  }
+
+  /** N19 C2: the TWI with its timed bus and the devices on it, by address (none: every address is NACKed). */
+  attachI2c(devices: ReadonlyMap<number, I2cDevice>): TimedTwiBus {
+    const twi = new AVRTWI(this.cpu, twiConfig, CLOCK_HZ);
+    return new TimedTwiBus(this.cpu, twi, (cycle) => usOfCycles(cycle - (this.setupCycle ?? 0)), devices);
   }
 
   /** Calls `listener` on every recorded pin change. */

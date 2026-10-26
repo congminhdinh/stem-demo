@@ -7,7 +7,7 @@ import { led, lineDark, motorSet } from '../src/core/program/__fixtures__/uno-bl
 import { num, print, wait } from '../src/core/program/__fixtures__/ybc-blocks';
 import { allowedDifferences, intervalRule } from './parity/allowed-differences';
 import { compileFixture, ECHO_INTO_CM_US, PARITY_GOLDENS, parityFixtures, sketchOf, type ParityFixture } from './parity/fixtures';
-import { runParity, type ParityRun } from './parity/harness';
+import { decodingsOf, runParity, type ParityRun } from './parity/harness';
 
 // N18 C2, the avr8js parity harness (robot plan C2, ADR 0003 §7): the L2e evidence of the simulator. Every fixture runs both ways for
 // its fixed virtual time with the same scripted inputs on the same pins at the same µs: its IR in the interpreter on the virtual
@@ -175,6 +175,34 @@ describe('the simulator and the board run each fixture the same (L2e)', () => {
     );
     const header = ['fixture'.padEnd(31), 'lines', 'events', '   max µs', ' ≥1ms  %', 'no Serial', ' line µs', ' wall', 'allowed differences used'].join(' ');
     console.log(`C2 parity (${rows.length} fixtures, ${(performance.now() - suiteStarted).toFixed(0)} ms)\n${header}\n${table.join('\n')}`);
+  });
+});
+
+describe('the gripper car’s fixtures (N19 C2)', () => {
+  it('cover every op of ref-uno-gripper@0, with a colour sensor and without one', () => {
+    const gripper = parityFixtures.filter((candidate) => candidate.kit?.id === 'ref-uno-gripper');
+    expect(gripper.map((candidate) => candidate.name)).toEqual(['driver-gripper', 'driver-ir', 'driver-color', 'driver-color-nack', 'kit-gripper-all']);
+    const kitOps = new Set(allUses(compileFixture(gripper[0] as ParityFixture).kit, unoR3Board).map((use) => use.op));
+    expect([...kitOps].filter((op) => !opsOf(gripper).has(op))).toEqual([]);
+    expect(fixture('driver-color-nack').inputs.colors).toEqual({ absent: true, windows: [] });
+  });
+
+  it('driver-color: the second window ends during the read, after C and before R, so both sides read C from the red window and R, G, B from the white one (unknown)', async () => {
+    const run = await runParity(fixture('driver-color'), read('driver-color.hex'));
+    expect(run.comparison.problems).toEqual([]);
+    // 1: the mixed reading is no colour; a read of either window alone (red, white) would print 0.
+    expect(run.board.lines.map((line) => line.text)).toEqual(['1', '21504', '9337', '8562', '7013', '1', '0']);
+  });
+
+  it('holds a servo pulse of the gripper car to 6 µs and the rover’s to 4 (G0.2 ruling c1)', () => {
+    expect(allowedDifferences['waveform-jitter'].servo).toMatchObject({ highUs: 4, gripperHighUs: 6 });
+    const gripperKit = compileFixture(fixture('driver-gripper')).kit;
+    const roverKit = compileFixture(fixture('driver-servo')).kit;
+    expect([decodingsOf(gripperKit).get('D9'), decodingsOf(gripperKit).get('D10')]).toEqual([
+      { kind: 'servo', minUs: 544, maxUs: 2400, frameUs: 20_000, highUs: 6 },
+      { kind: 'servo', minUs: 544, maxUs: 2400, frameUs: 20_000, highUs: 6 },
+    ]);
+    expect(decodingsOf(roverKit).get('D9')).toEqual({ kind: 'servo', minUs: 544, maxUs: 2400, frameUs: 20_000 });
   });
 });
 

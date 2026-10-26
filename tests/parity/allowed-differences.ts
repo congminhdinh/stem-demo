@@ -132,12 +132,12 @@ export const allowedDifferences = {
     refs: ['contract §5.1', 'contract §6.2', 'contract §6.3', 'EMU-02', 'EMU-03', 'EMU-05'],
   },
   'waveform-jitter': {
-    reason: 'avr8js applies a timer\'s compare output when the instruction under way ends (1…4 cycles): hardware PWM periods of 16 381…16 387 cycles and HIGH times within ±3 cycles (driver-motor, negate-drive, EMU-16), 0.375 µs at most, so 0.5 µs. Servo pulses and tone toggles are set by interrupts, which wait for any interrupt under way (Timer0\'s takes 6 µs): a servo period varies by 20 002.8…20 005.6 µs and its width by 1 µs (EMU-03). A run of periods of one waveform may vary by this much; fewer than two whole periods (three rising edges) show no period.',
+    reason: 'avr8js applies a timer\'s compare output when the instruction under way ends (1…4 cycles): hardware PWM periods of 16 381…16 387 cycles and HIGH times within ±3 cycles (driver-motor, negate-drive, EMU-16), 0.375 µs at most, so 0.5 µs. Servo pulses and tone toggles are set by interrupts, which wait for any interrupt under way (Timer0\'s takes 6 µs): a servo period varies by 20 002.8…20 005.6 µs and its width by 1 µs (EMU-03). A run of periods of one waveform may vary by this much; fewer than two whole periods (three rising edges) show no period. N19 (G0.2 ruling c1): on the gripper car the TWI interrupt runs too (up to 20.125 µs: twi_stop() waits for the STOP inside it), and with Timer0\'s it held the Servo interrupt by up to 5.1875 µs (EMU-19): a servo pulse of a ref-uno-gripper@0 fixture may vary by 6 µs; the rover\'s keep 4.',
     contractRow: 'Rung xung servo, tone',
     refs: ['contract §6.2', 'contract §6.3', 'EMU-03', 'EMU-16'],
     minRunPeriods: 2,
     pwm: { periodUs: 0.5, highUs: 0.5 },
-    servo: { frameShare: 0.01, periodMinUs: 8, highUs: 4, widthSlackUs: 4 },
+    servo: { frameShare: 0.01, periodMinUs: 8, highUs: 4, widthSlackUs: 4, gripperHighUs: 6 },
     tone: { share: 0.01, minUs: 8 },
   },
   'millis-origin': {
@@ -147,12 +147,19 @@ export const allowedDifferences = {
     timer0BeforeSetupUs: 7.9,
   },
   'servo-first-pulse': {
-    reason: 'Servo 1.3.0 sends the first pulse after attach() only once Timer1, cleared to 0 by attach() at /8, wraps to its first compare (65536 × 0.5 µs) and one 20 ms refresh has passed (measured 52 802 µs: 34 µs more, the interrupts and the library\'s own ticks); the simulator has the servo at its angle from attach(). Later changes show within one frame (waveform-phase). That first pulse is also a few µs longer than the steady pulses after it (measured 3.5625 µs on D9, 4.5625 µs on D10 in the N18 R8a kit-swap rehearsal): it joins the run of its angle when its width is within firstWidthUs of the next pulse\'s, the time of Timer0\'s interrupt (5.97 µs, isr-load) rounded up; every later pulse keeps waveform-jitter\'s 4 µs.',
+    reason: 'Servo 1.3.0 sends the first pulse after attach() only once Timer1, cleared to 0 by attach() at /8, wraps to its first compare (65536 × 0.5 µs) and one 20 ms refresh has passed (N19: a second servo on Timer1, the gripper\'s lift, sends one pulse at that first wrap already, its next a frame and the first servo\'s pulse later: timerWrapUs) (measured 52 802 µs: 34 µs more, the interrupts and the library\'s own ticks); the simulator has the servo at its angle from attach(). Later changes show within one frame (waveform-phase). That first pulse is also a few µs longer than the steady pulses after it (measured 3.5625 µs on D9, 4.5625 µs on D10 in the N18 R8a kit-swap rehearsal): it joins the run of its angle when its width is within firstWidthUs of the next pulse\'s, the time of Timer0\'s interrupt (5.97 µs, isr-load) rounded up; every later pulse keeps waveform-jitter\'s 4 µs.',
     contractRow: 'Xung servo đầu tiên sau attach',
     refs: ['contract §6.2', 'EMU-16'],
     firstPulseAfterAttachUs: 65_536 * 0.5 + SERVO_PULSE.frameUs,
     slackUs: 100,
     firstWidthUs: 6,
+    /**
+     * N19 C2: the second servo of Timer1 (the gripper's lift after its claw). Servo 1.3.0's Channel[] starts at 0, not -1, so Timer1's
+     * first wrap (65536 × 0.5 µs after attach) ends channel 0's pulse that never began and starts channel 1's: that servo pulses once at
+     * 32.8 ms, then the frame starts over at 52.8 ms with channel 0, so its next pulse comes one frame and channel 0's pulse later (32 817
+     * and 53 363 µs, a 544 µs claw before it, in driver-gripper). That first period is regular up to the widest pulse (maxUs) more.
+     */
+    timerWrapUs: 65_536 * 0.5,
   },
   'tone-frequency': {
     reason: 'The board plays the frequency Timer2 can make from the asked one (440 → 440.141 Hz); the simulator plays the asked one.',

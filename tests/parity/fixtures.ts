@@ -6,9 +6,11 @@ import { productionProfiles } from '../../src/core/profiles';
 import { unoDocument } from '../../src/core/profiles/__fixtures__/uno-document';
 import { compileUnoProject } from '../../src/core/program/compile-uno-program';
 import {
-  buttonPressed, buzzerStop, buzzerTone, driveMove, driveStop, led, lineDark, lineRaw, motorSet, packs, registry, servoSet, ultrasonic,
+  buttonPressed, buzzerStop, buzzerTone, claw, clawAngle, colorIs, colorRaw, driveMove, driveStop, gripperKitRef, irDetect, led, lift, liftAngle, lineDark, lineRaw, motorSet,
+  packs, registry, servoSet, ultrasonic,
 } from '../../src/core/program/__fixtures__/uno-blocks';
 import { add, getVar, ifThen, mul, num, print, setVar, wait } from '../../src/core/program/__fixtures__/ybc-blocks';
+import type { Rgbc } from '../../src/core/hardware/devices/tcs34725';
 import type { ParityInputs } from './inputs';
 import type { SimProgram } from './sim-run';
 
@@ -356,7 +358,170 @@ const toneThenPin: ParityFixture[] = [
   ),
 ];
 
-export const parityFixtures: readonly ParityFixture[] = [...goldens, ...drivers, ...toneThenPin, ...language];
+/**
+ * N19 C2: the light a palette colour gives the TCS34725 (PLACEHOLDER, the G0.2 spike's and A3's, plan §4.4's units): each channel the
+ * white counts per second at 1× of the gripper kit's ColorSensorSpec (48, 44, 36 per ms) × the sRGB component / 255, plus the ambient
+ * 0.2 per ms; clear the sum. B3 makes the world's.
+ */
+function lightOf(hex: string): Rgbc {
+  const ambient = 200;
+  const component = (offset: number) => Number.parseInt(hex.slice(offset, offset + 2), 16);
+  const channel = (whitePerS: number, value: number) => Math.floor((whitePerS * value) / 255) + ambient;
+  const r = channel(48_000, component(1));
+  const g = channel(44_000, component(3));
+  const b = channel(36_000, component(5));
+  return { c: r + g + b, r, g, b };
+}
+/**
+ * driver-color's change of light: inside the RGBC Init of its second window (57 162.25…59 562.25 µs, the AEN byte 4362.25 µs into setup()),
+ * so neither window has two lights in it.
+ */
+const COLOR_LIGHT_SWITCH_US = 58_400;
+/** The wait that puts driver-color's colorIs read across the end of the second window (measured on the simulator, checked on the board). */
+const COLOR_STRADDLE_WAIT_MS = 51;
+const RED = lightOf('#d32f2f');
+const WHITE = lightOf('#f5f5f5');
+const YELLOW = lightOf('#fbc02d');
+
+/**
+ * N19 C2: the gripper car's driver fixtures, on ref-uno-gripper@0 (plan §7 C2): the claw and the arm (gripper-servo2, U-35, U-36), the
+ * IR sensor between the jaws (ir-digital, U-37), the colour sensor on the I²C bus (tcs34725-wire, U-38, U-39) with a sensor and with
+ * none, and every op of the kit at once. Their servo pulses are held to the gripper car's 6 µs (waveform-jitter).
+ */
+export const gripperDriverFixtures: readonly ParityFixture[] = [
+  {
+    // Claw on D9, lift on D10 (Timer1, one Servo frame for both): claw 0° and lift 90° from setup(), held 130 ms (the first pulse comes
+    // 52.8 ms after attach(): servo-first-pulse), then close (80), down (0), the angles 45 and 30, a computed 120 clamped to 90 on the claw
+    // and a typed-in -10 written 0 on the lift. The LED toggles before each pair: an exact event to time them from.
+    name: 'driver-gripper',
+    covers: ['U-35', 'U-36', 'U-24', 'U-18', 'U-03', 'U-05'],
+    profile: 'uno-basic',
+    kit: gripperKitRef,
+    onStart: [
+      wait(num(130)),
+      led('ON'),
+      claw('CLOSE'),
+      lift('DOWN'),
+      wait(num(80)),
+      led('OFF'),
+      clawAngle(num(45)),
+      liftAngle(num(30)),
+      wait(num(80)),
+      led('ON'),
+      setVar('x', add(num(120), num(0))),
+      clawAngle(getVar('x')),
+      liftAngle(num(-10)),
+      wait(num(80)),
+    ],
+    variables: [['x', 'x']],
+    origin: 'driver',
+    durationMs: 380,
+    inputs: {},
+  },
+  {
+    // IR sensor on A3 (INPUT, activeLow): nothing until 15 ms, an object until 35 ms, nothing after; loop() lights the LED while it sees one.
+    name: 'driver-ir',
+    covers: ['U-37', 'U-24', 'U-02', 'U-11'],
+    profile: 'uno-basic',
+    kit: gripperKitRef,
+    onStart: [],
+    forever: [ifThen(irDetect(), [led('ON')], [led('OFF')])],
+    variables: [],
+    origin: 'driver',
+    durationMs: 50,
+    inputs: {
+      levels: [
+        { pin: 'A3', atUs: 0, level: 1 },
+        { pin: 'A3', atUs: 15_000, level: 0 },
+        { pin: 'A3', atUs: 35_000, level: 1 },
+      ],
+    },
+  },
+  {
+    // TCS34725 at 0x29 on A4/A5 (Wire): colorBegin in setup() (its AEN byte 4362.25 µs into setup() on the simulator: the second window
+    // ends at 109 962.25 µs); red light until the RGBC Init after the first window, white after it (COLOR_LIGHT_SWITCH_US). A colorIs
+    // read placed so that the second window ends during its eight data bytes, after the first (C low, which latches C high) and before
+    // the third (R low), 74 µs from the one and 116 µs from the other (ADR 0004 §11 condition 3, G0.2 ruling c2): C from the red window,
+    // R, G, B from the white one, which is no colour (C below white's 12000): unknown, where a read of the red window alone is red and of
+    // the white one white. Then every channel and two colours of the white window; the LED and the motors' stop at the end.
+    name: 'driver-color',
+    covers: ['U-38', 'U-39', 'U-15', 'U-11', 'U-03', 'U-18'],
+    profile: 'uno-advanced',
+    kit: gripperKitRef,
+    onStart: [
+      wait(num(COLOR_STRADDLE_WAIT_MS)),
+      driveStop(),
+      ifThen(colorIs('unknown'), [setVar('x', num(1))], [setVar('x', num(0))]),
+      print(getVar('x')),
+      print(colorRaw('clear')),
+      print(colorRaw('red')),
+      print(colorRaw('green')),
+      print(colorRaw('blue')),
+      print(colorIs('white')),
+      print(colorIs('red')),
+      led('ON'),
+      driveStop(),
+    ],
+    variables: [['x', 'x']],
+    origin: 'driver',
+    durationMs: 160,
+    inputs: { colors: { windows: [{ fromUs: 0, light: RED }, { fromUs: COLOR_LIGHT_SWITCH_US, light: WHITE }] } },
+  },
+  {
+    // No device at 0x29: colorBegin's writes and every read are an address NACK and a STOP (their NACK times); every channel reads 0,
+    // which is unknown and no other colour. The 3 ms Wire timeout never fires.
+    name: 'driver-color-nack',
+    covers: ['U-38', 'U-39', 'U-15', 'U-24'],
+    profile: 'uno-advanced',
+    kit: gripperKitRef,
+    onStart: [print(colorRaw('clear')), print(colorRaw('blue')), print(colorIs('unknown')), print(colorIs('black')), led('ON'), wait(num(5))],
+    variables: [],
+    origin: 'driver',
+    durationMs: 80,
+    inputs: { colors: { absent: true, windows: [] } },
+  },
+  {
+    // Every module of ref-uno-gripper@0 at once: the colour of a yellow object (the first window's) and its raw green; the left motor at
+    // 30 % for 5 ms, then the drive forward at 50 %; the ultrasonic's echo of 10 cm, the center line sensor on the line (A1 HIGH), the left one's raw 300, the button held;
+    // then, once both servos have shown three pulses of their start angles, the IR sensor sees an object (A3 LOW): the claw closes and
+    // the arm goes to 60°; the drive stops and the LED lights.
+    name: 'kit-gripper-all',
+    covers: ['U-35', 'U-36', 'U-37', 'U-38', 'U-39', 'U-20', 'U-21', 'U-22', 'U-24', 'U-27', 'U-28', 'U-29', 'U-30', 'U-11', 'U-15', 'U-18'],
+    profile: 'uno-advanced',
+    kit: gripperKitRef,
+    onStart: [
+      print(colorIs('yellow')),
+      print(colorRaw('green')),
+      motorSet('motorLeft', num(30)),
+      wait(num(5)),
+      driveMove('forward', num(50)),
+      print(ultrasonic()),
+      print(lineDark('lineCenter')),
+      print(lineRaw('lineLeft')),
+      print(buttonPressed()),
+      wait(num(45)),
+      ifThen(irDetect(), [claw('CLOSE'), liftAngle(num(60))], [claw('OPEN')]),
+      driveStop(),
+      led('ON'),
+      wait(num(70)),
+    ],
+    variables: [],
+    origin: 'driver',
+    durationMs: 200,
+    inputs: {
+      levels: [
+        { pin: 'A1', atUs: 0, level: 1 },
+        { pin: 'A3', atUs: 0, level: 0 },
+        { pin: 'D3', atUs: 0, level: 0 },
+      ],
+      analog: [{ pins: ['A0'], values: [300] }],
+      echoes: { trig: 'D12', echo: 'D11', readings: [echoOf(10)] },
+      colors: { windows: [{ fromUs: 0, light: YELLOW }] },
+    },
+  },
+];
+
+export const parityFixtures: readonly ParityFixture[] = [...goldens, ...drivers, ...toneThenPin, ...language, ...gripperDriverFixtures];
 
 /** A fixture's program, compiled as the robot lab compiles it (compileUnoProject against ref-uno-rover@0, or the fixture's kit). */
 export function compileFixture(fixture: ParityFixture): SimProgram {
@@ -364,7 +529,9 @@ export function compileFixture(fixture: ParityFixture): SimProgram {
     return compileCase(fixture);
   }
   const document = unoDocument(fixture.profile, { program: { blocks: blocksOf(fixture) }, kit: { ...fixture.kit } });
-  const compiled = compileUnoProject(document, { registry, profiles: productionProfiles, packs, kits: rehearsalKits });
+  // A rehearsal kit's catalog for a rehearsal fixture, the production one for the gripper car's (N19 C2).
+  const kits = rehearsalKits.get(fixture.kit) ? rehearsalKits : productionKits;
+  const compiled = compileUnoProject(document, { registry, profiles: productionProfiles, packs, kits });
   if (!compiled.ok) {
     throw new Error(`${fixture.name} does not compile for ${kitKey(fixture.kit)}: ${JSON.stringify(compiled.diagnostics)}`);
   }

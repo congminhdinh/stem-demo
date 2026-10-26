@@ -5,7 +5,8 @@ import type { YbcProgramIR } from '../../src/core/program/ybc-ir';
 import type { UnoProgramUses } from '../../src/core/program/uno-uses';
 import { createVirtualScheduler, WORLD_TICK_MS } from '../../src/core/run/virtual-clock';
 import { allowedDifferences } from './allowed-differences';
-import { analogFeed, echoFeed, levelAt, levelTimeline, type ParityInputs } from './inputs';
+import { createTcs34725 } from '../../src/core/hardware/devices/tcs34725';
+import { analogFeed, colorIntegral, echoFeed, levelAt, levelTimeline, type ParityInputs } from './inputs';
 import { isWaveform, withoutRepeats, type PinEvent, type PinLogicalState, type PrintedLine } from './trace';
 
 // The L1 side of the parity harness (N18 C2): the program's IR in the real interpreter, on the virtual UNO and the module binding,
@@ -211,6 +212,11 @@ export async function runSimulator(program: SimProgram, inputs: ParityInputs, du
   if (inputs.echoes) {
     const echoes = echoFeed(inputs.echoes);
     uno.attachPulseSource(inputs.echoes.echo, () => echoes.next() ?? 0);
+  }
+  // N19 C2: the colour sensor on the bus, under the scripted light (none: an empty bus).
+  if (inputs.colors && !inputs.colors.absent) {
+    const device = createTcs34725(colorIntegral(inputs.colors));
+    uno.attachWireDevice(device.address, device);
   }
 
   const told: PinEvent[] = board.pins.map((pin) => ({ pin: pin.id, state: { kind: 'input', pullup: false }, fromUs: 0, toUs: 0 }));

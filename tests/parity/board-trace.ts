@@ -21,7 +21,8 @@ export type RawChange = { readonly atUs: number; readonly state: RawPinState };
 
 export type WaveformDecoding =
   | { readonly kind: 'pwm'; readonly periodUs: number; readonly scale: number }
-  | { readonly kind: 'servo'; readonly frameUs: number; readonly minUs: number; readonly maxUs: number }
+  /** N19 C2: `highUs`, a servo's own HIGH-time jitter (waveform-jitter: 6 µs on the gripper car, whose TWI interrupt holds the Servo's). */
+  | { readonly kind: 'servo'; readonly frameUs: number; readonly minUs: number; readonly maxUs: number; readonly highUs?: number }
   | { readonly kind: 'tone'; readonly minHz: number; readonly maxHz: number };
 
 const wander = allowedDifferences['waveform-jitter'];
@@ -36,7 +37,7 @@ export function jitterUs(decoding: WaveformDecoding, periodUs: number): { period
     case 'pwm':
       return { period: wander.pwm.periodUs, high: wander.pwm.highUs };
     case 'servo':
-      return { period: Math.max(wander.servo.periodMinUs, periodUs * wander.servo.frameShare), high: wander.servo.highUs };
+      return { period: Math.max(wander.servo.periodMinUs, periodUs * wander.servo.frameShare), high: decoding.highUs ?? wander.servo.highUs };
     case 'tone': {
       const us = Math.max(wander.tone.minUs, periodUs * wander.tone.share);
       return { period: us, high: us };
@@ -60,6 +61,15 @@ function regular(decoding: WaveformDecoding, periodUs: number, highUs: number): 
       return periodUs >= (1e6 / decoding.maxHz) * (1 - share) && periodUs <= (1e6 / decoding.minHz) * (1 + share) && Math.abs(highUs - periodUs / 2) <= jitterUs(decoding, periodUs).high;
     }
   }
+}
+
+/** N19 C2: a servo's first period after a pulse at Timer1's wrap: a frame, up to `extraUs` (the pulse of the servo before it) longer. */
+function regularFirstFrame(decoding: WaveformDecoding, periodUs: number, highUs: number, extraUs: number): boolean {
+  if (decoding.kind !== 'servo' || !(highUs > 0 && highUs < periodUs)) {
+    return false;
+  }
+  const share = wander.servo.frameShare;
+  return periodUs >= decoding.frameUs * (1 - share) && periodUs <= decoding.frameUs * (1 + share) + extraUs && highUs >= decoding.minUs - wander.servo.widthSlackUs && highUs <= decoding.maxUs + wander.servo.widthSlackUs;
 }
 
 const median = (values: readonly number[]): number => {
@@ -108,6 +118,15 @@ function firstPulseAfterAttach(changes: readonly RawChange[], initial: RawPinSta
  */
 export function findRuns(changes: readonly RawChange[], decoding: WaveformDecoding, initial: RawPinState = 'INPUT'): Run[] {
   const attachRise = decoding.kind === 'servo' ? firstPulseAfterAttach(changes, initial) : -1;
+  // N19 C2 (servo-first-pulse, timerWrapUs): the second servo of Timer1 pulses once at Timer1's first wrap after attach(), and its first
+  // period is longer by the pulse of the servo before it. Only a first pulse at that wrap is such a pulse: the rover's single servo first
+  // pulses a frame later, so its runs are what they were.
+  const attachLowUs = attachRise > 0 ? (changes[attachRise - 1]?.atUs ?? 0) : 0;
+  const atTimerWrap =
+    decoding.kind === 'servo' &&
+    attachRise > 0 &&
+    Math.abs((changes[attachRise]?.atUs ?? 0) - attachLowUs - firstServoPulse.timerWrapUs) <= firstServoPulse.slackUs;
+  const firstFrameExtraUs = atTimerWrap && decoding.kind === 'servo' ? decoding.maxUs : 0;
   const periods: { rise: number; next: number; periodUs: number; highUs: number }[] = [];
   for (let rise = 1; rise + 2 < changes.length; rise++) {
     const [before, start, fall, next] = [changes[rise - 1], changes[rise], changes[rise + 1], changes[rise + 2]];
@@ -126,7 +145,8 @@ export function findRuns(changes: readonly RawChange[], decoding: WaveformDecodi
     chain = [];
   };
   for (const period of periods) {
-    if (!regular(decoding, period.periodUs, period.highUs)) {
+    const longFirstFrame = period.rise === attachRise && firstFrameExtraUs > 0 && regularFirstFrame(decoding, period.periodUs, period.highUs, firstFrameExtraUs);
+    if (!regular(decoding, period.periodUs, period.highUs) && !longFirstFrame) {
       close();
       continue;
     }
@@ -136,10 +156,12 @@ export function findRuns(changes: readonly RawChange[], decoding: WaveformDecodi
     // The steady pulses are held to the first of them: after the pulse of attach(), the one that follows it.
     const reference = fromAttach && chain.length >= 2 ? chain[1] : head;
     const highAllowanceUs = fromAttach && chain.length === 1 ? firstServoPulse.firstWidthUs : jitter.high;
+    // The first frame after a pulse at Timer1's wrap is longer by the pulse before it (N19 C2): the next period is held to the frame.
+    const periodAllowanceUs = fromAttach && chain.length === 1 ? jitter.period + firstFrameExtraUs : jitter.period;
     const continues =
       reference !== undefined &&
       chain.at(-1)?.next === period.rise &&
-      Math.abs(period.periodUs - reference.periodUs) <= jitter.period &&
+      Math.abs(period.periodUs - reference.periodUs) <= periodAllowanceUs &&
       Math.abs(period.highUs - reference.highUs) <= highAllowanceUs;
     if (!continues) {
       close();

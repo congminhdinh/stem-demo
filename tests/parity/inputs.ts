@@ -1,4 +1,5 @@
 import { drivers, type Kit, type PulseReading } from '../../src/core/hardware';
+import { TCS34725_ADDRESS, type LightIntegral, type Rgbc } from '../../src/core/hardware/devices/tcs34725';
 import { allowedDifferences } from './allowed-differences';
 
 // The scripted inputs of a parity fixture (N18 C2): what the robot's sensors give the program, said once and applied the same
@@ -12,16 +13,49 @@ import { allowedDifferences } from './allowed-differences';
 //   for all three line sensors shows which read came first). A read beyond the list is a fixture error.
 // - `echoes`: the ultrasonic's echo for each trigger, in order: `waitUs` after the trigger ends, `widthUs` long; null (or past
 //   the list) is no echo. The simulator gets it through attachPulseSource; avr8js sees ECHO driven HIGH after TRIG falls.
+// - `colors` (N19 C2): the TCS34725 on the bus at 0x29 and the light on it, `windows` of steady light from a time on (counts per second
+//   at 1× gain per channel, plan §4.4's units). Each side gets its own model (src/core/hardware/devices/tcs34725.ts) under the same
+//   light: the simulator's bus calls it at the program's time, avr8js's timed TWI (twi-device.ts) at the bus time. `absent` puts no
+//   device at 0x29: every address is NACKed. A fixture keeps every change of light outside an integration window (in the RGBC Init
+//   between two), so a window's counts are the same whole numbers on both sides.
 
 export type LevelChange = { readonly pin: string; readonly atUs: number; readonly level: 0 | 1 };
 export type AnalogGroup = { readonly pins: readonly string[]; readonly values: readonly number[] };
 export type EchoScript = { readonly trig: string; readonly echo: string; readonly readings: readonly (PulseReading | null)[] };
 
+/** N19 C2: steady light on the colour sensor from `fromUs` (µs from the start of setup()) on. */
+export type ColorWindow = { readonly fromUs: number; readonly light: Rgbc };
+export type ColorScript = { readonly windows: readonly ColorWindow[]; readonly absent?: true };
+
 export type ParityInputs = {
   readonly levels?: readonly LevelChange[];
   readonly analog?: readonly AnalogGroup[];
   readonly echoes?: EchoScript;
+  readonly colors?: ColorScript;
 };
+
+/** The TCS34725's address (datasheet TAOS135 Table 12; the tcs34725-wire driver's). */
+export const COLOR_SENSOR_ADDRESS = TCS34725_ADDRESS;
+
+/**
+ * N19 C2: the light of `script` integrated over [fromUs, toUs), whole µs (the TCS34725 model's units: counts per second × µs, safe
+ * integers): before the first window, no light.
+ */
+export function colorIntegral(script: ColorScript): LightIntegral {
+  const windows = [...script.windows].sort((a, b) => a.fromUs - b.fromUs);
+  return (fromUs, toUs) => {
+    let total = { c: 0, r: 0, g: 0, b: 0 };
+    windows.forEach((window, index) => {
+      const endUs = windows[index + 1]?.fromUs ?? Number.POSITIVE_INFINITY;
+      const span = Math.max(0, Math.round(Math.min(toUs, endUs) - Math.max(fromUs, window.fromUs)));
+      if (span > 0) {
+        const { c, r, g, b } = window.light;
+        total = { c: total.c + c * span, r: total.r + r * span, g: total.g + g * span, b: total.b + b * span };
+      }
+    });
+    return total;
+  };
+}
 
 /** The input pins of the kit and the level each reads with nothing pressed or seen: HIGH behind a pull-up, else LOW. */
 export function kitInputDefaults(kit: Kit): Map<string, 0 | 1> {

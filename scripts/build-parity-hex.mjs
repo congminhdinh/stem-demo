@@ -1,7 +1,8 @@
 // Builds the HEX of every parity fixture (N18 C2, robot plan C2; docs/adr/0003-avr8js-parity.md §7). Each fixture of
 // tests/parity/fixtures.ts (the C1 language goldens and one program per driver op of ref-uno-rover@0) is turned into its sketch by
 // the generator, compiled for arduino:avr:uno with the toolchain the UNO contract pins (§1: arduino-cli 1.5.1, arduino:avr@1.8.8,
-// Servo 1.3.0; changing any of them is changing the contract), and written next to the sha256 of the sketch it came from:
+// Servo 1.3.0, and Wire 1.0 as the core ships it; changing any of them is changing the contract), and written next to the sha256 of the
+// sketch it came from:
 //
 //   tests/__parity__/<name>.hex          the Intel HEX arduino-cli built
 //   tests/__parity__/<name>.ino.sha256   `<sha256 of the sketch>  <name>.ino`
@@ -32,7 +33,8 @@ import { createServer } from 'vite';
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const rehearsal = process.argv.includes('--rehearsal');
 const outDir = join(root, 'tests', rehearsal ? '__parity-rehearsal__' : '__parity__');
-const pinned = { cli: '1.5.1', core: { id: 'arduino:avr', version: '1.8.8' }, libraries: [{ name: 'Servo', version: '1.3.0' }], fqbn: 'arduino:avr:uno' };
+// N19 C2: Wire 1.0, which arduino:avr 1.8.8 ships (the colour sensor's driver uses it), is pinned too.
+const pinned = { cli: '1.5.1', core: { id: 'arduino:avr', version: '1.8.8' }, libraries: [{ name: 'Servo', version: '1.3.0' }, { name: 'Wire', version: '1.0' }], fqbn: 'arduino:avr:uno' };
 
 const cli = process.env.ARDUINO_CLI || 'arduino-cli';
 const log = (text) => process.stdout.write(`${text}\n`);
@@ -63,7 +65,8 @@ function missingToolchain() {
   }
   let libraries;
   try {
-    libraries = JSON.parse(run(['lib', 'list', '--format', 'json']).stdout || '{}');
+    // --all: the libraries the core ships count too (N19 C2: Wire 1.0 of arduino:avr 1.8.8, which no library index has).
+    libraries = JSON.parse(run(['lib', 'list', '--all', '--format', 'json']).stdout || '{}');
   } catch {
     return 'arduino-cli lib list gave no JSON';
   }

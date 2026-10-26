@@ -24,6 +24,13 @@ export function decodingsOf(kit: Kit): Map<string, WaveformDecoding> {
       }
     } else if (port.driver === 'servo-lib' && port.pins.PIN !== undefined) {
       decodings.set(port.pins.PIN, { kind: 'servo', ...SERVO_PULSE });
+    } else if (port.driver === 'gripper-servo2') {
+      // N19 C2: the gripper's two servos, with the gripper car's servo jitter (waveform-jitter, G0.2 ruling c1).
+      for (const pin of [port.pins.CLAW, port.pins.LIFT]) {
+        if (pin !== undefined) {
+          decodings.set(pin, { kind: 'servo', ...SERVO_PULSE, highUs: allowedDifferences['waveform-jitter'].servo.gripperHighUs });
+        }
+      }
     } else if (port.driver === 'buzzer-tone' && port.pins.PIN !== undefined) {
       decodings.set(port.pins.PIN, { kind: 'tone', minHz: unoContract.constants.TONE_MIN_HZ, maxHz: unoContract.constants.TONE_MAX_HZ });
     }

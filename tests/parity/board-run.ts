@@ -1,7 +1,8 @@
 import type { BoardProfile, Kit } from '../../src/core/hardware';
 import { decodePin, type RawChange, type WaveformDecoding } from './board-trace';
 import { cyclesOfUs, EmulatedUno, usOfCycles, type RawPinState } from './emulated-uno';
-import { adcValueOf, analogFeed, echoFeed, levelTimeline, type ParityInputs } from './inputs';
+import { createTcs34725 } from '../../src/core/hardware/devices/tcs34725';
+import { adcValueOf, analogFeed, colorIntegral, echoFeed, levelTimeline, type ParityInputs } from './inputs';
 import { parseIntelHex } from './intel-hex';
 import type { PinEvent, PrintedLine } from './trace';
 
@@ -74,6 +75,12 @@ export function runBoard(
         uno.at(rise + cyclesOfUs(reading.widthUs), () => uno.drive(echo, false));
       }
     });
+  }
+
+  // N19 C2: the TWI with its timed bus, and the colour sensor on it under the scripted light (none: an empty bus, every address NACKed).
+  if (inputs.colors) {
+    const device = inputs.colors.absent ? null : createTcs34725(colorIntegral(inputs.colors));
+    uno.attachI2c(new Map(device ? [[device.address, device]] : []));
   }
 
   while (uno.setupCycle === null && uno.cpu.cycles < cyclesOfUs(SETUP_DEADLINE_US)) {
