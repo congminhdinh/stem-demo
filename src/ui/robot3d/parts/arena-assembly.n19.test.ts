@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { Box3, Color, Material, Mesh, MeshLambertMaterial, MeshStandardMaterial, Texture, type Object3D } from 'three';
+import { Box3, Color, Material, Mesh, MeshLambertMaterial, MeshStandardMaterial, Texture, Vector3, type Object3D } from 'three';
 import { bodyPalette } from '../../../core/world/arena/body-colors';
 import { gripperKit, gripperTestScenario } from '../__fixtures__/gripper-scene';
 import { loadTestAssets } from '../__fixtures__/load-glb';
@@ -101,6 +101,14 @@ describe('the pick-and-place props (N19 E7)', () => {
     expect(rack.min.z).toBeCloseTo(position[2] - size[2] / 2, 2);
     expect(rack.max.z).toBeCloseTo(position[2] + size[2] / 2, 2);
     expect(sign.min.y).toBeGreaterThanOrEqual(size[1] - 1e-4);
+    // The sign keeps its shape on any wall (fix round 1, review M5): scaled evenly, by the wall's height (the modelled 15 × 5 cm board).
+    const long = { ...scenario.arena.walls[index]!, toCm: [140, 82] as [number, number], thicknessCm: 2 };
+    const stretched = fixedBodyProps({ ...scenario.arena, walls: [long] }, assets.high.prop)[0]!.prop;
+    stretched.updateMatrixWorld(true);
+    const scale = stretched.getObjectByName('kho_sign')!.getWorldScale(new Vector3());
+    expect(scale.x).toBeCloseTo(scale.y, 9);
+    expect(scale.z).toBeCloseTo(scale.y, 9);
+    expect(scale.y).toBeCloseTo(1, 9);
     // The other walls stay plywood.
     expect(fixedBodyProps(scenario.arena, assets.high.prop).filter((item) => item.kind === 'wall' && item.index !== index).every((item) => item.prop.name === 'prop_wall')).toBe(true);
   });

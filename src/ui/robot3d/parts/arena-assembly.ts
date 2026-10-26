@@ -233,7 +233,12 @@ export function fixedBodyProps(arena: Arena, source: PropSource): BodyProp[] {
   const bodies: BodyProp[] = [];
   arena.walls.forEach((wall, index) => {
     const { position, size, yawRad } = wallBox(wall);
-    const prop = scaledProp(source, wall.tags.includes(KHO_WALL_TAG) && source('prop_kho_shelf') ? 'prop_kho_shelf' : 'prop_wall', size);
+    const shelf = wall.tags.includes(KHO_WALL_TAG) && source('prop_kho_shelf') !== null;
+    const prop = scaledProp(source, shelf ? 'prop_kho_shelf' : 'prop_wall', size);
+    // N19 E7 fix round 1 (review M5): the rack takes the wall's size; its sign is scaled evenly, by the wall's height (its letters keep
+    // their shape on a long or a thin wall). The shelf is modelled for a 40 × 4 × 12 cm wall (props/pick_place.py).
+    const sign = shelf ? prop.getObjectByName('kho_sign') : undefined;
+    if (sign) sign.scale.set(prop.scale.y / prop.scale.x, 1, prop.scale.y / prop.scale.z);
     prop.position.set(position[0], 0, position[2]);
     prop.rotation.y = yawRad;
     bodies.push({ kind: 'wall', index, prop });
