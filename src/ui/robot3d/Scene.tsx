@@ -20,6 +20,7 @@ import { robot3dColors as colors } from './colors';
 import { capitalise, objectName } from './check-report';
 import { tierLook } from './lighting/look';
 import { goalObjectIds } from './parts/zone-tags';
+import { shownObjectColors } from './round-colors';
 import { StudioLighting } from './lighting/StudioLighting';
 import { GltfArena } from './parts/GltfArena';
 import { flagOf, GltfRobot } from './parts/GltfRobot';
@@ -315,6 +316,8 @@ type ContentProps = {
   zoneLabel: (zone: PaintZone) => string | null;
   /** N19 E5: an object's words for its tag; none for a lesson whose goals name no object. */
   objectLabel: ((objectId: string) => string | null) | undefined;
+  /** N19 E4/E5 (ruling 8): the objects' colours in the round shown, null for the arena's own. */
+  objectColors: Readonly<Record<string, string>> | null;
   viewForward: readonly [number, number];
   cameraMode: CameraMode;
   /** The zones' tags: shown from one frame after the first, laid out clear of what floats over the view. */
@@ -332,7 +335,7 @@ const NEEDED_PROPS = ['prop_wall', 'prop_block', 'prop_cardboard', 'prop_marker'
  * What the canvas shows (N18 R4.7): the modelled robot and arena under the studio light once their files are in (the canvas waits for
  * them under "Đang tải 3D…", Suspense), or R4.2's procedural shapes when the files do not load.
  */
-function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, objectLabel, viewForward, cameraMode, tagsReady, overlays }: ContentProps) {
+function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, objectLabel, objectColors, viewForward, cameraMode, tagsReady, overlays }: ContentProps) {
   const look = tierLook[tier];
   const assets = use(loadRobotAssets(look.detail));
   const gl = useThree((state) => state.gl);
@@ -370,7 +373,7 @@ function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, objec
         <color attach="background" args={[colors.background]} />
         <hemisphereLight args={[colors.sky, colors.ground, 1.5]} />
         <Sun span={span} shadows={shadows} mapSize={settings.shadowMapSize} />
-        <ArenaView arena={scenario.arena} view={view} shadows={shadows} zoneLabel={zoneLabel} />
+        <ArenaView arena={scenario.arena} view={view} shadows={shadows} zoneLabel={zoneLabel} objectColors={objectColors} />
         <RobotView model={model} view={view} shadows={shadows} />
       </>
     );
@@ -379,7 +382,7 @@ function SceneContent({ scenario, kit, model, view, span, tier, zoneLabel, objec
     <>
       <color attach="background" args={[colors.studioFog]} />
       <StudioLighting span={span} look={look} shadows={shadows} mapSize={settings.shadowMapSize} viewForward={viewForward} />
-      <GltfArena assets={assets} planView={cameraMode === 'top'} scenario={scenario} view={view} look={look} shadows={shadows} textures={textures} labels={labels} viewForward={viewForward} tags={tags} />
+      <GltfArena assets={assets} planView={cameraMode === 'top'} scenario={scenario} view={view} look={look} shadows={shadows} textures={textures} labels={labels} viewForward={viewForward} objectColors={objectColors} tags={tags} />
       <GltfRobot assets={assets} kit={kit} model={model} scenario={scenario} view={view} detail={look.detail} shadows={shadows} blob={textures.blob} />
       {shadows && <ShadowsOnChange view={view} />}
     </>
@@ -429,6 +432,8 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
   // N19 E5: the objects' tags say what the learner calls each ("Khối đỏ"), in the round the view shows (as the HUD's chip does,
   // HeldChip.tsx). Only for a lesson whose goals name objects: a rover's lessons have none, and their labels never change.
   const hasGoalObjects = useMemo(() => goalObjectIds(scenario.goals).size > 0, [scenario]);
+  // N19 E4/E5 (ruling 8): the objects in the colours of the round shown (the run's world's); null, the arena's, for a rover's lessons.
+  const objectColors = useStore(store, shownObjectColors);
   const round = useStore(store, (state) => (hasGoalObjects ? (state.round?.index ?? 0) : 0));
   const objectLabel = useMemo(
     () => (hasGoalObjects ? (id: string) => capitalise(objectName(t, scenario, id, round), locale) : undefined),
@@ -460,7 +465,7 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
       camera={{ fov: FOV_DEG, near: 0.01, far: 60, position: [span.widthM / 2, 1, 1] }}
     >
       <Suspense fallback={null}>
-        <SceneContent scenario={scenario} kit={kit} model={model} view={view} span={span} tier={tier} zoneLabel={zoneLabel} objectLabel={objectLabel} viewForward={viewForward} cameraMode={cameraMode} tagsReady={tagsReady} overlays={overlays} />
+        <SceneContent scenario={scenario} kit={kit} model={model} view={view} span={span} tier={tier} zoneLabel={zoneLabel} objectLabel={objectLabel} objectColors={objectColors} viewForward={viewForward} cameraMode={cameraMode} tagsReady={tagsReady} overlays={overlays} />
         <CompiledDraw onDrawn={onDrawn} cap={drawCap} onDraw={onLowStep ? lowDraw : undefined} />
       </Suspense>
       <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} resetKey={resetKey} hud={hud} card={card} tools={toolsCorner} walls={walls} props={props} replaying={replaying} {...(commands ? { commands } : {})} />

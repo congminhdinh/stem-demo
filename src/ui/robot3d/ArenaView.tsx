@@ -5,6 +5,7 @@ import type { Arena, PaintZone } from '../../core/world/arena/arena-schema';
 import type { RobotSnapshot } from '../../core/world/snapshot';
 import { robot3dColors as colors } from './colors';
 import { groundTextureSize, paintGround } from './ground-paint';
+import { paintedColor } from './round-colors';
 import { arenaToThree, boxBody, cylinderBody, dynamicBodyIds, wallBox, writePose } from './scene-math';
 
 // The arena in the 3D view (N18 R4.2), drawn from the scenario's `Arena`: the floor with its zones and tape (one texture painted from
@@ -17,6 +18,8 @@ type ArenaViewProps = {
   shadows: boolean;
   /** A zone's name painted on the floor (the learner's words), or null. */
   zoneLabel: (zone: PaintZone) => string | null;
+  /** N19 E4/E5 (ruling 8): the objects' colours in the round shown (round-colors.ts); without them an object is painted its own colour. */
+  objectColors?: Readonly<Record<string, string>> | null;
 };
 
 const SLAB_M = 0.012;
@@ -44,7 +47,7 @@ function useFloorTexture(arena: Arena, zoneLabel: ArenaViewProps['zoneLabel']): 
 }
 
 /** What a moving body looks like: its shape and size, from the arena's data. */
-type MovingShape = { id: string; color: string } & ({ shape: 'box'; size: readonly [number, number, number] } | { shape: 'cylinder'; radiusM: number; heightM: number });
+type MovingShape = { id: string; color: string; object?: { own: string | undefined } } & ({ shape: 'box'; size: readonly [number, number, number] } | { shape: 'cylinder'; radiusM: number; heightM: number });
 
 function movingShapes(arena: Arena): MovingShape[] {
   const ids = dynamicBodyIds(arena);
@@ -53,14 +56,16 @@ function movingShapes(arena: Arena): MovingShape[] {
     ...arena.cylinders
       .filter((cylinder) => cylinder.body === 'dynamic')
       .map((cylinder) => ({ shape: 'cylinder' as const, ...cylinderBody(cylinder), color: colors.cylinder })),
-    ...arena.objects.map((object) =>
-      object.shape === 'box' ? { shape: 'box' as const, size: boxBody(object).size, color: colors.object } : { shape: 'cylinder' as const, ...cylinderBody(object), color: colors.object },
-    ),
+    ...arena.objects.map((object) => ({
+      ...(object.shape === 'box' ? { shape: 'box' as const, size: boxBody(object).size } : { shape: 'cylinder' as const, ...cylinderBody(object) }),
+      color: colors.object,
+      object: { own: object.color },
+    })),
   ];
   return shapes.map((shape, i) => ({ ...shape, id: ids[i]! }) as MovingShape);
 }
 
-export function ArenaView({ arena, view, shadows, zoneLabel }: ArenaViewProps) {
+export function ArenaView({ arena, view, shadows, zoneLabel, objectColors = null }: ArenaViewProps) {
   const floor = useFloorTexture(arena, zoneLabel);
   const [widthCm, depthCm] = arena.ground.sizeCm;
   const centre = arenaToThree(widthCm / 2, depthCm / 2, 0);
@@ -131,7 +136,8 @@ export function ArenaView({ arena, view, shadows, zoneLabel }: ArenaViewProps) {
         >
           <mesh castShadow={shadows} receiveShadow={shadows}>
             {shape.shape === 'box' ? <boxGeometry args={shape.size as [number, number, number]} /> : <cylinderGeometry args={[shape.radiusM, shape.radiusM, shape.heightM, 24]} />}
-            <meshStandardMaterial color={shape.color} roughness={0.6} />
+            {/* N19 E4/E5: an object in its colour of the round shown, or its own; the simple shapes' colour of an object without one. */}
+            <meshStandardMaterial color={(shape.object && paintedColor(objectColors, shape.id, shape.object.own)) ?? shape.color} roughness={0.6} />
           </mesh>
         </group>
       ))}

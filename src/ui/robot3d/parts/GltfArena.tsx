@@ -34,6 +34,8 @@ type GltfArenaProps = {
   textures: TextureSet;
   labels: MatLabels;
   viewForward: readonly [number, number];
+  /** N19 E4/E5 (ruling 8): the objects' colours in the round shown (round-colors.ts), null for the arena's own. */
+  objectColors: Readonly<Record<string, string>> | null;
   /** The zones' tags (ZoneTags.tsx): shown once the view's first frame is drawn, laid out round the robot and what floats over the view. */
   tags: { ready: boolean; mode: CameraMode; overlays: { hud: HudCorner | null; card: CardEdge | null; tools: ToolsCorner | null }; robot: RobotTagBox };
 };
@@ -46,7 +48,7 @@ function useMatTextures(scenario: Scenario, low: boolean): MatTextures | null {
   return made;
 }
 
-export function GltfArena({ assets, planView, scenario, view, look, shadows, textures, labels, viewForward, tags }: GltfArenaProps) {
+export function GltfArena({ assets, planView, scenario, view, look, shadows, textures, labels, viewForward, objectColors, tags }: GltfArenaProps) {
   const mat = useMatTextures(scenario, look.detail === 'low');
   const arena = useMemo(() => {
     try {
@@ -63,6 +65,10 @@ export function GltfArena({ assets, planView, scenario, view, look, shadows, tex
     if (arena) arena.overhead.visible = !planView;
     invalidate();
   }, [arena, planView, invalidate]);
+  // N19 E4/E5 (ruling 8): each recoloured object in its colour of the round shown; one frame when that changes what is shown, none else.
+  useEffect(() => {
+    if (arena?.paint(objectColors)) invalidate();
+  }, [arena, objectColors, invalidate]);
 
   const [widthCm, depthCm] = scenario.arena.ground.sizeCm;
   const centre = arenaToThree(widthCm / 2, depthCm / 2, 0);
@@ -119,7 +125,7 @@ export function GltfArena({ assets, planView, scenario, view, look, shadows, tex
     }
   });
 
-  if (!arena) return <ArenaView arena={scenario.arena} view={view} shadows={shadows} zoneLabel={labels.zoneLabel} />;
+  if (!arena) return <ArenaView arena={scenario.arena} view={view} shadows={shadows} zoneLabel={labels.zoneLabel} objectColors={objectColors} />;
   return (
     <group name="arena-gltf">
       <primitive object={arena.root} />

@@ -1,5 +1,6 @@
 import type Konva from 'konva';
 import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
+import { useStore } from 'zustand';
 import { Arrow, Circle, Group, Image as KonvaImage, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import type { Kit } from '../../core/hardware/kit';
 import type { Scenario } from '../../core/scenario/scenario';
@@ -13,6 +14,7 @@ import { GRIPPER_REST, gripperStateOf } from './gripper-pose';
 import { lineSeesDark, type GripperModel, type RobotModel } from './robot-model';
 import type { RobotRunStore } from './robot-run-store';
 import type { RobotToolsStore } from './robot-tools-store';
+import { paintedColor, shownObjectColors } from './round-colors';
 import { idleSnapshot } from './scene-math';
 import { topViewColors as colors } from './top-view-colors';
 import { BOOM_BAR_CM, BOOM_PLATE_CM, CARRIAGE_HALF_CM, createGripperTopView, gripperTopViewInto, heldRingRadiusCm, objectMarks } from './top-view-gripper';
@@ -104,6 +106,20 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
   const idle = useMemo(() => idleSnapshot(scenario, kit), [scenario, kit]);
   const moving = useMemo(() => movingBodies(arena), [arena]);
   const gripperView = useMemo(createGripperTopView, []);
+  // N19 E4/E5 (ruling 8): the objects in the colours of the round shown (the run's world's), the arena's own without one. A rover lesson
+  // has none: its bodies are the very ones it had.
+  const roundColors = useStore(store, shownObjectColors);
+  const painted = useMemo(
+    () =>
+      roundColors === null
+        ? moving
+        : moving.map((body) => {
+            if (body.colorKey !== 'object') return body;
+            const fill = paintedColor(roundColors, body.id, body.fill);
+            return fill === body.fill ? body : { ...body, fill };
+          }),
+    [moving, roundColors],
+  );
   const fit = size !== null && size.width > 0 && size.height > 0 ? fitTopView([widthCm, depthCm], size, MARGINS) : null;
   const mat = useMat(arena, fit?.scale ?? null, zoneLabel);
   // The names the mat is painted with, for the tests and the E2E (they cannot read the canvas).
@@ -285,7 +301,7 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
             }}
           >
             <Group {...world} name="topview-world">
-              {moving.map((body) => (
+              {painted.map((body) => (
                 <Group
                   key={body.id}
                   name="topview-object"

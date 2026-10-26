@@ -91,9 +91,24 @@ export const MAT_THICKNESS_M = 0.0015;
 /** How far below its top the table's legs reach the studio's floor (m): the modelled table's 3 cm top and 72 cm legs. */
 export const TABLE_HEIGHT_M = 0.75;
 
-export type ArenaMovers = Map<string, { node: Object3D; heightM: number }>;
+/**
+ * N19 E4/E5 (ruling 8): `looks`, for an object whose variants recolour it, its prop in each colour it takes (by the colour, lower case),
+ * one shown at a time (`paint`); none for any other.
+ */
+export type ArenaMovers = Map<string, { node: Object3D; heightM: number; looks?: Map<string, Object3D> }>;
 /** `overhead`: the dressing over the mat (a gantry, a carport roof), which the plan view hides so the floor reads. */
-export type AssembledArena = { root: Group; overhead: Group; movers: ArenaMovers; dispose(): void };
+export type AssembledArena = {
+  root: Group;
+  overhead: Group;
+  movers: ArenaMovers;
+  /**
+   * N19 E4/E5 (ruling 8): shows each recoloured object in its colour of the round the view shows (`colors`, by id: the run's,
+   * round-colors.ts), its own colour (the arena's, variant 0's) where `colors` has none. Builds nothing: it only shows one prop and hides
+   * the others. True when it changed what is shown (a frame is then due).
+   */
+  paint(colors: Readonly<Record<string, string>> | null): boolean;
+  dispose(): void;
+};
 
 export type ArenaAssemblyOptions = {
   shadows: boolean;
@@ -262,8 +277,9 @@ export function fixedBodyProps(arena: Arena, source: PropSource): BodyProp[] {
 }
 
 /** Builds the arena's props for `scenario` from `source`. Throws when a prop it needs is missing (the caller then draws the procedural arena). */
-export function assembleArena(scenario: Pick<Scenario, 'arena'>, source: PropSource, options: ArenaAssemblyOptions): AssembledArena {
+export function assembleArena(scenario: Pick<Scenario, 'arena'> & Partial<Pick<Scenario, 'variants'>>, source: PropSource, options: ArenaAssemblyOptions): AssembledArena {
   const { arena } = scenario;
+  const recoloured = scenario.variants?.objectColors ?? {};
   const root = new Group();
   root.name = 'arena';
   const statics = new Group();
@@ -457,12 +473,17 @@ export function assembleArena(scenario: Pick<Scenario, 'arena'>, source: PropSou
   // The moving bodies: a node each at its pose (the body's middle), the prop under it standing on its base, a soft shadow beneath.
   const movers: ArenaMovers = new Map();
   const ids = dynamicBodyIds(arena);
-  const bodies: { prop: keyof typeof MODELLED; size: [number, number, number]; noun?: boolean; color?: string | undefined }[] = [
+  const bodies: { prop: keyof typeof MODELLED; size: [number, number, number]; noun?: boolean; color?: string | undefined; colors?: string[] }[] = [
     ...arena.boxes.filter((box) => box.body === 'dynamic').map((box) => ({ prop: boxProp(box), size: [...boxBody(box).size] as [number, number, number] })),
     ...arena.cylinders.filter((c) => c.body === 'dynamic').map((c) => ({ prop: cylinderProp(c), size: [c.radiusCm / 50, c.heightCm / 100, c.radiusCm / 50] as [number, number, number] })),
     ...arena.objects.map((object) => {
       const noun = nounProp(object);
-      if (noun && object.shape === 'box' && source(noun)) return { prop: noun, size: [...boxBody(object).size] as [number, number, number], noun: true, color: object.color };
+      if (noun && object.shape === 'box' && source(noun)) {
+        // N19 E4/E5 (ruling 8): every colour its variants give it besides its own, once each.
+        const own = object.color?.toLowerCase();
+        const others = Object.hasOwn(recoloured, object.id) ? [...new Set(recoloured[object.id]!.map((colour) => colour.toLowerCase()))].filter((colour) => colour !== own) : [];
+        return { prop: noun, size: [...boxBody(object).size] as [number, number, number], noun: true, color: object.color, ...(others.length > 0 ? { colors: others } : {}) };
+      }
       return object.shape === 'box'
         ? { prop: boxProp({ sizeCm: object.sizeCm, tags: object.tags }), size: [...boxBody(object).size] as [number, number, number] }
         : { prop: cylinderProp(object), size: [object.radiusCm / 50, object.heightCm / 100, object.radiusCm / 50] as [number, number, number] };
@@ -474,14 +495,24 @@ export function assembleArena(scenario: Pick<Scenario, 'arena'>, source: PropSou
     node.name = `mover_${ids[i]}`;
     const prop = scaled(body.prop, body.size);
     if (body.noun) tintNounProp(prop, body.prop, body.color, tinted, owned);
-    prop.position.y = -body.size[1] / 2;
-    prop.traverse((child) => {
-      if (child instanceof Mesh) {
-        child.castShadow = options.shadows;
-        child.receiveShadow = options.shadows;
-      }
-    });
-    node.add(prop);
+    // N19 E4/E5 (ruling 8): the same prop in each other colour its variants give it, hidden until a round shows it.
+    const looks = body.colors === undefined ? undefined : new Map<string, Object3D>([[body.color?.toLowerCase() ?? '', prop]]);
+    for (const colour of body.colors ?? []) {
+      const look = scaled(body.prop, body.size);
+      tintNounProp(look, body.prop, colour, tinted, owned);
+      look.visible = false;
+      looks!.set(colour, look);
+    }
+    for (const look of looks?.values() ?? [prop]) {
+      look.position.y = -body.size[1] / 2;
+      look.traverse((child) => {
+        if (child instanceof Mesh) {
+          child.castShadow = options.shadows;
+          child.receiveShadow = options.shadows;
+        }
+      });
+      node.add(look);
+    }
     const blobGeometry = new PlaneGeometry(body.size[0] * 1.7, body.size[2] * 1.7).rotateX(-Math.PI / 2);
     const blobMaterial = new MeshBasicMaterial({ color: '#000000', alphaMap: options.blob, transparent: true, opacity: 0.45, depthWrite: false });
     owned.geometries.push(blobGeometry);
@@ -490,7 +521,7 @@ export function assembleArena(scenario: Pick<Scenario, 'arena'>, source: PropSou
     blob.position.y = -body.size[1] / 2 + 0.0007;
     node.add(blob);
     root.add(node);
-    movers.set(ids[i]!, { node, heightM: body.size[1] });
+    movers.set(ids[i]!, { node, heightM: body.size[1], ...(looks ? { looks } : {}) });
   });
 
   if (low) {
@@ -505,6 +536,24 @@ export function assembleArena(scenario: Pick<Scenario, 'arena'>, source: PropSou
     root,
     overhead,
     movers,
+    paint(colors) {
+      let changed = false;
+      for (const [id, mover] of movers) {
+        if (mover.looks === undefined) continue;
+        const own = arena.objects.find((object) => object.id === id)?.color;
+        const wanted = (colors !== null && Object.hasOwn(colors, id) ? colors[id]! : (own ?? '')).toLowerCase();
+        // A colour the variants never give (no such look) leaves the object its own.
+        const shown = mover.looks.has(wanted) ? wanted : (own ?? '').toLowerCase();
+        for (const [colour, look] of mover.looks) {
+          const visible = colour === shown;
+          if (look.visible !== visible) {
+            look.visible = visible;
+            changed = true;
+          }
+        }
+      }
+      return changed;
+    },
     dispose() {
       for (const geometry of owned.geometries) geometry.dispose();
       for (const material of owned.materials) material.dispose();
