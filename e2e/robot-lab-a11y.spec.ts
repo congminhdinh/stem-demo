@@ -7,6 +7,7 @@ import { robotStarterDocument, type RobotTemplateKey } from '../src/samples/robo
 import { patternInk } from '../src/ui/robot3d/zone-pattern';
 import { decodePng } from '../scripts/lib/png';
 import { readJson } from './helpers';
+import { pinLowTierChainOff } from './robot-chain';
 
 // N18 R8: the robot lab for a keyboard and a screen reader, in the 1100 x 640 frame of a lesson page, drawn by SwiftShader (playwright.config.ts,
 // project chromium-robot). There is no axe here (no new dependency): the checks read Playwright's accessibility snapshot (names and roles of
@@ -38,6 +39,7 @@ async function openInLesson(page: Page, url: string): Promise<Frame> {
   await frame.getByTestId('robot-lab').waitFor();
   await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 15_000 });
   await expect(frame.getByTestId('robot-3d-loading')).toHaveCount(0);
+  await pinLowTierChainOff(frame);
   return frame;
 }
 
@@ -240,6 +242,7 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
     }, labUrl(baseURL));
     const frame = await frameOf(page);
     await frame.getByTestId('robot-lab').waitFor();
+    await pinLowTierChainOff(frame);
     await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 15_000 });
     // Give anything that wanted the focus time to take it: a Blockly workspace that is done, a check, a run.
     await page.waitForTimeout(1000);
@@ -913,6 +916,7 @@ test.describe('the lab at a browser zoom of 200 % (N18 R8)', () => {
     });
     const frame = await frameOf(page);
     await frame.getByTestId('robot-lab').waitFor();
+    await pinLowTierChainOff(frame);
     expect(await frame.evaluate(() => [innerWidth, innerHeight, devicePixelRatio])).toEqual([550, 320, 2]);
 
     /** The controls of the frame: where they are, whether the part of them in view is the whole of them, and whether the page can scroll to them. */

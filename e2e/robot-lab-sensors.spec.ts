@@ -5,6 +5,7 @@ import { robotSolutions } from '../src/samples/robot-solutions';
 import { robotStarterDocument } from '../src/samples/robot-templates';
 import type { TopViewSensorsState } from '../src/ui/robot3d/top-view-sensors-state';
 import type { SensorOverlayProbe } from '../src/ui/robot3d/parts/sensor-overlay';
+import { pinLowTierChainOff } from './robot-chain';
 
 // N18 R4.3: the robot lab's sensor overlays in the 1100 x 640 frame of a lesson page, drawn by SwiftShader (playwright.config.ts, project
 // chromium-robot). In stop-at-wall, the goal's zone is lit before the run; once it runs the ultrasonic ray, its echo dot and its tag with the
@@ -39,6 +40,7 @@ async function openInLesson(page: Page, url: string): Promise<Frame> {
     w.__sensorOverlay = await import(/* @vite-ignore */ overlay);
     w.__topViewSensors = await import(/* @vite-ignore */ map);
   });
+  await pinLowTierChainOff(frame);
   return frame;
 }
 

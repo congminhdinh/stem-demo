@@ -16,17 +16,27 @@ export type RobotTestHooks = {
   getSpeed(): number;
   /** `hashSnapshot` of the snapshot `getSnapshot` gives (the same on every browser for the same run), or null when it gives none. */
   snapshotHash(): string | null;
+  /**
+   * N18 P2 fix round 1: pins the low tier's frame-rate chain ('off': no step of its own) or lets it run ('auto', the default), in the
+   * mounted lab and in every lab the page mounts after it. The E2E's lesson helpers pin it off, so a busy machine changes no spec.
+   */
+  setLowTierChain(mode: 'auto' | 'off'): void;
+  /** N18 P2 fix round 1: the mounted lab takes the chain's step now: 'cap' (30 fps on the low tier), then 'offer' (the 2D map offered). */
+  forceLowTierStep(step: 'cap' | 'offer'): void;
 };
 
 /** What the mounted robot lab serves to `window.__stem.robot` (N18 R4.2). */
-export type RobotTestTarget = Pick<RobotTestHooks, 'getSnapshot' | 'snapshotHash' | 'setSpeed' | 'getSpeed'>;
+export type RobotTestTarget = Pick<RobotTestHooks, 'getSnapshot' | 'snapshotHash' | 'setSpeed' | 'getSpeed' | 'setLowTierChain' | 'forceLowTierStep'>;
 
 /** The robot lab that is mounted, if any. Only the dev hooks read it: in a production build nothing does. */
 let robotTarget: RobotTestTarget | null = null;
+/** The low tier's chain as the hooks last set it: a lab mounted later takes it too. */
+let lowTierChain: 'auto' | 'off' = 'auto';
 
 /** The robot lab serves the hooks from now until the returned function is called (when it unmounts). */
 export function attachRobotTestTarget(target: RobotTestTarget): () => void {
   robotTarget = target;
+  if (lowTierChain !== 'auto') target.setLowTierChain(lowTierChain);
   return () => {
     if (robotTarget === target) {
       robotTarget = null;
@@ -55,6 +65,35 @@ declare global {
 /** Installed only in dev builds (which E2E runs against); never in production. */
 export function installTestHooks(projectStore: ProjectStore, profiles: ProfileCatalog) {
   let robotSpeed = 1;
+  const robot: Omit<RobotTestHooks, 'setLowTierChain' | 'forceLowTierStep'> = {
+    getSnapshot: () => robotTarget?.getSnapshot() ?? null,
+    setSpeed: (multiplier) => {
+      if (!Number.isFinite(multiplier) || multiplier <= 0) {
+        throw new RangeError(`The speed must be a finite number above 0, not ${multiplier}.`);
+      }
+      robotSpeed = multiplier;
+      robotTarget?.setSpeed(multiplier);
+    },
+    getSpeed: () => robotTarget?.getSpeed() ?? robotSpeed,
+    snapshotHash: () => robotTarget?.snapshotHash() ?? null,
+  };
+  // N18 P2 fix round 1: the low tier's chain's hooks, not enumerable: the keys of R4.1's contract (getSnapshot, getSpeed, setSpeed,
+  // snapshotHash) stay what they were; these two are the E2E's own.
+  const chain: Pick<RobotTestHooks, 'setLowTierChain' | 'forceLowTierStep'> = {
+    setLowTierChain: (mode) => {
+      if (mode !== 'auto' && mode !== 'off') throw new RangeError(`The low tier's chain is 'auto' or 'off', not ${String(mode)}.`);
+      lowTierChain = mode;
+      robotTarget?.setLowTierChain(mode);
+    },
+    forceLowTierStep: (step) => {
+      if (!robotTarget) throw new Error('No robot lab is mounted.');
+      robotTarget.forceLowTierStep(step);
+    },
+  };
+  Object.defineProperties(robot, {
+    setLowTierChain: { enumerable: false, value: chain.setLowTierChain },
+    forceLowTierStep: { enumerable: false, value: chain.forceLowTierStep },
+  });
   window.__stem = {
     getCanvasState: readCanvasState,
     getProject: () => projectStore.getState().document,
@@ -67,17 +106,6 @@ export function installTestHooks(projectStore: ProjectStore, profiles: ProfileCa
       }
       projectStore.getState().loadProject(parsed);
     },
-    robot: {
-      getSnapshot: () => robotTarget?.getSnapshot() ?? null,
-      setSpeed: (multiplier) => {
-        if (!Number.isFinite(multiplier) || multiplier <= 0) {
-          throw new RangeError(`The speed must be a finite number above 0, not ${multiplier}.`);
-        }
-        robotSpeed = multiplier;
-        robotTarget?.setSpeed(multiplier);
-      },
-      getSpeed: () => robotTarget?.getSpeed() ?? robotSpeed,
-      snapshotHash: () => robotTarget?.snapshotHash() ?? null,
-    },
+    robot: robot as RobotTestHooks,
   };
 }

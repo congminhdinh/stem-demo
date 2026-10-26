@@ -1,6 +1,7 @@
 import { expect, test, type Frame, type Page } from '@playwright/test';
 import { robotSolutions } from '../src/samples/robot-solutions';
 import { robotStarterDocument } from '../src/samples/robot-templates';
+import { pinLowTierChainOff } from './robot-chain';
 
 // N18 R4.7: every pilot scenario's 3D view, in the 1100 x 640 frame of a lesson page, drawn by SwiftShader (playwright.config.ts, project
 // chromium-robot), is the modelled scene (not the simple fallback shapes) and looks 3D: across a grid of pixels read from its drawing
@@ -21,6 +22,7 @@ async function openInLesson(page: Page, url: string): Promise<Frame> {
   const frame = await (await page.locator('iframe').elementHandle())?.contentFrame();
   if (!frame) throw new Error('The lab iframe has no frame');
   await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 30_000 });
+  await pinLowTierChainOff(frame);
   return frame;
 }
 

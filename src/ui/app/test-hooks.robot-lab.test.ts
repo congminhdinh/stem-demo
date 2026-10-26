@@ -11,9 +11,16 @@ afterEach(() => {
   delete window.__stem;
 });
 
-function target(): RobotTestTarget & { speed: number } {
+function target(): RobotTestTarget & { speed: number; chain: string[] } {
   return {
     speed: 1,
+    chain: [],
+    setLowTierChain(mode) {
+      this.chain.push(mode);
+    },
+    forceLowTierStep(step) {
+      this.chain.push(`force ${step}`);
+    },
     getSnapshot: () => ({ t: 1.5 }),
     snapshotHash: () => '0adb8d09',
     setSpeed(multiplier) {
@@ -51,5 +58,32 @@ describe('window.__stem.robot with a robot lab (N18 R4.2)', () => {
     first();
     expect(window.__stem!.robot.snapshotHash()).toBe('0adb8d09');
     detachSecond();
+  });
+});
+
+describe('window.__stem.robot and the low tier’s chain (N18 P2 fix round 1)', () => {
+  it('pins the chain in the mounted lab and in every lab mounted after it, forces a step in the mounted one, and refuses what is none', () => {
+    installTestHooks(createProjectStore(createNewProject('p')), productionProfiles);
+    const robot = window.__stem!.robot;
+    expect(() => robot.forceLowTierStep('cap')).toThrow('No robot lab is mounted.');
+    robot.setLowTierChain('off');
+    const first = target();
+    const detachFirst = attachRobotTestTarget(first);
+    expect(first.chain).toEqual(['off']);
+    robot.forceLowTierStep('cap');
+    robot.forceLowTierStep('offer');
+    expect(first.chain).toEqual(['off', 'force cap', 'force offer']);
+    detachFirst();
+    const second = target();
+    const detachSecond = attachRobotTestTarget(second);
+    expect(second.chain).toEqual(['off']);
+    robot.setLowTierChain('auto');
+    expect(second.chain).toEqual(['off', 'auto']);
+    expect(() => robot.setLowTierChain('never' as 'off')).toThrow(RangeError);
+    detachSecond();
+    // 'auto' is the default: a lab mounted now is told nothing.
+    const third = target();
+    attachRobotTestTarget(third)();
+    expect(third.chain).toEqual([]);
   });
 });

@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { robotSolutions } from '../src/samples/robot-solutions';
 import { robotStarterDocument } from '../src/samples/robot-templates';
+import { pinLowTierChainOff } from './robot-chain';
 
 // N18 R4.6: where the robot lab puts things in its two frames: 1100 x 640, the size of the frame a lesson page gives it (the design size),
 // and 760 px, a frame narrower than 800 px, where its two sides are tabs. In both, the view (3D or the 2D map that takes its place) is
@@ -42,6 +43,7 @@ async function openInLesson(page: Page, url: string): Promise<Frame> {
   await frame.getByTestId('robot-lab').waitFor();
   await installTopViewReader(frame);
   await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 15_000 });
+  await pinLowTierChainOff(frame);
   return frame;
 }
 
@@ -197,6 +199,7 @@ test.describe('the robot lab at 760 px, narrower than 800 (N18 R4.6)', () => {
 
   async function openNarrow(page: Page) {
     await page.goto('/?embed=1&lab=robot&template=rb-drive-to-zone');
+    await pinLowTierChainOff(page);
     await installTopViewReader(page);
     await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 15_000 });
   }
@@ -274,6 +277,7 @@ test.describe('a frame that changes size under the 2D map (N18 R4.6 fix round 1)
   test('shrinks the map’s stage with a shorter and a narrower frame, and grows it with a larger one, never scrolling', async ({ page }) => {
     await page.setViewportSize({ width: 1100, height: 640 });
     await page.goto('/?embed=1&lab=robot&template=rb-line-follow');
+    await pinLowTierChainOff(page);
     await installTopViewReader(page);
     await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 15_000 });
     await page.getByTestId('robot-viewmode').click();
@@ -308,6 +312,7 @@ test.describe('where the robot lab turns to tabs (N18 R4.6)', () => {
     test(`at ${width} px it is ${layout === 'split' ? 'side by side' : 'in tabs'}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 640 });
       await page.goto('/?embed=1&lab=robot&template=rb-drive-to-zone');
+      await pinLowTierChainOff(page);
       await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 15_000 });
       await expect(page.getByTestId('lab-workspace')).toHaveAttribute('data-layout', layout);
       expect(await scrolls(page)).toEqual({ sideways: false, down: false });

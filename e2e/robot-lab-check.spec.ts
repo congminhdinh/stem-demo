@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { robotSolutions } from '../src/samples/robot-solutions';
 import { robotStarterDocument, type RobotTemplateKey } from '../src/samples/robot-templates';
+import { pinLowTierChainOff } from './robot-chain';
 
 // N18 R6.3: Kiểm tra in the robot lab, in the 1100 x 640 frame of a lesson page, drawn by SwiftShader (playwright.config.ts, project
 // chromium-robot). A check of a reference sends the host a scored check-result after the check's run stopped; an exploit fails with the
@@ -62,6 +63,7 @@ async function openInLesson(page: Page, url: string): Promise<Frame> {
   await frame.getByTestId('robot-lab').waitFor();
   await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 15_000 });
   await expect(frame.getByTestId('robot-3d-loading')).toHaveCount(0);
+  await pinLowTierChainOff(frame);
   return frame;
 }
 

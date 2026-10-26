@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { robotSolutions } from '../src/samples/robot-solutions';
 import { robotStarterDocument, type RobotTemplateKey } from '../src/samples/robot-templates';
+import { pinLowTierChainOff } from './robot-chain';
 
 // N18 R4.6 (Review Focus 5): a school PC that cannot draw WebGL, or a browser that takes the WebGL context away, still has the robot lab:
 // the 2D top view (TopView2D) stands in for the 3D scene, reads the very snapshot the 3D scene would, and the run, the HUD and the
@@ -71,6 +72,7 @@ async function openInLesson(page: Page, url: string): Promise<Frame> {
   }
   await frame.getByTestId('robot-lab').waitFor();
   await installTopViewReader(frame);
+  await pinLowTierChainOff(frame);
   return frame;
 }
 

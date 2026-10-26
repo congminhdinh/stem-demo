@@ -24,6 +24,7 @@ import type { ProjectStore } from '../state/project-store';
 import { createAnnouncer } from './announcer';
 import { createCameraCommands } from './camera-commands';
 import { onFirstUse } from './first-use';
+import { createLowTierControl } from './low-tier-control';
 import { CheckControls } from './CheckControls';
 import { CheckResults, FastCheckView } from './CheckResults';
 import { Hud } from './Hud';
@@ -190,6 +191,8 @@ export default function RobotLab({
   // N18 R8: what the lab tells a screen reader, and the camera's keys.
   const [announcer] = useState(createAnnouncer);
   const [commands] = useState(createCameraCommands);
+  // N18 P2 fix round 1: the dev hooks' hold on the low tier's chain (DEV only; a production build never calls it: the chain runs by itself).
+  const [lowTier] = useState(createLowTierControl);
   const { say, alert } = announcer;
   const hintId = useId();
   const startButton = useRef<HTMLButtonElement>(null);
@@ -275,8 +278,10 @@ export default function RobotLab({
       },
       setSpeed: (multiplier) => store.getState().setSpeed(multiplier),
       getSpeed: () => store.getState().speed,
+      setLowTierChain: (mode) => lowTier.setMode(mode),
+      forceLowTierStep: (step) => lowTier.force(step),
     });
-  }, [store]);
+  }, [store, lowTier]);
 
   // The buzzer's sound follows every published snapshot, and is silent while the run is paused (no time passes then).
   const buzzerPin = model.buzzers[0]?.pinIndex ?? -1;
@@ -353,6 +358,7 @@ export default function RobotLab({
           hint={viewHint}
           hintId={hintId}
           onViewUp={onViewUp}
+          lowTier={lowTier}
           {...(probe ? { probe } : {})}
         />
         <Hud store={store} scenario={scenario} />

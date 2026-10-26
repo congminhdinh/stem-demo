@@ -14,6 +14,7 @@ import { createRobotRunStore } from './robot-run-store';
 import { robotModel } from './robot-model';
 import type { WebglProbe } from './quality';
 import { readTopViewState } from './top-view-state';
+import { createLowTierControl, type LowTierControl } from './low-tier-control';
 
 // N18 R4.6: when the robot lab shows its 2D top view instead of the 3D scene, and the way back. The 3D scene itself (an R3F canvas, which
 // jsdom cannot make) is a stand-in here that keeps the props SceneHost gave it, so the test plays what a browser does: it takes the
@@ -68,14 +69,14 @@ afterEach(() => {
 const gpu: WebglProbe = { ok: true, renderer: 'ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)' };
 const none: WebglProbe = { ok: false };
 
-function render(probe: () => WebglProbe, options: { onViewUp?: () => void; announce?: (text: string) => void } = {}) {
+function render(probe: () => WebglProbe, options: { onViewUp?: () => void; announce?: (text: string) => void; lowTier?: LowTierControl } = {}) {
   const fake = fakeSession(scenario, kit);
   const store = createRobotRunStore(fake.session);
   store.getState().connect();
   act(() =>
     root.render(
       <TextProvider locale="vi">
-        <SceneHost scenario={scenario} kit={kit} model={model} store={store} reducedMotion={false} zoneLabel={() => null} probe={probe} {...(options.onViewUp ? { onViewUp: options.onViewUp } : {})} {...(options.announce ? { announce: options.announce } : {})} />
+        <SceneHost scenario={scenario} kit={kit} model={model} store={store} reducedMotion={false} zoneLabel={() => null} probe={probe} {...(options.onViewUp ? { onViewUp: options.onViewUp } : {})} {...(options.announce ? { announce: options.announce } : {})} {...(options.lowTier ? { lowTier: options.lowTier } : {})} />
       </TextProvider>,
     ),
   );
@@ -411,5 +412,32 @@ describe('what the low tier’s chain says to a screen reader (N18 P2)', () => {
     expect(announce).not.toHaveBeenCalledWith('Đang vẽ 30 hình mỗi giây cho mượt hơn');
     act(() => scenes.props!.onLowStep!('offer'));
     expect(announce).toHaveBeenCalledWith('3D chạy chậm trên máy này: bản đồ 2D mượt hơn.');
+  });
+});
+
+describe('the low tier’s chain under the dev hooks (N18 P2 fix round 1)', () => {
+  const software: WebglProbe = { ok: true, renderer: 'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)' };
+
+  it('takes no step of its own when pinned off (no frame watch on the low tier), and takes the steps it is forced to', () => {
+    const lowTier = createLowTierControl();
+    render(() => software, { lowTier });
+    expect(scenes.props?.onLowStep).toBeTypeOf('function');
+    act(() => lowTier.setMode('off'));
+    expect(scenes.props?.onLowStep).toBeUndefined();
+    expect(scenes.props?.drawCap).toBe(false);
+    act(() => lowTier.force('cap'));
+    expect(scenes.props?.drawCap).toBe(true);
+    expect(text('robot-quality-note')).toBe('Đang vẽ 30 hình mỗi giây cho mượt hơn');
+    act(() => lowTier.force('offer'));
+    expect(byId('robot-offer-2d')).not.toBeNull();
+    act(() => lowTier.setMode('auto'));
+    expect(scenes.props?.onLowStep).toBeTypeOf('function');
+  });
+
+  it('starts pinned off when the control is off before the view mounts', () => {
+    const lowTier = createLowTierControl();
+    lowTier.setMode('off');
+    render(() => software, { lowTier });
+    expect(scenes.props?.onLowStep).toBeUndefined();
   });
 });

@@ -8,6 +8,7 @@ import { viewAnnouncement } from './lab-announcements';
 import { tierLook } from './lighting/look';
 import { Icon } from './icons';
 import type { LowTierStep } from './frame-watch';
+import type { LowTierControl } from './low-tier-control';
 import { probeWebgl, tierForRenderer, type QualityTier, type WebglProbe } from './quality';
 import Scene, { type SceneProps } from './Scene';
 import { SensorToggle } from './SensorToggle';
@@ -38,7 +39,7 @@ const cameraModes: readonly { mode: CameraMode; label: 'robot.camera.orbit' | 'r
   { mode: 'top', label: 'robot.camera.top', icon: 'top' },
 ];
 
-type SceneHostProps = Omit<SceneProps, 'tier' | 'cameraMode' | 'onContextLost' | 'onContextRestored' | 'hud' | 'card' | 'toolsCorner' | 'onSlowFrames'> & {
+type SceneHostProps = Omit<SceneProps, 'tier' | 'cameraMode' | 'onContextLost' | 'onContextRestored' | 'hud' | 'card' | 'toolsCorner' | 'onSlowFrames' | 'onLowStep' | 'drawCap'> & {
   /** Tests: whether WebGL is there and what draws it (the browser's own probe by default). */
   probe?: () => WebglProbe;
   /** N18 R8: says something politely to the lab's announcer. */
@@ -51,12 +52,14 @@ type SceneHostProps = Omit<SceneProps, 'tier' | 'cameraMode' | 'onContextLost' |
   hintId?: string;
   /** N18 P2: the view is up: the 3D view has drawn its first frame, or the 2D map stands in. */
   onViewUp?(): void;
+  /** N18 P2 fix round 1: the dev hooks' hold on the low tier's chain (low-tier-control.ts); without one the chain runs by itself. */
+  lowTier?: LowTierControl;
 };
 
 /** The camera buttons' keys, as the tooltips and the shortcut attributes say them. */
 const cameraKeys: Readonly<Record<CameraMode, string>> = { orbit: '1', follow: '2', top: '3' };
 
-export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, onViewUp, ...sceneProps }: SceneHostProps) {
+export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, onViewUp, lowTier, ...sceneProps }: SceneHostProps) {
   const t = useText();
   const [probed, setProbed] = useState(probe);
   const [tier, setTier] = useState<QualityTier>(() => tierForRenderer(probed.ok ? probed.renderer : null));
@@ -112,6 +115,16 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, o
       setOffer((was) => (was === 'never' ? 'shown' : was));
     }
   }, []);
+  // N18 P2 fix round 1 (C1): the dev hooks may pin the chain off (the frame watch then takes no step) and force its steps.
+  const [chainMode, setChainMode] = useState(() => lowTier?.mode() ?? 'auto');
+  useEffect(
+    () =>
+      lowTier?.subscribe((event) => {
+        if (event.kind === 'mode') setChainMode(event.mode);
+        else onLowStep(event.step);
+      }),
+    [lowTier, onLowStep],
+  );
   // The attempt whose canvas failed: the 2D map shows, not the loading sign.
   const [failedAttempt, setFailedAttempt] = useState<number | null>(null);
 
@@ -263,7 +276,7 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, o
               card={overlays.card}
               toolsCorner={overlays.tools}
               {...(tier === 'high' && autoLow === 'never' ? { onSlowFrames } : {})}
-              {...(tier === 'low' ? { onLowStep, drawCap: capped } : {})}
+              {...(tier === 'low' ? { ...(chainMode === 'auto' ? { onLowStep } : {}), drawCap: capped } : {})}
             />
           </ErrorBoundary>
           {!drawn && failedAttempt !== attempt && context === 'ok' && (

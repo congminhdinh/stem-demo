@@ -1,5 +1,6 @@
 import { expect, test, type Frame, type Page } from '@playwright/test';
 import { robotStarterDocument } from '../src/samples/robot-templates';
+import { pinLowTierChainOff } from './robot-chain';
 
 // N18 R4.1: the robot lab (`lab=robot`) in the frame of a lesson page, as the LMS launches it (plan §4.7): its shell renders at the
 // design size (1100 x 640), says ready over stem-lab/v1 with `lab: "robot"`, takes a robot project of the host and nothing else.
@@ -20,6 +21,7 @@ async function openInLesson(page: Page, url: string): Promise<Frame> {
     throw new Error('The lab iframe has no frame');
   }
   await frame.getByTestId('robot-lab').waitFor();
+  await pinLowTierChainOff(frame);
   return frame;
 }
 
@@ -151,6 +153,7 @@ test.describe('a robot lab on its own', () => {
   test('opens without origin, and in a frame narrower than 800 px the parts share the width', async ({ page }) => {
     await page.setViewportSize({ width: 700, height: 640 });
     await page.goto('/?embed=1&lab=robot&template=rb-line-follow');
+    await pinLowTierChainOff(page);
     await expect(page.getByTestId('robot-lab')).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Bám theo vạch kẻ' })).toBeVisible();
     const viewport = await page.getByTestId('robot-viewport').boundingBox();
@@ -161,6 +164,7 @@ test.describe('a robot lab on its own', () => {
 
   test('speaks English with lang=en', async ({ page }) => {
     await page.goto('/?embed=1&lab=robot&template=rb-square-route&lang=en');
+    await pinLowTierChainOff(page);
     await expect(page.getByRole('heading', { level: 2, name: 'Drive a square' })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Robot view' })).toBeVisible();
   });

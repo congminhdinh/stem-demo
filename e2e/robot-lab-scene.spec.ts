@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { robotSolutions } from '../src/samples/robot-solutions';
 import { robotStarterDocument } from '../src/samples/robot-templates';
+import { pinLowTierChainOff } from './robot-chain';
 
 // N18 R4.2/R4.4: the robot lab a learner uses, in the 1100 x 640 frame of a lesson page, drawn by SwiftShader (playwright.config.ts,
 // project chromium-robot): the blocks run the robot in the 3D arena, the running block lights up, the HUD follows the run, Dừng and Đặt lại
@@ -29,6 +30,7 @@ async function openInLesson(page: Page, url: string): Promise<Frame> {
   // N18 R4.2 fix round 1: the first frame drawn, not just the canvas element (SwiftShader takes about 2 s to get there).
   await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 15_000 });
   await expect(frame.getByTestId('robot-3d-loading')).toHaveCount(0);
+  await pinLowTierChainOff(frame);
   return frame;
 }
 
@@ -291,6 +293,7 @@ test.describe('the robot lab’s layout (N18 R4.2)', () => {
     await page.setViewportSize({ width: 760, height: 640 });
     await page.goto('/?embed=1&lab=robot&template=rb-drive-to-zone');
     await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 15_000 });
+    await pinLowTierChainOff(page);
     await expect(page.getByRole('tab', { name: 'Chương trình', exact: true })).toHaveAttribute('aria-selected', 'true');
     expect(await scrolls(page)).toEqual({ sideways: false, down: false });
     await screenshot(page, '07-program-tab-760.png');

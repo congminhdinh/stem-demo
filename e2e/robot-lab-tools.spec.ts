@@ -2,6 +2,7 @@ import { expect, test, type Frame, type Locator, type Page } from '@playwright/t
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { topPose } from '../src/ui/robot3d/camera';
+import { pinLowTierChainOff } from './robot-chain';
 
 // N18 R4.8: the robot lab's view tools in the 1100 x 640 frame of a lesson page, drawn by SwiftShader (playwright.config.ts, project
 // chromium-robot). Lái tay drives the robot with the keyboard through the simulated hardware (the snapshot's pose moves, the host hears of
@@ -31,6 +32,7 @@ async function openInLesson(page: Page, url: string): Promise<Frame> {
   }
   await frame.getByTestId('robot-lab').waitFor();
   await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 15_000 });
+  await pinLowTierChainOff(frame);
   return frame;
 }
 
