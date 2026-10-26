@@ -1345,6 +1345,21 @@ export const unoContract: UnoContract = {
     serialPrintLongDigit: 45.1875,
     serialPrintLongSign: 6.8125,
     serialPrintln: 17.25,
+    // N19 A3 (ADR 0004 §11; node spikes/avr8js/run-gripper.ts and run-gripper-timeline.ts): EMU-20, which task A5 enters in the ledger
+    // and in costsEvidence. gripperSet: the longest of claw 45, lift 45, 120 (clamped) and -5 (clamped). colorWrite: one register write
+    // (START, address, command, value, STOP). colorBegin: less its delay(3) and delay(54) as the simulator charges them. colorClassify:
+    // the longest by the rule that matches (yellow); colorClassifyZero: r + g + b = 0, no division. wirePhase: Wire's service before a
+    // bus phase (its TWI interrupt and the next TWCR write, 79 cycles between two bytes read).
+    gripperSet: 51.625,
+    colorWrite: 334,
+    colorWriteNack: 144.9375,
+    colorBegin: 1350.5625,
+    colorBeginNack: 589.4375,
+    colorFetch: 1158.5,
+    colorFetchNack: 146.0625,
+    colorClassify: 147.25,
+    colorClassifyZero: 12.5625,
+    wirePhase: 4.9375,
   },
   costsEvidence: ['EMU-08', 'EMU-03', 'EMU-13', 'EMU-17', 'EMU-18'],
   toneUs: {

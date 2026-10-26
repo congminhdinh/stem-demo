@@ -48,6 +48,7 @@ export const boardProfileSchema = z.strictObject({
   costsUs: z.strictObject(Object.fromEntries(arduinoCalls.map((call) => [call, positive])) as Record<(typeof arduinoCalls)[number], typeof positive>),
   toneUs: z.array(z.strictObject({ prescaler: positiveInt, fromHz: positive, silentUs: positive, playingUs: positive })).min(1),
   millis: z.strictObject({ overflowUs: positive, fractPerOverflow: positiveInt, fractMax: positiveInt }),
+  i2c: z.strictObject({ sda: z.string().min(1), scl: z.string().min(1), sclHz: positiveInt }).optional(),
   emulator: z.literal('avr8js').optional(),
 });
 
@@ -79,6 +80,20 @@ function boardRuleIssues(board: z.infer<typeof boardProfileSchema>): DataIssue[]
   for (const [claimer, timer] of Object.entries(board.timerClaims)) {
     if (!timers.has(timer)) {
       issues.push({ path: `timerClaims.${claimer}`, message: `no pin of the board has timer ${timer}` });
+    }
+  }
+  if (board.i2c !== undefined) {
+    const { sda, scl } = board.i2c;
+    for (const [line, pin] of [['sda', sda], ['scl', scl]] as const) {
+      const found = board.pins.find((candidate) => candidate.id === pin);
+      if (found === undefined) {
+        issues.push({ path: `i2c.${line}`, message: `${pin} is not a pin of ${board.id}` });
+      } else if (!found.caps.includes('i2c')) {
+        issues.push({ path: `i2c.${line}`, message: `${pin} has no i2c` });
+      }
+    }
+    if (sda === scl) {
+      issues.push({ path: 'i2c.scl', message: `SCL is another pin than SDA (${sda})` });
     }
   }
   board.toneUs.forEach((band, index) => {

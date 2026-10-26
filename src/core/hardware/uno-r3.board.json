@@ -25,14 +25,15 @@
     { "id": "A1", "caps": ["digital", "analogIn"] },
     { "id": "A2", "caps": ["digital", "analogIn"] },
     { "id": "A3", "caps": ["digital", "analogIn"] },
-    { "id": "A4", "caps": ["digital", "analogIn"] },
-    { "id": "A5", "caps": ["digital", "analogIn"] }
+    { "id": "A4", "caps": ["digital", "analogIn", "i2c"] },
+    { "id": "A5", "caps": ["digital", "analogIn", "i2c"] }
   ],
   "reserved": [
     { "pin": "D0", "when": "serial" },
     { "pin": "D1", "when": "serial" }
   ],
   "timerClaims": { "servo": "T1", "tone": "T2" },
+  "i2c": { "sda": "A4", "scl": "A5", "sclHz": 100000 },
   "costsUs": {
     "pinMode": 4.375,
     "pinModeInputPullup": 4.75,
@@ -60,7 +61,17 @@
     "serialPrintLongBase": 9.375,
     "serialPrintLongDigit": 45.1875,
     "serialPrintLongSign": 6.8125,
-    "serialPrintln": 17.25
+    "serialPrintln": 17.25,
+    "gripperSet": 51.625,
+    "colorWrite": 334,
+    "colorWriteNack": 144.9375,
+    "colorBegin": 1350.5625,
+    "colorBeginNack": 589.4375,
+    "colorFetch": 1158.5,
+    "colorFetchNack": 146.0625,
+    "colorClassify": 147.25,
+    "colorClassifyZero": 12.5625,
+    "wirePhase": 4.9375
   },
   "toneUs": [
     { "prescaler": 1024, "fromHz": 31, "silentUs": 306.5625, "playingUs": 300.5625 },

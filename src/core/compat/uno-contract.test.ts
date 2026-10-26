@@ -419,6 +419,16 @@ describe('time, costs and the board (contract §4, §5)', () => {
       serialPrintLongDigit: 45.1875,
       serialPrintLongSign: 6.8125,
       serialPrintln: 17.25,
+      gripperSet: 51.625,
+      colorWrite: 334,
+      colorWriteNack: 144.9375,
+      colorBegin: 1350.5625,
+      colorBeginNack: 589.4375,
+      colorFetch: 1158.5,
+      colorFetchNack: 146.0625,
+      colorClassify: 147.25,
+      colorClassifyZero: 12.5625,
+      wirePhase: 4.9375,
     });
     expect(contract.costsEvidence).toEqual(['EMU-08', 'EMU-03', 'EMU-13', 'EMU-17', 'EMU-18']);
   });

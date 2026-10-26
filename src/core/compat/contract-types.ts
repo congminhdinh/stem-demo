@@ -436,6 +436,18 @@ export const arduinoCalls = [
   'serialPrintLongDigit',
   'serialPrintLongSign',
   'serialPrintln',
+  // N19 A3 (ADR 0004 §11, EMU-20, spikes/avr8js/out/gripper-results.json and gripper-timeline.json): the gripper car's helpers and Wire's
+  // time per bus phase. Task A5 enters their evidence (EMU-20) in the ledger and in `costsEvidence`.
+  'gripperSet',
+  'colorWrite',
+  'colorWriteNack',
+  'colorBegin',
+  'colorBeginNack',
+  'colorFetch',
+  'colorFetchNack',
+  'colorClassify',
+  'colorClassifyZero',
+  'wirePhase',
 ] as const;
 export type ArduinoCall = (typeof arduinoCalls)[number];
 

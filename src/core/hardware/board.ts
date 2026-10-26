@@ -4,8 +4,9 @@
 // §4.4, §5), measured in the R0.4 avr8js spike; hardware-contract.test.ts pins them to the contract's data, which production
 // code never imports.
 //
-// Pin capabilities name only what a source establishes. uno-r3 lists `serial` on D0/D1 (contract §5.2, ARD-07) and no
-// `interrupt`, `i2c` or `spi` yet: those wait for their contract rows (U-43 interrupts and U-46 I²C are DEFERRED).
+// Pin capabilities name only what a source establishes. uno-r3 lists `serial` on D0/D1 (contract §5.2, ARD-07), `i2c` on A4/A5 (N19 A2:
+// the ATmega328P's TWI, SDA on A4 and SCL on A5, which Wire 1.0 drives at 100 kHz; ADR 0004 §11, EMU-19) and no `interrupt` or `spi`
+// yet: those wait for their contract rows (U-43 interrupts are DEFERRED).
 
 export const pinCaps = ['digital', 'pwm', 'analogIn', 'interrupt', 'i2c', 'serial', 'spi'] as const;
 export type PinCap = (typeof pinCaps)[number];
@@ -42,6 +43,17 @@ export const arduinoCalls = [
   'serialPrintLongDigit',
   'serialPrintLongSign',
   'serialPrintln',
+  // N19 A3 (ADR 0004 §11, EMU-20): the gripper car's helpers, whole, as the drivers charge them, and Wire's own time per bus phase.
+  'gripperSet',
+  'colorWrite',
+  'colorWriteNack',
+  'colorBegin',
+  'colorBeginNack',
+  'colorFetch',
+  'colorFetchNack',
+  'colorClassify',
+  'colorClassifyZero',
+  'wirePhase',
 ] as const;
 export type ArduinoCall = (typeof arduinoCalls)[number];
 
@@ -90,9 +102,17 @@ export type BoardProfile = {
    * millis = n + floor(fractPerOverflow · n / fractMax).
    */
   readonly millis: { readonly overflowUs: number; readonly fractPerOverflow: number; readonly fractMax: number };
+  /**
+   * N19 A2: the board's I²C (Wire), when it has one: the pins of SDA and SCL, which have the `i2c` capability, and the SCL frequency the
+   * library runs the bus at. The virtual UNO times each bus phase from it (virtual-uno.ts), as the parity harness's TWI adapter does.
+   */
+  readonly i2c?: BoardI2c;
   /** Present when the board's programs can be checked against an emulator (C2 applies). */
   readonly emulator?: 'avr8js';
 };
+
+/** The I²C bus of a board (N19 A2): SDA and SCL by their header names, and the SCL frequency in Hz. */
+export type BoardI2c = { readonly sda: string; readonly scl: string; readonly sclHz: number };
 
 export function boardPin(board: BoardProfile, id: string): BoardPin | undefined {
   return board.pins.find((pin) => pin.id === id);
