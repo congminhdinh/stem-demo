@@ -2,9 +2,9 @@ import { productionKits, referenceKitRef, unoR3Board } from '../src/core/hardwar
 import type { Kit } from '../src/core/hardware/kit';
 import { registry } from '../src/core/program/__fixtures__/uno-blocks';
 import allGoalsScenario from '../src/core/scenario/__fixtures__/all-goals.scenario.json';
-import { pilotReferences, type CheckCase } from '../src/core/scenario/__fixtures__/check-cases';
+import { gripperReferences, pilotReferences, type CheckCase } from '../src/core/scenario/__fixtures__/check-cases';
 import { checkRobot } from '../src/core/scenario/check-robot';
-import { loadScenario } from '../src/core/scenario/scenario';
+import { loadScenario, scenarioKitRef, type Scenario } from '../src/core/scenario/scenario';
 import { parseArena } from '../src/core/world/arena/arena-schema';
 import boxesArena from '../src/core/world/arena/fixtures/boxes.json';
 import lineLoopArena from '../src/core/world/arena/fixtures/line-loop.json';
@@ -40,7 +40,10 @@ import { createScenarioWorld, createWorld, type World } from '../src/core/world/
 // and the virtual UNO, the world and the scorer: checkRobot headless, as Kiểm tra and verify:attempt run it. Two closed loops, whose every
 // decision reads a sensor: the mini-mission's reference (follow the line, stop near an obstacle; 3 variants of 45 s) and the line-follow
 // lesson's (3 variants of 120 s). What a check gives the LMS (passed, score, each variant's score and time, the program's hash) and the hash
-// of each variant's last world are pinned in the same golden file, under `checks`.
+// of each variant's last world are pinned in the same golden file, under `checks`. N19 D4, after them: the four gripper lessons' references
+// (pick, deliver, sort, stack; 3 variants each, on ref-uno-gripper@0), whose every grab waits on the IR, and which read the ultrasonic, the
+// line sensors and the colour sensor: the grasp, the held cube's carry and release, the sensors on the carriage and the scorer's four goal
+// kinds in one whole check each.
 
 export const DETERMINISM_TICKS = 3000;
 
@@ -297,14 +300,19 @@ export type CheckHashes = {
 export const determinismChecks: readonly { readonly name: string; readonly check: CheckCase }[] = [
   { name: 'rb-mini-mission-reference', check: pilotReferences.find((candidate) => candidate.name.startsWith('rb-mini-mission:'))! },
   { name: 'rb-line-follow-reference', check: pilotReferences.find((candidate) => candidate.name.startsWith('rb-line-follow:'))! },
+  ...gripperReferences.map((check) => ({ name: `${check.name.split(':')[0]!}-reference`, check })),
 ];
+
+/** The kit a scenario runs on (N19 D4: the gripper car for lessons 8-11, the rover for every N18 scenario). */
+const kitOfScenario = (scenario: Scenario): Kit => productionKits.get(scenarioKitRef(scenario)!) as Kit;
 
 /** Runs a whole check headless, as Kiểm tra at Nhanh does, and gives what it must give on every runtime. */
 export async function runCheckFixture(check: CheckCase): Promise<CheckHashes> {
   const final: string[] = [];
-  const run = checkRobot(check.project(), check.scenario(), {
+  const scenario = check.scenario();
+  const run = checkRobot(check.project(), scenario, {
     mode: 'headless',
-    kit: kit(),
+    kit: kitOfScenario(scenario),
     board: unoR3Board,
     registry,
     onProgress: (progress) => {

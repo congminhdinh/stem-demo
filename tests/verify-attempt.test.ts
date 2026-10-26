@@ -446,3 +446,85 @@ describe('scripts/verify-attempt.mjs (pnpm verify:attempt), as its own Node proc
     expect(run(join(work, 'missing.json')).status).toBe(2);
   }, 180_000);
 });
+
+// N19 D7: an attempt at a gripper car lesson (ref-uno-gripper@0): the check of rb-grip-stack's reference (grip, carry at 55°, stack, three
+// variants, a score of 97 with its time bonus), stored as STEMLearning stores it. The verifier re-runs it on the scenario's own kit, in this
+// process and in the script's own Node process (the -compat Rapier, as pnpm verify:attempt runs on a server): the honest attempt matches, a
+// tampered one is a mismatch that names each field.
+describe('an attempt at a gripper lesson (rb-grip-stack, N19 D7)', () => {
+  const gripKey = 'rb-grip-stack';
+  const gripProject = (): ProjectDocument => ({ ...robotStarterDocument(gripKey), program: { blocks: structuredClone(robotSolutions[gripKey].reference) } });
+  let gripChecked: RobotCheckResult;
+  beforeAll(async () => {
+    await initPhysics();
+    const scenario = scenarioCatalog.get(gripKey)!;
+    const { kit, board } = env.kitOf(scenario);
+    expect(kit.id).toBe('ref-uno-gripper');
+    gripChecked = (await checkRobot(gripProject(), scenario, { mode: 'headless', kit, board, registry }).result)!;
+  }, 180_000);
+  const gripHonest = (changes: Attempt = {}): Attempt => ({
+    ...honest(),
+    id: 51,
+    templateKey: gripKey,
+    templateVersion: gripChecked.scenarioVersion,
+    engine: gripChecked.engine,
+    passed: gripChecked.passed,
+    passing: gripChecked.passed,
+    score: gripChecked.score,
+    maxScore: gripChecked.maxScore,
+    simTimeMs: gripChecked.simTimeMs,
+    goals: gripChecked.goals.map((goal) => ({ ...goal })),
+    variants: gripChecked.variants.map((variant) => ({ ...variant })),
+    programHash: gripChecked.programHash,
+    projectJson: JSON.stringify(gripProject()),
+    ...changes,
+  });
+
+  it('is what the check gives: it passes its three variants with 97, robot-engine@1, scenario version 1', () => {
+    expect(gripChecked).toMatchObject({ passed: true, score: 97, maxScore: 100, engine: 'robot-engine@1', scenarioVersion: 1, simTimeMs: 45000 });
+    expect(gripChecked.variants).toEqual([
+      { seed: 217, passed: true, score: 97, simTimeMs: 45000 },
+      { seed: 218, passed: true, score: 97, simTimeMs: 45000 },
+      { seed: 219, passed: true, score: 97, simTimeMs: 45000 },
+    ]);
+    expect(gripChecked.goals.map((goal) => [goal.id, goal.passed])).toEqual([
+      ['grab-cube', true],
+      ['stack-cube', true],
+      ['base-still', true],
+    ]);
+  });
+
+  it('matches when honest, and names each tampered field: a raised score, a goal reported passed that did not pass, a seed', async () => {
+    expect(await verifyOne(gripHonest())).toEqual({ index: 0, id: 51, templateKey: gripKey, status: 'match' });
+    const raised = await verifyOne(gripHonest({ score: 100 }));
+    expect(raised).toEqual({ index: 0, id: 51, templateKey: gripKey, status: 'mismatch', diffs: [{ field: 'score', attempt: 100, rerun: 97 }] });
+    const variants = gripChecked.variants.map((variant, index) => (index === 2 ? { ...variant, score: 100 } : variant));
+    const goals = gripChecked.goals.map((goal) => (goal.id === 'base-still' ? { ...goal, passed: false } : goal));
+    const tampered = await verifyOne(gripHonest({ variants, goals }));
+    expect(tampered.status).toBe('mismatch');
+    expect(tampered.diffs).toEqual([
+      { field: 'goals[base-still].passed', attempt: false, rerun: true },
+      { field: 'variants[2].score', attempt: 100, rerun: 97 },
+    ]);
+    // A program other than the stored project's: its hash is the reference's, so the re-run of the stored project is a mismatch.
+    const other = await verifyOne(gripHonest({ projectJson: JSON.stringify({ ...gripProject(), program: { blocks: structuredClone(robotSolutions[gripKey].exploits![1]!.program) } }) }));
+    expect(other.status).toBe('mismatch');
+    expect(other.diffs!.map((diff) => diff.field)).toContain('programHash');
+  }, 360_000);
+
+  it('the script, as its own Node process (the -compat Rapier): the honest attempt exits 0, a raised score exits 1', () => {
+    const work = mkdtempSync(join(tmpdir(), 'verify-attempt-grip-'));
+    try {
+      const file = join(work, 'attempts.json');
+      writeFileSync(file, JSON.stringify([gripHonest(), gripHonest({ id: 52, score: 100 })]));
+      const result = spawnSync(process.execPath, [join(import.meta.dirname, '..', 'scripts', 'verify-attempt.mjs'), file, '--json'], { encoding: 'utf8', cwd: join(import.meta.dirname, '..') });
+      expect(result.status, result.stderr).toBe(1);
+      expect(JSON.parse(result.stdout)).toEqual([
+        { index: 0, id: 51, templateKey: gripKey, status: 'match' },
+        { index: 1, id: 52, templateKey: gripKey, status: 'mismatch', diffs: [{ field: 'score', attempt: 100, rerun: 97 }] },
+      ]);
+    } finally {
+      rmSync(work, { recursive: true, force: true });
+    }
+  }, 300_000);
+});
