@@ -1,4 +1,5 @@
-import { portOfRole, portParam, type Kit, type LineSensorSpec, type ModuleSpecs, type UltrasonicSpec } from '../hardware/kit';
+import type { Rgbc } from '../hardware/devices/tcs34725';
+import { portOfRole, portParam, type ColorSensorSpec, type IrObstacleSpec, type Kit, type LineSensorSpec, type ModuleSpecs, type UltrasonicSpec } from '../hardware/kit';
 import { robotMechanics } from '../hardware/kit-mechanics';
 import { ScenarioError, type Scenario } from '../scenario/scenario-schema';
 import { applyVariant, kitFootprintRadiusCm, variantOffsets, type VariantOffsets } from '../scenario/variants';
@@ -7,15 +8,19 @@ import { buildArena, type ArenaColliderInfo, type BuiltArena } from './arena/bui
 import { createGroundPaint } from './arena/ground-paint';
 import type { GoalFrame } from '../scenario/goals/frame';
 import { toGoalFrame, type GoalFrameExtras, type GoalFrameSource } from './goal-frame';
-import { createPhysicsWorld, initPhysics, PHYSICS_DT_S, PHYSICS_HZ, type PhysicsWorld, type RigidBody } from './rapier';
+import { createPhysicsWorld, initPhysics, PHYSICS_DT_S, PHYSICS_HZ, type Collider, type PhysicsWorld, type RigidBody } from './rapier';
 import { assembleRobot, stepWorld, type ActuatorTargets, type RobotBody, type RobotStart } from './robot/assembly';
 import { robotFootprint, startFootprintIssues } from './robot/footprint';
 import { graspObjects } from './robot/grasp';
 import { localToWorld, multiplyQuaternions, robotPointToLocal } from './robot/robot-frame';
 import { createWorldRng } from './rng';
+import type { ColliderLookup, SensedCollider } from './sensors/collider-lookup';
+import { measureColor } from './sensors/color';
 import { readContacts } from './sensors/contacts';
+import { measureIr } from './sensors/ir';
 import { LIFTED_HEIGHT_CM, measureLine, type LineReading } from './sensors/line';
 import { isOutOfArena } from './sensors/out-of-arena';
+import { sensedBodies } from './sensors/sensed-bodies';
 import { measureUltrasonic, type UltrasonicNoise } from './sensors/ultrasonic';
 import type { ContactEvent, Pose, RobotSnapshot, ScoreState, SensorReadout, SnapshotGripper } from './snapshot';
 import { CM_PER_M, degToRad, radToDeg, worldToArena, yawOfQuaternion, yawToQuaternion, type Quat, type Vec3 } from './units';
@@ -53,12 +58,23 @@ import { CM_PER_M, degToRad, radToDeg, worldToArena, yawOfQuaternion, yawToQuate
 //   - each ultrasonic is measured once per tick, its noise (if any) drawn once per tick from the seed, so what the program reads
 //     does not depend on how often it reads, nor on whether a view is listening;
 //   - each line sensor is read once per tick;
+//   - N19 B3: each IR obstacle sensor and each colour sensor is measured once per tick (sensors/ir.ts, sensors/color.ts), after the grasp
+//     machine, so a cube attached in this tick's update is seen held;
 //   - `outOfArena` is latched: once the robot has left the arena (R3.4 `isOutOfArena`, a step with no hysteresis), it stays out for
 //     the rest of the run.
 // The snapshot of a tick is built when first asked for, frozen, and the same object until the next step.
 //
 // Sensors compose the kit's mount with the chassis pose (kit.ts `KitModule.mount`): the ultrasonic looks along the mount's yaw from
 // its position, a line sensor looks down from its position (R3.4's pure measures).
+//
+// N19 B3, the gripper car (plan §4.4). A module with `mount.on: 'gripper'` rides on the carriage: its mount is in the carriage frame (u
+// forward, v left, w up from the boom's tip), composed with the carriage's pose. The IR and the colour sensor look ahead of the carriage
+// along the mount's yaw and meet the bodies `sensedBodies` names: the arena's, each with its colour, and the gripper's own parts
+// (`#gripper`); they pass through the carriage they sit in and the boom's cross bar at its hinge, and the colour sensor through the floor
+// (it looks ahead, never at the mat).
+// Its ultrasonic reads the same lookup and leaves out the chassis only: it hears the jaws and the carriage when they are in its cone, as a
+// real HC-SR04 does (never at lift 0° nor 90°: world.gripper-sensors.test.ts). A kit without a gripper (the rover) measures its ultrasonic
+// exactly as before: the arena's lookup, the robot's every collider left out.
 //
 // What the goals need besides the snapshot (`frameExtras`, goal-frame.ts):
 //   - `speedCmS`, how fast the robot drives: the speed over the floor of the middle of its wheel axle, the point a two-wheel robot
@@ -92,7 +108,7 @@ export type UltrasonicSense = {
   readonly cm: number;
   /** The echo pulse's width for pulseIn, µs; 0 without an echo. */
   readonly echoUs: number;
-  /** What the echo came from (an arena id), or null without one. */
+  /** What the echo came from (an arena id; N19 B3 on a gripper car `#gripper`, its own gripper), or null without one. */
   readonly hitId: string | null;
 };
 
@@ -107,6 +123,27 @@ export type WorldSense = {
   line(role: string): LineReading;
   /** What the robot touches on this tick, the floor included, once per id in id order (R3.4 `readContacts`). The same array all tick. */
   contacts(): readonly ContactEvent[];
+  /** N19 B3: the IR obstacle sensor's reading on this tick. Throws a RangeError for a role the kit has no IR sensor for. */
+  ir(role: string): IrSense;
+  /** N19 B3: the colour sensor's reading on this tick, the light on its photodiodes included. Throws a RangeError for a role the kit has no colour sensor for. */
+  color(role: string): ColorSense;
+};
+
+/** N19 B3: what an IR obstacle sensor sees on this tick (sensors/ir.ts). */
+export type IrSense = {
+  readonly detected: boolean;
+  /** The pin's level for the ir-digital driver's digitalRead (the kit port's polarity: active low, LOW while it sees). */
+  readonly level: 0 | 1;
+  /** The first body its ray met within range (an arena id, or `#gripper`), seen or not; null without one. */
+  readonly hitId: string | null;
+};
+
+/** N19 B3: what a colour sensor sees on this tick (sensors/color.ts). */
+export type ColorSense = {
+  readonly hitId: string | null;
+  readonly distanceCm: number | null;
+  /** The light on its photodiodes, counts per second at 1× gain, whole numbers: what the run session integrates for the TCS34725 model. */
+  readonly light: Rgbc;
 };
 
 export type World = {
@@ -192,6 +229,10 @@ export const TURN_IN_PLACE_TOLERANCE_CM = 1;
 type UltrasonicSensor = { readonly role: string; readonly spec: UltrasonicSpec; readonly at: Vec3; readonly turn: Quat };
 type LineSensor = { readonly role: string; readonly spec: LineSensorSpec; readonly at: Vec3; readonly activeLow: boolean };
 type LineState = { readonly reading: LineReading; readonly spotCm: readonly [number, number] | null };
+/** N19 B3: a sensor on the chassis, or on the gripper's carriage (`mount.on: 'gripper'`), at `at` of that body, turned by `turn`. */
+type RidingSensor<S> = { readonly role: string; readonly spec: S; readonly on: 'chassis' | 'gripper'; readonly at: Vec3; readonly turn: Quat };
+type IrSensor = RidingSensor<IrObstacleSpec> & { readonly activeLow: boolean };
+type ColorSensor = RidingSensor<ColorSensorSpec>;
 
 const NO_SCORE: ScoreState = deepFreeze({ points: 0, maxScore: null, goals: [] });
 const NO_PINS = Object.freeze([]);
@@ -212,16 +253,27 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
   );
   const ultrasonics: UltrasonicSensor[] = [];
   const lines: LineSensor[] = [];
+  const irs: IrSensor[] = [];
+  const colors: ColorSensor[] = [];
   for (const module of kit.modules) {
     const at = robotPointToLocal(module.mount.posCm);
+    const turn = yawToQuaternion(degToRad(module.mount.yawDeg));
+    const on = module.mount.on === 'gripper' ? 'gripper' : 'chassis';
     if (module.kind === 'ultrasonic') {
-      ultrasonics.push({ role: module.role, spec: module.spec as unknown as ModuleSpecs['ultrasonic'], at, turn: yawToQuaternion(degToRad(module.mount.yawDeg)) });
+      ultrasonics.push({ role: module.role, spec: module.spec as unknown as ModuleSpecs['ultrasonic'], at, turn });
     } else if (module.kind === 'line-sensor') {
       const port = portOfRole(kit, module.role);
       lines.push({ role: module.role, spec: module.spec as unknown as ModuleSpecs['line-sensor'], at, activeLow: port !== undefined && portParam(port, 'activeLow') === true });
+    } else if (module.kind === 'ir-obstacle') {
+      // ir-digital's activeLow defaults to true (the common modules pull LOW when they see), as the driver reads it.
+      const port = portOfRole(kit, module.role);
+      irs.push({ role: module.role, spec: module.spec as unknown as ModuleSpecs['ir-obstacle'], on, at, turn, activeLow: port === undefined || portParam(port, 'activeLow') !== false });
+    } else if (module.kind === 'color-sensor') {
+      colors.push({ role: module.role, spec: module.spec as unknown as ModuleSpecs['color-sensor'], on, at, turn });
     }
   }
-  const sensorOrder = kit.modules.filter((module) => module.kind === 'ultrasonic' || module.kind === 'line-sensor').map((module) => module.role);
+  const SENSOR_KINDS: ReadonlySet<string> = new Set(['ultrasonic', 'line-sensor', 'ir-obstacle', 'color-sensor']);
+  const sensorOrder = kit.modules.filter((module) => SENSOR_KINDS.has(module.kind)).map((module) => module.role);
   const leds: Readonly<Record<string, boolean>> = Object.freeze(Object.fromEntries(kit.modules.filter((module) => module.kind === 'led').map((module) => [module.role, false])));
   const outline = footprint.outlineCm.map(([x, y]) => robotPointToLocal([x, y, 0]));
   const noiseCm = input.ultrasonicNoiseCm ?? 0;
@@ -239,6 +291,30 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
     throw error;
   }
 
+  // N19 B3: what the gripper car's sensors meet (see the top of this file); a rover never builds it. Its ultrasonic leaves out the chassis
+  // only; the rover's leaves out every collider of the robot, through the arena's lookup, as before.
+  const gripper = robot.gripper;
+  const sensed = gripper === null && irs.length === 0 && colors.length === 0 ? null : sensedBodies(built, gripper);
+  const ultrasonicLookup: ColliderLookup<SensedCollider> = gripper === null || sensed === null ? built : sensed;
+  const ultrasonicExclude: (collider: Collider) => boolean = gripper === null ? robot.ownsCollider : (collider) => robot.ownsCollider(collider) && !gripper.ownsCollider(collider);
+  // The sensors on the carriage sit in it, by its hinge, where the boom's cross bar meets it: their mount (u 0.3) lies inside the carriage's
+  // box (u ±0.5) and inside the bar's square section (0.3 cm half, turned with the boom: from its centre at u 0, 0.39 cm along u at lift 0°).
+  // A ray from inside a solid meets it at once, so both are left out; behind the sensors, neither is ever ahead of them. The fingers, the one
+  // part of the gripper ahead of them, stay in: with nothing between the jaws the rays never meet them (world.gripper-sensors.test.ts).
+  const onMount = (collider: Collider) => {
+    const handle = collider.parent()?.handle;
+    return gripper !== null && (handle === gripper.carriage.handle || handle === gripper.boom.handle);
+  };
+  const isFloor = (collider: Collider) => built.infoOf(collider)?.kind === 'ground';
+  const lookColor = (collider: Collider) => onMount(collider) || isFloor(collider);
+  /** Where a sensor riding on the chassis or the carriage is now, and where it looks. */
+  const ridingPose = (sensor: RidingSensor<unknown>) => {
+    const body = sensor.on === 'gripper' && gripper !== null ? gripper.carriage : robot.chassis;
+    const position = body.translation();
+    const rotation = body.rotation();
+    return { position: localToWorld(position, rotation, sensor.at), rotation: multiplyQuaternions(rotation, sensor.turn) };
+  };
+
   let tick = 0;
   let disposed = false;
   let outOfArena = false;
@@ -246,6 +322,8 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
   let contacts: readonly ContactEvent[] = [];
   const heard = new Map<string, UltrasonicSense>();
   const seen = new Map<string, LineState>();
+  const irSeen = new Map<string, IrSense>();
+  const colorSeen = new Map<string, ColorSense>();
   let snapshot: RobotSnapshot | null = null;
   let extras: GoalFrameExtras | null = null;
 
@@ -272,7 +350,7 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
     contacts = Object.freeze(readContacts(physics, built, touchingBodies(heldBefore)).map(eventOf));
     for (const sensor of ultrasonics) {
       const pose = { position: localToWorld(position, rotation, sensor.at), rotation: multiplyQuaternions(rotation, sensor.turn) };
-      const reading = measureUltrasonic(physics, built, pose, sensor.spec, { exclude: robot.ownsCollider, ...(noise === undefined ? {} : { noise }) });
+      const reading = measureUltrasonic(physics, ultrasonicLookup, pose, sensor.spec, { exclude: ultrasonicExclude, ...(noise === undefined ? {} : { noise }) });
       heard.set(sensor.role, Object.freeze({ cm: reading.cm, echoUs: reading.echoUs, hitId: reading.hit === null ? null : reading.hit.id }));
     }
     for (const sensor of lines) {
@@ -281,6 +359,16 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
       const point = worldToArena(at);
       const onFloor = point.heightCm <= LIFTED_HEIGHT_CM && Number.isFinite(point.xCm) && Number.isFinite(point.yCm);
       seen.set(sensor.role, { reading, spotCm: onFloor ? Object.freeze([plain(point.xCm), plain(point.yCm)] as const) : null });
+    }
+    if (sensed !== null) {
+      for (const sensor of irs) {
+        const reading = measureIr(physics, sensed, ridingPose(sensor), sensor.spec, { exclude: onMount, activeLow: sensor.activeLow });
+        irSeen.set(sensor.role, Object.freeze({ detected: reading.detected, level: reading.level, hitId: reading.hit === null ? null : reading.hit.id }));
+      }
+      for (const sensor of colors) {
+        const reading = measureColor(physics, sensed, ridingPose(sensor), sensor.spec, { exclude: lookColor });
+        colorSeen.set(sensor.role, deepFreeze({ hitId: reading.hit === null ? null : reading.hit.id, distanceCm: reading.distanceCm === null ? null : plain(reading.distanceCm), light: { ...reading.light } }));
+      }
     }
     outOfArena = outOfArena || isOutOfArena(arena, position);
     snapshot = null;
@@ -294,6 +382,18 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
     alive();
     const reading = heard.get(role);
     if (reading === undefined) throw new RangeError(`The kit has no ultrasonic sensor "${role}".`);
+    return reading;
+  };
+  const irOf = (role: string): IrSense => {
+    alive();
+    const reading = irSeen.get(role);
+    if (reading === undefined) throw new RangeError(`The kit has no IR sensor "${role}".`);
+    return reading;
+  };
+  const colorOf = (role: string): ColorSense => {
+    alive();
+    const reading = colorSeen.get(role);
+    if (reading === undefined) throw new RangeError(`The kit has no colour sensor "${role}".`);
     return reading;
   };
   const lineOf = (role: string): LineState => {
@@ -313,6 +413,10 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
     const sensors: SensorReadout[] = sensorOrder.map((role): SensorReadout => {
       const echo = heard.get(role);
       if (echo !== undefined) return { role, kind: 'ultrasonic', cm: plain(echo.cm), hitId: echo.hitId };
+      const ir = irSeen.get(role);
+      if (ir !== undefined) return { role, kind: 'ir-obstacle', detected: ir.detected, hitId: ir.hitId };
+      const color = colorSeen.get(role);
+      if (color !== undefined) return { role, kind: 'color-sensor', hitId: color.hitId, distanceCm: color.distanceCm };
       const { reading, spotCm } = seen.get(role)!;
       return { role, kind: 'line-sensor', reflectance: plain(reading.reflectance), dark: reading.dark, spotCm };
     });
@@ -414,6 +518,8 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
         alive();
         return contacts;
       },
+      ir: irOf,
+      color: colorOf,
     },
     snapshot() {
       alive();
