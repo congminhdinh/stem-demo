@@ -301,6 +301,30 @@ Toàn bộ §5 của plan N18 vẫn áp dụng: B1, Rapier chỉ ở `src/core/w
 - **Parity C2:** bus TWI có thời gian ở `tests/parity/twi-device.ts` (xoá TWINT giả sau STOP); `inputs.colors.windows`; 5 fixture. Phát hiện thêm: servo thứ hai của Timer1 (tay) có một xung ở lần tràn đầu của Timer1 (32,8 ms, `Channel[]` của Servo 1.3.0 bắt đầu từ 0) → harness ghép nó vào run (`servo-first-pulse.timerWrapUs`; chỉ chân tay, chu kỳ đầu dài thêm tối đa xung rộng nhất của càng, 1472 µs). `driver-color`: cửa sổ thứ hai kết thúc giữa byte dữ liệu 1 và 3 của lần đọc **trên cả hai phía** (simulator: 34,875 µs sau C low, 155 µs trước R low; board: 155,8125 µs sau C low, 34,25 µs trước R low — board tới lần đọc sớm hơn ≈ 116 µs); test parity khẳng định cả hai (review A4 I1). `Wire.begin` bật pull-up SDA/SCL trên board → simulator cũng làm (`colorBeginSim(io, port)`, cùng 9,6875 µs nên sự kiện bus không dời).
 - **Test session (§4.7):** `robot-run-session.color-lead.test.ts` chạy session thật với kit gripper truyền thẳng vào và sàn của sandbox (chưa có key `rb-grip-*`, D4); model TCS34725 gắn vào virtual UNO của session bằng mock, vì ánh sáng của world là B3.
 
+### 4.9 Ghi lại khi làm E6/E7 (asset tay gắp và vật; thắng §3 và §7 E6/E7 khi mâu thuẫn)
+
+- **Root N18 của GLB đóng băng.** Bake AO bằng Cycles không lặp lại được giữa hai lần chạy (đo: hai lần build cùng commit 80e089b lệch số vertex ở 13 mesh, vì màu AO 8 bit ở vài góc lệch 1/255), nên build lại part rover sẽ đổi pixel rover. `pnpm build:robot-assets` vì vậy chỉ build root N19 (`build.py … n19`) rồi nối vào sau phần N18 của file hiện có (`scripts/lib/glb-splice.ts`, đọc/ghi JSON giữ nguyên chữ số của Blender). Manifest thêm:
+  - `frozen.files[*]`: layout và SHA-256 của phần N18 (bằng đúng hash file của build N18);
+  - `frozen.sources`: hash các script N18 (mọi script trừ `build.py` và 3 script N19).
+  - Test `tests/robot-assets-frozen.test.ts` kiểm cả hai. Đổi một script N18 thì phải `pnpm build:robot-assets --all` (pixel rover sẽ đổi, cần soát hình lại).
+- **Hash kit gripper** nằm ở `kits` của manifest, không ở `sources`, để test cũ `tests/robot-assets.test.ts` giữ nguyên.
+- **Một material cho cả tay gắp** (`gripper_atlas`): atlas màu 256², atlas metallic-roughness cùng bố cục, mask glow 32² cho LED. Mỗi phần chuyển động là 1 draw. Tay gắp thêm đúng 6 draw: bracket (gộp vào robot), boom, link, carriage (kèm IR và màu), 2 ngàm.
+- **Hình học không có trong kit** chép từ ADR 0004 §2 và `world/robot/gripper.ts` (B1): hộp giá kẹp u ±0,5, v ±2,6, w ±0,6 cm; tấm boom dày 0,4 cm, cao 1 cm; thanh ngang tiết diện 0,6 cm.
+- **Thanh nối dưới của hình bình hành** (trục cách trục boom 1 cm phía dưới) chỉ để vẽ; vật lý dùng khoá góc `AngZ` (§4.6).
+- **LED cảm biến màu sáng khi `status === 'running'`.** LED trên bo TCS34725 sáng khi có điện, vì kit chỉ nối SDA và SCL. Snapshot không có tín hiệu "cảm biến đang chạy" nào khác. Có thêm quầng sáng (sprite) như đèn dò line.
+- **Siêu âm của kit gripper cao hơn rover 1 cm** (z 5 so với 4). Part siêu âm vẽ theo rover, nên chân giá của nó đứng trên hai trụ đồng (`part_ultrasonic_riser`, chiều cao lấy từ hai kit).
+- **Bo mạch trên kit không có tay servo** đặt sau bảng đèn dò line ở mép boong. Rover không đổi: vẫn đặt sau tay servo.
+- **Vật và kệ (E7):**
+  - Vùng có `name` không có cổng đích (gantry). Tag của vùng đã nêu tên vùng.
+  - Tường `kho-wall` vẽ thành kệ kho, không thêm bảng hazard.
+  - Vật có `noun` vẽ đúng loại, tô bằng `color`. Khối xốp có hoa văn trên mặt trên: đỏ sọc ngang, xanh lá lưới, xanh dương chấm to, vàng trơn.
+  - Bệ không có màu dùng màu gỗ beech.
+- **Số đo** (`e67-report.md`):
+  - Tay gắp: 3 880 tam giác ở mức high, 2 180 ở mức low (chưa kể trụ đỡ siêu âm: 136 và 40).
+  - Vật: 1 608 tam giác ở mức high, 584 ở mức low.
+  - GLB tăng: kit +97,7 KB (high), +63,4 KB (low); props +76,6 KB (high), +44,7 KB (low).
+  - Pixel-diff 44 ảnh rover (7 bài × 2 mức) so với master: trùng bit. Riêng 3 pixel rail của servo-gate high lật giữa các lần chạy, cả master với master.
+
 ## 5. Review Focus
 
 1. **Vật đang giữ đâm tường hoặc vật khác, hoặc bị ép xuống sàn.** Tuột đúng ngưỡng, va chạm tính cho xe, không có NaN, xe không lật. *Test (B3):* `held cube hitting a wall at 0.4 m/s breaks the grasp and counts as robot contact`; `pressing a held cube on the floor at lift stall keeps the grasp`.
