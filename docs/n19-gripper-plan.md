@@ -239,8 +239,8 @@ Toàn bộ §5 của plan N18 vẫn áp dụng: B1, Rapier chỉ ở `src/core/w
 | Kind | Spec | Luật |
 |---|---|---|
 | `object-held` | `{object, holdS=0.5, minLiftCm=0}` | Qua (và giữ nguyên trạng thái qua) khi giữ vật liên tục `holdS`, đáy vật cao hơn vị trí nghỉ ≥ `minLiftCm` |
-| `object-placed` | `{object, zone \| zoneByColor, fully=true, maxTiltDeg=15, restS=0.5, carried=true, maxSlideCm=3}` | Xét ở cuối lượt: không còn bị giữ, nằm gọn trong vùng (hoặc vùng cùng màu của lượt đó), thẳng, nằm yên, không chạm xe, đã được gắp rồi thả (`carried`) và trượt ≤ 3 cm |
-| `object-on-object` | `{top, bottom, maxOffsetCm, maxTiltDeg, restS, carried=true}` | z của khối trên = mặt trên khối dưới + nửa chiều cao (sai số ±0,8), lệch ngang ≤ `maxOffsetCm`, thẳng, yên, không bị giữ |
+| `object-placed` | `{object, zone \| zoneByColor, fully=true, maxTiltDeg=15, restS=0.5, carried=true, maxSlideCm=3, minCarryLiftCm=1, minCarryCm=5}` | Xét ở cuối lượt: không còn bị giữ, nằm gọn trong vùng (hoặc vùng cùng màu của lượt đó), thẳng, nằm yên, không chạm xe, đã được gắp **và nâng** ≥ `minCarryLiftCm` so với chỗ nằm lúc gắp, **chở** ≥ `minCarryCm` trên sàn trong lúc nâng (từ chỗ đầu tiên tới chỗ cuối cùng vật ở độ cao đó) rồi thả (`carried`), và trượt ≤ 3 cm từ chỗ thả. Lần gắp không đủ hai điều kiện (kẹp tại chỗ, nâng tại chỗ) coi như không có: lần đẩy trước đó vẫn tính là đẩy (D2 fix round 1–2, I1, N1) |
+| `object-on-object` | `{top, bottom, maxOffsetCm, maxTiltDeg, restS, carried=true, minCarryLiftCm=1, minCarryCm=5}` | z của khối trên = mặt trên khối dưới + nửa chiều cao (sai số ±0,8), lệch ngang ≤ `maxOffsetCm`, thẳng, yên, không bị giữ; khối trên được chở như `object-placed` (`carried`, trượt ≤ 3 cm) |
 | `object-unmoved` | `{object, maxMoveCm, maxTiltDeg=20}` | Guard: trượt ngay khi vật bị xê dịch quá `maxMoveCm` hoặc bị đổ |
 
 - **Thứ tự lý do của `object-placed`:** `out-of-arena` → `object-still-held` → `object-pushed` / `object-never-held` → `object-wrong-zone` → `object-dropped` → `object-moved-out` → `object-partly-in-zone` → `object-tipped` → `object-not-at-rest`.
