@@ -87,3 +87,10 @@ square-route-2d-step.png: 0.000 % over 8, largest 0
 stop-at-wall-2d-idle.png: 0.000 % over 8, largest 0
 stop-at-wall-2d-step.png: 0.000 % over 8, largest 0
 0 picture(s) changed
+
+## Round 2 + fix round 1: HEAD f993da3 (production build, node scripts/build.mjs) against the BASE shots above (run 1), 2026-10-27 06:06-06:08, load 8.5-11.3
+### 3D, 44 shots
+0 picture(s) changed
+### 2D, 14 shots
+0 picture(s) changed
+# => every picture bit-identical (largest difference 0); sandbox-high this time in BASE run 1's state.
