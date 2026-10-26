@@ -602,8 +602,11 @@
   font-size: 12px;
 }
 
-/* N18 P2: the 2D map offered on a computer too slow for 3D: the note on one line, with its two answers. */
+/* N18 P2: the 2D map offered on a computer too slow for 3D: the note on one line, with its two answers. Fix round 1 (M8): over a check's
+   results card (z-index 1), which reaches down to it when a long result is open; a fast check's progress (z-index 2, later) still covers
+   it. */
 .robot-offer-2d {
+  z-index: 2;
   max-width: 340px;
 }
 
