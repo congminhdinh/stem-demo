@@ -9,10 +9,10 @@ import { arduinoCore, clampTo, defineDriver, defineOp, pinOf, servoLibrary, type
 // Time: Servo.write's cost (`servoWrite`) and the rest of gripperSet's measured time (`gripperSet`, 51.625 µs: the longest of claw 45,
 // lift 45, 120 and -5, EMU-20; Servo.write alone 49.5 in EMU-08 and 50.4375 in EMU-20).
 
-export const GRIPPER_ANGLE: ArgRange = { name: 'angle', min: 0, max: 90 };
+const GRIPPER_ANGLE: ArgRange = { name: 'angle', min: 0, max: 90 };
 /** setup() writes the claw open and the lift up (D-G3). */
-export const GRIPPER_CLAW_START_DEG = 0;
-export const GRIPPER_LIFT_START_DEG = 90;
+const GRIPPER_CLAW_START_DEG = 0;
+const GRIPPER_LIFT_START_DEG = 90;
 
 const helper = ['void gripperSet(Servo &servo, long angle) {', '  if (angle < 0L) angle = 0L;', '  if (angle > 90L) angle = 90L;', '  servo.write((int)angle);', '}'].join('\n');
 

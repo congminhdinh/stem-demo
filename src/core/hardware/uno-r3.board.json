@@ -71,7 +71,10 @@
     "colorFetchNack": 146.0625,
     "colorClassify": 147.25,
     "colorClassifyZero": 12.5625,
-    "wirePhase": 4.9375
+    "wirePhase": 4.9375,
+    "colorWriteLead": 11.625,
+    "colorFetchLead": 9.1875,
+    "colorFetchGap": 10.5625
   },
   "toneUs": [
     { "prescaler": 1024, "fromHz": 31, "silentUs": 306.5625, "playingUs": 300.5625 },

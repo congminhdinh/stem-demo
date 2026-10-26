@@ -3,8 +3,8 @@ import { HardwareDataError, pathOf, type DataIssue } from './board-schema';
 import { MAX_CM, MIN_CM } from './drivers/hcsr04';
 import { kitKey, type ChassisSpec, type Kit, type KitModule, type ModuleKind, type ModuleSpecs, type RobotRole } from './kit';
 
-// The mechanical half of a kit (N18 R3.3; N19 A2 the gripper car's kinds): the chassis and each module's physical spec, which the world builds the robot from
-// (src/core/world/robot). loadKit runs `mechanicsIssues` after the wiring rules, so a kit file with a missing motor constant,
+// The mechanical half of a kit (N18 R3.3; N19 A2 the gripper car's kinds): the chassis and each module's physical spec, which the
+// world builds the robot from (src/core/world/robot). loadKit runs `mechanicsIssues` after the wiring rules, so a kit file with a missing motor constant,
 // an unknown key or wheels that cannot rest on the floor is refused with the path of each problem, like a bad pin.
 //
 // Frame (kit.ts, `KitModule.mount`): chassis-centred, origin on the floor under the centre of the chassis body, x forward,
@@ -115,7 +115,7 @@ const RIDES_ON_GRIPPER: ReadonlySet<ModuleKind> = new Set<ModuleKind>(['ir-obsta
 const DEG = Math.PI / 180;
 
 /** The gripper's moving parts (the chassis body is the rest of `massG`, §4.6): boom, carriage and two fingers, g. */
-export const gripperMovingMassG = (spec: ModuleSpecs['gripper']): number => spec.boomMassG + spec.carriageMassG + 2 * spec.fingerMassG;
+const gripperMovingMassG = (spec: ModuleSpecs['gripper']): number => spec.boomMassG + spec.carriageMassG + 2 * spec.fingerMassG;
 
 /**
  * N19 A2: where the jaws are at a lift angle, in the robot frame (cm), seen from the side, the fingers straight ahead: from the finger

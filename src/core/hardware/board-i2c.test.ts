@@ -39,9 +39,9 @@ describe('the I²C of uno-r3', () => {
 });
 
 describe('what the gripper car’s calls cost on uno-r3, µs (EMU-20; the shortest sample, as every cost of the table)', () => {
-  it('charges gripperSet with its clamp, the colour helpers with and without a device at 0x29, the classification and Wire’s service of a bus phase', () => {
-    const { gripperSet, colorWrite, colorWriteNack, colorBegin, colorBeginNack, colorFetch, colorFetchNack, colorClassify, colorClassifyZero, wirePhase } = board.costsUs;
-    expect({ gripperSet, colorWrite, colorWriteNack, colorBegin, colorBeginNack, colorFetch, colorFetchNack, colorClassify, colorClassifyZero, wirePhase }).toEqual({
+  it('charges gripperSet with its clamp, the colour helpers with and without a device at 0x29, the classification, Wire’s service of a bus phase and where a helper’s bus begins', () => {
+    const { gripperSet, colorWrite, colorWriteNack, colorBegin, colorBeginNack, colorFetch, colorFetchNack, colorClassify, colorClassifyZero, wirePhase, colorWriteLead, colorFetchLead, colorFetchGap } = board.costsUs;
+    expect({ gripperSet, colorWrite, colorWriteNack, colorBegin, colorBeginNack, colorFetch, colorFetchNack, colorClassify, colorClassifyZero, wirePhase, colorWriteLead, colorFetchLead, colorFetchGap }).toEqual({
       gripperSet: 51.625,
       colorWrite: 334,
       colorWriteNack: 144.9375,
@@ -52,6 +52,9 @@ describe('what the gripper car’s calls cost on uno-r3, µs (EMU-20; the shorte
       colorClassify: 147.25,
       colorClassifyZero: 12.5625,
       wirePhase: 4.9375,
+      colorWriteLead: 11.625,
+      colorFetchLead: 9.1875,
+      colorFetchGap: 10.5625,
     });
   });
 });

@@ -1349,7 +1349,8 @@ export const unoContract: UnoContract = {
     // and in costsEvidence. gripperSet: the longest of claw 45, lift 45, 120 (clamped) and -5 (clamped). colorWrite: one register write
     // (START, address, command, value, STOP). colorBegin: less its delay(3) and delay(54) as the simulator charges them. colorClassify:
     // the longest by the rule that matches (yellow); colorClassifyZero: r + g + b = 0, no division. wirePhase: Wire's service before a
-    // bus phase (its TWI interrupt and the next TWCR write, 79 cycles between two bytes read).
+    // bus phase (its TWI interrupt and the next TWCR write, 79 cycles between two bytes read). colorWriteLead, colorFetchLead: a helper's
+    // statements before Wire's first service; colorFetchGap: colorFetch's between its command write and its read (run-gripper-timeline.ts).
     gripperSet: 51.625,
     colorWrite: 334,
     colorWriteNack: 144.9375,
@@ -1360,6 +1361,9 @@ export const unoContract: UnoContract = {
     colorClassify: 147.25,
     colorClassifyZero: 12.5625,
     wirePhase: 4.9375,
+    colorWriteLead: 11.625,
+    colorFetchLead: 9.1875,
+    colorFetchGap: 10.5625,
   },
   costsEvidence: ['EMU-08', 'EMU-03', 'EMU-13', 'EMU-17', 'EMU-18'],
   toneUs: {

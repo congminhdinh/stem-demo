@@ -429,6 +429,9 @@ describe('time, costs and the board (contract §4, §5)', () => {
       colorClassify: 147.25,
       colorClassifyZero: 12.5625,
       wirePhase: 4.9375,
+      colorWriteLead: 11.625,
+      colorFetchLead: 9.1875,
+      colorFetchGap: 10.5625,
     });
     expect(contract.costsEvidence).toEqual(['EMU-08', 'EMU-03', 'EMU-13', 'EMU-17', 'EMU-18']);
   });

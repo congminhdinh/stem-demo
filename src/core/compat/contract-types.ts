@@ -448,6 +448,11 @@ export const arduinoCalls = [
   'colorClassify',
   'colorClassifyZero',
   'wirePhase',
+  // Where a colour helper's bus begins (gripper-timeline.json): colorWrite's and colorFetch's statements before Wire's first service,
+  // and colorFetch's between its command write and its read.
+  'colorWriteLead',
+  'colorFetchLead',
+  'colorFetchGap',
 ] as const;
 export type ArduinoCall = (typeof arduinoCalls)[number];
 

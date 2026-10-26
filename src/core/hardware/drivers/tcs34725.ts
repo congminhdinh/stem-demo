@@ -1,6 +1,7 @@
 import type { CostsUs } from '../board';
 import { TCS34725_ADDRESS, TCS_COMMAND, TCS_ENABLE, TCS_REGISTER, type Rgbc } from '../devices/tcs34725';
 import type { DriverIO } from '../virtual-uno';
+import { classifyColor, COLOR_UNKNOWN, colorRulesCpp } from './color-rules';
 import { arduinoCore, defineDriver, defineOp, type ArgRange, type CppLibrary, type DriverOp, type SetupStep } from './driver';
 
 // The TCS34725 colour sensor on raw Wire, no Adafruit library (N19 plan §4.3, D-G7; ADR 0004 §11; contract rows U-38, U-39 are task A5's).
@@ -9,91 +10,43 @@ import { arduinoCore, defineDriver, defineOp, type ArgRange, type CppLibrary, ty
 // read from CDATAL; `colorIs` classifies it by the integer table COLOR_RULES. A missing sensor (NACK) reads zeros, which are "unknown".
 // Wire.setWireTimeout(3000, true) resets the TWI if the bus hangs, so a broken bus never blocks the program.
 //
-// One table, two sides: `classifyColor` here and the C++ table of the helper, which `colorRulesCpp` writes from the same rows (a test
-// holds the two together on every palette colour). The thresholds are PLACEHOLDER data, tied to this driver's version, until a real kit is
-// measured (VG/L3).
+// One table, two sides: `classifyColor` and the C++ table of the helper, which `colorRulesCpp` writes from the same rows (color-rules.ts;
+// a test holds the two together on every palette colour). The thresholds are PLACEHOLDER data, tied to this driver's version, until a real
+// kit is measured (VG/L3).
 //
 // Time (EMU-20, spikes/avr8js/out/gripper-results.json; where the bus events fall, spikes/avr8js/out/gripper-timeline.json): the virtual
 // UNO charges each bus phase (virtual-uno.ts: Wire's service, then the SCL periods) and calls the register model at its time; the helper's
-// own statements are charged around the bus so that each helper takes its measured time and its first bus event comes where the board
-// has it. So the eight data bytes are read one by one at their bus times (ADR 0004 §11, condition 3): a window that ends in the middle of
-// a read gives C from one window and R, G, B from the next, as the board does (the datasheet's shadow registers, devices/tcs34725.ts).
-// On the board a byte's service varies by ≤ 1.2 µs around `wirePhase`; the simulator's events stay within 1.25 µs of the board's in
-// colorFetch (driver test). The libraries: Wire 1.0 of arduino:avr 1.8.8 (LGPL-2.1).
+// own statements are charged around the bus (`costsUs.colorWriteLead`, `colorFetchLead`, `colorFetchGap` before and between, the rest of
+// the measured total after), so each helper takes its measured time and its bus starts where the board's does. So the eight data bytes are
+// read one by one at their bus times (ADR 0004 §11, condition 3): a window that ends in the middle of a read gives C from one window and
+// R, G, B from the next, as the board does (the datasheet's shadow registers, devices/tcs34725.ts). On the board a phase's service varies by
+// ≤ 1.2 µs around `wirePhase`; the simulator's events are within 1 µs of the board's in colorFetch and within 4.9375 µs in colorBegin
+// (driver test, exact offsets).
+//
+// The answer is measured for a device that answers or one that is missing (an address NACK). A device that acknowledges its address and
+// refuses a byte is not measured: the bus charges what it really sent (the address, the bytes up to the refused one, the STOP), and the
+// helper's own time after it is the address NACK's.
+//
+// How far ahead of the world a read goes (the B3 contract): a module op starts inside its tick (the interpreter's `atHardware`), and a
+// colour read's last bus event, its STOP, comes 1123.8125 µs after the op starts (`COLOR_READ_LAST_EVENT_US`), so the model never asks for
+// light past `world.t + dt + 1124 µs`: the world's light history must reach that far. colorBegin's last bus event comes 4346.5625 µs into
+// setup(), inside tick 0, and setup() ends 58367.6875 µs in with its delays, so the first statement after it runs in tick 7 (driver test).
+//
+// The libraries: Wire 1.0 of arduino:avr 1.8.8 (LGPL-2.1).
 
 /** Wire 1.0, as arduino:avr 1.8.8 ships it (ADR 0004 §11: LGPL-2.1, Wire.cpp's header). */
 export const wireLibrary: CppLibrary = { name: 'Wire', version: '1.0', license: 'LGPL-2.1' };
 
-/** The colours, by index: what `color.is` asks and `colorClassify` answers. */
-export const COLOR_NAMES = ['red', 'green', 'blue', 'yellow', 'white', 'black', 'unknown'] as const;
-export type ColorName = (typeof COLOR_NAMES)[number];
-export const COLOR_UNKNOWN = 6;
-
 /** `color.is(color1, n)`: the colour index 0..6. `color.raw(color1, k)`: 0 red, 1 green, 2 blue, 3 clear. */
-export const COLOR_INDEX: ArgRange = { name: 'colour', min: 0, max: 6 };
-export const COLOR_CHANNEL: ArgRange = { name: 'channel', min: 0, max: 3 };
-
-/** [colour, cMin, cMax, rMin, rMax, gMin, gMax, bMin, bMax]: bounds inclusive, C in counts, r g b in per-mille of r + g + b. */
-export type ColorRule = readonly [number, number, number, number, number, number, number, number, number];
-
-const ANY_C = 65535;
-const ANY = 1000;
-/** Plan §4.3: the first rule whose clear count and three per-mille are all inside its bounds wins; none → unknown (PLACEHOLDER). */
-export const COLOR_RULES: readonly ColorRule[] = [
-  [6, 0, 299, 0, ANY, 0, ANY, 0, ANY], // C < 300: too little light (no object, no sensor, NACK)
-  [0, 0, ANY_C, 500, ANY, 0, 299, 0, ANY], // red: r ≥ 500, g < 300
-  [1, 0, ANY_C, 0, 329, 420, ANY, 0, ANY], // green: g ≥ 420, r < 330
-  [2, 0, ANY_C, 0, 299, 0, ANY, 420, ANY], // blue: b ≥ 420, r < 300
-  [4, 12000, ANY_C, 0, 419, 0, ANY, 230, ANY], // white: C ≥ 12000, b ≥ 230, r < 420
-  [3, 0, ANY_C, 380, ANY, 330, ANY, 0, 229], // yellow: r ≥ 380, g ≥ 330, b < 230
-  [5, 0, 3999, 0, ANY, 0, ANY, 0, ANY], // black: C < 4000
-];
-
-/** floor(a / b) for non-negative safe integers, exact (unsigned long division, as the C++ does). */
-function floorDiv(a: number, b: number): number {
-  let q = Math.floor(a / b);
-  while (q * b > a) {
-    q -= 1;
-  }
-  while ((q + 1) * b <= a) {
-    q += 1;
-  }
-  return q;
-}
-
-/** r, g, b per mille of r + g + b, truncated (all 0 when the sum is 0). */
-export function perMille(reading: Rgbc): { r: number; g: number; b: number } {
-  const sum = reading.r + reading.g + reading.b;
-  if (sum === 0) {
-    return { r: 0, g: 0, b: 0 };
-  }
-  return { r: floorDiv(reading.r * 1000, sum), g: floorDiv(reading.g * 1000, sum), b: floorDiv(reading.b * 1000, sum) };
-}
-
-/** The colour index of a reading: 0 red, 1 green, 2 blue, 3 yellow, 4 white, 5 black, 6 unknown. */
-export function classifyColor(reading: Rgbc): number {
-  const share = perMille(reading);
-  const inside = (value: number, min: number, max: number) => value >= min && value <= max;
-  for (const [colour, cMin, cMax, rMin, rMax, gMin, gMax, bMin, bMax] of COLOR_RULES) {
-    if (inside(reading.c, cMin, cMax) && inside(share.r, rMin, rMax) && inside(share.g, gMin, gMax) && inside(share.b, bMin, bMax)) {
-      return colour;
-    }
-  }
-  return COLOR_UNKNOWN;
-}
-
-/** The C++ table the helper carries, row for row from COLOR_RULES (in PROGMEM). */
-export function colorRulesCpp(): string {
-  const rows = COLOR_RULES.map((rule) => `  {${rule.join(', ')}},`);
-  return [`#define COLOR_RULE_COUNT ${String(COLOR_RULES.length)}`, `const uint16_t COLOR_RULES[COLOR_RULE_COUNT][9] PROGMEM = {`, ...rows, '};'].join('\n');
-}
+const COLOR_INDEX: ArgRange = { name: 'colour', min: 0, max: 6 };
+const COLOR_CHANNEL: ArgRange = { name: 'channel', min: 0, max: 3 };
 
 /** colorBegin's registers (datasheet TAOS135 Tables 6 and 11): ATIME 0xEB, 21 integration cycles of 2.4 ms; AGAIN 1, gain 4×. */
-export const COLOR_ATIME = 0xeb;
-export const COLOR_AGAIN = 0x01;
+const COLOR_ATIME = 0xeb;
+const COLOR_AGAIN = 0x01;
 /** colorBegin's waits, ms: after PON (> the 2.4 ms warm-up, Table 5 note 2), and for the first window (2.4 ms Init + 50.4 ms). */
-export const COLOR_PON_WAIT_MS = 3;
-export const COLOR_FIRST_WINDOW_MS = 54;
+const COLOR_PON_WAIT_MS = 3;
+const COLOR_FIRST_WINDOW_MS = 54;
 /** The auto-increment read of C, R, G, B from CDATAL. */
 const FETCH_COMMAND = TCS_COMMAND.CMD | TCS_COMMAND.AUTO_INCREMENT | TCS_REGISTER.CDATAL;
 
@@ -171,23 +124,21 @@ export function colorHelperText(): string {
 
 // ---- The simulator's side: the same helpers on the virtual UNO ----------------------------------------------------------------------
 
-/**
- * Where the helpers' first bus phase starts, µs from the call (gripper-timeline.json, the shortest sample): colorWrite's statements
- * before Wire's first service (Wire.beginTransmission, two Wire.write, endTransmission's entry), colorFetch's, and colorFetch's between
- * its command write and its read (endTransmission's return, requestFrom's entry).
- */
-export const COLOR_WRITE_LEAD_US = 11.625;
-export const COLOR_FETCH_LEAD_US = 9.1875;
-export const COLOR_FETCH_GAP_US = 10.5625;
-
 const ZERO: Rgbc = { c: 0, r: 0, g: 0, b: 0 };
+
+/**
+ * When a colour read's last bus event (the STOP of its read) comes, µs after the op starts: colorFetch's lead, its command write, its gap
+ * and its read up to the STOP's end (1123.8125 µs on uno-r3; the board's 1124.0625). The bound of how far a read runs past its tick.
+ */
+export const colorReadLastEventUs = (io: Pick<DriverIO, 'costsUs' | 'i2c'>): number =>
+  io.costsUs.colorFetchLead + io.i2c.transactionUs(1, true) + io.costsUs.colorFetchGap + io.i2c.transactionUs(8, true);
 
 /** colorWrite on the virtual UNO: one register write, the measured time with or without a device; whether the device acknowledged it. */
 function colorWrite(io: DriverIO, register: number, value: number): boolean {
   const costs = io.costsUs;
-  io.compute(COLOR_WRITE_LEAD_US);
+  io.compute(costs.colorWriteLead);
   const acked = io.i2c.transmit(TCS34725_ADDRESS, [TCS_COMMAND.CMD | register, value]);
-  io.compute((acked ? costs.colorWrite : costs.colorWriteNack) - COLOR_WRITE_LEAD_US - io.i2c.transactionUs(2, acked));
+  io.compute((acked ? costs.colorWrite : costs.colorWriteNack) - costs.colorWriteLead - io.i2c.transactionUs(2, acked));
   return acked;
 }
 
@@ -217,18 +168,18 @@ export function colorBeginSim(io: DriverIO): void {
 /** colorFetch on the virtual UNO: C, R, G, B, each byte read at its bus time; zeros on a NACK. */
 export function colorFetchSim(io: DriverIO): Rgbc {
   const costs = io.costsUs;
-  io.compute(COLOR_FETCH_LEAD_US);
+  io.compute(costs.colorFetchLead);
   if (!io.i2c.transmit(TCS34725_ADDRESS, [FETCH_COMMAND])) {
-    io.compute(costs.colorFetchNack - COLOR_FETCH_LEAD_US - io.i2c.transactionUs(1, false));
+    io.compute(costs.colorFetchNack - costs.colorFetchLead - io.i2c.transactionUs(1, false));
     return ZERO;
   }
-  io.compute(COLOR_FETCH_GAP_US);
+  io.compute(costs.colorFetchGap);
   const bytes = io.i2c.request(TCS34725_ADDRESS, 8);
   if (bytes.length !== 8) {
     // The device acknowledged the command but not the read (not measured: the board's own code path is as short as a NACK's).
     return ZERO;
   }
-  io.compute(costs.colorFetch - COLOR_FETCH_LEAD_US - COLOR_FETCH_GAP_US - io.i2c.transactionUs(1, true) - io.i2c.transactionUs(8, true));
+  io.compute(costs.colorFetch - colorReadLastEventUs(io));
   const word = (low: number) => (bytes[low] ?? 0) | ((bytes[low + 1] ?? 0) << 8);
   return { c: word(0), r: word(2), g: word(4), b: word(6) };
 }
