@@ -455,6 +455,16 @@ Số đo và lệnh tái lập: `spikes/n19-b56/results.md`. Test: `world/robot/
   - Các view đọc nó qua `shownObjectColors` (`round-colors.ts`): Chạy, mọi lượt Kiểm tra 1×/4×, lượt mà check để lại trên màn hình, và "Xem lại lượt N". Không chạy gì thì dùng màu của arena (lượt 1). UI không tự tính lại biến thể.
   - Bản đồ 2D tô màu và hoa văn theo nó. View 3D dựng sẵn, cho mỗi vật được biến thể đổi màu, một prop cho mỗi màu nó có (khối của bài phân loại: 3), rồi `paint` chỉ hiện prop của lượt; không dựng lại, không vẽ thêm frame nào lúc nằm yên. Scene dự phòng (hình đơn giản) cũng tô theo nó.
   - Mỗi lượt chỉ có một lần render React. Chip HUD và tag vật vẫn đặt tên theo chỉ số lượt (`variantObjectColors`, cùng hàm mà `applyVariant` dùng), nên khớp với màu tô.
+- **Vòng sửa 1 (review E4/E5):**
+  - **Mực 2D có lót** (I1, M3). Tia IR màu fuchsia nằm trên chính khối nó thấy, chỉ được khoảng 1:1 trên đỏ, xanh lá, xanh dương. Lót trắng không đủ trên khối vàng (tia 2,81:1, trắng 1,68:1). Vì vậy:
+    - tia IR có lót tối `#0f172a`; lúc không thấy gì thì vẽ nét đứt chứ không làm mờ; chấm cuối có viền tối;
+    - tia màu, viền đốm và vòng giữ vật có lót trắng; vòng dùng violet-800 `#5b21b6`, vì violet-700 chỉ được 2,53:1 trên thân xe màu cam;
+    - test ghép từng mực với lót của nó, trên mọi nền nó có thể gặp: thảm, mọi vùng, băng đen, 5 khối, các phần của xe.
+  - **`sameReadout` chỉ so những gì được vẽ** (M1): IR có thấy hay không; tia màu có gặp vật hay không, chứ không so là vật nào.
+  - **Chữ của overlay:** "IR: không có vật" (vi), "IR: no object" (en) (M6). Tab chân vẫn dùng chữ ngắn của nó.
+  - **Overlay 3D trông gọn hơn:** tia IR bán kính 1,3 mm, chấm 3 mm, tia màu 0,9 mm, đốm 5,5 mm trong vòng 7,2 mm.
+  - **Tag hai dòng tránh vùng của ngàm trên màn hình:** từ trên nhìn xuống, mọi chỗ ngay trên ngàm đều che tia và đốm, nên tag thử thêm hai chỗ hai bên.
+  - Tia và đốm nằm giữa giá kẹp và khối, dưới servo kẹp, giữa hai ngón. Vì vậy chỉ thấy được khi nhìn từ cao xuống: từ 3/4 phía trước thì khối che, từ bên hông thì ngón che.
 - **Cho D4 (đo trong e2e của E4/E5):** hạ tay lên khối 4 cm có tâm cách gốc giá kẹp ≤ 3 cm thì giá kẹp đè lên khối làm khối nghiêng (z 2,34–2,48). Ở 3,5–4,5 cm thì gắp được; ở 3,5 và 4 cm IR thấy khối, ở 4,5 cm thì không (mặt gần ở u 2,5 > 2,3).
 - **Pixel rover** (`spikes/n19-e45/results/rover-pixels.txt`): 44 ảnh 3D và 14 ảnh bản đồ 2D có lớp cảm biến, so BASE 0a7a479 với HEAD: trùng bit. Riêng sandbox-high lật giữa hai trạng thái giữa các lần chạy ở cả hai bản; mỗi ảnh HEAD trùng bit một ảnh BASE.
 - **Vùng của goal tiếp theo** (concern 3, vòng 2): `nextGoalZoneId` biết `object-placed`. Nó trả về `zone` của goal, hoặc với `zoneByColor` thì trả về vùng ứng với màu của vật trong lượt đang xem. Nhờ đó bài gắp làm sáng vùng thả như bài rover làm sáng vùng đích.
