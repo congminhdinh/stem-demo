@@ -16,7 +16,7 @@ import { shownObjectColors } from './round-colors';
 import { idleSnapshot } from './scene-math';
 import { readingTints, sensorColors as colors } from './sensor-colors';
 import { goalZoneIds, highlightColor, nextGoalZoneId, pulseLevel, sameSensorView, sectorPointsCm, SECTOR_POINTS_LENGTH, shownColor, spotDrawRadiusCm } from './sensor-overlay-math';
-import { createGripperTopView, gripperTopViewInto } from './top-view-gripper';
+import { casingExtraCm, createGripperTopView, gripperTopViewInto } from './top-view-gripper';
 import { arenaToStage, rayLengthCm, sameTopView, type TopViewFit } from './top-view-math';
 
 // The sensor overlays on the 2D map (N18 R4.3), as parts/SensorOverlay.tsx draws them in the 3D view: over the cone of each ultrasonic
@@ -39,7 +39,10 @@ const EMPTY_GOALS: Scenario['goals'] = [];
 const IR_QUIET_CM = 0.3;
 const IR_SEEN_CM = 0.55;
 const IR_QUIET_DASH = [0.45, 0.35];
-const CASING_CM = 0.3;
+/** The colour ray's width, and the spot's radius and ring (cm). */
+const COLOR_RAY_CM = 0.18;
+const SPOT_RADIUS_CM = 0.8;
+const SPOT_RING_CM = 0.25;
 const reducedMotionQuery = '(prefers-reduced-motion: reduce)';
 const labelFont = '"Be Vietnam Pro", system-ui, sans-serif';
 
@@ -210,7 +213,7 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
           line?.visible(true);
         }
         n.ir.beam?.strokeWidth(width);
-        n.ir.casing?.strokeWidth(width + CASING_CM);
+        n.ir.casing?.strokeWidth(width + casingExtraCm(shownFit.current.scale));
         n.ir.beam?.setAttrs({ detected: seeing, hitId: irReading.hitId });
         n.ir.end?.position({ x: x1, y: y1 });
         n.ir.end?.visible(seeing);
@@ -358,7 +361,7 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
               role={carried.ir.role}
               points={carried.irPoints}
               stroke={colors.irCasing}
-              strokeWidth={IR_QUIET_CM + CASING_CM}
+              strokeWidth={IR_QUIET_CM + casingExtraCm(fit.scale)}
               lineCap="round"
               dash={IR_QUIET_DASH}
               visible={false}
@@ -402,7 +405,7 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
               role={carried.color.role}
               points={carried.colorPoints}
               stroke={colors.lightCasing}
-              strokeWidth={0.18 + CASING_CM}
+              strokeWidth={COLOR_RAY_CM + casingExtraCm(fit.scale)}
               visible={false}
               perfectDrawEnabled={false}
             />
@@ -414,7 +417,7 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
               role={carried.color.role}
               points={carried.colorPoints}
               stroke={colors.spotRing}
-              strokeWidth={0.18}
+              strokeWidth={COLOR_RAY_CM}
               visible={false}
               perfectDrawEnabled={false}
             />
@@ -424,7 +427,7 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
               }}
               name="topview-color-spot-halo"
               role={carried.color.role}
-              radius={0.8 + 0.125 + CASING_CM / 2}
+              radius={SPOT_RADIUS_CM + SPOT_RING_CM / 2 + casingExtraCm(fit.scale) / 2}
               fill={colors.lightCasing}
               visible={false}
             />
@@ -434,11 +437,11 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
               }}
               name="topview-color-spot"
               role={carried.color.role}
-              radius={0.8}
+              radius={SPOT_RADIUS_CM}
               fill={colors.spotRing}
               fillEnabled={false}
               stroke={colors.spotRing}
-              strokeWidth={0.25}
+              strokeWidth={SPOT_RING_CM}
               visible={false}
             />
           </>

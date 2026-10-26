@@ -17,7 +17,7 @@ import type { RobotToolsStore } from './robot-tools-store';
 import { paintedColor, shownObjectColors } from './round-colors';
 import { idleSnapshot } from './scene-math';
 import { topViewColors as colors } from './top-view-colors';
-import { BOOM_BAR_CM, BOOM_PLATE_CM, CARRIAGE_HALF_CM, createGripperTopView, gripperTopViewInto, heldRingRadiusCm, objectMarks } from './top-view-gripper';
+import { BOOM_BAR_CM, BOOM_PLATE_CM, CARRIAGE_HALF_CM, casingExtraCm, createGripperTopView, gripperTopViewInto, heldRingRadiusCm, objectMarks } from './top-view-gripper';
 import { fitTopView, movingBodies, rayLengthCm, robotPartCm, sameTopView, scaleBar, treadOffsetCm, wheelRadIndex, type MovingBody, type StageMargins } from './top-view-math';
 import { TopViewSensorsLayer } from './TopViewSensors';
 import { TopViewToolsLayer, useTopViewPointer } from './TopViewTools';
@@ -337,7 +337,7 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
                     }}
                     radius={1}
                     stroke={colors.heldRingCasing}
-                    strokeWidth={0.9}
+                    strokeWidth={HELD_RING_CM + casingExtraCm(fit.scale, HELD_CASING_CM)}
                     visible={false}
                     perfectDrawEnabled={false}
                   />
@@ -349,7 +349,7 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
                     heldId={null}
                     radius={1}
                     stroke={colors.heldRing}
-                    strokeWidth={0.5}
+                    strokeWidth={HELD_RING_CM}
                     visible={false}
                     perfectDrawEnabled={false}
                   />
@@ -364,6 +364,10 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
     </div>
   );
 }
+
+/** N19 E4: the held ring's width, and how much wider its white casing is in all (at least a pixel a side: `casingExtraCm`), cm. */
+const HELD_RING_CM = 0.5;
+const HELD_CASING_CM = 0.4;
 
 /** A mark's line or dot is never thinner than this many pixels on the map (as the zones' patterns, zone-pattern.ts). */
 const MARK_MIN_PX = 1.5;

@@ -11,7 +11,7 @@ import { translate } from '../i18n/messages';
 import { TextProvider } from '../i18n/text';
 import { gripperKit, gripperSnapshot, gripperTestScenario } from './__fixtures__/gripper-scene';
 import { fakeSession } from './__fixtures__/fake-session';
-import { installFakeCanvas2d } from './__fixtures__/fake-canvas-2d';
+import { installFakeCanvas2d, resizeObserved } from './__fixtures__/fake-canvas-2d';
 import { createRobotRunStore } from './robot-run-store';
 import { robotModel } from './robot-model';
 import { createRobotToolsStore } from './robot-tools-store';
@@ -140,7 +140,7 @@ describe('the gripper car on the 2D map (N19 E4)', () => {
     near(drawn.gripper!.jaws[1]!.tip, 20 + 8.830222 + 5 * Math.cos(beta * DEG), 27.8 - 5 * Math.sin(beta * DEG), 5);
     // The ring round the held cube, where the world has it.
     const cube = world.objects.find((object) => object.id === 'cube-red')!;
-    expect(drawn.held).toEqual({ visible: true, id: 'cube-red', xCm: cube.pose.xCm, yCm: cube.pose.yCm, radiusCm: 2 * Math.SQRT2 + 0.8, cased: true });
+    expect(drawn.held).toMatchObject({ visible: true, id: 'cube-red', xCm: cube.pose.xCm, yCm: cube.pose.yCm, radiusCm: 2 * Math.SQRT2 + 0.8, cased: true });
     // The IR from its mount on the carriage (u 0.3, v 0.6), 2 cm forward, strong, its end dot shown.
     const irFrom = 20 + 4.5 + 5 * Math.cos(40 * DEG) + 0.3;
     // Strong: solid, its dark casing under it along the same line and its dot ringed (fix round 1, I1: it lies on the cube it sees).
@@ -181,6 +181,26 @@ describe('the gripper car on the 2D map (N19 E4)', () => {
     publish({ status: 'running', world: { ...raised, robot: { ...raised.robot, gripper: { clawDeg: 26.473, liftDeg: 5, heldId: 'cube-red' } } } });
     expect([readTopViewState()!.draws, readTopViewSensors()!.draws]).toEqual([map + 1, overlay + 1]);
     expect(gripper().gripper!.reachCm).toBeCloseTo(5 * Math.cos(35 * DEG), 9);
+  });
+
+  it('draws every casing at least a pixel wide a side on a small map, and 0.15 cm a side where that is more (minor round, review 2 N1)', () => {
+    const { publish } = mount();
+    publish({ status: 'running', world: holding() });
+    // A small map: 300 × 200 px, the 120 × 90 cm arena at about 1.6 px a cm, where 0.15 cm is a quarter of a pixel.
+    act(() => resizeObserved(300, 200));
+    publish({ status: 'running', world: holding({ t: 2.5, robot: { ...holding().robot, gripper: { clawDeg: 26.473, liftDeg: 4, heldId: 'cube-red' } } }) });
+    const small = readTopViewState()!.scale;
+    expect(small).toBeCloseTo(146 / 90, 9);
+    for (const px of [gripper().ir!.casingPx, gripper().color!.casingPx, gripper().color!.haloPx, gripper().held!.casingPx]) expect(px).toBeCloseTo(1, 9);
+    // A large one: 1600 × 1000 px, about 10.5 px a cm: the casings their own 0.15 cm a side (the ring's 0.2), more than a pixel.
+    act(() => resizeObserved(1600, 1000));
+    publish({ status: 'running', world: holding({ t: 3, robot: { ...holding().robot, gripper: { clawDeg: 26.473, liftDeg: 8, heldId: 'cube-red' } } }) });
+    const large = readTopViewState()!.scale;
+    expect(large).toBeCloseTo(946 / 90, 9);
+    expect(gripper().ir!.casingPx).toBeCloseTo(0.15 * large, 9);
+    expect(gripper().color!.casingPx).toBeCloseTo(0.15 * large, 9);
+    expect(gripper().color!.haloPx).toBeCloseTo(0.15 * large, 9);
+    expect(gripper().held!.casingPx).toBeCloseTo(0.2 * large, 9);
   });
 
   it('keeps the jaws, the beam and the ring through a render of the map (a resize, a Run click)', () => {

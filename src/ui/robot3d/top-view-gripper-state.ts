@@ -16,19 +16,19 @@ export type TopViewGripperState = {
     jaws: { side: 1 | -1; turnDeg: number; hinge: ArenaPointCm; tip: ArenaPointCm }[];
   } | null;
   /** The ring round the held object; `cased`: on its white casing, as large (fix round 1, M3). */
-  held: { visible: boolean; id: string | null; xCm: number; yCm: number; radiusCm: number; cased: boolean } | null;
+  held: { visible: boolean; id: string | null; xCm: number; yCm: number; radiusCm: number; cased: boolean; casingPx: number } | null;
   /** Each moving body's fill and colour mark (null for none). */
   objects: { id: string; fill: string; mark: string | null }[];
   /**
    * The IR beam between the jaws: whether it is shown, sees something (strong, with its end dot; dashed while it sees nothing), where it runs,
    * and whether its dark casing is under it along the same line and its dot ringed (fix round 1, review I1).
    */
-  ir: { visible: boolean; detected: boolean; hitId: string | null; from: ArenaPointCm; to: ArenaPointCm; end: boolean; dashed: boolean; cased: boolean } | null;
+  ir: { visible: boolean; detected: boolean; hitId: string | null; from: ArenaPointCm; to: ArenaPointCm; end: boolean; dashed: boolean; cased: boolean; casingPx: number } | null;
   /**
    * The colour sensor's ray and spot: the colour the spot is tinted for (null before the first window), its tint (null for a ring alone),
    * and whether the ray and the spot are on their white casings (fix round 1, M3).
    */
-  color: { rayVisible: boolean; from: ArenaPointCm; to: ArenaPointCm; spotVisible: boolean; color: string | null; tint: string | null; cased: boolean } | null;
+  color: { rayVisible: boolean; from: ArenaPointCm; to: ArenaPointCm; spotVisible: boolean; color: string | null; tint: string | null; cased: boolean; casingPx: number; haloPx: number } | null;
   /** The tag under the jaws ("IR: có vật", "Màu: đỏ", a line each). */
   label: { visible: boolean; lines: string[] } | null;
   /** The zones' names the mat is painted with, in the paint's order. */
@@ -52,6 +52,9 @@ export function readTopViewGripper(): TopViewGripperState | null {
   const heldCasing = stage.findOne<Konva.Circle>('.topview-held-casing');
   const rayCasing = stage.findOne<Konva.Line>('.topview-color-ray-casing');
   const halo = stage.findOne<Konva.Circle>('.topview-color-spot-halo');
+  // N19 E4 minor round (review 2, N1): how much of a casing shows beyond its ink on each side, px on the screen (the map's scale).
+  const scale = world.scaleX();
+  const sidePx = (casing: Konva.Shape | undefined, ink: Konva.Shape) => (casing === undefined ? 0 : ((casing.strokeWidth() - ink.strokeWidth()) / 2) * scale);
   /** A casing under `line`: shown when it is, along the same points and dashes, wider. */
   const casedLine = (line: Konva.Line, casing: Konva.Line | undefined) =>
     casing !== undefined && casing.visible() === line.visible() && JSON.stringify(casing.points()) === JSON.stringify(line.points()) && JSON.stringify(casing.dash() ?? []) === JSON.stringify(line.dash() ?? []) && casing.strokeWidth() > line.strokeWidth();
@@ -84,6 +87,7 @@ export function readTopViewGripper(): TopViewGripperState | null {
           yCm: held.y(),
           radiusCm: held.radius(),
           cased: heldCasing !== undefined && heldCasing.visible() === held.visible() && heldCasing.x() === held.x() && heldCasing.y() === held.y() && heldCasing.radius() === held.radius() && heldCasing.strokeWidth() > held.strokeWidth(),
+          casingPx: sidePx(heldCasing, held),
         }
       : null,
     objects: stage.find<Konva.Group>('.topview-object').map((group) => {
@@ -99,6 +103,7 @@ export function readTopViewGripper(): TopViewGripperState | null {
           end: stage.findOne<Konva.Circle>('.topview-ir-end')?.visible() === true,
           dashed: (beam.dash() ?? []).length > 0,
           cased: casedLine(beam, beamCasing) && (stage.findOne<Konva.Circle>('.topview-ir-end')?.strokeWidth() ?? 0) > 0,
+          casingPx: sidePx(beamCasing, beam),
         }
       : null,
     color:
@@ -110,6 +115,9 @@ export function readTopViewGripper(): TopViewGripperState | null {
             color: spot.getAttr('color') ?? null,
             tint: spot.fillEnabled() ? String(spot.fill()) : null,
             cased: casedLine(ray, rayCasing) && halo !== undefined && halo.visible() === spot.visible() && halo.x() === spot.x() && halo.y() === spot.y() && halo.radius() > spot.radius(),
+            casingPx: sidePx(rayCasing, ray),
+            // The white rim beyond the spot's dark ring.
+            haloPx: halo === undefined ? 0 : (halo.radius() - spot.radius() - spot.strokeWidth() / 2) * scale,
           }
         : null,
     label: label ? { visible: label.visible(), lines: label.getText().text().split('\n') } : null,

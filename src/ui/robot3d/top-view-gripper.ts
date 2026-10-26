@@ -75,6 +75,18 @@ export function jawCornersCm(view: GripperTopView, gripper: GripperModel, side: 
   ] as const).map(([u, v]): [number, number] => [view.hingeXCm + u * c - v * s, hingeY + u * s + v * c]);
 }
 
+/** A casing under a 2D ink is this much wider than the ink, in all, cm (N19 E4 fix round 1: the inks' casings, review I1, M3). */
+export const CASING_CM = 0.3;
+
+/**
+ * N19 E4 minor round (review 2, N1): how much wider than its ink a casing is drawn, cm, on a map of `scale` px a cm: `extraCm` (0.15 cm a side
+ * for CASING_CM), and never less than a pixel a side (0.15 cm is half a pixel at 1× on a school PC's map), as the objects' marks have a least
+ * width in pixels.
+ */
+export function casingExtraCm(scale: number, extraCm: number = CASING_CM): number {
+  return Math.max(extraCm, 2 / scale);
+}
+
 /** How far the ring round the held object stands clear of its corners, cm. */
 export const HELD_RING_GAP_CM = 0.8;
 
