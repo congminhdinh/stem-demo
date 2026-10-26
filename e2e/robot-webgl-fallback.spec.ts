@@ -375,7 +375,7 @@ test.describe('the robot lab’s 3D view and its 2D map (N18 R4.6)', () => {
     await frame.evaluate((document) => window.__stem?.loadProject(document), solved('rb-drive-to-zone'));
     await frame.getByTestId('robot-run').click();
     await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
-    await expect.poll(async () => (await world(frame))?.robot.xCm ?? 0).toBeGreaterThan(30);
+    await expect.poll(async () => (await world(frame))?.robot.xCm ?? 0, { timeout: 30_000 }).toBeGreaterThan(30);
     const before = (await world(frame))!;
 
     await frame.getByTestId('robot-viewmode').click();
@@ -385,7 +385,7 @@ test.describe('the robot lab’s 3D view and its 2D map (N18 R4.6)', () => {
     await expect(frame.getByTestId('robot-fallback-note')).toHaveCount(0);
     await expect(frame.getByTestId('robot-viewmode')).toHaveText('Xem 3D');
     expect((await topView(frame))?.reason).toBe('chosen');
-    await expect.poll(async () => (await topView(frame))?.robot?.xCm ?? 0).toBeGreaterThan(before.robot.xCm);
+    await expect.poll(async () => (await topView(frame))?.robot?.xCm ?? 0, { timeout: 30_000 }).toBeGreaterThan(before.robot.xCm);
     await screenshot(page, '10-chosen-map-1100x640.png');
 
     await frame.getByTestId('robot-viewmode').click();

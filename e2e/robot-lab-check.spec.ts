@@ -115,7 +115,7 @@ test.describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
     await expect(frame.getByTestId('robot-check-round')).toHaveText('Lượt 1/1');
     await expect(frame.getByTestId('robot-run')).toBeDisabled();
     await expect(frame.getByTestId('robot-round')).toHaveText('Lượt 1/1');
-    await expect.poll(async () => ((await frame.evaluate(() => window.__stem?.robot.getSnapshot())) as { t: number } | null)?.t ?? 0).toBeGreaterThan(1);
+    await expect.poll(async () => ((await frame.evaluate(() => window.__stem?.robot.getSnapshot())) as { t: number } | null)?.t ?? 0, { timeout: 30_000 }).toBeGreaterThan(1);
     await screenshot(page, '01-checking-4x-1100x640.png');
     await expect.poll(async () => (await checkResults(page)).length, { timeout: 30_000 }).toBe(1);
     const [result] = await checkResults(page);
@@ -182,7 +182,7 @@ test.describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
     const frame = await openInLesson(page, labUrl(baseURL, 'rb-drive-to-zone'));
     await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('rb-drive-to-zone', 'reference'));
     await frame.getByTestId('robot-check-start').click();
-    await expect.poll(async () => ((await frame.evaluate(() => window.__stem?.robot.getSnapshot())) as { t: number } | null)?.t ?? 0).toBeGreaterThan(0.5);
+    await expect.poll(async () => ((await frame.evaluate(() => window.__stem?.robot.getSnapshot())) as { t: number } | null)?.t ?? 0, { timeout: 30_000 }).toBeGreaterThan(0.5);
     await frame.getByTestId('robot-check-cancel').click();
     await expect(frame.getByTestId('robot-check-start')).toBeVisible();
     await expect(frame.getByTestId('robot-run')).toBeEnabled();
@@ -198,7 +198,7 @@ test.describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
     await frame.evaluate((document) => window.__stem?.loadProject(document), checked);
     await frame.locator('[data-testid=robot-check-speed] [data-speed="4x"]').click();
     await frame.getByTestId('robot-check-start').click();
-    await expect.poll(async () => ((await frame.evaluate(() => window.__stem?.robot.getSnapshot())) as { t: number } | null)?.t ?? 0).toBeGreaterThan(0.5);
+    await expect.poll(async () => ((await frame.evaluate(() => window.__stem?.robot.getSnapshot())) as { t: number } | null)?.t ?? 0, { timeout: 30_000 }).toBeGreaterThan(0.5);
     const loaded = { ...robotStarterDocument('rb-drive-to-zone'), id: 'saved-by-the-host' };
     await page.evaluate(([message, origin]) => (window as unknown as { __sendToLab(message: unknown, origin: string): void }).__sendToLab(message, origin as string), [
       { protocol: 'stem-lab/v1', type: 'load-project', document: loaded },

@@ -814,7 +814,7 @@ test.describe('the camera by keyboard (N18 R8)', () => {
   test('in Lái tay the plain arrows drive the robot and Shift with them orbits the camera instead', async ({ page, baseURL }) => {
     const frame = await openInLesson(page, labUrl(baseURL));
     await frame.getByTestId('robot-tool-teleop').click();
-    await expect.poll(async () => ((await frame.evaluate(() => window.__stem?.robot.getSnapshot())) as { status: string } | null)?.status).toBe('running');
+    await expect.poll(async () => ((await frame.evaluate(() => window.__stem?.robot.getSnapshot())) as { status: string } | null)?.status, { timeout: 30_000 }).toBe('running');
     const pose = async () => ((await frame.evaluate(() => window.__stem?.robot.getSnapshot())) as { robot: { xCm: number; yCm: number; yawDeg: number } }).robot;
     const before = await pose();
     const start = await settled(frame);

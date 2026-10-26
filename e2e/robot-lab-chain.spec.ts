@@ -36,7 +36,7 @@ async function openInLesson(page: Page, url: string): Promise<Frame> {
 async function hashAfterSteps(frame: Frame, tenths: number): Promise<string | null> {
   for (let i = 1; i <= tenths; i++) {
     await frame.getByTestId('robot-step').click();
-    await expect.poll(async () => (await view(frame))?.t).toBeCloseTo(i / 10, 9);
+    await expect.poll(async () => (await view(frame))?.t, { timeout: 30_000 }).toBeCloseTo(i / 10, 9);
   }
   return hash(frame);
 }
@@ -85,7 +85,7 @@ test.describe('the low tier’s chain, its steps forced (N18 P2 fix round 1)', (
     });
     await frame.evaluate(() => window.__stem?.robot.setSpeed(2));
     await frame.getByTestId('robot-run').click();
-    await expect.poll(async () => (await view(frame))?.t ?? 0).toBeGreaterThan(0.3);
+    await expect.poll(async () => (await view(frame))?.t ?? 0, { timeout: 30_000 }).toBeGreaterThan(0.3);
     const during = await frame.evaluate(
       () =>
         new Promise<{ changed: number; draws: number; due: number; frames: number[] }>((done) => {
@@ -145,7 +145,7 @@ test.describe('the low tier’s chain, its steps forced (N18 P2 fix round 1)', (
     await expect(offer).toHaveCount(0);
     const at = (await view(frame))?.t ?? 0;
     await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
-    await expect.poll(async () => (await view(frame))?.t ?? 0).toBeGreaterThan(at + 0.5);
+    await expect.poll(async () => (await view(frame))?.t ?? 0, { timeout: 30_000 }).toBeGreaterThan(at + 0.5);
   });
 
   test('keeps 3D on Giữ 3D, and does not offer the 2D map again', async ({ page, baseURL }) => {

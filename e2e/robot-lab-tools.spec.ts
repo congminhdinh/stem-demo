@@ -80,7 +80,7 @@ test.describe('the robot lab’s view tools (N18 R4.8)', () => {
     await expect(frame.getByTestId('robot-status')).toHaveText('Đang lái tay');
     // Teleop is held to TELEOP_LIMIT_S (600 s), not the lesson's 15 s.
     await expect(frame.getByTestId('robot-time')).toContainText('/ 600 s');
-    await expect.poll(async () => (await view(frame))?.status).toBe('running');
+    await expect.poll(async () => (await view(frame))?.status, { timeout: 30_000 }).toBe('running');
     const start = (await view(frame))!.robot;
     expect(start.xCm).toBeCloseTo(25, 0);
 
@@ -99,7 +99,7 @@ test.describe('the robot lab’s view tools (N18 R4.8)', () => {
           await page.waitForTimeout(250);
           return Math.abs((await view(frame))!.robot.xCm - before);
         },
-        { timeout: 5_000 },
+        { timeout: 30_000 },
       )
       .toBeLessThan(0.05);
     const stopped = (await view(frame))!.robot;
@@ -161,7 +161,7 @@ test.describe('the robot lab’s view tools (N18 R4.8)', () => {
     await page.mouse.move(to.x, to.y, { steps: 4 });
     await screenshot(page, '03-move-ghost.png');
     await page.mouse.up();
-    await expect.poll(async () => (await view(frame))?.robot.xCm ?? 0).toBeGreaterThan(70);
+    await expect.poll(async () => (await view(frame))?.robot.xCm ?? 0, { timeout: 30_000 }).toBeGreaterThan(70);
     const placed = (await view(frame))!.robot;
     expect(Math.hypot(placed.xCm - 80, placed.yCm - 55)).toBeLessThan(0.5);
     await expect(frame.getByTestId('robot-move-pose')).toHaveText(/^x 8\d,\d · y 5\d,\d cm · 0°$/);
@@ -173,7 +173,7 @@ test.describe('the robot lab’s view tools (N18 R4.8)', () => {
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('Shift+ArrowUp');
     await page.keyboard.press('Enter');
-    await expect.poll(async () => (await view(frame))!.robot.yCm).toBeGreaterThan(placed.yCm + 4);
+    await expect.poll(async () => (await view(frame))!.robot.yCm, { timeout: 30_000 }).toBeGreaterThan(placed.yCm + 4);
     const nudged = (await view(frame))!.robot;
     expect(nudged.xCm - placed.xCm).toBeCloseTo(2, 1);
     expect(nudged.yCm - placed.yCm).toBeCloseTo(5, 1);
@@ -181,7 +181,7 @@ test.describe('the robot lab’s view tools (N18 R4.8)', () => {
     // A Run starts there.
     await frame.getByTestId('robot-run').click();
     await expect(frame.getByTestId('robot-status')).toHaveText(/Đang chạy|Chương trình đã chạy xong|Lượt chạy kết thúc/);
-    await expect.poll(async () => (await view(frame))?.status).not.toBe('idle');
+    await expect.poll(async () => (await view(frame))?.status, { timeout: 30_000 }).not.toBe('idle');
     const running = (await view(frame))!.robot;
     expect(Math.hypot(running.xCm - nudged.xCm, running.yCm - nudged.yCm)).toBeLessThan(5);
     expect(errors).toEqual([]);

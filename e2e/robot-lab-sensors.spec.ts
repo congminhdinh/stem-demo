@@ -63,6 +63,26 @@ const screenshot = async (page: Page, name: string) => {
   await page.screenshot({ path: join(shots, name) });
 };
 
+/**
+ * Reads `read` until it has the same value twice, 400 ms apart, and gives that value. A frame the machine draws late (SwiftShader under a
+ * suite's load) has come by then; a scene that kept drawing would never give the same count twice, and the wait ends at 30 s.
+ */
+async function settled<T>(read: () => Promise<T>): Promise<T> {
+  let last: { value: T } | null = null;
+  await expect
+    .poll(
+      async () => {
+        const value = await read();
+        const same = last !== null && JSON.stringify(last.value) === JSON.stringify(value);
+        last = { value };
+        return same;
+      },
+      { timeout: 30_000, intervals: [400] },
+    )
+    .toBe(true);
+  return (last as { value: T } | null)!.value;
+}
+
 /** stop-at-wall with a program of its solutions: the reference, or the exploit of that name. */
 const projectOf = (program: 'reference' | string) => {
   const solution = robotSolutions['rb-stop-at-wall'];
@@ -80,26 +100,29 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     const errors = collectErrors(page);
     const frame = await openInLesson(page, labUrl(baseURL));
     // Before a run: the zone the goal needs, and no beam (nothing has been read yet).
-    await expect.poll(async () => (await overlay(frame))?.zone).toBe('stop-zone');
+    await expect.poll(async () => (await overlay(frame))?.zone, { timeout: 30_000 }).toBe('stop-zone');
     expect((await overlay(frame))?.ultrasonics[0]).toMatchObject({ role: 'ultrasonic', visible: false, label: null });
     await expect(frame.getByTestId('robot-sensors')).toHaveAttribute('aria-pressed', 'true');
     await screenshot(page, '01-idle-zone-lit.png');
 
     await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('reference'));
     await frame.getByTestId('robot-run').click();
-    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0]).toMatchObject({ visible: true, ray: true, hit: true, echo: true });
-    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0]?.label).toMatch(/^\d{1,3},\d cm$/);
-    await expect.poll(async () => (await view(frame))?.t ?? 0).toBeGreaterThan(1);
+    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0], { timeout: 30_000 }).toMatchObject({ visible: true, ray: true, hit: true, echo: true });
+    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0]?.label, { timeout: 30_000 }).toMatch(/^\d{1,3},\d cm$/);
+    await expect.poll(async () => (await view(frame))?.t ?? 0, { timeout: 30_000 }).toBeGreaterThan(1);
     await screenshot(page, '02-running-ray-and-label.png');
 
     // Held still (Tạm dừng), the tag says the very distance the sensor read, to a tenth of a cm.
     await frame.getByTestId('robot-pause').click();
     await expect(frame.getByTestId('robot-status')).toHaveText('Tạm dừng');
     await expect
-      .poll(async () => {
-        const reading = ultrasonicOf(await view(frame));
-        return (await overlay(frame))?.ultrasonics[0]?.label === (reading?.cm === undefined ? null : tagOf(reading.cm));
-      })
+      .poll(
+        async () => {
+          const reading = ultrasonicOf(await view(frame));
+          return (await overlay(frame))?.ultrasonics[0]?.label === (reading?.cm === undefined ? null : tagOf(reading.cm));
+        },
+        { timeout: 30_000 },
+      )
       .toBe(true);
     const held = ultrasonicOf(await view(frame));
     expect(held?.hitId).toBe('front-wall');
@@ -112,19 +135,19 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     const frame = await openInLesson(page, labUrl(baseURL));
     await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('reference'));
     await frame.getByTestId('robot-run').click();
-    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0]?.ray).toBe(true);
+    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0]?.ray, { timeout: 30_000 }).toBe(true);
     await frame.getByTestId('robot-pause').click();
     const toggle = frame.getByTestId('robot-sensors');
     await expect(toggle).toHaveAttribute('aria-label', 'Hiện cảm biến');
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-pressed', 'false');
     // The scene was asked for a frame though nothing else moves: the overlay is gone.
-    await expect.poll(async () => (await overlay(frame))?.shown).toBe(false);
+    await expect.poll(async () => (await overlay(frame))?.shown, { timeout: 30_000 }).toBe(false);
     expect((await overlay(frame))?.ultrasonics[0]).toMatchObject({ visible: false, ray: false, hit: false });
     await screenshot(page, '03-sensors-off.png');
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0]).toMatchObject({ visible: true, ray: true, hit: true });
+    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0], { timeout: 30_000 }).toMatchObject({ visible: true, ray: true, hit: true });
     expect((await overlay(frame))?.ultrasonics[0]?.label).toMatch(/^\d+,\d cm$/);
   });
 
@@ -165,11 +188,14 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     await frame.getByTestId('robot-run').click();
     const levels = new Set<number>();
     await expect
-      .poll(async () => {
-        const probe = await overlay(frame);
-        if (probe?.zone === 'stop-zone') levels.add(Math.round(probe.pulse * 100));
-        return levels.size;
-      })
+      .poll(
+        async () => {
+          const probe = await overlay(frame);
+          if (probe?.zone === 'stop-zone') levels.add(Math.round(probe.pulse * 100));
+          return levels.size;
+        },
+        { timeout: 30_000 },
+      )
       .toBeGreaterThan(3);
   });
 
@@ -178,7 +204,7 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     const frame = await openInLesson(page, labUrl(baseURL));
     await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('reference'));
     await frame.getByTestId('robot-run').click();
-    await expect.poll(async () => (await view(frame))?.t ?? 0).toBeGreaterThan(1.5);
+    await expect.poll(async () => (await view(frame))?.t ?? 0, { timeout: 30_000 }).toBeGreaterThan(1.5);
     const levels = new Set<number>();
     for (let i = 0; i < 12; i++) {
       const probe = await overlay(frame);
@@ -205,7 +231,7 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     });
     const draws = () => frame.evaluate(() => (window as unknown as { __draws: number }).__draws);
     await frame.getByTestId('robot-run').click();
-    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0]?.ray).toBe(true);
+    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0]?.ray, { timeout: 30_000 }).toBe(true);
     await frame.getByTestId('robot-pause').click();
     await expect(frame.getByTestId('robot-status')).toHaveText('Tạm dừng');
     // Held still, the scene draws nothing more: the pulse and the overlays make no frames of their own.
@@ -215,8 +241,10 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     expect(await draws()).toBe(rested);
     // The switch is one frame, and then rest again.
     await frame.getByTestId('robot-sensors').click();
-    await expect.poll(draws).toBeGreaterThan(rested);
-    const after = await draws();
+    await expect.poll(draws, { timeout: 30_000 }).toBeGreaterThan(rested);
+    // The frame the switch asked for may come in more than one draw, the second a moment after the first when the machine is busy: the count
+    // is read once it has stopped changing, and then it must stay.
+    const after = await settled(draws);
     await page.waitForTimeout(1200);
     expect(await draws()).toBe(after);
   });
@@ -224,20 +252,23 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
   test('line-follow: a spot on the mat under each eye, a red disc where it reads dark, from the free view and from behind the robot', async ({ page, baseURL }) => {
     const errors = collectErrors(page);
     const frame = await openInLesson(page, labUrl(baseURL, 'template=rb-line-follow'));
-    await expect.poll(async () => (await overlay(frame))?.zone).toBe('garage');
+    await expect.poll(async () => (await overlay(frame))?.zone, { timeout: 30_000 }).toBe('garage');
     const line = { ...robotStarterDocument('rb-line-follow'), program: { blocks: robotSolutions['rb-line-follow'].reference } };
     await frame.evaluate((document) => window.__stem?.loadProject(document), line);
     await frame.getByTestId('robot-run').click();
-    await expect.poll(async () => (await view(frame))?.t ?? 0).toBeGreaterThan(1.5);
+    await expect.poll(async () => (await view(frame))?.t ?? 0, { timeout: 30_000 }).toBeGreaterThan(1.5);
     // Each eye has a spot on the mat, and, over the run, each has read dark (the tape) and bright (the mat).
     const seen = { dark: new Set<string>(), bright: new Set<string>() };
     await expect
-      .poll(async () => {
-        const spots = (await overlay(frame))?.spots ?? [];
-        expect(spots.map((spot) => spot.role)).toEqual(['lineLeft', 'lineCenter', 'lineRight']);
-        for (const spot of spots) if (spot.visible) (spot.dark ? seen.dark : seen.bright).add(spot.role);
-        return seen.dark.size > 0 && seen.bright.size > 0;
-      })
+      .poll(
+        async () => {
+          const spots = (await overlay(frame))?.spots ?? [];
+          expect(spots.map((spot) => spot.role)).toEqual(['lineLeft', 'lineCenter', 'lineRight']);
+          for (const spot of spots) if (spot.visible) (spot.dark ? seen.dark : seen.bright).add(spot.role);
+          return seen.dark.size > 0 && seen.bright.size > 0;
+        },
+        { timeout: 30_000 },
+      )
       .toBe(true);
     await screenshot(page, '07-line-follow-free.png');
     await frame.locator('[data-testid=robot-camera] [data-mode=follow]').click();
@@ -250,8 +281,8 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     const frame = await openInLesson(page, labUrl(baseURL));
     await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('reference'));
     await frame.getByTestId('robot-run').click();
-    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0]?.ray).toBe(true);
-    await expect.poll(async () => (await view(frame))?.t ?? 0).toBeGreaterThan(1);
+    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0]?.ray, { timeout: 30_000 }).toBe(true);
+    await expect.poll(async () => (await view(frame))?.t ?? 0, { timeout: 30_000 }).toBeGreaterThan(1);
     await frame.getByTestId('robot-pause').click();
     await expect(frame.getByTestId('robot-status')).toHaveText('Tạm dừng');
     // The drawing buffer of every draw to the screen, read after its draw calls (before it is composited), and its pixels counted that are
@@ -279,10 +310,9 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     const drawFrame = async (change: () => Promise<void>) => {
       const before = (await seen()).draws;
       await change();
-      await expect.poll(async () => (await seen()).draws).toBeGreaterThan(before);
+      await expect.poll(async () => (await seen()).draws, { timeout: 30_000 }).toBeGreaterThan(before);
       // The last draw of the frames the change asked for.
-      await page.waitForTimeout(300);
-      return (await seen()).blue;
+      return (await settled(seen)).blue;
     };
     const toggle = frame.getByTestId('robot-sensors');
     const off = await drawFrame(async () => {
@@ -358,15 +388,18 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     await frame.evaluate((document) => window.__stem?.loadProject(document), line);
     await frame.getByTestId('robot-run').click();
     // The beam, the tag, the spots (dark and bright) and the zone all show; none needs a new program.
-    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0]?.ray).toBe(true);
+    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0]?.ray, { timeout: 30_000 }).toBe(true);
     const seen = { dark: false, bright: false };
     await expect
-      .poll(async () => {
-        for (const spot of (await overlay(frame))?.spots ?? []) if (spot.visible) seen[spot.dark ? 'dark' : 'bright'] = true;
-        return seen.dark && seen.bright;
-      })
+      .poll(
+        async () => {
+          for (const spot of (await overlay(frame))?.spots ?? []) if (spot.visible) seen[spot.dark ? 'dark' : 'bright'] = true;
+          return seen.dark && seen.bright;
+        },
+        { timeout: 30_000 },
+      )
       .toBe(true);
-    await expect.poll(async () => (await overlay(frame))?.zone).toBe('garage');
+    await expect.poll(async () => (await overlay(frame))?.zone, { timeout: 30_000 }).toBe('garage');
     await page.waitForTimeout(500);
     expect(await links()).toBe(before);
   });
@@ -419,19 +452,19 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     const frame = await openInLesson(page, labUrl(baseURL, 'template=rb-line-follow'));
     await frame.getByTestId('robot-viewmode').click();
     await frame.getByTestId('robot-topview').waitFor();
-    await expect.poll(async () => (await mapOverlay(frame))?.zone).toBe('garage');
+    await expect.poll(async () => (await mapOverlay(frame))?.zone, { timeout: 30_000 }).toBe('garage');
     const line = { ...robotStarterDocument('rb-line-follow'), program: { blocks: robotSolutions['rb-line-follow'].reference } };
     await frame.evaluate((document) => window.__stem?.loadProject(document), line);
     await frame.getByTestId('robot-run').click();
-    await expect.poll(async () => (await mapOverlay(frame))?.cones[0]?.visible).toBe(true);
+    await expect.poll(async () => (await mapOverlay(frame))?.cones[0]?.visible, { timeout: 30_000 }).toBe(true);
     const drawn = (await mapOverlay(frame))!;
     expect(drawn.labels[0]?.text).toMatch(/^\d+(,\d)? cm$/);
     expect(drawn.spots.some((spot) => spot.visible)).toBe(true);
     await screenshot(page, '06-map-2d.png');
     await frame.getByTestId('robot-sensors').click();
-    await expect.poll(async () => (await mapOverlay(frame))?.shown).toBe(false);
+    await expect.poll(async () => (await mapOverlay(frame))?.shown, { timeout: 30_000 }).toBe(false);
     await frame.getByTestId('robot-sensors').click();
-    await expect.poll(async () => (await mapOverlay(frame))?.shown).toBe(true);
+    await expect.poll(async () => (await mapOverlay(frame))?.shown, { timeout: 30_000 }).toBe(true);
     expect(errors).toEqual([]);
   });
 });

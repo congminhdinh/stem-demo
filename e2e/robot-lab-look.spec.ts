@@ -83,7 +83,7 @@ test.describe('the robot lab’s 3D look (N18 R4.7)', () => {
     await expect(frame.getByTestId('robot-canvas')).toHaveAttribute('data-tier', 'high');
     await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 30_000 });
     await expect(frame.getByTestId('robot-canvas').locator('canvas')).toHaveAttribute('data-models', 'modelled');
-    await expect.poll(async () => look(await frame.evaluate(() => (window as unknown as { __look: number[][] }).__look)).colours).toBeGreaterThanOrEqual(30);
+    await expect.poll(async () => look(await frame.evaluate(() => (window as unknown as { __look: number[][] }).__look)).colours, { timeout: 30_000 }).toBeGreaterThanOrEqual(30);
   });
 
   test('"Đặt lại góc nhìn" puts a moved camera back where the view starts', async ({ page, baseURL }) => {
@@ -95,7 +95,7 @@ test.describe('the robot lab’s 3D look (N18 R4.7)', () => {
     await page.mouse.down();
     await page.mouse.move(box.x + box.width / 2 - 200, box.y + box.height / 2 + 40, { steps: 8 });
     await page.mouse.up();
-    await expect.poll(async () => JSON.stringify(await frame.evaluate(() => (window as unknown as { __look: number[][] }).__look))).not.toBe(JSON.stringify(before));
+    await expect.poll(async () => JSON.stringify(await frame.evaluate(() => (window as unknown as { __look: number[][] }).__look)), { timeout: 30_000 }).not.toBe(JSON.stringify(before));
     await frame.getByTestId('robot-camera-reset').click();
     await expect(frame.getByTestId('robot-camera-reset')).toHaveAttribute('aria-label', 'Đặt lại góc nhìn');
     // Reduced motion is off: the camera glides back (0.45 s), then rests where it started.

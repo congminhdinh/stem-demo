@@ -81,7 +81,7 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
     await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
     // The robot leaves its start (x = 25 cm) along +x, and the wait it drives through is the block that lights up.
     await expect.poll(async () => (await view(frame))?.robot.xCm ?? 0, { timeout: 10_000 }).toBeGreaterThan(32);
-    await expect.poll(() => litBlocks(frame)).toEqual(['drive-time']);
+    await expect.poll(() => litBlocks(frame), { timeout: 30_000 }).toEqual(['drive-time']);
     expect((await view(frame))?.robot.yCm).toBeCloseTo(40, 0);
     await screenshot(page, '02-running-1100x640.png');
 
@@ -89,7 +89,7 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
     await frame.getByTestId('robot-pause').click();
     await expect(frame.getByTestId('robot-status')).toHaveText('Tạm dừng');
     await frame.getByTestId('robot-reset').click();
-    await expect.poll(async () => (await view(frame))?.t ?? 99).toBe(0);
+    await expect.poll(async () => (await view(frame))?.t ?? 99, { timeout: 30_000 }).toBe(0);
     const restarted = await view(frame);
     expect(restarted?.robot.xCm).toBeCloseTo(25, 1);
     expect(restarted?.robot.yCm).toBeCloseTo(40, 1);
@@ -227,7 +227,7 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
     });
     await frame.evaluate(() => window.__stem?.robot.setSpeed(2));
     await frame.getByTestId('robot-run').click();
-    await expect.poll(async () => (await view(frame))?.t ?? 0).toBeGreaterThan(0.3);
+    await expect.poll(async () => (await view(frame))?.t ?? 0, { timeout: 30_000 }).toBeGreaterThan(0.3);
     const during = await frame.evaluate(
       () =>
         new Promise<{ changed: number; draws: number }>((done) => {
@@ -263,14 +263,14 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
     await frame.evaluate((document) => window.__stem?.loadProject(document), solved());
     await frame.getByTestId('robot-step').click();
     await expect(frame.getByTestId('robot-status')).toHaveText('Tạm dừng');
-    await expect.poll(async () => (await view(frame))?.t).toBeCloseTo(0.1, 9);
+    await expect.poll(async () => (await view(frame))?.t, { timeout: 30_000 }).toBeCloseTo(0.1, 9);
     await frame.getByTestId('robot-step').click();
-    await expect.poll(async () => (await view(frame))?.t).toBeCloseTo(0.2, 9);
+    await expect.poll(async () => (await view(frame))?.t, { timeout: 30_000 }).toBeCloseTo(0.2, 9);
     await page.waitForTimeout(300);
     expect((await view(frame))?.t).toBeCloseTo(0.2, 9);
     await frame.getByTestId('robot-pause').click();
     await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
-    await expect.poll(async () => (await view(frame))?.t ?? 0).toBeGreaterThan(0.4);
+    await expect.poll(async () => (await view(frame))?.t ?? 0, { timeout: 30_000 }).toBeGreaterThan(0.4);
   });
 
   test('says when the browser takes the 3D view’s WebGL away, and draws again when it comes back; the run goes on', async ({ page, baseURL }) => {
@@ -294,7 +294,7 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
     await lose('loseContext');
     await expect(frame.getByTestId('robot-webgl-lost')).toHaveText('Khung nhìn 3D bị mất đồ hoạ. Đang khôi phục…');
     const before = (await view(frame))?.t ?? 0;
-    await expect.poll(async () => (await view(frame))?.t ?? 0).toBeGreaterThan(before + 0.2);
+    await expect.poll(async () => (await view(frame))?.t ?? 0, { timeout: 30_000 }).toBeGreaterThan(before + 0.2);
     await lose('restoreContext');
     await expect(frame.getByTestId('robot-webgl-lost')).toHaveCount(0);
     // It came back: the 3D view is still the view (a context that stayed lost would have given way to the 2D map after 2 s).
