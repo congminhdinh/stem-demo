@@ -19,7 +19,8 @@ import { SCENARIO_MAX_SCORE, scenarioMaxScore, type RobotGoalSpec, type Scenario
 //   - The run's score (`variantScore`): the points of the goals that passed (all or nothing, R6.1) plus the bonus, clamped to
 //     0..SCENARIO_MAX_SCORE (100).
 //   - At the end (`end`, told by the session when the scenario ended the run): a contact end cuts short a hold or a stop that had not
-//     happened yet (`stop-in-zone`, `servo-angle`): such a goal fails with `run-ended-contact` at the time of the end, unless it had already
+//     happened yet (`stop-in-zone`, `servo-angle`; N19 D4: `object-held`, and the rest of `object-placed` and `object-on-object`, whose
+//     other reasons say where the object is): such a goal fails with `run-ended-contact` at the time of the end, unless it had already
 //     failed by leaving the arena. Every other goal keeps its own end rules (R6.1), and a time-limit end changes nothing.
 //   - A run whose program ended in an error (a fault of the program, or of the simulation: the run's status `error`) scores 0 and fails,
 //     however far it got: `programErrorScore`, every goal failed with `program-error`, no bonus (R6.2 fix round 1). The world stands still
@@ -101,8 +102,24 @@ export type ScenarioScorer = Required<RobotScorer> & {
   result(): RunScore;
 };
 
-/** The kinds that hold a state for a while, which an end on a contact cuts short (see the top of this file). */
-const HOLD_KINDS: ReadonlySet<RobotGoalSpec['kind']> = new Set(['stop-in-zone', 'servo-angle']);
+/**
+ * The kinds that hold a state for a while, which an end on a contact cuts short (see the top of this file), and which of their reasons it
+ * replaces: every one (`'all'`), or only a rest the object had not yet had (N19 D4, D2 review M8: object-held is a hold; object-placed and
+ * object-on-object say where the object is, and only their `restS` is time a contact can cut short).
+ */
+const HOLD_KINDS: ReadonlyMap<RobotGoalSpec['kind'], 'all' | ReadonlySet<string>> = new Map<RobotGoalSpec['kind'], 'all' | ReadonlySet<string>>([
+  ['stop-in-zone', 'all'],
+  ['servo-angle', 'all'],
+  ['object-held', 'all'],
+  ['object-placed', new Set([goalReasons.objectNotAtRest])],
+  ['object-on-object', new Set([goalReasons.objectNotAtRest])],
+]);
+
+/** Whether a contact end cuts short this failed goal: a hold or a stop not yet met (see HOLD_KINDS). */
+const cutShortByContact = (kind: RobotGoalSpec['kind'], reasonKey: string | undefined): boolean => {
+  const cut = HOLD_KINDS.get(kind);
+  return cut === 'all' || (cut !== undefined && reasonKey !== undefined && cut.has(reasonKey));
+};
 
 /** The scorer of one run of `scenario` in `arena` (the variant's), for the learner's `program` (a Blockly workspace, which uses-block reads). */
 export function createScenarioScorer(run: { scenario: Scenario; arena: Arena; program: unknown }): ScenarioScorer {
@@ -122,7 +139,7 @@ export function createScenarioScorer(run: { scenario: Scenario; arena: Arena; pr
   /** A goal's result with the end rules (see the top of this file). */
   const judged = ({ spec, goal }: { spec: RobotGoalSpec; goal: Goal }): GoalResult => {
     const result = goal.result();
-    if (contactEnd === null || result.passed || !HOLD_KINDS.has(spec.kind) || result.reasonKey === goalReasons.outOfArena) {
+    if (contactEnd === null || result.passed || !cutShortByContact(spec.kind, result.reasonKey) || result.reasonKey === goalReasons.outOfArena) {
       return result;
     }
     return { ...result, reasonKey: goalReasons.runEndedContact, atS: contactEnd.atS };
