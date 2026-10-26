@@ -13,11 +13,19 @@ import type { HardwareDiagnostic } from './pin-rules';
 // 0.1.6 §4.4, EMU-18): the cost of the call -flto does not fold; with few call sites and a literal frequency the board folds it,
 // down to 17.6875 µs (contract §13).
 //
+// I²C (N19 A3, ADR 0004 §11): Wire on the board's `i2c` pins, in time. Each bus phase takes Wire's service before it
+// (`costsUs.wirePhase`: its TWI interrupt and the next TWCR write) and then its SCL periods at `i2c.sclHz` (ATmega328P datasheet
+// §21.5.2; Wire's TWBR 72 gives 100 kHz): START and STOP one each (a PLACEHOLDER until L3, as the parity harness's TWI adapter has
+// it), an address or data byte nine (8 bits and the ACK). A bus-level device (`I2cDevice`, the TCS34725 model) hears each event at its
+// time, µs since setup() began in whole cycles: the address and a written byte when they end, a read byte when it starts (the slave
+// drives SDA from its first bit), the STOP when it ends. So the simulator calls the model at the bus times the board calls it at; the
+// helper's own statements around the bus are the driver's to charge (drivers/tcs34725.ts, EMU-20).
+//
 // What it does not model (contract §13, L1 ≠ L2e): the load of interrupts (Timer0, the Servo, tone: 0.58 %, 0.16 %, 1.49 %
 // at 1 kHz), so pulseIn without echo charges the 20 752 µs measured without a Servo (20 785.44 µs with one, EMU-03); the
-// change of a playing tone's frequency by an analogWrite on D11 (EMU-05), which checkKit refuses before any run; I²C costs
-// and pins (U-46 is DEFERRED, so no cost is measured); Serial time (contract §7); the 52.8 ms before Servo 1.3.0's first pulse
-// (contract §13).
+// change of a playing tone's frequency by an analogWrite on D11 (EMU-05), which checkKit refuses before any run; the pins of I²C
+// (A4/A5 as SDA/SCL: the kit's I²C ports own them, kit-schema.ts); Wire's timeout (a bus that hangs); Serial time (contract §7);
+// the 52.8 ms before Servo 1.3.0's first pulse (contract §13).
 
 export type PinMode = 'INPUT' | 'OUTPUT' | 'INPUT_PULLUP';
 
@@ -48,8 +56,35 @@ export type DigitalSource = () => 0 | 1;
 /** A pulse the pin will see from the call on: its width in µs (0 or less: none), or the wait before it and its width. */
 export type PulseReading = { readonly waitUs: number; readonly widthUs: number };
 export type PulseSource = (level: 0 | 1, timeoutUs: number) => number | PulseReading;
-/** An I²C device at its address: what the program writes, what it reads. */
+/** An I²C device at its address that answers whole transactions (N18 R1): what the program writes, what it reads. */
 export type WireDevice = { write?(bytes: readonly number[]): void; read?(count: number): readonly number[] };
+
+/**
+ * N19 A3: an I²C slave as the bus sees it, each event at its bus time, µs since setup() began (the TCS34725 model,
+ * devices/tcs34725.ts, is one; the parity harness's TWI adapter calls the same four on the board).
+ */
+export type I2cDevice = {
+  /** The master sent this device's address after a START, to read or to write; true = ACK. Called when the address byte ends. */
+  connect(nowUs: number, read: boolean): boolean;
+  /** A byte the master wrote; true = ACK. Called when the byte ends. */
+  write(nowUs: number, byte: number): boolean;
+  /** The byte the device sends. Called when the byte starts. */
+  read(nowUs: number): number;
+  /** The STOP of a transaction the device acknowledged. Called when it ends. */
+  stop(nowUs: number): void;
+};
+
+/**
+ * N19 A3: Wire as a driver's helper uses it, each transaction charged on the program clock phase by phase (see the top of this file),
+ * with the answer the C++ reads. `transmit` is Wire.beginTransmission, write and endTransmission: true when the device acknowledged the
+ * address and every byte (endTransmission() == 0). `request` is Wire.requestFrom and its reads: the bytes, none when nobody
+ * acknowledges the address. `transactionUs` is what one transaction of `dataBytes` charges (`acked`: the address was acknowledged).
+ */
+export type WireBus = {
+  transmit(address: number, bytes: readonly number[]): boolean;
+  request(address: number, count: number): number[];
+  transactionUs(dataBytes: number, acked: boolean): number;
+};
 
 /**
  * What a driver drives (robot plan §4.3): the UnoPinIO of R2.1 plus the two things a helper's C++ does between Arduino calls.
@@ -60,6 +95,8 @@ export type DriverIO = UnoPinIO & {
   delayMicroseconds(us: number): void;
   compute(us: number): void;
   readonly costsUs: CostsUs;
+  /** N19 A3: the I²C bus, in time; `wire` is the same bus without the answers. */
+  readonly i2c: WireBus;
 };
 
 export type VirtualUno = {
@@ -72,7 +109,9 @@ export type VirtualUno = {
   attachAnalogSource(pin: string, source: AnalogSource): void;
   attachDigitalSource(pin: string, source: DigitalSource): void;
   attachPulseSource(pin: string, source: PulseSource): void;
+  /** A device on the I²C bus at `address`: a whole-transaction one, or (N19 A3) one that hears each bus event in time. */
   attachWireDevice(address: number, device: WireDevice): void;
+  attachWireDevice(address: number, device: I2cDevice): void;
   /**
    * Tells each pin whose state a call changed, with the program time (ms) after the call; a tone that ran out by itself is
    * told at the next call, whatever pin that call touches (pins() shows it at once). Returns the unsubscribe.
@@ -100,6 +139,11 @@ type PinRecord = {
 /** The only pulseIn timeout the contract measured without a pulse (contract §4.4: the HC-SR04 helper's 30000UL). */
 const MEASURED_NO_PULSE_TIMEOUT_US = 30_000;
 const SERVO_MAX_DEG = 180;
+/** SCL periods of a START or a STOP, and of an address or data byte (8 bits and the ACK). */
+const START_STOP_PERIODS = 1;
+const BYTE_PERIODS = 9;
+/** Wire's buffer (Wire.h BUFFER_LENGTH): requestFrom reads at most this many bytes. */
+const WIRE_BUFFER_BYTES = 32;
 /** The pins of a call that changes none of its own (a read). */
 const NO_PINS: readonly string[] = Object.freeze([]);
 
@@ -108,7 +152,7 @@ const hex = (address: number) => `0x${address.toString(16).padStart(2, '0')}`;
 export function createVirtualUno(board: BoardProfile, clock: ProgramClock): VirtualUno {
   const costs = board.costsUs;
   const pins = new Map<string, PinRecord>(board.pins.map((spec) => [spec.id, { spec, mode: 'INPUT', port: 0, pwm: null, servoDeg: null }]));
-  const wire = new Map<number, WireDevice>();
+  const wire = new Map<number, WireDevice | I2cDevice>();
   const originMs = clock.now();
   const cyclesPerUs = board.clockHz / 1_000_000;
   let servoAttached = false;
@@ -326,30 +370,98 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
     return Math.trunc(widthUs);
   };
 
-  const wireIO: WireIO = {
-    write(address, bytes) {
-      checkAddress(address);
+  /** One SCL period, µs; throws on a board without I²C. */
+  const sclUs = (): number => {
+    if (board.i2c === undefined) {
+      throw new RangeError(`${board.id} has no I²C`);
+    }
+    return 1_000_000 / board.i2c.sclHz;
+  };
+  /** A bus phase: Wire's service, then `periods` SCL periods. */
+  const phase = (periods: number) => clock.charge(costs.wirePhase + periods * sclUs());
+  /** The device's time: µs since setup() began, in whole cycles (every cost is a whole number of them). */
+  const busNowUs = () => Math.round((clock.now() - originMs) * 1000 * cyclesPerUs) / cyclesPerUs;
+  const isBusLevel = (device: WireDevice | I2cDevice): device is I2cDevice => 'connect' in device;
+  const nack = (address: number) =>
+    report({ severity: 'warning', code: 'wire-nack', address, message: `No I²C device answers at address ${hex(address)}: the write is not acknowledged.` });
+  /** START and the address byte: the device, when it acknowledges; otherwise the STOP, a wire-nack warning and null. */
+  const connect = (address: number, read: boolean): WireDevice | I2cDevice | null => {
+    checkAddress(address);
+    phase(START_STOP_PERIODS);
+    phase(BYTE_PERIODS);
+    const device = wire.get(address);
+    const acked = device !== undefined && (isBusLevel(device) ? device.connect(busNowUs(), read) : true);
+    if (!acked) {
+      phase(START_STOP_PERIODS);
+      nack(address);
+      return null;
+    }
+    return device;
+  };
+  const stop = (device: WireDevice | I2cDevice) => {
+    phase(START_STOP_PERIODS);
+    if (isBusLevel(device)) {
+      device.stop(busNowUs());
+    }
+  };
+
+  const i2c: WireBus = {
+    transmit(address, bytes) {
       for (const byte of bytes) {
         if (!Number.isInteger(byte) || byte < 0 || byte > 255) {
           throw new RangeError(`An I²C byte is 0..255, not ${String(byte)}`);
         }
       }
-      const device = wire.get(address);
-      if (!device) {
-        report({ severity: 'warning', code: 'wire-nack', address, message: `No I²C device answers at address ${hex(address)}: the write is not acknowledged.` });
-        return;
+      const device = connect(address, false);
+      if (device === null) {
+        return false;
       }
-      device.write?.([...bytes]);
+      let acked = true;
+      for (const byte of bytes) {
+        phase(BYTE_PERIODS);
+        if (isBusLevel(device) && !device.write(busNowUs(), byte)) {
+          // Wire sends the STOP after a byte the device does not acknowledge (twi.c, TW_MT_DATA_NACK).
+          acked = false;
+          break;
+        }
+      }
+      stop(device);
+      if (!isBusLevel(device)) {
+        device.write?.([...bytes]);
+      }
+      return acked;
     },
-    read(address, count) {
-      checkAddress(address);
-      const device = wire.get(address);
-      if (!device) {
-        report({ severity: 'warning', code: 'wire-nack', address, message: `No I²C device answers at address ${hex(address)}: the write is not acknowledged.` });
+    request(address, count) {
+      if (!Number.isInteger(count) || count < 1 || count > WIRE_BUFFER_BYTES) {
+        throw new RangeError(`Wire reads 1..${String(WIRE_BUFFER_BYTES)} bytes, not ${String(count)}`);
+      }
+      const device = connect(address, true);
+      if (device === null) {
         return [];
       }
-      return [...(device.read?.(count) ?? [])].slice(0, count);
+      const whole = isBusLevel(device) ? [] : [...(device.read?.(count) ?? [])].slice(0, count);
+      const bytes: number[] = [];
+      for (let index = 0; index < count; index++) {
+        // A byte read is the service, then the device drives SDA from its first bit on.
+        clock.charge(costs.wirePhase);
+        if (isBusLevel(device)) {
+          bytes.push(device.read(busNowUs()));
+        } else if (index < whole.length) {
+          bytes.push(whole[index] ?? 0);
+        }
+        clock.charge(BYTE_PERIODS * sclUs());
+      }
+      stop(device);
+      return bytes;
     },
+    transactionUs(dataBytes, acked) {
+      const bytes = acked ? dataBytes : 0;
+      return (bytes + 3) * costs.wirePhase + (2 * START_STOP_PERIODS + (bytes + 1) * BYTE_PERIODS) * sclUs();
+    },
+  };
+  const wireIO: WireIO = {
+    write: (address, bytes) => void i2c.transmit(address, bytes),
+    read: (address, count) => i2c.request(address, count),
   };
 
   const io: DriverIO = {
@@ -459,6 +571,7 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
         }
       }),
     wire: wireIO,
+    i2c,
     delayMicroseconds: (us) => clock.charge(us),
     compute: (us) => clock.charge(us),
   };
@@ -493,7 +606,7 @@ export function createVirtualUno(board: BoardProfile, clock: ProgramClock): Virt
     attachAnalogSource: (id, source) => attach(id, 'analog', source),
     attachDigitalSource: (id, source) => attach(id, 'digital', source),
     attachPulseSource: (id, source) => attach(id, 'pulse', source),
-    attachWireDevice: (address, device) => {
+    attachWireDevice: (address: number, device: WireDevice | I2cDevice) => {
       checkAddress(address);
       wire.set(address, device);
     },
