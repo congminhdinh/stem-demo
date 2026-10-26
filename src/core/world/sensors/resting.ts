@@ -9,6 +9,10 @@ import { isFinitePose, type ColliderLookup, type SensedCollider } from './collid
 // which is computed at the start of a step and is not updated at all while a body sleeps (contacts.ts measured a cube asleep 0.07 mm into
 // the floor keeping a manifold of 1.7 mm above it): a cube put down and gone to sleep still rests on what it rests on. A collider the lookup
 // does not name (the robot's own) is never a support.
+//
+// A limit, unlike contacts.ts: no intersection-test fallback. Rapier 0.21's contact query can miss a pair that overlaps by a hair (contacts.ts
+// `touches`), and such a support would be left out. Not reproduced here (B3/B4 review: 4500 checks, 25 yaws × 3 offsets through sleep, no
+// miss); no goal reads `restingOn` yet.
 
 /** The least y of a support's outward normal at the contact: its surface faces up (cos 45.57°). */
 export const RESTING_NORMAL_MIN_Y = 0.7;

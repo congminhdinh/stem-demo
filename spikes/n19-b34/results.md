@@ -33,3 +33,14 @@ Lấy `src/core/world/world.gripper.cost.test.ts` (kịch bản 1 của spike: s
 | HEAD | 0,1733 / 0,1644 / 0,1778 / 0,1702 / 0,1704 / 0,1650 | 0,174–0,185 | 0,225–0,257 |
 
 Chênh lệch khoảng +0,012 ms/tick (khoảng 7 %). Phần thêm gồm tia IR, tia màu và `restingOn` của goal frame mỗi tick. Ngân sách trên máy trường vẫn do E9 đo.
+
+## Overlay vẽ lại khi xe nằm yên (review B3/B4 M1, việc của E5; 2026-10-27, load khoảng 5–14)
+
+Chạy `spikes/n19-b34/redraw-at-rest.test.ts` (cách chạy ghi ở đầu file). Session thật chạy realtime 1×, 60 frame/s trong 10 s; chương trình xong ở khoảng 1 s. Chỉ đếm các snapshot có t ≥ 3 s.
+
+| Kit | publish lúc nằm yên (6,9 s) | `sameSensorView` báo khác (overlay 3D `invalidate(2)`) | 2D vẽ lại | `sameView` báo khác |
+|---|---|---|---|---|
+| ref-uno-rover@0 | 70 | 0 | 0 | 0 |
+| ref-uno-gripper@0 | 70 | 69 | 69 | 0 |
+
+Kit gripper vẽ lại khoảng 20 frame WebGL/s và 10 lần lớp 2D mỗi giây khi lẽ ra là 0. Nguyên nhân: shim `NotALineSensor` khiến hai kiểu readout mới rơi vào nhánh line của `sameSensorView`. Theo bench E6/E7 (`spikes/n19-e67/results/bench`, load khoảng 25), lệnh render trên profile máy trường tốn 3,2–3,4 ms main thread mỗi frame.

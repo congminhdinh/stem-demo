@@ -25,7 +25,7 @@ import type { SensedBody } from './sensed-bodies';
 // sensor does not change what the ultrasonic reads.
 
 export type ColorOptions = {
-  /** Colliders the ray passes through though the lookup names them (the carriage, the floor). */
+  /** Colliders the ray passes through though the lookup names them (the carriage, the boom at its hinge, the floor). */
   readonly exclude?: (collider: Collider) => boolean;
 };
 

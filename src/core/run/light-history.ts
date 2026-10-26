@@ -7,8 +7,8 @@ import { PHYSICS_HZ } from '../world/rapier';
 //
 // Tick k's entry is the light of the world at tick k, stamped k · 1000 / PHYSICS_HZ ms: the light of the tick's interval [k·dt, (k+1)·dt),
 // as the program reads every other sensor (the world's measure of tick k, all through the tick). A window [from, to) averages the entries
-// of the ticks that lie wholly inside it, times its length, floored to whole counts·µs; a window that holds no whole tick (shorter than two
-// ticks) reads the tick it starts in. The driver's windows (ATIME 0xEB, 50.4 ms) hold five or six ticks.
+// of the ticks that lie wholly inside it, times its length, floored to whole counts·µs; a window that holds no whole tick (always one under a
+// tick long, sometimes one under two) reads the tick it starts in. The driver's windows (ATIME 0xEB, 50.4 ms) hold five or six ticks.
 //
 // Why whole ticks: how far the program's bus runs ahead of the world (A2+A3, plan §4.7). A colour read's op starts inside its tick (world.t
 // ≤ program clock < world.t + dt) and its last bus event, its STOP, comes 1123.8125 µs later (`colorReadLastEventUs`), so the model closes a
@@ -37,8 +37,6 @@ export type LightHistory = {
   record(tick: number, light: Rgbc): void;
   /** The light over [fromUs, toUs) for the register model (see the top of this file). */
   readonly integral: LightIntegral;
-  /** The last tick recorded; −1 before the first. */
-  readonly latestTick: number;
   /** Every window the register model can make that ends before this time (µs) is decided by the ticks recorded so far. */
   decidedBeforeUs(): number;
 };
@@ -101,9 +99,6 @@ export function createLightHistory(): LightHistory {
       latest = tick;
     },
     integral,
-    get latestTick() {
-      return latest;
-    },
     decidedBeforeUs: () => (latest + 1) * TICK_US + SHORTEST_WINDOW_US,
   };
 }

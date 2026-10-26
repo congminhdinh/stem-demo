@@ -239,6 +239,8 @@ type IrSensor = RidingSensor<IrObstacleSpec> & { readonly activeLow: boolean };
 type ColorSensor = RidingSensor<ColorSensorSpec>;
 
 const NO_SCORE: ScoreState = deepFreeze({ points: 0, maxScore: null, goals: [] });
+/** The kinds of module the snapshot's `sensors` reads, in kit order (N19 B3: the IR and the colour sensor too). */
+const SENSOR_KINDS: ReadonlySet<string> = new Set(['ultrasonic', 'line-sensor', 'ir-obstacle', 'color-sensor']);
 const NO_PINS = Object.freeze([]);
 
 /** The world, from an input `checkInput` has passed, once physics is loaded. */
@@ -276,7 +278,6 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
       colors.push({ role: module.role, spec: module.spec as unknown as ModuleSpecs['color-sensor'], on, at, turn });
     }
   }
-  const SENSOR_KINDS: ReadonlySet<string> = new Set(['ultrasonic', 'line-sensor', 'ir-obstacle', 'color-sensor']);
   const sensorOrder = kit.modules.filter((module) => SENSOR_KINDS.has(module.kind)).map((module) => module.role);
   const leds: Readonly<Record<string, boolean>> = Object.freeze(Object.fromEntries(kit.modules.filter((module) => module.kind === 'led').map((module) => [module.role, false])));
   const outline = footprint.outlineCm.map(([x, y]) => robotPointToLocal([x, y, 0]));
@@ -299,6 +300,7 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
   // only; the rover's leaves out every collider of the robot, through the arena's lookup, as before.
   const gripper = robot.gripper;
   const sensed = gripper === null && irs.length === 0 && colors.length === 0 ? null : sensedBodies(built, gripper);
+  // `sensed` is never null with a gripper; testing it too only narrows the type.
   const ultrasonicLookup: ColliderLookup<SensedCollider> = gripper === null || sensed === null ? built : sensed;
   const ultrasonicExclude: (collider: Collider) => boolean = gripper === null ? robot.ownsCollider : (collider) => robot.ownsCollider(collider) && !gripper.ownsCollider(collider);
   // The sensors on the carriage sit in it, by its hinge, where the boom's cross bar meets it: their mount (u 0.3) lies inside the carriage's

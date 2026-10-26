@@ -122,7 +122,7 @@ describe('the light history (N19 B4)', () => {
     expect(() => history.record(1, lightOf(1))).toThrow(new RangeError('The light history records tick 0 next, not 1.'));
     for (let tick = 0; tick < 100; tick++) history.record(tick, lightOf(tick));
     expect(() => history.record(99, lightOf(99))).toThrow(RangeError);
-    expect(history.latestTick).toBe(99);
+    expect(history.decidedBeforeUs()).toBe(100 * DT_US + 2400);
     // Tick 20 is the oldest kept (99 − 79): a window of ticks 21..26 reads as ever; one of ticks long gone reads no light (the model never
     // shows it: the register keeps the last window, which ends within a cycle, 52.8 ms, of the read).
     // Ticks 21..26: [175 000, 225 000) µs.
