@@ -5,7 +5,7 @@ import { blockTypes } from '../../core/program/blocks';
 import type { BlockPackCatalog, Toolbox } from '../../core/program/block-packs';
 import type { ProjectStore } from '../state/project-store';
 import { registerBlocks, ybcVariablesFlyout } from './editor-blocks';
-import { fitBlocksIntoView, minFitScale } from './fit';
+import { fitBlocksIntoView, type FitOptions } from './fit';
 import { createLatestThrottle, type LatestThrottle } from './latest-throttle';
 import { blocklyMediaUrl } from './media';
 import { stemTheme } from './theme';
@@ -50,13 +50,14 @@ type BlocklyPanelProps = {
   toolbox: Toolbox;
   /**
    * A lab launch (N8s): every loaded program (the starter, a host's load-project, the learner's last one restored) is shrunk, if needed, so
-   * that all its blocks are in sight, and scrolled so that its top-left is (N18 bt-lab-fix, c4). Only a load does it: the learner's own
-   * edits, scrolls and zooms never move the view. An editor that has no size when the program loads (a tab that is not shown) does it
-   * once it has one.
+   * that all its blocks are in sight. Only a load does it: the learner's own edits, scrolls and zooms never move the view.
    */
   fitOnLoad?: boolean;
-  /** The smallest scale `fitOnLoad` may zoom out to (`minFitScale` by default; the robot lab's is `minRobotFitScale`). */
-  fitMinScale?: number;
+  /**
+   * What `fitOnLoad` asks of the fit besides what the Blockly and Yolo:Bit labs have always had (N8s): the robot lab's `robotFit` (a smaller
+   * smallest scale, the top-left of the program scrolled into sight, a fit once an editor with no size has one). Must be stable.
+   */
+  fitOptions?: FitOptions;
   /**
    * The document's program did not open in the editor (Fix 6, N17 m2: e.g. a block in an input whose type it does not take). The
    * panel shows nothing and saves nothing for that document, so it is never overwritten; its owner opens another one.
@@ -180,7 +181,7 @@ export function BlocklyPanel({
   packs,
   toolbox,
   fitOnLoad = false,
-  fitMinScale = minFitScale,
+  fitOptions,
   onLoadFailed,
   highlightBlockId = null,
   blockWarnings,
@@ -240,7 +241,7 @@ export function BlocklyPanel({
         Blockly.serialization.workspaces.load(blocks, workspace);
       }
       if (fitOnLoad) {
-        fitPending = !fitBlocksIntoView(workspace, fitMinScale);
+        fitPending = !fitBlocksIntoView(workspace, fitOptions);
       }
       if (showsStarter) {
         pristine = JSON.stringify(Blockly.serialization.workspaces.save(workspace));
@@ -301,7 +302,7 @@ export function BlocklyPanel({
     const resizeObserver = new ResizeObserver(() => {
       Blockly.svgResize(workspace);
       // Nothing could be done to the program while its editor had no size, so this is still the loaded view.
-      if (fitPending && loaded && fitBlocksIntoView(workspace, fitMinScale)) {
+      if (fitPending && loaded && fitBlocksIntoView(workspace, fitOptions)) {
         fitPending = false;
       }
     });
@@ -331,7 +332,7 @@ export function BlocklyPanel({
       }
       workspace.dispose();
     };
-  }, [loadRevision, projectStore, packs, toolbox, fitOnLoad, fitMinScale, emptyProgram]);
+  }, [loadRevision, projectStore, packs, toolbox, fitOnLoad, fitOptions, emptyProgram]);
 
   // N18 R4.2: a check locks the workspace and its end unlocks it.
   useEffect(() => {

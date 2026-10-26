@@ -10,7 +10,7 @@ import { buildToolbox, createBlockPackCatalog, ybcStructurePackId } from '../../
 import { print, program, text } from '../../core/program/__fixtures__/ybc-blocks';
 import { createProjectStore, type ProjectStore } from '../state/project-store';
 import { BlocklyPanel } from './BlocklyPanel';
-import { fitBlocksIntoView, minFitScale, minRobotFitScale } from './fit';
+import { fitBlocksIntoView, robotFit, type FitOptions } from './fit';
 
 // N18 bt-lab-fix (c4): a program the host loads (the LMS's load-project, the learner's last one restored) is brought into view, as the
 // lab's own starter is, and only then: the learner's own edits never move the view. A load into an editor that has no size yet (a tab that
@@ -75,7 +75,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-type Props = { fitOnLoad?: boolean; fitMinScale?: number };
+type Props = { fitOnLoad?: boolean; fitOptions?: FitOptions };
 const render = (props: Props = {}) => act(async () => root.render(<BlocklyPanel projectStore={store} packs={packs} toolbox={toolbox} {...props} />));
 const workspace = () => Blockly.getMainWorkspace() as Blockly.WorkspaceSvg;
 const wait = (ms: number) => act(async () => void vi.advanceTimersByTime(ms));
@@ -89,22 +89,22 @@ const learnerAddsABlock = () =>
   });
 
 describe('BlocklyPanel fitOnLoad (N8s, N18 bt-lab-fix c4)', () => {
-  it('fits the program it opens, and the one a host loads later, at the smallest scale the lab gave; not before the load, not on an edit or a render', async () => {
+  it('fits the program it opens, and the one a host loads later, as the lab asked; not before the load, not on an edit or a render', async () => {
     store = createProjectStore(documentOf(program([print(text('first'))])));
-    await render({ fitOnLoad: true, fitMinScale: minRobotFitScale });
-    expect(fit.mock.calls.map(([, min]) => min)).toEqual([minRobotFitScale]);
+    await render({ fitOnLoad: true, fitOptions: robotFit });
+    expect(fit.mock.calls.map(([, options]) => options)).toEqual([robotFit]);
     const first = workspace();
     expect(fit.mock.calls[0]![0]).toBe(first);
     // A host's load-project (or a restore): another document, so a new load.
     await act(async () => store.getState().loadProject(documentOf(program([print(text('restored'))]))));
-    expect(fit.mock.calls.map(([, min]) => min)).toEqual([minRobotFitScale, minRobotFitScale]);
+    expect(fit.mock.calls.map(([, options]) => options)).toEqual([robotFit, robotFit]);
     expect(fit.mock.calls[1]![0]).toBe(workspace());
     expect(fit.mock.calls[1]![0]).not.toBe(first);
     // The learner's own edit is saved into the document, which is no load; nor is a render of the panel.
     await learnerAddsABlock();
     await wait(1000);
     expect(JSON.stringify(store.getState().document.program.blocks)).toContain('"text_print"');
-    await render({ fitOnLoad: true, fitMinScale: minRobotFitScale });
+    await render({ fitOnLoad: true, fitOptions: robotFit });
     await wait(1000);
     expect(fit).toHaveBeenCalledTimes(2);
     // And the editor getting resized (the window, the splitter) is no reason to fit again, as it has been fitted.
@@ -112,10 +112,14 @@ describe('BlocklyPanel fitOnLoad (N8s, N18 bt-lab-fix c4)', () => {
     expect(fit).toHaveBeenCalledTimes(2);
   });
 
-  it('uses the other labs’ smallest scale when none is given, and fits nothing when the launch is not a lab', async () => {
+  it('asks nothing more of the fit for a Blockly or Yolo:Bit lab (no options: N8s as it was), and fits nothing when the launch is not a lab', async () => {
     store = createProjectStore(documentOf(program([print(text('a'))])));
     await render({ fitOnLoad: true });
-    expect(fit.mock.calls.map(([, min]) => min)).toEqual([minFitScale]);
+    expect(fit.mock.calls.map(([, options]) => options)).toEqual([undefined]);
+    // Their fit never says the view had no size: no fit waits for one, whatever a resize does.
+    act(() => resizes.forEach((resize) => resize()));
+    await act(async () => store.getState().loadProject(documentOf(program([print(text('a2'))]))));
+    expect(fit.mock.calls.map(([, options]) => options)).toEqual([undefined, undefined]);
     act(() => root.unmount());
     root = createRoot(container);
     fit.mockClear();
@@ -127,7 +131,7 @@ describe('BlocklyPanel fitOnLoad (N8s, N18 bt-lab-fix c4)', () => {
   it('fits a program loaded into an editor with no size yet (a tab that is not shown) once the editor has one, and only once', async () => {
     store = createProjectStore(documentOf(program([print(text('hidden'))])));
     fit.mockReturnValue(false);
-    await render({ fitOnLoad: true, fitMinScale: minRobotFitScale });
+    await render({ fitOnLoad: true, fitOptions: robotFit });
     expect(fit).toHaveBeenCalledTimes(1);
     // Still no size: the observer fires (it does on any change) and the fit tries again.
     act(() => resizes.forEach((resize) => resize()));
