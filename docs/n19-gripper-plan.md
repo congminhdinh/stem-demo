@@ -476,6 +476,36 @@ Số đo và lệnh tái lập: `spikes/n19-b56/results.md`. Test: `world/robot/
   - Vùng theo màu được nhớ theo cặp goal × màu, nên frame callback của overlay 3D không tạo rác: đo 63,9–65,9 byte/update, như trước.
   - Kết quả của rover được ghim bằng bản N18 của hàm, trên mọi bài và mọi trạng thái điểm.
 
+### 4.14 Ghi lại khi làm D4–D8 (bốn bài; thắng §6 và §7 D4–D8 khi mâu thuẫn)
+
+Số đo và lệnh tái lập: `spikes/n19-d4/results.md`. Test: `tests/robot-scenarios.test.ts` (khối "N19 D4"), `check-robot.gripper-lessons.test.ts`,
+`check-robot.gripper-challenges.test.ts`, `scoring.hold-kinds.test.ts`, `tests/robot-determinism.test.ts`, `tests/verify-attempt.test.ts`,
+e2e `robot-lab-check.spec.ts` (Gate G1). Hướng dẫn soạn: `docs/robot-scenario-authoring.md` mục 11.
+
+- **Số của xe tay gắp placeholder** (khác rover, nên khác chữ của §6): 50 % chạy 13,2 cm/s, 60 % 20,0, 70 % 27,0; quay 50 % khoảng 103°/s, nên
+  **830 ms chỉ quay 82°**, lời giải dùng **900 ms (91,5°)**. IR thấy khối khi tâm khối cách giữa thân 12,55 cm; khối đang giữ cách 12,3 cm (tay 0°)
+  và 11,65 cm (tay 90°); ở tay 55° đáy khối cao 4,46 cm, trên bệ 4 cm.
+- **Khối lệch trục:** lệch ≥ 1,5 cm thì ngón đẩy khối đi 4,8–33 cm và xe đổi hướng tới 9,4° rồi mới gắp được (đo 65 trường hợp, lần nào cũng gắp được). Vì vậy:
+  - bài 8 chở theo **khoảng cách tới tường xa** (tay 90° đang giữ: nón sạch; dừng khi siêu âm ≤ 45 cm), không theo thời gian: khối luôn rơi ở x 127,3–127,6;
+  - bài 10 đặt khối **19 cm** trước giữa thân (lệch 3° còn 1 cm). Ở 32 cm, lượt lệch 2,9° đẩy khối 15,8 cm và lời giải chở thẳng đặt khối ra ngoài vùng xanh lá.
+- **Sa bàn đã chốt** (§6 không nói hết):
+  - bài 8: vùng y 25–65;
+  - bài 9: ba kiện ở y 70, 95, 120 trên vạch y 10–135, kho y 40–125 (kiện rơi khoảng 15 cm phía nam chỗ nó nằm), kệ kho x = 58, y 62,5–102,5, xuất phát y 26 (để lượt dời −6 cm còn vừa tường nam);
+  - bài 10: vùng 30 × 30 quanh chỗ khối rơi, vùng đỏ `#fce4e4` (mực hoa văn 3,27 : 1; `#f4cccc` chỉ 2,68 : 1, dưới sàn 2,9 của `zone-pattern.test.ts`), xuất phát xám `#e0e0e0`;
+  - bài 11: bệ ở (158, 40), chỗ khối tới khi xe dừng ở cuối vạch (giữa thân x 144,5).
+- **Seed** (spike `seeds`, 20 000 seed mỗi bài ở bán kính 16 cm):
+  - bài 8 seed 23 (khối +9,3 / −10,0; quay +1,3° / −1,9°);
+  - bài 9 seed 430 (dọc vạch −5,4 / +5,1; quay −4,9° / +3,5°);
+  - bài 10 seed 8 (−2,3° / +2,9°);
+  - bài 11 seed 217 (dọc vạch −12,0 / +9,4; khối +3,5 / −3,7).
+  Không seed nào được chọn để né jitter của lời giải mẫu: lời giải qua mọi biến thể nhờ thiết kế ở trên.
+- **Guard `no-crash` dùng tag `wall`** ở bài 8, 9, 10, và mọi bài có `endOnContact: ["wall"]`, kể cả bài 11 không có goal canh gác (ruling G0 wall: mọi tường trên đường càng). Ở bài 9 tag `wall` gồm cả kệ kho (tường có tag `kho-wall`) lẫn bốn tường bao, vì một lần chở quá tay ở hàng y 55 hay y 105 đi qua kệ 40 cm và gặp tường tây.
+- **Lời giải mù:** bài 8, 9, 11 (bài 10 không có: biến thể là màu). Điểm và trần của mọi exploit: authoring guide mục 11.5; trần = §6.
+  - `open-jaw-sweep-lift` (D2 review N1) không quét được bằng càng mở hẳn: vòng quay hất kiện ra. Càng 10° thì vòng quay ép kiện vào một ngón và ngón gắp nó ở tay 0° (kéo lê), rồi tới kho mới kẹp và nâng 1 cm tại chỗ: 15 / 0 / 15.
+- **`HOLD_KINDS` (D2 review M8):** `object-held` vào (là một lần giữ); `object-placed` và `object-on-object` chỉ đổi lý do `object-not-at-rest` thành `run-ended-contact`, các lý do khác giữ nguyên. Điểm không đổi. Rover không dùng các kind này.
+- **Chưa có ruling, plan §6 "hạ hết tay (≤ 20)" của bài 11:** hạ tay 0° ở cuối vạch rồi mới mở kẹp đặt khối lên bệ lệch 1,71–1,81 cm, bệ dời 0,04–0,05 cm. `base-still` (≤ 2 cm) qua, nên được 35 > 20. Không giữ được dưới trần nếu không đổi goal (một `maxMoveCm` < 0,04 cm thì vô nghĩa). Trong `exploits` hiện là `arm-too-low` (chở ở 45°: quệt và đẩy bệ, đúng 20). Ý nghĩa thứ hai của "hạ hết tay" (chở ở 0°) được 0.
+- **Test N18:** các test đếm key được nối thêm bốn key. Test và fixture chỉ dành cho N18 (n19-neutral, golden khung nhìn R4.7, hộp bao của prop pilot, case của pilot, kit rehearsal) giữ đúng sáu bài rover. Chín assertion có luật "mọi bài là rover / không có vật" chờ ruling (`d4-pending-assertion-edits.patch` trong sdd).
+
 ## 5. Review Focus
 
 1. **Vật đang giữ đâm tường hoặc vật khác, hoặc bị ép xuống sàn.** Tuột đúng ngưỡng, va chạm tính cho xe, không có NaN, xe không lật. *Test (B3):* `held cube hitting a wall at 0.4 m/s breaks the grasp and counts as robot contact`; `pressing a held cube on the floor at lift stall keeps the grasp`.

@@ -16,7 +16,7 @@ kích thước thật để thử trên robot thật (mục 10). Ví dụ lấy 
 | `src/samples/robot-scenarios/index.ts` | Catalog: nạp và validate mọi file bằng `loadScenario` khi module được import; file sai là lỗi ngay. |
 | `src/samples/robot-scenarios/ready-fields.ts` | Đọc `version`, `goals[].points`, `scoring` của từng file cho message `ready` (không qua schema, để bundle chính không kéo `src/core/world`). Test giữ nó khớp catalog. |
 | `docs/fixtures/robot-scenarios.v1.json` | Manifest cho STEMLearning (key, version, title, goal ids, maxScore). Sinh bằng `pnpm export:robot-manifest`, **phải commit** cùng thay đổi. |
-| `src/samples/robot-solutions.ts` | Lời giải chuẩn (`reference`), lời giải chạy mù (`blind`, bài 3–6) và ghi chú (`notes`) của mỗi kịch bản có điểm. |
+| `src/samples/robot-solutions.ts` | Lời giải chuẩn (`reference`), lời giải chạy mù (`blind`, bài 3–6 và bài tay gắp 8, 9, 11) và ghi chú (`notes`) của mỗi kịch bản có điểm. |
 | `tests/robot-scenarios.test.ts` | Kiểm tra tĩnh: luật, biến thể, toolbox, compile, Blockly, golden. |
 | `tests/robot-solutions/<key>.ino` | Sketch Arduino của lời giải chuẩn (golden); `pnpm check:arduino --require` compile nó bằng arduino-cli. |
 | `src/core/scenario/{scoring,check-robot}.ts` | Chấm điểm và Kiểm tra thật (R6.2): mục 4 nói luật chấm, mục 8 nói cách chạy sáu bài pilot qua nó. Là **cổng** của mọi thay đổi kịch bản. |
@@ -31,7 +31,7 @@ Key `rb-*` là hợp đồng công khai (khóa học lưu nó): **không bao gi�
 | Trường | Ý nghĩa |
 |---|---|
 | `key`, `version`, `title {vi, en}` | `title` trùng với `robot.scenario.<key>` trong `src/ui/i18n/messages.ts` (test kiểm). |
-| `profile`, `kit` | Profile mà key cần (`robot-keys.ts`, hiện là `uno-basic`) và kit `ref-uno-rover`. |
+| `profile`, `kit` | Profile mà key cần (`robot-keys.ts`, hiện là `uno-basic`) và kit của key: `ref-uno-rover` (bài 1–6, sân tập) hay `ref-uno-gripper` (bài 8–11, mục 11). |
 | `arena` | Sa bàn: `ground`, `paint.lines`, `paint.zones`, `walls`, `boxes`, `cylinders`, `objects` (mục 3). |
 | `start` | `{ xCm, yCm, yawDeg }`: điểm trên sàn dưới **giữa thân** robot và hướng (độ, ngược chiều kim đồng hồ từ +x). |
 | `variants` | `{ count, seed, startJitterCm, startJitterAlongCm?, yawJitterDeg, obstacleJitterCm? }` (mục 6). |
@@ -81,8 +81,9 @@ nên schema từ chối nó ngay khi nạp scenario. Dấu kết hợp (tiếng 
   được với chúng.
 - **Vật (`boxes`, `cylinders`):** `fixed` (mặc định) hoặc `dynamic` (cần `massG`). `tags` cho goal `avoid-contact` (loại `wall`,
   `box`, `cylinder`, `object` tự có). Tag `jitter` cho phép biến thể dời vật (mục 5).
-- **`objects`:** vật để đẩy (goal `object-in-zone`). Pilot chưa dùng. Tay servo **chỉ là cờ báo hiệu**: từ R3.5 nó nằm trong thân
-  robot ở mọi góc, không đẩy được gì; muốn đẩy vật thì dùng thân robot.
+- **`objects`:** vật để đẩy (goal `object-in-zone`) hay để gắp (bốn goal gắp–đặt của N19). Pilot (bài 1–6) chưa dùng; bốn bài tay gắp dùng
+  (mục 11: vật phải vuông nhìn từ trên). Tay servo **chỉ là cờ báo hiệu**: từ R3.5 nó nằm trong thân robot ở mọi góc, không đẩy được gì;
+  muốn đẩy vật thì dùng thân robot.
 
 ## 4. Mục tiêu (`goals`) và điểm
 
@@ -138,14 +139,16 @@ headless, 1× và 4×.
 ## 5. Luật bắt buộc (checklist)
 
 1. **Điểm = 100:** `Σ points + (timeBonusMax ?? 0) = 100`, số nguyên. `rb-sandbox` không có goal, không có `timeBonusMax`.
-2. **Goal phải thưởng một hành động:** mỗi goal canh gác phải đi cùng ít nhất một goal "đạt tới" (`reach-zone`, `checkpoints-in-order`,
-   `stop-in-zone`, `servo-angle`, `object-in-zone`). Robot ở mọi biến thể **không được bắt đầu trong** (hay sát, trong 13 cm) vùng mà
+2. **Goal phải thưởng một hành động:** mỗi goal canh gác (`avoid-contact`, `stay-on-line`, N19: `object-unmoved`) phải đi cùng ít nhất một goal
+   "đạt tới" (`reach-zone`, `checkpoints-in-order`, `stop-in-zone`, `servo-angle`, `object-in-zone`, N19: `object-held`, `object-placed`,
+   `object-on-object`). Robot ở mọi biến thể **không được bắt đầu trong** (hay sát, trong 13 cm) vùng mà
    một goal gửi nó tới; vật không được bắt đầu trong vùng đích của nó. Starter không được giải bài (mục 7).
 3. **Vùng checkpoint của một goal không chồng nhau**, không vẽ đa giác tự cắt.
 4. **Chỗ xuất phát:** footprint của robot là hình tròn 11 cm (`ROBOT_FOOTPRINT_RADIUS_CM`; góc bánh của `ref-uno-rover@0` cách giữa thân
    10,27 cm). Pilot giữ thêm **2 cm** trống quanh mọi chỗ xuất phát của mọi biến thể (13 cm tới tường, vật, mép sàn). `createWorld`
    từ chối chỗ xuất phát mà bất kỳ phần nào của robot (thân, bánh, bánh tự lựa, tay servo ở mọi góc) đè lên vật.
-5. **Tốc độ trong lời giải ≥ 40 %:** kit placeholder không chạy dưới duty khoảng 80 (31 %) và rất chậm ngay trên đó.
+5. **Tốc độ trong lời giải ≥ 40 %:** kit placeholder không chạy dưới duty khoảng 80 (31 %) và rất chậm ngay trên đó. Xe tay gắp: **≥ 50 %**
+   (ruling G0 start duty: xe giữ 50 g khởi động được từ duty 128; ngưỡng khoảng 95).
 6. **Kit placeholder:** mọi thời gian và khoảng cách dưới đây đo trên `ref-uno-rover@0`, mà số cơ khí là PLACEHOLDER. Khi có số đo
    của nhà cung cấp (plan VG), phải đo lại thời gian của lời giải mở (bài 1–2) và mọi lời giải mù, kiểm lại vùng và vật cản (robot rộng
    hơn cần vật cản xa hơn), rồi tăng `version`.
@@ -159,7 +162,8 @@ headless, 1× và 4×.
     dừng, bám vạch mà không đo khoảng cách, bám vạch rồi dừng (hay bò) sau một thời gian cố định, bám vạch rồi lùi khi mất vạch. Không cách nào được qua check; ghi điểm cao nhất của mỗi cách (điểm check, tức
     điểm thấp nhất trong các biến thể) vào `exploits` của lời giải (mục 7); điểm đó nên **≤ 60**.
 11. **`whenInZone` không đòi dừng** (mục 4): goal cờ ở cổng phải đi cùng `stop-in-zone` nếu bài muốn robot dừng.
-12. **Đâm là hết lượt** khi bài coi đâm là hỏng: đặt `endOnContact` bằng tag của `avoid-contact` (mục 4).
+12. **Đâm là hết lượt** khi bài coi đâm là hỏng: đặt `endOnContact` bằng tag của `avoid-contact` (mục 4). Xe tay gắp: **mọi** bài có
+    `endOnContact: ["wall"]`, có goal canh gác hay không (ruling G0 wall, mục 11.3).
 
 ## 6. Biến thể (`variants`)
 
@@ -409,3 +413,145 @@ Nhãn của vùng tự né vạch và chỗ robot đứng (thu nhỏ chữ, tớ
 - Một kịch bản mới không cần làm gì thêm: script đọc catalog, nên `pnpm export:arena-mat <key mới>` chạy ngay khi kịch bản nạp được.
 - Test: `src/core/scenario/arena-mat.test.ts` (SVG, viewBox, bề rộng vạch, id vùng, thanh 10 cm, kế hoạch lát trang, và với mỗi kịch bản: tại 20 000 điểm rải đều, độ phản xạ của `ground-paint.ts` bằng cái SVG vẽ, nên sai bề rộng vạch hay lật trục y là test đỏ), `tests/arena-mat-png.test.ts` (PNG: IHDR, pHYs, đọc lại bằng `node:zlib`),
   `tests/arena-mat-pdf.test.ts` (khung trang), `tests/export-arena-mat.test.ts` (chạy cả script cho `rb-drive-to-zone`, kiểm bốn file, MediaBox ± 0,5 pt và vài điểm ảnh).
+
+## 11. Xe tay gắp: vật, goal gắp–đặt và bốn bài 8–11 (N19 D4–D8)
+
+Bốn bài `rb-grip-pick`, `rb-grip-deliver`, `rb-grip-sort`, `rb-grip-stack` chạy trên kit `ref-uno-gripper@0`: xe UNO của rover cộng tay gắp
+2 bậc (kẹp `claw` và tay nâng `lift`, servo D9 và D10), cảm biến hồng ngoại giữa càng (`irClaw`, A3, active low) và cảm biến màu TCS34725
+(`color1`, I²C A4/A5). Plan: `docs/n19-gripper-plan.md` §4.4–§4.12 (world và cảm biến), §4.14 (ghi lại khi làm D4–D8), §6 (bốn bài). Các số
+dưới đây đo bằng spike `spikes/n19-d4/` (kết quả và lệnh ở `spikes/n19-d4/results.md`) trên kit **PLACEHOLDER**: đổi sang tay gắp của nhà
+cung cấp (plan VG) thì phải đo lại mọi thời gian (quay, chở, mọi lời giải mù), kiểm lại vị trí vật và vùng, rồi tăng `version`.
+
+### 11.1 Số của xe tay gắp (PLACEHOLDER)
+
+| Đại lượng | Giá trị (đo) |
+|---|---|
+| Tốc độ ở 50 % / 60 % / 70 % | 13,2 / 20,0 / 27,0 cm/s (đã chạy đều; 100 %: 47,6) |
+| Quay tại chỗ ở 50 % | khoảng 103°/s: 830 ms quay **82°** (rover: 90°), **900 ms quay 91,5°**; tâm thân dời 2,8 cm (quay quanh trục bánh, 2 cm sau giữa thân) |
+| Dừng (thả trôi) ở 50 % | trong 0,3 cm |
+| Tay 90° → 0° | 0,15 s; kẹp giữ khối 4 cm 0,04 s sau lệnh "kẹp đóng" |
+| IR thấy khối | khi tâm khối cách giữa thân 12,55 cm (mặt gần cách cảm biến 2 cm) |
+| Khối đang giữ | tâm cách giữa thân 12,3 cm ở tay 0°, 11,65 cm ở tay 90°; ở tay 55° đáy khối cao 4,46 cm |
+| Footprint | bán kính 16 cm của kit (biến thể giữ trống); tầm với của tay ở mọi góc 15,30 cm |
+| Vật gắp được | bề rộng riêng ≤ 4,3 cm (`gripWidthCm`); tải tối đa 50 g; bệ 6 × 6 cm không gắp được, đúng ý đồ |
+
+### 11.2 Cảm biến: điều chương trình phải biết
+
+- **Siêu âm bị chắn** (plan §4.12): vỏ servo kẹp ở tay 8–40°, giá kẹp ở 41–52° (đọc 2 cm), khối 4 cm đang giữ ở 55–70° (đọc 3,35–3,74 cm). Sạch ở
+  0–3° và 56–90° khi không giữ, ở 0° và 80–90° khi giữ. **Chỉ đọc khoảng cách ở tay 0°, hoặc ở 80–90° khi đang giữ.** Sau "tay hạ" phải chờ
+  tay xuống hẳn (0,15 s; lời giải mẫu chờ 300 ms): đọc ngay thì gặp tay đang đi qua 8–52° và đọc 2 cm.
+- **Siêu âm và khối 4 cm:** cảm biến ở cao 5 cm, nên chỉ tia dưới của nón (−15°) nghe khối, từ khoảng 18,7 cm (đọc khoảng 19 cm). Tiếng
+  vọng cuối cùng khi khối vào giữa càng là 3,94 cm; khối nằm giữa càng ở trong **vùng mù** của nón (siêu âm đọc qua nó tới tường xa). Ở tay 45° nó đọc 2 cm (chính giá kẹp).
+- **IR:** tầm 2 cm tính từ mount (0,2 cm sau mặt giá kẹp). Không có vật thì không bao giờ thấy ngón; vật đen (`#212121`) không thấy.
+- **Màu:** khối đang giữ cách cảm biến khoảng 1,7 cm; bốn màu bảng màu đọc đúng ở 1–3 cm; khối trắng đọc "trắng" ở 1 cm nhưng "không rõ" ở
+  3 cm; kẹp đóng mà không có vật thì cảm biến thấy ngón của chính nó và đọc "đen". Đọc màu **sau khi** đã gắp và nâng (cửa sổ đo 52,8 ms).
+- **Khối lệch trục:** khối lệch trục xe ≥ 1,5 cm bị một ngón đẩy đi 4,8–33 cm và làm xe đổi hướng tới 9,4° trước khi IR thấy và càng ôm được
+  (spike `capture`, 65 lần đều gắp được). Giữ khối trong 1 cm quanh trục: tiếp cận ngắn (bài 10: khối cách 19 cm, lệch 3° chỉ còn 1 cm) hay bám vạch (bài 9, 11), hoặc
+  đặt vật theo khoảng cách tới tường thay vì theo chỗ đã gắp (bài 8).
+
+### 11.3 Vật, vùng, tường cho xe tay gắp
+
+- **Vật phải vuông nhìn từ trên** (review B1/B2 M6): hộp có `sizeCm[0] = sizeCm[1]`, `yawDeg` 0, hoặc trụ. Không dùng hình chữ nhật: luật 6 của
+  máy gắp đo bề rộng riêng là cạnh ngắn, nên hình chữ nhật gặp càng theo cạnh dài có thể bị gắp với hai ngón lún vào vật.
+- Khối xốp 4 cm nặng 15 g; bệ 6 × 6 × 4 cm nặng 40 g. `noun` (`cube`, `parcel`, `base`) cho tên trong báo cáo và hình 3D; `color` lấy từ bảng
+  màu (`body-colors.ts`: đỏ `#d32f2f`, xanh lá `#388e3c`, xanh dương `#1976d2`, vàng `#fbc02d`) để cảm biến màu và báo cáo gọi đúng ("khối
+  đỏ"). Vật không có `color` mang màu theo loại (`#f2c14e`).
+- **Vùng:** `name` (`pickup`, `drop`, `warehouse`, `red`, `green`, `blue`, `stack`) cho câu báo ("Khối đỏ nằm ở vùng xanh dương"). Vẫn phải sáng
+  (luma > 0,75), và mực hoa văn của mặt thảm phải có tương phản ≥ 2,9 : 1 với màu vùng (`zone-pattern.test.ts`): `#fce4e4` được 3,27 : 1,
+  `#f4cccc` chỉ 2,68 : 1. Vùng xuất phát của bài 10 xám `#e0e0e0` (2,99 : 1) để không lẫn với vùng xanh dương.
+- **Biến thể của vật:** `objectJitter` dời vật (mỗi mục một lần bốc, các vật trong mục dời cùng nhau), `objectColors` đổi màu theo lượt (phần tử
+  0 bằng màu trong sa bàn). Số bốc mới đi **sau** mọi số cũ, nên biến thể của các bài rover không đổi.
+- **Chỗ xuất phát và tay gắp:** ở mọi biến thể, mọi vật phải nằm ngoài **toàn bộ** vùng quét của tay gắp (mọi góc nâng và góc kẹp; ruling
+  B5/B6). `createWorld` chỉ kiểm vật với tay ở tư thế setup() (90°, càng mở); test tĩnh kiểm thêm vùng quét đầy đủ bằng chính `footprint.ts`.
+- **Tường:** mọi bài xe tay gắp đặt `endOnContact: ["wall"]` (ruling G0 wall): đầu ngón hay càng rỗng đâm tường từ 0,33 m/s làm xe ngóc
+  8,35–17,16°. Goal canh gác (nếu có) cũng gọi tag `wall`, kể cả kệ kho (tường có tag `kho-wall`, vẽ thành kệ; dựng cho tường 40 × 4 × 12 cm).
+
+### 11.4 Bốn goal gắp–đặt (D2)
+
+| Kind | Qua khi | Mặc định |
+|---|---|---|
+| `object-held` | giữ vật liên tục `holdS`, đáy vật cao hơn chỗ vật nằm lúc gắp ≥ `minLiftCm`; qua rồi thì giữ nguyên | `holdS 0,5`, `minLiftCm 0` (bài 8, 10: 2; bài 11: 3) |
+| `object-placed` | ở cuối lượt: không còn bị giữ, nằm gọn trong vùng (`zone`, hay vùng cùng màu của lượt: `zoneByColor`), thẳng, nằm yên `restS`, **đã được chở**: lần gắp cuối nâng vật ≥ `minCarryLiftCm` và đưa nó đi ≥ `minCarryCm` trên sàn trong lúc nâng, rồi trượt ≤ `maxSlideCm` từ chỗ thả | `fully`, `maxTiltDeg 15`, `restS 0,5`, `carried`, `maxSlideCm 3`, `minCarryLiftCm 1`, `minCarryCm 5` |
+| `object-on-object` | ở cuối lượt: khối trên nằm trên khối dưới (z đúng ±0,8 cm), lệch ngang ≤ `maxOffsetCm`, thẳng, yên, không bị giữ, đã được chở như trên | `carried`, `minCarryLiftCm 1`, `minCarryCm 5` |
+| `object-unmoved` (canh gác) | vật không bị xê dịch quá `maxMoveCm` và không đổ suốt lượt | `maxTiltDeg 20` |
+
+- **Đẩy vật vào vùng = 0 điểm** ở cả bốn bài: một lần gắp không nâng (kẹp tại chỗ) hay nâng mà không chở 5 cm (nâng tại chỗ) không tính là chở,
+  lần đẩy trước đó vẫn là đẩy (`object-pushed`).
+- **Hết lượt vì chạm** (`endOnContact`, D2 review M8, quyết định ở D4): `object-held` là một lần giữ như `stop-in-zone`, nên lần gắp bị cú chạm
+  cắt ngang trượt với `run-ended-contact`. Với `object-placed` và `object-on-object` chỉ phần **nằm yên** (`object-not-at-rest`) đổi thành
+  `run-ended-contact`; các lý do khác (còn giữ, bị đẩy, sai vùng, rơi ngoài vùng, chưa xếp lên bệ) nói vật đang ở đâu và giữ nguyên. Điểm
+  và verdict không đổi, chỉ câu lý do (`scoring.hold-kinds.test.ts`).
+
+### 11.5 Bốn bài
+
+| Key | Bài | Sa bàn | Goal (điểm) | Biến thể | Thời gian |
+|---|---|---|---|---|---|
+| `rb-grip-pick` | 8. Tìm và gắp | 170 × 90; khu lấy hàng x 70–100, vùng thả x 108–148 (y 25–65); khối vàng ở (85, 45) | `grab-cube` object-held minLift 2: 40, `place-cube` object-placed `drop`: 45, `no-crash` wall: 15 | 3, seed 23; xuất phát ±1 cm, ±2°; khối dx ±10 (+9,3 và −10,0) | 30 s |
+| `rb-grip-deliver` | 9. Giao hàng theo vạch | 180 × 150; vạch x = 120 từ y 10 tới 135; ba kiện hàng trên vạch ở y 70, 95, 120; kho x 62–100, y 40–125; kệ kho x = 58, y 62,5–102,5 | `deliver-1..3` object-placed `kho`: 25 × 3, `no-crash` wall (kệ kho và tường): 15, thưởng 10 | 3, seed 430; xuất phát ±6 cm dọc vạch (−5,4 và +5,1), ±5° (−4,9° và +3,5°); mỗi kiện dy ±5 | 90 s |
+| `rb-grip-sort` | 10. Phân loại theo màu | 170 × 150; xuất phát xám; khối ở (49, 75), 19 cm trước giữa thân; vùng đỏ phía bắc (x 18–48, y 112–142), xanh lá phía trước (x 73–103, y 60–90), xanh dương phía nam (x 18–48, y 8–38) | `grab-cube` minLift 2: 25, `sort-cube` object-placed `zoneByColor`: 60, `no-crash` wall: 15 | 3, seed 8; **không dời vị trí**, chỉ ±3° (−2,3° và +2,9°); màu khối lần lượt xanh lá, đỏ, xanh dương | 30 s |
+| `rb-grip-stack` | 11. Xếp chồng (nâng cao) | 200 × 80; vạch từ x 14 tới x 150 rồi hết; khối đỏ ở x 95; bệ vàng 6 × 6 × 4 cm, 40 g ở (158, 40), chỗ khối tới khi xe dừng ở cuối vạch | `grab-cube` minLift 3: 20, `stack-cube` object-on-object lệch ≤ 1,5, nghiêng ≤ 10°: 55, `base-still` object-unmoved ≤ 2 cm: 15, thưởng 10 | 3, seed 217; xuất phát ±12 cm dọc vạch (−12,0 và +9,4); khối dx ±5 (+3,5 và −3,7) | 45 s |
+
+Lời giải mẫu (`robot-solutions.ts`, đều trong "khi bắt đầu", tốc độ ≥ 50 %):
+
+- **Bài 8:** tay hạ, kẹp mở, chờ 300 ms; tiến 70 % khi siêu âm > 15 cm; tiến 50 % tới khi IR thấy khối; dừng, kẹp đóng, tay nâng; tiến 60 % khi
+  siêu âm > 45 cm (tường xa, tay 90° đang giữ: nón sạch); hạ, mở, lùi 1 s. Khối luôn rơi ở x 127,3–127,6, bất kể gắp ở đâu.
+- **Bài 9:** lặp 3 lần: bám vạch tới khi IR thấy kiện, gắp và nâng, quay trái **900 ms**, tiến 2200 ms, đặt xuống, lùi 2200 ms, quay phải tới khi
+  cảm biến giữa thấy vạch. Kiện rơi ở x 75,6–77,9, khoảng 15 cm phía nam chỗ nó nằm. 97 điểm (thưởng 7).
+- **Bài 10:** tiến tới khi IR thấy khối, gắp và nâng; nếu màu đỏ quay trái 900 ms, nếu xanh dương quay phải 900 ms, còn lại đi thẳng; tiến 3000 ms,
+  đặt xuống, lùi. Khối rơi ở giữa vùng cùng màu.
+- **Bài 11:** bám vạch tới khi IR thấy khối đỏ, gắp, tay **55°**; bám vạch tới khi không cảm biến nào thấy vạch; dừng, mở. Khối nằm trên bệ, lệch
+  0,11–0,19 cm. 97 điểm (thưởng 7).
+
+Lời giải mù (bài 8, 9, 11, chỉ motor, tay gắp và chờ, canh giờ cho biến thể 0) qua biến thể 0 và trượt biến thể khác. Exploit của plan §6, mỗi cái có
+trần điểm (`maxScore`) và điểm đo được (test ghim từng biến thể):
+
+| Kịch bản | Exploit | Trần | Đo |
+|---|---|---|---|
+| `rb-grip-pick` | mù (`blind`) | — | 15 (100 / 15 / 15) |
+| `rb-grip-pick` | `never-lower-arm`: không hạ tay; thân xe đẩy khối, đầu ngón chạm tường xa, hết lượt | 15 | 0 |
+| `rb-grip-pick` | `push-in`: tay hạ, càng mở, đẩy khối 6600 ms vào vùng thả | 15 | 15 |
+| `rb-grip-pick` | `hold-in-zone`: chở tới vùng thả, hạ tay nhưng không mở kẹp | 55 | 55 |
+| `rb-grip-deliver` | mù | — | 40 (97 / 40 / 40) |
+| `rb-grip-deliver` | `push-north`: bám vạch với càng mở, đẩy kiện lên phía bắc | 15 | 15 |
+| `rb-grip-deliver` | `open-jaw-sweep-lift` (D2 review N1): kẹp chỉ 10°, quay và quét kiện vào kho, tới kho mới kẹp và nâng 1 cm tại chỗ (tay 14°) | 15 | 0 (15 / 0 / 15) |
+| `rb-grip-sort` | `always-turn-left`: luôn quay trái | 40 | 40 |
+| `rb-grip-sort` | `only-check-red`: đỏ thì trái, còn lại đi thẳng | 40 | 40 |
+| `rb-grip-stack` | mù | — | 15 (97 / 15 / 75) |
+| `rb-grip-stack` | `place-beside-base`: chở 3000 ms rồi đặt xuống sàn trước bệ | 35 | 35 |
+| `rb-grip-stack` | `hold-over-base`: tới cuối vạch nhưng không mở kẹp | 35 | 35 |
+| `rb-grip-stack` | `arm-too-low`: chở ở tay 45°: khối quệt bệ và đẩy nó đi | 20 | 20 |
+
+Một quan sát chưa có ruling (plan §4.14): chương trình hạ **hết** tay ở cuối vạch rồi mới mở kẹp đặt khối lên bệ lệch 1,71–1,81 cm và
+không đẩy bệ (bệ dời 0,05 cm), nên được 35, quá trần "hạ hết tay (≤ 20)" của plan §6. Nó chưa có trong `exploits`.
+
+### 11.6 Kiểm tra trên máy
+
+```sh
+# Tĩnh: các luật của mục 5 cho mọi bài, và các ghim của bài tay gắp (khối "N19 D4" trong file)
+pnpm exec vitest run tests/robot-scenarios.test.ts
+
+# Thật: bốn lời giải mẫu qua Kiểm tra headless, 1× và 4× (cùng điểm và hash); mọi lời giải mù và exploit trượt, điểm đúng từng biến thể
+pnpm exec vitest run src/core/scenario/check-robot.gripper-lessons.test.ts src/core/scenario/check-robot.gripper-challenges.test.ts
+
+# Tất định cả Kiểm tra trên Node; e2e/robot-determinism.spec.ts so cùng golden trên Chromium, Firefox, WebKit
+pnpm exec vitest run tests/robot-determinism.test.ts
+
+# Spike soạn bài: đo, dò seed, chạy thử một chương trình (xem spikes/n19-d4/results.md)
+SPIKE=solutions pnpm exec vitest run --config spikes/n19-d4/vitest.config.ts solutions
+```
+
+Đổi một bài tay gắp thì chạy lại các lệnh trên, `pnpm export:robot-manifest`, `pnpm check:arduino --require` (sketch bài 10 dùng Wire: 6038 B
+flash, 277 B RAM) và cập nhật hash của Kiểm tra trong `tests/__snapshots__/robot-determinism.json` (chạy `SPIKE=golden` của spike rồi chép
+bốn mục `rb-grip-*-reference`; hash của rover không được đổi).
+
+### 11.7 Phía STEMLearning cho bốn key này
+
+Theo các bước 6 của mục 8, cùng một đợt phát hành (việc F của plan N19):
+
+- Chép `docs/fixtures/robot-scenarios.v1.json` (11 kịch bản) sang `Web/packages/api/src/lab/__fixtures__/robot-scenarios.v1.json`, sửa sha256 ghim nó.
+- `CourseService:LabTemplates:Robot` và `LabTemplateCatalog.DefaultRobotScenarios`: thứ tự 6 key cũ → 4 key `rb-grip-*` → `rb-sandbox` (D-G12), mỗi key mới
+  `Version` 1 và `GoalIds`: `rb-grip-pick` `["grab-cube", "place-cube", "no-crash"]`; `rb-grip-deliver` `["deliver-1", "deliver-2", "deliver-3", "no-crash"]`;
+  `rb-grip-sort` `["grab-cube", "sort-cube", "no-crash"]`; `rb-grip-stack` `["grab-cube", "stack-cube", "base-still"]`.
+- `LAB_TEMPLATES.robot` cùng thứ tự (cả bốn cần `uno-basic`, không vào `ADVANCED_ROBOT_SCENARIOS`); tên và tóm tắt trong `admin.json`
+  (`builder.labs.templates.rb-grip-*`); hình nhỏ trong `ScenarioThumbnail.tsx`; module 4 "Tay gắp" (bài 8–11) nối sau module 3, sân tập vẫn là bài 7
+  (D-G12). DB đang chạy cập nhật bằng gỡ xuất bản rồi seed lại.
