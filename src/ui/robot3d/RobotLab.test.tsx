@@ -11,6 +11,7 @@ import { productionProfiles } from '../../core/profiles';
 import { buildToolbox, createBlockPackCatalog, type Toolbox } from '../../core/program/block-packs';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { robotStarterDocument, robotTemplateKeys, type RobotTemplateKey } from '../../samples/robot-templates';
+import { watchLabUse } from '../app/lab-use';
 import { installTestHooks } from '../app/test-hooks';
 import { TextProvider } from '../i18n/text';
 import { createProjectStore } from '../state/project-store';
@@ -690,5 +691,27 @@ describe('the physics engine before the first run (N18 P2)', () => {
     act(() => void window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' })));
     await wait(400);
     expect(session.preparePhysics).toHaveBeenCalledTimes(1);
+  });
+
+  it('is loaded at idle when the host’s project came before the lab mounted (the LMS sends load-project on ready), with no press (fix round 1)', async () => {
+    vi.stubGlobal('requestIdleCallback', undefined);
+    const labUse = watchLabUse(new EventTarget());
+    labUse.markUsed();
+    const { render, session } = setup();
+    await render({ labUse });
+    await wait(400);
+    expect(session.preparePhysics).toHaveBeenCalledTimes(1);
+  });
+
+  it('is not loaded once a run has started: the run loads it, and no scratch world steps beside it (fix round 1)', async () => {
+    vi.stubGlobal('requestIdleCallback', undefined);
+    const labUse = watchLabUse(new EventTarget());
+    const { render, session } = setup();
+    await render({ labUse });
+    await click('robot-run');
+    labUse.markUsed();
+    await wait(400);
+    expect(session.start).toHaveBeenCalledTimes(1);
+    expect(session.preparePhysics).not.toHaveBeenCalled();
   });
 });

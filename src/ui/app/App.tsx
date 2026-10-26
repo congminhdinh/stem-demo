@@ -34,6 +34,7 @@ import { LabWorkspace } from './LabWorkspace';
 import { onPageHidden } from './page-hidden';
 import { PythonPanel } from './PythonPanel';
 import type { RobotProgramView } from '../robot3d/RobotLab';
+import type { LabUse } from './lab-use';
 import { RobotLabLoader } from './RobotLabLoader';
 import { RunOutput, RunToolbar, SteadyLabel } from './RunToolbar';
 import './app.css';
@@ -61,6 +62,8 @@ export type LabChrome = {
   robotCheck?: { begin(): void; result(result: RobotCheckResult): void; end(): void };
   /** N18 R6.3: the robot lab is busy (a check, or a run of its own) or not: a host's load-project waits while it is (lab-host.ts `LabBusy`). */
   onBusyChange?(busy: boolean): void;
+  /** N18 P2 fix round 1: the robot lab's first use, watched from before the lab rendered (lab-use.ts). */
+  labUse?: LabUse;
 };
 
 /** How long Reset waits for the second click before it forgets the first. */
@@ -459,6 +462,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
       ...(lab.onRunChange ? { onRunChange: lab.onRunChange } : {}),
       ...(lab.robotCheck ? { onCheck: lab.robotCheck } : {}),
       ...(lab.onBusyChange ? { onBusyChange: lab.onBusyChange } : {}),
+      ...(lab.labUse ? { labUse: lab.labUse } : {}),
     };
     return (
       <div className="app-shell app-shell-lab">

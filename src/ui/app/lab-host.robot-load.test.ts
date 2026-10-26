@@ -109,3 +109,24 @@ describe('a host’s load-project while the robot lab is busy (N18 R6.3)', () =>
     expect(projectStore.getState().document.id).toBe('now');
   });
 });
+
+describe('a host’s project applied, as the robot lab’s first use (N18 P2 fix round 1)', () => {
+  it('tells onApplied when a project opens, at once or after the busy lab is let go, and not for one that does not open', () => {
+    const projectStore = createProjectStore(robotStarterDocument('rb-drive-to-zone'));
+    const runStore = createRunStore(createRunSession(registry), (callback) => callback());
+    const busy = createLabBusy();
+    const onApplied = vi.fn();
+    const loader = createHostLoader({ ...rules, projectStore, runStore, busy, onApplied });
+    loader.load({ not: 'a project' });
+    expect(onApplied).not.toHaveBeenCalled();
+    loader.load({ ...robotStarterDocument('rb-drive-to-zone'), id: 'first' });
+    expect(onApplied).toHaveBeenCalledTimes(1);
+    busy.set(true);
+    loader.load({ ...robotStarterDocument('rb-drive-to-zone'), id: 'later' });
+    expect(onApplied).toHaveBeenCalledTimes(1);
+    busy.set(false);
+    expect(projectStore.getState().document.id).toBe('later');
+    expect(onApplied).toHaveBeenCalledTimes(2);
+    loader.dispose();
+  });
+});

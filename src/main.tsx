@@ -15,6 +15,7 @@ import { App } from './ui/app/App';
 import { loadUiFont } from './ui/app/fonts';
 import { createHostBridge, type RobotHostBridge } from './ui/app/host-bridge';
 import { connectLabHost, createHostLoader, createLabBusy } from './ui/app/lab-host';
+import { watchLabUse } from './ui/app/lab-use';
 import { LaunchError } from './ui/app/LaunchError';
 import { parseLaunch } from './ui/app/launch';
 import { openAtStartup } from './ui/app/startup';
@@ -99,9 +100,18 @@ if (started.kind === 'launch-error') {
   let bridge: RobotHostBridge | null = null;
   // N18 R6.3: the robot lab says when it is busy (a check, or a run of its own); a load-project from the host waits for it.
   const robotBusy = launch.mode === 'embed' && lab?.kind === 'robot' ? createLabBusy() : null;
+  // N18 P2 fix round 1 (I1): the robot lab's first use (a press, a key, a host's project applied) is watched from now, before the lab
+  // renders: the LMS sends its load-project as soon as the lab says ready, before the robot lab's chunk has loaded.
+  const robotUse = launch.mode === 'embed' && lab?.kind === 'robot' ? watchLabUse(window) : null;
   if (launch.mode === 'embed' && lab && lab.hostOrigin !== null && window.parent !== window) {
     const rules = { lab: lab.kind, profile: lab.profile, registry, profiles, canOpenProgram: (blocks: unknown) => canOpenProgram(blocks, packs) };
-    const loader = createHostLoader({ ...rules, projectStore, runStore, ...(robotBusy === null ? {} : { busy: robotBusy }) });
+    const loader = createHostLoader({
+      ...rules,
+      projectStore,
+      runStore,
+      ...(robotBusy === null ? {} : { busy: robotBusy }),
+      ...(robotUse === null ? {} : { onApplied: () => robotUse.markUsed() }),
+    });
     bridge = createHostBridge({
       host: window.parent,
       hostOrigin: lab.hostOrigin,
@@ -143,6 +153,7 @@ if (started.kind === 'launch-error') {
                     ? {
                         robotCheck: { begin: () => bridge?.beginCheck(), result: (result: RobotCheckResult) => bridge?.robotCheckResult(result), end: () => bridge?.endCheck() },
                         onBusyChange: (busy: boolean) => robotBusy?.set(busy),
+                        ...(robotUse === null ? {} : { labUse: robotUse }),
                       }
                     : {}),
                 }

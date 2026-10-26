@@ -58,7 +58,7 @@ export function fakeSession(scenario: Scenario, kit: Kit) {
       return () => listeners.delete(listener);
     },
     // N18 P2: the physics engine's warm-up, recorded only.
-    preparePhysics: vi.fn(async () => {}),
+    preparePhysics: vi.fn(async () => true),
   } satisfies RobotRunSession;
   return {
     session,

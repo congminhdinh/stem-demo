@@ -141,17 +141,28 @@ export function createLabBusy(): LabBusy {
  * project is not refused: the last one waits and opens as soon as the lab is not busy (N18 R6.3), after the check's result was sent, so the
  * host hears the check-result first, then the project-changed of what it loaded. Without `busy`, it is `loadHostProject` as it was.
  */
-export function createHostLoader(options: HostProjectRules & { projectStore: ProjectStore; runStore: RunStore; busy?: LabBusy }): {
+export function createHostLoader(
+  options: HostProjectRules & {
+    projectStore: ProjectStore;
+    runStore: RunStore;
+    busy?: LabBusy;
+    /** N18 P2 fix round 1 (I1): a host's project was applied (the robot lab counts it as the lab's first use). */
+    onApplied?(): void;
+  },
+): {
   load(document: unknown): void;
   dispose(): void;
 } {
-  const { busy } = options;
+  const { busy, onApplied } = options;
   let waiting: { document: unknown } | null = null;
+  const apply = (document: unknown) => {
+    if (loadHostProject(document, options)) onApplied?.();
+  };
   const stop = busy?.subscribe(() => {
     if (waiting !== null && !busy.isBusy()) {
       const { document } = waiting;
       waiting = null;
-      loadHostProject(document, options);
+      apply(document);
     }
   });
   return {
@@ -160,7 +171,7 @@ export function createHostLoader(options: HostProjectRules & { projectStore: Pro
         waiting = { document };
         return;
       }
-      loadHostProject(document, options);
+      apply(document);
     },
     dispose() {
       waiting = null;

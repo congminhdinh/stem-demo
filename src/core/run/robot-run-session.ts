@@ -19,7 +19,7 @@ import type { YbcProgramIR } from '../program/ybc-ir';
 import type { GoalFrame } from '../scenario/goals/frame';
 import { inputsDueBetween, runEndingContact, type Scenario } from '../scenario/scenario';
 import type { Arena } from '../world/arena/arena-schema';
-import { PHYSICS_DT_S, PHYSICS_HZ } from '../world/rapier';
+import { isPhysicsReady, PHYSICS_DT_S, PHYSICS_HZ } from '../world/rapier';
 import type { RobotSnapshot, RunStatus, ScoreState } from '../world/snapshot';
 import { checkPlacement, type PlacementPose } from '../scenario/placement';
 import type { ActuatorTargets } from '../world/robot/assembly';
@@ -297,10 +297,12 @@ export type RobotRunSession = {
   /**
    * N18 P2: loads the physics engine and runs a scratch world of the scenario for PREPARE_TICKS, the robot driving, then drops it, a few
    * ticks a turn of the event loop: the engine's code is then compiled before the first run or check (about 250 ms of wasm on a school
-   * PC, once a page). The lab calls it at idle after the view's first frame. It publishes nothing and touches no run; the same promise
-   * every call. A failure is left for the first run to meet (and say).
+   * PC, once a page). The lab calls it at idle once its view is up and it was used. It publishes nothing and touches no run; the same
+   * promise every call, true when it warmed the engine. Fix round 1 (I1): nothing (false) when the engine is loaded already (a run or a
+   * check of the page loaded it) or a run or a start exists; a run started while it builds its world stops it. A failure is left for the
+   * first run to meet (and say).
    */
-  preparePhysics(): Promise<void>;
+  preparePhysics(): Promise<boolean>;
 };
 
 const emptyConsole: ConsoleSnapshot = { lines: [], hidden: 0 };
@@ -982,22 +984,27 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
     return launch(prepared, variantIndex, startOptions.check === true);
   };
 
-  let preparing: Promise<void> | null = null;
-  const preparePhysics = (): Promise<void> => {
+  let preparing: Promise<boolean> | null = null;
+  /** A run, or a start building its world: the scratch world would only add to their work. */
+  const running = () => current !== null || pendingStart !== null;
+  const preparePhysics = (): Promise<boolean> => {
     preparing ??= (async () => {
+      if (isPhysicsReady() || running()) return false;
       const world = await createScenarioWorld(scenario, kit, 0);
       try {
         world.applyActuators(PREPARE_DRIVE);
         for (let tick = 0; tick < PREPARE_TICKS; tick++) {
           if (tick % PREPARE_TICKS_A_TURN === 0) await nextTurn();
+          if (running()) return false;
           world.step(PHYSICS_DT_S);
         }
         world.snapshot();
         world.goalFrame({ leds: {}, buzzerHz: null });
+        return true;
       } finally {
         world.dispose();
       }
-    })().catch(() => undefined);
+    })().catch(() => false);
     return preparing;
   };
 

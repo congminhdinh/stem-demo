@@ -17,13 +17,13 @@ import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { robotKitVersion, robotTemplates, type RobotTemplateKey } from '../../samples/robot-templates';
 import { LabWorkspace, type BoardLabels } from '../app/LabWorkspace';
 import type { BoardShares } from '../app/lab-layout';
+import { watchLabUse, type LabUse } from '../app/lab-use';
 import { attachRobotTestTarget } from '../app/test-hooks';
 import { useBuzzerSound } from '../audio/use-buzzer-sound';
 import { useLocale, useText } from '../i18n/text';
 import type { ProjectStore } from '../state/project-store';
 import { createAnnouncer } from './announcer';
 import { createCameraCommands } from './camera-commands';
-import { onFirstUse } from './first-use';
 import { createLowTierControl } from './low-tier-control';
 import { CheckControls } from './CheckControls';
 import { CheckResults, FastCheckView } from './CheckResults';
@@ -48,8 +48,8 @@ import { whenIdle } from './when-idle';
 import './RobotLab.css';
 
 // The robot lab (`lab=robot`, N18 R4.1 shell, R4.2 scene, R4.4 HUD and controls), loaded on its own with React.lazy (RobotLabLoader.tsx)
-// so that no other lab pays for it: this chunk holds three, react-three-fiber and the run session (whose world loads Rapier lazily on
-// the first Run).
+// so that no other lab pays for it: this chunk holds three, react-three-fiber and the run session (whose world loads Rapier lazily: at
+// idle after the first use, or with the first Run before that; N18 P2).
 //
 //   header      the lab's title, the scenario's, the run's controls (Chạy, Dừng, Tạm dừng, Bước 0,1 s, Đặt lại robot, Tốc độ), and for a
 //               scenario with a score Kiểm tra with its speeds (N18 R6.3: 1×, 4×, Nhanh)
@@ -109,6 +109,8 @@ export type RobotLabProps = {
   createSession?(options: { scenario: Scenario; kit: Kit; board: BoardProfile }): RobotRunSession;
   /** Tests: the WebGL probe (the browser's by default). */
   probe?: () => WebglProbe;
+  /** N18 P2 fix round 1: whether the lab was used, watched from before it rendered (main.tsx); without one, it watches from its mount. */
+  labUse?: LabUse;
 };
 
 /** The 3D view's share of the width, and its words, in LabWorkspace. */
@@ -149,6 +151,7 @@ export default function RobotLab({
   createSession,
   createCheck,
   probe,
+  labUse,
 }: RobotLabProps) {
   const t = useText();
   const locale = useLocale();
@@ -203,22 +206,37 @@ export default function RobotLab({
   // The sandbox has no score: nothing to check (as the other labs' templates without a challenge have no Check).
   const checkable = scenarioMaxScore(scenario) !== undefined;
   useRunAnnouncements(store, checkable ? checks : null, announcer, scenarioMaxScore(scenario));
-  // N18 P2: once the view is up and the lab is used (a press, a key, a project the host loads), the session loads and warms the physics
-  // engine at idle: neither the first Run nor the first Kiểm tra waits for it then (about 250 ms of wasm on a school PC, and the download).
-  // A lab that is only opened downloads none of it.
+  // N18 P2: once the view is up and the lab was used (a press, a key, a project the host applied: `labUse`, watched by main.tsx from
+  // before the lab renders, as the LMS sends its load-project on `ready`), the session loads and warms the physics engine at idle: neither
+  // the first Run nor the first Kiểm tra waits for it then (about 250 ms of wasm on a school PC, and the download). A lab that is only
+  // opened downloads none of it. Fix round 1 (I1): never once a run, a drive or a check has started (it loads the engine itself; a scratch
+  // world beside it would only add work), nor twice.
+  const [ownUse] = useState(() => (labUse ? null : watchLabUse(window)));
+  useEffect(() => () => ownUse?.dispose(), [ownUse]);
+  const use = labUse ?? ownUse!;
+  const started = useRef(false);
+  useEffect(() => {
+    const note = (state: ReturnType<typeof store.getState>) => {
+      if (state.starting || state.active || state.locked) started.current = true;
+    };
+    note(store.getState());
+    return store.subscribe(note);
+  }, [store]);
   const [viewUp, setViewUp] = useState(false);
   const onViewUp = useCallback(() => setViewUp(true), []);
   useEffect(() => {
     if (!viewUp) return undefined;
     let cancel = () => {};
-    const stop = onFirstUse(window, () => {
-      cancel = whenIdle(() => store.getState().preparePhysics());
+    const stop = use.onUsed(() => {
+      cancel = whenIdle(() => {
+        if (!started.current) store.getState().preparePhysics();
+      });
     });
     return () => {
       stop();
       cancel();
     };
-  }, [viewUp, store]);
+  }, [viewUp, store, use]);
   useCheckAnnouncements(checkable ? checks : null, announcer);
   useCameraKeys(stageRef, commands);
   const model = useMemo(() => robotModel(kit, board), [kit, board]);

@@ -607,40 +607,14 @@ describe('stop and the latest call', () => {
 });
 
 describe('preparePhysics (N18 P2)', () => {
-  const wallScenario = () => sandboxScenario({ wallAtCm: 120 });
-
-  it('runs a scratch world of the scenario and drops it: publishes nothing, leaves the session idle, and is done once a session', async () => {
-    const session = roverSession(wallScenario());
+  // The engine is loaded here (beforeAll): the warm-up is in robot-run-session.prepare*.test.ts, files of their own, where it is not.
+  it('does nothing once the page has the physics engine: false, nothing published, the session idle, the same promise every call', async () => {
+    const session = roverSession(sandboxScenario({ wallAtCm: 120 }));
     const seen = published(session);
     const first = session.preparePhysics();
     expect(session.preparePhysics()).toBe(first);
-    await expect(first).resolves.toBeUndefined();
+    await expect(first).resolves.toBe(false);
     expect(seen).toEqual([]);
     expect(session.getSnapshot().status).toBe('idle');
-    expect(session.preparePhysics()).toBe(first);
-  });
-
-  it('changes nothing of a run: the same world after 3 s with or without it, also for a run started while it goes on', async () => {
-    const plain = roverSession(wallScenario());
-    await plain.start(avoider());
-    await plain.runUntil(3);
-    const expected = hashSnapshot(worldOf(plain));
-    plain.stop();
-
-    const prepared = roverSession(wallScenario());
-    await prepared.preparePhysics();
-    await prepared.start(avoider());
-    await prepared.runUntil(3);
-    expect(hashSnapshot(worldOf(prepared))).toBe(expected);
-    prepared.stop();
-
-    const meanwhile = roverSession(wallScenario());
-    const preparing = meanwhile.preparePhysics();
-    await meanwhile.start(avoider());
-    await meanwhile.runUntil(3);
-    await preparing;
-    expect(hashSnapshot(worldOf(meanwhile))).toBe(expected);
-    expect(meanwhile.getSnapshot().status).toBe('running');
-    meanwhile.stop();
   });
 });
