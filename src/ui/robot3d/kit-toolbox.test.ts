@@ -5,7 +5,8 @@ import { productionKits, unoR3Board, type Kit } from '../../core/hardware';
 import { productionProfiles } from '../../core/profiles';
 import { buildToolbox, createBlockPackCatalog, kitBlockPacks, toolboxOfPacks, type Toolbox } from '../../core/program/block-packs';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
-import { robotTemplateKeys, robotTemplateKitRef, robotTemplateToolboxRobot } from '../../samples/robot-templates';
+import { robotTemplateKeys, robotTemplateKitRef } from '../../samples/robot-templates';
+import { robotTemplateToolboxRobot } from '../../samples/robot-toolbox-robot';
 import { localizeToolbox } from '../i18n/blocks';
 import { restrictToolbox } from './toolbox';
 
