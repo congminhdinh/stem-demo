@@ -526,7 +526,9 @@ R4.2 vẽ hình thủ tục (plan D-R7: "procedural geometry first, home-made GL
     - **Rò canvas khi đổi view** (có từ master; sửa ở fix round 1, `shared-gpu.ts`): three giữ geometry chung của Sprite và texture DFG
       (`DFG_LUT`) của material standard suốt trang, và mỗi WebGLRenderer vẽ chúng gắn một listener `dispose`, nên mỗi canvas 3D đã đi vẫn
       sống cùng wrapper context và canvas đã tách khỏi trang. Canvas đi thì lab dispose cả hai (texture tìm qua `renderer.properties`,
-      nội bộ của three 0.186.1, có test chốt). Heap sau 19 lần đổi 2D ↔ 3D: +4,0 → +2,9–3,0 MB; phần còn tăng chưa truy.
+      nội bộ của three 0.186.1, có test chốt). Heap sau 19 lần đổi 2D ↔ 3D: +4,0 → +2,9–3,0 MB; phần còn tăng là code V8 đã biên dịch
+      (heap snapshot của review 2, lần đổi thứ 5 → 20: +1,38 MB, InstructionStream +761 KB, TrustedByteArray +176 KB, Code +78 KB,
+      FeedbackVector +61 KB, Object của app +6 KB): JIT nâng tầng code chạy một lần mỗi lần mount, không phải dữ liệu lab bị giữ.
     - **Build** (fix round 1): `pnpm build [tuỳ chọn của vite build]` (`scripts/build.mjs`), ví dụ `pnpm build --base /lab/`, rồi nén sẵn
       `.gz`/`.br`; phục vụ trên VPS: `docs/lab-embed-contract.md` §4.1.
     - **Hai việc chậm còn lại khi không có GPU:** (a) lần vẽ đầu của nhãn zone (144–154 ms ở 6×) là `onFirstUse` của program của nhãn chờ

@@ -1016,7 +1016,7 @@ renderer at 1.08–1.48 s, assembly (61 + 39 ms), the compile, and the first sce
   `b4-profile`), from 5–10 reframes as the HUD's width changes with its text (its corner moves more than 0.01 NDC); 70–80 ms of CPU
   in 8 s at 6×, no long task. The search's remaining arrays (the sliding rounds, the choices) could go the way of the fit test.
 - The heap after many 2D ↔ 3D switches (§9.5): a leak, fixed in fix round 1 (§10, I2); what still grows (+2.9–3.0 MB over 19 switches,
-  30–80 KB each at the end) is not traced.
+  30–80 KB each at the end) is V8's compiled code, not the lab's data (review 2's heap snapshots; §11).
 - The 30 fps cap holds p95 at 35–36 ms by construction (a capped frame is 33.3 ms): where the chain engages, the 33 ms target cannot.
 - `robot-lab-a11y.spec.ts`'s contrast test times out in the full e2e suite under load 13–18, on master 16407b8 as on this branch
   (`results/phase-b/final/e2e-*.txt`); it passes alone, three times in a row, and in the robot project alone (63 of 63). Fix round
@@ -1097,7 +1097,7 @@ with master `16407b8` and records `uptime`. Ports used: 5302–5309 only; the E2
 | heap over 18 tier switches | +1.11–1.13 MB | +0.61–0.68 MB |
 
   The branch's heap starts 1.66 MB higher at the first switch: that click is the lab's first use, and Rapier loads. What still grows
-  is not traced.
+  is V8's compiled code (fix round 2, §11).
 - The bench's probe (M6) now counts the renderers and holds the latest one weakly, so `bench:robot3d`'s own switch numbers no longer
   include it.
 

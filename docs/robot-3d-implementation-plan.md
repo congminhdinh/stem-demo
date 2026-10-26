@@ -725,16 +725,18 @@ tính năng; e2e không sửa spec nào.
 - **Rò bộ nhớ khi đổi view** (có từ master, sửa ở fix round 1): three giữ geometry chung của Sprite và texture DFG của material standard
   suốt trang, mỗi WebGLRenderer vẽ chúng gắn một listener `dispose`, nên mỗi canvas 3D cũ (mỗi lần đổi 2D ↔ 3D hay đổi tier) vẫn sống cùng
   canvas đã tách khỏi trang (+14 node DOM mỗi lần đổi trên master). Canvas đi thì lab dispose cả hai (`shared-gpu.ts`): node DOM và
-  listener phẳng, listener trên geometry còn 1; heap sau 19 lần đổi +4,0 → +2,9–3,0 MB, phần còn tăng chưa truy.
+  listener phẳng, listener trên geometry còn 1; heap sau 19 lần đổi +4,0 → +2,9–3,0 MB. Phần còn tăng là code V8 đã biên dịch, không
+  phải dữ liệu lab bị giữ (heap snapshot của review 2, lần đổi thứ 5 → 20: +1,38 MB, trong đó InstructionStream +761 KB, TrustedByteArray
+  +176 KB, Code +78 KB, FeedbackVector +61 KB, Object của app +6 KB): JIT của V8 nâng tầng code chạy một lần mỗi lần mount, nên sẽ phẳng dần.
 - **Mục tiêu P2** (school PC: SwiftShader, tier thấp, CPU 6×; `16407b8` → bản cuối, 3 vòng xen kẽ): p95 khung khi chạy ở 1× 18,7–23,2 → 18,6–20,2 ms, ở 4× (Kiểm tra 4×) 23,8–25,2 → 20,8–22,1 ms (≤ 33: đạt); long task > 100 ms
   trong lượt chạy 1 → **0** (không task nào từ 50 ms; trước có 19–21 ở Kiểm tra 4×); heap trong 10 phút −2,4 / −2,7 / −2,4 % (≤ 5 %:
   đạt); 20 lần đổi 2D ↔ 3D và đổi tier: tài nguyên GPU 0, listener 0 (đạt); GPU tier cao p95 17,9–18,5 → 17,7–18,3 ms (≤ 20: đạt);
   frame đầu ấm 2 353–2 762 → 2 482–2 870 ms (≤ 2,5 s: **chưa đạt, sàn như master**: Blockly và zod lúc khởi động, parse GLB, lần vẽ
   đầu chờ link shader 350 ms; xuống nữa phải đổi hình hoặc thứ tự khởi động lab). Trình duyệt mới mở thêm khoảng 1,3 s trước khi có
   WebGL renderer (GPU process khởi động; không phải việc của app).
-- **Còn mở:** máy trường thật (có GPU chạy được hay SwiftShader); hysteresis của nhãn (chờ quyết định); heap vẫn tăng khoảng 2,9–3,0 MB
-  sau 19 lần đổi 2D ↔ 3D sau khi đã sửa rò (30–80 KB mỗi lần ở cuối, chưa truy); free view vẫn cấp phát khi khung lại theo bề rộng HUD
-  (khoảng 27 KB/khung trung bình ở mini-mission, không long task).
+- **Còn mở:** máy trường thật (có GPU chạy được hay SwiftShader); hysteresis của nhãn (chờ quyết định); free view vẫn cấp phát khi khung
+  lại theo bề rộng HUD (khoảng 27 KB/khung trung bình ở mini-mission, không long task). (Heap còn tăng 2,9–3,0 MB sau 19 lần đổi 2D ↔ 3D
+  sau khi sửa rò, 30–80 KB mỗi lần ở cuối: code V8 đã biên dịch, ở trên; không còn là việc mở.)
 
 ### R5 — Sa bàn và kịch bản pilot (62h)
 
