@@ -75,10 +75,10 @@ describe('the pick-and-place props (N19 E7)', () => {
     arena.dispose();
   });
 
-  it('tints a base by its colour (yellow here), beech without one, and leaves a parcel without one its own tape', () => {
+  it('tints a base by its colour (blue here), beech without one, and leaves a parcel without one its own tape', () => {
     const arena = build('high');
     const base = materialsOf(arena.movers.get('base')!.node).find((m) => m.name === 'base_wood') as MeshStandardMaterial;
-    expect(base.color.getHex()).toBe(new Color(bodyPalette.yellow).getHex());
+    expect(base.color.getHex()).toBe(new Color(bodyPalette.blue).getHex());
     const tape = materialsOf(arena.movers.get('parcel')!.node).find((m) => m.name === 'parcel_tape') as MeshStandardMaterial;
     expect(tape).toBe(assets.high.prop('prop_parcel')!.getObjectsByProperty('type', 'Mesh').map((mesh) => (mesh as Mesh).material).find((m) => (m as Material).name === 'parcel_tape'));
     const plain = assembleArena({ arena: { ...scenario.arena, objects: [{ ...scenario.arena.objects[5]!, color: undefined }] } }, assets.high.prop, { shadows: false, low: false, blob: new Texture(), viewForward: [1, 0] });

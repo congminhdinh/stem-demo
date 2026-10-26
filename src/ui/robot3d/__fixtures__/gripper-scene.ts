@@ -10,8 +10,8 @@ import { robotModel } from '../robot-model';
 import { idleSnapshot } from '../scene-math';
 
 // N19 E6/E7 test fixtures (no gripper scenario ships yet, plan D4): a test arena for the gripper car with every pick-and-place prop (a cube
-// of each palette colour, a parcel, a yellow base, a warehouse shelf on a `kho-wall`, the named zones), and snapshots of the car at a
-// gripper pose, holding the red cube where the world would hold it (centred between the fingers). Used by the unit tests and by the
+// of each palette colour, a parcel, a blue base (not the yellow cube's colour: fix round 1, review M4), a warehouse shelf on a `kho-wall`,
+// the named zones), and snapshots of the car at a gripper pose, holding the red cube where the world would hold it (centred between the fingers). Used by the unit tests and by the
 // e2e gallery page (e2e/robot-gripper-look.html). Plain data: no vitest.
 
 export const gripperKit = productionKits.get({ id: 'ref-uno-gripper', version: '0' }) as Kit;
@@ -41,7 +41,7 @@ const arena: ArenaInput = {
     { id: 'cube-blue', shape: 'box', centerCm: [60, 38], sizeCm: [4, 4, 4], massG: 15, noun: 'cube', color: bodyPalette.blue },
     { id: 'cube-yellow', shape: 'box', centerCm: [68, 30], sizeCm: [4, 4, 4], massG: 15, noun: 'cube', color: bodyPalette.yellow },
     { id: 'parcel', shape: 'box', centerCm: [90, 30], sizeCm: [6, 6, 5], massG: 30, noun: 'parcel' },
-    { id: 'base', shape: 'box', centerCm: [104, 30], sizeCm: [6, 6, 4], massG: 40, noun: 'base', color: bodyPalette.yellow },
+    { id: 'base', shape: 'box', centerCm: [104, 30], sizeCm: [6, 6, 4], massG: 40, noun: 'base', color: bodyPalette.blue },
   ],
 };
 
