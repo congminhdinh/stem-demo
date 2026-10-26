@@ -9,12 +9,12 @@ import type { BlockPackCatalog, Toolbox } from '../../core/program/block-packs';
 import { createRobotRunSession, type RobotRunSession, type RobotScorerFactory } from '../../core/run/robot-run-session';
 import { canTeleop } from '../../core/run/teleop';
 import { checkRobot } from '../../core/scenario/check-robot';
-import { scenarioMaxScore, type Scenario } from '../../core/scenario/scenario';
+import { scenarioKitRef, scenarioMaxScore, type Scenario } from '../../core/scenario/scenario';
 import { scenarioScorer } from '../../core/scenario/scoring';
 import type { PaintZone } from '../../core/world/arena/arena-schema';
 import { hashSnapshot } from '../../core/world/snapshot';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
-import { robotKitVersion, robotTemplates, type RobotTemplateKey } from '../../samples/robot-templates';
+import { robotTemplates, type RobotTemplateKey } from '../../samples/robot-templates';
 import { LabWorkspace, type BoardLabels } from '../app/LabWorkspace';
 import type { BoardShares } from '../app/lab-layout';
 import { watchLabUse, type LabUse } from '../app/lab-use';
@@ -174,9 +174,9 @@ export default function RobotLab({
     if (scenario === undefined) {
       throw new Error(`The robot scenario "${template}" has no file in src/samples/robot-scenarios.`);
     }
-    const ref = { id: scenario.kit, version: robotKitVersion };
-    const kit = productionKits.get(ref);
-    const board = productionKits.boardOf(ref);
+    const ref = scenarioKitRef(scenario);
+    const kit = ref && productionKits.get(ref);
+    const board = ref && productionKits.boardOf(ref);
     if (kit === undefined || board === undefined) {
       throw new Error(`The robot scenario "${template}" runs on the kit "${scenario.kit}", which this app does not know.`);
     }

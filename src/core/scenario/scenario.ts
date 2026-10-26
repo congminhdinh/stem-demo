@@ -1,4 +1,5 @@
-import { robotSandboxKey } from '../../samples/robot-keys';
+import { isRobotKitId, robotKitVersionOf, robotSandboxKey } from '../../samples/robot-keys';
+import type { KitRef } from '../hardware/kit';
 import type { GoalContact } from './goals/frame';
 import { ScenarioError, formatScenarioPath, scenarioSchema, type Scenario, type ScenarioInput } from './scenario-schema';
 
@@ -23,6 +24,15 @@ export function loadScenario(json: unknown): Scenario {
     );
   }
   return result.data;
+}
+
+/**
+ * The kit a scenario runs on, with the version a robot lab launches it at (N19 D-G1): its own `kit` and robot-keys.ts's table of versions.
+ * Undefined for a kit that table does not list (the schema keeps that from a key of the table, so it is a scenario built by hand). What
+ * the catalog says of that ref (`productionKits.get`) is another question: undefined there means the app has no file for the kit.
+ */
+export function scenarioKitRef(scenario: Pick<Scenario, 'kit'>): KitRef | undefined {
+  return isRobotKitId(scenario.kit) ? { id: scenario.kit, version: robotKitVersionOf(scenario.kit) } : undefined;
 }
 
 /**

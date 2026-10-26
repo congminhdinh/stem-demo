@@ -1,7 +1,7 @@
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import type { Group, Texture } from 'three';
-import { productionKits, unoR3Board } from '../../../core/hardware/catalog';
+import { productionKits, referenceKitRef, unoR3Board } from '../../../core/hardware/catalog';
 import type { Kit } from '../../../core/hardware/kit';
 import type { Scenario } from '../../../core/scenario/scenario';
 import type { RobotSnapshot } from '../../../core/world/snapshot';
@@ -16,8 +16,11 @@ import { applyRobotWorld, assembleRobot, referenceSizes, type AssemblyOptions } 
 // The robot in the 3D view from the modelled parts (N18 R4.7): assembled once for the kit (robot-assembly.ts), disposed on unmount;
 // its pose and what its parts show are read from the world in the frame callback, never through a React render.
 
+// What the parts were modelled to: the rover's numbers (the asset manifest hashes `ref-uno-rover.kit.json`, robot-assets.manifest.json), whichever
+// kit the scenario runs on. A kit's robot is the parts scaled from these to its own sizes, so this is the reference kit and never the
+// scenario's (N19 A1: the kit of a scenario is `scenarioKitRef`, which RobotLab reads and hands down as `kit`).
 const reference = (() => {
-  const kit = productionKits.get({ id: 'ref-uno-rover', version: '0' });
+  const kit = productionKits.get(referenceKitRef);
   return kit ? referenceSizes(robotModel(kit, unoR3Board)) : null;
 })();
 

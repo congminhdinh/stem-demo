@@ -1,17 +1,16 @@
 import { z } from 'zod';
-import { robotKitVersion } from '../../samples/robot-keys';
 import { projectDocumentSchema, type ProjectDocument } from '../circuit/document';
 import type { DeviceRegistry } from '../devices/registry';
 import type { BoardProfile } from '../hardware/board';
 import type { KitCatalog } from '../hardware/catalog';
-import type { Kit } from '../hardware/kit';
+import { kitKey, type Kit } from '../hardware/kit';
 import type { ProfileCatalog } from '../profiles/profile';
 import type { BlockPackCatalog } from '../program/block-packs';
 import { ROBOT_ENGINE_VERSION } from '../world/snapshot';
 import { checkRobot, RobotCheckError } from './check-robot';
 import { ROBOT_CHECK_LIMITS, type RobotCheckResult } from './check-result';
 import { hasHiddenCharacter, trimLikeDotNet } from './goal-text';
-import { GOAL_ID_MAX_CHARS, GOAL_LABEL_MAX_CHARS, GOALS_MAX, scenarioMaxScore, VARIANTS_MAX, type Scenario } from './scenario';
+import { GOAL_ID_MAX_CHARS, GOAL_LABEL_MAX_CHARS, GOALS_MAX, scenarioKitRef, scenarioMaxScore, VARIANTS_MAX, type Scenario } from './scenario';
 import { variantOffsets } from './variants';
 
 // The verifier of a stored robot lab attempt (N18 R8a, robot plan §R8): a `LabAttempt` as STEMLearning stores and returns it is re-run
@@ -110,27 +109,26 @@ export type VerifyEnvironment = {
 };
 
 /**
- * The environment of this build: the scenarios of `scenarios` (the shipped catalog), each on its kit `scenario.kit@kitVersion` of `kits`
- * (the version a robot lab launches with, robot-keys.ts). Throws when a scenario's kit is not in the catalog: a build that cannot run its own
- * scenario is broken, not the attempt.
+ * The environment of this build: the scenarios of `scenarios` (the shipped catalog), each on its kit `scenario.kit@version` of `kits`, the
+ * version being the one a robot lab launches that kit at (`scenarioKitRef`, robot-keys.ts). Throws when a scenario's kit is not in the
+ * catalog: a build that cannot run its own scenario is broken, not the attempt.
  */
 export function createVerifyEnvironment(options: {
   scenarios: { get(key: string): Scenario | undefined };
   kits: KitCatalog;
   registry: DeviceRegistry;
-  kitVersion?: string;
   profiles?: ProfileCatalog;
   packs?: BlockPackCatalog;
 }): VerifyEnvironment {
-  const { scenarios, kits, registry, kitVersion = robotKitVersion } = options;
+  const { scenarios, kits, registry } = options;
   return {
     scenario: (key) => scenarios.get(key),
     kitOf(scenario) {
-      const ref = { id: scenario.kit, version: kitVersion };
-      const kit = kits.get(ref);
-      const board = kits.boardOf(ref);
-      if (kit === undefined || board === undefined) {
-        throw new Error(`Scenario "${scenario.key}" runs on the kit ${ref.id}@${ref.version}, which this build does not have.`);
+      const ref = scenarioKitRef(scenario);
+      const kit = ref && kits.get(ref);
+      const board = ref && kits.boardOf(ref);
+      if (ref === undefined || kit === undefined || board === undefined) {
+        throw new Error(`Scenario "${scenario.key}" runs on the kit ${ref === undefined ? scenario.kit : kitKey(ref)}, which this build does not have.`);
       }
       return { kit, board };
     },

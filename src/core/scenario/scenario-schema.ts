@@ -3,7 +3,7 @@ import { roleKinds, robotRoles, type ModuleKind, type RobotRole } from '../hardw
 import { arenaSchema } from '../world/arena/arena-schema';
 import { hasHiddenCharacter, trimLikeDotNet } from './goal-text';
 import { polygonsOverlap } from './polygon-overlap';
-import { isRobotTemplateKey, robotKitId, robotLabProfiles, robotSandboxKey, robotTemplateKeys, robotTemplates } from '../../samples/robot-keys';
+import { isRobotTemplateKey, robotLabProfiles, robotSandboxKey, robotTemplateKeys, robotTemplates } from '../../samples/robot-keys';
 
 // The scenario of a robot lab (N18 R5.1, robot plan §4.6): the learner's task as data. The arena, the kit and where the robot
 // starts; the variants a check runs; the scripted button presses; the goals and the score; the program the learner starts from
@@ -203,8 +203,8 @@ function scenarioRuleIssues(scenario: ScenarioShape): RuleIssue[] {
     if (scenario.profile !== template.profile) {
       add(['profile'], `${scenario.key} needs the profile "${template.profile}", not "${scenario.profile}"`);
     }
-    if (scenario.kit !== robotKitId) {
-      add(['kit'], `${scenario.key} uses the kit "${robotKitId}", not "${scenario.kit}"`);
+    if (scenario.kit !== template.kit) {
+      add(['kit'], `${scenario.key} uses the kit "${template.kit}", not "${scenario.kit}"`);
     }
   }
 
