@@ -532,7 +532,8 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
     await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('rb-drive-to-zone', 'reference'));
     await frame.evaluate(() => window.__stem?.robot.setSpeed(4));
     await frame.getByTestId('robot-run').click();
-    await expect.poll(async () => ((await frame.evaluate(() => window.__stem?.robot.getSnapshot())) as { t: number } | null)?.t ?? 0).toBeGreaterThan(2);
+    // At most 8 ticks a drawn frame: t > 2 takes 30 frames, which SwiftShader's high tier draws slowly under a suite's load (N18 P2).
+    await expect.poll(async () => ((await frame.evaluate(() => window.__stem?.robot.getSnapshot())) as { t: number } | null)?.t ?? 0, { timeout: 30_000 }).toBeGreaterThan(2);
     await expectContrast(frame, 'a run');
     // The program's other tabs while the robot runs (their values are live): the C++ source with its marked line, the ports and pins.
     await frame.getByRole('tab', { name: 'Cổng & chân' }).click();
