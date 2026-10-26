@@ -2,14 +2,18 @@ import { useMemo, type ReactNode } from 'react';
 import type { RobotRole } from '../../core/hardware/kit';
 import { useLocale, useText, type Text } from '../i18n/text';
 import type { Locale } from '../i18n/messages';
+import { formatNumber } from './format';
 import { arcPath, needleAngle, polar } from './gauge';
+import { ColorSwatch, swatchMark, type SwatchColor } from './HeldChip';
 import { hubCards, type HubCard, type HubMap, type HubModule, type HubValues, type ModuleView } from './pin-map';
-import { moduleValueText, roleName } from './pin-text';
+import { clawStateText, colorNameText, colorRawText, irLevelText, irStateText, moduleValueText, roleName } from './pin-text';
 
 // The cards of the hub panel (N18 R4.5), one for each part of the kit in kit order, as OhStem's hub shows its drive base and its line
 // sensor: a dial with the live percent for each drive motor, the servo's angle on a dial, the ultrasonic distance in cm, the line sensors'
 // eyes as dots lit on a dark strip, the LED, the buzzer's tone and the button. Before a run a card shows its part with a dash; every
-// value is also written as text, so the picture is never the only thing that says it.
+// value is also written as text, so the picture is never the only thing that says it. N19 E2: the gripper car's three more: the gripper (two
+// dials: the claw's angle with mở or đóng, and the arm's angle), the IR sensor between its jaws (its pin level and có vật or không) and the
+// colour sensor (a swatch with the colour-blind mark of the colour it names, the name, the raw R G B C, and the pins SDA and SCL).
 
 type CardProps = { card: HubCard; values: HubValues };
 
@@ -77,10 +81,61 @@ function LineBody({ card, values, t }: { card: HubCard; values: HubValues; t: Te
   );
 }
 
+/** N19 E2: the gripper's two servos, each on a dial of 0..90°: the claw (with whether it is open or closed) and the lift arm. */
+function GripperBody({ module, view, t, locale }: { module: HubModule; view: ModuleView | undefined; t: Text; locale: Locale }) {
+  const gripper = view?.kind === 'gripper' ? view : null;
+  const part = (id: 'claw' | 'lift', deg: number | null, note: string) => (
+    <div className="hub-gripper-part" data-testid={`hub-gripper-${module.role}-${id}`}>
+      <span className="hub-card-label" data-testid={`hub-label-${module.role}-${id}`}>
+        {t(`robot.pins.gripper.${id}`)}
+      </span>
+      <Dial view={deg} min={0} max={90} zero={180} tone={deg === null ? 'none' : 'servo'} />
+      <span className="hub-card-value" data-testid={`hub-value-${module.role}-${id}`}>
+        {deg === null ? NONE : t('robot.pins.servo.value', { deg: formatNumber(deg, locale) })}
+      </span>
+      <span className="hub-card-note" data-testid={`hub-note-${module.role}-${id}`}>
+        {note}
+      </span>
+    </div>
+  );
+  const claw = gripper?.clawDeg ?? null;
+  return (
+    <div className="hub-gripper">
+      {part('claw', claw, claw === null ? ' ' : clawStateText(t, claw))}
+      {part('lift', gripper?.liftDeg ?? null, ' ')}
+    </div>
+  );
+}
+
+/** N19 E2: the colour sensor: a swatch of the colour it names (with its mark), the name, the raw counts, and the pins it is on. */
+function ColorBody({ module, view, t }: { module: HubModule; view: ModuleView | undefined; t: Text }) {
+  const sensor = view?.kind === 'color-sensor' ? view : null;
+  const swatch: SwatchColor | undefined = sensor?.color === 'white' || sensor?.color === 'black' || sensor?.color === 'red' || sensor?.color === 'green' || sensor?.color === 'blue' || sensor?.color === 'yellow' ? sensor.color : undefined;
+  const pin = (name: string) => module.pins.find((candidate) => candidate.name === name)?.pin ?? NONE;
+  return (
+    <>
+      <span className="hub-color-reading">
+        <span className="hub-color-swatch" data-testid={`hub-swatch-${module.role}`} data-color={sensor?.color ?? 'none'} data-mark={swatchMark(swatch)}>
+          <ColorSwatch color={swatch} size={26} />
+        </span>
+        <span className="hub-card-value" data-testid={`hub-value-${module.role}`}>
+          {sensor?.color == null ? NONE : colorNameText(t, sensor.color)}
+        </span>
+      </span>
+      <span className="hub-card-note" data-testid={`hub-raw-${module.role}`}>
+        {sensor === null ? ' ' : sensor.rgbc === null ? t('robot.pins.color.noReading') : colorRawText(t, sensor.rgbc)}
+      </span>
+      <span className="hub-card-note" data-testid={`hub-wires-${module.role}`}>
+        {t('robot.pins.color.wires', { sda: pin('SDA'), scl: pin('SCL') })}
+      </span>
+    </>
+  );
+}
+
 function ValueBody({ module, text, children, lit }: { module: HubModule; text: string | null; children?: ReactNode; lit: boolean | null }) {
   return (
     <>
-      <span className="hub-lamp" aria-hidden="true" data-lit={lit === null ? 'unknown' : lit}>
+      <span className="hub-lamp" aria-hidden="true" data-testid={`hub-lamp-${module.role}`} data-lit={lit === null ? 'unknown' : lit}>
         {children}
       </span>
       <span className="hub-card-value" data-testid={`hub-value-${module.role}`}>
@@ -127,6 +182,24 @@ function Card({ card, values, t, locale, ports }: CardProps & { t: Text; locale:
       break;
     case 'button':
       body = <ValueBody module={module} text={text} lit={view?.kind === 'button' ? view.pressed : null} />;
+      break;
+    case 'gripper':
+      body = <GripperBody module={module} view={view} t={t} locale={locale} />;
+      break;
+    case 'ir-obstacle': {
+      const ir = view?.kind === 'ir-obstacle' ? view : null;
+      body = (
+        <>
+          <ValueBody module={module} text={ir === null ? null : irLevelText(ir.level)} lit={ir === null ? null : ir.detected} />
+          <span className="hub-card-note" data-testid={`hub-note-${module.role}`}>
+            {ir === null ? ' ' : irStateText(t, ir.detected)}
+          </span>
+        </>
+      );
+      break;
+    }
+    case 'color-sensor':
+      body = <ColorBody module={module} view={view} t={t} />;
       break;
   }
   return (

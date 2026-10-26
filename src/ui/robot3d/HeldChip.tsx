@@ -55,16 +55,28 @@ function MarkShapes({ mark }: { mark: BodyMark }) {
   }
 }
 
-/** A swatch of a palette colour with its mark; an outline without a fill for an object that has no colour of the palette. */
-export function ColorSwatch({ color }: { color: BodyColorName | undefined }) {
-  const mark = color === undefined ? null : bodyMarks[color];
+/** What a swatch can show: a colour of the palette (with its mark), or (the colour sensor's) plain white or black. */
+export type SwatchColor = BodyColorName | 'white' | 'black';
+
+const plainFills = { white: '#ffffff', black: '#212121' } as const;
+
+/** The mark of a swatch's colour: the palette's four have one (yellow none), white and black none. */
+const markOf = (color: SwatchColor): BodyMark | null => (color === 'white' || color === 'black' ? null : bodyMarks[color]);
+
+/** A swatch of a colour with its mark, `size` px; an outline without a fill for no colour (an object or a reading the palette has no word for). */
+export function ColorSwatch({ color, size = 16 }: { color: SwatchColor | undefined; size?: number }) {
+  const mark = color === undefined ? null : markOf(color);
+  const fill = color === undefined ? 'none' : color === 'white' || color === 'black' ? plainFills[color] : bodyPalette[color];
   return (
-    <svg className="robot-held-swatch" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
-      <rect x={1} y={1} width={14} height={14} rx={3} fill={color === undefined ? 'none' : bodyPalette[color]} stroke="currentColor" strokeWidth={1} />
+    <svg className="robot-held-swatch" viewBox="0 0 16 16" width={size} height={size} aria-hidden="true" focusable="false">
+      <rect x={1} y={1} width={14} height={14} rx={3} fill={fill} stroke="currentColor" strokeWidth={1} />
       {mark !== null && <MarkShapes mark={mark} />}
     </svg>
   );
 }
+
+/** The mark a swatch of `color` carries, in a word for the page: stripes, grid, dots or none. */
+export const swatchMark = (color: SwatchColor | undefined): BodyMark | 'none' => (color === undefined ? 'none' : (markOf(color) ?? 'none'));
 
 type HeldChipProps = { store: RobotRunStore; scenario: NamingScenario };
 
@@ -77,7 +89,7 @@ export const HeldChip = memo(function HeldChip({ store, scenario }: HeldChipProp
   const color = objectColorName(scenario, heldId, round);
   return (
     <div className="robot-hud-row">
-      <span className="robot-badge robot-badge-held" data-testid="robot-held" data-color={color ?? 'none'} data-mark={(color === undefined ? null : bodyMarks[color]) ?? 'none'}>
+      <span className="robot-badge robot-badge-held" data-testid="robot-held" data-color={color ?? 'none'} data-mark={swatchMark(color)}>
         <ColorSwatch color={color} />
         {t('robot.hud.holding', { object: objectName(t, scenario, heldId, round) })}
       </span>

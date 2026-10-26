@@ -1,4 +1,6 @@
 import type { BoardProfile } from '../../core/hardware/board';
+import type { Rgbc } from '../../core/hardware/devices/tcs34725';
+import { classifyColor, COLOR_NAMES, type ColorName } from '../../core/hardware/drivers';
 import { driverPortSpecs, kitPort, type DriverId, type Kit, type ModuleKind } from '../../core/hardware/kit';
 import type { PinMode, PinState } from '../../core/hardware/virtual-uno';
 import type { RobotSnapshot } from '../../core/world/snapshot';
@@ -8,6 +10,11 @@ import { buttonPressed, lineSeesDark, toneHzOf } from './robot-model';
 // from the kit and the board), and what a snapshot of the run says about each pin and each part (live). The 3D view reads the same
 // places of the snapshot (robot-model.ts: `sensors` are the kit's sensors in kit order, `pins` are the board's pins in order), and so
 // does this: the indices are worked out once, here, and a test holds them equal to the 3D view's.
+//
+// N19 E2: the gripper car adds three parts. The gripper's two servos are read as the 3D view draws them (the snapshot's `robot.gripper`); the
+// IR sensor between its jaws from its pin A3 (what a program's ir.detect reads) and the kit's `activeLow`; the colour sensor on A4 and A5
+// from its entry among the `sensors` (B3/B4: `{kind:'color-sensor', rgbc?}`), only when it is there, its colour from the same COLOR_RULES
+// as the program's color.is. The IR and colour sensors stand after the line sensors among the snapshot's `sensors`, in kit order.
 //
 // Everything a function returns is plain JSON (numbers, strings, booleans, null), so a view can tell whether anything changed, and so
 // skip a render, by comparing text. No words: the strings of the tab are the UI's (pin-text.ts).
@@ -23,8 +30,10 @@ export type HubModule = {
   driver: DriverId;
   /** The pins of the port, in the kit's order (`EN`, `IN1`, `IN2`). */
   pins: HubPin[];
-  /** The part's place among the snapshot's `sensors` (the kit's ultrasonic and line sensors in kit order); -1 for a part that has none. */
+  /** The part's place among the snapshot's `sensors` (the kit's ultrasonic, line, IR and colour sensors in kit order); -1 for a part that has none. */
   sensorIndex: number;
+  /** N19 E2: whether an IR sensor's output is LOW while it sees something (the port's `activeLow`, true by default as the driver has it); null for any other part. */
+  activeLow: boolean | null;
 };
 
 /** One pin of the board's header. */
@@ -50,7 +59,7 @@ export type HubMap = {
   pwmMax: number;
 };
 
-const sensorKinds: ReadonlySet<ModuleKind> = new Set<ModuleKind>(['ultrasonic', 'line-sensor']);
+const sensorKinds: ReadonlySet<ModuleKind> = new Set<ModuleKind>(['ultrasonic', 'line-sensor', 'ir-obstacle', 'color-sensor']);
 
 /** The kit's chain from role to board pin, as data the tab lists (and the same on every run of it). */
 export function hubMap(kit: Kit, board: BoardProfile): HubMap {
@@ -71,6 +80,7 @@ export function hubMap(kit: Kit, board: BoardProfile): HubMap {
       driver: port?.driver ?? 'led-digital',
       pins,
       sensorIndex: sensors.findIndex((sensor) => sensor === module),
+      activeLow: module.kind === 'ir-obstacle' ? (typeof port?.params?.activeLow === 'boolean' ? port.params.activeLow : true) : null,
     };
   });
   return {
@@ -113,7 +123,16 @@ export type ModuleView =
   | { kind: 'line-sensor'; dark: boolean }
   | { kind: 'led'; on: boolean }
   | { kind: 'buzzer'; hz: number | null }
-  | { kind: 'button'; pressed: boolean };
+  | { kind: 'button'; pressed: boolean }
+  /** N19 E2: the claw's and the arm's angles, whole degrees as the 3D view draws them; null when the snapshot has no gripper. */
+  | { kind: 'gripper'; clawDeg: number | null; liftDeg: number | null }
+  /** N19 E2: the level of the IR sensor's pin and whether that means it sees something (LOW when the kit says activeLow). */
+  | { kind: 'ir-obstacle'; level: 'low' | 'high'; detected: boolean }
+  /** N19 E2: the counts of the colour sensor's registers and the colour the rules make of them; both null while the world gives no reading. */
+  | { kind: 'color-sensor'; rgbc: ColorCounts | null; color: ColorName | null };
+
+/** The raw counts of the TCS34725's channels, in the order the tab writes them: R G B C. */
+export type ColorCounts = { r: number; g: number; b: number; c: number };
 
 export type HubValues = {
   /** There is a world to read: a run, or the last frame of a stopped one. False is the static mapping, with no values. */
@@ -128,6 +147,19 @@ export const idleHubValues: HubValues = Object.freeze({ live: false, pins: Objec
 
 /** `Math.round`, with 0 where it would give −0. */
 const rounded = (value: number) => Math.round(value) + 0;
+
+/**
+ * N19 E2: what the colour sensor's entry among the snapshot's `sensors` holds that the tab reads: the counts of the sensor's registers, when the
+ * world gives them. Read through this, and only when the entry is there: a snapshot without the entry (before B3/B4, or a rover's) has none.
+ */
+type ColorEntry = { readonly kind: 'color-sensor'; readonly rgbc?: Rgbc };
+
+function colorCounts(world: RobotSnapshot, index: number): ColorCounts | null {
+  const entry = world.sensors[index] as unknown as ColorEntry | undefined;
+  if (entry?.kind !== 'color-sensor' || entry.rgbc === undefined) return null;
+  const { r, g, b, c } = entry.rgbc;
+  return { r, g, b, c };
+}
 
 function moduleView(module: HubModule, world: RobotSnapshot, pwmMax: number): ModuleView | undefined {
   const pinOf = (name: string) => {
@@ -164,6 +196,19 @@ function moduleView(module: HubModule, world: RobotSnapshot, pwmMax: number): Mo
     case 'button': {
       const index = module.pins[0]?.index ?? -1;
       return { kind: 'button', pressed: index >= 0 && buttonPressed(world, index) };
+    }
+    case 'gripper': {
+      const { gripper } = world.robot;
+      return { kind: 'gripper', clawDeg: gripper === undefined ? null : rounded(gripper.clawDeg), liftDeg: gripper === undefined ? null : rounded(gripper.liftDeg) };
+    }
+    case 'ir-obstacle': {
+      const level = pinOf('PIN')?.level;
+      if (level === undefined) return undefined;
+      return { kind: 'ir-obstacle', level: level === 1 ? 'high' : 'low', detected: (level === 0) === (module.activeLow ?? true) };
+    }
+    case 'color-sensor': {
+      const counts = colorCounts(world, module.sensorIndex);
+      return { kind: 'color-sensor', rgbc: counts, color: counts === null ? null : COLOR_NAMES[classifyColor(counts)]! };
     }
   }
 }

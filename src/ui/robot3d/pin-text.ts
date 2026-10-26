@@ -1,8 +1,9 @@
 import type { Locale } from '../i18n/messages';
 import type { Text } from '../i18n/text';
+import type { ColorName } from '../../core/hardware/drivers';
 import type { RobotRole } from '../../core/hardware/kit';
 import { formatNumber } from './format';
-import type { HubMap, HubOwner, HubValues, ModuleView, PinReading } from './pin-map';
+import type { ColorCounts, HubMap, HubOwner, HubValues, ModuleView, PinReading } from './pin-map';
 
 // The words of the robot lab's "Cổng & chân" tab (N18 R4.5): the values of pin-map.ts said in the learner's language, and the rows of the
 // plan's chain role → port → pins → value, for the table, as data a test reads exactly. HIGH, LOW and PWM are the board's own words and are
@@ -24,6 +25,27 @@ export function pinValueText(t: Text, locale: Locale, reading: PinReading): stri
   }
 }
 
+/**
+ * N19 E2: the claw is closed from this angle (degrees) and open below it: nothing attaches to a claw under 6° (plan §4.6 rule 5), so a cube
+ * the jaws hold (27° on a 4 cm cube) reads "đóng" and the open claw (0°) "mở".
+ */
+export const CLAW_CLOSED_FROM_DEG = 6;
+
+/** N19 E2: whether the claw at `deg` is open or closed, in a word. */
+export const clawStateText = (t: Text, deg: number): string => t(deg < CLAW_CLOSED_FROM_DEG ? 'robot.pins.claw.open' : 'robot.pins.claw.closed');
+
+/** N19 E2: whether the IR sensor sees an object: "có vật" or "không". */
+export const irStateText = (t: Text, detected: boolean): string => t(detected ? 'robot.pins.ir.seen' : 'robot.pins.ir.clear');
+
+/** N19 E2: the level an IR pin is at, in the board's own words. */
+export const irLevelText = (level: 'low' | 'high'): string => (level === 'low' ? 'LOW' : 'HIGH');
+
+/** N19 E2: a colour of COLOR_RULES in the learner's language ("đỏ", "không rõ"). */
+export const colorNameText = (t: Text, name: ColorName): string => t(`robot.color.${name}`);
+
+/** N19 E2: the raw counts of the colour sensor, `R 8047 G 1676 B 1382 C 9596` (whole numbers, the same in both languages). */
+export const colorRawText = (t: Text, counts: ColorCounts): string => t('robot.pins.color.raw', { r: counts.r, g: counts.g, b: counts.b, c: counts.c });
+
 /** What a part shows, in a few words: `50 %`, `90°`, `23,4 cm`, `tối`, `bật`, `440 Hz`, `đang nhấn`. Null when the snapshot says nothing. */
 export function moduleValueText(t: Text, locale: Locale, view: ModuleView | undefined): string | null {
   switch (view?.kind) {
@@ -43,6 +65,14 @@ export function moduleValueText(t: Text, locale: Locale, view: ModuleView | unde
       return view.hz === null ? t('robot.pins.buzzer.off') : t('robot.pins.buzzer.hz', { hz: formatNumber(view.hz, locale) });
     case 'button':
       return t(view.pressed ? 'robot.pins.button.down' : 'robot.pins.button.up');
+    case 'gripper':
+      return view.clawDeg === null || view.liftDeg === null
+        ? null
+        : t('robot.pins.gripper.value', { claw: formatNumber(view.clawDeg, locale), state: clawStateText(t, view.clawDeg), lift: formatNumber(view.liftDeg, locale) });
+    case 'ir-obstacle':
+      return t('robot.pins.ir.value', { level: irLevelText(view.level), state: irStateText(t, view.detected) });
+    case 'color-sensor':
+      return view.rgbc === null || view.color === null ? null : t('robot.pins.color.value', { raw: colorRawText(t, view.rgbc), color: colorNameText(t, view.color) });
   }
 }
 

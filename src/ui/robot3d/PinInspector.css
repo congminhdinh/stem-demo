@@ -183,7 +183,9 @@
   background: var(--stem-color-surface-muted);
 }
 
-.hub-card[data-kind='line-sensor'] {
+.hub-card[data-kind='line-sensor'],
+.hub-card[data-kind='gripper'],
+.hub-card[data-kind='color-sensor'] {
   grid-column: span 2;
 }
 
@@ -318,6 +320,40 @@
   color: var(--stem-color-console-text);
   font-size: 10px;
   white-space: nowrap;
+}
+
+/* N19 E2: the gripper car's gripper (the claw's dial and the arm's side by side), and the colour sensor's swatch with its name. */
+.hub-gripper {
+  display: flex;
+  justify-content: space-around;
+  gap: 8px;
+  width: 100%;
+}
+
+.hub-gripper-part {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hub-card-label {
+  color: var(--stem-color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.hub-color-reading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hub-color-swatch {
+  display: inline-flex;
+  color: var(--stem-color-text);
 }
 
 /* The LED, the buzzer and the button: a lamp that is lit while the part is on. */
