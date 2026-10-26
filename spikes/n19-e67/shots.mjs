@@ -26,6 +26,11 @@ for (const tier of test.length ? [] : ['high', 'low']) {
     // "Theo xe" zoomed in, then orbited round to the car's front right, a little lower.
     shots.push({ name: `gripper-lift${lift}-claw${claw}-${tier}`, query: { tier, lift, claw, camera: 'follow' }, zoomFirst: 5, orbit: [[-420, -70]], zoom: 2 });
   }
+  // Fix round 1 (review M9): the claw from its front three-quarter (its boards, the carriage) and the arm side on (the parallelogram).
+  for (const lift of [0, 45, 90]) {
+    shots.push({ name: `front34-lift${lift}-${tier}`, query: { tier, lift, claw: 30, camera: 'follow' }, zoomFirst: 6, orbit: [[-240, -90]], zoom: 2 });
+    shots.push({ name: `side-lift${lift}-${tier}`, query: { tier, lift, claw: 0, camera: 'follow' }, zoomFirst: 6, orbit: [[-160, -40]], zoom: 2 });
+  }
   shots.push({ name: `holding-red-cube-${tier}`, query: { tier, lift: 45, claw: 26.97, held: 'cube-red', camera: 'follow' }, zoomFirst: 5, orbit: [[-420, -70]], zoom: 2 });
   shots.push({ name: `holding-red-cube-side-${tier}`, query: { tier, lift: 45, claw: 26.97, held: 'cube-red', camera: 'follow' }, zoomFirst: 5, orbit: [[-300, -60]], zoom: 2 });
   shots.push({ name: `holding-red-cube-raised-${tier}`, query: { tier, lift: 90, claw: 26.97, held: 'cube-red', camera: 'follow' }, zoomFirst: 5, orbit: [[-420, -40]], zoom: 1 });
