@@ -4,6 +4,7 @@ import { registry } from '../program/__fixtures__/uno-blocks';
 import type { Scenario } from '../scenario/scenario';
 import { initPhysics, PHYSICS_HZ } from '../world/rapier';
 import { hashSnapshot } from '../world/snapshot';
+import { loadScenario } from '../scenario/scenario';
 import { sandboxScenario, worldOf } from './__fixtures__/robot-session';
 import { createRobotRunSession } from './robot-run-session';
 import type { TeleopCommand } from './teleop';
@@ -83,5 +84,47 @@ describe('teleop on the gripper car (N19 E3)', () => {
     const first = await run();
     expect(first.log).toEqual(log);
     expect((await run()).hash).toBe(first.hash);
+  });
+
+  it('a grab by hand: lower the arm over a cube in front of the claw, close the claw, and the snapshot says the claw holds it; opening lets it go', async () => {
+    // The sandbox floor with a foam cube 4 cm, 15 g, red, 4.5 cm past the lowered carriage's origin (4.5 + 5·cos(−40°) ahead of the robot): the open
+    // claw comes down with it between its jaws (measured: at 3 cm the descending jaws push it, at 6 cm it is past the grip's window).
+    const floor = sandboxScenario();
+    const scenario: Scenario = {
+      ...loadScenario({
+        key: 'rb-sandbox',
+        version: 1,
+        title: { vi: 'Bài thử', en: 'Fixture' },
+        profile: 'uno-basic',
+        kit: 'ref-uno-rover',
+        arena: {
+          ground: { sizeCm: [300, 150], color: '#ffffff' },
+          objects: [{ id: 'cube', shape: 'box', centerCm: [40 + 4.5 + 5 * Math.cos((-40 * Math.PI) / 180) + 4.5, 75], sizeCm: [4, 4, 4], massG: 15, noun: 'cube', color: '#d32f2f' }],
+        },
+        start: floor.start,
+        variants: { count: 1, seed: 3, startJitterCm: 0, yawJitterDeg: 0 },
+        inputs: [],
+        timeLimitS: 60,
+        goals: [],
+        starter: {},
+      }),
+      kit: gripperKit.id,
+    };
+    const session = createRobotRunSession({ scenario, kit: gripperKit, board: unoR3Board, registry });
+    await session.startTeleop();
+    session.teleop(lift(0));
+    await session.runUntil(0.6);
+    expect(worldOf(session).robot.gripper!.heldId).toBeNull();
+    session.teleop(claw(80));
+    await session.runUntil(1.6);
+    const held = worldOf(session);
+    expect(held.robot.gripper!.heldId).toBe('cube');
+    // The jaws stop on the cube, well short of the 80° they are told.
+    expect(held.robot.gripper!.clawDeg).toBeGreaterThan(20);
+    expect(held.robot.gripper!.clawDeg).toBeLessThan(35);
+    session.teleop(claw(0));
+    await session.runUntil(2.4);
+    expect(worldOf(session).robot.gripper!.heldId).toBeNull();
+    session.stop();
   });
 });
