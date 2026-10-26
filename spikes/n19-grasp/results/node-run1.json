@@ -1,0 +1,3859 @@
+{
+  "label": "run1",
+  "date": "2026-10-26T14:36:59.583Z",
+  "command": "node spikes/n19-grasp/node-run.ts run1",
+  "env": {
+    "node": "v24.22.1",
+    "platform": "darwin",
+    "release": "25.5.0",
+    "arch": "arm64",
+    "cpu": "Apple M4 Pro",
+    "cores": 12,
+    "rapier": "0.21.0",
+    "loadavgStart": [
+      16.3427734375,
+      25.95556640625,
+      28.18798828125
+    ],
+    "initMs": 89.8
+  },
+  "constants": {
+    "squeezeN": 8.09,
+    "breakForceN": 9.708
+  },
+  "hashes": {
+    "plan": {
+      "run1": {
+        "trajBits": "ff863a35",
+        "finalQ6": "1bbda434"
+      },
+      "run2": {
+        "trajBits": "ff863a35",
+        "finalQ6": "1bbda434"
+      },
+      "equal": true
+    },
+    "tuned-collider": {
+      "run1": {
+        "trajBits": "aaeace5c",
+        "finalQ6": "e4f99d6a"
+      },
+      "run2": {
+        "trajBits": "aaeace5c",
+        "finalQ6": "e4f99d6a"
+      },
+      "equal": true
+    },
+    "tuned-sensor": {
+      "run1": {
+        "trajBits": "c194c0a8",
+        "finalQ6": "8f3329e8"
+      },
+      "run2": {
+        "trajBits": "c194c0a8",
+        "finalQ6": "8f3329e8"
+      },
+      "equal": true
+    }
+  },
+  "scenarios": {
+    "plan": {
+      "s1Carry15g": {
+        "massG": 15,
+        "events": [
+          {
+            "tick": 148,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.603,
+            "t": 1.233
+          },
+          {
+            "tick": 558,
+            "kind": "release",
+            "id": "cube",
+            "thetaCDeg": 19.603,
+            "t": 4.65
+          }
+        ],
+        "phase": {
+          "attachU": 2.909,
+          "attachW": 0.451,
+          "liftedBottomCm": 6.875
+        },
+        "cubeEnd": {
+          "xCm": 110.231,
+          "yCm": 49.966,
+          "zCm": 1.993
+        },
+        "cubeTiltEndDeg": 0,
+        "liveJointsEnd": 0,
+        "maxLevel": 6.443,
+        "penClosingMm": 0,
+        "penHeldMm": 0.189,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0.026,
+        "jitterDeg": 0.095,
+        "maxExternalN": 4.212,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.271,
+        "all": {
+          "maxPitch": 0.542,
+          "minPitch": -0.002,
+          "maxRoll": 0.006,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 0.553,
+          "casterTicksOff": 17
+        },
+        "hash": {
+          "trajBits": "ff863a35",
+          "finalQ6": "1bbda434"
+        }
+      },
+      "s2Carry50g": {
+        "massG": 50,
+        "events": [
+          {
+            "tick": 148,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.603,
+            "t": 1.233
+          },
+          {
+            "tick": 558,
+            "kind": "release",
+            "id": "cube",
+            "thetaCDeg": 19.603,
+            "t": 4.65
+          }
+        ],
+        "phase": {
+          "attachU": 2.909,
+          "attachW": 0.451,
+          "liftedBottomCm": 1.141
+        },
+        "cubeEnd": {
+          "xCm": 110.341,
+          "yCm": 49.96,
+          "zCm": 1.993
+        },
+        "cubeTiltEndDeg": 0,
+        "liveJointsEnd": 0,
+        "maxLevel": 10.197,
+        "penClosingMm": 0,
+        "penHeldMm": 0.191,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0.007,
+        "jitterDeg": 0,
+        "maxExternalN": 5.026,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 1.662,
+        "all": {
+          "maxPitch": 0.501,
+          "minPitch": -0.047,
+          "maxRoll": 0.011,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 0.498,
+          "casterTicksOff": 8
+        },
+        "hash": {
+          "trajBits": "a2799749",
+          "finalQ6": "27d2de59"
+        }
+      },
+      "s3TooHeavy60g": {
+        "massG": 60,
+        "clawAfterCloseDeg": 26.117,
+        "cubeBottomAtLift90Cm": -0.007,
+        "events": [],
+        "cubeEnd": {
+          "xCm": 60.15,
+          "yCm": 49.948,
+          "zCm": 1.993
+        },
+        "maxLevel": 5.027,
+        "penClosingMm": 0.813,
+        "penHeldMm": 0,
+        "penAfterMm": 0,
+        "penCarriageMm": 0.341,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 0.141,
+        "all": {
+          "maxPitch": 0.652,
+          "minPitch": 0,
+          "maxRoll": 0.005,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 0.702,
+          "casterTicksOff": 10
+        }
+      },
+      "s4Brake90": {
+        "liftDeg": 90,
+        "stop": "brake",
+        "speedAtStopMS": 0.4762,
+        "stopDistanceCm": 1.67,
+        "heldAtEnd": "cube",
+        "events": [
+          {
+            "tick": 151,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 22.794,
+            "t": 1.258
+          }
+        ],
+        "maxLevel": 10.157,
+        "penClosingMm": 0.128,
+        "penHeldMm": 0.404,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0.003,
+        "jitterDeg": 0.029,
+        "maxExternalN": 0.67,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 1.849,
+        "all": {
+          "maxPitch": 0.502,
+          "minPitch": -0.067,
+          "maxRoll": 0.011,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 0.5,
+          "casterTicksOff": 5
+        },
+        "window": {
+          "maxPitch": 0.014,
+          "minPitch": -0.067,
+          "maxRoll": 0.011,
+          "casterMinLoadN": 1.603,
+          "casterMaxHeightMm": -0.098,
+          "casterTicksOff": 0
+        }
+      },
+      "s4Brake45": {
+        "liftDeg": 45,
+        "stop": "brake",
+        "speedAtStopMS": 0.4762,
+        "stopDistanceCm": 1.67,
+        "heldAtEnd": "cube",
+        "events": [
+          {
+            "tick": 151,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 22.794,
+            "t": 1.258
+          }
+        ],
+        "maxLevel": 10.157,
+        "penClosingMm": 0.128,
+        "penHeldMm": 0.404,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0.003,
+        "jitterDeg": 0.029,
+        "maxExternalN": 0.67,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 1.849,
+        "all": {
+          "maxPitch": 0.502,
+          "minPitch": -0.067,
+          "maxRoll": 0.011,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 0.5,
+          "casterTicksOff": 5
+        },
+        "window": {
+          "maxPitch": 0.014,
+          "minPitch": -0.067,
+          "maxRoll": 0.011,
+          "casterMinLoadN": 1.603,
+          "casterMaxHeightMm": -0.098,
+          "casterTicksOff": 0
+        }
+      },
+      "s4Coast90": {
+        "liftDeg": 90,
+        "stop": "coast",
+        "speedAtStopMS": 0.4762,
+        "stopDistanceCm": 4.01,
+        "heldAtEnd": "cube",
+        "events": [
+          {
+            "tick": 151,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 22.794,
+            "t": 1.258
+          }
+        ],
+        "maxLevel": 10.106,
+        "penClosingMm": 0.128,
+        "penHeldMm": 0.404,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0.003,
+        "jitterDeg": 0.037,
+        "maxExternalN": 0.67,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 1.819,
+        "all": {
+          "maxPitch": 0.502,
+          "minPitch": -0.035,
+          "maxRoll": 0.011,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 0.5,
+          "casterTicksOff": 5
+        },
+        "window": {
+          "maxPitch": 0.014,
+          "minPitch": -0.035,
+          "maxRoll": 0.011,
+          "casterMinLoadN": 1.72,
+          "casterMaxHeightMm": -0.098,
+          "casterTicksOff": 0
+        }
+      },
+      "s5Wall45Push": {
+        "liftDeg": 45,
+        "after": "push",
+        "graspU": 4,
+        "attachU": 3.932,
+        "speedBeforeImpactMS": 0.3976,
+        "impactT": 3.467,
+        "settleAfterImpactS": 1.392,
+        "pitchAtWindowEnd": 8.418,
+        "heldAtEnd": null,
+        "events": [
+          {
+            "tick": 151,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 24.603,
+            "t": 1.258
+          },
+          {
+            "tick": 417,
+            "kind": "break",
+            "id": "cube",
+            "thetaCDeg": 24.603,
+            "forceN": 11.48,
+            "t": 3.475
+          }
+        ],
+        "maxLevel": 10.933,
+        "penClosingMm": 0,
+        "penHeldMm": 0.124,
+        "penAfterMm": 0.72,
+        "penCarriageMm": 0,
+        "jitterMm": 0.138,
+        "jitterDeg": 0.605,
+        "maxExternalN": 4.61,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 3.727,
+        "all": {
+          "maxPitch": 8.418,
+          "minPitch": 0,
+          "maxRoll": 0.015,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 10.832,
+          "casterTicksOff": 305
+        },
+        "window": {
+          "maxPitch": 8.404,
+          "minPitch": 0,
+          "maxRoll": 0.015,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 10.813,
+          "casterTicksOff": 175
+        }
+      },
+      "s5Wall90Push": {
+        "liftDeg": 90,
+        "after": "push",
+        "graspU": 4,
+        "attachU": 3.932,
+        "speedBeforeImpactMS": 0.3976,
+        "impactT": 3.517,
+        "settleAfterImpactS": 0.792,
+        "pitchAtWindowEnd": 15.864,
+        "heldAtEnd": "cube",
+        "events": [
+          {
+            "tick": 151,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 24.603,
+            "t": 1.258
+          }
+        ],
+        "maxLevel": 16.632,
+        "penClosingMm": 0,
+        "penHeldMm": 0.419,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0.087,
+        "jitterDeg": 0.257,
+        "maxExternalN": 5.48,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 10.651,
+        "all": {
+          "maxPitch": 15.892,
+          "minPitch": 0,
+          "maxRoll": 0.02,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 20.883,
+          "casterTicksOff": 303
+        },
+        "window": {
+          "maxPitch": 15.892,
+          "minPitch": 0,
+          "maxRoll": 0.02,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 20.883,
+          "casterTicksOff": 179
+        }
+      },
+      "s5Wall45CoastOnContact": {
+        "liftDeg": 45,
+        "after": "coast-on-contact",
+        "graspU": 4,
+        "attachU": 3.932,
+        "speedBeforeImpactMS": 0.3976,
+        "impactT": 3.467,
+        "settleAfterImpactS": 0.042,
+        "pitchAtWindowEnd": 0.064,
+        "heldAtEnd": null,
+        "events": [
+          {
+            "tick": 151,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 24.603,
+            "t": 1.258
+          },
+          {
+            "tick": 417,
+            "kind": "break",
+            "id": "cube",
+            "thetaCDeg": 24.603,
+            "forceN": 11.13,
+            "t": 3.475
+          }
+        ],
+        "maxLevel": 8.035,
+        "penClosingMm": 0,
+        "penHeldMm": 0.124,
+        "penAfterMm": 0.382,
+        "penCarriageMm": 0,
+        "jitterMm": 0.138,
+        "jitterDeg": 0.605,
+        "maxExternalN": 4.61,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 3.727,
+        "all": {
+          "maxPitch": 0.488,
+          "minPitch": 0,
+          "maxRoll": 0.005,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 0.489,
+          "casterTicksOff": 5
+        },
+        "window": {
+          "maxPitch": 0.064,
+          "minPitch": 0,
+          "maxRoll": 0.003,
+          "casterMinLoadN": 0.262,
+          "casterMaxHeightMm": -0.046,
+          "casterTicksOff": 0
+        }
+      },
+      "s5Wall90CoastOnContact": {
+        "liftDeg": 90,
+        "after": "coast-on-contact",
+        "graspU": 4,
+        "attachU": 3.932,
+        "speedBeforeImpactMS": 0.3976,
+        "impactT": 3.517,
+        "settleAfterImpactS": null,
+        "pitchAtWindowEnd": 3.139,
+        "heldAtEnd": "cube",
+        "events": [
+          {
+            "tick": 151,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 24.603,
+            "t": 1.258
+          }
+        ],
+        "maxLevel": 7.454,
+        "penClosingMm": 0,
+        "penHeldMm": 0.12,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0.087,
+        "jitterDeg": 0.269,
+        "maxExternalN": 5.48,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.558,
+        "all": {
+          "maxPitch": 3.498,
+          "minPitch": 0,
+          "maxRoll": 0.018,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 4.378,
+          "casterTicksOff": 303
+        },
+        "window": {
+          "maxPitch": 3.498,
+          "minPitch": 0,
+          "maxRoll": 0.018,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 4.378,
+          "casterTicksOff": 179
+        }
+      },
+      "s5Wall45FingersFirstPush": {
+        "liftDeg": 45,
+        "after": "push",
+        "graspU": 3,
+        "attachU": 2.937,
+        "speedBeforeImpactMS": 0.3976,
+        "impactT": 3.45,
+        "settleAfterImpactS": 0.15,
+        "pitchAtWindowEnd": 15.656,
+        "heldAtEnd": "cube",
+        "events": [
+          {
+            "tick": 150,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.604,
+            "t": 1.25
+          }
+        ],
+        "maxLevel": 15.99,
+        "penClosingMm": 0,
+        "penHeldMm": 11.89,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0.005,
+        "jitterDeg": 0.016,
+        "maxExternalN": 0.214,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.245,
+        "all": {
+          "maxPitch": 15.969,
+          "minPitch": 0,
+          "maxRoll": 0.007,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 21.054,
+          "casterTicksOff": 311
+        },
+        "window": {
+          "maxPitch": 15.969,
+          "minPitch": 0,
+          "maxRoll": 0.007,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 21.054,
+          "casterTicksOff": 179
+        }
+      },
+      "s6Press": {
+        "attachW": -0.237,
+        "liftReachedDeg": 2.699,
+        "heldAtEnd": "cube",
+        "events": [
+          {
+            "tick": 148,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.604,
+            "t": 1.233
+          }
+        ],
+        "maxLevel": 9.248,
+        "penClosingMm": 0,
+        "penHeldMm": 0.179,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0.131,
+        "jitterDeg": 0.589,
+        "maxExternalN": 4.764,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 4.41,
+        "all": {
+          "maxPitch": 3.115,
+          "minPitch": 0,
+          "maxRoll": 0.006,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 3.926,
+          "casterTicksOff": 487
+        },
+        "window": {
+          "maxPitch": 3.115,
+          "minPitch": 0,
+          "maxRoll": 0.006,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 3.926,
+          "casterTicksOff": 293
+        }
+      },
+      "s7Drop": {
+        "bottomBeforeReleaseCm": 0.816,
+        "tiltAfterLandingDeg": 0,
+        "cubeAfter": {
+          "xCm": 59.9,
+          "yCm": 50.014,
+          "zCm": 1.993
+        },
+        "tiltEndDeg": 0,
+        "events": [
+          {
+            "tick": 148,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.603,
+            "t": 1.233
+          },
+          {
+            "tick": 305,
+            "kind": "release",
+            "id": "cube",
+            "thetaCDeg": 19.603,
+            "t": 2.542
+          }
+        ],
+        "maxLevel": 11.176,
+        "penClosingMm": 0,
+        "penHeldMm": 0.189,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0.007,
+        "jitterDeg": 0,
+        "maxExternalN": 0.873,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.271,
+        "all": {
+          "maxPitch": 0.501,
+          "minPitch": 0,
+          "maxRoll": 0.008,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 0.498,
+          "casterTicksOff": 10
+        }
+      },
+      "s8Stack45": {
+        "liftDeg": 45,
+        "heldCubeHitBase": true,
+        "heldBottomCm": 3.369,
+        "baseMovedBeforeReleaseCm": 4.655,
+        "cubeOverBaseBeforeReleaseCm": 4.929,
+        "offsetCm": 5.108,
+        "cubeOnBase": false,
+        "cubeZCm": 1.993,
+        "cubeTiltDeg": 0,
+        "baseMovedCm": 4.655,
+        "baseTiltDeg": 0,
+        "events": [
+          {
+            "tick": 148,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.603,
+            "t": 1.233
+          },
+          {
+            "tick": 602,
+            "kind": "release",
+            "id": "cube",
+            "thetaCDeg": 19.603,
+            "t": 5.017
+          }
+        ],
+        "maxLevel": 7.168,
+        "penClosingMm": 0,
+        "penHeldMm": 0.189,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0.018,
+        "jitterDeg": 0,
+        "maxExternalN": 0.745,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 3.808,
+        "all": {
+          "maxPitch": 0.501,
+          "minPitch": 0,
+          "maxRoll": 0.006,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 0.498,
+          "casterTicksOff": 5
+        }
+      },
+      "s8Stack55": {
+        "liftDeg": 55,
+        "heldCubeHitBase": false,
+        "heldBottomCm": 4.269,
+        "baseMovedBeforeReleaseCm": 0.009,
+        "cubeOverBaseBeforeReleaseCm": 0.243,
+        "offsetCm": 0.345,
+        "cubeOnBase": true,
+        "cubeZCm": 5.953,
+        "cubeTiltDeg": 0.043,
+        "baseMovedCm": 0.006,
+        "baseTiltDeg": 0.007,
+        "events": [
+          {
+            "tick": 148,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.603,
+            "t": 1.233
+          },
+          {
+            "tick": 597,
+            "kind": "release",
+            "id": "cube",
+            "thetaCDeg": 19.603,
+            "t": 4.975
+          }
+        ],
+        "maxLevel": 7.177,
+        "penClosingMm": 0,
+        "penHeldMm": 0.189,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0.005,
+        "jitterDeg": 0,
+        "maxExternalN": 0.214,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 4.677,
+        "all": {
+          "maxPitch": 0.501,
+          "minPitch": 0,
+          "maxRoll": 0.006,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 0.498,
+          "casterTicksOff": 5
+        }
+      },
+      "levelSweep": {
+        "empty": {
+          "held": null,
+          "rows": [
+            {
+              "lift": 0,
+              "restLevelDeg": -1.2947,
+              "maxLevelMovingDeg": 4.612,
+              "liftErrorDeg": -1.253,
+              "overshootDeg": 4.729,
+              "reachTicks": 22
+            },
+            {
+              "lift": 10,
+              "restLevelDeg": -1.3983,
+              "maxLevelMovingDeg": 3.504,
+              "liftErrorDeg": -1.396,
+              "overshootDeg": 1.477,
+              "reachTicks": 5
+            },
+            {
+              "lift": 20,
+              "restLevelDeg": -1.4783,
+              "maxLevelMovingDeg": 3.556,
+              "liftErrorDeg": -1.504,
+              "overshootDeg": 1.334,
+              "reachTicks": -1
+            },
+            {
+              "lift": 30,
+              "restLevelDeg": -1.5293,
+              "maxLevelMovingDeg": 3.587,
+              "liftErrorDeg": -1.574,
+              "overshootDeg": 1.237,
+              "reachTicks": -1
+            },
+            {
+              "lift": 40,
+              "restLevelDeg": -1.5495,
+              "maxLevelMovingDeg": 3.603,
+              "liftErrorDeg": -1.601,
+              "overshootDeg": 1.196,
+              "reachTicks": 9
+            },
+            {
+              "lift": 50,
+              "restLevelDeg": -1.5381,
+              "maxLevelMovingDeg": 3.605,
+              "liftErrorDeg": -1.585,
+              "overshootDeg": 1.216,
+              "reachTicks": 9
+            },
+            {
+              "lift": 60,
+              "restLevelDeg": -1.4949,
+              "maxLevelMovingDeg": 3.594,
+              "liftErrorDeg": -1.526,
+              "overshootDeg": 1.3,
+              "reachTicks": 9
+            },
+            {
+              "lift": 70,
+              "restLevelDeg": -1.4207,
+              "maxLevelMovingDeg": 3.568,
+              "liftErrorDeg": -1.425,
+              "overshootDeg": 1.439,
+              "reachTicks": 9
+            },
+            {
+              "lift": 80,
+              "restLevelDeg": -1.3173,
+              "maxLevelMovingDeg": 3.524,
+              "liftErrorDeg": -1.284,
+              "overshootDeg": 1.613,
+              "reachTicks": 5
+            },
+            {
+              "lift": 90,
+              "restLevelDeg": -1.1868,
+              "maxLevelMovingDeg": 3.457,
+              "liftErrorDeg": -1.107,
+              "overshootDeg": 0.962,
+              "reachTicks": 5
+            },
+            {
+              "lift": 45,
+              "restLevelDeg": -1.5375,
+              "maxLevelMovingDeg": 7.345,
+              "liftErrorDeg": -1.589,
+              "overshootDeg": 8.309,
+              "reachTicks": 9
+            },
+            {
+              "lift": 0,
+              "restLevelDeg": -1.2897,
+              "maxLevelMovingDeg": 4.369,
+              "liftErrorDeg": -1.248,
+              "overshootDeg": 4.299,
+              "reachTicks": 15
+            }
+          ]
+        },
+        "held50g": {
+          "held": "cube",
+          "rows": [
+            {
+              "lift": 0,
+              "restLevelDeg": -1.3033,
+              "maxLevelMovingDeg": 1.303,
+              "liftErrorDeg": -1.396,
+              "overshootDeg": 0,
+              "reachTicks": -1
+            },
+            {
+              "lift": 10,
+              "restLevelDeg": -7.3675,
+              "maxLevelMovingDeg": 8.526,
+              "liftErrorDeg": -3.882,
+              "overshootDeg": 0,
+              "reachTicks": -1
+            },
+            {
+              "lift": 20,
+              "restLevelDeg": -9.3978,
+              "maxLevelMovingDeg": 10.14,
+              "liftErrorDeg": -4.719,
+              "overshootDeg": 0,
+              "reachTicks": -1
+            },
+            {
+              "lift": 30,
+              "restLevelDeg": -9.715,
+              "maxLevelMovingDeg": 10.091,
+              "liftErrorDeg": -9.652,
+              "overshootDeg": 0,
+              "reachTicks": -1
+            },
+            {
+              "lift": 40,
+              "restLevelDeg": -9.7485,
+              "maxLevelMovingDeg": 9.748,
+              "liftErrorDeg": -18.254,
+              "overshootDeg": 0,
+              "reachTicks": -1
+            },
+            {
+              "lift": 50,
+              "restLevelDeg": -9.7552,
+              "maxLevelMovingDeg": 9.755,
+              "liftErrorDeg": -27.943,
+              "overshootDeg": 0,
+              "reachTicks": -1
+            },
+            {
+              "lift": 60,
+              "restLevelDeg": -9.7567,
+              "maxLevelMovingDeg": 9.757,
+              "liftErrorDeg": -37.87,
+              "overshootDeg": 0,
+              "reachTicks": -1
+            },
+            {
+              "lift": 70,
+              "restLevelDeg": -9.7571,
+              "maxLevelMovingDeg": 9.757,
+              "liftErrorDeg": -47.852,
+              "overshootDeg": 0,
+              "reachTicks": -1
+            },
+            {
+              "lift": 80,
+              "restLevelDeg": -9.7572,
+              "maxLevelMovingDeg": 9.757,
+              "liftErrorDeg": -57.848,
+              "overshootDeg": 0,
+              "reachTicks": -1
+            },
+            {
+              "lift": 90,
+              "restLevelDeg": -9.7573,
+              "maxLevelMovingDeg": 9.757,
+              "liftErrorDeg": -67.847,
+              "overshootDeg": 0,
+              "reachTicks": -1
+            },
+            {
+              "lift": 45,
+              "restLevelDeg": -9.7572,
+              "maxLevelMovingDeg": 9.757,
+              "liftErrorDeg": -22.847,
+              "overshootDeg": 22.847,
+              "reachTicks": -1
+            },
+            {
+              "lift": 0,
+              "restLevelDeg": -1.3028,
+              "maxLevelMovingDeg": 6.44,
+              "liftErrorDeg": -1.395,
+              "overshootDeg": 2.101,
+              "reachTicks": 9
+            }
+          ]
+        }
+      },
+      "robustness": [
+        {
+          "massG": 15,
+          "offsetCm": [
+            -2,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 0.536,
+          "casterTicksOff": 14,
+          "maxLevel": 6.527,
+          "penClosingMm": 0,
+          "penHeldMm": 0.059,
+          "jitterMm": 0.02,
+          "cubeEnd": {
+            "xCm": 108.381,
+            "yCm": 49.936,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            -1,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 0.542,
+          "casterTicksOff": 17,
+          "maxLevel": 6.454,
+          "penClosingMm": 0,
+          "penHeldMm": 0.119,
+          "jitterMm": 0.028,
+          "cubeEnd": {
+            "xCm": 109.38,
+            "yCm": 49.936,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            1,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 0.539,
+          "casterTicksOff": 16,
+          "maxLevel": 6.589,
+          "penClosingMm": 0,
+          "penHeldMm": 0.033,
+          "jitterMm": 0.024,
+          "cubeEnd": {
+            "xCm": 111.189,
+            "yCm": 49.966,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            2,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 0.545,
+          "casterTicksOff": 17,
+          "maxLevel": 6.455,
+          "penClosingMm": 0,
+          "penHeldMm": 0.032,
+          "jitterMm": 0.033,
+          "cubeEnd": {
+            "xCm": 112.185,
+            "yCm": 49.976,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            0,
+            -0.5
+          ],
+          "events": "attach,release",
+          "maxPitch": 0.541,
+          "casterTicksOff": 17,
+          "maxLevel": 6.456,
+          "penClosingMm": 0.841,
+          "penHeldMm": 0.682,
+          "jitterMm": 0.027,
+          "cubeEnd": {
+            "xCm": 110.363,
+            "yCm": 47.632,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            0,
+            0.5
+          ],
+          "events": "attach,release",
+          "maxPitch": 0.541,
+          "casterTicksOff": 17,
+          "maxLevel": 6.486,
+          "penClosingMm": 0.824,
+          "penHeldMm": 0.684,
+          "jitterMm": 0.022,
+          "cubeEnd": {
+            "xCm": 110.357,
+            "yCm": 52.383,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            0,
+            -1
+          ],
+          "events": "attach,release",
+          "maxPitch": 0.543,
+          "casterTicksOff": 17,
+          "maxLevel": 6.434,
+          "penClosingMm": 1.232,
+          "penHeldMm": 0.981,
+          "jitterMm": 0.035,
+          "cubeEnd": {
+            "xCm": 110.326,
+            "yCm": 46.687,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0.001
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            0,
+            1
+          ],
+          "events": "attach,release",
+          "maxPitch": 0.544,
+          "casterTicksOff": 17,
+          "maxLevel": 6.475,
+          "penClosingMm": 1.231,
+          "penHeldMm": 0.998,
+          "jitterMm": 0.03,
+          "cubeEnd": {
+            "xCm": 110.504,
+            "yCm": 53.272,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0.001
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            -2,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 0.501,
+          "casterTicksOff": 8,
+          "maxLevel": 10.344,
+          "penClosingMm": 0,
+          "penHeldMm": 0.06,
+          "jitterMm": 0.018,
+          "cubeEnd": {
+            "xCm": 108.416,
+            "yCm": 49.945,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0.001
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            -1,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 0.501,
+          "casterTicksOff": 8,
+          "maxLevel": 10.127,
+          "penClosingMm": 0,
+          "penHeldMm": 0.122,
+          "jitterMm": 0.007,
+          "cubeEnd": {
+            "xCm": 109.349,
+            "yCm": 49.64,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            1,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 0.501,
+          "casterTicksOff": 8,
+          "maxLevel": 10.244,
+          "penClosingMm": 0,
+          "penHeldMm": 0.034,
+          "jitterMm": 0.01,
+          "cubeEnd": {
+            "xCm": 111.512,
+            "yCm": 49.959,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            2,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 0.501,
+          "casterTicksOff": 8,
+          "maxLevel": 10.009,
+          "penClosingMm": 0,
+          "penHeldMm": 0.034,
+          "jitterMm": 0.018,
+          "cubeEnd": {
+            "xCm": 112.502,
+            "yCm": 49.966,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            0,
+            -0.5
+          ],
+          "events": "attach,release",
+          "maxPitch": 0.501,
+          "casterTicksOff": 9,
+          "maxLevel": 10.317,
+          "penClosingMm": 1.511,
+          "penHeldMm": 1.679,
+          "jitterMm": 0.018,
+          "cubeEnd": {
+            "xCm": 110.322,
+            "yCm": 47.887,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0.001
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            0,
+            0.5
+          ],
+          "events": "attach,release",
+          "maxPitch": 0.501,
+          "casterTicksOff": 9,
+          "maxLevel": 10.282,
+          "penClosingMm": 1.463,
+          "penHeldMm": 1.614,
+          "jitterMm": 0.018,
+          "cubeEnd": {
+            "xCm": 110.314,
+            "yCm": 51.743,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            0,
+            -1
+          ],
+          "events": "attach,release",
+          "maxPitch": 0.501,
+          "casterTicksOff": 8,
+          "maxLevel": 10.235,
+          "penClosingMm": 1.855,
+          "penHeldMm": 2.014,
+          "jitterMm": 0.007,
+          "cubeEnd": {
+            "xCm": 110.519,
+            "yCm": 46.531,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0.001
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            0,
+            1
+          ],
+          "events": "attach,release",
+          "maxPitch": 0.501,
+          "casterTicksOff": 8,
+          "maxLevel": 10.227,
+          "penClosingMm": 1.717,
+          "penHeldMm": 1.885,
+          "jitterMm": 0.012,
+          "cubeEnd": {
+            "xCm": 110.295,
+            "yCm": 53.729,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0.001
+        }
+      ]
+    },
+    "tuned-collider": {
+      "s1Carry15g": {
+        "massG": 15,
+        "events": [
+          {
+            "tick": 145,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 1.208
+          },
+          {
+            "tick": 554,
+            "kind": "release",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 4.617
+          }
+        ],
+        "phase": {
+          "attachU": 2.91,
+          "attachW": 0.305,
+          "liftedBottomCm": 7.03
+        },
+        "cubeEnd": {
+          "xCm": 110.4,
+          "yCm": 49.985,
+          "zCm": 1.993
+        },
+        "cubeTiltEndDeg": 0,
+        "liveJointsEnd": 0,
+        "maxLevel": 0.446,
+        "penClosingMm": 0,
+        "penHeldMm": 0.034,
+        "penAfterMm": 0.002,
+        "penCarriageMm": 0,
+        "jitterMm": 0.002,
+        "jitterDeg": 0,
+        "maxExternalN": 0.832,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.045,
+        "all": {
+          "maxPitch": 1.897,
+          "minPitch": 0,
+          "maxRoll": 0.015,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 2.328,
+          "casterTicksOff": 19
+        },
+        "hash": {
+          "trajBits": "aaeace5c",
+          "finalQ6": "e4f99d6a"
+        }
+      },
+      "s2Carry50g": {
+        "massG": 50,
+        "events": [
+          {
+            "tick": 145,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 1.208
+          },
+          {
+            "tick": 554,
+            "kind": "release",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 4.617
+          }
+        ],
+        "phase": {
+          "attachU": 2.91,
+          "attachW": 0.305,
+          "liftedBottomCm": 7.014
+        },
+        "cubeEnd": {
+          "xCm": 110.452,
+          "yCm": 49.986,
+          "zCm": 1.993
+        },
+        "cubeTiltEndDeg": 0,
+        "liveJointsEnd": 0,
+        "maxLevel": 1.185,
+        "penClosingMm": 0,
+        "penHeldMm": 0.034,
+        "penAfterMm": 0.002,
+        "penCarriageMm": 0,
+        "jitterMm": 0.005,
+        "jitterDeg": 0.011,
+        "maxExternalN": 1.339,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.054,
+        "all": {
+          "maxPitch": 2.663,
+          "minPitch": -0.096,
+          "maxRoll": 0.004,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 3.336,
+          "casterTicksOff": 20
+        },
+        "hash": {
+          "trajBits": "0bca1799",
+          "finalQ6": "99439512"
+        }
+      },
+      "s3TooHeavy60g": {
+        "massG": 60,
+        "clawAfterCloseDeg": 26.036,
+        "cubeBottomAtLift90Cm": -0.007,
+        "events": [],
+        "cubeEnd": {
+          "xCm": 60.554,
+          "yCm": 49.93,
+          "zCm": 1.993
+        },
+        "maxLevel": 0.052,
+        "penClosingMm": 1.162,
+        "penHeldMm": 0,
+        "penAfterMm": 0,
+        "penCarriageMm": 0.082,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 0.134,
+        "all": {
+          "maxPitch": 1.421,
+          "minPitch": 0,
+          "maxRoll": 0.001,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 1.702,
+          "casterTicksOff": 9
+        }
+      },
+      "s4Brake90": {
+        "liftDeg": 90,
+        "stop": "brake",
+        "speedAtStopMS": 0.4762,
+        "stopDistanceCm": 1.66,
+        "heldAtEnd": "cube",
+        "events": [
+          {
+            "tick": 150,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 1.25
+          }
+        ],
+        "maxLevel": 0.937,
+        "penClosingMm": 0,
+        "penHeldMm": 0.21,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0.523,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.054,
+        "all": {
+          "maxPitch": 1.421,
+          "minPitch": -0.054,
+          "maxRoll": 0.004,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 1.702,
+          "casterTicksOff": 9
+        },
+        "window": {
+          "maxPitch": 0.034,
+          "minPitch": -0.054,
+          "maxRoll": 0.004,
+          "casterMinLoadN": 1.644,
+          "casterMaxHeightMm": -0.09,
+          "casterTicksOff": 0
+        }
+      },
+      "s4Brake45": {
+        "liftDeg": 45,
+        "stop": "brake",
+        "speedAtStopMS": 0.4763,
+        "stopDistanceCm": 1.64,
+        "heldAtEnd": "cube",
+        "events": [
+          {
+            "tick": 150,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 1.25
+          }
+        ],
+        "maxLevel": 0.937,
+        "penClosingMm": 0,
+        "penHeldMm": 0.21,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0.523,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 3.656,
+        "all": {
+          "maxPitch": 1.421,
+          "minPitch": -0.057,
+          "maxRoll": 0.004,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 1.702,
+          "casterTicksOff": 9
+        },
+        "window": {
+          "maxPitch": 0.019,
+          "minPitch": -0.057,
+          "maxRoll": 0.004,
+          "casterMinLoadN": 1.862,
+          "casterMaxHeightMm": -0.101,
+          "casterTicksOff": 0
+        }
+      },
+      "s4Coast90": {
+        "liftDeg": 90,
+        "stop": "coast",
+        "speedAtStopMS": 0.4762,
+        "stopDistanceCm": 3.95,
+        "heldAtEnd": "cube",
+        "events": [
+          {
+            "tick": 150,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 1.25
+          }
+        ],
+        "maxLevel": 0.937,
+        "penClosingMm": 0,
+        "penHeldMm": 0.21,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0.523,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.054,
+        "all": {
+          "maxPitch": 1.421,
+          "minPitch": -0.026,
+          "maxRoll": 0.003,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 1.702,
+          "casterTicksOff": 9
+        },
+        "window": {
+          "maxPitch": 0.034,
+          "minPitch": -0.026,
+          "maxRoll": 0.003,
+          "casterMinLoadN": 1.668,
+          "casterMaxHeightMm": -0.09,
+          "casterTicksOff": 0
+        }
+      },
+      "s5Wall45Push": {
+        "liftDeg": 45,
+        "after": "push",
+        "graspU": 4,
+        "attachU": 3.901,
+        "speedBeforeImpactMS": 0.3976,
+        "impactT": 3.433,
+        "settleAfterImpactS": 0.192,
+        "pitchAtWindowEnd": 15.661,
+        "heldAtEnd": null,
+        "events": [
+          {
+            "tick": 146,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 24.94,
+            "t": 1.217
+          },
+          {
+            "tick": 412,
+            "kind": "break",
+            "id": "cube",
+            "thetaCDeg": 24.94,
+            "forceN": 24.92,
+            "t": 3.433
+          }
+        ],
+        "maxLevel": 0.729,
+        "penClosingMm": 0,
+        "penHeldMm": 0.011,
+        "penAfterMm": 3.139,
+        "penCarriageMm": 0,
+        "jitterMm": 0.001,
+        "jitterDeg": 0,
+        "maxExternalN": 0.394,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 3.638,
+        "all": {
+          "maxPitch": 17.157,
+          "minPitch": 0,
+          "maxRoll": 0.009,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 23.683,
+          "casterTicksOff": 317
+        },
+        "window": {
+          "maxPitch": 17.157,
+          "minPitch": 0,
+          "maxRoll": 0.009,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 23.683,
+          "casterTicksOff": 179
+        }
+      },
+      "s5Wall90Push": {
+        "liftDeg": 90,
+        "after": "push",
+        "graspU": 4,
+        "attachU": 3.901,
+        "speedBeforeImpactMS": 0.3976,
+        "impactT": 3.483,
+        "settleAfterImpactS": 0.167,
+        "pitchAtWindowEnd": 15.606,
+        "heldAtEnd": null,
+        "events": [
+          {
+            "tick": 146,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 24.94,
+            "t": 1.217
+          },
+          {
+            "tick": 418,
+            "kind": "break",
+            "id": "cube",
+            "thetaCDeg": 24.94,
+            "forceN": 17.31,
+            "t": 3.483
+          }
+        ],
+        "maxLevel": 1.775,
+        "penClosingMm": 0,
+        "penHeldMm": 0.011,
+        "penAfterMm": 1.244,
+        "penCarriageMm": 0,
+        "jitterMm": 0.001,
+        "jitterDeg": 0,
+        "maxExternalN": 0.394,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.208,
+        "all": {
+          "maxPitch": 15.688,
+          "minPitch": 0,
+          "maxRoll": 0.008,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 20.428,
+          "casterTicksOff": 311
+        },
+        "window": {
+          "maxPitch": 15.688,
+          "minPitch": 0,
+          "maxRoll": 0.006,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 20.428,
+          "casterTicksOff": 179
+        }
+      },
+      "s5Wall45CoastOnContact": {
+        "liftDeg": 45,
+        "after": "coast-on-contact",
+        "graspU": 4,
+        "attachU": 3.901,
+        "speedBeforeImpactMS": 0.3976,
+        "impactT": 3.433,
+        "settleAfterImpactS": 0.083,
+        "pitchAtWindowEnd": 0.072,
+        "heldAtEnd": null,
+        "events": [
+          {
+            "tick": 146,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 24.94,
+            "t": 1.217
+          },
+          {
+            "tick": 412,
+            "kind": "break",
+            "id": "cube",
+            "thetaCDeg": 24.94,
+            "forceN": 24.92,
+            "t": 3.433
+          }
+        ],
+        "maxLevel": 0.729,
+        "penClosingMm": 0,
+        "penHeldMm": 0.011,
+        "penAfterMm": 3.14,
+        "penCarriageMm": 0,
+        "jitterMm": 0.001,
+        "jitterDeg": 0,
+        "maxExternalN": 0.394,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 3.638,
+        "all": {
+          "maxPitch": 1.314,
+          "minPitch": 0,
+          "maxRoll": 0.008,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 1.644,
+          "casterTicksOff": 16
+        },
+        "window": {
+          "maxPitch": 1.003,
+          "minPitch": 0,
+          "maxRoll": 0.005,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 1.15,
+          "casterTicksOff": 7
+        }
+      },
+      "s5Wall90CoastOnContact": {
+        "liftDeg": 90,
+        "after": "coast-on-contact",
+        "graspU": 4,
+        "attachU": 3.901,
+        "speedBeforeImpactMS": 0.3976,
+        "impactT": 3.483,
+        "settleAfterImpactS": 0.175,
+        "pitchAtWindowEnd": 0.078,
+        "heldAtEnd": null,
+        "events": [
+          {
+            "tick": 146,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 24.94,
+            "t": 1.217
+          },
+          {
+            "tick": 418,
+            "kind": "break",
+            "id": "cube",
+            "thetaCDeg": 24.94,
+            "forceN": 17.31,
+            "t": 3.483
+          }
+        ],
+        "maxLevel": 1.775,
+        "penClosingMm": 0,
+        "penHeldMm": 0.011,
+        "penAfterMm": 3.438,
+        "penCarriageMm": 0,
+        "jitterMm": 0.001,
+        "jitterDeg": 0,
+        "maxExternalN": 0.394,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.208,
+        "all": {
+          "maxPitch": 2.389,
+          "minPitch": 0,
+          "maxRoll": 0.008,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 2.966,
+          "casterTicksOff": 28
+        },
+        "window": {
+          "maxPitch": 2.389,
+          "minPitch": 0,
+          "maxRoll": 0.005,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 2.966,
+          "casterTicksOff": 19
+        }
+      },
+      "s5Wall45FingersFirstPush": {
+        "liftDeg": 45,
+        "after": "push",
+        "graspU": 3,
+        "attachU": 2.905,
+        "speedBeforeImpactMS": 0.3976,
+        "impactT": 3.408,
+        "settleAfterImpactS": 0.192,
+        "pitchAtWindowEnd": 15.887,
+        "heldAtEnd": "cube",
+        "events": [
+          {
+            "tick": 145,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 1.208
+          }
+        ],
+        "maxLevel": 1.47,
+        "penClosingMm": 0,
+        "penHeldMm": 1.159,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0.001,
+        "jitterDeg": 0.028,
+        "maxExternalN": 0.16,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.647,
+        "all": {
+          "maxPitch": 16.577,
+          "minPitch": 0,
+          "maxRoll": 0.008,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 22.399,
+          "casterTicksOff": 320
+        },
+        "window": {
+          "maxPitch": 16.577,
+          "minPitch": 0,
+          "maxRoll": 0.007,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 22.399,
+          "casterTicksOff": 179
+        }
+      },
+      "s6Press": {
+        "attachW": -0.409,
+        "liftReachedDeg": 0.023,
+        "heldAtEnd": "cube",
+        "events": [
+          {
+            "tick": 145,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.94,
+            "t": 1.208
+          }
+        ],
+        "maxLevel": 1.213,
+        "penClosingMm": 0,
+        "penHeldMm": 0.089,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0.019,
+        "jitterDeg": 0.076,
+        "maxExternalN": 4.514,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 4.214,
+        "all": {
+          "maxPitch": 3.846,
+          "minPitch": 0,
+          "maxRoll": 0.002,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 4.919,
+          "casterTicksOff": 498
+        },
+        "window": {
+          "maxPitch": 3.846,
+          "minPitch": 0,
+          "maxRoll": 0.002,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 4.919,
+          "casterTicksOff": 297
+        }
+      },
+      "s7Drop": {
+        "bottomBeforeReleaseCm": 1.007,
+        "tiltAfterLandingDeg": 0,
+        "cubeAfter": {
+          "xCm": 60.008,
+          "yCm": 49.976,
+          "zCm": 1.993
+        },
+        "tiltEndDeg": 0,
+        "events": [
+          {
+            "tick": 145,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 1.208
+          },
+          {
+            "tick": 302,
+            "kind": "release",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 2.517
+          }
+        ],
+        "maxLevel": 0.446,
+        "penClosingMm": 0,
+        "penHeldMm": 0.034,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0.16,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.045,
+        "all": {
+          "maxPitch": 1.901,
+          "minPitch": 0,
+          "maxRoll": 0.013,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 2.333,
+          "casterTicksOff": 19
+        }
+      },
+      "s8Stack45": {
+        "liftDeg": 45,
+        "heldCubeHitBase": true,
+        "heldBottomCm": 3.634,
+        "baseMovedBeforeReleaseCm": 4.655,
+        "cubeOverBaseBeforeReleaseCm": 4.975,
+        "offsetCm": 5.184,
+        "cubeOnBase": false,
+        "cubeZCm": 1.993,
+        "cubeTiltDeg": 0.001,
+        "baseMovedCm": 4.656,
+        "baseTiltDeg": 0,
+        "events": [
+          {
+            "tick": 145,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 1.208
+          },
+          {
+            "tick": 595,
+            "kind": "release",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 4.958
+          }
+        ],
+        "maxLevel": 0.446,
+        "penClosingMm": 0,
+        "penHeldMm": 0.034,
+        "penAfterMm": 0.015,
+        "penCarriageMm": 0,
+        "jitterMm": 0.001,
+        "jitterDeg": 0,
+        "maxExternalN": 0.638,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 3.648,
+        "all": {
+          "maxPitch": 1.421,
+          "minPitch": 0,
+          "maxRoll": 0.001,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 1.702,
+          "casterTicksOff": 9
+        }
+      },
+      "s8Stack55": {
+        "liftDeg": 55,
+        "heldCubeHitBase": false,
+        "heldBottomCm": 4.493,
+        "baseMovedBeforeReleaseCm": 0,
+        "cubeOverBaseBeforeReleaseCm": 0.278,
+        "offsetCm": 0.301,
+        "cubeOnBase": true,
+        "cubeZCm": 5.953,
+        "cubeTiltDeg": 0.025,
+        "baseMovedCm": 0.004,
+        "baseTiltDeg": 0.006,
+        "events": [
+          {
+            "tick": 145,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 1.208
+          },
+          {
+            "tick": 590,
+            "kind": "release",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 4.917
+          }
+        ],
+        "maxLevel": 0.446,
+        "penClosingMm": 0,
+        "penHeldMm": 0.034,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0.16,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 4.509,
+        "all": {
+          "maxPitch": 1.421,
+          "minPitch": 0,
+          "maxRoll": 0.002,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 1.702,
+          "casterTicksOff": 9
+        }
+      },
+      "levelSweep": {
+        "empty": {
+          "held": null,
+          "rows": [
+            {
+              "lift": 0,
+              "restLevelDeg": -0.011,
+              "maxLevelMovingDeg": 0.026,
+              "liftErrorDeg": 0,
+              "overshootDeg": 0.001,
+              "reachTicks": 21
+            },
+            {
+              "lift": 10,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.012,
+              "liftErrorDeg": -0.013,
+              "overshootDeg": 0.011,
+              "reachTicks": 5
+            },
+            {
+              "lift": 20,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.012,
+              "liftErrorDeg": -0.014,
+              "overshootDeg": 0.01,
+              "reachTicks": 5
+            },
+            {
+              "lift": 30,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.011,
+              "liftErrorDeg": -0.015,
+              "overshootDeg": 0.011,
+              "reachTicks": 5
+            },
+            {
+              "lift": 40,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.011,
+              "liftErrorDeg": -0.015,
+              "overshootDeg": 0.01,
+              "reachTicks": 5
+            },
+            {
+              "lift": 50,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.011,
+              "liftErrorDeg": -0.015,
+              "overshootDeg": 0.01,
+              "reachTicks": 5
+            },
+            {
+              "lift": 60,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.011,
+              "liftErrorDeg": -0.014,
+              "overshootDeg": 0.01,
+              "reachTicks": 5
+            },
+            {
+              "lift": 70,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.012,
+              "liftErrorDeg": -0.013,
+              "overshootDeg": 0.011,
+              "reachTicks": 5
+            },
+            {
+              "lift": 80,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.014,
+              "liftErrorDeg": -0.011,
+              "overshootDeg": 0.013,
+              "reachTicks": 5
+            },
+            {
+              "lift": 90,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.014,
+              "liftErrorDeg": -0.009,
+              "overshootDeg": 0,
+              "reachTicks": 5
+            },
+            {
+              "lift": 45,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.011,
+              "liftErrorDeg": -0.015,
+              "overshootDeg": 0.044,
+              "reachTicks": 12
+            },
+            {
+              "lift": 0,
+              "restLevelDeg": -0.011,
+              "maxLevelMovingDeg": 0.026,
+              "liftErrorDeg": 0,
+              "overshootDeg": 0.001,
+              "reachTicks": 12
+            }
+          ]
+        },
+        "held50g": {
+          "held": "cube",
+          "rows": [
+            {
+              "lift": 0,
+              "restLevelDeg": -0.0104,
+              "maxLevelMovingDeg": 0.01,
+              "liftErrorDeg": 0,
+              "overshootDeg": 0,
+              "reachTicks": 1
+            },
+            {
+              "lift": 10,
+              "restLevelDeg": -0.231,
+              "maxLevelMovingDeg": 0.955,
+              "liftErrorDeg": -0.042,
+              "overshootDeg": 0.027,
+              "reachTicks": 5
+            },
+            {
+              "lift": 20,
+              "restLevelDeg": -0.2309,
+              "maxLevelMovingDeg": 1.053,
+              "liftErrorDeg": -0.046,
+              "overshootDeg": 0.023,
+              "reachTicks": 5
+            },
+            {
+              "lift": 30,
+              "restLevelDeg": -0.2309,
+              "maxLevelMovingDeg": 1.125,
+              "liftErrorDeg": -0.048,
+              "overshootDeg": 0.019,
+              "reachTicks": 5
+            },
+            {
+              "lift": 40,
+              "restLevelDeg": -0.2309,
+              "maxLevelMovingDeg": 1.175,
+              "liftErrorDeg": -0.049,
+              "overshootDeg": 0.016,
+              "reachTicks": 5
+            },
+            {
+              "lift": 50,
+              "restLevelDeg": -0.2309,
+              "maxLevelMovingDeg": 1.204,
+              "liftErrorDeg": -0.048,
+              "overshootDeg": 0.014,
+              "reachTicks": 5
+            },
+            {
+              "lift": 60,
+              "restLevelDeg": -0.231,
+              "maxLevelMovingDeg": 1.207,
+              "liftErrorDeg": -0.046,
+              "overshootDeg": 0.017,
+              "reachTicks": 5
+            },
+            {
+              "lift": 70,
+              "restLevelDeg": -0.231,
+              "maxLevelMovingDeg": 1.187,
+              "liftErrorDeg": -0.042,
+              "overshootDeg": 0.018,
+              "reachTicks": 5
+            },
+            {
+              "lift": 80,
+              "restLevelDeg": -0.2311,
+              "maxLevelMovingDeg": 1.143,
+              "liftErrorDeg": -0.037,
+              "overshootDeg": 0.023,
+              "reachTicks": 5
+            },
+            {
+              "lift": 90,
+              "restLevelDeg": -0.2313,
+              "maxLevelMovingDeg": 1.071,
+              "liftErrorDeg": -0.031,
+              "overshootDeg": 0.001,
+              "reachTicks": 5
+            },
+            {
+              "lift": 45,
+              "restLevelDeg": -0.2309,
+              "maxLevelMovingDeg": 1.397,
+              "liftErrorDeg": -0.049,
+              "overshootDeg": 1.272,
+              "reachTicks": 14
+            },
+            {
+              "lift": 0,
+              "restLevelDeg": 0.0107,
+              "maxLevelMovingDeg": 1.613,
+              "liftErrorDeg": 0,
+              "overshootDeg": 0.001,
+              "reachTicks": 12
+            }
+          ]
+        }
+      },
+      "robustness": [
+        {
+          "massG": 15,
+          "offsetCm": [
+            -2,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 1.898,
+          "casterTicksOff": 19,
+          "maxLevel": 0.426,
+          "penClosingMm": 0,
+          "penHeldMm": 0.093,
+          "jitterMm": 0.002,
+          "cubeEnd": {
+            "xCm": 108.432,
+            "yCm": 49.99,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            -1,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 1.898,
+          "casterTicksOff": 19,
+          "maxLevel": 0.436,
+          "penClosingMm": 0,
+          "penHeldMm": 0.013,
+          "jitterMm": 0.002,
+          "cubeEnd": {
+            "xCm": 109.253,
+            "yCm": 49.997,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            1,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 1.898,
+          "casterTicksOff": 19,
+          "maxLevel": 0.459,
+          "penClosingMm": 0,
+          "penHeldMm": 0.104,
+          "jitterMm": 0.002,
+          "cubeEnd": {
+            "xCm": 111.481,
+            "yCm": 49.96,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            2,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 1.898,
+          "casterTicksOff": 19,
+          "maxLevel": 0.435,
+          "penClosingMm": 0,
+          "penHeldMm": 0.012,
+          "jitterMm": 0.002,
+          "cubeEnd": {
+            "xCm": 112.48,
+            "yCm": 49.96,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            0,
+            -0.5
+          ],
+          "events": "attach,release",
+          "maxPitch": 1.898,
+          "casterTicksOff": 19,
+          "maxLevel": 0.427,
+          "penClosingMm": 0.789,
+          "penHeldMm": 0.692,
+          "jitterMm": 0.003,
+          "cubeEnd": {
+            "xCm": 110.306,
+            "yCm": 47.783,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0.004
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            0,
+            0.5
+          ],
+          "events": "attach,release",
+          "maxPitch": 1.898,
+          "casterTicksOff": 19,
+          "maxLevel": 0.427,
+          "penClosingMm": 0.791,
+          "penHeldMm": 0.69,
+          "jitterMm": 0.003,
+          "cubeEnd": {
+            "xCm": 110.539,
+            "yCm": 51.809,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0.004
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            0,
+            -1
+          ],
+          "events": "attach,release",
+          "maxPitch": 1.897,
+          "casterTicksOff": 19,
+          "maxLevel": 0.44,
+          "penClosingMm": 1.221,
+          "penHeldMm": 1.044,
+          "jitterMm": 0.002,
+          "cubeEnd": {
+            "xCm": 110.385,
+            "yCm": 46.709,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0.021
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            0,
+            1
+          ],
+          "events": "attach,release",
+          "maxPitch": 1.898,
+          "casterTicksOff": 19,
+          "maxLevel": 0.439,
+          "penClosingMm": 1.221,
+          "penHeldMm": 1.042,
+          "jitterMm": 0.003,
+          "cubeEnd": {
+            "xCm": 110.37,
+            "yCm": 53.647,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0.02
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            -2,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 2.666,
+          "casterTicksOff": 20,
+          "maxLevel": 1.178,
+          "penClosingMm": 0,
+          "penHeldMm": 0.094,
+          "jitterMm": 0.005,
+          "cubeEnd": {
+            "xCm": 108.447,
+            "yCm": 49.988,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            -1,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 2.665,
+          "casterTicksOff": 20,
+          "maxLevel": 1.181,
+          "penClosingMm": 0,
+          "penHeldMm": 0.033,
+          "jitterMm": 0.005,
+          "cubeEnd": {
+            "xCm": 109.693,
+            "yCm": 49.967,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            1,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 2.66,
+          "casterTicksOff": 20,
+          "maxLevel": 1.192,
+          "penClosingMm": 0,
+          "penHeldMm": 0.104,
+          "jitterMm": 0.005,
+          "cubeEnd": {
+            "xCm": 111.438,
+            "yCm": 49.956,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            2,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 2.665,
+          "casterTicksOff": 20,
+          "maxLevel": 1.183,
+          "penClosingMm": 0,
+          "penHeldMm": 0.012,
+          "jitterMm": 0.004,
+          "cubeEnd": {
+            "xCm": 112.434,
+            "yCm": 49.956,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            0,
+            -0.5
+          ],
+          "events": "attach,release",
+          "maxPitch": 2.661,
+          "casterTicksOff": 20,
+          "maxLevel": 1.188,
+          "penClosingMm": 1.545,
+          "penHeldMm": 1.745,
+          "jitterMm": 0.004,
+          "cubeEnd": {
+            "xCm": 110.504,
+            "yCm": 47.846,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0.01
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            0,
+            0.5
+          ],
+          "events": "attach,release",
+          "maxPitch": 2.66,
+          "casterTicksOff": 20,
+          "maxLevel": 1.189,
+          "penClosingMm": 1.216,
+          "penHeldMm": 1.418,
+          "jitterMm": 0.004,
+          "cubeEnd": {
+            "xCm": 110.512,
+            "yCm": 52.934,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0.008
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            0,
+            -1
+          ],
+          "events": "attach,release",
+          "maxPitch": 2.665,
+          "casterTicksOff": 20,
+          "maxLevel": 1.18,
+          "penClosingMm": 1.858,
+          "penHeldMm": 2.056,
+          "jitterMm": 0.004,
+          "cubeEnd": {
+            "xCm": 110.683,
+            "yCm": 46.562,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0.014
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            0,
+            1
+          ],
+          "events": "attach,release",
+          "maxPitch": 2.664,
+          "casterTicksOff": 20,
+          "maxLevel": 1.181,
+          "penClosingMm": 1.864,
+          "penHeldMm": 2.06,
+          "jitterMm": 0.004,
+          "cubeEnd": {
+            "xCm": 110.685,
+            "yCm": 53.406,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0.014
+        }
+      ]
+    },
+    "tuned-sensor": {
+      "s1Carry15g": {
+        "massG": 15,
+        "events": [
+          {
+            "tick": 145,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 1.208
+          },
+          {
+            "tick": 554,
+            "kind": "release",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 4.617
+          }
+        ],
+        "phase": {
+          "attachU": 2.905,
+          "attachW": 0.305,
+          "liftedBottomCm": 7.03
+        },
+        "cubeEnd": {
+          "xCm": 110.395,
+          "yCm": 49.991,
+          "zCm": 1.993
+        },
+        "cubeTiltEndDeg": 0,
+        "liveJointsEnd": 0,
+        "maxLevel": 0.444,
+        "penClosingMm": 0,
+        "penHeldMm": 0.007,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0.002,
+        "jitterDeg": 0,
+        "maxExternalN": 0.824,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.045,
+        "all": {
+          "maxPitch": 1.898,
+          "minPitch": 0,
+          "maxRoll": 0.019,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 2.328,
+          "casterTicksOff": 19
+        },
+        "hash": {
+          "trajBits": "c194c0a8",
+          "finalQ6": "8f3329e8"
+        }
+      },
+      "s2Carry50g": {
+        "massG": 50,
+        "events": [
+          {
+            "tick": 145,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 1.208
+          },
+          {
+            "tick": 554,
+            "kind": "release",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 4.617
+          }
+        ],
+        "phase": {
+          "attachU": 2.905,
+          "attachW": 0.305,
+          "liftedBottomCm": 7.015
+        },
+        "cubeEnd": {
+          "xCm": 110.447,
+          "yCm": 49.992,
+          "zCm": 1.993
+        },
+        "cubeTiltEndDeg": 0,
+        "liveJointsEnd": 0,
+        "maxLevel": 1.185,
+        "penClosingMm": 0,
+        "penHeldMm": 0.021,
+        "penAfterMm": 0.001,
+        "penCarriageMm": 0,
+        "jitterMm": 0.004,
+        "jitterDeg": 0.009,
+        "maxExternalN": 1.345,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.054,
+        "all": {
+          "maxPitch": 2.663,
+          "minPitch": -0.096,
+          "maxRoll": 0.003,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 3.336,
+          "casterTicksOff": 20
+        },
+        "hash": {
+          "trajBits": "2fe64474",
+          "finalQ6": "57966d5e"
+        }
+      },
+      "s3TooHeavy60g": {
+        "massG": 60,
+        "clawAfterCloseDeg": 26.82,
+        "cubeBottomAtLift90Cm": -0.007,
+        "events": [],
+        "cubeEnd": {
+          "xCm": 60.571,
+          "yCm": 49.995,
+          "zCm": 1.993
+        },
+        "maxLevel": 0.052,
+        "penClosingMm": 1.698,
+        "penHeldMm": 0,
+        "penAfterMm": 0,
+        "penCarriageMm": 0.04,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 0.111,
+        "all": {
+          "maxPitch": 1.421,
+          "minPitch": 0,
+          "maxRoll": 0.001,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 1.702,
+          "casterTicksOff": 9
+        }
+      },
+      "s4Brake90": {
+        "liftDeg": 90,
+        "stop": "brake",
+        "speedAtStopMS": 0.4762,
+        "stopDistanceCm": 1.66,
+        "heldAtEnd": "cube",
+        "events": [
+          {
+            "tick": 150,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 1.25
+          }
+        ],
+        "maxLevel": 0.936,
+        "penClosingMm": 0,
+        "penHeldMm": 0.108,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0.522,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.054,
+        "all": {
+          "maxPitch": 1.421,
+          "minPitch": -0.054,
+          "maxRoll": 0.004,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 1.702,
+          "casterTicksOff": 9
+        },
+        "window": {
+          "maxPitch": 0.034,
+          "minPitch": -0.054,
+          "maxRoll": 0.004,
+          "casterMinLoadN": 1.644,
+          "casterMaxHeightMm": -0.09,
+          "casterTicksOff": 0
+        }
+      },
+      "s4Brake45": {
+        "liftDeg": 45,
+        "stop": "brake",
+        "speedAtStopMS": 0.4762,
+        "stopDistanceCm": 1.64,
+        "heldAtEnd": "cube",
+        "events": [
+          {
+            "tick": 150,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 1.25
+          }
+        ],
+        "maxLevel": 0.936,
+        "penClosingMm": 0,
+        "penHeldMm": 0.108,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0.522,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 3.656,
+        "all": {
+          "maxPitch": 1.421,
+          "minPitch": -0.057,
+          "maxRoll": 0.004,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 1.702,
+          "casterTicksOff": 9
+        },
+        "window": {
+          "maxPitch": 0.019,
+          "minPitch": -0.057,
+          "maxRoll": 0.004,
+          "casterMinLoadN": 1.862,
+          "casterMaxHeightMm": -0.1,
+          "casterTicksOff": 0
+        }
+      },
+      "s4Coast90": {
+        "liftDeg": 90,
+        "stop": "coast",
+        "speedAtStopMS": 0.4762,
+        "stopDistanceCm": 3.95,
+        "heldAtEnd": "cube",
+        "events": [
+          {
+            "tick": 150,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 1.25
+          }
+        ],
+        "maxLevel": 0.936,
+        "penClosingMm": 0,
+        "penHeldMm": 0.108,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0.522,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.054,
+        "all": {
+          "maxPitch": 1.421,
+          "minPitch": -0.026,
+          "maxRoll": 0.003,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 1.702,
+          "casterTicksOff": 9
+        },
+        "window": {
+          "maxPitch": 0.034,
+          "minPitch": -0.026,
+          "maxRoll": 0.003,
+          "casterMinLoadN": 1.668,
+          "casterMaxHeightMm": -0.09,
+          "casterTicksOff": 0
+        }
+      },
+      "s5Wall45Push": {
+        "liftDeg": 45,
+        "after": "push",
+        "graspU": 4,
+        "attachU": 3.899,
+        "speedBeforeImpactMS": 0.3976,
+        "impactT": 3.433,
+        "settleAfterImpactS": 0.425,
+        "pitchAtWindowEnd": 15.638,
+        "heldAtEnd": null,
+        "events": [
+          {
+            "tick": 146,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 24.94,
+            "t": 1.217
+          },
+          {
+            "tick": 412,
+            "kind": "break",
+            "id": "cube",
+            "thetaCDeg": 24.94,
+            "forceN": 21.57,
+            "t": 3.433
+          }
+        ],
+        "maxLevel": 1.497,
+        "penClosingMm": 0,
+        "penHeldMm": 0.006,
+        "penAfterMm": 1.832,
+        "penCarriageMm": 0,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0.155,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 3.649,
+        "all": {
+          "maxPitch": 15.666,
+          "minPitch": 0,
+          "maxRoll": 0.008,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 20.375,
+          "casterTicksOff": 317
+        },
+        "window": {
+          "maxPitch": 15.666,
+          "minPitch": 0,
+          "maxRoll": 0.005,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 20.375,
+          "casterTicksOff": 179
+        }
+      },
+      "s5Wall90Push": {
+        "liftDeg": 90,
+        "after": "push",
+        "graspU": 4,
+        "attachU": 3.899,
+        "speedBeforeImpactMS": 0.3976,
+        "impactT": 3.483,
+        "settleAfterImpactS": 0.1,
+        "pitchAtWindowEnd": 15.653,
+        "heldAtEnd": null,
+        "events": [
+          {
+            "tick": 146,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 24.94,
+            "t": 1.217
+          },
+          {
+            "tick": 418,
+            "kind": "break",
+            "id": "cube",
+            "thetaCDeg": 24.94,
+            "forceN": 16.71,
+            "t": 3.483
+          }
+        ],
+        "maxLevel": 1.888,
+        "penClosingMm": 0,
+        "penHeldMm": 0.006,
+        "penAfterMm": 1.994,
+        "penCarriageMm": 0,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0.155,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.302,
+        "all": {
+          "maxPitch": 15.662,
+          "minPitch": 0,
+          "maxRoll": 0.008,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 20.373,
+          "casterTicksOff": 311
+        },
+        "window": {
+          "maxPitch": 15.662,
+          "minPitch": 0,
+          "maxRoll": 0.005,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 20.373,
+          "casterTicksOff": 179
+        }
+      },
+      "s5Wall45CoastOnContact": {
+        "liftDeg": 45,
+        "after": "coast-on-contact",
+        "graspU": 4,
+        "attachU": 3.899,
+        "speedBeforeImpactMS": 0.3976,
+        "impactT": 3.433,
+        "settleAfterImpactS": 0.067,
+        "pitchAtWindowEnd": 0.072,
+        "heldAtEnd": null,
+        "events": [
+          {
+            "tick": 146,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 24.94,
+            "t": 1.217
+          },
+          {
+            "tick": 412,
+            "kind": "break",
+            "id": "cube",
+            "thetaCDeg": 24.94,
+            "forceN": 21.57,
+            "t": 3.433
+          }
+        ],
+        "maxLevel": 1.497,
+        "penClosingMm": 0,
+        "penHeldMm": 0.006,
+        "penAfterMm": 2.435,
+        "penCarriageMm": 0,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0.155,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 3.649,
+        "all": {
+          "maxPitch": 1.314,
+          "minPitch": 0,
+          "maxRoll": 0.008,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 1.644,
+          "casterTicksOff": 16
+        },
+        "window": {
+          "maxPitch": 1.25,
+          "minPitch": 0,
+          "maxRoll": 0.004,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 1.484,
+          "casterTicksOff": 7
+        }
+      },
+      "s5Wall90CoastOnContact": {
+        "liftDeg": 90,
+        "after": "coast-on-contact",
+        "graspU": 4,
+        "attachU": 3.899,
+        "speedBeforeImpactMS": 0.3976,
+        "impactT": 3.483,
+        "settleAfterImpactS": 0.108,
+        "pitchAtWindowEnd": 0.078,
+        "heldAtEnd": null,
+        "events": [
+          {
+            "tick": 146,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 24.94,
+            "t": 1.217
+          },
+          {
+            "tick": 418,
+            "kind": "break",
+            "id": "cube",
+            "thetaCDeg": 24.94,
+            "forceN": 16.71,
+            "t": 3.483
+          }
+        ],
+        "maxLevel": 1.888,
+        "penClosingMm": 0,
+        "penHeldMm": 0.006,
+        "penAfterMm": 1.999,
+        "penCarriageMm": 0,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0.155,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.302,
+        "all": {
+          "maxPitch": 3.269,
+          "minPitch": 0,
+          "maxRoll": 0.008,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 4.124,
+          "casterTicksOff": 20
+        },
+        "window": {
+          "maxPitch": 3.269,
+          "minPitch": 0,
+          "maxRoll": 0.004,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 4.124,
+          "casterTicksOff": 11
+        }
+      },
+      "s5Wall45FingersFirstPush": {
+        "liftDeg": 45,
+        "after": "push",
+        "graspU": 3,
+        "attachU": 2.899,
+        "speedBeforeImpactMS": 0.3976,
+        "impactT": 3.425,
+        "settleAfterImpactS": 0.133,
+        "pitchAtWindowEnd": 4.919,
+        "heldAtEnd": null,
+        "events": [
+          {
+            "tick": 145,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 1.208
+          },
+          {
+            "tick": 411,
+            "kind": "break",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "forceN": 20.95,
+            "t": 3.425
+          }
+        ],
+        "maxLevel": 1.467,
+        "penClosingMm": 0,
+        "penHeldMm": 0.004,
+        "penAfterMm": 2.221,
+        "penCarriageMm": 5.142,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0.159,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 3.649,
+        "all": {
+          "maxPitch": 4.934,
+          "minPitch": 0,
+          "maxRoll": 0.008,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 6.255,
+          "casterTicksOff": 318
+        },
+        "window": {
+          "maxPitch": 4.934,
+          "minPitch": 0,
+          "maxRoll": 0.003,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 6.255,
+          "casterTicksOff": 179
+        }
+      },
+      "s6Press": {
+        "attachW": -0.408,
+        "liftReachedDeg": 0.023,
+        "heldAtEnd": "cube",
+        "events": [
+          {
+            "tick": 145,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.94,
+            "t": 1.208
+          }
+        ],
+        "maxLevel": 1.208,
+        "penClosingMm": 0,
+        "penHeldMm": 0.025,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0.019,
+        "jitterDeg": 0.067,
+        "maxExternalN": 4.515,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 4.214,
+        "all": {
+          "maxPitch": 3.848,
+          "minPitch": 0,
+          "maxRoll": 0.002,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 4.922,
+          "casterTicksOff": 498
+        },
+        "window": {
+          "maxPitch": 3.848,
+          "minPitch": 0,
+          "maxRoll": 0.002,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 4.922,
+          "casterTicksOff": 297
+        }
+      },
+      "s7Drop": {
+        "bottomBeforeReleaseCm": 1.007,
+        "tiltAfterLandingDeg": 0,
+        "cubeAfter": {
+          "xCm": 59.972,
+          "yCm": 50.032,
+          "zCm": 1.993
+        },
+        "tiltEndDeg": 0,
+        "events": [
+          {
+            "tick": 145,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 1.208
+          },
+          {
+            "tick": 302,
+            "kind": "release",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 2.517
+          }
+        ],
+        "maxLevel": 0.444,
+        "penClosingMm": 0,
+        "penHeldMm": 0.007,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0.159,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 7.045,
+        "all": {
+          "maxPitch": 1.902,
+          "minPitch": 0,
+          "maxRoll": 0.017,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 2.333,
+          "casterTicksOff": 19
+        }
+      },
+      "s8Stack45": {
+        "liftDeg": 45,
+        "heldCubeHitBase": true,
+        "heldBottomCm": 3.635,
+        "baseMovedBeforeReleaseCm": 4.651,
+        "cubeOverBaseBeforeReleaseCm": 4.975,
+        "offsetCm": 5.052,
+        "cubeOnBase": false,
+        "cubeZCm": 1.993,
+        "cubeTiltDeg": 0,
+        "baseMovedCm": 4.651,
+        "baseTiltDeg": 0,
+        "events": [
+          {
+            "tick": 145,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 1.208
+          },
+          {
+            "tick": 595,
+            "kind": "release",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 4.958
+          }
+        ],
+        "maxLevel": 0.444,
+        "penClosingMm": 0,
+        "penHeldMm": 0.007,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0.001,
+        "jitterDeg": 0,
+        "maxExternalN": 0.647,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 3.649,
+        "all": {
+          "maxPitch": 1.421,
+          "minPitch": 0,
+          "maxRoll": 0.001,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 1.702,
+          "casterTicksOff": 9
+        }
+      },
+      "s8Stack55": {
+        "liftDeg": 55,
+        "heldCubeHitBase": false,
+        "heldBottomCm": 4.493,
+        "baseMovedBeforeReleaseCm": 0,
+        "cubeOverBaseBeforeReleaseCm": 0.286,
+        "offsetCm": 0.305,
+        "cubeOnBase": true,
+        "cubeZCm": 5.954,
+        "cubeTiltDeg": 0.018,
+        "baseMovedCm": 0.005,
+        "baseTiltDeg": 0.005,
+        "events": [
+          {
+            "tick": 145,
+            "kind": "attach",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 1.208
+          },
+          {
+            "tick": 590,
+            "kind": "release",
+            "id": "cube",
+            "thetaCDeg": 19.941,
+            "t": 4.917
+          }
+        ],
+        "maxLevel": 0.444,
+        "penClosingMm": 0,
+        "penHeldMm": 0.005,
+        "penAfterMm": 0,
+        "penCarriageMm": 0,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0.159,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 4.509,
+        "all": {
+          "maxPitch": 1.421,
+          "minPitch": 0,
+          "maxRoll": 0.002,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 1.702,
+          "casterTicksOff": 9
+        }
+      },
+      "levelSweep": {
+        "empty": {
+          "held": null,
+          "rows": [
+            {
+              "lift": 0,
+              "restLevelDeg": -0.011,
+              "maxLevelMovingDeg": 0.026,
+              "liftErrorDeg": 0,
+              "overshootDeg": 0.001,
+              "reachTicks": 21
+            },
+            {
+              "lift": 10,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.012,
+              "liftErrorDeg": -0.013,
+              "overshootDeg": 0.011,
+              "reachTicks": 5
+            },
+            {
+              "lift": 20,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.012,
+              "liftErrorDeg": -0.014,
+              "overshootDeg": 0.01,
+              "reachTicks": 5
+            },
+            {
+              "lift": 30,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.011,
+              "liftErrorDeg": -0.015,
+              "overshootDeg": 0.011,
+              "reachTicks": 5
+            },
+            {
+              "lift": 40,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.011,
+              "liftErrorDeg": -0.015,
+              "overshootDeg": 0.01,
+              "reachTicks": 5
+            },
+            {
+              "lift": 50,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.011,
+              "liftErrorDeg": -0.015,
+              "overshootDeg": 0.01,
+              "reachTicks": 5
+            },
+            {
+              "lift": 60,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.011,
+              "liftErrorDeg": -0.014,
+              "overshootDeg": 0.01,
+              "reachTicks": 5
+            },
+            {
+              "lift": 70,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.012,
+              "liftErrorDeg": -0.013,
+              "overshootDeg": 0.011,
+              "reachTicks": 5
+            },
+            {
+              "lift": 80,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.014,
+              "liftErrorDeg": -0.011,
+              "overshootDeg": 0.013,
+              "reachTicks": 5
+            },
+            {
+              "lift": 90,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.014,
+              "liftErrorDeg": -0.009,
+              "overshootDeg": 0,
+              "reachTicks": 5
+            },
+            {
+              "lift": 45,
+              "restLevelDeg": -0.0111,
+              "maxLevelMovingDeg": 0.011,
+              "liftErrorDeg": -0.015,
+              "overshootDeg": 0.044,
+              "reachTicks": 12
+            },
+            {
+              "lift": 0,
+              "restLevelDeg": -0.011,
+              "maxLevelMovingDeg": 0.026,
+              "liftErrorDeg": 0,
+              "overshootDeg": 0.001,
+              "reachTicks": 12
+            }
+          ]
+        },
+        "held50g": {
+          "held": "cube",
+          "rows": [
+            {
+              "lift": 0,
+              "restLevelDeg": -0.0112,
+              "maxLevelMovingDeg": 0.011,
+              "liftErrorDeg": 0,
+              "overshootDeg": 0,
+              "reachTicks": 1
+            },
+            {
+              "lift": 10,
+              "restLevelDeg": -0.2306,
+              "maxLevelMovingDeg": 0.954,
+              "liftErrorDeg": -0.042,
+              "overshootDeg": 0.027,
+              "reachTicks": 5
+            },
+            {
+              "lift": 20,
+              "restLevelDeg": -0.2305,
+              "maxLevelMovingDeg": 1.051,
+              "liftErrorDeg": -0.046,
+              "overshootDeg": 0.023,
+              "reachTicks": 5
+            },
+            {
+              "lift": 30,
+              "restLevelDeg": -0.2305,
+              "maxLevelMovingDeg": 1.123,
+              "liftErrorDeg": -0.048,
+              "overshootDeg": 0.019,
+              "reachTicks": 5
+            },
+            {
+              "lift": 40,
+              "restLevelDeg": -0.2304,
+              "maxLevelMovingDeg": 1.173,
+              "liftErrorDeg": -0.049,
+              "overshootDeg": 0.016,
+              "reachTicks": 5
+            },
+            {
+              "lift": 50,
+              "restLevelDeg": -0.2305,
+              "maxLevelMovingDeg": 1.202,
+              "liftErrorDeg": -0.048,
+              "overshootDeg": 0.013,
+              "reachTicks": 5
+            },
+            {
+              "lift": 60,
+              "restLevelDeg": -0.2305,
+              "maxLevelMovingDeg": 1.205,
+              "liftErrorDeg": -0.046,
+              "overshootDeg": 0.017,
+              "reachTicks": 5
+            },
+            {
+              "lift": 70,
+              "restLevelDeg": -0.2306,
+              "maxLevelMovingDeg": 1.185,
+              "liftErrorDeg": -0.042,
+              "overshootDeg": 0.018,
+              "reachTicks": 5
+            },
+            {
+              "lift": 80,
+              "restLevelDeg": -0.2307,
+              "maxLevelMovingDeg": 1.142,
+              "liftErrorDeg": -0.037,
+              "overshootDeg": 0.023,
+              "reachTicks": 5
+            },
+            {
+              "lift": 90,
+              "restLevelDeg": -0.2308,
+              "maxLevelMovingDeg": 1.07,
+              "liftErrorDeg": -0.031,
+              "overshootDeg": 0.001,
+              "reachTicks": 5
+            },
+            {
+              "lift": 45,
+              "restLevelDeg": -0.2304,
+              "maxLevelMovingDeg": 1.389,
+              "liftErrorDeg": -0.049,
+              "overshootDeg": 1.14,
+              "reachTicks": 14
+            },
+            {
+              "lift": 0,
+              "restLevelDeg": 0.0098,
+              "maxLevelMovingDeg": 1.612,
+              "liftErrorDeg": 0,
+              "overshootDeg": 0,
+              "reachTicks": 12
+            }
+          ]
+        }
+      },
+      "robustness": [
+        {
+          "massG": 15,
+          "offsetCm": [
+            -2,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 1.898,
+          "casterTicksOff": 19,
+          "maxLevel": 0.425,
+          "penClosingMm": 0,
+          "penHeldMm": 0.007,
+          "jitterMm": 0.002,
+          "cubeEnd": {
+            "xCm": 108.427,
+            "yCm": 49.996,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            -1,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 1.898,
+          "casterTicksOff": 19,
+          "maxLevel": 0.434,
+          "penClosingMm": 0,
+          "penHeldMm": 0.007,
+          "jitterMm": 0.002,
+          "cubeEnd": {
+            "xCm": 109.248,
+            "yCm": 50.002,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            1,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 1.898,
+          "casterTicksOff": 19,
+          "maxLevel": 0.458,
+          "penClosingMm": 0,
+          "penHeldMm": 0.013,
+          "jitterMm": 0.002,
+          "cubeEnd": {
+            "xCm": 111.476,
+            "yCm": 49.968,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            2,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 1.898,
+          "casterTicksOff": 19,
+          "maxLevel": 0.434,
+          "penClosingMm": 0,
+          "penHeldMm": 0.012,
+          "jitterMm": 0.002,
+          "cubeEnd": {
+            "xCm": 112.475,
+            "yCm": 49.967,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            0,
+            -0.5
+          ],
+          "events": "attach,release",
+          "maxPitch": 1.897,
+          "casterTicksOff": 19,
+          "maxLevel": 0.445,
+          "penClosingMm": 7.706,
+          "penHeldMm": 9.401,
+          "jitterMm": 0.002,
+          "cubeEnd": {
+            "xCm": 110.395,
+            "yCm": 49.42,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            0,
+            0.5
+          ],
+          "events": "attach,release",
+          "maxPitch": 1.899,
+          "casterTicksOff": 19,
+          "maxLevel": 0.445,
+          "penClosingMm": 7.733,
+          "penHeldMm": 9.428,
+          "jitterMm": 0.002,
+          "cubeEnd": {
+            "xCm": 110.393,
+            "yCm": 50.564,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            0,
+            -1
+          ],
+          "events": "attach,release",
+          "maxPitch": 1.897,
+          "casterTicksOff": 19,
+          "maxLevel": 0.447,
+          "penClosingMm": 16.037,
+          "penHeldMm": 17.677,
+          "jitterMm": 0.003,
+          "cubeEnd": {
+            "xCm": 110.392,
+            "yCm": 48.866,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 15,
+          "offsetCm": [
+            0,
+            1
+          ],
+          "events": "attach,release",
+          "maxPitch": 1.899,
+          "casterTicksOff": 19,
+          "maxLevel": 0.445,
+          "penClosingMm": 17.703,
+          "penHeldMm": 19.318,
+          "jitterMm": 0.002,
+          "cubeEnd": {
+            "xCm": 110.392,
+            "yCm": 51.118,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            -2,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 2.666,
+          "casterTicksOff": 20,
+          "maxLevel": 1.178,
+          "penClosingMm": 0,
+          "penHeldMm": 0.023,
+          "jitterMm": 0.004,
+          "cubeEnd": {
+            "xCm": 108.441,
+            "yCm": 49.999,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            -1,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 2.666,
+          "casterTicksOff": 20,
+          "maxLevel": 1.18,
+          "penClosingMm": 0,
+          "penHeldMm": 0.038,
+          "jitterMm": 0.004,
+          "cubeEnd": {
+            "xCm": 109.61,
+            "yCm": 49.195,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            1,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 2.66,
+          "casterTicksOff": 20,
+          "maxLevel": 1.192,
+          "penClosingMm": 0,
+          "penHeldMm": 0.016,
+          "jitterMm": 0.004,
+          "cubeEnd": {
+            "xCm": 111.433,
+            "yCm": 49.963,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            2,
+            0
+          ],
+          "events": "attach,release",
+          "maxPitch": 2.665,
+          "casterTicksOff": 20,
+          "maxLevel": 1.182,
+          "penClosingMm": 0,
+          "penHeldMm": 0.025,
+          "jitterMm": 0.004,
+          "cubeEnd": {
+            "xCm": 112.431,
+            "yCm": 49.964,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            0,
+            -0.5
+          ],
+          "events": "attach,release",
+          "maxPitch": 2.664,
+          "casterTicksOff": 20,
+          "maxLevel": 1.181,
+          "penClosingMm": 7.706,
+          "penHeldMm": 9.401,
+          "jitterMm": 0.005,
+          "cubeEnd": {
+            "xCm": 110.432,
+            "yCm": 49.268,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            0,
+            0.5
+          ],
+          "events": "attach,release",
+          "maxPitch": 2.664,
+          "casterTicksOff": 20,
+          "maxLevel": 1.183,
+          "penClosingMm": 7.733,
+          "penHeldMm": 9.428,
+          "jitterMm": 0.004,
+          "cubeEnd": {
+            "xCm": 110.434,
+            "yCm": 50.691,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            0,
+            -1
+          ],
+          "events": "attach,release",
+          "maxPitch": 2.666,
+          "casterTicksOff": 20,
+          "maxLevel": 1.175,
+          "penClosingMm": 16.037,
+          "penHeldMm": 17.677,
+          "jitterMm": 0.005,
+          "cubeEnd": {
+            "xCm": 110.45,
+            "yCm": 48.429,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        },
+        {
+          "massG": 50,
+          "offsetCm": [
+            0,
+            1
+          ],
+          "events": "attach,release",
+          "maxPitch": 2.664,
+          "casterTicksOff": 20,
+          "maxLevel": 1.177,
+          "penClosingMm": 17.703,
+          "penHeldMm": 19.318,
+          "jitterMm": 0.004,
+          "cubeEnd": {
+            "xCm": 110.468,
+            "yCm": 51.37,
+            "zCm": 1.993
+          },
+          "cubeTiltEndDeg": 0
+        }
+      ]
+    },
+    "tuned-collider-friction0.6": {
+      "s3TooHeavy60g": {
+        "massG": 60,
+        "clawAfterCloseDeg": 25.191,
+        "cubeBottomAtLift90Cm": -0.007,
+        "events": [],
+        "cubeEnd": {
+          "xCm": 60.786,
+          "yCm": 49.826,
+          "zCm": 1.993
+        },
+        "maxLevel": 0.089,
+        "penClosingMm": 1.095,
+        "penHeldMm": 0,
+        "penAfterMm": 0,
+        "penCarriageMm": 0.334,
+        "jitterMm": 0,
+        "jitterDeg": 0,
+        "maxExternalN": 0,
+        "gripperChassisTicks": 0,
+        "nan": false,
+        "cubeMaxBottomCm": 0.157,
+        "all": {
+          "maxPitch": 1.421,
+          "minPitch": 0,
+          "maxRoll": 0.001,
+          "casterMinLoadN": 0,
+          "casterMaxHeightMm": 1.702,
+          "casterTicksOff": 9
+        }
+      }
+    }
+  },
+  "cost": {
+    "plan": {
+      "median": 0.0656,
+      "p95": 0.0896,
+      "mean": 0.0711,
+      "batch10Median": 0.0667,
+      "batch10P95": 0.0897
+    },
+    "tuned-collider": {
+      "median": 0.1943,
+      "p95": 0.2124,
+      "mean": 0.1937,
+      "batch10Median": 0.1963,
+      "batch10P95": 0.2091
+    },
+    "tuned-sensor": {
+      "median": 0.1541,
+      "p95": 0.1771,
+      "mean": 0.1586,
+      "batch10Median": 0.1556,
+      "batch10P95": 0.1746
+    },
+    "roverPhysics": {
+      "median": 0.0598,
+      "p95": 0.0672,
+      "mean": 0.0596,
+      "batch10Median": 0.0603,
+      "batch10P95": 0.0666
+    },
+    "roverProductionWorld": {
+      "median": 0.0907,
+      "p95": 0.1045,
+      "mean": 0.0924,
+      "batch10Median": 0.0915,
+      "batch10P95": 0.1083
+    }
+  },
+  "loadavgEnd": [
+    13.26025390625,
+    23.81201171875,
+    27.28271484375
+  ]
+}

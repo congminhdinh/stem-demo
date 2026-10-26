@@ -1,0 +1,516 @@
+{
+  "date": "2026-10-26T14:37:54.334Z",
+  "command": "node spikes/n19-grasp/node-run.ts trace",
+  "env": {
+    "node": "v24.22.1",
+    "platform": "darwin",
+    "release": "25.5.0",
+    "arch": "arm64",
+    "cpu": "Apple M4 Pro",
+    "cores": 12,
+    "rapier": "0.21.0",
+    "loadavgStart": [
+      21.06787109375,
+      24.03271484375,
+      27.14794921875
+    ],
+    "initMs": 153.6
+  },
+  "result": [
+    {
+      "variant": "plan §4.4 (servo, hold-motor, +4 PGS)",
+      "empty": {
+        "sagAt90Deg": -1.105,
+        "restLevelAt90Deg": -1.1856,
+        "90->0": {
+          "reachTicks": 22,
+          "overshootDeg": 4.726,
+          "endErrorDeg": -1.253,
+          "maxLevelDeg": 4.609,
+          "endLevelDeg": -1.2947
+        },
+        "0->90": {
+          "reachTicks": 28,
+          "overshootDeg": 1.284,
+          "endErrorDeg": -1.058,
+          "maxLevelDeg": 3.504,
+          "endLevelDeg": -1.1382
+        },
+        "90->40": {
+          "reachTicks": 20,
+          "overshootDeg": 8.622,
+          "endErrorDeg": -1.584,
+          "maxLevelDeg": 7.341,
+          "endLevelDeg": -1.5314
+        },
+        "40->45": {
+          "reachTicks": 4,
+          "overshootDeg": 0.405,
+          "endErrorDeg": -1.602,
+          "maxLevelDeg": 3.608,
+          "endLevelDeg": -1.5515
+        },
+        "45->0": {
+          "reachTicks": 15,
+          "overshootDeg": 4.296,
+          "endErrorDeg": -1.248,
+          "maxLevelDeg": 4.366,
+          "endLevelDeg": -1.2897
+        }
+      },
+      "held50g": {
+        "maxRestLevelDeg": 9.757,
+        "maxMovingLevelDeg": 10.14,
+        "maxLiftErrorDeg": 67.847,
+        "maxOvershootDeg": 22.847,
+        "slowestReachTicks": 9
+      }
+    },
+    {
+      "variant": "servo, chassis-lock, +4 PGS",
+      "empty": {
+        "sagAt90Deg": -0.939,
+        "restLevelAt90Deg": -0.0908,
+        "90->0": {
+          "reachTicks": 16,
+          "overshootDeg": 3.891,
+          "endErrorDeg": -1.085,
+          "maxLevelDeg": 0.552,
+          "endLevelDeg": -0.0907
+        },
+        "0->90": {
+          "reachTicks": 29,
+          "overshootDeg": 0.925,
+          "endErrorDeg": -0.946,
+          "maxLevelDeg": 0.241,
+          "endLevelDeg": -0.0912
+        },
+        "90->40": {
+          "reachTicks": 19,
+          "overshootDeg": 7.899,
+          "endErrorDeg": -1.439,
+          "maxLevelDeg": 0.419,
+          "endLevelDeg": -0.0911
+        },
+        "40->45": {
+          "reachTicks": 4,
+          "overshootDeg": 0.779,
+          "endErrorDeg": -1.434,
+          "maxLevelDeg": 0.27,
+          "endLevelDeg": -0.091
+        },
+        "45->0": {
+          "reachTicks": 14,
+          "overshootDeg": 3.258,
+          "endErrorDeg": -1.086,
+          "maxLevelDeg": 0.555,
+          "endLevelDeg": -0.0908
+        }
+      },
+      "held50g": {
+        "maxRestLevelDeg": 1.769,
+        "maxMovingLevelDeg": 6.179,
+        "maxLiftErrorDeg": 3.604,
+        "maxOvershootDeg": 26.625,
+        "slowestReachTicks": 11
+      }
+    },
+    {
+      "variant": "brake, chassis-lock, +4 PGS",
+      "empty": {
+        "sagAt90Deg": -0.939,
+        "restLevelAt90Deg": -0.0908,
+        "90->0": {
+          "reachTicks": -1,
+          "overshootDeg": 2.751,
+          "endErrorDeg": -1.086,
+          "maxLevelDeg": 0.515,
+          "endLevelDeg": -0.0907
+        },
+        "0->90": {
+          "reachTicks": 29,
+          "overshootDeg": 0.164,
+          "endErrorDeg": -0.934,
+          "maxLevelDeg": 0.241,
+          "endLevelDeg": -0.0906
+        },
+        "90->40": {
+          "reachTicks": 10,
+          "overshootDeg": 7.294,
+          "endErrorDeg": -1.86,
+          "maxLevelDeg": 0.278,
+          "endLevelDeg": -0.091
+        },
+        "40->45": {
+          "reachTicks": -1,
+          "overshootDeg": 0,
+          "endErrorDeg": -1.856,
+          "maxLevelDeg": 0.158,
+          "endLevelDeg": -0.091
+        },
+        "45->0": {
+          "reachTicks": -1,
+          "overshootDeg": 2.724,
+          "endErrorDeg": -1.086,
+          "maxLevelDeg": 0.296,
+          "endLevelDeg": -0.0907
+        }
+      },
+      "held50g": {
+        "maxRestLevelDeg": 1.722,
+        "maxMovingLevelDeg": 4.847,
+        "maxLiftErrorDeg": 12.783,
+        "maxOvershootDeg": 27.431,
+        "slowestReachTicks": 9
+      }
+    },
+    {
+      "variant": "brake, chassis-lock, +16 PGS",
+      "empty": {
+        "sagAt90Deg": -0.27,
+        "restLevelAt90Deg": -0.0199,
+        "90->0": {
+          "reachTicks": 19,
+          "overshootDeg": 0.361,
+          "endErrorDeg": -0.013,
+          "maxLevelDeg": 0.127,
+          "endLevelDeg": -0.0181
+        },
+        "0->90": {
+          "reachTicks": 22,
+          "overshootDeg": 0.088,
+          "endErrorDeg": -0.27,
+          "maxLevelDeg": 0.07,
+          "endLevelDeg": -0.0199
+        },
+        "90->40": {
+          "reachTicks": 11,
+          "overshootDeg": 1.153,
+          "endErrorDeg": -0.417,
+          "maxLevelDeg": 0.052,
+          "endLevelDeg": -0.026
+        },
+        "40->45": {
+          "reachTicks": 4,
+          "overshootDeg": 0.024,
+          "endErrorDeg": -0.415,
+          "maxLevelDeg": 0.051,
+          "endLevelDeg": -0.0259
+        },
+        "45->0": {
+          "reachTicks": 10,
+          "overshootDeg": 0.248,
+          "endErrorDeg": -0.013,
+          "maxLevelDeg": 0.074,
+          "endLevelDeg": -0.0181
+        }
+      },
+      "held50g": {
+        "maxRestLevelDeg": 0.503,
+        "maxMovingLevelDeg": 2.088,
+        "maxLiftErrorDeg": 1.299,
+        "maxOvershootDeg": 6.991,
+        "slowestReachTicks": 10
+      }
+    },
+    {
+      "variant": "brake, chassis-lock, +8 PGS +4 solver",
+      "empty": {
+        "sagAt90Deg": -0.267,
+        "restLevelAt90Deg": -0.0117,
+        "90->0": {
+          "reachTicks": 19,
+          "overshootDeg": 0.186,
+          "endErrorDeg": -0.009,
+          "maxLevelDeg": 0.042,
+          "endLevelDeg": -0.0115
+        },
+        "0->90": {
+          "reachTicks": 22,
+          "overshootDeg": 0.054,
+          "endErrorDeg": -0.267,
+          "maxLevelDeg": 0.034,
+          "endLevelDeg": -0.0117
+        },
+        "90->40": {
+          "reachTicks": 11,
+          "overshootDeg": 1.154,
+          "endErrorDeg": -0.414,
+          "maxLevelDeg": 0.024,
+          "endLevelDeg": -0.0126
+        },
+        "40->45": {
+          "reachTicks": 4,
+          "overshootDeg": 0.028,
+          "endErrorDeg": -0.413,
+          "maxLevelDeg": 0.024,
+          "endLevelDeg": -0.0126
+        },
+        "45->0": {
+          "reachTicks": 10,
+          "overshootDeg": 0.292,
+          "endErrorDeg": -0.009,
+          "maxLevelDeg": 0.05,
+          "endLevelDeg": -0.0115
+        }
+      },
+      "held50g": {
+        "maxRestLevelDeg": 0.229,
+        "maxMovingLevelDeg": 0.93,
+        "maxLiftErrorDeg": 1.128,
+        "maxOvershootDeg": 6.617,
+        "slowestReachTicks": 10
+      }
+    },
+    {
+      "variant": "brake, hold-motor, J 1e-4, +4 PGS",
+      "empty": {
+        "sagAt90Deg": -0.021,
+        "restLevelAt90Deg": 0,
+        "90->0": {
+          "reachTicks": 22,
+          "overshootDeg": 0.062,
+          "endErrorDeg": -0.003,
+          "maxLevelDeg": 1.965,
+          "endLevelDeg": 0
+        },
+        "0->90": {
+          "reachTicks": 22,
+          "overshootDeg": 0.021,
+          "endErrorDeg": -0.021,
+          "maxLevelDeg": 2.842,
+          "endLevelDeg": 0
+        },
+        "90->40": {
+          "reachTicks": 14,
+          "overshootDeg": 0.073,
+          "endErrorDeg": -0.031,
+          "maxLevelDeg": 1.964,
+          "endLevelDeg": 0
+        },
+        "40->45": {
+          "reachTicks": 3,
+          "overshootDeg": 0.018,
+          "endErrorDeg": -0.031,
+          "maxLevelDeg": 1.023,
+          "endLevelDeg": 0
+        },
+        "45->0": {
+          "reachTicks": 13,
+          "overshootDeg": 0.061,
+          "endErrorDeg": -0.003,
+          "maxLevelDeg": 2.398,
+          "endLevelDeg": 0
+        }
+      },
+      "held50g": {
+        "maxRestLevelDeg": 6.511,
+        "maxMovingLevelDeg": 18.495,
+        "maxLiftErrorDeg": 0.119,
+        "maxOvershootDeg": 0.725,
+        "slowestReachTicks": 12
+      }
+    },
+    {
+      "variant": "brake, chassis-lock, J 1e-4, +4 PGS",
+      "empty": {
+        "sagAt90Deg": -0.017,
+        "restLevelAt90Deg": -0.0902,
+        "90->0": {
+          "reachTicks": 22,
+          "overshootDeg": 0.054,
+          "endErrorDeg": -0.002,
+          "maxLevelDeg": 0.244,
+          "endLevelDeg": -0.0901
+        },
+        "0->90": {
+          "reachTicks": 22,
+          "overshootDeg": 0.023,
+          "endErrorDeg": -0.017,
+          "maxLevelDeg": 0.505,
+          "endLevelDeg": -0.0902
+        },
+        "90->40": {
+          "reachTicks": 14,
+          "overshootDeg": 0.065,
+          "endErrorDeg": -0.027,
+          "maxLevelDeg": 0.318,
+          "endLevelDeg": -0.0896
+        },
+        "40->45": {
+          "reachTicks": 3,
+          "overshootDeg": 0.009,
+          "endErrorDeg": -0.027,
+          "maxLevelDeg": 0.322,
+          "endLevelDeg": -0.0896
+        },
+        "45->0": {
+          "reachTicks": 13,
+          "overshootDeg": 0.053,
+          "endErrorDeg": -0.002,
+          "maxLevelDeg": 0.353,
+          "endLevelDeg": -0.0901
+        }
+      },
+      "held50g": {
+        "maxRestLevelDeg": 1.662,
+        "maxMovingLevelDeg": 7.944,
+        "maxLiftErrorDeg": 0.083,
+        "maxOvershootDeg": 0.411,
+        "slowestReachTicks": 12
+      }
+    },
+    {
+      "variant": "brake, chassis-lock, J 5e-5, +4 PGS",
+      "empty": {
+        "sagAt90Deg": -0.03,
+        "restLevelAt90Deg": -0.0902,
+        "90->0": {
+          "reachTicks": 21,
+          "overshootDeg": 0.004,
+          "endErrorDeg": -0.003,
+          "maxLevelDeg": 0.301,
+          "endLevelDeg": -0.0901
+        },
+        "0->90": {
+          "reachTicks": 22,
+          "overshootDeg": 0.022,
+          "endErrorDeg": -0.03,
+          "maxLevelDeg": 0.575,
+          "endLevelDeg": -0.0902
+        },
+        "90->40": {
+          "reachTicks": 13,
+          "overshootDeg": 0.119,
+          "endErrorDeg": -0.047,
+          "maxLevelDeg": 0.368,
+          "endLevelDeg": -0.0897
+        },
+        "40->45": {
+          "reachTicks": 3,
+          "overshootDeg": 0.013,
+          "endErrorDeg": -0.047,
+          "maxLevelDeg": 0.27,
+          "endLevelDeg": -0.0898
+        },
+        "45->0": {
+          "reachTicks": 12,
+          "overshootDeg": 0.005,
+          "endErrorDeg": -0.003,
+          "maxLevelDeg": 0.333,
+          "endLevelDeg": -0.0901
+        }
+      },
+      "held50g": {
+        "maxRestLevelDeg": 1.72,
+        "maxMovingLevelDeg": 8.053,
+        "maxLiftErrorDeg": 0.142,
+        "maxOvershootDeg": 0.784,
+        "slowestReachTicks": 12
+      }
+    },
+    {
+      "variant": "brake, chassis-lock, J 5e-5, +8 PGS",
+      "empty": {
+        "sagAt90Deg": -0.015,
+        "restLevelAt90Deg": -0.0445,
+        "90->0": {
+          "reachTicks": 21,
+          "overshootDeg": 0.002,
+          "endErrorDeg": -0.001,
+          "maxLevelDeg": 0.071,
+          "endLevelDeg": -0.0441
+        },
+        "0->90": {
+          "reachTicks": 22,
+          "overshootDeg": 0.013,
+          "endErrorDeg": -0.015,
+          "maxLevelDeg": 0.229,
+          "endLevelDeg": -0.0445
+        },
+        "90->40": {
+          "reachTicks": 13,
+          "overshootDeg": 0.06,
+          "endErrorDeg": -0.024,
+          "maxLevelDeg": 0.254,
+          "endLevelDeg": -0.0447
+        },
+        "40->45": {
+          "reachTicks": 3,
+          "overshootDeg": 0.009,
+          "endErrorDeg": -0.023,
+          "maxLevelDeg": 0.059,
+          "endLevelDeg": -0.0447
+        },
+        "45->0": {
+          "reachTicks": 12,
+          "overshootDeg": 0.054,
+          "endErrorDeg": -0.001,
+          "maxLevelDeg": 0.08,
+          "endLevelDeg": -0.0441
+        }
+      },
+      "held50g": {
+        "maxRestLevelDeg": 0.909,
+        "maxMovingLevelDeg": 4.638,
+        "maxLiftErrorDeg": 0.082,
+        "maxOvershootDeg": 0.664,
+        "slowestReachTicks": 12
+      }
+    },
+    {
+      "variant": "chosen: brake, chassis-lock, J 5e-5, +8 PGS +4 solver",
+      "empty": {
+        "sagAt90Deg": -0.009,
+        "restLevelAt90Deg": -0.0111,
+        "90->0": {
+          "reachTicks": 21,
+          "overshootDeg": 0.001,
+          "endErrorDeg": 0,
+          "maxLevelDeg": 0.026,
+          "endLevelDeg": -0.011
+        },
+        "0->90": {
+          "reachTicks": 22,
+          "overshootDeg": 0.011,
+          "endErrorDeg": -0.009,
+          "maxLevelDeg": 0.051,
+          "endLevelDeg": -0.0111
+        },
+        "90->40": {
+          "reachTicks": 13,
+          "overshootDeg": 0.045,
+          "endErrorDeg": -0.015,
+          "maxLevelDeg": 0.091,
+          "endLevelDeg": -0.0111
+        },
+        "40->45": {
+          "reachTicks": 3,
+          "overshootDeg": 0.009,
+          "endErrorDeg": -0.015,
+          "maxLevelDeg": 0.011,
+          "endLevelDeg": -0.0111
+        },
+        "45->0": {
+          "reachTicks": 12,
+          "overshootDeg": 0.001,
+          "endErrorDeg": 0,
+          "maxLevelDeg": 0.026,
+          "endLevelDeg": -0.011
+        }
+      },
+      "held50g": {
+        "maxRestLevelDeg": 0.231,
+        "maxMovingLevelDeg": 1.613,
+        "maxLiftErrorDeg": 0.049,
+        "maxOvershootDeg": 1.272,
+        "slowestReachTicks": 14
+      }
+    }
+  ],
+  "loadavgEnd": [
+    22.10302734375,
+    24.19775390625,
+    27.18798828125
+  ]
+}

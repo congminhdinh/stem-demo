@@ -1,0 +1,233 @@
+{
+  "date": "2026-10-26T14:37:03.613Z",
+  "command": "node spikes/n19-grasp/browsers.ts",
+  "url": "http://localhost:5401/",
+  "loadavgStart": [
+    12.5185546875,
+    23.48291015625,
+    27.14599609375
+  ],
+  "browsers": {
+    "chromium": {
+      "version": "153.0.8010.12",
+      "sameAsNode": true,
+      "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+      "isolated": true,
+      "initMs": 250,
+      "hashes": {
+        "plan": {
+          "run1": {
+            "trajBits": "ff863a35",
+            "finalQ6": "1bbda434"
+          },
+          "run2": {
+            "trajBits": "ff863a35",
+            "finalQ6": "1bbda434"
+          },
+          "equal": true
+        },
+        "tuned-collider": {
+          "run1": {
+            "trajBits": "aaeace5c",
+            "finalQ6": "e4f99d6a"
+          },
+          "run2": {
+            "trajBits": "aaeace5c",
+            "finalQ6": "e4f99d6a"
+          },
+          "equal": true
+        },
+        "tuned-sensor": {
+          "run1": {
+            "trajBits": "c194c0a8",
+            "finalQ6": "8f3329e8"
+          },
+          "run2": {
+            "trajBits": "c194c0a8",
+            "finalQ6": "8f3329e8"
+          },
+          "equal": true
+        }
+      },
+      "cost": {
+        "plan": {
+          "median": 0.09,
+          "p95": 0.11,
+          "mean": 0.0921,
+          "batch10Median": 0.0875,
+          "batch10P95": 0.115
+        },
+        "tuned-collider": {
+          "median": 0.265,
+          "p95": 0.27,
+          "mean": 0.2588,
+          "batch10Median": 0.264,
+          "batch10P95": 0.277
+        },
+        "tuned-sensor": {
+          "median": 0.205,
+          "p95": 0.235,
+          "mean": 0.211,
+          "batch10Median": 0.2065,
+          "batch10P95": 0.232
+        },
+        "roverPhysics": {
+          "median": 0.08,
+          "p95": 0.085,
+          "mean": 0.0794,
+          "batch10Median": 0.0805,
+          "batch10P95": 0.088
+        }
+      }
+    },
+    "firefox": {
+      "version": "155.0",
+      "sameAsNode": true,
+      "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:155.0) Gecko/20100101 Firefox/155.0",
+      "isolated": true,
+      "initMs": 449.2,
+      "hashes": {
+        "plan": {
+          "run1": {
+            "trajBits": "ff863a35",
+            "finalQ6": "1bbda434"
+          },
+          "run2": {
+            "trajBits": "ff863a35",
+            "finalQ6": "1bbda434"
+          },
+          "equal": true
+        },
+        "tuned-collider": {
+          "run1": {
+            "trajBits": "aaeace5c",
+            "finalQ6": "e4f99d6a"
+          },
+          "run2": {
+            "trajBits": "aaeace5c",
+            "finalQ6": "e4f99d6a"
+          },
+          "equal": true
+        },
+        "tuned-sensor": {
+          "run1": {
+            "trajBits": "c194c0a8",
+            "finalQ6": "8f3329e8"
+          },
+          "run2": {
+            "trajBits": "c194c0a8",
+            "finalQ6": "8f3329e8"
+          },
+          "equal": true
+        }
+      },
+      "cost": {
+        "plan": {
+          "median": 0.1,
+          "p95": 0.18,
+          "mean": 0.1434,
+          "batch10Median": 0.098,
+          "batch10P95": 0.35
+        },
+        "tuned-collider": {
+          "median": 0.18,
+          "p95": 0.2,
+          "mean": 0.1894,
+          "batch10Median": 0.19,
+          "batch10P95": 0.202
+        },
+        "tuned-sensor": {
+          "median": 0.16,
+          "p95": 0.18,
+          "mean": 0.1627,
+          "batch10Median": 0.154,
+          "batch10P95": 0.178
+        },
+        "roverPhysics": {
+          "median": 0.06,
+          "p95": 0.08,
+          "mean": 0.0595,
+          "batch10Median": 0.06,
+          "batch10P95": 0.066
+        }
+      }
+    },
+    "webkit": {
+      "version": "26.6",
+      "sameAsNode": true,
+      "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.6 Safari/605.1.15",
+      "isolated": true,
+      "initMs": 169.8,
+      "hashes": {
+        "plan": {
+          "run1": {
+            "trajBits": "ff863a35",
+            "finalQ6": "1bbda434"
+          },
+          "run2": {
+            "trajBits": "ff863a35",
+            "finalQ6": "1bbda434"
+          },
+          "equal": true
+        },
+        "tuned-collider": {
+          "run1": {
+            "trajBits": "aaeace5c",
+            "finalQ6": "e4f99d6a"
+          },
+          "run2": {
+            "trajBits": "aaeace5c",
+            "finalQ6": "e4f99d6a"
+          },
+          "equal": true
+        },
+        "tuned-sensor": {
+          "run1": {
+            "trajBits": "c194c0a8",
+            "finalQ6": "8f3329e8"
+          },
+          "run2": {
+            "trajBits": "c194c0a8",
+            "finalQ6": "8f3329e8"
+          },
+          "equal": true
+        }
+      },
+      "cost": {
+        "plan": {
+          "median": 0.1,
+          "p95": 0.12,
+          "mean": 0.1012,
+          "batch10Median": 0.096,
+          "batch10P95": 0.124
+        },
+        "tuned-collider": {
+          "median": 0.28,
+          "p95": 0.28,
+          "mean": 0.2734,
+          "batch10Median": 0.276,
+          "batch10P95": 0.294
+        },
+        "tuned-sensor": {
+          "median": 0.22,
+          "p95": 0.24,
+          "mean": 0.2251,
+          "batch10Median": 0.216,
+          "batch10P95": 0.254
+        },
+        "roverPhysics": {
+          "median": 0.1,
+          "p95": 0.1,
+          "mean": 0.0927,
+          "batch10Median": 0.092,
+          "batch10P95": 0.094
+        }
+      }
+    }
+  },
+  "loadavgEnd": [
+    18.416015625,
+    23.6552734375,
+    27.05517578125
+  ]
+}
