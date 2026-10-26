@@ -27,7 +27,7 @@ import type { RobotSnapshot } from '../../../core/world/snapshot';
 import type { Detail } from '../lighting/look';
 import { robot3dColors as colors } from '../colors';
 import type { Kit, ModuleKind } from '../../../core/hardware/kit';
-import { colorLedLit, gripperStateOf } from '../gripper-pose';
+import { colorLedLit, gripperPose, gripperStateOf } from '../gripper-pose';
 import { buttonPressed, lineSeesDark, toneHzOf, type GripperModel, type RobotModel } from '../robot-model';
 import { servoArmYawRad, wheelSpin, type Vec3Tuple } from '../scene-math';
 import { bakeMovingPlain, lambertOf, lowTierMaterials, mergeStatic, swapMaterials } from './merge';
@@ -656,25 +656,16 @@ export function applyRobotWorld(handles: RobotHandles, world: RobotSnapshot, led
   if (handles.gripper) poseGripper(handles.gripper, world);
 }
 
-const DEG = Math.PI / 180;
-
-/** N19 E6: the gripper as robot.gripper says (gripper-pose.ts's geometry, written into the nodes: nothing is made a frame). */
+/** N19 E6: the gripper as robot.gripper says (gripper-pose.ts: the boom and its link turned, the carriage level at the tip, the fingers). */
 function poseGripper(gripper: GripperHandles, world: RobotSnapshot): void {
-  const g = gripper.model;
-  const state = gripperStateOf(world);
-  const elevation = (g.elevationAtLift0Deg + state.liftDeg) * DEG;
-  gripper.boom.rotation.z = elevation;
-  if (gripper.link) gripper.link.rotation.z = elevation;
-  const [px, py, pz] = g.position;
-  const tx = px + g.boomLengthM * Math.cos(elevation);
-  const ty = py + g.boomLengthM * Math.sin(elevation);
-  gripper.carriage.position.set(tx, ty, pz);
-  const closed = g.fingerOpenDeg - g.fingerDegPerServoDeg * g.jawsMeetDeg;
-  const beta = Math.min(g.fingerOpenDeg, Math.max(closed, g.fingerOpenDeg - g.fingerDegPerServoDeg * state.clawDeg)) * DEG;
-  gripper.jawLeft.position.set(tx + g.hinge.uM, ty, pz - g.hinge.vM);
-  gripper.jawLeft.rotation.y = beta;
-  gripper.jawRight.position.set(tx + g.hinge.uM, ty, pz + g.hinge.vM);
-  gripper.jawRight.rotation.y = 0 - beta;
+  const pose = gripperPose(gripper.model, gripperStateOf(world));
+  gripper.boom.rotation.z = pose.elevationRad;
+  if (gripper.link) gripper.link.rotation.z = pose.elevationRad;
+  gripper.carriage.position.set(...pose.tip);
+  gripper.jawLeft.position.set(...pose.jawLeft);
+  gripper.jawLeft.rotation.y = pose.betaRad;
+  gripper.jawRight.position.set(...pose.jawRight);
+  gripper.jawRight.rotation.y = 0 - pose.betaRad;
   const lit = colorLedLit(world);
   if (gripper.led) gripper.led.emissiveIntensity = lit ? COLOR_LED_INTENSITY : 0;
   if (gripper.ledHalo) gripper.ledHalo.visible = lit;

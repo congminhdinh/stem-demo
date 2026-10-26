@@ -22,7 +22,9 @@ const isNumber = (value: unknown): value is number => typeof value === 'number' 
 export function gripperStateOf(world: RobotSnapshot): GripperState {
   const state = (world.robot as { readonly gripper?: Partial<GripperState> }).gripper;
   if (!state || !isNumber(state.clawDeg) || !isNumber(state.liftDeg)) return GRIPPER_REST;
-  return { clawDeg: state.clawDeg, liftDeg: state.liftDeg, heldId: typeof state.heldId === 'string' ? state.heldId : null };
+  // The snapshot's own (frozen) object when it is whole: the view reads this every frame.
+  if (state.heldId === null || typeof state.heldId === 'string') return state as GripperState;
+  return { clawDeg: state.clawDeg, liftDeg: state.liftDeg, heldId: null };
 }
 
 export type GripperPose = {
