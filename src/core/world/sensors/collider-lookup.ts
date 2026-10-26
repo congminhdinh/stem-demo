@@ -1,5 +1,5 @@
 import type { Collider } from '../rapier';
-import type { Quat, Vec3 } from '../units';
+import { rotateVector, type Quat, type Vec3 } from '../units';
 
 // What the robot's sensors share (N18 R3.4): how they learn what a collider is, and where a sensor sits.
 
@@ -37,4 +37,17 @@ export function isFiniteVector(v: Vec3): boolean {
 /** Whether a position and a rotation are made of finite numbers only. */
 export function isFinitePose(position: Vec3, rotation: Quat): boolean {
   return isFiniteVector(position) && Number.isFinite(rotation.x) && Number.isFinite(rotation.y) && Number.isFinite(rotation.z) && Number.isFinite(rotation.w);
+}
+
+/**
+ * N19 B3: a sensor's ray, from its position along its forward axis (local +X): the unit direction, the rotation normalised first. Null
+ * for a pose that is not finite or a rotation of length 0 (Rapier would report a hit at 0 for a NaN ray), which sees nothing.
+ */
+export function forwardRay(pose: SensorPose): { readonly origin: Vec3; readonly dir: Vec3 } | null {
+  const q = pose.rotation;
+  const norm2 = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
+  if (!(norm2 > 0 && Number.isFinite(norm2)) || !isFiniteVector(pose.position)) return null;
+  const inverse = 1 / Math.sqrt(norm2);
+  const unit: Quat = { x: q.x * inverse, y: q.y * inverse, z: q.z * inverse, w: q.w * inverse };
+  return { origin: pose.position, dir: rotateVector(unit, { x: 1, y: 0, z: 0 }) };
 }
