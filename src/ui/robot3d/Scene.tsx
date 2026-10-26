@@ -446,8 +446,8 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
       model.gripper === null
         ? undefined
         : {
-            irSeen: t('robot.overlay.ir', { state: t('robot.pins.ir.seen') }),
-            irClear: t('robot.overlay.ir', { state: t('robot.pins.ir.clear') }),
+            irSeen: t('robot.overlay.ir', { state: t('robot.overlay.ir.seen') }),
+            irClear: t('robot.overlay.ir', { state: t('robot.overlay.ir.clear') }),
             color: Object.fromEntries(COLOR_NAMES.map((name) => [name, t('robot.overlay.color', { color: t(`robot.color.${name}`) })])) as Record<ColorName, string>,
             noReading: t('robot.overlay.color', { color: t('robot.pins.color.noReading') }),
           },

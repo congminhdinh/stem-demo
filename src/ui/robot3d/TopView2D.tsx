@@ -90,12 +90,13 @@ type Nodes = {
   /** N19 E4: the gripper's parts that move (a kit without one has none), and the ring round what it holds. */
   gripper: GripperNodes;
   held: Konva.Circle | null;
+  heldCasing: Konva.Circle | null;
   draws: number;
 };
 
 type GripperNodes = { group: Konva.Group | null; booms: (Konva.Rect | null)[]; carriage: Konva.Group | null; jaws: (Konva.Group | null)[] };
 
-const emptyNodes = (): Nodes => ({ layer: null, robot: null, treads: [], lineDots: [], rays: [], hits: [], arms: [], leds: [], moving: new Map(), gripper: { group: null, booms: [], carriage: null, jaws: [] }, held: null, draws: 0 });
+const emptyNodes = (): Nodes => ({ layer: null, robot: null, treads: [], lineDots: [], rays: [], hits: [], arms: [], leds: [], moving: new Map(), gripper: { group: null, booms: [], carriage: null, jaws: [] }, held: null, heldCasing: null, draws: 0 });
 
 export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = null, tools }: TopView2DProps) {
   const t = useText();
@@ -194,13 +195,16 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
         const held = state.heldId === null ? undefined : world.objects.find((object) => object.id === state.heldId);
         const body = held === undefined ? undefined : moving.find((candidate) => candidate.id === held.id);
         if (held !== undefined && body !== undefined) {
-          n.held?.position({ x: held.pose.xCm, y: held.pose.yCm });
-          n.held?.radius(heldRingRadiusCm(body));
+          for (const ring of [n.heldCasing, n.held]) {
+            ring?.position({ x: held.pose.xCm, y: held.pose.yCm });
+            ring?.radius(heldRingRadiusCm(body));
+            ring?.visible(true);
+          }
           n.held?.setAttr('heldId', held.id);
-          n.held?.visible(true);
         } else {
           n.held?.setAttr('heldId', null);
           n.held?.visible(false);
+          n.heldCasing?.visible(false);
         }
       }
       n.draws += 1;
@@ -324,18 +328,32 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
               </Group>
               {/* N19 E4: the ring round the object the gripper holds (a kit without a gripper has none). */}
               {model.gripper && (
-                <Circle
-                  name="topview-held"
-                  ref={(ring) => {
-                    nodes.current.held = ring;
-                  }}
-                  heldId={null}
-                  radius={1}
-                  stroke={colors.heldRing}
-                  strokeWidth={0.5}
-                  visible={false}
-                  perfectDrawEnabled={false}
-                />
+                <>
+                  {/* Fix round 1 (review M3): the violet on a white casing, which the tape and the chassis need. */}
+                  <Circle
+                    name="topview-held-casing"
+                    ref={(ring) => {
+                      nodes.current.heldCasing = ring;
+                    }}
+                    radius={1}
+                    stroke={colors.heldRingCasing}
+                    strokeWidth={0.9}
+                    visible={false}
+                    perfectDrawEnabled={false}
+                  />
+                  <Circle
+                    name="topview-held"
+                    ref={(ring) => {
+                      nodes.current.held = ring;
+                    }}
+                    heldId={null}
+                    radius={1}
+                    stroke={colors.heldRing}
+                    strokeWidth={0.5}
+                    visible={false}
+                    perfectDrawEnabled={false}
+                  />
+                </>
               )}
             </Group>
           </Layer>

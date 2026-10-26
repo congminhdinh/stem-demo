@@ -37,8 +37,12 @@ export const topViewColors = {
   gripperEdge: robot3dColors.chip,
   gripperBody: robot3dColors.chip,
   gripperPad: robot3dColors.gripperPad,
-  /** N19 E4: the ring round the held object: a violet no zone, object or sensor of the map uses. */
-  heldRing: '#6d28d9',
+  /**
+   * N19 E4: the ring round the held object: a violet no zone, object or sensor of the map uses, on a white casing (fix round 1, M3: the
+   * tape), deep enough to read on the chassis's orange where a raised arm holds the cube over it (violet-700 had 2.53:1 there).
+   */
+  heldRing: '#5b21b6',
+  heldRingCasing: '#ffffff',
 } as const;
 
 export type TopViewColor = keyof typeof topViewColors;

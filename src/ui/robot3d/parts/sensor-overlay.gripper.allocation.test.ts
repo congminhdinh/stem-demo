@@ -80,7 +80,7 @@ describe('the heap the gripper car’s overlays allocate per frame (N19 E5)', ()
     const distance: DistanceLabel = { sprite: new Sprite(), widthShare: 0.5, show: () => void (paints += 1), showNoEcho: () => void (paints += 1), dispose: () => void 0 };
     let wordsPaints = 0;
     const label: WordsLabel = { sprite: new Sprite(), widthShare: 0.4, heightShare: 0.8, show: () => void (wordsPaints += 1), dispose: () => void 0 };
-    const words: GripperWords = { irSeen: 'IR: có vật', irClear: 'IR: không', color: Object.fromEntries(COLOR_NAMES.map((name) => [name, `Màu: ${name}`])) as Record<ColorName, string>, noReading: 'Màu: chưa có số đọc' };
+    const words: GripperWords = { irSeen: 'IR: có vật', irClear: 'IR: không có vật', color: Object.fromEntries(COLOR_NAMES.map((name) => [name, `Màu: ${name}`])) as Record<ColorName, string>, noReading: 'Màu: chưa có số đọc' };
     const overlay = createSensorOverlay({ kit: gripperKit, model, scenario, decimal: ',', unit: 'cm', noEchoText: 'không thấy vật', fovDeg: 40, detail: 'high', makeLabel: () => distance, gripperWords: words, makeWordsLabel: () => label });
     const set = worlds(997);
     const frames = Array.from({ length: 22_000 }, (_, i) => ({ pulse: (i % 10) / 10, time: i / 60 }));

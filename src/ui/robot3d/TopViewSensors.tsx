@@ -32,6 +32,14 @@ import { arenaToStage, rayLengthCm, sameTopView, type TopViewFit } from './top-v
 // it, and a tag under the jaws that says them ("IR: có vật", "Màu: đỏ").
 
 const EMPTY_GOALS: Scenario['goals'] = [];
+/**
+ * N19 E4: the IR beam's width while it sees nothing (dashed) and while it sees (solid, with its dot), and how much wider a casing is, cm
+ * (fix round 1, review I1, M3: each new ink on a casing; robot-contrast.gripper.test.ts holds the pairs).
+ */
+const IR_QUIET_CM = 0.3;
+const IR_SEEN_CM = 0.55;
+const IR_QUIET_DASH = [0.45, 0.35];
+const CASING_CM = 0.3;
 const reducedMotionQuery = '(prefers-reduced-motion: reduce)';
 const labelFont = '"Be Vietnam Pro", system-ui, sans-serif';
 
@@ -52,8 +60,8 @@ type Nodes = {
   texts: (Konva.Text | null)[];
   spots: (Konva.Circle | null)[];
   /** N19 E4: the gripper car's IR beam and the dot at its end, the colour sensor's ray and spot, and their tag. */
-  ir: { beam: Konva.Line | null; end: Konva.Circle | null };
-  color: { ray: Konva.Line | null; spot: Konva.Circle | null };
+  ir: { beam: Konva.Line | null; casing: Konva.Line | null; end: Konva.Circle | null };
+  color: { ray: Konva.Line | null; casing: Konva.Line | null; spot: Konva.Circle | null; halo: Konva.Circle | null };
   gripperLabel: Konva.Label | null;
   gripperText: Konva.Text | null;
 };
@@ -66,7 +74,7 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
   // Whether the learner asks the system for no motion: the query is made once here (a media query list is live: `matches` is always the
   // current answer, and a browser without the query, or a test, has none).
   const motion = useMemo(() => (typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia(reducedMotionQuery) : null), []);
-  const nodes = useRef<Nodes>({ layer: null, zones: new Map(), cones: [], labels: [], texts: [], spots: [], ir: { beam: null, end: null }, color: { ray: null, spot: null }, gripperLabel: null, gripperText: null });
+  const nodes = useRef<Nodes>({ layer: null, zones: new Map(), cones: [], labels: [], texts: [], spots: [], ir: { beam: null, casing: null, end: null }, color: { ray: null, casing: null, spot: null, halo: null }, gripperLabel: null, gripperText: null });
   // The zones goals name (N19 E4/E5: a placed object's too).
   const zones = useMemo(() => {
     const named = goalZoneIds(goals);
@@ -193,16 +201,23 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
         // In place: the node's own array (its prop), so that a render of the map never puts the beam back.
         const beam = carried.irPoints;
         [beam[0], beam[1], beam[2], beam[3]] = [origin.xCm, origin.yCm, x1, y1];
-        n.ir.beam?.points(beam);
-        n.ir.beam?.opacity(irReading.detected ? 1 : 0.4);
-        n.ir.beam?.strokeWidth(irReading.detected ? 0.55 : 0.3);
-        n.ir.beam?.setAttrs({ detected: irReading.detected, hitId: irReading.hitId });
-        n.ir.beam?.visible(true);
+        // Fix round 1 (review I1): a dark casing under the beam (it lies on the cube it sees); quiet, the beam is dashed and thin, not faded.
+        const seeing = irReading.detected;
+        const width = seeing ? IR_SEEN_CM : IR_QUIET_CM;
+        for (const line of [n.ir.casing, n.ir.beam]) {
+          line?.points(beam);
+          line?.dash(seeing ? [] : IR_QUIET_DASH);
+          line?.visible(true);
+        }
+        n.ir.beam?.strokeWidth(width);
+        n.ir.casing?.strokeWidth(width + CASING_CM);
+        n.ir.beam?.setAttrs({ detected: seeing, hitId: irReading.hitId });
         n.ir.end?.position({ x: x1, y: y1 });
-        n.ir.end?.visible(irReading.detected);
-        lines.push(shownText.current('robot.overlay.ir', { state: shownText.current(irReading.detected ? 'robot.pins.ir.seen' : 'robot.pins.ir.clear') }));
+        n.ir.end?.visible(seeing);
+        lines.push(shownText.current('robot.overlay.ir', { state: shownText.current(irReading.detected ? 'robot.overlay.ir.seen' : 'robot.overlay.ir.clear') }));
       } else {
         n.ir.beam?.visible(false);
+        n.ir.casing?.visible(false);
         n.ir.end?.visible(false);
       }
       const colorReading = color === null ? undefined : world.sensors[color.sensorIndex];
@@ -212,9 +227,11 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
         const [x1, y1] = [origin.xCm + reach * Math.cos(heading), origin.yCm + reach * Math.sin(heading)];
         const ray = carried.colorPoints;
         [ray[0], ray[1], ray[2], ray[3]] = [origin.xCm, origin.yCm, x1, y1];
-        n.color.ray?.points(ray);
-        n.color.ray?.dash(colorReading.hitId === null ? [0.5, 0.4] : []);
-        n.color.ray?.visible(true);
+        for (const line of [n.color.casing, n.color.ray]) {
+          line?.points(ray);
+          line?.dash(colorReading.hitId === null ? [0.5, 0.4] : []);
+          line?.visible(true);
+        }
         const read = shownColor(colorReading);
         const tint = read === null ? null : readingTints[read];
         n.color.spot?.position({ x: x1, y: y1 });
@@ -222,10 +239,14 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
         n.color.spot?.fillEnabled(tint !== null);
         n.color.spot?.setAttrs({ color: read, hitId: colorReading.hitId });
         n.color.spot?.visible(colorReading.hitId !== null);
+        n.color.halo?.position({ x: x1, y: y1 });
+        n.color.halo?.visible(colorReading.hitId !== null);
         lines.push(shownText.current('robot.overlay.color', { color: read === null ? shownText.current('robot.pins.color.noReading') : shownText.current(`robot.color.${read}`) }));
       } else {
         n.color.ray?.visible(false);
+        n.color.casing?.visible(false);
         n.color.spot?.visible(false);
+        n.color.halo?.visible(false);
       }
       const label = n.gripperLabel;
       const text = n.gripperText;
@@ -331,15 +352,29 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
           <>
             <Line
               ref={(node) => {
+                nodes.current.ir.casing = node;
+              }}
+              name="topview-ir-casing"
+              role={carried.ir.role}
+              points={carried.irPoints}
+              stroke={colors.irCasing}
+              strokeWidth={IR_QUIET_CM + CASING_CM}
+              lineCap="round"
+              dash={IR_QUIET_DASH}
+              visible={false}
+              perfectDrawEnabled={false}
+            />
+            <Line
+              ref={(node) => {
                 nodes.current.ir.beam = node;
               }}
               name="topview-ir"
               role={carried.ir.role}
               points={carried.irPoints}
               stroke={colors.ir}
-              strokeWidth={0.3}
+              strokeWidth={IR_QUIET_CM}
               lineCap="round"
-              opacity={0.4}
+              dash={IR_QUIET_DASH}
               visible={false}
               perfectDrawEnabled={false}
             />
@@ -351,12 +386,26 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
               role={carried.ir.role}
               radius={0.45}
               fill={colors.ir}
+              stroke={colors.irCasing}
+              strokeWidth={0.2}
               visible={false}
             />
           </>
         )}
         {carried?.color && (
           <>
+            <Line
+              ref={(node) => {
+                nodes.current.color.casing = node;
+              }}
+              name="topview-color-ray-casing"
+              role={carried.color.role}
+              points={carried.colorPoints}
+              stroke={colors.lightCasing}
+              strokeWidth={0.18 + CASING_CM}
+              visible={false}
+              perfectDrawEnabled={false}
+            />
             <Line
               ref={(node) => {
                 nodes.current.color.ray = node;
@@ -366,9 +415,18 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
               points={carried.colorPoints}
               stroke={colors.spotRing}
               strokeWidth={0.18}
-              opacity={0.7}
               visible={false}
               perfectDrawEnabled={false}
+            />
+            <Circle
+              ref={(node) => {
+                nodes.current.color.halo = node;
+              }}
+              name="topview-color-spot-halo"
+              role={carried.color.role}
+              radius={0.8 + 0.125 + CASING_CM / 2}
+              fill={colors.lightCasing}
+              visible={false}
             />
             <Circle
               ref={(node) => {

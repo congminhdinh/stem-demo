@@ -21,10 +21,17 @@ export const sensorColors = {
   labelBackground: 'rgba(255, 255, 255, 0.96)',
   labelBorder: '#0284c7',
   labelText: '#0c4a6e',
-  /** N19 E4/E5: the IR sensor's short beam between the jaws (a fuchsia no other overlay uses), faint until it sees something. */
+  /** N19 E4/E5: the IR sensor's short beam between the jaws (a fuchsia no other overlay uses), dashed until it sees something. */
   ir: '#c026d3',
-  /** N19 E4/E5: the dark ring round the colour sensor's spot, so that a white or a yellow reading still shows on the light mat. */
+  /**
+   * N19 E4/E5 fix round 1 (review I1): the 2D IR beam's casing and its dot's ring: dark, as the beam lies on the cube it sees, where it has
+   * about 1:1 (red, green, blue) and white would be too weak on the yellow one (robot-contrast.gripper.test.ts).
+   */
+  irCasing: '#0f172a',
+  /** N19 E4/E5: the dark ring round the colour sensor's spot, so that a white or a yellow reading still shows on the light mat; and the colour ray. */
   spotRing: '#0f172a',
+  /** N19 E4/E5 fix round 1 (review M3): the light casing of the dark colour ray and the spot's ring on the 2D map, for the black tape and a black cube. */
+  lightCasing: '#ffffff',
 } as const;
 
 /**

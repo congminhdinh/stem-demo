@@ -341,6 +341,8 @@ export const en = {
   'robot.zone.tag.stack': 'Stacking zone',
   // N19 E4/E5: the tags of the gripper's IR and colour overlays, in the 3D view and on the 2D map.
   'robot.overlay.ir': 'IR: {state}',
+  'robot.overlay.ir.seen': 'object',
+  'robot.overlay.ir.clear': 'no object',
   'robot.overlay.color': 'Colour: {color}',
   'robot.scenario.rb-drive-to-zone': 'Drive to the zone',
   'robot.scenario.rb-square-route': 'Drive a square',
@@ -837,6 +839,8 @@ export const vi: Readonly<Record<MessageKey, string>> = {
   'robot.zone.tag.blue': 'Vùng xanh dương',
   'robot.zone.tag.stack': 'Vùng xếp',
   'robot.overlay.ir': 'IR: {state}',
+  'robot.overlay.ir.seen': 'có vật',
+  'robot.overlay.ir.clear': 'không có vật',
   'robot.overlay.color': 'Màu: {color}',
   'robot.scenario.rb-drive-to-zone': 'Chạy tới vùng đích',
   'robot.scenario.rb-square-route': 'Đi theo hình vuông',

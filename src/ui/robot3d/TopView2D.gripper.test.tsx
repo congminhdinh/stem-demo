@@ -140,14 +140,15 @@ describe('the gripper car on the 2D map (N19 E4)', () => {
     near(drawn.gripper!.jaws[1]!.tip, 20 + 8.830222 + 5 * Math.cos(beta * DEG), 27.8 - 5 * Math.sin(beta * DEG), 5);
     // The ring round the held cube, where the world has it.
     const cube = world.objects.find((object) => object.id === 'cube-red')!;
-    expect(drawn.held).toEqual({ visible: true, id: 'cube-red', xCm: cube.pose.xCm, yCm: cube.pose.yCm, radiusCm: 2 * Math.SQRT2 + 0.8 });
+    expect(drawn.held).toEqual({ visible: true, id: 'cube-red', xCm: cube.pose.xCm, yCm: cube.pose.yCm, radiusCm: 2 * Math.SQRT2 + 0.8, cased: true });
     // The IR from its mount on the carriage (u 0.3, v 0.6), 2 cm forward, strong, its end dot shown.
     const irFrom = 20 + 4.5 + 5 * Math.cos(40 * DEG) + 0.3;
-    expect(drawn.ir).toMatchObject({ visible: true, detected: true, hitId: 'cube-red', end: true });
+    // Strong: solid, its dark casing under it along the same line and its dot ringed (fix round 1, I1: it lies on the cube it sees).
+    expect(drawn.ir).toMatchObject({ visible: true, detected: true, hitId: 'cube-red', end: true, dashed: false, cased: true });
     near(drawn.ir!.from, irFrom, 30.6);
     near(drawn.ir!.to, irFrom + 2, 30.6);
     // The colour sensor's ray (u 0.3, v −0.6) to what it meets 1.4 cm on, the spot there tinted with the red its counts read.
-    expect(drawn.color).toMatchObject({ rayVisible: true, spotVisible: true, color: 'red', tint: bodyPalette.red });
+    expect(drawn.color).toMatchObject({ rayVisible: true, spotVisible: true, color: 'red', tint: bodyPalette.red, cased: true });
     near(drawn.color!.from, irFrom, 29.4);
     near(drawn.color!.to, irFrom + 1.4, 29.4);
     expect(drawn.label).toEqual({ visible: true, lines: ['IR: có vật', 'Màu: đỏ'] });
@@ -156,13 +157,14 @@ describe('the gripper car on the 2D map (N19 E4)', () => {
   it('says what the sensors read in words: nothing seen, the colour not read yet, a colour it cannot tell; a ray with no hit runs its range, no spot', () => {
     const { publish } = mount();
     publish({ status: 'running', world: { ...holding(), sensors: readouts({ detected: false, hitId: null }, { hitId: null, distanceCm: null }) } });
-    expect(gripper().ir).toMatchObject({ visible: true, detected: false, end: false });
+    // Quiet: dashed, on its casing, no dot.
+    expect(gripper().ir).toMatchObject({ visible: true, detected: false, end: false, dashed: true, cased: true });
     expect(gripper().color).toMatchObject({ rayVisible: true, spotVisible: false, color: null, tint: null });
     expect(gripper().color!.to.xCm - gripper().color!.from.xCm).toBeCloseTo(4, 9);
-    expect(gripper().label!.lines).toEqual(['IR: không', 'Màu: chưa có số đọc']);
+    expect(gripper().label!.lines).toEqual(['IR: không có vật', 'Màu: chưa có số đọc']);
     publish({ status: 'running', world: { ...holding(), sensors: readouts({ detected: false, hitId: 'cube-red' }, { hitId: 'cube-red', distanceCm: 1.4, rgbc: { r: 100, g: 100, b: 50, c: 250 } }) } });
     expect(gripper().color).toMatchObject({ spotVisible: true, color: 'unknown', tint: null });
-    expect(gripper().label!.lines).toEqual(['IR: không', 'Màu: không rõ']);
+    expect(gripper().label!.lines).toEqual(['IR: không có vật', 'Màu: không rõ']);
   });
 
   it('draws only when its picture changes: a car at rest holding the cube draws nothing more, on either layer', () => {

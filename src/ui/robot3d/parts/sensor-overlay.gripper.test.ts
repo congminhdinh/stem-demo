@@ -27,7 +27,7 @@ const DEG = Math.PI / 180;
 
 const words: GripperWords = {
   irSeen: 'IR: có vật',
-  irClear: 'IR: không',
+  irClear: 'IR: không có vật',
   color: Object.fromEntries(COLOR_NAMES.map((name) => [name, `Màu: ${({ red: 'đỏ', green: 'xanh lá', blue: 'xanh dương', yellow: 'vàng', white: 'trắng', black: 'đen', unknown: 'không rõ' } as const)[name]}`])) as Record<ColorName, string>,
   noReading: 'Màu: chưa có số đọc',
 };
@@ -180,8 +180,8 @@ describe('the gripper car’s tag (N19 E5)', () => {
     overlay.update(world(readouts({ detected: true, hitId: 'cube-red' }, { hitId: 'cube-red', distanceCm: 1.41, rgbc: { r: 14_100, g: 3010, b: 2810, c: 19_920 } }), 5), true, 0.5, 0.1);
     overlay.update(world(readouts({ detected: false, hitId: null }, { hitId: null, distanceCm: null })), true, 0.5, 0.2);
     overlay.update(world(readouts({ detected: false, hitId: null }, { hitId: null, distanceCm: null, rgbc: unclear })), true, 0.5, 0.3);
-    expect(painted).toEqual(['IR: có vật | Màu: đỏ', 'IR: không | Màu: chưa có số đọc', 'IR: không | Màu: không rõ']);
-    expect(overlay.probe().gripper!.label).toEqual(['IR: không', 'Màu: không rõ']);
+    expect(painted).toEqual(['IR: có vật | Màu: đỏ', 'IR: không có vật | Màu: chưa có số đọc', 'IR: không có vật | Màu: không rõ']);
+    expect(overlay.probe().gripper!.label).toEqual(['IR: không có vật', 'Màu: không rõ']);
     expect(overlay.gripperLabelShown()).toBe(true);
   });
 
