@@ -240,6 +240,74 @@ describe('claim levels L1 / L2 / L2e / L3 (contract §12)', () => {
   });
 });
 
+describe('the UNO contract’s own rules each refuse what they say (contract §15, N18 final fix M14)', () => {
+  /** The contract with row `id` changed by `change`. */
+  const withRow = (id: string, change: (row: ConstructContract) => ConstructContract): UnoContract => ({
+    ...contract,
+    constructs: contract.constructs.map((c) => (c.id === id ? change(c) : c)),
+  });
+
+  it('an INFERRED field, anywhere', () => {
+    const broken = withField('U-40', 'range', { label: 'INFERRED', note: 'guessed' });
+    expect(validateContract(broken)).toEqual(['U-40.range is INFERRED: the UNO contract uses VERIFIED, DOCUMENTED, UNKNOWN or n/a only']);
+  });
+
+  it('an UNVERIFIED field or form on a row (the Yolo:Bit owner’s escape hatch, which the UNO contract has not)', () => {
+    const fields = withRow('U-40', (c) => ({ ...c, unverifiedFields: { range: 'not measured' } }));
+    expect(validateContract(fields)).toContain('U-40 names UNVERIFIED fields or forms: the UNO contract opens a row on evidence only');
+    const forms = withRow('U-20', (c) => ({ ...c, unverifiedForms: [{ form: 'analogWrite(<pin>, <v>)', reason: 'not compiled' }] }));
+    expect(validateContract(forms)).toContain('U-20 names UNVERIFIED fields or forms: the UNO contract opens a row on evidence only');
+  });
+
+  it('a Python mapping', () => {
+    const broken = withRow('U-20', (c) => ({ ...c, python: { form: 'motor.set(<role>, <speed>)' } }) as ConstructContract);
+    expect(validateContract(broken)).toContain('U-20 has a Python mapping in the UNO contract');
+  });
+
+  it('a row without its claim levels', () => {
+    const broken = withRow('U-20', (c) => {
+      const { levels, ...rest } = c;
+      expect(levels).toBeDefined();
+      return rest;
+    });
+    expect(validateContract(broken)).toEqual(['U-20 has no claim levels']);
+  });
+
+  it('an open row whose C++ form has not compiled (L2 not PASS)', () => {
+    const broken = withRow('U-20', (c) => ({ ...c, levels: { ...c.levels!, L2: { status: 'PENDING', by: 'C1' } } }));
+    expect(validateContract(broken)).toEqual(['U-20 is ELIGIBLE but its C++ form has not compiled (L2)']);
+  });
+
+  it('a library none of the row’s modules pins', () => {
+    const broken = withRow('U-23', (c) => ({ ...c, cpp: { ...c.cpp!, libraries: [...c.cpp!.libraries, { name: 'Servo', version: '1.2.2', license: 'LGPL-2.1' }] } }));
+    expect(validateContract(broken)).toContain('U-23 needs Servo@1.2.2, which none of its modules pins');
+  });
+
+  it('a helper the contract does not have, and a helper whose users and rows disagree either way', () => {
+    const unknown = withRow('U-20', (c) => ({ ...c, cpp: { ...c.cpp!, helpers: [...(c.cpp!.helpers ?? []), 'pid-loop'] } }));
+    expect(validateContract(unknown)).toContain('U-20 names unknown helper pid-loop');
+    const unlisted = withRow('U-24', (c) => ({ ...c, cpp: { ...c.cpp!, helpers: [...(c.cpp!.helpers ?? []), 'int32'] } }));
+    expect(validateContract(unlisted)).toEqual(['helper int32 does not list U-24 among its users']);
+    const stranger: UnoContract = { ...contract, helpers: { ...contract.helpers, int32: { ...contract.helpers.int32!, usedBy: [...contract.helpers.int32!.usedBy, 'U-24'] } } };
+    expect(validateContract(stranger)).toEqual(['helper int32 lists U-24, which does not use it']);
+  });
+
+  it('a measured number that cites anything but the emulator', () => {
+    expect(validateContract({ ...contract, costsEvidence: [...contract.costsEvidence, 'CC-03'] })).toEqual(['CC-03 is cited for a measured number but is not EMU evidence']);
+    expect(validateContract({ ...contract, millis: { ...contract.millis, evidence: ['ARD-05'] } })).toEqual(['ARD-05 is cited for a measured number but is not EMU evidence']);
+  });
+
+  it('refuses a key a module does not have: a misspelling, or an UNVERIFIED list the UNO contract has not (unoModuleSchema is strict)', () => {
+    const [first, ...rest] = contract.modules;
+    for (const extra of [{ unverifiedFields: { module: 'not established' } }, { eligibilty: 'ELIGIBLE' }, { preamble: ['#include <Servo.h>'] }]) {
+      const parsed = unoContractSchema.safeParse({ ...contract, modules: [{ ...first, ...extra }, ...rest] });
+      expect(parsed.success, JSON.stringify(extra)).toBe(false);
+      expect(parsed.error?.issues.map((issue) => [issue.code, issue.path.join('.')]), JSON.stringify(extra)).toEqual([['unrecognized_keys', 'modules.0']]);
+    }
+    expect(unoContractSchema.safeParse(contract).success).toBe(true);
+  });
+});
+
 describe('the emulator boundary (contract §0.4)', () => {
   it('lets avr8js establish only what a trace shows, never the board', () => {
     expect(UNO_EVIDENCE_SCOPE.EMU).toEqual(['emu-trace']);

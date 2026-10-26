@@ -752,7 +752,7 @@ Tái lập toàn bộ EMU/CC: `node spikes/avr8js/run-all.mjs` (≈ 20 s; cần 
 - Data chỉ được **test** đọc (như `yolobit-contract.ts`); virtual UNO, driver, generator chép giá trị chúng dùng. Test `is read by tests only` kiểm.
 
 **Invariant (test `uno-contract.test.ts`):**
-1. Mọi dòng có đủ 15 field, mọi module đủ 2 field; schema đúng.
+1. Mọi dòng có đủ 15 field, mọi module đủ 2 field; schema đúng (dòng và module đều strict: một khoá lạ, viết sai hay `unverifiedFields`, bị từ chối chứ không bị bỏ qua; N18 final fix M14). Mỗi luật riêng của UNO (§15) có test từ chối của nó.
 2. Mỗi claim: nguồn tồn tại, kind của nguồn cho phép kind của claim, ledger liệt kê nó trong "Claim được đỡ" và field trong cột "Field".
 3. Dòng ELIGIBLE/RESTRICTED: không field UNKNOWN; không INFERRED ở bất kỳ đâu; không `unverifiedFields`/`unverifiedForms`; có `cpp`; module đều ELIGIBLE; `cpp.libraries` là library của module của dòng.
 4. RESTRICTED ⇒ có domain; EXCLUDED/DEFERRED ⇒ có lý do, không `cpp`, không profile.

@@ -734,15 +734,18 @@ const levelStatusSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('n/a'), note: z.string().min(1) }).strict(),
 ]);
 
-const unoModuleSchema = z.object({
-  id: z.enum(unoModuleIds),
-  module: z.enum(['arduino-core', 'servo']),
-  importForm: z.string().nullable(),
-  library: librarySchema,
-  fields: z.object({ import: fieldEntrySchema, module: fieldEntrySchema }).strict(),
-  eligibility: z.enum(eligibilities),
-  exclusionReason: z.string().optional(),
-});
+// N18 final fix M14: strict, as a row is: a misspelled key, or an UNVERIFIED list (which the UNO contract has not), is refused, not dropped.
+const unoModuleSchema = z
+  .object({
+    id: z.enum(unoModuleIds),
+    module: z.enum(['arduino-core', 'servo']),
+    importForm: z.string().nullable(),
+    library: librarySchema,
+    fields: z.object({ import: fieldEntrySchema, module: fieldEntrySchema }).strict(),
+    eligibility: z.enum(eligibilities),
+    exclusionReason: z.string().optional(),
+  })
+  .strict();
 
 const unoConstructSchema = z.object({
   id: z.string().regex(/^U-\d{2}$/),
