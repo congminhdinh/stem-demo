@@ -1,5 +1,6 @@
+import { classifyColor, COLOR_NAMES, type ColorName } from '../../core/hardware/drivers';
 import type { Scenario } from '../../core/scenario/scenario';
-import type { RobotSnapshot, ScoreState } from '../../core/world/snapshot';
+import type { RobotSnapshot, ScoreState, SensorReadout } from '../../core/world/snapshot';
 
 // The arithmetic of the sensor overlays (N18 R4.3), in the 3D view (parts/sensor-overlay.ts) and on the 2D map (TopViewSensors.tsx): what
 // the robot "sees" drawn over the arena so that a learner can read it. Plain numbers, tested exactly; nothing here imports three or Konva.
@@ -121,9 +122,35 @@ export function nextGoalZoneId(goals: Scenario['goals'], results: ScoreState['go
 const SAME_RAY_CM = 0.05;
 
 /**
+ * N19 E5: the colour a colour sensor's reading is drawn as (the tint of its spot, the word on its tag): the class of its last window's
+ * counts by COLOR_RULES, the very colour `color.is` answers now; null before the sensor's first window (the snapshot has no counts yet).
+ */
+export function shownColor(readout: Pick<Extract<SensorReadout, { kind: 'color-sensor' }>, 'rgbc'>): ColorName | null {
+  return readout.rgbc === undefined ? null : COLOR_NAMES[classifyColor(readout.rgbc)]!;
+}
+
+/** Two distances of a ray (cm, or null for none) draw the same: both none, or both within SAME_RAY_CM. */
+const sameReach = (a: number | null, b: number | null): boolean => (a === null || b === null ? a === b : Math.abs(a - b) < SAME_RAY_CM);
+
+/** Whether two readouts of one sensor draw the same overlay. */
+function sameReadout(sa: SensorReadout, sb: SensorReadout): boolean {
+  switch (sa.kind) {
+    case 'ultrasonic':
+      return sb.kind === 'ultrasonic' && sa.hitId === sb.hitId && Math.abs(sa.cm - sb.cm) < SAME_RAY_CM && Math.round(sa.cm * 10) === Math.round(sb.cm * 10);
+    case 'line-sensor':
+      return sb.kind === 'line-sensor' && sa.dark === sb.dark && (sa.spotCm === null) === (sb.spotCm === null);
+    case 'ir-obstacle':
+      return sb.kind === 'ir-obstacle' && sa.detected === sb.detected && sa.hitId === sb.hitId;
+    case 'color-sensor':
+      return sb.kind === 'color-sensor' && sa.hitId === sb.hitId && sameReach(sa.distanceCm, sb.distanceCm) && (sa.rgbc === undefined) === (sb.rgbc === undefined) && shownColor(sa) === shownColor(sb);
+  }
+}
+
+/**
  * Whether two worlds draw the same overlays, apart from where the robot is (the view's own picture, `sameView`, sees that): each
  * ultrasonic reading to 0.05 cm and to the tenth the label writes, and its echo, what a line sensor sees (the colour, and whether it is
- * lifted), the zone the next goal needs and the run's status (the pulse runs while it is `running`). A robot at rest changes none of
+ * lifted), N19 E5: whether the IR sees and what its ray meets, what the colour sensor's ray meets, how far (to 0.05 cm) and the colour its
+ * counts read; the zone the next goal needs and the run's status (the pulse runs while it is `running`). A robot at rest changes none of
  * these, so the overlays ask for no frame.
  */
 export function sameSensorView(a: RobotSnapshot | null, b: RobotSnapshot | null, goals: Scenario['goals']): boolean {
@@ -132,12 +159,7 @@ export function sameSensorView(a: RobotSnapshot | null, b: RobotSnapshot | null,
   if (a.status !== b.status || a.sensors.length !== b.sensors.length) return false;
   if (nextGoalZoneId(goals, a.score.goals) !== nextGoalZoneId(goals, b.score.goals)) return false;
   for (let i = 0; i < a.sensors.length; i++) {
-    const [sa, sb] = [a.sensors[i]!, b.sensors[i]!];
-    if (sa.kind === 'ultrasonic') {
-      if (sb.kind !== 'ultrasonic' || sa.hitId !== sb.hitId || !(Math.abs(sa.cm - sb.cm) < SAME_RAY_CM) || Math.round(sa.cm * 10) !== Math.round(sb.cm * 10)) return false;
-    } else if (sb.kind !== 'line-sensor' || sa.dark !== sb.dark || (sa.spotCm === null) !== (sb.spotCm === null)) {
-      return false;
-    }
+    if (!sameReadout(a.sensors[i]!, b.sensors[i]!)) return false;
   }
   return true;
 }

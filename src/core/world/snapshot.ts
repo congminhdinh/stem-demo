@@ -56,12 +56,6 @@ export type SnapshotGripper = {
 /** A body of the arena that moves: a dynamic box or cylinder, or an object to push (`arena.objects`), in the arena's creation order. */
 export type SnapshotObject = { readonly id: string; readonly kind: 'box' | 'cylinder' | 'object'; readonly pose: Pose };
 
-/**
- * N19 B3: the gripper's sensors never carry a line sensor's `dark` or `spotCm`. Declared absent so that code that tells a line sensor from
- * an ultrasonic by elimination still type-checks (src/ui/robot3d/sensor-overlay-math.ts `sameSensorView`, until N19 E5 draws these two).
- */
-type NotALineSensor = { readonly dark?: never; readonly spotCm?: never };
-
 /** What a sensor of the kit reads on this tick, in kit order. */
 export type SensorReadout =
   | {
@@ -82,16 +76,16 @@ export type SensorReadout =
       readonly spotCm: readonly [number, number] | null;
     }
   /** N19 B3: the IR obstacle sensor between the jaws (sensors/ir.ts), only for a kit that has one. */
-  | ({
+  | {
       readonly role: string;
       readonly kind: 'ir-obstacle';
       /** It sees something: the first body within its range reflects enough (a black one does not). */
       readonly detected: boolean;
       /** The id of the first body its ray meets within range, seen or not (`#gripper` for its own fingers), or null. */
       readonly hitId: string | null;
-    } & NotALineSensor)
+    }
   /** N19 B3: the colour sensor on the carriage (sensors/color.ts), only for a kit that has one. Its counts are the register model's. */
-  | ({
+  | {
       readonly role: string;
       readonly kind: 'color-sensor';
       /** The id of the first body its ray meets within range (`#gripper` for its own fingers), or null. */
@@ -103,7 +97,7 @@ export type SensorReadout =
        * session adds them (run/robot-run-session.ts). Left out by the world alone, and before the sensor's first window has ended.
        */
       readonly rgbc?: { readonly r: number; readonly g: number; readonly b: number; readonly c: number };
-    } & NotALineSensor);
+    };
 
 /** The score of the run so far. The world has none: R6.2 scores a run, R3.6 puts it here. */
 export type ScoreState = {
