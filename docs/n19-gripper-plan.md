@@ -500,11 +500,14 @@ e2e `robot-lab-check.spec.ts` (Gate G1). Hướng dẫn soạn: `docs/robot-scen
   - bài 11 seed 217 (dọc vạch −12,0 / +9,4; khối +3,5 / −3,7).
   Không seed nào được chọn để né jitter của lời giải mẫu: lời giải qua mọi biến thể nhờ thiết kế ở trên.
 - **Guard `no-crash` dùng tag `wall`** ở bài 8, 9, 10, và mọi bài có `endOnContact: ["wall"]`, kể cả bài 11 không có goal canh gác (ruling G0 wall: mọi tường trên đường càng). Ở bài 9 tag `wall` gồm cả kệ kho (tường có tag `kho-wall`) lẫn bốn tường bao, vì một lần chở quá tay ở hàng y 55 hay y 105 đi qua kệ 40 cm và gặp tường tây.
-- **Lời giải mù:** bài 8, 9, 11 (bài 10 không có: biến thể là màu). Điểm và trần của mọi exploit: authoring guide mục 11.5; trần = §6.
+- **Lời giải mù:** bài 8, 9, 11 (bài 10 không có: biến thể là màu). Điểm và trần của mọi exploit: authoring guide mục 11.5; trần = §6, trừ `lower-arm-fully` (35, ruling D4 item B).
   - `open-jaw-sweep-lift` (D2 review N1) không quét được bằng càng mở hẳn: vòng quay hất kiện ra. Càng 10° thì vòng quay ép kiện vào một ngón và ngón gắp nó ở tay 0° (kéo lê), rồi tới kho mới kẹp và nâng 1 cm tại chỗ: 15 / 0 / 15.
 - **`HOLD_KINDS` (D2 review M8):** `object-held` vào (là một lần giữ); `object-placed` và `object-on-object` chỉ đổi lý do `object-not-at-rest` thành `run-ended-contact`, các lý do khác giữ nguyên. Điểm không đổi. Rover không dùng các kind này.
-- **Chưa có ruling, plan §6 "hạ hết tay (≤ 20)" của bài 11:** hạ tay 0° ở cuối vạch rồi mới mở kẹp đặt khối lên bệ lệch 1,71–1,81 cm, bệ dời 0,04–0,05 cm. `base-still` (≤ 2 cm) qua, nên được 35 > 20. Không giữ được dưới trần nếu không đổi goal (một `maxMoveCm` < 0,04 cm thì vô nghĩa). Trong `exploits` hiện là `arm-too-low` (chở ở 45°: quệt và đẩy bệ, đúng 20). Ý nghĩa thứ hai của "hạ hết tay" (chở ở 0°) được 0.
-- **Test N18:** các test đếm key được nối thêm bốn key. Test và fixture chỉ dành cho N18 (n19-neutral, golden khung nhìn R4.7, hộp bao của prop pilot, case của pilot, kit rehearsal) giữ đúng sáu bài rover. Chín assertion có luật "mọi bài là rover / không có vật" chờ ruling (`d4-pending-assertion-edits.patch` trong sdd).
+- **Ruling D4 item B, "hạ hết tay" của bài 11: trần đổi từ 20 thành 35 cho một trong hai cách hiểu.** Plan §6 ghi "hạ hết tay (≤ 20)". Nay là hai exploit:
+  - `arm-too-low`: chở ở tay 45°, khối quệt và đẩy bệ. Trần 20, đo được 20.
+  - `lower-arm-fully`: hạ tay 0° ở cuối vạch rồi mới mở kẹp. Khối nằm trên bệ, lệch 1,71–1,81 cm (cho phép 1,5); bệ dời 0,04–0,05 cm. Đây là một lần xếp suýt đạt, không xô bệ, nên trần là **35**, bằng `place-beside-base`. Đo được 35 / 35 / 35, test ghim.
+  - Không giữ được ở 20 nếu không đổi goal: một `maxMoveCm` < 0,04 cm thì vô nghĩa. Chở ở 0° được 0.
+- **Test N18:** các test đếm key được nối thêm bốn key. Test và fixture chỉ dành cho N18 (n19-neutral, golden khung nhìn R4.7, hộp bao của prop pilot, case của pilot, kit rehearsal, hai guard của E5) giữ đúng sáu bài rover. Chín assertion có luật "mọi bài là rover / không có vật" đọc kit của từng key (ruling D4 item A, P1–P9).
 
 ## 5. Review Focus
 

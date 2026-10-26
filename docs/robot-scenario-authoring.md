@@ -520,9 +520,10 @@ trần điểm (`maxScore`) và điểm đo được (test ghim từng biến th
 | `rb-grip-stack` | `place-beside-base`: chở 3000 ms rồi đặt xuống sàn trước bệ | 35 | 35 |
 | `rb-grip-stack` | `hold-over-base`: tới cuối vạch nhưng không mở kẹp | 35 | 35 |
 | `rb-grip-stack` | `arm-too-low`: chở ở tay 45°: khối quệt bệ và đẩy nó đi | 20 | 20 |
+| `rb-grip-stack` | `lower-arm-fully`: hạ hết tay (0°) ở cuối vạch rồi mới mở kẹp: khối nằm trên bệ, lệch 1,71–1,81 cm; bệ không bị xô | 35 | 35 |
 
-Một quan sát chưa có ruling (plan §4.14): chương trình hạ **hết** tay ở cuối vạch rồi mới mở kẹp đặt khối lên bệ lệch 1,71–1,81 cm và
-không đẩy bệ (bệ dời 0,05 cm), nên được 35, quá trần "hạ hết tay (≤ 20)" của plan §6. Nó chưa có trong `exploits`.
+"Hạ hết tay (≤ 20)" của plan §6 là hai exploit (ruling D4 item B, plan §4.14). Chở quá thấp (`arm-too-low`) giữ trần 20. Hạ hết tay lên
+bệ (`lower-arm-fully`) là một lần xếp suýt đạt, không xô bệ: trần **đổi từ 20 thành 35**, bằng đặt cạnh bệ.
 
 ### 11.6 Kiểm tra trên máy
 

@@ -102,7 +102,8 @@ vạch với giữa thân x 144,5 và khối đang giữ ở x 157,8, đáy 4,46
 - Từ 8° trở lên, vòng quay ép kiện vào một ngón, máy gắp attach nó ở tay 0° (kéo lê trên sàn).
 - Ở 10°: kiện 1 và kiện 3 vào kho, được nâng 1 cm tại chỗ (z 1,99 → 3,0) rồi thả. Kiện nào cũng tính là bị đẩy.
 
-**Chưa giữ được dưới trần: "hạ hết tay (≤ 20)" theo nghĩa đen** (`programs.ts` `stackLowerFully`). Ở cuối vạch hạ tay 0° rồi mới mở kẹp:
+**"Hạ hết tay (≤ 20)" theo nghĩa đen** (`programs.ts` `stackLowerFully`, nay là exploit `lower-arm-fully` với trần 35 theo ruling D4 item B). Ở cuối
+vạch hạ tay 0° rồi mới mở kẹp:
 - khối nằm trên bệ, lệch 1,81 / 1,76 / 1,71 cm (cho phép 1,5);
 - bệ dời tối đa 0,051 / 0,051 / 0,040 cm (cho phép 2);
 - điểm 35 / 35 / 35 (`stack-off-centre`, `base-still` qua).
