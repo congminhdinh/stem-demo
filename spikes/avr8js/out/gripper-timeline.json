@@ -1,0 +1,1382 @@
+{
+  "takenOn": "2026-10-26T15:14:49.303Z",
+  "command": "node spikes/avr8js/run-gripper-timeline.ts",
+  "machine": {
+    "cpu": "Apple M4 Pro",
+    "cores": 12,
+    "loadavg": [
+      11.82,
+      11.49,
+      15.01
+    ],
+    "node": "v24.22.1"
+  },
+  "note": "µs from the rise of the D8 marker (the marker pair itself is baselineCycles); phases: requestUs = the TWCR write that asked for it, doneUs = when the bus completed it; deviceCalls: when the bus called the TCS34725 model (connect/write/stop when the byte or STOP ends, read when the byte starts)",
+  "withDevice": {
+    "colorBegin": {
+      "samples": 4,
+      "baselineCycles": 2,
+      "totalUs": 58367.6875,
+      "phases": [
+        {
+          "kind": "start",
+          "requestUs": 30.375,
+          "doneUs": 40.375,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 44.375,
+          "doneUs": 134.5625,
+          "busUs": 90,
+          "byte": 82,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 139.5,
+          "doneUs": 229.5625,
+          "busUs": 90,
+          "byte": 129,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 234.75,
+          "doneUs": 324.8125,
+          "busUs": 90,
+          "byte": 235,
+          "ack": true
+        },
+        {
+          "kind": "stop",
+          "requestUs": 328.875,
+          "doneUs": 338.875,
+          "busUs": 10
+        },
+        {
+          "kind": "start",
+          "requestUs": 364.375,
+          "doneUs": 374.375,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 378.375,
+          "doneUs": 468.5625,
+          "busUs": 90,
+          "byte": 82,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 473.5,
+          "doneUs": 563.5,
+          "busUs": 90,
+          "byte": 143,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 567.875,
+          "doneUs": 658.0625,
+          "busUs": 90,
+          "byte": 1,
+          "ack": true
+        },
+        {
+          "kind": "stop",
+          "requestUs": 662.125,
+          "doneUs": 672.125,
+          "busUs": 10
+        },
+        {
+          "kind": "start",
+          "requestUs": 698.375,
+          "doneUs": 708.375,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 712.375,
+          "doneUs": 802.5625,
+          "busUs": 90,
+          "byte": 82,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 807.5,
+          "doneUs": 897.5625,
+          "busUs": 90,
+          "byte": 128,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 902.75,
+          "doneUs": 992.875,
+          "busUs": 90,
+          "byte": 1,
+          "ack": true
+        },
+        {
+          "kind": "stop",
+          "requestUs": 996.9375,
+          "doneUs": 1006.9375,
+          "busUs": 10
+        },
+        {
+          "kind": "start",
+          "requestUs": 4042.5625,
+          "doneUs": 4052.625,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 4056.625,
+          "doneUs": 4146.6875,
+          "busUs": 90,
+          "byte": 82,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 4151.625,
+          "doneUs": 4241.625,
+          "busUs": 90,
+          "byte": 128,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 4246,
+          "doneUs": 4336,
+          "busUs": 90,
+          "byte": 3,
+          "ack": true
+        },
+        {
+          "kind": "stop",
+          "requestUs": 4340.0625,
+          "doneUs": 4350.0625,
+          "busUs": 10
+        }
+      ],
+      "deviceCalls": [
+        {
+          "kind": "connect",
+          "atUs": 134.5625,
+          "read": false
+        },
+        {
+          "kind": "write",
+          "atUs": 229.5625,
+          "byte": 129
+        },
+        {
+          "kind": "write",
+          "atUs": 324.8125,
+          "byte": 235
+        },
+        {
+          "kind": "stop",
+          "atUs": 338.875
+        },
+        {
+          "kind": "connect",
+          "atUs": 468.5625,
+          "read": false
+        },
+        {
+          "kind": "write",
+          "atUs": 563.5,
+          "byte": 143
+        },
+        {
+          "kind": "write",
+          "atUs": 658.0625,
+          "byte": 1
+        },
+        {
+          "kind": "stop",
+          "atUs": 672.125
+        },
+        {
+          "kind": "connect",
+          "atUs": 802.5625,
+          "read": false
+        },
+        {
+          "kind": "write",
+          "atUs": 897.5625,
+          "byte": 128
+        },
+        {
+          "kind": "write",
+          "atUs": 992.875,
+          "byte": 1
+        },
+        {
+          "kind": "stop",
+          "atUs": 1006.9375
+        },
+        {
+          "kind": "connect",
+          "atUs": 4146.6875,
+          "read": false
+        },
+        {
+          "kind": "write",
+          "atUs": 4241.625,
+          "byte": 128
+        },
+        {
+          "kind": "write",
+          "atUs": 4336,
+          "byte": 3
+        },
+        {
+          "kind": "stop",
+          "atUs": 4350.0625
+        }
+      ]
+    },
+    "colorBegin without its delays": {
+      "samples": 8,
+      "baselineCycles": 2,
+      "totalUs": 1349.625,
+      "phases": [
+        {
+          "kind": "start",
+          "requestUs": 30.375,
+          "doneUs": 40.375,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 44.375,
+          "doneUs": 134.4375,
+          "busUs": 90,
+          "byte": 82,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 139.375,
+          "doneUs": 229.4375,
+          "busUs": 90,
+          "byte": 129,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 233.8125,
+          "doneUs": 323.9375,
+          "busUs": 90,
+          "byte": 235,
+          "ack": true
+        },
+        {
+          "kind": "stop",
+          "requestUs": 328,
+          "doneUs": 338,
+          "busUs": 10
+        },
+        {
+          "kind": "start",
+          "requestUs": 364.375,
+          "doneUs": 374.375,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 378.375,
+          "doneUs": 468.375,
+          "busUs": 90,
+          "byte": 82,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 473.3125,
+          "doneUs": 563.3125,
+          "busUs": 90,
+          "byte": 143,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 567.6875,
+          "doneUs": 657.75,
+          "busUs": 90,
+          "byte": 1,
+          "ack": true
+        },
+        {
+          "kind": "stop",
+          "requestUs": 661.8125,
+          "doneUs": 671.8125,
+          "busUs": 10
+        },
+        {
+          "kind": "start",
+          "requestUs": 699.0625,
+          "doneUs": 709.0625,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 713.0625,
+          "doneUs": 803.125,
+          "busUs": 90,
+          "byte": 82,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 808.0625,
+          "doneUs": 898.125,
+          "busUs": 90,
+          "byte": 128,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 902.5,
+          "doneUs": 992.625,
+          "busUs": 90,
+          "byte": 1,
+          "ack": true
+        },
+        {
+          "kind": "stop",
+          "requestUs": 996.6875,
+          "doneUs": 1006.75,
+          "busUs": 10
+        },
+        {
+          "kind": "start",
+          "requestUs": 1033.0625,
+          "doneUs": 1043.0625,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 1047.0625,
+          "doneUs": 1137.125,
+          "busUs": 90,
+          "byte": 82,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 1142.0625,
+          "doneUs": 1232.125,
+          "busUs": 90,
+          "byte": 128,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 1236.5,
+          "doneUs": 1326.75,
+          "busUs": 90,
+          "byte": 3,
+          "ack": true
+        },
+        {
+          "kind": "stop",
+          "requestUs": 1330.8125,
+          "doneUs": 1340.875,
+          "busUs": 10
+        }
+      ],
+      "deviceCalls": [
+        {
+          "kind": "connect",
+          "atUs": 134.4375,
+          "read": false
+        },
+        {
+          "kind": "write",
+          "atUs": 229.4375,
+          "byte": 129
+        },
+        {
+          "kind": "write",
+          "atUs": 323.9375,
+          "byte": 235
+        },
+        {
+          "kind": "stop",
+          "atUs": 338
+        },
+        {
+          "kind": "connect",
+          "atUs": 468.375,
+          "read": false
+        },
+        {
+          "kind": "write",
+          "atUs": 563.3125,
+          "byte": 143
+        },
+        {
+          "kind": "write",
+          "atUs": 657.75,
+          "byte": 1
+        },
+        {
+          "kind": "stop",
+          "atUs": 671.8125
+        },
+        {
+          "kind": "connect",
+          "atUs": 803.125,
+          "read": false
+        },
+        {
+          "kind": "write",
+          "atUs": 898.125,
+          "byte": 128
+        },
+        {
+          "kind": "write",
+          "atUs": 992.625,
+          "byte": 1
+        },
+        {
+          "kind": "stop",
+          "atUs": 1006.75
+        },
+        {
+          "kind": "connect",
+          "atUs": 1137.125,
+          "read": false
+        },
+        {
+          "kind": "write",
+          "atUs": 1232.125,
+          "byte": 128
+        },
+        {
+          "kind": "write",
+          "atUs": 1326.75,
+          "byte": 3
+        },
+        {
+          "kind": "stop",
+          "atUs": 1340.875
+        }
+      ]
+    },
+    "colorWrite": {
+      "samples": 8,
+      "baselineCycles": 2,
+      "totalUs": 334,
+      "phases": [
+        {
+          "kind": "start",
+          "requestUs": 17.4375,
+          "doneUs": 27.4375,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 31.4375,
+          "doneUs": 121.5,
+          "busUs": 90,
+          "byte": 82,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 126.4375,
+          "doneUs": 216.5,
+          "busUs": 90,
+          "byte": 143,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 220.875,
+          "doneUs": 311,
+          "busUs": 90,
+          "byte": 1,
+          "ack": true
+        },
+        {
+          "kind": "stop",
+          "requestUs": 315.0625,
+          "doneUs": 325.125,
+          "busUs": 10
+        }
+      ],
+      "deviceCalls": [
+        {
+          "kind": "connect",
+          "atUs": 121.5,
+          "read": false
+        },
+        {
+          "kind": "write",
+          "atUs": 216.5,
+          "byte": 143
+        },
+        {
+          "kind": "write",
+          "atUs": 311,
+          "byte": 1
+        },
+        {
+          "kind": "stop",
+          "atUs": 325.125
+        }
+      ]
+    },
+    "colorFetch, servos detached": {
+      "samples": 32,
+      "baselineCycles": 2,
+      "totalUs": 1158.5,
+      "phases": [
+        {
+          "kind": "start",
+          "requestUs": 15,
+          "doneUs": 25,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 29,
+          "doneUs": 119.0625,
+          "busUs": 90,
+          "byte": 82,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 124,
+          "doneUs": 214.0625,
+          "busUs": 90,
+          "byte": 180,
+          "ack": true
+        },
+        {
+          "kind": "stop",
+          "requestUs": 218.125,
+          "doneUs": 228.1875,
+          "busUs": 10
+        },
+        {
+          "kind": "start",
+          "requestUs": 245.1875,
+          "doneUs": 255.1875,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 259.1875,
+          "doneUs": 349.375,
+          "busUs": 90,
+          "byte": 83,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 353.1875,
+          "doneUs": 443.1875,
+          "busUs": 90,
+          "byte": 0,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 448.125,
+          "doneUs": 538.25,
+          "busUs": 90,
+          "byte": 84,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 543.1875,
+          "doneUs": 633.25,
+          "busUs": 90,
+          "byte": 245,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 638.625,
+          "doneUs": 728.6875,
+          "busUs": 90,
+          "byte": 37,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 733.625,
+          "doneUs": 823.75,
+          "busUs": 90,
+          "byte": 206,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 828.6875,
+          "doneUs": 918.6875,
+          "busUs": 90,
+          "byte": 34,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 923.625,
+          "doneUs": 1013.75,
+          "busUs": 90,
+          "byte": 129,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 1018.8125,
+          "doneUs": 1108.8125,
+          "busUs": 90,
+          "byte": 28,
+          "ack": false
+        },
+        {
+          "kind": "stop",
+          "requestUs": 1114.0625,
+          "doneUs": 1124.0625,
+          "busUs": 10
+        }
+      ],
+      "deviceCalls": [
+        {
+          "kind": "connect",
+          "atUs": 119.0625,
+          "read": false
+        },
+        {
+          "kind": "write",
+          "atUs": 214.0625,
+          "byte": 180
+        },
+        {
+          "kind": "stop",
+          "atUs": 228.1875
+        },
+        {
+          "kind": "connect",
+          "atUs": 349.375,
+          "read": true
+        },
+        {
+          "kind": "read",
+          "atUs": 353.3125,
+          "byte": 0
+        },
+        {
+          "kind": "read",
+          "atUs": 448.25,
+          "byte": 84
+        },
+        {
+          "kind": "read",
+          "atUs": 543.3125,
+          "byte": 245
+        },
+        {
+          "kind": "read",
+          "atUs": 638.75,
+          "byte": 37
+        },
+        {
+          "kind": "read",
+          "atUs": 733.75,
+          "byte": 206
+        },
+        {
+          "kind": "read",
+          "atUs": 828.8125,
+          "byte": 34
+        },
+        {
+          "kind": "read",
+          "atUs": 923.75,
+          "byte": 129
+        },
+        {
+          "kind": "read",
+          "atUs": 1018.9375,
+          "byte": 28
+        },
+        {
+          "kind": "stop",
+          "atUs": 1124.0625
+        }
+      ]
+    },
+    "colorIs v=4": {
+      "samples": 32,
+      "baselineCycles": 2,
+      "totalUs": 1299.75,
+      "phases": [
+        {
+          "kind": "start",
+          "requestUs": 15.125,
+          "doneUs": 25.125,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 29.125,
+          "doneUs": 119.1875,
+          "busUs": 90,
+          "byte": 82,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 124.125,
+          "doneUs": 214.1875,
+          "busUs": 90,
+          "byte": 180,
+          "ack": true
+        },
+        {
+          "kind": "stop",
+          "requestUs": 218.25,
+          "doneUs": 228.3125,
+          "busUs": 10
+        },
+        {
+          "kind": "start",
+          "requestUs": 245.3125,
+          "doneUs": 255.3125,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 259.3125,
+          "doneUs": 349.5,
+          "busUs": 90,
+          "byte": 83,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 353.3125,
+          "doneUs": 443.3125,
+          "busUs": 90,
+          "byte": 0,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 448.25,
+          "doneUs": 538.375,
+          "busUs": 90,
+          "byte": 84,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 543.3125,
+          "doneUs": 633.3125,
+          "busUs": 90,
+          "byte": 245,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 638.25,
+          "doneUs": 728.375,
+          "busUs": 90,
+          "byte": 37,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 733.3125,
+          "doneUs": 823.3125,
+          "busUs": 90,
+          "byte": 206,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 828.25,
+          "doneUs": 918.4375,
+          "busUs": 90,
+          "byte": 34,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 923.375,
+          "doneUs": 1013.4375,
+          "busUs": 90,
+          "byte": 129,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 1018.75,
+          "doneUs": 1108.8125,
+          "busUs": 90,
+          "byte": 28,
+          "ack": false
+        },
+        {
+          "kind": "stop",
+          "requestUs": 1114.0625,
+          "doneUs": 1124.0625,
+          "busUs": 10
+        }
+      ],
+      "deviceCalls": [
+        {
+          "kind": "connect",
+          "atUs": 119.1875,
+          "read": false
+        },
+        {
+          "kind": "write",
+          "atUs": 214.1875,
+          "byte": 180
+        },
+        {
+          "kind": "stop",
+          "atUs": 228.3125
+        },
+        {
+          "kind": "connect",
+          "atUs": 349.5,
+          "read": true
+        },
+        {
+          "kind": "read",
+          "atUs": 353.4375,
+          "byte": 0
+        },
+        {
+          "kind": "read",
+          "atUs": 448.375,
+          "byte": 84
+        },
+        {
+          "kind": "read",
+          "atUs": 543.4375,
+          "byte": 245
+        },
+        {
+          "kind": "read",
+          "atUs": 638.375,
+          "byte": 37
+        },
+        {
+          "kind": "read",
+          "atUs": 733.4375,
+          "byte": 206
+        },
+        {
+          "kind": "read",
+          "atUs": 828.375,
+          "byte": 34
+        },
+        {
+          "kind": "read",
+          "atUs": 923.5,
+          "byte": 129
+        },
+        {
+          "kind": "read",
+          "atUs": 1018.875,
+          "byte": 28
+        },
+        {
+          "kind": "stop",
+          "atUs": 1124.0625
+        }
+      ]
+    },
+    "colorRaw v=3": {
+      "samples": 32,
+      "baselineCycles": 2,
+      "totalUs": 1160.4375,
+      "phases": [
+        {
+          "kind": "start",
+          "requestUs": 15.125,
+          "doneUs": 25.125,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 29.125,
+          "doneUs": 119.3125,
+          "busUs": 90,
+          "byte": 82,
+          "ack": true
+        },
+        {
+          "kind": "write",
+          "requestUs": 124.25,
+          "doneUs": 214.25,
+          "busUs": 90,
+          "byte": 180,
+          "ack": true
+        },
+        {
+          "kind": "stop",
+          "requestUs": 220.375,
+          "doneUs": 230.375,
+          "busUs": 10
+        },
+        {
+          "kind": "start",
+          "requestUs": 244,
+          "doneUs": 254.0625,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 258.875,
+          "doneUs": 348.875,
+          "busUs": 90,
+          "byte": 83,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 352.6875,
+          "doneUs": 442.6875,
+          "busUs": 90,
+          "byte": 0,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 447.8125,
+          "doneUs": 537.8125,
+          "busUs": 90,
+          "byte": 84,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 542.75,
+          "doneUs": 632.75,
+          "busUs": 90,
+          "byte": 245,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 637.6875,
+          "doneUs": 727.75,
+          "busUs": 90,
+          "byte": 37,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 732.6875,
+          "doneUs": 822.75,
+          "busUs": 90,
+          "byte": 206,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 827.6875,
+          "doneUs": 917.8125,
+          "busUs": 90,
+          "byte": 34,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 922.75,
+          "doneUs": 1012.8125,
+          "busUs": 90,
+          "byte": 129,
+          "ack": true
+        },
+        {
+          "kind": "read",
+          "requestUs": 1017.8125,
+          "doneUs": 1107.9375,
+          "busUs": 90,
+          "byte": 28,
+          "ack": false
+        },
+        {
+          "kind": "stop",
+          "requestUs": 1113.1875,
+          "doneUs": 1123.1875,
+          "busUs": 10
+        }
+      ],
+      "deviceCalls": [
+        {
+          "kind": "connect",
+          "atUs": 119.3125,
+          "read": false
+        },
+        {
+          "kind": "write",
+          "atUs": 214.25,
+          "byte": 180
+        },
+        {
+          "kind": "stop",
+          "atUs": 230.375
+        },
+        {
+          "kind": "connect",
+          "atUs": 348.875,
+          "read": true
+        },
+        {
+          "kind": "read",
+          "atUs": 352.8125,
+          "byte": 0
+        },
+        {
+          "kind": "read",
+          "atUs": 447.9375,
+          "byte": 84
+        },
+        {
+          "kind": "read",
+          "atUs": 542.875,
+          "byte": 245
+        },
+        {
+          "kind": "read",
+          "atUs": 637.8125,
+          "byte": 37
+        },
+        {
+          "kind": "read",
+          "atUs": 732.8125,
+          "byte": 206
+        },
+        {
+          "kind": "read",
+          "atUs": 827.8125,
+          "byte": 34
+        },
+        {
+          "kind": "read",
+          "atUs": 922.875,
+          "byte": 129
+        },
+        {
+          "kind": "read",
+          "atUs": 1017.9375,
+          "byte": 28
+        },
+        {
+          "kind": "stop",
+          "atUs": 1123.1875
+        }
+      ]
+    }
+  },
+  "nack": {
+    "colorBegin": {
+      "samples": 4,
+      "baselineCycles": 2,
+      "totalUs": 57606.5625,
+      "phases": [
+        {
+          "kind": "start",
+          "requestUs": 30.375,
+          "doneUs": 40.375,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 44.375,
+          "doneUs": 134.5625,
+          "busUs": 90,
+          "byte": 82,
+          "ack": false
+        },
+        {
+          "kind": "stop",
+          "requestUs": 138.75,
+          "doneUs": 148.8125,
+          "busUs": 10
+        },
+        {
+          "kind": "start",
+          "requestUs": 175.3125,
+          "doneUs": 185.3125,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 189.3125,
+          "doneUs": 279.375,
+          "busUs": 90,
+          "byte": 82,
+          "ack": false
+        },
+        {
+          "kind": "stop",
+          "requestUs": 283.5625,
+          "doneUs": 293.5625,
+          "busUs": 10
+        },
+        {
+          "kind": "start",
+          "requestUs": 320.25,
+          "doneUs": 330.25,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 334.25,
+          "doneUs": 424.4375,
+          "busUs": 90,
+          "byte": 82,
+          "ack": false
+        },
+        {
+          "kind": "stop",
+          "requestUs": 428.625,
+          "doneUs": 438.6875,
+          "busUs": 10
+        },
+        {
+          "kind": "start",
+          "requestUs": 3473.5,
+          "doneUs": 3483.5,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 3487.5,
+          "doneUs": 3577.5625,
+          "busUs": 90,
+          "byte": 82,
+          "ack": false
+        },
+        {
+          "kind": "stop",
+          "requestUs": 3581.75,
+          "doneUs": 3591.75,
+          "busUs": 10
+        }
+      ],
+      "deviceCalls": []
+    },
+    "colorBegin without its delays": {
+      "samples": 8,
+      "baselineCycles": 2,
+      "totalUs": 592.6875,
+      "phases": [
+        {
+          "kind": "start",
+          "requestUs": 30.375,
+          "doneUs": 40.375,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 44.375,
+          "doneUs": 134.4375,
+          "busUs": 90,
+          "byte": 82,
+          "ack": false
+        },
+        {
+          "kind": "stop",
+          "requestUs": 138.625,
+          "doneUs": 148.625,
+          "busUs": 10
+        },
+        {
+          "kind": "start",
+          "requestUs": 175.3125,
+          "doneUs": 185.3125,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 189.3125,
+          "doneUs": 279.375,
+          "busUs": 90,
+          "byte": 82,
+          "ack": false
+        },
+        {
+          "kind": "stop",
+          "requestUs": 283.5625,
+          "doneUs": 293.5625,
+          "busUs": 10
+        },
+        {
+          "kind": "start",
+          "requestUs": 320.25,
+          "doneUs": 330.25,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 334.25,
+          "doneUs": 424.3125,
+          "busUs": 90,
+          "byte": 82,
+          "ack": false
+        },
+        {
+          "kind": "stop",
+          "requestUs": 428.5,
+          "doneUs": 438.5625,
+          "busUs": 10
+        },
+        {
+          "kind": "start",
+          "requestUs": 465.1875,
+          "doneUs": 475.1875,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 479.1875,
+          "doneUs": 569.25,
+          "busUs": 90,
+          "byte": 82,
+          "ack": false
+        },
+        {
+          "kind": "stop",
+          "requestUs": 573.4375,
+          "doneUs": 583.5,
+          "busUs": 10
+        }
+      ],
+      "deviceCalls": []
+    },
+    "colorWrite": {
+      "samples": 8,
+      "baselineCycles": 2,
+      "totalUs": 144.9375,
+      "phases": [
+        {
+          "kind": "start",
+          "requestUs": 17.4375,
+          "doneUs": 27.5,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 32.3125,
+          "doneUs": 122.3125,
+          "busUs": 90,
+          "byte": 82,
+          "ack": false
+        },
+        {
+          "kind": "stop",
+          "requestUs": 126.5,
+          "doneUs": 136.5625,
+          "busUs": 10
+        }
+      ],
+      "deviceCalls": []
+    },
+    "colorFetch, servos detached": {
+      "samples": 32,
+      "baselineCycles": 2,
+      "totalUs": 146.0625,
+      "phases": [
+        {
+          "kind": "start",
+          "requestUs": 15,
+          "doneUs": 25,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 29,
+          "doneUs": 119.0625,
+          "busUs": 90,
+          "byte": 82,
+          "ack": false
+        },
+        {
+          "kind": "stop",
+          "requestUs": 123.25,
+          "doneUs": 133.25,
+          "busUs": 10
+        }
+      ],
+      "deviceCalls": []
+    },
+    "colorIs v=4": {
+      "samples": 32,
+      "baselineCycles": 2,
+      "totalUs": 158.9375,
+      "phases": [
+        {
+          "kind": "start",
+          "requestUs": 15.125,
+          "doneUs": 25.125,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 29.125,
+          "doneUs": 119.3125,
+          "busUs": 90,
+          "byte": 82,
+          "ack": false
+        },
+        {
+          "kind": "stop",
+          "requestUs": 123.5,
+          "doneUs": 133.5,
+          "busUs": 10
+        }
+      ],
+      "deviceCalls": []
+    },
+    "colorRaw v=3": {
+      "samples": 32,
+      "baselineCycles": 2,
+      "totalUs": 148.1875,
+      "phases": [
+        {
+          "kind": "start",
+          "requestUs": 15.125,
+          "doneUs": 25.1875,
+          "busUs": 10
+        },
+        {
+          "kind": "address",
+          "requestUs": 30,
+          "doneUs": 120,
+          "busUs": 90,
+          "byte": 82,
+          "ack": false
+        },
+        {
+          "kind": "stop",
+          "requestUs": 124.1875,
+          "doneUs": 134.25,
+          "busUs": 10
+        }
+      ],
+      "deviceCalls": []
+    }
+  },
+  "wallMs": 8205
+}
