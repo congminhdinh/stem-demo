@@ -1,0 +1,24 @@
+round 1 school 16407b8 load 18.39 23.73 22.45
+{"label":"16407b8","profile":"school","drawnAt":3899,"rapierRequestsBeforeClick":0,"firstRapierRequestAt":6934,"clickAt":6900,"firstRunToMovingMs":403,"production":true}
+round 1 school fix1 load 17.72 23.41 22.35
+{"label":"fix1","profile":"school","drawnAt":4025,"rapierRequestsBeforeClick":2,"firstRapierRequestAt":3663,"clickAt":7025,"firstRunToMovingMs":71,"production":true}
+round 1 gpu 16407b8 load 15.38 22.72 22.12
+{"label":"16407b8","profile":"gpu","drawnAt":1093,"rapierRequestsBeforeClick":0,"firstRapierRequestAt":4114,"clickAt":4094,"firstRunToMovingMs":96,"production":true}
+round 1 gpu fix1 load 14.39 22.40 22.01
+{"label":"fix1","profile":"gpu","drawnAt":1070,"rapierRequestsBeforeClick":2,"firstRapierRequestAt":775,"clickAt":4071,"firstRunToMovingMs":18,"production":true}
+round 2 school 16407b8 load 12.48 21.72 21.77
+{"label":"16407b8","profile":"school","drawnAt":4225,"rapierRequestsBeforeClick":0,"firstRapierRequestAt":7264,"clickAt":7225,"firstRunToMovingMs":409,"production":true}
+round 2 school fix1 load 11.03 21.11 21.55
+{"label":"fix1","profile":"school","drawnAt":4077,"rapierRequestsBeforeClick":2,"firstRapierRequestAt":3700,"clickAt":7077,"firstRunToMovingMs":81,"production":true}
+round 2 gpu 16407b8 load 10.95 20.92 21.49
+{"label":"16407b8","profile":"gpu","drawnAt":1075,"rapierRequestsBeforeClick":0,"firstRapierRequestAt":4084,"clickAt":4076,"firstRunToMovingMs":76,"production":true}
+round 2 gpu fix1 load 9.82 20.35 21.28
+{"label":"fix1","profile":"gpu","drawnAt":1071,"rapierRequestsBeforeClick":2,"firstRapierRequestAt":759,"clickAt":4071,"firstRunToMovingMs":17,"production":true}
+round 3 school 16407b8 load 9.04 20.01 21.15
+{"label":"16407b8","profile":"school","drawnAt":4099,"rapierRequestsBeforeClick":0,"firstRapierRequestAt":7137,"clickAt":7100,"firstRunToMovingMs":463,"production":true}
+round 3 school fix1 load 9.47 19.75 21.04
+{"label":"fix1","profile":"school","drawnAt":4227,"rapierRequestsBeforeClick":2,"firstRapierRequestAt":3806,"clickAt":7228,"firstRunToMovingMs":76,"production":true}
+round 3 gpu 16407b8 load 8.83 19.28 20.86
+{"label":"16407b8","profile":"gpu","drawnAt":1116,"rapierRequestsBeforeClick":0,"firstRapierRequestAt":4128,"clickAt":4117,"firstRunToMovingMs":98,"production":true}
+round 3 gpu fix1 load 8.29 18.99 20.75
+{"label":"fix1","profile":"gpu","drawnAt":1088,"rapierRequestsBeforeClick":2,"firstRapierRequestAt":779,"clickAt":4088,"firstRunToMovingMs":19,"production":true}

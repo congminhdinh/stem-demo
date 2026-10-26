@@ -1,0 +1,354 @@
+
+Running 63 tests using 6 workers
+
+[1/63] [chromium-robot] › e2e/robot-lab-tools.spec.ts:72:3 › the robot lab’s view tools (N18 R4.8) › Lái tay: the keyboard drives the robot through the simulated hardware, the D-pad shows, and the host hears of no run
+[2/63] [chromium-robot] › e2e/robot-lab-scene.spec.ts:66:3 › the robot lab in a lesson (N18 R4.2, R4.4) › runs the reference solution: the robot drives, its running block lights up, Đặt lại starts the run again and Dừng ends it
+[3/63] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:77:3 › the sensor overlays in the robot lab (N18 R4.3) › stop-at-wall: the goal’s zone is lit before the run, then the ray, its echo and its tag in cm appear and match the reading
+[4/63] [chromium-robot] › e2e/robot-lab-look.spec.ts:61:5 › the robot lab’s 3D look (N18 R4.7) › rb-drive-to-zone: the modelled scene, with shading and many colours
+[5/63] [chromium-robot] › e2e/robot-lab-check.spec.ts:106:3 › Kiểm tra in the robot lab (N18 R6.3) › checks the reference at 4×: its run in the view, Lượt 1/1, then a check-result with its score after the run stopped
+[6/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:227:3 › the robot lab’s accessibility (N18 R8) › opens inside the lesson without taking the focus of the page that frames it
+[WebServer] 12:50:31 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:31 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[WebServer] 12:50:31 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[WebServer] 12:50:31 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[WebServer] 12:50:31 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[WebServer] 12:50:31 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:32 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:50:33 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:50:33 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:50:33 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:50:33 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:50:33 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[7/63] [chromium-robot] › e2e/robot-lab-look.spec.ts:61:5 › the robot lab’s 3D look (N18 R4.7) › rb-square-route: the modelled scene, with shading and many colours
+[8/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:252:3 › the robot lab’s accessibility (N18 R8) › has names and roles on every control: the accessibility tree of the lab, idle, with the tools open, and after a check
+[WebServer] 12:50:35 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:35 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:50:36 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:36 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[9/63] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:109:3 › the sensor overlays in the robot lab (N18 R4.3) › "Hiện cảm biến" takes the overlays off and brings them back with the reading, and a click on it asks for a frame
+[10/63] [chromium-robot] › e2e/robot-lab-look.spec.ts:61:5 › the robot lab’s 3D look (N18 R4.7) › rb-stop-at-wall: the modelled scene, with shading and many colours
+[11/63] [chromium-robot] › e2e/robot-lab-scene.spec.ts:112:3 › the robot lab in a lesson (N18 R4.2, R4.4) › scores the reference solution 100 at 4×, the HUD showing both goals met and the run’s end
+[12/63] [chromium-robot] › e2e/robot-lab-tools.spec.ts:118:3 › the robot lab’s view tools (N18 R4.8) › Thước đo in the top view: two clicks on the mat read their distance within 0.5 cm, and the angle to the robot’s heading
+[WebServer] 12:50:38 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:38 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:38 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:50:38 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:50:38 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:38 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:50:38 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:38 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:50:39 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[13/63] [chromium-robot] › e2e/robot-lab-look.spec.ts:61:5 › the robot lab’s 3D look (N18 R4.7) › rb-line-follow: the modelled scene, with shading and many colours
+[14/63] [chromium-robot] › e2e/robot-lab-tools.spec.ts:148:3 › the robot lab’s view tools (N18 R4.8) › Di chuyển robot: a drag in the top view puts the robot at a new start, which a Run starts from
+[WebServer] 12:50:40 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:40 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[15/63] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:129:3 › the sensor overlays in the robot lab (N18 R4.3) › they stay on in a check at 1× and at 4×, and in Xem lại
+[16/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:324:3 › the robot lab’s accessibility (N18 R8) › has exactly two live regions, a polite one and an assertive one, and a run and a check update them in words, once
+[WebServer] 12:50:41 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:41 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:50:41 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:41 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:50:42 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:42 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[17/63] [chromium-robot] › e2e/robot-lab-check.spec.ts:149:3 › Kiểm tra in the robot lab (N18 R6.3) › an exploit fails with the reasons in Vietnamese, and Xem lại replays its round to the world the check ended it in
+[18/63] [chromium-robot] › e2e/robot-lab-look.spec.ts:61:5 › the robot lab’s 3D look (N18 R4.7) › rb-servo-gate: the modelled scene, with shading and many colours
+[WebServer] 12:50:43 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:43 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:43 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:50:43 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[19/63] [chromium-robot] › e2e/robot-lab-tools.spec.ts:188:3 › the robot lab’s view tools (N18 R4.8) › the tools are small over the arena: icon toggles, the D-pad panel, and the D-pad folded away
+[WebServer] 12:50:44 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:44 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[20/63] [chromium-robot] › e2e/robot-lab-look.spec.ts:61:5 › the robot lab’s 3D look (N18 R4.7) › rb-mini-mission: the modelled scene, with shading and many colours
+[WebServer] 12:50:45 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[21/63] [chromium-robot] › e2e/robot-lab-scene.spec.ts:139:3 › the robot lab in a lesson (N18 R4.2, R4.4) › draws the idle view before any run: the canvas shows the arena and the robot, not the page behind it
+[WebServer] 12:50:46 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[chromium-robot] › e2e/robot-lab-tools.spec.ts:188:3 › the robot lab’s view tools (N18 R4.8) › the tools are small over the arena: icon toggles, the D-pad panel, and the D-pad folded away
+R4.8 tools at 1100 x 640: strip 50x142, with the D-pad 206x192, folded 160x142
+
+[22/63] [chromium-robot] › e2e/robot-lab-tools.spec.ts:218:3 › the robot lab’s view tools (N18 R4.8) › on the 2D map (Xem 2D) the ruler measures there too, within 0.5 cm
+[WebServer] 12:50:46 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:46 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:50:47 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:47 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[23/63] [chromium-robot] › e2e/robot-lab-look.spec.ts:77:3 › the robot lab’s 3D look (N18 R4.7) › the high tier draws the modelled scene too, with its soft shadows
+[24/63] [chromium-robot] › e2e/robot-lab-scene.spec.ts:179:3 › the robot lab in a lesson (N18 R4.2, R4.4) › draws the run in every frame its snapshot changes, and nothing once the robot rests (the canvas draws on demand)
+[WebServer] 12:50:48 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:48 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:48 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:50:48 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:50:50 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[25/63] [chromium-robot] › e2e/robot-lab-check.spec.ts:179:3 › Kiểm tra in the robot lab (N18 R6.3) › Dừng kiểm tra ends the check without a result: the host is sent no check-result
+[WebServer] 12:50:54 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:54 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[26/63] [chromium-robot] › e2e/robot-lab-scene.spec.ts:226:3 › the robot lab in a lesson (N18 R4.2, R4.4) › steps 0.1 s of simulated time from idle, paused, then runs on with Tiếp tục
+[27/63] [chromium-robot] › e2e/robot-lab-look.spec.ts:87:3 › the robot lab’s 3D look (N18 R4.7) › "Đặt lại góc nhìn" puts a moved camera back where the view starts
+[28/63] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:160:3 › the sensor overlays in the robot lab (N18 R4.3) › the goal’s zone pulses while a run goes on, and stands still with reduced motion
+[WebServer] 12:50:57 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:57 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:57 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:50:57 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:50:57 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:57 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[29/63] [chromium-robot] › e2e/robot-lab-check.spec.ts:193:3 › Kiểm tra in the robot lab (N18 R6.3) › a load-project from the host during a check opens after it: the check-result first, then the project it loaded
+[WebServer] 12:50:58 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:50:58 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[30/63] [chromium-robot] › e2e/robot-lab-scene.spec.ts:241:3 › the robot lab in a lesson (N18 R4.2, R4.4) › says when the browser takes the 3D view’s WebGL away, and draws again when it comes back; the run goes on
+[31/63] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:174:3 › the sensor overlays in the robot lab (N18 R4.3) › with reduced motion the zone does not pulse
+[WebServer] 12:51:00 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:00 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:51:01 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:01 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[32/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:389:3 › the robot lab’s accessibility (N18 R8) › the Serial console is a labelled region of its own that never speaks, and can be reached by the keyboard
+[33/63] [chromium-robot] › e2e/robot-lab-look.spec.ts:107:3 › the robot lab’s 3D look (N18 R4.7) › model files that do not load: R4.2’s simple shapes are drawn, and no 2D map stands in
+[WebServer] 12:51:02 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:02 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:51:03 PM [vite] (client) [console.warn] The robot lab’s 3D models did not load; the view draws its simple shapes. Error: fetch for "http://localhost:5308/robot3d/robot-kit-low.glb?v=bbefe179d6e1" responded with 404: Not Found
+[WebServer]     at http://localhost:5308/node_modules/.vite/deps/three.module-QAJAubfM.js?v=bfdfd96c:31861:17
+
+[WebServer] 12:51:03 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:03 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[34/63] [chromium-robot] › e2e/robot-lab-look.spec.ts:118:3 › the robot lab’s 3D look (N18 R4.7) › a results card slides the picture after Xem 2D and Xem 3D: the view made again is the one measured
+[35/63] [chromium-robot] › e2e/robot-lab-scene.spec.ts:273:3 › the robot lab’s layout (N18 R4.2) › at 1100 x 640 in the lesson frame: the view about 60 %, the program beside it, nothing scrolls
+[WebServer] 12:51:04 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:04 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:51:05 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:05 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[36/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:410:3 › the robot lab’s accessibility (N18 R8) › has the 3D view as a named stop, which describes its keys, and the camera buttons say theirs
+[WebServer] 12:51:06 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:06 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:51:06 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[37/63] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:190:3 › the sensor overlays in the robot lab (N18 R4.3) › a robot at rest draws no frame for the overlays: they ask for one only when their picture changes
+[38/63] [chromium-robot] › e2e/robot-lab-scene.spec.ts:289:3 › the robot lab’s layout (N18 R4.2) › at 760 px: Robot and Chương trình are tabs, a Run shows the robot, nothing scrolls
+[39/63] [chromium-robot] › e2e/robot-lab-check.spec.ts:217:3 › Kiểm tra in the robot lab (N18 R6.3) › same score/passed/hash for 1×, 4× and headless
+[WebServer] 12:51:07 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:07 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:51:07 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:07 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:51:07 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:07 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[40/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:439:3 › the robot lab’s accessibility (N18 R8) › puts the Tab order header, the 3D view, the camera and the tools, then the program’s tabs, and traps the keyboard nowhere
+[WebServer] 12:51:08 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:08 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[41/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:485:3 › the robot lab’s accessibility (N18 R8) › has a visible focus ring of at least 3:1 on every control the Tab key reaches in the view
+[WebServer] 12:51:10 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:10 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[42/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:509:3 › the robot lab’s accessibility (N18 R8) › keeps the text over the 3D view and in the controls at AA contrast: idle, in a run, with the tools open and over a result, on both graphics
+[WebServer] 12:51:12 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:12 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+  1) [chromium-robot] › e2e/robot-lab-sensors.spec.ts:190:3 › the sensor overlays in the robot lab (N18 R4.3) › a robot at rest draws no frame for the overlays: they ask for one only when their picture changes 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 6
+    Received: 7
+
+      217 |     const after = await draws();
+      218 |     await page.waitForTimeout(1200);
+    > 219 |     expect(await draws()).toBe(after);
+          |                           ^
+      220 |   });
+      221 |
+      222 |   test('line-follow: a spot on the mat under each eye, a red disc where it reads dark, from the free view and from behind the robot', async ({ page, baseURL }) => {
+        at /private/tmp/claude-501/-Users-hoangminh-Desktop-stem/60e77082-0771-4f85-b850-8e5e11aaf3ca/scratchpad/p2/e2e-ports-master/e2e/robot-lab-sensors.spec.ts:219:27
+
+    Error Context: test-results/robot-lab-sensors-the-sens-e828f--when-their-picture-changes-chromium-robot/error-context.md
+
+
+[43/63] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:222:3 › the sensor overlays in the robot lab (N18 R4.3) › line-follow: a spot on the mat under each eye, a red disc where it reads dark, from the free view and from behind the robot
+[WebServer] 12:51:13 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:13 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:15 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[44/63] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:247:3 › the sensor overlays in the robot lab (N18 R4.3) › the ray is on the canvas: pixels of the beam’s blue appear beside the robot with the overlays on and go with the switch
+[WebServer] 12:51:21 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:21 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:51:22 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[45/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:555:3 › the robot lab’s accessibility (N18 R8) › takes the focus to the result’s heading when a check ends, and gives it back to Kiểm tra when the result is closed with Escape or ×
+[WebServer] 12:51:24 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:24 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[46/63] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:303:3 › the sensor overlays in the robot lab (N18 R4.3) › a run that goes on with the robot at rest draws no frame: the pulse is no frame of its own, and the tag settles to the exact reading
+[WebServer] 12:51:25 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:25 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[47/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:585:3 › the robot lab’s accessibility (N18 R8) › does not take the focus from the page for a check that ends while the learner is elsewhere
+[WebServer] 12:51:26 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:26 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[48/63] [chromium-robot] › e2e/robot-lab-check.spec.ts:230:3 › Kiểm tra in the robot lab (N18 R6.3) › a tab hidden in the middle of a check at 4× pauses it, and gives the result a fast check gives
+[WebServer] 12:51:31 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:31 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[49/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:603:3 › the robot lab’s accessibility (N18 R8) › closes the message card with Escape and gives the focus back to the view
+[WebServer] 12:51:32 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:32 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[50/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:616:3 › the robot lab’s accessibility (N18 R8) › Escape in a result card closes the card and not Lái tay, which is on
+[WebServer] 12:51:34 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:34 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[51/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:631:3 › the robot lab’s accessibility (N18 R8) › the covered 3D view is no Tab stop, has no name or hint, while the 2D map stands in for graphics that are gone; a card closed there gives the focus to the named map
+[WebServer] 12:51:36 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:36 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[52/63] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:335:3 › the sensor overlays in the robot lab (N18 R4.3) › no shader program is compiled once the scene is up: the overlays’ is compiled with it, before the first frame
+[WebServer] 12:51:40 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:40 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[53/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:674:3 › the robot lab’s accessibility (N18 R8) › ends Lái tay with Escape, as it clears the ruler
+[WebServer] 12:51:41 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:41 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[54/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:711:3 › the camera by keyboard (N18 R8) › 1, 2 and 3 choose the views, 0 and Home put the view back, + and − zoom, Shift with the arrows orbit, and each says what it did
+[WebServer] 12:51:42 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:42 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[55/63] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:372:3 › the sensor overlays in the robot lab (N18 R4.3) › the switch has a hit area of 44 px in the camera’s panel and over the 2D map: a point 21 px from its middle, every way, is its own
+[WebServer] 12:51:43 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:43 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[56/63] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:397:3 › the sensor overlays in the robot lab (N18 R4.3) › on the detailed graphics tier the overlays are drawn too
+[WebServer] 12:51:45 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:45 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:51:46 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[57/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:773:3 › the camera by keyboard (N18 R8) › takes the keys only when the 3D view has the focus: not from a button, a field or the program’s editor, and a plain arrow is the robot’s
+[WebServer] 12:51:51 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:51 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[58/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:806:3 › the camera by keyboard (N18 R8) › in Lái tay the plain arrows drive the robot and Shift with them orbits the camera instead
+[59/63] [chromium-robot] › e2e/robot-lab-sensors.spec.ts:415:3 › the sensor overlays in the robot lab (N18 R4.3) › the 2D map (Xem 2D) has the cone, the tag, the spots and the zone, and the same switch
+[WebServer] 12:51:53 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:53 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[WebServer] 12:51:54 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:54 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[60/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:829:3 › the camera by keyboard (N18 R8) › reduced motion: the camera jumps to a view where it otherwise glides for a moment
+[WebServer] 12:51:57 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:51:57 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[61/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:859:3 › the zones’ patterns on the 2D map (N18 R8) › the start is dotted, a target hatched and a checkpoint plain, each in its zone’s ink
+[WebServer] 12:52:03 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:52:03 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[62/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:886:3 › the zones’ patterns on the 2D map (N18 R8) › are on the 3D mat too: the views a learner opens are drawn with it (screenshots for the report; the texture is held by mat-paint.patterns.test.ts)
+[WebServer] 12:52:05 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:52:05 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+[63/63] [chromium-robot] › e2e/robot-lab-a11y.spec.ts:904:3 › the lab at a browser zoom of 200 % (N18 R8) › keeps every control whole and in reach at 550 x 320 CSS pixels: no scrolling sideways, none clipped, the 3D view shrinks
+[WebServer] 12:52:08 PM [vite] (client) [console.warn] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+
+[WebServer] 12:52:08 PM [vite] (client) [console.warn] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
+
+  1 failed
+    [chromium-robot] › e2e/robot-lab-sensors.spec.ts:190:3 › the sensor overlays in the robot lab (N18 R4.3) › a robot at rest draws no frame for the overlays: they ask for one only when their picture changes 
+  62 passed (1.7m)

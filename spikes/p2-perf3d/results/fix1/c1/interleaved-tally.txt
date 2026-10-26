@@ -1,0 +1,17 @@
+master run 1 start 12:43:18 load 14.79 18.73 17.66
+master run 1 end 12:45:04 load 16.02 19.59 18.23   63 passed (1.7m) 
+branch run 1 start 12:45:04 load 16.02 19.59 18.23
+branch run 1 end 12:46:53 load 15.85 20.59 18.94   67 passed (1.8m) 
+master run 2 start 12:46:53 load 15.85 20.59 18.94
+master run 2 end 12:48:38 load 22.89 23.20 20.24   63 passed (1.8m) 
+branch run 2 start 12:48:38 load 22.89 23.20 20.24
+branch run 2 end 12:50:27 load 20.81 24.94 21.47   67 passed (1.8m) 
+master run 3 start 12:50:27 load 20.81 24.94 21.47
+master run 3 end 12:52:10 load 19.20 24.33 21.68   1 failed   62 passed (1.7m) 
+branch run 3 start 12:52:10 load 19.20 24.33 21.68
+branch run 3 end 12:53:55 load 20.65 24.65 22.19   1 failed   66 passed (1.7m) 
+master run 4 start 12:53:55 load 20.65 24.65 22.19
+master run 4 end 12:55:33 load 16.06 22.85 21.83   63 passed (1.6m) 
+branch run 4 start 12:55:33 load 16.06 22.85 21.83
+branch run 4 end 12:57:18 load 20.82 24.37 22.66   67 passed (1.7m) 
+AB RUNS DONE
