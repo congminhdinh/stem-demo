@@ -206,6 +206,13 @@ export type RobotRunSnapshot = {
   endContact?: GoalContact;
   /** N18 R4.8: present (true) while the run is teleop (no program; the drive follows `teleop` commands); left out for every other run. */
   teleop?: true;
+  /**
+   * N19 E4/E5: the colour of each arena object that has one in the run's variant, by id: the world's own arena (`applyVariant`), what its
+   * colour sensor reads, for the views to paint the round they show in its colours. The same frozen object on every publish of a run. Only
+   * for a scenario whose variants recolour objects (`variants.objectColors`); left out otherwise (a rover's snapshots are as they were). It is
+   * no part of the world (the hashes are unchanged).
+   */
+  objectColors?: Readonly<Record<string, string>>;
 };
 
 export type RobotStartFailureReason =
@@ -380,6 +387,8 @@ type ActiveRun = {
   end: RobotRunEnd | null;
   /** N18 bt-lab-fix (c3): the collider a contact end touched (a copy), else null. */
   endContact: GoalContact | null;
+  /** N19 E4/E5: the objects' colours in the run's variant (frozen, published as is), or null for a scenario whose variants recolour nothing. */
+  objectColors: Readonly<Record<string, string>> | null;
   /** Once the program finished: the robot's outline on the last tick, and the ticks in a row it has been at rest (see the top of this file). */
   restPoints: readonly (readonly [number, number])[] | null;
   restTicks: number;
@@ -557,6 +566,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       ...(run.end === null ? {} : { end: { ...run.end } }),
       ...(run.endContact === null ? {} : { endContact: { otherId: run.endContact.otherId, tags: [...run.endContact.tags] } }),
       ...(run.teleop === null ? {} : { teleop: true as const }),
+      ...(run.objectColors === null ? {} : { objectColors: run.objectColors }),
     });
   };
 
@@ -948,6 +958,10 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       moved: false,
       end: null,
       endContact: null,
+      objectColors:
+        scenario.variants.objectColors === undefined
+          ? null
+          : Object.freeze(Object.fromEntries(world.arena.objects.flatMap((object) => (object.color === undefined ? [] : [[object.id, object.color] as const])))),
       restPoints: null,
       restTicks: 0,
       publishedVerdict: '',
