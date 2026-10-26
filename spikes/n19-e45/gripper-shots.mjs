@@ -8,6 +8,7 @@
 //   1. open-empty: the arm down, the claw open, nothing between the jaws (the IR beam quiet, the colour ray its 4 cm, no spot);
 //   2. cube-in-jaws: the red cube between the open jaws, its near face 1.7 cm from the sensors (the IR seeing it, the colour spot on it, red);
 //   3. held-raised: the claw closed on it (26.97°) and the arm up, held where the e2e's real grab holds it (4 cm on: the IR seeing it, the spot red).
+// And the 2D map at DPR 2, cropped round the car: the cube between the jaws, then held.
 // Run from the repository root with a dev server of this tree up (node node_modules/vite/bin/vite.js --port <port>):
 //
 //   node spikes/n19-e45/gripper-shots.mjs --origin=http://localhost:5529 --out=<dir> [--only=<substring>] [--orbit=-240,80]
@@ -66,6 +67,43 @@ try {
       taken.push(`${name} (${await canvas.getAttribute('data-models')})${errors.length ? ` errors: ${errors.join(' | ')}` : ''}`);
       await context.close();
     }
+  }
+  // The 2D map at DPR 2 (fix round 1, review I1: the IR beam on its dark casing, the dot ringed, the colour ray, the spot and the held ring
+  // on white ones): the real lab on the pick floor, teleop lowering the arm round the cube and closing the claw, then "Xem 2D", cropped round
+  // the car (the map's fit: TopView2D's margins round a 200 x 150 cm arena).
+  if (want('2d-map')) {
+    const page = await (await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 2 })).newPage();
+    await page.goto(`${origin}/e2e/robot-lab-gripper-ui.html?embed=1&lab=robot&template=rb-sandbox&arena=pick`);
+    await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 90_000 });
+    const snapshot = () => page.evaluate(() => window.__stem.robot.getSnapshot());
+    const until = async (test) => {
+      for (let i = 0; i < 240 && !test(await snapshot()); i++) await sleep(250);
+    };
+    await page.getByTestId('robot-tool-teleop').click();
+    await until((world) => world?.status === 'running');
+    await page.locator('.robot-stage').focus();
+    for (let step = 0; step < 6; step++) await page.keyboard.press('f');
+    await until((world) => world.robot.gripper.liftDeg < 1);
+    for (const [name, key] of [['2d-map-cube-in-jaws', null], ['2d-map-holding', 'e']]) {
+      if (key) {
+        await page.locator('.robot-stage').focus();
+        await page.keyboard.press(key);
+        await until((world) => world.robot.gripper.heldId === 'cube');
+      }
+      if ((await page.getByTestId('robot-topview').count()) === 0) await page.getByTestId('robot-viewmode').click();
+      await page.getByTestId('robot-topview').waitFor();
+      await sleep(1500);
+      const world = await snapshot();
+      const stage = await page.getByTestId('robot-topview').boundingBox();
+      const [roomW, roomH] = [stage.width - 28, stage.height - 54];
+      const scale = Math.min(roomW / 200, roomH / 150);
+      const originX = stage.x + 14 + (roomW - 200 * scale) / 2;
+      const originY = stage.y + 14 + (roomH - 150 * scale) / 2 + 150 * scale;
+      const [x, y] = [originX + (world.robot.xCm + 10) * scale, originY - world.robot.yCm * scale];
+      await page.screenshot({ path: join(out, `${name}-crop.png`), clip: { x: x - 45, y: y - 28, width: 90, height: 56 } });
+      taken.push(`${name}-crop`);
+    }
+    await page.context().close();
   }
 } finally {
   await browser.close();
