@@ -6,7 +6,8 @@ import { gripperJawsCm, mechanicsIssues, modulesOfKind, robotMechanics } from '.
 import { loadKit } from './kit-schema';
 import refUnoGripperJson from './kits/ref-uno-gripper.kit.json';
 import refUnoRoverJson from './kits/ref-uno-rover.kit.json';
-import { checkKit } from './pin-rules';
+import { kitBoardTarget } from './board-target';
+import { checkKit, rawPinCheck } from './pin-rules';
 import { productionKits } from './catalog';
 import { robotKits, robotKitVersionOf } from '../../samples/robot-keys';
 import unoR3Json from './uno-r3.board.json';
@@ -190,6 +191,18 @@ describe('the I²C rules of a kit', () => {
     expect(checkKit(taken, board, { servo: false, tone: false, serial: false }).map((diagnostic) => [diagnostic.code, diagnostic.pin, diagnostic.ports])).toEqual([
       ['pin-conflict', 'A4', ['IR1', 'CS1']],
     ]);
+  });
+
+  it('keeps the raw pin ops off SDA and SCL: Wire owns A4 and A5, so a raw write, read or analog read there is pin-unavailable (review M7)', () => {
+    const target = kitBoardTarget(kit, board);
+    const usage = { servo: true, tone: false, serial: false };
+    for (const pin of ['A4', 'A5']) {
+      expect(target.usedBy[pin], pin).toBe('CS1');
+      for (const op of ['digital.write', 'pwm.write', 'digital.read', 'analogIn.read'] as const) {
+        expect(rawPinCheck(target, op, pin, usage)?.code, `${op} ${pin}`).toBe('pin-unavailable');
+      }
+    }
+    expect([target.raw.read.includes('A4'), target.raw.analogRead.includes('A4'), target.raw.read.includes('A3')]).toEqual([false, false, true]);
   });
 
   it('two devices at 0x29 → i2c-address-conflict, on the second port', () => {

@@ -245,7 +245,10 @@ export type GripperSpec = {
   readonly maxPayloadG: number;
 };
 
-/** N19 A2: an IR obstacle sensor between the jaws (PLACEHOLDER): it sees what is within `rangeCm` and reflects at least `minReflectance` (0..1]. */
+/**
+ * N19 A2: an IR obstacle sensor between the jaws (PLACEHOLDER): it sees what is within `rangeCm` and reflects at least `minReflectance`
+ * (0..1].
+ */
 export type IrObstacleSpec = { readonly rangeCm: number; readonly minReflectance: number };
 
 /**

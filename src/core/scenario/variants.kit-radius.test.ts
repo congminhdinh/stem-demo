@@ -85,7 +85,7 @@ describe('variantOffsets with the radius of a kit', () => {
 
   it('draws every scenario that runs on the rover at the rover’s 11 cm, the radius of its kit (the offsets themselves are pinned by the determinism and scenario tests)', () => {
     const onRover = scenarioCatalog.scenarios.filter((scenario) => (scenarioKitRef(scenario) ?? referenceKitRef).id === rover.id);
-    expect(onRover.length).toBeGreaterThanOrEqual(7);
+    expect(onRover.map((scenario) => scenario.key)).toEqual(['rb-drive-to-zone', 'rb-square-route', 'rb-stop-at-wall', 'rb-line-follow', 'rb-servo-gate', 'rb-mini-mission', 'rb-sandbox']);
     for (const scenario of onRover) {
       const own = productionKits.get(scenarioKitRef(scenario) ?? referenceKitRef) as Kit;
       expect(kitFootprintRadiusCm(own), scenario.key).toBe(ROBOT_FOOTPRINT_RADIUS_CM);

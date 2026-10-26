@@ -21,6 +21,12 @@ import type { HardwareDiagnostic } from './pin-rules';
 // drives SDA from its first bit), the STOP when it ends. So the simulator calls the model at the bus times the board calls it at; the
 // helper's own statements around the bus are the driver's to charge (drivers/tcs34725.ts, EMU-20).
 //
+// How far ahead of the world a device hears the bus: every Arduino call is charged at once, so a helper runs to its end within the op
+// that calls it, while the world stands at the tick the op started in (the interpreter's `atHardware`, run/virtual-clock.ts). A colour
+// read's last event, its STOP, comes 1123.8125 µs after the op starts (drivers/tcs34725.ts `colorReadLastEventUs`), less than one
+// tick: a device never hears an event later than `world.t + dt + 1124 µs`, so a device whose input comes from the world (the
+// TCS34725's light, task B3) must have it up to there. colorBegin's events all come in setup()'s first 4346.5625 µs, inside tick 0.
+//
 // What it does not model (contract §13, L1 ≠ L2e): the load of interrupts (Timer0, the Servo, tone: 0.58 %, 0.16 %, 1.49 %
 // at 1 kHz), so pulseIn without echo charges the 20 752 µs measured without a Servo (20 785.44 µs with one, EMU-03); the
 // change of a playing tone's frequency by an analogWrite on D11 (EMU-05), which checkKit refuses before any run; the pins of I²C
@@ -78,7 +84,8 @@ export type I2cDevice = {
  * N19 A3: Wire as a driver's helper uses it, each transaction charged on the program clock phase by phase (see the top of this file),
  * with the answer the C++ reads. `transmit` is Wire.beginTransmission, write and endTransmission: true when the device acknowledged the
  * address and every byte (endTransmission() == 0). `request` is Wire.requestFrom and its reads: the bytes, none when nobody
- * acknowledges the address. `transactionUs` is what one transaction of `dataBytes` charges (`acked`: the address was acknowledged).
+ * acknowledges the address. `transactionUs` is what one transaction of `dataBytes` charges (`acked`: the address was acknowledged);
+ * a byte the device refuses cuts it short (the bytes up to it, then the STOP), which `transmit` charges as it happens.
  */
 export type WireBus = {
   transmit(address: number, bytes: readonly number[]): boolean;

@@ -249,7 +249,8 @@ describe('the robot’s blocks as Blockly registers them', () => {
       ];
       expect(roles).toEqual(['motorLeft', 'motorRight', 'lineLeft', 'lineCenter', 'lineRight', 'servo1']);
       expect(options(workspace.newBlock('uno_line_raw'), 'ROLE')).toEqual(['lineLeft', 'lineCenter', 'lineRight']);
-      // The other four roles are their block's own: ultrasonic, LED, buzzer, button. N19 A2: the gripper car's three have no dropdown yet (A4).
+      // The other four roles are their block's own: ultrasonic, LED, buzzer, button. N19 A2: the gripper car's three have no
+      // dropdown yet (A4).
       expect(robotRoles.filter((role) => !roles.includes(role))).toEqual(['ultrasonic', 'led1', 'buzzer', 'button1', 'gripper', 'irClaw', 'color1']);
     });
   });

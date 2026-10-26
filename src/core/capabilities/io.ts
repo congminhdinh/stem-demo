@@ -83,7 +83,10 @@ export interface ModuleIO {
   read(role: string, op: string, args?: readonly number[]): number | boolean;
 }
 
-/** N18 R2.1: I²C at the transaction level (plan §4.3, D-R5); a device model answers at its address. */
+/**
+ * N18 R2.1: I²C at the transaction level (plan §4.3, D-R5); a device model answers at its address. N19 A3: on the virtual UNO each
+ * transaction takes its bus time (hardware/virtual-uno.ts), and a read is 1..32 bytes (Wire's buffer).
+ */
 export interface WireIO {
   write(addr: number, bytes: readonly number[]): void;
   read(addr: number, count: number): number[];

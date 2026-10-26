@@ -8,7 +8,8 @@ import { createTcs34725, TCS_STEP_US, type LightIntegral, type Rgbc } from '../d
 import type { ColorSensorSpec, Kit, KitPort } from '../kit';
 import { createVirtualUno, type I2cDevice, type PinState } from '../virtual-uno';
 import { classifyColor, COLOR_NAMES, COLOR_RULES, colorRulesCpp, drivers, kitCpp, runSetup, type ModuleUse } from './index';
-import { colorBeginSim, colorFetchSim, colorHelperText, wireLibrary } from './tcs34725';
+import { WORLD_TICK_MS } from '../../run/virtual-clock';
+import { colorBeginSim, colorFetchSim, colorHelperText, colorReadLastEventUs, wireLibrary } from './tcs34725';
 
 // N19 A3 (plan §4.1–§4.3, ADR 0004 §11): the gripper car's three drivers on the virtual UNO, through the module binding as a program
 // drives them, against their C++ (the forms gripper-forms.ino ran on avr8js, EMU-19) and the board's times (EMU-20).
@@ -98,8 +99,9 @@ describe('gripper-servo2 (U-35, U-36)', () => {
     }
   });
 
-  it('turns the claw on D9 and the lift on D10, each call gripperSet’s 51.625 µs', () => {
-    const { modules, state, charged } = program([{ role: 'gripper', op: 'gripper.claw' }, { role: 'gripper', op: 'gripper.lift' }], null);
+  it('turns the claw on D9 and the lift on D10, each call gripperSet’s 51.625 µs; with both ops used, setup() still attaches each servo once', () => {
+    const { modules, state, charged, setupUs } = program([{ role: 'gripper', op: 'gripper.claw' }, { role: 'gripper', op: 'gripper.lift' }], null);
+    expect(setupUs).toBe(2 * board.costsUs.servoWrite);
     expect(charged(() => modules.call('gripper', 'gripper.claw', [80]))).toBe(51.625);
     expect(charged(() => modules.call('gripper', 'gripper.lift', [0]))).toBe(51.625);
     expect([state('D9').servoDeg, state('D10').servoDeg]).toEqual([80, 0]);
@@ -242,6 +244,23 @@ describe('tcs34725-wire (U-38, U-39): on the virtual UNO with the TCS34725 model
     expect(uno.diagnostics()).toEqual([{ severity: 'warning', code: 'wire-nack', address: 0x29, message: 'No I²C device answers at address 0x29: the write is not acknowledged.' }]);
   });
 
+  it('with nothing in front, ambient light alone is unknown: C below 300 (the first rule)', () => {
+    const { modules } = program(COLOR_USES, lightOf(irradianceOf(null)));
+    const reading = { r: modules.read('color1', 'color.raw', [0]), g: modules.read('color1', 'color.raw', [1]), b: modules.read('color1', 'color.raw', [2]), c: modules.read('color1', 'color.raw', [3]) } as Rgbc;
+    expect(reading).toEqual({ c: 120, r: 40, g: 40, b: 40 });
+    expect([classifyColor(reading), cppClassify(colorHelperText(), reading)]).toEqual([6, 6]);
+    expect(COLOR_NAMES.map((_, n) => modules.read('color1', 'color.is', [n]))).toEqual([false, false, false, false, false, false, true]);
+  });
+
+  it('charges what the bus really sent when a device acknowledges its address and refuses a byte (not measured: the NACK’s own time after it)', () => {
+    const { uno, charged } = bench();
+    uno.attachWireDevice(0x29, { connect: () => true, write: () => false, read: () => 0, stop: () => undefined } satisfies I2cDevice);
+    let reading: Rgbc | null = null;
+    // colorFetchLead, then START, the address, the refused command byte and STOP (219.75), then colorFetchNack's tail (12.0625).
+    expect(charged(() => (reading = colorFetchSim(uno.io)))).toBe(9.1875 + 219.75 + 12.0625);
+    expect(reading).toEqual({ c: 0, r: 0, g: 0, b: 0 });
+  });
+
   it('charges colorFetch (1158.5 µs) for a raw read and colorClassify for color.is: the longest rule, or the no-division path on zeros', () => {
     const lit = program(COLOR_USES);
     expect(lit.charged(() => lit.modules.read('color1', 'color.raw', [0]))).toBe(1158.5);
@@ -298,16 +317,19 @@ describe('tcs34725-wire: where the bus events fall, against the board (spikes/av
     return { calls, uno, nowUs, charged, logged, prepare, setStart: (us: number) => void (startUs = us), run: () => charged(() => run(uno.io)) };
   }
 
-  it('colorBegin: every event within 5 µs of the board’s (its own statements are split by the two measured totals), the total exact', () => {
+  it('colorBegin: every event 2.125 to 4.9375 µs before the board’s (its own statements are split by the two measured totals), the total exact', () => {
     const { calls, run } = recorded((io) => runSetup(io, portOf('CS1'), [{ kind: 'helper', name: 'colorBegin' }], drivers['tcs34725-wire'].setupHelpers));
     const board = measured.withDevice.colorBegin as Timeline;
     expect(run()).toBe(board.totalUs);
     expect(calls.map(({ kind, byte, read }) => [kind, byte, read])).toEqual(board.deviceCalls.map(({ kind, byte, read }) => [kind, byte, read]));
-    const worst = Math.max(...calls.map((call, index) => Math.abs(call.atUs - (board.deviceCalls[index]?.atUs ?? Number.NaN))));
-    expect(worst).toBeLessThanOrEqual(5);
+    // Exact: both sides are whole cycles (sixteenths of a µs). The first three writes come 3.375 µs early (the 9.6875 µs before
+    // them, 13.0625 on the board), the fourth 1.5625 µs more (the board's delay(3) ran 3010.125 µs, the simulator charges 3008.5625).
+    expect(calls.map((call, index) => call.atUs - (board.deviceCalls[index]?.atUs ?? Number.NaN))).toEqual([
+      -3.375, -3.4375, -3.75, -2.875, -3.375, -3.375, -3, -2.125, -3.375, -3.4375, -3.8125, -2.9375, -4.9375, -4.9375, -4.375, -3.5,
+    ]);
   });
 
-  it('colorFetch: every event within 1.25 µs of the board’s, the eight bytes one by one, the total exact', () => {
+  it('colorFetch: every event within 1 µs of the board’s, the eight bytes one by one, the total exact', () => {
     const { calls, prepare, setStart, nowUs, run } = recorded((io) => void colorFetchSim(io));
     prepare();
     calls.length = 0;
@@ -315,7 +337,55 @@ describe('tcs34725-wire: where the bus events fall, against the board (spikes/av
     const board = measured.withDevice['colorFetch, servos detached'] as Timeline;
     expect(run()).toBe(board.totalUs);
     expect(calls.map(({ kind, read }) => [kind, read])).toEqual(board.deviceCalls.map(({ kind, read }) => [kind, read]));
-    const offsets = calls.map((call, index) => call.atUs - (board.deviceCalls[index]?.atUs ?? Number.NaN));
-    expect(Math.max(...offsets.map(Math.abs))).toBeLessThanOrEqual(1.25);
+    // Exact: connect, command, STOP of the write; connect of the read, the eight bytes (a byte's service is 4.9375 µs here, 4.9375 to
+    // 5.375 on the board, and the read's first one 3.8125), its STOP.
+    expect(calls.map((call, index) => call.atUs - (board.deviceCalls[index]?.atUs ?? Number.NaN))).toEqual([
+      0, -0.0625, 0.75, 0, 1, 1, 0.875, 0.375, 0.3125, 0.1875, 0.1875, -0.0625, -0.25,
+    ]);
+  });
+});
+
+describe('tcs34725-wire: how far a bus event runs ahead of the world (the bound of B3’s light history)', () => {
+  const tickUs = WORLD_TICK_MS * 1000;
+
+  /** A model that logs the program time (µs since setup() began) of every bus event. */
+  function logged() {
+    const model = createTcs34725(lightOf(irradianceOf('#f5f5f5')));
+    const times: number[] = [];
+    const device: I2cDevice = {
+      connect: (now, read) => (times.push(now), model.connect(now, read)),
+      write: (now, byte) => (times.push(now), model.write(now, byte)),
+      read: (now) => (times.push(now), model.read(now)),
+      stop: (now) => void (times.push(now), model.stop(now)),
+    };
+    return { device, times };
+  }
+
+  it('puts colorBegin’s bus events inside tick 0 (the last 4346.5625 µs into setup()), and the first statement after its delays in tick 7', () => {
+    const { uno, charged } = bench();
+    const { device, times } = logged();
+    uno.attachWireDevice(0x29, device);
+    const setupUs = charged(() => createModuleIO(kit, uno, COLOR_USES));
+    expect(Math.max(...times)).toBe(4346.5625);
+    expect(Math.max(...times)).toBeLessThan(tickUs);
+    expect(setupUs).toBe(58_367.6875);
+    expect(Math.floor(setupUs / tickUs)).toBe(7);
+  });
+
+  it('ends a colour read’s bus 1123.8125 µs after the op starts (colorReadLastEventUs), less than one tick: no event is a tick past the world', () => {
+    const { uno, charged, nowUs } = bench();
+    const { device, times } = logged();
+    uno.attachWireDevice(0x29, device);
+    const modules = createModuleIO(kit, uno, COLOR_USES);
+    expect(colorReadLastEventUs(uno.io)).toBe(1123.8125);
+    for (const [op, arg] of [['color.is', 4], ['color.raw', 3]] as const) {
+      times.length = 0;
+      const start = nowUs();
+      const took = charged(() => modules.read('color1', op, [arg]));
+      expect(times.map((at) => at - start), op).toEqual([119.0625, 214, 228.9375, 349.375, 354.3125, 449.25, 544.1875, 639.125, 734.0625, 829, 923.9375, 1018.875, 1123.8125]);
+      expect(Math.max(...times) - start, op).toBe(colorReadLastEventUs(uno.io));
+      expect(took, op).toBe(op === 'color.is' ? 1158.5 + 147.25 : 1158.5);
+    }
+    expect(colorReadLastEventUs(uno.io)).toBeLessThan(tickUs);
   });
 });

@@ -4,9 +4,9 @@ import { kitPort, type Kit, type KitPort } from './kit';
 import type { PinMode, VirtualUno } from './virtual-uno';
 
 // The module binding (N18 R1.4, robot plan §4.3): the `modules` capability of a robot program. `call(role, op, args)` and
-// `read(role, op, args?)` (N19 A3: a read may take arguments, `color.is(color1, n)`) take the IR's module ops (plan §4.4: `motor.set`, `servo.set`, `led.set`, `buzzer.tone`, `buzzer.stop`,
-// `ultrasonic.cm`, `line.dark`, `line.raw`, `button.pressed`, and `drive.move` / `drive.stop` on the role `drive`) to the
-// kit's driver for the role, on the virtual UNO's pins; N18 R2.2 adds the board's `time.millis` on the role `clock`. An argument
+// `read(role, op, args?)` (N19 A3: a read may take arguments, `color.is(color1, n)`) take the IR's module ops (plan §4.4:
+// `motor.set`, `servo.set`, `led.set`, `buzzer.tone`, `buzzer.stop`, `ultrasonic.cm`, `line.dark`, `line.raw`, `button.pressed`,
+// and `drive.move` / `drive.stop` on the role `drive`) to the kit's driver for the role, on the virtual UNO's pins; N18 R2.2 adds the board's `time.millis` on the role `clock`. An argument
 // outside its range is clamped with a value-clamped warning, once per role per run (contract §0.5); the driver clamps again, as
 // its C++ helper does. (A program's interpreter clamps first and warns with the block, constructs/uno.run.ts, so a program's
 // calls reach this one in range.)

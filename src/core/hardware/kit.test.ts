@@ -51,7 +51,7 @@ describe('ref-uno-rover@0', () => {
 
   it('is for uno-r3 and has every role of the vocabulary but the gripper car’s three (N19 A2: ref-uno-gripper@0 has them)', () => {
     expect(kit).toMatchObject({ id: 'ref-uno-rover', version: '0', board: 'uno-r3' });
-    expect(kit.modules.map((module) => module.role)).toEqual(robotRoles.filter((role) => !['gripper', 'irClaw', 'color1'].includes(role)));
+    expect(kit.modules.map((module) => module.role)).toEqual(['motorLeft', 'motorRight', 'ultrasonic', 'lineLeft', 'lineCenter', 'lineRight', 'servo1', 'led1', 'buzzer', 'button1']);
   });
 
   it('wires the PLACEHOLDER pins of plan §4.2 verbatim', () => {
