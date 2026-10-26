@@ -1,6 +1,9 @@
-import { productionKits, referenceKitRef } from '../src/core/hardware/catalog';
+import { productionKits, referenceKitRef, unoR3Board } from '../src/core/hardware/catalog';
 import type { Kit } from '../src/core/hardware/kit';
+import { registry } from '../src/core/program/__fixtures__/uno-blocks';
 import allGoalsScenario from '../src/core/scenario/__fixtures__/all-goals.scenario.json';
+import { pilotReferences, type CheckCase } from '../src/core/scenario/__fixtures__/check-cases';
+import { checkRobot } from '../src/core/scenario/check-robot';
 import { loadScenario } from '../src/core/scenario/scenario';
 import { parseArena } from '../src/core/world/arena/arena-schema';
 import boxesArena from '../src/core/world/arena/fixtures/boxes.json';
@@ -23,6 +26,12 @@ import { createScenarioWorld, createWorld, type World } from '../src/core/world/
 //   - line-follow: a three-sensor line follower on the taped loop, 25 s.
 //   - mini-mission-v1-noise: variant 1 of a scenario (jittered start and obstacles, the variant's seed), an obstacle avoider on the
 //     ultrasonic with ±1 cm of seeded noise, the servo sweeping.
+//
+// N18 final fix M3: whole checks too (`determinismChecks`), the learner's program through the compiler, the interpreter on the virtual clock
+// and the virtual UNO, the world and the scorer: checkRobot headless, as Kiểm tra and verify:attempt run it. Two closed loops, whose every
+// decision reads a sensor: the mini-mission's reference (follow the line, stop near an obstacle; 3 variants of 45 s) and the line-follow
+// lesson's (3 variants of 120 s). What a check gives the LMS (passed, score, each variant's score and time, the program's hash) and the hash
+// of each variant's last world are pinned in the same golden file, under `checks`.
 
 export const DETERMINISM_TICKS = 3000;
 
@@ -125,4 +134,50 @@ export async function runAllFixtures(): Promise<Record<string, FixtureHashes>> {
   const hashes: Record<string, FixtureHashes> = {};
   for (const fixture of determinismFixtures) hashes[fixture.name] = await runFixture(fixture);
   return hashes;
+}
+
+/** What a whole check gives that must be the same on every runtime: its result for the LMS and the hash of each variant's last world. */
+export type CheckHashes = {
+  readonly passed: boolean;
+  readonly score: number;
+  readonly variants: readonly { readonly seed: number; readonly passed: boolean; readonly score: number; readonly simTimeMs: number }[];
+  readonly programHash: string;
+  /** hashSnapshot of each variant's last world, in variant order. */
+  readonly final: readonly string[];
+};
+
+/** The whole checks of the golden file, by name: pilot references (src/samples/robot-solutions.ts) of closed-loop programs. */
+export const determinismChecks: readonly { readonly name: string; readonly check: CheckCase }[] = [
+  { name: 'rb-mini-mission-reference', check: pilotReferences.find((candidate) => candidate.name.startsWith('rb-mini-mission:'))! },
+  { name: 'rb-line-follow-reference', check: pilotReferences.find((candidate) => candidate.name.startsWith('rb-line-follow:'))! },
+];
+
+/** Runs a whole check headless, as Kiểm tra at Nhanh does, and gives what it must give on every runtime. */
+export async function runCheckFixture(check: CheckCase): Promise<CheckHashes> {
+  const final: string[] = [];
+  const run = checkRobot(check.project(), check.scenario(), {
+    mode: 'headless',
+    kit: kit(),
+    board: unoR3Board,
+    registry,
+    onProgress: (progress) => {
+      if (progress.kind === 'variant-ended') final.push(progress.snapshot.world === null ? 'no world' : hashSnapshot(progress.snapshot.world));
+    },
+  });
+  const result = await run.result;
+  if (result === null) throw new Error(`The check ${check.name} gave no result.`);
+  return {
+    passed: result.passed,
+    score: result.score,
+    variants: result.variants.map(({ seed, passed, score, simTimeMs }) => ({ seed, passed, score, simTimeMs })),
+    programHash: result.programHash,
+    final,
+  };
+}
+
+/** Every whole check's result and hashes, by name. */
+export async function runAllChecks(): Promise<Record<string, CheckHashes>> {
+  const checks: Record<string, CheckHashes> = {};
+  for (const { name, check } of determinismChecks) checks[name] = await runCheckFixture(check);
+  return checks;
 }

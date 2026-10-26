@@ -9,17 +9,18 @@ import emptyWalled from '../src/core/world/arena/fixtures/empty-walled.json';
 import { initPhysics } from '../src/core/world/rapier';
 import { ROBOT_ENGINE_VERSION } from '../src/core/world/snapshot';
 import { createWorld } from '../src/core/world/world';
-import { DETERMINISM_TICKS, determinismFixtures, runFixture, type FixtureHashes } from './robot-determinism.fixtures';
+import { DETERMINISM_TICKS, determinismChecks, determinismFixtures, runCheckFixture, runFixture, type CheckHashes, type FixtureHashes } from './robot-determinism.fixtures';
 
 // N18 R3.5 (robot plan §5): the same project, scenario@version, seed and engine@version give the same snapshot hash. Here on Node,
 // twice and with both Rapier builds; e2e/robot-determinism.spec.ts computes the same fixtures in Chromium, Firefox and WebKit against
 // the same golden file, so the four runtimes agree.
 //
 // The golden hashes are ROBOT_ENGINE_VERSION's. A change that moves one (physics, robot, sensors, what a snapshot holds) is a new
-// engine: bump ROBOT_ENGINE_VERSION and this file's engineVersion together, with the new hashes.
+// engine: bump ROBOT_ENGINE_VERSION and this file's engineVersion together, with the new hashes. N18 final fix M3: the golden file
+// holds whole checks too (`checks`), which the browsers compare with the same values.
 
 const goldenPath = join(import.meta.dirname, '__snapshots__', 'robot-determinism.json');
-type Golden = { engineVersion: number; ticks: number; fixtures: Record<string, FixtureHashes> };
+type Golden = { engineVersion: number; ticks: number; fixtures: Record<string, FixtureHashes>; checks: Record<string, CheckHashes> };
 const golden = JSON.parse(readFileSync(goldenPath, 'utf8')) as Golden;
 const kit = productionKits.get(referenceKitRef) as Kit;
 
@@ -53,6 +54,22 @@ describe('robot world determinism', () => {
       for (const fixture of fresh.determinismFixtures) {
         expect([fixture.name, await fresh.runFixture(fixture)]).toEqual([fixture.name, golden.fixtures[fixture.name]]);
       }
+    },
+    120_000,
+  );
+
+  it('pins a whole check of each closed-loop case: its result and the last world of each variant (N18 final fix M3)', () => {
+    expect(Object.keys(golden.checks)).toEqual(determinismChecks.map((check) => check.name));
+    expect(determinismChecks.map(({ check }) => check.name)).toEqual(['rb-mini-mission: the reference solution', 'rb-line-follow: the reference solution']);
+  });
+
+  it.each(determinismChecks.map(({ name, check }) => [name, check] as const))(
+    'same project, scenario@version, seeds and engine twice → the same check result and last worlds: %s',
+    async (name, check) => {
+      const first = await runCheckFixture(check);
+      expect(await runCheckFixture(check)).toEqual(first);
+      expect(first).toEqual(golden.checks[name]);
+      expect(first.passed).toBe(true);
     },
     120_000,
   );
