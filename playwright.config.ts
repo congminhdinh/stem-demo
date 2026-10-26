@@ -20,8 +20,9 @@ export default defineConfig({
       testMatch: /robot-lab-(scene|check|tools|look|sensors|a11y|chain)\.spec\.ts$/,
     },
     // N18 R3.5 (robot plan §5): the robot world must hash the same on every engine. Firefox and WebKit run that one spec; Chromium
-    // runs it with everything else.
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /robot-determinism\.spec\.ts$/ },
+    // runs it with everything else. N18 final fix M11: Firefox runs the robot lab's own UI too, in the lesson host's frame (Kiểm tra, the
+    // tools, the WebGL fallback to the 2D map).
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /(robot-determinism|robot-lab|robot-webgl-fallback)\.spec\.ts$/ },
     { name: 'webkit', use: { ...devices['Desktop Safari'] }, testMatch: /robot-determinism\.spec\.ts$/ },
   ],
   webServer: [
