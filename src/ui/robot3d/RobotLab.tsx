@@ -7,7 +7,7 @@ import type { BoardProfile } from '../../core/hardware/board';
 import type { ProfileCatalog } from '../../core/profiles/profile';
 import type { BlockPackCatalog, Toolbox } from '../../core/program/block-packs';
 import { createRobotRunSession, type RobotRunSession, type RobotScorerFactory } from '../../core/run/robot-run-session';
-import { canTeleop } from '../../core/run/teleop';
+import { canTeleop, canTeleopGripper } from '../../core/run/teleop';
 import { checkRobot } from '../../core/scenario/check-robot';
 import { scenarioKitRef, scenarioMaxScore, type Scenario } from '../../core/scenario/scenario';
 import { scenarioScorer } from '../../core/scenario/scoring';
@@ -199,6 +199,8 @@ export default function RobotLab({
   });
   const { scenario, kit, board, store, checks, tools } = lab;
   const drivable = useMemo(() => canTeleop(kit, board), [kit, board]);
+  // N19 E3: the gripper car's teleop has its own keys (Q E R F) and four buttons.
+  const gripper = useMemo(() => canTeleopGripper(kit, board), [kit, board]);
   // N18 R8: what the lab tells a screen reader, and the camera's keys.
   const [announcer] = useState(createAnnouncer);
   const [commands] = useState(createCameraCommands);
@@ -372,12 +374,13 @@ export default function RobotLab({
   const viewHint = [
     t('robot.camera.keys', { orbit: t('robot.camera.orbit'), follow: t('robot.camera.follow'), top: t('robot.camera.top') }),
     ...(drivable ? [`${t('robot.teleop.keys')}.`] : []),
+    ...(drivable && gripper ? [`${t('robot.teleop.keys.gripper')}.`] : []),
     // The move tool takes Shift with the arrows (R4.8: 5 cm) before the camera can.
     t('robot.view.moveKeys', { tool: t('robot.move') }),
   ].join(' ');
   const viewport = (
     <section className="robot-viewport" aria-label={t('robot.viewport')} data-testid="robot-viewport">
-      <div className="robot-stage" ref={stageRef} tabIndex={-1} {...(teleopOn ? { role: 'group', 'aria-label': t('robot.view.keys') } : {})}>
+      <div className="robot-stage" ref={stageRef} tabIndex={-1} {...(teleopOn ? { role: 'group', 'aria-label': t(gripper ? 'robot.view.keys.gripper' : 'robot.view.keys') } : {})}>
         <SceneHost
           scenario={scenario}
           kit={kit}
@@ -396,7 +399,7 @@ export default function RobotLab({
           {...(probe ? { probe } : {})}
         />
         <Hud store={store} scenario={scenario} />
-        <RobotTools store={store} tools={tools} scenario={scenario} drivable={drivable} stage={stageRef} announce={say} />
+        <RobotTools store={store} tools={tools} scenario={scenario} drivable={drivable} gripper={gripper} stage={stageRef} announce={say} />
         <RunMessages store={store} alert={alert} />
         {checkable && (
           <>

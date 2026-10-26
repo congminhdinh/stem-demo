@@ -6,7 +6,7 @@ import type { MessageKey } from '../i18n/messages';
 import { useLocale, useText } from '../i18n/text';
 import { formatNumber } from './format';
 import { isRunOver, type RobotRunStore } from './robot-run-store';
-import { driveKeyOf, isTypingTarget, measure, TURN_STEP_DEG } from './robot-tools';
+import { driveKeyOf, gripperKeyOf, isTypingTarget, measure, TURN_STEP_DEG, type GripperAction } from './robot-tools';
 import { TELEOP_SPEED, type RobotToolsStore, type RulerPoint } from './robot-tools-store';
 import './RobotTools.css';
 
@@ -19,6 +19,7 @@ import './RobotTools.css';
 //     that move it, W A S D and Space drive from it);
 //   - with the move tool the arrows nudge a ghost 1 cm (Shift: 5 cm), Enter places it, Q and E turn it or the robot 15°;
 //   - Esc clears the ruler, or drops the move tool's ghost, then puts the robot back at the start.
+// N19 E3: on the gripper car Q E R F move the claw and the arm in teleop, and four buttons beside the D-pad do the same (the arm's repeat while held).
 // A key typed into a field or the block editor is never taken. During Kiểm tra (the run store's lock) the tools are off and hidden; during
 // a replay of a round they are off and disabled, and the move tool also while a run goes on. Without the drive (both motors) Lái tay is
 // disabled and says why. Every target is 44 px or more.
@@ -32,13 +33,15 @@ type RobotToolsProps = {
   scenario: Pick<Scenario, 'start'>;
   /** The kit has the drive (motorLeft and motorRight): it can be driven by hand. */
   drivable: boolean;
+  /** N19 E3: the kit has a gripper: teleop has its four buttons and its keys Q E R F. Not for the rover. */
+  gripper?: boolean;
   /** The view the keys are read in (RobotLab's stage): focusable, it takes the keys of everything in it. */
   stage: RefObject<HTMLElement | null>;
   /** N18 R8: says something politely to the lab's announcer. */
   announce?(text: string): void;
 };
 
-type ToolIconName = 'teleop' | 'ruler' | 'move' | 'turnLeft' | 'turnRight' | 'up' | 'down' | 'left' | 'right' | 'stop' | 'fold' | 'points' | 'clear' | 'home';
+type ToolIconName = 'teleop' | 'ruler' | 'move' | 'turnLeft' | 'turnRight' | 'up' | 'down' | 'left' | 'right' | 'stop' | 'fold' | 'points' | 'clear' | 'home' | 'clawOpen' | 'clawClose' | 'liftUp' | 'liftDown';
 
 const toolIcons: Readonly<Record<ToolIconName, string>> = {
   teleop: 'M5.5 5h5a4 4 0 0 1 3.9 4.9l-.6 2.6a1.6 1.6 0 0 1-2.8.6L9.6 11H6.4L5 13.1a1.6 1.6 0 0 1-2.8-.6l-.6-2.6A4 4 0 0 1 5.5 5zM4.5 7v1h-1v1h1v1h1V9h1V8h-1V7zM11 7.3a.8.8 0 1 0 0 1.6.8.8 0 0 0 0-1.6zm1.3 1.4a.8.8 0 1 0 0 1.6.8.8 0 0 0 0-1.6z',
@@ -55,6 +58,11 @@ const toolIcons: Readonly<Record<ToolIconName, string>> = {
   points: 'M3 4.2a1.7 1.7 0 1 1 0 3.4 1.7 1.7 0 0 1 0-3.4zm10 4.2a1.7 1.7 0 1 1 0 3.4 1.7 1.7 0 0 1 0-3.4zM4.3 6.4l.4-.9 7.4 3.2-.4.9z',
   clear: 'M4.2 3.1 8 6.9l3.8-3.8 1.1 1.1L9.1 8l3.8 3.8-1.1 1.1L8 9.1l-3.8 3.8-1.1-1.1L6.9 8 3.1 4.2z',
   home: 'M8 1.8 1.5 7.3l1 1.1 1-.8V14h3.7v-4h1.6v4h3.7V7.6l1 .8 1-1.1z',
+  // N19 E3: two jaws far apart (open) and side by side (closed); an arm's arrow with a stem, up and down (the D-pad's are plain triangles).
+  clawOpen: 'M5.5 2h2L5 14H2.5zM8.5 2h2l3 12H11z',
+  clawClose: 'M5.2 2h2.3v12H5.2zM8.5 2h2.3v12H8.5z',
+  liftUp: 'M8 2l5 6H9.5v6h-3V8H3z',
+  liftDown: 'M8 14 3 8h3.5V2h3v6H13z',
 };
 
 function ToolIcon({ name }: { name: ToolIconName }) {
@@ -178,6 +186,12 @@ function useViewKeys(stage: RefObject<HTMLElement | null>, store: RobotRunStore,
       if (!store.getState().teleop) return;
       // N18 R8: Shift with an arrow orbits the camera (camera-keys.ts); a plain arrow drives.
       if (event.shiftKey && event.key.startsWith('Arrow')) return;
+      // N19 E3: Q E R F move the gripper's claw and arm (by the key's place, held R and F repeat); a kit without a gripper leaves them alone.
+      const gripperAction = gripperKeyOf(event);
+      if (gripperAction !== null) {
+        if (tools.getState().moveGripper(gripperAction)) event.preventDefault();
+        return;
+      }
       const action = driveKeyOf(event);
       // Space on a button is the button's (a D-pad arrow holds its way, the stop stops, a toggle toggles): this listener comes before
       // React's, so the button cannot keep it from here.
@@ -211,6 +225,8 @@ function useViewKeys(stage: RefObject<HTMLElement | null>, store: RobotRunStore,
         held.length = 0;
         tools.getState().release();
       }
+      // N19 E3: a new world (a teleop start, Đặt lại robot) has the gripper as setup() leaves it.
+      if (!previous.starting && state.starting) tools.getState().resetGripper();
     });
     element.addEventListener('keydown', onKeyDown);
     element.addEventListener('keyup', onKeyUp);
@@ -292,8 +308,79 @@ function PadButton({ direction, icon, label, area, tools, usable }: { direction:
   );
 }
 
+/** How long a held button of the arm waits before it repeats, and how often it repeats then (a key's own auto-repeat, about). */
+const REPEAT_DELAY_MS = 400;
+const REPEAT_INTERVAL_MS = 100;
+
+const gripperButtons: readonly { id: string; action: GripperAction; icon: ToolIconName; label: MessageKey; keys: string; repeats: boolean }[] = [
+  { id: 'open', action: { part: 'claw', to: 'open' }, icon: 'clawOpen', label: 'robot.teleop.clawOpen', keys: 'Q', repeats: false },
+  { id: 'close', action: { part: 'claw', to: 'close' }, icon: 'clawClose', label: 'robot.teleop.clawClose', keys: 'E', repeats: false },
+  { id: 'up', action: { part: 'lift', stepDeg: 15 }, icon: 'liftUp', label: 'robot.teleop.liftUp', keys: 'R', repeats: true },
+  { id: 'down', action: { part: 'lift', stepDeg: -15 }, icon: 'liftDown', label: 'robot.teleop.liftDown', keys: 'F', repeats: true },
+];
+
+/**
+ * One button of the gripper (N19 E3): a press by the pointer acts at once and, for the arm, repeats while held (after `REPEAT_DELAY_MS`, every
+ * `REPEAT_INTERVAL_MS`); a keyboard's Enter or Space on it (a click without a pointer) acts once. Taking the pointer away lets go.
+ */
+function GripperButton({ id, action, icon, label, keys, repeats, tools, usable }: { id: string; action: GripperAction; icon: ToolIconName; label: string; keys: string; repeats: boolean; tools: RobotToolsStore; usable: boolean }) {
+  const pointerId = useRef<number | null>(null);
+  const timers = useRef<{ delay: ReturnType<typeof setTimeout> | null; interval: ReturnType<typeof setInterval> | null }>({ delay: null, interval: null });
+  const step = () => void tools.getState().moveGripper(action);
+  const stopRepeating = () => {
+    if (timers.current.delay !== null) clearTimeout(timers.current.delay);
+    if (timers.current.interval !== null) clearInterval(timers.current.interval);
+    timers.current = { delay: null, interval: null };
+  };
+  useEffect(() => stopRepeating, []);
+  const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0 || !usable) return;
+    pointerId.current = event.pointerId;
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // A pointer that is not active has no capture: its up event still lets go.
+    }
+    step();
+    if (repeats) {
+      stopRepeating();
+      timers.current.delay = setTimeout(() => {
+        step();
+        timers.current.interval = setInterval(step, REPEAT_INTERVAL_MS);
+      }, REPEAT_DELAY_MS);
+    }
+  };
+  const onPointerEnd = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (pointerId.current !== event.pointerId) return;
+    pointerId.current = null;
+    stopRepeating();
+  };
+  return (
+    <button
+      type="button"
+      className="robot-pad-button"
+      aria-label={label}
+      aria-keyshortcuts={keys}
+      aria-disabled={!usable}
+      title={`${label} (${keys})`}
+      data-testid={`robot-gripper-${id}`}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerEnd}
+      onPointerCancel={onPointerEnd}
+      onLostPointerCapture={onPointerEnd}
+      // A click made by a pointer (it has a detail) was acted on at its press; one made by a key has none.
+      onClick={(event) => {
+        if (event.detail === 0 && usable) step();
+      }}
+      onContextMenu={(event) => event.preventDefault()}
+    >
+      <ToolIcon name={icon} />
+    </button>
+  );
+}
+
 /** Lái tay: the D-pad (4 arrows and a stop, 44 px each, its fold in a corner) and the speed under it; folded, one button that shows it. */
-function TeleopPad({ store, tools, stage, announce }: { store: RobotRunStore; tools: RobotToolsStore; stage: RefObject<HTMLElement | null>; announce: ((text: string) => void) | undefined }) {
+function TeleopPad({ store, tools, stage, announce, gripper }: { store: RobotRunStore; tools: RobotToolsStore; stage: RefObject<HTMLElement | null>; announce: ((text: string) => void) | undefined; gripper: boolean }) {
   const t = useText();
   const locale = useLocale();
   const [folded, setFolded] = useState(false);
@@ -303,6 +390,8 @@ function TeleopPad({ store, tools, stage, announce }: { store: RobotRunStore; to
   const ready = useStore(store, (state) => !state.starting && state.snapshot.status !== 'idle');
   const usable = ready && !over;
   const speedText = t('robot.teleop.speed.value', { value: formatNumber(speed, locale) });
+  // N19 E3: the keys of the panel, with the gripper's when the kit has one.
+  const keysText = gripper ? `${t('robot.teleop.keys')}\n${t('robot.teleop.keys.gripper')}` : t('robot.teleop.keys');
   useSaid(over ? t('robot.teleop.over') : '', announce);
   const note = over && (
     <p className="robot-tool-note" data-testid="robot-teleop-over">
@@ -311,7 +400,7 @@ function TeleopPad({ store, tools, stage, announce }: { store: RobotRunStore; to
   );
   if (folded) {
     return (
-      <div className="robot-tool-panel robot-teleop robot-teleop-folded" role="group" aria-label={t('robot.teleop.pad')} title={t('robot.teleop.keys')} data-testid="robot-teleop">
+      <div className="robot-tool-panel robot-teleop robot-teleop-folded" role="group" aria-label={t('robot.teleop.pad')} title={keysText} data-testid="robot-teleop">
         <div className="robot-tool-row">
           <PanelButton icon="teleop" label={t('robot.teleop.unfold')} onClick={() => setFolded(false)} expanded={false} testId="robot-teleop-fold" />
           <output className="robot-teleop-value">{speedText}</output>
@@ -320,34 +409,48 @@ function TeleopPad({ store, tools, stage, announce }: { store: RobotRunStore; to
       </div>
     );
   }
+  const pad = (
+    <div className="robot-pad">
+      {padButtons.map((button) => (
+        <PadButton key={button.direction} direction={button.direction} icon={button.icon} label={t(button.label)} area={button.area} tools={tools} usable={usable} />
+      ))}
+      <button
+        type="button"
+        className="robot-pad-button robot-pad-stop"
+        aria-label={t('robot.teleop.stop')}
+        title={t('robot.teleop.stop')}
+        data-testid="robot-pad-stop"
+        onClick={() => tools.getState().hold(null)}
+      >
+        <ToolIcon name="stop" />
+      </button>
+      <button
+        type="button"
+        className="robot-pad-fold"
+        aria-label={t('robot.teleop.fold')}
+        aria-expanded={true}
+        title={t('robot.teleop.fold')}
+        data-testid="robot-teleop-fold"
+        onClick={() => setFolded(true)}
+      >
+        <ToolIcon name="fold" />
+      </button>
+    </div>
+  );
   return (
-    <div className="robot-tool-panel robot-teleop" role="group" aria-label={t('robot.teleop.pad')} title={t('robot.teleop.keys')} data-testid="robot-teleop">
-      <div className="robot-pad">
-        {padButtons.map((button) => (
-          <PadButton key={button.direction} direction={button.direction} icon={button.icon} label={t(button.label)} area={button.area} tools={tools} usable={usable} />
-        ))}
-        <button
-          type="button"
-          className="robot-pad-button robot-pad-stop"
-          aria-label={t('robot.teleop.stop')}
-          title={t('robot.teleop.stop')}
-          data-testid="robot-pad-stop"
-          onClick={() => tools.getState().hold(null)}
-        >
-          <ToolIcon name="stop" />
-        </button>
-        <button
-          type="button"
-          className="robot-pad-fold"
-          aria-label={t('robot.teleop.fold')}
-          aria-expanded={true}
-          title={t('robot.teleop.fold')}
-          data-testid="robot-teleop-fold"
-          onClick={() => setFolded(true)}
-        >
-          <ToolIcon name="fold" />
-        </button>
-      </div>
+    <div className="robot-tool-panel robot-teleop" role="group" aria-label={t('robot.teleop.pad')} title={keysText} data-testid="robot-teleop">
+      {gripper ? (
+        <div className="robot-pad-row">
+          {pad}
+          <div className="robot-gripper-pad" role="group" aria-label={t('robot.teleop.gripper')} data-testid="robot-gripper-pad">
+            {gripperButtons.map((button) => (
+              <GripperButton key={button.id} id={button.id} action={button.action} icon={button.icon} label={t(button.label)} keys={button.keys} repeats={button.repeats} tools={tools} usable={usable} />
+            ))}
+          </div>
+        </div>
+      ) : (
+        pad
+      )}
       <div className="robot-teleop-speed">
         <input
           type="range"
@@ -492,7 +595,7 @@ function MovePanel({ store, tools, scenario, announce }: { store: RobotRunStore;
   );
 }
 
-export function RobotTools({ store, tools, scenario, drivable, stage, announce }: RobotToolsProps) {
+export function RobotTools({ store, tools, scenario, drivable, gripper = false, stage, announce }: RobotToolsProps) {
   const t = useText();
   const locked = useStore(store, (state) => state.locked);
   const teleop = useStore(store, (state) => state.teleop);
@@ -532,7 +635,7 @@ export function RobotTools({ store, tools, scenario, drivable, stage, announce }
         <ToolToggle
           pressed={teleop}
           disabled={!drivable || replaying}
-          title={drivable ? `${t('robot.teleop.hint')}\n${t('robot.teleop.keys')}` : t('robot.teleop.noDrive')}
+          title={drivable ? `${t('robot.teleop.hint')}\n${t('robot.teleop.keys')}${gripper ? `\n${t('robot.teleop.keys.gripper')}` : ''}` : t('robot.teleop.noDrive')}
           onToggle={toggleTeleop}
           icon="teleop"
           label={t('robot.teleop')}
@@ -551,7 +654,7 @@ export function RobotTools({ store, tools, scenario, drivable, stage, announce }
       </div>
       {(teleop || tool !== null) && (
         <div className="robot-tools-panels">
-          {teleop && <TeleopPad store={store} tools={tools} stage={stage} announce={announce} />}
+          {teleop && <TeleopPad store={store} tools={tools} stage={stage} announce={announce} gripper={gripper} />}
           {tool === 'ruler' && <RulerReadout store={store} tools={tools} scenario={scenario} announce={announce} />}
           {tool === 'move' && <MovePanel store={store} tools={tools} scenario={scenario} announce={announce} />}
         </div>

@@ -257,6 +257,24 @@
   justify-items: center;
 }
 
+/* N19 E3: on the gripper car the four gripper buttons stand beside the D-pad: the claw's two in a column (Q over E), the arm's two in another
+   (R over F), as the keys lie; 44 px each, so the panel is 136 + 6 + 90 px wide at most. */
+.robot-pad-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.robot-gripper-pad {
+  display: grid;
+  grid-template-columns: repeat(2, 44px);
+  grid-template-rows: repeat(2, 44px);
+  grid-auto-flow: column;
+  gap: 2px;
+  touch-action: none;
+  user-select: none;
+}
+
 .robot-teleop-speed {
   display: flex;
   align-items: center;

@@ -4,7 +4,7 @@ import type { Kit } from '../../core/hardware/kit';
 import { checkPlacement, robotOutlineCm, type PlacementPose } from '../../core/scenario/placement';
 import type { Scenario } from '../../core/scenario/scenario';
 import { isRunOver, type RobotRunStore } from './robot-run-store';
-import { dragPose, onRobot, rulerTargets, sensorBarCm, snapPoint, type ArenaPoint, type SnapKind } from './robot-tools';
+import { dragPose, GRIPPER_START, gripperLimits, onRobot, rulerTargets, sensorBarCm, snapPoint, type ArenaPoint, type GripperAction, type SnapKind } from './robot-tools';
 
 // The robot lab's view tools (N18 R4.8), as one store the 3D view (FloorPicker), the 2D map (TopViewTools) and the tool strip
 // (RobotTools) share: the views turn the pointer into arena points and call `pick`, `grab`, `drag` and `drop`; the strip turns the tools
@@ -19,10 +19,17 @@ import { dragPose, onRobot, rulerTargets, sensorBarCm, snapPoint, type ArenaPoin
 //   - A replay of a check's round is the check's: no tool turns on and none takes a point meanwhile (fix round 1).
 //   - teleop's direction held (`hold`, by the keys or the pad): sent to the run store as a move at the speed of the slider, a stop when let
 //     go, and sent again when the speed changes while it is held. Nothing is held while teleop is off.
+//   - N19 E3, the gripper car's claw and lift (`moveGripper`, by the keys Q E R F or the four buttons): sent to the run store as a gripper
+//     command with the angle it was last told, plus a step (the lift, 0..90) or the claw's open or closed angle. What it was told is
+//     `gripper`, back at setup()'s angles with each new teleop world.
 // The robot's pose is the one the view shows (the run store's latestWorld), else the scenario's start.
 
 /** The teleop speed slider (%): from just above the kit's dead band (about 31 %) to full speed, 50 % at first. */
 export const TELEOP_SPEED = { min: 30, max: 100, step: 5, initial: 50 } as const;
+
+/** N19 E3: the lift's angles (contract U-36): 0° down … 90° up. */
+const GRIPPER_MIN_DEG = 0;
+const GRIPPER_MAX_DEG = 90;
 
 export type RobotTool = 'ruler' | 'move';
 
@@ -39,6 +46,8 @@ export type RobotToolsState = {
   speed: number;
   /** Teleop: the direction the learner holds now (a key or the pad); null when the robot is told to stop. */
   held: DriveDirection | null;
+  /** N19 E3: the angles the claw and the lift were last told in this teleop world (setup()'s until a command). */
+  gripper: { readonly clawDeg: number; readonly liftDeg: number };
   /** N18 R4.3: the sensor overlays ("Hiện cảm biến") are shown, in the 3D view and on the 2D map. On until the learner turns them off, in a check too. */
   sensors: boolean;
   setSensors(on: boolean): void;
@@ -67,6 +76,13 @@ export type RobotToolsState = {
   hold(direction: DriveDirection | null): void;
   /** Teleop: nothing is held any more (teleop went off, the view lost the focus); tells the robot nothing. */
   release(): void;
+  /**
+   * N19 E3: moves the gripper's claw or lift; true when a command was sent (teleop is on and the kit has a gripper), false for nothing. The
+   * lift is kept within 0..90 and in whole degrees.
+   */
+  moveGripper(action: GripperAction): boolean;
+  /** N19 E3: forgets what the gripper was told (a new teleop world starts as setup() leaves it). */
+  resetGripper(): void;
 };
 
 export type RobotToolsStoreOptions = {
@@ -78,6 +94,7 @@ export type RobotToolsStoreOptions = {
 export function createRobotToolsStore({ runStore, scenario, kit }: RobotToolsStoreOptions) {
   const outline = robotOutlineCm(kit);
   const bar = sensorBarCm(kit);
+  const limits = gripperLimits(kit);
   return createStore<RobotToolsState>()((set, get) => {
     /** The drag under way: the robot's pose when it was grabbed, and where. */
     let grabbed: { from: PlacementPose; at: ArenaPoint } | null = null;
@@ -108,6 +125,7 @@ export function createRobotToolsStore({ runStore, scenario, kit }: RobotToolsSto
       ghost: null,
       speed: TELEOP_SPEED.initial,
       held: null,
+      gripper: { ...GRIPPER_START },
       sensors: true,
 
       setSensors(on) {
@@ -224,7 +242,26 @@ export function createRobotToolsStore({ runStore, scenario, kit }: RobotToolsSto
       },
 
       release() {
-        set({ held: null });
+        set({ held: null, gripper: { ...GRIPPER_START } });
+      },
+
+      moveGripper(action) {
+        if (limits === null || !runStore.getState().teleop) return false;
+        const { gripper } = get();
+        if (action.part === 'claw') {
+          const deg = action.to === 'open' ? limits.clawOpenDeg : limits.clawClosedDeg;
+          set({ gripper: { ...gripper, clawDeg: deg } });
+          runStore.getState().teleopCommand({ op: 'gripper', part: 'claw', deg });
+        } else {
+          const deg = Math.min(GRIPPER_MAX_DEG, Math.max(GRIPPER_MIN_DEG, Math.round(gripper.liftDeg + action.stepDeg)));
+          set({ gripper: { ...gripper, liftDeg: deg } });
+          runStore.getState().teleopCommand({ op: 'gripper', part: 'lift', deg });
+        }
+        return true;
+      },
+
+      resetGripper() {
+        set({ gripper: { ...GRIPPER_START } });
       },
     };
   });
