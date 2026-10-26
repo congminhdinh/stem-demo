@@ -95,6 +95,89 @@ function physicsOf(): PhysicsWorld {
   return made[0] as PhysicsWorld;
 }
 
+/**
+ * The spike's scenario 5b (ADR 0004 §4.2): grasped at u 4 the cube sticks 0.5 cm past the fingertips; lift 45°; duty 226 after a 60 cm run-up;
+ * the motors coast once the robot touches the wall (what a scenario's endOnContact does). `shiftCm` moves the wall farther. Reports the first
+ * tick the wall is among the world's contacts: what was held before and after that tick's grasp update, and the contacts.
+ */
+async function wallHit(shiftCm: number) {
+  const graspU = 4;
+  const cubeX = START.xCm + tipX(0) + graspU + 8;
+  const wallX = cubeX + 60 + 1 + shiftCm;
+  const arena = parseArena({ ground: { sizeCm: [250, 100], color: '#ffffff' }, walls: [{ id: 'wall', fromCm: [wallX, 10], toCm: [wallX, 90] }], objects: [cube('cube', cubeX, 15)] });
+  made.length = 0;
+  const world = await createWorld({ arena, start: START, kit: gripperKit, seed: 1 });
+  try {
+    const physics = physicsOf();
+    const control = driver(world);
+    let speedMS = 0;
+    let previousX = 0;
+    let mostPitchDeg = 0;
+    let finite = true;
+    let touchedTick = -1;
+    let first: { heldBefore: string | null; heldAfter: string | null; contacts: string[] } = { heldBefore: null, heldAfter: null, contacts: [] };
+    let ownTouching = true;
+    let heldAfter: string | null = 'cube';
+    // Whether one of the robot's own colliders (every dynamic body but the cube is the robot) is within 1 mm of the wall.
+    const ownNearWall = () => {
+      let wall: Collider | null = null;
+      let cubeCollider: Collider | null = null;
+      const cubeAt = world.snapshot().objects[0]!.pose.xCm / 100;
+      physics.forEachCollider((collider) => {
+        const body = collider.parent();
+        if (body === null) return;
+        if (body.isFixed() && Math.abs(collider.translation().x - wallX / 100) < 0.01) wall = collider;
+        if (body.isDynamic() && Math.abs(body.translation().x - cubeAt) < 1e-6) cubeCollider = collider;
+      });
+      let own = false;
+      physics.forEachCollider((collider) => {
+        const body = collider.parent();
+        if (body === null || !body.isDynamic() || collider === cubeCollider) return;
+        const contact = collider.contactCollider(wall!, 0.001);
+        if (contact !== null && contact.distance <= 0.001) own = true;
+      });
+      return own;
+    };
+    const script = (function* () {
+      yield* pick(world, control, 'cube', graspU);
+      control.set({ liftDeg: 45 });
+      for (let i = 0; i < seconds(0.5); i++) yield;
+      control.drive(forward(226));
+      previousX = world.snapshot().robot.xCm;
+      for (let i = 0; i < seconds(4) && touchedTick < 0; i++) {
+        speedMS = (world.snapshot().robot.xCm - previousX) / 100 / PHYSICS_DT_S;
+        previousX = world.snapshot().robot.xCm;
+        yield;
+      }
+      control.drive(COAST);
+      for (let i = 0; i < seconds(1.5); i++) yield;
+      heldAfter = world.snapshot().robot.gripper!.heldId;
+    })();
+    for (let tick = 0; tick < seconds(0.35 + 4 + 0.5 + 4 + 1.5); tick++) {
+      if (script.next().done === true) break;
+      const heldBefore = world.snapshot().robot.gripper!.heldId;
+      control.step();
+      const snapshot = world.snapshot();
+      const contacts = world.sense.contacts().map((contact) => contact.otherId);
+      if (touchedTick < 0 && contacts.includes('wall')) {
+        touchedTick = world.tick;
+        first = { heldBefore, heldAfter: snapshot.robot.gripper!.heldId, contacts };
+        ownTouching = ownNearWall();
+      }
+      mostPitchDeg = Math.max(mostPitchDeg, Math.abs(pitchDeg(snapshot)));
+      finite &&= [snapshot.robot.xCm, snapshot.robot.yCm, snapshot.robot.zCm, ...snapshot.objects.map((object) => object.pose.zCm)].every(Number.isFinite);
+    }
+    return { touchedTick, speedMS, first, ownTouching, heldAfter, jointsAtEnd: physics.impulseJoints.len(), mostPitchDeg, finite };
+  } finally {
+    world.dispose();
+  }
+}
+
+/** Measured (B2 fix round 1), the wall this much farther than wallHit(0)'s: the first tick the cube touches it, the grasp holds… */
+const SHIFT_HELD_ON_FIRST_TICK_CM = 0.08;
+/** …or breaks in that tick's update. */
+const SHIFT_BREAKS_ON_FIRST_TICK_CM = 0.32;
+
 describe('the gripper car in the world (N19 B1/B2)', () => {
   it('snapshots the gripper as robot.gripper {clawDeg, liftDeg, heldId}; a rover snapshot has no such field, its text unchanged', async () => {
     const world = await createWorld({ arena: parseArena({ ground: { sizeCm: [200, 100], color: '#ffffff' }, objects: [cube('cube', 70, 15)] }), start: START, kit: gripperKit, seed: 1 });
@@ -158,89 +241,38 @@ describe('the gripper car in the world (N19 B1/B2)', () => {
   });
 
   it('held cube hitting a wall at 0.4 m/s breaks the grasp and counts as robot contact', async () => {
-    // The spike's scenario 5b (ADR 0004 §4.2): grasped at u 4 the cube sticks 0.5 cm past the fingertips; lift 45°; duty 226 after a 60 cm
-    // run-up; the motors coast once the robot touches the wall (what a scenario's endOnContact does).
-    const graspU = 4;
-    const cubeX = START.xCm + tipX(0) + graspU + 8;
-    const wallX = cubeX + 60 + 1;
-    const arena = parseArena({ ground: { sizeCm: [250, 100], color: '#ffffff' }, walls: [{ id: 'wall', fromCm: [wallX, 10], toCm: [wallX, 90] }], objects: [cube('cube', cubeX, 15)] });
-    const world = await createWorld({ arena, start: START, kit: gripperKit, seed: 1 });
-    try {
-      const physics = physicsOf();
-      const control = driver(world);
-      const log: { heldWhenTouched?: string | null; speedMS?: number; ownTouching?: boolean; clawCommandAfter?: number; heldAfter?: string | null } = {};
-      let previousX = 0;
-      let speed = 0;
-      let mostPitch = 0;
-      let finite = true;
-      // What is within 1 mm of the wall, by collider: the cube's, or one of the robot's own (every dynamic body but the cube is the robot).
-      const touchingWall = () => {
-        let wall: Collider | null = null;
-        let cubeCollider: Collider | null = null;
-        const cubeX = world.snapshot().objects[0]!.pose.xCm / 100;
-        physics.forEachCollider((collider) => {
-          const body = collider.parent();
-          if (body === null) return;
-          if (body.isFixed() && Math.abs(collider.translation().x - (wallX / 100)) < 0.01) wall = collider;
-          if (body.isDynamic() && Math.abs(body.translation().x - cubeX) < 1e-6) cubeCollider = collider;
-        });
-        let own = false;
-        physics.forEachCollider((collider) => {
-          const body = collider.parent();
-          if (body === null || !body.isDynamic() || collider === cubeCollider) return;
-          const contact = collider.contactCollider(wall!, 0.001);
-          if (contact !== null && contact.distance <= 0.001) own = true;
-        });
-        return own;
-      };
-      const script = (function* () {
-        yield* pick(world, control, 'cube', graspU);
-        control.set({ liftDeg: 45 });
-        for (let i = 0; i < seconds(0.5); i++) yield;
-        control.drive(forward(226));
-        previousX = world.snapshot().robot.xCm;
-        for (let i = 0; i < seconds(4); i++) {
-          const contacts = world.sense.contacts().map((contact) => contact.otherId);
-          if (contacts.includes('wall')) break;
-          speed = (world.snapshot().robot.xCm - previousX) / 100 / PHYSICS_DT_S;
-          previousX = world.snapshot().robot.xCm;
-          yield;
-        }
-        log.speedMS = speed;
-        log.ownTouching = touchingWall();
-        control.drive(COAST);
-        for (let i = 0; i < seconds(1.5); i++) yield;
-        log.heldAfter = world.snapshot().robot.gripper!.heldId;
-      })();
-      let touchedTick = -1;
-      for (let tick = 0; tick < seconds(0.35 + 4 + 0.5 + 4 + 1.5); tick++) {
-        if (script.next().done === true) break;
-        const heldBefore = world.snapshot().robot.gripper!.heldId;
-        control.step();
-        const snapshot = world.snapshot();
-        if (touchedTick < 0 && world.sense.contacts().some((contact) => contact.otherId === 'wall')) {
-          touchedTick = world.tick;
-          log.heldWhenTouched = heldBefore;
-        }
-        mostPitch = Math.max(mostPitch, Math.abs(pitchDeg(snapshot)));
-        finite &&= [snapshot.robot.xCm, snapshot.robot.yCm, snapshot.robot.zCm, ...snapshot.objects.map((object) => object.pose.zCm)].every(Number.isFinite);
-      }
-      expect(touchedTick).toBeGreaterThan(0);
-      // It came in at about 0.4 m/s (the spike: 0.398), holding the cube, and only the cube met the wall: the robot touched it by the cube.
-      expect(log.speedMS!).toBeGreaterThan(0.35);
-      expect(log.speedMS!).toBeLessThan(0.45);
-      expect(log.heldWhenTouched).toBe('cube');
-      expect(log.ownTouching).toBe(false);
-      // The hit broke the grasp (the claw still told 80°: no release).
-      expect(log.heldAfter).toBeNull();
-      expect(physics.impulseJoints.len()).toBe(5);
-      // No NaN, and the car stays on its wheels (coasting on contact: the spike measured 1.0° at lift 45°).
-      expect(finite).toBe(true);
-      expect(mostPitch).toBeLessThan(8);
-    } finally {
-      world.dispose();
-    }
+    const hit = await wallHit(0);
+    expect(hit.touchedTick).toBeGreaterThan(0);
+    // It came in at about 0.4 m/s (the spike: 0.398), holding the cube, and only the cube met the wall: the robot touched it by the cube.
+    expect(hit.speedMS).toBeGreaterThan(0.35);
+    expect(hit.speedMS).toBeLessThan(0.45);
+    expect(hit.first.heldBefore).toBe('cube');
+    expect(hit.first.contacts).toContain('wall');
+    expect(hit.ownTouching).toBe(false);
+    // The hit broke the grasp (the claw still told 80°: no release).
+    expect(hit.heldAfter).toBeNull();
+    expect(hit.jointsAtEnd).toBe(5);
+    // No NaN, and the car stays on its wheels (coasting on contact: the spike measured 1.0° at lift 45°).
+    expect(hit.finite).toBe(true);
+    expect(hit.mostPitchDeg).toBeLessThan(8);
   }, 60_000);
+
+  it('a hit that breaks the grasp on the very tick it first touches is still the robot’s contact on that tick', async () => {
+    // Where in a tick the cube meets the wall decides whether the first tick it touches already breaks the grasp (the update right after the
+    // step) or the next one does. Measured (B2 fix round 1): 0.08 cm farther the cube still is held after the update of that first tick;
+    // 0.32 cm farther that update breaks the grasp, so after it nothing is held. The contacts of the tick read the cube as the robot's either
+    // way (it was held during the tick), so a goal's avoid-contact or endOnContact sees the hit; from the next tick on it is not the robot's.
+    const whileHeld = await wallHit(SHIFT_HELD_ON_FIRST_TICK_CM);
+    expect([whileHeld.first.heldBefore, whileHeld.first.heldAfter]).toEqual(['cube', 'cube']);
+    expect(whileHeld.first.contacts).toContain('wall');
+    const onBreak = await wallHit(SHIFT_BREAKS_ON_FIRST_TICK_CM);
+    expect([onBreak.first.heldBefore, onBreak.first.heldAfter]).toEqual(['cube', null]);
+    expect(onBreak.first.contacts).toContain('wall');
+    for (const hit of [whileHeld, onBreak]) {
+      expect(hit.ownTouching).toBe(false);
+      expect(hit.heldAfter).toBeNull();
+    }
+  }, 120_000);
 
   it('a held cube against another object is the robot’s contact with it', async () => {
     const cubeX = START.xCm + tipX(0) + 3 + 8;
