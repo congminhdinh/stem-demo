@@ -223,3 +223,35 @@ describe('what the gripper’s overlays cost (N19 E5)', () => {
   });
 });
 
+
+describe('when the gripper car’s overlay asks for a frame (N19 E4/E5 minor round, review 2 N2)', () => {
+  // A goal placed by colour (red cube to the red zone), then one to reach the warehouse: the goal zone lit changes when the first passes, and
+  // only the colours tell which zone the first one needs (the cube's own red, with no round shown).
+  const label = { vi: 'x', en: 'x' };
+  const goals = [
+    { id: 'sort', kind: 'object-placed', label, points: 50, object: 'cube-red', zoneByColor: { [bodyPalette.red]: 'red-zone', [bodyPalette.blue]: 'blue-zone' }, fully: true, maxTiltDeg: 15, restS: 0.5, carried: true, maxSlideCm: 3, minCarryLiftCm: 1, minCarryCm: 5 },
+    { id: 'home', kind: 'reach-zone', label, points: 50, zone: 'kho' },
+  ] as unknown as typeof scenario.goals;
+  const sorting = { ...scenario, goals };
+  const before = world([], 0, { score: { points: 0, maxScore: 100, goals: [] } });
+  const after = world([], 0, { score: { points: 50, maxScore: 100, goals: [{ id: 'sort', passed: true, points: 50, progress: 1 }] } });
+
+  it('tells the change it draws: the red zone lit (the cube’s own colour), then the warehouse, with the very colours it lights by', () => {
+    const overlay = make(null, gripperKit, sorting);
+    overlay.update(before, true, 0.5, 0);
+    expect(overlay.probe().zone).toBe('red-zone');
+    overlay.update(after, true, 0.5, 0);
+    expect(overlay.probe().zone).toBe('kho');
+    // The frame check sees that change (without the colours both would light the warehouse, and the change would go unseen).
+    expect(overlay.sameView(before, after)).toBe(false);
+    expect(overlay.sameView(before, { ...before, t: 1 })).toBe(true);
+  });
+
+  it('follows the round’s colours too: a round painting the cube blue lights the blue zone, and the check knows it', () => {
+    const overlay = make(null, gripperKit, sorting);
+    overlay.setRoundColors({ 'cube-red': bodyPalette.blue });
+    overlay.update(before, true, 0.5, 0);
+    expect(overlay.probe().zone).toBe('blue-zone');
+    expect(overlay.sameView(before, after)).toBe(false);
+  });
+});

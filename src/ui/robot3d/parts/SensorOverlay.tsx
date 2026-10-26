@@ -14,7 +14,7 @@ import type { RobotToolsStore } from '../robot-tools-store';
 import { shownObjectColors } from '../round-colors';
 import { labelBoxes, LABEL_CENTERS, LABEL_REACH_SHARES, MAX_LABEL_BOXES, placeLabel, type LabelPlace } from '../sensor-label-boxes';
 import { registerSensorOverlay } from '../sensor-overlay-state';
-import { pulseLevel, sameSensorView } from '../sensor-overlay-math';
+import { pulseLevel } from '../sensor-overlay-math';
 import { LABEL_PILL_HEIGHT_SHARE } from './distance-label';
 import { createSensorOverlay, GRIPPER_LABEL_LIFT_M, type GripperWords } from './sensor-overlay';
 import type { ScreenBox } from './zone-tag-layout';
@@ -108,7 +108,8 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
     };
     const check = () => {
       const next = store.getState().latestWorld();
-      if (!sameSensorView(shown, next, scenario.goals, colorsRef.current ?? undefined)) {
+      // Minor round (review 2, N2): the overlay's own check, with the colours it lights the goal's zone by (the arena's with no round).
+      if (!overlay.sameView(shown, next)) {
         shown = next;
         ask();
       }

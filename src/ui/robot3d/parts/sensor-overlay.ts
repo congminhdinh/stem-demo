@@ -8,7 +8,7 @@ import { gripperStateOf } from '../gripper-pose';
 import type { Detail } from '../lighting/look';
 import type { RobotModel } from '../robot-model';
 import { readingTints, sensorColors as colors } from '../sensor-colors';
-import { GLYPH, goalZoneIds, highlightColor, labelGlyphs, LABEL_GLYPHS_MAX, nextGoalZoneId, spotDrawRadiusCm } from '../sensor-overlay-math';
+import { GLYPH, goalZoneIds, highlightColor, labelGlyphs, LABEL_GLYPHS_MAX, nextGoalZoneId, sameSensorView, spotDrawRadiusCm } from '../sensor-overlay-math';
 import { NO_ECHO_RAY_CM } from '../top-view-math';
 import { createDistanceLabel, type DistanceLabel, type DistanceLabelOptions } from './distance-label';
 import { beamAxisEcho, beamWrite, buildBeam, buildGripperRays, buildSpots, gripperRaysColor, gripperRaysIr, gripperRaysWrite, rgba, spotColor, spotsHide, spotsWrite, type Beam, type GripperRays, type Rgba, type Spots } from './overlay-geometry';
@@ -100,6 +100,11 @@ export type SensorOverlay = {
    * own. Kept until told again; the next `update` lights by it.
    */
   setRoundColors(colors: Readonly<Record<string, string>> | null): void;
+  /**
+   * N19 E4/E5 minor round (review 2, N2): whether two worlds draw the same overlays (`sameSensorView`), the next goal's zone worked out with
+   * the very colours this overlay lights it by (the round's, else the arena's): the check that asks for a frame (SensorOverlay.tsx).
+   */
+  sameView(a: RobotSnapshot | null, b: RobotSnapshot | null): boolean;
   /** The distance tags (null where a canvas could not be made), one for each ultrasonic sensor, in the kit's order. */
   labels: readonly (DistanceLabel | null)[];
   /** Whether the tag of the sensor at `index` is on the screen now: the overlay is shown and the sensor has a reading. */
@@ -392,6 +397,7 @@ export function createSensorOverlay({ kit, model, scenario, decimal, unit, noEch
     setRoundColors(colors) {
       round.colors = colors ?? arenaColors;
     },
+    sameView: (a, b) => sameSensorView(a, b, scenario.goals, round.colors),
     gripperLabel: carried?.label ?? null,
     gripperRoom: carried?.room ?? null,
     gripperLabelShown: () => last.shown && carried !== null && carried.labelShown(),
