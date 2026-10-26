@@ -7,7 +7,10 @@
 /** The one scenario with no goals and so no score. */
 export const robotSandboxKey = 'rb-sandbox';
 
-/** The scenarios of the robot lab, in the order of the lessons; `rb-sandbox` has no goals and no score. */
+/**
+ * The scenarios of the robot lab, in the order of the lessons; `rb-sandbox` has no goals and no score. N19 D5 (D-G12): the four gripper car
+ * lessons (8-11) come after the six of the rover and before the sandbox, the order of the manifest and of the LMS's module 4.
+ */
 export const robotTemplateKeys = [
   'rb-drive-to-zone',
   'rb-square-route',
@@ -15,6 +18,10 @@ export const robotTemplateKeys = [
   'rb-line-follow',
   'rb-servo-gate',
   'rb-mini-mission',
+  'rb-grip-pick',
+  'rb-grip-deliver',
+  'rb-grip-sort',
+  'rb-grip-stack',
   robotSandboxKey,
 ] as const;
 
@@ -64,7 +71,7 @@ export type RobotTemplate = {
 
 /**
  * The kit of each scenario, key by key: a Record, so that a key added to the list above without a kit does not compile. Every scenario of
- * the pilot course and the sandbox run on the rover.
+ * the pilot course and the sandbox run on the rover; N19 D5: the four gripper lessons on the gripper car.
  */
 const templateKits: Readonly<Record<RobotTemplateKey, RobotKitId>> = {
   'rb-drive-to-zone': 'ref-uno-rover',
@@ -73,6 +80,10 @@ const templateKits: Readonly<Record<RobotTemplateKey, RobotKitId>> = {
   'rb-line-follow': 'ref-uno-rover',
   'rb-servo-gate': 'ref-uno-rover',
   'rb-mini-mission': 'ref-uno-rover',
+  'rb-grip-pick': 'ref-uno-gripper',
+  'rb-grip-deliver': 'ref-uno-gripper',
+  'rb-grip-sort': 'ref-uno-gripper',
+  'rb-grip-stack': 'ref-uno-gripper',
   [robotSandboxKey]: 'ref-uno-rover',
 };
 

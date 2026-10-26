@@ -1,11 +1,12 @@
 import { expect } from 'vitest';
 import type { ProjectDocument } from '../../circuit/document';
+import { productionKits, type Kit } from '../../hardware';
 import { registry } from '../../program/__fixtures__/uno-blocks';
-import { rover, unoR3Board } from '../../run/__fixtures__/robot-session';
+import { unoR3Board } from '../../run/__fixtures__/robot-session';
 import { hashSnapshot } from '../../world/snapshot';
 import { checkRobot, type CheckProgress } from '../check-robot';
 import { robotCheckResultProblems, type RobotCheckResult } from '../check-result';
-import type { Scenario } from '../scenario';
+import { scenarioKitRef, type Scenario } from '../scenario';
 import type { CheckCase } from './check-cases';
 
 // TEST-ONLY (N18 R6.2): the ways a check is driven, and what a check gives that must not depend on the way (Review Focus 2: a hidden tab
@@ -41,13 +42,16 @@ export const drivesOf: Readonly<Record<CheckCase['drives'], readonly Drive[]>> =
   ],
 };
 
+/** The kit a scenario runs on, from the catalog (the rover for every N18 scenario; N19 D4: the gripper car for lessons 8-11). */
+export const kitOfScenario = (scenario: Scenario): Kit => productionKits.get(scenarioKitRef(scenario)!)!;
+
 /** A check of `project` driven `drive`'s way, and everything it gives that must not depend on the way. The result passes the builder. */
 export async function outcomeOf(project: ProjectDocument, scenario: Scenario, drive: Drive) {
   const ended: CheckProgress[] = [];
   const run = checkRobot(project, scenario, {
     mode: drive.mode,
     ...(drive.speed === undefined ? {} : { speed: drive.speed }),
-    kit: rover,
+    kit: kitOfScenario(scenario),
     board: unoR3Board,
     registry,
     onProgress: (progress) => progress.kind === 'variant-ended' && ended.push(progress),

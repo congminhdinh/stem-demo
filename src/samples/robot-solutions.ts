@@ -5,7 +5,8 @@ import type { robotSandboxKey, RobotTemplateKey } from './robot-keys';
 //
 //   reference  the program the lesson asks for, written as a learner would with the scenario's toolbox. It must pass every goal in every
 //              variant, with a margin (R5.2b runs it through the check; R5.2a compiles it and turns its sketch into a golden of C1).
-//   blind      (lessons 3-6) a "blind" program: motors and waits only, no sensor, timed so that it solves variant 0. It must fail at least
+//   blind      (lessons 3-6, and N19 D4's gripper lessons 8, 9 and 11) a "blind" program: motors (and the gripper) and waits only, no
+//              sensor, timed so that it solves variant 0. It must fail at least
 //              one variant, which is the proof that the variants of the scenario mean something.
 //   exploits   programs that try to score without doing the lesson (from the R5.2a reviews), each with the most the check may give it:
 //              regression cases for R5.2b's check, which must fail every one of them and give it at most that score.
@@ -44,7 +45,7 @@ export type RobotExploit = {
 
 export type RobotSolution = {
   readonly reference: BlocklyJson;
-  /** Lessons 3-6: motors and waits only, timed for variant 0. */
+  /** Lessons 3-6 (and the gripper lessons 8, 9, 11): motors, the gripper and waits only, timed for variant 0. */
   readonly blind?: BlocklyJson;
   readonly exploits?: readonly RobotExploit[];
   readonly notes: string;
@@ -107,6 +108,29 @@ export const compare = (id: string, op: 'EQ' | 'NEQ' | 'LT' | 'LTE' | 'GT' | 'GT
 /** "ultrasonic distance (cm) < <cm>". */
 export const closerThan = (id: string, cm: number): Json => compare(id, 'LT', ultrasonic(`${id}-distance`), numberBlock(`${id}-cm`, cm));
 
+/** N19 D4: "claw open|close" (U-35): 0° open, 80° closed, where the jaws meet. */
+export const claw = (id: string, state: 'OPEN' | 'CLOSE'): Json => ({ type: 'uno_gripper_claw', id, fields: { STATE: state } });
+/** N19 D4: "claw angle <angle> °" (U-35), the number in the toolbox's shadow. */
+export const clawAngle = (id: string, angle: number): Json => ({ type: 'uno_gripper_claw_angle', id, inputs: { ANGLE: shadowNumber(`${id}-angle`, angle) } });
+/** N19 D4: "arm up|down" (U-36): 90° up, 0° down. */
+export const lift = (id: string, state: 'UP' | 'DOWN'): Json => ({ type: 'uno_gripper_lift', id, fields: { STATE: state } });
+/** N19 D4: "arm angle <angle> °" (U-36), the number in the toolbox's shadow. */
+export const liftAngle = (id: string, angle: number): Json => ({ type: 'uno_gripper_lift_angle', id, inputs: { ANGLE: shadowNumber(`${id}-angle`, angle) } });
+/** N19 D4: "object between the jaws?" (U-37), the IR sensor between the jaws. */
+export const irDetect = (id: string): Json => ({ type: 'uno_ir_detect', id });
+/** N19 D4: "object colour is <colour>?" (U-38), the colour sensor on the carriage. */
+export const colorIs = (id: string, color: 'red' | 'green' | 'blue' | 'yellow' | 'white' | 'black' | 'unknown'): Json => ({ type: 'uno_color_is', id, fields: { COLOR: color } });
+/** N19 D4: "<a> or <b>" (U-10). */
+export const or = (id: string, a: Json, b: Json): Json => ({ type: 'logic_operation', id, fields: { OP: 'OR' }, inputs: { A: { block: a }, B: { block: b } } });
+/** N19 D4: "not <a>" (U-10). */
+export const not = (id: string, a: Json): Json => ({ type: 'logic_negate', id, inputs: { BOOL: { block: a } } });
+
+/** N19 D4: "while <condition>" (U-13). */
+export function whileBlock(id: string, condition: Json, body: readonly Json[]): Json {
+  const DO = statements(body);
+  return { type: 'ybc_while', id, inputs: { COND: { block: condition }, ...(DO ? { DO } : {}) } };
+}
+
 /** "repeat <times> times" (U-12). */
 export function repeat(id: string, times: number, body: readonly Json[]): Json {
   const DO = statements(body);
@@ -166,6 +190,170 @@ const leg = (id: string, ms: number, turnMs?: number): Json[] => [
   wait(`${id}-wait`, ms),
   ...(turnMs === undefined ? [] : [drive(`${id}-turn`, 'spinLeft', CRUISE), wait(`${id}-turn-wait`, turnMs)]),
 ];
+
+// --- N19 D4: the gripper car's lessons 8-11 (ref-uno-gripper@0) -------------------------------------------------------------------------
+//
+// PLACEHOLDER KIT. Every time and distance below is for `ref-uno-gripper@0`, whose mechanics are placeholders like the rover's
+// (src/core/hardware/kits/README.md; spikes/n19-d4/results.md measured them): 13.2 cm/s at 50 % and 19 cm/s at 60 % once moving; a
+// spin at 50 % turns about 103°/s (830 ms is 82°, 900 ms is 91.5°, where the rover's 830 ms was 90°); it stops within 0.3 cm of where it
+// is told to. The arm takes 0.15 s from 90° to 0° and the claw grips a 4 cm cube 0.05 s after "claw close". The IR between the jaws sees a
+// cube centred 12.55 cm ahead of the robot's middle (its near face 2 cm from the sensor); held, the cube rides 12.3 cm ahead at the arm's 0°
+// and 11.65 cm ahead at 90°. When the vendor's gripper replaces it (plan VG) the timed parts (the turns, the carries and every blind
+// program) must be measured again and the scenarios' `version` raised.
+//
+// What the gripper car's sensors cannot do, and the programs respect (plan §4.11, §4.12):
+//   - the ultrasonic hears the claw servo at the arm's 8-40° and the carriage at 41-52° (it reads 2 cm), so a program reads it with the arm
+//     at 0° (after the 0.15 s the arm takes to come down: "arm down" then a wait) or at 80-90° while it holds a cube; a 4 cm cube is heard
+//     only by the cone's lower edge, from 18.7 cm, and not at all once it is between the jaws (the cone's blind spot near the jaws);
+//   - a cube 1.5 cm or more off the robot's axis is pushed ahead by a finger (6-33 cm) and turns the robot (up to 8°) before the IR sees it
+//     and the jaws catch it (spikes/n19-d4 capture): the lessons keep the cube within 1 cm of the axis (sort: 19 cm ahead) or measure
+//     where to put it down from a wall (pick), not from where it was caught.
+
+/** The arm down and the claw open, then the 300 ms the arm needs to be down before the ultrasonic hears past the gripper. */
+const readyToGrab = (prefix: string): Json[] => [lift(`${prefix}-arm-down`, 'DOWN'), claw(`${prefix}-claw-open`, 'OPEN'), wait(`${prefix}-arm-wait`, 300)];
+/** Stop, close the claw, lift the arm (up, or to `liftDeg`). */
+const gripAndLift = (prefix: string, liftDeg?: number): Json[] => [
+  stop(`${prefix}-stop`),
+  claw(`${prefix}-close`, 'CLOSE'),
+  wait(`${prefix}-close-wait`, 300),
+  liftDeg === undefined ? lift(`${prefix}-up`, 'UP') : liftAngle(`${prefix}-up`, liftDeg),
+  wait(`${prefix}-up-wait`, 300),
+];
+/** Stop, lower the arm and open the claw: the cube is put down where it is. */
+const putDown = (prefix: string): Json[] => [stop(`${prefix}-stop`), lift(`${prefix}-down`, 'DOWN'), wait(`${prefix}-down-wait`, 300), claw(`${prefix}-open`, 'OPEN'), wait(`${prefix}-open-wait`, 300)];
+/** "while not object between the jaws?" with `body`. */
+const untilInJaws = (id: string, body: readonly Json[] = []): Json => whileBlock(id, not(`${id}-not`, irDetect(`${id}-ir`)), body);
+/** "ultrasonic distance (cm) > <cm>". */
+const fartherThan = (id: string, cm: number): Json => compare(id, 'GT', ultrasonic(`${id}-distance`), numberBlock(`${id}-cm`, cm));
+/** "while a line sensor sees the line" with the lesson 4 follower in it: it ends where the tape does. */
+const followToLineEnd = (prefix: string): Json =>
+  whileBlock(
+    `${prefix}-on-line`,
+    or(`${prefix}-any`, lineDark(`${prefix}-left`, 'lineLeft'), or(`${prefix}-any-2`, lineDark(`${prefix}-center`, 'lineCenter'), lineDark(`${prefix}-right`, 'lineRight'))),
+    [ifBlock(`${prefix}-follow`, followLine(`${prefix}-line`))],
+  );
+
+/** Lesson 8: find the cube with the ultrasonic, catch it with the IR, lift it, carry it until the far wall is 45 cm off, put it down. */
+const gripPickReference = workspace(
+  hat('stem_on_start', [
+    ...readyToGrab('ready'),
+    drive('fast', 'forward', 70),
+    whileBlock('to-cube', fartherThan('cube-far', 15), []),
+    drive('slow', 'forward', CRUISE),
+    untilInJaws('to-jaws'),
+    ...gripAndLift('grab'),
+    drive('carry', 'forward', 60),
+    whileBlock('to-drop', fartherThan('wall-far', 45), []),
+    ...putDown('put'),
+    drive('back', 'backward', CRUISE),
+    wait('back-time', 1000),
+    stop('done'),
+  ]),
+);
+
+/** Lesson 9, one parcel from the line to the warehouse and back: turn left with it, carry it, put it down, back, turn right to the line. */
+const deliverParcel = (turnMs: number, carryMs: number): Json[] => [
+  ...gripAndLift('grab'),
+  drive('turn', 'spinLeft', CRUISE),
+  wait('turn-time', turnMs),
+  drive('carry', 'forward', CRUISE),
+  wait('carry-time', carryMs),
+  ...putDown('put'),
+  drive('back', 'backward', CRUISE),
+  wait('back-time', carryMs),
+];
+/** A spin turn of about 90° at 50 % on the placeholder gripper car (91.5°, measured). */
+const GRIPPER_TURN_MS = 900;
+
+const gripDeliverReference = workspace(
+  hat('stem_on_start', [
+    lift('arm-down', 'DOWN'),
+    claw('claw-open', 'OPEN'),
+    repeat('parcels', 3, [
+      untilInJaws('to-parcel', [ifBlock('follow', followLine('line'))]),
+      ...deliverParcel(GRIPPER_TURN_MS, 2200),
+      drive('find', 'spinRight', CRUISE),
+      whileBlock('to-line', not('off-line', lineDark('find-center', 'lineCenter')), []),
+    ]),
+    stop('done'),
+  ]),
+);
+
+/** One timed leg and a parcel of the blind lesson 9 program: the leg's wait, the reference's moves, and a timed turn back. */
+const blindParcel = (n: number, legMs: number): Json[] => [
+  drive(`leg-${n}`, 'forward', CRUISE),
+  wait(`leg-${n}-time`, legMs),
+  ...gripAndLift(`grab-${n}`),
+  drive(`turn-${n}`, 'spinLeft', CRUISE),
+  wait(`turn-${n}-time`, GRIPPER_TURN_MS),
+  drive(`carry-${n}`, 'forward', CRUISE),
+  wait(`carry-${n}-time`, 2200),
+  ...putDown(`put-${n}`),
+  drive(`back-${n}`, 'backward', CRUISE),
+  wait(`back-${n}-time`, 2200),
+  drive(`return-${n}`, 'spinRight', CRUISE),
+  wait(`return-${n}-time`, GRIPPER_TURN_MS),
+];
+
+/** Lesson 10: catch the cube, lift it, read its colour; red: left (the red zone, north), blue: right (south), else straight on (green). */
+const gripSortReference = workspace(
+  hat('stem_on_start', [
+    ...readyToGrab('ready'),
+    drive('go', 'forward', CRUISE),
+    untilInJaws('to-cube'),
+    ...gripAndLift('grab'),
+    ifBlock('which-zone', [
+      [colorIs('is-red', 'red'), [drive('to-red', 'spinLeft', CRUISE), wait('to-red-time', GRIPPER_TURN_MS)]],
+      [colorIs('is-blue', 'blue'), [drive('to-blue', 'spinRight', CRUISE), wait('to-blue-time', GRIPPER_TURN_MS)]],
+    ]),
+    drive('carry', 'forward', CRUISE),
+    wait('carry-time', 3000),
+    ...putDown('put'),
+    drive('back', 'backward', CRUISE),
+    wait('back-time', 1000),
+    stop('done'),
+  ]),
+);
+/** Lesson 10 with `turn` after the grab in place of the reference's colour test (an exploit's), carried and put down as the reference does. */
+const sortWith = (turn: readonly Json[]): BlocklyJson =>
+  workspace(
+    hat('stem_on_start', [
+      ...readyToGrab('ready'),
+      drive('go', 'forward', CRUISE),
+      untilInJaws('to-cube'),
+      ...gripAndLift('grab'),
+      ...turn,
+      drive('carry', 'forward', CRUISE),
+      wait('carry-time', 3000),
+      ...putDown('put'),
+      drive('back', 'backward', CRUISE),
+      wait('back-time', 1000),
+      stop('done'),
+    ]),
+  );
+
+/** The height lesson 11 carries the red cube at: its bottom 4.46 cm up, over the 4 cm base (at 45° it clips the base: ADR 0004 §4.2). */
+const STACK_LIFT_DEG = 55;
+/** Lesson 11 up to the carry: follow the tape until the IR sees the red cube, grip it, lift it to `liftDeg`. */
+const stackGrab = (liftDeg: number): Json[] => [
+  ...readyToGrab('ready'),
+  untilInJaws('to-cube', [ifBlock('follow', followLine('line'))]),
+  ...gripAndLift('grab', liftDeg),
+];
+/** Lesson 11 to the end of the tape, then stopped and still for 300 ms. */
+const stackToEnd: readonly Json[] = [followToLineEnd('to-end'), stop('at-end'), wait('at-end-wait', 300)];
+
+const gripStackReference = workspace(
+  hat('stem_on_start', [
+    ...stackGrab(STACK_LIFT_DEG),
+    ...stackToEnd,
+    claw('let-go', 'OPEN'),
+    wait('let-go-wait', 500),
+    drive('back', 'backward', CRUISE),
+    wait('back-time', 1000),
+    stop('done'),
+  ]),
+);
 
 /** The scenarios that have goals, and so a solution: every key but the sandbox. */
 export type RobotScoredKey = Exclude<RobotTemplateKey, typeof robotSandboxKey>;
@@ -383,6 +571,241 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
           ]),
         ),
         maxScore: 45,
+      },
+    ],
+  },
+  // N19 D4: the gripper car's lessons (plan §6), measured with spikes/n19-d4 through the real check (results.md); every speed 50 % or more
+  // (G0 start duty: the gripper car starts from rest with 50 g held from duty 128).
+  'rb-grip-pick': {
+    reference: gripPickReference,
+    blind: workspace(
+      hat('stem_on_start', [
+        ...readyToGrab('ready'),
+        drive('go', 'forward', CRUISE),
+        wait('go-time', 3300),
+        ...gripAndLift('grab'),
+        drive('carry', 'forward', 60),
+        wait('carry-time', 2300),
+        ...putDown('put'),
+        drive('back', 'backward', CRUISE),
+        wait('back-time', 1000),
+        stop('done'),
+      ]),
+    ),
+    notes:
+      'Reference: the arm down and the claw open, a 300 ms wait for the arm (the ultrasonic hears the claw servo and the carriage while the ' +
+      'arm passes 8-52°), forward at 70 % until the ultrasonic hears the cube under 15 cm (only the cone\'s lower edge hears a 4 cm cube, from ' +
+      '18.7 cm), on at 50 % until the IR sees it between the jaws (its middle 12.55 cm ahead), close, lift, carry at 60 % with the arm up (the ' +
+      'cone is clear at 90° with a cube held) until the far wall is under 45 cm, put down, back off. The cube lands at x 127.3 in every ' +
+      'variant (drop zone x 108..148), wherever it was caught: the seed (23) moves the cube 9.3 cm on and 10.0 cm back and turns the start ' +
+      '1.3° and −1.9°, and a cube 1.5 cm or more off the axis is pushed before the jaws catch it, which a timed carry would carry out of the ' +
+      'zone. Blind: forward 3300 ms at 50 % (it catches the cube of variant 0 at x 72.9), carry 2300 ms at 60 %: it passes variant 0 and ' +
+      'closes on nothing in variant 1 (the cube 9.3 cm farther) and pushes the nearer cube of variant 2 into the carriage, where the claw ' +
+      'cannot take it: 15 in both. Placeholder kit: the 45 cm and the blind timings are the placeholder car\'s.',
+    exploits: [
+      {
+        name: 'never-lower-arm',
+        description:
+          'The reference with the arm left up: the jaws pass over the cube and the IR never sees it, so the body pushes the cube on until the ' +
+          'raised fingertips touch the far wall, which ends the run (endOnContact). Nothing is picked up.',
+        program: workspace(
+          hat('stem_on_start', [
+            claw('claw-open', 'OPEN'),
+            wait('wait', 300),
+            drive('fast', 'forward', 70),
+            whileBlock('to-cube', fartherThan('cube-far', 15), []),
+            drive('slow', 'forward', CRUISE),
+            untilInJaws('to-jaws'),
+            ...gripAndLift('grab'),
+            drive('carry', 'forward', 60),
+            whileBlock('to-drop', fartherThan('wall-far', 45), []),
+            ...putDown('put'),
+            drive('back', 'backward', CRUISE),
+            wait('back-time', 1000),
+            stop('done'),
+          ]),
+        ),
+        maxScore: 15,
+      },
+      {
+        name: 'push-in',
+        description:
+          'The arm down and the claw open, forward at 50 % for 6600 ms, pushing the cube between the open jaws into the drop zone, then back ' +
+          'off: a pushed cube is never placed (object-pushed), so only the guard goal is met.',
+        program: workspace(
+          hat('stem_on_start', [...readyToGrab('ready'), drive('push', 'forward', CRUISE), wait('push-time', 6600), stop('stop'), drive('back', 'backward', CRUISE), wait('back-time', 1000), stop('done')]),
+        ),
+        maxScore: 15,
+      },
+      {
+        name: 'hold-in-zone',
+        description:
+          'The reference that carries the cube over the drop zone and lowers the arm there but never opens the claw: the cube is held at the ' +
+          'end (object-still-held). It keeps the grab and the guard goal.',
+        program: workspace(
+          hat('stem_on_start', [
+            ...readyToGrab('ready'),
+            drive('fast', 'forward', 70),
+            whileBlock('to-cube', fartherThan('cube-far', 15), []),
+            drive('slow', 'forward', CRUISE),
+            untilInJaws('to-jaws'),
+            ...gripAndLift('grab'),
+            drive('carry', 'forward', 60),
+            whileBlock('to-drop', fartherThan('wall-far', 45), []),
+            stop('hold'),
+            lift('arm-down', 'DOWN'),
+          ]),
+        ),
+        maxScore: 55,
+      },
+    ],
+  },
+  'rb-grip-deliver': {
+    reference: gripDeliverReference,
+    blind: workspace(hat('stem_on_start', [...readyToGrab('ready'), ...blindParcel(1, 2800), ...blindParcel(2, 1900), ...blindParcel(3, 1900), stop('done')])),
+    notes:
+      'Reference: three times, the follower of lesson 4 (arm down, claw open) until the IR sees the parcel on the tape, grip and lift, a ' +
+      'spin left of 900 ms (91.5° on the placeholder car, not the rover\'s 830 ms), 2200 ms on at 50 %, put down, as far back, and a spin ' +
+      'right until the centre sensor sees the tape again. The parcels land at x 76..79 (warehouse x 62..100), 15 cm south of where they lay, ' +
+      'hence the warehouse\'s y 40..125 for parcels at y 70, 95 and 120; it scores 97 in every variant (the bonus 7: done by 26 s of 90). The ' +
+      'seed (430) moves the start 5.4 cm back and 5.1 cm on along the tape and turns it −4.9° and +3.5°, and moves each parcel up to 5 cm ' +
+      'along the tape, both ways. Blind: the reference\'s moves on timed legs (2800, 1900, 1900 ms) and a timed turn back: it passes ' +
+      'variant 0 (97) and pushes a parcel it reaches early or misses one it reaches late in the others: 40. Placeholder kit: the turn and ' +
+      'the carry are the placeholder car\'s; the warehouse is 38 cm deep, so the carry allows about ±1 s.',
+    exploits: [
+      {
+        name: 'push-north',
+        description:
+          'The arm down and the claw open, the follower of lesson 4 repeated 60 000 times: it shoves the parcels up the tape and never takes ' +
+          'one to the warehouse. Each is pushed, so only the guard goal is met.',
+        program: workspace(
+          hat('stem_on_start', [
+            ...readyToGrab('ready'),
+            repeat('shove', 60000, [ifBlock('follow', followLine('line'))]),
+            stop('stop'),
+            drive('back', 'backward', CRUISE),
+            wait('back-time', 1000),
+            stop('done'),
+          ]),
+        ),
+        maxScore: 15,
+      },
+      {
+        name: 'open-jaw-sweep-lift',
+        description:
+          'D2 review N1: at each parcel the claw only to 10° (nearly open), the turn and the drive into the warehouse, which sweeps the parcel ' +
+          'along (the turn presses it into a finger, which takes it at the arm\'s 0°: a drag on the floor, or it is flung out), there "claw ' +
+          'close" and the arm to 14° (the parcel 1 cm up, in place), down, open, back to the tape. A lift in place is no carry (5 cm while ' +
+          'lifted: minCarryCm), so every parcel is pushed.',
+        program: workspace(
+          hat('stem_on_start', [
+            lift('arm-down', 'DOWN'),
+            claw('claw-open', 'OPEN'),
+            repeat('parcels', 3, [
+              untilInJaws('to-parcel', [ifBlock('follow', followLine('line'))]),
+              stop('at-parcel'),
+              clawAngle('nearly-open', 10),
+              drive('turn', 'spinLeft', CRUISE),
+              wait('turn-time', GRIPPER_TURN_MS),
+              drive('sweep', 'forward', CRUISE),
+              wait('sweep-time', 2200),
+              stop('in-warehouse'),
+              claw('close', 'CLOSE'),
+              wait('close-wait', 300),
+              liftAngle('lift-1cm', 14),
+              wait('lift-wait', 500),
+              lift('lower', 'DOWN'),
+              wait('lower-wait', 300),
+              claw('open', 'OPEN'),
+              wait('open-wait', 300),
+              drive('back', 'backward', CRUISE),
+              wait('back-time', 2200),
+              drive('find', 'spinRight', CRUISE),
+              whileBlock('to-line', not('off-line', lineDark('find-center', 'lineCenter')), []),
+            ]),
+            stop('done'),
+          ]),
+        ),
+        maxScore: 15,
+      },
+    ],
+  },
+  'rb-grip-sort': {
+    reference: gripSortReference,
+    notes:
+      'Reference: catch the cube 19 cm ahead with the IR, lift it, read its colour (the sensor between the jaws sees the held cube 1.7 cm ' +
+      'off), then a spin of 900 ms left for red or right for blue, or none for anything else, 3000 ms at 50 %, put down, back off. The cube ' +
+      'lands at (88, 75) green, (33.9, 128.7) red, (33.8, 21.4) blue: the middle of each zone. Every variant starts from the same place ' +
+      'with the cube at the same place, only its colour changes (green, red, blue: objectColors), so only a program that reads the colour ' +
+      'passes all three; the seed (8) turns the start −2.3° and +2.9°. The cube is 19 cm ahead so that a 3° turn leaves it within 1 cm of ' +
+      'the axis, where the jaws take it without pushing it first (at 32 cm, a 2.9° turn pushed it 15.8 cm and the straight carry left it ' +
+      'out of the green zone). No blind program: the colours are the variants. Placeholder kit: the turn and the carry are the placeholder car\'s.',
+    exploits: [
+      {
+        name: 'always-turn-left',
+        description: 'Catch and lift the cube, then always the red zone\'s left turn, whatever the colour: the green and the blue cube end in the red zone.',
+        program: sortWith([drive('to-red', 'spinLeft', CRUISE), wait('to-red-time', GRIPPER_TURN_MS)]),
+        maxScore: 40,
+      },
+      {
+        name: 'only-check-red',
+        description: 'Left for red and straight on for anything else: the blue cube ends in the green zone.',
+        program: sortWith([ifBlock('if-red', [[colorIs('is-red', 'red'), [drive('to-red', 'spinLeft', CRUISE), wait('to-red-time', GRIPPER_TURN_MS)]]])]),
+        maxScore: 40,
+      },
+    ],
+  },
+  'rb-grip-stack': {
+    reference: gripStackReference,
+    blind: workspace(
+      hat('stem_on_start', [
+        ...readyToGrab('ready'),
+        drive('go', 'forward', CRUISE),
+        wait('go-time', 3700),
+        ...gripAndLift('grab', STACK_LIFT_DEG),
+        drive('carry', 'forward', CRUISE),
+        wait('carry-time', 4700),
+        stop('at-base'),
+        wait('at-base-wait', 300),
+        claw('let-go', 'OPEN'),
+        wait('let-go-wait', 500),
+        drive('back', 'backward', CRUISE),
+        wait('back-time', 1000),
+        stop('done'),
+      ]),
+    ),
+    notes:
+      'Reference: the follower of lesson 4 until the IR sees the red cube on the tape, grip it, the arm to 55° (G0 ruling: at 45° the cube ' +
+      'clips the 4 cm base and shoves it), the follower again to the end of the tape, stop, open: the robot stops at x 144.5 in every variant ' +
+      'with the cube 0.46 cm over the base, which it lands on 0.11..0.19 cm off its middle (allowed 1.5), the base unmoved. 97 in every ' +
+      'variant (the bonus 7). The ultrasonic is no use while carrying (a cube held at 55-70° blocks it): the end of the tape tells where. ' +
+      'The seed (217) moves the start 12.0 cm back and 9.4 cm on along the tape and the cube 3.5 cm on and 3.7 cm back. Blind: forward ' +
+      '3700 ms, the arm to 55°, 4700 ms on: it stacks in variant 0 (97), closes before the cube of variant 1, and in variant 2 pushes the ' +
+      'base with the body (75): 15. Placeholder kit: the 55° and the stop at the end of the tape are the placeholder car\'s geometry.',
+    exploits: [
+      {
+        name: 'place-beside-base',
+        description: 'Grip, the arm to 55°, 3000 ms along the tape, then the arm down and the claw open: the cube is put down on the floor short of the base.',
+        program: workspace(
+          hat('stem_on_start', [...stackGrab(STACK_LIFT_DEG), drive('carry', 'forward', CRUISE), wait('carry-time', 3000), ...putDown('put'), drive('back', 'backward', CRUISE), wait('back-time', 1000), stop('done')]),
+        ),
+        maxScore: 35,
+      },
+      {
+        name: 'hold-over-base',
+        description: 'The reference that never opens the claw: the cube is held over the base to the end (object-still-held).',
+        program: workspace(hat('stem_on_start', [...stackGrab(STACK_LIFT_DEG), ...stackToEnd])),
+        maxScore: 35,
+      },
+      {
+        name: 'arm-too-low',
+        description:
+          'The reference with the cube carried at the arm\'s 45° instead of 55°: its bottom (3.65 cm) is under the base\'s top, so at the end ' +
+          'of the tape it shoves the base on (object-moved) and lands on the floor. It keeps the grab.',
+        program: workspace(
+          hat('stem_on_start', [...stackGrab(45), ...stackToEnd, claw('let-go', 'OPEN'), wait('let-go-wait', 500), drive('back', 'backward', CRUISE), wait('back-time', 1000), stop('done')]),
+        ),
+        maxScore: 20,
       },
     ],
   },

@@ -4,7 +4,7 @@ import { driveMove, driveStop, unoDivide } from '../../program/__fixtures__/uno-
 import { num, wait } from '../../program/__fixtures__/ybc-blocks';
 import { scenarioCatalog } from '../../../samples/robot-scenarios';
 import { robotSolutions, type BlocklyJson, type RobotScoredKey } from '../../../samples/robot-solutions';
-import { robotStarterDocument } from '../../../samples/robot-templates';
+import { robotStarterDocument, robotTemplates } from '../../../samples/robot-templates';
 import { loadScenario, type Scenario, type ScenarioJson } from '../scenario';
 
 // TEST-ONLY (N18 R6.2): robot checks, a scenario and a program each, for the tests of checkRobot and its determinism (Review Focus 2:
@@ -91,7 +91,8 @@ export const dasher = (): ProjectDocument => robotProject([driveMove('forward', 
 /** A pilot scenario's project with `program`: the scenario's starter document, as the lab opens it, holding the program. */
 const pilotProject = (key: RobotScoredKey, program: BlocklyJson) => (): ProjectDocument => ({ ...robotStarterDocument(key), program: { blocks: structuredClone(program) } });
 const pilotScenario = (key: RobotScoredKey) => (): Scenario => scenarioCatalog.get(key)!;
-const pilotKeys = Object.keys(robotSolutions) as RobotScoredKey[];
+/** The pilot course's six (on the rover): N19 D4's gripper lessons are cases of their own, below, so these lists are the ones N18 pinned. */
+const pilotKeys = (Object.keys(robotSolutions) as RobotScoredKey[]).filter((key) => robotTemplates[key].kit === 'ref-uno-rover');
 
 /** Each pilot scenario's reference solution: it passes every goal in every variant. */
 export const pilotReferences: readonly CheckCase[] = pilotKeys.map((key) => ({
@@ -104,6 +105,33 @@ export const pilotReferences: readonly CheckCase[] = pilotKeys.map((key) => ({
 
 /** Each pilot scenario's blind program (motors and waits, timed for variant 0), which fails a variant, and its exploits, each with its most. */
 export const pilotChallenges: readonly CheckCase[] = pilotKeys.flatMap((key) => {
+  const { blind, exploits = [] } = robotSolutions[key];
+  return [
+    ...(blind === undefined ? [] : [{ name: `${key}: the blind program`, scenario: pilotScenario(key), project: pilotProject(key, blind), drives: 'speeds' as const, expected: { passed: false } }]),
+    ...exploits.map((exploit) => ({
+      name: `${key}: the exploit ${exploit.name}`,
+      scenario: pilotScenario(key),
+      project: pilotProject(key, exploit.program),
+      drives: 'speeds' as const,
+      expected: { passed: false, maxScore: exploit.maxScore },
+    })),
+  ];
+});
+
+/** N19 D4: the gripper car's lessons 8-11 (ref-uno-gripper@0), in the order of the lessons. */
+export const gripperLessonKeys: readonly RobotScoredKey[] = (Object.keys(robotSolutions) as RobotScoredKey[]).filter((key) => robotTemplates[key].kit === 'ref-uno-gripper');
+
+/** N19 D4: each gripper lesson's reference solution, which passes every goal in every variant, driven headless, at 1× and at 4×. */
+export const gripperReferences: readonly CheckCase[] = gripperLessonKeys.map((key) => ({
+  name: `${key}: the reference solution`,
+  scenario: pilotScenario(key),
+  project: pilotProject(key, robotSolutions[key].reference),
+  drives: 'speeds',
+  expected: { passed: true },
+}));
+
+/** N19 D4: each gripper lesson's blind program (lessons 8, 9, 11) and the exploits of plan §6, each with its ceiling. */
+export const gripperChallenges: readonly CheckCase[] = gripperLessonKeys.flatMap((key) => {
   const { blind, exploits = [] } = robotSolutions[key];
   return [
     ...(blind === undefined ? [] : [{ name: `${key}: the blind program`, scenario: pilotScenario(key), project: pilotProject(key, blind), drives: 'speeds' as const, expected: { passed: false } }]),

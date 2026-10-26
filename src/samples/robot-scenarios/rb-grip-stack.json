@@ -1,0 +1,89 @@
+{
+  "key": "rb-grip-stack",
+  "version": 1,
+  "title": { "vi": "Xếp chồng", "en": "Stack the cube" },
+  "profile": "uno-basic",
+  "kit": "ref-uno-gripper",
+  "arena": {
+    "ground": { "sizeCm": [200, 80], "color": "#f2f2f2" },
+    "paint": {
+      "lines": [
+        { "pointsCm": [[14, 40], [150, 40]], "widthCm": 2.5 }
+      ],
+      "zones": [
+        { "id": "start", "kind": "start", "polygonCm": [[16, 28], [54, 28], [54, 52], [16, 52]], "color": "#cfe2f3" },
+        { "id": "stack", "kind": "target", "name": "stack", "polygonCm": [[148, 28], [168, 28], [168, 52], [148, 52]], "color": "#d9ead3" }
+      ]
+    },
+    "walls": [
+      { "fromCm": [0, 1], "toCm": [200, 1] },
+      { "fromCm": [0, 79], "toCm": [200, 79] },
+      { "fromCm": [1, 0], "toCm": [1, 80] },
+      { "fromCm": [199, 0], "toCm": [199, 80] }
+    ],
+    "objects": [
+      { "shape": "box", "id": "cube", "centerCm": [95, 40], "sizeCm": [4, 4, 4], "massG": 15, "noun": "cube", "color": "#d32f2f" },
+      { "shape": "box", "id": "base", "centerCm": [158, 40], "sizeCm": [6, 6, 4], "massG": 40, "noun": "base", "color": "#fbc02d" }
+    ]
+  },
+  "start": { "xCm": 35, "yCm": 40, "yawDeg": 0 },
+  "variants": { "count": 3, "seed": 217, "startJitterCm": 0, "startJitterAlongCm": 12, "yawJitterDeg": 0, "objectJitter": [{ "objects": ["cube"], "dxCm": 5, "dyCm": 0 }] },
+  "timeLimitS": 45,
+  "goals": [
+    {
+      "id": "grab-cube",
+      "kind": "object-held",
+      "label": { "vi": "Gắp và nhấc khối đỏ lên", "en": "Pick up the red cube" },
+      "points": 20,
+      "object": "cube",
+      "minLiftCm": 3
+    },
+    {
+      "id": "stack-cube",
+      "kind": "object-on-object",
+      "label": { "vi": "Đặt khối đỏ đứng thẳng trên bệ", "en": "Stand the red cube on the base" },
+      "points": 55,
+      "top": "cube",
+      "bottom": "base",
+      "maxOffsetCm": 1.5,
+      "maxTiltDeg": 10,
+      "restS": 0.5
+    },
+    {
+      "id": "base-still",
+      "kind": "object-unmoved",
+      "label": { "vi": "Không xô lệch bệ", "en": "Do not move the base" },
+      "points": 15,
+      "object": "base",
+      "maxMoveCm": 2
+    }
+  ],
+  "scoring": { "timeBonusMax": 10 },
+  "starter": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        { "type": "stem_on_start", "id": "on-start", "x": 40, "y": 40 },
+        {
+          "type": "uno_drive_move",
+          "id": "prepared-drive",
+          "fields": { "DIRECTION": "forward" },
+          "inputs": {
+            "SPEED": {
+              "shadow": {
+                "type": "math_number",
+                "id": "prepared-drive-speed",
+                "fields": { "NUM": 50 }
+              }
+            }
+          },
+          "x": 40,
+          "y": 160,
+          "disabledReasons": ["ORPHANED_BLOCK"]
+        }
+      ]
+    }
+  },
+  "toolbox": ["stem_on_start", "stem_forever", "math_number", "ybc_wait_ms", "uno_drive_move", "uno_drive_stop", "uno_motor_set", "controls_repeat_ext", "ybc_while", "controls_if", "logic_compare", "logic_operation", "logic_negate", "logic_boolean", "uno_line_dark", "uno_ir_detect", "uno_gripper_claw", "uno_gripper_claw_angle", "uno_gripper_lift", "uno_gripper_lift_angle", "text_print", "text"],
+  "endOnContact": ["wall"]
+}

@@ -1,0 +1,95 @@
+{
+  "key": "rb-grip-deliver",
+  "version": 1,
+  "title": { "vi": "Giao hàng theo vạch", "en": "Deliver along the line" },
+  "profile": "uno-basic",
+  "kit": "ref-uno-gripper",
+  "arena": {
+    "ground": { "sizeCm": [180, 150], "color": "#f2f2f2" },
+    "paint": {
+      "lines": [
+        { "pointsCm": [[120, 10], [120, 135]], "widthCm": 2.5 }
+      ],
+      "zones": [
+        { "id": "start", "kind": "start", "polygonCm": [[105, 12], [135, 12], [135, 42], [105, 42]], "color": "#cfe2f3" },
+        { "id": "kho", "kind": "target", "name": "warehouse", "polygonCm": [[62, 40], [100, 40], [100, 125], [62, 125]], "color": "#d9ead3" }
+      ]
+    },
+    "walls": [
+      { "fromCm": [0, 1], "toCm": [180, 1] },
+      { "fromCm": [0, 149], "toCm": [180, 149] },
+      { "fromCm": [1, 0], "toCm": [1, 150] },
+      { "fromCm": [179, 0], "toCm": [179, 150] },
+      { "id": "kho-shelf", "fromCm": [58, 62.5], "toCm": [58, 102.5], "thicknessCm": 4, "heightCm": 12, "tags": ["kho-wall"] }
+    ],
+    "objects": [
+      { "shape": "box", "id": "parcel-1", "centerCm": [120, 70], "sizeCm": [4, 4, 4], "massG": 15, "noun": "parcel" },
+      { "shape": "box", "id": "parcel-2", "centerCm": [120, 95], "sizeCm": [4, 4, 4], "massG": 15, "noun": "parcel" },
+      { "shape": "box", "id": "parcel-3", "centerCm": [120, 120], "sizeCm": [4, 4, 4], "massG": 15, "noun": "parcel" }
+    ]
+  },
+  "start": { "xCm": 120, "yCm": 26, "yawDeg": 90 },
+  "variants": { "count": 3, "seed": 430, "startJitterCm": 0, "startJitterAlongCm": 6, "yawJitterDeg": 5, "objectJitter": [{ "objects": ["parcel-1"], "dxCm": 0, "dyCm": 5 }, { "objects": ["parcel-2"], "dxCm": 0, "dyCm": 5 }, { "objects": ["parcel-3"], "dxCm": 0, "dyCm": 5 }] },
+  "timeLimitS": 90,
+  "goals": [
+    {
+      "id": "deliver-1",
+      "kind": "object-placed",
+      "label": { "vi": "Đưa kiện hàng 1 vào kho", "en": "Bring parcel 1 to the warehouse" },
+      "points": 25,
+      "object": "parcel-1",
+      "zone": "kho"
+    },
+    {
+      "id": "deliver-2",
+      "kind": "object-placed",
+      "label": { "vi": "Đưa kiện hàng 2 vào kho", "en": "Bring parcel 2 to the warehouse" },
+      "points": 25,
+      "object": "parcel-2",
+      "zone": "kho"
+    },
+    {
+      "id": "deliver-3",
+      "kind": "object-placed",
+      "label": { "vi": "Đưa kiện hàng 3 vào kho", "en": "Bring parcel 3 to the warehouse" },
+      "points": 25,
+      "object": "parcel-3",
+      "zone": "kho"
+    },
+    {
+      "id": "no-crash",
+      "kind": "avoid-contact",
+      "label": { "vi": "Không chạm kệ kho hay tường", "en": "Do not touch the shelf or a wall" },
+      "points": 15,
+      "tag": "wall"
+    }
+  ],
+  "scoring": { "timeBonusMax": 10 },
+  "starter": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        { "type": "stem_on_start", "id": "on-start", "x": 40, "y": 40 },
+        {
+          "type": "uno_drive_move",
+          "id": "prepared-drive",
+          "fields": { "DIRECTION": "forward" },
+          "inputs": {
+            "SPEED": {
+              "shadow": {
+                "type": "math_number",
+                "id": "prepared-drive-speed",
+                "fields": { "NUM": 50 }
+              }
+            }
+          },
+          "x": 40,
+          "y": 160,
+          "disabledReasons": ["ORPHANED_BLOCK"]
+        }
+      ]
+    }
+  },
+  "toolbox": ["stem_on_start", "stem_forever", "math_number", "ybc_wait_ms", "uno_drive_move", "uno_drive_stop", "uno_motor_set", "controls_repeat_ext", "ybc_while", "controls_if", "logic_compare", "logic_operation", "logic_negate", "logic_boolean", "uno_line_dark", "uno_ir_detect", "uno_gripper_claw", "uno_gripper_claw_angle", "uno_gripper_lift", "uno_gripper_lift_angle", "text_print", "text"],
+  "endOnContact": ["wall"]
+}

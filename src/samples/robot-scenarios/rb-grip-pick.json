@@ -1,0 +1,82 @@
+{
+  "key": "rb-grip-pick",
+  "version": 1,
+  "title": { "vi": "Tìm và gắp", "en": "Find and pick up" },
+  "profile": "uno-basic",
+  "kit": "ref-uno-gripper",
+  "arena": {
+    "ground": { "sizeCm": [170, 90], "color": "#f2f2f2" },
+    "paint": {
+      "zones": [
+        { "id": "start", "kind": "start", "polygonCm": [[12, 30], [48, 30], [48, 60], [12, 60]], "color": "#cfe2f3" },
+        { "id": "pickup", "kind": "area", "name": "pickup", "polygonCm": [[70, 25], [100, 25], [100, 65], [70, 65]], "color": "#fff2cc" },
+        { "id": "drop", "kind": "target", "name": "drop", "polygonCm": [[108, 25], [148, 25], [148, 65], [108, 65]], "color": "#d9ead3" }
+      ]
+    },
+    "walls": [
+      { "fromCm": [0, 1], "toCm": [170, 1] },
+      { "fromCm": [0, 89], "toCm": [170, 89] },
+      { "fromCm": [1, 0], "toCm": [1, 90] },
+      { "fromCm": [169, 0], "toCm": [169, 90] }
+    ],
+    "objects": [
+      { "shape": "box", "id": "cube", "centerCm": [85, 45], "sizeCm": [4, 4, 4], "massG": 15, "noun": "cube", "color": "#fbc02d" }
+    ]
+  },
+  "start": { "xCm": 30, "yCm": 45, "yawDeg": 0 },
+  "variants": { "count": 3, "seed": 23, "startJitterCm": 1, "yawJitterDeg": 2, "objectJitter": [{ "objects": ["cube"], "dxCm": 10, "dyCm": 0 }] },
+  "timeLimitS": 30,
+  "goals": [
+    {
+      "id": "grab-cube",
+      "kind": "object-held",
+      "label": { "vi": "Gắp và nhấc khối lên", "en": "Pick up the cube" },
+      "points": 40,
+      "object": "cube",
+      "minLiftCm": 2
+    },
+    {
+      "id": "place-cube",
+      "kind": "object-placed",
+      "label": { "vi": "Đặt khối vào vùng thả", "en": "Put the cube in the drop zone" },
+      "points": 45,
+      "object": "cube",
+      "zone": "drop"
+    },
+    {
+      "id": "no-crash",
+      "kind": "avoid-contact",
+      "label": { "vi": "Không chạm tường", "en": "Do not touch a wall" },
+      "points": 15,
+      "tag": "wall"
+    }
+  ],
+  "scoring": {},
+  "starter": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        { "type": "stem_on_start", "id": "on-start", "x": 40, "y": 40 },
+        {
+          "type": "uno_drive_move",
+          "id": "prepared-drive",
+          "fields": { "DIRECTION": "forward" },
+          "inputs": {
+            "SPEED": {
+              "shadow": {
+                "type": "math_number",
+                "id": "prepared-drive-speed",
+                "fields": { "NUM": 50 }
+              }
+            }
+          },
+          "x": 40,
+          "y": 160,
+          "disabledReasons": ["ORPHANED_BLOCK"]
+        }
+      ]
+    }
+  },
+  "toolbox": ["stem_on_start", "stem_forever", "math_number", "ybc_wait_ms", "uno_drive_move", "uno_drive_stop", "uno_motor_set", "controls_repeat_ext", "ybc_while", "controls_if", "logic_compare", "logic_operation", "logic_negate", "logic_boolean", "uno_ultrasonic_cm", "uno_ir_detect", "uno_gripper_claw", "uno_gripper_claw_angle", "uno_gripper_lift", "uno_gripper_lift_angle", "text_print", "text"],
+  "endOnContact": ["wall"]
+}

@@ -351,6 +351,11 @@ export const en = {
   'robot.scenario.rb-servo-gate': 'Raise the flag at the gate',
   'robot.scenario.rb-mini-mission': 'Mini mission',
   'robot.scenario.rb-sandbox': 'Free sandbox',
+  // N19 D5: the gripper car's lessons 8-11 (src/samples/robot-scenarios/rb-grip-*.json).
+  'robot.scenario.rb-grip-pick': 'Find and pick up',
+  'robot.scenario.rb-grip-deliver': 'Deliver along the line',
+  'robot.scenario.rb-grip-sort': 'Sort by colour',
+  'robot.scenario.rb-grip-stack': 'Stack the cube',
   // N18 R6.1: why a robot goal is not met (the reasonKey of a goal result, src/core/scenario/goals/reasons.ts).
   'robot.goal.reason.out-of-arena': 'The robot left the arena.',
   'robot.goal.reason.contact': 'The robot touched something it had to avoid.',
@@ -849,6 +854,11 @@ export const vi: Readonly<Record<MessageKey, string>> = {
   'robot.scenario.rb-servo-gate': 'Giơ cờ ở cổng',
   'robot.scenario.rb-mini-mission': 'Nhiệm vụ tổng hợp',
   'robot.scenario.rb-sandbox': 'Sân tập tự do',
+  // N19 D5: các bài 8-11 của xe tay gắp (src/samples/robot-scenarios/rb-grip-*.json).
+  'robot.scenario.rb-grip-pick': 'Tìm và gắp',
+  'robot.scenario.rb-grip-deliver': 'Giao hàng theo vạch',
+  'robot.scenario.rb-grip-sort': 'Phân loại theo màu',
+  'robot.scenario.rb-grip-stack': 'Xếp chồng',
   // N18 R6.1: lý do một mục tiêu của robot chưa đạt (reasonKey trong kết quả mục tiêu, src/core/scenario/goals/reasons.ts).
   'robot.goal.reason.out-of-arena': 'Robot đã rời khỏi sa bàn.',
   'robot.goal.reason.contact': 'Robot đã chạm vào vật cần tránh.',

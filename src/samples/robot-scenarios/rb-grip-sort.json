@@ -1,0 +1,83 @@
+{
+  "key": "rb-grip-sort",
+  "version": 1,
+  "title": { "vi": "Phân loại theo màu", "en": "Sort by colour" },
+  "profile": "uno-basic",
+  "kit": "ref-uno-gripper",
+  "arena": {
+    "ground": { "sizeCm": [170, 150], "color": "#f2f2f2" },
+    "paint": {
+      "zones": [
+        { "id": "start", "kind": "start", "polygonCm": [[12, 60], [44, 60], [44, 90], [12, 90]], "color": "#e0e0e0" },
+        { "id": "red-zone", "kind": "target", "name": "red", "polygonCm": [[18, 112], [48, 112], [48, 142], [18, 142]], "color": "#fce4e4" },
+        { "id": "green-zone", "kind": "target", "name": "green", "polygonCm": [[73, 60], [103, 60], [103, 90], [73, 90]], "color": "#d9ead3" },
+        { "id": "blue-zone", "kind": "target", "name": "blue", "polygonCm": [[18, 8], [48, 8], [48, 38], [18, 38]], "color": "#cfe2f3" }
+      ]
+    },
+    "walls": [
+      { "fromCm": [0, 1], "toCm": [170, 1] },
+      { "fromCm": [0, 149], "toCm": [170, 149] },
+      { "fromCm": [1, 0], "toCm": [1, 150] },
+      { "fromCm": [169, 0], "toCm": [169, 150] }
+    ],
+    "objects": [
+      { "shape": "box", "id": "cube", "centerCm": [49, 75], "sizeCm": [4, 4, 4], "massG": 15, "noun": "cube", "color": "#388e3c" }
+    ]
+  },
+  "start": { "xCm": 30, "yCm": 75, "yawDeg": 0 },
+  "variants": { "count": 3, "seed": 8, "startJitterCm": 0, "yawJitterDeg": 3, "objectColors": { "cube": ["#388e3c", "#d32f2f", "#1976d2"] } },
+  "timeLimitS": 30,
+  "goals": [
+    {
+      "id": "grab-cube",
+      "kind": "object-held",
+      "label": { "vi": "Gắp và nhấc khối lên", "en": "Pick up the cube" },
+      "points": 25,
+      "object": "cube",
+      "minLiftCm": 2
+    },
+    {
+      "id": "sort-cube",
+      "kind": "object-placed",
+      "label": { "vi": "Đặt khối vào vùng cùng màu", "en": "Put the cube in the zone of its colour" },
+      "points": 60,
+      "object": "cube",
+      "zoneByColor": { "#d32f2f": "red-zone", "#388e3c": "green-zone", "#1976d2": "blue-zone" }
+    },
+    {
+      "id": "no-crash",
+      "kind": "avoid-contact",
+      "label": { "vi": "Không chạm tường", "en": "Do not touch a wall" },
+      "points": 15,
+      "tag": "wall"
+    }
+  ],
+  "scoring": {},
+  "starter": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        { "type": "stem_on_start", "id": "on-start", "x": 40, "y": 40 },
+        {
+          "type": "uno_drive_move",
+          "id": "prepared-drive",
+          "fields": { "DIRECTION": "forward" },
+          "inputs": {
+            "SPEED": {
+              "shadow": {
+                "type": "math_number",
+                "id": "prepared-drive-speed",
+                "fields": { "NUM": 50 }
+              }
+            }
+          },
+          "x": 40,
+          "y": 160,
+          "disabledReasons": ["ORPHANED_BLOCK"]
+        }
+      ]
+    }
+  },
+  "toolbox": ["stem_on_start", "stem_forever", "math_number", "ybc_wait_ms", "uno_drive_move", "uno_drive_stop", "uno_motor_set", "controls_repeat_ext", "ybc_while", "controls_if", "logic_compare", "logic_operation", "logic_negate", "logic_boolean", "uno_ir_detect", "uno_color_is", "uno_gripper_claw", "uno_gripper_claw_angle", "uno_gripper_lift", "uno_gripper_lift_angle", "text_print", "text"],
+  "endOnContact": ["wall"]
+}

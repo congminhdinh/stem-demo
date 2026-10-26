@@ -16,7 +16,7 @@ import { initPhysics } from '../src/core/world/rapier';
 import { hashSnapshot } from '../src/core/world/snapshot';
 import { scenarioCatalog } from '../src/samples/robot-scenarios';
 import { robotSolutions, type RobotScoredKey } from '../src/samples/robot-solutions';
-import { robotStarterDocument } from '../src/samples/robot-templates';
+import { robotStarterDocument, robotTemplates } from '../src/samples/robot-templates';
 import { compileFixture, parityFixtures, rehearsalParityFixtures, sketchOf, type ParityFixture } from './parity/fixtures';
 import { allowedDifferences } from './parity/allowed-differences';
 import { runBoard } from './parity/board-run';
@@ -31,7 +31,9 @@ import { runParity } from './parity/harness';
 const registry = createDeviceRegistry(localDeviceDefinitions);
 const packs = createBlockPackCatalog(registry);
 const reference = productionKits.get(referenceKitRef) as Kit;
-const pilots = Object.keys(robotSolutions) as RobotScoredKey[];
+/** The pilot course's scored scenarios, the rover's six (N19 D4: the gripper car's lessons run on another kit, which this rover does not stand in for). */
+type PilotKey = Exclude<RobotScoredKey, `rb-grip-${string}`>;
+const pilots = (Object.keys(robotSolutions) as RobotScoredKey[]).filter((key): key is PilotKey => robotTemplates[key].kit === referenceKitRef.id);
 
 describe('rehearsal-rover@0: another vendor’s kit as data only', () => {
   it('is registered as a production kit is (createKitCatalog), apart from the product kits, and a document names it', () => {
@@ -91,7 +93,7 @@ describe('rehearsal-rover@0: another vendor’s kit as data only', () => {
 });
 
 /** A pilot's reference solution in its starter document on `kitRef`. */
-const pilotProject = (key: RobotScoredKey, kitRef: KitRef): ProjectDocument => ({
+const pilotProject = (key: PilotKey, kitRef: KitRef): ProjectDocument => ({
   ...robotStarterDocument(key),
   kit: { ...kitRef },
   program: { blocks: structuredClone(robotSolutions[key].reference) },
@@ -101,7 +103,7 @@ describe('the six pilot reference solutions through the real check, headless, wi
   beforeAll(() => initPhysics(), 30_000);
 
   /** The check of the reference on `kit` (the scenario run on that kit, the document naming it), and each variant's end and last world. */
-  async function outcomeOn(key: RobotScoredKey, kit: Kit) {
+  async function outcomeOn(key: PilotKey, kit: Kit) {
     const ended: unknown[] = [];
     // The scenario schema ties each robot key to the kit of that key (`robotTemplates[key].kit`, robot-keys.ts), so a scenario JSON cannot
     // name the rehearsal kit: the loaded scenario takes it here, as a vendor kit would take the rover's place (docs/kit-swap-rehearsal.md).
@@ -132,7 +134,7 @@ describe('the six pilot reference solutions through the real check, headless, wi
 // --- C1: the sketches -------------------------------------------------------------------------------------------------------------
 
 /** The sketch of a pilot's reference solution on `kitRef`, as tests/robot-scenarios.test.ts writes the reference kit's. */
-function pilotSketch(key: RobotScoredKey, kitRef: KitRef): string {
+function pilotSketch(key: PilotKey, kitRef: KitRef): string {
   const compiled = compileUnoProject(pilotProject(key, kitRef), { registry, profiles: productionProfiles, packs, kits: rehearsalKits });
   if (!compiled.ok) throw new Error(JSON.stringify(compiled.diagnostics));
   const sketch = generateUnoSketch(compiled.ir, { kit: compiled.kit, board: compiled.board, scenario: { key, version: scenarioCatalog.get(key)!.version } });
@@ -163,7 +165,7 @@ const defines = {
 } as const;
 
 /** What changes in each pilot's sketch: the modules whose pins it defines, and the line reads whose dark level flips (HIGH → LOW). */
-const changes: Readonly<Record<RobotScoredKey, { modules: readonly (keyof typeof defines)[]; lineReads: readonly string[] }>> = {
+const changes: Readonly<Record<PilotKey, { modules: readonly (keyof typeof defines)[]; lineReads: readonly string[] }>> = {
   'rb-drive-to-zone': { modules: ['motors'], lineReads: [] },
   'rb-square-route': { modules: ['motors'], lineReads: [] },
   'rb-stop-at-wall': { modules: ['motors', 'ultrasonic'], lineReads: [] },

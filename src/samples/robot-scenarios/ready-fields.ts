@@ -1,5 +1,9 @@
 import { robotSandboxKey } from '../robot-keys';
 import driveToZone from './rb-drive-to-zone.json' with { type: 'json' };
+import gripDeliver from './rb-grip-deliver.json' with { type: 'json' };
+import gripPick from './rb-grip-pick.json' with { type: 'json' };
+import gripSort from './rb-grip-sort.json' with { type: 'json' };
+import gripStack from './rb-grip-stack.json' with { type: 'json' };
 import lineFollow from './rb-line-follow.json' with { type: 'json' };
 import miniMission from './rb-mini-mission.json' with { type: 'json' };
 import sandbox from './rb-sandbox.json' with { type: 'json' };
@@ -14,7 +18,7 @@ import stopAtWall from './rb-stop-at-wall.json' with { type: 'json' };
 // lab, and the catalog's scenario schema pulls in the arena's (src/core/world), which only the robot lab may load (e2e/robot-bundle.spec.ts).
 // And Playwright imports robot-templates.ts into plain Node (e2e/robot-lab.spec.ts), where `import.meta.glob` (the catalog's) does not exist
 // and a JSON module needs the `type: 'json'` attribute and has a default export only. So this leaf imports each file that way, by name (the
-// seven keys never change), and reads three fields of it as the catalog does (`scenarioMaxScore`: the goals' points plus the time bonus,
+// keys never change; N19 D5 added the four gripper lessons' files), and reads three fields of it as the catalog does (`scenarioMaxScore`: the goals' points plus the time bonus,
 // none for the sandbox); ready-fields.test.ts holds the two to the same numbers for every key. The files' JSON (about 13 kB minified)
 // rides in the main bundle; the schema and the world do not.
 
@@ -52,6 +56,10 @@ const goalsByFile = {
   './rb-line-follow.json': lineFollow.goals,
   './rb-servo-gate.json': servoGate.goals,
   './rb-mini-mission.json': miniMission.goals,
+  './rb-grip-pick.json': gripPick.goals,
+  './rb-grip-deliver.json': gripDeliver.goals,
+  './rb-grip-sort.json': gripSort.goals,
+  './rb-grip-stack.json': gripStack.goals,
   './rb-sandbox.json': sandbox.goals,
 } as const;
 
@@ -63,6 +71,10 @@ const table = readyFieldsOf({
     './rb-line-follow.json': lineFollow.version,
     './rb-servo-gate.json': servoGate.version,
     './rb-mini-mission.json': miniMission.version,
+    './rb-grip-pick.json': gripPick.version,
+    './rb-grip-deliver.json': gripDeliver.version,
+    './rb-grip-sort.json': gripSort.version,
+    './rb-grip-stack.json': gripStack.version,
     './rb-sandbox.json': sandbox.version,
   },
   goals: goalsByFile,
@@ -73,6 +85,10 @@ const table = readyFieldsOf({
     './rb-line-follow.json': lineFollow.scoring,
     './rb-servo-gate.json': servoGate.scoring,
     './rb-mini-mission.json': miniMission.scoring,
+    './rb-grip-pick.json': gripPick.scoring,
+    './rb-grip-deliver.json': gripDeliver.scoring,
+    './rb-grip-sort.json': gripSort.scoring,
+    './rb-grip-stack.json': gripStack.scoring,
     './rb-sandbox.json': sandbox.scoring,
   },
 });
