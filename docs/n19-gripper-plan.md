@@ -373,6 +373,52 @@ Toàn bộ §5 của plan N18 vẫn áp dụng: B1, Rapier chỉ ở `src/core/w
   - Đo được: khối đang giữ ở tay 90° thì `held` true, `zCm` cao hơn lúc nằm > 6,5 cm, `tiltDeg` < 0,5, `restingOn` rỗng. Khối được chở ở tay 55° rồi thả lên bệ 6×6×4 thì `restingOn` = ['base'], z 6 ± 0,1.
 - **Chi phí** (Apple M4 Pro, Node 24.22.1, load 11–15, `world.gripper.cost.test.ts` chạy xen kẽ BASE 6884822 / HEAD): median 0,153–0,162 → 0,164–0,178 ms/tick, tức khoảng +0,012 ms cho 2 tia, `restingOn` và goal frame mỗi tick.
 
+### 4.12 Ghi lại khi làm B5 + B6 (thắng §4.4, §4.6 và §7 B5/B6 khi mâu thuẫn)
+
+Số đo và lệnh tái lập: `spikes/n19-b56/results.md`. Test: `world/robot/gripper.stability.test.ts`, `sensors/ultrasonic.claw-servo.test.ts`, `world/robot/footprint.test.ts`, `tests/robot-determinism.*`.
+
+- **Vỏ servo kẹp là collider** (ruling E67 I4, visual = collider). Hộp `clawServo*` của kit gắn vào body giá kẹp.
+  - Không có khối lượng: 22 g của giá kẹp đã gồm servo.
+  - Chỉ `setDensity(0)` thì chưa đủ. Rapier cộng mass properties của mọi collider vào body, nên vẫn dựng lại ma trận quán tính rồi chéo hoá lại. Đo được: trục chính của giá kẹp bị hoán vị, các bit cuối lệch, và góc càng khi giữ khối lệch 26,473° → 26,626°.
+  - Vì vậy collider mang mass properties **đúng bằng 0** sau khi dời theo offset của nó (khối lượng 0, quán tính 0, tâm khối ở gốc giá kẹp). Rapier bỏ qua phần cộng đó, nên mass properties của giá kẹp trùng từng bit với lúc chưa có vỏ.
+  - Tạo sau hai ngón, nên mọi collider khác giữ nguyên handle.
+  - IR và cảm biến màu bỏ qua mọi collider của giá kẹp. Vỏ servo nằm trên tia của chúng (w từ 0,4; tia ở w 0).
+  - Kết quả: mọi số đã pin của B1–B4 giữ nguyên. Chỉ bốn số đếm collider của test gripper tăng đúng 1 (xem báo cáo B5/B6).
+- **Siêu âm bị chắn ở góc tay nào (cho D4).** Tường cách 60 cm, mọi góc kẹp:
+  - lift 0–7°: nghe tường;
+  - **8–40°: nghe vỏ servo**, đọc 2 cm (mặt sau vỏ cách cảm biến 0,5–1,7 cm, gần hơn 2 cm);
+  - **41–52°: nghe giá kẹp**, 2 cm;
+  - 53–90°: nghe tường.
+  - Cả nón 5 tia sạch bộ gắp ở 0–3° và 56–90°. Ở 4–7° tia thấp nhất chạm nóc vỏ servo ở góc tới > 60°, không có tiếng vọng.
+  - **Khi giữ khối 4 cm, chính khối chắn siêu âm ở lift 55–70°** (đọc 3,35–3,74 cm). Sạch ở 0° và ở 80–90°.
+  - Vì vậy lời giải mẫu đọc khoảng cách ở tay 0°, hoặc ở 80–90° khi đang giữ. Bài 11 chở ở 55° thì không dùng được siêu âm lúc chở: đi theo vạch hoặc theo thời gian, như §6 đã viết.
+- **Ổn định:** các test có giới hạn thay cho quy tắc "không nhô ra ngoài thân" (ADR 0001 §9 addendum).
+  - Phanh từ tốc độ tối đa khi giữ 50 g: |pitch| ≤ 0,056°, caster luôn chịu tải (≥ 1,667 N).
+  - **Càng đâm tường rồi thả trôi khi chạm: < 8° chỉ đúng ở tốc độ bài học** (duty ≤ 160, mọi tay/tải/kiểu kẹp, lớn nhất 7,71°) **và khi khối chạm trước** (trường hợp của spike: 0,17° / 2,31°).
+  - Từ 0,33 m/s, đầu ngón (ma sát 0, trượt lên tường) hoặc càng rỗng chạm trước ở tay 45–90° làm xe ngóc 8,35–17,16°. Xe vẫn hữu hạn và ổn định trong ≤ 0,39 s.
+  - Vậy luật `endOnContact` cho tường trên đường càng (ruling G0 wall) là cần thiết. Khi lái tay hoặc chạy bài không có luật đó, học sinh thấy xe ngóc.
+  - Motor vẫn đẩy (duty 255): 15,8–18,8°, hữu hạn. Thả trôi thì xe **đứng tựa tường ở 11–16°**, vì ma sát hộp số giữ bánh (như tay servo ở ADR 0001 §9). Lùi ra thì xe về đứng trên bánh và caster (≤ 0,08°).
+  - Nâng/hạ tay hết tốc: caster hở ≤ 3,336 mm trong ≤ 11 tick (0,092 s), khi hạ 90 → 0 lúc giữ 50 g.
+  - Ruling G0 caster ("tay 90° đâm tường ≤ 3 mm; tay ≤ 45° thì caster chịu tải") chỉ đúng khi khối chạm trước. Đầu ngón chạm trước thì caster hở 5–24 mm.
+- **Khởi động** (mục Open của B1/B2): giữ 50 g ở tay 0°, năm sa bàn, trong 0,5 s:
+  - duty 102 (40 %) đi 1,37 cm, 128 (50 %) đi 4,43 cm, 160 đi 8,20 cm;
+  - ngưỡng khoảng duty 95 (90: 0,009 cm);
+  - không cần chỉnh placeholder.
+- **Footprint** (`footprint.ts`, D-G8): quét tay ở mọi độ nâng 0..90 (bước 1°) và mọi β của ngón (bước 1°).
+  - Mỗi mẫu là các mảnh của `gripper.ts`: hai tấm boom, thanh ngang, giá kẹp, vỏ servo, hai ngón.
+  - Mỗi mẫu được nới để phủ các góc ở giữa hai mẫu (cung đầu boom 2·5·sin ¼° = 0,44 mm; ngón như `armSample`; +0,1 mm), và có đáy riêng theo góc nâng đó.
+  - Tầm với: collider với xa nhất 15,24 cm, ở tay 40° càng mở; footprint 15,30 cm; kit 16 cm.
+  - Test đối chiếu với chính collider của world: ở các góc nằm giữa hai mẫu, mọi góc của mọi collider bộ gắp đều nằm trong một mẫu có đáy không cao hơn nó (2 800 điểm).
+  - **Quyết định cần controller xem:** tường, hộp và trụ gặp toàn bộ vùng quét, như tay servo. **Vật (`objects`) chỉ gặp tay gắp ở tư thế setup()** (tay 90°, càng mở), là tư thế world dựng.
+    - Lý do: vật là thứ để gắp. Tay servo của rover thì thư viện Servo tự quay tới 90° khi chương trình bắt đầu, còn tay gắp chỉ chuyển động khi chương trình hoặc học sinh ra lệnh.
+    - Nhờ vậy xe có thể xuất phát với khối nằm giữa hai ngàm mở, như sandbox teleop của E3 (`robot-run-session.teleop-gripper.test.ts`, `e2e/robot-lab-gripper-ui.entry.ts`). Nếu quét toàn bộ cả với vật thì phải viết lại test đó và 5 e2e.
+  - Chi phí: tính một lần mỗi kit 13,9 ms. Kiểm chỗ đứng trống 0,005 ms. Kiểm một thứ nằm trong vùng quét 0,755 ms.
+- **Golden (B6):** thêm 3 fixture world-level vào sau 3 fixture của rover trong `determinismFixtures`: `gripper-pick-place`, `gripper-stack` và `gripper-sensors`. Fixture thứ ba có nhiễu siêu âm ±1 cm theo seed.
+  - Hash giống nhau trên Node (bản split và `-compat`, 2 process) và trên Chromium 153, Firefox 155, WebKit 26.6.
+  - `engineVersion` vẫn 1. Hash của rover không đổi.
+  - Danh sách tên mà test giữ là `determinismFixtures` (đọc từ file fixture, không có list chữ ở `robot-determinism.test.ts:73`). Một test mới pin cả 6 tên.
+- **M7 (B2 review 3):** test kẹp ngang ghi đúng trạng thái dừng. Khối 60 g lệch tâm giữ một ngón lún 2,11–2,99 mm khi càng còn được lệnh đóng. Test assert dải đó, ngoài đỉnh 3,82 mm.
+
 ## 5. Review Focus
 
 1. **Vật đang giữ đâm tường hoặc vật khác, hoặc bị ép xuống sàn.** Tuột đúng ngưỡng, va chạm tính cho xe, không có NaN, xe không lật. *Test (B3):* `held cube hitting a wall at 0.4 m/s breaks the grasp and counts as robot contact`; `pressing a held cube on the floor at lift stall keeps the grasp`.

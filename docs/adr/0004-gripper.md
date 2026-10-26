@@ -303,6 +303,59 @@ Spike giữ tới khi B1/B2 có test tương đương, rồi xoá như `spikes/r
     - Khối 60 g 3 cm bị một ngón đẩy ngang lún 3,82 mm (trước đó 3,26 mm), vì càng đóng tới khi khe còn bằng 3 cm.
   - *Fix round 2, luật 3:* bám mặt vật không bao giờ mở ngón quá góc β của nó lúc attach. Hộp 4,2 cm attach ở khoảng 14,7° có hai góc sau nằm trong ngón sát bản lề ở bất kỳ góc nào, nên "góc chạm" đưa hai ngón tới chặn mở: càng đọc −0,5° trong khi vẫn giữ hộp. Nay càng giữ ≥ θc trong suốt lúc giữ.
 
+## 10c. Bổ sung khi làm B5/B6 (production; vỏ servo kẹp, ổn định, footprint, golden)
+
+Đo trên cùng máy §3, Node v24.22.1, Vitest 4.1.11, load 4–12. Lệnh tái lập và mọi bảng: `spikes/n19-b56/results.md`.
+- Test: `src/core/world/robot/gripper.stability.test.ts`, `src/core/world/sensors/ultrasonic.claw-servo.test.ts`, `src/core/world/robot/footprint.test.ts`;
+- Golden: `tests/robot-determinism.*`;
+- Quét số đo: `spikes/n19-b56/stability-sweep.test.ts`;
+- Kiểm rover: `spikes/n19-b56/trace-rover.mjs`.
+
+- **Vỏ servo kẹp là collider** (ruling E67 I4: visual = collider). Collider thứ hai trên body giá kẹp, là hộp `clawServo*` của kit (PLACEHOLDER) mà view 3D vẽ.
+  - Không có khối lượng (22 g của giá kẹp đã gồm servo).
+  - *`setDensity(0)` không đủ:* Rapier cộng mass properties của từng collider vào body. Theo số đo (không đọc source Rapier, chỉ có `.wasm` và type definition), phép cộng chỉ bỏ qua một phần bằng đúng zero, còn khối lượng 0 với tâm khối ở offset của collider thì không bằng zero. Kết quả là ma trận quán tính bị dựng lại và chéo hoá lại.
+  - Đo được khi chỉ đặt density 0:
+    - trục chính của giá kẹp hoán vị (khung quán tính quay 180° quanh u);
+    - các bit cuối của quán tính hiệu dụng đổi;
+    - các số đã pin trôi theo: góc càng khi giữ khối 26,473 → 26,626°, pitch khi ấn khối 3,7028 → 3,7114°, siêu âm 3,9355 → 3,9356 cm.
+  - Production cho vỏ servo mass properties bằng 0 với tâm khối ở gốc giá kẹp (ngược offset). Sau khi dời, phần đó bằng đúng zero, nên mass properties của giá kẹp trùng từng bit với lúc chưa có vỏ. Mọi số của B1–B4 giữ nguyên.
+  - Collider tạo sau hai ngón, nên các collider khác giữ handle.
+  - IR và màu bỏ qua cả body giá kẹp, vỏ nằm trên tia của chúng.
+- **Siêu âm** nghe các phần của bộ gắp như HC-SR04 thật (`#gripper`). Tường cách 60 cm, mọi góc kẹp:
+  - lift 0–7° và 53–90°: nghe tường;
+  - 8–40°: nghe **vỏ servo** (2 cm, đầu gần của tầm đo);
+  - 41–52°: nghe **giá kẹp** (2 cm);
+  - nón 5 tia sạch bộ gắp ở 0–3° và 56–90°.
+  - Khi giữ khối 4 cm, khối chắn siêu âm ở lift 55–70° (3,35–3,74 cm).
+- **Ổn định** (§4.2, §5.3, §6 trên production, số đo §4.2 của spike tái lập được):
+  - Phanh giữ 50 g: dừng sau 1,67 / 1,65 cm (90° / 45°), pitch −0,056 … +0,034°, caster luôn chịu tải (≥ 1,667 N). Spike: 1,66 / 1,64 cm, −0,057 … +0,034°.
+  - **Đâm tường, thả trôi khi chạm (§6 "Đâm tường: < 8°, ổn định trong 0,5 s"):**
+    - Kịch bản 5b của spike (khối 15 g nhô 0,5 cm, 0,398 m/s) cho 0,17° (45°) / 2,31° (90°). Spike: 1,00° / 2,39°.
+    - **Dòng acceptance đó chỉ đúng cho trường hợp vật chạm trước, và cho tốc độ bài học** (duty ≤ 160, mọi tay, tải và kiểu kẹp, lớn nhất 7,71°).
+    - Đầu ngón (ma sát 0, trượt lên tường) hoặc càng rỗng chạm trước ở tay 45–90°, từ 0,33 m/s: xe ngóc 8,35–17,16°. Vẫn hữu hạn và ổn định trong ≤ 0,39 s.
+    - Vài trường hợp đứng tựa tường 0,3–4,9° sau đó, vì ma sát hộp số giữ bánh.
+    - §5.3 vì vậy càng cần `endOnContact` cho tường trên đường càng (ruling G0 wall).
+    - Ruling G0 caster ghi "tay 90° đâm tường ≤ 3 mm, tay ≤ 45° caster chịu tải". Điều này chỉ đúng khi vật chạm trước (2,86 mm; 0,08 mm). Đầu ngón chạm trước thì caster hở 5–24 mm.
+  - **Motor vẫn đẩy** (kịch bản 5a/5c, duty 255): pitch lớn nhất 15,8–18,8°, hữu hạn. Spike: 15,7–17,2°.
+    - Thả trôi thì xe đứng tựa tường ở 11–16°: ma sát hộp số của motor hở mạch giữ bánh, như tay servo ở ADR 0001 §9.
+    - Lùi ra (duty 128 trong 1 s) thì về đứng trên bánh và caster (≤ 0,08°, caster chịu tải).
+    - Lúc chổng đầu, bi đỡ dưới bánh (thấp hơn trục 2 cm) nhấc lên tới 2,8 mm: xe đứng trên vành bánh (collider hình trụ).
+  - **Nâng/hạ tay hết tốc:** caster hở ≤ 3,336 mm trong ≤ 11 tick (0,092 s), lớn nhất khi hạ 90 → 0 lúc giữ 50 g; nâng lên thì không hở. Spike: ≤ 3,34 mm.
+  - **Khởi động** khi giữ 50 g ở tay 0° (§8 B5), như nhau ở năm sa bàn:
+    - duty 128: 4,43 cm trong 0,5 s; duty 102: 1,37 cm; duty 100: 1,14 cm; duty 90: không đi;
+    - ngưỡng khoảng duty 95. Sau khi bi đỡ được làm mới contact (§10b) thì không cần chỉnh placeholder.
+  - **Ấn khối đang giữ xuống sàn khi tay kẹt** (kịch bản 6): lực ngoài lớn nhất 2,60–3,74 N (15 g / 50 g, gắp ở tay 10° / 15°), luôn dưới 9,71 N, nên không tuột. Đầu xe ngóc 3,70–5,76°; nâng lại thì xe về ngang.
+- **Footprint** (D-G8): `footprint.ts` quét tay gắp ở mọi góc nâng (bước 1°) và mọi β của ngón (bước 1°). Mỗi mẫu có đáy riêng và được nới để phủ các góc giữa hai mẫu.
+  - Tầm với: 15,30 cm, so với 15,24 cm của collider ở tay 40°. Kit ghi 16 cm.
+  - Tường, hộp và trụ gặp toàn bộ vùng quét. Vật (`objects`) chỉ gặp tay ở tư thế setup() (tay 90°, càng mở), nên xe có thể xuất phát với khối nằm giữa hai ngàm mở. Đây là quyết định của task này; xem plan §4.12.
+- **Golden (B6):** `gripper-pick-place` `b3414f0e`/`abafe587`, `gripper-stack` `9378dcbe`/`60ce8067`, `gripper-sensors` `f3b0127d`/`22615357` (final/trajectory).
+  - Giống nhau trên Node (bản split và `-compat`, 2 process) và trên Chromium 153, Firefox 155, WebKit 26.6.
+  - `ROBOT_ENGINE_VERSION` vẫn 1; ba fixture của rover không đổi.
+- **Rover không đổi** (all-goals, 600 tick, so với master 0a7a479):
+  - 137 450 lời gọi Rapier, hash chuỗi lời gọi `cc380608c8cf55d9`, hash snapshot `9d88c7f8e50b1b35`, như nhau ở hai cây;
+  - `verify:attempt`: 23 attempt tạo trên BASE trùng từng byte với HEAD, 23 match.
+- **Chi phí:** vỏ servo thêm khoảng 0,005 ms/tick cho world gripper (median 0,158–0,163 → 0,164–0,169 ms, load 4,8–4,9).
+
 ## 11. I²C (G0.2): parity cảm biến màu TCS34725 trên avr8js — **GO**
 
 **Bối cảnh.** Bài 10 (Phân loại theo màu) và U-38/U-39 cần cảm biến TCS34725 đọc qua Wire thô (D-G7). Câu hỏi: harness C2 của N18 có so được trace của simulator với HEX thật trên avr8js 0.21.1 khi chương trình nói chuyện I²C hay không, và mỗi lời gọi tốn bao nhiêu µs.

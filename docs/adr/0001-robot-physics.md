@@ -358,6 +358,18 @@ Mô hình (c) đã vào production với các điểm §7 yêu cầu (kiểm *gr
 - **Chi phí:** robot (chassis + tay) trong sa bàn `boxes.json` (3 vật dynamic), kịch bản 3 000 tick, đo trong test (`-t budget` in dòng ms/tick): **0,045–0,051 ms/tick median, 0,055–0,091 ms p95** (trước fix round 1: 3 lần chạy, load average 3,4–3,9; sau fix round 1: 0,0450 / 0,0550 ms). Ngân sách 0,5 ms; máy này là máy cao cấp, chưa đo máy tầm trung.
 - **Tất định:** kịch bản 3 000 tick (chạy, quay, quét tay, lùi, phanh, đẩy hộp, kẹt tường), FNV-1a trên bit float32 của pose mọi body dynamic và bit float64 của góc bánh/servo ở mọi tick: hai lần chạy bằng nhau và bản `-compat` ra cùng golden. Golden ban đầu `05272a85`; fix round 1 (ma sát hộp số, Tustin, drive bằng lực, T_s 0,08) đổi nó thành `9e89807b`; fix round 2 (drive tại chỗ bánh chạm sàn, thả trôi tự do, μ theo pháp tuyến) thành `e6dec6a1`; fix round 3 (tay servo nghỉ trong khung thân) thành **`feebca85`** (chưa phát hành nên đổi được).
 
+- **Addendum N19 B5 (2026-10-27, plan N19 D-G8): kit tay gắp được miễn quy tắc "không nhô ra ngoài thân" của fix round 3 ở trên, đổi lại bằng các test có giới hạn.**
+  - **Vì sao miễn.** Quy tắc đó là: phần nhô ra trước thân, nhất là ở trên cao, chạm tường trước và có thể lật xe; nên để mọi thứ nằm trong khung thân và kiểm bằng `driven into a wall at duty 128 for 5 s`. Tay gắp của `ref-uno-gripper@0` buộc phải với ra trước thân: collider xa nhất cách tâm 15,24 cm, ở tay 40° càng mở. Kit vì vậy ghi `footprintRadiusCm` 16 (rover giữ 11), và `footprint.ts` quét tay gắp ở mọi góc nâng và góc kẹp.
+  - **Các test thay thế** (`src/core/world/robot/gripper.stability.test.ts`, số đo ở `spikes/n19-b56/results.md`):
+    - phanh từ tốc độ tối đa khi giữ 50 g: lật < 3° (đo được ≤ 0,056°), caster luôn chịu tải;
+    - càng đâm tường, motor thả trôi khi chạm: < 8° và ổn định trong 0,5 s ở tốc độ bài học (duty ≤ 160) và khi vật đang giữ chạm trước;
+    - từ 0,33 m/s, đầu ngón hoặc càng rỗng chạm trước thì xe ngóc tới 17,2°, nhưng vẫn hữu hạn và ổn định trong 0,4 s (test riêng ghi rõ giới hạn này);
+    - motor vẫn đẩy vào tường: xe ngóc 15,8–18,8°, hữu hạn, đứng tựa tường khi thả trôi (ma sát hộp số, đúng như tay servo ở trên), lùi ra thì về đứng trên bánh;
+    - nâng/hạ tay hết tốc: caster hở ≤ 4 mm trong ≤ 0,2 s (đo 3,336 mm, 11 tick);
+    - khởi động từ đứng yên ở duty ≥ 128 khi giữ 50 g;
+    - ấn khối đang giữ xuống sàn khi tay kẹt: không tuột.
+  - **Hệ quả cho kịch bản:** tường nằm trên đường đi của càng phải dùng `endOnContact` (ruling N19 G0 wall), vì chỉ thả trôi khi chạm thôi thì chưa giữ được < 8° ở tốc độ cao.
+  - **Rover không đổi.** Quy tắc và test của rover giữ nguyên. Chuỗi lời gọi Rapier của rover trùng từng lời gọi với master 0a7a479 (137 450 lời gọi, cùng hash). Golden và `verify:attempt` (23 match) không đổi. Chi tiết ở ADR 0004 §10c.
 
 ## 10. Bổ sung khi làm R3.5 (`src/core/world/{world.ts,snapshot.ts}`)
 
