@@ -9,6 +9,9 @@ import { pinLowTierChainOff } from './robot-chain';
 // 29.3 ms from the last draw) and is the same run: the same hash at the same virtual time and at its time limit. The 2D map is only
 // offered: "Xem 2D" shows it and the run goes on; "Giữ 3D" keeps 3D, and the offer does not come again.
 
+// Two runs at 4× to the 15 s time limit draw at most 8 ticks a frame on SwiftShader: tens of seconds on a shared machine (fix round 2, N1).
+test.describe.configure({ timeout: 120_000 });
+
 const lessonOrigin = 'http://lesson.localhost:5190';
 const labUrl = (baseURL: string | undefined) => new URL(`/?embed=1&lab=robot&template=rb-drive-to-zone&origin=${encodeURIComponent(lessonOrigin)}`, baseURL).href;
 const solved = () => ({ ...robotStarterDocument('rb-drive-to-zone'), program: { blocks: robotSolutions['rb-drive-to-zone'].reference } });
