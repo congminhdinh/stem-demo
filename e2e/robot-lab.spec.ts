@@ -212,7 +212,9 @@ test.describe('a robot lab on its own', () => {
       await expect(page.getByTestId('program-region')).toHaveCount(0);
       expect(await page.evaluate(() => window.__stem)).toBeUndefined();
       if (query.startsWith('lab=robot')) {
-        await expect(page.getByTestId('launch-error')).toContainText('rb-drive-to-zone, rb-square-route, rb-stop-at-wall, rb-line-follow, rb-servo-gate, rb-mini-mission, rb-sandbox');
+        await expect(page.getByTestId('launch-error')).toContainText(
+          'rb-drive-to-zone, rb-square-route, rb-stop-at-wall, rb-line-follow, rb-servo-gate, rb-mini-mission, rb-grip-pick, rb-grip-deliver, rb-grip-sort, rb-grip-stack, rb-sandbox',
+        );
       }
     });
   }

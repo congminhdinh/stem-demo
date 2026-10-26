@@ -256,3 +256,55 @@ test.describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
     expect(fast.result).toMatchObject({ passed: false, score: 0 });
   });
 });
+
+// N19 D4, Gate G1 (plan §8): a program on the gripper car grabs a cube and puts it down in its zone, in the lab's frame of a lesson page. The
+// reference of rb-grip-pick passes Kiểm tra with Node's result and Node's last world in each round (tests/__snapshots__/robot-determinism.json,
+// `rb-grip-pick-reference`), and a run of it shows the car holding the cube.
+test.describe('Kiểm tra of a gripper lesson (N19 D4, Gate G1)', () => {
+  test('rb-grip-pick: the reference passes, with Node’s result and last worlds; Chạy at 4× lifts the cube in the jaws', async ({ page, baseURL }) => {
+    test.setTimeout(180_000);
+    const errors = collectErrors(page);
+    const frame = await openInLesson(page, labUrl(baseURL, 'rb-grip-pick'));
+    await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('rb-grip-pick', 'reference'));
+    const { result, hashes } = await check(page, frame, 'fast');
+    expect(result).toMatchObject({
+      protocol: 'stem-lab/v1',
+      type: 'check-result',
+      lab: 'robot',
+      passed: true,
+      goals: [
+        { id: 'grab-cube', label: 'Gắp và nhấc khối lên', passed: true },
+        { id: 'place-cube', label: 'Đặt khối vào vùng thả', passed: true },
+        { id: 'no-crash', label: 'Không chạm tường', passed: true },
+      ],
+      score: 100,
+      maxScore: 100,
+      simTimeMs: 30000,
+      variants: [
+        { seed: 23, passed: true, score: 100, simTimeMs: 30000 },
+        { seed: 24, passed: true, score: 100, simTimeMs: 30000 },
+        { seed: 25, passed: true, score: 100, simTimeMs: 30000 },
+      ],
+      engine: 'robot-engine@1',
+      scenarioVersion: 1,
+      programHash: 'b71d5f5afb020554290acfb2fd62801b200ab4b6a801199f0e9cc6befefcf45d',
+    });
+    expect(hashes).toEqual(['8ba5a014', 'aefefac0', '778c4485']);
+    await expect(frame.getByTestId('robot-check-verdict')).toHaveText('Đạt');
+    await expect(frame.getByTestId('robot-check-score')).toHaveText('100/100 điểm');
+    await screenshot(page, '20-gripper-pick-passed-1100x640.png');
+
+    // Chạy at 4×: the arm comes down, the jaws close on the cube and lift it.
+    await frame.getByTestId('robot-speed').getByRole('radio', { name: '4×' }).click();
+    await frame.getByTestId('robot-run').click();
+    type Held = { robot: { gripper?: { heldId: string | null; liftDeg: number } }; objects: { id: string; pose: { zCm: number } }[] };
+    await expect
+      .poll(async () => {
+        const world = (await frame.evaluate(() => window.__stem?.robot.getSnapshot())) as Held | null;
+        return world?.robot.gripper?.heldId === 'cube' && world.robot.gripper.liftDeg > 80 && world.objects[0]!.pose.zCm > 8;
+      }, { timeout: 120_000, intervals: [100] })
+      .toBe(true);
+    await screenshot(page, '21-gripper-pick-holding-1100x640.png');
+    expect(errors).toEqual([]);
+  });
+});
