@@ -37,7 +37,7 @@ describe('scenario shape', () => {
 
   it('refuses a key that is not one of the robot labs', () => {
     expect(issuesOf(edited((s) => (s.key = 'rb-nope')))).toEqual([
-      'key: unknown scenario key "rb-nope"; the keys are rb-drive-to-zone, rb-square-route, rb-stop-at-wall, rb-line-follow, rb-servo-gate, rb-mini-mission, rb-sandbox',
+      'key: unknown scenario key "rb-nope"; the keys are rb-drive-to-zone, rb-square-route, rb-stop-at-wall, rb-line-follow, rb-servo-gate, rb-mini-mission, rb-grip-pick, rb-grip-deliver, rb-grip-sort, rb-grip-stack, rb-sandbox',
     ]);
     expect(issuesOf(edited((s) => (s.key = 'ybc-blink')))).toHaveLength(1);
     expect(issuesOf(edited((s) => delete s.key))).toEqual(['key: Invalid input: expected string, received undefined']);

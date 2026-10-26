@@ -17,7 +17,8 @@ import { insidePolygon } from '../src/core/scenario/goals/geometry';
 import { circleShape, insideGround, rectShape, shapesOverlap, wallShape, type Shape } from '../src/core/scenario/overlap';
 import { polygonsOverlap } from '../src/core/scenario/polygon-overlap';
 import { SCENARIO_MAX_SCORE, scenarioKitRef, scenarioMaxScore, type RobotGoalSpec, type Scenario } from '../src/core/scenario/scenario';
-import { applyVariant, kitFootprintRadiusCm, ROBOT_FOOTPRINT_RADIUS_CM, variantOffsets } from '../src/core/scenario/variants';
+import { applyVariant, kitFootprintRadiusCm, ROBOT_FOOTPRINT_RADIUS_CM, variantObjectColors, variantOffsets } from '../src/core/scenario/variants';
+import { bodyColorName } from '../src/core/world/arena/body-colors';
 import type { Arena } from '../src/core/world/arena/arena-schema';
 import { robotFootprint, startFootprintIssues } from '../src/core/world/robot/footprint';
 import { createScenarioWorld } from '../src/core/world/world';
@@ -40,6 +41,8 @@ const registry = createDeviceRegistry(localDeviceDefinitions);
 const packs = createBlockPackCatalog(registry);
 const rules = { registry, profiles: productionProfiles, packs, kits: productionKits };
 const kit = productionKits.get(referenceKitRef) as Kit;
+/** N19 D4: the kit a scenario runs on (the reference rover for every N18 scenario, the gripper car for lessons 8-11). */
+const kitOf = (scenario: Scenario): Kit => productionKits.get(scenarioKitRef(scenario) ?? referenceKitRef) as Kit;
 /** N19 A2: the variants of a scenario at the radius of its own kit (the radius is required). */
 const offsetsOf = (scenario: Scenario, index: number) => variantOffsets(scenario, index, kitFootprintRadiusCm(productionKits.get(scenarioKitRef(scenario) ?? referenceKitRef) as Kit));
 
@@ -147,8 +150,8 @@ function goalZones(goal: RobotGoalSpec): string[] {
       return [];
   }
 }
-const GUARD_KINDS = ['avoid-contact', 'stay-on-line'];
-const ACHIEVEMENT_KINDS = ['reach-zone', 'checkpoints-in-order', 'stop-in-zone', 'servo-angle', 'object-in-zone'];
+const GUARD_KINDS = ['avoid-contact', 'stay-on-line', 'object-unmoved'];
+const ACHIEVEMENT_KINDS = ['reach-zone', 'checkpoints-in-order', 'stop-in-zone', 'servo-angle', 'object-in-zone', 'object-held', 'object-placed', 'object-on-object'];
 
 // --- The scenarios -------------------------------------------------------------------------------------------------------------------
 
@@ -189,6 +192,10 @@ describe('the robot scenarios of this build (N18 R5.2)', () => {
       'rb-line-follow': ['follow-line stay-on-line 40', 'reach-garage reach-zone 60'],
       'rb-servo-gate': ['flag-at-gate servo-angle 40', 'stop-at-gate stop-in-zone 40', 'no-crash avoid-contact 20'],
       'rb-mini-mission': ['route checkpoints-in-order 25', 'follow-line stay-on-line 20', 'no-bump avoid-contact 15', 'park stop-in-zone 20', 'in-time finish-within 10'],
+      'rb-grip-pick': ['grab-cube object-held 40', 'place-cube object-placed 45', 'no-crash avoid-contact 15'],
+      'rb-grip-deliver': ['deliver-1 object-placed 25', 'deliver-2 object-placed 25', 'deliver-3 object-placed 25', 'no-crash avoid-contact 15'],
+      'rb-grip-sort': ['grab-cube object-held 25', 'sort-cube object-placed 60', 'no-crash avoid-contact 15'],
+      'rb-grip-stack': ['grab-cube object-held 20', 'stack-cube object-on-object 55', 'base-still object-unmoved 15'],
     });
     expect(scenarioOf('rb-mini-mission').scoring.timeBonusMax).toBe(10);
     expect(scenarioOf('rb-line-follow').goals[0]).toMatchObject({ minRatio: 0.85 });
@@ -305,7 +312,7 @@ describe('the variants of every scenario (N18 R5.2)', () => {
     '%s: the world of every variant builds (createScenarioWorld): the start is clear, and the robot rests where the variant puts it',
     async (_key, scenario) => {
       for (let index = 0; index < scenario.variants.count; index++) {
-        const world = await createScenarioWorld(scenario, kit, index);
+        const world = await createScenarioWorld(scenario, kitOf(scenario), index);
         try {
           const { start } = applyVariant(scenario, offsetsOf(scenario, index));
           const robot = world.snapshot().robot;
@@ -369,6 +376,7 @@ describe('the toolbox of every scenario (N18 R5.2)', () => {
   const logic = ['controls_if', 'logic_compare', 'logic_operation', 'logic_negate', 'logic_boolean'];
   const loops = ['controls_repeat_ext', 'ybc_while'];
   const print = ['text_print', 'text'];
+  const gripper = ['uno_gripper_claw', 'uno_gripper_claw_angle', 'uno_gripper_lift', 'uno_gripper_lift_angle'];
 
   it('is the blocks the lesson teaches and the language basics', () => {
     expect(Object.fromEntries(scoredKeys.map((key) => [key, scenarioOf(key).toolbox]))).toEqual({
@@ -378,6 +386,10 @@ describe('the toolbox of every scenario (N18 R5.2)', () => {
       'rb-line-follow': [...basics, ...drive, ...loops, ...logic, 'uno_line_dark', ...print],
       'rb-servo-gate': [...basics, ...drive, ...loops, ...logic, 'uno_ultrasonic_cm', 'uno_servo_set', ...print],
       'rb-mini-mission': [...basics, ...drive, ...loops, ...logic, 'uno_ultrasonic_cm', 'uno_line_dark', 'uno_servo_set', ...print],
+      'rb-grip-pick': [...basics, ...drive, ...loops, ...logic, 'uno_ultrasonic_cm', 'uno_ir_detect', ...gripper, ...print],
+      'rb-grip-deliver': [...basics, ...drive, ...loops, ...logic, 'uno_line_dark', 'uno_ir_detect', ...gripper, ...print],
+      'rb-grip-sort': [...basics, ...drive, ...loops, ...logic, 'uno_ir_detect', 'uno_color_is', ...gripper, ...print],
+      'rb-grip-stack': [...basics, ...drive, ...loops, ...logic, 'uno_line_dark', 'uno_ir_detect', ...gripper, ...print],
     });
   });
 
@@ -412,7 +424,7 @@ describe('the programs of every scenario (N18 R5.2)', () => {
 
   it.each(scoredKeys)('%s starts from its lesson’s hat with one loose drive block, so nothing moves until the learner builds the program', (key) => {
     const starter = scenarioOf(key).starter;
-    const hatType = ['rb-drive-to-zone', 'rb-square-route'].includes(key) ? 'stem_on_start' : 'stem_forever';
+    const hatType = ['rb-drive-to-zone', 'rb-square-route', 'rb-grip-pick', 'rb-grip-deliver', 'rb-grip-sort', 'rb-grip-stack'].includes(key) ? 'stem_on_start' : 'stem_forever';
     expect(topBlocks(starter).map((block) => [block.type, block.disabledReasons, block.inputs])).toEqual([
       [hatType, undefined, undefined],
       ['uno_drive_move', ['ORPHANED_BLOCK'], { SPEED: { shadow: { type: 'math_number', id: 'prepared-drive-speed', fields: { NUM: 50 } } } }],
@@ -421,7 +433,7 @@ describe('the programs of every scenario (N18 R5.2)', () => {
   });
 
   it('lessons 3-6 have a blind program, lessons 1-2 do not', () => {
-    expect(scoredKeys.filter((key) => robotSolutions[key].blind !== undefined)).toEqual(lessonsWithBlind);
+    expect(scoredKeys.filter((key) => robotSolutions[key].blind !== undefined)).toEqual([...lessonsWithBlind, 'rb-grip-pick', 'rb-grip-deliver', 'rb-grip-stack']);
     expect(Object.keys(robotSolutions)).toEqual(scoredKeys);
     for (const key of scoredKeys) expect(robotSolutions[key].notes.length, key).toBeGreaterThan(100);
   });
@@ -483,6 +495,16 @@ describe('the programs of every scenario (N18 R5.2)', () => {
       'rb-mini-mission timed-follower-creep 45',
       'rb-mini-mission timed-follower-creep-forever 45',
       'rb-mini-mission follower-bump-and-back 45',
+      'rb-grip-pick never-lower-arm 15',
+      'rb-grip-pick push-in 15',
+      'rb-grip-pick hold-in-zone 55',
+      'rb-grip-deliver push-north 15',
+      'rb-grip-deliver open-jaw-sweep-lift 15',
+      'rb-grip-sort always-turn-left 40',
+      'rb-grip-sort only-check-red 40',
+      'rb-grip-stack place-beside-base 35',
+      'rb-grip-stack hold-over-base 35',
+      'rb-grip-stack arm-too-low 20',
     ]);
     for (const [key, exploit] of exploits) {
       expect(exploit.name, key).toMatch(/^[a-z0-9-]+$/);
@@ -501,6 +523,10 @@ describe('the programs of every scenario (N18 R5.2)', () => {
       'rb-line-follow': undefined,
       'rb-servo-gate': ['gate'],
       'rb-mini-mission': ['obstacle'],
+      'rb-grip-pick': ['wall'],
+      'rb-grip-deliver': ['wall'],
+      'rb-grip-sort': ['wall'],
+      'rb-grip-stack': ['wall'],
       'rb-sandbox': undefined,
     });
     for (const scenario of scenarioCatalog.scenarios.filter((candidate) => candidate.endOnContact !== undefined)) {
@@ -550,6 +576,281 @@ describe('the programs as real Blockly saves them (N18 R5.2)', () => {
     } finally {
       workspace.dispose();
     }
+  });
+});
+
+// --- N19 D4: the gripper car's lessons 8-11 (plan §6) ------------------------------------------------------------------------------
+//
+// What the N18 tests above check of every scenario holds for these four too (the toolbox, the programs compile and open in Blockly, the time
+// limits, the scores); what is particular to them is checked here: the arenas and goals of plan §6, the objects the gripper takes, the
+// properties each lesson's variants rely on (the static pins of the seeds spikes/n19-d4 chose), the start clear of the gripper's whole sweep
+// (B5/B6 ruling), the walls on the claw's path that end a run (G0 ruling), and the programs: what the references read, what the blind
+// programs do not, the speeds the gripper car starts from (G0 ruling), the exploits' ceilings.
+
+const gripperKeys = ['rb-grip-pick', 'rb-grip-deliver', 'rb-grip-sort', 'rb-grip-stack'] as const satisfies readonly RobotScoredKey[];
+const gripperKit = productionKits.get({ id: 'ref-uno-gripper', version: '0' }) as Kit;
+const xsOf = (polygon: readonly (readonly [number, number])[]) => [Math.min(...polygon.map(([x]) => x)), Math.max(...polygon.map(([x]) => x))];
+const ysOf = (polygon: readonly (readonly [number, number])[]) => [Math.min(...polygon.map(([, y]) => y)), Math.max(...polygon.map(([, y]) => y))];
+const zoneOf = (scenario: Scenario, id: string) => scenario.arena.paint.zones.find((zone) => zone.id === id)!;
+const objectOf = (scenario: Scenario, id: string) => scenario.arena.objects.find((object) => object.id === id)!;
+/** The sensor blocks of the gripper car: none of them in a blind program. */
+const GRIPPER_SENSOR_BLOCKS = [...SENSOR_BLOCKS, 'uno_ir_detect', 'uno_color_is', 'uno_color_raw'];
+/** G0 ruling (start duty): the gripper car starts from rest with 50 g held from duty 128, so its programs drive at 50 % or more. */
+const MIN_GRIPPER_SPEED = 50;
+
+describe('the gripper car’s lessons 8-11 (N19 D4, plan §6)', () => {
+  it('are four, on ref-uno-gripper@0 and uno-basic, version 1, after the six pilots and before the sandbox, titled as plan §6 says', () => {
+    expect(robotTemplateKeys.slice(6)).toEqual([...gripperKeys, robotSandboxKey]);
+    expect(gripperKeys.map((key) => [scenarioOf(key).kit, scenarioOf(key).profile, scenarioOf(key).version, robotTemplates[key].kit])).toEqual(
+      gripperKeys.map(() => ['ref-uno-gripper', 'uno-basic', 1, 'ref-uno-gripper']),
+    );
+    expect(gripperKeys.map((key) => scenarioOf(key).title)).toEqual([
+      { vi: 'Tìm và gắp', en: 'Find and pick up' },
+      { vi: 'Giao hàng theo vạch', en: 'Deliver along the line' },
+      { vi: 'Phân loại theo màu', en: 'Sort by colour' },
+      { vi: 'Xếp chồng', en: 'Stack the cube' },
+    ]);
+    expect(gripperKeys.map((key) => [scenarioOf(key).arena.ground.sizeCm, scenarioOf(key).timeLimitS, scenarioOf(key).scoring.timeBonusMax])).toEqual([
+      [[170, 90], 30, undefined],
+      [[180, 150], 90, 10],
+      [[170, 150], 30, undefined],
+      [[200, 80], 45, 10],
+    ]);
+  });
+
+  it('take only square things, seen from above: 4 cm foam cubes of 15 g, and the stack’s 6 × 6 × 4 cm base of 40 g (B1/B2 review M6)', () => {
+    const objects = gripperKeys.flatMap((key) => scenarioOf(key).arena.objects.map((object) => [key, object.id, object.shape, object.shape === 'box' ? object.sizeCm : null, object.massG, object.noun, object.color]));
+    expect(objects).toEqual([
+      ['rb-grip-pick', 'cube', 'box', [4, 4, 4], 15, 'cube', '#fbc02d'],
+      ['rb-grip-deliver', 'parcel-1', 'box', [4, 4, 4], 15, 'parcel', undefined],
+      ['rb-grip-deliver', 'parcel-2', 'box', [4, 4, 4], 15, 'parcel', undefined],
+      ['rb-grip-deliver', 'parcel-3', 'box', [4, 4, 4], 15, 'parcel', undefined],
+      ['rb-grip-sort', 'cube', 'box', [4, 4, 4], 15, 'cube', '#388e3c'],
+      ['rb-grip-stack', 'cube', 'box', [4, 4, 4], 15, 'cube', '#d32f2f'],
+      ['rb-grip-stack', 'base', 'box', [6, 6, 4], 40, 'base', '#fbc02d'],
+    ]);
+    for (const key of gripperKeys) {
+      for (const object of scenarioOf(key).arena.objects) {
+        if (object.shape === 'box') expect(object.sizeCm[0], `${key} ${object.id}`).toBe(object.sizeCm[1]);
+        if (object.shape === 'box') expect(object.yawDeg, `${key} ${object.id}`).toBe(0);
+      }
+    }
+  });
+
+  it('lay out the arenas of plan §6: the zones the goals name, where the objects lie, the tape', () => {
+    const pick = scenarioOf('rb-grip-pick');
+    expect([xsOf(zoneOf(pick, 'pickup').polygonCm), zoneOf(pick, 'pickup').name, xsOf(zoneOf(pick, 'drop').polygonCm), zoneOf(pick, 'drop').name, objectOf(pick, 'cube').centerCm]).toEqual([[70, 100], 'pickup', [108, 148], 'drop', [85, 45]]);
+    const deliver = scenarioOf('rb-grip-deliver');
+    expect(deliver.arena.paint.lines.map((line) => line.pointsCm)).toEqual([[[120, 10], [120, 135]]]);
+    expect([xsOf(zoneOf(deliver, 'kho').polygonCm), ysOf(zoneOf(deliver, 'kho').polygonCm), zoneOf(deliver, 'kho').name]).toEqual([[62, 100], [40, 125], 'warehouse']);
+    expect(deliver.arena.objects.map((object) => object.centerCm)).toEqual([[120, 70], [120, 95], [120, 120]]);
+    const shelf = deliver.arena.walls.filter((wall) => wall.tags.includes('kho-wall'));
+    // E6/E7: the shelf is modelled for a wall of 40 × 4 × 12 cm; west of the warehouse, facing it.
+    expect(shelf.map((wall) => [wall.id, wall.fromCm, wall.toCm, wall.thicknessCm, wall.heightCm])).toEqual([['kho-shelf', [58, 62.5], [58, 102.5], 4, 12]]);
+    const sort = scenarioOf('rb-grip-sort');
+    const [red, green, blue] = ['red-zone', 'green-zone', 'blue-zone'].map((id) => zoneOf(sort, id));
+    expect([red!.name, green!.name, blue!.name, zoneOf(sort, 'start').color]).toEqual(['red', 'green', 'blue', '#e0e0e0']);
+    // Red north, green straight ahead (east), blue south of the start, which faces +x.
+    expect(sort.start.yawDeg).toBe(0);
+    expect(ysOf(red!.polygonCm)[0]).toBeGreaterThan(sort.start.yCm);
+    expect(ysOf(blue!.polygonCm)[1]).toBeLessThan(sort.start.yCm);
+    expect(xsOf(green!.polygonCm)[0]).toBeGreaterThan(sort.start.xCm);
+    const stack = scenarioOf('rb-grip-stack');
+    expect(stack.arena.paint.lines.map((line) => line.pointsCm)).toEqual([[[14, 40], [150, 40]]]);
+    expect([objectOf(stack, 'cube').centerCm, objectOf(stack, 'base').centerCm]).toEqual([[95, 40], [158, 40]]);
+    // The tape ends where the reference stops with the cube over the base (spikes/n19-d4: the middle at x 144.5, the cube at 157.8).
+    expect(insidePolygon(zoneOf(stack, 'stack').polygonCm, 158, 40)).toBe(true);
+  });
+
+  it('ask for the goals of plan §6, with their parameters', () => {
+    const params = (key: (typeof gripperKeys)[number]) => scenarioOf(key).goals.map(({ id, label: _label, points: _points, kind: _kind, ...rest }) => [id, rest]);
+    expect(params('rb-grip-pick')).toEqual([
+      ['grab-cube', { object: 'cube', holdS: 0.5, minLiftCm: 2 }],
+      ['place-cube', { object: 'cube', zone: 'drop', fully: true, maxTiltDeg: 15, restS: 0.5, carried: true, maxSlideCm: 3, minCarryLiftCm: 1, minCarryCm: 5 }],
+      ['no-crash', { tag: 'wall' }],
+    ]);
+    expect(params('rb-grip-deliver')).toEqual([
+      ...[1, 2, 3].map((n) => [`deliver-${n}`, { object: `parcel-${n}`, zone: 'kho', fully: true, maxTiltDeg: 15, restS: 0.5, carried: true, maxSlideCm: 3, minCarryLiftCm: 1, minCarryCm: 5 }]),
+      ['no-crash', { tag: 'wall' }],
+    ]);
+    expect(params('rb-grip-sort')).toEqual([
+      ['grab-cube', { object: 'cube', holdS: 0.5, minLiftCm: 2 }],
+      ['sort-cube', { object: 'cube', zoneByColor: { '#d32f2f': 'red-zone', '#388e3c': 'green-zone', '#1976d2': 'blue-zone' }, fully: true, maxTiltDeg: 15, restS: 0.5, carried: true, maxSlideCm: 3, minCarryLiftCm: 1, minCarryCm: 5 }],
+      ['no-crash', { tag: 'wall' }],
+    ]);
+    expect(params('rb-grip-stack')).toEqual([
+      ['grab-cube', { object: 'cube', holdS: 0.5, minLiftCm: 3 }],
+      ['stack-cube', { top: 'cube', bottom: 'base', maxOffsetCm: 1.5, maxTiltDeg: 10, restS: 0.5, carried: true, minCarryLiftCm: 1, minCarryCm: 5 }],
+      ['base-still', { object: 'base', maxMoveCm: 2, maxTiltDeg: 20 }],
+    ]);
+  });
+
+  it('end the run at the first touch of any wall (endOnContact ["wall"]): every wall is on a path the claw may take (G0 ruling), and the guard names the same', () => {
+    for (const key of gripperKeys) {
+      const scenario = scenarioOf(key);
+      expect(scenario.endOnContact, key).toEqual(['wall']);
+      // Every wall carries its kind, `wall` (build-arena.ts): the shelf of the warehouse too.
+      expect(scenario.arena.walls.length, key).toBeGreaterThanOrEqual(4);
+      const guards = scenario.goals.flatMap((goal) => (goal.kind === 'avoid-contact' ? [goal.tag] : []));
+      expect(guards, key).toEqual(key === 'rb-grip-stack' ? [] : ['wall']);
+    }
+  });
+
+  it('put no object in the zone a goal puts it in, and no start in a zone a goal sends something to', () => {
+    for (const key of gripperKeys) {
+      const scenario = scenarioOf(key);
+      const targets = scenario.goals.flatMap((goal) =>
+        goal.kind === 'object-placed' ? [[goal.object, goal.zone !== undefined ? [goal.zone] : Object.values(goal.zoneByColor!)] as const] : [],
+      );
+      for (let index = 0; index < scenario.variants.count; index++) {
+        const { start, arena } = applyVariant(scenario, offsetsOf(scenario, index));
+        for (const [objectId, zoneIds] of targets) {
+          const object = arena.objects.find((candidate) => candidate.id === objectId)!;
+          for (const id of zoneIds) {
+            expect(insidePolygon(zoneOf(scenario, id).polygonCm, object.centerCm[0], object.centerCm[1]), `${key} variant ${index}: ${objectId} in ${id}`).toBe(false);
+            expect(polygonsOverlap(zoneOf(scenario, id).polygonCm, circlePolygon(start.xCm, start.yCm, kitFootprintRadiusCm(gripperKit))), `${key} variant ${index} starts against ${id}`).toBe(false);
+          }
+        }
+      }
+    }
+  });
+
+  it('start every variant with every object out of the gripper’s whole sweep, at every lift and claw angle (B5/B6 ruling, the footprint’s own sweep)', () => {
+    for (const key of gripperKeys) {
+      const scenario = scenarioOf(key);
+      for (let index = 0; index < scenario.variants.count; index++) {
+        const { start, arena } = applyVariant(scenario, offsetsOf(scenario, index));
+        // The world's own check: the walls against the whole sweep, the objects against the gripper as setup() leaves it.
+        expect(startFootprintIssues(arena, gripperKit, start, index), `${key} variant ${index}`).toEqual([]);
+        // The ruling's: each object as a box or cylinder, which footprint.ts checks against every lift and claw angle.
+        const asObstacles = {
+          walls: [],
+          boxes: arena.objects.flatMap((object) => (object.shape === 'box' ? [{ id: object.id, centerCm: object.centerCm, sizeCm: object.sizeCm, yawDeg: object.yawDeg, body: 'fixed' as const, tags: [], ultrasonic: true }] : [])),
+          cylinders: arena.objects.flatMap((object) => (object.shape === 'cylinder' ? [{ id: object.id, centerCm: object.centerCm, radiusCm: object.radiusCm, heightCm: object.heightCm, body: 'fixed' as const, tags: [], ultrasonic: true }] : [])),
+          objects: [],
+        };
+        expect(startFootprintIssues(asObstacles, gripperKit, start, index), `${key} variant ${index}`).toEqual([]);
+      }
+    }
+    // Not vacuous: a cube 12 cm ahead of the pick lesson's start, between the open jaws as setup() leaves them, is clear of that pose but under
+    // the lowered arm's path, and the sweep says so.
+    const pick = scenarioOf('rb-grip-pick');
+    const ahead = [{ id: 'cube', centerCm: [pick.start.xCm + 12, pick.start.yCm] as [number, number], sizeCm: [4, 4, 4] as [number, number, number], yawDeg: 0, body: 'fixed' as const, tags: [], ultrasonic: true }];
+    expect(startFootprintIssues({ walls: [], boxes: ahead, cylinders: [], objects: [] }, gripperKit, pick.start)).toEqual([
+      { path: 'start', message: expect.stringContaining('gripper') },
+    ]);
+  });
+
+  it('lesson 8 moves the cube 7 cm or more on in one variant and 7 cm or more back in another, and the start by 1 cm and 2° at most', () => {
+    const scenario = scenarioOf('rb-grip-pick');
+    expect(scenario.variants).toMatchObject({ count: 3, seed: 23, startJitterCm: 1, yawJitterDeg: 2, objectJitter: [{ objects: ['cube'], dxCm: 10, dyCm: 0 }] });
+    const moves = [1, 2].map((index) => offsetsOf(scenario, index).objects![0]!);
+    expect(Math.max(...moves.map((move) => move.dxCm))).toBeGreaterThanOrEqual(7);
+    expect(Math.min(...moves.map((move) => move.dxCm))).toBeLessThanOrEqual(-7);
+    expect(moves.map((move) => move.dyCm)).toEqual([0, 0]);
+  });
+
+  it('lesson 9 turns one jittered start by 4° or more and moves the starts 4 cm or more on and back along the tape, the parcels along it only', () => {
+    const scenario = scenarioOf('rb-grip-deliver');
+    expect(scenario.variants).toMatchObject({ count: 3, seed: 430, startJitterCm: 0, startJitterAlongCm: 6, yawJitterDeg: 5 });
+    const starts = [1, 2].map((index) => offsetsOf(scenario, index).start);
+    expect(Math.max(...starts.map((start) => Math.abs(start.dYawDeg)))).toBeGreaterThanOrEqual(4);
+    // The start faces +y (along the tape): along is dy, and nothing across it.
+    expect(starts.map((start) => start.dxCm)).toEqual([0, 0]);
+    expect(Math.max(...starts.map((start) => start.dyCm))).toBeGreaterThanOrEqual(4);
+    expect(Math.min(...starts.map((start) => start.dyCm))).toBeLessThanOrEqual(-4);
+    for (const index of [1, 2]) {
+      const parcels = offsetsOf(scenario, index).objects!;
+      expect(parcels.map((move) => move.dxCm)).toEqual([0, 0, 0]);
+      expect(Math.max(...parcels.map((move) => Math.abs(move.dyCm))), `variant ${index}`).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('lesson 10 keeps the start and the cube where they are in every round, only the colour changes: green, red, blue', () => {
+    const scenario = scenarioOf('rb-grip-sort');
+    expect(scenario.variants).toMatchObject({ count: 3, seed: 8, startJitterCm: 0, yawJitterDeg: 3 });
+    expect(scenario.variants.objectJitter).toBeUndefined();
+    for (let index = 0; index < 3; index++) {
+      const offsets = offsetsOf(scenario, index);
+      expect([offsets.start.dxCm, offsets.start.dyCm, Math.abs(offsets.start.dYawDeg) <= 3]).toEqual([0, 0, true]);
+      expect(applyVariant(scenario, offsets).arena.objects.map((object) => object.centerCm)).toEqual([[49, 75]]);
+    }
+    const colours = [0, 1, 2].map((index) => variantObjectColors(scenario, index).cube);
+    expect(colours.map((colour) => bodyColorName(colour))).toEqual(['green', 'red', 'blue']);
+    // Each colour has the zone of its name.
+    const goal = scenario.goals.find((candidate) => candidate.kind === 'object-placed') as { zoneByColor: Record<string, string> };
+    expect(colours.map((colour) => zoneOf(scenario, goal.zoneByColor[colour!]!).name)).toEqual(['green', 'red', 'blue']);
+  });
+
+  it('lesson 11 moves one jittered start 9 cm or more on along the tape and one 9 cm or more back, and the red cube by up to 5 cm', () => {
+    const scenario = scenarioOf('rb-grip-stack');
+    expect(scenario.variants).toMatchObject({ count: 3, seed: 217, startJitterCm: 0, startJitterAlongCm: 12, yawJitterDeg: 0, objectJitter: [{ objects: ['cube'], dxCm: 5, dyCm: 0 }] });
+    const along = [1, 2].map((index) => offsetsOf(scenario, index).start.dxCm);
+    expect(Math.max(...along)).toBeGreaterThanOrEqual(9);
+    expect(Math.min(...along)).toBeLessThanOrEqual(-9);
+    expect([1, 2].map((index) => offsetsOf(scenario, index).start.dyCm)).toEqual([0, 0]);
+    expect([1, 2].map((index) => offsetsOf(scenario, index).objects![1])).toEqual([{ dxCm: 0, dyCm: 0 }, { dxCm: 0, dyCm: 0 }]);
+  });
+
+  it('give each lesson 8, 9 and 11 a blind program that reads no sensor: in "on start", motors, the gripper and waits', () => {
+    for (const key of ['rb-grip-pick', 'rb-grip-deliver', 'rb-grip-stack'] as const) {
+      const types = blockTypes(robotSolutions[key].blind!);
+      expect(GRIPPER_SENSOR_BLOCKS.filter((type) => types.has(type)), key).toEqual([]);
+      expect(topBlocks(robotSolutions[key].blind!).map((block) => block.type), key).toEqual(['stem_on_start']);
+      expect(['uno_drive_move', 'ybc_wait_ms', 'uno_gripper_claw'].filter((type) => !types.has(type)), key).toEqual([]);
+    }
+    expect(robotSolutions['rb-grip-sort'].blind).toBeUndefined();
+  });
+
+  it('have references that read the sensors the lesson is about, in "on start", lesson 11 carrying at 55°', () => {
+    const sensors: Record<(typeof gripperKeys)[number], string[]> = {
+      'rb-grip-pick': ['uno_ultrasonic_cm', 'uno_ir_detect'],
+      'rb-grip-deliver': ['uno_line_dark', 'uno_ir_detect'],
+      'rb-grip-sort': ['uno_ir_detect', 'uno_color_is'],
+      'rb-grip-stack': ['uno_line_dark', 'uno_ir_detect'],
+    };
+    for (const key of gripperKeys) {
+      const reference = robotSolutions[key].reference;
+      expect(sensors[key].filter((type) => !runningBlockTypes(reference).has(type)), key).toEqual([]);
+      expect(topBlocks(reference).map((block) => block.type), key).toEqual(['stem_on_start']);
+    }
+    const arm = allBlocks(robotSolutions['rb-grip-stack'].reference).filter((block) => block.type === 'uno_gripper_lift_angle');
+    expect(arm.map((block) => typedNumber(block, 'ANGLE'))).toEqual([55]);
+  });
+
+  it.each(gripperKeys.flatMap((key) => allPrograms.filter(([candidate]) => candidate === key)))(
+    `%s %s drives the gripper car at ${MIN_GRIPPER_SPEED} % or more (or 0)`,
+    (_key, _name, program) => {
+      for (const block of allBlocks(program).filter((candidate) => MOTOR_BLOCKS.includes(String(candidate.type)))) {
+        const speed = typedNumber(block, 'SPEED')!;
+        expect(speed === 0 || Math.abs(speed) >= MIN_GRIPPER_SPEED, `${String(block.id)}: ${speed}`).toBe(true);
+      }
+    },
+  );
+
+  it('hold each exploit to its ceiling in plan §6', () => {
+    const ceilings = Object.fromEntries(gripperKeys.flatMap((key) => (robotSolutions[key].exploits ?? []).map((exploit) => [`${key} ${exploit.name}`, exploit.maxScore])));
+    expect(ceilings).toEqual({
+      'rb-grip-pick never-lower-arm': 15,
+      'rb-grip-pick push-in': 15,
+      'rb-grip-pick hold-in-zone': 55,
+      'rb-grip-deliver push-north': 15,
+      'rb-grip-deliver open-jaw-sweep-lift': 15,
+      'rb-grip-sort always-turn-left': 40,
+      'rb-grip-sort only-check-red': 40,
+      'rb-grip-stack place-beside-base': 35,
+      'rb-grip-stack hold-over-base': 35,
+      'rb-grip-stack arm-too-low': 20,
+    });
+  });
+
+  it.each(gripperKeys)('%s: the reference’s Arduino sketch is its golden, on the gripper car', async (key) => {
+    const compiled = compileUnoProject(projectOf(key, robotSolutions[key].reference), rules);
+    if (!compiled.ok) throw new Error(JSON.stringify(compiled.diagnostics));
+    const sketch = generateUnoSketch(compiled.ir, { kit: compiled.kit, board: compiled.board, scenario: { key, version: scenarioOf(key).version } });
+    if (!sketch.ok) throw new Error(JSON.stringify(sketch.diagnostics));
+    expect(sketch.source.split('\n')[0]).toBe(`// Scenario: ${key}@1, kit: ref-uno-gripper@0, board: uno-r3@0`);
+    await expect(sketch.source).toMatchFileSnapshot(`./robot-solutions/${key}.ino`);
   });
 });
 

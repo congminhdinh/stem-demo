@@ -1,5 +1,5 @@
 import { scenarioCatalog } from '../../../samples/robot-scenarios';
-import { robotTemplateKeys } from '../../../samples/robot-keys';
+import { robotTemplateKeys, robotTemplates } from '../../../samples/robot-keys';
 import type { ArenaSpan } from '../camera';
 import { freeViewSceneOf, MIN_ROBOT_PX, VIEW_SAFE_RECT, type FreeViewScene, type SafeRect } from '../camera-studio';
 
@@ -11,7 +11,8 @@ export type FreeViewCase = { key: string; span: ArenaSpan; scene: FreeViewScene;
 
 export function cases(): FreeViewCase[] {
   const out: FreeViewCase[] = [];
-  for (const template of robotTemplateKeys) {
+  // The scenarios R4.7 framed (N19 D4: the gripper lessons came later; camera-studio.test.ts frames them with the robot at least 60 px wide).
+  for (const template of robotTemplateKeys.filter((key) => robotTemplates[key].kit === 'ref-uno-rover')) {
     const scenario = scenarioCatalog.get(template)!;
     const scene = freeViewSceneOf(scenario);
     const span = { widthM: scenario.arena.ground.sizeCm[0] / 100, depthM: scenario.arena.ground.sizeCm[1] / 100 };

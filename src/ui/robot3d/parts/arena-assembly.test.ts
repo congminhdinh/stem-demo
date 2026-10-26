@@ -82,7 +82,8 @@ describe('the pilot arenas’ props (N18 R4.7)', () => {
       return box;
     };
     let checked = 0;
-    for (const s of [...scenarioCatalog.scenarios]) {
+    // The pilot arenas (N18): N19 D4's warehouse shelf draws its sign above its wall by design (arena-assembly.n19.test.ts holds its rack).
+    for (const s of scenarioCatalog.scenarios.filter((candidate) => candidate.kit === 'ref-uno-rover')) {
       for (const body of fixedBodyProps(s.arena, assets.prop)) {
         body.prop.updateMatrixWorld(true);
         const shown = new Box3().setFromObject(body.prop, true);

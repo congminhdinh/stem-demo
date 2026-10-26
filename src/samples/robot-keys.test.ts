@@ -44,7 +44,7 @@ describe('robot-keys.ts', () => {
     expect(templates.robotLabProfiles).toBe(robotLabProfiles);
     expect(templates.robotKitId).toBe(robotKitId);
     expect(templates.robotSandboxKey).toBe(robotSandboxKey);
-    expect(robotTemplateKeys).toEqual(['rb-drive-to-zone', 'rb-square-route', 'rb-stop-at-wall', 'rb-line-follow', 'rb-servo-gate', 'rb-mini-mission', 'rb-sandbox']);
+    expect(robotTemplateKeys).toEqual(['rb-drive-to-zone', 'rb-square-route', 'rb-stop-at-wall', 'rb-line-follow', 'rb-servo-gate', 'rb-mini-mission', 'rb-grip-pick', 'rb-grip-deliver', 'rb-grip-sort', 'rb-grip-stack', 'rb-sandbox']);
   });
 });
 

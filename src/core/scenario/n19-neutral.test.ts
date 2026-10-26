@@ -24,7 +24,11 @@ const pinned: Readonly<Record<string, { parse: string; offsets: string; applied:
 };
 
 const radiusOf = (scenario: Scenario): number => kitFootprintRadiusCm(productionKits.get(scenarioKitRef(scenario)!)!);
-const cases: [string, Scenario][] = [...scenarioCatalog.scenarios.map((scenario): [string, Scenario] => [scenario.key, scenario]), ['all-goals', loadScenario(allGoals)]];
+// The N18 scenarios only (N19 D4: the gripper lessons use the N19 keys by design and are pinned by tests/robot-scenarios.test.ts).
+const cases: [string, Scenario][] = [
+  ...scenarioCatalog.scenarios.filter((scenario) => scenario.key in pinned).map((scenario): [string, Scenario] => [scenario.key, scenario]),
+  ['all-goals', loadScenario(allGoals)],
+];
 
 describe('the N18 scenarios after N19 D1 (master 675cff6 numbers)', () => {
   it('covers the seven shipped scenarios and the schema fixture', () => {

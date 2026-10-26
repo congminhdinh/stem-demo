@@ -32,6 +32,10 @@ describe('the robot scenario keys (N18 R4.1)', () => {
       'rb-line-follow',
       'rb-servo-gate',
       'rb-mini-mission',
+      'rb-grip-pick',
+      'rb-grip-deliver',
+      'rb-grip-sort',
+      'rb-grip-stack',
       'rb-sandbox',
     ]);
   });
@@ -61,6 +65,10 @@ describe('the robot scenario keys (N18 R4.1)', () => {
       'Bám theo vạch kẻ',
       'Giơ cờ ở cổng',
       'Nhiệm vụ tổng hợp',
+      'Tìm và gắp',
+      'Giao hàng theo vạch',
+      'Phân loại theo màu',
+      'Xếp chồng',
       'Sân tập tự do',
     ]);
   });
