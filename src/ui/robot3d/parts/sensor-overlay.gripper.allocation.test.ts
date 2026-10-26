@@ -93,7 +93,9 @@ describe('the heap the gripper car’s overlays allocate per frame (N19 E5)', ()
       { left: -1, right: 0.2, bottom: -1, top: -0.6 },
       { left: 0, right: 0.1, bottom: 0, top: 0.1 },
     ];
-    const bytes = bytesPerCall((i) => {
+    // Minor round: the least of three passes. The update's own allocation is the same every pass; what else the worker allocates meanwhile (the
+    // runner's messages, more of them on a loaded machine, as under `pnpm verify`) only adds, and once read 101 B on a pass that measures 64 B.
+    const work = (i: number) => {
       const frame = frames[i]!;
       if (i % 50 === 0) overlay.setRoundColors(rounds[(i / 50) % 2]!);
       overlay.update(set[i % set.length]!, true, frame.pulse, frame.time);
@@ -106,7 +108,8 @@ describe('the heap the gripper car’s overlays allocate per frame (N19 E5)', ()
         }
         placeLabel(out, place, anchors, tag === 0 ? 4 : 3, 0.3, 0.1, avoid, 3 + tag);
       }
-    }, 20_000, 2000);
+    };
+    const bytes = Math.min(bytesPerCall(work, 20_000, 2000), bytesPerCall(work, 20_000, 0), bytesPerCall(work, 20_000, 0));
     expect(paints).toBeGreaterThan(1000);
     expect(wordsPaints).toBeGreaterThan(1000);
     expect(overlay.gripperLabelShown()).toBe(true);
