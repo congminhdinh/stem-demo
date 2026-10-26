@@ -55,7 +55,7 @@ describe('the zones’ tags from frame to frame (N18 P2)', () => {
   const robotAt = (x: number): ScreenBox => ({ left: x - 0.035, right: x + 0.035, bottom: -0.2, top: 0.15 });
   const hud: ScreenBox = { left: -1, right: -0.1, bottom: 0.3, top: 1 };
 
-  it('places every frame as placeTags does, the robot driving past, into the same array each frame', () => {
+  it('lays out each frame afresh into the same array, the robot driving past (placeTags is one frame of it; the R4.7 tests above pin the spots)', () => {
     const layout = createTagLayout();
     const tags = [tag(0.2, 0.1), tag(0.3, 0), tag(0.35, 0.02), tag(-0.08, 0.4), tag(0.6, 0.5, true)];
     const first = layout.place(tags, [hud]);

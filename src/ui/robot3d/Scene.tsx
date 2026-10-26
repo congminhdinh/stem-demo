@@ -30,7 +30,7 @@ import type { RobotToolsStore } from './robot-tools-store';
 import { useLocale, useText } from '../i18n/text';
 import { RobotView } from './RobotView';
 import { idleSnapshot, sameView } from './scene-math';
-import { createShadowWatch } from './shadow-watch';
+import { createShadowWatch, holdShadows, type ShadowHold } from './shadow-watch';
 import { sightProps } from './sight-props';
 
 // The robot lab's 3D view (N18 R4.2, ADR 0002): one R3F canvas with the arena, the robot and the camera. It draws on demand
@@ -255,18 +255,16 @@ function ShadowsOnChange({ view }: { view: () => RobotSnapshot }) {
   const gl = useThree((state) => state.gl);
   const watch = useMemo(createShadowWatch, []);
   useLayoutEffect(() => watch.changed());
+  const hold = useRef<ShadowHold | null>(null);
   useEffect(() => {
-    gl.shadowMap.autoUpdate = false;
-    const restored = () => watch.changed();
-    gl.domElement.addEventListener('webglcontextrestored', restored);
+    const held = holdShadows(gl, watch);
+    hold.current = held;
     return () => {
-      gl.domElement.removeEventListener('webglcontextrestored', restored);
-      gl.shadowMap.autoUpdate = true;
+      held.release();
+      hold.current = null;
     };
   }, [gl, watch]);
-  useFrame(() => {
-    if (watch.frame(view())) gl.shadowMap.needsUpdate = true;
-  });
+  useFrame(() => hold.current?.frame(view()));
   return null;
 }
 

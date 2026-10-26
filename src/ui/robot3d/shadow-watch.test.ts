@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { productionKits } from '../../core/hardware/catalog';
 import type { Kit } from '../../core/hardware/kit';
 import type { RobotSnapshot } from '../../core/world/snapshot';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { idleSnapshot } from './scene-math';
-import { createShadowWatch } from './shadow-watch';
+import { createShadowWatch, holdShadows } from './shadow-watch';
 
 // N18 P2: the key light's shadow map is drawn again when what casts a shadow moves or the scene changes, not for a frame where only the
 // camera moved or an LED blinked; never left behind a robot that crept away a little at a time.
@@ -49,5 +49,46 @@ describe('the shadow map’s redraws (N18 P2)', () => {
     watch.changed();
     expect(watch.frame(base)).toBe(true);
     expect(watch.frame(base)).toBe(false);
+  });
+});
+
+describe('the shadows’ hold on the renderer (N18 P2 fix round 1, Scene.tsx ShadowsOnChange)', () => {
+  const renderer = () => ({ shadowMap: { autoUpdate: true, needsUpdate: false }, domElement: new EventTarget() });
+
+  it('takes the shadow map’s updates (autoUpdate off), asks for one on the first frame and when a caster moves, and gives them back', () => {
+    const gl = renderer();
+    const hold = holdShadows(gl);
+    expect(gl.shadowMap.autoUpdate).toBe(false);
+    hold.frame(base);
+    expect(gl.shadowMap.needsUpdate).toBe(true);
+    // three clears needsUpdate when it draws the map.
+    gl.shadowMap.needsUpdate = false;
+    hold.frame({ ...base, t: 1, leds: { led1: true } });
+    expect(gl.shadowMap.needsUpdate).toBe(false);
+    hold.frame(moved({ xCm: base.robot.xCm + 0.5 }));
+    expect(gl.shadowMap.needsUpdate).toBe(true);
+    hold.release();
+    expect(gl.shadowMap.autoUpdate).toBe(true);
+  });
+
+  it('asks for the map after a restored WebGL context and after a commit of the scene, and hears no context once released', () => {
+    const gl = renderer();
+    const hold = holdShadows(gl);
+    hold.frame(base);
+    gl.shadowMap.needsUpdate = false;
+    gl.domElement.dispatchEvent(new Event('webglcontextrestored'));
+    hold.frame(base);
+    expect(gl.shadowMap.needsUpdate).toBe(true);
+    gl.shadowMap.needsUpdate = false;
+    hold.changed();
+    hold.frame(base);
+    expect(gl.shadowMap.needsUpdate).toBe(true);
+    gl.shadowMap.needsUpdate = false;
+    hold.release();
+    const watch = { changed: vi.fn(), frame: () => false };
+    const again = holdShadows(gl, watch);
+    again.release();
+    gl.domElement.dispatchEvent(new Event('webglcontextrestored'));
+    expect(watch.changed).not.toHaveBeenCalled();
   });
 });

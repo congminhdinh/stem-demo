@@ -28,3 +28,35 @@ export function createShadowWatch(): ShadowWatch {
     },
   };
 }
+
+/** What of a WebGLRenderer the shadows' hold uses: its shadow map's switches and its canvas (for a restored context). */
+export type ShadowRenderer = { shadowMap: { autoUpdate: boolean; needsUpdate: boolean }; domElement: Pick<EventTarget, 'addEventListener' | 'removeEventListener'> };
+
+export type ShadowHold = {
+  /** The scene changed (a commit of what it draws). */
+  changed(): void;
+  /** A frame that shows `world`: asks for the shadow map when the watch says so. */
+  frame(world: RobotSnapshot): void;
+  /** Gives the renderer back its own updates. */
+  release(): void;
+};
+
+/**
+ * N18 P2 (fix round 1, M5: out of Scene.tsx ShadowsOnChange, to be tested): takes the shadow map's updates from `renderer` (autoUpdate
+ * off) and asks for one (needsUpdate) on the frames the watch says; a restored WebGL context counts as a change of the scene.
+ */
+export function holdShadows(renderer: ShadowRenderer, watch: ShadowWatch = createShadowWatch()): ShadowHold {
+  renderer.shadowMap.autoUpdate = false;
+  const restored = () => watch.changed();
+  renderer.domElement.addEventListener('webglcontextrestored', restored);
+  return {
+    changed: () => watch.changed(),
+    frame(world) {
+      if (watch.frame(world)) renderer.shadowMap.needsUpdate = true;
+    },
+    release() {
+      renderer.domElement.removeEventListener('webglcontextrestored', restored);
+      renderer.shadowMap.autoUpdate = true;
+    },
+  };
+}
