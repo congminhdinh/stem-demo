@@ -24,7 +24,7 @@ export const sensorColors = {
   /** N19 E4/E5: the IR sensor's short beam between the jaws (a fuchsia no other overlay uses), faint until it sees something. */
   ir: '#c026d3',
   /** N19 E4/E5: the dark ring round the colour sensor's spot, so that a white or a yellow reading still shows on the light mat. */
-  spotRing: '#1e293b',
+  spotRing: '#0f172a',
 } as const;
 
 /**
