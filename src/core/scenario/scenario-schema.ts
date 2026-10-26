@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { roleKinds, robotRoles, type ModuleKind, type RobotRole } from '../hardware/kit';
 import { arenaSchema } from '../world/arena/arena-schema';
+import { hasHiddenCharacter, trimLikeDotNet } from './goal-text';
 import { polygonsOverlap } from './polygon-overlap';
 import { isRobotTemplateKey, robotKitId, robotLabProfiles, robotSandboxKey, robotTemplateKeys, robotTemplates } from '../../samples/robot-keys';
 
@@ -37,7 +38,17 @@ const SERVO_DEG_MAX = 180;
 const SEED_MAX = 4294967295;
 
 const wholeFrom = (min: number, message: string) => z.number().int(message).min(min, message);
-const text = (max: number) => z.string().trim().min(1, 'must not be empty').max(max, `at most ${max} characters`);
+/**
+ * A title or a goal label: as the LMS reads a goal text (goal-text.ts, N18 final fix M5): trimmed as .NET trims, 1 to `max` UTF-16 units,
+ * and no control or format character (Unicode Cc, Cf), which LearningService refuses in every check result that carries the label.
+ */
+const text = (max: number) =>
+  z
+    .string()
+    .overwrite(trimLikeDotNet)
+    .min(1, 'must not be empty')
+    .max(max, `at most ${max} characters`)
+    .refine((value) => !hasHiddenCharacter(value), 'must not hold a control or format character (a line break, a tab, a zero-width or bidi mark)');
 /** A text in both languages the UI speaks. */
 const localized = (max: number) => z.strictObject({ vi: text(max), en: text(max) });
 

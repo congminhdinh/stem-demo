@@ -52,8 +52,13 @@ LMS (STEMLearning lưu kết quả Kiểm tra), không phải của mô phỏng:
 |---|---|
 | `goals` | **tối đa 20** (`GOALS_MAX`; `LabAttemptRules.MaxGoals` của LearningService lưu 20 goal một lượt) |
 | `version` | số nguyên từ 1 tới **2 147 483 647** (`SCENARIO_VERSION_MAX`; `scenarioVersion` của kết quả Kiểm tra là int 32 bit) |
-| `goals[].id` | `[a-z0-9-]`, ≤ 50 ký tự, không trùng; `label.vi`/`label.en` ≤ 200 ký tự, không rỗng |
-| `title.vi`/`title.en` | ≤ 120 ký tự, không rỗng |
+| `goals[].id` | `[a-z0-9-]`, ≤ 50 ký tự, không trùng; `label.vi`/`label.en` ≤ 200 ký tự, không rỗng, không có ký tự điều khiển hay định dạng (xem dưới) |
+| `title.vi`/`title.en` | ≤ 120 ký tự, không rỗng, không có ký tự điều khiển hay định dạng |
+
+Nhãn và tên bài theo đúng luật goal của LMS (`LabAttemptRules.IsGoalText`, N18 final fix M5, `src/core/scenario/goal-text.ts`): cắt hai đầu
+như `string.Trim()` của .NET, đếm theo đơn vị UTF-16, và **không** có code point Unicode loại Cc (xuống dòng, tab…) hay Cf (zero-width,
+bidi, BOM, soft hyphen, ZWJ nối các emoji ghép, ký tự tag của cờ vùng). LearningService từ chối mọi lần chấm mang một nhãn như vậy,
+nên schema từ chối nó ngay khi nạp scenario. Dấu kết hợp (tiếng Việt dạng tách), variation selector, emoji đơn và khoảng trắng bên trong vẫn được.
 | `variants.count` | số nguyên 1–10 (`VARIANTS_MAX`); `seed` số nguyên 0–4 294 967 295 |
 | `timeLimitS` | trên 0 và ≤ 600 s; `finish-within.seconds` và `stop-in-zone.holdS` không quá `timeLimitS` |
 | `inputs` | ≤ 100 lần nhấn/nhả, mỗi lần trong `[0, timeLimitS)`, mỗi nút xen kẽ nhấn–nhả bắt đầu từ nhả, một lần một thời điểm |

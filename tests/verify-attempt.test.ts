@@ -259,9 +259,25 @@ describe('the input is untrusted: Zod first, the LMS limits, never eval (invalid
     expect((await invalid(honest({ goals: [{ ...checked.goals[0]!, label: 'two\nlines' }, ...checked.goals.slice(1)] }))).problems).toEqual([
       'goals[0].label: must be 1 to 200 characters without control characters',
     ]);
-    await invalid(honest({ goals: [{ ...checked.goals[0]!, id: `${checked.goals[0]!.id}\u0085` }, ...checked.goals.slice(1)] }));
+    // N18 final fix M5: the LMS trims as .NET does, so a U+0085 at the edge of an id goes (the id is the honest one), and inside it is refused.
+    expect(labAttemptSchema.parse(honest({ goals: [{ ...checked.goals[0]!, id: `${checked.goals[0]!.id}\u0085` }, ...checked.goals.slice(1)] })).goals[0]!.id).toBe(checked.goals[0]!.id);
+    await invalid(honest({ goals: [{ ...checked.goals[0]!, id: `${checked.goals[0]!.id}\u0085x` }, ...checked.goals.slice(1)] }));
     await invalid(honest({ goals: [{ ...checked.goals[0]!, id: '   ' }, ...checked.goals.slice(1)] }));
     expect(labAttemptSchema.parse(honest({ goals: [{ ...checked.goals[0]!, id: ` ${checked.goals[0]!.id} ` }, ...checked.goals.slice(1)] })).goals[0]!.id).toBe(checked.goals[0]!.id);
+  });
+
+  it('goal texts as LabAttemptRules has them since the LMS final fix: Cc and Cf by code point, the .NET trim (N18 final fix M5)', async () => {
+    const withLabel = (label: string) => honest({ goals: [{ ...checked.goals[0]!, label }, ...checked.goals.slice(1)] });
+    const refused = 'goals[0].label: must be 1 to 200 characters without control characters';
+    // A zero-width space, a right-to-left override, a byte order mark at the edge (.NET does not trim it), a soft hyphen, a tag character.
+    for (const label of ['Xe\u{200B}dừng', 'Xe \u{202E}gnừd', '\u{FEFF}Xe dừng', 'Xe dừng\u{FEFF}', 'Xe\u{AD}dừng', 'Xe\u{E0041}']) {
+      expect((await invalid(withLabel(label))).problems, JSON.stringify(label)).toEqual([refused]);
+    }
+    // Taken: a U+0085 at the edge (.NET trims it), a lone surrogate (no Cc or Cf code point), a space of any kind inside.
+    for (const label of ['\u{85}Xe dừng\u{85}', 'Xe dừng \u{D800}', 'Xe\u{A0}dừng\u{3000}hẳn']) {
+      expect(() => labAttemptSchema.parse(withLabel(label)), JSON.stringify(label)).not.toThrow();
+    }
+    expect(labAttemptSchema.parse(withLabel('\u{85} Xe dừng\u{2028}')).goals[0]!.label).toBe('Xe dừng');
   });
 
   it('a list far over its limit is refused at once, by its length, with one problem (100 000 goals, 100 000 variants)', async () => {

@@ -10,6 +10,7 @@ import type { BlockPackCatalog } from '../program/block-packs';
 import { ROBOT_ENGINE_VERSION } from '../world/snapshot';
 import { checkRobot, RobotCheckError } from './check-robot';
 import { ROBOT_CHECK_LIMITS, type RobotCheckResult } from './check-result';
+import { hasHiddenCharacter, trimLikeDotNet } from './goal-text';
 import { GOAL_ID_MAX_CHARS, GOAL_LABEL_MAX_CHARS, GOALS_MAX, scenarioMaxScore, VARIANTS_MAX, type Scenario } from './scenario';
 import { variantOffsets } from './variants';
 
@@ -34,7 +35,7 @@ import { variantOffsets } from './variants';
 //
 // The input is untrusted (an export a teacher or admin hands in): it is read with Zod before anything else, with the LMS's own rules
 // (LabAttemptRules: a project of at most 262 144 UTF-8 bytes, at most 10 variants, 1 to 20 goals with distinct ids, goal ids and labels
-// without control characters, finite numbers), and only the fields named here are kept. A list's length is checked before its elements, the
+// trimmed as .NET trims and without control or format characters (goal-text.ts), finite numbers), and only the fields named here are kept. A list's length is checked before its elements, the
 // text of an input is at most ATTEMPT_LIMITS.inputMaxBytes (`verifyAttemptText`), and an attempt reports at most ATTEMPT_LIMITS.maxProblems
 // problems, so a hostile input costs little. Nothing of it is ever evaluated: the project is JSON.parse'd and validated like any document.
 // What the LMS checks across fields (passed is every goal and every variant) is left to the comparison: a re-run says more than a refusal.
@@ -161,17 +162,16 @@ function utf8Bytes(text: string): number {
 
 const message = (text: string) => ({ error: text });
 
-/** A control character as .NET's char.IsControl has it (Unicode Cc: U+0000…U+001F, U+007F…U+009F): LabAttemptRules.IsGoalText refuses it. */
+/** A control character as .NET's char.IsControl has it (Unicode Cc: U+0000…U+001F, U+007F…U+009F): `printable` escapes it. */
 const isControl = (unit: number) => unit <= 0x1f || (unit >= 0x7f && unit <= 0x9f);
-const hasControl = (text: string) => {
-  for (let i = 0; i < text.length; i++) if (isControl(text.charCodeAt(i))) return true;
-  return false;
-};
 
-/** A goal's id or label as LabAttemptRules reads it: trimmed, then 1 to `max` characters (UTF-16 units, as .NET counts), no control character. */
+/**
+ * A goal's id or label as LabAttemptRules reads it (IsGoalText; N18 final fix M5, goal-text.ts): trimmed as .NET's string.Trim() trims,
+ * then 1 to `max` characters (UTF-16 units, as .NET counts), no code point of Unicode Cc (control) or Cf (format: zero-width, bidi, BOM).
+ */
 const goalText = (max: number) => {
   const length = `must be 1 to ${max} characters without control characters`;
-  return z.string(message(length)).trim().min(1, length).max(max, length).refine((text) => !hasControl(text), length);
+  return z.string(message(length)).overwrite(trimLikeDotNet).min(1, length).max(max, length).refine((text) => !hasHiddenCharacter(text), length);
 };
 
 /**

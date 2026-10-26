@@ -193,6 +193,19 @@ describe('goals', () => {
     expect(() => loadScenario(editGoal(2, (g) => (g.label = { vi: 'x'.repeat(200), en: 'y'.repeat(200) })))).not.toThrow();
   });
 
+  it('refuses a control or format character in a label or a title, as the LMS does, and trims as .NET trims (N18 final fix M5)', () => {
+    const hidden = 'goals[2].label.vi: must not hold a control or format character (a line break, a tab, a zero-width or bidi mark)';
+    for (const label of ['Xe dừng\nhẳn', 'Xe\tdừng', 'Xe\u{200B}dừng', 'Xe dừng \u{202E}nẳh', '\u{FEFF}Xe dừng', 'Xe dừng\u{FEFF}', 'Xe\u{85}dừng', 'Xe dừng\u{AD}hẳn']) {
+      expect(issuesOf(editGoal(2, (g) => (g.label = { vi: label, en: 'x' }))), JSON.stringify(label)).toEqual([hidden]);
+    }
+    expect(issuesOf(edited((s) => (s.title.en = 'Park\u{2066}ing')))).toEqual(['title.en: must not hold a control or format character (a line break, a tab, a zero-width or bidi mark)']);
+    // Trimmed, as LabAttemptRules trims: a U+0085 or a line break at an edge goes, and the label the check sends is the trimmed one.
+    const trimmed = loadScenario(editGoal(2, (g) => (g.label = { vi: '\u{85} Xe dừng hẳn\n', en: ' Stop\u{A0}' })));
+    expect(trimmed.goals[2]!.label).toEqual({ vi: 'Xe dừng hẳn', en: 'Stop' });
+    // A lone surrogate is no Cc or Cf code point: taken, as .NET takes it.
+    expect(() => loadScenario(editGoal(2, (g) => (g.label = { vi: 'Xe \u{D800}', en: 'x' })))).not.toThrow();
+  });
+
   it('wants points that are whole numbers, 0 or more', () => {
     // Moving 10 points from goal 0 to the time bonus keeps the total at 100, so only the field is at fault.
     expect(issuesOf(editGoal(0, (g) => (g.points = -1)))).toContain('goals[0].points: must be a whole number, 0 or more');

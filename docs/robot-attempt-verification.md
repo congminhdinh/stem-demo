@@ -127,7 +127,9 @@ Với `--json`: một object cho một lần chấm, một mảng cho một danh
 
 File xuất do người đưa vào, nên `verify-attempt.ts` đọc nó bằng Zod **trước** mọi việc khác, với chính luật của LMS
 (`LabAttemptRules`): project tối đa 262 144 byte UTF-8, tối đa 10 variant, 1–20 goal với `id` **không trùng nhau**, `id` (1–50 ký tự) và
-nhãn (1–200) đã cắt khoảng trắng hai đầu và **không có ký tự điều khiển** (như `IsGoalText`), mọi số hữu hạn (JSON `1e999` là `Infinity`: bị
+nhãn (1–200, đếm theo đơn vị UTF-16) đã cắt khoảng trắng hai đầu **đúng như `string.Trim()` của .NET** (khác `trim()` của JS ở U+FEFF và
+U+0085) và **không có code point Unicode loại Cc hay Cf** (ký tự điều khiển, ký tự định dạng: zero-width, bidi, BOM…; như `IsGoalText` /
+`HasHiddenCharacter` từ final fix của LMS; luật chung ở `src/core/scenario/goal-text.ts`), mọi số hữu hạn (JSON `1e999` là `Infinity`: bị
 từ chối), `maxScore` 100, `score` 0–100, `simTimeMs` là số ms nguyên 0–3 600 000, `programHash` 1–64 chữ số hex, `engine` theo mẫu của LMS.
 Chỉ giữ các trường kể trên (một khoá `__proto__` chỉ là dữ liệu). Project được `JSON.parse` rồi kiểm bằng schema document như mọi project;
 **không có gì được eval**. Luật chéo giữa các trường của LMS (`passed` đúng khi mọi goal và mọi variant qua) không bị từ chối ở đây mà để
