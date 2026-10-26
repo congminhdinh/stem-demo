@@ -8,11 +8,12 @@ import { robotModel } from '../src/ui/robot3d/robot-model';
 import { createRobotRunStore } from '../src/ui/robot3d/robot-run-store';
 import Scene from '../src/ui/robot3d/Scene';
 import { translate } from '../src/ui/i18n/messages';
+import { TextProvider } from '../src/ui/i18n/text';
 import { zoneLabelOf } from '../src/ui/robot3d/zone-label';
 
 // N19 E6/E7: the robot lab's 3D view (Scene.tsx, as the lab mounts it) of the gripper car in the test arena of
 // src/ui/robot3d/__fixtures__/gripper-scene.ts, its world a fixture snapshot from the query: ?tier=high|low&claw=0&lift=90&held=cube-red
-// &status=running&camera=orbit|follow|top. A session that runs nothing hands the view that snapshot. `window.__gripperLook` is 'drawn' once
+// &status=running&camera=orbit|follow|top (and, N19 E4/E5, &ahead=cube-red&sensors=quiet|seen&heldAt=4). A session that runs nothing hands the view that snapshot. `window.__gripperLook` is 'drawn' once
 // the canvas has drawn its first frame.
 
 declare global {
@@ -25,7 +26,13 @@ const query = new URLSearchParams(window.location.search);
 const number = (name: string, fallback: number) => (query.has(name) ? Number(query.get(name)) : fallback);
 const tier = (query.get('tier') ?? 'high') as QualityTier;
 const camera = (query.get('camera') ?? 'orbit') as CameraMode;
-const world = gripperSnapshot({ clawDeg: number('claw', 0), liftDeg: number('lift', 90), heldId: query.get('held') }, (query.get('status') ?? 'running') as RobotRunSnapshot['status']);
+// N19 E4/E5 (fix round 1): &ahead=<object id> stands it between the open jaws, &sensors=quiet|seen gives the readouts the overlays draw.
+const sensors = query.get('sensors');
+const world = gripperSnapshot({ clawDeg: number('claw', 0), liftDeg: number('lift', 90), heldId: query.get('held') }, (query.get('status') ?? 'running') as RobotRunSnapshot['status'], undefined, {
+  ...(query.has('ahead') ? { ahead: query.get('ahead')! } : {}),
+  ...(sensors === 'quiet' || sensors === 'seen' ? { sensors } : {}),
+  ...(query.has('heldAt') ? { heldAtCm: Number(query.get('heldAt')) } : {}),
+});
 const snapshot: RobotRunSnapshot = { status: world.status, diagnostics: [], error: null, console: { lines: [], hidden: 0 }, world, slowerThanRealtime: false };
 const nothing = async () => ({ ok: true as const });
 const session = {
@@ -47,20 +54,23 @@ const session = {
 const store = createRobotRunStore(session);
 const model = robotModel(gripperKit, unoR3Board);
 
+// In Vietnamese, as the lab launched by the LMS speaks (N19 E4/E5: the sensor overlays' tags).
 createRoot(document.getElementById('view')!).render(
-  <Scene
-    scenario={gripperTestScenario}
-    kit={gripperKit}
-    model={model}
-    store={store}
-    tier={tier}
-    cameraMode={camera}
-    reducedMotion
-    zoneLabel={(zone) => zoneLabelOf((key, params) => translate('vi', key, params), zone)}
-    onContextLost={() => {}}
-    onContextRestored={() => {}}
-    onFirstFrame={() => {
-      window.__gripperLook = 'drawn';
-    }}
-  />,
+  <TextProvider locale="vi">
+    <Scene
+      scenario={gripperTestScenario}
+      kit={gripperKit}
+      model={model}
+      store={store}
+      tier={tier}
+      cameraMode={camera}
+      reducedMotion
+      zoneLabel={(zone) => zoneLabelOf((key, params) => translate('vi', key, params), zone)}
+      onContextLost={() => {}}
+      onContextRestored={() => {}}
+      onFirstFrame={() => {
+        window.__gripperLook = 'drawn';
+      }}
+    />
+  </TextProvider>,
 );

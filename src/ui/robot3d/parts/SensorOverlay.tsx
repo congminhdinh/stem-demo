@@ -47,8 +47,17 @@ type SensorOverlayProps = {
   gripperWords?: GripperWords | undefined;
 };
 
-/** N19 E5: how far over the carriage the gripper's tag may stand, m, in the order tried: its own height, higher, lower. */
-const GRIPPER_LABEL_LIFTS_M = [GRIPPER_LABEL_LIFT_M, GRIPPER_LABEL_LIFT_M + 0.04, GRIPPER_LABEL_LIFT_M - 0.02] as const;
+/**
+ * N19 E5: where the gripper's tag may stand, in the carriage's frame (m: up, across), in the order tried: over the jaws, higher, beside them
+ * on either side (fix round 1: seen from above, every spot over the jaws covers the beam and the spot), lower.
+ */
+const GRIPPER_LABEL_SPOTS_M = [
+  [GRIPPER_LABEL_LIFT_M, 0],
+  [GRIPPER_LABEL_LIFT_M + 0.04, 0],
+  [GRIPPER_LABEL_LIFT_M, -0.075],
+  [GRIPPER_LABEL_LIFT_M, 0.075],
+  [GRIPPER_LABEL_LIFT_M - 0.02, 0],
+] as const;
 
 /** What the tag keeps clear of: the strips at the top and the bottom, the HUD's corner, the card's side and the tools' corner. */
 const MAX_AVOID = 5;
@@ -132,8 +141,10 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
     () => ({
       anchor: new Vector3(),
       anchors: new Float64Array(2 * LABEL_REACH_SHARES.length),
-      // What floats over the view, and (N19 E5, for the gripper's tag) the distance tags placed before it this frame.
-      avoid: Array.from({ length: MAX_AVOID + MAX_LABEL_BOXES }, (): ScreenBox => ({ left: 0, right: 0, bottom: 0, top: 0 })),
+      // What floats over the view, and (N19 E5, for the gripper's tag) the distance tags placed before it this frame and the jaws' room.
+      avoid: Array.from({ length: MAX_AVOID + MAX_LABEL_BOXES + 1 }, (): ScreenBox => ({ left: 0, right: 0, bottom: 0, top: 0 })),
+      spotAnchors: new Float64Array(2 * GRIPPER_LABEL_SPOTS_M.length),
+      corner: new Vector3(),
       place: { reach: 0, center: 0, clear: false } as LabelPlace,
     }),
     [],
@@ -190,25 +201,46 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
     // N19 E5: the gripper's tag over the jaws, at the first height over the carriage where it is in the view and clear of what floats over
     // it and of the distance tags; the zones' tags keep clear of it as of them.
     const words = overlay.gripperLabel;
-    if (words !== null && count < MAX_LABEL_BOXES && overlay.gripperLabelShown()) {
+    const room = overlay.gripperRoom;
+    if (words !== null && room !== null && count < MAX_LABEL_BOXES && overlay.gripperLabelShown()) {
       const sprite = words.sprite;
-      for (let a = 0; a < GRIPPER_LABEL_LIFTS_M.length; a++) {
-        sprite.position.y = GRIPPER_LABEL_LIFTS_M[a]!;
+      const { spotAnchors, corner } = scratch;
+      for (let a = 0; a < GRIPPER_LABEL_SPOTS_M.length; a++) {
+        sprite.position.y = GRIPPER_LABEL_SPOTS_M[a]![0];
+        sprite.position.z = GRIPPER_LABEL_SPOTS_M[a]![1];
         sprite.getWorldPosition(anchor).project(camera);
         const seen = anchor.z <= 1 && anchor.z >= -1;
-        anchors[2 * a] = seen ? anchor.x : Number.NaN;
-        anchors[2 * a + 1] = seen ? anchor.y : Number.NaN;
+        spotAnchors[2 * a] = seen ? anchor.x : Number.NaN;
+        spotAnchors[2 * a + 1] = seen ? anchor.y : Number.NaN;
       }
-      sprite.position.y = GRIPPER_LABEL_LIFTS_M[0];
-      if (!Number.isNaN(anchors[0]!)) {
+      sprite.position.y = GRIPPER_LABEL_SPOTS_M[0][0];
+      sprite.position.z = 0;
+      if (!Number.isNaN(spotAnchors[0]!)) {
         for (let i = 0; i < count; i++) {
           const from = labelBoxes.boxes[i]!;
           cover(avoid[avoidCount + i]!, from.left, from.right, from.bottom, from.top);
         }
+        // The jaws' room on the screen: the box round its eight corners (behind the camera: none).
+        const box = avoid[avoidCount + count]!;
+        cover(box, Infinity, -Infinity, Infinity, -Infinity);
+        let corners = 0;
+        for (let k = 0; k < 8; k++) {
+          corner.set(k & 1 ? room.max[0] : room.min[0], k & 2 ? room.max[1] : room.min[1], k & 4 ? room.max[2] : room.min[2]);
+          room.frame.localToWorld(corner).project(camera);
+          if (corner.z > 1 || corner.z < -1) continue;
+          corners += 1;
+          if (corner.x < box.left) box.left = corner.x;
+          if (corner.x > box.right) box.right = corner.x;
+          if (corner.y < box.bottom) box.bottom = corner.y;
+          if (corner.y > box.top) box.top = corner.y;
+        }
+        const avoided = avoidCount + count + (corners > 0 ? 1 : 0);
         const width = sprite.scale.x * elements[0]! * words.widthShare;
         const height = sprite.scale.y * elements[5]! * words.heightShare;
-        placeLabel(labelBoxes.boxes[count]!, place, anchors, GRIPPER_LABEL_LIFTS_M.length, width, height, avoid, avoidCount + count);
-        sprite.position.y = GRIPPER_LABEL_LIFTS_M[place.reach]!;
+        placeLabel(labelBoxes.boxes[count]!, place, spotAnchors, GRIPPER_LABEL_SPOTS_M.length, width, height, avoid, avoided);
+        const chosen = GRIPPER_LABEL_SPOTS_M[place.reach]!;
+        sprite.position.y = chosen[0];
+        sprite.position.z = chosen[1];
         sprite.center.x = (1 - words.widthShare) / 2 + LABEL_CENTERS[place.center]! * words.widthShare;
         count += 1;
       }

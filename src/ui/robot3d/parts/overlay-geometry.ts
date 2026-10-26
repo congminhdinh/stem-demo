@@ -324,12 +324,15 @@ export function spotColor(spots: Spots, i: number, dark: boolean, color: { dark:
 /** The looks of the gripper's sensors: the IR beam quiet and seeing (and the dot at its end), the colour sensor's ray and the ring of its spot. */
 export type GripperRaysLook = { irQuiet: Rgba; irSeen: Rgba; colorRay: Rgba; colorRayQuiet: Rgba; spotRing: Rgba };
 
-export const IR_RADIUS_M = 0.0022;
-export const IR_DOT_RADIUS_M = 0.0045;
-export const COLOR_RAY_RADIUS_M = 0.0012;
-/** The colour spot's disc and the ring round it (m), standing this far off the face it is on, towards the sensor. */
-export const COLOR_SPOT_RADIUS_M = 0.007;
-export const COLOR_RING_RADIUS_M = 0.0095;
+export const IR_RADIUS_M = 0.0013;
+export const IR_DOT_RADIUS_M = 0.003;
+export const COLOR_RAY_RADIUS_M = 0.0009;
+/**
+ * The colour spot's disc and the ring round it (m), standing this far off the face it is on, towards the sensor. Fix round 1 (the visual
+ * review): the beam and the ray as thin as a pencil line next to the modelled parts, the spot a few millimetres (it was a chunky bar).
+ */
+export const COLOR_SPOT_RADIUS_M = 0.0055;
+export const COLOR_RING_RADIUS_M = 0.0072;
 const COLOR_SPOT_STANDOFF_M = 0.001;
 const DISC_SEGMENTS = 18;
 

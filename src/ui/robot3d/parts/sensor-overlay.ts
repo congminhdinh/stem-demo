@@ -110,6 +110,12 @@ export type SensorOverlay = {
   beams: readonly Beam[];
   /** N19 E5: the gripper's tag (null without a gripper's sensors, or where a canvas could not be made), and whether it is on the screen now. */
   gripperLabel: WordsLabel | null;
+  /**
+   * N19 E4/E5 fix round 1: the jaws' room, which the gripper's tag keeps clear of on the screen (it would hide the beam and the spot it
+   * names, seen from above): a box in the frame of the carriage (`frame`, three's axes, m), from its back to the fingers' tips, from under
+   * the jaws to over a cube between them, as wide as the jaws open. Null without a gripper's sensors.
+   */
+  gripperRoom: { frame: Object3D; min: readonly [number, number, number]; max: readonly [number, number, number] } | null;
   gripperLabelShown(): boolean;
   /** N19 E5: the gripper's rays, for a test. */
   gripperRays: GripperRays | null;
@@ -387,6 +393,7 @@ export function createSensorOverlay({ kit, model, scenario, decimal, unit, noEch
       round.colors = colors ?? arenaColors;
     },
     gripperLabel: carried?.label ?? null,
+    gripperRoom: carried?.room ?? null,
     gripperLabelShown: () => last.shown && carried !== null && carried.labelShown(),
     gripperRays: carried?.rays ?? null,
     dispose() {
@@ -403,6 +410,7 @@ export const GRIPPER_LABEL_LIFT_M = 0.045;
 
 type Carried = {
   group: Group;
+  room: NonNullable<SensorOverlay['gripperRoom']>;
   rays: GripperRays;
   label: WordsLabel | null;
   update(world: RobotSnapshot): void;
@@ -470,8 +478,14 @@ function carriedSensors(
   const last = new Float64Array([Number.NaN, Number.NaN, Number.NaN, Number.NaN, Number.NaN, Number.NaN]);
   const [pivotX, pivotY, pivotZ] = gripper.position;
   const colorText = (index: number): string | null => (words === undefined ? null : index === -1 ? words.noReading : words.color[COLOR_NAMES[index]!]);
+  // The jaws' room (`gripperRoom`): from the carriage's back to the fingers' tips, under the jaws to over a 4 cm cube between them, as wide
+  // as the open jaws reach (the hinges and a finger's length turned out by its open angle).
+  const reach = gripper.hinge.uM + gripper.finger.lengthM;
+  const half = gripper.hinge.vM + gripper.finger.lengthM * Math.sin((gripper.fingerOpenDeg * Math.PI) / 180) + gripper.finger.thicknessM;
+  const room = { frame: group, min: [-0.006, -0.018, -half] as const, max: [reach + 0.003, 0.026, half] as const };
   return {
     group,
+    room,
     rays,
     label,
     update(world) {

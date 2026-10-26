@@ -3,7 +3,7 @@ import type { Kit } from '../../../core/hardware/kit';
 import type { Scenario } from '../../../core/scenario/scenario';
 import { bodyPalette } from '../../../core/world/arena/body-colors';
 import { parseArena, type ArenaInput } from '../../../core/world/arena/arena-schema';
-import type { RobotSnapshot, SnapshotObject } from '../../../core/world/snapshot';
+import type { RobotSnapshot, SensorReadout, SnapshotObject } from '../../../core/world/snapshot';
 import { scenarioCatalog } from '../../../samples/robot-scenarios';
 import { gripperPose, type GripperState } from '../gripper-pose';
 import { robotModel } from '../robot-model';
@@ -56,19 +56,53 @@ export const gripperTestScenario: Scenario = {
 const model = robotModel(gripperKit, unoR3Board);
 
 /**
- * The car at its start with the gripper at `state` (robot.gripper, plan §4.4), `status` its run's; holding `held` (an object's id) centred
- * between the fingers 2.5 cm ahead of the carriage, where the world's grasp keeps it, the other objects where the arena puts them.
+ * N19 E4/E5 (fix round 1): what the gallery's close-ups of the gripper's sensors show. `ahead`: an object stands on the floor between the open
+ * jaws, 4 cm on from the carriage (its near face at u 2, where the IR sees it: as the e2e's pick arena puts the cube); `sensors`: the
+ * readouts in kit order, 'quiet' (the IR sees nothing, the colour ray meets nothing, the colour sensor's counts of the room's light) or
+ * 'seen' (the IR sees the held or ahead object, the colour sensor's ray meets its face and reads it: the counts a real run read off a red
+ * cube, spikes/n19-e45/results/rest-draws.txt); `heldAtCm`: how far on from the carriage the held object's centre is (2.5 by default, E6/E7's;
+ * the e2e's real grab holds it at 4). Without them the snapshot has no readouts, as E6/E7's gallery had.
  */
-export function gripperSnapshot(state: GripperState, status: RobotSnapshot['status'] = 'running', scenario: Scenario = gripperTestScenario): RobotSnapshot {
+export type GripperShotOptions = { ahead?: string; sensors?: 'quiet' | 'seen'; heldAtCm?: number };
+
+/** Counts of the TCS34725 off a red cube 2.2 cm away (a real run, spikes/n19-e45/results/rest-draws.txt), and of the room's light alone (under C 300: unclear). */
+const RED_COUNTS = { r: 2630, g: 569, b: 472, c: 3672 };
+const AMBIENT_COUNTS = { r: 10, g: 10, b: 10, c: 30 };
+
+/**
+ * The car at its start with the gripper at `state` (robot.gripper, plan §4.4), `status` its run's; holding `held` (an object's id) centred
+ * between the fingers 2.5 cm ahead of the carriage, where the world's grasp keeps it, the other objects where the arena puts them (and, E4/E5,
+ * `options.ahead` between the open jaws, with `options.sensors`' readouts).
+ */
+export function gripperSnapshot(state: GripperState, status: RobotSnapshot['status'] = 'running', scenario: Scenario = gripperTestScenario, options: GripperShotOptions = {}): RobotSnapshot {
   const idle = idleSnapshot(scenario, gripperKit);
   const pose = gripperPose(model.gripper!, state);
   const yaw = (scenario.start.yawDeg * Math.PI) / 180;
+  const at = (onCm: number, zCm: number | null, object: SnapshotObject): SnapshotObject => {
+    // The tip in the robot frame (three: x forward, y up), `onCm` further: the arena point of the robot turned by its yaw.
+    const forwardCm = pose.tip[0] * 100 + onCm;
+    return { ...object, pose: { ...object.pose, xCm: scenario.start.xCm + forwardCm * Math.cos(yaw), yCm: scenario.start.yCm + forwardCm * Math.sin(yaw), zCm: zCm ?? object.pose.zCm } };
+  };
   const objects: SnapshotObject[] = idle.objects.map((object) => {
-    if (object.id !== state.heldId) return object;
-    // The tip in the robot frame (three: x forward, y up), 2.5 cm on: the arena point of the robot turned by its yaw.
-    const forwardCm = (pose.tip[0] + 0.025) * 100;
-    const upCm = pose.tip[1] * 100;
-    return { ...object, pose: { ...object.pose, xCm: scenario.start.xCm + forwardCm * Math.cos(yaw), yCm: scenario.start.yCm + forwardCm * Math.sin(yaw), zCm: upCm } };
+    if (object.id === state.heldId) return at(options.heldAtCm ?? 2.5, pose.tip[1] * 100, object);
+    if (object.id === options.ahead) return at(4, null, object);
+    return object;
   });
-  return { ...idle, status, objects, robot: { ...idle.robot, gripper: state } };
+  const target = state.heldId ?? options.ahead ?? null;
+  // The near face of the object between the jaws (a 4 cm cube), from the sensors' mount at u 0.3.
+  const reachCm = (state.heldId !== null ? (options.heldAtCm ?? 2.5) : 4) - 2 - 0.3;
+  const seen = options.sensors === 'seen' && target !== null;
+  const spots = model.lineSensors.map((sensor): [number, number] => [scenario.start.xCm + sensor.position[0] * 100, scenario.start.yCm - sensor.position[2] * 100]);
+  const sensors: SensorReadout[] =
+    options.sensors === undefined
+      ? []
+      : [
+          // The ultrasonic hears the far wall over a cube between the jaws (it is in the cone's blind spot, B3; the e2e's real run heard the
+          // wall too): the arena's east wall's face at x 118, from the sensor at the robot's x + 7.5.
+          { role: 'ultrasonic', kind: 'ultrasonic', cm: 118 - scenario.start.xCm - 7.5, hitId: '#wall-3' },
+          ...model.lineSensors.map((sensor, i): SensorReadout => ({ role: sensor.role, kind: 'line-sensor', reflectance: 0.95, dark: false, spotCm: spots[i]! })),
+          { role: 'irClaw', kind: 'ir-obstacle', detected: seen, hitId: seen ? target : null },
+          { role: 'color1', kind: 'color-sensor', hitId: seen ? target : null, distanceCm: seen ? reachCm : null, rgbc: seen ? RED_COUNTS : AMBIENT_COUNTS },
+        ];
+  return { ...idle, status, objects, sensors, robot: { ...idle.robot, gripper: state } };
 }
