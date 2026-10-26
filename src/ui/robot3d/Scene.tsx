@@ -1,6 +1,6 @@
 import { addTail, Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Suspense, use, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { NeutralToneMapping, NoToneMapping, type DirectionalLight, type Object3D } from 'three';
+import { NeutralToneMapping, NoToneMapping, type DirectionalLight, type Object3D, type Texture } from 'three';
 import { useStore } from 'zustand';
 import type { Kit } from '../../core/hardware/kit';
 import type { Scenario } from '../../core/scenario/scenario';
@@ -31,6 +31,7 @@ import { useLocale, useText } from '../i18n/text';
 import { RobotView } from './RobotView';
 import { idleSnapshot, sameView } from './scene-math';
 import { createShadowWatch, holdShadows, type ShadowHold } from './shadow-watch';
+import { drawnDfgLut, releaseSharedGpu } from './shared-gpu';
 import { sightProps } from './sight-props';
 
 // The robot lab's 3D view (N18 R4.2, ADR 0002): one R3F canvas with the arena, the robot and the camera. It draws on demand
@@ -170,6 +171,11 @@ function CompiledDraw({ onDrawn, cap = false, onDraw }: { onDrawn?: (() => void)
       }),
     [],
   );
+  // N18 P2 fix round 1 (I2): three's page-wide sprite geometry and DFG texture are let go as this canvas goes (shared-gpu.ts), so its
+  // renderer is not held by their listeners; the texture is looked for once, after the first draw (the low tier has none).
+  const dfgLut = useRef<Texture | null>(null);
+  const looked = useRef(false);
+  useEffect(() => () => releaseSharedGpu(dfgLut.current), []);
   // An effect, after the scene's own (the studio's environment map is set by then: every shader is compiled once, with it).
   useEffect(() => {
     let live = true;
@@ -205,6 +211,10 @@ function CompiledDraw({ onDrawn, cap = false, onDraw }: { onDrawn?: (() => void)
       return;
     }
     gl.render(scene, camera);
+    if (!looked.current) {
+      looked.current = true;
+      dfgLut.current = drawnDfgLut(gl, scene);
+    }
     lastDraw.current = now;
     stoppedSinceDraw.current = false;
     if (since !== Infinity) onDraw?.(since, backToBack);
