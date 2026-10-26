@@ -49,18 +49,33 @@ describe('robot-keys.ts', () => {
 });
 
 describe('the kits of the robot labs (N19 A1, plan D-G1)', () => {
-  it('knows the rover at version 0, and nothing else until a task registers it', () => {
-    expect(robotKits).toEqual({ 'ref-uno-rover': '0' });
+  // The seven keys the pilot course and the sandbox shipped with, which run on the rover for good: written out, so that a key a later task adds
+  // (on another kit) is neither a row here nor a failure of this test.
+  const shippedRoverKeys = ['rb-drive-to-zone', 'rb-square-route', 'rb-stop-at-wall', 'rb-line-follow', 'rb-servo-gate', 'rb-mini-mission', 'rb-sandbox'] as const;
+
+  it('lists the rover at version 0, and every kit with a version', () => {
+    expect(robotKits['ref-uno-rover']).toBe('0');
     expect(robotKitVersionOf('ref-uno-rover')).toBe('0');
+    for (const id of Object.keys(robotKits) as (keyof typeof robotKits)[]) {
+      expect(robotKitVersionOf(id), id).toBe(robotKits[id]);
+      expect(isRobotKitId(id), id).toBe(true);
+    }
   });
 
-  it.each(robotTemplateKeys)('%s runs on the rover', (key) => {
+  it.each(shippedRoverKeys)('%s runs on the rover', (key) => {
+    expect(robotTemplateKeys).toContain(key);
     expect(robotTemplates[key].kit).toBe('ref-uno-rover');
+  });
+
+  it('gives every key of the table a kit the table lists', () => {
+    for (const key of robotTemplateKeys) {
+      expect(isRobotKitId(robotTemplates[key].kit), key).toBe(true);
+    }
   });
 
   it('says which ids are kits: an exact match, not a lookup that finds "constructor"', () => {
     expect(isRobotKitId('ref-uno-rover')).toBe(true);
-    expect(['ref-uno-gripper', 'constructor', 'toString', '__proto__', '', 'REF-UNO-ROVER'].map(isRobotKitId)).toEqual([false, false, false, false, false, false]);
+    expect(['vendor-kit', 'constructor', 'toString', '__proto__', '', 'REF-UNO-ROVER'].map(isRobotKitId)).toEqual([false, false, false, false, false, false]);
   });
 
   it('keeps the two old names as aliases of the rover and its version, for the readers that have not moved', () => {

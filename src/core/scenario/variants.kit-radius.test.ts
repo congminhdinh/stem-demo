@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { productionKits } from '../hardware/catalog';
+import { productionKits, referenceKitRef } from '../hardware/catalog';
 import type { Kit } from '../hardware/kit';
 import { robotFootprint } from '../world/robot/footprint';
 import { parseArena } from '../world/arena/arena-schema';
@@ -10,7 +10,7 @@ import { applyVariant, kitFootprintRadiusCm, ROBOT_FOOTPRINT_RADIUS_CM, variantO
 // when the kit does not say. The gripper car reaches farther than the rover, so its radius is data of its kit; the rover's draws are
 // the ones they always were.
 
-const rover = productionKits.refs().map((ref) => productionKits.get(ref) as Kit)[0] as Kit;
+const rover = productionKits.get(referenceKitRef) as Kit;
 const withRadius = (kit: Kit, footprintRadiusCm: number): Kit => ({ ...kit, chassis: { ...kit.chassis!, footprintRadiusCm } });
 
 describe('kitFootprintRadiusCm', () => {
@@ -84,7 +84,7 @@ describe('variantOffsets with the radius of a kit', () => {
     }
   });
 
-  it('gives the shipped scenarios the offsets they always had when the radius is the default', () => {
+  it('has the rover’s radius as its default, in every variant of every shipped scenario (the offsets themselves are pinned by the determinism and scenario tests)', () => {
     for (const scenario of scenarioCatalog.scenarios) {
       for (let i = 0; i < scenario.variants.count; i++) {
         expect(variantOffsets(scenario, i), `${scenario.key} variant ${i}`).toEqual(variantOffsets(scenario, i, kitFootprintRadiusCm(rover)));
