@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { ExtrudeGeometry, Shape, type Group, type Mesh, type MeshStandardMaterial } from 'three';
 import type { RobotSnapshot } from '../../core/world/snapshot';
 import { robot3dColors as colors } from './colors';
-import { gripperPose, gripperStateOf } from './gripper-pose';
+import { createGripperPose, gripperPoseInto, gripperStateOf } from './gripper-pose';
 import { buttonPressed, lineSeesDark, toneHzOf, type RobotModel } from './robot-model';
 import { servoArmYawRad, wheelSpin, writePose } from './scene-math';
 
@@ -57,6 +57,7 @@ export function RobotView({ model, view, shadows }: RobotViewProps) {
   const gripperBoom = useRef<Group>(null);
   const gripperCarriage = useRef<Group>(null);
   const gripperJaws = useRef<(Group | null)[]>([]);
+  const gripperPose = useMemo(createGripperPose, []);
   const chassis = useMemo(() => chassisGeometry(model.body), [model.body]);
   useEffect(() => () => chassis.dispose(), [chassis]);
 
@@ -103,15 +104,19 @@ export function RobotView({ model, view, shadows }: RobotViewProps) {
       if (cap) cap.position.y = buttonPressed(world, button.pinIndex) ? 0.0042 : 0.006;
     });
     if (model.gripper) {
-      const pose = gripperPose(model.gripper, gripperStateOf(world));
-      if (gripperBoom.current) gripperBoom.current.rotation.z = pose.elevationRad;
-      gripperCarriage.current?.position.set(...pose.tip);
-      [pose.jawLeft, pose.jawRight].forEach((hinge, i) => {
-        const jaw = gripperJaws.current[i];
-        if (!jaw) return;
-        jaw.position.set(...hinge);
-        jaw.rotation.y = i === 0 ? pose.betaRad : 0 - pose.betaRad;
-      });
+      // Written into one pose and the nodes: nothing is made a frame (N19 E6 fix round 1, review M1).
+      const { tip, jawLeft, jawRight, elevationRad, betaRad } = gripperPoseInto(gripperPose, model.gripper, gripperStateOf(world));
+      if (gripperBoom.current) gripperBoom.current.rotation.z = elevationRad;
+      gripperCarriage.current?.position.set(tip[0], tip[1], tip[2]);
+      const [left, right] = gripperJaws.current;
+      if (left) {
+        left.position.set(jawLeft[0], jawLeft[1], jawLeft[2]);
+        left.rotation.y = betaRad;
+      }
+      if (right) {
+        right.position.set(jawRight[0], jawRight[1], jawRight[2]);
+        right.rotation.y = 0 - betaRad;
+      }
     }
   });
 

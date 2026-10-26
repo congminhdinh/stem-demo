@@ -27,7 +27,7 @@ import type { RobotSnapshot } from '../../../core/world/snapshot';
 import type { Detail } from '../lighting/look';
 import { robot3dColors as colors } from '../colors';
 import type { Kit, ModuleKind } from '../../../core/hardware/kit';
-import { colorLedLit, gripperPose, gripperStateOf } from '../gripper-pose';
+import { colorLedLit, createGripperPose, gripperPoseInto, gripperStateOf, type GripperPose } from '../gripper-pose';
 import { buttonPressed, lineSeesDark, toneHzOf, type GripperModel, type RobotModel } from '../robot-model';
 import { servoArmYawRad, wheelSpin, type Vec3Tuple } from '../scene-math';
 import { bakeMovingPlain, lambertOf, lowTierMaterials, mergeStatic, swapMaterials } from './merge';
@@ -162,6 +162,8 @@ export type GripperHandles = {
   led: GlowMaterial | null;
   /** The lit LED's halo (a sprite of fixed size on the screen, as a line lamp's): the LED is a few millimetres across. */
   ledHalo: Object3D | null;
+  /** The pose each frame writes into (made once). */
+  pose: GripperPose;
 };
 
 export type AssembledRobot = { root: Group; handles: RobotHandles; dispose(): void };
@@ -353,7 +355,7 @@ function assembleGripper(
     root.add(part);
     return part;
   };
-  return { model: g, boom, link, carriage, jawLeft: jaw('part_gripper_jaw_l'), jawRight: jaw('part_gripper_jaw_r'), led, ledHalo };
+  return { model: g, boom, link, carriage, jawLeft: jaw('part_gripper_jaw_l'), jawRight: jaw('part_gripper_jaw_r'), led, ledHalo, pose: createGripperPose() };
 }
 
 /**
@@ -656,16 +658,19 @@ export function applyRobotWorld(handles: RobotHandles, world: RobotSnapshot, led
   if (handles.gripper) poseGripper(handles.gripper, world);
 }
 
-/** N19 E6: the gripper as robot.gripper says (gripper-pose.ts: the boom and its link turned, the carriage level at the tip, the fingers). */
+/**
+ * N19 E6: the gripper as robot.gripper says (gripper-pose.ts: the boom and its link turned, the carriage level at the tip, the fingers),
+ * written into the nodes and the handles' pose: nothing is made a frame (fix round 1, review M1).
+ */
 function poseGripper(gripper: GripperHandles, world: RobotSnapshot): void {
-  const pose = gripperPose(gripper.model, gripperStateOf(world));
-  gripper.boom.rotation.z = pose.elevationRad;
-  if (gripper.link) gripper.link.rotation.z = pose.elevationRad;
-  gripper.carriage.position.set(...pose.tip);
-  gripper.jawLeft.position.set(...pose.jawLeft);
-  gripper.jawLeft.rotation.y = pose.betaRad;
-  gripper.jawRight.position.set(...pose.jawRight);
-  gripper.jawRight.rotation.y = 0 - pose.betaRad;
+  const { tip, jawLeft, jawRight, elevationRad, betaRad } = gripperPoseInto(gripper.pose, gripper.model, gripperStateOf(world));
+  gripper.boom.rotation.z = elevationRad;
+  if (gripper.link) gripper.link.rotation.z = elevationRad;
+  gripper.carriage.position.set(tip[0], tip[1], tip[2]);
+  gripper.jawLeft.position.set(jawLeft[0], jawLeft[1], jawLeft[2]);
+  gripper.jawLeft.rotation.y = betaRad;
+  gripper.jawRight.position.set(jawRight[0], jawRight[1], jawRight[2]);
+  gripper.jawRight.rotation.y = 0 - betaRad;
   const lit = colorLedLit(world);
   if (gripper.led) gripper.led.emissiveIntensity = lit ? COLOR_LED_INTENSITY : 0;
   if (gripper.ledHalo) gripper.ledHalo.visible = lit;

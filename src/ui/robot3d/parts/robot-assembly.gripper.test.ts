@@ -30,7 +30,7 @@ beforeAll(async () => {
 
 const options = (detail: 'high' | 'low'): AssemblyOptions => ({ detail, shadows: detail === 'high', flag: null, boardLedPin: 13, blob: new Texture(), gripperReference });
 const idle = idleSnapshot(scenarioCatalog.get('rb-line-follow')!, gripperKit);
-const at = (clawDeg: number, liftDeg: number, status: RobotSnapshot['status'] = 'idle'): RobotSnapshot => ({ ...idle, status, robot: { ...idle.robot, gripper: { clawDeg, liftDeg, heldId: null } } as RobotSnapshot['robot'] });
+const at = (clawDeg: number, liftDeg: number, status: RobotSnapshot['status'] = 'idle'): RobotSnapshot => ({ ...idle, status, robot: { ...idle.robot, gripper: { clawDeg, liftDeg, heldId: null } } });
 const worldOf = (node: Object3D) => node.getWorldPosition(new Vector3()).toArray();
 const close = (actual: readonly number[], expected: readonly number[], digits = 6) => actual.forEach((value, i) => expect(value).toBeCloseTo(expected[i]!, digits));
 const meshCount = (root: Object3D) => {

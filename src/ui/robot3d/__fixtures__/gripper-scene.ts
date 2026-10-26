@@ -70,5 +70,5 @@ export function gripperSnapshot(state: GripperState, status: RobotSnapshot['stat
     const upCm = pose.tip[1] * 100;
     return { ...object, pose: { ...object.pose, xCm: scenario.start.xCm + forwardCm * Math.cos(yaw), yCm: scenario.start.yCm + forwardCm * Math.sin(yaw), zCm: upCm } };
   });
-  return { ...idle, status, objects, robot: { ...idle.robot, gripper: state } as RobotSnapshot['robot'] };
+  return { ...idle, status, objects, robot: { ...idle.robot, gripper: state } };
 }

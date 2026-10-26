@@ -1,6 +1,5 @@
-import type { RobotSnapshot } from '../../core/world/snapshot';
+import type { RobotSnapshot, SnapshotGripper } from '../../core/world/snapshot';
 import type { GripperModel } from './robot-model';
-import type { Vec3Tuple } from './scene-math';
 
 // The gripper's pose in the 3D view (N19 E6), from the snapshot's `robot.gripper {clawDeg, liftDeg, heldId}` (plan §4.4), by the geometry
 // the world builds it with (N19 B1, world/robot/gripper.ts; ADR 0004 §2): the boom turns about the lateral axis at the mount, its elevation
@@ -10,52 +9,56 @@ import type { Vec3Tuple } from './scene-math';
 // with the carriage, and the view draws it where the snapshot's `objects` say. The view's own arithmetic (Math trigonometry): the world's
 // determinism is not at stake here.
 
-/** What the snapshot says of the gripper (plan §4.4). */
-export type GripperState = { readonly clawDeg: number; readonly liftDeg: number; readonly heldId: string | null };
+/** What the snapshot says of the gripper (plan §4.4; N19 B1/B2 `SnapshotGripper`). */
+export type GripperState = SnapshotGripper;
 
 /** What setup() writes before a run (plan D-G3, drivers/gripper-servo2.ts): the claw open, the lift up, nothing held. */
 export const GRIPPER_REST: GripperState = Object.freeze({ clawDeg: 0, liftDeg: 90, heldId: null });
 
-const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+/** The snapshot's gripper, or setup()'s pose when the world has none yet (the view before a run, `idleSnapshot`). */
+export const gripperStateOf = (world: RobotSnapshot): GripperState => world.robot.gripper ?? GRIPPER_REST;
 
-/** The snapshot's gripper (N19 B4 adds it to RobotSnapshot['robot']), or setup()'s pose when the world has none yet (before a run). */
-export function gripperStateOf(world: RobotSnapshot): GripperState {
-  const state = (world.robot as { readonly gripper?: Partial<GripperState> }).gripper;
-  if (!state || !isNumber(state.clawDeg) || !isNumber(state.liftDeg)) return GRIPPER_REST;
-  // The snapshot's own (frozen) object when it is whole: the view reads this every frame.
-  if (state.heldId === null || typeof state.heldId === 'string') return state as GripperState;
-  return { clawDeg: state.clawDeg, liftDeg: state.liftDeg, heldId: null };
-}
+type Vec3 = [number, number, number];
 
 export type GripperPose = {
   /** The boom's elevation, rad: a turn about the robot group's +Z (three), raising the boom's +X towards +Y. */
   elevationRad: number;
   /** The boom's tip, where the carriage hangs (m). */
-  tip: Vec3Tuple;
+  tip: Vec3;
   /** Each finger's angle out from straight ahead, rad (the left finger turns by +β about +Y, the right one by −β). */
   betaRad: number;
   /** The fingers' hinges (m): the left one (robot +y, three −Z) and the right one. */
-  jawLeft: Vec3Tuple;
-  jawRight: Vec3Tuple;
+  jawLeft: Vec3;
+  jawRight: Vec3;
 };
 
 const DEG = Math.PI / 180;
 
-export function gripperPose(gripper: GripperModel, state: Pick<GripperState, 'clawDeg' | 'liftDeg'>): GripperPose {
+/** A pose to write into (`gripperPoseInto`), made once: the view poses the gripper every drawn frame (N19 E6 fix round 1, review M1). */
+export const createGripperPose = (): GripperPose => ({ elevationRad: 0, tip: [0, 0, 0], betaRad: 0, jawLeft: [0, 0, 0], jawRight: [0, 0, 0] });
+
+/** The gripper's pose at `state`, written into `out` (nothing is made). */
+export function gripperPoseInto(out: GripperPose, gripper: GripperModel, state: Pick<GripperState, 'clawDeg' | 'liftDeg'>): GripperPose {
   const elevationRad = (gripper.elevationAtLift0Deg + state.liftDeg) * DEG;
   const [px, py, pz] = gripper.position;
-  const tip: Vec3Tuple = [px + gripper.boomLengthM * Math.cos(elevationRad), py + gripper.boomLengthM * Math.sin(elevationRad), pz];
+  const tx = px + gripper.boomLengthM * Math.cos(elevationRad);
+  const ty = py + gripper.boomLengthM * Math.sin(elevationRad);
   const closed = gripper.fingerOpenDeg - gripper.fingerDegPerServoDeg * gripper.jawsMeetDeg;
   const beta = Math.min(gripper.fingerOpenDeg, Math.max(closed, gripper.fingerOpenDeg - gripper.fingerDegPerServoDeg * state.clawDeg));
-  const hingeX = tip[0] + gripper.hinge.uM;
-  return {
-    elevationRad,
-    tip,
-    betaRad: beta * DEG,
-    jawLeft: [hingeX, tip[1], tip[2] - gripper.hinge.vM],
-    jawRight: [hingeX, tip[1], tip[2] + gripper.hinge.vM],
-  };
+  out.elevationRad = elevationRad;
+  out.tip[0] = tx;
+  out.tip[1] = ty;
+  out.tip[2] = pz;
+  out.betaRad = beta * DEG;
+  out.jawLeft[0] = out.jawRight[0] = tx + gripper.hinge.uM;
+  out.jawLeft[1] = out.jawRight[1] = ty;
+  out.jawLeft[2] = pz - gripper.hinge.vM;
+  out.jawRight[2] = pz + gripper.hinge.vM;
+  return out;
 }
+
+/** The gripper's pose at `state`, a new one (tests, fixtures). */
+export const gripperPose = (gripper: GripperModel, state: Pick<GripperState, 'clawDeg' | 'liftDeg'>): GripperPose => gripperPoseInto(createGripperPose(), gripper, state);
 
 /**
  * Whether the colour sensor's white LED is lit: while the robot runs. The breakout's LED is on whenever the board powers it (its LED pin

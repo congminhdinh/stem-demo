@@ -4,7 +4,7 @@ import type { Kit } from '../../core/hardware/kit';
 import { gripperJawsCm, robotMechanics } from '../../core/hardware/kit-mechanics';
 import type { RobotSnapshot } from '../../core/world/snapshot';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
-import { GRIPPER_REST, gripperPose, gripperStateOf, colorLedLit } from './gripper-pose';
+import { GRIPPER_REST, colorLedLit, createGripperPose, gripperPose, gripperPoseInto, gripperStateOf } from './gripper-pose';
 import { robotModel } from './robot-model';
 import { idleSnapshot } from './scene-math';
 
@@ -83,11 +83,20 @@ describe('the gripper’s pose (N19 E6)', () => {
     expect(gripperPose(gripper, { clawDeg: -10, liftDeg: 90 }).betaRad).toBeCloseTo(12 * DEG, 12);
   });
 
+  it('writes a pose into one it was given, making nothing (the view poses the gripper every frame; fix round 1, review M1)', () => {
+    const out = createGripperPose();
+    const [tip, left, right] = [out.tip, out.jawLeft, out.jawRight];
+    expect(gripperPoseInto(out, gripper, { clawDeg: 80, liftDeg: 90 })).toBe(out);
+    expect([out.tip, out.jawLeft, out.jawRight]).toEqual([tip, left, right]);
+    expect(out.tip).toBe(tip);
+    expect(out).toEqual(gripperPose(gripper, { clawDeg: 80, liftDeg: 90 }));
+  });
+
   it('reads robot.gripper from the snapshot, and setup()’s pose (claw 0°, lift 90°) before the world has one', () => {
     const idle = idleSnapshot(scenarioCatalog.get('rb-line-follow')!, gripperKit);
     expect(gripperStateOf(idle)).toEqual(GRIPPER_REST);
     expect(GRIPPER_REST).toEqual({ clawDeg: 0, liftDeg: 90, heldId: null });
-    const held: RobotSnapshot = { ...idle, robot: { ...idle.robot, gripper: { clawDeg: 31.5, liftDeg: 12, heldId: 'cube' } } as RobotSnapshot['robot'] };
+    const held: RobotSnapshot = { ...idle, robot: { ...idle.robot, gripper: { clawDeg: 31.5, liftDeg: 12, heldId: 'cube' } } };
     expect(gripperStateOf(held)).toEqual({ clawDeg: 31.5, liftDeg: 12, heldId: 'cube' });
   });
 
