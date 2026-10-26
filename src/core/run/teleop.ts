@@ -11,6 +11,9 @@ import type { Kit } from '../hardware/kit';
 // So a teleop session is fixed by its input log, (tick, command): the same log gives the same world, tick for tick, as a program that
 // makes the same calls at the same ticks (robot-run-session.teleop.test.ts). A command that repeats what the drive was last told (a key
 // held down) changes nothing and is not logged.
+// N19 E3: on the gripper car the claw and the lift are two more commands of the same controller (`gripper`: a part and an angle), applied
+// through the same binding (gripper.claw / gripper.lift on the role `gripper`) and logged the same way; each part keeps its own last
+// angle, so a repeat of it is skipped whatever the drive or the other part was told in between.
 
 /**
  * How long a teleop run lasts at most, s (N18 R4.8 fix round 1, controller ruling): teleop is exploration and is never scored, so the
@@ -18,8 +21,24 @@ import type { Kit } from '../hardware/kit';
  */
 export const TELEOP_LIMIT_S = 600;
 
-/** One command of teleop: drive one way at `speed` (0..100, the drive's own scale), or stop both motors. */
-export type TeleopCommand = { readonly op: 'move'; readonly direction: DriveDirection; readonly speed: number } | { readonly op: 'stop' };
+/** N19 E3: the two servos of the gripper car's gripper module, the parts a teleop command moves. */
+export const gripperParts = ['claw', 'lift'] as const;
+export type GripperPart = (typeof gripperParts)[number];
+
+/** N19 E3: the role of the kit's gripper (robotRoles `gripper`). */
+export const GRIPPER_ROLE = 'gripper';
+/** N19 E3: the angles of the gripper's servos (contract U-35, U-36; the driver clamps to the same range). */
+const GRIPPER_DEG = { min: 0, max: 90 } as const;
+const gripperOps: Readonly<Record<GripperPart, string>> = { claw: 'gripper.claw', lift: 'gripper.lift' };
+
+/**
+ * One command of teleop: drive one way at `speed` (0..100, the drive's own scale), stop both motors, or (N19 E3) tell the claw or the lift
+ * an angle, 0..90.
+ */
+export type TeleopCommand =
+  | { readonly op: 'move'; readonly direction: DriveDirection; readonly speed: number }
+  | { readonly op: 'stop' }
+  | { readonly op: 'gripper'; readonly part: GripperPart; readonly deg: number };
 
 /** A command as it was applied: at the start of world tick `tick`. */
 export type TeleopEntry = { readonly tick: number; readonly command: TeleopCommand };
@@ -51,15 +70,46 @@ export const TELEOP_USES: { readonly modules: readonly ModuleUse[]; readonly inp
   outputPins: Object.freeze([]),
 });
 
+/**
+ * What a teleop run sets up for `kit` in setup() (N19 E3): the drive's, and on a kit with a gripper its two ops too, so that both servos
+ * attach and setup() writes claw 0°, lift 90° as a program's would. For a kit without a gripper it is `TELEOP_USES` itself.
+ */
+export function teleopUses(kit: Kit, board: BoardProfile): typeof TELEOP_USES {
+  if (!canTeleopGripper(kit, board)) {
+    return TELEOP_USES;
+  }
+  return Object.freeze({
+    modules: Object.freeze([...TELEOP_USES.modules, ...gripperParts.map((part) => Object.freeze({ role: GRIPPER_ROLE, op: gripperOps[part] }))]),
+    inputPins: TELEOP_USES.inputPins,
+    outputPins: TELEOP_USES.outputPins,
+  });
+}
+
 /** Whether the kit can be driven by hand: it has the drive (motorLeft and motorRight). */
 export function canTeleop(kit: Kit, board: BoardProfile): boolean {
   return roleOps(kit, board, DRIVE_ROLE).includes('drive.move');
+}
+
+/** N19 E3: whether the kit has a gripper whose claw and lift teleop can move (the keys Q, E, R, F and the four buttons are for it). */
+export function canTeleopGripper(kit: Kit, board: BoardProfile): boolean {
+  const ops = roleOps(kit, board, GRIPPER_ROLE);
+  return gripperParts.every((part) => ops.includes(gripperOps[part]));
 }
 
 /** A copy of `command` that is one, frozen; throws a RangeError for anything else. */
 function checkCommand(command: TeleopCommand): TeleopCommand {
   if (command.op === 'stop') {
     return Object.freeze({ op: 'stop' });
+  }
+  if (command.op === 'gripper') {
+    if (!gripperParts.includes(command.part)) {
+      throw new RangeError(`A teleop gripper command moves the claw or the lift, not ${String(command.part)}.`);
+    }
+    const { deg } = command;
+    if (!Number.isInteger(deg) || deg < GRIPPER_DEG.min || deg > GRIPPER_DEG.max) {
+      throw new RangeError(`A teleop gripper angle is a whole number from ${GRIPPER_DEG.min} to ${GRIPPER_DEG.max}, not ${String(deg)}.`);
+    }
+    return Object.freeze({ op: 'gripper', part: command.part, deg });
   }
   if (command.op !== 'move') {
     throw new RangeError(`A teleop command is a move or a stop, not ${String((command as { op?: unknown }).op)}.`);
@@ -75,12 +125,14 @@ function checkCommand(command: TeleopCommand): TeleopCommand {
 }
 
 const same = (a: TeleopCommand | null, b: TeleopCommand): boolean =>
-  a !== null && a.op === b.op && (a.op === 'stop' || (b.op === 'move' && a.direction === b.direction && a.speed === b.speed));
+  a !== null && a.op === b.op && (a.op === 'stop' || (a.op === 'move' && b.op === 'move' && a.direction === b.direction && a.speed === b.speed));
 
 export function createTeleopController(): TeleopController {
   const queue: TeleopCommand[] = [];
   const entries: TeleopEntry[] = [];
   let last: TeleopCommand | null = null;
+  /** N19 E3: the angle each gripper part was last told. */
+  const lastGripper: Partial<Record<GripperPart, number>> = {};
   let lastTick = 0;
 
   return {
@@ -97,6 +149,15 @@ export function createTeleopController(): TeleopController {
       lastTick = tick;
       while (queue.length > 0) {
         const command = queue.shift()!;
+        if (command.op === 'gripper') {
+          if (lastGripper[command.part] === command.deg) {
+            continue;
+          }
+          modules.call(GRIPPER_ROLE, gripperOps[command.part], [command.deg]);
+          lastGripper[command.part] = command.deg;
+          entries.push(Object.freeze({ tick, command }));
+          continue;
+        }
         if (same(last, command)) {
           continue;
         }

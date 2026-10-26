@@ -26,7 +26,7 @@ import type { ActuatorTargets } from '../world/robot/assembly';
 import { createScenarioWorld, type World } from '../world/world';
 import { createModuleModels } from './robot-modules';
 import type { RunDiagnostic } from './run-session';
-import { canTeleop, createTeleopController, TELEOP_LIMIT_S, TELEOP_USES, type TeleopCommand, type TeleopController, type TeleopEntry } from './teleop';
+import { canTeleop, createTeleopController, TELEOP_LIMIT_S, teleopUses, type TeleopCommand, type TeleopController, type TeleopEntry } from './teleop';
 import { createVirtualScheduler, nextTurn, type VirtualScheduler } from './virtual-clock';
 
 // The robot lab's run (N18 R3.6, robot plan §3, B5): the ONLY place where the learner's program, the hardware and the world meet.
@@ -318,8 +318,8 @@ const noScore: ScoreState = { points: 0, maxScore: null, goals: [] };
 /** What a start compiled, kept for `resetRobot`; a teleop run has no program (`ir` null) and sets up the drive only. */
 type Prepared = { ir: YbcProgramIR | null; uses: Pick<UnoProgramUses, 'modules' | 'inputPins' | 'outputPins'>; diagnostics: RunDiagnostic[]; program: unknown };
 
-/** What a teleop run is made from (N18 R4.8): no program, the drive's setup, nothing for uses-block to read. */
-const teleopPrepared: Prepared = { ir: null, uses: TELEOP_USES, diagnostics: [], program: null };
+/** What a teleop run is made from (N18 R4.8): no program, the drive's setup (N19 E3: and the gripper's, for a kit that has one), nothing for uses-block to read. */
+const teleopPrepared = (kit: Kit, board: BoardProfile): Prepared => ({ ir: null, uses: teleopUses(kit, board), diagnostics: [], program: null });
 
 type ActiveRun = {
   readonly prepared: Prepared;
@@ -1078,7 +1078,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       if (current !== null && current.check && ticking(current)) {
         return { ok: false, reason: 'check', diagnostics: [] };
       }
-      return launch(teleopPrepared, 0, false, createTeleopController());
+      return launch(teleopPrepared(kit, board), 0, false, createTeleopController());
     },
     teleop(command) {
       const run = current;
