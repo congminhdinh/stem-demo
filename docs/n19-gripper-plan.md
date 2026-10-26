@@ -322,6 +322,7 @@ Thứ tự: **G0 → A ∥ (D1–D3) → B → C ∥ E(asset) → D4–D8 → E(
 ### A — Phần cứng ảo và chương trình (44h)
 - **A1 Hỗ trợ nhiều kit (6h):** `robot-keys.ts`, `scenario-schema.ts:206`, `verify-attempt.ts`, `catalog.ts`, `variants.ts` (bán kính theo kit). *Test:* `rover hashes unchanged`; `grip key with rover kit is refused`; `kitFootprintRadiusCm(rover) = 11`.
 - **A2 Kiểu và dữ liệu kit (8h):** `kit.ts`, `kit-schema.ts`, `kit-mechanics.ts`, `uno-r3.board.json`, `ref-uno-gripper.kit.json`, `kits/README.md`. *Test:* `ref-uno-gripper has no diagnostics`; `i2c port on non-SDA pin → wrong-i2c-pin`; `two devices at 0x29 → i2c-address-conflict`; `on:gripper only for ir/color`.
+  - Khi kit gripper đã đăng ký, đổi tham số `radiusCm` của `variantOffsets` (`variants.ts`, A1 để mặc định 11 cm) thành **bắt buộc**, để một chỗ gọi quên bán kính của kit là lỗi biên dịch; sửa các chỗ gọi (`world.ts`, `verify-attempt.ts` đã dùng `variantSeed`, test) và chạy lại guard `tests/robot-world-counts.test.ts`.
 - **A3 Driver + thiết bị (12h):** `drivers/gripper-servo2.ts`, `ir-digital.ts`, `tcs34725.ts`; `hardware/devices/tcs34725.ts`; golden `drivers/__golden__/*.cpp`. *Test:* `every palette colour classifies the same in TS and the C++ table`; `first integration ready 2.4 ms + 50.4 ms after AEN`; `NACK → zeros → không rõ`.
 - **A4 Chuỗi chương trình (12h):** `ybc-ir.ts`, `constructs/uno.gripper.ts`, `uno.color.ts`, `uno.roles.ts`, `compile-uno-modules.ts`, `uno-uses.ts`, `uno.run.ts`, `binding.ts`, `capabilities/io.ts`, `block-packs.ts` (`kitBlockPacks`), `profiles/uno-basic.json`, `uno-advanced.json`, `codegen/arduino/sections.ts`, `names.ts`, i18n `blocks.ts`/`core-text.ts`/`messages.ts`. *Test:* danh sách op đúng ở `uno.test.ts:73`; conformance; `rover sandbox toolbox unchanged`; `claw 120 clamps to 90 and warns once`.
 - **A5 Hợp đồng (6h):** U-35…U-39, `U-M3 wire`, chỉnh U-46/U-48, `UNO_PARITY_ROWS` 34 → 39, bằng chứng CC-06/EMU-19/EMU-20/DS-02/ARD-18/TST-08…10; `docs/uno-compatibility-contract.md`. *Test:* `uno-contract.test.ts`: tên test khớp chính xác, không có `.skip`.
@@ -339,7 +340,8 @@ Thứ tự: **G0 → A ∥ (D1–D3) → B → C ∥ E(asset) → D4–D8 → E(
 - **C2 (10h):** `tests/parity/emulated-uno.ts` có `AVRTWI`; `twi-device.ts`, `inputs.ts` (`colors.windows`), `fixtures.ts`; `scripts/build-parity-hex.mjs`. Thêm fixture `driver-gripper`, `driver-ir`, `driver-color`, `driver-color-nack`, `kit-gripper-all`. Lệch thời gian ≤ 1 %.
 
 ### D — Kịch bản và chấm (74h)
-- **D1 Schema + biến thể (6h):** `scenario-schema.ts`, `variants.ts`, `arena-schema.ts`. *Test:* `existing scenarios keep their variant offsets`; `objectColors[0] equals arena colour`.
+- **D1 Schema + biến thể (6h):** `scenario-schema.ts`, `variants.ts`, `arena-schema.ts`, `arena-mat.ts`. *Test:* `existing scenarios keep their variant offsets`; `objectColors[0] equals arena colour`; `a 16 cm kit's start ring and label keep-off are drawn at 16`; `rover mat output byte-identical`.
+  - **Bán kính theo kit trong `arena-mat.ts`** (A1 chỉ làm phần world): vòng xuất phát in ra (`:473`), vị trí nhãn của điểm xuất phát (`:461`, `:466`) và vùng cấm nhãn (`:141`) đang dùng hằng `ROBOT_FOOTPRINT_RADIUS_CM` (11 cm) và `MatScenario` không có kit. Truyền `kitFootprintRadiusCm(kit)` vào (kit của scenario) để mặt thảm in và thảm 3D của bài gripper vẽ vòng 16 cm; kit rover giữ 11 nên thảm rover không đổi byte (`tests/arena-mat*.test.ts`).
 - **D2 Bốn goal mới (12h):** các file goal, `index.ts`, `reasons.ts`, `goal.ts` (detail). *Test:* mọi trường hợp biên ở §4.5; Review Focus 4.
 - **D3 Câu báo (5h):** `messages.ts` (`robot.goal.reason.*`, `robot.check.why.*`), tên vật trong `check-report.ts` ("khối đỏ", "kiện hàng 2", viết hoa đầu câu bằng `toLocaleUpperCase('vi')`).
 - **D4 Bốn kịch bản (35h):** pick 8h, deliver 10h, sort 7h, stack 10h. Gồm `src/samples/robot-scenarios/rb-grip-*.json`, lời giải mẫu, lời giải mù và exploit trong `robot-solutions.ts`, golden `.ino`. *Test:* lời giải mẫu qua mọi lượt; lời giải mù và exploit trượt, không vượt điểm trần §6.
@@ -363,6 +365,7 @@ Thứ tự: **G0 → A ∥ (D1–D3) → B → C ∥ E(asset) → D4–D8 → E(
 - **E6 Asset tay gắp (14h):**
   - `assets-src/robot3d/parts/gripper.py`: MG90S, giá chữ U, ngàm có đệm cao su, bảng IR, bảng TCS34725 có LED.
   - `build.py` đọc cả hai kit; `robot-assembly.ts`, `GltfRobot.tsx`; `neededParts(kit)` thay cho `NEEDED_PARTS`.
+  - `reference` trong `GltfRobot.tsx` **vẫn là kit rover** (các part chassis, bánh, caster được dựng theo rover và co giãn sang kích thước của kit, A1 đã ghi ở D-G1). Part chỉ có ở gripper cần kích thước tham chiếu riêng, và manifest asset phải băm cả `ref-uno-gripper.kit.json` (`scripts/build-robot-assets.mjs:43-46` hiện chỉ băm file kit rover).
   - Kích thước lấy từ file kit (hình = collider).
 - **E7 Asset vật (8h):** khối xốp (khoảng 200 tam giác, atlas 256² cho hoa văn), kiện hàng có băng keo, bệ gỗ, `prop_kho_shelf`; `arena-assembly.ts`.
 - **E8 Gallery + soát hình độc lập + 1 vòng sửa (8h):**
