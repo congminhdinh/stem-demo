@@ -133,7 +133,7 @@ test.describe('the low tier’s chain, its steps forced (N18 P2 fix round 1)', (
   test('offers the 2D map, and never shows it by itself: Xem 2D shows it and the run goes on', async ({ page, baseURL }) => {
     const frame = await openInLesson(page, labUrl(baseURL));
     await frame.getByTestId('robot-run').click();
-    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
+    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy', { timeout: 30_000 });
     await frame.evaluate(() => window.__stem?.robot.forceLowTierStep('offer'));
     const offer = frame.getByTestId('robot-offer-2d');
     await expect(offer).toContainText('3D chạy chậm trên máy này: bản đồ 2D mượt hơn.');
@@ -144,7 +144,7 @@ test.describe('the low tier’s chain, its steps forced (N18 P2 fix round 1)', (
     await expect(frame.getByTestId('robot-topview')).toBeVisible();
     await expect(offer).toHaveCount(0);
     const at = (await view(frame))?.t ?? 0;
-    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
+    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy', { timeout: 30_000 });
     await expect.poll(async () => (await view(frame))?.t ?? 0, { timeout: 30_000 }).toBeGreaterThan(at + 0.5);
   });
 

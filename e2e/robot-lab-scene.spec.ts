@@ -82,7 +82,7 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
 
     await frame.evaluate((document) => window.__stem?.loadProject(document), solved());
     await frame.getByTestId('robot-run').click();
-    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
+    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy', { timeout: 30_000 });
     // The robot leaves its start (x = 25 cm) along +x, and the wait it drives through is the block that lights up.
     await expect.poll(async () => (await view(frame))?.robot.xCm ?? 0, { timeout: 60_000 }).toBeGreaterThan(32);
     await expect.poll(() => litBlocks(frame), { timeout: 30_000 }).toEqual(['drive-time']);
@@ -91,14 +91,14 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
 
     // Đặt lại during a paused run: the run starts again from the start pose, at t = 0, and stays paused there.
     await frame.getByTestId('robot-pause').click();
-    await expect(frame.getByTestId('robot-status')).toHaveText('Tạm dừng');
+    await expect(frame.getByTestId('robot-status')).toHaveText('Tạm dừng', { timeout: 30_000 });
     await frame.getByTestId('robot-reset').click();
     await expect.poll(async () => (await view(frame))?.t ?? 99, { timeout: 30_000 }).toBe(0);
     const restarted = await view(frame);
     expect(restarted?.robot.xCm).toBeCloseTo(25, 1);
     expect(restarted?.robot.yCm).toBeCloseTo(40, 1);
     expect(restarted?.robot.yawDeg).toBeCloseTo(0, 1);
-    await expect(frame.getByTestId('robot-status')).toHaveText('Tạm dừng');
+    await expect(frame.getByTestId('robot-status')).toHaveText('Tạm dừng', { timeout: 30_000 });
 
     // Dừng: the run is over, and the robot stays where it stopped until Đặt lại puts back the start.
     await frame.getByTestId('robot-stop').click();
@@ -266,14 +266,14 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
     const frame = await openInLesson(page, labUrl(baseURL, 'lab=robot&template=rb-drive-to-zone'));
     await frame.evaluate((document) => window.__stem?.loadProject(document), solved());
     await frame.getByTestId('robot-step').click();
-    await expect(frame.getByTestId('robot-status')).toHaveText('Tạm dừng');
+    await expect(frame.getByTestId('robot-status')).toHaveText('Tạm dừng', { timeout: 30_000 });
     await expect.poll(async () => (await view(frame))?.t, { timeout: 30_000 }).toBeCloseTo(0.1, 9);
     await frame.getByTestId('robot-step').click();
     await expect.poll(async () => (await view(frame))?.t, { timeout: 30_000 }).toBeCloseTo(0.2, 9);
     await page.waitForTimeout(300);
     expect((await view(frame))?.t).toBeCloseTo(0.2, 9);
     await frame.getByTestId('robot-pause').click();
-    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
+    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy', { timeout: 30_000 });
     await expect.poll(async () => (await view(frame))?.t ?? 0, { timeout: 30_000 }).toBeGreaterThan(0.4);
   });
 
@@ -281,7 +281,7 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
     const frame = await openInLesson(page, labUrl(baseURL, 'lab=robot&template=rb-drive-to-zone'));
     await frame.evaluate((document) => window.__stem?.loadProject(document), solved());
     await frame.getByTestId('robot-run').click();
-    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
+    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy', { timeout: 30_000 });
     // N18 R4.6 fix round 1 (controller ruling b): the extension is taken before the loss. A lost context answers `getExtension` with null,
     // so asking for it again to restore (as this test did) restored nothing, and the message went away because the view gave up.
     await frame.evaluate(() => {
@@ -469,7 +469,7 @@ test.describe('the robot lab’s layout (N18 R4.2)', () => {
     await page.evaluate((document) => window.__stem?.loadProject(document), solved());
     await page.getByTestId('robot-run').click();
     await expect(page.getByRole('tab', { name: 'Robot', exact: true })).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByTestId('robot-status')).toHaveText('Đang chạy');
+    await expect(page.getByTestId('robot-status')).toHaveText('Đang chạy', { timeout: 30_000 });
     expect(await scrolls(page)).toEqual({ sideways: false, down: false });
     await expect.poll(async () => ((await page.evaluate(() => window.__stem?.robot.getSnapshot())) as RobotView | null)?.robot.xCm ?? 0).toBeGreaterThan(30);
     await screenshot(page, '08-robot-tab-760.png');

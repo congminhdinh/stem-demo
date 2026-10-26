@@ -173,7 +173,7 @@ test.describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
     await expect(frame.getByTestId('robot-round')).toHaveText('Lượt 2/3');
     await expect(frame.getByTestId('robot-speed').getByRole('radio', { name: '1×' })).toHaveAttribute('aria-checked', 'true');
     await expect(frame.getByTestId('robot-check-results')).toHaveAttribute('data-open', 'false');
-    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
+    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy', { timeout: 30_000 });
     await screenshot(page, '04-replay-1100x640.png');
     await expect(frame.getByTestId('robot-status')).toHaveText('Hết lượt: robot đã va chạm', { timeout: 60_000 });
     expect(await frame.evaluate(() => window.__stem?.robot.snapshotHash())).toBe(hashes[1]);

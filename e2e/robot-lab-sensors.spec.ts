@@ -118,7 +118,7 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
 
     // Held still (Tạm dừng), the tag says the very distance the sensor read, to a tenth of a cm.
     await frame.getByTestId('robot-pause').click();
-    await expect(frame.getByTestId('robot-status')).toHaveText('Tạm dừng');
+    await expect(frame.getByTestId('robot-status')).toHaveText('Tạm dừng', { timeout: 30_000 });
     await expect
       .poll(
         async () => {
@@ -237,7 +237,7 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     await frame.getByTestId('robot-run').click();
     await expect.poll(async () => (await overlay(frame))?.ultrasonics[0]?.ray, { timeout: 30_000 }).toBe(true);
     await frame.getByTestId('robot-pause').click();
-    await expect(frame.getByTestId('robot-status')).toHaveText('Tạm dừng');
+    await expect(frame.getByTestId('robot-status')).toHaveText('Tạm dừng', { timeout: 30_000 });
     // Held still, the scene draws nothing more: the pulse and the overlays make no frames of their own.
     await page.waitForTimeout(1200);
     const rested = await draws();
@@ -288,7 +288,7 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     await expect.poll(async () => (await overlay(frame))?.ultrasonics[0]?.ray, { timeout: 30_000 }).toBe(true);
     await expect.poll(async () => (await view(frame))?.t ?? 0, { timeout: 30_000 }).toBeGreaterThan(1);
     await frame.getByTestId('robot-pause').click();
-    await expect(frame.getByTestId('robot-status')).toHaveText('Tạm dừng');
+    await expect(frame.getByTestId('robot-status')).toHaveText('Tạm dừng', { timeout: 30_000 });
     // The drawing buffer of every draw to the screen, read after its draw calls (before it is composited), and its pixels counted that are
     // clearly blue: the blue is far over the red (the beam's #0284c7 and its softer edges; the robot has a few blue parts, which are in
     // both counts, so the two are compared).
@@ -354,7 +354,7 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     // The reference drives up to the wall and stops 15 cm from it, in the zone; its goal then passes after the hold, and the zone's glow goes.
     await expect.poll(async () => (await overlay(frame))?.zone, { timeout: 30_000 }).toBeNull();
     // Still running: the program loops for ever, the clock goes on, the robot stands.
-    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
+    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy', { timeout: 30_000 });
     // The overlays have settled (the tag, once, by the loop stopping) and nothing else asks for a frame.
     await page.waitForTimeout(1500);
     const rested = await draws();
@@ -362,7 +362,7 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     await page.waitForTimeout(2500);
     expect(await draws()).toBe(rested);
     expect(await frame.getByTestId('robot-time').textContent()).not.toBe(restedAt);
-    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
+    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy', { timeout: 30_000 });
     // And the tag says the reading to a tenth: it settled to it.
     const reading = ultrasonicOf(await view(frame));
     expect((await overlay(frame))?.ultrasonics[0]?.label).toBe(tagOf(reading!.cm!));

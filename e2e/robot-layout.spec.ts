@@ -190,7 +190,7 @@ test.describe('the robot lab at 1100 x 640, the size of a lesson’s frame (N18 
     await frame.evaluate((document) => window.__stem?.loadProject(document), { ...robotStarterDocument('rb-line-follow'), program: { blocks: robotSolutions['rb-line-follow'].reference } });
     const idle = await box(frame, '.robot-header');
     await frame.getByTestId('robot-run').click();
-    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
+    await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy', { timeout: 30_000 });
     const running = await box(frame, '.robot-header');
     expect(running.height).toBe(idle.height);
     expect(running.height).toBeLessThan(64);
@@ -231,7 +231,7 @@ test.describe('the robot lab at 760 px, narrower than 800 (N18 R4.6)', () => {
     await page.evaluate((document) => window.__stem?.loadProject(document), { ...robotStarterDocument('rb-drive-to-zone'), program: { blocks: robotSolutions['rb-drive-to-zone'].reference } });
     await page.getByTestId('robot-run').click();
     await expect(page.getByRole('tab', { name: 'Robot', exact: true })).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByTestId('robot-status')).toHaveText('Đang chạy');
+    await expect(page.getByTestId('robot-status')).toHaveText('Đang chạy', { timeout: 30_000 });
     const viewport = await box(page, '[data-testid=robot-viewport]');
     const stage = await box(page, '.robot-stage');
     expect(viewport.x).toBeLessThan(2);

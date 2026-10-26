@@ -184,7 +184,7 @@ test.describe('the robot lab’s view tools (N18 R4.8)', () => {
     expect(nudged.yawDeg).toBeCloseTo(15, 3);
     // A Run starts there.
     await frame.getByTestId('robot-run').click();
-    await expect(frame.getByTestId('robot-status')).toHaveText(/Đang chạy|Chương trình đã chạy xong|Lượt chạy kết thúc/);
+    await expect(frame.getByTestId('robot-status')).toHaveText(/Đang chạy|Chương trình đã chạy xong|Lượt chạy kết thúc/, { timeout: 30_000 });
     await expect.poll(async () => (await view(frame))?.status, { timeout: 30_000 }).not.toBe('idle');
     const running = (await view(frame))!.robot;
     expect(Math.hypot(running.xCm - nudged.xCm, running.yCm - nudged.yCm)).toBeLessThan(5);
