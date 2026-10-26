@@ -4,7 +4,7 @@ import { BRAKE, backward, cube, forward, gripperKit, gripperScene, pick, run, se
 import type { ArenaInput } from '../arena/arena-schema';
 import { initPhysics, type Collider } from '../rapier';
 import { rotateVector, type Quat } from '../units';
-import { breakForceN, CONTACT_GAP_M, DEFAULT_GROUPS, HELD_SOLVER_GROUPS, squeezeN, type GraspObject } from './grasp';
+import { breakForceN, CONTACT_GAP_M, DEFAULT_GROUPS, gripWidthCm, HELD_SOLVER_GROUPS, squeezeN, type GraspObject } from './grasp';
 import { innerFaceVCm } from './gripper';
 
 // N19 B2 (plan §4.4 with §4.6; ADR 0004 §4.2, §4.3, §5.4): the grasp state machine on ref-uno-gripper@0, attach + hysteresis. Scripts set
@@ -26,10 +26,19 @@ const floor = (sizeCm: [number, number] = [200, 100]): ArenaInput['ground'] => (
 const cubeAhead = (id: string, massG: number, options: { offset?: readonly [number, number]; sizeCm?: number; ahead?: number; u?: number } = {}) =>
   cube(id, [START.xCm + TIP0 + (options.u ?? 3) + (options.ahead ?? 8) + (options.offset?.[0] ?? 0), START.yCm + (options.offset?.[1] ?? 0)], massG, options.sizeCm ?? 4);
 
-type Conditions = { readonly command: boolean; readonly window: boolean; readonly contacts: boolean; readonly gap: boolean; readonly payload: boolean };
-const names = ['command', 'window', 'contacts', 'gap', 'payload'] as const;
+type Conditions = {
+  readonly command: boolean;
+  readonly window: boolean;
+  readonly contacts: boolean;
+  readonly gap: boolean;
+  readonly payload: boolean;
+  readonly releasable: boolean;
+  readonly fits: boolean;
+};
+/** The five conditions of §4.4, then rules 5 and 6 of §4.6 (B2 fix round 1): θc ≥ 6°, width ≤ 4.3 cm. */
+const names = ['command', 'window', 'contacts', 'gap', 'payload', 'releasable', 'fits'] as const;
 
-/** The five conditions of §4.4 (§4.6: CONTACT_GAP_M = 2 mm), as the oracle reads them. */
+/** The five conditions of §4.4 (§4.6: CONTACT_GAP_M = 2 mm) and §4.6's rules 5 and 6, as the oracle reads them. */
 function conditionsOf(scene: GripperScene, object: GraspObject): Conditions {
   const { gripper } = scene;
   const at = scene.grasp.view(object);
@@ -44,6 +53,8 @@ function conditionsOf(scene: GripperScene, object: GraspObject): Conditions {
     contacts: within(gripper.fingers[0].collider) && within(gripper.fingers[1].collider),
     gap: gap <= at.widthCm + 0.3,
     payload: object.massG <= 50,
+    releasable: gripper.clawDeg() >= 6,
+    fits: at.widthCm <= 4.3,
   };
 }
 
@@ -54,7 +65,15 @@ function conditionsOf(scene: GripperScene, object: GraspObject): Conditions {
 function watch(scene: GripperScene, id: string) {
   const object = scene.object(id);
   let pending: Conditions | null = null;
-  const stats = { checked: 0, mismatches: [] as string[], allFive: 0, attaches: 0, failedAlone: Object.fromEntries(names.map((name) => [name, 0])) as Record<(typeof names)[number], number> };
+  const stats = {
+    checked: 0,
+    mismatches: [] as string[],
+    allFive: 0,
+    /** Ticks where §4.4's five held but rule 5 or 6 refused the attach. */
+    refusedByRules: 0,
+    attaches: 0,
+    failedAlone: Object.fromEntries(names.map((name) => [name, 0])) as Record<(typeof names)[number], number>,
+  };
   return {
     stats,
     between: () => {
@@ -64,9 +83,11 @@ function watch(scene: GripperScene, id: string) {
       if (pending === null) return;
       const c = pending;
       const all = names.every((name) => c[name]);
+      const five = c.command && c.window && c.contacts && c.gap && c.payload;
       const held = scene.grasp.heldId === id;
       stats.checked += 1;
       if (all) stats.allFive += 1;
+      if (five && !all) stats.refusedByRules += 1;
       if (held) stats.attaches += 1;
       if (held !== all) stats.mismatches.push(`tick ${scene.tick}: ${JSON.stringify(c)} held ${held}`);
       const failed = names.filter((name) => !c[name]);
@@ -82,6 +103,33 @@ function tiltDeg(rotation: Quat): number {
     best = Math.min(best, Math.acos(Math.min(1, Math.abs(rotateVector(rotation, axis).y))) / DEG);
   }
   return best;
+}
+
+/**
+ * Puts `object` at rest on the floor with its centre at carriage (u, v), cm, turned by `yawDeg` from the carriage's heading, while the robot
+ * stands still with its carriage level: a test's way to set up exactly the case it checks.
+ */
+function placeInJaws(scene: GripperScene, object: GraspObject, u: number, v: number, yawDeg = 0): void {
+  const c = scene.gripper.carriage.translation();
+  const q = scene.gripper.carriage.rotation();
+  const offset = rotateVector(q, { x: u / 100, y: 0, z: -v / 100 });
+  const halfHeight = object.shape.kind === 'box' ? object.shape.halfM.y : object.shape.halfHeightM;
+  const yaw = { x: 0, y: Math.sin((yawDeg * DEG) / 2), z: 0, w: Math.cos((yawDeg * DEG) / 2) };
+  object.body.setTranslation({ x: c.x + offset.x, y: halfHeight, z: c.z + offset.z }, true);
+  object.body.setRotation(multiply(q, yaw), true);
+  object.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+  object.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+  scene.world.propagateModifiedBodyPositionsToColliders();
+}
+
+/** a ⊗ b for quaternions (tests only). */
+function multiply(a: Quat, b: Quat): Quat {
+  return {
+    x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+    y: a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+    z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
+    w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
+  };
 }
 
 /** How deep a gripper collider is in the object, m (0 when apart), by shape query. */
@@ -100,6 +148,8 @@ describe('the grasp machine (N19 B2)', () => {
     expect(Math.round(breakForceN(spec) * 100) / 100).toBe(9.71);
     expect(breakForceN(spec)).toBeCloseTo((2 * 0.6 * 0.18) / 0.89 / 0.025, 12);
     expect([DEFAULT_GROUPS, HELD_SOLVER_GROUPS]).toEqual([0xffffffff, 0xfffffffb]);
+    // Rule 6: the fingers 2·2.2 − 0.4 = 4.0 cm apart when parallel, + 0.3 cm.
+    expect(gripWidthCm(spec)).toBeCloseTo(4.3, 12);
   });
 
   it('sees an object in the carriage frame: u forward, v left, w up from the boom’s tip, and its width across the jaws', () => {
@@ -267,6 +317,76 @@ describe('the grasp machine (N19 B2)', () => {
     });
   });
 
+  describe('an attach is always one the claw can let go of: θc ≥ 6° (§4.6 rule 5)', () => {
+    /** Lower and open, drive the open jaws into the box (duty 140, 3 s at most, until its centre is at u ≤ 3.25), brake, then 80°, lift 60°, 0°. */
+    const wide = (box: ReturnType<typeof cube>) => {
+      const scene = gripperScene({ ground: floor(), objects: [box] }, START);
+      const watcher = watch(scene, 'box');
+      const seen: string[] = [];
+      const script = (function* (): Script {
+        scene.set({ liftDeg: 0, clawDeg: 0 });
+        yield* wait(seconds(0.35));
+        scene.drive(forward(140));
+        yield* until(() => scene.grasp.view(scene.object('box')).u <= 3.25, seconds(3));
+        scene.drive(BRAKE);
+        yield* wait(seconds(0.3));
+        seen.push(`driven in: u ${scene.grasp.view(scene.object('box')).u.toFixed(2)}`);
+        scene.set({ clawDeg: 80 });
+        yield* wait(seconds(0.6));
+        seen.push(`told 80°: claw ${scene.gripper.clawDeg().toFixed(2)}°`);
+        scene.set({ liftDeg: 60 });
+        yield* wait(seconds(0.6));
+        scene.set({ clawDeg: 0 });
+        yield* wait(seconds(1));
+      })();
+      let held = 0;
+      try {
+        run(
+          scene,
+          script,
+          seconds(0.35 + 3 + 0.3 + 0.6 + 0.6 + 1),
+          () => {
+            watcher.after();
+            if (scene.grasp.heldId !== null) held += 1;
+          },
+          watcher.between,
+        );
+        return { held, seen, stats: watcher.stats, bottomCm: scene.object('box').body.translation().y * 100 - box.sizeCm[2] / 2 };
+      } finally {
+        scene.dispose();
+      }
+    };
+
+    it('a 5 cm box never attaches: the open jaws wedge on it below 6°, and it would never be let go', () => {
+      const result = wide(cubeAhead('box', 15, { sizeCm: 5 }));
+      expect(result.held, result.seen.join('; ')).toBe(0);
+      expect(result.stats.mismatches).toEqual([]);
+      // The five conditions of §4.4 were met (the claw wedged on it near 0°, then closed 5° into it): rules 5 and 6 refused it.
+      expect(result.stats.refusedByRules).toBeGreaterThan(0);
+      // Left on the floor.
+      expect(Math.abs(result.bottomCm)).toBeLessThan(0.05);
+    });
+
+    it('lesson 11’s 6×6×4 cm 40 g base never attaches, even when the open jaws are driven into it', () => {
+      const base = { shape: 'box' as const, id: 'box', centerCm: [START.xCm + TIP0 + 3 + 8, START.yCm] as [number, number], sizeCm: [6, 6, 4] as [number, number, number], massG: 40 };
+      const result = wide(base);
+      expect(result.held, result.seen.join('; ')).toBe(0);
+      expect(result.stats.mismatches).toEqual([]);
+      expect(Math.abs(result.bottomCm)).toBeLessThan(0.05);
+    });
+
+    it('a 4 cm cube still attaches at about 19.94°', () => {
+      const scene = gripperScene({ ground: floor(), objects: [cubeAhead('cube', 15)] }, START);
+      try {
+        run(scene, pick(scene, 'cube', { liftDeg: 0, u: 3 }), seconds(0.35 + 4));
+        expect(scene.grasp.heldId).toBe('cube');
+        expect(scene.grasp.thetaCDeg).toBeCloseTo(19.94, 1);
+      } finally {
+        scene.dispose();
+      }
+    });
+  });
+
   it('release at θc−6° not at θc−3°', () => {
     const scene = gripperScene({ ground: floor(), objects: [cubeAhead('cube', 15)] }, START);
     try {
@@ -348,10 +468,16 @@ describe('the grasp machine (N19 B2)', () => {
   it('claw stops only on a sideways clamp', () => {
     // 60 g cubes (they never attach), the claw told 80°. Each tick the claw closes on while at most one finger is within 2 mm of the cube,
     // or both are but the jaw gap at the cube's centre is wider than the cube + 0.05 cm; once the cube is clamped across the jaws it stops
-    // there, short of 80°, and stays. Centred, it stalls with the fingers flat on the faces (β 0, claw 26.97°); 0.5 cm off centre the open
-    // jaws funnel the cube in, one finger meets it first and the claw closes on.
-    for (const dy of [0, 0.5]) {
-      const scene = gripperScene({ ground: floor(), objects: [cubeAhead('cube', 60, { offset: [0, dy] })] }, START);
+    // there, short of 80°, and stays. A 4 cm cube centred (picked as a lesson does) stalls with the fingers flat on its faces (β 0, claw
+    // 26.97°). A 3 cm cube 0.6 cm off centre in the open jaws (placed there, so the approach does not centre it first) is met by the left
+    // finger first; the claw closes on, pushing it to the middle, and stalls where both fingers clamp it.
+    const cases = [
+      { name: '4 cm centred', size: 4, place: null, stall: [24, 30], deepestMm: 2.1 },
+      // One 3 g finger pushing a 60 g cube across at the servo's speed sinks 3.26 mm into it before the other meets it (measured).
+      { name: '3 cm 0.6 cm off centre', size: 3, place: { u: 3.5, v: 0.6 }, stall: [40, 56], deepestMm: 3.5 },
+    ] as const;
+    for (const c of cases) {
+      const scene = gripperScene({ ground: floor(), objects: [cubeAhead('cube', 60, { sizeCm: c.size, offset: c.place === null ? [0, 0] : [0, 30] })] }, START);
       try {
         const object = scene.object('cube');
         const at = () => {
@@ -361,16 +487,30 @@ describe('the grasp machine (N19 B2)', () => {
             return contact !== null && contact.distance <= CONTACT_GAP_M;
           });
           const gap = innerFaceVCm(spec, scene.gripper.fingers[0].betaDeg(), view.u) + innerFaceVCm(spec, scene.gripper.fingers[1].betaDeg(), view.u);
-          return { clamped: near[0]! && near[1]! && gap <= view.widthCm + 0.05, oneOnly: near[0] !== near[1], claw: scene.gripper.clawDeg() };
+          return { clamped: near[0]! && near[1]! && gap <= view.widthCm + 0.05, oneOnly: near[0] !== near[1], claw: scene.gripper.clawDeg(), v: view.v };
         };
+        const script = (function* (): Script {
+          if (c.place === null) {
+            yield* pick(scene, 'cube', { liftDeg: 0, u: 3 });
+          } else {
+            scene.set({ liftDeg: 0, clawDeg: 0 });
+            yield* wait(seconds(0.5));
+            placeInJaws(scene, object, c.place.u, c.place.v);
+            yield;
+            scene.set({ clawDeg: 80 });
+            yield* wait(seconds(3));
+          }
+        })();
         let before = at();
         const closedOn = { oneOnly: 0, unclamped: 0 };
         let stalledAt: number | null = null;
+        let firstNearV: number | null = null;
         const after = { least: Number.POSITIVE_INFINITY, most: Number.NEGATIVE_INFINITY };
         let deepest = 0;
-        run(scene, pick(scene, 'cube', { liftDeg: 0, u: 3 }), seconds(0.35 + 4), () => {
+        run(scene, script, seconds(0.35 + 4), () => {
           const now = at();
           if (scene.gripper.clawCommandDeg === 80 && stalledAt === null) {
+            if (before.oneOnly && firstNearV === null) firstNearV = before.v;
             if (before.oneOnly && now.claw > before.claw + 0.5) closedOn.oneOnly += 1;
             if (!before.oneOnly && !before.clamped && now.claw > before.claw + 0.5) closedOn.unclamped += 1;
             if (now.clamped) stalledAt = now.claw;
@@ -381,21 +521,25 @@ describe('the grasp machine (N19 B2)', () => {
           if (scene.gripper.clawCommandDeg === 80) deepest = Math.max(deepest, penetrationM(scene.gripper.fingers.map((finger) => finger.collider), object));
           before = now;
         });
-        expect(closedOn.unclamped, `dy ${dy}`).toBeGreaterThan(0);
-        if (dy > 0) expect(closedOn.oneOnly, `dy ${dy}`).toBeGreaterThan(0);
-        expect(stalledAt, `dy ${dy}`).not.toBeNull();
-        // Stalled where it clamped, for the 3 s that follow: the fingers arrive at 2.2° of β a tick and carry on a little past the faces
-        // (29.2° at most, centred), and off centre the finger that went into the cube by the funnel is slowly pushed back out by the contact,
-        // so the claw wobbles by a few degrees (22.6–27.9°), clamped, never closing on.
-        expect(stalledAt!, `dy ${dy}`).toBeGreaterThan(24);
-        expect(stalledAt!, `dy ${dy}`).toBeLessThan(29);
-        expect(after.least, `dy ${dy}`).toBeGreaterThan(20);
-        expect(after.most, `dy ${dy}`).toBeLessThan(30);
-        expect(deepest * 1000, `dy ${dy}`).toBeLessThan(2.1);
+        expect(closedOn.unclamped, c.name).toBeGreaterThan(0);
+        expect(stalledAt, c.name).not.toBeNull();
+        // Stalled where it clamped, for the rest of the run: the fingers arrive at 2.2° of β a tick and carry on a little past the faces
+        // before the stall holds them (centred: clamped at 29.7°, back on the faces at 26.9° within the second), never closing on.
+        expect(stalledAt!, c.name).toBeGreaterThan(c.stall[0]);
+        expect(stalledAt!, c.name).toBeLessThan(c.stall[1]);
+        expect(after.least, c.name).toBeGreaterThan(c.stall[0] - 4);
+        expect(after.most, c.name).toBeLessThan(c.stall[1]);
+        expect(deepest * 1000, c.name).toBeLessThan(c.deepestMm);
         expect(scene.grasp.heldId).toBeNull();
-        if (dy === 0) {
+        if (c.place === null) {
           // Centred: both fingers flat on the faces, within half a degree of parallel (β 0 is claw 26.97°).
           for (const finger of scene.gripper.fingers) expect(Math.abs(finger.betaDeg())).toBeLessThan(0.5);
+        } else {
+          // One finger met it first, 0.6 cm off centre, and the claw closed on, pushing it to the middle (it stalls 0.24 cm off it: a stalled
+          // finger only stops, rule 2).
+          expect(closedOn.oneOnly, c.name).toBeGreaterThan(0);
+          expect(firstNearV!, c.name).toBeGreaterThan(0.5);
+          expect(Math.abs(at().v), c.name).toBeLessThan(0.3);
         }
       } finally {
         scene.dispose();

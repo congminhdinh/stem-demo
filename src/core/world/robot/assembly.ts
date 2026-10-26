@@ -329,6 +329,15 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
           supports[side]!.setFriction(gearFriction(motorSpecs[side]!.gearFrictionNm, cmToM(motorSpecs[side]!.wheelRadiusCm), loadN));
         }
       });
+      // N19 fix round 1 (ADR 0004 §10b): the solver uses the friction a contact manifold combined from its two colliders, and Rapier combines
+      // it again only when the narrow phase updates that pair, which a ball resting on the floor does not ask for. So the coefficient just
+      // set reached the solver only now and then: a tick of the gripper's arm move that unloads a wheel caps it (up to 0.97), the manifold
+      // kept it, and the car stood still at duty ≤ 160 (3.5 N of static friction against 2.3–3.0 N of drive). Setting a support ball's place
+      // on the chassis to where it is marks it modified, so this step combines its contact's friction afresh. Only for a kit with a gripper:
+      // the rover's manifolds are stale by about 1 % (0.4827 against 0.4875), and refreshing them would move its golden hashes (engine 1).
+      if (gripper !== null) {
+        for (const support of supports) support.setTranslationWrtParent(support.translationWrtParent()!);
+      }
       left.advance(stepDt);
       right.advance(stepDt);
       const rotation = chassis.rotation();

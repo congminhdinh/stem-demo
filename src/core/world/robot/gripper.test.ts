@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { productionKits, referenceKitRef } from '../../hardware/catalog';
 import type { Kit } from '../../hardware/kit';
 import { robotMechanics } from '../../hardware/kit-mechanics';
-import { cube, DT, gripperKit, gripperScene, pick, run, seconds, wait, type Script } from '../__fixtures__/gripper-scene';
+import { BRAKE, cube, DT, forward, gripperKit, gripperScene, pick, run, seconds, wait, type Script } from '../__fixtures__/gripper-scene';
 import { parseArena, type ArenaInput } from '../arena/arena-schema';
 import { buildArena } from '../arena/build-arena';
 import { createPhysicsWorld, initPhysics, type Collider } from '../rapier';
@@ -254,6 +254,69 @@ describe('the gripper of ref-uno-gripper@0 (N19 B1)', () => {
       scene.dispose();
     }
   });
+
+  it('gripper car starts from rest at duty 120, 140 and 160 with 50 g held at lift 0°', () => {
+    // A 300 × 300 arena: there the car stood still at duty ≤ 160 before its support balls' contacts were refreshed every tick (Rapier kept the
+    // friction it combined once per manifold, up to 0.97 from a tick the arm's move unloaded a wheel: 3.5 N of static friction).
+    const moved: Record<number, number> = {};
+    for (const duty of [120, 140, 160]) {
+      const scene = gripperScene({ ground: { sizeCm: [300, 300], color: '#ffffff' }, objects: [cube('cube', [START.xCm + 8.33 + 3 + 8, START.yCm], 50)] }, START);
+      try {
+        let held: string | null = null;
+        const script = (function* (): Script {
+          yield* pick(scene, 'cube', { liftDeg: 0, u: 3 });
+          scene.drive(BRAKE);
+          yield* wait(seconds(0.5));
+          const x0 = scene.robot.pose().position.x;
+          scene.drive(forward(duty));
+          yield* wait(seconds(0.5));
+          moved[duty] = (scene.robot.pose().position.x - x0) * 100;
+          held = scene.grasp.heldId;
+          scene.drive(BRAKE);
+          for (;;) yield;
+        })();
+        run(scene, script, seconds(0.35 + 4 + 1.1 + 1));
+        expect(held, `duty ${duty}`).toBe('cube');
+      } finally {
+        scene.dispose();
+      }
+    }
+    // From rest, in 0.5 s, holding 50 g at lift 0° (measured 3.49, 5.85 and 8.20 cm; before the refresh the car never reached the cube).
+    expect(moved[120]).toBeGreaterThan(3.2);
+    expect(moved[140]).toBeGreaterThan(5.5);
+    expect(moved[160]).toBeGreaterThan(7.8);
+    expect(moved[140]! - moved[120]!).toBeGreaterThan(2);
+    expect(moved[160]! - moved[140]!).toBeGreaterThan(2);
+  }, 60_000);
+
+  it('the empty car starts from rest at duty 140 whatever arena it stands in and wherever its arm last moved', () => {
+    // The cases that stood still (0.001–0.005 cm in 1 s) with the stale friction, and two that did not.
+    const rows: string[] = [];
+    for (const [size, at, lift] of [
+      [[300, 300], [40, 50], 0],
+      [[300, 300], [40, 50], 45],
+      [[400, 400], [40, 50], 45],
+      [[200, 100], [40, 50], 45],
+      [[200, 100], [40, 50], 0],
+      [[300, 300], [40, 50], 90],
+    ] as const) {
+      const scene = gripperScene({ ground: { sizeCm: [size[0], size[1]], color: '#ffffff' } }, { xCm: at[0], yCm: at[1], yawDeg: 0 });
+      try {
+        scene.set({ liftDeg: lift });
+        run(scene, wait(seconds(0.5)), seconds(0.5));
+        const x0 = scene.robot.pose().position.x;
+        scene.drive(forward(140));
+        run(scene, wait(seconds(1)), seconds(1));
+        const cm = (scene.robot.pose().position.x - x0) * 100;
+        rows.push(`${size.join('×')} lift ${lift}: ${cm.toFixed(2)} cm`);
+        expect(cm, rows.at(-1)).toBeGreaterThan(14.5);
+        expect(cm, rows.at(-1)).toBeLessThan(16.5);
+      } finally {
+        scene.dispose();
+      }
+    }
+    expect(rows).toHaveLength(6);
+  }, 60_000);
 
   it('never touches its own chassis (a contact is a positive impulse or a gap ≤ 0.5 mm: the manifold’s distance alone misses predicted ones)', () => {
     const scene = gripperScene(open(), START);

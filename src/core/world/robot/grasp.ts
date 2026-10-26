@@ -39,6 +39,18 @@ import { conjugate, multiplyQuaternions } from './robot-frame';
 //      the hinge has almost no lever: `touchingBeta`);
 //   4. the gripper's colliders are members of GRIPPER_GROUP only for the solver too (gripper.ts), so that a held object leaving that group
 //      out takes effect: a collider is a member of every group by default.
+// And one more (B2 fix round 1, plan §4.6):
+//   5. nothing attaches while the claw is under RELEASE_HYSTERESIS_DEG (6°): a held object is let go at a command ≤ θc − 6°, and commands
+//      are 0..90, so one attached at θc < 6° could never be let go. The open jaws are 5.05 cm apart at u 3 and 6.08 cm at the tips: every
+//      box from about 4.5 cm wide wedges on both fingers with the claw at about 0° and meets the five conditions there (measured: a 5 cm box
+//      attached at θc −0.02° while the open jaws were driven onto it, lesson 11's 6×6×4 cm 40 g base at u 5.47, both carried with the claw
+//      told 0°). Such an object is too wide to grip; the claw told to close just stalls on it.
+//   6. nothing wider across the jaws than `gripWidthCm` attaches: the fingers' gap when parallel plus the attach's 0.3 cm (ref-uno-gripper@0:
+//      2·2.2 − 0.4 + 0.3 = 4.3 cm). Condition 4 wants the gap at the object's centre within 0.3 cm of its width; the fingers splay outwards
+//      from the hinges, so around an object wider than that they are inside it where they meet it. With rule 5 alone a 5 cm box still
+//      attached, at θc 9.08°, both fingers 3.3 mm inside it (4.4–4.8 cm boxes at 9.5–9.6°, 1.5–3.2 mm), the claw having closed 5° into it
+//      in one tick. Measured, the grasps the lessons make have one finger at most inside the object (a cube 1 cm off centre, funnelled in
+//      by the open jaws: 2.07 mm), and a 3 cm cube turned 45° is 4.24 cm across.
 //
 // "Touching" in the sense of the narrow phase's manifolds (the tests' wall and chassis checks) is a positive contact impulse or a gap of at
 // most 0.5 mm: a manifold's distance ≤ 0 alone misses the contacts the solver acts on before the gap closes (ADR 0004 §8). The machine itself
@@ -70,6 +82,11 @@ type FixedJoint = InstanceType<RapierModule['FixedImpulseJoint']>;
 /** The squeeze of the jaws, N: each finger's torque (T_s / (2·fingerDegPerServoDeg)) at half the finger's length. ref-uno-gripper@0: 8.09. */
 export function squeezeN(spec: GripperSpec): number {
   return spec.clawStallTorqueNm / (2 * spec.fingerDegPerServoDeg) / cmToM(spec.fingerLengthCm / 2);
+}
+
+/** Rule 6: the widest object across the jaws that attaches, cm: the fingers' gap when parallel plus ATTACH_GAP_SLACK_CM. ref-uno-gripper@0: 4.3. */
+export function gripWidthCm(spec: GripperSpec): number {
+  return 2 * spec.fingerHingeVCm - spec.fingerThicknessCm + ATTACH_GAP_SLACK_CM;
 }
 
 /** The external force above which a held object slips out, N: 2·jawFriction·squeeze (two jaws). ref-uno-gripper@0: 9.71. */
@@ -134,6 +151,7 @@ export function createGrasp(world: PhysicsWorld, gripper: Gripper, objects: read
   const { spec } = gripper;
   const ordered = [...objects].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const breakN = breakForceN(spec);
+  const widest = gripWidthCm(spec);
   let held: { readonly object: GraspObject; readonly joint: FixedJoint; readonly thetaC: number } | null = null;
   let latch: number | null = null;
   let lastExternalN = 0;
@@ -240,10 +258,13 @@ export function createGrasp(world: PhysicsWorld, gripper: Gripper, objects: read
   const tryAttach = () => {
     const clawNow = gripper.clawDeg();
     if (!(gripper.clawCommandDeg >= clawNow - ATTACH_COMMAND_SLACK_DEG)) return;
+    // Rule 5: θc ≥ 6°, so the claw can always be told θc − 6° (commands are 0..90): what the jaws meet wider than that is not gripped.
+    if (!(clawNow >= RELEASE_HYSTERESIS_DEG)) return;
     for (const object of ordered) {
       if (!(object.massG <= spec.maxPayloadG)) continue;
       const at = view(object);
       if (at.u < ATTACH_U_CM[0] || at.u > ATTACH_U_CM[1] || Math.abs(at.v) > ATTACH_V_CM || Math.abs(at.w) > at.heightCm / 2) continue;
+      if (at.widthCm > widest) continue;
       const left = contactOf(gripper.fingers[0], object);
       if (left === null) continue;
       const right = contactOf(gripper.fingers[1], object);
