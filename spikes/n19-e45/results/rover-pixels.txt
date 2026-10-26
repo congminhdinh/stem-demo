@@ -1,0 +1,89 @@
+# N19 E4/E5 rover pixel diff: BASE 0a7a479 (git archive, node_modules linked) vs HEAD 1224c96, production builds (node scripts/build.mjs --outDir ...)
+# Apple M4 Pro, macOS 26 (Darwin 25.5.0), Chromium new headless on the GPU, 1200 x 760, DPR 1; load 5.9-12.2 (uptime) during the runs; 2026-10-27 04:56-05:03
+# 3D: node spikes/n19-e67/rover-shots.mjs --dist=<dist> --out=<dir> --port=5522 ; 2D: node spikes/n19-e45/rover-shots-2d.mjs --dist=<dist> --out=<dir> --port=5526
+# diff: node spikes/p2-perf3d/shots-diff.mjs <base> <head>
+
+## 3D canvas, 44 shots (7 lessons x high/low, idle + 15 steps, follow + top for 4)
+drive-to-zone-high-follow.png: 0.000 % over 8, largest 0
+drive-to-zone-high-idle.png: 0.000 % over 8, largest 0
+drive-to-zone-high-step.png: 0.000 % over 8, largest 0
+drive-to-zone-high-top.png: 0.000 % over 8, largest 0
+drive-to-zone-low-follow.png: 0.000 % over 8, largest 0
+drive-to-zone-low-idle.png: 0.000 % over 8, largest 0
+drive-to-zone-low-step.png: 0.000 % over 8, largest 0
+drive-to-zone-low-top.png: 0.000 % over 8, largest 0
+line-follow-high-follow.png: 0.000 % over 8, largest 0
+line-follow-high-idle.png: 0.000 % over 8, largest 0
+line-follow-high-step.png: 0.000 % over 8, largest 0
+line-follow-high-top.png: 0.000 % over 8, largest 0
+line-follow-low-follow.png: 0.000 % over 8, largest 0
+line-follow-low-idle.png: 0.000 % over 8, largest 0
+line-follow-low-step.png: 0.000 % over 8, largest 0
+line-follow-low-top.png: 0.000 % over 8, largest 0
+mini-mission-high-follow.png: 0.000 % over 8, largest 0
+mini-mission-high-idle.png: 0.000 % over 8, largest 0
+mini-mission-high-step.png: 0.000 % over 8, largest 0
+mini-mission-high-top.png: 0.000 % over 8, largest 0
+mini-mission-low-follow.png: 0.000 % over 8, largest 0
+mini-mission-low-idle.png: 0.000 % over 8, largest 0
+mini-mission-low-step.png: 0.000 % over 8, largest 0
+mini-mission-low-top.png: 0.000 % over 8, largest 0
+sandbox-high-follow.png: 0.000 % over 8, largest 0
+sandbox-high-idle.png: 0.001 % over 8, largest 49, box x 60–68 y 407–416
+sandbox-high-step.png: 0.001 % over 8, largest 49, box x 60–68 y 407–416
+sandbox-high-top.png: 0.001 % over 8, largest 45, box x 83–85 y 91–91
+sandbox-low-follow.png: 0.000 % over 8, largest 0
+sandbox-low-idle.png: 0.000 % over 8, largest 0
+sandbox-low-step.png: 0.000 % over 8, largest 0
+sandbox-low-top.png: 0.000 % over 8, largest 0
+servo-gate-high-idle.png: 0.000 % over 8, largest 0
+servo-gate-high-step.png: 0.000 % over 8, largest 0
+servo-gate-low-idle.png: 0.000 % over 8, largest 0
+servo-gate-low-step.png: 0.000 % over 8, largest 0
+square-route-high-idle.png: 0.000 % over 8, largest 0
+square-route-high-step.png: 0.000 % over 8, largest 0
+square-route-low-idle.png: 0.000 % over 8, largest 0
+square-route-low-step.png: 0.000 % over 8, largest 0
+stop-at-wall-high-idle.png: 0.000 % over 8, largest 0
+stop-at-wall-high-step.png: 0.000 % over 8, largest 0
+stop-at-wall-low-idle.png: 0.000 % over 8, largest 0
+stop-at-wall-low-step.png: 0.000 % over 8, largest 0
+3 picture(s) changed
+
+## sandbox-high, the 3 that differ: two more runs of each build (base-3d-2/-3, head-3d-2/-3)
+### r1-base vs base-3d-2
+3 picture(s) changed
+### r1-base vs base-3d-3
+3 picture(s) changed
+### base-3d-2 vs base-3d-3
+0 picture(s) changed
+### r1-head vs head-3d-2
+3 picture(s) changed
+### head-3d-2 vs head-3d-3
+3 picture(s) changed
+### base-3d-2 vs head-3d-2
+3 picture(s) changed
+### base-3d-3 vs head-3d-3
+0 picture(s) changed
+### r1-head vs base-3d-2
+0 picture(s) changed
+### r1-head vs base-3d-3
+0 picture(s) changed
+# => two states (A: BASE run 1, HEAD run 2; B: BASE runs 2-3, HEAD runs 1 and 3) flip run to run on both builds; each HEAD picture is bit-identical to a BASE picture of the same state (E6/E7 recorded the same flip on master).
+
+## 2D map (Xem 2D, sensor layer on), 14 shots
+drive-to-zone-2d-idle.png: 0.000 % over 8, largest 0
+drive-to-zone-2d-step.png: 0.000 % over 8, largest 0
+line-follow-2d-idle.png: 0.000 % over 8, largest 0
+line-follow-2d-step.png: 0.000 % over 8, largest 0
+mini-mission-2d-idle.png: 0.000 % over 8, largest 0
+mini-mission-2d-step.png: 0.000 % over 8, largest 0
+sandbox-2d-idle.png: 0.000 % over 8, largest 0
+sandbox-2d-step.png: 0.000 % over 8, largest 0
+servo-gate-2d-idle.png: 0.000 % over 8, largest 0
+servo-gate-2d-step.png: 0.000 % over 8, largest 0
+square-route-2d-idle.png: 0.000 % over 8, largest 0
+square-route-2d-step.png: 0.000 % over 8, largest 0
+stop-at-wall-2d-idle.png: 0.000 % over 8, largest 0
+stop-at-wall-2d-step.png: 0.000 % over 8, largest 0
+0 picture(s) changed

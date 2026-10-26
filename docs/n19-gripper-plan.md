@@ -421,6 +421,40 @@ Số đo và lệnh tái lập: `spikes/n19-b56/results.md`. Test: `world/robot/
   - Danh sách tên mà test giữ là `determinismFixtures` (đọc từ file fixture, không có list chữ ở `robot-determinism.test.ts:73`). Một test mới pin cả 6 tên.
 - **M7 (B2 review 3):** test kẹp ngang ghi đúng trạng thái dừng. Khối 60 g lệch tâm giữ một ngón lún 2,11–2,99 mm khi càng còn được lệnh đóng. Test assert dải đó, ngoài đỉnh 3,82 mm.
 
+### 4.12 Ghi lại khi làm E4 + E5 (bản đồ 2D, overlay 3D, tag; thắng §7 E4/E5 khi mâu thuẫn)
+
+- **Vẽ lại lúc nằm yên (việc của E5 từ review B3/B4 M1):**
+  - `sameSensorView` so theo từng kiểu readout. IR so `detected` và `hitId`. Cảm biến màu so `hitId`, `distanceCm` (trong 0,05 cm), có `rgbc` hay chưa, và **tên màu** đọc được (`shownColor` = `classifyColor`, cùng `COLOR_RULES` với `color.is`). Số đếm đổi mà vẫn cùng màu thì không vẽ lại.
+  - Đã bỏ shim `NotALineSensor` ở `snapshot.ts`; không chỗ nào khác cần nó.
+  - Đo bằng `spikes/n19-b34/redraw-at-rest.test.ts` (đúng lệnh ở đầu file; M4 Pro, load 6–9):
+    - kit gripper: overlay 3D đổi 69/70 lần publish → 0, lớp 2D vẽ lại 69 → 0;
+    - rover: 0/0 như cũ.
+    - Trước khi sửa: khoảng 20 frame WebGL/s và 10 lần vẽ 2D/s lúc nằm yên.
+  - Test giữ việc này: `overlays-at-rest.test.ts` (session thật, xe gắp giữ khối đỏ, IR thấy, màu đọc được, 50 publish: 0 lần đổi ở cả 3 view); e2e đếm frame WebGL lúc xe giữ khối nằm yên (như P2 đếm cho rover).
+- **Tầm với "theo cos(lift)" (§7 E4)** là cos của **góc boom** = `boomElevationAtLift0Deg` + lift: −40° lúc hạ (3,83 cm), 0° ở tay 40° (5 cm, xa nhất), 50° lúc nâng (3,21 cm). Đây đúng là hình học của world và của view 3D (`gripper-pose.ts`). Lấy cos(lift) theo nghĩa đen thì ở tay 90° ngàm sẽ vẽ dính vào trục, sai.
+- **Hoa văn theo màu:**
+  - Vùng có `name` red/green/blue dùng hoa văn của màu đó (đỏ sọc ngang, xanh lá lưới, xanh dương chấm to; `zonePatternOf`), thay cho hoa văn theo kind, ở cả thảm 3D ('mat', luma > 0,5) lẫn bản đồ 2D ('screen', ≥ 3:1).
+  - Vật cùng màu trên bản đồ 2D có cùng hoa văn ở cỡ vật (khối 4 cm: 3 sọc, lưới 3 × 3, 7 chấm), như mặt trên khối xốp của E7. Vàng không có hoa văn.
+  - Chấm to to gấp đôi chấm nhỏ của vùng xuất phát. Vùng khác giữ hoa văn theo kind; rover không có vùng nào có tên nên không đổi.
+- **Tag:**
+  - Vùng có tên có tag tiếng Việt **bất kể kind**: "Kho", "Vùng thả", "Khu lấy hàng", "Vùng đỏ", "Vùng xanh lá", "Vùng xanh dương", "Vùng xếp" (`robot.zone.tag.*`, vi + en). Bộ `robot.zone.name.*` viết thường vẫn dùng cho câu báo. `zoneLabelOf` dùng chung cho RobotLab, bản đồ 2D và trang gallery E6/E7.
+  - Điểm kiểm tra có tên thì hiện cả tên lẫn số.
+  - Vật mà goal nêu tên (`object-held`, `object-placed`, `object-on-object` cả trên lẫn dưới, `object-unmoved`, `object-in-zone`) có tag nhỏ hơn (0,8 lần) trên đỉnh vật ("Khối đỏ" kèm chấm màu). Tag đi theo vật, ẩn khi đang giữ và ở "Theo xe". Tên đọc theo lượt đang xem, như chip HUD.
+  - Tag vật nằm ngay mũi xe thường bị layout giấu, vì luật R4.7 không cho tag che xe. Đo trong e2e: khối trong càng không có tag lúc đầu, khối ở xa thì có.
+- **Overlay 3D của tay gắp:**
+  - Một mesh: tia IR dài 2 cm từ mount trên giá kẹp, mờ, sáng lên kèm chấm cuối khi thấy vật; tia màu tới vật (hoặc 4 cm nếu không gặp gì); đốm tô màu đọc được, có viền tối (`#0f172a`, ≥ 3,5:1 với mọi màu bảng màu), chỉ còn viền khi "không rõ".
+  - Thêm một tag hai dòng "IR: có vật" / "Màu: đỏ" trên ngàm. Tag tránh HUD, công cụ và tag siêu âm, và ghi vào `labelBoxes` để tag vùng tránh nó; chỉ vẽ lại khi chữ đổi.
+  - Thêm 2 draw call, cùng shader program của overlay.
+  - Cấp phát mỗi frame trong trường hợp xấu nhất (mọi số đọc đổi mỗi frame): 65,5–67,9 byte/update; rover khoảng 60; giới hạn 96. Trước khi sửa là 722 byte, vì:
+    - `classifyColor` khoảng 1,5 KB/lần (object + destructuring `for…of`). Đã viết lại không cấp phát, kết quả giống hệt: test so với bản cũ ở mọi biên của luật và trên 20 000 mẫu;
+    - pose của `gripper-pose.ts` 265 byte/lần (double trong field). Overlay tự tính chỗ giá kẹp, chỉ khi tay đổi góc. `poseGripper` của E6 vẫn gọi hàm này mỗi frame có vẽ; ghi cho E9;
+    - truyền màu dạng số khi vẽ lại đốm: 48 byte.
+- **Bản đồ 2D:** boom, giá kẹp, hai ngàm có viền tối và đệm cao su, vẽ theo `robot.gripper`; vòng tím quanh vật đang giữ; vật tô màu riêng kèm hoa văn; tia IR, đốm màu và tag giống overlay 3D. Rover không có node nào mới.
+- **Màu vật trong view theo arena (lượt 0).** `variants.objectColors` của lượt khác không đổi màu vẽ trong 3D lẫn 2D (đã vậy từ E7), còn chip HUD và tag vật thì đọc tên theo lượt. Ghi cho D4/E8: bài phân loại xem lại lượt 2 sẽ vẽ màu của lượt 0.
+- **Cho D4 (đo trong e2e của E4/E5):** hạ tay lên khối 4 cm có tâm cách gốc giá kẹp ≤ 3 cm thì giá kẹp đè lên khối làm khối nghiêng (z 2,34–2,48). Ở 3,5–4,5 cm thì gắp được; ở 3,5 và 4 cm IR thấy khối, ở 4,5 cm thì không (mặt gần ở u 2,5 > 2,3).
+- **Pixel rover** (`spikes/n19-e45/results/rover-pixels.txt`): 44 ảnh 3D và 14 ảnh bản đồ 2D có lớp cảm biến, so BASE 0a7a479 với HEAD: trùng bit. Riêng sandbox-high lật giữa hai trạng thái giữa các lần chạy ở cả hai bản; mỗi ảnh HEAD trùng bit một ảnh BASE.
+- **Vùng của goal tiếp theo** (`nextGoalZoneId`) chưa biết các goal gắp/đặt, nên bài gắp chưa có vùng sáng. Ngoài phạm vi E4/E5; ghi cho D4.
+
 ## 5. Review Focus
 
 1. **Vật đang giữ đâm tường hoặc vật khác, hoặc bị ép xuống sàn.** Tuột đúng ngưỡng, va chạm tính cho xe, không có NaN, xe không lật. *Test (B3):* `held cube hitting a wall at 0.4 m/s breaks the grasp and counts as robot contact`; `pressing a held cube on the floor at lift stall keeps the grasp`.
