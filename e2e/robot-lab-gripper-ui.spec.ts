@@ -423,6 +423,41 @@ test.describe('the gripper car’s overlays, tags and 2D map (N19 E4/E5)', () =>
   });
 });
 
+test.describe('the objects in the colours of the run’s world (N19 E4/E5, ruling 8)', () => {
+  test('a run whose round paints the red cube green: the map, the 3D tag and the colour sensor all say green; before it and after Đặt lại, the arena’s red', async ({ page }) => {
+    const errors = collectErrors(page);
+    await page.goto(`${pickUrl}&recolour=1`);
+    await page.getByTestId('robot-lab').waitFor();
+    await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 60_000 });
+    await pinLowTierChainOff(page);
+    await installReaders(page);
+    // Nothing run: the arena's own red.
+    await page.getByTestId('robot-viewmode').click();
+    await page.getByTestId('robot-topview').waitFor();
+    await expect.poll(async () => (await map(page))?.objects.find((object) => object.id === 'cube'), { timeout: 30_000 }).toEqual({ id: 'cube', fill: '#d32f2f', mark: 'stripes' });
+    // A run: its world's cube is green; the map paints it so, with green's grid, and the colour sensor between the jaws reads it green.
+    await startTeleop(page);
+    await expect.poll(async () => (await map(page))?.objects.find((object) => object.id === 'cube'), { timeout: 30_000 }).toEqual({ id: 'cube', fill: '#388e3c', mark: 'grid' });
+    await page.locator('.robot-stage').focus();
+    for (let step = 0; step < 6; step++) await page.keyboard.press('f');
+    await expect.poll(async () => (await map(page))?.color?.color, { timeout: 60_000 }).toBe('green');
+    await screenshot(page, '11-run-round-colour-map.png');
+    // The 3D view: the tag names the cube as the run's world paints it.
+    await page.getByTestId('robot-viewmode').click();
+    await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 60_000 });
+    await expect.poll(async () => (await tags(page))?.find((tag) => tag.id === 'cube')?.text, { timeout: 30_000 }).toBe('Khối xanh lá');
+    await expect.poll(async () => (await overlay(page))?.gripper?.color?.color, { timeout: 30_000 }).toBe('green');
+    await screenshot(page, '12-run-round-colour-3d.png');
+    // Teleop off: its last world stays in view (as any run's does), the cube green in it; Đặt lại robot goes back to the start, the arena's red.
+    await page.getByTestId('robot-tool-teleop').click();
+    await page.getByTestId('robot-reset').click();
+    await page.getByTestId('robot-viewmode').click();
+    await page.getByTestId('robot-topview').waitFor();
+    await expect.poll(async () => (await map(page))?.objects.find((object) => object.id === 'cube'), { timeout: 30_000 }).toEqual({ id: 'cube', fill: '#d32f2f', mark: 'stripes' });
+    expect(errors).toEqual([]);
+  });
+});
+
 /** The 2D map of the car holding the cube lowered: the jaws closed on it (turned in from 12°), the ring round the cube, the sensors and their tag. */
 async function expectHeldOnMap(page: Page) {
   await expect.poll(async () => (await map(page))?.held?.visible, { timeout: 30_000 }).toBe(true);

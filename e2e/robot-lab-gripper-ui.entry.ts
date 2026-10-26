@@ -44,7 +44,13 @@ const pickGoals = [
   { id: 'grab-cube', kind: 'object-held', label: { vi: 'Gắp khối', en: 'Grab the cube' }, points: 80, object: 'cube', holdS: 0.5, minLiftCm: 2 },
   { id: 'blue-still', kind: 'object-unmoved', label: { vi: 'Không xê dịch khối xanh', en: 'Leave the blue cube' }, points: 20, object: 'cube-blue', maxMoveCm: 2, maxTiltDeg: 20 },
 ] as const;
-const gripperSandbox: Scenario = { ...loaded, kit: 'ref-uno-gripper', ...(pick ? { goals: [...pickGoals] } : {}) };
+// N19 E4/E5 (ruling 8, &recolour=1 with ?arena=pick): rounds that paint the red cube green, red and blue, so that a plain run (round 1)
+// shows the cube in a colour the arena does not give it. The schema refuses a round 1 unlike the arena (objectColors[0] is the arena's);
+// this test-only page bypasses the loader on purpose: it is how a run here shows what a later round of the sort lesson shows, the views
+// painting the run's world's colours and not the arena's.
+const recolour = new URLSearchParams(window.location.search).get('recolour') === '1';
+const rounds = recolour ? { variants: { ...loaded.variants, count: 3, objectColors: { cube: ['#388e3c', '#d32f2f', '#1976d2'] } } } : {};
+const gripperSandbox: Scenario = { ...loaded, kit: 'ref-uno-gripper', ...(pick ? { goals: [...pickGoals], ...rounds } : {}) };
 
 const original = scenarioCatalog.get.bind(scenarioCatalog);
 (scenarioCatalog as { get(key: string): Scenario | undefined }).get = (key) => (key === sandbox.key ? gripperSandbox : original(key));
