@@ -40,6 +40,19 @@ export type Pose = {
   readonly rotation: SnapshotQuat;
 };
 
+/**
+ * N19 B1/B2: the gripper on this tick. The angles are the physical ones, read back from the bodies' rotations (dmath): the lift's from the
+ * boom on the chassis, the claw's from the fingers' mean angle (which a held or clamped object stops short of what the claw is told).
+ */
+export type SnapshotGripper = {
+  /** The claw servo's angle, degrees: 0 open … jawsMeetDeg (80 on ref-uno-gripper@0) the jaws meet. */
+  readonly clawDeg: number;
+  /** The lift servo's angle, degrees: 0 down … 90 up. */
+  readonly liftDeg: number;
+  /** The id of the object held (an arena object), or null. */
+  readonly heldId: string | null;
+};
+
 /** A body of the arena that moves: a dynamic box or cylinder, or an object to push (`arena.objects`), in the arena's creation order. */
 export type SnapshotObject = { readonly id: string; readonly kind: 'box' | 'cylinder' | 'object'; readonly pose: Pose };
 
@@ -86,6 +99,8 @@ export type RobotSnapshot = {
      * snaps and clamps it (goal-frame.ts).
      */
     readonly servoDeg: Readonly<Record<string, number>>;
+    /** N19 B1/B2: the kit's gripper, only for a kit that has one (a rover snapshot has no such field, and its text is unchanged). */
+    readonly gripper?: SnapshotGripper;
   };
   readonly objects: readonly SnapshotObject[];
   readonly sensors: readonly SensorReadout[];

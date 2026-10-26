@@ -2,6 +2,7 @@ import type { BoardProfile } from '../hardware/board';
 import { kitPort, type Kit, type KitModule, type RobotRole } from '../hardware/kit';
 import type { PinState } from '../hardware/virtual-uno';
 import type { ActuatorTargets } from '../world/robot/assembly';
+import type { GripperTargets } from '../world/robot/gripper';
 import { MOTOR_COAST, type MotorCommand } from '../world/robot/dc-motor';
 
 // The module models of the robot (N18 R3.6, robot plan §3, tick step 2): what the world's actuators do, read off the virtual UNO's
@@ -17,6 +18,8 @@ import { MOTOR_COAST, type MotorCommand } from '../world/robot/dc-motor';
 //   - LED (led-digital, U-24): lit while its pin is an OUTPUT driving HIGH (a duty above 0). An input with its pull-up reads HIGH but
 //     drives no LED.
 //   - Buzzer (buzzer-tone, U-25, U-26): the frequency of the tone playing on its pin, or null.
+//   - N19 B1: gripper (gripper-servo2, U-35, U-36): the angles last written to its CLAW and LIFT pins, each once the Servo library has
+//     attached it (setup() writes claw 0°, lift 90°). Only for a kit with a gripper: a rover's targets have no `gripper` field.
 
 /** What the motor of an H-bridge does with its EN, IN1 and IN2 pins (see the top of this file). */
 export function hbridgeCommand(en: PinState, in1: PinState, in2: PinState): MotorCommand {
@@ -67,6 +70,8 @@ export function createModuleModels(kit: Kit, board: BoardProfile): ModuleModels 
   const servos = ofKind('servo').map((module) => ({ role: module.role, pin: at(module, 'PIN') }));
   const leds = ofKind('led').map((module) => ({ role: module.role, pin: at(module, 'PIN') }));
   const buzzer = ofKind('buzzer').map((module) => at(module, 'PIN'))[0];
+  // A kit has one gripper at most (kit-mechanics.ts `robotMechanics`).
+  const gripper = ofKind('gripper').map((module) => ({ claw: at(module, 'CLAW'), lift: at(module, 'LIFT') }))[0];
 
   const read = (pins: readonly PinState[], position: number): PinState => {
     const state = pins[position];
@@ -89,7 +94,13 @@ export function createModuleModels(kit: Kit, board: BoardProfile): ModuleModels 
           servoTargets[servo.role] = deg;
         }
       }
-      return { motors: motorTargets, servos: servoTargets };
+      if (gripper === undefined) {
+        return { motors: motorTargets, servos: servoTargets };
+      }
+      const clawDeg = servoAngleOf(read(pins, gripper.claw));
+      const liftDeg = servoAngleOf(read(pins, gripper.lift));
+      const gripperTargets: GripperTargets = { ...(clawDeg === null ? {} : { clawDeg }), ...(liftDeg === null ? {} : { liftDeg }) };
+      return { motors: motorTargets, servos: servoTargets, gripper: gripperTargets };
     },
     leds(pins) {
       const lit: Record<string, boolean> = {};

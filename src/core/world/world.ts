@@ -7,16 +7,17 @@ import { buildArena, type ArenaColliderInfo, type BuiltArena } from './arena/bui
 import { createGroundPaint } from './arena/ground-paint';
 import type { GoalFrame } from '../scenario/goals/frame';
 import { toGoalFrame, type GoalFrameExtras, type GoalFrameSource } from './goal-frame';
-import { createPhysicsWorld, initPhysics, PHYSICS_DT_S, PHYSICS_HZ, type PhysicsWorld } from './rapier';
+import { createPhysicsWorld, initPhysics, PHYSICS_DT_S, PHYSICS_HZ, type PhysicsWorld, type RigidBody } from './rapier';
 import { assembleRobot, stepWorld, type ActuatorTargets, type RobotBody, type RobotStart } from './robot/assembly';
 import { robotFootprint, startFootprintIssues } from './robot/footprint';
+import { graspObjects } from './robot/grasp';
 import { localToWorld, multiplyQuaternions, robotPointToLocal } from './robot/robot-frame';
 import { createWorldRng } from './rng';
 import { readContacts } from './sensors/contacts';
 import { LIFTED_HEIGHT_CM, measureLine, type LineReading } from './sensors/line';
 import { isOutOfArena } from './sensors/out-of-arena';
 import { measureUltrasonic, type UltrasonicNoise } from './sensors/ultrasonic';
-import type { ContactEvent, Pose, RobotSnapshot, ScoreState, SensorReadout } from './snapshot';
+import type { ContactEvent, Pose, RobotSnapshot, ScoreState, SensorReadout, SnapshotGripper } from './snapshot';
 import { CM_PER_M, degToRad, radToDeg, worldToArena, yawOfQuaternion, yawToQuaternion, type Quat, type Vec3 } from './units';
 
 // The robot world (N18 R3.5, robot plan §3, §4.5): one object that holds a physics world, the arena built in it, the kit's
@@ -44,8 +45,11 @@ import { CM_PER_M, degToRad, radToDeg, worldToArena, yawOfQuaternion, yawToQuate
 //
 // Ticks (plan §3): `step(PHYSICS_DT_S)` and nothing else; the world counts them, and `t` is `tick / PHYSICS_HZ`, never a sum of
 // steps. R3.6 advances the program to `tick * 1000 / PHYSICS_HZ` ms from the count, so the program's clock and the world's never
-// drift apart. After each step the world measures once, and everything that tick reads shares that measure:
-//   - `readContacts` runs once per tick (it costs ~20 µs); `sense.contacts()`, the snapshot and the goal frame read its result;
+// drift apart. N19 B2: a kit with a gripper runs its grasp machine after each step, before the measure (robot/grasp.ts). After each step
+// the world measures once, and everything that tick reads shares that measure:
+//   - `readContacts` runs once per tick (it costs ~20 µs); `sense.contacts()`, the snapshot and the goal frame read its result. N19: an
+//     object held during the tick (before or after its grasp update) is part of the robot for it (plan §4.4), so a held cube that meets a
+//     wall is the robot meeting the wall, also on the tick the hit breaks the grasp;
 //   - each ultrasonic is measured once per tick, its noise (if any) drawn once per tick from the seed, so what the program reads
 //     does not depend on how often it reads, nor on whether a view is listening;
 //   - each line sensor is read once per tick;
@@ -229,7 +233,7 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
   let robot: RobotBody;
   try {
     built = buildArena(physics, arena);
-    robot = assembleRobot(physics, kit, start);
+    robot = assembleRobot(physics, kit, start, mechanics.gripper === null ? {} : { graspObjects: graspObjects(arena, built) });
   } catch (error) {
     physics.free();
     throw error;
@@ -255,10 +259,17 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
     return event;
   };
 
-  const measure = () => {
+  /** What the robot is for the contacts of a tick: its bodies, and (N19) the object it held during the tick, before or after the grasp's update. */
+  const touchingBodies = (heldBefore: RigidBody | null) => {
+    const heldNow = robot.grasp === null ? null : robot.grasp.heldBody;
+    const held = [heldBefore, heldNow].filter((body, i, all): body is RigidBody => body !== null && all.indexOf(body) === i);
+    return held.length === 0 ? robot.bodies : [...robot.bodies, ...held];
+  };
+
+  const measure = (heldBefore: RigidBody | null) => {
     const position = robot.chassis.translation();
     const rotation = robot.chassis.rotation();
-    contacts = Object.freeze(readContacts(physics, built, robot.bodies).map(eventOf));
+    contacts = Object.freeze(readContacts(physics, built, touchingBodies(heldBefore)).map(eventOf));
     for (const sensor of ultrasonics) {
       const pose = { position: localToWorld(position, rotation, sensor.at), rotation: multiplyQuaternions(rotation, sensor.turn) };
       const reading = measureUltrasonic(physics, built, pose, sensor.spec, { exclude: robot.ownsCollider, ...(noise === undefined ? {} : { noise }) });
@@ -293,6 +304,9 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
   };
 
   const servoDegOf = (): Record<string, number> => Object.fromEntries(Object.entries(robot.servoAngles()).map(([role, deg]) => [role, plain(deg!)]));
+  /** N19: the gripper of the snapshot, only for a kit that has one. */
+  const gripperOf = (): { gripper?: SnapshotGripper } =>
+    robot.gripper === null ? {} : { gripper: { clawDeg: plain(robot.gripper.clawDeg()), liftDeg: plain(robot.gripper.liftDeg()), heldId: robot.grasp!.heldId } };
 
   const buildSnapshot = (): RobotSnapshot => {
     const [left, right] = robot.wheelAngles();
@@ -308,6 +322,7 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
         ...poseOf(robot.chassis.translation(), robot.chassis.rotation()),
         wheelRad: [plain(left), plain(right)] as const,
         servoDeg: servoDegOf(),
+        ...gripperOf(),
       },
       objects: built.dynamicBodies.map(({ id, kind, body }) => ({ id, kind, pose: poseOf(body.translation(), body.rotation()) })),
       sensors,
@@ -356,7 +371,7 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
   };
 
   try {
-    measure();
+    measure(null);
   } catch (error) {
     physics.free();
     throw error;
@@ -380,9 +395,11 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
       if (dt !== PHYSICS_DT_S) {
         throw new RangeError(`The world steps in ticks of 1/${PHYSICS_HZ} s (PHYSICS_DT_S) only, not ${dt} s.`);
       }
+      const heldBefore = robot.grasp === null ? null : robot.grasp.heldBody;
       stepWorld(physics, robot);
       tick += 1;
-      measure();
+      robot.grasp?.update(PHYSICS_DT_S);
+      measure(heldBefore);
     },
     applyActuators(targets) {
       alive();
@@ -416,6 +433,8 @@ function buildWorld(input: WorldInput, scenarioKey: string | undefined): World {
     dispose() {
       if (disposed) return;
       disposed = true;
+      // N19: a held object is let go first, so no joint of the grasp outlives the run (plan §5 Review Focus 2).
+      robot.grasp?.release();
       physics.free();
     },
   };
