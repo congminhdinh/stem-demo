@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Robot lab: the gripper car's look</title>
+    <style>
+      html, body { margin: 0; background: #e8edf4; }
+      #view { width: 1100px; height: 640px; position: relative; }
+      #view > div { width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <!-- N19 E6/E7: the gripper car and the pick-and-place props in the robot lab's 3D view, posed from a fixture snapshot (no gripper
+         scenario ships yet, plan D4). The dev server serves this page as it is; spikes/n19-e67/shots.mjs takes the gallery from it. -->
+    <div id="view"></div>
+    <script type="module" src="./robot-gripper-look.page.tsx"></script>
+  </body>
+</html>
