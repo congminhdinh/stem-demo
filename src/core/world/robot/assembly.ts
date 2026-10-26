@@ -1,9 +1,11 @@
 import type { Kit, RobotRole } from '../../hardware/kit';
-import { robotMechanics } from '../../hardware/kit-mechanics';
+import { gripperMovingMassG, robotMechanics } from '../../hardware/kit-mechanics';
 import { getRapier, GRAVITY_M_S2, refreshQueries, type Collider, type ColliderDesc, type PhysicsWorld, type RigidBody } from '../rapier';
 import { arenaToWorld, cmToM, degToRad, gToKg, yawToQuaternion, type Quat, type Vec3 } from '../units';
 import { checkMotorCommand, createDcMotor, MOTOR_COAST, type DcMotor, type MotorCommand } from './dc-motor';
 import { driveImpulse, groundFrame, type DriveGeometry, type GroundFrame } from './drive';
+import { createGrasp, type Grasp, type GraspObject } from './grasp';
+import { createGripper, type Gripper, type GripperPose, type GripperTargets } from './gripper';
 import { conjugate, IDENTITY_ROTATION, localToWorld, multiplyQuaternions, robotPointToLocal } from './robot-frame';
 import { checkServoAngle, createServoArm, type ServoArm } from './servo-arm';
 
@@ -18,6 +20,9 @@ import { checkServoAngle, createServoArm, type ServoArm } from './servo-arm';
 //   drifts sideways (measured while building this: 90 mm over 1 m against 0 mm for balls), and a ball as large as the wheel
 //   would make the robot 4 cm wider than it is.
 // - Each servo adds its arm, a light dynamic body on a revolute joint (servo-arm.ts).
+// - N19 B1: a kit with a gripper adds its boom, carriage and two fingers (gripper.ts), and the grasp machine over the arena's objects
+//   (grasp.ts, `AssembleOptions.graspObjects`). The kit's `massG` is the whole car (§4.6): the chassis body is that less the servo arms and
+//   the gripper's moving parts. A kit without a gripper builds exactly what it built before (no body, collider or joint more).
 //
 // Drive: the floor never pushes the robot along; each tick the drive gives the chassis the push towards the diff-drive
 // velocity of its wheel references (drive.ts), from motors that follow their commands (dc-motor.ts), as forces over the
@@ -57,6 +62,11 @@ export type ActuatorTargets = {
   readonly motors?: Partial<Readonly<Record<RobotRole, MotorCommand>>>;
   /** Servo angles in degrees; clamped to each servo's minDeg..maxDeg. */
   readonly servos?: Partial<Readonly<Record<RobotRole, number>>>;
+  /**
+   * N19 B1: the gripper's two servos (the module models read them off the CLAW and LIFT pins), degrees, clamped to 0..90. Like a servo,
+   * a field left out holds its last target (at first: setup()'s, claw 0°, lift 90°). A kit without a gripper refuses it.
+   */
+  readonly gripper?: GripperTargets;
 };
 
 /** A pose in the world (SI, +Y up): the robot frame's origin and the chassis rotation. */
@@ -64,8 +74,15 @@ export type RobotPose = { readonly position: Vec3; readonly rotation: Quat };
 
 export type RobotBody = {
   readonly chassis: RigidBody;
-  /** The robot's dynamic bodies, the chassis first, then one arm per servo in kit order: the order a hash reads them. */
+  /**
+   * The robot's dynamic bodies, the chassis first, then one arm per servo in kit order, then (N19) the gripper's (boom, carriage, left
+   * and right finger): the order a hash reads them.
+   */
   readonly bodies: readonly RigidBody[];
+  /** N19 B1: the kit's gripper, or null for a kit without one. */
+  readonly gripper: Gripper | null;
+  /** N19 B2: the grasp machine of the gripper (null without one). Whoever steps the world runs `grasp.update` after each step (world.ts). */
+  readonly grasp: Grasp | null;
   /** Whether a collider is the robot's own (a sensor ray skips those, R3.4). */
   ownsCollider(collider: Collider): boolean;
   /** Sets the actuator targets (see `ActuatorTargets`: motors left out stop, servos left out hold). Throws a RangeError for a bad target. */
@@ -77,7 +94,8 @@ export type RobotBody = {
   /**
    * Puts the robot at rest at a new start, at the height it settled at (a teleport, e.g. a reset): motors coast, servos keep
    * their angles and targets. Then propagates the new positions to the colliders and refreshes the scene queries, so a ray
-   * or a contact sees the robot where it now is before the next step.
+   * or a contact sees the robot where it now is before the next step. N19: a held object is let go first (its joint removed, it
+   * stays where it was), then the gripper's bodies move with the chassis at their angles.
    */
   placeAt(start: RobotStart): void;
   /** The chassis pose: the robot frame's origin (on the floor under the body's centre at rest) and its rotation. */
@@ -101,6 +119,8 @@ export type RobotBody = {
 export type AssembleOptions = {
   /** Steps of the whole world run before t = 0 so the robot settles; default SETTLE_STEPS. */
   readonly settleSteps?: number;
+  /** N19 B2: the arena's objects the gripper may hold (grasp.ts `graspObjects`); none by default. Unused by a kit without a gripper. */
+  readonly graspObjects?: readonly GraspObject[];
 };
 
 /** One tick of a world that holds `robot`: beforeStep, world.step(), afterStep. */
@@ -120,9 +140,11 @@ export function stepWorld(world: PhysicsWorld, robot: RobotBody): void {
  */
 export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, options: AssembleOptions = {}): RobotBody {
   const R = getRapier();
-  const { chassis: spec, motorLeft, motorRight, servos } = robotMechanics(kit);
+  const { chassis: spec, motorLeft, motorRight, servos, gripper: gripperModule } = robotMechanics(kit);
   const armsKg = servos.reduce((sum, servo) => sum + gToKg(servo.spec.armMassG), 0);
-  const chassisKg = gToKg(spec.massG) - armsKg;
+  // N19 §4.6: massG is the whole car; the gripper's moving parts are bodies of their own. 0 for a kit without a gripper.
+  const gripperKg = gripperModule === null ? 0 : gToKg(gripperMovingMassG(gripperModule.spec));
+  const chassisKg = gToKg(spec.massG) - armsKg - gripperKg;
   const [lengthM, widthM, heightM] = spec.bodyCm.map(cmToM) as [number, number, number];
   // The body box's inertia with the chassis' whole mass, about local X (forward), Y (up), Z (right).
   const inertia: Vec3 = {
@@ -151,11 +173,12 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
   };
   const frictionless = (desc: ColliderDesc) => desc.setFriction(0).setFrictionCombineRule(R.CoefficientCombineRule.Min);
 
-  // Static load on each wheel (the caster takes the rest), from where the centre of mass is between the axle and the caster.
+  // Static load on each wheel (the caster takes the rest), from where the centre of mass is between the axle and the caster. A gripper
+  // hangs ahead of the caster, so its weight does not load the wheels: the load is the rest of the car's (ADR 0004 §2 measured it so).
   const axleX = motorLeft.mount.posCm[0];
   const [comX, comY] = spec.comCm;
   const halfTrackCm = spec.trackCm / 2;
-  const axleLoadN = (gToKg(spec.massG) * GRAVITY_M_S2 * (spec.casterCm[0] - comX)) / (spec.casterCm[0] - axleX);
+  const axleLoadN = ((gToKg(spec.massG) - gripperKg) * GRAVITY_M_S2 * (spec.casterCm[0] - comX)) / (spec.casterCm[0] - axleX);
   const wheelLoadN: [number, number] = [
     (axleLoadN * (halfTrackCm + comY)) / (2 * halfTrackCm),
     (axleLoadN * (halfTrackCm - comY)) / (2 * halfTrackCm),
@@ -185,6 +208,9 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
 
   const arms = servos.map((servo) => createServoArm(world, chassis, servo));
   for (const arm of arms) owned.add(arm.collider.handle);
+  const gripper = gripperModule === null ? null : createGripper(world, chassis, gripperModule);
+  if (gripper !== null) for (const collider of gripper.colliders) owned.add(collider.handle);
+  const grasp = gripper === null ? null : createGrasp(world, gripper, options.graspObjects ?? []);
   const armsByRole = new Map<RobotRole, ServoArm>(arms.map((arm) => [arm.role, arm]));
   const motors = new Map<RobotRole, DcMotor>([
     ['motorLeft', createDcMotor(motorLeft.spec)],
@@ -261,7 +287,9 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
 
   const robot: RobotBody = {
     chassis,
-    bodies: [chassis, ...arms.map((arm) => arm.body)],
+    bodies: [chassis, ...arms.map((arm) => arm.body), ...(gripper === null ? [] : gripper.bodies)],
+    gripper,
+    grasp,
     ownsCollider: (collider) => owned.has(collider.handle),
     applyActuators(targets) {
       // Check everything first, so a refused target changes nothing.
@@ -277,8 +305,17 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
         if (deg === undefined) throw new RangeError(`The target of servo ${role} is undefined: leave the role out to hold it.`);
         checkServoAngle(deg);
       }
+      if (targets.gripper !== undefined) {
+        if (gripper === null) throw new RangeError('The kit has no gripper.');
+        for (const [name, deg] of Object.entries(targets.gripper) as [string, unknown][]) {
+          if (name !== 'clawDeg' && name !== 'liftDeg') throw new RangeError(`The gripper has no target ${name}: clawDeg or liftDeg.`);
+          if (deg === undefined) throw new RangeError(`The gripper's ${name} is undefined: leave it out to hold it.`);
+          checkServoAngle(deg);
+        }
+      }
       for (const [role, motor] of motors) motor.setCommand(named[role] ?? MOTOR_COAST);
       for (const [role, deg] of angles) armsByRole.get(role as RobotRole)!.setTarget(deg!);
+      if (targets.gripper !== undefined) gripper!.setTargets(targets.gripper);
     },
     beforeStep() {
       stepDt = world.timestep;
@@ -334,6 +371,7 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
         setDrive(still, still);
       }
       for (const arm of arms) arm.beforeStep(stepDt);
+      gripper?.beforeStep(stepDt);
       before = { axle: localToWorld(chassis.translation(), rotation, axleLocal), rotation, frame };
     },
     afterStep() {
@@ -356,7 +394,9 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
       before = null;
     },
     placeAt(at) {
+      grasp?.release();
       const angles = arms.map((arm) => arm.angleDeg());
+      const gripperPose: GripperPose | null = gripper === null ? null : gripper.pose();
       const pose = startPose(at, restHeight);
       chassis.setTranslation(pose.position, true);
       chassis.setRotation(pose.rotation, true);
@@ -364,6 +404,7 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
       chassis.setAngvel({ x: 0, y: 0, z: 0 }, true);
       setDrive(still, still);
       arms.forEach((arm, i) => arm.followChassis(angles[i]!));
+      if (gripper !== null) gripper.followChassis(gripperPose!);
       left.reset();
       right.reset();
       world.propagateModifiedBodyPositionsToColliders();

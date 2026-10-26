@@ -115,7 +115,7 @@ const RIDES_ON_GRIPPER: ReadonlySet<ModuleKind> = new Set<ModuleKind>(['ir-obsta
 const DEG = Math.PI / 180;
 
 /** The gripper's moving parts (the chassis body is the rest of `massG`, §4.6): boom, carriage and two fingers, g. */
-const gripperMovingMassG = (spec: ModuleSpecs['gripper']): number => spec.boomMassG + spec.carriageMassG + 2 * spec.fingerMassG;
+export const gripperMovingMassG = (spec: ModuleSpecs['gripper']): number => spec.boomMassG + spec.carriageMassG + 2 * spec.fingerMassG;
 
 /**
  * N19 A2: where the jaws are at a lift angle, in the robot frame (cm), seen from the side, the fingers straight ahead: from the finger
