@@ -29,6 +29,12 @@ export type ArenaColliderInfo = {
   /** Whether an ultrasonic ray echoes off it. Never the ground. */
   readonly ultrasonic: boolean;
   readonly dynamic: boolean;
+  /**
+   * N19 B3: the body's own colour ("#rrggbb"), which the colour sensor and the IR see: the arena's `color` of a wall, box, cylinder or
+   * object (a variant's for an object, variants.ts), the ground's `ground.color`. Left out for a body without one: its kind's colour
+   * stands in (body-colors.ts `bodyColor`), so an arena without colours builds the colliders it built before, field for field.
+   */
+  readonly color?: string;
 };
 
 export type ArenaDynamicBody = { readonly id: string; readonly kind: 'box' | 'cylinder' | 'object'; readonly body: RigidBody };
@@ -63,7 +69,8 @@ export function buildArena(world: PhysicsWorld, arena: Arena): BuiltArena {
 
   const record = (collider: Collider, item: Item, dynamic: boolean) => {
     const tags = [item.kind, ...item.tags.filter((tag) => tag !== item.kind)];
-    colliders.set(collider.handle, { id: item.id, kind: item.kind, tags, ultrasonic: item.ultrasonic, dynamic });
+    const info: ArenaColliderInfo = { id: item.id, kind: item.kind, tags, ultrasonic: item.ultrasonic, dynamic };
+    colliders.set(collider.handle, item.color === undefined ? info : { ...info, color: item.color });
   };
   const addFixed = (desc: ColliderDesc, at: Placement, item: Item) => {
     desc.setTranslation(at.x, at.y, at.z).setRotation(at.rotation);
@@ -81,7 +88,7 @@ export function buildArena(world: PhysicsWorld, arena: Arena): BuiltArena {
   addFixed(
     R.ColliderDesc.cuboid(cmToM(width) / 2, cmToM(GROUND_THICKNESS_CM) / 2, cmToM(depth) / 2).setFriction(GROUND_FRICTION),
     { ...groundCentre, rotation: yawToQuaternion(0) },
-    { id: '#ground', kind: 'ground', tags: [], ultrasonic: false },
+    { id: '#ground', kind: 'ground', tags: [], ultrasonic: false, color: arena.ground.color },
   );
 
   arena.walls.forEach((wall, i) => {
@@ -89,7 +96,7 @@ export function buildArena(world: PhysicsWorld, arena: Arena): BuiltArena {
     addFixed(
       R.ColliderDesc.cuboid(halfExtents.x, halfExtents.y, halfExtents.z).setFriction(WALL_FRICTION),
       placement,
-      { id: wall.id ?? `#wall-${i}`, kind: 'wall', tags: wall.tags, ultrasonic: wall.ultrasonic },
+      { id: wall.id ?? `#wall-${i}`, kind: 'wall', tags: wall.tags, ultrasonic: wall.ultrasonic, color: wall.color },
     );
   });
 
@@ -104,19 +111,19 @@ export function buildArena(world: PhysicsWorld, arena: Arena): BuiltArena {
 
   // A dynamic box or cylinder always has massG: the schema refuses one without.
   arena.boxes.forEach((box, i) => {
-    const item = { id: box.id ?? `#box-${i}`, kind: 'box' as const, tags: box.tags, ultrasonic: box.ultrasonic };
+    const item = { id: box.id ?? `#box-${i}`, kind: 'box' as const, tags: box.tags, ultrasonic: box.ultrasonic, color: box.color };
     const at = standing(box.centerCm, box.sizeCm[2], box.yawDeg);
     if (box.body === 'dynamic') addDynamic(boxDesc(box), at, item, box.massG!);
     else addFixed(boxDesc(box), at, item);
   });
   arena.cylinders.forEach((cylinder, i) => {
-    const item = { id: cylinder.id ?? `#cylinder-${i}`, kind: 'cylinder' as const, tags: cylinder.tags, ultrasonic: cylinder.ultrasonic };
+    const item = { id: cylinder.id ?? `#cylinder-${i}`, kind: 'cylinder' as const, tags: cylinder.tags, ultrasonic: cylinder.ultrasonic, color: cylinder.color };
     const at = standing(cylinder.centerCm, cylinder.heightCm, 0);
     if (cylinder.body === 'dynamic') addDynamic(cylinderDesc(cylinder), at, item, cylinder.massG!);
     else addFixed(cylinderDesc(cylinder), at, item);
   });
   for (const object of arena.objects) {
-    const item = { id: object.id, kind: 'object' as const, tags: object.tags, ultrasonic: object.ultrasonic };
+    const item = { id: object.id, kind: 'object' as const, tags: object.tags, ultrasonic: object.ultrasonic, color: object.color };
     if (object.shape === 'box') addDynamic(boxDesc(object), standing(object.centerCm, object.sizeCm[2], object.yawDeg), item, object.massG);
     else addDynamic(cylinderDesc(object), standing(object.centerCm, object.heightCm, 0), item, object.massG);
   }
@@ -131,7 +138,7 @@ export function buildArena(world: PhysicsWorld, arena: Arena): BuiltArena {
 }
 
 type Placement = { x: number; y: number; z: number; rotation: Quat };
-type Item = { id: string; kind: ArenaBodyKind; tags: readonly string[]; ultrasonic: boolean };
+type Item = { id: string; kind: ArenaBodyKind; tags: readonly string[]; ultrasonic: boolean; color?: string | undefined };
 
 /** Where a shape of the given height stands with its base on the floor, turned by an arena yaw. */
 function standing([xCm, yCm]: readonly [number, number], heightCm: number, yawDeg: number): Placement {

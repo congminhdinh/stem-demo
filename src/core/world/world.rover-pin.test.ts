@@ -40,7 +40,7 @@ describe('the rover is unchanged by the gripper’s sensors and frame fields (N1
         for (const [id, object] of Object.entries(frame.objects)) {
           for (const key of ['zCm', 'tiltDeg', 'held', 'restingOn']) if (key in object) n19Keys.push(`${id}.${key}@${tick}`);
         }
-        for (const sensor of world.snapshot().sensors) if (sensor.kind !== 'ultrasonic' && sensor.kind !== 'line-sensor') n19Keys.push(`${sensor.kind}@${tick}`);
+        for (const { kind } of world.snapshot().sensors as readonly { readonly kind: string }[]) if (kind !== 'ultrasonic' && kind !== 'line-sensor') n19Keys.push(`${kind}@${tick}`);
       };
       read(0);
       for (let tick = 0; tick < 600; tick++) {
