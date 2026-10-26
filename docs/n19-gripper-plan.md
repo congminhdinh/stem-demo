@@ -320,10 +320,23 @@ Toàn bộ §5 của plan N18 vẫn áp dụng: B1, Rapier chỉ ở `src/core/w
   - Vật có `noun` vẽ đúng loại, tô bằng `color`. Khối xốp có hoa văn trên mặt trên: đỏ sọc ngang, xanh lá lưới, xanh dương chấm to, vàng trơn.
   - Bệ không có màu dùng màu gỗ beech.
 - **Số đo** (`e67-report.md`):
-  - Tay gắp: 3 880 tam giác ở mức high, 2 180 ở mức low (chưa kể trụ đỡ siêu âm: 136 và 40).
-  - Vật: 1 608 tam giác ở mức high, 584 ở mức low.
-  - GLB tăng: kit +97,7 KB (high), +63,4 KB (low); props +76,6 KB (high), +44,7 KB (low).
+  - Tay gắp: 3 632 tam giác ở mức high, 2 060 ở mức low (chưa kể trụ đỡ siêu âm: 136 và 40; sau vòng sửa 1).
+  - Vật: 1 380 tam giác ở mức high, 628 ở mức low.
+  - GLB tăng: kit +99,0 KB (high), +63,9 KB (low); props +71,4 KB (high), +46,6 KB (low).
   - Pixel-diff 44 ảnh rover (7 bài × 2 mức) so với master: trùng bit. Riêng 3 pixel rail của servo-gate high lật giữa các lần chạy, cả master với master.
+- **Vòng sửa 1 (review E6/E7):**
+  - **Vẽ lại khi tay gắp đổi.** `sameCasters` so cả `robot.gripper`: kẹp và tay trong 0,05°, và `heldId`. `sameView` so đèn LED màu theo `status`, nhưng chỉ ở snapshot có tay gắp. Rover so như cũ.
+  - **Vỏ servo kẹp là dữ liệu kit** (PLACEHOLDER): `clawServoCenter{U,V,W}Cm` `[-0.13, 0, 1.535]` và `clawServoSize{U,V,W}Cm` `1.22 × 2.28 × 2.27`, trong khung giá kẹp.
+    - Asset và view đọc hộp này; test giữ phần vẽ bằng hộp trong 0,5 mm.
+    - World chưa đọc. **B5 thêm collider này** và siêu âm phải nghe thấy nó: servo nâng lên trước HC-SR04 thật thì chắn tia, là một lỗi đáng để học.
+  - **Bo mạch trên xe không có tay servo** đặt đúng chỗ của rover, che phần AO đã bake dưới bo. Ở mức low còn một vệt rất nhạt tại chỗ buzzer của rover (−5, 3); không thêm vật che.
+  - **Không vẽ gì quá ±6,8 cm** (thanh ngang của vật lý), trừ hai đầu vít trục boom nhô 0,5 mm.
+    - Thanh nối dưới và tai giá kẹp nằm giữa giá bên và tay boom.
+    - Hai đầu tròn của tay boom vẫn quá hộp tấm 0,5 cm ở hai đầu, dọc theo boom.
+  - **Kệ kho** dựng cho tường 40 × 4 × 12 cm. View kéo giãn kệ theo tường, còn biển co đều theo chiều cao tường. D4 nên chọn tường gần kích thước đó.
+  - **Kit có kích thước khác** chỉ co boom, link và ngàm. Giá kẹp (vị trí chốt ngón), giá bên và hai bo giữ kích thước tham chiếu. Đây là giới hạn đã biết khi chỉ có một kit PLACEHOLDER.
+  - **Kẹp lệch tâm:** `clawDeg` là trung bình hai ngón. Khối bị kẹp lệch thì hai ngàm vẽ ở cùng góc trung bình, một ngàm lấn vào khối, một ngàm hở. Ghi cho B4/E8; nếu thấy rõ thì thêm góc từng ngón vào snapshot.
+  - **`build.py`** là bản N18 cộng hai khối `# N19 >>>…<<<`. Code N19 nằm ở `build_n19.py`. Hash của `build.py` bỏ hai khối đó (`scripts/lib/frozen-sources.ts`) bằng đúng hash N18, và cùng giữ root N18 đóng băng.
 
 ## 5. Review Focus
 
