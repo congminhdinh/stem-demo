@@ -30,7 +30,7 @@ async function openInLesson(page: Page, url: string): Promise<Frame> {
     throw new Error('The lab iframe has no frame');
   }
   await frame.getByTestId('robot-lab').waitFor();
-  await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 15_000 });
+  await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 60_000 });
   await expect(frame.getByTestId('robot-3d-loading')).toHaveCount(0);
   // The overlay's state reader and the map's: the very instances the lab runs on, from the dev server.
   await frame.evaluate(async () => {
@@ -95,6 +95,10 @@ const projectOf = (program: 'reference' | string) => {
 const tagOf = (cm: number) => `${(Math.round(cm * 10) / 10).toFixed(1).replace('.', ',')} cm`;
 const ultrasonicOf = (snapshot: RobotView | null) => snapshot?.sensors.find((sensor) => sensor.kind === 'ultrasonic');
 
+// N18 bt-lab-fix: under a suite's load SwiftShader draws a run slowly (at most 8 ticks a drawn frame), so the waits in this file are for a
+// condition, not for a time, and a test's own limit is for a hang, not for a busy machine.
+test.describe.configure({ timeout: 120_000 });
+
 test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
   test('stop-at-wall: the goal’s zone is lit before the run, then the ray, its echo and its tag in cm appear and match the reading', async ({ page, baseURL }) => {
     const errors = collectErrors(page);
@@ -158,7 +162,7 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('crash-and-back-off'));
     const shownInCheck = async () => {
       await expect(frame.getByTestId('robot-check-round')).toHaveText('Lượt 1/3');
-      await expect.poll(async () => (await overlay(frame))?.ultrasonics[0], { timeout: 20_000 }).toMatchObject({ visible: true, ray: true, hit: true });
+      await expect.poll(async () => (await overlay(frame))?.ultrasonics[0], { timeout: 60_000 }).toMatchObject({ visible: true, ray: true, hit: true });
       expect((await overlay(frame))?.shown).toBe(true);
     };
     // Kiểm tra at 1×: the run is in the view with its overlays (the learner can switch them off there, too: the switch is not in the tools).
@@ -177,7 +181,7 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     // Xem lại: the round again at 1×.
     await frame.getByTestId('robot-check-replay-2').click();
     await expect(frame.getByTestId('robot-round')).toHaveText('Lượt 2/3');
-    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0], { timeout: 20_000 }).toMatchObject({ visible: true, ray: true, hit: true });
+    await expect.poll(async () => (await overlay(frame))?.ultrasonics[0], { timeout: 60_000 }).toMatchObject({ visible: true, ray: true, hit: true });
     await screenshot(page, '05-replay.png');
     expect(errors).toEqual([]);
   });
@@ -438,7 +442,7 @@ test.describe('the sensor overlays in the robot lab (N18 R4.3)', () => {
     await frame.getByTestId('robot-quality').click();
     await expect(frame.getByTestId('robot-canvas')).toHaveAttribute('data-tier', 'high');
     await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 30_000 });
-    await expect.poll(async () => (await overlay(frame))?.zone, { timeout: 15_000 }).toBe('stop-zone');
+    await expect.poll(async () => (await overlay(frame))?.zone, { timeout: 60_000 }).toBe('stop-zone');
     await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('reference'));
     await frame.getByTestId('robot-run').click();
     await expect.poll(async () => (await overlay(frame))?.ultrasonics[0], { timeout: 30_000 }).toMatchObject({ visible: true, ray: true, hit: true });

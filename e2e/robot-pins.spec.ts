@@ -57,6 +57,10 @@ const overflowsSideways = (frame: Frame, testId: string) =>
 
 const tab = (frame: Frame, name: string) => frame.getByRole('tab', { name, exact: true });
 
+// N18 bt-lab-fix: under a suite's load SwiftShader draws a run slowly (at most 8 ticks a drawn frame), so the waits in this file are for a
+// condition, not for a time, and a test's own limit is for a hang, not for a busy machine.
+test.describe.configure({ timeout: 120_000 });
+
 test.describe('the ports & pins and C++ tabs of the robot lab (N18 R4.5)', () => {
   test('Cổng & chân follows a run of the drive-to-zone lesson: the live motor %, the pins, the board and the table, then the stopped motors', async ({ page, baseURL }) => {
     const errors = collectErrors(page);
@@ -117,7 +121,7 @@ test.describe('the ports & pins and C++ tabs of the robot lab (N18 R4.5)', () =>
     expect(await overflowsSideways(frame, 'pin-inspector')).toEqual({ pane: false, page: false });
 
     // The program ends with a stop: the motors read 0 % and stopped.
-    await expect(frame.getByTestId('hub-value-motorLeft')).toHaveText('0 %', { timeout: 12_000 });
+    await expect(frame.getByTestId('hub-value-motorLeft')).toHaveText('0 %', { timeout: 60_000 });
     await expect(frame.getByTestId('hub-direction-motorLeft')).toHaveText('dừng');
     await expect(frame.getByTestId('hub-pad-D5')).toHaveAttribute('data-state', 'low');
 

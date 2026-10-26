@@ -61,7 +61,7 @@ async function openInLesson(page: Page, url: string): Promise<Frame> {
     throw new Error('The lab iframe has no frame');
   }
   await frame.getByTestId('robot-lab').waitFor();
-  await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 15_000 });
+  await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 60_000 });
   await expect(frame.getByTestId('robot-3d-loading')).toHaveCount(0);
   await pinLowTierChainOff(frame);
   return frame;
@@ -103,6 +103,10 @@ async function check(page: Page, frame: Frame, speed: '1x' | '4x' | 'fast', duri
   const hashes = await frame.locator('[data-testid=robot-check-rounds] > li').evaluateAll((items) => items.map((item) => item.getAttribute('data-world-hash')));
   return { result: (await checkResults(page))[before]!, hashes };
 }
+
+// N18 bt-lab-fix: under a suite's load SwiftShader draws a run slowly (at most 8 ticks a drawn frame), so the waits in this file are for a
+// condition, not for a time, and a test's own limit is for a hang, not for a busy machine.
+test.describe.configure({ timeout: 120_000 });
 
 test.describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
   test('checks the reference at 4×: its run in the view, Lượt 1/1, then a check-result with its score after the run stopped', async ({ page, baseURL }) => {
@@ -171,7 +175,7 @@ test.describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
     await expect(frame.getByTestId('robot-check-results')).toHaveAttribute('data-open', 'false');
     await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
     await screenshot(page, '04-replay-1100x640.png');
-    await expect(frame.getByTestId('robot-status')).toHaveText('Hết lượt: robot đã va chạm', { timeout: 20_000 });
+    await expect(frame.getByTestId('robot-status')).toHaveText('Hết lượt: robot đã va chạm', { timeout: 60_000 });
     expect(await frame.evaluate(() => window.__stem?.robot.snapshotHash())).toBe(hashes[1]);
     // The HUD gives that round the check's score.
     await expect(frame.getByTestId('robot-score')).toHaveText('Điểm 0/100');
@@ -235,7 +239,7 @@ test.describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
     await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('rb-stop-at-wall', 'crash-and-back-off'));
     const fast = await check(page, frame, 'fast');
     const hidden = await check(page, frame, '4x', async () => {
-      await expect(frame.getByTestId('robot-check-round')).toHaveText('Lượt 2/3', { timeout: 20_000 });
+      await expect(frame.getByTestId('robot-check-round')).toHaveText('Lượt 2/3', { timeout: 60_000 });
       await frame.evaluate(() => (window as unknown as { __hideTab(hide: boolean): void }).__hideTab(true));
       // A frame the browser had already asked for may still come.
       await page.waitForTimeout(100);

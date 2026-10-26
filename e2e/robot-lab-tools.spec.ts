@@ -31,7 +31,7 @@ async function openInLesson(page: Page, url: string): Promise<Frame> {
     throw new Error('The lab iframe has no frame');
   }
   await frame.getByTestId('robot-lab').waitFor();
-  await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 15_000 });
+  await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 60_000 });
   await pinLowTierChainOff(frame);
   return frame;
 }
@@ -70,6 +70,10 @@ async function topViewPoint(frame: Frame, xCm: number, yCm: number): Promise<{ x
   return { x: canvas.x + canvas.width / 2 + (xCm - ARENA_CM[0] / 2) * pxPerCm, y: canvas.y + canvas.height / 2 - (yCm - ARENA_CM[1] / 2) * pxPerCm };
 }
 
+// N18 bt-lab-fix: under a suite's load SwiftShader draws a run slowly (at most 8 ticks a drawn frame), so the waits in this file are for a
+// condition, not for a time, and a test's own limit is for a hang, not for a busy machine.
+test.describe.configure({ timeout: 120_000 });
+
 test.describe('the robot lab’s view tools (N18 R4.8)', () => {
   test('Lái tay: the keyboard drives the robot through the simulated hardware, the D-pad shows, and the host hears of no run', async ({ page, baseURL }) => {
     const errors = collectErrors(page);
@@ -86,7 +90,7 @@ test.describe('the robot lab’s view tools (N18 R4.8)', () => {
 
     // Hold ↑ (the view has the focus since the toggle gave it): the robot drives forward, along +x.
     await page.keyboard.down('ArrowUp');
-    await expect.poll(async () => (await view(frame))!.robot.xCm, { timeout: 10_000 }).toBeGreaterThan(start.xCm + 8);
+    await expect.poll(async () => (await view(frame))!.robot.xCm, { timeout: 60_000 }).toBeGreaterThan(start.xCm + 8);
     await expect(frame.getByTestId('robot-pad-forward')).toHaveAttribute('aria-pressed', 'true');
     await screenshot(page, '01-teleop-dpad.png');
     await page.keyboard.up('ArrowUp');
@@ -107,7 +111,7 @@ test.describe('the robot lab’s view tools (N18 R4.8)', () => {
 
     // D turns it right (clockwise: the yaw goes down).
     await page.keyboard.down('d');
-    await expect.poll(async () => (await view(frame))!.robot.yawDeg, { timeout: 10_000 }).toBeLessThan(stopped.yawDeg - 20);
+    await expect.poll(async () => (await view(frame))!.robot.yawDeg, { timeout: 60_000 }).toBeLessThan(stopped.yawDeg - 20);
     await page.keyboard.up('d');
 
     // The host never heard a run start: teleop is no run of the learner's program.

@@ -26,7 +26,7 @@ async function openInLesson(page: Page, url: string): Promise<Frame> {
   const frame = await (await page.locator('iframe').elementHandle())?.contentFrame();
   if (!frame) throw new Error('The lab iframe has no frame');
   await frame.getByTestId('robot-lab').waitFor();
-  await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 15_000 });
+  await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 60_000 });
   await pinLowTierChainOff(frame);
   await frame.evaluate((document) => window.__stem?.loadProject(document), solved());
   return frame;

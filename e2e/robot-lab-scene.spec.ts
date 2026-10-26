@@ -28,7 +28,7 @@ async function openInLesson(page: Page, url: string): Promise<Frame> {
   }
   await frame.getByTestId('robot-lab').waitFor();
   // N18 R4.2 fix round 1: the first frame drawn, not just the canvas element (SwiftShader takes about 2 s to get there).
-  await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 15_000 });
+  await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 60_000 });
   await expect(frame.getByTestId('robot-3d-loading')).toHaveCount(0);
   await pinLowTierChainOff(frame);
   return frame;
@@ -66,6 +66,10 @@ const scrolls = (target: Page | Frame) =>
     return page === null ? null : { sideways: page.scrollWidth > page.clientWidth, down: page.scrollHeight > page.clientHeight };
   });
 
+// N18 bt-lab-fix: under a suite's load SwiftShader draws a run slowly (at most 8 ticks a drawn frame), so the waits in this file are for a
+// condition, not for a time, and a test's own limit is for a hang, not for a busy machine.
+test.describe.configure({ timeout: 120_000 });
+
 test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
   test('runs the reference solution: the robot drives, its running block lights up, Đặt lại starts the run again and Dừng ends it', async ({ page, baseURL }) => {
     const errors = collectErrors(page);
@@ -80,7 +84,7 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
     await frame.getByTestId('robot-run').click();
     await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
     // The robot leaves its start (x = 25 cm) along +x, and the wait it drives through is the block that lights up.
-    await expect.poll(async () => (await view(frame))?.robot.xCm ?? 0, { timeout: 10_000 }).toBeGreaterThan(32);
+    await expect.poll(async () => (await view(frame))?.robot.xCm ?? 0, { timeout: 60_000 }).toBeGreaterThan(32);
     await expect.poll(() => litBlocks(frame), { timeout: 30_000 }).toEqual(['drive-time']);
     expect((await view(frame))?.robot.yCm).toBeCloseTo(40, 0);
     await screenshot(page, '02-running-1100x640.png');
@@ -121,7 +125,7 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
     await expect(frame.getByTestId('robot-speed').getByRole('radio', { name: '4×' })).toHaveAttribute('aria-checked', 'true');
     await frame.getByTestId('robot-run').click();
     // The scenario's time limit is 15 s: under 4 s at 4×, with a margin for a slow machine.
-    await expect(frame.getByTestId('robot-status')).toHaveText('Lượt chạy kết thúc', { timeout: 20_000 });
+    await expect(frame.getByTestId('robot-status')).toHaveText('Lượt chạy kết thúc', { timeout: 60_000 });
     await expect(frame.getByTestId('robot-status')).toHaveAttribute('data-tone', 'success');
     await expect(frame.getByTestId('robot-score')).toHaveText('Điểm 100/100');
     await expect(frame.locator('[data-goal=reach-target]')).toHaveAttribute('data-passed', 'true');
@@ -249,7 +253,7 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
     expect(during.changed).toBeGreaterThan(30);
     expect(during.draws / during.changed).toBeGreaterThan(0.8);
     // The program ends after 5 s and the robot rests in the target: the canvas stops drawing, and the HUD's clock goes on (fix round 1).
-    await expect(frame.getByTestId('robot-status')).toHaveText('Chương trình đã chạy xong', { timeout: 10_000 });
+    await expect(frame.getByTestId('robot-status')).toHaveText('Chương trình đã chạy xong', { timeout: 60_000 });
     await page.waitForTimeout(1500);
     const rested = await frame.evaluate(() => (window as unknown as { __draws: number }).__draws);
     const restedAt = await frame.getByTestId('robot-time').textContent();
@@ -381,7 +385,7 @@ test.describe('the robot lab’s layout (N18 R4.2)', () => {
     const errors = collectErrors(page);
     await page.setViewportSize({ width: 948, height: 450 });
     await page.goto(labUrl(baseURL, 'lab=robot&template=rb-mini-mission'));
-    await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 15_000 });
+    await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 60_000 });
     await pinLowTierChainOff(page);
     // Placed at (1500, 1100) of the workspace: well outside the first view.
     const starter = await blocksView(page);
@@ -427,7 +431,7 @@ test.describe('the robot lab’s layout (N18 R4.2)', () => {
       const errors = collectErrors(page);
       await page.setViewportSize({ width, height });
       await page.goto(labUrl(baseURL, 'lab=robot&template=rb-drive-to-zone'));
-      await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 15_000 });
+      await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 60_000 });
       await pinLowTierChainOff(page);
       await page.evaluate((document) => window.__stem?.loadProject(document), solved());
       await page.locator('[data-testid=robot-check-speed] [data-speed=fast]').click();
@@ -457,7 +461,7 @@ test.describe('the robot lab’s layout (N18 R4.2)', () => {
     const errors = collectErrors(page);
     await page.setViewportSize({ width: 760, height: 640 });
     await page.goto('/?embed=1&lab=robot&template=rb-drive-to-zone');
-    await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 15_000 });
+    await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 60_000 });
     await pinLowTierChainOff(page);
     await expect(page.getByRole('tab', { name: 'Chương trình', exact: true })).toHaveAttribute('aria-selected', 'true');
     expect(await scrolls(page)).toEqual({ sideways: false, down: false });

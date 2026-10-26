@@ -103,6 +103,10 @@ const solved = (template: Exclude<RobotTemplateKey, 'rb-sandbox'>) => ({ ...robo
 
 const noWebglNote = 'Máy này không hiển thị được 3D, đang dùng bản đồ 2D.';
 
+// N18 bt-lab-fix: under a suite's load SwiftShader draws a run slowly (at most 8 ticks a drawn frame), so the waits in this file are for a
+// condition, not for a time, and a test's own limit is for a hang, not for a busy machine.
+test.describe.configure({ timeout: 120_000 });
+
 test.describe('the robot lab on a computer without WebGL (N18 R4.6)', () => {
   test('shows the 2D top view with the reason, and Chạy moves the map’s robot as it moves the snapshot’s', async ({ noWebglPage: page, baseURL }) => {
     const errors = collectErrors(page);
@@ -130,7 +134,7 @@ test.describe('the robot lab on a computer without WebGL (N18 R4.6)', () => {
     await frame.getByTestId('robot-run').click();
     await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
     // The robot leaves its start (x = 25 cm) along +x, and the map's robot with it: the same place as the snapshot's.
-    await expect.poll(async () => (await topView(frame))?.robot?.xCm ?? 0, { timeout: 10_000 }).toBeGreaterThan(32);
+    await expect.poll(async () => (await topView(frame))?.robot?.xCm ?? 0, { timeout: 60_000 }).toBeGreaterThan(32);
     await screenshot(page, '02-no-webgl-running-1100x640.png');
     const mid = await both(frame);
     expect(mid.top?.robot?.xCm).toBeCloseTo(mid.world!.robot.xCm, 1);
@@ -139,7 +143,7 @@ test.describe('the robot lab on a computer without WebGL (N18 R4.6)', () => {
 
     // The run to its end at 4×: the goals are scored from the very world the map draws.
     await frame.evaluate(() => window.__stem?.robot.setSpeed(4));
-    await expect(frame.getByTestId('robot-status')).toHaveText('Lượt chạy kết thúc', { timeout: 20_000 });
+    await expect(frame.getByTestId('robot-status')).toHaveText('Lượt chạy kết thúc', { timeout: 60_000 });
     await expect(frame.getByTestId('robot-score')).toHaveText('Điểm 100/100');
     const end = await both(frame);
     expect(end.top?.robot?.xCm).toBeCloseTo(end.world!.robot.xCm, 1);
@@ -154,9 +158,9 @@ test.describe('the robot lab on a computer without WebGL (N18 R4.6)', () => {
     await frame.evaluate((document) => window.__stem?.loadProject(document), solved('rb-stop-at-wall'));
     await frame.evaluate(() => window.__stem?.robot.setSpeed(2));
     await frame.getByTestId('robot-run').click();
-    await expect.poll(async () => (await topView(frame))?.rays[0]?.visible ?? false, { timeout: 10_000 }).toBe(true);
+    await expect.poll(async () => (await topView(frame))?.rays[0]?.visible ?? false, { timeout: 60_000 }).toBe(true);
     // Once the ray hears the wall it is drawn to the point where it hits, from the sensor 7.5 cm ahead of the robot's middle.
-    await expect.poll(async () => (await topView(frame))?.rays[0]?.echo ?? false, { timeout: 15_000 }).toBe(true);
+    await expect.poll(async () => (await topView(frame))?.rays[0]?.echo ?? false, { timeout: 60_000 }).toBe(true);
     const { world: heard, top } = await both(frame);
     const ray = top!.rays[0]!;
     const reading = heard!.sensors.find((sensor) => sensor.kind === 'ultrasonic') as { cm: number };
@@ -171,7 +175,7 @@ test.describe('the robot lab on a computer without WebGL (N18 R4.6)', () => {
 
     // The robot stops at the wall and the run goes on to its time limit; the map draws no more for a robot that does not move.
     await frame.evaluate(() => window.__stem?.robot.setSpeed(4));
-    await expect(frame.getByTestId('robot-status')).toHaveText('Lượt chạy kết thúc', { timeout: 40_000 });
+    await expect(frame.getByTestId('robot-status')).toHaveText('Lượt chạy kết thúc', { timeout: 90_000 });
     await page.waitForTimeout(500);
     const rested = (await topView(frame))!.draws;
     await page.waitForTimeout(1200);
@@ -225,7 +229,7 @@ test.describe('the robot lab on a computer without WebGL (N18 R4.6)', () => {
     // The check holds the lab and its run is the map's: the robot of the map drives, the round says so.
     await expect(frame.getByTestId('robot-round')).toHaveText('Lượt 1/1');
     await expect(frame.getByTestId('robot-run')).toBeDisabled();
-    await expect.poll(async () => (await topView(frame))?.robot?.xCm ?? 0, { timeout: 20_000 }).toBeGreaterThan(30);
+    await expect.poll(async () => (await topView(frame))?.robot?.xCm ?? 0, { timeout: 60_000 }).toBeGreaterThan(30);
     await screenshot(page, '06-no-webgl-checking-1100x640.png');
     await expect.poll(async () => (await checkResultsOf(page)).length, { timeout: 60_000 }).toBe(1);
     expect((await checkResultsOf(page))[0]?.data).toMatchObject({ lab: 'robot', passed: true, score: 100, maxScore: 100 });
@@ -271,7 +275,7 @@ test.describe('the robot lab on a computer without WebGL (N18 R4.6)', () => {
 test.describe('the robot lab’s 3D view and its 2D map (N18 R4.6)', () => {
   async function openWith3d(page: Page, baseURL: string | undefined, template: RobotTemplateKey = 'rb-drive-to-zone'): Promise<Frame> {
     const frame = await openInLesson(page, labUrl(baseURL, template));
-    await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 15_000 });
+    await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 60_000 });
     await expect(frame.getByTestId('robot-3d-loading')).toHaveCount(0);
     // WEBGL_lose_context is asked for now: a context that is lost answers `getExtension` with null, so it could not be asked for later
     // to restore it (the scene spec's restore did nothing for that reason, and the lost message went away when the view gave up instead).
@@ -331,8 +335,8 @@ test.describe('the robot lab’s 3D view and its 2D map (N18 R4.6)', () => {
 
     // The run did not notice: the simulation goes on, and the map follows it.
     const at = (await world(frame))!;
-    await expect.poll(async () => (await world(frame))?.t ?? 0, { timeout: 10_000 }).toBeGreaterThan(at.t + 0.3);
-    await expect.poll(async () => (await topView(frame))?.robot?.xCm ?? 0, { timeout: 10_000 }).toBeGreaterThan(at.robot.xCm);
+    await expect.poll(async () => (await world(frame))?.t ?? 0, { timeout: 60_000 }).toBeGreaterThan(at.t + 0.3);
+    await expect.poll(async () => (await topView(frame))?.robot?.xCm ?? 0, { timeout: 60_000 }).toBeGreaterThan(at.robot.xCm);
     await expect(frame.getByTestId('robot-status')).toHaveText('Đang chạy');
 
     // While the context is lost the scene draws nothing (it stays mounted, and the run keeps asking it for frames).
@@ -345,7 +349,7 @@ test.describe('the robot lab’s 3D view and its 2D map (N18 R4.6)', () => {
     await expect(frame.getByTestId('robot-topview')).toHaveCount(0);
     // And once it is restored the 3D scene draws again: new frames come to the screen, the run still moving the robot in them.
     expect(await contextLost(frame)).toBe(false);
-    await expect.poll(() => draws(frame), { timeout: 5000 }).toBeGreaterThan(drawnWhileLost);
+    await expect.poll(() => draws(frame), { timeout: 30_000 }).toBeGreaterThan(drawnWhileLost);
     await expect(frame.getByTestId('robot-fallback-note')).toHaveCount(0);
     await expect(frame.getByTestId('robot-viewmode')).toHaveText('Xem 2D');
     await expect(frame.getByTestId('robot-camera')).toBeVisible();
@@ -360,10 +364,34 @@ test.describe('the robot lab’s 3D view and its 2D map (N18 R4.6)', () => {
 
   test('a context that comes back within 2 s keeps the 3D scene', async ({ page, baseURL }) => {
     const frame = await openWith3d(page, baseURL);
-    await lose(frame, 'loseContext');
-    await expect(frame.getByTestId('robot-webgl-lost')).toBeVisible();
-    await page.waitForTimeout(500);
-    await lose(frame, 'restoreContext');
+    // The lost context and its return are timed on the page's own clock, the one that times the 2 s the view waits: a test that waited its
+    // 500 ms in its own process could be late by whole seconds on a busy machine, and the view would have fallen back to the map by then.
+    await frame.evaluate(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          const extension = (window as unknown as { __loseContext: WEBGL_lose_context | null }).__loseContext;
+          if (extension === null) {
+            reject(new Error('This browser has no WEBGL_lose_context'));
+            return;
+          }
+          extension.loseContext();
+          // The note that the graphics are being restored shows as soon as the loss is told; the context comes back 300 ms after it does.
+          const started = performance.now();
+          const watch = () => {
+            if (document.querySelector('[data-testid=robot-webgl-lost]') !== null) {
+              setTimeout(() => {
+                extension.restoreContext();
+                resolve();
+              }, 300);
+            } else if (performance.now() - started > 1500) {
+              reject(new Error('The view never said its graphics were lost'));
+            } else {
+              setTimeout(watch, 20);
+            }
+          };
+          watch();
+        }),
+    );
     await expect(frame.getByTestId('robot-webgl-lost')).toHaveCount(0);
     await page.waitForTimeout(2500);
     await expect(frame.getByTestId('robot-topview')).toHaveCount(0);
@@ -389,7 +417,7 @@ test.describe('the robot lab’s 3D view and its 2D map (N18 R4.6)', () => {
     await screenshot(page, '10-chosen-map-1100x640.png');
 
     await frame.getByTestId('robot-viewmode').click();
-    await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 15_000 });
+    await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 60_000 });
     await expect(frame.getByTestId('robot-topview')).toHaveCount(0);
     await expect(frame.getByTestId('robot-viewmode')).toHaveText('Xem 2D');
     const after = (await world(frame))!;

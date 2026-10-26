@@ -58,6 +58,10 @@ function look(pixels: number[][]) {
   return { deviation, colours, background: pixels.filter(([r, g, b]) => r === 0xf1 && g === 0xf4 && b === 0xf9).length };
 }
 
+// N18 bt-lab-fix: under a suite's load SwiftShader draws a run slowly (at most 8 ticks a drawn frame), so the waits in this file are for a
+// condition, not for a time, and a test's own limit is for a hang, not for a busy machine.
+test.describe.configure({ timeout: 120_000 });
+
 test.describe('the robot lab’s 3D look (N18 R4.7)', () => {
   for (const key of pilots) {
     test(`${key}: the modelled scene, with shading and many colours`, async ({ page, baseURL }) => {
@@ -103,7 +107,7 @@ test.describe('the robot lab’s 3D look (N18 R4.7)', () => {
       const after = await frame.evaluate(() => (window as unknown as { __look: number[][] }).__look);
       return after.filter((pixel, i) => pixel.every((c, k) => Math.abs(c - before[i]![k]!) <= 6)).length / after.length;
     };
-    await expect.poll(sameShare, { timeout: 5_000 }).toBeGreaterThan(0.9);
+    await expect.poll(sameShare, { timeout: 30_000 }).toBeGreaterThan(0.9);
   });
 
   test('model files that do not load: R4.2’s simple shapes are drawn, and no 2D map stands in', async ({ page, baseURL }) => {
@@ -130,9 +134,9 @@ test.describe('the robot lab’s 3D look (N18 R4.7)', () => {
     await frame.getByTestId('robot-check-start').click();
     await expect(frame.getByTestId('robot-check-results')).toHaveAttribute('data-open', 'true', { timeout: 60_000 });
     // The card covers the view's right: the picture slides left (a negative shift), to the middle of what the card leaves.
-    await expect.poll(async () => Number((await canvas.getAttribute('data-lens-shift'))?.split(',')[0] ?? 0), { timeout: 5_000 }).toBeLessThan(-0.2);
+    await expect.poll(async () => Number((await canvas.getAttribute('data-lens-shift'))?.split(',')[0] ?? 0), { timeout: 30_000 }).toBeLessThan(-0.2);
     // Folded, the picture slides back.
     await frame.getByTestId('robot-check-fold').click();
-    await expect(canvas).toHaveAttribute('data-lens-shift', '0', { timeout: 5_000 });
+    await expect(canvas).toHaveAttribute('data-lens-shift', '0', { timeout: 30_000 });
   });
 });

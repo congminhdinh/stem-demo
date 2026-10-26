@@ -42,7 +42,7 @@ async function openInLesson(page: Page, url: string): Promise<Frame> {
   }
   await frame.getByTestId('robot-lab').waitFor();
   await installTopViewReader(frame);
-  await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 15_000 });
+  await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 60_000 });
   await pinLowTierChainOff(frame);
   return frame;
 }
@@ -129,6 +129,10 @@ async function expectSplitLayout(frame: Frame, width: number, height: number) {
   expect(await scrolls(frame)).toEqual({ sideways: false, down: false });
 }
 
+// N18 bt-lab-fix: under a suite's load SwiftShader draws a run slowly (at most 8 ticks a drawn frame), so the waits in this file are for a
+// condition, not for a time, and a test's own limit is for a hang, not for a busy machine.
+test.describe.configure({ timeout: 120_000 });
+
 test.describe('the robot lab at 1100 x 640, the size of a lesson’s frame (N18 R4.6)', () => {
   test('puts the 3D view at about 60 % with the program and its three tabs beside it, the camera over the view, and nothing scrolls', async ({ page, baseURL }) => {
     const frame = await openInLesson(page, labUrl(baseURL));
@@ -201,7 +205,7 @@ test.describe('the robot lab at 760 px, narrower than 800 (N18 R4.6)', () => {
     await page.goto('/?embed=1&lab=robot&template=rb-drive-to-zone');
     await pinLowTierChainOff(page);
     await installTopViewReader(page);
-    await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 15_000 });
+    await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 60_000 });
   }
 
   test('shows one side at a time in two tabs: Chương trình first, and the robot’s tab, 3D view over the whole width, once Chạy is pressed', async ({ page }) => {
@@ -261,7 +265,7 @@ test.describe('the robot lab at 760 px, narrower than 800 (N18 R4.6)', () => {
     expect(state?.stage.width).toBeCloseTo(map.width, 0);
     // 160 cm of arena across the room the margins leave.
     expect(state!.scale * 160).toBeLessThanOrEqual(map.width - 28 + 0.01);
-    await expect.poll(async () => (await topView(page))?.robot?.xCm ?? 0, { timeout: 10_000 }).toBeGreaterThan(32);
+    await expect.poll(async () => (await topView(page))?.robot?.xCm ?? 0, { timeout: 60_000 }).toBeGreaterThan(32);
     expect(await scrolls(page)).toEqual({ sideways: false, down: false });
     // Back to the program tab and the map's side is out of sight, and still drawing its stage at the size it had.
     await page.getByRole('tab', { name: 'Chương trình', exact: true }).click();
@@ -279,7 +283,7 @@ test.describe('a frame that changes size under the 2D map (N18 R4.6 fix round 1)
     await page.goto('/?embed=1&lab=robot&template=rb-line-follow');
     await pinLowTierChainOff(page);
     await installTopViewReader(page);
-    await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 15_000 });
+    await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 60_000 });
     await page.getByTestId('robot-viewmode').click();
     await expect(page.getByTestId('robot-topview')).toBeVisible();
     const stageIsItsContainer = async () => {
@@ -313,7 +317,7 @@ test.describe('where the robot lab turns to tabs (N18 R4.6)', () => {
       await page.setViewportSize({ width, height: 640 });
       await page.goto('/?embed=1&lab=robot&template=rb-drive-to-zone');
       await pinLowTierChainOff(page);
-      await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 15_000 });
+      await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 60_000 });
       await expect(page.getByTestId('lab-workspace')).toHaveAttribute('data-layout', layout);
       expect(await scrolls(page)).toEqual({ sideways: false, down: false });
     });

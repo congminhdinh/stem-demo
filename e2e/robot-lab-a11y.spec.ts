@@ -37,7 +37,7 @@ async function openInLesson(page: Page, url: string): Promise<Frame> {
   await page.goto(lesson.href);
   const frame = await frameOf(page);
   await frame.getByTestId('robot-lab').waitFor();
-  await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 15_000 });
+  await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 60_000 });
   await expect(frame.getByTestId('robot-3d-loading')).toHaveCount(0);
   await pinLowTierChainOff(frame);
   return frame;
@@ -243,7 +243,7 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
     const frame = await frameOf(page);
     await frame.getByTestId('robot-lab').waitFor();
     await pinLowTierChainOff(frame);
-    await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 15_000 });
+    await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 60_000 });
     // Give anything that wanted the focus time to take it: a Blockly workspace that is done, a check, a run.
     await page.waitForTimeout(1000);
     expect(await page.evaluate(() => document.activeElement?.id)).toBe('lesson-field');
@@ -647,7 +647,7 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
       (window as unknown as { __loseContext: WEBGL_lose_context }).__loseContext = extension;
       extension.loseContext();
     });
-    await expect(frame.getByTestId('robot-topview')).toBeVisible({ timeout: 8000 });
+    await expect(frame.getByTestId('robot-topview')).toBeVisible({ timeout: 30_000 });
     const view = frame.getByTestId('robot-scene');
     for (const attribute of ['tabindex', 'role', 'aria-label', 'aria-roledescription', 'aria-describedby', 'data-view-focus']) {
       await expect(view).not.toHaveAttribute(attribute, /.*/);
@@ -709,7 +709,7 @@ test.describe('the camera by keyboard (N18 R8)', () => {
           last = now;
           return same;
         },
-        { timeout: 10_000, intervals: [300] },
+        { timeout: 30_000, intervals: [300] },
       )
       .toBe(true);
     return camera(frame);
@@ -828,7 +828,7 @@ test.describe('the camera by keyboard (N18 R8)', () => {
     expect(Math.abs(still.yawDeg - before.yawDeg)).toBeLessThan(0.05);
     // A plain arrow drives (the view has the focus since the toggle gave it).
     await page.keyboard.down('ArrowUp');
-    await expect.poll(async () => (await pose()).xCm, { timeout: 10_000 }).toBeGreaterThan(before.xCm + 5);
+    await expect.poll(async () => (await pose()).xCm, { timeout: 60_000 }).toBeGreaterThan(before.xCm + 5);
     await page.keyboard.up('ArrowUp');
     // And the camera did not turn for it.
     expect((await settled(frame)).azimuth).toBeCloseTo(swung.azimuth, 0);
@@ -957,7 +957,7 @@ test.describe('the lab at a browser zoom of 200 % (N18 R8)', () => {
     expect(program.problems, 'program tab').toEqual([]);
     await screenshot(page, '11-zoom-200-program-tab.png');
     await frame.getByTestId('robot-run').click();
-    await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 15_000 });
+    await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 60_000 });
     const robot = await audit('robot tab');
     await screenshot(page, '12-zoom-200-robot-tab.png');
     expect(robot.scrollsSideways).toBe(false);
