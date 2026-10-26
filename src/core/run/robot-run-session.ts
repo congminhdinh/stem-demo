@@ -5,7 +5,8 @@ import type { DeviceRegistry } from '../devices/registry';
 import { createProgramIO } from '../hardware/binding';
 import type { BoardProfile } from '../hardware/board';
 import type { KitCatalog } from '../hardware/catalog';
-import { createTcs34725 } from '../hardware/devices/tcs34725';
+import { createTcs34725, TCS_STATUS_AVALID, type Rgbc, type Tcs34725 } from '../hardware/devices/tcs34725';
+import { colorReadLastEventUs } from '../hardware/drivers/tcs34725';
 import { kitKey, kitPort, portParam, type Kit } from '../hardware/kit';
 import { createVirtualUno, type VirtualUno } from '../hardware/virtual-uno';
 import { productionProfiles } from '../profiles';
@@ -347,6 +348,8 @@ type ActiveRun = {
   readonly livedThrough: (k: number) => void;
   /** N19 B4: after a step, each colour sensor's light history records the world's new tick. */
   readonly recordLight: () => void;
+  /** N19 B4: each colour sensor's counts of its last completed window now (none before its first), by role; empty without one. */
+  readonly colorCounts: () => ReadonlyMap<string, Rgbc>;
   /** Makes the scorer, feeds it tick 0's frame and gives its first score (a copy). Throws what the scorer throws. */
   readonly startScore: () => ScoreState;
   /** Starts the program, once: in tick 0, after its inputs. */
@@ -521,8 +524,19 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       run.consoleSnapshot = run.console.snapshot();
       run.consoleDirty = false;
     }
+    const shown = run.world.snapshot();
+    const counts = run.colorCounts();
     const world: RobotSnapshot = deepFreeze({
-      ...run.world.snapshot(),
+      ...shown,
+      // N19 B4: what each colour sensor's program would read now (its register model's last window); the rover's sensors as they are.
+      ...(counts.size === 0
+        ? {}
+        : {
+            sensors: shown.sensors.map((sensor) => {
+              const rgbc = sensor.kind === 'color-sensor' ? counts.get(sensor.role) : undefined;
+              return rgbc === undefined ? sensor : { ...sensor, rgbc: { r: rgbc.r, g: rgbc.g, b: rgbc.b, c: rgbc.c } };
+            }),
+          }),
       pins,
       leds: models.leds(pins),
       activeBlockId: run.activeBlockId,
@@ -772,6 +786,9 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
               boardUs = Math.max(boardUs, livedMs * 1000) + us;
             },
           };
+    /** N19 B4: where the virtual UNO's bus time starts (its creation), and its cycle: a peek at the colour model uses the bus's own time. */
+    const originMs = hardwareClock.now();
+    const cyclesPerUs = board.clockHz / 1_000_000;
     const uno = createVirtualUno(board, hardwareClock);
     const runConsole = createRunConsole();
     const timers = createRunScheduler(scheduler.timers);
@@ -781,8 +798,8 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
      * ADC), the button released. It is never read in practice: an aborted program throws at its next step or module op, before a read.
      */
     const live = () => holder.run !== undefined && current === holder.run;
-    /** N19 B4: the light history of each colour sensor of the kit (one TCS34725 at its fixed address). */
-    const lightHistories: { readonly role: string; readonly history: LightHistory }[] = [];
+    /** N19 B4: the light history and register model of each colour sensor of the kit (one TCS34725 at its fixed address). */
+    const lightHistories: { readonly role: string; readonly history: LightHistory; readonly device: Tcs34725 }[] = [];
 
     for (const module of kit.modules) {
       const port = kitPort(kit, module.port);
@@ -802,8 +819,8 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       } else if (module.kind === 'color-sensor' && port !== undefined) {
         const history = createLightHistory();
         history.record(world.tick, world.sense.color(role).light);
-        lightHistories.push({ role, history });
         const device = createTcs34725(history.integral);
+        lightHistories.push({ role, history, device });
         uno.attachWireDevice(device.address, device);
       }
     }
@@ -862,6 +879,22 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       },
       recordLight() {
         for (const { role, history } of lightHistories) history.record(world.tick, world.sense.color(role).light);
+      },
+      colorCounts() {
+        const counts = new Map<string, Rgbc>();
+        if (lightHistories.length === 0) return counts;
+        // The bus's time now, as the virtual UNO stamps its events (whole cycles since its creation), but never past the farthest a colour
+        // read's bus runs ahead of the world (world.t + dt + colorReadLastEventUs, plan §4.7): the program may be far ahead of the world
+        // (setup() charges its 58 ms of delays in tick 0 and the program parks until tick 7), and a window the model closed that early would
+        // read ticks not measured yet. Every bus event comes before both, so the model still only runs forward, every window it closes is
+        // decided by the history (light-history.ts), and peeking changes nothing the program reads.
+        const busUs = Math.round((hardwareClock.now() - originMs) * 1000 * cyclesPerUs) / cyclesPerUs;
+        const leadUs = ((world.tick + 1) * 1_000_000) / PHYSICS_HZ + colorReadLastEventUs(uno.io);
+        for (const { role, device } of lightHistories) {
+          const registers = device.peek(Math.min(busUs, leadUs));
+          if ((registers.status & TCS_STATUS_AVALID) !== 0) counts.set(role, registers.data);
+        }
+        return counts;
       },
       startScore() {
         const scorer = options.scorer?.({ scenario, arena: world.arena, program: prepared.program, variantIndex, check });

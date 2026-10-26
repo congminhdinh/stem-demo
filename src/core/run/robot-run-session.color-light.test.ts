@@ -200,6 +200,35 @@ describe('the run session’s colour sensor (N19 B4)', () => {
     expect(read).toEqual(['red: 1 0 0 0', 'green: 0 1 0 0', 'blue: 0 0 1 0', 'yellow: 0 0 0 1']);
   }, 120_000);
 
+  it('publishes what the program would read: each colour sensor’s last window (none before the first), and the IR on A3, active low', async () => {
+    const session = createRobotRunSession({ scenario: cubeScenario(bodyPalette.green), kit: gripperKit, board: unoR3Board, registry });
+    const program = [
+      ...driveThrough.slice(0, 3),
+      driveMove('forward', num(45)),
+      whileLoop(not(irDetect()), []),
+      driveStop(),
+      wait(num(300)),
+      ...(['red', 'green', 'blue', 'clear'] as const).map((channel) => print(colorRaw(channel))),
+    ];
+    expect(await session.start(robotProject(program, undefined, { profile: 'uno-advanced', kit: { id: gripperKit.id, version: gripperKit.version } }))).toEqual({ ok: true });
+    // t = 0: setup() has turned the sensor on; its first window ends 52.8 ms after AEN. Nothing in front of the IR: A3 HIGH.
+    const first = worldOf(session);
+    expect(first.sensors.find((sensor) => sensor.kind === 'color-sensor')).toEqual({ role: 'color1', kind: 'color-sensor', hitId: null, distanceCm: null });
+    expect(first.pins.find((pin) => pin.pin === 'A3')?.level).toBe(1);
+    await session.runUntil(4);
+    const last = worldOf(session);
+    const lines = session.getSnapshot().console.lines;
+    session.stop();
+    expect(lines).toHaveLength(4);
+    const [r, g, b, c] = lines.map(Number);
+    const color = last.sensors.find((sensor) => sensor.kind === 'color-sensor');
+    expect(color?.kind === 'color-sensor' ? color.rgbc : null).toEqual({ r, g, b, c });
+    expect(g).toBeGreaterThan(r!);
+    // The IR sees the cube: A3 LOW.
+    expect(last.sensors.find((sensor) => sensor.kind === 'ir-obstacle')).toEqual({ role: 'irClaw', kind: 'ir-obstacle', detected: true, hitId: 'cube' });
+    expect(last.pins.find((pin) => pin.pin === 'A3')?.level).toBe(0);
+  }, 120_000);
+
   it('stop while holding leaves no impulse joint after dispose', async () => {
     probe.physics.length = 0;
     const pick = [...driveThrough.slice(0, 3), driveMove('forward', num(45)), whileLoop(not(irDetect()), []), driveStop(), wait(num(300)), claw('CLOSE'), wait(num(600)), lift('UP')];

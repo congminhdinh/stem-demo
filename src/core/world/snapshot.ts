@@ -98,6 +98,11 @@ export type SensorReadout =
       readonly hitId: string | null;
       /** How far that body is, cm (whole µm); null without one. */
       readonly distanceCm: number | null;
+      /**
+       * N19 B4: the counts of the TCS34725 register model's last completed integration window, what `color.raw` would read now: the run
+       * session adds them (run/robot-run-session.ts). Left out by the world alone, and before the sensor's first window has ended.
+       */
+      readonly rgbc?: { readonly r: number; readonly g: number; readonly b: number; readonly c: number };
     } & NotALineSensor);
 
 /** The score of the run so far. The world has none: R6.2 scores a run, R3.6 puts it here. */
