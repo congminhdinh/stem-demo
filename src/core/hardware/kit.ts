@@ -201,8 +201,8 @@ export type ChassisSpec = {
   /**
    * N19 D-G8: the floor, as a circle around the point of the robot's pose, that the scenario variants keep clear of walls and things at a
    * start. Optional, with no default here: a kit that leaves it out (the rover) gets `ROBOT_FOOTPRINT_RADIUS_CM`, 11 cm, from
-   * `kitFootprintRadiusCm` (scenario/variants.ts). A kit that reaches farther (a gripper in front of the body) says how far. PLACEHOLDER
-   * for a kit whose numbers are, like every number of its chassis.
+   * `kitFootprintRadiusCm` (scenario/variants.ts). A kit that reaches farther (a gripper in front of the body) says how far. A kit's
+   * value is a PLACEHOLDER like every number of its chassis.
    */
   readonly footprintRadiusCm?: number;
 };

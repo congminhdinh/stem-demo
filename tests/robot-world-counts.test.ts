@@ -20,6 +20,10 @@ import { robotTemplateKeys, robotTemplates } from '../src/samples/robot-template
 // and none of the seven has an object to push, which would be a body each). The colliders differ with the arena's walls, boxes and
 // cylinders. They are written out, never computed, so that a change to them is a deliberate edit of this file that a reviewer sees.
 //
+// Scope: the world as built and stepped with no program, so no motor is driven and no servo moves. A body or a joint a world creates later,
+// on an actuation (a held object's joint is created when a grasp starts), is not counted here: the B tasks pin those where they create them
+// (plan §5 items 1 and 2), and each of them also keeps these numbers for a world whose kit has no gripper.
+//
 // The physics world is read through the factory the world is built from (`createPhysicsWorld`), wrapped to remember what it made:
 // `World` does not expose it, and nothing in src is widened for a test.
 

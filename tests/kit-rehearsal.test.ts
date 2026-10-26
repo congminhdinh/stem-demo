@@ -103,8 +103,8 @@ describe('the six pilot reference solutions through the real check, headless, wi
   /** The check of the reference on `kit` (the scenario run on that kit, the document naming it), and each variant's end and last world. */
   async function outcomeOn(key: RobotScoredKey, kit: Kit) {
     const ended: unknown[] = [];
-    // The scenario schema ties each robot key to robotKitId (robot-keys.ts), so a scenario JSON cannot name the rehearsal kit: the loaded
-    // scenario takes it here, as a vendor kit would take robotKitId's place (docs/kit-swap-rehearsal.md).
+    // The scenario schema ties each robot key to the kit of that key (`robotTemplates[key].kit`, robot-keys.ts), so a scenario JSON cannot
+    // name the rehearsal kit: the loaded scenario takes it here, as a vendor kit would take the rover's place (docs/kit-swap-rehearsal.md).
     const scenario: Scenario = { ...scenarioCatalog.get(key)!, kit: kit.id };
     const result = await checkRobot(pilotProject(key, kit), scenario, {
       mode: 'headless',

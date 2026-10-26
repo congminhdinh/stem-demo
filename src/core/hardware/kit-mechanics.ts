@@ -8,7 +8,8 @@ import { kitKey, type ChassisSpec, type Kit, type KitModule, type ModuleKind, ty
 // an unknown key or wheels that cannot rest on the floor is refused with the path of each problem, like a bad pin.
 //
 // Frame (kit.ts, `KitModule.mount`): chassis-centred, origin on the floor under the centre of the chassis body, x forward,
-// y left, z up, cm and degrees. Every key is required: a vendor kit states every number, nothing falls back to a default.
+// y left, z up, cm and degrees. Every key is required, except `chassis.footprintRadiusCm` (N19 D-G8): a vendor kit states every number,
+// nothing falls back to a default here (a kit that leaves the radius out gets the rover's from variants.ts `kitFootprintRadiusCm`).
 
 const finite = z.number().refine(Number.isFinite, 'must be a finite number');
 const positive = z.number().positive();

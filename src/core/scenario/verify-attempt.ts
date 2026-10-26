@@ -11,7 +11,7 @@ import { checkRobot, RobotCheckError } from './check-robot';
 import { ROBOT_CHECK_LIMITS, type RobotCheckResult } from './check-result';
 import { hasHiddenCharacter, trimLikeDotNet } from './goal-text';
 import { GOAL_ID_MAX_CHARS, GOAL_LABEL_MAX_CHARS, GOALS_MAX, scenarioKitRef, scenarioMaxScore, VARIANTS_MAX, type Scenario } from './scenario';
-import { variantOffsets } from './variants';
+import { variantSeed } from './variants';
 
 // The verifier of a stored robot lab attempt (N18 R8a, robot plan §R8): a `LabAttempt` as STEMLearning stores and returns it is re-run
 // headless with the real check (`checkRobot`, the one the lab runs) on the project it stored, and what the attempt says is compared with
@@ -24,7 +24,7 @@ import { variantOffsets } from './variants';
 //   mismatch      a field differs: each one is told with the attempt's value and the re-run's.
 //   unverifiable  this build cannot say, for one `reason`: invalid-attempt (the input fails the schema or the LMS limits), unknown-key (no
 //                 scored scenario of the key), scenario-version (another version of the scenario than this build's), engine (another
-//                 engine than robot-engine@ROBOT_ENGINE_VERSION), seed-mismatch (the variants' seeds are not the scenario's, `variantOffsets`:
+//                 engine than robot-engine@ROBOT_ENGINE_VERSION), seed-mismatch (the variants' seeds are not the scenario's, `variantSeed`:
 //                 a check never reports other seeds, so another one is a tamper signal), no-project (neither the attempt nor an earlier one
 //                 with its hash has a project), project-invalid (the project is not JSON, fails the document schema or does not compile),
 //                 rerun-failed (the re-run could not build its world or scorer, or anything else of this build failed while this attempt was
@@ -313,7 +313,7 @@ function precheck(attempt: LabAttemptInput, env: VerifyEnvironment): { scenario:
   if (attempt.engine !== expectedEngine) {
     return unverifiable('engine', `the attempt ran on ${attempt.engine}, this build is ${expectedEngine}`);
   }
-  const seeds = Array.from({ length: scenario.variants.count }, (_, index) => variantOffsets(scenario, index).seed);
+  const seeds = Array.from({ length: scenario.variants.count }, (_, index) => variantSeed(scenario, index));
   const claimed = (attempt.variants ?? []).map((variant) => variant.seed);
   if (claimed.length !== seeds.length || claimed.some((seed, index) => seed !== seeds[index])) {
     return unverifiable('seed-mismatch', `the attempt’s variant seeds ${listed(claimed)} are not the scenario’s ${listed(seeds)}`);
