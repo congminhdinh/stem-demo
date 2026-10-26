@@ -17,7 +17,12 @@ import { pinLowTierChainOff } from './robot-chain';
 const shots = process.env.GRIPPER_UI_SHOTS_DIR ?? join('test-results', 'robot-lab-gripper-ui');
 const labUrl = '/e2e/robot-lab-gripper-ui.html?embed=1&lab=robot&template=rb-sandbox';
 
-type GripperView = { t: number; status: string; robot: { xCm: number; gripper?: { clawDeg: number; liftDeg: number; heldId: string | null } } };
+type GripperView = {
+  t: number;
+  status: string;
+  robot: { xCm: number; gripper?: { clawDeg: number; liftDeg: number; heldId: string | null } };
+  pins: { pin: string; servoDeg: number | null }[];
+};
 
 // N18 bt-lab-fix: under a suite's load SwiftShader draws a run slowly, so the waits in this file are for a condition, not for a time.
 test.describe.configure({ timeout: 180_000 });
@@ -40,6 +45,8 @@ async function openLab(page: Page) {
 
 const view = (page: Page) => page.evaluate(() => window.__stem?.robot.getSnapshot() as GripperView | null);
 const gripper = async (page: Page) => (await view(page))?.robot.gripper;
+/** The angle the claw (D9) or the lift (D10) is told: exact, whole degrees (the arm itself is a hair off, and slow). */
+const servo = async (page: Page, pin: 'D9' | 'D10') => (await view(page))?.pins.find((state) => state.pin === pin)?.servoDeg;
 const screenshot = async (page: Page, name: string) => {
   mkdirSync(shots, { recursive: true });
   await page.screenshot({ path: join(shots, name) });
@@ -71,35 +78,51 @@ test.describe('the gripper car in the robot lab (N19 E1-E3)', () => {
     await expect.poll(async () => (await gripper(page))?.liftDeg ?? 0).toBeGreaterThan(89);
     expect((await gripper(page))!.clawDeg).toBeLessThan(1);
 
-    // F lowers the arm 15° a press: two presses are 60°, and the world follows it down (a servo is slow: a wait for the condition).
+    // F lowers the arm 15° a press: two presses are exactly 60° (D10 is told 60), and the world follows it down (a servo is slow: a wait for the condition).
     await page.keyboard.press('f');
     await page.keyboard.press('f');
-    await expect.poll(async () => (await gripper(page))!.liftDeg, { timeout: 60_000 }).toBeLessThan(61);
-    await expect.poll(async () => (await gripper(page))!.liftDeg, { timeout: 60_000 }).toBeGreaterThan(59);
-    // R raises it a step; held past the top it stays at 90°.
+    await expect.poll(() => servo(page, 'D10'), { timeout: 60_000 }).toBe(60);
+    await expect.poll(async () => (await gripper(page))!.liftDeg, { timeout: 60_000 }).toBeGreaterThan(59.5);
+    expect((await gripper(page))!.liftDeg).toBeLessThan(60.5);
+    // R raises it a step (75); four more reach the top (90) and stay there.
     await page.keyboard.press('r');
-    await expect.poll(async () => (await gripper(page))!.liftDeg, { timeout: 60_000 }).toBeGreaterThan(74);
+    await expect.poll(() => servo(page, 'D10'), { timeout: 60_000 }).toBe(75);
     for (let step = 0; step < 4; step++) await page.keyboard.press('r');
+    await expect.poll(() => servo(page, 'D10'), { timeout: 60_000 }).toBe(90);
     await expect.poll(async () => (await gripper(page))!.liftDeg, { timeout: 60_000 }).toBeGreaterThan(89);
-    // E closes the claw all the way (nothing is between the jaws up here), Q opens it.
+    // E closes the claw all the way (nothing is between the jaws up here): D9 is told 80, Q opens it: 0.
     await page.keyboard.press('e');
+    await expect.poll(() => servo(page, 'D9'), { timeout: 60_000 }).toBe(80);
     await expect.poll(async () => (await gripper(page))!.clawDeg, { timeout: 60_000 }).toBeGreaterThan(70);
     await page.keyboard.press('q');
+    await expect.poll(() => servo(page, 'D9'), { timeout: 60_000 }).toBe(0);
     await expect.poll(async () => (await gripper(page))!.clawDeg, { timeout: 60_000 }).toBeLessThan(5);
 
-    // The buttons do the same: a click lowers the arm a step, the claw's two close and open it (the arm is still up, clear of the cube).
+    // The buttons do the same: a click is exactly one step (a double step would tell D10 60), and the claw's two close and open it (the arm is
+    // still up, clear of the cube).
     await page.getByTestId('robot-gripper-down').click();
-    await expect.poll(async () => (await gripper(page))!.liftDeg, { timeout: 60_000 }).toBeLessThan(76);
+    await expect.poll(() => servo(page, 'D10'), { timeout: 60_000 }).toBe(75);
+    await expect.poll(async () => (await gripper(page))!.liftDeg, { timeout: 60_000 }).toBeLessThan(75.5);
+    expect((await gripper(page))!.liftDeg).toBeGreaterThan(74.5);
     await page.getByTestId('robot-gripper-close').click();
-    await expect.poll(async () => (await gripper(page))!.clawDeg, { timeout: 60_000 }).toBeGreaterThan(70);
+    await expect.poll(() => servo(page, 'D9'), { timeout: 60_000 }).toBe(80);
     await page.getByTestId('robot-gripper-open').click();
-    await expect.poll(async () => (await gripper(page))!.clawDeg, { timeout: 60_000 }).toBeLessThan(5);
+    await expect.poll(() => servo(page, 'D9'), { timeout: 60_000 }).toBe(0);
     // A held press on the arm's button repeats its step until the arm is down (the open claw comes down round the cube).
     const box = (await page.getByTestId('robot-gripper-down').boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
-    await expect.poll(async () => (await gripper(page))!.liftDeg, { timeout: 60_000 }).toBeLessThan(1);
+    await expect.poll(() => servo(page, 'D10'), { timeout: 60_000 }).toBe(0);
     await page.mouse.up();
+    // A held R steps at 10 a second by itself (the browser's own key repeat is ignored): up to the top, and it stops when the key is let go.
+    await page.locator('.robot-stage').focus();
+    await page.keyboard.down('r');
+    await expect.poll(() => servo(page, 'D10'), { timeout: 60_000 }).toBe(90);
+    await page.keyboard.up('r');
+    await page.keyboard.press('f');
+    await expect.poll(() => servo(page, 'D10'), { timeout: 60_000 }).toBe(75);
+    await page.waitForTimeout(800);
+    expect(await servo(page, 'D10')).toBe(75);
     expect(errors).toEqual([]);
   });
 
