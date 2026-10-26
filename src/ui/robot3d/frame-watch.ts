@@ -64,6 +64,11 @@ export const CHAIN_WINDOW_MS = 3000;
 export const CAP_FRAME_MS = 28;
 /** A median draw interval of a capped run above this: the 2D map is offered, ms (under 20 fps). */
 export const OFFER_FRAME_MS = 50;
+// Both thresholds are provisional (measured on one machine with its cores taken, not on a school PC). A known limit, kept as ruled (fix
+// round 1, M4): the chain goes one way for the lab's life. A short slow spell (a backup, a video call for 3 s of a run on the light tier)
+// caps the low tier until the page reloads, and a browser that paints at 30 Hz (an energy saver) caps it and says so though nothing
+// changes; the picture and the run are the same, only the frame rate is held at 30. Lifting the cap would need the main thread's and
+// the render's time a frame, not the interval between frames, to judge the headroom by.
 /** The least time between two draws of a capped view, ms: 30 fps, with 4 ms of slack for a display frame that comes a little early. */
 export const CAP_DRAW_MS = 1000 / 30 - 4;
 
