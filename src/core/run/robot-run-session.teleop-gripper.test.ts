@@ -38,6 +38,22 @@ describe('teleop on the gripper car (N19 E3)', () => {
     session.stop();
   });
 
+  it('begins the colour sensor in setup() (colorBegin): Wire pulls A4 and A5 up, with no diagnostic, and a command at tick 0 still applies at tick 0', async () => {
+    const session = gripperSession();
+    await session.startTeleop();
+    const pin = (id: string) => worldOf(session).pins.find((state) => state.pin === id)!;
+    expect([pin('A4'), pin('A5')].map((state) => [state.mode, state.level])).toEqual([
+      ['INPUT_PULLUP', 1],
+      ['INPUT_PULLUP', 1],
+    ]);
+    session.teleop(lift(30));
+    await session.runUntil(0.2);
+    expect(session.getSnapshot().diagnostics).toEqual([]);
+    expect(session.teleopLog()).toEqual([{ tick: 0, command: lift(30) }]);
+    expect(worldOf(session).robot.gripper!.liftDeg).toBeCloseTo(30, 0);
+    session.stop();
+  });
+
   it('a claw and a lift command reach the pins and move the gripper: lift 45 lowers the arm to 45°, claw 80 closes the jaws to their stop', async () => {
     const session = gripperSession();
     await session.startTeleop();

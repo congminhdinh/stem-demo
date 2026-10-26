@@ -104,7 +104,7 @@ describe('teleopUses and canTeleopGripper (N19 E3)', () => {
     expect(canTeleopGripper(rover, unoR3Board)).toBe(false);
   });
 
-  it('the gripper car sets up the drive and the gripper’s two ops: both servos attach and setup() writes claw 0°, lift 90°', () => {
+  it('the gripper car sets up the drive, the gripper’s two ops and color.is: both servos attach (claw 0°, lift 90°) and colorBegin runs', () => {
     const uses = teleopUses(gripperKit, unoR3Board);
     expect(uses).toEqual({
       modules: [
@@ -112,18 +112,24 @@ describe('teleopUses and canTeleopGripper (N19 E3)', () => {
         { role: 'drive', op: 'drive.stop' },
         { role: 'gripper', op: 'gripper.claw' },
         { role: 'gripper', op: 'gripper.lift' },
+        { role: 'color1', op: 'color.is' },
       ],
       inputPins: [],
       outputPins: [],
     });
-    expect(Object.isFrozen(uses) && Object.isFrozen(uses.modules) && Object.isFrozen(uses.modules[2])).toBe(true);
+    expect(Object.isFrozen(uses) && Object.isFrozen(uses.modules) && Object.isFrozen(uses.modules[2]) && Object.isFrozen(uses.modules[4])).toBe(true);
     expect(canTeleopGripper(gripperKit, unoR3Board)).toBe(true);
     expect(canTeleop(gripperKit, unoR3Board)).toBe(true);
   });
 
-  it('a kit without the lift or the claw offers no gripper keys', () => {
+  it('a kit without the lift or the claw offers no gripper keys, and one without the colour sensor sets up no colorBegin', () => {
     const noGripper = { ...gripperKit, modules: gripperKit.modules.filter((module) => module.kind !== 'gripper') } as Kit;
     expect(canTeleopGripper(noGripper, unoR3Board)).toBe(false);
-    expect(teleopUses(noGripper, unoR3Board)).toBe(TELEOP_USES);
+    // The colour sensor alone still begins: colours show while driving by hand.
+    expect(teleopUses(noGripper, unoR3Board).modules).toEqual([...TELEOP_USES.modules, { role: 'color1', op: 'color.is' }]);
+    const noColor = { ...gripperKit, modules: gripperKit.modules.filter((module) => module.kind !== 'color-sensor') } as Kit;
+    expect(teleopUses(noColor, unoR3Board).modules.map((use) => use.op)).toEqual(['drive.move', 'drive.stop', 'gripper.claw', 'gripper.lift']);
+    const bare = { ...noGripper, modules: noGripper.modules.filter((module) => module.kind !== 'color-sensor') } as Kit;
+    expect(teleopUses(bare, unoR3Board)).toBe(TELEOP_USES);
   });
 });

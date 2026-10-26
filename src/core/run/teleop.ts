@@ -28,6 +28,8 @@ export type GripperPart = (typeof gripperParts)[number];
 /** N19 E3: the role of the kit's gripper (robotRoles `gripper`). */
 export const GRIPPER_ROLE = 'gripper';
 const gripperOps: Readonly<Record<GripperPart, string>> = { claw: 'gripper.claw', lift: 'gripper.lift' };
+/** N19 E3: the colour sensor's op that a teleop run sets up (its setup step is `colorBegin`). */
+const COLOR_IS_OP = 'color.is';
 
 /**
  * One command of teleop: drive one way at `speed` (0..100, the drive's own scale), stop both motors, or (N19 E3) tell the claw or the lift
@@ -70,14 +72,19 @@ export const TELEOP_USES: { readonly modules: readonly ModuleUse[]; readonly inp
 
 /**
  * What a teleop run sets up for `kit` in setup() (N19 E3): the drive's, and on a kit with a gripper its two ops too, so that both servos
- * attach and setup() writes claw 0°, lift 90° as a program's would. For a kit without a gripper it is `TELEOP_USES` itself.
+ * attach and setup() writes claw 0°, lift 90° as a program's would; and on a kit with a colour sensor `color.is`, so that setup() runs
+ * `colorBegin` (Wire begins and the sensor starts, about 58 ms of the board's clock; the ports & pins tab then shows its colours while the
+ * learner drives by hand). For a kit with neither it is `TELEOP_USES` itself.
  */
 export function teleopUses(kit: Kit, board: BoardProfile): typeof TELEOP_USES {
-  if (!canTeleopGripper(kit, board)) {
+  const gripper = canTeleopGripper(kit, board) ? gripperParts.map((part) => Object.freeze({ role: GRIPPER_ROLE, op: gripperOps[part] })) : [];
+  const colorRole = kit.modules.find((module) => module.kind === 'color-sensor')?.role;
+  const color = colorRole !== undefined && roleOps(kit, board, colorRole).includes(COLOR_IS_OP) ? [Object.freeze({ role: colorRole, op: COLOR_IS_OP })] : [];
+  if (gripper.length === 0 && color.length === 0) {
     return TELEOP_USES;
   }
   return Object.freeze({
-    modules: Object.freeze([...TELEOP_USES.modules, ...gripperParts.map((part) => Object.freeze({ role: GRIPPER_ROLE, op: gripperOps[part] }))]),
+    modules: Object.freeze([...TELEOP_USES.modules, ...gripper, ...color]),
     inputPins: TELEOP_USES.inputPins,
     outputPins: TELEOP_USES.outputPins,
   });
