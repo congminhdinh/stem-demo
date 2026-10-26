@@ -96,6 +96,71 @@
       "version": 1
     },
     {
+      "goalIds": [
+        "grab-cube",
+        "place-cube",
+        "no-crash"
+      ],
+      "hasGoals": true,
+      "key": "rb-grip-pick",
+      "maxScore": 100,
+      "profile": "uno-basic",
+      "title": {
+        "en": "Find and pick up",
+        "vi": "Tìm và gắp"
+      },
+      "version": 1
+    },
+    {
+      "goalIds": [
+        "deliver-1",
+        "deliver-2",
+        "deliver-3",
+        "no-crash"
+      ],
+      "hasGoals": true,
+      "key": "rb-grip-deliver",
+      "maxScore": 100,
+      "profile": "uno-basic",
+      "title": {
+        "en": "Deliver along the line",
+        "vi": "Giao hàng theo vạch"
+      },
+      "version": 1
+    },
+    {
+      "goalIds": [
+        "grab-cube",
+        "sort-cube",
+        "no-crash"
+      ],
+      "hasGoals": true,
+      "key": "rb-grip-sort",
+      "maxScore": 100,
+      "profile": "uno-basic",
+      "title": {
+        "en": "Sort by colour",
+        "vi": "Phân loại theo màu"
+      },
+      "version": 1
+    },
+    {
+      "goalIds": [
+        "grab-cube",
+        "stack-cube",
+        "base-still"
+      ],
+      "hasGoals": true,
+      "key": "rb-grip-stack",
+      "maxScore": 100,
+      "profile": "uno-basic",
+      "title": {
+        "en": "Stack the cube",
+        "vi": "Xếp chồng"
+      },
+      "version": 1
+    },
+    {
       "goalIds": [],
       "hasGoals": false,
       "key": "rb-sandbox",
