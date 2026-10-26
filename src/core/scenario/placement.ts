@@ -8,7 +8,8 @@ import { robotFootprint, startFootprintIssues } from '../world/robot/footprint';
 // both ask here. A pose is moved back inside the arena, just far enough that the robot's outline at its heading (what stands on the floor:
 // the body and the wheels, footprint.ts `outlineCm`) is on the ground, and its heading is turned into (-180°, 180°]. Then it is checked
 // as a scenario's start is (`startFootprintIssues`: no part of the robot, a servo arm at any angle it can turn to included, in a wall, box,
-// cylinder or object): a pose with issues is not a place for the robot, and the view shows it as a red ghost.
+// cylinder or object; N19 B5: the gripper at any angle in a wall, box or cylinder, and as setup() leaves it in an object, so the gripper car
+// may be put down with a cube between its open jaws): a pose with issues is not a place for the robot, and the view shows it as a red ghost.
 
 /** A pose of the robot on the arena: the point of the floor under the middle of its body and its heading (arena frame). */
 export type PlacementPose = { readonly xCm: number; readonly yCm: number; readonly yawDeg: number };

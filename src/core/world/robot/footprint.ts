@@ -1,9 +1,11 @@
+import { GRIPPER_ANGLE, GRIPPER_START } from '../../hardware/drivers/gripper-servo2';
 import type { Kit, RobotPointCm } from '../../hardware/kit';
-import { robotMechanics } from '../../hardware/kit-mechanics';
+import { robotMechanics, type KitMechanicalModule } from '../../hardware/kit-mechanics';
 import { circleShape, rectShape, shapesOverlap, wallShape, type Shape } from '../../scenario/overlap';
 import type { Arena, PointCm } from '../arena/arena-schema';
 import { cos, sin } from '../dmath';
 import { degToRad } from '../units';
+import { BOOM_BAR_HALF_CM, BOOM_PLATE_HALF_CM, CARRIAGE_HALF_CM } from './gripper-geometry';
 
 // The robot seen from above (N18 R3.5), from the kit's mechanics: what createWorld checks a start against, what the goal frame
 // calls the robot's footprint, and how far the robot reaches from the point of its pose (the scenario variants keep a circle of the
@@ -17,6 +19,14 @@ import { degToRad } from '../units';
 //   - the caster, a circle of its radius, from the floor up;
 //   - each servo's arm at every angle it can turn to (minDeg..maxDeg), from the mount's height less half the arm's: an arm that
 //     rests folded but swings out when the program starts (the Servo library starts at 90°) must find room there too.
+//   - N19 B5: the gripper (gripper.ts's colliders: the boom's two plates and cross bar, the carriage, the claw servo's case, the two
+//     fingers) at every lift angle (0..90°) and every finger angle the claw can turn them to, each piece from its own bottom at that lift:
+//     a thing under where only the raised arm reaches may be lower than the lowered jaws (`gripperParts`). The gripper reaches past the
+//     body (D-G8), so the gripper car's kit names a larger radius (16 cm) for the variants to keep clear. Against the walls, boxes and
+//     cylinders the whole sweep counts, as a servo arm's does. Against the arena's objects only the gripper as setup() leaves it (lift 90°,
+//     claw open: what the world builds) counts: the objects are what the gripper is for, and unlike a servo arm, which the Servo library
+//     swings to 90° when the program starts, the gripper moves only when the program or the learner moves it. So a car may start with a
+//     cube between its open jaws, as the teleop sandbox does, but not with a box there.
 // An arena thing (walls, boxes, cylinders, objects) stands on the floor from 0 up to its height, so a part and a thing collide when
 // they overlap seen from above and the thing is taller than the part's bottom: a 1 cm strip may lie under the body, not under a
 // wheel. Overlap is overlap.ts's, the one the variants use: touching is not overlapping.
@@ -31,16 +41,37 @@ const ARM_SAMPLE_SLACK_CM = 0.01;
 /** sin of half the step: how far, as a part of its distance from the axis, a point of the arm turns between a sample and the next. */
 const HALF_STEP_SIN = sin(degToRad(ARM_SWEEP_STEP_DEG) / 2);
 
-/** A part of the robot seen from above, in the robot frame: a rectangle turned by `yawDeg`, or a circle. */
-type RectPart = { readonly kind: 'rect'; readonly x: number; readonly y: number; readonly hx: number; readonly hy: number; readonly yawDeg: number };
+/**
+ * A part of the robot seen from above, in the robot frame: a rectangle turned by `yawDeg`, or a circle. A shape may have a bottom of its
+ * own (N19 B5: a sample of the gripper at one lift angle); else it has its part's.
+ */
+type RectPart = {
+  readonly kind: 'rect';
+  readonly x: number;
+  readonly y: number;
+  readonly hx: number;
+  readonly hy: number;
+  readonly yawDeg: number;
+  readonly bottomCm?: number;
+};
 type PartShape = RectPart | { readonly kind: 'circle'; readonly x: number; readonly y: number; readonly r: number };
 
 type Part = {
   /** How a message names it: `body`, `left wheel`, `servo arm of servo1 (anywhere from 0° to 180°)`. */
   readonly name: string;
   readonly shapes: readonly PartShape[];
-  /** The height of its bottom above the floor, cm. */
+  /** The height of its bottom above the floor, cm: the lowest of its shapes' own bottoms when they have some. */
   readonly bottomCm: number;
+  /**
+   * N19 B5: a circle (robot frame, cm) that holds every shape of the part, for a part of many shapes (the gripper's 7 000): a thing that
+   * does not overlap it is not checked against each shape. Parts without one are checked shape by shape, as they always were.
+   */
+  readonly bound?: { readonly x: number; readonly y: number; readonly r: number };
+  /**
+   * N19 B5: the arena things the part is checked against: the walls, boxes and cylinders only ('obstacles'), or the objects only
+   * ('objects'). Every thing when not given.
+   */
+  readonly meets?: 'obstacles' | 'objects';
 };
 
 export type RobotFootprint = {
@@ -48,10 +79,10 @@ export type RobotFootprint = {
   readonly parts: readonly Part[];
   /**
    * What stands on the floor: the convex hull of the body box and the wheels, counter-clockwise from the back right, in the robot
-   * frame (cm). The servo arms ride above it and are not part of it.
+   * frame (cm). The servo arms and the gripper ride above it and are not part of it.
    */
   readonly outlineCm: readonly PointCm[];
-  /** How far any part reaches from the point of the pose, servo arms at every angle included, cm. */
+  /** How far any part reaches from the point of the pose, servo arms and the gripper at every angle included, cm. */
   readonly radiusCm: number;
 };
 
@@ -100,6 +131,8 @@ function computeFootprint(kit: Kit): RobotFootprint {
       bottomCm: mount.posCm[2] - spec.armHeightCm / 2,
     });
   }
+  const gripper = robotMechanics(kit).gripper;
+  if (gripper !== null) parts.push(...gripperParts(gripper));
 
   let radiusCm = 0;
   for (const part of parts) {
@@ -129,9 +162,17 @@ export function startFootprintIssues(
     const y = start.yCm + shape.x * s + shape.y * c;
     return shape.kind === 'circle' ? circleShape(x, y, shape.r) : rectShape(x, y, shape.hx, shape.hy, start.yawDeg + shape.yawDeg);
   };
-  const placed = parts.map((part) => ({ part, shapes: part.shapes.map(place) }));
+  const placed = parts.map((part) => {
+    let shapes: readonly { shape: Shape; bottomCm: number }[] | null = null;
+    return {
+      part,
+      bound: part.bound === undefined ? null : place({ kind: 'circle', ...part.bound }),
+      /** The part's shapes on the arena, each with its bottom; placed when first needed (a part with a bound may never be). */
+      shapes: () => (shapes ??= part.shapes.map((shape) => ({ shape: place(shape), bottomCm: (shape.kind === 'rect' ? shape.bottomCm : undefined) ?? part.bottomCm }))),
+    };
+  });
 
-  const things: { path: string; id: string; shape: Shape; heightCm: number }[] = [
+  const things: { path: string; id: string; shape: Shape; heightCm: number; object?: true }[] = [
     ...arena.walls.map((wall, i) => ({
       path: `walls[${i}]`,
       id: wall.id ?? `#wall-${i}`,
@@ -157,15 +198,22 @@ export function startFootprintIssues(
             id: object.id,
             shape: rectShape(object.centerCm[0], object.centerCm[1], object.sizeCm[0] / 2, object.sizeCm[1] / 2, object.yawDeg),
             heightCm: object.sizeCm[2],
+            object: true as const,
           }
-        : { path: `objects[${i}]`, id: object.id, shape: circleShape(object.centerCm[0], object.centerCm[1], object.radiusCm), heightCm: object.heightCm },
+        : { path: `objects[${i}]`, id: object.id, shape: circleShape(object.centerCm[0], object.centerCm[1], object.radiusCm), heightCm: object.heightCm, object: true as const },
     ),
   ];
 
   const issues: { path: string; message: string }[] = [];
   for (const thing of things) {
     const hit = placed
-      .filter(({ part, shapes }) => thing.heightCm > part.bottomCm && shapes.some((shape) => shapesOverlap(shape, thing.shape)))
+      .filter(
+        ({ part, bound, shapes }) =>
+          (part.meets === undefined || (part.meets === 'objects') === (thing.object === true)) &&
+          thing.heightCm > part.bottomCm &&
+          (bound === null || shapesOverlap(bound, thing.shape)) &&
+          shapes().some(({ shape, bottomCm }) => thing.heightCm > bottomCm && shapesOverlap(shape, thing.shape)),
+      )
       .map(({ part }) => part.name);
     if (hit.length === 0) continue;
     const names = hit.length === 1 ? hit[0]! : `${hit.slice(0, -1).join(', ')} and ${hit.at(-1)!}`;
@@ -195,6 +243,116 @@ function armSample(axisCm: RobotPointCm, deg: number, lengthCm: number, widthCm:
     hy: widthCm / 2 + lengthCm * HALF_STEP_SIN + ARM_SAMPLE_SLACK_CM,
     yawDeg: deg,
   };
+}
+
+/** The gripper's lift is checked at every whole degree of its range and its fingers at every whole degree of theirs (and at their ends). */
+export const GRIPPER_SWEEP_STEP_DEG = 1;
+/** 2·sin(¼°): the chord of half a step, as a part of the radius: how far a point turns between a sample and the next half-way. */
+const HALF_STEP_CHORD = 2 * sin(degToRad(GRIPPER_SWEEP_STEP_DEG) / 4);
+
+/**
+ * The gripper seen from above (gripper.ts builds the same pieces from the same numbers), as two parts (see the top of this file): at every
+ * angle it can take, checked against the walls, boxes and cylinders, and as setup() leaves it (GRIPPER_START), checked against the objects.
+ *
+ * At a lift ℓ (the boom's elevation is ℓ + boomElevationAtLift0Deg): the boom's two side plates and its cross bar (turned with the boom: seen
+ * from above, each shrinks along x by the cosine of the elevation), the carriage box and the claw servo's case (level: the parallelogram), and
+ * each finger at a finger angle β (fingerOpenDeg − fingerDegPerServoDeg·claw, down to the jaws' meeting angle). The sweep takes ℓ at every
+ * whole degree of the servo's 0..90 and β at every whole degree from the meeting angle to fingerOpenDeg, each sample grown so the samples
+ * cover every angle between them, and its bottom lowered as much:
+ *   - between two lift samples the carriage and what rides on it move along the boom tip's arc, at most boomLength · 2·sin(¼°) (0.44 mm)
+ *     either way, seen from above or up and down; a point of the boom at distance d from its axis moves at most d · 2·sin(¼°);
+ *   - between two β samples a finger turns about its hinge as a servo arm does about its axis (`armSample`).
+ * Each is also grown by ARM_SAMPLE_SLACK_CM for the float arithmetic. So the sweep reaches at most about 1 mm farther than the gripper does.
+ * The start pose's pieces are grown as much (one lift, one β): a little more room than the world needs.
+ */
+function gripperParts(gripper: KitMechanicalModule<'gripper'>): Part[] {
+  const { spec, mount } = gripper;
+  const [px, py, pz] = mount.posCm;
+  const length = spec.boomLengthCm;
+  const betaMin = spec.fingerOpenDeg - spec.fingerDegPerServoDeg * spec.jawsMeetDeg;
+  const betaMax = spec.fingerOpenDeg;
+  const betaOfClaw = (clawDeg: number) => Math.min(betaMax, Math.max(betaMin, spec.fingerOpenDeg - spec.fingerDegPerServoDeg * clawDeg));
+  /** An axis-aligned rectangle over x0..x1 × y0..y1, grown by `grow`, its bottom `bottomCm` lowered as much. */
+  const box = (x0: number, x1: number, y0: number, y1: number, bottomCm: number, grow: number): RectPart => ({
+    kind: 'rect',
+    x: (x0 + x1) / 2,
+    y: (y0 + y1) / 2,
+    hx: (x1 - x0) / 2 + grow + ARM_SAMPLE_SLACK_CM,
+    hy: (y1 - y0) / 2 + grow + ARM_SAMPLE_SLACK_CM,
+    yawDeg: 0,
+    bottomCm: bottomCm - grow - ARM_SAMPLE_SLACK_CM,
+  });
+  /** A piece of the boom, `along` (from its axis) by `up` (across it, in the side view) in its own frame, seen from above at elevation (c, s). */
+  const boomPiece = (c: number, s: number, along: readonly [number, number], up: number, y0: number, y1: number): RectPart => {
+    const xs: number[] = [];
+    const zs: number[] = [];
+    for (const a of along) {
+      for (const n of [0 - up, up]) {
+        xs.push(px + a * c - n * s);
+        zs.push(pz + a * s + n * c);
+      }
+    }
+    const reach = Math.sqrt(Math.max(along[0] * along[0], along[1] * along[1]) + up * up);
+    return box(Math.min(...xs), Math.max(...xs), y0, y1, Math.min(...zs), reach * HALF_STEP_CHORD);
+  };
+  const plate = BOOM_PLATE_HALF_CM;
+  const bar = BOOM_BAR_HALF_CM;
+  const span = spec.boomHalfSpanCm;
+  const onTip = length * HALF_STEP_CHORD;
+  /** The gripper's pieces at lift `liftDeg`, the fingers at each β of `betas`. */
+  const at = (liftDeg: number, betas: readonly number[]): RectPart[] => {
+    const shapes: RectPart[] = [];
+    const [c, s] = cosSin(liftDeg + spec.boomElevationAtLift0Deg);
+    for (const side of [1, -1]) {
+      shapes.push(boomPiece(c, s, [0, length], plate.up, py + side * span - plate.across, py + side * span + plate.across));
+    }
+    shapes.push(boomPiece(c, s, [length - bar, length + bar], bar, py - span - plate.across, py + span + plate.across));
+    // The boom's tip, where the level carriage hangs: its frame's origin (u forward, v left, w up).
+    const tx = px + length * c;
+    const tz = pz + length * s;
+    shapes.push(box(tx - CARRIAGE_HALF_CM.u, tx + CARRIAGE_HALF_CM.u, py - CARRIAGE_HALF_CM.v, py + CARRIAGE_HALF_CM.v, tz - CARRIAGE_HALF_CM.w, onTip));
+    const servoX = tx + spec.clawServoCenterUCm;
+    const servoY = py + spec.clawServoCenterVCm;
+    shapes.push(
+      box(
+        servoX - spec.clawServoSizeUCm / 2,
+        servoX + spec.clawServoSizeUCm / 2,
+        servoY - spec.clawServoSizeVCm / 2,
+        servoY + spec.clawServoSizeVCm / 2,
+        tz + spec.clawServoCenterWCm - spec.clawServoSizeWCm / 2,
+        onTip,
+      ),
+    );
+    const fingerBottom = tz - spec.jawHeightCm / 2 - onTip - ARM_SAMPLE_SLACK_CM;
+    for (const side of [1, -1]) {
+      for (const beta of betas) {
+        // β opens a finger away from the middle: the left one (side +1) turns towards +y.
+        const sample = armSample([tx + spec.fingerHingeUCm, py + side * spec.fingerHingeVCm, 0], side * beta, spec.fingerLengthCm, spec.fingerThicknessCm);
+        shapes.push({ ...sample, hx: sample.hx + onTip, hy: sample.hy + onTip, bottomCm: fingerBottom });
+      }
+    }
+    return shapes;
+  };
+  /** From `from` to `to` in whole steps of GRIPPER_SWEEP_STEP_DEG, `to` included. */
+  const steps = (from: number, to: number) => {
+    const out: number[] = [];
+    for (let deg = from; ; deg = Math.min(to, deg + GRIPPER_SWEEP_STEP_DEG)) {
+      out.push(deg);
+      if (deg >= to) return out;
+    }
+  };
+  const betas = steps(betaMin, betaMax);
+  const swept = steps(GRIPPER_ANGLE.min, GRIPPER_ANGLE.max).flatMap((liftDeg) => at(liftDeg, betas));
+  const start = at(GRIPPER_START.liftDeg, [betaOfClaw(GRIPPER_START.clawDeg)]);
+  // A circle about the pivot that holds every sample: their farthest corner from it.
+  let r = 0;
+  for (const shape of swept) for (const [x, y] of corners(shape)) r = Math.max(r, Math.sqrt((x - px) * (x - px) + (y - py) * (y - py)));
+  const lowest = (shapes: readonly RectPart[]) => Math.min(...shapes.map((shape) => shape.bottomCm!));
+  const range = `${GRIPPER_ANGLE.min}° to ${GRIPPER_ANGLE.max}°`;
+  return [
+    { name: `gripper (lift anywhere from ${range}, claw anywhere from ${range})`, shapes: swept, bottomCm: lowest(swept), bound: { x: px, y: py, r: r + ARM_SAMPLE_SLACK_CM }, meets: 'obstacles' },
+    { name: `gripper (as setup() leaves it: lift ${GRIPPER_START.liftDeg}°, claw ${GRIPPER_START.clawDeg}°)`, shapes: start, bottomCm: lowest(start), meets: 'objects' },
+  ];
 }
 
 /** cos and sin of an angle in degrees: exact at the right angles (as overlap.ts), dmath's everywhere else. */
