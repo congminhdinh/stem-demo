@@ -213,7 +213,7 @@ Mỗi lab mở project của **một họ board** (`labFamilies` ở `src/ui/app
   không dùng `confirm()`: **Đặt lại** cần bấm hai lần.
 - Host và lab phải cùng không gian địa chỉ (cùng localhost hoặc cùng public; Chromium Local Network Access).
 - Lab tự host font (Be Vietnam Pro, OFL) và media Blockly; không tải gì từ trang nhúng hay CDN. Media Blockly và
-  favicon đi theo base path của bản build (`vite build --base /lab/` cũng chạy).
+  favicon đi theo base path của bản build (`pnpm build --base /lab/` cũng chạy: §4.1).
 - **Bố cục theo khung** (N8s, chỉ launch `lab=`): khung rộng từ 800 px: mạch | chương trình, chương trình rộng hơn
   (62 %), có thanh kéo đổi độ rộng và nút thu gọn mạch; mạch được thu nhỏ cho vừa khung, khối khởi đầu luôn nằm
   trong tầm nhìn. Khung hẹp hơn 800 px: hai tab "Chương trình" / "Mạch"; Chạy và Kiểm tra tự chuyển sang tab Mạch.
@@ -222,9 +222,10 @@ Mỗi lab mở project của **một họ board** (`labFamilies` ở `src/ui/app
 
 ### 4.1 Phục vụ bản build trên VPS (N18 P2)
 
-- `pnpm build` chạy `vite build` rồi `node scripts/precompress.mjs dist`: mỗi file `.glb`, `.wasm`, `.js`, `.css` từ 1 kB có thêm bản
-  `.gz` (gzip mức 9) và `.br` (brotli mức 11) cạnh nó, khi bản nén nhỏ hơn (`scripts/lib/precompress.ts`, không thêm dependency:
-  `node:zlib`). Đo trên build của P2 (kB, file gốc → gzip → brotli): bốn `.glb` 1 777 → 778 → 667; wasm của Rapier 3 033 → 1 152
+- `pnpm build [tuỳ chọn của vite build]` (`scripts/build.mjs`) chạy `vite build` với mọi tham số được đưa (ví dụ
+  `pnpm build --base /lab/`, `pnpm build --outDir out`), rồi trong thư mục build đó: mỗi file `.glb`, `.wasm`, `.js`, `.css` từ 1 kB có
+  thêm bản `.gz` (gzip mức 9) và `.br` (brotli mức 11) cạnh nó, khi bản nén nhỏ hơn (`scripts/lib/precompress.mjs`, JavaScript thuần, chạy
+  trên mọi Node mà `engines` cho phép; không thêm dependency: `node:zlib`). Build làm cách khác thì `node scripts/precompress.mjs <thư mục>`. Đo trên build của P2 (kB, file gốc → gzip → brotli): bốn `.glb` 1 777 → 778 → 667; wasm của Rapier 3 033 → 1 152
   → 835; JS 3 490 → 969 → 793 (chunk `RobotLab-*.js` 1 319 → 376 → 310); CSS 54 → 10 → 9. Bước nén thêm khoảng 11 s vào
   `pnpm build` (M4 Pro, brotli mức 11).
 - Reverse proxy phục vụ thẳng các bản nén đó (không nén lại mỗi request), với `Content-Encoding` đúng và `Vary: Accept-Encoding`

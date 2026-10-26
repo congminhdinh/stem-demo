@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { brotliDecompressSync, gunzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
-import { MIN_BYTES, PRECOMPRESSED, precompressDir } from '../scripts/lib/precompress';
+import { MIN_BYTES, PRECOMPRESSED, precompressDir } from '../scripts/lib/precompress.mjs';
 
 // N18 P2: the build's heavy files are compressed ahead of time for the reverse proxy: a .gz and a .br beside each .glb, .wasm, .js and
 // .css, that give back the same bytes.
