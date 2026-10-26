@@ -698,15 +698,21 @@ test.describe('the camera by keyboard (N18 R8)', () => {
     const [distance, azimuth, polar] = (value ?? '0 0 0').split(' ').map(Number);
     return { distance: distance!, azimuth: azimuth!, polar: polar! };
   };
-  /** Waits until the camera stops moving (a glide has ended). */
+  /**
+   * Waits until the camera stops moving (a glide has ended): the same pose twice, with two animation frames between the reads, so that a
+   * machine that draws a frame in a second (SwiftShader under a suite's load) cannot look settled for want of a frame in which to move.
+   */
   const settled = async (frame: Frame) => {
     let last = '';
+    const read = async () => (await frame.locator('[data-testid=robot-canvas] canvas').getAttribute('data-camera')) ?? '';
     await expect
       .poll(
         async () => {
-          const now = (await frame.locator('[data-testid=robot-canvas] canvas').getAttribute('data-camera')) ?? '';
-          const same = now === last;
-          last = now;
+          const now = await read();
+          await frame.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+          const later = await read();
+          const same = now === later && now === last;
+          last = later;
           return same;
         },
         { timeout: 30_000, intervals: [300] },
