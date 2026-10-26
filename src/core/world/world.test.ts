@@ -3,7 +3,7 @@ import { productionKits, referenceKitRef } from '../hardware/catalog';
 import type { Kit } from '../hardware/kit';
 import allGoalsScenario from '../scenario/__fixtures__/all-goals.scenario.json';
 import { loadScenario, ScenarioError } from '../scenario/scenario';
-import { applyVariant, variantOffsets, variantSeed } from '../scenario/variants';
+import { applyVariant, kitFootprintRadiusCm, variantOffsets, variantSeed } from '../scenario/variants';
 import { parseArena, type ArenaInput } from './arena/arena-schema';
 import boxesArena from './arena/fixtures/boxes.json';
 import lineLoopArena from './arena/fixtures/line-loop.json';
@@ -130,7 +130,7 @@ describe('createWorld', () => {
     const start = { xCm: 100, yCm: 100, yawDeg: 0 };
     await expect(createWorld({ arena, start, kit, seed: 1.5 })).rejects.toThrow(RangeError);
     const scenario = loadScenario(allGoalsScenario);
-    const offsets = variantOffsets(scenario, 1);
+    const offsets = variantOffsets(scenario, 1, kitFootprintRadiusCm(kit));
     await expect(createWorld({ arena, start, kit, seed: offsets.seed + 1, variant: offsets })).rejects.toThrow(
       `The seed of variant 1 is ${offsets.seed}, not ${offsets.seed + 1}.`,
     );
@@ -449,13 +449,13 @@ describe('createScenarioWorld', () => {
   it('builds variant 0 at the scenario’s own start, and a jittered variant where applyVariant puts it, with the variant’s seed', async () => {
     const exact = await createScenarioWorld(scenario, kit, 0);
     try {
-      expect(exact.variant).toEqual(variantOffsets(scenario, 0));
+      expect(exact.variant).toEqual(variantOffsets(scenario, 0, kitFootprintRadiusCm(kit)));
       expect(exact.snapshot().robot.xCm).toBeCloseTo(scenario.start.xCm, 2);
       expect(exact.snapshot().robot.yCm).toBeCloseTo(scenario.start.yCm, 2);
     } finally {
       exact.dispose();
     }
-    const offsets = variantOffsets(scenario, 1);
+    const offsets = variantOffsets(scenario, 1, kitFootprintRadiusCm(kit));
     const { start, arena } = applyVariant(scenario, offsets);
     expect(offsets.start.dxCm).not.toBe(0);
     const jittered = await createScenarioWorld(scenario, kit, 1);

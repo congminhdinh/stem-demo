@@ -3,7 +3,7 @@ import { productionKits, referenceKitRef } from '../hardware/catalog';
 import type { Kit } from '../hardware/kit';
 import allGoalsScenario from '../scenario/__fixtures__/all-goals.scenario.json';
 import { loadScenario } from '../scenario/scenario';
-import { variantOffsets } from '../scenario/variants';
+import { ROBOT_FOOTPRINT_RADIUS_CM, variantOffsets } from '../scenario/variants';
 import { createScenarioWorld } from './world';
 
 // N19 A1 (plan D-G8): the world of a scenario is built from the variant the KIT's floor allows (`kitFootprintRadiusCm`), not a constant. The
@@ -29,9 +29,9 @@ const variantOf = async (kit: Kit, index: number) => {
 };
 
 describe('createScenarioWorld takes the floor of the start from the kit', () => {
-  it('uses the rover’s 11 cm for the rover: the variants variantOffsets gives by default', async () => {
+  it('uses the rover’s 11 cm for the rover: the variants variantOffsets gives at 11 cm', async () => {
     for (let i = 0; i < scenario.variants.count; i++) {
-      expect((await variantOf(rover, i)).offsets, `variant ${i}`).toEqual(variantOffsets(scenario, i));
+      expect((await variantOf(rover, i)).offsets, `variant ${i}`).toEqual(variantOffsets(scenario, i, ROBOT_FOOTPRINT_RADIUS_CM));
     }
   });
 
@@ -42,7 +42,7 @@ describe('createScenarioWorld takes the floor of the start from the kit', () => 
       expect(built.offsets, `variant ${i}`).toEqual(variantOffsets(scenario, i, 16));
       expect(built.x - 16, `variant ${i} x`).toBeGreaterThanOrEqual(2 - 1e-6);
       expect(built.y - 16, `variant ${i} y`).toBeGreaterThanOrEqual(2 - 1e-6);
-      if (JSON.stringify(built.offsets) !== JSON.stringify(variantOffsets(scenario, i))) differ++;
+      if (JSON.stringify(built.offsets) !== JSON.stringify(variantOffsets(scenario, i, ROBOT_FOOTPRINT_RADIUS_CM))) differ++;
     }
     expect(differ).toBeGreaterThan(0);
   });

@@ -119,9 +119,9 @@ const plain = (n: number): number => n + 0;
  * The offsets of variant `index` of the scenario (0 … count − 1; any other index is a RangeError). Variant 0 is all zeros. See the top
  * of this file for what moves, what is drawn in which order and when a draw is thrown away. `radiusCm` is the floor the robot's kit
  * needs around its start (`kitFootprintRadiusCm(kit)`); it decides which draws fit, never which numbers are drawn, and the seed does not
- * depend on it. The default is the rover's.
+ * depend on it. Required (N19 A2): a caller that forgets the radius of its kit does not compile.
  */
-export function variantOffsets(scenario: VariantSource, index: number, radiusCm: number = ROBOT_FOOTPRINT_RADIUS_CM): VariantOffsets {
+export function variantOffsets(scenario: VariantSource, index: number, radiusCm: number): VariantOffsets {
   checkIndex(scenario, index);
   const { arena, start, variants } = scenario;
   const seed = variantSeed(scenario, index);

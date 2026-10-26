@@ -11,10 +11,13 @@ import {
   ROBOT_FOOTPRINT_RADIUS_CM,
   VARIANT_MAX_ATTEMPTS,
   variantJitterSeed,
-  variantOffsets,
+  variantOffsets as offsetsAtRadius,
   variantSeed,
   type VariantSource,
 } from './variants';
+
+/** N19 A2 made the radius required: these tests are of the draws, at the rover's 11 cm (variants.kit-radius.test.ts has the kits' own). */
+const variantOffsets = (scenario: VariantSource, index: number) => offsetsAtRadius(scenario, index, ROBOT_FOOTPRINT_RADIUS_CM);
 
 const withVariants = (variants: Partial<Scenario['variants']>): Scenario => {
   const scenario = loadScenario(fixture);

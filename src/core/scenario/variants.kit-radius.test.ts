@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import { productionKits, referenceKitRef } from '../hardware/catalog';
 import type { Kit } from '../hardware/kit';
 import { robotFootprint } from '../world/robot/footprint';
 import { parseArena } from '../world/arena/arena-schema';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
+import { scenarioKitRef } from './scenario';
 import { applyVariant, kitFootprintRadiusCm, ROBOT_FOOTPRINT_RADIUS_CM, variantOffsets, type VariantSource } from './variants';
 
 // N19 A1 (plan D-G8): the floor the variants keep clear around a start is the kit's (`chassis.footprintRadiusCm`), the 11 cm of the rover
@@ -53,13 +54,11 @@ describe('variantOffsets with the radius of a kit', () => {
     start: { xCm: 20, yCm: 20, yawDeg: 0 },
     variants: { count: 40, seed: 7, startJitterCm: 12, yawJitterDeg: 0 },
   };
-  const starts = (radiusCm?: number) =>
-    Array.from({ length: near.variants.count - 1 }, (_, i) => applyVariant(near, radiusCm === undefined ? variantOffsets(near, i + 1) : variantOffsets(near, i + 1, radiusCm)).start);
+  const starts = (radiusCm: number = ROBOT_FOOTPRINT_RADIUS_CM) =>
+    Array.from({ length: near.variants.count - 1 }, (_, i) => applyVariant(near, variantOffsets(near, i + 1, radiusCm)).start);
 
-  it('defaults to the 11 cm of the rover: the same offsets as asking for 11, in every variant', () => {
-    for (let i = 0; i < near.variants.count; i++) {
-      expect(variantOffsets(near, i)).toEqual(variantOffsets(near, i, ROBOT_FOOTPRINT_RADIUS_CM));
-    }
+  it('has no default since N19 A2 (a caller that forgets its kit’s radius does not compile); the rover’s 11 cm keeps 11 cm clear', () => {
+    expectTypeOf(variantOffsets).parameters.toEqualTypeOf<[VariantSource, number, number]>();
     for (const { xCm, yCm } of starts()) {
       expect(xCm - 11).toBeGreaterThanOrEqual(2);
       expect(yCm - 11).toBeGreaterThanOrEqual(2);
@@ -79,15 +78,19 @@ describe('variantOffsets with the radius of a kit', () => {
 
   it('draws the same numbers whatever the radius, and moves only what does not fit: variant 0 is exact and the seed is the same', () => {
     for (const radius of [11, 16, 30]) {
-      expect(variantOffsets(near, 0, radius)).toEqual(variantOffsets(near, 0));
-      expect(variantOffsets(near, 5, radius).seed).toBe(variantOffsets(near, 5).seed);
+      expect(variantOffsets(near, 0, radius)).toEqual(variantOffsets(near, 0, ROBOT_FOOTPRINT_RADIUS_CM));
+      expect(variantOffsets(near, 5, radius).seed).toBe(variantOffsets(near, 5, ROBOT_FOOTPRINT_RADIUS_CM).seed);
     }
   });
 
-  it('has the rover’s radius as its default, in every variant of every shipped scenario (the offsets themselves are pinned by the determinism and scenario tests)', () => {
-    for (const scenario of scenarioCatalog.scenarios) {
+  it('draws every scenario that runs on the rover at the rover’s 11 cm, the radius of its kit (the offsets themselves are pinned by the determinism and scenario tests)', () => {
+    const onRover = scenarioCatalog.scenarios.filter((scenario) => (scenarioKitRef(scenario) ?? referenceKitRef).id === rover.id);
+    expect(onRover.length).toBeGreaterThanOrEqual(7);
+    for (const scenario of onRover) {
+      const own = productionKits.get(scenarioKitRef(scenario) ?? referenceKitRef) as Kit;
+      expect(kitFootprintRadiusCm(own), scenario.key).toBe(ROBOT_FOOTPRINT_RADIUS_CM);
       for (let i = 0; i < scenario.variants.count; i++) {
-        expect(variantOffsets(scenario, i), `${scenario.key} variant ${i}`).toEqual(variantOffsets(scenario, i, kitFootprintRadiusCm(rover)));
+        expect(variantOffsets(scenario, i, kitFootprintRadiusCm(own)), `${scenario.key} variant ${i}`).toEqual(variantOffsets(scenario, i, ROBOT_FOOTPRINT_RADIUS_CM));
       }
     }
   });

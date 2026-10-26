@@ -16,8 +16,8 @@ import { compileUnoProject } from '../src/core/program/compile-uno-program';
 import { insidePolygon } from '../src/core/scenario/goals/geometry';
 import { circleShape, insideGround, rectShape, shapesOverlap, wallShape, type Shape } from '../src/core/scenario/overlap';
 import { polygonsOverlap } from '../src/core/scenario/polygon-overlap';
-import { SCENARIO_MAX_SCORE, scenarioMaxScore, type RobotGoalSpec, type Scenario } from '../src/core/scenario/scenario';
-import { applyVariant, ROBOT_FOOTPRINT_RADIUS_CM, variantOffsets } from '../src/core/scenario/variants';
+import { SCENARIO_MAX_SCORE, scenarioKitRef, scenarioMaxScore, type RobotGoalSpec, type Scenario } from '../src/core/scenario/scenario';
+import { applyVariant, kitFootprintRadiusCm, ROBOT_FOOTPRINT_RADIUS_CM, variantOffsets } from '../src/core/scenario/variants';
 import type { Arena } from '../src/core/world/arena/arena-schema';
 import { robotFootprint, startFootprintIssues } from '../src/core/world/robot/footprint';
 import { createScenarioWorld } from '../src/core/world/world';
@@ -40,6 +40,8 @@ const registry = createDeviceRegistry(localDeviceDefinitions);
 const packs = createBlockPackCatalog(registry);
 const rules = { registry, profiles: productionProfiles, packs, kits: productionKits };
 const kit = productionKits.get(referenceKitRef) as Kit;
+/** N19 A2: the variants of a scenario at the radius of its own kit (the radius is required). */
+const offsetsOf = (scenario: Scenario, index: number) => variantOffsets(scenario, index, kitFootprintRadiusCm(productionKits.get(scenarioKitRef(scenario) ?? referenceKitRef) as Kit));
 
 const scoredKeys = robotTemplateKeys.filter((key): key is RobotScoredKey => key !== robotSandboxKey);
 const scenarioOf = (key: string): Scenario => {
@@ -238,7 +240,7 @@ describe('the robot scenarios of this build (N18 R5.2)', () => {
       expect(scenario.arena.objects, `${key}: no object to push, so none starts in its zone`).toEqual([]);
       const zones = [...new Set(scenario.goals.flatMap(goalZones))];
       for (let index = 0; index < scenario.variants.count; index++) {
-        const { start } = applyVariant(scenario, variantOffsets(scenario, index));
+        const { start } = applyVariant(scenario, offsetsOf(scenario, index));
         for (const id of zones) {
           const polygon = scenario.arena.paint.zones.find((zone) => zone.id === id)!.polygonCm;
           expect(insidePolygon(polygon, start.xCm, start.yCm), `${key} variant ${index} starts in ${id}`).toBe(false);
@@ -272,7 +274,7 @@ describe('the variants of every scenario (N18 R5.2)', () => {
     it(`${scenario.key}: every variant starts on the ground with ${START_ROOM_CM} cm of room, clear of every wall and obstacle, the kit footprint too`, () => {
       const [width, depth] = scenario.arena.ground.sizeCm;
       for (let index = 0; index < scenario.variants.count; index++) {
-        const offsets = variantOffsets(scenario, index);
+        const offsets = offsetsOf(scenario, index);
         const { start, arena } = applyVariant(scenario, offsets);
         if (index === 0) {
           expect(start).toEqual(scenario.start);
@@ -305,7 +307,7 @@ describe('the variants of every scenario (N18 R5.2)', () => {
       for (let index = 0; index < scenario.variants.count; index++) {
         const world = await createScenarioWorld(scenario, kit, index);
         try {
-          const { start } = applyVariant(scenario, variantOffsets(scenario, index));
+          const { start } = applyVariant(scenario, offsetsOf(scenario, index));
           const robot = world.snapshot().robot;
           expect(Math.hypot(robot.xCm - start.xCm, robot.yCm - start.yCm), `variant ${index} settles in place`).toBeLessThan(0.5);
           expect(world.outOfArena).toBe(false);
@@ -327,7 +329,7 @@ describe('the variants of every scenario (N18 R5.2)', () => {
       // A blind program drives the distance from the authored start to the middle of the zone, along its own heading.
       const travel = (zoneFrom + zoneTo) / 2 - scenario.start.xCm;
       const ends = [1, 2].map((index) => {
-        const { start } = applyVariant(scenario, variantOffsets(scenario, index));
+        const { start } = applyVariant(scenario, offsetsOf(scenario, index));
         return start.xCm + travel * Math.cos((start.yawDeg * Math.PI) / 180);
       });
       expect(Math.max(...ends) - zoneTo, `${key}: past the zone`).toBeGreaterThanOrEqual(4);
@@ -341,8 +343,8 @@ describe('the variants of every scenario (N18 R5.2)', () => {
     const scenario = scenarioOf('rb-mini-mission');
     expect(scenario.variants).toMatchObject({ startJitterCm: 1.5, startJitterAlongCm: 15 });
     expect(scenario.start.yawDeg).toBe(0);
-    const along = [0, 1, 2].map((index) => variantOffsets(scenario, index).start.dxCm);
-    const across = [1, 2].map((index) => Math.abs(variantOffsets(scenario, index).start.dyCm));
+    const along = [0, 1, 2].map((index) => offsetsOf(scenario, index).start.dxCm);
+    const across = [1, 2].map((index) => Math.abs(offsetsOf(scenario, index).start.dyCm));
     const dockYs = scenario.arena.paint.zones.find((zone) => zone.id === 'dock')!.polygonCm.map(([, y]) => y);
     expect(Math.max(...along)).toBeGreaterThanOrEqual(12);
     expect(Math.min(...along)).toBeLessThanOrEqual(-12);
@@ -353,7 +355,7 @@ describe('the variants of every scenario (N18 R5.2)', () => {
   it('lessons 4 and 6 turn a jittered start by 4° or more: an open-loop robot is 2.75 cm off the line within 40 cm', () => {
     for (const key of ['rb-line-follow', 'rb-mini-mission'] as const) {
       const scenario = scenarioOf(key);
-      const turns = [1, 2].map((index) => Math.abs(variantOffsets(scenario, index).start.dYawDeg));
+      const turns = [1, 2].map((index) => Math.abs(offsetsOf(scenario, index).start.dYawDeg));
       expect(Math.max(...turns), key).toBeGreaterThanOrEqual(4);
     }
   });

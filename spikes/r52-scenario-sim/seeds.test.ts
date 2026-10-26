@@ -3,7 +3,7 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { it } from 'vitest';
-import { variantOffsets } from '../../src/core/scenario/variants';
+import { ROBOT_FOOTPRINT_RADIUS_CM, variantOffsets } from '../../src/core/scenario/variants';
 import { scenarioCatalog } from '../../src/samples/robot-scenarios';
 
 it.runIf(process.env.SPIKE_SEEDS)('lists the offsets of seeds 0..4999 for the jittered scenarios', () => {
@@ -12,7 +12,7 @@ it.runIf(process.env.SPIKE_SEEDS)('lists the offsets of seeds 0..4999 for the ji
     const rows: unknown[] = [];
     for (let seed = 0; seed < 5000; seed++) {
       const s = { ...scenario, variants: { ...scenario.variants, seed } };
-      rows.push([seed, ...[1, 2].map((v) => { const o = variantOffsets(s, v); return [o.start.dxCm, o.start.dyCm, o.start.dYawDeg, ...o.boxes.flatMap((b) => [b.dxCm, b.dyCm])]; })]);
+      rows.push([seed, ...[1, 2].map((v) => { const o = variantOffsets(s, v, ROBOT_FOOTPRINT_RADIUS_CM); return [o.start.dxCm, o.start.dyCm, o.start.dYawDeg, ...o.boxes.flatMap((b) => [b.dxCm, b.dyCm])]; })]);
     }
     out[scenario.key] = rows;
   }
