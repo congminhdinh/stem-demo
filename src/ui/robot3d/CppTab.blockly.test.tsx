@@ -65,10 +65,14 @@ async function setup() {
   const fake = fakeSession(scenario, kit);
   const store = createRobotRunStore(fake.session, { requestFrame: (callback) => setTimeout(() => callback(0), 0) as unknown as number, cancelFrame: (handle) => clearTimeout(handle) });
   store.getState().connect();
-  // The lab's own arrangement: the editor reports the selection, the tab reads it, Copy flushes the edits and never the starter.
+  // The lab's own arrangement: the editor reports the selection, the tab reads it, Copy flushes the edits and never the starter, and the
+  // tab asks the editor whether it shows the starter unchanged (N18 final fix M2). The tab can be put out of sight and back (`show`).
+  const tab: { show(active: boolean): void } = { show: () => {} };
   function Harness() {
     const panel = useRef<BlocklyPanelHandle>(null);
     const [selected, setSelected] = useState<readonly string[]>([]);
+    const [active, setActive] = useState(true);
+    tab.show = setActive;
     return (
       <>
         <BlocklyPanel ref={panel} projectStore={projectStore} packs={packs} toolbox={toolbox} emptyProgram={starter} onSelectBlock={setSelected} />
@@ -77,9 +81,10 @@ async function setup() {
           rules={rules}
           scenario={{ key: scenario.key, version: scenario.version, starter }}
           flush={() => panel.current?.saveEdits()}
+          showsStarter={() => panel.current?.showsStarter() ?? false}
           store={store}
           selectedIds={selected}
-          active
+          active={active}
         />
       </>
     );
@@ -96,7 +101,12 @@ async function setup() {
   projectStore.subscribe((state, previous) => {
     if (state.document !== previous.document) changes.push(state.document.program.blocks);
   });
-  return { projectStore, changes };
+  /** The learner goes to another tab and back to C++: the tab makes its sketch again. */
+  const reopen = async () => {
+    await act(async () => tab.show(false));
+    await act(async () => tab.show(true));
+  };
+  return { projectStore, changes, reopen };
 }
 
 /** The learner puts one more "stop the robot" block after the lesson's own, as Blockly tells the editor of it (a frame later in a browser). */
@@ -153,6 +163,27 @@ describe('CppTab with the real block editor (N18 R4.5 fix round 1)', () => {
     expect(golden.match(/, 0L\);/g)).toHaveLength(2);
     expect(copied.match(/, 0L\);/g)).toHaveLength(4);
     expect(text('cpp-source')).toBe(copied);
+  });
+
+  it('shows the starter’s sketch again when the tab comes back to a starter nobody changed (N18 final fix M2)', async () => {
+    const { reopen, changes } = await setup();
+    await reopen();
+    expect(text('cpp-source')).toBe(golden);
+    expect(host.querySelector<HTMLButtonElement>('[data-testid=cpp-copy]')!.disabled).toBe(false);
+    expect(changes).toEqual([]);
+  });
+
+  it('says "Chưa có khối nào" for a workspace the learner emptied, with no Copy or download: Run compiles no program (N18 final fix M2)', async () => {
+    const { projectStore, reopen } = await setup();
+    // Every block of the starter deleted: Blockly saves an empty workspace, `{}`, which is what the project already holds.
+    await act(async () => workspace().clear());
+    await advance(2000);
+    expect(projectStore.getState().document.program.blocks).toEqual({});
+    await reopen();
+    expect(host.querySelector('[data-testid=cpp-source]')).toBeNull();
+    expect(text('cpp-empty')).toBe('Chưa có khối nào');
+    expect(host.querySelector<HTMLButtonElement>('[data-testid=cpp-copy]')!.disabled).toBe(true);
+    expect(host.querySelector<HTMLButtonElement>('[data-testid=cpp-download]')!.disabled).toBe(true);
   });
 
   it('marks the lines of the block the learner selects, the lines of the block around it for a number typed into it, and none when nothing is', async () => {

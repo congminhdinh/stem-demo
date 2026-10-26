@@ -47,6 +47,8 @@ export type ProgramPaneLab = {
   projectStore: ProjectStore;
   /** Writes the learner's latest edits of the blocks into the project, never an unchanged starter (BlocklyPanel `saveEdits`). */
   flushEdits(): void;
+  /** N18 final fix M2: the editor shows the scenario's starter unchanged (BlocklyPanel `showsStarter`); absent, it is taken to. */
+  showsStarter?(): boolean;
   rules: UnoProjectRules;
   scenario: Scenario;
   kit: Kit;
@@ -115,7 +117,17 @@ export function ProgramPane({ store, toolbox, lab, program }: ProgramPaneProps) 
       </div>
       <div {...pane('blocks')}>{program({ toolbox, emptyProgram: lab.scenario.starter, highlightBlockId, blockWarnings, readOnly, onSelectBlock: selectBlock })}</div>
       <div {...pane('cpp')}>
-        <CppTab projectStore={lab.projectStore} rules={lab.rules} scenario={lab.scenario} flush={lab.flushEdits} store={store} selectedIds={selectedIds} active={tab === 'cpp'} {...(lab.announce ? { announce: lab.announce } : {})} />
+        <CppTab
+          projectStore={lab.projectStore}
+          rules={lab.rules}
+          scenario={lab.scenario}
+          flush={lab.flushEdits}
+          {...(lab.showsStarter ? { showsStarter: lab.showsStarter } : {})}
+          store={store}
+          selectedIds={selectedIds}
+          active={tab === 'cpp'}
+          {...(lab.announce ? { announce: lab.announce } : {})}
+        />
       </div>
       <div {...pane('pins')}>
         <PinInspector store={store} kit={lab.kit} board={lab.board} active={tab === 'pins'} />

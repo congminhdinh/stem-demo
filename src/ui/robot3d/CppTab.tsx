@@ -39,6 +39,11 @@ type CppTabProps = {
   scenario: SketchScenario & { starter: unknown };
   /** Writes the latest edits of the blocks into the project now (BlocklyPanel `saveNow`). */
   flush(): void;
+  /**
+   * N18 final fix M2: whether the editor shows the scenario's starter unchanged (BlocklyPanel `showsStarter`). Without one, a project with
+   * no program is taken to show it.
+   */
+  showsStarter?(): boolean;
   /** The run: the block the robot is in. */
   store: RobotRunStore;
   /** The block the learner selected, then the blocks around it, innermost first; empty for none. */
@@ -49,10 +54,17 @@ type CppTabProps = {
   announce?(text: string): void;
 };
 
-/** What the editor shows is what Run compiles: a project with no program shows the scenario's starter (BlocklyPanel `emptyProgram`). */
-function shownProject(project: ProjectDocument, starter: unknown): ProjectDocument {
-  return isEmptyProgram(project.program.blocks) ? { ...project, program: { blocks: starter } } : project;
+/**
+ * What Run compiles: the project's program, or, while the project has none, the scenario's starter if the editor shows it unchanged (Run
+ * writes it into the project first, BlocklyPanel `emptyProgram` and `saveNow`). A program the learner emptied is no program: null.
+ */
+function shownProject(project: ProjectDocument, starter: unknown, showsStarter: () => boolean): ProjectDocument | null {
+  if (!isEmptyProgram(project.program.blocks)) return project;
+  return showsStarter() ? { ...project, program: { blocks: starter } } : null;
 }
+
+/** What the tab shows: a sketch, why there is none, or that there are no blocks to make one of. */
+type TabView = SketchView | { ok: false; empty: true };
 
 type LineProps = { number: number; text: string; running: boolean; selected: boolean };
 
@@ -73,16 +85,23 @@ const Line = memo(function Line({ number, text, running, selected }: LineProps) 
 });
 
 /** Whether two sketches are the same thing to show: the same code on the same blocks, or the same reasons for none. */
-const sameSketch = (a: SketchView, b: SketchView): boolean => JSON.stringify(a) === JSON.stringify(b);
+const sameSketch = (a: TabView, b: TabView): boolean => JSON.stringify(a) === JSON.stringify(b);
 
 const inside = (range: LineRange | null, line: number) => range !== null && line >= range.from && line <= range.to;
 
-export function CppTab({ projectStore, rules, scenario, flush, store, selectedIds, active, announce }: CppTabProps) {
+const editorShowsStarter = () => true;
+
+export function CppTab({ projectStore, rules, scenario, flush, showsStarter = editorShowsStarter, store, selectedIds, active, announce }: CppTabProps) {
   const t = useText();
   const locale = useLocale();
   // A tab that is not shown follows nothing: no change of the project or of the robot's block renders its list of lines.
   const document = useStore(projectStore, (state) => (active ? state.document : null));
-  const [sketch, setSketch] = useState<SketchView | null>(null);
+  const [sketch, setSketch] = useState<TabView | null>(null);
+  // Read when a sketch is made: the editor's answer now, not the first render's.
+  const startsFrom = useRef(showsStarter);
+  useEffect(() => {
+    startsFrom.current = showsStarter;
+  });
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle');
   const sourceRef = useRef<HTMLPreElement>(null);
   /** The project the shown sketch was made from. */
@@ -99,10 +118,11 @@ export function CppTab({ projectStore, rules, scenario, flush, store, selectedId
   const fileName = sketchFileName(scenario);
 
   /** The sketch of the project as it is NOW, shown and returned. */
-  const generate = useCallback((): SketchView => {
+  const generate = useCallback((): TabView => {
     const project = projectStore.getState().document;
     shownFor.current = project;
-    const made = sketchOf(shownProject(project, scenario.starter), rules, scenario);
+    const shown = shownProject(project, scenario.starter, () => startsFrom.current());
+    const made: TabView = shown === null ? { ok: false, empty: true } : sketchOf(shown, rules, scenario);
     // The same sketch again (Copy, a project that changed in nothing the code says) leaves what is shown, and its scroll, as it is.
     setSketch((shown) => (shown !== null && sameSketch(shown, made) ? shown : made));
     return made;
@@ -223,6 +243,10 @@ export function CppTab({ projectStore, rules, scenario, flush, store, selectedId
         </pre>
       ) : sketch === null ? (
         <div className="cpp-source cpp-source-empty" />
+      ) : 'empty' in sketch ? (
+        <div className="cpp-blocked cpp-empty" data-testid="cpp-empty">
+          <p>{t('robot.cpp.empty')}</p>
+        </div>
       ) : (
         <div className="cpp-blocked" data-testid="cpp-diagnostics">
           <p>{t(`robot.cpp.layer.${sketch.layer}`)}</p>

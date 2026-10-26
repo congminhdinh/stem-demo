@@ -457,6 +457,7 @@ export function App({ projectStore, runStore, registry, profiles, packs, notice 
       projectStore,
       flushProgram: () => blocklyRef.current?.saveNow(),
       flushEdits: () => blocklyRef.current?.saveEdits(),
+      showsStarter: () => blocklyRef.current?.showsStarter() ?? false,
       registry,
       profiles,
       packs,

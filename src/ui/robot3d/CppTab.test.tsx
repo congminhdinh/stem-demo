@@ -62,7 +62,7 @@ const lineElements = () => [...host.querySelectorAll<HTMLElement>('[data-testid=
 const marked = (name: 'running' | 'selected') => lineElements().filter((line) => line.dataset[name] === 'true').map((line) => Number(line.dataset.line));
 const advance = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
 
-type Setup = { key?: RobotTemplateKey; document?: ProjectDocument; starter?: unknown; locale?: 'vi' | 'en'; active?: boolean; selectedIds?: readonly string[]; flush?: () => void };
+type Setup = { key?: RobotTemplateKey; document?: ProjectDocument; starter?: unknown; locale?: 'vi' | 'en'; active?: boolean; selectedIds?: readonly string[]; flush?: () => void; showsStarter?: () => boolean };
 
 function setup(options: Setup = {}) {
   const key = options.key ?? 'rb-drive-to-zone';
@@ -80,7 +80,16 @@ function setup(options: Setup = {}) {
       root.render(
         <TextProvider locale={changes.locale ?? options.locale ?? 'vi'}>
           <Profiler id="cpp" onRender={() => void commits.count++}>
-            <CppTab projectStore={projectStore} rules={rules} scenario={shown} flush={flush} store={store} selectedIds={changes.selectedIds ?? options.selectedIds ?? []} active={changes.active ?? options.active ?? true} />
+            <CppTab
+              projectStore={projectStore}
+              rules={rules}
+              scenario={shown}
+              flush={flush}
+              {...(options.showsStarter ? { showsStarter: options.showsStarter } : {})}
+              store={store}
+              selectedIds={changes.selectedIds ?? options.selectedIds ?? []}
+              active={changes.active ?? options.active ?? true}
+            />
           </Profiler>
         </TextProvider>,
       ),
@@ -126,6 +135,29 @@ describe('CppTab: the code (N18 R4.5)', () => {
     act(() => projectStore.getState().setProgramBlocks(robotSolutions['rb-square-route'].reference));
     await advance(CPP_DEBOUNCE_MS + 10);
     expect(text('cpp-source')).toBe(golden('rb-square-route').replace('rb-square-route@1', 'rb-drive-to-zone@1'));
+  });
+
+  it('says "Chưa có khối nào" for a project with no program while the editor does not show the starter, in both languages (N18 final fix M2)', async () => {
+    const starter = robotSolutions['rb-drive-to-zone'].reference;
+    let editorShowsStarter = false;
+    const { render, projectStore } = setup({ document: robotStarterDocument('rb-drive-to-zone'), starter, showsStarter: () => editorShowsStarter });
+    await render();
+    expect(host.querySelector('[data-testid=cpp-source]')).toBeNull();
+    expect(text('cpp-empty')).toBe('Chưa có khối nào');
+    expect(button('cpp-copy').disabled).toBe(true);
+    expect(button('cpp-download').disabled).toBe(true);
+    await render({ locale: 'en' });
+    await render({ active: false });
+    await render({ active: true, locale: 'en' });
+    expect(text('cpp-empty')).toBe('No blocks yet');
+    // A program of the project's own is shown whatever the editor says of the starter, and the starter while the editor shows it.
+    act(() => projectStore.getState().setProgramBlocks(robotSolutions['rb-square-route'].reference));
+    await advance(CPP_DEBOUNCE_MS + 10);
+    expect(text('cpp-source')).toBe(golden('rb-square-route').replace('rb-square-route@1', 'rb-drive-to-zone@1'));
+    editorShowsStarter = true;
+    act(() => projectStore.getState().setProgramBlocks({}));
+    await advance(CPP_DEBOUNCE_MS + 10);
+    expect(text('cpp-source')).toBe(golden('rb-drive-to-zone'));
   });
 
   it('writes nothing while its tab is not shown, and the sketch when it is', async () => {

@@ -40,6 +40,11 @@ export type BlocklyPanelHandle = {
    * and download) and so must not make the host hear of a project change that nobody made.
    */
   saveEdits(): void;
+  /**
+   * N18 final fix M2: whether the workspace shows the scenario's starter (`emptyProgram`) exactly as it was loaded, the learner's edits
+   * not yet saved included. False for any other program, for a workspace the learner emptied, and while no workspace is loaded.
+   */
+  showsStarter(): boolean;
 };
 
 type BlocklyPanelProps = {
@@ -193,6 +198,7 @@ export function BlocklyPanel({
   const containerRef = useRef<HTMLDivElement>(null);
   const saveNowRef = useRef<() => void>(() => {});
   const saveEditsRef = useRef<() => void>(() => {});
+  const showsStarterRef = useRef<() => boolean>(() => false);
   const loadRevision = useStore(projectStore, (state) => state.loadRevision);
   const loadFailed = useEffectEvent(() => onLoadFailed?.());
   const isReadOnly = useEffectEvent(() => readOnly);
@@ -203,7 +209,7 @@ export function BlocklyPanel({
   const highlightThrottleRef = useRef<LatestThrottle<string | null> | null>(null);
   const appliedWarningsRef = useRef(new Map<string, string>());
   const wantedWarningsRef = useRef<Readonly<Record<string, string>>>({});
-  useImperativeHandle(ref, () => ({ saveNow: () => saveNowRef.current(), saveEdits: () => saveEditsRef.current() }), []);
+  useImperativeHandle(ref, () => ({ saveNow: () => saveNowRef.current(), saveEdits: () => saveEditsRef.current(), showsStarter: () => showsStarterRef.current() }), []);
 
   // Rebuilt whenever a project is loaded (even one with the same id) or the
   // toolbox changes (another profile), but not on the panel's own saves or any
@@ -298,6 +304,8 @@ export function BlocklyPanel({
     // Reads the workspace itself, so edits whose events are still queued count too.
     saveNowRef.current = () => save(true);
     saveEditsRef.current = () => save(false);
+    // Reads the workspace itself, as `save` does: an edit whose events are still queued is a change already.
+    showsStarterRef.current = () => loaded && pristine !== null && JSON.stringify(Blockly.serialization.workspaces.save(workspace)) === pristine;
 
     const resizeObserver = new ResizeObserver(() => {
       Blockly.svgResize(workspace);
@@ -325,6 +333,7 @@ export function BlocklyPanel({
       workspaceRef.current = null;
       saveNowRef.current = () => {};
       saveEditsRef.current = () => {};
+      showsStarterRef.current = () => false;
       blockSelected([]);
       resizeObserver.disconnect();
       if (pendingSave !== undefined) {

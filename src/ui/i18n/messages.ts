@@ -125,6 +125,7 @@ export const en = {
   // N18 R4.5: the C++ tab (the sketch the blocks make, read-only) and the ports & pins tab (the hub panel).
   'robot.cpp.source': 'C++ code of the program',
   'robot.cpp.copy': 'Copy',
+  'robot.cpp.empty': 'No blocks yet',
   'robot.cpp.copied': 'Copied',
   'robot.cpp.copyFailed': 'Copy failed. Press {key} to copy the selected code.',
   'robot.cpp.download': 'Download .ino',
@@ -529,6 +530,7 @@ export const vi: Readonly<Record<MessageKey, string>> = {
   // N18 R4.5: tab C++ (mã mà các khối tạo ra, chỉ để đọc) và tab Cổng & chân (bảng hub).
   'robot.cpp.source': 'Mã C++ của chương trình',
   'robot.cpp.copy': 'Sao chép',
+  'robot.cpp.empty': 'Chưa có khối nào',
   'robot.cpp.copied': 'Đã chép',
   'robot.cpp.copyFailed': 'Không sao chép được. Nhấn {key} để chép đoạn mã đã chọn.',
   'robot.cpp.download': 'Tải .ino',
