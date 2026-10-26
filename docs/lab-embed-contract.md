@@ -44,24 +44,29 @@ robot, N18 R4.1), `src/core/scenario/check-result.ts` (kết quả Kiểm tra c�
   | `ybc-servo-gate` | `ybc-advanced` | Cổng servo: tối thì servo về 0°, sáng thì 90° (servo nối P0, 3V3, GND) | `dark-closes`: Trời tối (ánh sáng dưới 30) thì servo quay về 0°; `bright-opens`: Trời sáng thì servo quay tới 90° |
 - **Scenario của lab robot** (N18 R4.1, `robotTemplates` trong `src/samples/robot-templates.ts`): mọi scenario cần `uno-basic`, dùng
   kit `ref-uno-rover@0`, và mở ra một project theo plan §4.0: đúng một component `uno-r3`, không có dây, `profile`, `kit:
-  { id: 'ref-uno-rover', version: '0' }`, `program.blocks` rỗng (`{}`, đúng thứ Blockly lưu cho workspace trống nên mở lab không
-  gửi `project-changed`) cho tới khi khối uno của R2.2 có mặt. Tên bài (tiếng Việt, hiện ở đầu lab): `rb-drive-to-zone` Chạy tới vùng
-  đích, `rb-square-route` Đi theo hình vuông, `rb-stop-at-wall` Dừng trước tường, `rb-line-follow` Bám theo vạch kẻ,
-  `rb-servo-gate` Giơ cờ ở cổng, `rb-mini-mission` Nhiệm vụ tổng hợp, `rb-sandbox` Sân tập tự do. Cảnh 3D, thế giới vật lý và
-  kiểm tra đến sau (R4.2, R3.x, R6): bây giờ lab robot là khung (tên lab, tên bài, vùng nhìn, trình soạn khối) và `ready`
-  có `goals: []`. Một `profile=` thấp hơn mức scenario cần là launch hỏng, giống Yolo:Bit (câu lỗi cùng khuôn:
+  { id: 'ref-uno-rover', version: '0' }`, `program.blocks` rỗng (`{}`, đúng thứ Blockly lưu cho workspace trống). Trình soạn khối
+  hiện `starter` của scenario (trong file `rb-*.json`) nhưng không ghi nó vào document khi nó còn nguyên (N18 R4.2), nên mở lab không
+  gửi `project-changed`; sửa đổi đầu tiên của học sinh ghi starter cùng sửa đổi đó, và Chạy / Kiểm tra ghi nó trước khi biên dịch. Tên
+  bài (tiếng Việt, hiện ở đầu lab): `rb-drive-to-zone` Chạy tới vùng đích, `rb-square-route` Đi theo hình vuông, `rb-stop-at-wall` Dừng
+  trước tường, `rb-line-follow` Bám theo vạch kẻ, `rb-servo-gate` Giơ cờ ở cổng, `rb-mini-mission` Nhiệm vụ tổng hợp, `rb-sandbox` Sân
+  tập tự do. Lab robot có cảnh 3D (R4.2; bản đồ 2D thay khi máy không vẽ được 3D, R4.6), thế giới vật lý (R3.x) và Kiểm tra (R6.3);
+  `ready` liệt kê các mục tiêu của scenario (§2), `rb-sandbox` có `goals: []`. Một `profile=` thấp hơn mức scenario cần là launch
+  hỏng, giống Yolo:Bit (câu lỗi cùng khuôn:
   *Mẫu bài "…" cần mức … (profile=…): bài dùng khối hoặc linh kiện mà mức … không có.*).
 - **Manifest scenario robot** (N18 R7.1): `docs/fixtures/robot-scenarios.v1.json`, do `scripts/export-robot-manifest.mjs` sinh ra
   (`pnpm export:robot-manifest`) từ catalog scenario của bản build (`src/samples/robot-scenarios/rb-*.json`, dựng bằng
   `createScenarioCatalog`; script nạp nguồn TypeScript bằng SSR loader của Vite (`createServer` ở middleware mode với `vite.config.ts` của repo
   rồi `ssrLoadModule`, như app nạp), nên chạy được trên mọi Node mà `engines` cho phép, không cần giả lập gì). Mỗi scenario một mục: `key`, `version`, `title: { vi, en }`, `goalIds`
   (đúng thứ tự `ready`), `maxScore` (100; **bỏ hẳn** với `rb-sandbox`, không `null`), `profile`, `hasGoals`. Các mục theo thứ tự bài học,
-  key JSON xếp theo alphabet ở mọi cấp, nên cùng catalog cho cùng từng byte. Hiện catalog rỗng (R5.2 viết scenario đầu tiên) nên
-  `scenarios` là `[]`. Test `tests/export-robot-manifest.test.ts` chạy script (trên một thư mục scenario mẫu, và `--check` trên thư mục
-  thật): sửa hay thêm một file `rb-*.json` mà quên chạy lại lệnh thì test đỏ. **STEMLearning ghim** bằng cách chép file này vào repo của họ
-  (như fixture ở §2) và có test so với nó: `LAB_TEMPLATES.robot` (key, thứ tự, profile, tập không-mục-tiêu) và
-  `LabTemplateCatalog.DefaultRobot` cùng `appsettings.json` `Robot` (test manifest ↔ appsettings do R7.4 làm tiếp, khi manifest có
-  scenario để ghim). Như message, manifest chỉ được **thêm** trường; đổi nghĩa thì file mới (`robot-scenarios.v2.json`).
+  key JSON xếp theo alphabet ở mọi cấp, nên cùng catalog cho cùng từng byte. Catalog có bảy scenario: sáu bài của khoá thí điểm (R5.2)
+  rồi `rb-sandbox`, mọi bài ở `version` 1. Test `tests/export-robot-manifest.test.ts` chạy script (trên một thư mục scenario mẫu, và `--check`
+  trên thư mục thật): sửa hay thêm một file `rb-*.json` mà quên chạy lại lệnh thì test đỏ. **STEMLearning ghim** bằng cách chép file này vào
+  repo của họ (`Web/packages/api/src/lab/__fixtures__/robot-scenarios.v1.json`, như fixture ở §2) và có test so với nó
+  (`Web/packages/api/src/lab/lab-templates.test.ts`): sha256 của bản chép; `LAB_TEMPLATES.robot` (key, thứ tự, profile, tập
+  không-mục-tiêu); `Services/CourseService/Config/appsettings.json` `Robot` (mỗi scenario `{ Key, Version, GoalIds }`, theo thứ tự manifest)
+  và `LabTemplateCatalog.DefaultRobotScenarios`, mỗi cái đúng `{ key, version, goalIds }` của manifest (N18 final fix, M8). LearningService
+  từ chối lần chấm robot có `goals` không đúng các id `goalIds` của scenario theo thứ tự, hoặc `templateVersion` mới hơn `version` của nó.
+  Như message, manifest chỉ được **thêm** trường; đổi nghĩa thì file mới (`robot-scenarios.v2.json`).
 - **`origin`**: origin của trang nhúng, viết đúng như trình duyệt serialize (`scheme://host[:port]`, không path,
   không `/` cuối; vd. `http://localhost:3000`). Lab chỉ nói chuyện với origin này. Thiếu `origin` thì lab vẫn chạy
   (mở ở tab mới), chỉ là không gửi message nào.
@@ -138,7 +143,7 @@ hợp lệ và lab nằm trong một frame.
        đi theo thứ tự: `project-changed` (nếu có sửa chưa gửi) → [`run-started` → `run-stopped` nếu lab chạy hiển thị lượt chấm] → `check-result`.
     4. Phía host: lưu project cùng lần chấm khi đã có `project-changed` sau `check-result` trước của cùng lần tải, hoặc khi lần chấm trước
        cùng `programHash` chưa được lưu (bị từ chối, lỗi, không đủ trường); ngược lại lưu lần chấm không kèm project. Lab chỉ cần giữ thứ tự trên.
-  - **Fixture chung** `docs/fixtures/stem-lab-v1-robot.json` (47 421 byte, sha256 `61acd5fd967fe04def1738624d4dbb10c543efd58975996eff5dcddd1b4e7b85`):
+  - **Fixture chung** `docs/fixtures/stem-lab-v1-robot.json` (47 420 byte, sha256 `8ee12774e5496c65dab53b5eec7f487697b438e4863e34e7822566fb5b7495d3`):
     **giống từng byte** với `STEMLearning/Web/packages/api/src/lab/__fixtures__/stem-lab-v1-robot.json` (tác giả: STEMLearning, R7.4); sửa cả hai
     cùng lúc và chỉ bằng cách **thêm**. Nó liệt kê message `valid` (host đọc đúng), `invalid` và `nonFinite` (host bỏ cả message), `incomplete` (host
     đọc nhưng không lưu: lab robot không gửi) và `notRobot` (không `lab: "robot"` thì trường robot bị bỏ qua, kể cả sai). Phía này,
