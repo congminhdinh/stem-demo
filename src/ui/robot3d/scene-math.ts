@@ -3,6 +3,7 @@ import type { Scenario } from '../../core/scenario/scenario';
 import type { Arena, ArenaWall } from '../../core/world/arena/arena-schema';
 import type { Pose, RobotSnapshot, SnapshotObject, SnapshotQuat } from '../../core/world/snapshot';
 import { CM_PER_M, degToRad } from '../../core/world/units';
+import { colorLedLit } from './gripper-pose';
 
 // The arithmetic of the robot lab's 3D view (N18 R4.2). The view draws what the physics simulates, so it uses the physics' frame
 // (core/world/units.ts, snapshot.ts): the arena plane is the floor y = 0 with arena x along +X and arena y along −Z, heights along +Y,
@@ -173,10 +174,17 @@ function samePose(a: Pose, b: Pose): boolean {
   );
 }
 
+/** N19 E6 fix round 1 (review I1): the gripper's claw and lift (a car at rest opening, closing, lowering or raising it) and what it holds. */
+function sameGripper(a: RobotSnapshot['robot']['gripper'], b: RobotSnapshot['robot']['gripper']): boolean {
+  if (a === b) return true;
+  if (a === undefined || b === undefined) return false;
+  return Math.abs(a.clawDeg - b.clawDeg) < SAME_DEG && Math.abs(a.liftDeg - b.liftDeg) < SAME_DEG && a.heldId === b.heldId;
+}
+
 /**
  * Whether two worlds show the robot and the objects in the same place, to within a pixel (SAME_CM, SAME_QUAT, SAME_RAD, SAME_DEG): the
- * poses of the robot and the objects, the wheels and the servos. N18 P2: what casts the shadows (moved here from `sameView`, its first
- * half): the key light's shadow map is drawn again only when these change.
+ * poses of the robot and the objects, the wheels and the servos (N19: and the gripper, on a car that has one). N18 P2: what casts the
+ * shadows (moved here from `sameView`, its first half): the key light's shadow map is drawn again only when these change.
  */
 export function sameCasters(a: RobotSnapshot | null, b: RobotSnapshot | null): boolean {
   if (a === b) return true;
@@ -186,12 +194,13 @@ export function sameCasters(a: RobotSnapshot | null, b: RobotSnapshot | null): b
   for (const role of Object.keys(ra.servoDeg)) {
     if (!(Math.abs((ra.servoDeg[role] ?? 0) - (rb.servoDeg[role] ?? 0)) < SAME_DEG)) return false;
   }
+  if (!sameGripper(ra.gripper, rb.gripper)) return false;
   return a.objects.length === b.objects.length && a.objects.every((object, i) => samePose(object.pose, b.objects[i]!.pose));
 }
 
 /**
  * Whether two worlds draw the same picture: the poses of the robot and the objects, the wheels, the servos, the LEDs, what each line
- * sensor sees and the board's pins (the buzzer's tone, the button's level). The time and the score are the HUD's, not the picture's.
+ * sensor sees and the board's pins (the buzzer's tone, the button's level); N19: the gripper and its colour sensor's LED. The time and the score are the HUD's, not the picture's.
  * The 3D view asks for a frame only when the picture changes, so a robot at rest costs no drawing.
  */
 export function sameView(a: RobotSnapshot | null, b: RobotSnapshot | null): boolean {
@@ -210,6 +219,8 @@ export function sameView(a: RobotSnapshot | null, b: RobotSnapshot | null): bool
   for (let i = 0; i < a.pins.length; i++) {
     if (a.pins[i]!.level !== b.pins[i]!.level || a.pins[i]!.toneHz !== b.pins[i]!.toneHz) return false;
   }
+  // N19 E6 fix round 1 (review I1): a gripper car's colour LED, lit while it runs; a rover's picture has no part of its status.
+  if ((a.robot.gripper !== undefined || b.robot.gripper !== undefined) && colorLedLit(a) !== colorLedLit(b)) return false;
   return true;
 }
 

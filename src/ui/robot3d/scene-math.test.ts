@@ -12,6 +12,7 @@ import {
   idleSnapshot,
   quatToThree,
   robotPointToThree,
+  sameCasters,
   sameView,
   servoArmYawRad,
   wallBox,
@@ -160,5 +161,40 @@ describe('whether a new snapshot changes the picture (N18 R4.2)', () => {
     const object = { id: 'crate', kind: 'object' as const, pose: { xCm: 1, yCm: 1, zCm: 1, yawDeg: 0, rotation: { x: 0, y: 0, z: 0, w: 1 } } };
     expect(sameView({ ...base, objects: [object] }, { ...base, objects: [{ ...object, pose: { ...object.pose, yCm: 1.5 } }] })).toBe(false);
     expect(sameView({ ...base, objects: [object] }, { ...base, objects: [] })).toBe(false);
+  });
+});
+
+describe('whether a new snapshot changes the picture of the gripper car (N19 E6 fix round 1, review I1)', () => {
+  const gripperKit = productionKits.get({ id: 'ref-uno-gripper', version: '0' }) as Kit;
+  const idle = idleSnapshot(driveToZone, gripperKit);
+  const at = (clawDeg: number, liftDeg: number, heldId: string | null = null, status: RobotSnapshot['status'] = 'running'): RobotSnapshot => ({
+    ...idle,
+    status,
+    robot: { ...idle.robot, gripper: { clawDeg, liftDeg, heldId } },
+  });
+
+  it('draws again (and its shadows) when only the claw or only the lift moves, the car standing still, or when it takes or lets go of an object', () => {
+    expect(sameView(at(0, 90), at(0, 90))).toBe(true);
+    expect(sameView(at(0, 90), at(0.04, 89.96))).toBe(true);
+    expect(sameView(at(0, 90), at(0.06, 90))).toBe(false);
+    expect(sameView(at(0, 90), at(0, 89.9))).toBe(false);
+    expect(sameView(at(30, 45, null), at(30, 45, 'cube'))).toBe(false);
+    expect(sameCasters(at(0, 90), at(80, 90))).toBe(false);
+    expect(sameCasters(at(0, 90), at(0, 0))).toBe(false);
+    expect(sameCasters(at(0, 90), at(0.04, 90))).toBe(true);
+    // The view before a run (no gripper in the snapshot yet) and the first tick of a run.
+    expect(sameView(idle, at(0, 90))).toBe(false);
+  });
+
+  it('draws again when the colour sensor’s LED goes off or on with the run’s status, on a gripper car only', () => {
+    expect(sameView(at(0, 90, null, 'running'), at(0, 90, null, 'finished'))).toBe(false);
+    expect(sameView(at(0, 90, null, 'idle'), at(0, 90, null, 'running'))).toBe(false);
+    expect(sameView(at(0, 90, null, 'finished'), at(0, 90, null, 'error'))).toBe(true);
+    // The shadows do not change with the LED.
+    expect(sameCasters(at(0, 90, null, 'running'), at(0, 90, null, 'finished'))).toBe(true);
+    // A rover's picture is as before: its status is no part of it.
+    const rover = idleSnapshot(driveToZone, kit);
+    expect(sameView({ ...rover, status: 'running' }, { ...rover, status: 'finished' })).toBe(true);
+    expect(sameCasters({ ...rover, status: 'running' }, { ...rover, status: 'finished' })).toBe(true);
   });
 });
