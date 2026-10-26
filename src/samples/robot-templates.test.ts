@@ -22,6 +22,9 @@ import {
 // them, like every template key), so the list is written out here and a rename fails this test.
 
 const registry = createDeviceRegistry(localDeviceDefinitions);
+/** The kit of each key: the reference rover's, but for N19 D4's four gripper lessons, on the gripper car. */
+const gripperLessonKeys: readonly string[] = ['rb-grip-pick', 'rb-grip-deliver', 'rb-grip-sort', 'rb-grip-stack'];
+const kitOfKey = (key: string) => (gripperLessonKeys.includes(key) ? 'ref-uno-gripper' : 'ref-uno-rover');
 
 describe('the robot scenario keys (N18 R4.1)', () => {
   it('are exactly the seven keys of the launch contract, in the order of the lessons', () => {
@@ -50,7 +53,7 @@ describe('the robot scenario keys (N18 R4.1)', () => {
   it('each need uno-basic and the reference kit, and have a title key in the UI messages (both languages)', () => {
     expect(robotLabProfiles).toEqual(['uno-basic', 'uno-advanced']);
     for (const key of robotTemplateKeys) {
-      expect(robotTemplates[key]).toEqual({ profile: 'uno-basic', kit: 'ref-uno-rover', titleKey: `robot.scenario.${key}` });
+      expect(robotTemplates[key]).toEqual({ profile: 'uno-basic', kit: kitOfKey(key), titleKey: `robot.scenario.${key}` });
       expect(en[robotTemplates[key].titleKey].length).toBeGreaterThan(0);
       expect(vi[robotTemplates[key].titleKey].length).toBeGreaterThan(0);
     }
@@ -112,7 +115,7 @@ describe('the project a robot scenario opens (N18 R4.1, plan §4.0)', () => {
     expect(document).toMatchObject({
       schemaVersion: 1,
       profile: 'uno-basic',
-      kit: { id: 'ref-uno-rover', version: '0' },
+      kit: { id: kitOfKey(key), version: '0' },
     });
     expect(document.circuit.wires).toEqual([]);
     expect(document.circuit.components.map(({ deviceType }) => deviceType)).toEqual(['uno-r3']);

@@ -160,7 +160,7 @@ describe('the robot scenarios of this build (N18 R5.2)', () => {
     expect(scenarioCatalog.scenarios.map((scenario) => scenario.key)).toEqual([...robotTemplateKeys]);
     for (const scenario of scenarioCatalog.scenarios) {
       expect(scenario.profile).toBe(robotTemplates[scenario.key as keyof typeof robotTemplates].profile);
-      expect(scenario.kit).toBe('ref-uno-rover');
+      expect(scenario.kit).toBe(robotTemplates[scenario.key as keyof typeof robotTemplates].kit);
       expect(scenario.version).toBe(1);
     }
   });
@@ -244,7 +244,8 @@ describe('the robot scenarios of this build (N18 R5.2)', () => {
         expect(kinds.some((kind) => ACHIEVEMENT_KINDS.includes(kind)), key).toBe(true);
       }
       expect(kinds.some((kind) => ACHIEVEMENT_KINDS.includes(kind)), `${key} has a goal to reach`).toBe(true);
-      expect(scenario.arena.objects, `${key}: no object to push, so none starts in its zone`).toEqual([]);
+      // N19 D4: the gripper lessons' objects are what they pick up (none starts in its zone: the gripper lessons' own test, below).
+      if (scenario.kit === 'ref-uno-rover') expect(scenario.arena.objects, `${key}: no object to push, so none starts in its zone`).toEqual([]);
       const zones = [...new Set(scenario.goals.flatMap(goalZones))];
       for (let index = 0; index < scenario.variants.count; index++) {
         const { start } = applyVariant(scenario, offsetsOf(scenario, index));
@@ -265,7 +266,9 @@ describe('the robot scenarios of this build (N18 R5.2)', () => {
         expect(luma, `${scenario.key} ${zone.id}`).toBeGreaterThan(0.75);
       }
       const hasLineGoal = scenario.goals.some((goal) => goal.kind === 'stay-on-line');
-      expect(scenario.arena.paint.lines.length > 0, scenario.key).toBe(hasLineGoal || scenario.key === robotSandboxKey);
+      // N19 D4: a gripper lesson that follows the tape to its objects (deliver, stack) has its line sensor in the toolbox and no line goal.
+      const followsTape = scenario.kit === 'ref-uno-gripper' && (scenario.toolbox ?? []).includes('uno_line_dark');
+      expect(scenario.arena.paint.lines.length > 0, scenario.key).toBe(hasLineGoal || followsTape || scenario.key === robotSandboxKey);
     }
   });
 });
@@ -287,8 +290,10 @@ describe('the variants of every scenario (N18 R5.2)', () => {
           expect(start).toEqual(scenario.start);
           expect(arena).toBe(scenario.arena);
         } else {
-          // A jittered start that did not fit would have fallen back to the authored place: none did.
-          expect(offsets.start.dxCm !== 0 || offsets.start.dyCm !== 0, `variant ${index} moved`).toBe(true);
+          // A jittered start that did not fit would have fallen back to the authored place: none did. N19 D4: lesson 10 only turns its start
+          // (plan §6: the same place in every round), so its starts stay where they are.
+          const movesStart = scenario.variants.startJitterCm > 0 || (scenario.variants.startJitterAlongCm ?? 0) > 0;
+          expect(offsets.start.dxCm !== 0 || offsets.start.dyCm !== 0, `variant ${index} moved`).toBe(movesStart);
         }
         const things = solids(arena);
         const room = circleShape(start.xCm, start.yCm, START_ROOM_CM);
@@ -529,7 +534,9 @@ describe('the programs of every scenario (N18 R5.2)', () => {
       'rb-grip-stack': ['wall'],
       'rb-sandbox': undefined,
     });
-    for (const scenario of scenarioCatalog.scenarios.filter((candidate) => candidate.endOnContact !== undefined)) {
+    // N19 D4: on the gripper car every wall ends a run (G0 ruling), with an avoid-contact goal or not (lesson 11 has none): the gripper
+    // lessons' own test, below, holds them to it.
+    for (const scenario of scenarioCatalog.scenarios.filter((candidate) => candidate.endOnContact !== undefined && candidate.kit === 'ref-uno-rover')) {
       const avoided = scenario.goals.flatMap((goal) => (goal.kind === 'avoid-contact' ? [goal.tag] : []));
       expect(scenario.endOnContact, scenario.key).toEqual(avoided);
     }
@@ -866,7 +873,7 @@ describe('the sketches of the reference solutions (N18 R5.2, goldens like C1’s
     if (!compiled.ok) throw new Error(JSON.stringify(compiled.diagnostics));
     const sketch = generateUnoSketch(compiled.ir, { kit: compiled.kit, board: compiled.board, scenario: { key, version: scenarioOf(key).version } });
     if (!sketch.ok) throw new Error(JSON.stringify(sketch.diagnostics));
-    expect(sketch.source.split('\n')[0]).toBe(`// Scenario: ${key}@1, kit: ref-uno-rover@0, board: uno-r3@0`);
+    expect(sketch.source.split('\n')[0]).toBe(`// Scenario: ${key}@1, kit: ${robotTemplates[key].kit}@0, board: uno-r3@0`);
     await expect(sketch.source).toMatchFileSnapshot(`./robot-solutions/${key}.ino`);
   });
 

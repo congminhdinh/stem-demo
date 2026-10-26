@@ -15,9 +15,10 @@ const parse = (svg: string): XMLDocument => new DOMParser().parseFromString(svg,
 const rover = productionKits.get(referenceKitRef)!;
 
 describe('the printed mat’s start for the kit of the scenario', () => {
-  it('reads the radius from the scenario’s kit: the rover’s 11 cm for every shipped scenario', () => {
-    for (const scenario of scenarioCatalog.scenarios) expect(matFootprintRadiusCm(scenario), scenario.key).toBe(kitFootprintRadiusCm(rover));
+  it('reads the radius from the scenario’s kit: the rover’s 11 cm for every shipped rover scenario, 16 cm for the gripper lessons (N19 D4)', () => {
+    for (const scenario of scenarioCatalog.scenarios) expect(matFootprintRadiusCm(scenario), scenario.key).toBe(scenario.kit === 'ref-uno-gripper' ? 16 : kitFootprintRadiusCm(rover));
     expect(kitFootprintRadiusCm(rover)).toBe(11);
+    expect(scenarioCatalog.scenarios.filter((scenario) => scenario.kit === 'ref-uno-gripper').map((scenario) => scenario.key)).toEqual(['rb-grip-pick', 'rb-grip-deliver', 'rb-grip-sort', 'rb-grip-stack']);
   });
 
   // N19 D1–D3 fix round 2 (review M6): A2 registered ref-uno-gripper@0 (footprintRadiusCm 16), so a scenario on it gets the larger ring from its
