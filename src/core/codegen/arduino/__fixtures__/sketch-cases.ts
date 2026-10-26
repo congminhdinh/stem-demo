@@ -3,8 +3,8 @@ import { productionProfiles } from '../../../profiles';
 import { unoDocument } from '../../../profiles/__fixtures__/uno-document';
 import { compileUnoProject } from '../../../program/compile-uno-program';
 import {
-  analogRead, buttonPressed, buzzerStop, buzzerTone, digitalRead, digitalWrite, driveMove, driveStop, led, lineDark, lineRaw, millis, motorSet, packs, pwmWrite,
-  registry, rover, servoSet, ultrasonic, unoCountUp, unoDivide,
+  analogRead, buttonPressed, buzzerStop, buzzerTone, claw, clawAngle, colorIs, colorRaw, digitalRead, digitalWrite, driveMove, driveStop, gripperKitRef, irDetect, led, lift,
+  liftAngle, lineDark, lineRaw, millis, motorSet, packs, pwmWrite, registry, rover, servoSet, ultrasonic, unoCountUp, unoDivide,
 } from '../../../program/__fixtures__/uno-blocks';
 import { add, and, bool, cmp, getVar, ifElif, ifThen, join, mod, mul, not, num, or, print, program, repeat, setVar, sub, text, wait, whileLoop, type Json } from '../../../program/__fixtures__/ybc-blocks';
 import type { YbcProgramIR } from '../../../program/ybc-ir';
@@ -28,6 +28,8 @@ export type SketchCase = {
   console?: string[];
   /** What the robot's sensors give the parity run (attached to the virtual UNO before setup()); nothing by default. */
   world?: (uno: VirtualUno) => void;
+  /** N19 A4: the kit the case is compiled for; ref-uno-rover@0 when absent. */
+  kit?: { readonly id: string; readonly version: string };
 };
 
 /** Every call of the result gives the next of `first`, `first + step`, …: the order of the reads shows in the values. */
@@ -390,6 +392,29 @@ export const sketchCases: SketchCase[] = [
     forever: [led('ON'), wait(num(500)), led('OFF'), wait(num(500))],
     variables: [],
   },
+  {
+    // N19 A4: every op of the gripper car on ref-uno-gripper@0: the claw's and the arm's two positions and any angle (a computed one
+    // too), the IR sensor between the jaws and the colour sensor's colour and raw value (Advanced), with the drive it carries them on.
+    name: 'gripper-every-op',
+    covers: ['U-35', 'U-36', 'U-37', 'U-38', 'U-39', 'U-21', 'U-22', 'U-11', 'U-13', 'U-15', 'U-03', 'U-05'],
+    profile: 'uno-advanced',
+    kit: gripperKitRef,
+    onStart: [lift('DOWN'), claw('OPEN'), setVar('x', num(40))],
+    forever: [
+      whileLoop(not(irDetect()), [driveMove('forward', num(50))]),
+      driveStop(),
+      claw('CLOSE'),
+      lift('UP'),
+      ifElif([
+        [colorIs('red'), [liftAngle(num(45))]],
+        [colorIs('unknown'), [clawAngle(add(x(), num(5)))]],
+      ]),
+      print(colorRaw('clear')),
+      lift('DOWN'),
+      claw('OPEN'),
+    ],
+    variables: xyz,
+  },
 ];
 
 export const referenceKit: Kit = rover;
@@ -401,8 +426,8 @@ export function blocksOf(c: Pick<SketchCase, 'onStart' | 'forever' | 'variables'
 }
 
 /** Compiles a case as the robot lab does (compileUnoProject); throws when it does not compile. */
-export function compileCase(c: Pick<SketchCase, 'onStart' | 'forever' | 'variables' | 'profile'>): { ir: YbcProgramIR; kit: Kit; board: BoardProfile; uses: UnoProgramUses } {
-  const document = unoDocument(c.profile, { program: { blocks: blocksOf(c) } });
+export function compileCase(c: Pick<SketchCase, 'onStart' | 'forever' | 'variables' | 'profile' | 'kit'>): { ir: YbcProgramIR; kit: Kit; board: BoardProfile; uses: UnoProgramUses } {
+  const document = unoDocument(c.profile, { program: { blocks: blocksOf(c) }, ...(c.kit ? { kit: { ...c.kit } } : {}) });
   const compiled = compileUnoProject(document, { registry, profiles: productionProfiles, packs, kits: productionKits });
   if (!compiled.ok) {
     throw new Error(`Does not compile: ${JSON.stringify(compiled.diagnostics)}`);
