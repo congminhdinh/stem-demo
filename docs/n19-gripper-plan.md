@@ -274,6 +274,14 @@ Toàn bộ §5 của plan N18 vẫn áp dụng: B1, Rapier chỉ ở `src/core/w
   - Hạ tay lên vật hay sàn thì đầu xe nhấc (3,85°): lực ấn bị giới hạn bởi trọng lượng xe.
 - **Hiệu năng:** chi phí khoảng 0,19–0,28 ms/tick (gấp khoảng 4 lần rover). E9 đo trên profile máy trường; nếu vượt ngân sách thì bỏ +4 solver iteration (giá kẹp lệch 0,91° khi giữ 50 g).
 
+### 4.7 Ghi lại khi làm A2/A3 (thắng §4.1–§4.3 khi mâu thuẫn)
+
+- **`GripperSpec` thêm 5 khoá hình học** (PLACEHOLDER, ADR 0004 §2 đã suy ra): `boomElevationAtLift0Deg -40` (−90…0, nên tay 0° là thấp nhất), `fingerHingeUCm 0.5`, `fingerHingeVCm 2.2`, `fingerThicknessCm 0.4`, `jawHeightCm 1.2`. Không có chúng thì không kiểm được "ngàm cao hơn sàn ở tay 0°" và không ra được số §4.1 (ngàm x 8,83–13,83, z 1,09–2,29, đầu ngàm mở 6,08 cm; `gripperJawsCm`, có test).
+- **`costsUs` mới** (thêm khoá, giá trị cũ không đổi; cũng nối vào `arduinoCalls` và `costsUs` của contract, A5 thêm EMU-20 vào ledger và `costsEvidence`): `gripperSet 51.625`, `colorWrite 334` / `colorWriteNack 144.9375`, `colorBegin 1350.5625` / `colorBeginNack 589.4375` (đã trừ hai delay như simulator charge), `colorFetch 1158.5` / `colorFetchNack 146.0625`, `colorClassify 147.25` (lâu nhất), `colorClassifyZero 12.5625` (tổng 0: không chia, nên `colorIs` lúc NACK là 158,6 chứ không 293 µs), `wirePhase 4.9375`.
+- **Bus I²C có thời gian ở virtual UNO:** mỗi pha = `wirePhase` (dịch vụ của Wire) + số chu kỳ SCL ở `i2c.sclHz` (START/STOP 1, byte 9). Thiết bị bus-level (`I2cDevice`, model TCS34725) được gọi ở thời điểm của từng sự kiện, như adapter TWI phía board. Driver tính phần lệnh của helper quanh bus theo timeline đo (`spikes/avr8js/run-gripper-timeline.ts` → `out/gripper-timeline.json`): trong `colorFetch` mọi sự kiện lệch board ≤ 1 µs, trong `colorBegin` ≤ 4,94 µs; tổng thời gian đúng số đo.
+- **Luật kit là issue của `loadKit`** có mã (`DataIssue.code`): `wrong-i2c-pin`, `i2c-address-conflict`. Địa chỉ I²C là của driver (`driverPortSpecs[…].i2cAddress`, TCS34725 cố định 0x29), không phải param của kit. Các thiết bị một bus dùng chung SDA/SCL nên `checkKit` không báo `pin-conflict` cho chúng.
+- **`ir-digital`:** param `activeLow` mặc định `true` (module IR thường kéo LOW khi thấy vật); kit vẫn ghi rõ.
+
 ## 5. Review Focus
 
 1. **Vật đang giữ đâm tường hoặc vật khác, hoặc bị ép xuống sàn.** Tuột đúng ngưỡng, va chạm tính cho xe, không có NaN, xe không lật. *Test (B3):* `held cube hitting a wall at 0.4 m/s breaks the grasp and counts as robot contact`; `pressing a held cube on the floor at lift stall keeps the grasp`.
