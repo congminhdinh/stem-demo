@@ -20,6 +20,21 @@ describe('the printed mat’s start for the kit of the scenario', () => {
     expect(kitFootprintRadiusCm(rover)).toBe(11);
   });
 
+  // N19 D1–D3 fix round 2 (review M6): A2 registered ref-uno-gripper@0 (footprintRadiusCm 16), so a scenario on it gets the larger ring from its
+  // kit, with no override: the same mat as the override gives.
+  it('draws the 16 cm ring of a scenario whose kit is the gripper car, from the kit itself', () => {
+    const gripper = { ...loadScenario(lineFollow), kit: 'ref-uno-gripper' };
+    expect(matFootprintRadiusCm(gripper)).toBe(16);
+    expect(matFootprintRadiusCm({ kit: 'ref-uno-gripper' })).toBe(16);
+    const document = parse(buildArenaMat(gripper).svg);
+    const ring = document.querySelector('#mat-start circle')!;
+    expect([ring.getAttribute('cx'), ring.getAttribute('cy'), ring.getAttribute('r')]).toEqual(['50', '110', '16']);
+    expect(Number(document.querySelector('#mat-start line.heading')!.getAttribute('x2'))).toBe(66);
+    expect(document.querySelector('#mat-start text')!.getAttribute('y')).toBe('127.6');
+    expect(buildArenaMat(gripper).svg).toBe(buildArenaMat(gripper, { footprintRadiusCm: 16 }).svg);
+    expect(buildTiledSheet(gripper).html).toBe(buildTiledSheet(gripper, { footprintRadiusCm: 16 }).html);
+  });
+
   it('refuses a kit the app has no file for: it cannot know how far that robot reaches', () => {
     expect(() => matFootprintRadiusCm({ kit: 'vendor-kit' })).toThrow('The robot kit "vendor-kit" is not one this app knows');
   });
