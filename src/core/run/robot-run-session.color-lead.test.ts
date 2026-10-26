@@ -12,8 +12,9 @@ import { createRobotRunSession } from './robot-run-session';
 // starts inside its tick (the interpreter's atHardware: world.t ≤ program clock < world.t + dt), and a colour read's last bus event
 // comes 1123.8125 µs after the op starts (colorReadLastEventUs), so every call the bus makes on the TCS34725, and every light it asks
 // the world for, falls within [world.t, world.t + dt + 1123.8125 µs). The session runs ref-uno-gripper@0, passed to it as its kit,
-// on a test arena (the sandbox's floor, no gripper scenario key yet: task D4); the world's light model is B3's, so a TCS34725 model under
-// a steady red light is put on the session's virtual UNO here (vi.mock), and every bus call is recorded with the world's time.
+// on a test arena (the sandbox's floor, no gripper scenario key yet: task D4); a TCS34725 model under a steady red light is put on the
+// session's virtual UNO here (vi.mock) in place of the session's own (N19 B4: lit by the world's light history; its bound is
+// robot-run-session.color-light.test.ts's), and every bus call is recorded with the world's time.
 
 const probe = vi.hoisted(() => ({
   worlds: [] as { tick: number }[],
@@ -45,6 +46,11 @@ vi.mock('../hardware/virtual-uno', async (importOriginal) => {
         stop: (us) => (record(us), model.stop(us)),
       };
       uno.attachWireDevice(model.address, watched);
+      // N19 B4: the session attaches its own TCS34725 at this address, lit by the world's light history; this test keeps the steady red one.
+      const attach = uno.attachWireDevice.bind(uno) as (address: number, device: I2cDevice) => void;
+      uno.attachWireDevice = ((address: number, device: I2cDevice) => {
+        if (address !== model.address) attach(address, device);
+      }) as typeof uno.attachWireDevice;
       return uno;
     },
   };

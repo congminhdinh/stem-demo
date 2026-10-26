@@ -5,7 +5,8 @@ import type { DeviceRegistry } from '../devices/registry';
 import { createProgramIO } from '../hardware/binding';
 import type { BoardProfile } from '../hardware/board';
 import type { KitCatalog } from '../hardware/catalog';
-import { kitKey, kitPort, type Kit } from '../hardware/kit';
+import { createTcs34725 } from '../hardware/devices/tcs34725';
+import { kitKey, kitPort, portParam, type Kit } from '../hardware/kit';
 import { createVirtualUno, type VirtualUno } from '../hardware/virtual-uno';
 import { productionProfiles } from '../profiles';
 import type { ProfileCatalog } from '../profiles/profile';
@@ -24,6 +25,7 @@ import type { RobotSnapshot, RunStatus, ScoreState } from '../world/snapshot';
 import { checkPlacement, type PlacementPose } from '../scenario/placement';
 import type { ActuatorTargets } from '../world/robot/assembly';
 import { createScenarioWorld, type World } from '../world/world';
+import { createLightHistory, type LightHistory } from './light-history';
 import { createModuleModels } from './robot-modules';
 import type { RunDiagnostic } from './run-session';
 import { canTeleop, createTeleopController, TELEOP_LIMIT_S, teleopUses, type TeleopCommand, type TeleopController, type TeleopEntry } from './teleop';
@@ -41,6 +43,10 @@ import { createVirtualScheduler, nextTurn, type VirtualScheduler } from './virtu
 // (run/virtual-clock.ts: `createVirtualScheduler({ signal, delayOverheadUs })`, one per run), whose pins read the world through
 // sources (the echo of the ultrasonic, `sense.ultrasonic(role).echoUs`: cm·58, 0 without an echo, which pulseIn reads as no pulse and
 // the HC-SR04 helper as 400 cm (U-27); each line sensor's digital level and ADC value, `sense.line(role)`; each button, pressed LOW).
+// N19 B4: each IR obstacle sensor's level, `sense.ir(role).level`; each colour sensor, a TCS34725 register model on the I²C bus
+// (hardware/devices/tcs34725.ts, at its address) whose light is the run's light history of that sensor (run/light-history.ts): the world's
+// `sense.color(role).light` of tick 0 when the run is made, then of each tick at its step, so a window's counts are the ticks inside it and
+// never depend on when the program reads them (the bus runs at most world.t + dt + 1124 µs ahead of the world: plan §4.7).
 // The module binding runs setup(), the scorer is fed tick 0's frame, and the snapshot of t = 0 is published. The program itself starts
 // in tick 0, after that tick's inputs: when the first tick is driven (at once, a frame later) never changes what it sees.
 //
@@ -51,7 +57,7 @@ import { createVirtualScheduler, nextTurn, type VirtualScheduler } from './virtu
 //      it is blocked, reading the world at tick k;
 //   3. the hardware has lived through the tick's interval [t, t + dt) (see "The hardware's time" below); the module models read the
 //      pins (robot-modules.ts) and set the actuator targets;
-//   4. `world.step(PHYSICS_DT_S)`;
+//   4. `world.step(PHYSICS_DT_S)`, and (N19 B4) the light history records the new tick's light of each colour sensor;
 //   5. the scorer (R6) is fed the tick's goal frame, built from the world's bodies (`World.goalFrame`), never from a snapshot.
 // A snapshot is built only to publish one: at most one per `advance` call (a frame) and one at the end of `runUntil`.
 //
@@ -339,6 +345,8 @@ type ActiveRun = {
   scorer: RobotScorer | undefined;
   /** The hardware has lived through tick k's interval: its clock is now at least the tick's end (see the top of this file). */
   readonly livedThrough: (k: number) => void;
+  /** N19 B4: after a step, each colour sensor's light history records the world's new tick. */
+  readonly recordLight: () => void;
   /** Makes the scorer, feeds it tick 0's frame and gives its first score (a copy). Throws what the scorer throws. */
   readonly startScore: () => ScoreState;
   /** Starts the program, once: in tick 0, after its inputs. */
@@ -646,6 +654,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       const pins = run.uno.pins();
       run.world.applyActuators(models.targets(pins));
       run.world.step(PHYSICS_DT_S);
+      run.recordLight();
       run.moved = true;
       // The goal frame is built when something reads it: the scorer, the scenario's end on a contact, the rest of a finished run.
       if (run.scorer || endsOnContact || run.status === 'finished') {
@@ -772,6 +781,8 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
      * ADC), the button released. It is never read in practice: an aborted program throws at its next step or module op, before a read.
      */
     const live = () => holder.run !== undefined && current === holder.run;
+    /** N19 B4: the light history of each colour sensor of the kit (one TCS34725 at its fixed address). */
+    const lightHistories: { readonly role: string; readonly history: LightHistory }[] = [];
 
     for (const module of kit.modules) {
       const port = kitPort(kit, module.port);
@@ -784,6 +795,16 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       } else if (module.kind === 'button' && port?.pins.PIN !== undefined) {
         // To GND, read through the pull-up the driver sets (U-30): pressed is LOW, released HIGH.
         uno.attachDigitalSource(port.pins.PIN, () => (live() && holder.run?.buttons.get(role) === true ? 0 : 1));
+      } else if (module.kind === 'ir-obstacle' && port?.pins.PIN !== undefined) {
+        // N19 B4: the comparator's output; a run that does not own the session reads nothing seen (ir-digital: active low unless the kit says not).
+        const idle = portParam(port, 'activeLow') === false ? 0 : 1;
+        uno.attachDigitalSource(port.pins.PIN, () => (live() ? world.sense.ir(role).level : idle));
+      } else if (module.kind === 'color-sensor' && port !== undefined) {
+        const history = createLightHistory();
+        history.record(world.tick, world.sense.color(role).light);
+        lightHistories.push({ role, history });
+        const device = createTcs34725(history.integral);
+        uno.attachWireDevice(device.address, device);
       }
     }
     // setup(): the module ops the program uses, then its raw pins (hardware/binding.ts).
@@ -838,6 +859,9 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       unsubscribe,
       livedThrough(k) {
         livedMs = ((k + 1) * 1000) / PHYSICS_HZ;
+      },
+      recordLight() {
+        for (const { role, history } of lightHistories) history.record(world.tick, world.sense.color(role).light);
       },
       startScore() {
         const scorer = options.scorer?.({ scenario, arena: world.arena, program: prepared.program, variantIndex, check });
