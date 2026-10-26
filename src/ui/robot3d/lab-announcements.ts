@@ -6,7 +6,7 @@ import { fallbackNoteKey, type ViewFallbackReason } from './webgl-support';
 
 // What the robot lab says politely (N18 R8), as events worked out from the state, so that it is told once when something happens and
 // never while a value moves: a run started, paused, resumed, stopped, finished or over (and why, with its score when the lesson has one),
-// the robot put back, teleop on or off (this file); a check started, each round's end and its result (`checkAnnouncement`, R6.3's, which
+// the robot put back, teleop on or off, N19 E1 an object picked up or put down (`createGripAnnouncer`); a check started, each round's end and its result (`checkAnnouncement`, R6.3's, which
 // the announcer reuses). Errors are not here: they are the assertive region's (the run's messages, a check that did not finish).
 
 /** What the announcements read of the run store at one moment. */
@@ -94,4 +94,70 @@ export function viewAnnouncement(before: ViewFallbackReason | null, after: ViewF
   if (before === after) return null;
   if (after === null) return 'robot.announce.view.3d';
   return fallbackNoteKey[after] ?? 'robot.announce.view.2d';
+}
+
+/** N19 E1: the least time between two sayings of a grip. */
+export const GRIP_INTERVAL_MS = 1500;
+
+/**
+ * What the grip announcements read of the run store at one moment: the run's world is live (a run that goes on or is over, shown by the
+ * lab: not before a run, not what a stopped run left, not while a check holds the lab or a start builds its world), the world's time, and
+ * the id of the object the gripper holds (null for none, and for a robot with no gripper).
+ */
+export type GripMoment = { live: boolean; t: number; heldId: string | null };
+
+/** `checking`: a check is under way (as `runMomentOf`'s): it says its own rounds, and what it shows is no grip of the learner's. */
+export function gripMomentOf(state: RobotLabState, checking = false): GripMoment {
+  const { snapshot } = state;
+  if (checking || state.locked || state.starting || snapshot.status === 'idle' || snapshot.world === null) return { live: false, t: 0, heldId: null };
+  return { live: true, t: snapshot.world.t, heldId: snapshot.world.robot.gripper?.heldId ?? null };
+}
+
+/** What a change of the held object is said as: the object's id, for the words to name it as the learner sees it ("khối đỏ"). */
+export type GripSaid = { key: 'robot.announce.grip.picked' | 'robot.announce.grip.released'; id: string };
+
+export type GripAnnouncer = {
+  /**
+   * The held object as it is at `moment`, at `now` (ms): `say` is what to say now, and `retryAt` when to look again (ms) when a change had to
+   * wait for the end of the window. Said at most once per `GRIP_INTERVAL_MS`; a change inside the window is said when it ends if it still
+   * stands (the listener hears where the grip settles, never a pair that cancel), and not at all when the grip is back as it was heard.
+   * A run that begins (or whose world starts over: its time goes back), a run that is over and gone, and a check are no events: they reset
+   * what was heard, silently.
+   */
+  update(moment: GripMoment, now: number): { say: GripSaid | null; retryAt: number | null };
+};
+
+const nothingToSay = Object.freeze({ say: null, retryAt: null });
+
+export function createGripAnnouncer(intervalMs = GRIP_INTERVAL_MS): GripAnnouncer {
+  /** What the listener has been told is held. */
+  let heard: string | null = null;
+  let saidAt = Number.NEGATIVE_INFINITY;
+  let wasLive = false;
+  let lastT = 0;
+  return {
+    update(moment, now) {
+      if (!moment.live) {
+        wasLive = false;
+        heard = null;
+        saidAt = Number.NEGATIVE_INFINITY;
+        lastT = 0;
+        return nothingToSay;
+      }
+      const fresh = !wasLive || moment.t < lastT;
+      wasLive = true;
+      lastT = moment.t;
+      if (fresh) {
+        heard = moment.heldId;
+        saidAt = Number.NEGATIVE_INFINITY;
+        return nothingToSay;
+      }
+      if (moment.heldId === heard) return nothingToSay;
+      if (now - saidAt < intervalMs) return { say: null, retryAt: saidAt + intervalMs };
+      const before = heard;
+      heard = moment.heldId;
+      saidAt = now;
+      return { say: moment.heldId === null ? { key: 'robot.announce.grip.released', id: before! } : { key: 'robot.announce.grip.picked', id: moment.heldId }, retryAt: null };
+    },
+  };
 }

@@ -7,12 +7,14 @@ import { isMessageKey } from '../i18n/messages';
 import { useLocale, useText } from '../i18n/text';
 import { labStatus, shownRun, shownScore, shownTimeS, type LabStatus, type RobotRunStore } from './robot-run-store';
 import { formatNumber } from './format';
+import { HeldChip } from './HeldChip';
 
 // The robot lab's HUD (N18 R4.4), over the top left of the 3D view: what the run is doing, its simulated time against the scenario's
 // limit, the badge "slower than real time", and for a scenario with goals its score and each goal, met or not with how far it has got.
 // It reads the store through selectors that change at most ten times a second (the time is shown in tenths), so a run re-renders it
 // little; the 3D view never re-renders for it. N18 R6.3: while the view shows a round of a check (during a check at 1× or 4×, what the last
 // round left, a replay) it says which ("Lượt 2/3"), and once that round's run is over its score is the check's (0 after an error).
+// N19 E1: the object the gripper holds is a chip of its own row (HeldChip.tsx), which renders only when the held id changes.
 // N18 R8: the status is no live region (it would speak every change of state, twice): the lab's announcer says the events of a run once,
 // with the reason it ended.
 
@@ -97,6 +99,7 @@ export function Hud({ store, scenario }: HudProps) {
           )}
         </div>
       )}
+      <HeldChip store={store} scenario={scenario} />
       {hasGoals && maxScore !== undefined && (
         <>
           <div className="robot-hud-row">

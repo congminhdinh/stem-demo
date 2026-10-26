@@ -5,7 +5,7 @@ import { goalReasons, type GoalResult } from '../../core/scenario/goals';
 import { placedZoneFor } from '../../core/scenario/goals/object-placed';
 import type { RobotGoalSpec, Scenario } from '../../core/scenario/scenario';
 import { variantObjectColors } from '../../core/scenario/variants';
-import { bodyColorName } from '../../core/world/arena/body-colors';
+import { bodyColorName, type BodyColorName } from '../../core/world/arena/body-colors';
 import { isMessageKey, type Locale, type MessageKey } from '../i18n/messages';
 import type { Text } from '../i18n/text';
 import { formatNumber } from './format';
@@ -114,6 +114,16 @@ export function objectName(t: Text, scenario: NamingScenario | undefined, id: st
   if (color === undefined) return number === undefined ? t('robot.object.name', { noun }) : t('robot.object.name.index', { noun, index: number });
   const colorWord = t(`robot.color.${color}`);
   return number === undefined ? t('robot.object.name.color', { noun, color: colorWord }) : t('robot.object.name.color.index', { noun, color: colorWord, index: number });
+}
+
+/**
+ * N19 E1: the colour of the object `id` in round `index` as the palette has a word for it ("red" of "khối đỏ"), or undefined without one.
+ * `objectName` says it in words; the HUD's swatch draws it. Both read the round's colours (`roundColors`), so they cannot disagree.
+ */
+export function objectColorName(scenario: NamingScenario | undefined, id: string | undefined, index: number): BodyColorName | undefined {
+  if (scenario === undefined || id === undefined || !scenario.arena.objects.some((candidate) => candidate.id === id)) return undefined;
+  const colors = roundColors(scenario, index);
+  return bodyColorName(Object.hasOwn(colors, id) ? colors[id] : undefined);
 }
 
 /** N19 D3: what the learner calls the zone `id`: its name ("vùng xanh dương"), or `fallback` for a zone without one (or none). */

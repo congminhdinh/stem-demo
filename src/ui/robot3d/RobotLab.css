@@ -922,6 +922,19 @@
   border-radius: 4px;
 }
 
+/* N19 E1: the chip of the object the gripper holds: a swatch of its colour (with its colour-blind mark) and its name. */
+.robot-badge-held {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--stem-color-neutral-soft);
+  color: var(--stem-color-neutral-text);
+}
+
+.robot-held-swatch {
+  flex: none;
+}
+
 /* The round of a check the view shows, in the HUD. */
 .robot-badge-round {
   background: var(--stem-color-primary-soft);

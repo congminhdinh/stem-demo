@@ -216,7 +216,7 @@ export default function RobotLab({
   const teleopOn = useStore(store, (state) => state.teleop);
   // The sandbox has no score: nothing to check (as the other labs' templates without a challenge have no Check).
   const checkable = scenarioMaxScore(scenario) !== undefined;
-  useRunAnnouncements(store, checkable ? checks : null, announcer, scenarioMaxScore(scenario));
+  useRunAnnouncements(store, checkable ? checks : null, announcer, scenarioMaxScore(scenario), { scenario });
   // N18 P2: once the view is up and the lab was used (a press, a key, a project the host applied: `labUse`, watched by main.tsx from
   // before the lab renders, as the LMS sends its load-project on `ready`), the session loads and warms the physics engine at idle: neither
   // the first Run nor the first Kiểm tra waits for it then (about 250 ms of wasm on a school PC, and the download). A lab that is only
