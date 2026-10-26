@@ -375,7 +375,7 @@ của sa bàn (vùng sau đè vùng trước, vạch đè lên vùng), sàn là 
 | Vùng | đa giác tô `color`, viền mảnh bằng bản tối hơn 20 % của màu đó, nhãn 2 dòng: `id` và loại (`vùng xuất phát`, `vùng đích`, `điểm kiểm tra n`, `vùng`); vùng nằm trong lộ trình dài nhất của một goal `checkpoints-in-order` có thêm thứ tự | `mat-zones`, `mat-zone-labels` |
 | Vạch | polyline đen đúng `widthCm`, đầu và khớp tròn | `mat-tape` |
 | Tường, hộp, trụ, vật đẩy | **dấu chân** (footprint) gạch chéo với viền nét đứt, nhãn `tường`, `vật cản`, `vật đẩy` (cùng `id` nếu có): đây là vật thật phải đặt lên, không phải mực sơn | `mat-obstacles`, `mat-labels` |
-| Chỗ robot xuất phát | vòng tròn bán kính 11 cm (`ROBOT_FOOTPRINT_RADIUS_CM`, chỗ trống mà các biến thể giữ), dấu cộng ở giữa thân, mũi tên theo hướng, và `xuất phát · x 50, y 30 cm · 0°` | `mat-start` |
+| Chỗ robot xuất phát | vòng tròn bán kính chân đế của kit (`kitFootprintRadiusCm`, chỗ trống mà các biến thể giữ: 11 cm cho `ref-uno-rover@0`, kit nhô xa hơn như tay gắp thì lớn hơn; N19 D1), dấu cộng ở giữa thân, mũi tên theo hướng, và `xuất phát · x 50, y 30 cm · 0°` | `mat-start` |
 
 Nhãn của vùng tự né vạch và chỗ robot đứng (thu nhỏ chữ, tới 40 %, nếu vùng chật) và nằm **dưới** vạch: không gì được vẽ chồng lên vạch.
 
