@@ -415,6 +415,44 @@ test.describe('the robot lab’s layout (N18 R4.2)', () => {
     await screenshot(page, '11-loaded-while-hidden-1100x640.png');
   });
 
+  // N18 bt-lab-fix (c2): the result card stands beside the HUD, not over its goal points, in the lab's frames in the LMS at 1440, 1366 and
+  // 1280 px wide (1022 x 590, 948 x 450 and 862 x 402 px of lab). At 1440 nothing moves: the card keeps its 330 px.
+  for (const { name, width, height, cardWidth } of [
+    { name: '1440', width: 1022, height: 590, cardWidth: 330 },
+    { name: '1366', width: 948, height: 450, cardWidth: null },
+    { name: '1280', width: 862, height: 402, cardWidth: null },
+  ]) {
+    test(`the result card does not cover the HUD’s goals in the ${name}-wide LMS frame (${width} x ${height})`, async ({ page, baseURL }) => {
+      test.setTimeout(90_000);
+      const errors = collectErrors(page);
+      await page.setViewportSize({ width, height });
+      await page.goto(labUrl(baseURL, 'lab=robot&template=rb-drive-to-zone'));
+      await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ state: 'attached', timeout: 15_000 });
+      await pinLowTierChainOff(page);
+      await page.evaluate((document) => window.__stem?.loadProject(document), solved());
+      await page.locator('[data-testid=robot-check-speed] [data-speed=fast]').click();
+      await page.getByTestId('robot-check-start').click();
+      await expect(page.getByTestId('robot-check-results')).toHaveAttribute('data-open', 'true', { timeout: 60_000 });
+      await expect(page.getByTestId('robot-check-verdict')).toBeVisible();
+      const boxes = await page.evaluate(() => {
+        const box = (testId: string) => {
+          const { left, top, right, bottom } = document.querySelector(`[data-testid=${testId}]`)!.getBoundingClientRect();
+          return { left, top, right, bottom, width: right - left };
+        };
+        return { stage: box('robot-viewport'), hud: box('robot-hud'), card: box('robot-check-results'), goals: box('robot-goals') };
+      });
+      // Side by side: the card starts at or after the HUD's right edge (the HUD and the card share the top part of the view).
+      expect(boxes.card.top).toBeLessThan(boxes.hud.bottom);
+      expect(boxes.card.left).toBeGreaterThanOrEqual(boxes.hud.right);
+      expect(boxes.card.right).toBeLessThanOrEqual(boxes.stage.right);
+      if (cardWidth !== null) expect(boxes.card.width).toBe(cardWidth);
+      else expect(boxes.card.width).toBeGreaterThanOrEqual(200);
+      await expect(page.getByTestId('robot-check-verdict')).toHaveText('Đạt');
+      await screenshot(page, `12-result-card-${name}.png`);
+      expect(errors).toEqual([]);
+    });
+  }
+
   test('at 760 px: Robot and Chương trình are tabs, a Run shows the robot, nothing scrolls', async ({ page }) => {
     const errors = collectErrors(page);
     await page.setViewportSize({ width: 760, height: 640 });

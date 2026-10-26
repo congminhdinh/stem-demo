@@ -980,7 +980,9 @@
   z-index: 1;
   display: grid;
   gap: 6px;
-  width: min(330px, calc(100% - 20px));
+  /* N18 bt-lab-fix (c2): beside the HUD, not over its goal points: the room left by its 10 px, 290 px and the gap (8 px) and the card's 10 px,
+     at least 200 px. A view of 650 px or more (the lesson frame) has room for both at 330 px: nothing changes there. */
+  width: min(330px, max(200px, calc(100% - 318px)));
   max-height: calc(100% - 136px);
   box-sizing: border-box;
   overflow-y: auto;
@@ -991,6 +993,14 @@
   background: var(--stem-color-overlay);
   box-shadow: 0 2px 8px var(--stem-shadow-scroll);
   font-size: 12px;
+}
+
+/* The HUD is 250 px in a view of 620 px or less (the container query above), so the card may be 40 px wider there. 614 px (the LMS at 1440)
+   still gets 330 px; 570 and 517 px (the LMS at 1366 and 1280) get 292 and 239 px, scrolling inside as it always has. */
+@container (max-width: 620px) {
+  .robot-check-panel {
+    width: min(330px, max(200px, calc(100% - 278px)));
+  }
 }
 
 /* N18 R4.7 (R6.3's carry): a long result shows that it goes on: a thin scrollbar that stays (macOS hides overlay ones), and scroll
