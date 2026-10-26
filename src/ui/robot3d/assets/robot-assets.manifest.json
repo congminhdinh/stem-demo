@@ -2,11 +2,12 @@
   "generator": "scripts/build-robot-assets.mjs",
   "blender": "Blender 5.2.3 LTS",
   "sources": {
-    "build.py": "99def86db23f9ad93459e551719e4d277b71154d1b273f7393b653915d6dd461",
+    "build.py": "02873fe69493503005aa80cde62aff0c963d3e7d1b9697395d719cf046630a63",
     "lib.py": "277423e303bf1a6cf142f1d4fcfe3698c41af3d6b99f3f702e085c84ad4ed2bf",
     "parts/board.py": "e43cf678a4bdcfd15601f01cddb0a3ca6e2d56d1e33f7e5528906ddfc2bf5005",
     "parts/caster.py": "d203ce34b44750f9056fbd591728905b444448449f111d9039bf477a2d4e243c",
     "parts/chassis.py": "22df52eca2ee19938fdff0d8992754b2472abaca02838a4cce2e4458f8ff6979",
+    "parts/gripper.py": "4bc25dcfdb830b7669dac3602d9e9ec92482c1ad77753fe79388d0a8219fdfa8",
     "parts/line_bar.py": "c0dfa9ffb977397ad3552edd2f05258bd229c1e0eab3c64d8b7e65d4045d0307",
     "parts/modules.py": "f1120fea97029502d3ba047e2325e080f33f0ca4ab3b66d6e588a3e7e6a8d068",
     "parts/servo.py": "786477d07280c241e1c73aeab7bae47dd580a548a7591e48b1719382ee0fc976",
@@ -17,11 +18,13 @@
     "props/barrier.py": "97ff18ba165d8ce9473fe1ef92f28af20ccbf4c2656f0cfcdf5a304103d34c9b",
     "props/block.py": "09d25302a8e0105b4e0f98f87a960697a7e50fb6ea829dd7eedef8180bf736fd",
     "props/build_props.py": "9441fe8acedabea03fd0b2dd939686f2d5d893d657d35802f8553aebd4dd16aa",
+    "props/build_props_n19.py": "3169d07da1266fae4d339c7e3467908a6a4ea71a2e6d8e1cef6fb8873fa90ba1",
     "props/cardboard_box.py": "eb1c3c30d8d2e4698f4c9c55e50164df35eaa9c2056089e6231133510fa1f08b",
     "props/dock.py": "ac19936dd746c9774321b5f0b2dc03a1d55e6f95e35988bd2d3c1157760e7c10",
     "props/fence.py": "e549faae508912d02d9e60f809362942565397170cbede88511fbbf48fb20e78",
     "props/garage.py": "2eacd325a94eb4a4dbea4f376cdeed63eac90f9e414ddd697ac278b2c1a92e70",
     "props/marker.py": "f8cd67f746f1f65c56ba4699158f8ebb21376c82743ee87eec1e5b3ba6a7b746",
+    "props/pick_place.py": "807790d1f03c294eae784e70fbeeef6ab5570be0daf81be1def7b519c3b96a10",
     "props/post.py": "c4ff745cd6a6a8d79e807f051c0fb2f31f0cd60859f185315b64f436d2cf4e4a",
     "props/studio.py": "9415105f22330cf91b9114686ba98815a83adea2eabdd10224460c2d2c20a49d",
     "props/table.py": "5332c4cf9fe293690199ee96911412176012b94a5de068734523704182eafcef",
@@ -32,22 +35,180 @@
     "tex.py": "8371f98c0a547374f5eb34968ec6c2880a542049d01f0955feda1fae47112ebc",
     "kit:ref-uno-rover.kit.json": "fadd277314f2da6eff0577cd582145748938d474506ec240645d6f7cdeee969f"
   },
+  "kits": {
+    "ref-uno-gripper.kit.json": "89d02cff935b30155dde9ad5ba5a79b486792f018b966fef4fbbcd88d52cebec"
+  },
+  "frozen": {
+    "note": "The N18 roots of each GLB, kept byte for byte (scripts/lib/glb-splice.ts): their layout, the SHA-256 of that part alone, and the scripts it was built from.",
+    "sources": {
+      "lib.py": "277423e303bf1a6cf142f1d4fcfe3698c41af3d6b99f3f702e085c84ad4ed2bf",
+      "parts/board.py": "e43cf678a4bdcfd15601f01cddb0a3ca6e2d56d1e33f7e5528906ddfc2bf5005",
+      "parts/caster.py": "d203ce34b44750f9056fbd591728905b444448449f111d9039bf477a2d4e243c",
+      "parts/chassis.py": "22df52eca2ee19938fdff0d8992754b2472abaca02838a4cce2e4458f8ff6979",
+      "parts/line_bar.py": "c0dfa9ffb977397ad3552edd2f05258bd229c1e0eab3c64d8b7e65d4045d0307",
+      "parts/modules.py": "f1120fea97029502d3ba047e2325e080f33f0ca4ab3b66d6e588a3e7e6a8d068",
+      "parts/servo.py": "786477d07280c241e1c73aeab7bae47dd580a548a7591e48b1719382ee0fc976",
+      "parts/tt_motor.py": "251b206504251731533869ad2e8acfb49f0e556ad92d46f79924d0317665a1bb",
+      "parts/ultrasonic.py": "081efef44e7cf4498081ff4ff9c75f58e1499f5acacd6de095b7bba0d6fd7340",
+      "parts/wheel.py": "5c82a3c9d3189b35583549960c8d65b5834a96e930316791a527b98e9ff69f1f",
+      "props/banner.py": "7609a25e12338f9f7033ad3c2c0150a31d4bdf6a5609f1159ac3cc423dcb088f",
+      "props/barrier.py": "97ff18ba165d8ce9473fe1ef92f28af20ccbf4c2656f0cfcdf5a304103d34c9b",
+      "props/block.py": "09d25302a8e0105b4e0f98f87a960697a7e50fb6ea829dd7eedef8180bf736fd",
+      "props/build_props.py": "9441fe8acedabea03fd0b2dd939686f2d5d893d657d35802f8553aebd4dd16aa",
+      "props/cardboard_box.py": "eb1c3c30d8d2e4698f4c9c55e50164df35eaa9c2056089e6231133510fa1f08b",
+      "props/dock.py": "ac19936dd746c9774321b5f0b2dc03a1d55e6f95e35988bd2d3c1157760e7c10",
+      "props/fence.py": "e549faae508912d02d9e60f809362942565397170cbede88511fbbf48fb20e78",
+      "props/garage.py": "2eacd325a94eb4a4dbea4f376cdeed63eac90f9e414ddd697ac278b2c1a92e70",
+      "props/marker.py": "f8cd67f746f1f65c56ba4699158f8ebb21376c82743ee87eec1e5b3ba6a7b746",
+      "props/post.py": "c4ff745cd6a6a8d79e807f051c0fb2f31f0cd60859f185315b64f436d2cf4e4a",
+      "props/studio.py": "9415105f22330cf91b9114686ba98815a83adea2eabdd10224460c2d2c20a49d",
+      "props/table.py": "5332c4cf9fe293690199ee96911412176012b94a5de068734523704182eafcef",
+      "props/table_props.py": "5332bb20312379cb2775d7ab74b3bd0aafbb7141a1f376eb94dafc62dedf25f7",
+      "props/tin_can.py": "c312b3ad1dc9aebd750aaac3a1a50be5ecb5d69f7d9ed66d2b1ae1563cb95c18",
+      "props/wall.py": "bf87f32dc9ac007f67779a030339974e271c706991de4e5b8c4eb9ed4d335ef1",
+      "props/wood.py": "e8d730fc3714f48f5fa627f601a24c5d243045207a40016968a83e2605fffad6",
+      "tex.py": "8371f98c0a547374f5eb34968ec6c2880a542049d01f0955feda1fae47112ebc",
+      "kit:ref-uno-rover.kit.json": "fadd277314f2da6eff0577cd582145748938d474506ec240645d6f7cdeee969f"
+    },
+    "files": {
+      "robot-kit.glb": {
+        "sha256": "ffbccd81b21232ad5cdf5eda1163c315ec7125ae6010b5ae7927189f835a82d2",
+        "layout": {
+          "counts": {
+            "buffers": 2,
+            "bufferViews": 397,
+            "accessors": 392,
+            "samplers": 1,
+            "images": 5,
+            "textures": 5,
+            "materials": 43,
+            "meshes": 32,
+            "nodes": 48
+          },
+          "sceneNodes": 12,
+          "bufferBytes": [
+            679852,
+            1640948
+          ],
+          "extensionsUsed": [
+            "EXT_meshopt_compression",
+            "KHR_materials_clearcoat",
+            "KHR_materials_emissive_strength",
+            "EXT_texture_webp"
+          ],
+          "extensionsRequired": [
+            "EXT_meshopt_compression",
+            "EXT_texture_webp"
+          ]
+        }
+      },
+      "arena-props.glb": {
+        "sha256": "7037ad5e36f398ff5d5a1b564113fe8085492208cfd8842c67dae164a5f3bf2f",
+        "layout": {
+          "counts": {
+            "buffers": 2,
+            "bufferViews": 177,
+            "accessors": 165,
+            "samplers": 1,
+            "images": 12,
+            "textures": 12,
+            "materials": 31,
+            "meshes": 23,
+            "nodes": 42
+          },
+          "sceneNodes": 19,
+          "bufferBytes": [
+            237600,
+            524148
+          ],
+          "extensionsUsed": [
+            "EXT_meshopt_compression",
+            "EXT_texture_webp"
+          ],
+          "extensionsRequired": [
+            "EXT_meshopt_compression",
+            "EXT_texture_webp"
+          ]
+        }
+      },
+      "robot-kit-low.glb": {
+        "sha256": "bbefe179d6e145a40c86244535e9f09cdaa850c140ac40252a856a2e7600cf8a",
+        "layout": {
+          "counts": {
+            "buffers": 2,
+            "bufferViews": 389,
+            "accessors": 384,
+            "samplers": 1,
+            "images": 5,
+            "textures": 5,
+            "materials": 43,
+            "meshes": 32,
+            "nodes": 48
+          },
+          "sceneNodes": 12,
+          "bufferBytes": [
+            351220,
+            861024
+          ],
+          "extensionsUsed": [
+            "EXT_meshopt_compression",
+            "KHR_materials_clearcoat",
+            "KHR_materials_emissive_strength",
+            "EXT_texture_webp"
+          ],
+          "extensionsRequired": [
+            "EXT_meshopt_compression",
+            "EXT_texture_webp"
+          ]
+        }
+      },
+      "arena-props-low.glb": {
+        "sha256": "1e5d271e854a0ed4c32b68e2af497747c644158b09c0c9b5d4762bf459f5c6c1",
+        "layout": {
+          "counts": {
+            "buffers": 2,
+            "bufferViews": 176,
+            "accessors": 164,
+            "samplers": 1,
+            "images": 12,
+            "textures": 12,
+            "materials": 31,
+            "meshes": 23,
+            "nodes": 42
+          },
+          "sceneNodes": 19,
+          "bufferBytes": [
+            129684,
+            294508
+          ],
+          "extensionsUsed": [
+            "EXT_meshopt_compression",
+            "EXT_texture_webp"
+          ],
+          "extensionsRequired": [
+            "EXT_meshopt_compression",
+            "EXT_texture_webp"
+          ]
+        }
+      }
+    }
+  },
   "assets": {
     "robot-kit.glb": {
-      "bytes": 826656,
-      "sha256": "ffbccd81b21232ad5cdf5eda1163c315ec7125ae6010b5ae7927189f835a82d2"
+      "bytes": 926724,
+      "sha256": "4edeeb9d0f540f9749701b7f8e6f762493b39a834509adb4af2312a60f9c4752"
     },
     "arena-props.glb": {
-      "bytes": 303372,
-      "sha256": "7037ad5e36f398ff5d5a1b564113fe8085492208cfd8842c67dae164a5f3bf2f"
+      "bytes": 381840,
+      "sha256": "0d9bf9980dbe956a9a821cc005b62644553a6a477e16e1fb7be6e1006bc20ab7"
     },
     "robot-kit-low.glb": {
-      "bytes": 495220,
-      "sha256": "bbefe179d6e145a40c86244535e9f09cdaa850c140ac40252a856a2e7600cf8a"
+      "bytes": 560136,
+      "sha256": "d26541b688436404d26ca7d46a5230677a5baa7ddb09d1e901e0b43daf7b5632"
     },
     "arena-props-low.glb": {
-      "bytes": 194772,
-      "sha256": "1e5d271e854a0ed4c32b68e2af497747c644158b09c0c9b5d4762bf459f5c6c1"
+      "bytes": 240584,
+      "sha256": "ece20452dcd0cd8715b165329d2b0d24cc5e7a4554fd770f8959d5fd6cc17626"
     }
   }
 }
