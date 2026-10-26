@@ -167,16 +167,17 @@ describe('robotFootprint of the gripper car (N19 B5)', () => {
   const START = { xCm: 100, yCm: 100, yawDeg: 0 } as const;
   const gripperPart = () => robotFootprint(gripper).parts.find((part) => part.name === NAME)!;
 
-  /** The corners of every gripper collider, in the robot frame (cm), each moved `insetCm` towards its collider's centre. */
-  function gripperCorners(scene: GripperScene, insetCm: number): { x: number; y: number; z: number }[] {
+  /** The 8 corners of each gripper collider (one list per collider), in the robot frame (cm), each moved `insetCm` towards its centre. */
+  function gripperCorners(scene: GripperScene, insetCm: number): { x: number; y: number; z: number }[][] {
     const origin = scene.robot.chassis.translation();
     const unturn = conjugate(scene.robot.chassis.rotation());
     const toRobot = (p: Vec3) => {
       const local = rotateVector(unturn, { x: p.x - origin.x, y: p.y - origin.y, z: p.z - origin.z });
       return { x: local.x * 100, y: -local.z * 100, z: local.y * 100 };
     };
-    const corners: { x: number; y: number; z: number }[] = [];
+    const all: { x: number; y: number; z: number }[][] = [];
     for (const collider of scene.gripper.colliders) {
+      const corners: { x: number; y: number; z: number }[] = [];
       const half = collider.halfExtents()!;
       const centre = collider.translation();
       const turn = collider.rotation();
@@ -189,19 +190,26 @@ describe('robotFootprint of the gripper car (N19 B5)', () => {
           }
         }
       }
+      all.push(corners);
     }
-    return corners;
+    return all;
   }
 
-  /** Whether a point of the robot frame lies in a rectangle of the footprint (seen from above) whose bottom is at or under its height. */
-  function covered(point: { x: number; y: number; z: number }): boolean {
+  /**
+   * Whether one rectangle of the footprint (seen from above) holds all the points of the robot frame at once, its bottom at or under the
+   * lowest of them: a whole collider (a box, so its corners' hull) in one sample, not each corner in some sample of its own.
+   */
+  function coveredByOne(points: readonly { x: number; y: number; z: number }[]): boolean {
+    const lowest = Math.min(...points.map((point) => point.z));
     return gripperPart().shapes.some((shape) => {
-      if (shape.kind !== 'rect' || (shape.bottomCm ?? Infinity) > point.z) return false;
+      if (shape.kind !== 'rect' || (shape.bottomCm ?? Infinity) > lowest) return false;
       const c = Math.cos((shape.yawDeg * Math.PI) / 180);
       const s = Math.sin((shape.yawDeg * Math.PI) / 180);
-      const dx = point.x - shape.x;
-      const dy = point.y - shape.y;
-      return Math.abs(dx * c + dy * s) <= shape.hx && Math.abs(dy * c - dx * s) <= shape.hy;
+      return points.every((point) => {
+        const dx = point.x - shape.x;
+        const dy = point.y - shape.y;
+        return Math.abs(dx * c + dy * s) <= shape.hx && Math.abs(dy * c - dx * s) <= shape.hy;
+      });
     });
   }
 
@@ -216,7 +224,7 @@ describe('robotFootprint of the gripper car (N19 B5)', () => {
     const reach = (liftDeg: number, clawDeg: number) => {
       const scene = posed(liftDeg, clawDeg);
       try {
-        return Math.max(...gripperCorners(scene, 0).map(({ x, y }) => Math.hypot(x, y)));
+        return Math.max(...gripperCorners(scene, 0).flat().map(({ x, y }) => Math.hypot(x, y)));
       } finally {
         scene.dispose();
       }
@@ -238,25 +246,28 @@ describe('robotFootprint of the gripper car (N19 B5)', () => {
     expect(robotFootprint(gripper).outlineCm).toEqual(robotFootprint(kit).outlineCm);
   }, 60_000);
 
-  it('covers every gripper collider at angles between its samples, each corner above the bottom of a sample that holds it', () => {
+  it('covers every gripper collider at angles between its samples, each whole collider in one sample whose bottom is under it', () => {
     let checked = 0;
+    let corners = 0;
     const missed: string[] = [];
     for (const liftDeg of [0, 0.5, 9.5, 23.5, 39.5, 40.5, 55.5, 71.5, 89.5, 90]) {
       for (const clawDeg of [0, 13.25, 26.97, 51.5, 80]) {
         const scene = posed(liftDeg, clawDeg);
         try {
-          for (const corner of gripperCorners(scene, 0.005)) {
+          gripperCorners(scene, 0).forEach((box, i) => {
             checked += 1;
-            if (!covered(corner)) missed.push(`lift ${liftDeg} claw ${clawDeg}: ${corner.x.toFixed(3)}, ${corner.y.toFixed(3)}, ${corner.z.toFixed(3)}`);
-          }
+            corners += box.length;
+            if (!coveredByOne(box)) missed.push(`lift ${liftDeg} claw ${clawDeg}: collider ${i} at ${box[0]!.x.toFixed(3)}, ${box[0]!.y.toFixed(3)}, ${box[0]!.z.toFixed(3)}`);
+          });
         } finally {
           scene.dispose();
         }
       }
     }
     expect(missed).toEqual([]);
-    // 10 × 5 poses, 7 colliders (2 boom plates, the cross bar, the carriage, the claw servo's case, 2 fingers), 8 corners each.
-    expect(checked).toBe(10 * 5 * 7 * 8);
+    // 10 × 5 poses, 7 colliders (2 boom plates, the cross bar, the carriage, the claw servo's case, 2 fingers), all 8 corners of each, not
+    // moved in, in one sample (a rectangle holds the hull of the corners it holds: the whole box seen from above).
+    expect([checked, corners]).toEqual([10 * 5 * 7, 10 * 5 * 7 * 8]);
   }, 120_000);
 
   it('names the gripper in a start that overlaps where it can reach, by height: low things under the raised arm’s reach are clear', () => {
