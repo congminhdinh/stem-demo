@@ -123,6 +123,42 @@ describe('the gripper car’s goal frame (N19 B4)', () => {
     }
   }, 60_000);
 
+  it('pressing a held cube on the floor at lift stall keeps the grasp: it rests on the floor, held, and the car noses up (Review Focus 1)', async () => {
+    // ADR 0004 §4.2 scenario 6: gripped at lift 10° (the cube 0.4 cm under the carriage), told lift 0°: the cube meets the floor first, the
+    // servo's 0.18 N·m lifts the car's nose (3.85°) rather than press 3.6 N, and the external force peaks at 4.51 N, under the 9.71 N break.
+    const world = await createWorld({ arena: parseArena({ ground: { sizeCm: [200, 100], color: '#ffffff' }, objects: [box('cube', CUBE_X, [4, 4, 4], 15)] }), start: START, kit: gripperKit, seed: 1 });
+    try {
+      let mostPitchDeg = 0;
+      let finite = true;
+      const control = driver(world, () => {
+        const { x, y, z, w } = world.snapshot().robot.rotation;
+        mostPitchDeg = Math.max(mostPitchDeg, Math.abs(Math.asin(Math.max(-1, Math.min(1, 2 * (x * z - w * y)))) / DEG));
+        finite &&= [world.snapshot().robot.zCm, ...world.snapshot().objects.map((object) => object.pose.zCm)].every(Number.isFinite);
+      });
+      control.set({ liftDeg: 10, clawDeg: 0 });
+      control.step(seconds(0.35));
+      control.drive(forward(140));
+      for (let i = 0; i < seconds(4) && xOf(world.snapshot(), 'cube') - world.snapshot().robot.xCm - tipX(10) > 3.25; i++) control.step();
+      control.drive(BRAKE);
+      control.step(seconds(0.3));
+      control.set({ clawDeg: 80 });
+      control.step(seconds(0.6));
+      expect(world.snapshot().robot.gripper!.heldId).toBe('cube');
+      control.set({ liftDeg: 0 });
+      control.step(seconds(2.5));
+      const frame = world.goalFrame({ leds: {}, buzzerHz: null });
+      expect([frame.gripper!.heldId, frame.objects.cube!.held, frame.objects.cube!.restingOn]).toEqual(['cube', true, ['#ground']]);
+      expect(frame.objects.cube!.zCm!).toBeLessThan(2.1);
+      expect(finite).toBe(true);
+      // The nose lifts a few degrees and the lift still reaches 0° (measured 3.70° and 0.023°; the spike: 3.85° and 0.023°), never tips.
+      expect(mostPitchDeg).toBeGreaterThan(3);
+      expect(mostPitchDeg).toBeLessThan(4.5);
+      expect(frame.gripper!.liftDeg).toBeLessThan(0.1);
+    } finally {
+      world.dispose();
+    }
+  }, 60_000);
+
   it('a cube resting on the base lists the base in restingOn: carried at lift 55° over the 6 × 6 × 4 cm base and let go there', async () => {
     // ADR 0004 §4.2 scenario 8′: held at lift 55° the cube's bottom is at 4.49 cm, over the base's top at 4; let go, it drops 0.49 cm onto it.
     const baseX = CUBE_X + 20;
