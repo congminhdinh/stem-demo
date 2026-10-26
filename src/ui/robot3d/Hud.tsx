@@ -5,7 +5,7 @@ import { scenarioMaxScore, type Scenario } from '../../core/scenario/scenario';
 import type { ScoreState } from '../../core/world/snapshot';
 import { isMessageKey } from '../i18n/messages';
 import { useLocale, useText } from '../i18n/text';
-import { labStatus, shownRun, shownScore, type LabStatus, type RobotRunStore } from './robot-run-store';
+import { labStatus, shownRun, shownScore, shownTimeS, type LabStatus, type RobotRunStore } from './robot-run-store';
 import { formatNumber } from './format';
 
 // The robot lab's HUD (N18 R4.4), over the top left of the 3D view: what the run is doing, its simulated time against the scenario's
@@ -43,14 +43,12 @@ export function statusTone(status: LabStatus, allGoalsMet: boolean): StatusTone 
   }
 }
 
-/** The time shown, s, in whole tenths: the HUD renders only when it changes. */
-const tenths = (t: number) => Math.floor(t * 10 + 1e-9) / 10;
-
 export function Hud({ store, scenario }: HudProps) {
   const t = useText();
   const locale = useLocale();
   const status = useStore(store, (state) => labStatus(state));
-  const time = useStore(store, (state) => tenths(shownRun(state)?.world?.t ?? 0));
+  // In whole tenths: the HUD renders only when it changes (shownTimeS says how an ended run reads).
+  const time = useStore(store, shownTimeS);
   const slower = useStore(store, (state) => state.snapshot.status !== 'idle' && state.snapshot.slowerThanRealtime);
   const outOfArena = useStore(store, (state) => shownRun(state)?.world?.outOfArena === true);
   // The score as text: a new snapshot with the same score renders nothing.

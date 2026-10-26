@@ -192,6 +192,20 @@ export const shownScore = (state: RobotLabState): ScoreState | null => {
 };
 
 /**
+ * The time the HUD shows, s (N18 bt-lab-fix, c5): while a run goes on, its clock in whole tenths that never run ahead of it (the HUD renders
+ * only when the tenth changes); once the scenario ended it, the end time as the check's card words it, to the nearest tenth ("lúc 6,6 s"),
+ * so that a crash at 6.5583 s reads 6,6 on both and not 6,5 on the HUD. A replay ends on the very time the check recorded (determinism), so
+ * the two are the same number.
+ */
+export const shownTimeS = (state: RobotLabState): number => {
+  const run = shownRun(state);
+  if (run?.end !== undefined) {
+    return Math.round(run.end.atS * 10) / 10;
+  }
+  return Math.floor((run?.world?.t ?? 0) * 10 + 1e-9) / 10;
+};
+
+/**
  * N18 R6.3: the lab is busy: a check holds it, a start builds its world, or a run is going on (one that is over, a time limit, a crash or an
  * error, is not). A host's load-project waits while it is.
  */

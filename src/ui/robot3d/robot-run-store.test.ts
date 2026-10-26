@@ -14,8 +14,9 @@ import { hashSnapshot, type RobotSnapshot, type ScoreState } from '../../core/wo
 import { robotSolutions } from '../../samples/robot-solutions';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { robotStarterDocument } from '../../samples/robot-templates';
-import { createRobotRunStore, isRunOver, labBusy, labStatus, ROBOT_SPEEDS, selectHostRun, selectRunActive, shownRun, shownScore, type CheckRunView } from './robot-run-store';
+import { createRobotRunStore, isRunOver, labBusy, labStatus, ROBOT_SPEEDS, selectHostRun, selectRunActive, shownRun, shownScore, shownTimeS, type CheckRunView } from './robot-run-store';
 import { fakeSession as fakeRobotSession, idleRun } from './__fixtures__/fake-session';
+import { formatNumber } from './format';
 import { sameView } from './scene-math';
 
 // N18 R4.2/R4.4: the robot lab's run, as the UI drives it. The session (R3.6) runs the world; this store drives it from
@@ -716,6 +717,33 @@ describe('a run that ends by itself is a stopped run for the host (N18 bt-lab-fi
   });
 });
 
+describe('the time the HUD shows (N18 bt-lab-fix, c5)', () => {
+  it('counts a run in whole tenths that never run ahead, and gives an ended run its end time, as the check’s card words it', async () => {
+    const { store, publish, world, frames } = setup();
+    expect(shownTimeS(store.getState())).toBe(0);
+    await store.getState().run(project);
+    publish({ world: world(6.5583) });
+    frames.frame(16);
+    expect(shownTimeS(store.getState())).toBe(6.5);
+    // The crash at 6.5583 s: the card says "lúc 6,6 s" (the nearest tenth), so the HUD of that run reads 6,6 too, not 6,5.
+    publish({ status: 'finished', world: world(6.5583), end: { reason: 'contact', atS: 6.5583, tag: 'wall' } });
+    frames.frame(32);
+    expect(shownTimeS(store.getState())).toBe(6.6);
+    expect(formatNumber(shownTimeS(store.getState()), 'vi', 1)).toBe(formatNumber(6.5583, 'vi', 1));
+    // Where the limit ends a run, it is the limit's whole second as before; what a stopped run left is read the same way.
+    publish({ status: 'finished', world: world(15), end: { reason: 'time-limit', atS: 15 } });
+    frames.frame(48);
+    expect(shownTimeS(store.getState())).toBe(15);
+    store.getState().stop();
+    expect(shownTimeS(store.getState())).toBe(15);
+    // A program that finished within its time is still a clock that counts (the scenario goes on): tenths, not the nearest one.
+    await store.getState().run(project);
+    publish({ status: 'finished', world: world(2.96) });
+    frames.frame(64);
+    expect(shownTimeS(store.getState())).toBe(2.9);
+  });
+});
+
 describe('the score the HUD shows (N18 R6.3)', () => {
   it('is the run’s live score, and the check’s score of a round once that round’s run is over (0 for a round that ended in an error)', async () => {
     const { store, publish, world, frames } = setup();
@@ -737,6 +765,7 @@ describe('the score the HUD shows (N18 R6.3)', () => {
 });
 
 describe('a replay on the real session (N18 R6.3)', () => {
+
   // Determinism (robot plan §5): the same project, scenario, seed and engine give the same run, so a replay is a run of the round again,
   // not a recording; it must end in the very world the check ended that round in.
   it('replays each round of a check at 1× to the world the check ended it in: the same final hash', async () => {
@@ -766,6 +795,37 @@ describe('a replay on the real session (N18 R6.3)', () => {
       expect(hashSnapshot(replayed)).toBe(hashSnapshot(progress.snapshot.world!));
       expect(session.getSnapshot().end).toEqual(progress.end ?? undefined);
     }
+    disconnect();
+  }, 60_000);
+
+  it('ends on the time the check recorded for the round, and the HUD reads it as the check’s card does', async () => {
+    const stopAtWall = scenarioCatalog.get('rb-stop-at-wall')!;
+    const exploit = robotSolutions['rb-stop-at-wall'].exploits!.find((candidate) => candidate.name === 'crash-and-back-off')!;
+    const crasher: ProjectDocument = { ...robotStarterDocument('rb-stop-at-wall'), program: { blocks: exploit.program } };
+    const registry = createDeviceRegistry(localDeviceDefinitions);
+    const ended: Extract<CheckProgress, { kind: 'variant-ended' }>[] = [];
+    await checkRobot(crasher, stopAtWall, { mode: 'headless', kit, board: unoR3Board, registry, onProgress: (progress) => progress.kind === 'variant-ended' && ended.push(progress) }).result;
+    const session = createRobotRunSession({ scenario: stopAtWall, kit, board: unoR3Board, registry, scorer: scenarioScorer });
+    const frames = fakeFrames();
+    const store = createRobotRunStore(session, { requestFrame: frames.requestFrame, cancelFrame: frames.cancelFrame });
+    const disconnect = store.getState().connect();
+    const read: string[] = [];
+    for (const progress of ended) {
+      await store.getState().replay(crasher, { index: progress.index, count: 3, score: null });
+      let now = 0;
+      while (!isRunOver(session.getSnapshot())) {
+        frames.frame((now += 1000 / 60));
+        await flush();
+      }
+      // The frame that hands React the end.
+      frames.frame(now + 1000 / 60);
+      const recorded = progress.end!.atS;
+      expect(session.getSnapshot().end?.atS).toBe(recorded);
+      expect(formatNumber(shownTimeS(store.getState()), 'vi', 1)).toBe(formatNumber(recorded, 'vi', 1));
+      expect(formatNumber(shownTimeS(store.getState()), 'en', 1)).toBe(formatNumber(recorded, 'en', 1));
+      read.push(formatNumber(recorded, 'vi', 1));
+    }
+    expect(read).toHaveLength(3);
     disconnect();
   }, 60_000);
 });

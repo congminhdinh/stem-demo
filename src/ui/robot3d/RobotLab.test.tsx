@@ -376,6 +376,19 @@ describe('RobotLab runs (N18 R4.4)', () => {
     expect(onRunChange.mock.calls).toEqual([[true], [false], [true], [false]]);
   });
 
+  it('reads the end time of a crash as the check’s card words it: 6,6 s for a crash at 6.5583 s, not the 6,5 s of the clock that was counting (bt-lab-fix, c5)', async () => {
+    const { render, publish, world } = setup();
+    await render();
+    await click('robot-run');
+    publish({ world: world(6.5583, 60) });
+    await frame();
+    expect(text('robot-time')).toBe('Thời gian 6,5 / 15 s');
+    publish({ status: 'finished', world: world(6.5583, 60, { status: 'finished' }), end: { reason: 'contact', atS: 6.5583, tag: 'wall' } });
+    await frame();
+    expect(text('robot-time')).toBe('Thời gian 6,6 / 15 s');
+    expect(text('robot-status')).toBe('Hết lượt: robot đã va chạm');
+  });
+
   it('says why a run did not start, and puts the diagnostics that name a block on that block, in Vietnamese', async () => {
     const { render, willStart, lastView } = setup();
     willStart(
