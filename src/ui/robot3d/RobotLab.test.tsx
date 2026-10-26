@@ -594,8 +594,8 @@ describe('RobotLab checks (N18 R6.3)', () => {
     expect(host.querySelector('[data-testid=robot-check]')).toBeNull();
   });
 
-  it('checks at Nhanh unless the viewer chose another speed, which the next lab opens with (N18 final fix I1, localStorage)', async () => {
-    localStorage.removeItem(CHECK_SPEED_KEY);
+  it('checks at Nhanh unless the learner chose another speed in this tab, which the next lab opens with (N18 final fix I1, sessionStorage)', async () => {
+    sessionStorage.removeItem(CHECK_SPEED_KEY);
     try {
       const lab = checkSetup('rb-drive-to-zone');
       await lab.render({ checkSpeeds: undefined });
@@ -610,13 +610,13 @@ describe('RobotLab checks (N18 R6.3)', () => {
       expect(lab.checks.last().mode).toBe('headless');
       await act(async () => lab.checks.last().check.settle(null));
       await act(async () => host.querySelector<HTMLButtonElement>('[data-testid=robot-check-speed] [data-speed="4x"]')!.click());
-      expect(localStorage.getItem(CHECK_SPEED_KEY)).toBe('4x');
+      expect(sessionStorage.getItem(CHECK_SPEED_KEY)).toBe('4x');
       act(() => root.unmount());
       root = createRoot(host);
       await checkSetup('rb-drive-to-zone').render({ checkSpeeds: undefined });
       expect(speeds()[1]).toEqual(['4×', 'true']);
     } finally {
-      localStorage.removeItem(CHECK_SPEED_KEY);
+      sessionStorage.removeItem(CHECK_SPEED_KEY);
     }
   });
 

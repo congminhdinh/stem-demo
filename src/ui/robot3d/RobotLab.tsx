@@ -108,7 +108,7 @@ export type RobotLabProps = {
   scorer?: RobotScorerFactory;
   /** Tests: the check of a project (R6.2's checkRobot on the scenario, its kit and the lab's catalogs by default). */
   createCheck?: CreateCheck;
-  /** Tests: where the learner's check speed is kept (N18 final fix I1: the viewer's localStorage by default, check-speed-memory.ts). */
+  /** Tests: where the learner's check speed is kept (N18 final fix I1: the tab's sessionStorage by default, check-speed-memory.ts). */
   checkSpeeds?: CheckSpeedMemory;
   /** Tests: the session of the scenario (the real one by default). */
   createSession?(options: { scenario: Scenario; kit: Kit; board: BoardProfile }): RobotRunSession;

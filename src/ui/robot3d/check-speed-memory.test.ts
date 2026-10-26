@@ -2,7 +2,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { CHECK_SPEED_KEY, checkSpeedMemory, type PreferenceStorage } from './check-speed-memory';
 
-// N18 final fix I1: the learner's check speed is kept for the viewer in localStorage. Nothing kept, a value that is no speed, or a storage
+// N18 final fix I1: the learner's check speed is kept for the tab in sessionStorage (final review 2, N1: not past the tab, so the next student
+// at a shared PC starts at Nhanh). Nothing kept, a value that is no speed, or a storage
 // that refuses (it throws, or there is none) all read as Nhanh; a refused write is no error.
 
 /** A storage of `kept`; it throws on read or write when told to. */
@@ -21,7 +22,10 @@ function storage(kept: Record<string, string> = {}, refuses: { read?: boolean; w
   return { fake, items };
 }
 
-afterEach(() => localStorage.removeItem(CHECK_SPEED_KEY));
+afterEach(() => {
+  sessionStorage.removeItem(CHECK_SPEED_KEY);
+  localStorage.removeItem(CHECK_SPEED_KEY);
+});
 
 describe('the check speed the viewer chose (N18 final fix I1)', () => {
   it('reads Nhanh when nothing is kept, and each speed that is', () => {
@@ -54,10 +58,15 @@ describe('the check speed the viewer chose (N18 final fix I1)', () => {
     expect(() => none.write('4x')).not.toThrow();
   });
 
-  it('uses the viewer’s localStorage by default', () => {
+  it('uses the tab’s sessionStorage by default, never localStorage: what one student chose does not outlast the tab', () => {
     expect(checkSpeedMemory().read()).toBe('fast');
     checkSpeedMemory().write('1x');
-    expect(localStorage.getItem(CHECK_SPEED_KEY)).toBe('1x');
+    expect(sessionStorage.getItem(CHECK_SPEED_KEY)).toBe('1x');
+    expect(localStorage.getItem(CHECK_SPEED_KEY)).toBeNull();
     expect(checkSpeedMemory().read()).toBe('1x');
+    // A choice an earlier build left in localStorage is not read.
+    sessionStorage.removeItem(CHECK_SPEED_KEY);
+    localStorage.setItem(CHECK_SPEED_KEY, '1x');
+    expect(checkSpeedMemory().read()).toBe('fast');
   });
 });

@@ -16,7 +16,7 @@ import type { CheckLeft, RobotRunStore, ShownRound } from './robot-run-store';
 //     lab is held (`setLocked`: the blocks, the run's controls, the robot's button; R4.8's teleop and tools take the same lock), then the
 //     check of that document starts.
 //   - Speeds: Nhanh by default (N18 final fix I1: a check at 1× of lesson 4 takes six minutes), or the speed the learner chose last
-//     (`memory`, the viewer's localStorage: check-speed-memory.ts). 1× and 4× show the check's run in the lab's view (the run store's
+//     (`memory`, the tab's sessionStorage: check-speed-memory.ts). 1× and 4× show the check's run in the lab's view (the run store's
 //     `attach`): every animation frame drives it, so a hidden tab (no frames) pauses it and the result is the same (Review Focus 2). The run is attached once it has a world (its first round started),
 //     so a check that cannot start (the program does not compile) shows no run and the host hears none, as a Run that cannot start. "Nhanh" is headless: checkRobot drives itself, the view stays as it
 //     was under a progress view, and the host hears no run (lab-embed-contract §2: run-started / run-stopped only when the lab shows the run).
@@ -49,7 +49,7 @@ export type CheckSpeed = (typeof CHECK_SPEEDS)[number];
  */
 export const DEFAULT_CHECK_SPEED: CheckSpeed = 'fast';
 
-/** Where the learner's choice of speed is kept for the next lab (check-speed-memory.ts: the viewer's localStorage). */
+/** Where the learner's choice of speed is kept for the next lab (check-speed-memory.ts: the tab's sessionStorage). */
 export type CheckSpeedMemory = {
   /** The speed chosen last, or DEFAULT_CHECK_SPEED when none is kept. */
   read(): CheckSpeed;
