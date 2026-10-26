@@ -144,15 +144,15 @@ function recording(
 }
 
 /**
- * Runs `program` for `durationUs` of program time (or until it ends) with the scripted `inputs`, and returns its trace. Events after
- * `durationUs` are left out.
- */
-/**
  * A drift put into the simulator only, for the tests that show the harness catches one: `inToneUs` more charged inside the `nth` tone()
  * call (every one when 0), `afterToneUs` more right after it.
  */
 export type SimInjection = { readonly nth?: number; readonly inToneUs?: number; readonly afterToneUs?: number };
 
+/**
+ * Runs `program` for `durationUs` of program time (or until it ends) with the scripted `inputs`, and returns its trace. Events after
+ * `durationUs` are left out.
+ */
 export async function runSimulator(program: SimProgram, inputs: ParityInputs, durationUs: number, inject: SimInjection = {}): Promise<SimRun> {
   const { ir, kit, board, uses } = program;
   const controller = new AbortController();

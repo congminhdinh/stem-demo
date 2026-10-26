@@ -1,6 +1,6 @@
 import { assertTickS } from './tick';
 
-// A condition that has to hold for a while (N18 R6.1): `stop-in-zone` (holdS) and `servo-angle` in a zone (half a second).
+// A condition that has to hold for a while (N18 R6.1): `stop-in-zone` (holdS) and `servo-angle` (half a second, with or without a zone).
 //
 // A frame is the state of the world at an instant, so the hold starts at the first frame the condition holds (0 s held) and each
 // later frame in a row adds the tick that led to it. A stop of 1 s is therefore 1 s between two frames, both of which have the

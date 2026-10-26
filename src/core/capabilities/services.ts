@@ -13,7 +13,9 @@ export type Clock = { now(): number };
 /**
  * N18 R2.1: the clock of a robot program, which runs on virtual time. Every Arduino call the program makes is charged its cost in
  * µs (the board profile's `costsUs`), so time moves as the board's would. R2.3 builds it: `createVirtualScheduler().programClock`
- * (run/virtual-clock.ts), which also charges every IR node and every loop() iteration.
+ * (run/virtual-clock.ts), which also charges every IR node and every loop() iteration. Only the running program is charged:
+ * `charge` throws while the program is blocked (waiting in a sleep or a park, or idle: a charge from a timer task is a bug), and for a
+ * charge that is not a finite number of µs, 0 or more.
  */
 export type ProgramClock = Clock & { charge(us: number): void };
 
