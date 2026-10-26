@@ -2,12 +2,13 @@
   "generator": "scripts/build-robot-assets.mjs",
   "blender": "Blender 5.2.3 LTS",
   "sources": {
-    "build.py": "02873fe69493503005aa80cde62aff0c963d3e7d1b9697395d719cf046630a63",
+    "build.py": "7231e67cbc6b72ec30a8caa0c216740e0fe3987850f7952997be5e2b02b2036e",
+    "build_n19.py": "5978fd0d3057481554319da233bf910b0e77c683e9b1dd02cfa9ed9ac6057bf8",
     "lib.py": "277423e303bf1a6cf142f1d4fcfe3698c41af3d6b99f3f702e085c84ad4ed2bf",
     "parts/board.py": "e43cf678a4bdcfd15601f01cddb0a3ca6e2d56d1e33f7e5528906ddfc2bf5005",
     "parts/caster.py": "d203ce34b44750f9056fbd591728905b444448449f111d9039bf477a2d4e243c",
     "parts/chassis.py": "22df52eca2ee19938fdff0d8992754b2472abaca02838a4cce2e4458f8ff6979",
-    "parts/gripper.py": "4bc25dcfdb830b7669dac3602d9e9ec92482c1ad77753fe79388d0a8219fdfa8",
+    "parts/gripper.py": "e401884e2525df941fd355f6b2c93b0ee89b889d371caa953b98c4740467acaf",
     "parts/line_bar.py": "c0dfa9ffb977397ad3552edd2f05258bd229c1e0eab3c64d8b7e65d4045d0307",
     "parts/modules.py": "f1120fea97029502d3ba047e2325e080f33f0ca4ab3b66d6e588a3e7e6a8d068",
     "parts/servo.py": "786477d07280c241e1c73aeab7bae47dd580a548a7591e48b1719382ee0fc976",
@@ -24,7 +25,7 @@
     "props/fence.py": "e549faae508912d02d9e60f809362942565397170cbede88511fbbf48fb20e78",
     "props/garage.py": "2eacd325a94eb4a4dbea4f376cdeed63eac90f9e414ddd697ac278b2c1a92e70",
     "props/marker.py": "f8cd67f746f1f65c56ba4699158f8ebb21376c82743ee87eec1e5b3ba6a7b746",
-    "props/pick_place.py": "807790d1f03c294eae784e70fbeeef6ab5570be0daf81be1def7b519c3b96a10",
+    "props/pick_place.py": "506cf8a5694ec0e2deaccb77ab9c870a2fb2e7833f9a8826a26e611cfee1cb4a",
     "props/post.py": "c4ff745cd6a6a8d79e807f051c0fb2f31f0cd60859f185315b64f436d2cf4e4a",
     "props/studio.py": "9415105f22330cf91b9114686ba98815a83adea2eabdd10224460c2d2c20a49d",
     "props/table.py": "5332c4cf9fe293690199ee96911412176012b94a5de068734523704182eafcef",
@@ -36,11 +37,12 @@
     "kit:ref-uno-rover.kit.json": "fadd277314f2da6eff0577cd582145748938d474506ec240645d6f7cdeee969f"
   },
   "kits": {
-    "ref-uno-gripper.kit.json": "89d02cff935b30155dde9ad5ba5a79b486792f018b966fef4fbbcd88d52cebec"
+    "ref-uno-gripper.kit.json": "6cef102bcd05aab60e3e0cf5ba00442c553689fff80ae7eb44708c820a29b534"
   },
   "frozen": {
     "note": "The N18 roots of each GLB, kept byte for byte (scripts/lib/glb-splice.ts): their layout, the SHA-256 of that part alone, and the scripts it was built from.",
     "sources": {
+      "build.py": "99def86db23f9ad93459e551719e4d277b71154d1b273f7393b653915d6dd461",
       "lib.py": "277423e303bf1a6cf142f1d4fcfe3698c41af3d6b99f3f702e085c84ad4ed2bf",
       "parts/board.py": "e43cf678a4bdcfd15601f01cddb0a3ca6e2d56d1e33f7e5528906ddfc2bf5005",
       "parts/caster.py": "d203ce34b44750f9056fbd591728905b444448449f111d9039bf477a2d4e243c",
@@ -195,20 +197,20 @@
   },
   "assets": {
     "robot-kit.glb": {
-      "bytes": 926724,
-      "sha256": "4edeeb9d0f540f9749701b7f8e6f762493b39a834509adb4af2312a60f9c4752"
+      "bytes": 928072,
+      "sha256": "add132a891cc30e64d8dfd45742e9f4914058bbf9d248b80dc3fd370a2021598"
     },
     "arena-props.glb": {
-      "bytes": 381840,
-      "sha256": "0d9bf9980dbe956a9a821cc005b62644553a6a477e16e1fb7be6e1006bc20ab7"
+      "bytes": 376440,
+      "sha256": "0e7c9ba094df1f69d57e71e8594987cf2df0d06bbe3ab1eaba8163697e830b9c"
     },
     "robot-kit-low.glb": {
-      "bytes": 560136,
-      "sha256": "d26541b688436404d26ca7d46a5230677a5baa7ddb09d1e901e0b43daf7b5632"
+      "bytes": 560668,
+      "sha256": "143f318b0817074951ff0074f3436e2179250ee39bfedf203b67064fc03a47e5"
     },
     "arena-props-low.glb": {
-      "bytes": 240584,
-      "sha256": "ece20452dcd0cd8715b165329d2b0d24cc5e7a4554fd770f8959d5fd6cc17626"
+      "bytes": 242472,
+      "sha256": "4ef8a3caedbffb063b63358217946bafc97b733e6ab28e96b27115c1bf49f4e2"
     }
   }
 }

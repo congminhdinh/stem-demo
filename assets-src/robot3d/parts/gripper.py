@@ -12,8 +12,10 @@
 #                         horn and the shaft to the left arm.
 #   part_gripper_carriage the claw's carriage at the boom's tip (origin: the tip; always level): two black anodised plates round the
 #                         physics' carriage box (u ±0.5, v ±2.6, w ±0.6 cm, ADR 0004 §2), the claw servo upside down on the top plate
-#                         (its spline down into the gear train between the plates), the hinge pins, and the ears and the cross tube
-#                         where the lower links pivot.
+#                         (its spline down into the gear train between the plates; its case is the kit's `clawServoCenter*` /
+#                         `clawServoSize*` box, the one B5 makes a collider of: fix round 1, review I4), the hinge pins, and the ears and
+#                         the cross tube where the lower links pivot (inside the boom's arms: nothing is drawn past the bar's ±6.8 cm
+#                         but the pivot screws' heads, review M2).
 #   part_gripper_jaw_l/_r a finger (origin: its hinge at (fingerHingeUCm, ±fingerHingeVCm); the finger straight ahead along +x): an
 #                         aluminium plate fingerLengthCm long, fingerThicknessCm thick and jawHeightCm high with its inner half a
 #                         ribbed rubber pad, exactly the physics' finger box. The view turns each by β = fingerOpenDeg − 0.445·θ.
@@ -25,7 +27,7 @@
 #   part_ultrasonic_riser two brass standoffs under the ultrasonic's bracket foot: the gripper kit mounts the ranger `extras.height` m
 #                         higher than the reference kit the ultrasonic part is modelled to (`extras.drop`: from the mount to the foot).
 #
-# One material for all of it (fix of nothing yet: the draw budget, N19 plan §3): `gripper_atlas`, a 256² base-colour atlas of flat
+# One material for all of it, for the draw budget (N19 plan §3): `gripper_atlas`, a 256² base-colour atlas of flat
 # swatches and two circuit-board patterns, a metallic-roughness atlas of the same layout (aluminium and steel metal, plastics and rubber
 # not), and a glow mask (the LED). Each part's surfaces take their swatch by their uvs, so a moving part is one draw. Original work: no
 # vendor's logo or text, no imported mesh.
@@ -76,8 +78,11 @@ REGION = {'pcb_black': (0, 128, 128, 64), 'pcb_purple': (128, 128, 128, 64)}
 CARRIAGE_HALF = {'u': 0.5, 'v': 2.6, 'w': 0.6}
 BOOM_PLATE_HALF = {'across': 0.2, 'up': 0.5}
 BOOM_BAR_HALF = 0.3
-# The parallelogram's lower link: its pivots this far under the boom's, on the chassis and on the carriage (drawing only, cm).
+# The parallelogram's lower link: its pivots this far under the boom's, on the chassis and on the carriage (drawing only, cm); the link
+# bars' and the carriage's ears' thickness, cm.
 LINK_DROP = 1.0
+LINK_T = 0.16
+EAR_T = 0.16
 # MG90S (cm): the case, the spline's offset from the case's middle along its length, the tabs.
 MG90S = {'case': (2.28, 1.22, 2.27), 'shaft': 0.59, 'tabs': (3.25, 0.25), 'tabs_below_top': 0.2}
 
@@ -166,8 +171,22 @@ def _uv_layer(obj):
     return me.uv_layers.get('UVMap') or me.uv_layers.new(name='UVMap')
 
 
+def _crisp(obj):
+    """A flat-shaded mesh (a box, a prism) shaded smooth with its edges over 30° kept sharp, as lib.smooth_by_angle does (fix round 1,
+    review I2): lib.join smooths every face, which rounds a box's 90° edges into a pillow and folds the metal's reflection across it. A
+    mesh already smoothed (a cylinder, a bar) keeps its own angle."""
+    me = obj.data
+    if any(poly.use_smooth for poly in me.polygons):
+        return obj
+    for poly in me.polygons:
+        poly.use_smooth = True
+    me.set_sharp_from_angle(angle=math.radians(30))
+    return obj
+
+
 def paint(obj, name, lib=None):
-    """Every corner of `obj` on the swatch `name`."""
+    """Every corner of `obj` on the swatch `name` (and its edges crisp, `_crisp`)."""
+    _crisp(obj)
     uv = _uv_layer(obj)
     u, v = _cell_uv(name)
     for loop in uv.data:
@@ -177,6 +196,7 @@ def paint(obj, name, lib=None):
 
 def paint_board(obj, region, size, axis, edge):
     """A circuit board box: its face looking along +`axis` shows the region's pattern across its `size` (cm), every other face `edge`."""
+    _crisp(obj)
     me = obj.data
     uv = _uv_layer(obj)
     x, y, w, h = REGION[region]
@@ -201,14 +221,14 @@ def _gk(kit):
     return kit['gripper']
 
 
-def _servo(lib, mat, col, parent, prefix, frame_at, frame_rot, spline_parts=True, label_side=1):
+def _servo(lib, mat, col, parent, prefix, frame_at, frame_rot, spline_parts=True, label_side=1, case=None):
     """An MG90S in a frame of its own (spline up along +z at the origin, the case below it, its length along x, the spline at its +x end,
-    the label's recess on the ±y side `label_side`), put at `frame_at` (cm) turned by `frame_rot` (Euler, rad) under `parent`. Returns
-    the frame (to remove once joined) and its meshes (to join)."""
+    the label's recess on the ±y side `label_side`), put at `frame_at` (cm) turned by `frame_rot` (Euler, rad) under `parent`; its case
+    `case` (length, width, height, cm), MG90S's by default. Returns the frame (to remove once joined) and its meshes (to join)."""
     frame = lib.empty(prefix + '_frame', parent=parent, at=frame_at, col=col)
     frame.rotation_euler = frame_rot
     cx = -MG90S['shaft']
-    L, W, H = MG90S['case']
+    L, W, H = case or MG90S['case']
     tab_len, tab_t = MG90S['tabs']
     out = []
     case = lib.box(prefix + '_case', (L, W, H), at=(cx, 0, -H / 2), material=mat, bevel=0.06, segments=1, col=col, parent=frame)
@@ -258,6 +278,14 @@ def _bar_xz(lib, mat, col, parent, name, length, radius, thickness, y, swatch, h
     return paint(bar, swatch)
 
 
+def _link_y(g, kit):
+    """The lower link bars' middle across the car (cm, either side): between the side bracket's upright (outside the body) and the
+    boom's arm, so that nothing of the arm is drawn past the arms' outer faces (review M2)."""
+    upright_out = kit['body']['W'] / 2 + 0.22
+    arm_in = g['spec']['boomHalfSpanCm'] - BOOM_PLATE_HALF['across']
+    return (upright_out + arm_in) / 2
+
+
 def build_bracket(lib, tex, kit, col):
     g = _gk(kit)
     mat = atlas_material(lib, tex)
@@ -277,9 +305,9 @@ def build_bracket(lib, tex, kit, col):
         statics.append(paint(tab, 'alu'))
         for sx in (4.2, 5.4):
             statics.append(paint(lib.cylinder('bracket_screw', 0.2, 0.08, at=(sx - mx, side * 4.8, deck - mz + 0.16), material=mat, segments=8, col=col, parent=root), 'steel'))
-        for z in (0.0, -LINK_DROP):
-            boss = lib.cylinder('bracket_boss', 0.32, 0.14, at=(0, side * (plate_in + plate_t + 0.07), z), axis='Y', material=mat, segments=lib.seg(14), col=col, parent=root)
-            statics.append(paint(boss, 'alu'))
+        # The boom's pivot boss; the lower link pivots on its pin between the upright and the arm (review M2: inside the arms).
+        boss = lib.cylinder('bracket_boss', 0.32, 0.14, at=(0, side * (plate_in + plate_t + 0.07), 0), axis='Y', material=mat, segments=lib.seg(14), col=col, parent=root)
+        statics.append(paint(boss, 'alu'))
     # The lift servo between the plates: its spline on the pivot's axis, pointing at the left arm (+y), its case towards the middle,
     # its length along the robot (spline forward), held by its tabs on an aluminium plate under the top deck.
     spline_y = half_w - 0.75
@@ -305,12 +333,9 @@ def build_bracket(lib, tex, kit, col):
     link = lib.empty('gripper_link', parent=root, at=(0, 0, -LINK_DROP), col=col)
     link['drop'] = lib.cm(LINK_DROP)
     L = g['spec']['boomLengthCm']
-    span = g['spec']['boomHalfSpanCm'] + BOOM_PLATE_HALF['across']
     parts = []
     for side in (-1, 1):
-        y = side * (span + 0.15)
-        parts.append(_bar_xz(lib, mat, col, link, 'link_bar', L, 0.28, 0.18, y, 'alu'))
-        parts.append(paint(lib.cylinder('link_pin', 0.13, 0.08, at=(0, side * (span + 0.28), 0), axis='Y', material=mat, segments=8, col=col, parent=link), 'steel'))
+        parts.append(_bar_xz(lib, mat, col, link, 'link_bar', L, 0.28, LINK_T, side * _link_y(g, kit), 'alu'))
     lib.join(parts, 'gripper_link_bars')
     return root
 
@@ -329,11 +354,9 @@ def build_boom(lib, tex, kit, col):
     # The two arms: the physics' plates (L long, 2·up high, 2·across thick at y = ±half_span), rounded at both ends, two lightening holes.
     for side in (-1, 1):
         parts.append(_bar_xz(lib, mat, col, root, 'boom_arm', L, up, 2 * across, side * half_span, 'alu', holes=((L * 0.36, 0.22), (L * 0.64, 0.22))))
-    # The cross bar at the tip, round in the square the physics has, out through the carriage's ears, a cap at each end.
-    bar_end = half_span + across + 0.5
+    # The cross bar at the tip, round in the square the physics has (its ±boomHalfSpanCm + across: the arms' outer faces, review M2).
+    bar_end = half_span + across
     parts.append(paint(lib.cylinder('boom_bar', BOOM_BAR_HALF, 2 * bar_end, at=(L, 0, 0), axis='Y', material=mat, segments=lib.seg(14), col=col, parent=root), 'steel'))
-    for side in (-1, 1):
-        parts.append(paint(lib.cylinder('boom_bar_cap', 0.36, 0.12, at=(L, side * (bar_end + 0.06), 0), axis='Y', material=mat, segments=lib.seg(12), col=col, parent=root), 'steel'))
     # The pivot: on the left the servo's horn on its spline and the shaft out through the bracket into the arm; on the right a shoulder
     # bolt. Both turn with the arm.
     spline_y = half_w - 0.75
@@ -343,7 +366,8 @@ def build_boom(lib, tex, kit, col):
     parts.append(paint(horn, 'abs_white'))
     parts.append(paint(lib.cylinder('boom_shaft', 0.14, half_span + across - spline_y + 0.1, at=(0, (spline_y + half_span + across + 0.1) / 2, 0), axis='Y', material=mat, segments=8, col=col, parent=root), 'steel'))
     for side in (-1, 1):
-        parts.append(paint(lib.cylinder('boom_pivot_cap', 0.25, 0.1, at=(0, side * (half_span + across + 0.05), 0), axis='Y', material=mat, segments=lib.seg(12), col=col, parent=root), 'steel'))
+        # A screw head 0.5 mm proud of the arm (the one thing past the physics' ±6.8 cm, plan §4.9).
+        parts.append(paint(lib.cylinder('boom_pivot_cap', 0.25, 0.05, at=(0, side * (half_span + across + 0.025), 0), axis='Y', material=mat, segments=lib.seg(12), col=col, parent=root), 'steel'))
     parts.append(paint(lib.cylinder('boom_bolt', 0.14, 1.0, at=(0, -(half_span - 0.3), 0), axis='Y', material=mat, segments=8, col=col, parent=root), 'steel'))
     lib.join(parts, 'gripper_boom')
     return root
@@ -385,17 +409,21 @@ def build_carriage(lib, tex, kit, col):
         for z in (hw + 0.04, -hw - 0.04):
             parts.append(paint(lib.cylinder('hinge_cap', 0.16, 0.08, at=(hinge_u, side * hinge_v, z), material=mat, segments=lib.seg(10), col=col, parent=root), 'steel'))
     # The parallelogram's lower pivot: an ear at each end of the bar, the cross tube through them and two struts up to the carriage.
-    span = spec['boomHalfSpanCm'] + BOOM_PLATE_HALF['across']
-    ear_y = span + 0.35
+    link_y = _link_y(g, kit)
+    ear_y = link_y - LINK_T / 2 - 0.01 - EAR_T / 2
     for side in (-1, 1):
-        ear = _bar_xz(lib, mat, col, root, 'carriage_ear', LINK_DROP, 0.34, 0.2, side * ear_y, 'alu')
+        ear = _bar_xz(lib, mat, col, root, 'carriage_ear', LINK_DROP, 0.34, EAR_T, side * ear_y, 'alu')
         ear.data.transform(__import__('mathutils').Matrix.Rotation(math.pi / 2, 4, 'Y'))
         parts.append(ear)
         parts.append(paint(lib.cylinder('carriage_strut', 0.12, 0.45, at=(-0.1, side * 1.5, -hw - 0.2), material=mat, segments=8, col=col, parent=root), 'alu'))
-    parts.append(paint(lib.cylinder('carriage_tube', 0.17, 2 * (ear_y + 0.1), at=(0, 0, -LINK_DROP), axis='Y', material=mat, segments=lib.seg(12), col=col, parent=root), 'alu'))
+    parts.append(paint(lib.cylinder('carriage_tube', 0.17, 2 * (link_y + LINK_T / 2), at=(0, 0, -LINK_DROP), axis='Y', material=mat, segments=lib.seg(12), col=col, parent=root), 'alu'))
     # The claw servo, upside down on the top plate: its tabs on the plate, its spline down into the gear train between the plates (hidden),
-    # its case up, the label's recess towards the back (the chase camera), its length across the carriage.
-    frame, servo = _servo(lib, mat, col, root, 'claw', (hu - MG90S['case'][1] / 2 - 0.02, -MG90S['shaft'], hw - MG90S['tabs_below_top']), (math.pi, 0, -math.pi / 2), spline_parts=False)
+    # its case up, the label's recess towards the back (the chase camera), its length across the carriage. Its case is the kit's box
+    # (`clawServoCenter*`, `clawServoSize*`, carriage frame): turned upside down and across, the servo frame's x is −v, its y −u, its z −w,
+    # so the case's middle (−shaft, 0, −height/2 in that frame) is the frame + (0, shaft, height/2).
+    cu, cv, cw = spec['clawServoCenterUCm'], spec['clawServoCenterVCm'], spec['clawServoCenterWCm']
+    su, sv, sw = spec['clawServoSizeUCm'], spec['clawServoSizeVCm'], spec['clawServoSizeWCm']
+    frame, servo = _servo(lib, mat, col, root, 'claw', (cu, cv - MG90S['shaft'], cw - sw / 2), (math.pi, 0, -math.pi / 2), spline_parts=False, case=(sv, su, sw))
     parts += servo
     lib.join(parts, 'gripper_carriage')
     bpy.data.objects.remove(frame)

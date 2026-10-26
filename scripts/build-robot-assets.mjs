@@ -30,6 +30,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { n18Text, N19_ONLY } from './lib/frozen-sources.ts';
 import { frozenBase, layoutOf, readGlb, spliceRoots, writeGlb } from './lib/glb-splice.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -64,11 +65,15 @@ function sourceHashes() {
 const kitHashes = () => ({ 'ref-uno-gripper.kit.json': sha256File(gripperKit) });
 
 /**
- * The scripts the N18 roots are built from: every source but build.py (its N18 path is as it was; it also runs the N19 builds) and the
- * N19 scripts, which only the N19 roots read.
+ * The scripts the N18 roots are built from and their hashes: every source but the N19 scripts (scripts/lib/frozen-sources.ts), build.py
+ * by its N18 text (the file without its marked N19 blocks), the reference kit as it is.
  */
-const N19_ONLY = new Set(['build.py', 'parts/gripper.py', 'props/pick_place.py', 'props/build_props_n19.py']);
-const frozenSourcesOf = (hashes) => Object.fromEntries(Object.entries(hashes).filter(([name]) => !N19_ONLY.has(name)));
+const frozenSourcesOf = (hashes) =>
+  Object.fromEntries(
+    Object.entries(hashes)
+      .filter(([name]) => !N19_ONLY.includes(name))
+      .map(([name, hash]) => [name, name === 'build.py' ? sha256(n18Text(name, readFileSync(join(sources, name), 'utf8'))) : hash]),
+  );
 
 function blender() {
   const candidates = [process.env.BLENDER, '/Applications/Blender.app/Contents/MacOS/Blender', 'blender'].filter(Boolean);

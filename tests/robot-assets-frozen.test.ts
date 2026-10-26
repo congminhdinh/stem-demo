@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { n18Text, N19_ONLY } from '../scripts/lib/frozen-sources';
 import { frozenBase, readGlb, rootNames, writeGlb, type FrozenLayout } from '../scripts/lib/glb-splice';
 
 // N19 E6/E7: each GLB of public/robot3d/ is its N18 roots byte for byte (the rover's parts, N18's props: the N18 build's own file), then
@@ -29,8 +30,6 @@ const N18 = {
   'robot-kit-low.glb': { sha256: 'bbefe179d6e145a40c86244535e9f09cdaa850c140ac40252a856a2e7600cf8a', bytes: 495220 },
   'arena-props-low.glb': { sha256: '1e5d271e854a0ed4c32b68e2af497747c644158b09c0c9b5d4762bf459f5c6c1', bytes: 194772 },
 } as const;
-/** The scripts only the N19 roots are built from (and build.py, which builds both and whose N18 path is unchanged). */
-const N19_ONLY = ['build.py', 'parts/gripper.py', 'props/build_props_n19.py', 'props/pick_place.py'];
 const GRIPPER_PARTS = ['part_gripper_boom', 'part_gripper_bracket', 'part_gripper_carriage', 'part_gripper_color', 'part_gripper_ir', 'part_gripper_jaw_l', 'part_gripper_jaw_r', 'part_ultrasonic_riser'];
 const N19_PROPS = ['prop_base', 'prop_cube', 'prop_kho_shelf', 'prop_parcel'];
 /** Plan §3 and the E6/E7 brief: what the N19 roots may add to each file, bytes. */
@@ -54,7 +53,10 @@ describe('the robot lab’s 3D assets keep their N18 roots byte for byte (N19 E6
 
   it('were built (the N18 part) from the scripts and the reference kit as they are now; every script is the N18 roots’ or the N19 roots’', () => {
     const now = Object.fromEntries(
-      Object.keys(manifest.frozen.sources).map((name) => [name, sha256(readFileSync(name.startsWith('kit:') ? join(root, 'src', 'core', 'hardware', 'kits', name.slice(4)) : join(sources, name)))]),
+      Object.keys(manifest.frozen.sources).map((name) => [
+        name,
+        name.startsWith('kit:') ? sha256(readFileSync(join(root, 'src', 'core', 'hardware', 'kits', name.slice(4)))) : sha256(n18Text(name, readFileSync(join(sources, name), 'utf8'))),
+      ]),
     );
     expect(now).toEqual(manifest.frozen.sources);
     expect(manifest.frozen.sources['kit:ref-uno-rover.kit.json']).toBe(manifest.sources['kit:ref-uno-rover.kit.json']);
@@ -64,6 +66,15 @@ describe('the robot lab’s 3D assets keep their N18 roots byte for byte (N19 E6
         return statSync(path).isDirectory() ? (entry === '__pycache__' ? [] : walk(path)) : path.endsWith('.py') ? [relative(sources, path).split('\\').join('/')] : [];
       });
     expect([...Object.keys(manifest.frozen.sources).filter((name) => !name.startsWith('kit:')), ...N19_ONLY].sort()).toEqual(walk(sources).sort());
+  });
+
+  it('guards the N18 roots with build.py too (fix round 1, review M7): without its marked N19 blocks it is N18’s own build.py', () => {
+    // The N18 build's manifest (80e089b) hashed build.py as this.
+    expect(manifest.frozen.sources['build.py']).toBe('99def86db23f9ad93459e551719e4d277b71154d1b273f7393b653915d6dd461');
+    const text = readFileSync(join(sources, 'build.py'), 'utf8');
+    expect(sha256(n18Text('build.py', text))).toBe(manifest.frozen.sources['build.py']);
+    expect(text).toContain('# N19 >>>');
+    expect(n18Text('lib.py', 'a\n# N19 >>>\nb\n# N19 <<<\n')).toBe('a\n# N19 >>>\nb\n# N19 <<<\n');
   });
 
   it('hashes the gripper kit the gripper’s parts are drawn to (N19 E6: a change to it is a stale asset)', () => {

@@ -9,11 +9,12 @@
 #                   its colour's quadrant (`extras.marks`: the uv offset of each).
 #   prop_parcel     a small corrugated parcel (`parcel`) taped over its top and with a band of packing tape round it (`parcel_tape`, which
 #                   the view tints by the object's colour when it has one).
-#   prop_base       a beech pedestal block (`base`), pale grain the view tints by the object's colour (a painted block).
+#   prop_base       a beech pedestal (`base`: a plinth and the block on it), pale grain the view tints by the object's colour (painted).
 #   prop_kho_shelf  a warehouse pallet rack for a wall tagged `kho-wall`: blue upright frames at the ends, orange beams at three levels,
 #                   plank decks, its two bays filled with cartons flush with both faces (so it is solid wherever the wall's collider is):
 #                   `kho_rack`; and above it, outside the collider, a sign "KHO" (the zone's word, drawn as strokes, no font) on two posts:
-#                   `kho_sign`.
+#                   the node `kho_sign`, on the rack's top. Modelled for a 40 × 4 × 12 cm wall: the view stretches the rack to the wall, the
+#                   sign evenly by the wall's height.
 #
 # Origin of each: the middle of its base. Original work: no logo, no imported image.
 
@@ -97,7 +98,8 @@ def build_parcel(lib, tex, kit, col, wood):
     root = lib.empty('prop_parcel', col=col)
     sx, sy, sz = PARCEL
     board = lib.material('cardboard', image=lib.image_from_array('cardboard', lambda: tex.cardboard(256, 256, 41)), roughness=0.9)
-    tape = lib.material('parcel_tape', '#c79a5e', roughness=0.25)
+    # Kraft packing tape, darker and glossier than the board (fix round 1, review M3: the board's own tan read as a dent).
+    tape = lib.material('parcel_tape', '#9a6a35', roughness=0.2)
     box = lib.box('parcel', PARCEL, at=(0, 0, sz / 2), material=board, col=col, parent=root)
     wood.face_uvs(lib, box, PARCEL, {0: (1, 2, 20, 20), 1: (0, 2, 20, 20), 2: (0, 1, 20, 20)})
     lib.add_bevel(box, 0.18, 2)
@@ -116,19 +118,25 @@ def build_parcel(lib, tex, kit, col, wood):
 
 
 def _pale_wood(tex):
-    """A pale grain that keeps its tint (the view's colour, or beech's)."""
-    return tex.wood(256, 256, '#f6f2ea', '#e2d8c6', 27, lines=5, warp=1.6, fibre=0.25)
+    """A pale grain that keeps its tint (the view's colour, or beech's): fine and even (fix round 1, review M4: a single wave on a 6 cm face)."""
+    return tex.wood(256, 256, '#f6f2ea', '#e2d8c6', 27, lines=12, warp=0.7, fibre=0.25)
 
 
 def build_base(lib, tex, kit, col, wood):
+    """A pedestal (fix round 1, review M4: it read as a second cube): a plinth the collider's full footprint, the block on it inset."""
     root = lib.empty('prop_base', col=col)
     sx, sy, sz = BASE
     mat = lib.material('base_wood', '#e8c49a', image=lib.image_from_array('pale_wood', lambda: _pale_wood(tex)), roughness=0.58)
-    block = lib.box('base', BASE, at=(0, 0, sz / 2), material=mat, col=col, parent=root)
-    wood.face_uvs(lib, block, BASE, {0: (1, 2, 8, 8), 1: (0, 2, 8, 8), 2: (0, 1, 8, 8)})
-    lib.add_bevel(block, 0.3, 3)
-    lib.apply_modifiers(block)
-    lib.smooth_by_angle(block, 35)
+    plinth_h, inset = 0.6, 0.3
+    parts = []
+    for name, size, z in (('base_plinth', (sx, sy, plinth_h), plinth_h / 2), ('base_block', (sx - 2 * inset, sy - 2 * inset, sz - plinth_h), plinth_h + (sz - plinth_h) / 2)):
+        block = lib.box(name, size, at=(0, 0, z), material=mat, col=col, parent=root)
+        wood.face_uvs(lib, block, size, {0: (1, 2, 8, 8), 1: (0, 2, 8, 8), 2: (0, 1, 8, 8)})
+        lib.add_bevel(block, 0.12 if name == 'base_plinth' else 0.25, 2)
+        lib.apply_modifiers(block)
+        lib.smooth_by_angle(block, 35)
+        parts.append(block)
+    lib.join(parts, 'base')
     return root
 
 
@@ -203,17 +211,17 @@ def build_shelf(lib, tex, kit, col, wood):
                 hh = height * (0.98 if (k + level + (b > 0)) % 2 == 0 else 0.86)
                 carton = lib.box('rack_carton', (w, T, hh), at=(b * bay / 2 + offset, 0, z0 + hh / 2), material=board, col=col, parent=root)
                 lib.box_uv(carton, scale_cm=20.0)
-                if lib.DETAIL == 'high':
-                    lib.add_bevel(carton, 0.12, 1)
-                    lib.apply_modifiers(carton)
+                # Square-edged (no bevel, fix round 1): the props' file had 1.5 KB left of its budget with the base's plinth.
                 parts.append(carton)
-    # The sign above the rack, on two posts from its top beams.
     lib.join(parts, 'kho_rack')
+    # The sign above the rack, on two posts from its top beams: a node `kho_sign` on the rack's top (the view scales it evenly, by the
+    # wall's height, whatever the wall's length and thickness: fix round 1, review M5).
+    sign = lib.empty('kho_sign', parent=root, at=(0, 0, H), col=col)
     sign_w, sign_h = 15.0, 5.0
     parts = []
     for side in (-1, 1):
-        parts.append(lib.cylinder('sign_post', 0.22, SIGN_RISE, at=(side * (sign_w / 2 - 1.2), 0, H + SIGN_RISE / 2), material=blue, segments=10, col=col, parent=root))
-    plate = lib.box('kho_plate', (sign_w, 0.3, sign_h), at=(0, 0, H + SIGN_RISE + sign_h / 2 - 0.6), material=face, bevel=0.2, segments=2, col=col, parent=root)
+        parts.append(lib.cylinder('sign_post', 0.22, SIGN_RISE, at=(side * (sign_w / 2 - 1.2), 0, SIGN_RISE / 2), material=blue, segments=10, col=col, parent=sign))
+    plate = lib.box('kho_plate', (sign_w, 0.3, sign_h), at=(0, 0, SIGN_RISE + sign_h / 2 - 0.6), material=face, bevel=0.2, segments=2, col=col, parent=sign)
     lib.apply_modifiers(plate)
     me = plate.data
     uv = me.uv_layers.get('UVMap') or me.uv_layers.new(name='UVMap')
@@ -223,7 +231,7 @@ def build_shelf(lib, tex, kit, col, wood):
             co = me.vertices[me.loops[li].vertex_index].co / lib.CM
             # The word reads on both faces (u along x seen from the front, -y; mirrored on the back).
             u = (co.x / sign_w + 0.5) if poly.normal.y < 0 else (0.5 - co.x / sign_w)
-            uv.data[li].uv = (u, (co.z - (H + SIGN_RISE - 0.6)) / sign_h) if both else (0.01, 0.5)
+            uv.data[li].uv = (u, co.z / sign_h + 0.5) if both else (0.01, 0.5)
     parts.append(plate)
-    lib.join(parts, 'kho_sign')
+    lib.join(parts, 'kho_sign_board')
     return root
