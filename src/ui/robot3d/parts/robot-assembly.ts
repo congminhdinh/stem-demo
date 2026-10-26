@@ -55,6 +55,8 @@ export type ReferenceSizes = {
   lineSpacingM: number;
   /** N19 E6: how high the ultrasonic's mount is over the body's bottom (the part is modelled to stand on the lower plate from there). */
   ultrasonicHeightM: number;
+  /** N19 E6 fix round 1 (review I3): where the board sits on the reference robot's deck (three's x of its middle). */
+  boardX: number;
 };
 
 /** N19 E6: the gripper kit's numbers the gripper's parts are modelled to (m): a kit of other sizes scales them. */
@@ -78,6 +80,7 @@ export function referenceSizes(reference: RobotModel): ReferenceSizes {
     armWidthM: reference.servos[0]?.arm.widthM ?? 0.008,
     lineSpacingM: zs.length > 1 ? (zs[zs.length - 1]! - zs[0]!) / (zs.length - 1) : 0.015,
     ultrasonicHeightM: reference.ultrasonics[0] ? reference.ultrasonics[0].position[1] - reference.body.bottomM : 0.025,
+    boardX: boardPlacement(reference).x,
   };
 }
 
@@ -115,19 +118,24 @@ export function ultrasonicRiser(model: RobotModel, reference: ReferenceSizes, dr
 export const BOARD_M = { short: 0.0533, long: 0.0686, clearance: 0.0012 } as const;
 /** The chassis plates' thickness (m, assets-src/robot3d/parts/chassis.py PLATE_T). */
 const PLATE_M = 0.002;
-/** The line sensors' indicator board (part_line_leds): how far it reaches back from the deck's front edge (m, line_bar.py `depth`). */
-const LINE_LEDS_DEPTH_M = 0.012;
 
-/**
- * Where the board sits on the deck: as far forward as the servo arms let it, and (N19 E6: a kit with no servo arm, the gripper car's)
- * behind the line sensors' indicator board, inside the deck (three's x, z of its middle).
- */
+/** Where the board sits on the deck: as far forward as the servo arms let it, inside the deck (three's x, z of its middle). */
 export function boardPlacement(model: RobotModel): { x: number; z: number } {
   const half = model.body.lengthM / 2;
   const fronts = model.servos.map((servo) => servo.position[0] - servo.arm.widthM / 2 - BOARD_M.clearance);
-  const lamps = model.lineSensors.length > 0 ? [half - LINE_LEDS_INSET_M - LINE_LEDS_DEPTH_M - BOARD_M.clearance] : [];
-  const front = Math.min(half - 0.003, ...fronts, ...lamps);
+  const front = Math.min(half - 0.003, ...fronts);
   return { x: Math.max(-half + BOARD_M.short / 2, front - BOARD_M.short / 2), z: 0 };
+}
+
+/**
+ * N19 E6 fix round 1 (review I3): where the board sits on a kit's deck. A kit with a servo arm puts it behind the arm (`boardPlacement`);
+ * one with none (the gripper car) where the reference robot has it, over the deck the chassis part was baked under (its ambient
+ * occlusion: elsewhere the deck would show the board's shade where no board is), and well behind the line sensors' indicator board.
+ */
+export function boardPlacementOf(model: RobotModel, reference: ReferenceSizes): { x: number; z: number } {
+  if (model.servos.length > 0) return boardPlacement(model);
+  const half = model.body.lengthM / 2;
+  return { x: Math.min(half - BOARD_M.short / 2, Math.max(-half + BOARD_M.short / 2, reference.boardX)), z: 0 };
 }
 
 /** How far the line LEDs' board stands back from the deck's front edge (m): inside the body the physics drives. */
@@ -384,7 +392,7 @@ export function assembleRobot(model: RobotModel, reference: ReferenceSizes, sour
   chassis.position.set(0, body.bottomM - reference.body.bottomM * k, 0);
   root.add(chassis);
 
-  const board = boardPlacement(model);
+  const board = boardPlacementOf(model, reference);
   const boardPart = need('part_board');
   boardPart.position.set(board.x, deck, board.z);
   root.add(boardPart);

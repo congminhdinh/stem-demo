@@ -9,7 +9,7 @@ import type { RobotAssets } from '../assets/robot-assets';
 import { gripperPose } from '../gripper-pose';
 import { robotModel, type RobotModel } from '../robot-model';
 import { idleSnapshot } from '../scene-math';
-import { applyRobotWorld, assembleRobot, BOARD_M, boardPlacement, gripperReferenceSizes, neededParts, referenceSizes, ultrasonicRiser, type AssemblyOptions } from './robot-assembly';
+import { applyRobotWorld, assembleRobot, boardPlacement, boardPlacementOf, gripperReferenceSizes, neededParts, referenceSizes, ultrasonicRiser, type AssemblyOptions } from './robot-assembly';
 
 // N19 E6: the gripper car built from the modelled parts (robot-kit.glb's part_gripper_*, assets-src/robot3d/parts/gripper.py) is the car
 // the physics simulates: the boom pivots at the GR1 mount, the carriage hangs level at its tip, each finger turns about its hinge and is
@@ -182,9 +182,20 @@ describe('the modelled gripper car (N19 E6)', () => {
     plain.dispose();
   });
 
-  it('sits the board as far forward as the line sensors’ indicator board lets it on a car with no servo arm (the gripper car)', () => {
-    // The indicator board reaches 1.2 cm back from 0.05 cm inside the deck's front edge; the board keeps its 1.2 mm from it.
-    expect(boardPlacement(model).x + BOARD_M.short / 2).toBeCloseTo(model.body.lengthM / 2 - 0.0005 - 0.012 - BOARD_M.clearance, 9);
+  it('sits the board where the rover has it on a car with no servo arm (fix round 1, review I3: over the deck the chassis was baked under)', () => {
+    const rover = robotModel(roverKit, unoR3Board);
+    expect(boardPlacementOf(model, reference)).toEqual({ x: boardPlacement(rover).x, z: 0 });
+    expect(boardPlacementOf(model, reference).x).toBeCloseTo(-0.01685, 9);
+    // The rover's own placement is as before (behind its servo arm).
+    expect(boardPlacementOf(rover, reference)).toEqual(boardPlacement(rover));
+    const robot = assembleRobot(model, reference, assets.high.part, options('high'));
+    robot.root.updateMatrixWorld(true);
+    const board = robot.root.getObjectByName('part_board');
+    // The board's static meshes are merged into the robot; its L LED keeps its node on the board.
+    const led = robot.root.getObjectByName('board_led_l')!;
+    expect(led.getWorldPosition(new Vector3()).x).toBeCloseTo(-0.01685 + 0.016, 6);
+    expect(board === undefined || board.position.x === -0.01685).toBe(true);
+    robot.dispose();
   });
 
   it('frees every geometry and material it made for the gripper, and none of the templates’', () => {
