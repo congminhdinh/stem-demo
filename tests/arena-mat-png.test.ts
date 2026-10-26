@@ -128,6 +128,43 @@ describe('writePng', () => {
     expect(Buffer.from(decoded.data).equals(rgb)).toBe(true);
   });
 
+  // N19 D1–D3 fix round 1 (controller ruling): the bytes of the file are the picture's alone. The zlib stream is the same however the strips
+  // arrive, and it is cut into IDAT chunks of exactly 64 KiB (the last one shorter), not into whatever the stream had buffered when the file
+  // writer asked: a mat exported under load had come out as other bytes for the same pixels (13 IDAT chunks, one of 126 965 B, against 14).
+  it('writes the same bytes however the strips arrive: IDAT chunks of exactly 64 KiB, the last one shorter', async () => {
+    // Noise does not compress, so 300 × 200 px of it is a zlib stream of about 176 KiB: two full chunks and a short one.
+    const width = 300;
+    const height = 200;
+    const rgb = Buffer.alloc(width * height * 3);
+    let state = 12345;
+    for (let i = 0; i < rgb.length; i++) {
+      state = (Math.imul(state, 1103515245) + 12345) >>> 0;
+      rgb[i] = state >>> 24;
+    }
+    const header = { width, height, pixelsPerMetre: 5906 };
+    const atOnce = join(work, 'at-once.png');
+    await writePng(atOnce, header, strips(rgb, width, height));
+    async function* trickle() {
+      for (const strip of strips(rgb, width, 3)) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        yield strip;
+      }
+    }
+    const trickled = join(work, 'trickled.png');
+    await writePng(trickled, header, trickle());
+
+    const bytes = readFileSync(atOnce);
+    expect(readFileSync(trickled).equals(bytes)).toBe(true);
+    const sizes = chunksOf(bytes)
+      .filter((chunk) => chunk.type === 'IDAT')
+      .map((chunk) => chunk.data.length);
+    expect(sizes.length).toBe(3);
+    expect(sizes.slice(0, -1)).toEqual([65536, 65536]);
+    expect(sizes.at(-1)).toBeGreaterThan(0);
+    expect(sizes.at(-1)).toBeLessThan(65536);
+    expect(Buffer.from(decodePng(bytes).data).equals(rgb)).toBe(true);
+  });
+
   it('refuses a picture that has fewer or more rows than the header says, and a strip that is not whole rows', async () => {
     const width = 8;
     await expect(writePng(join(work, 'few.png'), { width, height: 10, pixelsPerMetre: 5906 }, strips(picture(width, 9), width, 3))).rejects.toThrow(

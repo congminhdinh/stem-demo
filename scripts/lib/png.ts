@@ -9,8 +9,11 @@ import { createDeflate, inflateSync } from 'node:zlib';
 // is never in memory twice. The reader is for the tiles Chromium gives back and for the tests that read the writer's file with it.
 //
 // What is written: 8-bit RGB, no interlacing, filter type 0 on every row (a flat mat compresses well without prediction), one zlib stream in
-// IDAT chunks of up to 64 KiB, and a pHYs chunk so that a print shop's software takes the picture for what it is, a 150 dpi image of a mat of
-// that many centimetres. What is read: 8-bit grey, grey+alpha, RGB and RGBA, no interlacing, every filter type.
+// IDAT chunks of exactly 64 KiB (the last one shorter), and a pHYs chunk so that a print shop's software takes the picture for what it is, a
+// 150 dpi image of a mat of that many centimetres. What is read: 8-bit grey, grey+alpha, RGB and RGBA, no interlacing, every filter type.
+//
+// N19 D1–D3 fix round 1: the chunks are cut from the zlib stream at fixed lengths, not taken as the stream hands them over (a read gives
+// whatever it has buffered, which depends on how far the file writer lags behind), so the same picture is always the same bytes.
 
 const SIGNATURE = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const IDAT_CHUNK_BYTES = 64 * 1024;
@@ -101,7 +104,22 @@ export async function writePng(path: string, header: PngHeader, strips: Strips):
     yield SIGNATURE;
     yield chunk('IHDR', ihdr);
     yield chunk('pHYs', phys);
-    for await (const data of deflate) yield chunk('IDAT', data as Buffer);
+    // The zlib stream, cut at every IDAT_CHUNK_BYTES whatever the pieces it comes in.
+    let pending: Buffer[] = [];
+    let pendingBytes = 0;
+    for await (const data of deflate) {
+      pending.push(data as Buffer);
+      pendingBytes += (data as Buffer).length;
+      if (pendingBytes < IDAT_CHUNK_BYTES) continue;
+      let joined = Buffer.concat(pending, pendingBytes);
+      while (joined.length >= IDAT_CHUNK_BYTES) {
+        yield chunk('IDAT', joined.subarray(0, IDAT_CHUNK_BYTES));
+        joined = joined.subarray(IDAT_CHUNK_BYTES);
+      }
+      pending = joined.length > 0 ? [joined] : [];
+      pendingBytes = joined.length;
+    }
+    if (pendingBytes > 0) yield chunk('IDAT', Buffer.concat(pending, pendingBytes));
     await feed;
     yield chunk('IEND', new Uint8Array(0));
   }
