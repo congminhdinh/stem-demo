@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { roleKinds, robotRoles, type ModuleKind, type RobotRole } from '../hardware/kit';
-import { arenaSchema } from '../world/arena/arena-schema';
+import { arenaSchema, colorSchema } from '../world/arena/arena-schema';
 import { hasHiddenCharacter, trimLikeDotNet } from './goal-text';
 import { polygonsOverlap } from './polygon-overlap';
 import { isRobotTemplateKey, robotLabProfiles, robotSandboxKey, robotTemplateKeys, robotTemplates } from '../../samples/robot-keys';
@@ -119,6 +119,25 @@ const variantsSchema = z.strictObject({
   yawJitterDeg: z.number().min(0, 'must be from 0 to 180').max(180, 'must be from 0 to 180'),
   /** How far the arena boxes and cylinders tagged `jitter` may move, each way along x and y. */
   obstacleJitterCm: z.number().min(0, 'must be 0 or more').optional(),
+  /**
+   * N19 D1 (plan §4.5): the arena objects a variant moves, and how far each way along x and y. Each entry is one draw (variants.ts) that
+   * moves all of its objects together, so a row of parcels keeps its spacing; an object moves in one entry at most.
+   */
+  objectJitter: z
+    .array(
+      z.strictObject({
+        objects: z.array(z.string()).min(1, 'needs at least one object'),
+        dxCm: z.number().min(0, 'must be 0 or more'),
+        dyCm: z.number().min(0, 'must be 0 or more'),
+      }),
+    )
+    .min(1, 'needs at least one entry')
+    .optional(),
+  /**
+   * N19 D1 (plan §4.5): the colour of an arena object in each variant, by its id: one colour per variant, the first the colour the arena
+   * gives it (variant 0 is the arena as authored). A lesson that sorts by colour changes the colour, not the place, so a program has to read it.
+   */
+  objectColors: z.record(z.string(), z.array(colorSchema)).optional(),
 });
 
 const inputSchema = z.strictObject({ atS: z.number(), role: z.string(), action: z.enum(['press', 'release']) });
@@ -214,6 +233,7 @@ function scenarioRuleIssues(scenario: ScenarioShape): RuleIssue[] {
   }
 
   inputIssues(scenario, add);
+  variantIssues(scenario, add);
   goalIssues(scenario, add);
   endOnContactIssues(scenario, add);
   scoreIssues(scenario, add);
@@ -263,6 +283,45 @@ function inputIssues(scenario: ScenarioShape, add: Add): void {
       add(['inputs', i, 'action'], `${input.role} is not pressed, so it cannot be released`);
     }
     state.set(input.role, { pressed: input.action === 'press', atS: input.atS });
+  }
+}
+
+/** The same colour, whatever the case of its hex digits ("#D32F2F" is "#d32f2f"). */
+export const sameColor = (a: string | undefined, b: string | undefined): boolean => a !== undefined && b !== undefined && a.toLowerCase() === b.toLowerCase();
+
+const noObjectMessage = (arena: ScenarioShape['arena'], id: string) => {
+  const ids = arena.objects.map((object) => object.id);
+  return `no object "${id}" in the arena (${ids.length > 0 ? `objects: ${ids.join(', ')}` : 'the arena has no objects'})`;
+};
+
+/** N19 D1: what `objectJitter` moves and what `objectColors` paints are objects of the arena, each moved once, painted once per variant. */
+function variantIssues(scenario: ScenarioShape, add: Add): void {
+  const { arena, variants } = scenario;
+  const byId = new Map(arena.objects.map((object) => [object.id, object]));
+  const movedIn = new Map<string, number>();
+  variants.objectJitter?.forEach((entry, i) => {
+    entry.objects.forEach((id, j) => {
+      const at = ['variants', 'objectJitter', i, 'objects', j];
+      if (!byId.has(id)) {
+        add(at, noObjectMessage(arena, id));
+        return;
+      }
+      const earlier = movedIn.get(id);
+      if (earlier !== undefined) add(at, `"${id}" already moves in variants.objectJitter[${earlier}]`);
+      else movedIn.set(id, i);
+    });
+  });
+  for (const [id, colors] of Object.entries(variants.objectColors ?? {})) {
+    const at = ['variants', 'objectColors', id];
+    const object = byId.get(id);
+    if (object === undefined) {
+      add(at, noObjectMessage(arena, id));
+      continue;
+    }
+    if (colors.length !== variants.count) add(at, `needs one colour per variant (${variants.count}), not ${colors.length}`);
+    if (colors.length > 0 && !sameColor(colors[0], object.color)) {
+      add([...at, 0], `variant 0 is the arena as authored, so this must be the colour the arena gives "${id}" (${object.color ?? 'it gives none'})`);
+    }
   }
 }
 

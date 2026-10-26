@@ -1,0 +1,53 @@
+{
+  "key": "rb-mini-mission",
+  "version": 1,
+  "title": { "vi": "Bài thử: gắp và đặt vật", "en": "Fixture: pick and place" },
+  "profile": "uno-basic",
+  "kit": "ref-uno-rover",
+  "arena": {
+    "ground": { "sizeCm": [200, 120], "color": "#f2f2f2" },
+    "paint": {
+      "zones": [
+        { "id": "start", "kind": "start", "polygonCm": [[10, 45], [40, 45], [40, 75], [10, 75]], "color": "#cfe2f3" },
+        { "id": "pickup", "kind": "area", "polygonCm": [[70, 40], [100, 40], [100, 80], [70, 80]], "color": "#fff2cc", "name": "pickup" },
+        { "id": "drop", "kind": "target", "polygonCm": [[110, 40], [150, 40], [150, 80], [110, 80]], "color": "#d9ead3", "name": "drop" },
+        { "id": "red-zone", "kind": "target", "polygonCm": [[160, 85], [190, 85], [190, 115], [160, 115]], "color": "#f4cccc", "name": "red" },
+        { "id": "green-zone", "kind": "target", "polygonCm": [[160, 45], [190, 45], [190, 75], [160, 75]], "color": "#d9ead3", "name": "green" },
+        { "id": "blue-zone", "kind": "target", "polygonCm": [[160, 5], [190, 5], [190, 35], [160, 35]], "color": "#cfe2f3", "name": "blue" },
+        { "id": "bare", "kind": "area", "polygonCm": [[45, 90], [65, 90], [65, 110], [45, 110]], "color": "#fff2cc" }
+      ]
+    },
+    "walls": [
+      { "fromCm": [0, 1], "toCm": [200, 1] },
+      { "fromCm": [0, 119], "toCm": [200, 119] },
+      { "fromCm": [1, 0], "toCm": [1, 120] },
+      { "fromCm": [199, 0], "toCm": [199, 120] }
+    ],
+    "objects": [
+      { "id": "cube", "shape": "box", "centerCm": [85, 60], "sizeCm": [4, 4, 4], "massG": 15, "noun": "cube", "color": "#d32f2f" },
+      { "id": "base", "shape": "box", "centerCm": [130, 100], "sizeCm": [6, 6, 4], "massG": 40, "noun": "base", "color": "#fbc02d" },
+      { "id": "parcel-1", "shape": "box", "centerCm": [60, 20], "sizeCm": [5, 5, 5], "massG": 30, "noun": "parcel" },
+      { "id": "parcel-2", "shape": "box", "centerCm": [80, 20], "sizeCm": [5, 5, 5], "massG": 30, "noun": "parcel" },
+      { "id": "parcel-3", "shape": "box", "centerCm": [100, 20], "sizeCm": [5, 5, 5], "massG": 30, "noun": "parcel" },
+      { "id": "can", "shape": "cylinder", "centerCm": [30, 100], "radiusCm": 2, "heightCm": 6, "massG": 20 }
+    ]
+  },
+  "start": { "xCm": 25, "yCm": 60, "yawDeg": 0 },
+  "variants": {
+    "count": 3,
+    "seed": 7,
+    "startJitterCm": 1,
+    "yawJitterDeg": 2,
+    "objectJitter": [
+      { "objects": ["cube"], "dxCm": 5, "dyCm": 0 },
+      { "objects": ["parcel-1", "parcel-2", "parcel-3"], "dxCm": 0, "dyCm": 3 }
+    ],
+    "objectColors": { "cube": ["#d32f2f", "#388e3c", "#1976d2"] }
+  },
+  "timeLimitS": 60,
+  "goals": [
+    { "id": "push-cube", "kind": "object-in-zone", "label": { "vi": "Đẩy khối vào vùng thả", "en": "Push the cube into the drop zone" }, "points": 100, "object": "cube", "zone": "drop" }
+  ],
+  "scoring": {},
+  "starter": { "blocks": { "languageVersion": 0, "blocks": [] } }
+}

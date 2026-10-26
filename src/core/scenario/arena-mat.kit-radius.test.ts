@@ -1,0 +1,66 @@
+// @vitest-environment jsdom
+import { describe, expect, it } from 'vitest';
+import lineFollow from '../../samples/robot-scenarios/rb-line-follow.json';
+import { scenarioCatalog } from '../../samples/robot-scenarios';
+import { productionKits, referenceKitRef } from '../hardware/catalog';
+import { buildArenaMat, buildTiledSheet, matFootprintRadiusCm } from './arena-mat';
+import { loadScenario } from './scenario';
+import { kitFootprintRadiusCm } from './variants';
+
+// N19 D1 (plan §7 D1, D-G8): the printed mat draws the floor the scenario's kit keeps clear at its start, `kitFootprintRadiusCm` of the
+// kit: the start ring, the heading arrow up to it, the pose words beside it and the room the zone labels keep off it. The rover's is 11 cm,
+// so a rover mat is the same text as before (n19-neutral.test.ts pins its bytes); a gripper reaches 16 cm and gets the larger ring.
+
+const parse = (svg: string): XMLDocument => new DOMParser().parseFromString(svg, 'image/svg+xml');
+const rover = productionKits.get(referenceKitRef)!;
+
+describe('the printed mat’s start for the kit of the scenario', () => {
+  it('reads the radius from the scenario’s kit: the rover’s 11 cm for every shipped scenario', () => {
+    for (const scenario of scenarioCatalog.scenarios) expect(matFootprintRadiusCm(scenario), scenario.key).toBe(kitFootprintRadiusCm(rover));
+    expect(kitFootprintRadiusCm(rover)).toBe(11);
+  });
+
+  it('refuses a kit the app has no file for: it cannot know how far that robot reaches', () => {
+    expect(() => matFootprintRadiusCm({ kit: 'vendor-kit' })).toThrow('The robot kit "vendor-kit" is not one this app knows');
+  });
+
+  it('draws a 16 cm kit’s ring, arrow and pose words at 16 cm', () => {
+    const scenario = loadScenario(lineFollow); // starts at x 50, y 30 of a 170 × 140 arena: the ring's middle is at sheet (50, 110)
+    const document = parse(buildArenaMat(scenario, { footprintRadiusCm: 16 }).svg);
+    const ring = document.querySelector('#mat-start circle')!;
+    expect([ring.getAttribute('cx'), ring.getAttribute('cy'), ring.getAttribute('r')]).toEqual(['50', '110', '16']);
+    expect(Number(document.querySelector('#mat-start line.heading')!.getAttribute('x2'))).toBe(66);
+    // Below the ring, 1.6 cm past it, as for the rover's 11 (110 + 11 + 1.6 = 122.6)
+    expect(document.querySelector('#mat-start text')!.getAttribute('y')).toBe('127.6');
+    const roverDocument = parse(buildArenaMat(scenario).svg);
+    expect(roverDocument.querySelector('#mat-start circle')!.getAttribute('r')).toBe('11');
+    expect(roverDocument.querySelector('#mat-start text')!.getAttribute('y')).toBe('122.6');
+  });
+
+  it('keeps the zone labels off a 16 cm ring', () => {
+    // One large start zone around the robot: its label would sit on the robot's middle, so it moves off the ring, as far as the kit reaches.
+    const json = structuredClone(lineFollow) as unknown as Record<string, unknown>;
+    json.key = 'rb-sandbox';
+    json.goals = [];
+    json.scoring = {};
+    json.toolbox = undefined;
+    json.arena = { ground: { sizeCm: [170, 140], color: '#f2f2f2' }, paint: { zones: [{ id: 'start', kind: 'start', polygonCm: [[20, 0], [80, 0], [80, 60], [20, 60]], color: '#cfe2f3' }] } };
+    const scenario = loadScenario(json);
+    const middleOf = (radiusCm?: number) => {
+      const document = parse(buildArenaMat(scenario, radiusCm === undefined ? {} : { footprintRadiusCm: radiusCm }).svg);
+      const id = document.querySelector('#label-zone-start .zone-id')!;
+      const kind = document.querySelector('#label-zone-start .zone-kind')!;
+      const middleY = 140 - (Number(id.getAttribute('y')) + Number(kind.getAttribute('y'))) / 2;
+      return Math.hypot(Number(id.getAttribute('x')) - 50, middleY - 30);
+    };
+    expect(middleOf()).toBeGreaterThan(11);
+    expect(middleOf()).toBeLessThan(16);
+    expect(middleOf(16)).toBeGreaterThan(16);
+  });
+
+  it('gives the A4 sheets the same radius', () => {
+    const scenario = loadScenario(lineFollow);
+    expect(buildTiledSheet(scenario, { footprintRadiusCm: 16 }).html).toContain('<g id="mat-start"><circle cx="50" cy="110" r="16" ');
+    expect(buildTiledSheet(scenario).html).toBe(buildTiledSheet(scenario, { footprintRadiusCm: 11 }).html);
+  });
+});

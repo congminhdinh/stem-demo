@@ -1,5 +1,5 @@
 import type { Kit } from '../hardware/kit';
-import type { Arena, ArenaBox, ArenaCylinder } from '../world/arena/arena-schema';
+import type { Arena, ArenaBox, ArenaCylinder, ArenaObject } from '../world/arena/arena-schema';
 import { createWorldRng } from '../world/rng';
 import { circleShape, cosSin, insideGround, rectShape, shapesOverlap, wallShape, type Shape } from './overlap';
 import type { PoseCm, Scenario } from './scenario-schema';
@@ -10,8 +10,9 @@ import type { PoseCm, Scenario } from './scenario-schema';
 //   variant 0     the exact start: no offset at all.
 //   variant 1..   the start moves by up to ±startJitterCm in x and y (or, with startJitterAlongCm, by up to ±startJitterAlongCm along its
 //                 authored heading and ±startJitterCm across it) and ±yawJitterDeg of yaw; each arena box and cylinder tagged
-//                 `jitter` moves by up to ±obstacleJitterCm in x and y. Nothing else moves: not the walls, the paint, the objects
-//                 to push, nor an untagged obstacle.
+//                 `jitter` moves by up to ±obstacleJitterCm in x and y; N19 D1: the objects of each entry of `objectJitter` move by
+//                 up to ±dxCm in x and ±dyCm in y, all of an entry by the same offset, and the objects of `objectColors` take the colour
+//                 of the variant's index. Nothing else moves: not the walls, the paint, an object no entry names, nor an untagged obstacle.
 //
 // Everything comes from the scenario's seed (the one Mulberry32 of world/rng.ts, never Math.random) and the variant's index, so the
 // same scenario gives the same variants on every engine: `variantOffsets` is a pure function.
@@ -19,7 +20,10 @@ import type { PoseCm, Scenario } from './scenario-schema';
 // The random draws (offsets are `uniform(−j, +j)` of the jitter `j`), in this order, from the stream of `variantJitterSeed`:
 //   1. the start: dx, dy, dYaw (only when startJitterCm, startJitterAlongCm or yawJitterDeg is above 0); with startJitterAlongCm the first two
 //      draws are along and across the heading, turned into dx, dy by the authored yaw (exact at the right angles, dmath elsewhere);
-//   2. each box tagged `jitter` in arena order, then each cylinder: dx, dy (only when obstacleJitterCm is above 0).
+//   2. each box tagged `jitter` in arena order, then each cylinder: dx, dy (only when obstacleJitterCm is above 0);
+//   3. N19 D1, after every draw above: each entry of `objectJitter` in order: dx, dy (only when the scenario has `objectJitter`, a draw even
+//      for a range of 0). A scenario without it draws exactly the numbers it drew before N19. The colours of `objectColors` are a list,
+//      one per variant, and take no draw.
 //
 // A draw that does not fit is thrown away and the thing is drawn again, at most VARIANT_MAX_ATTEMPTS times; then it keeps the place the
 // author gave it (offset 0). The robot keeps its authored position only: the yaw never decides whether a draw fits (it does not move the
@@ -28,8 +32,11 @@ import type { PoseCm, Scenario } from './scenario-schema';
 //     none) leaves the ground or overlaps a wall, an object, an untagged obstacle, or a tagged obstacle at its authored place;
 //   - a tagged obstacle: it leaves the ground, or overlaps the robot at its final start, a wall, an object, an untagged obstacle, a
 //     tagged obstacle placed before it (at its final place) or after it (at its authored place).
-// The start is placed first, then the obstacles in order, each against what is already placed, so if the authored layout is clear of
-// overlaps, every variant is: an obstacle that falls back to its authored place was checked against the others at theirs. A draw that
+//   - N19 D1, an entry of `objectJitter`: one of its objects leaves the ground, or overlaps the robot at its final start, a wall, a box or a
+//     cylinder at its final place, an object of an entry before it (at its final place) or any other object (at its authored place). Its
+//     objects keep their places relative to one another, so they cannot overlap each other where the author did not.
+// The start is placed first, then the obstacles in order, then the objects, each against what is already placed, so if the authored layout
+// is clear of overlaps, every variant is: an obstacle that falls back to its authored place was checked against the others at theirs. A draw that
 // leaves the start where it was (no x/y jitter, only yaw) always fits: the circle is the same, and a start the author chose close to
 // a wall keeps its yaw jitter.
 //
@@ -83,6 +90,11 @@ export type VariantOffsets = {
   readonly boxes: readonly ObstacleOffset[];
   /** One per cylinder of `arena.cylinders`, in the same order. */
   readonly cylinders: readonly ObstacleOffset[];
+  /**
+   * N19 D1: one per object of `arena.objects`, in the same order (zero for an object no entry of `objectJitter` names). Present only when the
+   * scenario has `variants.objectJitter`, so the offsets of every other scenario are what they were before N19.
+   */
+  readonly objects?: readonly ObstacleOffset[];
 };
 
 const NO_OFFSET: ObstacleOffset = { dxCm: 0, dyCm: 0 };
@@ -111,6 +123,10 @@ const boxShapeAt = (box: ArenaBox, dxCm: number, dyCm: number): Shape =>
   rectShape(box.centerCm[0] + dxCm, box.centerCm[1] + dyCm, box.sizeCm[0] / 2, box.sizeCm[1] / 2, box.yawDeg);
 const cylinderShapeAt = (cylinder: ArenaCylinder, dxCm: number, dyCm: number): Shape =>
   circleShape(cylinder.centerCm[0] + dxCm, cylinder.centerCm[1] + dyCm, cylinder.radiusCm);
+const objectShapeAt = (object: ArenaObject, dxCm: number, dyCm: number): Shape =>
+  object.shape === 'box'
+    ? rectShape(object.centerCm[0] + dxCm, object.centerCm[1] + dyCm, object.sizeCm[0] / 2, object.sizeCm[1] / 2, object.yawDeg)
+    : circleShape(object.centerCm[0] + dxCm, object.centerCm[1] + dyCm, object.radiusCm);
 
 /** `-0` becomes `+0`: an offset that did not move is the same number everywhere. */
 const plain = (n: number): number => n + 0;
@@ -127,8 +143,17 @@ export function variantOffsets(scenario: VariantSource, index: number, radiusCm:
   const seed = variantSeed(scenario, index);
   const boxOffsets: ObstacleOffset[] = arena.boxes.map(() => NO_OFFSET);
   const cylinderOffsets: ObstacleOffset[] = arena.cylinders.map(() => NO_OFFSET);
+  const objectJitter = variants.objectJitter;
+  const objectOffsets: ObstacleOffset[] | undefined = objectJitter === undefined ? undefined : arena.objects.map(() => NO_OFFSET);
   let startOffset = { dxCm: 0, dyCm: 0, dYawDeg: 0 };
-  const result = (): VariantOffsets => ({ index, seed, start: startOffset, boxes: boxOffsets, cylinders: cylinderOffsets });
+  const result = (): VariantOffsets => ({
+    index,
+    seed,
+    start: startOffset,
+    boxes: boxOffsets,
+    cylinders: cylinderOffsets,
+    ...(objectOffsets === undefined ? {} : { objects: objectOffsets }),
+  });
   if (index === 0) return result();
 
   const [width, depth] = arena.ground.sizeCm;
@@ -143,17 +168,11 @@ export function variantOffsets(scenario: VariantSource, index: number, radiusCm:
     const c = jitter(variants.startJitterCm);
     return [plain(a * headingCos - c * headingSin), plain(a * headingSin + c * headingCos)];
   };
-  if (!jitterStart && obstacleJitter <= 0) return result();
+  if (!jitterStart && obstacleJitter <= 0 && objectOffsets === undefined) return result();
 
   // What stays where the author put it, and the tagged obstacles in the order they are drawn (boxes, then cylinders).
-  const fixed: Shape[] = [
-    ...arena.walls.map((wall) => wallShape(wall.fromCm[0], wall.fromCm[1], wall.toCm[0], wall.toCm[1], wall.thicknessCm)),
-    ...arena.objects.map((object) =>
-      object.shape === 'box'
-        ? rectShape(object.centerCm[0], object.centerCm[1], object.sizeCm[0] / 2, object.sizeCm[1] / 2, object.yawDeg)
-        : circleShape(object.centerCm[0], object.centerCm[1], object.radiusCm),
-    ),
-  ];
+  const walls = arena.walls.map((wall) => wallShape(wall.fromCm[0], wall.fromCm[1], wall.toCm[0], wall.toCm[1], wall.thicknessCm));
+  const fixed: Shape[] = [...walls, ...arena.objects.map((object) => objectShapeAt(object, 0, 0))];
   const tagged: Tagged[] = [];
   arena.boxes.forEach((box, at) => {
     if (box.tags.includes(JITTER_TAG)) tagged.push({ list: 'boxes', at, shapeAt: (dx, dy) => boxShapeAt(box, dx, dy) });
@@ -210,7 +229,53 @@ export function variantOffsets(scenario: VariantSource, index: number, radiusCm:
       placed.push(final);
     });
   }
+
+  // N19 D1, last: each entry of objectJitter, all of its objects by one offset, against the robot, the walls, the boxes and cylinders where
+  // they ended up, the objects of the earlier entries where they ended up and every other object where the author put it.
+  if (objectJitter !== undefined && objectOffsets !== undefined) {
+    const obstacles = [
+      ...arena.boxes.map((box, i) => boxShapeAt(box, boxOffsets[i]!.dxCm, boxOffsets[i]!.dyCm)),
+      ...arena.cylinders.map((cylinder, i) => cylinderShapeAt(cylinder, cylinderOffsets[i]!.dxCm, cylinderOffsets[i]!.dyCm)),
+    ];
+    const objects = arena.objects.map((object) => objectShapeAt(object, 0, 0));
+    const indexOf = new Map(arena.objects.map((object, i) => [object.id, i]));
+    for (const entry of objectJitter) {
+      const members = entry.objects.map((id) => indexOf.get(id)!);
+      const others = objects.filter((_, i) => !members.includes(i));
+      for (let attempt = 0; attempt < VARIANT_MAX_ATTEMPTS; attempt++) {
+        const dxCm = jitter(entry.dxCm);
+        const dyCm = jitter(entry.dyCm);
+        const moved = members.map((i) => objectShapeAt(arena.objects[i]!, dxCm, dyCm));
+        const stays = dxCm === 0 && dyCm === 0;
+        const fits = (shape: Shape) => insideGround(shape, width, depth) && !shapesOverlap(shape, robot) && !hits(shape, walls) && !hits(shape, obstacles) && !hits(shape, others);
+        if (stays || moved.every(fits)) {
+          members.forEach((i, k) => {
+            objectOffsets[i] = { dxCm, dyCm };
+            objects[i] = moved[k]!;
+          });
+          break;
+        }
+      }
+    }
+  }
   return result();
+}
+
+/**
+ * N19 D1: the colour of each arena object that has one in variant `index` (0 … count − 1; any other index is a RangeError), by id: the
+ * variant's entry of `variants.objectColors` for an object listed there, else the arena's own `color`. An object with no colour is left out.
+ * It is what the variant's arena paints (`applyVariant`) and what the check's report calls the object ("khối đỏ") in that round.
+ */
+export function variantObjectColors(scenario: Pick<VariantSource, 'arena' | 'variants'>, index: number): Readonly<Record<string, string>> {
+  checkIndex(scenario, index);
+  const listed = scenario.variants.objectColors ?? {};
+  // fromEntries defines each id as an own field, so an id such as "__proto__" (letters and "_" are allowed) is an object like any other.
+  return Object.fromEntries(
+    scenario.arena.objects.flatMap((object) => {
+      const color = Object.hasOwn(listed, object.id) ? listed[object.id]![index] : object.color;
+      return color === undefined ? [] : [[object.id, color] as const];
+    }),
+  );
 }
 
 /**
@@ -219,17 +284,35 @@ export function variantOffsets(scenario: VariantSource, index: number, radiusCm:
  */
 export function applyVariant(scenario: VariantSource, offsets: VariantOffsets): { start: PoseCm; arena: Arena } {
   const { arena, start } = scenario;
-  if (offsets.boxes.length !== arena.boxes.length || offsets.cylinders.length !== arena.cylinders.length) {
-    throw new RangeError('These offsets are for another arena: they do not have one entry per box and per cylinder.');
+  if (
+    offsets.boxes.length !== arena.boxes.length ||
+    offsets.cylinders.length !== arena.cylinders.length ||
+    (offsets.objects !== undefined && offsets.objects.length !== arena.objects.length)
+  ) {
+    throw new RangeError('These offsets are for another arena: they do not have one entry per box and per cylinder (and per object, when they move objects).');
   }
   const moves = (list: readonly ObstacleOffset[]) => list.some((move) => move.dxCm !== 0 || move.dyCm !== 0);
   const shifted = <T extends { centerCm: readonly [number, number] }>(item: T, move: ObstacleOffset): T =>
     move.dxCm === 0 && move.dyCm === 0 ? item : { ...item, centerCm: [item.centerCm[0] + move.dxCm, item.centerCm[1] + move.dyCm] };
+  // N19 D1: an object moves by its offset and takes its colour of the variant; one that does neither is the same object.
+  const colors = scenario.variants.objectColors === undefined ? undefined : variantObjectColors(scenario, offsets.index);
+  const varied = (object: ArenaObject, i: number): ArenaObject => {
+    const moved = offsets.objects === undefined ? object : shifted(object, offsets.objects[i]!);
+    const color = colors !== undefined && Object.hasOwn(colors, object.id) ? colors[object.id] : object.color;
+    return color === object.color ? moved : { ...moved, color };
+  };
+  const objects = offsets.objects === undefined && colors === undefined ? arena.objects : arena.objects.map(varied);
+  const objectsChanged = objects.some((object, i) => object !== arena.objects[i]);
   return {
     start: { xCm: start.xCm + offsets.start.dxCm, yCm: start.yCm + offsets.start.dyCm, yawDeg: start.yawDeg + offsets.start.dYawDeg },
     arena:
-      moves(offsets.boxes) || moves(offsets.cylinders)
-        ? { ...arena, boxes: arena.boxes.map((box, i) => shifted(box, offsets.boxes[i]!)), cylinders: arena.cylinders.map((cylinder, i) => shifted(cylinder, offsets.cylinders[i]!)) }
+      moves(offsets.boxes) || moves(offsets.cylinders) || objectsChanged
+        ? {
+            ...arena,
+            boxes: arena.boxes.map((box, i) => shifted(box, offsets.boxes[i]!)),
+            cylinders: arena.cylinders.map((cylinder, i) => shifted(cylinder, offsets.cylinders[i]!)),
+            objects: objectsChanged ? objects : arena.objects,
+          }
         : arena,
   };
 }

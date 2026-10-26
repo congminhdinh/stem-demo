@@ -1,6 +1,8 @@
 import type { ArenaBox, ArenaCylinder, ArenaObject, ArenaWall, PaintLine, PaintZone, PointCm, ZoneKind } from '../world/arena/arena-schema';
+import { productionKits } from '../hardware/catalog';
+import { scenarioKitRef } from './scenario';
 import type { Scenario } from './scenario-schema';
-import { ROBOT_FOOTPRINT_RADIUS_CM } from './variants';
+import { kitFootprintRadiusCm } from './variants';
 
 // The printable arena (N18 R5.3, robot plan §R5.3): a scenario's arena as SVG text in true physical units, so that a real mat can be made
 // for a real robot to drive on, and the pages that print it at home on A4. Pure text in, text out (no DOM, no Node), so it sits in the
@@ -11,6 +13,8 @@ import { ROBOT_FOOTPRINT_RADIUS_CM } from './variants';
 // are the `zones` polygons painted in their order (the even-odd fill the sensor uses), the floor is `ground`. Nothing is copied or redrawn
 // from anything else. What is not paint is drawn as a hatched footprint, because it is an object to put on the mat, not ink: the walls,
 // boxes and cylinders of the arena, the objects to push, and where the robot starts (its footprint circle, the middle of its body, its heading).
+// N19 D1: the footprint circle is the floor the scenario's kit keeps clear at its start (`kitFootprintRadiusCm`: 11 cm for the rover, more for
+// a kit that reaches past its body), and the zone labels and the pose words keep off that circle.
 //
 // Frame: the arena has x to the right and y away from the viewer, the sheet has y down, so a point (x, y) is drawn at (x, depth − y); the
 // viewBox is `0 0 width depth` in centimetres and the root's width and height are the same numbers in `cm`, so 1 SVG unit is 1 cm at 100 %.
@@ -23,8 +27,26 @@ import { ROBOT_FOOTPRINT_RADIUS_CM } from './variants';
 // paint; `mat-zone-labels`, `mat-obstacles`, `mat-labels`, `mat-start` are marks), so a mat can be printed without the marks by hiding them
 // in a vector editor (docs/robot-scenario-authoring.md, "In sa bàn").
 
-/** What a mat is built from: the part of a validated scenario that is on the floor (a `Scenario` is one). */
-export type MatScenario = Pick<Scenario, 'key' | 'version' | 'title' | 'arena' | 'start' | 'goals'>;
+/** What a mat is built from: the part of a validated scenario that is on the floor, and its kit (a `Scenario` is one). */
+export type MatScenario = Pick<Scenario, 'key' | 'version' | 'title' | 'arena' | 'start' | 'goals' | 'kit'>;
+
+export type ArenaMatOptions = {
+  /** N19 D1: the radius of the start ring, centimetres. Left out: the kit's (`matFootprintRadiusCm`). */
+  footprintRadiusCm?: number;
+};
+
+/**
+ * N19 D1: the floor the scenario's kit keeps clear around its start, centimetres: `kitFootprintRadiusCm` of the kit the scenario runs on, at
+ * the version a lab launches it at. Throws for a kit the app has no file for, whose reach it cannot know.
+ */
+export function matFootprintRadiusCm(scenario: Pick<Scenario, 'kit'>): number {
+  const ref = scenarioKitRef(scenario);
+  const kit = ref === undefined ? undefined : productionKits.get(ref);
+  if (kit === undefined) {
+    throw new Error(`The robot kit "${scenario.kit}" is not one this app knows: a mat draws the floor its robot needs at the start, which only the kit says.`);
+  }
+  return kitFootprintRadiusCm(kit);
+}
 
 /** The resolution of the PNG, dots per inch (it is the true-scale mat: 1 cm is 59.06 px). */
 export const MAT_DPI = 150;
@@ -113,8 +135,9 @@ export type ArenaMat = {
 };
 
 /** The arena of a scenario as SVG text at true scale. See the top of this file for what is drawn and why. */
-export function buildArenaMat(scenario: MatScenario): ArenaMat {
+export function buildArenaMat(scenario: MatScenario, options: ArenaMatOptions = {}): ArenaMat {
   const { arena } = scenario;
+  const footprintCm = options.footprintRadiusCm ?? matFootprintRadiusCm(scenario);
   const [widthCm, heightCm] = arena.ground.sizeCm;
   const y = (value: number) => heightCm - value;
   const sheetPoint = ([px, py]: PointCm) => `${fmt(px)},${fmt(y(py))}`;
@@ -133,12 +156,12 @@ export function buildArenaMat(scenario: MatScenario): ArenaMat {
     ...arena.objects.map((object, i) => (object.shape === 'box' ? boxFootprint('object', object, i, y) : cylinderFootprint('object', object, i, y))),
   ];
   // Where a zone's label must not go: on the tape, under the robot standing at the start, or on the words that say how it stands
-  const pose = startLabel(scenario.start, widthCm, heightCm);
+  const pose = startLabel(scenario.start, widthCm, heightCm, footprintCm);
   const keepOut: KeepOut[] = [
     ...arena.paint.lines.flatMap((line) =>
       line.pointsCm.slice(1).map((b, k): KeepOut => ({ kind: 'segment', from: line.pointsCm[k]!, to: b, radiusCm: line.widthCm / 2 + LABEL_KEEP_OFF_CM })),
     ),
-    { kind: 'disc', center: [scenario.start.xCm, scenario.start.yCm], radiusCm: ROBOT_FOOTPRINT_RADIUS_CM + LABEL_KEEP_OFF_CM },
+    { kind: 'disc', center: [scenario.start.xCm, scenario.start.yCm], radiusCm: footprintCm + LABEL_KEEP_OFF_CM },
     { kind: 'segment', from: [pose.xCm - pose.widthCm / 2, y(pose.baselineCm)], to: [pose.xCm + pose.widthCm / 2, y(pose.baselineCm)], radiusCm: START_LABEL_SIZE_CM },
   ];
   const zoneLabels = arena.paint.zones.map((zone) => zoneLabel(zone, route.get(zone.id), keepOut, y));
@@ -158,7 +181,7 @@ export function buildArenaMat(scenario: MatScenario): ArenaMat {
     `<g id="mat-tape">${tape.join('')}</g>` +
     `<g id="mat-obstacles">${footprints.join('')}</g>` +
     `<g id="mat-labels">${labels.join('')}</g>` +
-    startMarker(scenario.start, heightCm, pose) +
+    startMarker(scenario.start, heightCm, pose, footprintCm) +
     '</g>';
 
   const title = `${scenario.title.vi} (${scenario.key}@${scenario.version})`;
@@ -453,24 +476,24 @@ function obstacleLabel(item: BoxLike | CylinderLike | ArenaObject, word: string,
 
 type StartLabel = { text: string; xCm: number; baselineCm: number; widthCm: number };
 
-/** The pose in words, below the robot's ring (above it when the ring is too near the bottom edge), kept inside the sheet. */
-function startLabel(start: MatScenario['start'], widthCm: number, heightCm: number): StartLabel {
+/** The pose in words, below the robot's ring of `radiusCm` (above it when the ring is too near the bottom edge), kept inside the sheet. */
+function startLabel(start: MatScenario['start'], widthCm: number, heightCm: number, radiusCm: number): StartLabel {
   const text = `${START_LABEL} · x ${fmt(start.xCm)}, y ${fmt(start.yCm)} cm · ${fmt(start.yawDeg)}°`;
   const labelWidth = text.length * START_LABEL_SIZE_CM * 0.55;
   const sheetY = heightCm - start.yCm;
-  const below = sheetY + ROBOT_FOOTPRINT_RADIUS_CM + 1.8 <= heightCm;
+  const below = sheetY + radiusCm + 1.8 <= heightCm;
   const half = labelWidth / 2;
   return {
     text,
     xCm: widthCm <= labelWidth ? widthCm / 2 : clamp(start.xCm, half, widthCm - half),
-    baselineCm: below ? sheetY + ROBOT_FOOTPRINT_RADIUS_CM + 1.6 : sheetY - ROBOT_FOOTPRINT_RADIUS_CM - 0.8,
+    baselineCm: below ? sheetY + radiusCm + 1.6 : sheetY - radiusCm - 0.8,
     widthCm: labelWidth,
   };
 }
 
-/** The ring a robot's footprint makes, a cross at the middle of its body and an arrow along its heading, and the pose in words. */
-function startMarker(start: MatScenario['start'], heightCm: number, label: StartLabel): string {
-  const r = ROBOT_FOOTPRINT_RADIUS_CM;
+/** The ring of `radiusCm` a robot's footprint makes, a cross at the middle of its body and an arrow along its heading, and the pose in words. */
+function startMarker(start: MatScenario['start'], heightCm: number, label: StartLabel, radiusCm: number): string {
+  const r = radiusCm;
   const cx = start.xCm;
   const cy = heightCm - start.yCm;
   const yaw = (start.yawDeg * Math.PI) / 180;
@@ -579,7 +602,7 @@ export type TiledSheet = {
   pages: number;
 };
 
-export type TiledSheetOptions = {
+export type TiledSheetOptions = ArenaMatOptions & {
   /** CSS that makes the font available (the `@font-face` rules the script embeds), put first in the document's style. */
   fontCss?: string;
 };
@@ -591,7 +614,7 @@ export type TiledSheetOptions = {
  * window reaches the edge of the arena a dashed line marks it. The mat itself is in the document once and every page draws it.
  */
 export function buildTiledSheet(scenario: MatScenario, options: TiledSheetOptions = {}): TiledSheet {
-  const mat = buildArenaMat(scenario);
+  const mat = buildArenaMat(scenario, options.footprintRadiusCm === undefined ? {} : { footprintRadiusCm: options.footprintRadiusCm });
   const plan = planTiles(mat.widthCm, mat.heightCm);
   const { left, top } = TILE_MARGIN_CM;
   const { width: windowWidth, height: windowHeight } = TILE_WINDOW_CM;
