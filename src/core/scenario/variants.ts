@@ -1,3 +1,4 @@
+import type { Kit } from '../hardware/kit';
 import type { Arena, ArenaBox, ArenaCylinder } from '../world/arena/arena-schema';
 import { createWorldRng } from '../world/rng';
 import { circleShape, cosSin, insideGround, rectShape, shapesOverlap, wallShape, type Shape } from './overlap';
@@ -23,8 +24,8 @@ import type { PoseCm, Scenario } from './scenario-schema';
 // A draw that does not fit is thrown away and the thing is drawn again, at most VARIANT_MAX_ATTEMPTS times; then it keeps the place the
 // author gave it (offset 0). The robot keeps its authored position only: the yaw never decides whether a draw fits (it does not move the
 // footprint), so after the last failed draw the start turns by the yaw of the first draw. What does not fit:
-//   - the start: the robot’s footprint (a circle of ROBOT_FOOTPRINT_RADIUS_CM) leaves the ground or overlaps a wall, an object, an
-//     untagged obstacle, or a tagged obstacle at its authored place;
+//   - the start: the robot’s footprint (a circle of `radiusCm`, the kit’s `kitFootprintRadiusCm`: ROBOT_FOOTPRINT_RADIUS_CM when it says
+//     none) leaves the ground or overlaps a wall, an object, an untagged obstacle, or a tagged obstacle at its authored place;
 //   - a tagged obstacle: it leaves the ground, or overlaps the robot at its final start, a wall, an object, an untagged obstacle, a
 //     tagged obstacle placed before it (at its final place) or after it (at its authored place).
 // The start is placed first, then the obstacles in order, each against what is already placed, so if the authored layout is clear of
@@ -44,10 +45,19 @@ export const VARIANT_MAX_ATTEMPTS = 20;
  * The floor the robot needs at its start, a circle around the point of its pose (the middle of the body). `ref-uno-rover@0` is a
  * 15 × 12 cm body, whose corners are 9.60 cm from the middle, on wheels 6.6 cm across and 2.6 cm wide (track 15 cm, axle 2 cm back)
  * whose outer back corners are the farthest point, 10.27 cm away; its servo arm stays inside the body at every angle. 11 cm leaves
- * 0.73 cm of air. A kit that reaches farther needs a bigger number here: `robotFootprint(kit).radiusCm` (world/robot/footprint.ts)
- * says how far it reaches, and createWorld refuses a start where any part of the robot overlaps the arena (N18 R3.5).
+ * 0.73 cm of air. This is the radius of a kit that does not say its own. A kit that reaches farther says a bigger one in its chassis
+ * (`footprintRadiusCm`, `kitFootprintRadiusCm`): `robotFootprint(kit).radiusCm` (world/robot/footprint.ts) says how far it reaches, and
+ * createWorld refuses a start where any part of the robot overlaps the arena (N18 R3.5).
  */
 export const ROBOT_FOOTPRINT_RADIUS_CM = 11;
+
+/**
+ * The floor `kit` needs at its start (N19 D-G8): its own `chassis.footprintRadiusCm` when it says one, else `ROBOT_FOOTPRINT_RADIUS_CM`
+ * (the rover's, whose file says nothing, and a kit with no chassis). What `variantOffsets` is given as `radiusCm` for the kit a scenario runs on.
+ */
+export function kitFootprintRadiusCm(kit: Kit): number {
+  return kit.chassis?.footprintRadiusCm ?? ROBOT_FOOTPRINT_RADIUS_CM;
+}
 
 /** Mixed into the variant seed for the jitter stream, so that it is not the stream the world draws its sensor noise from. */
 const JITTER_SALT = 0x9e3779b9;
@@ -107,9 +117,11 @@ const plain = (n: number): number => n + 0;
 
 /**
  * The offsets of variant `index` of the scenario (0 … count − 1; any other index is a RangeError). Variant 0 is all zeros. See the top
- * of this file for what moves, what is drawn in which order and when a draw is thrown away.
+ * of this file for what moves, what is drawn in which order and when a draw is thrown away. `radiusCm` is the floor the robot's kit
+ * needs around its start (`kitFootprintRadiusCm(kit)`); it decides which draws fit, never which numbers are drawn, and the seed does not
+ * depend on it. The default is the rover's.
  */
-export function variantOffsets(scenario: VariantSource, index: number): VariantOffsets {
+export function variantOffsets(scenario: VariantSource, index: number, radiusCm: number = ROBOT_FOOTPRINT_RADIUS_CM): VariantOffsets {
   checkIndex(scenario, index);
   const { arena, start, variants } = scenario;
   const seed = variantSeed(scenario, index);
@@ -159,7 +171,7 @@ export function variantOffsets(scenario: VariantSource, index: number): VariantO
 
   // The start, first. The yaw does not move the footprint, so a draw never fails for its yaw: when no position fits, only the position
   // falls back (offset 0) and the start keeps the yaw of the first draw.
-  let robot = circleShape(start.xCm, start.yCm, ROBOT_FOOTPRINT_RADIUS_CM);
+  let robot = circleShape(start.xCm, start.yCm, radiusCm);
   if (jitterStart) {
     let firstYawDeg = 0;
     let placed = false;
@@ -167,7 +179,7 @@ export function variantOffsets(scenario: VariantSource, index: number): VariantO
       const [dxCm, dyCm] = drawMove();
       const dYawDeg = jitter(variants.yawJitterDeg);
       if (attempt === 0) firstYawDeg = dYawDeg;
-      const moved = circleShape(start.xCm + dxCm, start.yCm + dyCm, ROBOT_FOOTPRINT_RADIUS_CM);
+      const moved = circleShape(start.xCm + dxCm, start.yCm + dyCm, radiusCm);
       const stays = dxCm === 0 && dyCm === 0;
       if (stays || (insideGround(moved, width, depth) && !hits(moved, fixed) && !hits(moved, authored))) {
         startOffset = { dxCm, dyCm, dYawDeg };

@@ -1,7 +1,7 @@
 import { portOfRole, portParam, type Kit, type LineSensorSpec, type ModuleSpecs, type UltrasonicSpec } from '../hardware/kit';
 import { robotMechanics } from '../hardware/kit-mechanics';
 import { ScenarioError, type Scenario } from '../scenario/scenario-schema';
-import { applyVariant, variantOffsets, type VariantOffsets } from '../scenario/variants';
+import { applyVariant, kitFootprintRadiusCm, variantOffsets, type VariantOffsets } from '../scenario/variants';
 import type { Arena, PointCm } from './arena/arena-schema';
 import { buildArena, type ArenaColliderInfo, type BuiltArena } from './arena/build-arena';
 import { createGroundPaint } from './arena/ground-paint';
@@ -26,7 +26,8 @@ import { CM_PER_M, degToRad, radToDeg, worldToArena, yawOfQuaternion, yawToQuate
 //
 // Entry points:
 //   - `createScenarioWorld(scenario, kit, variantIndex)` is the main one, what a run of a scenario builds (R3.6): it takes the
-//     variant's offsets (variants.ts `variantOffsets`), applies them (`applyVariant`) and builds the world with the variant's seed.
+//     variant's offsets (variants.ts `variantOffsets`, with the floor the kit keeps clear at a start, `kitFootprintRadiusCm`), applies them
+//     (`applyVariant`) and builds the world with the variant's seed.
 //   - `createWorld({ arena, start, kit, seed, variant? })` is what that calls: an arena and a start already varied (or none to
 //     vary: a sandbox, a test, a tool). It never applies `variant` again; it only keeps it, and checks that `seed` is its seed.
 //
@@ -147,7 +148,7 @@ export async function createScenarioWorld(scenario: Scenario, kit: Kit, variantI
   if (scenario.kit !== kit.id) {
     throw new RangeError(`Scenario "${scenario.key}" runs on the kit "${scenario.kit}", not "${kit.id}".`);
   }
-  const offsets = variantOffsets(scenario, variantIndex);
+  const offsets = variantOffsets(scenario, variantIndex, kitFootprintRadiusCm(kit));
   const { start, arena } = applyVariant(scenario, offsets);
   const input: WorldInput = { ...options, arena, start, kit, seed: offsets.seed, variant: offsets };
   checkInput(input);

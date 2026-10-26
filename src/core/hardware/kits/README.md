@@ -28,7 +28,7 @@ của `spikes/avr8js/sketches/contract-forms/contract-forms.ino`.
 
 World (`src/core/world/robot/assembly.ts`) dựng robot từ phần này; `loadKit` kiểm nó bằng `kit-mechanics.ts` và chỉ đường
 dẫn của từng lỗi (`modules.0.spec.maxRpm: …`, `chassis.comCm.0: …`). Mọi khoá đều **bắt buộc**, không có giá trị mặc định,
-và khoá lạ bị từ chối.
+và khoá lạ bị từ chối. Ngoại lệ duy nhất là `chassis.footprintRadiusCm` (N19 D-G8): tùy chọn, và schema **không** điền giá trị mặc định.
 
 **Khung robot** (cho `mount.posCm`, `chassis.comCm`, `chassis.casterCm`): lấy tâm chassis làm gốc, gốc nằm **trên mặt sàn**,
 ngay dưới tâm của hộp thân (`bodyCm`) khi robot đứng yên trên sàn phẳng. **x phía trước, y bên trái, z hướng lên**, đơn vị cm.
@@ -41,6 +41,7 @@ Vì vậy z là độ cao so với sàn. `mount.yawDeg` quay module quanh z, ng�
 | | `trackCm` | khoảng cách hai tâm bánh; bánh trái ở y = +trackCm/2 |
 | | `casterCm`, `casterRadiusCm` | tâm và bán kính bánh tự lựa (bi cầu), chạm sàn: z = bán kính |
 | | `frictionWheel` | hệ số ma sát lốp–sàn: độ bám giới hạn lực đẩy của bánh |
+| | `footprintRadiusCm` (tùy chọn) | bán kính vòng tròn quanh điểm của tư thế mà các biến thể kịch bản giữ trống ở chỗ xuất phát (`kitFootprintRadiusCm`, `scenario/variants.ts`). Bỏ qua thì là 11 cm (`ROBOT_FOOTPRINT_RADIUS_CM`, như rover); kit nhô xa hơn thân (tay gắp) ghi số lớn hơn. Phải ≥ tầm với của kit (`robotFootprint(kit).radiusCm`), có test cho mọi kit trong catalog |
 | `dc-motor` | `maxRpm`, `tauS`, `stallTorqueNm`, `gearFrictionNm` | ω₀ của đường mô-men (duty 255, không tải, chưa trừ ma sát hộp số), hằng số thời gian bậc 1, mô-men kẹt T_s, ma sát Coulomb của hộp số T_f (< T_s); đường mô-men T = T_s·(u − ω/ω₀) |
 | | `wheelRadiusCm`, `wheelWidthCm` | bánh trên trục motor; `mount` là tâm bánh, z = bán kính, `yawDeg` = 0 |
 | `servo` | `sPer60Deg`, `minDeg`, `maxDeg`, `restDeg`, `stallTorqueNm` | tốc độ (s cho 60°), dải góc, góc lúc dựng world (để tay nằm trong khung thân), mô-men giữ tối đa |

@@ -24,6 +24,8 @@ export const chassisSchema = z.strictObject({
   casterCm: pointCm,
   casterRadiusCm: positive,
   frictionWheel: positive,
+  // N19 D-G8: the only optional key of the chassis, and with no default (a default would write into a kit that never had the key).
+  footprintRadiusCm: positive.optional(),
 }) satisfies z.ZodType<ChassisSpec>;
 
 /** The spec of each module kind (kit.ts, `ModuleSpecs`). */

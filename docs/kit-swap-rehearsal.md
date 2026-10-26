@@ -86,10 +86,11 @@ Kết quả (2026-10-25, máy dev macOS, arduino-cli 1.5.1, arduino:avr@1.8.8, `
 
 ### 4.1 Scenario gắn chặt với kit tham chiếu (dữ liệu, không phải engine)
 
-Schema scenario buộc mỗi key `rb-*` dùng `robotKitId` của `src/samples/robot-keys.ts` (`ref-uno-rover`), và run session từ chối kit khác
+Schema scenario buộc mỗi key `rb-*` dùng kit của key đó trong `src/samples/robot-keys.ts` (`robotTemplates[key].kit`, hiện là
+`ref-uno-rover` cho mọi key; N19 A1 đã chuyển từ một hằng `robotKitId` sang gán theo từng key), và run session từ chối kit khác
 `scenario.kit`. Nên một file scenario **không thể** ghi `kit: "rehearsal-rover"`. Test đổi `kit` trên scenario đã nạp (`{ ...scenario,
-kit: "rehearsal-rover" }`), đúng như việc một kit thật thay `robotKitId`. Với kit thật của nhà cung cấp, đây là thay **dữ liệu**:
-`robotKitId`/`robotKitVersion` trong `robot-keys.ts`, `kit` của mọi `rb-*.json`, và tăng `version` của từng scenario (kits/README.md bước 5).
+kit: "rehearsal-rover" }`), đúng như việc một kit thật thay kit của key. Với kit thật của nhà cung cấp, đây là thay **dữ liệu**:
+`robotKits` và bảng kit theo key trong `robot-keys.ts`, `kit` của mọi `rb-*.json`, và tăng `version` của từng scenario (kits/README.md bước 5).
 
 ### 4.2 C2: servo trên D10, xung đầu tiên sau `attach()` dài hơn (đã xử lý ở harness)
 
@@ -116,7 +117,7 @@ fixture của kit tham chiếu vẫn khớp như trước.
    IN1/IN2), thêm vào `productionKits` (`catalog.ts`). `loadKit` từ chối dữ liệu sai và chỉ đường dẫn của lỗi.
 3. Chạy `checkKit` với cả 8 tổ hợp servo / tone / Serial: phải không có diagnostic (chọn chân như §1: PWM của EN không nằm trên timer servo
    T1 = D9/D10 hay tone T2 = D3/D11; không dùng D0/D1).
-4. Đổi `robotKitId`/`robotKitVersion` trong `src/samples/robot-keys.ts` và `kit` của mọi `rb-*.json`; tăng `version` scenario. Phần cơ khí
+4. Đổi `robotKits` và kit của từng key (`templateKits`) trong `src/samples/robot-keys.ts` và `kit` của mọi `rb-*.json`; tăng `version` scenario. Phần cơ khí
    đổi thì đo lại thời gian của lời giải open-loop (lesson 1–2, blind program) theo `docs/robot-scenario-authoring.md`.
 5. Chạy lại như buổi diễn tập: copy `tests/kit-rehearsal.test.ts` cho kit mới (checkKit, board target, 6 lời giải mẫu, diff sketch, golden),
    `pnpm build:parity-hex` cho fixture C2 trên kit mới, `pnpm check:arduino`, `pnpm verify`.

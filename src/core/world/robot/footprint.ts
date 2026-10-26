@@ -6,8 +6,9 @@ import { cos, sin } from '../dmath';
 import { degToRad } from '../units';
 
 // The robot seen from above (N18 R3.5), from the kit's mechanics: what createWorld checks a start against, what the goal frame
-// calls the robot's footprint, and how far the robot reaches from the point of its pose (the scenario variants keep a circle of
-// ROBOT_FOOTPRINT_RADIUS_CM clear; footprint.test.ts holds the reference kit to it).
+// calls the robot's footprint, and how far the robot reaches from the point of its pose (the scenario variants keep a circle of the
+// kit's radius clear, `kitFootprintRadiusCm`: ROBOT_FOOTPRINT_RADIUS_CM unless the kit's chassis says another; footprint.test.ts holds the
+// reference kit to the constant, and variants.kit-radius.test.ts every kit of the catalog to its own radius).
 //
 // Frame: the robot frame of kit.ts (`KitModule.mount`) in cm, x forward and y left, seen from above; the start pose puts it on
 // the arena (units.ts: x right, y away, yaw counter-clockwise from +x). The parts, and how high their bottom is above the floor:
