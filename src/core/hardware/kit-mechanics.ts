@@ -81,6 +81,13 @@ export const moduleSpecSchemas: { readonly [K in ModuleKind]: z.ZodType<ModuleSp
     fingerMassG: positive,
     jawFriction: positive,
     maxPayloadG: positive,
+    // N19 E6 fix round 1 (review I4, ruled): the claw servo's box on the carriage, the one the asset draws and B5's collider will be.
+    clawServoCenterUCm: finite,
+    clawServoCenterVCm: finite,
+    clawServoCenterWCm: finite,
+    clawServoSizeUCm: positive,
+    clawServoSizeVCm: positive,
+    clawServoSizeWCm: positive,
   }),
   'ir-obstacle': z.strictObject({ rangeCm: positive, minReflectance: z.number().gt(0).max(1) }),
   'color-sensor': z.strictObject({

@@ -39,6 +39,11 @@ describe('the gripper of the 3D view’s robot (N19 E6)', () => {
     expect([gripper.fingerOpenDeg, gripper.fingerDegPerServoDeg, gripper.jawsMeetDeg]).toEqual([12, 0.445, 80]);
   });
 
+  it('has the claw servo’s case on the carriage as the kit says (fix round 1, review I4): its centre and size in three’s frame (u, w, −v)', () => {
+    close(gripper.clawServo.center, [-0.0013, 0.01535, 0]);
+    close(gripper.clawServo.size, [0.0122, 0.0227, 0.0228]);
+  });
+
   it('puts the IR and colour sensors on the carriage at their mounts (three: u, w, −v), with their places among the snapshot’s sensors', () => {
     expect(gripper.ir?.role).toBe('irClaw');
     close(gripper.ir!.position, [0.003, 0, -0.006]);

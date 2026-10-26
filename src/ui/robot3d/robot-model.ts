@@ -51,6 +51,8 @@ export type GripperModel = {
   jawsMeetDeg: number;
   ir: { role: string; position: Vec3Tuple; sensorIndex: number } | null;
   color: { role: string; position: Vec3Tuple; sensorIndex: number } | null;
+  /** The claw servo's case on the carriage (GripperSpec `clawServo*`): its centre and size in the carriage's three.js frame, m. */
+  clawServo: { center: Vec3Tuple; size: Vec3Tuple };
 };
 
 /** A placeholder chassis for a kit without one (the world needs one to run; the view still draws something sensible). */
@@ -113,6 +115,10 @@ function gripperOf(kit: Kit, sensorIndex: (module: KitModule) => number): Grippe
     jawsMeetDeg: num(module, 'jawsMeetDeg', 80),
     ir: rider('ir-obstacle'),
     color: rider('color-sensor'),
+    clawServo: {
+      center: robotPointToThree([num(module, 'clawServoCenterUCm', -0.13), num(module, 'clawServoCenterVCm', 0), num(module, 'clawServoCenterWCm', 1.535)]),
+      size: [m(num(module, 'clawServoSizeUCm', 1.22)), m(num(module, 'clawServoSizeWCm', 2.27)), m(num(module, 'clawServoSizeVCm', 2.28))],
+    },
   };
 }
 

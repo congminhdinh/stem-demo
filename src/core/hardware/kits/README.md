@@ -105,6 +105,7 @@ chassis còn 426 g, §4.6), `comCm [-1.2, 0, 3.6]` và `footprintRadiusCm 16` (t
 | | `clawSPer60Deg`, `clawStallTorqueNm`, `jawsMeetDeg` | servo kẹp; góc kẹp mà hai ngón chạm nhau (≤ 90) |
 | | `fingerOpenDeg`, `fingerDegPerServoDeg`, `fingerHingeUCm`, `fingerHingeVCm`, `fingerLengthCm`, `fingerThicknessCm`, `jawHeightCm`, `fingerMassG` | ngón: góc mở ở kẹp 0°, độ quay mỗi độ servo, khớp ngón trong khung giá kẹp (u, ±v), dài, dày, cao (chiều cao ngàm), khối lượng |
 | | `jawFriction`, `maxPayloadG` | hệ số bám chỉ dùng cho ngưỡng tuột (collider ngón ma sát 0, §4.6); khối lượng vật lớn nhất |
+| | `clawServoCenterUCm`, `clawServoCenterVCm`, `clawServoCenterWCm`, `clawServoSizeUCm`, `clawServoSizeVCm`, `clawServoSizeWCm` | vỏ servo kẹp trên giá kẹp: tâm và kích thước hộp trong khung giá kẹp (PLACEHOLDER, `[-0.13, 0, 1.535]`, `1.22 × 2.28 × 2.27`). Asset 3D vẽ đúng hộp này (E6); từ task B5 nó là collider mà siêu âm nghe thấy. World chưa đọc |
 | `ir-obstacle` | `rangeCm`, `minReflectance` | tầm nhìn; độ phản xạ nhỏ nhất thấy được (0…1] |
 | `color-sensor` | `rangeCm`, `halfLightCm`, `whiteRPerMs`, `whiteGPerMs`, `whiteBPerMs`, `ambientPerMs` | tầm nhìn; khoảng cách ánh sáng còn một nửa; số đếm mỗi ms ở gain 1× trước vật trắng, và khi không có gì (world dùng ở task B3) |
 

@@ -61,7 +61,9 @@
         "clawSPer60Deg": 0.1, "clawStallTorqueNm": 0.18, "jawsMeetDeg": 80,
         "fingerOpenDeg": 12, "fingerDegPerServoDeg": 0.445, "fingerHingeUCm": 0.5, "fingerHingeVCm": 2.2,
         "fingerLengthCm": 5, "fingerThicknessCm": 0.4, "jawHeightCm": 1.2, "fingerMassG": 3,
-        "jawFriction": 0.6, "maxPayloadG": 50
+        "jawFriction": 0.6, "maxPayloadG": 50,
+        "clawServoCenterUCm": -0.13, "clawServoCenterVCm": 0, "clawServoCenterWCm": 1.535,
+        "clawServoSizeUCm": 1.22, "clawServoSizeVCm": 2.28, "clawServoSizeWCm": 2.27
       }
     },
     {

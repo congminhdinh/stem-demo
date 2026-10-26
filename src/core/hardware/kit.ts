@@ -243,6 +243,17 @@ export type GripperSpec = {
   readonly jawFriction: number;
   /** The heaviest object the gripper lifts, g. */
   readonly maxPayloadG: number;
+  /**
+   * N19 E6 fix round 1 (review I4, ruled): the claw servo's case on the carriage, a box in the carriage frame (its centre and its size along
+   * u, v, w, cm), PLACEHOLDER: what the 3D view draws (assets-src/robot3d/parts/gripper.py reads it) and, from task B5, a collider the
+   * ultrasonic hears (a servo raised in front of an HC-SR04 blocks it). The world does not read it yet.
+   */
+  readonly clawServoCenterUCm: number;
+  readonly clawServoCenterVCm: number;
+  readonly clawServoCenterWCm: number;
+  readonly clawServoSizeUCm: number;
+  readonly clawServoSizeVCm: number;
+  readonly clawServoSizeWCm: number;
 };
 
 /**

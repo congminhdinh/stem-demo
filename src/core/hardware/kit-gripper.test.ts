@@ -142,6 +142,13 @@ describe('ref-uno-gripper@0 (plan §4.1, PLACEHOLDER)', () => {
       fingerMassG: 3,
       jawFriction: 0.6,
       maxPayloadG: 50,
+      // N19 E6 fix round 1 (review I4, ruled): the claw servo's box on the carriage.
+      clawServoCenterUCm: -0.13,
+      clawServoCenterVCm: 0,
+      clawServoCenterWCm: 1.535,
+      clawServoSizeUCm: 1.22,
+      clawServoSizeVCm: 2.28,
+      clawServoSizeWCm: 2.27,
     });
     expect(mechanics.irSensors.map((module) => [module.role, module.mount, module.spec])).toEqual([
       ['irClaw', { posCm: [0.3, 0.6, 0], yawDeg: 0, on: 'gripper' }, { rangeCm: 2, minReflectance: 0.15 }],

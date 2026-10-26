@@ -339,8 +339,8 @@ export function RobotView({ model, view, shadows }: RobotViewProps) {
               <boxGeometry args={[0.01, 0.012, 0.052]} />
               <meshStandardMaterial color={colors.chip} roughness={0.5} />
             </mesh>
-            <mesh position={[-0.0012, 0.006 + 0.0114, 0]} castShadow={shadows}>
-              <boxGeometry args={[0.0122, 0.0227, 0.0228]} />
+            <mesh position={model.gripper.clawServo.center as [number, number, number]} castShadow={shadows}>
+              <boxGeometry args={model.gripper.clawServo.size as [number, number, number]} />
               <meshStandardMaterial color={colors.gripperServo} roughness={0.4} />
             </mesh>
           </group>
