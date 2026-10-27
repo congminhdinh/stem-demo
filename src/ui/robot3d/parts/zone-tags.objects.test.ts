@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Scenario } from '../../../core/scenario/scenario';
 import { bodyKindColors, bodyPalette } from '../../../core/world/arena/body-colors';
 import { gripperSnapshot, gripperTestScenario } from '../__fixtures__/gripper-scene';
-import { goalObjectIds, objectTagHidden, objectTags } from './zone-tags';
+import { bodyHalvesOf, goalObjectIds, objectTagHidden, objectTags } from './zone-tags';
 
 // N19 E5: the objects a lesson's goals name have small tags in the 3D view, as its zones do (the learner's name of the object, "Khối đỏ",
 // with a dot of its colour), over the object wherever it is; a tag is hidden while the gripper holds its object (the HUD's chip says it
@@ -49,4 +49,22 @@ describe('the objects’ tags (N19 E5)', () => {
     expect(objectTagHidden(green!, holding, 'follow')).toBe(true);
     expect(objectTagHidden(red!, gripperSnapshot({ clawDeg: 0, liftDeg: 0, heldId: null }), 'orbit')).toBe(false);
   });
+
+  it('is hidden while another object rests on its object: the base’s under the cube stacked on it (N19 E8 fix round 2, review R2)', () => {
+    const tags = objectTags(scenario, labels);
+    const [base, blue] = [tags.find((tag) => tag.objectId === 'base')!, tags.find((tag) => tag.objectId === 'cube-blue')!];
+    const halves = bodyHalvesOf(scenario.arena);
+    const world = gripperSnapshot({ clawDeg: 0, liftDeg: 90, heldId: null });
+    const blueAt = (xCm: number, yCm: number, zCm: number) => ({ ...world, objects: world.objects.map((object) => (object.id === 'cube-blue' ? { ...object, pose: { ...object.pose, xCm, yCm, zCm } } : object)) });
+    // The base at (104, 30), 6 × 6 × 4 cm: its top 4 cm up; the 4 cm cube on it has its middle 6 cm up.
+    expect(objectTagHidden(base, blueAt(104.5, 30.5, 5.98), 'orbit', halves)).toBe(true);
+    expect(objectTagHidden(blue, blueAt(104.5, 30.5, 5.98), 'orbit', halves)).toBe(false);
+    // Just off its edge (the footprints still meet) it rests on it too; beside it on the floor, or carried 3 cm over it, it does not.
+    expect(objectTagHidden(base, blueAt(108.5, 30, 5.98), 'orbit', halves)).toBe(true);
+    expect(objectTagHidden(base, blueAt(112, 30, 2), 'orbit', halves)).toBe(false);
+    expect(objectTagHidden(base, blueAt(104, 30, 9), 'orbit', halves)).toBe(false);
+    // Without the bodies' sizes (N19 E5's callers): as before.
+    expect(objectTagHidden(base, blueAt(104.5, 30.5, 5.98), 'orbit')).toBe(false);
+  });
 });
+

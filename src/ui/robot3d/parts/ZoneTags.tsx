@@ -12,7 +12,7 @@ import { labelBoxes, MAX_LABEL_BOXES } from '../sensor-label-boxes';
 import { registerZoneTags } from '../zone-tags-state';
 import type { MatLabels } from './mat-paint';
 import { boxOfInto, createTagLayout, inPolygon, TAG_LIFTS_M, TAG_PLACES, type ScreenBox, type TagPlace } from './zone-tag-layout';
-import { objectTagHidden, objectTags, tagBadgeColor, zoneTags, type ObjectTag, type ZoneTag } from './zone-tags';
+import { bodyHalvesOf, objectTagHidden, objectTags, restedOn, tagBadgeColor, zoneTags, type ObjectTag, type ZoneTag } from './zone-tags';
 
 // The zones' tags over the mat (N18 R4.7 fix round 1, zone-tags.ts): each a rounded tag drawn on a canvas (a checkpoint's number in a
 // disc of the zone's colour, or a target's dot and name), a sprite that faces the camera and keeps its size on the screen, over the
@@ -172,6 +172,8 @@ export function ZoneTags({ scenario, labels, view, mode, overlays, robot }: Zone
     },
     [line],
   );
+  // N19 E8 fix round 2: the bodies' sizes, for an object another rests on (its tag hidden then).
+  const halves = useMemo(() => bodyHalvesOf(scenario.arena), [scenario.arena]);
   // Read in the frame callback without making it a new one.
   const latest = useRef({ view, mode, overlays, robot });
   useEffect(() => {
@@ -251,7 +253,8 @@ export function ZoneTags({ scenario, labels, view, mode, overlays, robot }: Zone
       next[at + 2] = used ? label.bottom : 0;
       next[at + 3] = used ? label.top : 0;
     }
-    // N19 E5: each object's place, and whether it is held (its tag hidden then).
+    // N19 E5: each object's place, and whether it is held (its tag hidden then); N19 E8 fix round 2, or another object rests on it (its
+    // tag hidden then too).
     const heldId = world.robot.gripper?.heldId ?? null;
     for (let i = 0; i < tags.length; i++) {
       const object = tags[i]!.object;
@@ -260,7 +263,7 @@ export function ZoneTags({ scenario, labels, view, mode, overlays, robot }: Zone
       next[at] = pose?.xCm ?? 0;
       next[at + 1] = pose?.yCm ?? 0;
       next[at + 2] = pose?.zCm ?? 0;
-      next[at + 3] = object !== null && heldId === object.objectId ? 1 : 0;
+      next[at + 3] = object === null ? 0 : heldId === object.objectId ? 1 : restedOn(world, object.index, halves) ? 2 : 0;
     }
     let same = over === work.seenOverlays && box === work.seenRobot;
     for (let i = 0; same && i < next.length; i++) same = next[i] === seen[i];
@@ -327,7 +330,7 @@ export function ZoneTags({ scenario, labels, view, mode, overlays, robot }: Zone
       const spriteWidth = share * spriteHeight * (drawn.canvasWidth / (PILL_PX + 2 * MARGIN_PX));
       entry.width = spriteWidth * elements[0]! * (drawn.pillWidth / drawn.canvasWidth);
       entry.height = share * spriteHeight * elements[5]! * (PILL_PX / (PILL_PX + 2 * MARGIN_PX));
-      entry.hidden = object === null ? cameraMode === 'follow' || inPolygon(work.at, polygon) : pose === undefined || objectTagHidden(object, world, cameraMode);
+      entry.hidden = object === null ? cameraMode === 'follow' || inPolygon(work.at, polygon) : pose === undefined || objectTagHidden(object, world, cameraMode, halves);
     }
     const places = work.layout.place(work.toPlace, avoid);
     for (let i = 0; i < tags.length; i++) {

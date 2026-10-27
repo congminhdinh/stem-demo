@@ -132,9 +132,47 @@ export function objectTags(scenario: Pick<Scenario, 'arena' | 'goals'>, labels: 
   });
 }
 
-/** N19 E5: whether an object's tag is hidden: while the gripper holds its object (the HUD's chip names it then), and in "Theo xe" (N18 R4.7). */
-export function objectTagHidden(tag: Pick<ObjectTag, 'objectId'>, world: RobotSnapshot, mode: CameraMode): boolean {
-  return mode === 'follow' || world.robot.gripper?.heldId === tag.objectId;
+/**
+ * N19 E8 fix round 2: each moving body's half extents (cm: along x, along y, up; a turned box's footprint is taken as it stands unturned),
+ * three numbers a body, in a snapshot's `objects` order (scene-math.ts `dynamicBodyIds`: the dynamic boxes, the dynamic cylinders, the
+ * objects).
+ */
+export function bodyHalvesOf(arena: Pick<Scenario['arena'], 'boxes' | 'cylinders' | 'objects'>): Float64Array {
+  const halves = [
+    ...arena.boxes.filter((box) => box.body === 'dynamic').map((box) => [box.sizeCm[0] / 2, box.sizeCm[1] / 2, box.sizeCm[2] / 2]),
+    ...arena.cylinders.filter((cylinder) => cylinder.body === 'dynamic').map((cylinder) => [cylinder.radiusCm, cylinder.radiusCm, cylinder.heightCm / 2]),
+    ...arena.objects.map((object) => (object.shape === 'box' ? [object.sizeCm[0] / 2, object.sizeCm[1] / 2, object.sizeCm[2] / 2] : [object.radiusCm, object.radiusCm, object.heightCm / 2])),
+  ];
+  return Float64Array.from(halves.flat());
+}
+
+/** N19 E8 fix round 2: how near (cm) a body's bottom is to another's top for it to rest on it. */
+const RESTS_ON_CM = 0.5;
+
+/**
+ * N19 E8 fix round 2 (review R2): whether another body rests on the one at `index` of `world.objects`: its bottom within RESTS_ON_CM of
+ * that one's top and their footprints overlapping (`halves`: bodyHalvesOf). Makes nothing.
+ */
+export function restedOn(world: RobotSnapshot, index: number, halves: Float64Array): boolean {
+  const under = world.objects[index];
+  if (under === undefined || 3 * world.objects.length !== halves.length) return false;
+  const top = under.pose.zCm + halves[3 * index + 2]!;
+  for (let i = 0; i < world.objects.length; i++) {
+    if (i === index) continue;
+    const over = world.objects[i]!.pose;
+    if (Math.abs(over.zCm - halves[3 * i + 2]! - top) > RESTS_ON_CM) continue;
+    if (Math.abs(over.xCm - under.pose.xCm) < halves[3 * i]! + halves[3 * index]! && Math.abs(over.yCm - under.pose.yCm) < halves[3 * i + 1]! + halves[3 * index + 1]!) return true;
+  }
+  return false;
+}
+
+/**
+ * N19 E5: whether an object's tag is hidden: while the gripper holds its object (the HUD's chip names it then), and in "Theo xe" (N18 R4.7).
+ * N19 E8 fix round 2 (review R2): with the bodies' sizes (`halves`), also while another object rests on it (lesson 11's base under the
+ * stacked cube: its line would rise out of the cube, and its name label the cube). Makes nothing.
+ */
+export function objectTagHidden(tag: Pick<ObjectTag, 'objectId' | 'index'>, world: RobotSnapshot, mode: CameraMode, halves?: Float64Array): boolean {
+  return mode === 'follow' || world.robot.gripper?.heldId === tag.objectId || (halves !== undefined && restedOn(world, tag.index, halves));
 }
 
 /** Every text the view writes for `scenario`'s zones: what a brand check reads (no vendor's name may be shown). */
