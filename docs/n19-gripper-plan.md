@@ -558,7 +558,9 @@ Test: `e2e/robot-lab-gripper-look.spec.ts` (chromium-robot), `tests/color-vision
     - Lỗi E4 kèm theo: `offsetX(width / 2)` trên Konva Label (gốc của Label là đầu pointer) làm tag lệch nửa tag sang trái, nằm trên xe. Tag
       khoảng cách của N18 lệch giống vậy và giữ nguyên, vì pixel rover phải trùng.
   - **Chữ vùng trên bản đồ 2D.** Không bao giờ vẽ đè vật, vòng hay xe: chữ được vẽ vào ảnh thảm ở layer 1, còn vật, vòng và xe ở layer 2 (có
-    test). M5: tên vùng có `name` chuyển ra mép xa, bên trong vùng; vùng không tên (mọi bài rover) giữ chữ ở giữa.
+    test). M5: tên vùng có `name` chuyển ra mép ngoài, bên trong vùng: mép trên hay mép dưới, mép nào xa giữa sa bàn hơn (bằng nhau thì mép trên), vì xe vào
+    vùng từ phía giữa sa bàn. Vùng xanh dương của bài 10 vì vậy ghi tên ở mép dưới: xe và tag của nó vào từ mép trên. Vùng không tên (mọi bài rover)
+    giữ chữ ở giữa.
   - **M6.** Không bài nào có cả cross-hatch của `area` và lưới (có test). Bài 8 có area mà không có xanh lá; bài 10 có xanh lá mà không có area.
     Bài 11 có hatch 45° (vùng xếp) cạnh khối đỏ sọc 0°, nhưng không có việc nào cần phân màu, nên không đổi.
   - **Tia màu 3D khi không gặp gì.** Trước đó là slate đậm ở 30 %: 1,02:1 trên băng đen. Nay là slate-500 `#64748b` ở 90 %: ≥ 3:1 trên băng,
