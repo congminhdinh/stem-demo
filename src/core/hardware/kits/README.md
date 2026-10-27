@@ -77,7 +77,8 @@ tải đo được n₀ (đã gồm ma sát), đặt `maxRpm = n₀ / (1 − T_f
 ## `ref-uno-gripper@0`: xe tay gắp 2 bậc, chân và số đều là PLACEHOLDER (N19)
 
 Kit thứ hai của catalog (`productionKits`, `robot-keys.ts` `robotKits`), theo plan `docs/n19-gripper-plan.md` §4.1, §4.2, §4.6 và
-ADR 0004. File kit rover giữ nguyên từng byte; kịch bản chọn kit theo key (D-G1). Chưa có key `rb-grip-*` nào dùng kit này (task D).
+ADR 0004. File kit rover giữ nguyên từng byte; kịch bản chọn kit theo key (D-G1). Bốn bài 8–11 của chương "Tay gắp" dùng kit này:
+`rb-grip-pick`, `rb-grip-deliver`, `rb-grip-sort`, `rb-grip-stack` (`src/samples/robot-scenarios/rb-grip-*.json`, task D).
 
 | Role | Port | Driver | Chân | Gắn |
 |---|---|---|---|---|
