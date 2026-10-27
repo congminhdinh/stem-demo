@@ -22,6 +22,17 @@ describe('the claw open or closed', () => {
     expect([6, 27, 80, 90].map((deg) => clawStateText(vi, deg))).toEqual(['đóng', 'đóng', 'đóng', 'đóng']);
     expect([clawStateText(en, 0), clawStateText(en, 27)]).toEqual(['open', 'closed']);
   });
+
+  it('turns at the grasp’s own threshold, not a copy of it (N19 final fix, G2 M3): RELEASE_HYSTERESIS_DEG, from a module with no Rapier', async () => {
+    const rules = await import('../../core/world/grasp-rules');
+    expect(CLAW_CLOSED_FROM_DEG).toBe(rules.RELEASE_HYSTERESIS_DEG);
+    const { readFileSync } = await import('node:fs');
+    const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
+    expect(source('../../core/world/grasp-rules.ts')).not.toMatch(/from ['"][^'"]*rapier/);
+    // Both read it from there: the claw's word and the grasp machine.
+    expect(source('./pin-text.ts')).toContain("import { RELEASE_HYSTERESIS_DEG } from '../../core/world/grasp-rules';");
+    expect(source('../../core/world/robot/grasp.ts')).toContain("import { RELEASE_HYSTERESIS_DEG } from '../grasp-rules';");
+  });
 });
 
 describe('moduleValueText of the gripper car’s parts', () => {

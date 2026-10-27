@@ -2,6 +2,7 @@ import type { Locale } from '../i18n/messages';
 import type { Text } from '../i18n/text';
 import type { ColorName } from '../../core/hardware/drivers';
 import type { RobotRole } from '../../core/hardware/kit';
+import { RELEASE_HYSTERESIS_DEG } from '../../core/world/grasp-rules';
 import { formatNumber } from './format';
 import type { ColorCounts, HubMap, HubOwner, HubValues, ModuleView, PinReading } from './pin-map';
 
@@ -27,9 +28,9 @@ export function pinValueText(t: Text, locale: Locale, reading: PinReading): stri
 
 /**
  * N19 E2: the claw is closed from this angle (degrees) and open below it: nothing attaches to a claw under 6° (plan §4.6 rule 5), so a cube
- * the jaws hold (27° on a 4 cm cube) reads "đóng" and the open claw (0°) "mở".
+ * the jaws hold (27° on a 4 cm cube) reads "đóng" and the open claw (0°) "mở". N19 final fix (G2 M3): the grasp's own number, not a copy.
  */
-export const CLAW_CLOSED_FROM_DEG = 6;
+export const CLAW_CLOSED_FROM_DEG = RELEASE_HYSTERESIS_DEG;
 
 /** N19 E2: whether the claw at `deg` is open or closed, in a word. */
 export const clawStateText = (t: Text, deg: number): string => t(deg < CLAW_CLOSED_FROM_DEG ? 'robot.pins.claw.open' : 'robot.pins.claw.closed');

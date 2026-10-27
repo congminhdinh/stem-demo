@@ -4,6 +4,7 @@ import type { BuiltArena } from '../arena/build-arena';
 import { getRapier, type Collider, type PhysicsWorld, type RapierModule, type RigidBody } from '../rapier';
 import { cmToM, radToDeg, rotateVector } from '../units';
 import { GRIPPER_GROUP, innerFaceVCm, type Gripper, type GripperFinger } from './gripper';
+import { RELEASE_HYSTERESIS_DEG } from '../grasp-rules';
 import { conjugate, multiplyQuaternions } from './robot-frame';
 
 // The grasp state machine (N19 B2, plan §4.4 with §4.6, D-G5; ADR 0004 §5.4, measured by the G0.1 spike in spikes/n19-grasp/grasp.ts):
@@ -68,8 +69,9 @@ export const ATTACH_V_CM = 1.5;
 export const ATTACH_COMMAND_SLACK_DEG = 0.5;
 /** Attach: the jaw gap at the object's centre is at most its width plus this, cm. */
 export const ATTACH_GAP_SLACK_CM = 0.3;
-/** Release (and the latch after a break) at a claw command of θc less this, degrees. */
-export const RELEASE_HYSTERESIS_DEG = 6;
+// Release (and the latch after a break) at a claw command of θc less RELEASE_HYSTERESIS_DEG (6°): ../grasp-rules.ts, which the pins tab reads
+// too (N19 final fix, G2 M3); still exported from here for the grasp's readers.
+export { RELEASE_HYSTERESIS_DEG };
 /** The claw stalls on an object when the jaw gap at its centre is at most its width plus this, cm (rule 2). */
 export const CLAMP_GAP_SLACK_CM = 0.05;
 /** The lever a finger's correction uses is held within this, m: from 1 cm to the finger's length past its hinge (5.5 cm, rule 3). */
