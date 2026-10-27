@@ -23,10 +23,11 @@ export const HeldChip = memo(function HeldChip({ store, scenario }: HeldChipProp
   const round = useStore(store, (state) => state.round?.index ?? 0);
   if (heldId === null) return null;
   const color = objectColorName(scenario, heldId, round);
+  const noun = scenario.arena.objects.find((object) => object.id === heldId)?.noun;
   return (
     <div className="robot-hud-row">
       <span className="robot-badge robot-badge-held" data-testid="robot-held" data-color={color ?? 'none'} data-mark={swatchMark(color)}>
-        <ColorSwatch color={color} />
+        <ColorSwatch color={color} noun={noun} />
         {t('robot.hud.holding', { object: objectName(t, scenario, heldId, round) })}
       </span>
     </div>

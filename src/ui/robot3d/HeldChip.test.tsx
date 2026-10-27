@@ -163,4 +163,19 @@ describe('the chip of the held object (N19 E1)', () => {
     // Dừng keeps the last world in view (the store's `held`), and the chip with it.
     expect(chip()?.textContent).toBe('Đang giữ: khối đỏ');
   });
+
+  it('draws a parcel with no colour as a parcel: its board and its tape, no colour-blind mark (N19 E8 fix round 1)', async () => {
+    const { show } = await setup();
+    await show(3, 'parcel-1');
+    const swatch = chip()!.querySelector('svg')!;
+    const glyph = swatch.querySelector('[data-glyph=parcel]')!;
+    expect(glyph).not.toBeNull();
+    expect([...glyph.querySelectorAll('path')].map((part) => part.getAttribute('fill'))).toEqual(['#c49a68', '#9a6a35']);
+    expect(swatch.querySelectorAll('[data-mark-part]')).toHaveLength(0);
+    expect(chip()!.dataset.mark).toBe('none');
+    // A cube has its colour and mark, no glyph.
+    await show(4, 'cube');
+    expect(chip()!.querySelector('[data-glyph]')).toBeNull();
+  });
 });
+
