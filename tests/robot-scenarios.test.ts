@@ -428,9 +428,10 @@ describe('the programs of every scenario (N18 R5.2)', () => {
     expect(compiled.ok ? compiled.diagnostics : compiled).toEqual([]);
   });
 
-  it.each(scoredKeys)('%s starts from its lesson’s hat with one loose drive block, so nothing moves until the learner builds the program', (key) => {
+  // The rover's lessons (review 1 M6: the gripper lessons' hint is the arm, pinned in their own block below).
+  it.each(scoredKeys.filter((key) => robotTemplates[key].kit === 'ref-uno-rover'))('%s starts from its lesson’s hat with one loose drive block, so nothing moves until the learner builds the program', (key) => {
     const starter = scenarioOf(key).starter;
-    const hatType = ['rb-drive-to-zone', 'rb-square-route', 'rb-grip-pick', 'rb-grip-deliver', 'rb-grip-sort', 'rb-grip-stack'].includes(key) ? 'stem_on_start' : 'stem_forever';
+    const hatType = ['rb-drive-to-zone', 'rb-square-route'].includes(key) ? 'stem_on_start' : 'stem_forever';
     expect(topBlocks(starter).map((block) => [block.type, block.disabledReasons, block.inputs])).toEqual([
       [hatType, undefined, undefined],
       ['uno_drive_move', ['ORPHANED_BLOCK'], { SPEED: { shadow: { type: 'math_number', id: 'prepared-drive-speed', fields: { NUM: 50 } } } }],
