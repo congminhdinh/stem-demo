@@ -87,6 +87,7 @@ export type RobotFootprint = {
 };
 
 const footprints = new WeakMap<Kit, RobotFootprint>();
+const outlines = new WeakMap<Kit, readonly PointCm[]>();
 
 /** The kit's robot seen from above (computed once per kit object). Throws a HardwareDataError for a kit without valid mechanics. */
 export function robotFootprint(kit: Kit): RobotFootprint {
@@ -98,8 +99,25 @@ export function robotFootprint(kit: Kit): RobotFootprint {
   return footprint;
 }
 
-function computeFootprint(kit: Kit): RobotFootprint {
-  const { chassis, motorLeft, motorRight, servos } = robotMechanics(kit);
+/**
+ * N19 E9: the footprint's `outlineCm` alone (computed once per kit object, and the very array `robotFootprint(kit).outlineCm` is, whichever
+ * is asked for first). The lab asks for it when it opens, for the view tools' ghost and the floor picker, and it is the hull of the body and
+ * the wheels: it needs none of the gripper's 7 189 samples (13.9 ms on an M4 Pro, 55 to 64 ms on a school PC's profile, CPU 6x, a long task
+ * before first paint), which wait for the first world or start check. Throws as `robotFootprint` does.
+ */
+export function robotOutline(kit: Kit): readonly PointCm[] {
+  let outline = outlines.get(kit);
+  if (outline === undefined) {
+    const { body, left, right } = bodyParts(kit);
+    outline = convexHull([...corners(body), ...corners(left), ...corners(right)]);
+    outlines.set(kit, outline);
+  }
+  return outline;
+}
+
+/** What stands on the floor: the body box and the two drive wheels, seen from above (robot frame, cm). */
+function bodyParts(kit: Kit): { body: RectPart; left: RectPart; right: RectPart } {
+  const { chassis, motorLeft, motorRight } = robotMechanics(kit);
   const [length, width] = chassis.bodyCm;
   const body: RectPart = { kind: 'rect', x: 0, y: 0, hx: length / 2, hy: width / 2, yawDeg: 0 };
   const wheel = (posCm: RobotPointCm, radiusCm: number, widthCm: number): RectPart => ({
@@ -112,6 +130,12 @@ function computeFootprint(kit: Kit): RobotFootprint {
   });
   const left = wheel(motorLeft.mount.posCm, motorLeft.spec.wheelRadiusCm, motorLeft.spec.wheelWidthCm);
   const right = wheel(motorRight.mount.posCm, motorRight.spec.wheelRadiusCm, motorRight.spec.wheelWidthCm);
+  return { body, left, right };
+}
+
+function computeFootprint(kit: Kit): RobotFootprint {
+  const { chassis, servos } = robotMechanics(kit);
+  const { body, left, right } = bodyParts(kit);
   const parts: Part[] = [
     { name: 'body', shapes: [body], bottomCm: chassis.clearanceCm },
     { name: 'left wheel', shapes: [left], bottomCm: 0 },
@@ -141,7 +165,7 @@ function computeFootprint(kit: Kit): RobotFootprint {
       if (shape.kind === 'circle') radiusCm = Math.max(radiusCm, Math.sqrt(shape.x * shape.x + shape.y * shape.y) + shape.r);
     }
   }
-  return { parts, outlineCm: convexHull([...corners(body), ...corners(left), ...corners(right)]), radiusCm };
+  return { parts, outlineCm: robotOutline(kit), radiusCm };
 }
 
 /**

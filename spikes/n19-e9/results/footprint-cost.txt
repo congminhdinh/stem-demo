@@ -1,0 +1,16 @@
+# N19 E9 (hand-over from B5/B6 M4): the cost of the lab's first call for the robot's outline, BASE (f744cbf: robotOutlineCm = robotFootprint(kit).outlineCm,
+# so the whole sweep) against HEAD (robotOutline: the hull of the body and the wheels alone).
+# Command (a vite dev server of each tree up: node node_modules/vite/bin/vite.js --port 5550 (HEAD) / 5551 (BASE, `git archive f744cbf`)):
+#   node spikes/n19-e9/footprint-cost.mjs --origin=http://localhost:555x --runs=7 --rate=6 --call=robotOutlineCm|robotFootprint
+# Chromium (Playwright 1.63, channel chromium), a fresh tab for every number (cold JIT), CDP CPU throttling 6x (the bench's `school` profile),
+# Apple M4 Pro (12 cores), macOS 25.5, load averages 6.9 to 7.1 (uptime 7:34), 2026-10-27. Milliseconds of the first call, sorted; median in brackets.
+
+BASE robotOutlineCm  ref-uno-gripper  52.7 53.2 54.4 55.2 56.6 56.6 59.0   (55.2)   <- one task > 50 ms before first paint (a long task)
+BASE robotOutlineCm  ref-uno-rover     6.2  6.5  6.9  7.1  7.5  7.7  7.9   (7.1)
+HEAD robotOutlineCm  ref-uno-gripper   0.7  1.2  1.3  1.8  1.8  2.2  3.3   (1.8)
+HEAD robotOutlineCm  ref-uno-rover     1.0  1.4  1.5  1.8  1.8  1.9  2.1   (1.8)
+HEAD robotFootprint  ref-uno-gripper  52.0 54.1 54.9 55.0 56.8 57.6 58.7   (55.0)   <- the sweep itself, paid by the first world (createWorld) or start check instead
+HEAD robotFootprint  ref-uno-rover     6.9  7.3  7.8  7.9  7.9  7.9  8.1   (7.9)
+
+# In Node (vitest, unthrottled, M4 Pro, load ~9), robotFootprint(gripper kit) on a fresh copy: 12.0 ms the first call, then 7.3, 5.1, and a warm mean of 4.4 ms
+# (profile: computeFootprint's radius loop 1.3, dmath cosSin 0.6, GC 0.64, gripperParts+at 0.56, corners 0.24).

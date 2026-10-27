@@ -2,7 +2,7 @@ import type { Kit } from '../hardware/kit';
 import type { Arena } from '../world/arena/arena-schema';
 import { cos, sin } from '../world/dmath';
 import { degToRad } from '../world/units';
-import { robotFootprint, startFootprintIssues } from '../world/robot/footprint';
+import { robotOutline, startFootprintIssues } from '../world/robot/footprint';
 
 // Where the learner may put the robot before a Run (N18 R4.8, "Di chuyển robot"): the run session's `placeRobot` and the 3D view's ghost
 // both ask here. A pose is moved back inside the arena, just far enough that the robot's outline at its heading (what stands on the floor:
@@ -21,9 +21,12 @@ export type Placement = {
   readonly issues: readonly { readonly path: string; readonly message: string }[];
 };
 
-/** The robot's outline seen from above (robot frame, cm, counter-clockwise): what stands on the floor, the body and the wheels. */
+/**
+ * The robot's outline seen from above (robot frame, cm, counter-clockwise): what stands on the floor, the body and the wheels. N19 E9: without
+ * the footprint's sweeps (footprint.ts `robotOutline`), which the lab's open does not wait for.
+ */
 export function robotOutlineCm(kit: Kit): readonly (readonly [number, number])[] {
-  return robotFootprint(kit).outlineCm;
+  return robotOutline(kit);
 }
 
 /** A heading in (-180°, 180°]. `+ 0` makes −0 a 0. */
@@ -53,7 +56,7 @@ export function checkPlacement(arena: Pick<Arena, 'ground' | 'walls' | 'boxes' |
   const yawDeg = normalizeYawDeg(pose.yawDeg);
   const [c, s] = cosSin(yawDeg);
   let [minX, maxX, minY, maxY] = [Infinity, -Infinity, Infinity, -Infinity];
-  for (const [x, y] of robotFootprint(kit).outlineCm) {
+  for (const [x, y] of robotOutline(kit)) {
     const dx = x * c - y * s;
     const dy = x * s + y * c;
     minX = Math.min(minX, dx);
