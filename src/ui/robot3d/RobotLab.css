@@ -43,11 +43,40 @@
 }
 
 /* N19 final fix (G1 c2): a gripper lesson's title ("Giao hàng theo vạch", "Phân loại theo màu") takes the room the run's controls and Kiểm
-   tra leave on their row, shortened with an ellipsis (its whole text in its tooltip), so that Kiểm tra keeps that row of the LMS's frame at
-   1440 × 900 (1022 px); with less room than a few words (72 px) the header wraps as before. The rover's header is as it was. */
+   tra leave on their row, shortened with an ellipsis, so that Kiểm tra keeps that row of the LMS's frame at 1440 × 900 (1022 px); with less
+   room than a few words (72 px) the header wraps as before. The rover's header is as it was. Minor round m1: a shortened title is a Tab
+   stop, and on its focus (a tap focuses it) or hover its whole text shows in a popover under it (ScenarioTitle.tsx), which Esc hides. */
 .robot-header-shrink-title .robot-title {
+  position: relative;
   flex: 1 1 0;
   min-width: 72px;
+}
+
+.robot-scenario-full {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 40;
+  padding: 4px 8px;
+  border: 1px solid var(--stem-color-border-strong);
+  border-radius: var(--stem-radius);
+  background: var(--stem-color-surface);
+  box-shadow: 0 2px 8px var(--stem-shadow-scroll);
+  color: var(--stem-color-text);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.robot-title:hover > .robot-scenario-full,
+.robot-scenario:focus + .robot-scenario-full {
+  display: block;
+}
+
+.robot-title > .robot-scenario-full[data-dismissed='true'] {
+  display: none;
 }
 
 .robot-icon {
@@ -101,6 +130,7 @@
 /* N18 R8: one focus ring for everything the keyboard reaches in the lab: 3 px of the primary colour, which has at least 3:1 against every
    surface it is drawn on (robot-contrast.test.ts), 2 px clear of the control. Blockly's own are its own. */
 .robot-header button:focus-visible,
+.robot-header .robot-scenario:focus-visible,
 .robot-viewport button:focus-visible,
 .robot-program button:focus-visible,
 .robot-lab summary:focus-visible,

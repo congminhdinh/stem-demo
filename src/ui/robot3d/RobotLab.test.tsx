@@ -879,14 +879,15 @@ describe('the physics engine before the first run (N18 P2)', () => {
 
 describe('the header’s title (N19 final fix, G1 c2)', () => {
   // The gripper lessons' longer titles ("Giao hàng theo vạch", "Phân loại theo màu") put Kiểm tra on a second row of the LMS's frame at
-  // 1440 × 900: in a gripper lesson the title may shrink (RobotLab.css `robot-header-shrink-title`), its full text in its tooltip
-  // (e2e/robot-lab-gripper.spec.ts measures the row). The rover's header is as it was.
-  it('in a gripper lesson may shrink, its full title in its tooltip', async () => {
+  // 1440 × 900: in a gripper lesson the title may shrink (RobotLab.css `robot-header-shrink-title`), its whole text reachable by pointer,
+  // keyboard and touch (ScenarioTitle.test.tsx; minor round m1 put a popover in place of the native `title`, which only a mouse's hover
+  // showed; e2e/robot-lab-gripper.spec.ts measures the row and opens it). The rover's header is as it was.
+  it('in a gripper lesson may shrink, its whole title in the heading (no native tooltip: a popover when it is shortened)', async () => {
     const { render } = setup('rb-grip-deliver');
     await render();
     expect(host.querySelector('.robot-header')!.classList.contains('robot-header-shrink-title')).toBe(true);
     expect(text('robot-scenario')).toBe('Giao hàng theo vạch');
-    expect(host.querySelector('[data-testid=robot-scenario]')!.getAttribute('title')).toBe('Giao hàng theo vạch');
+    expect(host.querySelector('[data-testid=robot-scenario]')!.hasAttribute('title')).toBe(false);
   });
 
   it('in a rover lesson is as it was: no shrinking, no tooltip', async () => {

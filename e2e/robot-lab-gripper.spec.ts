@@ -20,7 +20,8 @@ import { pinLowTierChainOff } from './robot-chain';
 //   - Kiểm tra at 4×: nothing is said of a grab or a release; Lái tay is not offered, its keys do nothing, and the rounds end in the very
 //     worlds a Kiểm tra without a key gives.
 //   - Lái tay: Q E R F open and close the claw, raise and lower the arm.
-//   - N19 final fix (G1 c2): in the LMS's lab frame at 1440 × 900 every lesson's header keeps Kiểm tra on the row of the run's controls.
+//   - N19 final fix (G1 c2): in the LMS's lab frame at 1440 × 900 every lesson's header keeps Kiểm tra on the row of the run's controls;
+//     minor round m1: a shortened title is a Tab stop whose popover (opened by the keyboard or a tap) shows the whole title.
 //   - N19 final fix (G1 M1): Lái tay in the LMS's lab frame at 1366 × 768 keeps the free camera near (its distance at most 1.5 × the
 //     distance with Lái tay off), although the pad with the gripper's buttons reaches past the short view's middle.
 //   - Xem lại lượt 2 and 3 of rb-grip-sort, whose rounds paint the cube green, red and blue: in the round shown the 2D map's cube, the 3D
@@ -334,7 +335,7 @@ test.describe('the gripper lab on the real lessons (N19 E10)', () => {
     expect(errors).toEqual([]);
   });
 
-  test('the LMS’s lab frame at 1440 × 900 (1022 × 582): every gripper lesson keeps its run’s controls and Kiểm tra on one row, a long title shortened with its whole text in its tooltip (G1 c2)', async ({ page }) => {
+  test('the LMS’s lab frame at 1440 × 900 (1022 × 582): every gripper lesson keeps its run’s controls and Kiểm tra on one row, a long title shortened, its whole text in a popover the keyboard and a tap open (G1 c2, minor round m1)', async ({ page, browser }) => {
     const errors = collectErrors(page);
     await page.setViewportSize({ width: 1022, height: 582 });
     const rows: [string, boolean, boolean, string | null][] = [];
@@ -343,14 +344,41 @@ test.describe('the gripper lab on the real lessons (N19 E10)', () => {
       const [run, check] = [await page.getByTestId('robot-run').boundingBox(), await page.getByTestId('robot-check').boundingBox()];
       const title = page.getByTestId('robot-scenario');
       const shortened = await title.evaluate((element) => element.scrollWidth > element.clientWidth);
-      rows.push([key, Math.abs(run!.y - check!.y) < 4, shortened, await title.getAttribute('title')]);
+      rows.push([key, Math.abs(run!.y - check!.y) < 4, shortened, await title.getAttribute('tabindex')]);
     }
+    // Shortened, a title is a Tab stop; one that fits is not.
     expect(rows).toEqual([
-      ['rb-grip-pick', true, false, 'Tìm và gắp'],
-      ['rb-grip-deliver', true, true, 'Giao hàng theo vạch'],
-      ['rb-grip-sort', true, true, 'Phân loại theo màu'],
-      ['rb-grip-stack', true, false, 'Xếp chồng'],
+      ['rb-grip-pick', true, false, null],
+      ['rb-grip-deliver', true, true, '0'],
+      ['rb-grip-sort', true, true, '0'],
+      ['rb-grip-stack', true, false, null],
     ]);
+    // The keyboard: Tab reaches the title before Chạy; its popover shows the whole title, on the page and not under the view; Esc hides it.
+    await openLesson(page, 'rb-grip-sort', false);
+    const full = page.getByTestId('robot-scenario-full');
+    await expect(full).toBeHidden();
+    await page.getByTestId('robot-run').focus();
+    await page.keyboard.press('Shift+Tab');
+    await expect(page.getByTestId('robot-scenario')).toBeFocused();
+    await expect(full).toBeVisible();
+    await expect(full).toHaveText('Phân loại theo màu');
+    // Under the title, inside the window, and over whatever it covers (the element at its corner is itself).
+    const [box, heading] = [await full.boundingBox(), await page.getByTestId('robot-scenario').boundingBox()];
+    expect(box!.y).toBeGreaterThanOrEqual(heading!.y + heading!.height - 1);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(1022);
+    expect(await full.evaluate((element) => document.elementFromPoint(element.getBoundingClientRect().left + 4, element.getBoundingClientRect().top + 4) === element)).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(full).toBeHidden();
+    await page.getByTestId('robot-run').focus();
+    await expect(full).toBeHidden();
+    // A tap (a touch screen): the title takes the focus and its popover shows.
+    const touch = await browser.newContext({ viewport: { width: 1022, height: 582 }, hasTouch: true });
+    const tablet = await touch.newPage();
+    await openLesson(tablet, 'rb-grip-deliver', false);
+    await tablet.getByTestId('robot-scenario').tap();
+    await expect(tablet.getByTestId('robot-scenario-full')).toBeVisible();
+    await expect(tablet.getByTestId('robot-scenario-full')).toHaveText('Giao hàng theo vạch');
+    await touch.close();
     expect(errors).toEqual([]);
   });
 

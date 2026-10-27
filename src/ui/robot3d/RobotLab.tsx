@@ -40,6 +40,7 @@ import { RobotControls } from './RobotControls';
 import { RobotDock } from './RobotDock';
 import { RunMessages } from './RunMessages';
 import { idleSnapshot } from './scene-math';
+import { ScenarioTitle } from './ScenarioTitle';
 import { SceneHost } from './SceneHost';
 import type { WebglProbe } from './quality';
 import { restrictToolbox } from './toolbox';
@@ -414,12 +415,11 @@ export default function RobotLab({
     <div className="robot-lab" data-testid="robot-lab" data-scenario={template}>
       <header className={['app-header', 'robot-header', ...(checkable ? ['robot-header-checkable'] : []), ...(gripper ? ['robot-header-shrink-title'] : [])].join(' ')}>
         {/* N18 R6.3: the lab's name over the scenario's, so that the run's controls and Kiểm tra fit one row of the 1100 px frame. N19 final
-            fix (G1 c2): a gripper lesson's title may shrink (RobotLab.css), its whole text in its tooltip; the rover's header is as it was. */}
+            fix (G1 c2): a gripper lesson's title may shrink (RobotLab.css), its whole text reachable by pointer, keyboard and touch
+            (ScenarioTitle.tsx, minor round m1); the rover's header is as it was. */}
         <div className="robot-title">
           <h1>{t('lab.title.robot')}</h1>
-          <h2 className="robot-scenario" data-testid="robot-scenario" {...(gripper ? { title: t(robotTemplates[template].titleKey) } : {})}>
-            {t(robotTemplates[template].titleKey)}
-          </h2>
+          <ScenarioTitle text={t(robotTemplates[template].titleKey)} shrinks={gripper} />
         </div>
         <RobotControls store={store} onRun={run} onStep={step} />
         {checkable && <CheckControls checks={checks} store={store} onCheck={check} startButton={startButton} />}
