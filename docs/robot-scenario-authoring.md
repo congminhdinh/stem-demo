@@ -456,8 +456,10 @@ cung cấp (plan VG) thì phải đo lại mọi thời gian (quay, chở, mọi
 
 ### 11.3 Vật, vùng, tường cho xe tay gắp
 
-- **Vật phải vuông nhìn từ trên** (review B1/B2 M6): hộp có `sizeCm[0] = sizeCm[1]`, `yawDeg` 0, hoặc trụ. Không dùng hình chữ nhật: luật 6 của
-  máy gắp đo bề rộng riêng là cạnh ngắn, nên hình chữ nhật gặp càng theo cạnh dài có thể bị gắp với hai ngón lún vào vật.
+- **Vật phải vuông nhìn từ trên** (review B1/B2 M6): hộp có `sizeCm[0] = sizeCm[1]`, `yawDeg` là bội của 90 (bốn bài: 0), hoặc trụ. Không dùng
+  hình chữ nhật: luật 6 của máy gắp đo bề rộng riêng là cạnh ngắn, nên hình chữ nhật gặp càng theo cạnh dài có thể bị gắp với hai ngón lún vào
+  vật. Từ N19 final fix (G2 M4) schema báo lỗi `arena.objects[i].sizeCm` / `arena.objects[i].yawDeg` cho kịch bản của kit có tay gắp; kịch bản
+  rover không bị kiểm.
 - Khối xốp 4 cm nặng 15 g; bệ 6 × 6 × 4 cm nặng 40 g. `noun` (`cube`, `parcel`, `base`) cho tên trong báo cáo và hình 3D; `color` lấy từ bảng
   màu (`body-colors.ts`: đỏ `#d32f2f`, xanh lá `#388e3c`, xanh dương `#1976d2`, vàng `#fbc02d`) để cảm biến màu và báo cáo gọi đúng ("khối
   đỏ"). Vật không có `color` mang màu theo loại (`#f2c14e`).

@@ -1,9 +1,10 @@
 import { z } from 'zod';
+import { productionKits } from '../hardware/catalog';
 import { roleKinds, robotRoles, type ModuleKind, type RobotRole } from '../hardware/kit';
 import { arenaSchema, colorKey, colorSchema, sameColor } from '../world/arena/arena-schema';
 import { hasHiddenCharacter, trimLikeDotNet } from './goal-text';
 import { polygonsOverlap } from './polygon-overlap';
-import { isRobotTemplateKey, robotLabProfiles, robotSandboxKey, robotTemplateKeys, robotTemplates } from '../../samples/robot-keys';
+import { isRobotKitId, isRobotTemplateKey, robotKitVersionOf, robotLabProfiles, robotSandboxKey, robotTemplateKeys, robotTemplates } from '../../samples/robot-keys';
 
 // The scenario of a robot lab (N18 R5.1, robot plan §4.6): the learner's task as data. The arena, the kit and where the robot
 // starts; the variants a check runs; the scripted button presses; the goals and the score; the program the learner starts from
@@ -286,6 +287,7 @@ function scenarioRuleIssues(scenario: ScenarioShape): RuleIssue[] {
 
   inputIssues(scenario, add);
   variantIssues(scenario, add);
+  gripperObjectIssues(scenario, add);
   goalIssues(scenario, add);
   endOnContactIssues(scenario, add);
   scoreIssues(scenario, add);
@@ -401,6 +403,28 @@ function endOnContactIssues(scenario: ScenarioShape, add: Add): void {
     }
     first.set(tag, i);
     if (!tags.has(tag)) add(['endOnContact', i], `nothing in the arena has the tag "${tag}" (tags: ${list([...tags], 'none')})`);
+  });
+}
+
+/** N19 final fix (G2 M4): whether the scenario's kit, as the robot labs launch it (robot-keys.ts `robotKits`), has a gripper. */
+function kitHasGripper(kitId: string): boolean {
+  if (!isRobotKitId(kitId)) return false;
+  return productionKits.get({ id: kitId, version: robotKitVersionOf(kitId) })?.modules.some((module) => module.kind === 'gripper') ?? false;
+}
+
+/**
+ * N19 final fix (G2 M4, review B1/B2 M6): a gripper car's objects are square seen from above: a box's two sides on the floor equal, turned by
+ * whole quarter turns (or a cylinder). The grasp takes a box's own width as its shorter side (world/robot/grasp.ts `ownWidthCm`, rule 6), so
+ * a long box met side on could be gripped with the fingers in it (docs/robot-scenario-authoring.md §11.3). A kit with no gripper grips
+ * nothing: the rover's scenarios are not checked.
+ */
+function gripperObjectIssues(scenario: ScenarioShape, add: Add): void {
+  if (!kitHasGripper(scenario.kit)) return;
+  scenario.arena.objects.forEach((object, i) => {
+    if (object.shape !== 'box') return;
+    const [x, y] = object.sizeCm;
+    if (x !== y) add(['arena', 'objects', i, 'sizeCm'], `a gripper car’s object must be square from above (the grasp reads a box’s shorter side): ${x} × ${y} cm`);
+    if (object.yawDeg % 90 !== 0) add(['arena', 'objects', i, 'yawDeg'], `a gripper car’s object must face the arena square (a multiple of 90°): ${object.yawDeg}°`);
   });
 }
 
