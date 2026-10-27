@@ -62,9 +62,13 @@ export function paintGround(ctx: PaintContext, arena: Pick<Arena, 'ground' | 'pa
       const ys = zone.polygonCm.map(([, y]) => y);
       const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
       const size = Math.round(Math.max(10, Math.min(48, Math.min(maxX - minX, maxY - minY) * pxPerCm * 0.2)));
-      // N19 E8 (E4/E5 review M5): a zone the lesson names has its name by its far edge, inside it, so that it reads while an object sits at
-      // the zone's middle (the pick-and-place lessons put one there, and the car comes to it). Every other zone's word stays at its middle.
-      const [x, y] = [px((minX + maxX) / 2), zone.name === undefined ? py((minY + maxY) / 2) : py(maxY) + size / 2 + Math.max(pxPerCm, size * 0.15)];
+      // N19 E8 (E4/E5 review M5): a zone the lesson names has its name by its outer edge, inside it: the top or the bottom one, whichever is
+      // farther from the arena's middle (the top for a tie), so that it reads while an object sits at the zone's middle (the pick-and-place
+      // lessons put one there) and the car comes to it from the arena's middle. Every other zone's word stays at its middle.
+      const inset = size / 2 + Math.max(pxPerCm, size * 0.15);
+      const byBottom = depthCm / 2 - minY > maxY - depthCm / 2;
+      const y = zone.name === undefined ? py((minY + maxY) / 2) : byBottom ? py(minY) - inset : py(maxY) + inset;
+      const x = px((minX + maxX) / 2);
       ctx.fillStyle = robot3dColors.zoneLabel;
       ctx.font = labelFont(size);
       ctx.textAlign = 'center';
