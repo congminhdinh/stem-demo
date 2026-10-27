@@ -789,6 +789,15 @@ Số đo và lệnh tái lập: `spikes/n19-ff/results/` (`teleop-camera.txt`, `
   kiểm; kịch bản rover không bị kiểm; bốn bài nạp như cũ (`scenario-schema.gripper-objects.test.ts`).
 - **G2 M1:** `kits/README.md` nói bài 8–11 dùng `ref-uno-gripper@0`.
 - **Không đổi:** hash và golden của rover, `verify:attempt`, điểm bốn bài 100/97/100/97 và các exploit, `ROBOT_ENGINE_VERSION` 1.
+- **Vòng minor sau review 1** (`final-fix-lab-review-1.md`; controller: M2 vẫn gác, c2 chỉ cho xe tay gắp, M1 chạm rover ở cỡ nhỏ và phần dư
+  ở 1280 được chấp nhận):
+  - **m2.** Phép thu hộp là tuyến tính, phối cảnh thì không: robot từng còn 58,3 px (bài 9, 613×397, HUD 0,19) và 52 px (drive-to-zone với
+    bàn lái chưa đo). Nay khung thu chỉ được giữ khi robot vẫn rộng ≥ `least`, không thì giữ khung trước khi thu. Quét 71 chiều cao HUD ×
+    bốn bài × ba cỡ của G1: mọi khung ≥ 60 px (trừ bài 9 ở 1280, 50 px, đã chấp nhận). Khoảng cách ở các trạng thái đo của §4.18 không đổi.
+  - **m1.** Tên bài bị cắt là một điểm dừng Tab; khi focus (chạm cũng focus) hay hover, popover dưới nó hiện tên đầy đủ, Esc ẩn tới khi rời
+    (`ScenarioTitle.tsx`). Thay cho `title` gốc chỉ chuột thấy được. Heading vẫn chứa tên đầy đủ cho trình đọc màn hình; popover
+    `aria-hidden`. Tên vừa chỗ, và header rover, là heading như cũ.
+  - **m5.** Kiểm `yawDeg` của M4 nhận sai số 1e-6° quanh bội của 90 (`SQUARE_YAW_TOLERANCE_DEG`).
 
 ## 5. Review Focus
 

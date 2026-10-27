@@ -43,3 +43,23 @@ rb-grip-stack 1280x720 frame 862x450 view 517x368 header items' rows 3 (h 93) | 
 rb-drive-to-zone 1280x720 frame 862x450 view 517x368 header items' rows 3 (h 93) | off 1.251 -76.0 56.0 | on 1.413 -76.0 56.0 | x1.13 | hud 0.036 0.247 | tools off -0.737 -0.130 on -0.134 0.141 | title {"client":140,"scroll":140,"title":null}
 rb-mini-mission 1280x720 frame 862x450 view 517x368 header items' rows 3 (h 93) | off 1.119 -47.3 56.0 | on 1.458 -47.3 56.0 | x1.30 | hud 0.036 -0.170 | tools off -0.737 -0.130 on -0.134 0.141 | title {"client":139,"scroll":139,"title":null}
 17:16  up 5 days,  1:51, 2 users, load averages: 5.06 5.33 4.90
+
+## Minor round (m2), HEAD 556038a, 2026-10-27 17:51, load 3.2: the same states (the m2 cases are at other HUD heights)
+rb-grip-pick 1440x900 frame 1022x582 view 613x439 (h 51) | off 1.458 -76.0 56.0 | on 1.626 -76.0 56.0 | x1.12 
+rb-grip-deliver 1440x900 frame 1022x582 view 613x439 (h 51) | off 1.707 48.6 56.0 | on 1.372 48.6 56.0 | x0.80 
+rb-grip-sort 1440x900 frame 1022x582 view 613x439 (h 51) | off 1.564 -76.0 56.0 | on 1.564 -76.0 56.0 | x1.00 
+rb-grip-stack 1440x900 frame 1022x582 view 613x439 (h 51) | off 1.631 -76.0 56.0 | on 1.261 -76.0 56.0 | x0.77 
+rb-drive-to-zone 1440x900 frame 1022x582 view 613x397 (h 93) | off 1.184 -76.0 56.0 | on 1.279 -76.0 56.0 | x1.08 
+rb-mini-mission 1440x900 frame 1022x582 view 613x397 (h 93) | off 1.119 -47.3 56.0 | on 1.556 -47.3 56.0 | x1.39 
+rb-grip-pick 1366x768 frame 948x450 view 569x368 (h 93) | off 1.116 -76.0 56.0 | on 1.556 -76.0 56.0 | x1.39 
+rb-grip-deliver 1366x768 frame 948x450 view 569x368 (h 93) | off 1.090 48.6 56.0 | on 1.428 48.6 56.0 | x1.31 
+rb-grip-sort 1366x768 frame 948x450 view 569x368 (h 93) | off 1.432 -76.0 56.0 | on 1.270 -76.0 56.0 | x0.89 
+rb-grip-stack 1366x768 frame 948x450 view 569x368 (h 93) | off 1.579 -76.0 56.0 | on 1.631 -76.0 56.0 | x1.03 
+rb-drive-to-zone 1366x768 frame 948x450 view 569x368 (h 93) | off 1.227 -76.0 56.0 | on 1.377 -76.0 56.0 | x1.12 
+rb-mini-mission 1366x768 frame 948x450 view 569x368 (h 93) | off 1.119 -47.3 56.0 | on 1.639 -47.3 56.0 | x1.46 
+rb-grip-pick 1280x720 frame 862x450 view 517x368 (h 93) | off 0.550 -76.0 56.0 | on 1.249 -76.0 56.0 | x2.27 
+rb-grip-deliver 1280x720 frame 862x450 view 517x368 (h 93) | off 1.255 48.6 56.0 | on 1.762 48.6 56.0 | x1.40 
+rb-grip-sort 1280x720 frame 862x450 view 517x368 (h 93) | off 0.929 -76.0 56.0 | on 0.998 -76.0 56.0 | x1.07 
+rb-grip-stack 1280x720 frame 862x450 view 517x368 (h 93) | off 1.579 -76.0 56.0 | on 1.631 -76.0 56.0 | x1.03 
+rb-drive-to-zone 1280x720 frame 862x450 view 517x368 (h 93) | off 1.251 -76.0 56.0 | on 1.413 -76.0 56.0 | x1.13 
+rb-mini-mission 1280x720 frame 862x450 view 517x368 (h 93) | off 1.119 -47.3 56.0 | on 1.458 -47.3 56.0 | x1.30 
