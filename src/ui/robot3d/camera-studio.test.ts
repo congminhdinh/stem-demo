@@ -272,6 +272,46 @@ describe('the free view beside a drive pad over the view’s middle (N19 final f
   });
 });
 
+describe('the free view beside a drive pad at every HUD height (N19 final fix, minor round m2)', () => {
+  // The shrink that brings a robot shown wider than without the pad back to that width is linear in the box, the perspective is not: the
+  // robot, nearest the camera, shrinks by more, and fell to 58.3 px (rb-grip-deliver at 613 × 397, the HUD's bottom at 0.19) and 52 px
+  // (rb-drive-to-zone with a pad of 0.125 / 0.141, the HUD's bottom at 0.02), under MIN_ROBOT_PX. The shrunk framing is kept only when the
+  // robot stays at least as wide as the fallback asks; else the framing before the shrink stands. The reviewer's sweep (final-fix review 1):
+  // the HUD's bottom from −0.2 to 0.5 by 0.01, with the pad and the HUD's right edge G1 measured at each size.
+  const sizes = [
+    { width: 613, height: 397, hudRight: -0.126, pad: [0.044, 0.058] },
+    { width: 569, height: 368, hudRight: -0.058, pad: [0.125, 0.141] },
+    { width: 517, height: 368, hudRight: 0.036, pad: [0.2, 0.141] },
+  ] as const;
+  const robotPx = (key: string, width: number, height: number, hud: readonly [number, number], pad: readonly [number, number]) => {
+    const scene = freeViewSceneOf(scenarioCatalog.get(key)!);
+    const rect: SafeRect = { ...VIEW_SAFE_RECT, hud: { right: hud[0], bottom: hud[1] }, tools: { right: pad[0], top: pad[1] } };
+    const pose = freeViewPose(spanOf(key), scene, fov, width / height, rect, (2 * MIN_ROBOT_PX) / width);
+    return (robotScreenWidth(pose, scene.start, fov, width / height) * width) / 2;
+  };
+
+  it('never shows the robot under MIN_ROBOT_PX where a framing beside the pad can show it so wide: 71 HUD heights, four lessons, three sizes', () => {
+    const under: string[] = [];
+    for (const key of ['rb-grip-pick', 'rb-grip-deliver', 'rb-grip-sort', 'rb-grip-stack']) {
+      for (const { width, height, hudRight, pad } of sizes) {
+        // rb-grip-deliver at 517 × 368: no framing beside the pad shows the robot 60 px wide with its tape (50 px, the widest; pinned above).
+        if (key === 'rb-grip-deliver' && width === 517) continue;
+        for (let step = 0; step <= 70; step++) {
+          const bottom = -0.2 + step * 0.01;
+          const px = robotPx(key, width, height, [hudRight, bottom], pad);
+          if (px < MIN_ROBOT_PX - 1e-6) under.push(`${key} ${width}x${height} hud ${bottom.toFixed(2)}: ${px.toFixed(1)} px`);
+        }
+      }
+    }
+    expect(under).toEqual([]);
+  });
+
+  it('keeps the robot 60 px wide where the shrink left it at 58.3 px (rb-grip-deliver, 613 × 397) and 52 px (rb-drive-to-zone, a pad it was not measured with)', () => {
+    expect(robotPx('rb-grip-deliver', 613, 397, [-0.126, 0.19], [0.044, 0.058])).toBeGreaterThanOrEqual(MIN_ROBOT_PX);
+    expect(robotPx('rb-drive-to-zone', 613, 397, [-0.058, 0.02], [0.125, 0.141])).toBeGreaterThanOrEqual(MIN_ROBOT_PX);
+  });
+});
+
 describe('framePointsInBox (N19 final fix, G1 M1)', () => {
   const points: Vec3Tuple[] = [
     [0.2, 0, -0.3],

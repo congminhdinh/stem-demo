@@ -286,9 +286,11 @@ const NEAR_OPEN = 1.5;
  * corner is there: only the lab's short views with a drive pad open (the rover's free views of free-view-golden.json, of the rover's
  * pixel-diff set and of camera-studio.test.ts's N18 tests never come here). The robot is kept about as wide as the view without the
  * corner shows it (`open`, its choices framed there): the choices are framed in the free rectangle right of the corner (`besideTools`),
- * and the first that shows the robot at least `minRobot` and `open` / NEAR_OPEN wide is taken; one that shows it wider than `open` is
- * framed again in that rectangle shrunk round its middle, so the robot is as wide as without the pad and more of the arena shows round
- * it. None: the one that shows the robot widest.
+ * and the first that shows the robot at least `minRobot` and `open` / NEAR_OPEN wide (`least`) is taken. One that shows it wider than
+ * `open` is framed again in that rectangle shrunk round its middle, so that the robot is about as wide as without the pad and more of the
+ * arena shows round it; the shrink is linear and the perspective is not (the robot, nearest the camera, shrinks by more), so the shrunk
+ * framing is kept only when it still shows the robot `least` wide, else the framing before the shrink stands (minor round m2). None takes:
+ * the one that shows the robot widest, which may be under `minRobot`.
  */
 function besideToolsPose(choices: readonly [Vec3Tuple[], SafeRect][], toCamera: Vec3Tuple, start: FreeViewScene['start'], fovDeg: number, aspect: number, rect: SafeRect, minRobot: number): CameraPose {
   const width = (pose: CameraPose) => robotScreenWidth(pose, start, fovDeg, aspect);
@@ -303,7 +305,11 @@ function besideToolsPose(choices: readonly [Vec3Tuple[], SafeRect][], toCamera: 
   for (const points of new Set(choices.map(([points]) => points))) {
     const pose = framePointsInBox(points, toCamera, fovDeg, aspect, box);
     const shown = width(pose);
-    if (shown >= least) return shown > most ? framePointsInBox(points, toCamera, fovDeg, aspect, shrunk(box, most / shown)) : pose;
+    if (shown >= least) {
+      if (shown <= most) return pose;
+      const tighter = framePointsInBox(points, toCamera, fovDeg, aspect, shrunk(box, most / shown));
+      return width(tighter) >= least ? tighter : pose;
+    }
     if (!best || shown > best.width) best = { pose, width: shown };
   }
   return best!.pose;
