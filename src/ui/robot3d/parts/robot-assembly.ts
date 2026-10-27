@@ -17,6 +17,7 @@ import {
   SpriteMaterial,
   TubeGeometry,
   Vector3,
+  type BufferAttribute,
   type BufferGeometry,
   type Material,
   type Object3D,
@@ -57,6 +58,8 @@ export type ReferenceSizes = {
   ultrasonicHeightM: number;
   /** N19 E6 fix round 1 (review I3): where the board sits on the reference robot's deck (three's x of its middle). */
   boardX: number;
+  /** N19 E8: where the reference robot's buzzer stands on its deck (three's x, z), whose shade the chassis part was baked with; null for none. */
+  buzzerAt: readonly [number, number] | null;
 };
 
 /** N19 E6: the gripper kit's numbers the gripper's parts are modelled to (m): a kit of other sizes scales them. */
@@ -81,7 +84,47 @@ export function referenceSizes(reference: RobotModel): ReferenceSizes {
     lineSpacingM: zs.length > 1 ? (zs[zs.length - 1]! - zs[0]!) / (zs.length - 1) : 0.015,
     ultrasonicHeightM: reference.ultrasonics[0] ? reference.ultrasonics[0].position[1] - reference.body.bottomM : 0.025,
     boardX: boardPlacement(reference).x,
+    buzzerAt: reference.buzzers[0] ? [reference.buzzers[0].position[0], reference.buzzers[0].position[2]] : null,
   };
+}
+
+/** Half the side of the buzzer's board (2 cm square: assets-src/robot3d/parts/modules.py build_buzzer), and 1.5 mm for the vertices on its edge (m). */
+export const BUZZER_BOARD_HALF_M = 0.0115;
+
+/**
+ * N19 E8 (E6/E7 re-review N3): the chassis part's ambient occlusion (its COLOR_0) was baked with the reference robot's modules on the deck,
+ * so the deck's top under the buzzer's board is at the bake's floor (measured: 0.50 at every vertex there, where the open deck's top reads
+ * 1.00, on both tiers: spikes/n19-e8/deck-ao.test.ts). On a kit with no buzzer there the low tier, which bakes the shade into the colours,
+ * showed a dark square where no module stands. Gives the top-facing vertices of the deck's top (`deckY`, in `part`'s frame) within
+ * `half` of `at` (x, z) the open deck's shade, 1, in copies of the geometries it changes (the templates are left alone; the copies go into
+ * `owned`). `part` is a fresh clone at the origin.
+ */
+export function unshadeDeck(part: Object3D, at: readonly [number, number], deckY: number, half: number, owned: BufferGeometry[]): void {
+  part.updateWorldMatrix(true, true);
+  const toPart = part.matrixWorld.clone().invert();
+  const [p, n] = [new Vector3(), new Vector3()];
+  part.traverse((node) => {
+    if (!(node instanceof Mesh)) return;
+    const geometry = node.geometry as BufferGeometry;
+    const colour = geometry.getAttribute('color') as BufferAttribute | undefined;
+    const [position, normal] = [geometry.getAttribute('position'), geometry.getAttribute('normal')];
+    if (!colour || !normal) return;
+    const matrix = toPart.clone().multiply(node.matrixWorld);
+    let copy: BufferGeometry | null = null;
+    for (let i = 0; i < position.count; i++) {
+      p.fromBufferAttribute(position, i).applyMatrix4(matrix);
+      if (Math.abs(p.y - deckY) > 0.0003 || Math.abs(p.x - at[0]) > half || Math.abs(p.z - at[1]) > half) continue;
+      n.fromBufferAttribute(normal, i).transformDirection(matrix);
+      if (n.y < 0.9) continue;
+      if (copy === null) {
+        copy = geometry.clone();
+        owned.push(copy);
+      }
+      const shade = copy.getAttribute('color') as BufferAttribute;
+      shade.setXYZ(i, 1, 1, 1);
+    }
+    if (copy !== null) node.geometry = copy;
+  });
 }
 
 /** The parts of robot-kit.glb a kit's robot is built from (N19 E6): a file without one of them sends the view to its simple shapes. */
@@ -391,8 +434,13 @@ export function assembleRobot(model: RobotModel, reference: ReferenceSizes, sour
   const { body } = model;
   const deck = body.bottomM + body.heightM;
 
-  // The chassis: the reference body box stretched to the kit's, its plates kept at the kit's clearance and height.
+  // The chassis: the reference body box stretched to the kit's, its plates kept at the kit's clearance and height. N19 E8: on a kit with no
+  // buzzer where the reference robot has one, the deck there is not left in the buzzer's baked shade.
   const chassis = need('part_chassis');
+  const buzzerAt = reference.buzzerAt;
+  if (buzzerAt !== null && !model.buzzers.some((buzzer) => Math.hypot(buzzer.position[0] - buzzerAt[0], buzzer.position[2] - buzzerAt[1]) < 0.005)) {
+    unshadeDeck(chassis, buzzerAt, reference.body.bottomM + reference.body.heightM, BUZZER_BOARD_HALF_M, owned.geometries);
+  }
   const k = body.heightM / reference.body.heightM;
   chassis.scale.set(body.lengthM / reference.body.lengthM, k, body.widthM / reference.body.widthM);
   chassis.position.set(0, body.bottomM - reference.body.bottomM * k, 0);
