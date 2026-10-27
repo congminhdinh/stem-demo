@@ -10,7 +10,7 @@ import { paintZonePattern, type PatternSurface } from './zone-pattern';
 // zone's pattern (dots, hatching: zone-pattern.ts) is drawn right over its fill, for learners who cannot tell the zones' colours apart.
 
 /** What `paintGround` uses of a 2D context (a real CanvasRenderingContext2D, or a recorder in tests). */
-export type PaintContext = Pick<CanvasRenderingContext2D, 'fillRect' | 'beginPath' | 'moveTo' | 'lineTo' | 'closePath' | 'fill' | 'stroke' | 'fillText' | 'strokeText'> & {
+export type PaintContext = Pick<CanvasRenderingContext2D, 'fillRect' | 'beginPath' | 'moveTo' | 'lineTo' | 'closePath' | 'fill' | 'stroke' | 'fillText' | 'strokeText' | 'measureText'> & {
   fillStyle: CanvasRenderingContext2D['fillStyle'];
   strokeStyle: CanvasRenderingContext2D['strokeStyle'];
   lineWidth: number;
@@ -33,11 +33,26 @@ export function groundTextureSize([widthCm, depthCm]: readonly [number, number],
 /** The font of a zone's label; the UI's font, loaded before the lab draws (main.tsx). */
 const labelFont = (px: number) => `600 ${px}px "Be Vietnam Pro", system-ui, sans-serif`;
 
+/** A box on the arena's floor, cm (y up, as the arena's own). */
+export type FloorBox = { minX: number; maxX: number; minY: number; maxY: number };
+
+/** N19 E8 fix round 1: a named zone's name as painted: by which edge (`outer`, `inner`) or at the middle, and its text's box on the floor. */
+export type PaintedZoneName = { zoneId: string; text: string; place: 'outer' | 'inner' | 'middle'; box: FloorBox };
+
+const meets = (a: FloorBox, b: FloorBox) => a.minX < b.maxX && a.maxX > b.minX && a.minY < b.maxY && a.maxY > b.minY;
+
 /**
  * Paints `arena`'s floor on `ctx`, `pxPerCm` pixels a centimetre, origin at the canvas's top left = the arena's far left corner.
- * `zoneLabel` names a zone on the floor (the learner's words for "start", "target"…), or null to leave it unnamed.
+ * `zoneLabel` names a zone on the floor (the learner's words for "start", "target"…), or null to leave it unnamed. `keepOut`: what covers
+ * the floor where it is shown (the 2D map's HUD), which a named zone's name keeps clear of where it can. Gives the named zones' names as
+ * painted.
  */
-export function paintGround(ctx: PaintContext, arena: Pick<Arena, 'ground' | 'paint'>, options: { pxPerCm: number; zoneLabel: (zone: PaintZone) => string | null; patterns?: PatternSurface }): void {
+export function paintGround(
+  ctx: PaintContext,
+  arena: Pick<Arena, 'ground' | 'paint'>,
+  options: { pxPerCm: number; zoneLabel: (zone: PaintZone) => string | null; patterns?: PatternSurface; keepOut?: readonly FloorBox[] },
+): PaintedZoneName[] {
+  const names: PaintedZoneName[] = [];
   const { pxPerCm } = options;
   const [widthCm, depthCm] = arena.ground.sizeCm;
   const px = (xCm: number) => xCm * pxPerCm;
@@ -65,12 +80,26 @@ export function paintGround(ctx: PaintContext, arena: Pick<Arena, 'ground' | 'pa
       // N19 E8 (E4/E5 review M5): a zone the lesson names has its name by its outer edge, inside it: the top or the bottom one, whichever is
       // farther from the arena's middle (the top for a tie), so that it reads while an object sits at the zone's middle (the pick-and-place
       // lessons put one there) and the car comes to it from the arena's middle. Every other zone's word stays at its middle.
+      // Fix round 1 (review F3): an edge whose name would meet what covers the floor (`keepOut`, the 2D map's HUD) gives way to the other
+      // edge, and with both covered the name goes to the middle.
       const inset = size / 2 + Math.max(pxPerCm, size * 0.15);
       const byBottom = depthCm / 2 - minY > maxY - depthCm / 2;
-      const y = zone.name === undefined ? py((minY + maxY) / 2) : byBottom ? py(minY) - inset : py(maxY) + inset;
       const x = px((minX + maxX) / 2);
       ctx.fillStyle = robot3dColors.zoneLabel;
       ctx.font = labelFont(size);
+      let y = py((minY + maxY) / 2);
+      if (zone.name !== undefined) {
+        const halfWidthCm = ctx.measureText(label).width / 2 / pxPerCm;
+        const halfHeightCm = size / 2 / pxPerCm;
+        const boxAt = (rowPx: number): FloorBox => {
+          const yCm = depthCm - rowPx / pxPerCm;
+          return { minX: x / pxPerCm - halfWidthCm, maxX: x / pxPerCm + halfWidthCm, minY: yCm - halfHeightCm, maxY: yCm + halfHeightCm };
+        };
+        const edges = byBottom ? [py(minY) - inset, py(maxY) + inset] : [py(maxY) + inset, py(minY) - inset];
+        const clear = edges.findIndex((rowPx) => !(options.keepOut ?? []).some((keep) => meets(boxAt(rowPx), keep)));
+        if (clear >= 0) y = edges[clear]!;
+        names.push({ zoneId: zone.id, text: label, place: clear === 0 ? 'outer' : clear === 1 ? 'inner' : 'middle', box: boxAt(y) });
+      }
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       if (options.patterns !== undefined) {
@@ -85,6 +114,7 @@ export function paintGround(ctx: PaintContext, arena: Pick<Arena, 'ground' | 'pa
   }
 
   paintTape(ctx, arena, pxPerCm);
+  return names;
 }
 
 /**

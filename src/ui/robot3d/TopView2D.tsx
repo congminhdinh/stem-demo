@@ -9,8 +9,9 @@ import type { RobotSnapshot } from '../../core/world/snapshot';
 import { CM_PER_M } from '../../core/world/units';
 import { useElementSize } from '../canvas/use-element-size';
 import { useText } from '../i18n/text';
-import { groundTextureSize, paintGround } from './ground-paint';
+import { groundTextureSize, paintGround, type FloorBox, type PaintedZoneName } from './ground-paint';
 import { GRIPPER_REST, gripperStateOf } from './gripper-pose';
+import { useViewOverlays } from './hud-corner';
 import { lineSeesDark, type GripperModel, type RobotModel } from './robot-model';
 import type { RobotRunStore } from './robot-run-store';
 import type { RobotToolsStore } from './robot-tools-store';
@@ -18,7 +19,7 @@ import { paintedColor, shownObjectColors } from './round-colors';
 import { idleSnapshot } from './scene-math';
 import { topViewColors as colors } from './top-view-colors';
 import { BOOM_BAR_CM, BOOM_PLATE_CM, CARRIAGE_HALF_CM, casingExtraCm, createGripperTopView, gripperTopViewInto, heldRingRadiusCm, objectMarks } from './top-view-gripper';
-import { fitTopView, movingBodies, rayLengthCm, robotPartCm, sameTopView, scaleBar, treadOffsetCm, wheelRadIndex, type MovingBody, type StageMargins } from './top-view-math';
+import { fitTopView, movingBodies, stageToArena, rayLengthCm, robotPartCm, sameTopView, scaleBar, treadOffsetCm, wheelRadIndex, type MovingBody, type StageMargins } from './top-view-math';
 import { TopViewSensorsLayer } from './TopViewSensors';
 import { TopViewToolsLayer, useTopViewPointer } from './TopViewTools';
 import type { ViewFallbackReason } from './webgl-support';
@@ -58,8 +59,16 @@ const MARGINS: StageMargins = { left: 14, right: 14, top: 14, bottom: 40 };
 const MAX_MAT_PX = 4096;
 const labelFont = '"Be Vietnam Pro", system-ui, sans-serif';
 
-/** The mat's paint on a canvas of the sharpness the stage shows it at (quantised, so that dragging the separator repaints rarely). */
-function useMat(arena: Arena, scale: number | null, zoneLabel: TopView2DProps['zoneLabel']): HTMLCanvasElement | null {
+/** The mat's paint, and its named zones' names as painted. */
+type Mat = { canvas: HTMLCanvasElement; names: PaintedZoneName[] };
+const NO_NAMES: PaintedZoneName[] = [];
+
+/**
+ * The mat's paint on a canvas of the sharpness the stage shows it at (quantised, so that dragging the separator repaints rarely).
+ * N19 E8 fix round 1 (review F3): `hud`, the HUD's corner on the arena (cm: left of `maxX`, above `minY`), which a named zone's name keeps
+ * clear of; null with no named zone or no HUD.
+ */
+function useMat(arena: Arena, scale: number | null, zoneLabel: TopView2DProps['zoneLabel'], hud: { maxX: number; minY: number } | null): Mat | null {
   const ratio = typeof window === 'undefined' ? 1 : Math.min(2, Math.max(1, window.devicePixelRatio || 1));
   const wanted = scale === null ? null : Math.ceil(scale * ratio * 2) / 2;
   return useMemo(() => {
@@ -71,9 +80,10 @@ function useMat(arena: Arena, scale: number | null, zoneLabel: TopView2DProps['z
     canvas.height = Math.ceil(depthCm * pxPerCm);
     const ctx = canvas.getContext('2d');
     if (ctx === null) return null;
-    paintGround(ctx, arena, { pxPerCm, zoneLabel, patterns: 'screen' });
-    return canvas;
-  }, [arena, wanted, zoneLabel]);
+    const keepOut: FloorBox[] = hud === null ? [] : [{ minX: -Infinity, maxX: hud.maxX, minY: hud.minY, maxY: Infinity }];
+    const names = paintGround(ctx, arena, { pxPerCm, zoneLabel, patterns: 'screen', ...(keepOut.length > 0 ? { keepOut } : {}) });
+    return { canvas, names };
+  }, [arena, wanted, zoneLabel, hud]);
 }
 
 /** The nodes the run moves, by the part they are. */
@@ -101,6 +111,15 @@ const emptyNodes = (): Nodes => ({ layer: null, robot: null, treads: [], lineDot
 export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = null, tools }: TopView2DProps) {
   const t = useText();
   const containerRef = useRef<HTMLDivElement>(null);
+  // N19 E8 fix round 1 (review F3): what floats over the map, measured as over the 3D view (hud-corner.ts), for the named zones' names.
+  const { ref: overlaysOn, overlays } = useViewOverlays();
+  const setContainer = useCallback(
+    (element: HTMLDivElement | null) => {
+      containerRef.current = element;
+      overlaysOn(element);
+    },
+    [overlaysOn],
+  );
   const size = useElementSize(containerRef);
   const { arena } = scenario;
   const [widthCm, depthCm] = arena.ground.sizeCm;
@@ -132,7 +151,14 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
     [moving, roundColors],
   );
   const fit = size !== null && size.width > 0 && size.height > 0 ? fitTopView([widthCm, depthCm], size, MARGINS) : null;
-  const mat = useMat(arena, fit?.scale ?? null, zoneLabel);
+  // The HUD's corner (NDC of the map's box) on the arena, for a lesson that names its zones (none of the rover's does: its mat is as before).
+  const named = useMemo(() => arena.paint.zones.some((zone) => zone.name !== undefined), [arena]);
+  // Quantised to a centimetre's half, so that the mat is painted again only when the HUD moves that much.
+  const corner = named && fit !== null && size !== null && overlays.hud !== null ? stageToArena(fit, ((overlays.hud.right + 1) / 2) * size.width, ((1 - overlays.hud.bottom) / 2) * size.height) : null;
+  const hudMaxX = corner === null ? null : Math.round(corner.xCm * 2) / 2;
+  const hudMinY = corner === null ? null : Math.round(corner.yCm * 2) / 2;
+  const hudOnArena = useMemo(() => (hudMaxX === null || hudMinY === null ? null : { maxX: hudMaxX, minY: hudMinY }), [hudMaxX, hudMinY]);
+  const mat = useMat(arena, fit?.scale ?? null, zoneLabel, hudOnArena);
   // The names the mat is painted with, for the tests and the E2E (they cannot read the canvas).
   const zoneLabels = useMemo(() => arena.paint.zones.flatMap((zone) => zoneLabel(zone) ?? []), [arena, zoneLabel]);
   const nodes = useRef<Nodes>(emptyNodes());
@@ -274,13 +300,13 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
 
   return (
     // tabIndex -1: not a Tab stop, the named place the focus goes back to in the 2D view (a card closed: RunMessages).
-    <div ref={containerRef} className="robot-topview" role="img" aria-label={t('robot.topview.label')} tabIndex={-1} data-testid="robot-topview" data-reason={reason ?? 'chosen'}>
+    <div ref={setContainer} className="robot-topview" role="img" aria-label={t('robot.topview.label')} tabIndex={-1} data-testid="robot-topview" data-reason={reason ?? 'chosen'}>
       {fit && world && bar && size && (
         <Stage width={size.width} height={size.height} listening={false}>
           <Layer listening={false}>
-            <Group {...world} name="topview-mat" zoneLabels={zoneLabels}>
+            <Group {...world} name="topview-mat" zoneLabels={zoneLabels} zoneNames={mat?.names ?? NO_NAMES} hudOnArena={hudOnArena}>
               <Rect x={-0.6} y={-0.6} width={widthCm + 1.2} height={depthCm + 1.2} fill={colors.slab} />
-              {mat ? <KonvaImage image={mat} x={0} y={depthCm} width={widthCm} height={depthCm} scaleY={-1} /> : <Rect width={widthCm} height={depthCm} fill={arena.ground.color} />}
+              {mat ? <KonvaImage image={mat.canvas} x={0} y={depthCm} width={widthCm} height={depthCm} scaleY={-1} /> : <Rect width={widthCm} height={depthCm} fill={arena.ground.color} />}
               {arena.walls.map((wall, i) => (
                 <Group key={wall.id ?? `#wall-${i}`} name="topview-wall">
                   <Line points={[...wall.fromCm, ...wall.toCm]} stroke={colors.wallEdge} strokeWidth={wall.thicknessCm + 0.6} lineCap="square" />

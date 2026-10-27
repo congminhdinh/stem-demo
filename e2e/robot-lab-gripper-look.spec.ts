@@ -5,7 +5,7 @@ import { decodePng } from '../scripts/lib/png';
 import { robotSolutions } from '../src/samples/robot-solutions';
 import { robotStarterDocument } from '../src/samples/robot-templates';
 import type { TopViewGripperState } from '../src/ui/robot3d/top-view-gripper-state';
-import type { TopViewState } from '../src/ui/robot3d/top-view-state';
+import type { TopViewMat, TopViewState } from '../src/ui/robot3d/top-view-state';
 import type { BodyMark } from '../src/ui/robot3d/body-marks';
 import { markPattern, OBJECT_PATTERN_MARGIN_CM, patternDots, patternSegments } from '../src/ui/robot3d/zone-pattern';
 import { markMask, maskAgreement, simulateColor, simulateImage, type ColorVision, type MarkMask, type Pixels } from './color-vision';
@@ -207,6 +207,16 @@ const map2d = (frame: Frame) =>
     return { gripper: gripper.readTopViewGripper(), view: view.readTopViewState() };
   }) as Promise<Map2D>;
 
+/** The mat as the map shows it (top-view-state.ts `readTopViewMat`), and the HUD's box on the map's stage (px), null for none. */
+const matAndHud = (frame: Frame) =>
+  frame.evaluate(async () => {
+    const path = '/src/ui/robot3d/top-view-state.ts';
+    const module = (await import(/* @vite-ignore */ path)) as { readTopViewMat(): TopViewMat };
+    const view = document.querySelector('[data-testid=robot-topview]')!.getBoundingClientRect();
+    const hud = document.querySelector('[data-testid=robot-hud]')?.getBoundingClientRect();
+    return { mat: module.readTopViewMat(), hud: hud ? { left: hud.left - view.left, top: hud.top - view.top, right: hud.right - view.left, bottom: hud.bottom - view.top } : null };
+  });
+
 async function openMap(page: Page, baseURL: string | undefined, key: string) {
   const frame = await openInLesson(page, labUrl(baseURL, key));
   await frame.getByTestId('robot-viewmode').click();
@@ -219,7 +229,8 @@ async function openMap(page: Page, baseURL: string | undefined, key: string) {
  * map has drawn `world` (its nodes move at a publish, its canvas is drawn in the next animation frame).
  */
 const bodiesOf = async (frame: Frame, world: World | null): Promise<Pixels> => {
-  if (world !== null) await expect.poll(async () => Math.hypot((await map2d(frame)).view.robot!.xCm - world.robot.xCm, (await map2d(frame)).view.robot!.yCm - world.robot.yCm)).toBeLessThan(1e-6);
+  // A hundredth of a millimetre: the map's nodes hold the snapshot's float32 poses.
+  if (world !== null) await expect.poll(async () => Math.hypot((await map2d(frame)).view.robot!.xCm - world.robot.xCm, (await map2d(frame)).view.robot!.yCm - world.robot.yCm)).toBeLessThan(1e-3);
   const url = await frame.evaluate(async () => {
     await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(null))));
     const host = document.querySelector('[data-testid=robot-topview]')!;
@@ -257,6 +268,15 @@ test.describe('the gripper car on its lessons, on the 2D map (N19 E8)', () => {
           expect(meets(layout.box, layout.car!)).toBe(false);
           if (layout.ring) expect(meets(layout.box, layout.ring)).toBe(false);
           for (const distance of layout.distances) expect(meets(layout.box, distance)).toBe(false);
+          // Review F3: no named zone's name is under the HUD; but lesson 10's red zone, which the HUD covers whole (on the owner's list), has
+          // its name at its middle.
+          const { mat, hud } = await matAndHud(frame);
+          expect(mat.zoneNames.length, run.key).toBeGreaterThan(0);
+          for (const name of mat.zoneNames) {
+            const covered = run.key === 'rb-grip-sort' && name.zoneId === 'red-zone';
+            if (covered) expect(name.place, name.text).toBe('middle');
+            else if (hud !== null) expect(meets(name.box, hud), `${run.key} ${moment.name}: ${name.text} ${JSON.stringify(name.box)}, the HUD ${JSON.stringify(hud)}`).toBe(false);
+          }
           if (run.key === 'rb-grip-stack' && moment.name === 'release') {
             // Review F2: the red cube stacked on the yellow base is drawn over it: the map's middle of the cube is the cube's red (its fill or
             // its stripes' darker red), not the base's yellow.
@@ -264,7 +284,8 @@ test.describe('the gripper car on its lessons, on the 2D map (N19 E8)', () => {
             const cube = world.objects.find((object) => object.id === 'cube')!.pose;
             const { view } = await map2d(frame);
             const picture = await bodiesOf(frame, world);
-            const [x, y] = [14 + (view.stage.width - 28 - 200 * view.scale) / 2 + cube.xCm * view.scale, 14 + (view.stage.height - 54 - 80 * view.scale) / 2 + (80 - cube.yCm) * view.scale];
+            const ratio = picture.width / view.stage.width;
+            const [x, y] = [(mat.originX + cube.xCm * mat.scale) * ratio, (mat.originY - cube.yCm * mat.scale) * ratio];
             const at = (Math.round(y) * picture.width + Math.round(x)) * picture.channels;
             const [r, g, b] = [picture.data[at]!, picture.data[at + 1]!, picture.data[at + 2]!];
             expect(r - g, `the cube's middle is ${[r, g, b]}`).toBeGreaterThan(60);

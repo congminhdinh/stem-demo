@@ -1,4 +1,5 @@
 import Konva from 'konva';
+import type { PaintedZoneName } from './ground-paint';
 
 // What the robot lab's 2D top view drew (N18 R4.6), read from its Konva nodes: the place the tests look at, since they cannot read a
 // canvas's pixels (as for the circuit canvas, canvas-test-state.ts). The E2E loads this module from the dev server, which serves the very
@@ -69,5 +70,33 @@ export function readTopViewState(): TopViewState | null {
     leds: stage.find<Konva.Circle>('.topview-led').map((node) => ({ role: node.getAttr('role'), lit: node.getAttr('lit') === true })),
     servos: stage.find<Konva.Group>('.topview-servo').map((node) => ({ role: node.getAttr('role'), armDeg: node.findOne<Konva.Group>('.topview-arm')?.rotation() ?? 0 })),
     scaleBar: bar ? { cm: bar.getAttr('cm'), lengthPx: bar.getAttr('lengthPx') } : null,
+  };
+}
+
+/** N19 E8 fix round 1: a box on the stage, px (y down). */
+export type StageBox = { left: number; top: number; right: number; bottom: number };
+
+/**
+ * N19 E8 fix round 1: the mat as the map shows it: the arena's origin on the stage (px) and its scale (px a cm), and the named zones' names
+ * as it was painted with them (ground-paint.ts), each with its text's box on the stage; null when no map is mounted.
+ */
+export type TopViewMat = { originX: number; originY: number; scale: number; zoneNames: (Omit<PaintedZoneName, 'box'> & { box: StageBox })[] };
+
+export function readTopViewMat(): TopViewMat | null {
+  const stage = Konva.stages.find((candidate) => candidate.container().closest('[data-testid=robot-topview]') !== null);
+  const mat = stage?.findOne<Konva.Group>('.topview-mat');
+  if (!mat) return null;
+  const [originX, originY, scale] = [mat.x(), mat.y(), mat.scaleX()];
+  const names = (mat.getAttr('zoneNames') ?? []) as PaintedZoneName[];
+  return {
+    originX,
+    originY,
+    scale,
+    zoneNames: names.map(({ zoneId, text, place, box }) => ({
+      zoneId,
+      text,
+      place,
+      box: { left: originX + box.minX * scale, right: originX + box.maxX * scale, top: originY - box.maxY * scale, bottom: originY - box.minY * scale },
+    })),
   };
 }
