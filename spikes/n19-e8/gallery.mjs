@@ -19,7 +19,7 @@
 //   cvd/<name>-deuteranopia.png, -protanopia.png         lesson 10's start and red and blue carries, as Machado et al. 2009 (severity
 //                                                          1.0) see them (e2e/color-vision.ts), every 3D view, the map and its crop;
 //   index.md                                              every shot with its moment's world (time, pose, arm, claw, what is held);
-//   cvd-marks.txt                                         the cube's mark mask on the DPR 3 map in each of the three, under each
+//   cvd-marks.txt                                         the cube's mark mask (33 × 33, as the spec's) on the DPR 3 map in each of the three, under each
 //                                                          vision (the spec recognises them on chromium-robot).
 import { chromium } from '@playwright/test';
 import { spawn } from 'node:child_process';
@@ -36,7 +36,7 @@ const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 const want = (name) => !args.only || name.includes(args.only);
 
 const { gripperLessonRuns, holdAtEnd, shotName } = await import(join(root, 'e2e/gripper-moments.ts'));
-const { simulateImage, markMask } = await import(join(root, 'e2e/color-vision.ts'));
+const { simulateImage, markMask, faceCells } = await import(join(root, 'e2e/color-vision.ts'));
 const { decodePng, writePng } = await import(join(root, 'scripts/lib/png.ts'));
 const { robotSolutions } = await import(join(root, 'src/samples/robot-solutions.ts'));
 const scenarios = Object.fromEntries(['pick', 'deliver', 'sort', 'stack'].map((name) => [`rb-grip-${name}`, JSON.parse(readFileSync(join(root, `src/samples/robot-scenarios/rb-grip-${name}.json`), 'utf8'))]));
@@ -71,8 +71,11 @@ for (const url of [labOrigin, `${hostOrigin}/lesson`]) {
 }
 
 // The lab ---------------------------------------------------------------------------------------------------------------------------
+// Fix round 1 (review): the DPR 3 map is the size the spec reads it at (chromium-robot's Desktop Chrome, 1280 × 720), so that its marks are
+// drawn at the very scale the test's are and the colour-blind masks agree with the test's.
+const SPEC_VIEWPORT = { width: 1280, height: 720 };
 async function openLesson(browser, key, { dpr = 1, tier = null, view2d = false } = {}) {
-  const context = await browser.newContext({ viewport: { width: 1200, height: 760 }, deviceScaleFactor: dpr, reducedMotion: 'reduce' });
+  const context = await browser.newContext({ viewport: dpr === 3 ? SPEC_VIEWPORT : { width: 1200, height: 760 }, deviceScaleFactor: dpr, reducedMotion: 'reduce' });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (error) => errors.push(String(error)));
@@ -438,25 +441,30 @@ if (args['skip-cvd'] !== 'true') {
   }
 }
 
-// The cube's mark on the map in lesson 10's three shots, as each vision sees it: a 24 × 24 mask of the far 2.4 cm of its top face, sampled in
-// the cube's own frame on the map's mat and bodies (no overlay over them), for the review to see. The test is the spec's
-// (e2e/robot-lab-gripper-look.spec.ts: each mask recognised against the three marks' own pictures, three different marks).
+// The cube's mark on the map in lesson 10's three shots, as each vision sees it: a 33 × 33 mask of its whole top face, a millimetre apart
+// (−1.6..1.6 cm in the cube's own frame), sampled on the map's mat and bodies (no overlay over them), for the review to see. Fix round 1
+// (review): the very cells the spec reads (e2e/robot-lab-gripper-look.spec.ts `FACE_CELLS`, `faceCell`), so that what this shows agrees
+// with the test, which recognises each mask against the three marks' own pictures (three different marks).
 const report = [];
 if (cvdMarks.length > 0) {
-  const SIZE = 24;
-  const maskOf = (entry, image) =>
-    markMask(image, SIZE, (i, j) => {
-      const [u, v] = [-0.7 + (i + 0.5) * 0.1, 1.2 - (j + 0.5) * 0.1];
-      const yaw = (entry.cube.yawDeg * Math.PI) / 180;
-      const [x, y] = [entry.cube.xCm + u * Math.cos(yaw) - v * Math.sin(yaw), entry.cube.yCm + u * Math.sin(yaw) + v * Math.cos(yaw)];
-      return [(entry.fit.originX + x * entry.fit.scale) * entry.dpr, (entry.fit.originY - y * entry.fit.scale) * entry.dpr];
-    });
+  const SIZE = 33;
+  const faceCell = (k) => -1.6 + k * 0.1;
+  const atOf = (entry) => (i, j) => {
+    const [u, v] = [faceCell(i), -faceCell(j)];
+    const yaw = (entry.cube.yawDeg * Math.PI) / 180;
+    const [x, y] = [entry.cube.xCm + u * Math.cos(yaw) - v * Math.sin(yaw), entry.cube.yCm + u * Math.sin(yaw) + v * Math.cos(yaw)];
+    return [(entry.fit.originX + x * entry.fit.scale) * entry.dpr, (entry.fit.originY - y * entry.fit.scale) * entry.dpr];
+  };
+  // On the face's own cells (its fill, its ink and their blends, as seen with no colour-blindness), as the spec reads it: the gripper's
+  // parts over the held cube left out (shown as spaces).
+  const keeps = new Map(cvdMarks.map((entry) => [entry.name, faceCells(entry.picture, SIZE, atOf(entry))]));
+  const maskOf = (entry, image) => markMask(image, SIZE, atOf(entry), keeps.get(entry.name));
   for (const vision of ['normal', ...visions]) {
     const masks = cvdMarks.map((entry) => ({ name: entry.name, mask: maskOf(entry, vision === 'normal' ? entry.picture : simulateImage(entry.picture, vision)) }));
     report.push(`## ${vision}`);
     for (const { name, mask } of masks) {
-      report.push(`${name}: ink ${(100 * mask.inkShare).toFixed(1)} % of the face, class contrast ${mask.contrast.toFixed(2)}:1`);
-      for (let j = 0; j < SIZE; j++) report.push(`    ${Array.from({ length: SIZE }, (_, i) => (mask.cells[j * SIZE + i] ? '#' : '.')).join('')}`);
+      report.push(`${name}: ink ${(100 * mask.inkShare).toFixed(1)} % of the face's own cells (${(100 * mask.kept.reduce((a, b) => a + b, 0) / mask.kept.length).toFixed(1)} % of it), class contrast ${mask.contrast.toFixed(2)}:1`);
+      for (let j = 0; j < SIZE; j++) report.push(`    ${Array.from({ length: SIZE }, (_, i) => (mask.kept[j * SIZE + i] !== 1 ? ' ' : mask.cells[j * SIZE + i] ? '#' : '.')).join('')}`);
     }
     report.push('');
   }

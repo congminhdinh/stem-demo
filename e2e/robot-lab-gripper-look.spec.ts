@@ -8,7 +8,7 @@ import type { TopViewGripperState } from '../src/ui/robot3d/top-view-gripper-sta
 import type { TopViewMat, TopViewState } from '../src/ui/robot3d/top-view-state';
 import type { BodyMark } from '../src/ui/robot3d/body-marks';
 import { markPattern, OBJECT_PATTERN_MARGIN_CM, patternDots, patternSegments } from '../src/ui/robot3d/zone-pattern';
-import { markMask, maskAgreement, simulateColor, simulateImage, type ColorVision, type MarkMask, type Pixels } from './color-vision';
+import { faceCells, faceColors, markMask, maskAgreement, simulateColor, simulateImage, type ColorVision, type MarkMask, type Pixels } from './color-vision';
 import { gripperLessonRuns, holdAtEnd, shotName, type GripperLessonRun, type GripperMoment } from './gripper-moments';
 import { pinLowTierChainOff } from './robot-chain';
 
@@ -346,6 +346,7 @@ test.describe('lesson 10’s cubes for a learner who cannot tell red from green 
     ];
     const faces: { name: string; picture: Pixels; at: (i: number, j: number) => readonly [number, number] }[] = [];
     const drawn: (string | null)[] = [];
+    const fills: string[] = [];
     let scale = 0;
     for (const { run, moment: name } of wanted) {
       await openRound(frame, run);
@@ -356,6 +357,7 @@ test.describe('lesson 10’s cubes for a learner who cannot tell red from green 
       const cube = world?.objects.find((object) => object.id === 'cube')?.pose ?? { xCm: 49, yCm: 75, yawDeg: 0 };
       const { gripper, view } = await map2d(frame);
       drawn.push(gripper.objects.find((object) => object.id === 'cube')?.mark ?? null);
+      fills.push(gripper.objects.find((object) => object.id === 'cube')?.fill ?? '');
       scale = view.scale;
       // The map's fit (TopView2D's margins: 14 a side, 40 under) and the page's 3 device pixels a CSS pixel.
       const [widthCm, depthCm] = [170, 150];
@@ -372,10 +374,16 @@ test.describe('lesson 10’s cubes for a learner who cannot tell red from green 
     }
     const templates = (['stripes', 'grid', 'dots'] as const).map((mark) => ({ mark, cells: markTemplate(mark, scale) }));
     const seen: Record<string, Record<string, Record<string, number>>> = {};
+    // Fix round 1: each face is read on its own cells (its fill, its ink and their blends: faceCells), as seen without a colour-blindness;
+    // the gripper's parts over the held cube (a third colour, which the threshold took for the ink under one vision and not under
+    // another) are left out. Most of each face is its own.
+    const kept = faces.map((face) => faceCells(face.picture, FACE_CELLS, face.at));
+    for (const [i, keep] of kept.entries()) expect(keep.reduce((a, b) => a + b, 0) / keep.length, faces[i]!.name).toBeGreaterThan(0.8);
+    seen.kept = Object.fromEntries(faces.map((face, i) => [face.name, { share: Math.round((kept[i]!.reduce((a, b) => a + b, 0) / kept[i]!.length) * 1000) / 1000 }]));
     for (const vision of ['normal', 'deuteranopia', 'protanopia'] as const) {
       seen[vision] = {};
-      const read = faces.map((face) => {
-        const mask: MarkMask = markMask(vision === 'normal' ? face.picture : simulateImage(face.picture, vision as ColorVision), FACE_CELLS, face.at);
+      const read = faces.map((face, f) => {
+        const mask: MarkMask = markMask(vision === 'normal' ? face.picture : simulateImage(face.picture, vision as ColorVision), FACE_CELLS, face.at, kept[f]!);
         // A mark is there: two classes of light apart.
         expect(mask.contrast, `${vision} ${face.name}`).toBeGreaterThan(1.4);
         const scores = templates.map(({ mark, cells }) => ({ mark, agreement: maskAgreement(mask, cells) })).sort((p, q) => q.agreement - p.agreement);
@@ -385,18 +393,27 @@ test.describe('lesson 10’s cubes for a learner who cannot tell red from green 
       mkdirSync(shots, { recursive: true });
       writeFileSync(join(shots, 'sort-cvd-marks.json'), `${JSON.stringify(seen, null, 1)}\n`);
       for (const [i, scores] of read.entries()) {
-        // Each face is plainly one of the three marks: it matches that one's picture (measured 0.79-0.87, where an unrelated mask matches
-        // about a half), and the next one clearly less (measured 0.26-0.28 less).
+        // Each face is plainly one of the three marks: it matches that one's picture (measured 0.87-0.92 on its own cells, where an unrelated
+        // mask matches about a half), and the next one clearly less (measured 0.28-0.35 less).
         expect(scores[0]!.agreement, `${vision} ${faces[i]!.name}: ${JSON.stringify(scores)}`).toBeGreaterThan(0.75);
         expect(scores[0]!.agreement - scores[1]!.agreement, `${vision} ${faces[i]!.name}: ${JSON.stringify(scores)}`).toBeGreaterThan(0.15);
       }
       // The three cubes read as three different marks (as their masks differ): the mark, not the hue, tells them apart.
       expect(new Set(read.map((scores) => scores[0]!.mark)).size, `${vision}: ${JSON.stringify(seen[vision])}`).toBe(3);
     }
-    // Hue alone is not enough: a deuteranope sees the red and the green cube's fills all but alike (Machado's matrix on the palette's own).
-    const fill = (hex: string, vision: ColorVision) => simulateColor([1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16)) as [number, number, number], vision);
+    // Hue alone is not enough: a deuteranope sees the red and the green cube's fills all but alike (Machado's matrix on the fills as the map
+    // drew them, review M2: of the face's two colours, the one its node's fill names, not the palette's constants).
+    const fill = (name: string, vision: ColorVision) => {
+      const f = faces.findIndex((candidate) => candidate.name === name);
+      const named = [1, 3, 5].map((at) => Number.parseInt(fills[f]!.slice(at, at + 2), 16));
+      const drawnFill = faceColors(faces[f]!.picture, FACE_CELLS, faces[f]!.at)
+        .map((rgb) => ({ rgb, off: Math.hypot(rgb[0] - named[0]!, rgb[1] - named[1]!, rgb[2] - named[2]!) }))
+        .sort((p, q) => p.off - q.off)[0]!;
+      expect(drawnFill.off, `${name}'s fill ${fills[f]} on the map`).toBeLessThan(6);
+      return simulateColor(drawnFill.rgb, vision);
+    };
     const luminance = ([r, g, b]: readonly number[]) => [r!, g!, b!].map((c) => ((c / 255) <= 0.04045 ? c / 255 / 12.92 : ((c / 255 + 0.055) / 1.055) ** 2.4)).reduce((sum, c, i) => sum + c * [0.2126, 0.7152, 0.0722][i]!, 0);
-    const [red, green] = [fill('#d32f2f', 'deuteranopia'), fill('#388e3c', 'deuteranopia')];
+    const [red, green] = [fill('red', 'deuteranopia'), fill('green', 'deuteranopia')];
     expect((Math.max(luminance(red), luminance(green)) + 0.05) / (Math.min(luminance(red), luminance(green)) + 0.05)).toBeLessThan(1.05);
     // And the map says which mark it drew (after the pictures: a mark made like another's fails on the pictures first).
     expect(drawn).toEqual(['grid', 'stripes', 'dots']);

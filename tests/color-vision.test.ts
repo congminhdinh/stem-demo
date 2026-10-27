@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { contrastRatio } from '../src/ui/a11y/contrast';
-import { markMask, maskAgreement, simulateColor, simulateImage, type Pixels } from '../e2e/color-vision';
+import { faceCells, faceColors, markMask, maskAgreement, simulateColor, simulateImage, type Pixels } from '../e2e/color-vision';
 
 // N19 E8: the colour-vision simulation and the mark masks the gallery's colour-blind check uses (e2e/color-vision.ts).
 
@@ -76,4 +76,25 @@ describe('mark masks', () => {
       for (const other of others) expect(maskAgreement(mask, cellsOf(other))).toBeLessThan(0.8);
     }
   });
+
+  it('reads a face’s own cells alone where something lies over it: its two colours’ cells, and the blends between them (N19 E8 fix round 1)', () => {
+    // Red stripes with a blue bar across rows 20–27 (the gripper's parts over a held cube on the map), and a pixel of each blend.
+    const image = picture('#d32f2f', '#5c1414', stripes);
+    for (let y = 20; y < 28; y++) for (let x = 0; x < 48; x++) image.data.set([5, 126, 190], (y * 48 + x) * 3);
+    image.data.set([135, 33, 33], (0 * 48 + 6) * 3);
+    expect(faceColors(image, 24, (i, j) => [i * 2 + 0.5, j * 2 + 0.5])).toEqual([[211, 47, 47], [92, 20, 20]]);
+    const keep = faceCells(image, 24, (i, j) => [i * 2 + 0.5, j * 2 + 0.5]);
+    // Rows 10–13 of the cells (pixels 20.5–26.5) are the bar's; the blend (cell 3, 0) is the face's.
+    expect(Array.from({ length: 24 }, (_, j) => keep[j * 24 + 5])).toEqual(Array.from({ length: 24 }, (_, j) => (j >= 10 && j <= 13 ? 0 : 1)));
+    expect(keep[3]).toBe(1);
+    const cellsOf = (ink: (x: number, y: number) => boolean) => Uint8Array.from({ length: 24 * 24 }, (_, k) => (ink((k % 24) * 2 + 0.5, Math.floor(k / 24) * 2 + 0.5) ? 1 : 0));
+    // Read on the face's own cells, the stripes are the stripes, under any vision; the bar is not taken for a fourth class or for the ink.
+    for (const vision of ['deuteranopia', 'protanopia'] as const) {
+      const seen = simulateImage(image, vision);
+      const mask = markMask(seen, 24, (i, j) => [i * 2 + 0.5, j * 2 + 0.5], keep);
+      expect(maskAgreement(mask, cellsOf(stripes)), vision).toBeGreaterThan(0.95);
+      expect(maskAgreement(mask, cellsOf(grid)), vision).toBeLessThan(0.8);
+    }
+  });
 });
+
