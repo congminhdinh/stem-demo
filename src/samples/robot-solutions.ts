@@ -712,7 +712,8 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
       'seed (430) moves the start 5.4 cm back and 5.1 cm on along the tape and turns it −4.9° and +3.5°, and moves each parcel up to 5 cm ' +
       'along the tape, both ways. Blind: the reference\'s moves on timed legs (2800, 1900, 1900 ms) and a timed turn back: it passes ' +
       'variant 0 (97) and pushes a parcel it reaches early or misses one it reaches late in the others: 40. Placeholder kit: the turn and ' +
-      'the carry are the placeholder car\'s; the warehouse is 38 cm deep, so the carry allows about ±1 s.',
+      'the carry are the placeholder car\'s: the turn passes at 800-1000 ms and the carry at 1200 ms, and a carry of 3200 ms hits the shelf ' +
+      '(review 1), so the carry has less than 1 s on its long side.',
     exploits: [
       {
         name: 'push-north',
@@ -780,7 +781,8 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
       'with the cube at the same place, only its colour changes (green, red, blue: objectColors), so only a program that reads the colour ' +
       'passes all three; the seed (8) turns the start −2.3° and +2.9°. The cube is 19 cm ahead so that a 3° turn leaves it within 1 cm of ' +
       'the axis, where the jaws take it without pushing it first (at 32 cm, a 2.9° turn pushed it 15.8 cm and the straight carry left it ' +
-      'out of the green zone). No blind program: the colours are the variants. Placeholder kit: the turn and the carry are the placeholder car\'s.',
+      'out of the green zone). No blind program: the colours are the variants. Placeholder kit: the turn and the carry are the placeholder car\'s; ' +
+      'the turn passes only at 800-1000 ms (±10°; it fails at 750 and 1050 ms, review 1), the tightest timed part of the four lessons.',
     exploits: [
       {
         name: 'always-turn-left',

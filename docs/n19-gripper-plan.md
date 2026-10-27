@@ -486,7 +486,14 @@ e2e `robot-lab-check.spec.ts` (Gate G1). Hướng dẫn soạn: `docs/robot-scen
   **830 ms chỉ quay 82°**, lời giải dùng **900 ms (91,5°)**. IR thấy khối khi tâm khối cách giữa thân 12,55 cm; khối đang giữ cách 12,3 cm (tay 0°)
   và 11,65 cm (tay 90°); ở tay 55° đáy khối cao 4,46 cm, trên bệ 4 cm.
 - **Khối lệch trục:** lệch ≥ 1,5 cm thì ngón đẩy khối đi 4,8–33 cm và xe đổi hướng tới 9,4° rồi mới gắp được (đo 65 trường hợp, lần nào cũng gắp được). Vì vậy:
-  - bài 8 chở theo **khoảng cách tới tường xa** (tay 90° đang giữ: nón sạch; dừng khi siêu âm ≤ 45 cm), không theo thời gian: khối luôn rơi ở x 127,3–127,6;
+  - bài 8 chở theo **khoảng cách tới tường xa** (tay 90° đang giữ: nón sạch), không theo thời gian;
+    - **review 1 I1:** bài 8 tiến **50 %** (trước là 70 %) và đặt xuống ở **35 cm** cách tường (trước là 45 cm). Biến thể đặt khối lệch đường
+      đi tới 3,3 cm. Ở mức đó siêu âm không nghe thấy khối, và ngón đẩy khối tới x 127 trước khi IR thấy (xe ở x 115). Đặt ở 45 cm thì quãng
+      chở dưới 5 cm, bị chấm là đẩy;
+    - đo được:
+      - 16 góc của khoảng biến thể đều 100 (test Kiểm tra `pickCorners`; một ghim tĩnh giữ độ lệch lớn nhất của khoảng biến thể bằng các góc đó, 3,30 cm);
+      - 77 lượt bốc khác (seed 100–159, 1000–8000) đều 100;
+      - ba lượt của seed 23 đặt khối ở x 137,3–137,5;
   - bài 10 đặt khối **19 cm** trước giữa thân (lệch 3° còn 1 cm). Ở 32 cm, lượt lệch 2,9° đẩy khối 15,8 cm và lời giải chở thẳng đặt khối ra ngoài vùng xanh lá.
 - **Sa bàn đã chốt** (§6 không nói hết):
   - bài 8: vùng y 25–65;
@@ -502,6 +509,11 @@ e2e `robot-lab-check.spec.ts` (Gate G1). Hướng dẫn soạn: `docs/robot-scen
 - **Guard `no-crash` dùng tag `wall`** ở bài 8, 9, 10, và mọi bài có `endOnContact: ["wall"]`, kể cả bài 11 không có goal canh gác (ruling G0 wall: mọi tường trên đường càng). Ở bài 9 tag `wall` gồm cả kệ kho (tường có tag `kho-wall`) lẫn bốn tường bao, vì một lần chở quá tay ở hàng y 55 hay y 105 đi qua kệ 40 cm và gặp tường tây.
 - **Lời giải mù:** bài 8, 9, 11 (bài 10 không có: biến thể là màu). Điểm và trần của mọi exploit: authoring guide mục 11.5; trần = §6, trừ `lower-arm-fully` (35, ruling D4 item B).
   - `open-jaw-sweep-lift` (D2 review N1) không quét được bằng càng mở hẳn: vòng quay hất kiện ra. Càng 10° thì vòng quay ép kiện vào một ngón và ngón gắp nó ở tay 0° (kéo lê), rồi tới kho mới kẹp và nâng 1 cm tại chỗ: 15 / 0 / 15.
+- **Review 1 M1, đường đã biết:** đẩy khối vào vùng thả rồi gắp, nâng và chở khoảng 8 cm trong vùng được 100, vì luật chở của §4.5 cho qua (ruling: chấp nhận, vẫn cần gắp, nâng và chở). Có exploit `push-closed-then-lift` (đẩy bằng kẹp đóng rồi nâng tại chỗ, trần 55, đo 55 / 55 / 0). Bài 9 cũng hở như vậy về nguyên tắc. Lựa chọn D2 về sau: lần chở phải bắt đầu ngoài vùng đích.
+- **Review 1 M3, cửa sổ nhạy với kit placeholder (VG đo lại):**
+  - bài 10: lần quay qua ở 800–1000 ms (±10°);
+  - bài 9: lần quay qua ở 800–1000 ms; lần chở qua ở 1200 ms, chở 3200 ms (+1 s) thì đâm kệ.
+- **Review 1 M2, M6:** lý do `object-still-held` nói "khi lượt chạy kết thúc", vì nó cũng hiện sau khi lượt kết thúc do chạm. Bốn bài mở với một khối "tay hạ" rời thay cho "robot đi tới 50" của rover.
 - **`HOLD_KINDS` (D2 review M8):** `object-held` vào (là một lần giữ); `object-placed` và `object-on-object` chỉ đổi lý do `object-not-at-rest` thành `run-ended-contact`, các lý do khác giữ nguyên. Điểm không đổi. Rover không dùng các kind này.
 - **Ruling D4 item B, "hạ hết tay" của bài 11: trần đổi từ 20 thành 35 cho một trong hai cách hiểu.** Plan §6 ghi "hạ hết tay (≤ 20)". Nay là hai exploit:
   - `arm-too-low`: chở ở tay 45°, khối quệt và đẩy bệ. Trần 20, đo được 20.

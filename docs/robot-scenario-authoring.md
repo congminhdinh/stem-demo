@@ -34,7 +34,7 @@ Key `rb-*` là hợp đồng công khai (khóa học lưu nó): **không bao gi�
 | `profile`, `kit` | Profile mà key cần (`robot-keys.ts`, hiện là `uno-basic`) và kit của key: `ref-uno-rover` (bài 1–6, sân tập) hay `ref-uno-gripper` (bài 8–11, mục 11). |
 | `arena` | Sa bàn: `ground`, `paint.lines`, `paint.zones`, `walls`, `boxes`, `cylinders`, `objects` (mục 3). |
 | `start` | `{ xCm, yCm, yawDeg }`: điểm trên sàn dưới **giữa thân** robot và hướng (độ, ngược chiều kim đồng hồ từ +x). |
-| `variants` | `{ count, seed, startJitterCm, startJitterAlongCm?, yawJitterDeg, obstacleJitterCm? }` (mục 6). |
+| `variants` | `{ count, seed, startJitterCm, startJitterAlongCm?, yawJitterDeg, obstacleJitterCm?, objectJitter?, objectColors? }` (mục 6; hai trường cuối của N19: mục 11.3). |
 | `inputs` | Kịch bản nhấn/nhả nút (`button1`) theo thời gian; bỏ trống nếu không cần. |
 | `timeLimitS` | Thời gian chạy tối đa (0, 600] giây. Mỗi biến thể chạy tới mốc này khi Kiểm tra. |
 | `goals` | Danh sách mục tiêu (mục 4). |
@@ -171,7 +171,8 @@ Kiểm tra (R6.2) chạy `count` biến thể và chỉ qua khi mọi goal qua �
 cho R6.2: một biến thể may mắn không làm điểm cao). Biến thể 0 là chỗ xuất phát đúng như soạn. Biến thể ≥ 1 dời chỗ xuất phát `±startJitterCm`
 theo x và y (hoặc, có `startJitterAlongCm`, ±giá trị đó dọc hướng xuất phát và ±`startJitterCm` ngang hướng), quay `±yawJitterDeg`, và dời mỗi vật có tag `jitter`
 `±obstacleJitterCm`, tất cả từ `seed` (`variants.ts`, tất định trên mọi engine). Lần bốc không vừa (ra mép, đè vật) thì bốc lại, tối
-đa 20 lần, rồi giữ vị trí đã soạn: thiết kế sao cho không lần nào phải bốc lại (test kiểm rằng mỗi biến thể ≥ 1 đều dời thật).
+đa 20 lần, rồi giữ vị trí đã soạn: thiết kế sao cho không lần nào phải bốc lại (test kiểm rằng mỗi biến thể ≥ 1 đều dời thật, trừ kịch bản
+không dời vị trí: bài 10 chỉ quay).
 
 Mục đích là bắt chương trình **chạy mù** (chỉ motor và wait, canh giờ cho biến thể 0). Cách thiết kế:
 
@@ -212,7 +213,8 @@ Số của kit placeholder dùng để thiết kế (đo bằng spike `spikes/r5
 
 - **Starter** (trong JSON): hat của bài (`stem_on_start` cho bài mở, `stem_forever` cho bài cảm biến) và **một khối chạy rời**
   (`uno_drive_move` forward 50, `disabledReasons: ["ORPHANED_BLOCK"]`) để học sinh kéo vào. Robot không chạy được gì cho tới khi
-  học sinh dựng chương trình, nên starter không qua goal nào. `rb-sandbox` mở với "on start" và "forever" trống.
+  học sinh dựng chương trình, nên starter không qua goal nào. `rb-sandbox` mở với "on start" và "forever" trống. Bốn bài tay gắp mở với
+  "khi bắt đầu" và một khối **"tay hạ"** rời (`uno_gripper_lift` `DOWN`), bước đầu tiên của bài gắp (review 1 M6).
 - **Lời giải** (`src/samples/robot-solutions.ts`): `reference` viết bằng đúng toolbox của bài; `blind` (bài 3–6) chỉ motor và wait
   trong "on start"; `exploits` (bài 3–6) là các chương trình cố lấy điểm mà không làm bài, mỗi cái kèm `maxScore`, điểm check cao nhất của nó
   (điểm thấp nhất trong các biến thể, ≤ 60), và không cái nào được qua check; `notes` ghi thời gian đo được và chỗ lời giải phụ thuộc kit
@@ -446,8 +448,11 @@ cung cấp (plan VG) thì phải đo lại mọi thời gian (quay, chở, mọi
 - **Màu:** khối đang giữ cách cảm biến khoảng 1,7 cm; bốn màu bảng màu đọc đúng ở 1–3 cm; khối trắng đọc "trắng" ở 1 cm nhưng "không rõ" ở
   3 cm; kẹp đóng mà không có vật thì cảm biến thấy ngón của chính nó và đọc "đen". Đọc màu **sau khi** đã gắp và nâng (cửa sổ đo 52,8 ms).
 - **Khối lệch trục:** khối lệch trục xe ≥ 1,5 cm bị một ngón đẩy đi 4,8–33 cm và làm xe đổi hướng tới 9,4° trước khi IR thấy và càng ôm được
-  (spike `capture`, 65 lần đều gắp được). Giữ khối trong 1 cm quanh trục: tiếp cận ngắn (bài 10: khối cách 19 cm, lệch 3° chỉ còn 1 cm) hay bám vạch (bài 9, 11), hoặc
-  đặt vật theo khoảng cách tới tường thay vì theo chỗ đã gắp (bài 8).
+  (spike `capture`, 65 lần đều gắp được). Giữ khối trong 1 cm quanh trục: tiếp cận ngắn (bài 10: khối cách 19 cm, lệch 3° chỉ còn 1 cm) hay bám vạch
+  (bài 9, 11). Bài 8 không giữ được: biến thể đặt khối lệch tới 3,3 cm. Đặt vật theo khoảng cách tới tường thì chỗ đặt không phụ thuộc chỗ gắp,
+  nhưng chưa đủ. Khối lệch từ khoảng 2,5 cm thì siêu âm không bao giờ nghe thấy, và ngón đẩy nó vào sâu trong vùng thả (tới x 127, xe ở x 115)
+  trước khi IR thấy. Nếu đặt xuống ở 45 cm cách tường thì quãng chở dưới 5 cm, bị chấm là đẩy. Vì vậy bài 8 tiến 50 % và đặt xuống ở **35 cm**
+  (quãng chở còn 10 cm). Test Kiểm tra chạy lời giải ở cả 16 góc của khoảng biến thể (review 1 I1).
 
 ### 11.3 Vật, vùng, tường cho xe tay gắp
 
@@ -493,8 +498,12 @@ cung cấp (plan VG) thì phải đo lại mọi thời gian (quay, chở, mọi
 
 Lời giải mẫu (`robot-solutions.ts`, đều trong "khi bắt đầu", tốc độ ≥ 50 %):
 
-- **Bài 8:** tay hạ, kẹp mở, chờ 300 ms; tiến 70 % khi siêu âm > 15 cm; tiến 50 % tới khi IR thấy khối; dừng, kẹp đóng, tay nâng; tiến 60 % khi
-  siêu âm > 45 cm (tường xa, tay 90° đang giữ: nón sạch); hạ, mở, lùi 1 s. Khối luôn rơi ở x 127,3–127,6, bất kể gắp ở đâu.
+- **Bài 8:** tay hạ, kẹp mở, chờ 300 ms; tiến 50 % khi siêu âm > 15 cm, rồi tới khi IR thấy khối; dừng, kẹp đóng, tay nâng; tiến 60 % khi
+  siêu âm > **35 cm** (tường xa, tay 90° đang giữ: nón sạch); hạ, mở, lùi 1 s.
+  - Ba lượt của seed 23: khối rơi ở x 137,3–137,5.
+  - Ở 16 góc của khoảng biến thể (khối lệch tới 3,3 cm, test Kiểm tra) và 77 lượt bốc khác (seed 100–159 và 1000–8000, lệch tới 2,86 cm):
+    đều 100 điểm.
+  - Trước review 1, lời giải tiến 70 % và đặt ở 45 cm. Ba trong 77 lượt bốc trượt (lệch 2,6–2,9 cm), và cả bốn góc xa nhất cũng trượt.
 - **Bài 9:** lặp 3 lần: bám vạch tới khi IR thấy kiện, gắp và nâng, quay trái **900 ms**, tiến 2200 ms, đặt xuống, lùi 2200 ms, quay phải tới khi
   cảm biến giữa thấy vạch. Kiện rơi ở x 75,6–77,9, khoảng 15 cm phía nam chỗ nó nằm. 97 điểm (thưởng 7).
 - **Bài 10:** tiến tới khi IR thấy khối, gắp và nâng; nếu màu đỏ quay trái 900 ms, nếu xanh dương quay phải 900 ms, còn lại đi thẳng; tiến 3000 ms,
@@ -511,6 +520,7 @@ trần điểm (`maxScore`) và điểm đo được (test ghim từng biến th
 | `rb-grip-pick` | `never-lower-arm`: không hạ tay; thân xe đẩy khối, đầu ngón chạm tường xa, hết lượt | 15 | 0 |
 | `rb-grip-pick` | `push-in`: tay hạ, càng mở, đẩy khối 6600 ms vào vùng thả | 15 | 15 |
 | `rb-grip-pick` | `hold-in-zone`: chở tới vùng thả, hạ tay nhưng không mở kẹp | 55 | 55 |
+| `rb-grip-pick` | `push-closed-then-lift` (review 1 M1): kẹp đóng, đẩy khối 5600 ms vào vùng thả, mở kẹp, tiến tới khi IR thấy, gắp, nâng tại chỗ rồi đặt xuống | 55 | 0 (55 / 55 / 0: lượt 3 mất khối, chạm tường xa) |
 | `rb-grip-deliver` | mù | — | 40 (97 / 40 / 40) |
 | `rb-grip-deliver` | `push-north`: bám vạch với càng mở, đẩy kiện lên phía bắc | 15 | 15 |
 | `rb-grip-deliver` | `open-jaw-sweep-lift` (D2 review N1): kẹp chỉ 10°, quay và quét kiện vào kho, tới kho mới kẹp và nâng 1 cm tại chỗ (tay 14°) | 15 | 0 (15 / 0 / 15) |
@@ -521,6 +531,14 @@ trần điểm (`maxScore`) và điểm đo được (test ghim từng biến th
 | `rb-grip-stack` | `hold-over-base`: tới cuối vạch nhưng không mở kẹp | 35 | 35 |
 | `rb-grip-stack` | `arm-too-low`: chở ở tay 45°: khối quệt bệ và đẩy nó đi | 20 | 20 |
 | `rb-grip-stack` | `lower-arm-fully`: hạ hết tay (0°) ở cuối vạch rồi mới mở kẹp: khối nằm trên bệ, lệch 1,71–1,81 cm; bệ không bị xô | 35 | 35 |
+
+**Một đường đã biết, chấp nhận theo ruling (review 1 M1):** đẩy khối vào vùng thả rồi gắp, nâng và **chở khoảng 8 cm ngay trong vùng** thì
+được 100. Luật chở (nâng ≥ 1 cm, chở ≥ 5 cm, plan §4.5) cho qua, vì vẫn cần gắp, nâng và chở thật. Bài 9 cũng hở như vậy về nguyên tắc. Một
+lựa chọn D2 về sau là đòi lần chở phải bắt đầu ngoài vùng đích.
+
+**Cửa sổ thời gian nhạy với kit PLACEHOLDER (review 1 M3; VG phải đo lại):**
+- **Bài 10:** lần quay chỉ qua ở 800–1000 ms (±10° quanh 900 ms; trượt ở 750 và 1050 ms). Đây là phần canh giờ hẹp nhất của bốn bài.
+- **Bài 9:** lần quay qua ở 800–1000 ms. Lần chở qua ở 1200 ms; chở 3200 ms (+1 s) thì đâm kệ.
 
 "Hạ hết tay (≤ 20)" của plan §6 là hai exploit (ruling D4 item B, plan §4.14). Chở quá thấp (`arm-too-low`) giữ trần 20. Hạ hết tay lên
 bệ (`lower-arm-fully`) là một lần xếp suýt đạt, không xô bệ: trần **đổi từ 20 thành 35**, bằng đặt cạnh bệ.
