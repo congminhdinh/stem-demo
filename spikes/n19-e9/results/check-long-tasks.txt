@@ -1,0 +1,23 @@
+# N19 E9 phase B (review 1, M1): which long tasks a Kiểm tra 4x has, against when its rounds start. `node spikes/n19-e9/check-long-tasks.mjs --origin=http://localhost:5556
+# --template=<key> --rate=<n> --runs=<k>` against the production build (vite build, vite preview), the lab opened directly (the lesson's starter program), Chromium with SwiftShader,
+# CDP CPU throttling n, 1366 x 768, Apple M4 Pro, load average 3.3 to 5.3 (uptime 14:58), master 8760350, 2026-10-27. Times are the page's clock (ms); "label up ... since" is
+# how long before the task the round label ("Lượt n/3") that was up had changed, so a task a few tens of ms before a label change is the start of that round.
+# In this probe the first round also pays the physics engine's first load (nothing has warmed it: the bench warms it with the lab's first use), which is the first one or two tasks of each run.
+
+rb-grip-sort at CPU 6x (the school profile)
+  run 1: clicked 4500; labels 5006 Lượt 1/3 | 12838 Lượt 2/3 | 20397 Lượt 3/3 | 27933 (none)
+         long tasks: 4552 (416 ms), 4971 (142 ms), 12788 (65 ms)
+  run 2: clicked 2792; labels 2862 Lượt 1/3 | 11096 Lượt 2/3 | 18653 Lượt 3/3 | 26186 (none)
+         long tasks: 2831 (58 ms), 2912 (485 ms), 11043 (68 ms)
+  run 3: clicked 2780; labels 2827 Lượt 1/3 | 11063 Lượt 2/3 | 18639 Lượt 3/3 | 26168 (none)
+         long tasks: 2799 (55 ms), 2892 (488 ms), 11011 (57 ms)
+  -> after the engine is up, one task of 57 to 68 ms 50 ms before "Lượt 2/3" shows (the round 2's start: its world), none at round 3's (under 50 ms once the code is warm).
+rb-mini-mission (rover) at CPU 6x
+  run 1: clicked 4372; labels 4803 | 16371 | 27646 | 38921; long tasks: 4422 (327 ms), 4771 (113 ms)
+  run 2: clicked 2701; labels 3150 | 14553 | 25831 | 37125; long tasks: 2756 (339 ms), 3118 (114 ms)
+  -> only the first round's start (the engine's load); none at round 2's or round 3's.
+rb-grip-sort at CPU 4x (ss-low-4x)
+  run 1: clicked 4433; labels 4772 | 12530 | 20057 | 27577; long tasks: 4478 (271 ms), 4751 (92 ms)
+  run 2: clicked 2757; labels 3124 | 10779 | 18306 | 25829; long tasks: 2791 (296 ms), 3101 (96 ms)
+  -> none at round 2's or round 3's: a gripper round's world is about 28 to 33 ms at 4x (7 to 8 ms unthrottled, world-build-cost.txt), under 50.
+The bench's own cells (warm engine) agree: school rb-grip-check-4x 2 tasks of 64 to 78 ms (phase A, 7758ec9: 2 to 3 tasks of 68 to 79 ms), ss-low-4x none in the fps pass and one of 50 to 60 ms under the profiler.

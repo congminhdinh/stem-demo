@@ -1,0 +1,435 @@
+{
+ "source": "bench-robot3d-e9b-gpu-high-2026-10-27T07-42-58-402Z.json",
+ "date": "2026-10-27T07:42:58.402Z",
+ "commit": "8760350",
+ "machine": {
+  "cpus": "Apple M4 Pro",
+  "cores": 12,
+  "memGB": 24,
+  "platform": "Darwin 25.5.0",
+  "node": "v24.22.1",
+  "chromium": "153.0.8010.12"
+ },
+ "cells": [
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-pick",
+   "pass": "fps",
+   "repeat": 1,
+   "loadavg1m": 3.91,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-pick",
+   "pass": "fps",
+   "repeat": 2,
+   "loadavg1m": 4.05,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-pick",
+   "pass": "fps",
+   "repeat": 3,
+   "loadavg1m": 3.91,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-deliver",
+   "pass": "fps",
+   "repeat": 1,
+   "loadavg1m": 3.89,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-deliver",
+   "pass": "fps",
+   "repeat": 2,
+   "loadavg1m": 3.39,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-deliver",
+   "pass": "fps",
+   "repeat": 3,
+   "loadavg1m": 3.44,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-sort",
+   "pass": "fps",
+   "repeat": 1,
+   "loadavg1m": 3.18,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-sort",
+   "pass": "fps",
+   "repeat": 2,
+   "loadavg1m": 2.99,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-sort",
+   "pass": "fps",
+   "repeat": 3,
+   "loadavg1m": 3.05,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-stack",
+   "pass": "fps",
+   "repeat": 1,
+   "loadavg1m": 3.38,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-stack",
+   "pass": "fps",
+   "repeat": 2,
+   "loadavg1m": 3.1,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-stack",
+   "pass": "fps",
+   "repeat": 3,
+   "loadavg1m": 2.86,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-check-4x",
+   "pass": "fps",
+   "repeat": 1,
+   "loadavg1m": 2.7,
+   "windowS": 22.9,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-check-4x",
+   "pass": "fps",
+   "repeat": 2,
+   "loadavg1m": 3.01,
+   "windowS": 22.9,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-check-4x",
+   "pass": "fps",
+   "repeat": 3,
+   "loadavg1m": 3.54,
+   "windowS": 22.9,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-pick",
+   "pass": "profile",
+   "repeat": 1,
+   "loadavg1m": 3.72,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-pick",
+   "pass": "profile",
+   "repeat": 2,
+   "loadavg1m": 3.42,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-pick",
+   "pass": "profile",
+   "repeat": 3,
+   "loadavg1m": 3.86,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-deliver",
+   "pass": "profile",
+   "repeat": 1,
+   "loadavg1m": 3.4,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-deliver",
+   "pass": "profile",
+   "repeat": 2,
+   "loadavg1m": 2.84,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-deliver",
+   "pass": "profile",
+   "repeat": 3,
+   "loadavg1m": 3.78,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-sort",
+   "pass": "profile",
+   "repeat": 1,
+   "loadavg1m": 4.83,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-sort",
+   "pass": "profile",
+   "repeat": 2,
+   "loadavg1m": 6.08,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-sort",
+   "pass": "profile",
+   "repeat": 3,
+   "loadavg1m": 5.34,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-stack",
+   "pass": "profile",
+   "repeat": 1,
+   "loadavg1m": 6.81,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-stack",
+   "pass": "profile",
+   "repeat": 2,
+   "loadavg1m": 6.19,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-stack",
+   "pass": "profile",
+   "repeat": 3,
+   "loadavg1m": 4.62,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-check-4x",
+   "pass": "profile",
+   "repeat": 1,
+   "loadavg1m": 4.97,
+   "windowS": 22.9,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-check-4x",
+   "pass": "profile",
+   "repeat": 2,
+   "loadavg1m": 3.58,
+   "windowS": 22.9,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "gpu-high",
+   "scenario": "rb-grip-check-4x",
+   "pass": "profile",
+   "repeat": 3,
+   "loadavg1m": 3.57,
+   "windowS": 22.9,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  }
+ ]
+}

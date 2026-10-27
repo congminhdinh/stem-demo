@@ -1,0 +1,435 @@
+{
+ "source": "bench-robot3d-e910-gripper-2026-10-27T02-01-37-723Z.json",
+ "date": "2026-10-27T02:01:37.723Z",
+ "commit": "46a3f82",
+ "machine": {
+  "cpus": "Apple M4 Pro",
+  "cores": 12,
+  "memGB": 24,
+  "platform": "Darwin 25.5.0",
+  "node": "v24.22.1",
+  "chromium": "153.0.8010.12"
+ },
+ "cells": [
+  {
+   "profile": "school",
+   "scenario": "rb-grip-pick",
+   "pass": "fps",
+   "repeat": 1,
+   "loadavg1m": 6.14,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-pick",
+   "pass": "fps",
+   "repeat": 2,
+   "loadavg1m": 6.63,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-pick",
+   "pass": "fps",
+   "repeat": 3,
+   "loadavg1m": 6.2,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-deliver",
+   "pass": "fps",
+   "repeat": 1,
+   "loadavg1m": 7.89,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-deliver",
+   "pass": "fps",
+   "repeat": 2,
+   "loadavg1m": 12.05,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-deliver",
+   "pass": "fps",
+   "repeat": 3,
+   "loadavg1m": 12.39,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-sort",
+   "pass": "fps",
+   "repeat": 1,
+   "loadavg1m": 13.8,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-sort",
+   "pass": "fps",
+   "repeat": 2,
+   "loadavg1m": 13.08,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-sort",
+   "pass": "fps",
+   "repeat": 3,
+   "loadavg1m": 11.62,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-stack",
+   "pass": "fps",
+   "repeat": 1,
+   "loadavg1m": 12.75,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-stack",
+   "pass": "fps",
+   "repeat": 2,
+   "loadavg1m": 11.18,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-stack",
+   "pass": "fps",
+   "repeat": 3,
+   "loadavg1m": 10.48,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-check-4x",
+   "pass": "fps",
+   "repeat": 1,
+   "loadavg1m": 9.44,
+   "windowS": 23.8,
+   "longTasks": {
+    "count": 3,
+    "over100": 0,
+    "maxMs": 79,
+    "totalMs": 193
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-check-4x",
+   "pass": "fps",
+   "repeat": 2,
+   "loadavg1m": 8.75,
+   "windowS": 23.9,
+   "longTasks": {
+    "count": 2,
+    "over100": 0,
+    "maxMs": 68,
+    "totalMs": 136
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-check-4x",
+   "pass": "fps",
+   "repeat": 3,
+   "loadavg1m": 8.36,
+   "windowS": 23.9,
+   "longTasks": {
+    "count": 2,
+    "over100": 0,
+    "maxMs": 68,
+    "totalMs": 127
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-pick",
+   "pass": "profile",
+   "repeat": 1,
+   "loadavg1m": 8.05,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-pick",
+   "pass": "profile",
+   "repeat": 2,
+   "loadavg1m": 8.34,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-pick",
+   "pass": "profile",
+   "repeat": 3,
+   "loadavg1m": 7.67,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-deliver",
+   "pass": "profile",
+   "repeat": 1,
+   "loadavg1m": 6.55,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-deliver",
+   "pass": "profile",
+   "repeat": 2,
+   "loadavg1m": 8.48,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-deliver",
+   "pass": "profile",
+   "repeat": 3,
+   "loadavg1m": 9.92,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-sort",
+   "pass": "profile",
+   "repeat": 1,
+   "loadavg1m": 10.68,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-sort",
+   "pass": "profile",
+   "repeat": 2,
+   "loadavg1m": 10.53,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-sort",
+   "pass": "profile",
+   "repeat": 3,
+   "loadavg1m": 10.59,
+   "windowS": 6,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-stack",
+   "pass": "profile",
+   "repeat": 1,
+   "loadavg1m": 10.89,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-stack",
+   "pass": "profile",
+   "repeat": 2,
+   "loadavg1m": 10.54,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-stack",
+   "pass": "profile",
+   "repeat": 3,
+   "loadavg1m": 9.42,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-check-4x",
+   "pass": "profile",
+   "repeat": 1,
+   "loadavg1m": 9.3,
+   "windowS": 25,
+   "longTasks": {
+    "count": 4,
+    "over100": 0,
+    "maxMs": 93,
+    "totalMs": 266
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-check-4x",
+   "pass": "profile",
+   "repeat": 2,
+   "loadavg1m": 7.7,
+   "windowS": 25.1,
+   "longTasks": {
+    "count": 3,
+    "over100": 0,
+    "maxMs": 80,
+    "totalMs": 197
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "rb-grip-check-4x",
+   "pass": "profile",
+   "repeat": 3,
+   "loadavg1m": 7.09,
+   "windowS": 25.1,
+   "longTasks": {
+    "count": 4,
+    "over100": 0,
+    "maxMs": 84,
+    "totalMs": 262
+   }
+  }
+ ]
+}

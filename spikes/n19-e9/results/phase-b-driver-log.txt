@@ -1,0 +1,13 @@
+quiet after 0s
+=== bench:robot --gripper: load 3.50 5.07 6.54
+=== bench:robot exit 0 load after 3.23 4.89 6.43
+quiet after 0s
+=== e9b-ss-low-4x: start 14:15:43 load 3.23 4.89 6.43
+=== e9b-ss-low-4x: exit 0, end 14:29:47 load 3.91 5.49 6.13
+quiet after 0s
+=== e9b-gpu-high: start 14:29:47 load 3.91 5.49 6.13
+=== e9b-gpu-high: exit 0, end 14:42:58 load 4.06 4.25 4.80
+quiet after 0s
+=== e9b-school: start 14:42:58 load 4.06 4.25 4.80
+=== e9b-school: exit 0, end 14:57:28 load 5.62 6.07 5.77
+=== all done

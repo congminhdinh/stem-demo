@@ -22,3 +22,20 @@ The plan's table is in docs/n19-gripper-plan.md 4.16.
 Fix round 1 (review 1): the `judge()` rows for `rb-grip-check-4x` (p5 fps >= 30 on ss-low-4x, p95 <= 33 ms and no task over 100 ms on school) were exercised with `--report` on the
 recorded gripper results and a copy of them renamed to the `ss-low-4x` profile (the numbers of that copy are the school's, not measurements), and the rover's verdict table from
 `--report` on a recorded rover run is identical, line for line, to the one the earlier script printed. The ss-low-4x numbers themselves are phase B's (after B7, at load <= 6): not taken yet.
+
+## Phase B (fix round 1, review 1): the final bench
+
+Master 8760350 (E8 and B7 in), one production build (`vite build --sourcemap hidden`) for every run, `--dist`, the bench on ports 5554/5555; each run started at a 1-minute load of 3.2 (ss-low-4x),
+3.9 (gpu-high) and 4.1 (school), 3.5 for `bench:robot --gripper` (`results/phase-b-driver-log.txt`). The cells themselves run at 3 to 8 (the bench's own SwiftShader work).
+
+| file | what | command |
+|---|---|---|
+| `results/phase-b-bench-robot3d-ss-low-4x-gripper.md`, `-summary.txt` | the N18 low-tier rows for the four lessons and Kiểm tra 4x of rb-grip-sort: p5 fps >= 30, first Run -> moving <= 1500 ms | `node scripts/bench-robot3d.mjs --profile=ss-low-4x --scenarios=gripper --repeats=3 --pass=all --dist=<build> --port=5554` |
+| `results/phase-b-bench-robot3d-gpu-high-gripper.md`, `-summary.txt` | median fps >= 50 for the four lessons | same, `--profile=gpu-high` |
+| `results/phase-b-bench-robot3d-school-gripper.md`, `-summary.txt` | school p95 of rb-grip-check-4x again, the rest-draws row after B7, long tasks | same, `--profile=school` |
+| `results/phase-b-bench-robot3d-school-rover.md`, `phase-b-rover-compare.txt` | the rover's scenarios on the final code against phase A's master and branch | `--profile=school --scenarios=idle,drive-to-zone,line-follow,mini-mission,check-4x,teleop --repeats=2` |
+| `results/phase-b-bench-robot-gripper.txt` | `bench:robot --gripper` on the final code | `node scripts/bench-robot.mjs --gripper` |
+| `results/long-tasks-*.json`, `phase-a-long-tasks.txt`, `phase-b-long-tasks.txt` | the long-task figures of every cell of both phases, both passes, from the results JSON (the bench's tables carry the fps pass only): count of tasks of 50 ms or more, over 100 ms, longest, total | `node spikes/n19-e9/long-tasks.mjs <bench-robot3d-*.json> --out=results` |
+| `results/check-long-tasks.txt` | the long tasks of a Kiểm tra 4x against when its rounds start: one of 57 to 68 ms at round 2's start for the gripper at CPU 6x, none for the rover | `node spikes/n19-e9/check-long-tasks.mjs --origin=http://localhost:5556 --template=<key> --rate=<n>` (vite preview of the build) |
+
+Verdict: every budget row passes in all three runs (exit 0). The one target not met is the first frame (<= 2.5 s), as at N18.

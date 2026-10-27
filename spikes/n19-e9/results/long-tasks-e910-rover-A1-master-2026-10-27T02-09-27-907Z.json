@@ -1,0 +1,267 @@
+{
+ "source": "bench-robot3d-e910-rover-A1-master-2026-10-27T02-09-27-907Z.json",
+ "date": "2026-10-27T02:09:27.907Z",
+ "commit": "46a3f82",
+ "machine": {
+  "cpus": "Apple M4 Pro",
+  "cores": 12,
+  "memGB": 24,
+  "platform": "Darwin 25.5.0",
+  "node": "v24.22.1",
+  "chromium": "153.0.8010.12"
+ },
+ "cells": [
+  {
+   "profile": "school",
+   "scenario": "drive-to-zone",
+   "pass": "fps",
+   "repeat": 1,
+   "loadavg1m": 5.61,
+   "windowS": 4,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "drive-to-zone",
+   "pass": "fps",
+   "repeat": 2,
+   "loadavg1m": 6.51,
+   "windowS": 4,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "line-follow",
+   "pass": "fps",
+   "repeat": 1,
+   "loadavg1m": 6.47,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "line-follow",
+   "pass": "fps",
+   "repeat": 2,
+   "loadavg1m": 6.64,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "mini-mission",
+   "pass": "fps",
+   "repeat": 1,
+   "loadavg1m": 7.48,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "mini-mission",
+   "pass": "fps",
+   "repeat": 2,
+   "loadavg1m": 7.55,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "check-4x",
+   "pass": "fps",
+   "repeat": 1,
+   "loadavg1m": 8.89,
+   "windowS": 34.2,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "check-4x",
+   "pass": "fps",
+   "repeat": 2,
+   "loadavg1m": 10.95,
+   "windowS": 34.3,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "teleop",
+   "pass": "fps",
+   "repeat": 1,
+   "loadavg1m": 10,
+   "windowS": 8.1,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "teleop",
+   "pass": "fps",
+   "repeat": 2,
+   "loadavg1m": 10.48,
+   "windowS": 8.1,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "line-follow",
+   "pass": "profile",
+   "repeat": 1,
+   "loadavg1m": 10.56,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "line-follow",
+   "pass": "profile",
+   "repeat": 2,
+   "loadavg1m": 10.34,
+   "windowS": 8,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "mini-mission",
+   "pass": "profile",
+   "repeat": 1,
+   "loadavg1m": 8.91,
+   "windowS": 8,
+   "longTasks": {
+    "count": 1,
+    "over100": 0,
+    "maxMs": 87,
+    "totalMs": 87
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "mini-mission",
+   "pass": "profile",
+   "repeat": 2,
+   "loadavg1m": 8.18,
+   "windowS": 8,
+   "longTasks": {
+    "count": 1,
+    "over100": 0,
+    "maxMs": 87,
+    "totalMs": 87
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "check-4x",
+   "pass": "profile",
+   "repeat": 1,
+   "loadavg1m": 7.59,
+   "windowS": 34.5,
+   "longTasks": {
+    "count": 3,
+    "over100": 0,
+    "maxMs": 84,
+    "totalMs": 218
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "check-4x",
+   "pass": "profile",
+   "repeat": 2,
+   "loadavg1m": 9.23,
+   "windowS": 34.4,
+   "longTasks": {
+    "count": 3,
+    "over100": 0,
+    "maxMs": 79,
+    "totalMs": 190
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "teleop",
+   "pass": "profile",
+   "repeat": 1,
+   "loadavg1m": 9.77,
+   "windowS": 8.1,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  },
+  {
+   "profile": "school",
+   "scenario": "teleop",
+   "pass": "profile",
+   "repeat": 2,
+   "loadavg1m": 10.11,
+   "windowS": 8.1,
+   "longTasks": {
+    "count": 0,
+    "over100": 0,
+    "maxMs": 0,
+    "totalMs": 0
+   }
+  }
+ ]
+}
