@@ -2,64 +2,64 @@
  "rb-grip-pick": {
   "headless": {
    "score": 100,
-   "programHash": "b71d5f5afb020554",
+   "programHash": "810d030630f07c96",
    "variants": [
     [
      23,
      100,
-     "8ba5a014"
+     "d8b9f15d"
     ],
     [
      24,
      100,
-     "aefefac0"
+     "72464d2f"
     ],
     [
      25,
      100,
-     "778c4485"
+     "96810539"
     ]
    ]
   },
   "realtime 1×": {
    "score": 100,
-   "programHash": "b71d5f5afb020554",
+   "programHash": "810d030630f07c96",
    "variants": [
     [
      23,
      100,
-     "8ba5a014"
+     "d8b9f15d"
     ],
     [
      24,
      100,
-     "aefefac0"
+     "72464d2f"
     ],
     [
      25,
      100,
-     "778c4485"
+     "96810539"
     ]
    ]
   },
   "realtime 4×": {
    "score": 100,
-   "programHash": "b71d5f5afb020554",
+   "programHash": "810d030630f07c96",
    "variants": [
     [
      23,
      100,
-     "8ba5a014"
+     "d8b9f15d"
     ],
     [
      24,
      100,
-     "aefefac0"
+     "72464d2f"
     ],
     [
      25,
      100,
-     "778c4485"
+     "96810539"
     ]
    ]
   }

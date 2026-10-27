@@ -36,7 +36,7 @@ export function deliverRef(turnMs = Number(process.env.TURN ?? 900), carryMs = N
   );
 }
 
-export function pickRef(fast = Number(process.env.FAST ?? 70), dropCm = Number(process.env.DROP ?? 45)) {
+export function pickRef(fast = Number(process.env.FAST ?? 50), dropCm = Number(process.env.DROP ?? 45)) {
   return workspace(
     hat('stem_on_start', [
       lift('down', 'DOWN'),
@@ -277,6 +277,20 @@ export function stackCarryLow(liftDeg = Number(process.env.LIFT ?? 45)) {
     hat('stem_on_start', [
       ...stackGrab('g', liftDeg), ...stackEnd('e'),
       claw('let-go', 'OPEN'), wait('open-time', 500), drive('back', 'backward', 50), wait('back-time', 1000), stop('done'),
+    ]),
+  );
+}
+
+/** Review 1 M1: push with the claw closed for T ms, open, creep to the IR, grip, lift in place, put down in place. */
+export function pickPushClosed(t = Number(process.env.T ?? 6300), creep = Number(process.env.CREEP ?? 50)) {
+  return workspace(
+    hat('stem_on_start', [
+      lift('down', 'DOWN'), claw('closed', 'CLOSE'), wait('settle', 300),
+      drive('push', 'forward', 50), wait('push-time', t), stop('in-zone'),
+      claw('open', 'OPEN'), wait('open-wait', 300),
+      drive('creep', 'forward', creep), whileBlock('to-jaws', not('no-cube', irDetect('ir')), []),
+      stop('at-cube'), claw('close', 'CLOSE'), wait('close-wait', 300), lift('up', 'UP'), wait('up-wait', 900),
+      ...release('put'), drive('back', 'backward', 50), wait('back-time', 1000), stop('done'),
     ]),
   );
 }

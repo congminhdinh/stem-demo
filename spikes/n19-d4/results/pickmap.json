@@ -1,0 +1,695 @@
+{
+ "101": {
+  "offset": 1.113,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "102": {
+  "offset": 0.22,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "103": {
+  "offset": -2.414,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "104": {
+  "offset": -1.627,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "105": {
+  "offset": -0.392,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "106": {
+  "offset": 0.943,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "107": {
+  "offset": -0.448,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "108": {
+  "offset": -1.314,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "109": {
+  "offset": -0.654,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "110": {
+  "offset": -0.652,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "111": {
+  "offset": -2.092,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "112": {
+  "offset": 2.747,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "113": {
+  "offset": 1.682,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "114": {
+  "offset": 2.111,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "115": {
+  "offset": -1.148,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "116": {
+  "offset": -1.142,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "117": {
+  "offset": 0.896,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "118": {
+  "offset": -0.463,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "119": {
+  "offset": 1.266,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "120": {
+  "offset": -0.418,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "121": {
+  "offset": -0.602,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "122": {
+  "offset": 0.534,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "123": {
+  "offset": 0.984,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "124": {
+  "offset": 2.856,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "125": {
+  "offset": 0.43,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "126": {
+  "offset": -0.804,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "127": {
+  "offset": -0.831,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "128": {
+  "offset": 0.957,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "129": {
+  "offset": 0.02,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "130": {
+  "offset": 1.052,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "131": {
+  "offset": 1.387,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "132": {
+  "offset": 0.847,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "133": {
+  "offset": -1.356,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "134": {
+  "offset": 0.488,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "135": {
+  "offset": -0.548,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "136": {
+  "offset": 0.233,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "137": {
+  "offset": -0.627,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "138": {
+  "offset": 0.043,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "139": {
+  "offset": -0.722,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "140": {
+  "offset": -0.314,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "141": {
+  "offset": -1.949,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "142": {
+  "offset": 0.938,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "143": {
+  "offset": -0.039,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "144": {
+  "offset": 0.206,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "145": {
+  "offset": -0.728,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "146": {
+  "offset": -0.981,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "147": {
+  "offset": -1.275,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "148": {
+  "offset": 0.547,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "149": {
+  "offset": -0.64,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "150": {
+  "offset": 1.774,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "151": {
+  "offset": 0.627,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "152": {
+  "offset": -0.332,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "153": {
+  "offset": -0.444,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "154": {
+  "offset": 0.548,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "155": {
+  "offset": -1.026,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "156": {
+  "offset": -0.783,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "157": {
+  "offset": -1.989,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "158": {
+  "offset": -0.629,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "159": {
+  "offset": -1.225,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "160": {
+  "offset": 0.866,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "161": {
+  "offset": -1.671,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "1001": {
+  "offset": 2.289,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "1002": {
+  "offset": -0.796,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "2001": {
+  "offset": -0.08,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "2002": {
+  "offset": -2.63,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "3001": {
+  "offset": 0.936,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "3002": {
+  "offset": -1.026,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "4001": {
+  "offset": 0.38,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "4002": {
+  "offset": -1.906,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "5001": {
+  "offset": 1.411,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "5002": {
+  "offset": -1.75,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "6001": {
+  "offset": 1.014,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "6002": {
+  "offset": 1.409,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "7001": {
+  "offset": 0.363,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "7002": {
+  "offset": 1.024,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "8001": {
+  "offset": 0.071,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ "8002": {
+  "offset": 1.438,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ }
+}

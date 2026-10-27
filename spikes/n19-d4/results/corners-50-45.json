@@ -1,0 +1,210 @@
+[
+ {
+  "dx": -1,
+  "dy": -1,
+  "dyaw": -2,
+  "cube": -10,
+  "offset": 2.6,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ {
+  "dx": -1,
+  "dy": -1,
+  "dyaw": -2,
+  "cube": 10,
+  "offset": 3.3,
+  "score": 15,
+  "goals": [
+   "grab-cube:robot.goal.reason.object-not-lifted@",
+   "place-cube:robot.goal.reason.object-pushed@4.408333333333333",
+   "no-crash:ok"
+  ]
+ },
+ {
+  "dx": -1,
+  "dy": -1,
+  "dyaw": 2,
+  "cube": -10,
+  "offset": -0.61,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ {
+  "dx": -1,
+  "dy": -1,
+  "dyaw": 2,
+  "cube": 10,
+  "offset": -1.3,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ {
+  "dx": -1,
+  "dy": 1,
+  "dyaw": -2,
+  "cube": -10,
+  "offset": 0.61,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ {
+  "dx": -1,
+  "dy": 1,
+  "dyaw": -2,
+  "cube": 10,
+  "offset": 1.3,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ {
+  "dx": -1,
+  "dy": 1,
+  "dyaw": 2,
+  "cube": -10,
+  "offset": -2.6,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ {
+  "dx": -1,
+  "dy": 1,
+  "dyaw": 2,
+  "cube": 10,
+  "offset": -3.3,
+  "score": 15,
+  "goals": [
+   "grab-cube:robot.goal.reason.object-not-lifted@",
+   "place-cube:robot.goal.reason.object-pushed@4.408333333333333",
+   "no-crash:ok"
+  ]
+ },
+ {
+  "dx": 1,
+  "dy": -1,
+  "dyaw": -2,
+  "cube": -10,
+  "offset": 2.53,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ {
+  "dx": 1,
+  "dy": -1,
+  "dyaw": -2,
+  "cube": 10,
+  "offset": 3.23,
+  "score": 55,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:robot.goal.reason.object-pushed@4.258333333333334",
+   "no-crash:ok"
+  ]
+ },
+ {
+  "dx": 1,
+  "dy": -1,
+  "dyaw": 2,
+  "cube": -10,
+  "offset": -0.54,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ {
+  "dx": 1,
+  "dy": -1,
+  "dyaw": 2,
+  "cube": 10,
+  "offset": -1.23,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ {
+  "dx": 1,
+  "dy": 1,
+  "dyaw": -2,
+  "cube": -10,
+  "offset": 0.54,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ {
+  "dx": 1,
+  "dy": 1,
+  "dyaw": -2,
+  "cube": 10,
+  "offset": 1.23,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ {
+  "dx": 1,
+  "dy": 1,
+  "dyaw": 2,
+  "cube": -10,
+  "offset": -2.53,
+  "score": 100,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:ok",
+   "no-crash:ok"
+  ]
+ },
+ {
+  "dx": 1,
+  "dy": 1,
+  "dyaw": 2,
+  "cube": 10,
+  "offset": -3.23,
+  "score": 55,
+  "goals": [
+   "grab-cube:ok",
+   "place-cube:robot.goal.reason.object-pushed@4.258333333333334",
+   "no-crash:ok"
+  ]
+ }
+]

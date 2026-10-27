@@ -4,7 +4,7 @@
    "name": "reference",
    "score": 100,
    "passed": true,
-   "programHash": "b71d5f5afb020554290acfb2fd62801b200ab4b6a801199f0e9cc6befefcf45d",
+   "programHash": "810d030630f07c96a115b28f05ef5e1c59c10e1c6b948ed59a9f7178d590a6b4",
    "variants": [
     {
      "index": 0,
@@ -21,12 +21,12 @@
      ],
      "objects": {
       "cube": [
-       127.32,
+       137.31,
        45.01,
        1.99
       ]
      },
-     "world": "8ba5a014"
+     "world": "d8b9f15d"
     },
     {
      "index": 1,
@@ -43,12 +43,12 @@
      ],
      "objects": {
       "cube": [
-       127.5,
-       45,
+       137.32,
+       44.89,
        1.99
       ]
      },
-     "world": "aefefac0"
+     "world": "72464d2f"
     },
     {
      "index": 2,
@@ -65,12 +65,12 @@
      ],
      "objects": {
       "cube": [
-       127.59,
-       47.25,
+       137.48,
+       47.76,
        1.99
       ]
      },
-     "world": "778c4485"
+     "world": "96810539"
     }
    ]
   },
@@ -152,77 +152,77 @@
    "name": "exploit never-lower-arm",
    "score": 0,
    "passed": false,
-   "maxScore": 0,
-   "programHash": "b99a50af7b484602699e907bdebf19e02df64b794f19762da029849c1f01ad89",
+   "maxScore": 15,
+   "programHash": "a7bd2bdc4b0d4b4177ddd24a6d1f179e7bb519ca1e7a3fd6de8179159f011ced",
    "variants": [
     {
      "index": 0,
      "score": 0,
      "end": {
       "reason": "contact",
-      "atS": 9.05,
+      "atS": 10.283333333333333,
       "tag": "wall"
      },
      "bonus": 0,
      "goals": [
-      "grab-cube object-not-grasped",
+      "grab-cube run-ended-contact",
       "place-cube object-pushed",
       "no-crash contact"
      ],
      "objects": {
       "cube": [
-       164.27,
-       44.86,
+       164.32,
+       44.98,
        1.99
       ]
      },
-     "world": "0585b258"
+     "world": "c36ef5c4"
     },
     {
      "index": 1,
      "score": 0,
      "end": {
       "reason": "contact",
-      "atS": 8.608333333333333,
+      "atS": 10.175,
       "tag": "wall"
      },
      "bonus": 0,
      "goals": [
-      "grab-cube object-not-grasped",
+      "grab-cube run-ended-contact",
       "place-cube object-pushed",
       "no-crash contact"
      ],
      "objects": {
       "cube": [
-       164.27,
-       46.37,
+       164.23,
+       46.5,
        1.99
       ]
      },
-     "world": "14c83110"
+     "world": "073252fd"
     },
     {
      "index": 2,
      "score": 0,
      "end": {
       "reason": "contact",
-      "atS": 9.483333333333333,
+      "atS": 10.325,
       "tag": "wall"
      },
      "bonus": 0,
      "goals": [
-      "grab-cube object-not-grasped",
+      "grab-cube run-ended-contact",
       "place-cube object-pushed",
       "no-crash contact"
      ],
      "objects": {
       "cube": [
        164.22,
-       42.07,
+       42,
        1.99
       ]
      },
-     "world": "da148511"
+     "world": "98e562b3"
     }
    ]
   },
@@ -306,7 +306,7 @@
    "score": 55,
    "passed": false,
    "maxScore": 55,
-   "programHash": "e3bc678af79aacd875595df10748a1886bcbe10a328832455b994d0ba9cb0933",
+   "programHash": "f38b7aba02902ce609c762be95a3f27f89cd3a1b42e431f5d1a3c836ebf28025",
    "variants": [
     {
      "index": 0,
@@ -323,12 +323,12 @@
      ],
      "objects": {
       "cube": [
-       127.32,
-       45.02,
-       1.99
+       137.31,
+       45,
+       1.98
       ]
      },
-     "world": "c563a3c0"
+     "world": "ae9aaebf"
     },
     {
      "index": 1,
@@ -345,12 +345,12 @@
      ],
      "objects": {
       "cube": [
-       127.5,
-       45,
+       137.32,
+       44.89,
        2
       ]
      },
-     "world": "6e011f7a"
+     "world": "fa271960"
     },
     {
      "index": 2,
@@ -367,12 +367,88 @@
      ],
      "objects": {
       "cube": [
-       127.59,
-       47.25,
+       137.48,
+       47.76,
        1.99
       ]
      },
-     "world": "bc290b0c"
+     "world": "b5e1d196"
+    }
+   ]
+  },
+  {
+   "name": "exploit push-closed-then-lift",
+   "score": 0,
+   "passed": false,
+   "maxScore": 55,
+   "programHash": "57ebe76ec7905559abc515a83b02fd5b8c3c1e2eb0fe8fbc06bdf9ceb22f5c0e",
+   "variants": [
+    {
+     "index": 0,
+     "score": 55,
+     "end": {
+      "reason": "time-limit",
+      "atS": 30
+     },
+     "bonus": 0,
+     "goals": [
+      "grab-cube ok",
+      "place-cube object-pushed",
+      "no-crash ok"
+     ],
+     "objects": {
+      "cube": [
+       117.17,
+       45,
+       1.99
+      ]
+     },
+     "world": "7b01acd4"
+    },
+    {
+     "index": 1,
+     "score": 55,
+     "end": {
+      "reason": "time-limit",
+      "atS": 30
+     },
+     "bonus": 0,
+     "goals": [
+      "grab-cube ok",
+      "place-cube object-pushed",
+      "no-crash ok"
+     ],
+     "objects": {
+      "cube": [
+       138.35,
+       44.57,
+       1.99
+      ]
+     },
+     "world": "e3e91df2"
+    },
+    {
+     "index": 2,
+     "score": 0,
+     "end": {
+      "reason": "contact",
+      "atS": 10.591666666666667,
+      "tag": "wall"
+     },
+     "bonus": 0,
+     "goals": [
+      "grab-cube run-ended-contact",
+      "place-cube object-pushed",
+      "no-crash contact"
+     ],
+     "objects": {
+      "cube": [
+       163.29,
+       56.49,
+       1.99
+      ]
+     },
+     "world": "6fc68e09"
     }
    ]
   }
@@ -1482,6 +1558,96 @@
       ]
      },
      "world": "c0b09478"
+    }
+   ]
+  },
+  {
+   "name": "exploit lower-arm-fully",
+   "score": 35,
+   "passed": false,
+   "maxScore": 35,
+   "programHash": "2e0c1d6c5ba23da16236e69d3cfb47171063d7c2545616cd2d8bbee6cb61c4ef",
+   "variants": [
+    {
+     "index": 0,
+     "score": 35,
+     "end": {
+      "reason": "time-limit",
+      "atS": 45
+     },
+     "bonus": 0,
+     "goals": [
+      "grab-cube ok",
+      "stack-cube stack-off-centre",
+      "base-still ok"
+     ],
+     "objects": {
+      "cube": [
+       156.23,
+       39.93,
+       5.94
+      ],
+      "base": [
+       158.04,
+       40,
+       1.98
+      ]
+     },
+     "world": "fa17a9d5"
+    },
+    {
+     "index": 1,
+     "score": 35,
+     "end": {
+      "reason": "time-limit",
+      "atS": 45
+     },
+     "bonus": 0,
+     "goals": [
+      "grab-cube ok",
+      "stack-cube stack-off-centre",
+      "base-still ok"
+     ],
+     "objects": {
+      "cube": [
+       156.28,
+       39.92,
+       5.94
+      ],
+      "base": [
+       158.04,
+       40.01,
+       1.99
+      ]
+     },
+     "world": "da68e1e7"
+    },
+    {
+     "index": 2,
+     "score": 35,
+     "end": {
+      "reason": "time-limit",
+      "atS": 45
+     },
+     "bonus": 0,
+     "goals": [
+      "grab-cube ok",
+      "stack-cube stack-off-centre",
+      "base-still ok"
+     ],
+     "objects": {
+      "cube": [
+       156.31,
+       39.94,
+       5.94
+      ],
+      "base": [
+       158.02,
+       40.01,
+       1.98
+      ]
+     },
+     "world": "a98f8a07"
     }
    ]
   }

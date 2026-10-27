@@ -71,7 +71,7 @@ Lý do chọn:
 
 | Bài | Điểm | Từng lượt | programHash | Hash world cuối (headless = 1× = 4×) | Vật ở cuối |
 |---|---|---|---|---|---|
-| 8 | 100 | 100 / 100 / 100 | `b71d5f5afb020554…` | `8ba5a014` `aefefac0` `778c4485` | khối (127,32; 45,01), (127,50; 45,00), (127,59; 47,25); vùng thả x 108–148, y 25–65 |
+| 8 | 100 | 100 / 100 / 100 | `810d030630f07c96…` | `d8b9f15d` `72464d2f` `96810539` | khối (137,31; 45,01), (137,32; 44,89), (137,48; 47,76); vùng thả x 108–148, y 25–65 (sau fix round 1, mục 8) |
 | 9 | 97 | 97 / 97 / 97 (thưởng 7) | `12b1f432f405eb4a…` | `4139d036` `b5779bbe` `02ab692c` | kiện x 75,6–77,9, y 54,7–111,3; kho x 62–100, y 40–125 |
 | 10 | 100 | 100 / 100 / 100 | `fe8b83b33e9c63aa…` | `8c60c9a1` `0e3bbe2f` `bd401fe3` | xanh lá (88,00; 75,00), đỏ (33,91; 128,71), xanh dương (33,84; 21,42): giữa vùng |
 | 11 | 97 | 97 / 97 / 97 (thưởng 7) | `9243bbc3916beacb…` | `14603576` `60686846` `3ca8a6ec` | khối z 5,95 trên bệ, lệch 0,11–0,19 cm; bệ không dời |
@@ -87,6 +87,7 @@ vạch với giữa thân x 144,5 và khối đang giữ ở x 157,8, đáy 4,46
 | 8 | `never-lower-arm` | 15 | 0 | 0 / 0 / 0 (đầu ngón chạm tường xa, hết lượt) |
 | 8 | `push-in` | 15 | 15 | 15 / 15 / 15 |
 | 8 | `hold-in-zone` | 55 | 55 | 55 / 55 / 55 |
+| 8 | `push-closed-then-lift` (fix round 1, M1) | 55 | 0 | 55 / 55 / 0 (lượt 3: kẹp đóng mất khối, xe chạm tường xa) |
 | 9 | mù (chặng 2800, 1900, 1900 ms) | — | 40 | 97 / 40 / 40 |
 | 9 | `push-north` | 15 | 15 | 15 / 15 / 15 |
 | 9 | `open-jaw-sweep-lift` (kẹp 10°) | 15 | 0 | 15 / 0 / 15 (lượt 2 đẩy kiện 3 vào tường bắc) |
@@ -133,3 +134,41 @@ Tương phản của mực hoa văn mặt thảm (`patternInk(fill, 'mat')`) v�
 | `#fce4e4` | 3,269 | 0,914 |
 
 Vì vậy vùng đỏ bài 10 dùng `#fce4e4`, vùng xuất phát dùng `#e0e0e0`.
+
+## 8. Fix round 1 (review 1 I1): lời giải bài 8 trên toàn khoảng biến thể (load 4–7)
+
+Review 1 đo lời giải cũ (tiến 70 %, đặt ở 45 cm) trên 61 lượt bốc khác. Hai lượt trượt (15), và lượt 2002 được 55. Đó là các lượt mà đường
+đi của xe lệch khối 2,6–2,9 cm.
+
+**Góc của khoảng biến thể** (`corners.test.ts`, `SPIKE=corners FAST=<v> DROP=<cm>`). Mười sáu tổ hợp: xuất phát ±1 cm theo x và y, quay ±2°,
+khối dx ±10. Độ lệch ngang của khối so với đường đi tuyến tính theo độ dời và đơn điệu theo góc quay, nên lớn nhất ở góc: ±3,30 cm. Kết quả
+(mỗi góc một lượt), theo tốc độ tiến / khoảng cách đặt:
+
+| Tốc độ tiến / khoảng cách đặt | Điểm của 16 góc | File |
+|---|---|---|
+| 70 % / 45 cm (trước) | 15 ở bốn góc xa nhất (khối ở x 95, lệch 3,23–3,30 cm), 100 ở các góc khác | `results/corners-70-45.json` |
+| 50 % / 45 cm | 15, 15, 55, 55 ở bốn góc đó | `results/corners-50-45.json` |
+| **50 % / 35 cm (đã chọn)** | **16 × 100** | `results/corners-50-35.json` |
+| 50 % / 30 cm | 16 × 100 | `results/corners-50-30.json` |
+
+**Cơ chế** (vết của góc start (29, 44), −2°, khối ở 95):
+- siêu âm không bao giờ nghe thấy khối;
+- ngón đẩy khối từ x 95 tới x 127,4 (xe đổi hướng 9°);
+- IR chỉ thấy khối khi xe đã ở x 115, đúng chỗ dừng khi đặt ở 45 cm;
+- vì vậy quãng chở dưới 5 cm (`object-pushed`), và khối được nâng chưa tới 0,5 s (`object-not-lifted`).
+
+Đặt ở 35 cm thì quãng chở còn 10 cm. Chọn 35 vì khối rơi ở x 137,3–137,5, cách mép vùng 8,5 cm. Ở 30 cm khối rơi ở khoảng x 142,8, chỉ cách mép 3,2 cm.
+
+**Các seed khác** (`pickmap.test.ts`, lời giải đã sửa trong `robot-solutions.ts`): seed 100–159 và 1000, 2000, …, 8000, tức 77 lượt bốc riêng
+biệt, lệch tới 2,86 cm. Kết quả: **77 / 77 được 100** (`results/pickmap.json`). Seed 23 vẫn 100 / 100 / 100.
+
+**Test:** check-robot.gripper-lessons.test.ts chạy 16 góc (`pickCorners`, `check-cases.ts`). tests/robot-scenarios.test.ts giữ độ lệch lớn nhất
+của khoảng biến thể (lưới 9⁴) bằng độ lệch của các góc đó (3,30 cm). Độ lệch của các lượt đã giao: 0, 0,73, 1,91 cm.
+
+**Exploit `push-closed-then-lift`** (review 1 M1; `programs.ts` `pickPushClosed`, `T=<ms>`). Kẹp đóng, đẩy T ms, mở kẹp, tiến tới khi IR thấy,
+gắp, nâng tại chỗ, đặt xuống:
+- T 4400: khối ở x 102 và 104 khi gắp, trước vùng thả;
+- T 5000: x 110 và 128;
+- **T 5600: x 117 và 138, trong vùng (đã chọn)**;
+- T 6300: lượt 2 đẩy khối tới x 162,8.
+Ở mọi T, lượt 3 mất khối và chạm tường xa (0).
