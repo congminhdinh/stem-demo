@@ -605,6 +605,23 @@ Test: `e2e/robot-lab-gripper-look.spec.ts` (chromium-robot), `tests/color-vision
     - Đột biến (xanh lá = sọc) vẫn làm test trượt.
     - Fill dưới deuteranopia lấy từ màu bản đồ đã vẽ (màu của mặt khối mà node gọi là fill), không lấy hằng số palette.
     - Gallery đọc đúng 33 × 33 ô như spec, trên bản đồ DPR 3 cùng cỡ 1280 × 720 như spec, nên kết quả khớp với test.
+- **Fix round 2 (review `e8-review-2.md`, phán quyết của controller):**
+  - **Sửa lại review 1.** Ở grasp, trong "Theo xe", chính deck của xe che ngàm và vật trong khoảng 12 cm trước đầu ngàm. Tag ở grasp vì vậy
+    không che hành động.
+  - **R1, tag cảm biến che vật mà xe đang tới.** Cả hai view dùng một luật: tag không đè vật nào.
+    - 3D: tránh mọi vật đang trong khung hình, mỗi vật thêm 6 px. Fix round 1 chỉ tránh vật đang giữ hoặc đang thấy, và vật trong 10 cm
+      quanh đầu ngàm, mà deck đã che mất.
+    - 2D: tránh mọi vật trên bản đồ. Riêng vật đang giữ thì đã có vòng giữ tránh rồi.
+    - Tag khoảng cách của xe gắp cũng tránh các vật đó. Nó luôn có các chỗ hai bên và phía trên echo, kể cả khi tag cảm biến bị ẩn. Không chỗ
+      nào sạch thì ẩn, như tag cảm biến. Rover vẫn đặt tag ở echo như N18.
+    - Probe đưa hộp của mọi vật. Spec kiểm ở mọi mốc, cả hai view, rằng tag cảm biến không chạm hộp nào. Trên code fix round 1, kiểm này
+      trượt ở approach của bài 11, cả 3D high, 3D low và 2D (`spikes/n19-e8/results/r1-before.txt`).
+    - Layout tag 2D không còn cấp phát (M1). Riêng hộp của tag khoảng cách vẫn do Konva tạo.
+  - **R2, tag "Bệ vàng" mọc ra từ khối chồng.** Tag của một vật ẩn khi có vật khác nằm trên nó: đáy vật trên cách đỉnh vật dưới không quá
+    0,5 cm, và hai footprint chạm nhau (`restedOn`, không cấp phát). Khi một vật vừa nằm lên vật khác, layout tag chạy lại.
+  - **Concern 2, luật vùng.** Mọi vùng có `name` đều đặt chân dây ở mép ngoài, như 2D, inset không quá nửa chiều sâu vùng, và vẫn kiểm
+    footprint. Controller cho đổi pin [45, 4] của E5 (vùng tên tổng hợp, chỉ của tay gắp) thành [45, 3]. Mốc release mới ở lượt 1 của bài
+    10 (6,1 s): khối nằm ở giữa vùng xanh lá, dây của tag vùng không còn rơi lên khối. Vùng của rover không có tên, nên không đổi.
 
 ### 4.16 Ghi lại khi làm E9 + E10 (bench máy trường, hai sửa hiệu năng, e2e trên bài thật; thắng §7 E9/E10 khi mâu thuẫn)
 
