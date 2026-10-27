@@ -20,6 +20,7 @@ import { SCENARIO_MAX_SCORE, scenarioKitRef, scenarioMaxScore, type RobotGoalSpe
 import { applyVariant, kitFootprintRadiusCm, ROBOT_FOOTPRINT_RADIUS_CM, variantObjectColors, variantOffsets } from '../src/core/scenario/variants';
 import { bodyColorName } from '../src/core/world/arena/body-colors';
 import type { Arena } from '../src/core/world/arena/arena-schema';
+import { lateralOffsetCm, pickCorners } from '../src/core/scenario/__fixtures__/check-cases';
 import { robotFootprint, startFootprintIssues } from '../src/core/world/robot/footprint';
 import { createScenarioWorld } from '../src/core/world/world';
 import { scenarioCatalog } from '../src/samples/robot-scenarios';
@@ -503,6 +504,7 @@ describe('the programs of every scenario (N18 R5.2)', () => {
       'rb-grip-pick never-lower-arm 15',
       'rb-grip-pick push-in 15',
       'rb-grip-pick hold-in-zone 55',
+      'rb-grip-pick push-closed-then-lift 55',
       'rb-grip-deliver push-north 15',
       'rb-grip-deliver open-jaw-sweep-lift 15',
       'rb-grip-sort always-turn-left 40',
@@ -760,6 +762,27 @@ describe('the gripper car’s lessons 8-11 (N19 D4, plan §6)', () => {
     expect(moves.map((move) => move.dyCm)).toEqual([0, 0]);
   });
 
+  it('lesson 8 puts the cube at most 3.3 cm off the start’s line of travel over its whole variant range: the corners the check proves (review 1 I1)', () => {
+    const scenario = scenarioOf('rb-grip-pick');
+    const { startJitterCm: s, yawJitterDeg: a } = scenario.variants;
+    const c = scenario.variants.objectJitter![0]!.dxCm;
+    const cube = scenario.arena.objects[0]!.centerCm;
+    const offsetAt = (dx: number, dy: number, dYaw: number, dc: number) =>
+      Math.abs(lateralOffsetCm({ xCm: scenario.start.xCm + dx, yCm: scenario.start.yCm + dy, yawDeg: scenario.start.yawDeg + dYaw }, [cube[0] + dc, cube[1]]));
+    // A 9 × 9 × 9 × 9 grid over the range: the largest offset is at its corners (linear in the moves, monotone in the turn).
+    const steps = (j: number) => Array.from({ length: 9 }, (_, k) => -j + (k * j) / 4);
+    let worst = 0;
+    for (const dx of steps(s)) for (const dy of steps(s)) for (const dYaw of steps(a)) for (const dc of steps(c)) worst = Math.max(worst, offsetAt(dx, dy, dYaw, dc));
+    expect(worst).toBeCloseTo(3.30, 2);
+    expect(worst).toBeCloseTo(Math.max(...pickCorners().map((corner) => Math.abs(corner.offsetCm))), 9);
+    // The shipped rounds lie inside it (seed 23).
+    const shipped = [0, 1, 2].map((index) => {
+      const { start, arena } = applyVariant(scenario, offsetsOf(scenario, index));
+      return Math.round(Math.abs(lateralOffsetCm(start, arena.objects[0]!.centerCm)) * 100) / 100;
+    });
+    expect(shipped).toEqual([0, 0.73, 1.91]);
+  });
+
   it('lesson 9 turns one jittered start by 4° or more and moves the starts 4 cm or more on and back along the tape, the parcels along it only', () => {
     const scenario = scenarioOf('rb-grip-deliver');
     expect(scenario.variants).toMatchObject({ count: 3, seed: 430, startJitterCm: 0, startJitterAlongCm: 6, yawJitterDeg: 5 });
@@ -844,6 +867,8 @@ describe('the gripper car’s lessons 8-11 (N19 D4, plan §6)', () => {
       'rb-grip-pick never-lower-arm': 15,
       'rb-grip-pick push-in': 15,
       'rb-grip-pick hold-in-zone': 55,
+      // Review 1 M1: pushed in with the claw closed, then gripped and lifted in place: no carry, as hold-in-zone holds.
+      'rb-grip-pick push-closed-then-lift': 55,
       'rb-grip-deliver push-north': 15,
       'rb-grip-deliver open-jaw-sweep-lift': 15,
       'rb-grip-sort always-turn-left': 40,

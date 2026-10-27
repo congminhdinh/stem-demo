@@ -145,6 +145,42 @@ export const gripperChallenges: readonly CheckCase[] = gripperLessonKeys.flatMap
   ];
 });
 
+/** N19 D4 fix round 1 (review I1): the cube's lateral offset from a start's line of travel, cm (left of the heading positive). */
+export function lateralOffsetCm(start: { readonly xCm: number; readonly yCm: number; readonly yawDeg: number }, cube: readonly [number, number]): number {
+  const rad = (start.yawDeg * Math.PI) / 180;
+  return -(cube[0] - start.xCm) * Math.sin(rad) + (cube[1] - start.yCm) * Math.cos(rad);
+}
+
+/**
+ * N19 D4 fix round 1 (review I1): lesson 8 at the corners of its variant range, each a one-round scenario: the start moved by ±startJitterCm
+ * in x and y and turned by ±yawJitterDeg, the cube moved by ±dxCm of its objectJitter. The cube's offset from the line of travel is linear in
+ * the moves and monotone in the turn, so these 16 are its extremes (tests/robot-scenarios.test.ts holds the range to them). The reference must
+ * pass each.
+ */
+export function pickCorners(): { readonly name: string; readonly offsetCm: number; readonly scenario: () => Scenario }[] {
+  const pick = scenarioCatalog.get('rb-grip-pick')!;
+  const { startJitterCm: s, yawJitterDeg: a } = pick.variants;
+  const c = pick.variants.objectJitter![0]!.dxCm;
+  const cube = pick.arena.objects[0]!;
+  const corners = [];
+  for (const dx of [-s, s]) for (const dy of [-s, s]) for (const dYaw of [-a, a]) for (const dc of [-c, c]) {
+    const start = { xCm: pick.start.xCm + dx, yCm: pick.start.yCm + dy, yawDeg: pick.start.yawDeg + dYaw };
+    const at: [number, number] = [cube.centerCm[0] + dc, cube.centerCm[1]];
+    corners.push({
+      name: `start ${dx > 0 ? '+' : '−'}${s} x, ${dy > 0 ? '+' : '−'}${s} y, ${dYaw > 0 ? '+' : '−'}${a}°, cube ${dc > 0 ? '+' : '−'}${c}`,
+      offsetCm: lateralOffsetCm(start, at),
+      scenario: () =>
+        loadScenario({
+          ...pick,
+          start,
+          arena: { ...pick.arena, objects: [{ ...cube, centerCm: at }] },
+          variants: { count: 1, seed: pick.variants.seed, startJitterCm: 0, yawJitterDeg: 0 },
+        } as ScenarioJson),
+    });
+  }
+  return corners;
+}
+
 export const checkCases: readonly CheckCase[] = [
   { name: 'park: a program that parks in the zone', scenario: parkScenario, project: parker, drives: 'every' },
   { name: 'park: a program that overshoots', scenario: parkScenario, project: overshooter, drives: 'every' },

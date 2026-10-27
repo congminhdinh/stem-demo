@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { initPhysics } from '../world/rapier';
-import { gripperReferences, type CheckCase } from './__fixtures__/check-cases';
-import { expectAsCase, sameEveryWay } from './__fixtures__/check-drives';
+import { gripperReferences, pickCorners, type CheckCase } from './__fixtures__/check-cases';
+import { expectAsCase, outcomeOf, sameEveryWay } from './__fixtures__/check-drives';
 
 // N19 D4 (plan §6, Review Focus 2): the gripper car's four lessons (src/samples/robot-scenarios/rb-grip-*.json) through the real check with
 // their reference solutions (src/samples/robot-solutions.ts): each passes every goal in every variant, with the same score, verdicts, goal
@@ -31,4 +31,31 @@ describe('grip scenario same score/passed/hash for 1×, 4× and headless', () =>
     expect({ score: result.score, variants: result.variants.map((variant) => variant.score) }).toEqual(scores[key]);
     expect(variants.map((variant) => variant?.end)).toEqual(variants.map(() => ({ reason: 'time-limit', atS: check.scenario().timeLimitS })));
   }, 900_000);
+});
+
+// N19 D4 fix round 1 (review I1): seed 23's three rounds are not the lesson's whole range. At each corner of lesson 8's variant range (the start
+// ±1 cm and ±2°, the cube ±10 cm: the cube up to 3.3 cm off the robot's line of travel, where a finger shoves it into the drop zone before the
+// IR sees it) the reference passes every goal. tests/robot-scenarios.test.ts holds the range to these corners.
+describe('lesson 8’s reference at the corners of its variant range (review 1 I1)', () => {
+  const reference = gripperReferences.find((check) => check.name.startsWith('rb-grip-pick:'))!;
+
+  it('runs the 16 corners, up to 3.3 cm off the line of travel on either side', () => {
+    const offsets = pickCorners().map((corner) => corner.offsetCm);
+    expect(pickCorners()).toHaveLength(16);
+    expect(Math.max(...offsets)).toBeCloseTo(3.3, 1);
+    expect(Math.min(...offsets)).toBeCloseTo(-3.3, 1);
+  });
+
+  it.each(pickCorners().map((corner) => [corner.name, corner] as const))('%s: passes with 100', async (_name, corner) => {
+    const { result } = await outcomeOf(reference.project(), corner.scenario(), { name: 'headless', mode: 'headless' });
+    expect({ passed: result.passed, score: result.score, goals: result.goals.map((goal) => [goal.id, goal.passed]) }).toEqual({
+      passed: true,
+      score: 100,
+      goals: [
+        ['grab-cube', true],
+        ['place-cube', true],
+        ['no-crash', true],
+      ],
+    });
+  }, 300_000);
 });

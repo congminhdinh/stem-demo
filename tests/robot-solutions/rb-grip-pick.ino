@@ -73,7 +73,7 @@ void setup() {
   gripperSet(gripperClaw, 0L);
   delay(300L);
   {
-    const long _s = (70L);
+    const long _s = (50L);
     motorSet(MOTOR_LEFT_EN, MOTOR_LEFT_IN1, MOTOR_LEFT_IN2, _s);
     motorSet(MOTOR_RIGHT_EN, MOTOR_RIGHT_IN1, MOTOR_RIGHT_IN2, _s);
   }
@@ -97,7 +97,7 @@ void setup() {
     motorSet(MOTOR_LEFT_EN, MOTOR_LEFT_IN1, MOTOR_LEFT_IN2, _s);
     motorSet(MOTOR_RIGHT_EN, MOTOR_RIGHT_IN1, MOTOR_RIGHT_IN2, _s);
   }
-  while ((ultrasonicCm(ULTRASONIC_TRIG, ULTRASONIC_ECHO) > 45L)) {
+  while ((ultrasonicCm(ULTRASONIC_TRIG, ULTRASONIC_ECHO) > 35L)) {
   }
   motorSet(MOTOR_LEFT_EN, MOTOR_LEFT_IN1, MOTOR_LEFT_IN2, 0L);
   motorSet(MOTOR_RIGHT_EN, MOTOR_RIGHT_IN1, MOTOR_RIGHT_IN2, 0L);

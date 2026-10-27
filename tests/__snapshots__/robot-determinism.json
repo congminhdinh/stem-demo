@@ -21,9 +21,9 @@
       "final": ["df90fd6e", "3b9e58e1", "b290a789"]
     },
     "rb-grip-pick-reference": {
-      "passed": true, "score": 100, "programHash": "b71d5f5afb020554290acfb2fd62801b200ab4b6a801199f0e9cc6befefcf45d",
+      "passed": true, "score": 100, "programHash": "810d030630f07c96a115b28f05ef5e1c59c10e1c6b948ed59a9f7178d590a6b4",
       "variants": [{ "seed": 23, "passed": true, "score": 100, "simTimeMs": 30000 }, { "seed": 24, "passed": true, "score": 100, "simTimeMs": 30000 }, { "seed": 25, "passed": true, "score": 100, "simTimeMs": 30000 }],
-      "final": ["8ba5a014", "aefefac0", "778c4485"]
+      "final": ["d8b9f15d", "72464d2f", "96810539"]
     },
     "rb-grip-deliver-reference": {
       "passed": true, "score": 97, "programHash": "12b1f432f405eb4ad1bd5c5f381fced2437e86060c4b41c886ed245236e37d1b",

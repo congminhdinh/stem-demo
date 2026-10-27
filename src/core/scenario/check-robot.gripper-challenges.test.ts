@@ -15,6 +15,7 @@ const measured: Readonly<Record<string, readonly number[]>> = {
   'rb-grip-pick: the exploit never-lower-arm': [0, 0, 0],
   'rb-grip-pick: the exploit push-in': [15, 15, 15],
   'rb-grip-pick: the exploit hold-in-zone': [55, 55, 55],
+  'rb-grip-pick: the exploit push-closed-then-lift': [55, 55, 0],
   'rb-grip-deliver: the blind program': [97, 40, 40],
   'rb-grip-deliver: the exploit push-north': [15, 15, 15],
   'rb-grip-deliver: the exploit open-jaw-sweep-lift': [15, 0, 15],
@@ -28,7 +29,7 @@ const measured: Readonly<Record<string, readonly number[]>> = {
 };
 
 describe('the gripper lessons’ blind programs and exploits fail the check', () => {
-  it('has the blind programs of lessons 8, 9 and 11 and the eleven exploits of plan §6 (its "hạ hết tay" two, ruling D4 item B)', () => {
+  it('has the blind programs of lessons 8, 9 and 11, the eleven exploits of plan §6 (its "hạ hết tay" two, ruling D4 item B) and review 1 M1’s', () => {
     expect(gripperChallenges.map((check) => check.name)).toEqual(Object.keys(measured));
   });
 

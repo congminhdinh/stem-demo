@@ -233,17 +233,23 @@ const followToLineEnd = (prefix: string): Json =>
     [ifBlock(`${prefix}-follow`, followLine(`${prefix}-line`))],
   );
 
-/** Lesson 8: find the cube with the ultrasonic, catch it with the IR, lift it, carry it until the far wall is 45 cm off, put it down. */
+/**
+ * Lesson 8's drop: the far wall's distance at which the cube is put down, cm. The cube lands at x 137.8 (drop zone x 108..148), and a cube a
+ * finger shoved deep into the zone before the IR caught it (3.3 cm off the axis: the robot then catches it at x 115) is still carried 10 cm,
+ * a carry (minCarryCm 5); at 45 cm that cube was put down where it was caught, pushed (review I1).
+ */
+const PICK_DROP_CM = 35;
+/** Lesson 8: find the cube with the ultrasonic, catch it with the IR, lift it, carry it until the far wall is 35 cm off, put it down. */
 const gripPickReference = workspace(
   hat('stem_on_start', [
     ...readyToGrab('ready'),
-    drive('fast', 'forward', 70),
+    drive('approach', 'forward', CRUISE),
     whileBlock('to-cube', fartherThan('cube-far', 15), []),
     drive('slow', 'forward', CRUISE),
     untilInJaws('to-jaws'),
     ...gripAndLift('grab'),
     drive('carry', 'forward', 60),
-    whileBlock('to-drop', fartherThan('wall-far', 45), []),
+    whileBlock('to-drop', fartherThan('wall-far', PICK_DROP_CM), []),
     ...putDown('put'),
     drive('back', 'backward', CRUISE),
     wait('back-time', 1000),
@@ -594,14 +600,17 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
     ),
     notes:
       'Reference: the arm down and the claw open, a 300 ms wait for the arm (the ultrasonic hears the claw servo and the carriage while the ' +
-      'arm passes 8-52°), forward at 70 % until the ultrasonic hears the cube under 15 cm (only the cone\'s lower edge hears a 4 cm cube, from ' +
-      '18.7 cm), on at 50 % until the IR sees it between the jaws (its middle 12.55 cm ahead), close, lift, carry at 60 % with the arm up (the ' +
-      'cone is clear at 90° with a cube held) until the far wall is under 45 cm, put down, back off. The cube lands at x 127.3 in every ' +
-      'variant (drop zone x 108..148), wherever it was caught: the seed (23) moves the cube 9.3 cm on and 10.0 cm back and turns the start ' +
-      '1.3° and −1.9°, and a cube 1.5 cm or more off the axis is pushed before the jaws catch it, which a timed carry would carry out of the ' +
-      'zone. Blind: forward 3300 ms at 50 % (it catches the cube of variant 0 at x 72.9), carry 2300 ms at 60 %: it passes variant 0 and ' +
-      'closes on nothing in variant 1 (the cube 9.3 cm farther) and pushes the nearer cube of variant 2 into the carriage, where the claw ' +
-      'cannot take it: 15 in both. Placeholder kit: the 45 cm and the blind timings are the placeholder car\'s.',
+      'arm passes 8-52°), forward at 50 % until the ultrasonic hears the cube under 15 cm (only the cone\'s lower edge hears a 4 cm cube, from ' +
+      '18.7 cm), on until the IR sees it between the jaws (its middle 12.55 cm ahead), close, lift, carry at 60 % with the arm up (the cone is ' +
+      'clear at 90° with a cube held) until the far wall is under 35 cm, put down, back off. In seed 23\'s variants (the cube 9.3 cm on and ' +
+      '10.0 cm back, the start turned 1.3° and −1.9°) the cube lands at x 137.3..137.5 (drop zone x 108..148). The variants put the cube up to ' +
+      '3.3 cm off the robot\'s line of travel (start ±1 cm and ±2°, the cube 66 cm ahead at most); from about 2.5 cm the ultrasonic never ' +
+      'hears it and a finger shoves it on, as far as x 127 with the robot at x 115, before the IR catches it. Put down at 35 cm from the wall ' +
+      'that cube is still carried 10 cm; at 45 cm it was carried under 5 cm and scored pushed, and at 70 % a cube 2.6-2.9 cm off failed ' +
+      'too (review 1 I1). Measured: every corner of the variant range (16, up to 3.3 cm off) and 77 other jittered draws (seeds 100-159, ' +
+      '1000-8000; up to 2.86 cm off) score 100. Blind: forward 3300 ms at 50 % (it catches the cube of variant 0 at x 72.9), carry 2300 ms ' +
+      'at 60 %: it passes variant 0 and closes on nothing in variant 1 (the cube 9.3 cm farther) and pushes the nearer cube of variant 2 ' +
+      'into the carriage, where the claw cannot take it: 15 in both. Placeholder kit: the 35 cm and the blind timings are the placeholder car\'s.',
     exploits: [
       {
         name: 'never-lower-arm',
@@ -612,13 +621,13 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
           hat('stem_on_start', [
             claw('claw-open', 'OPEN'),
             wait('wait', 300),
-            drive('fast', 'forward', 70),
+            drive('approach', 'forward', CRUISE),
             whileBlock('to-cube', fartherThan('cube-far', 15), []),
             drive('slow', 'forward', CRUISE),
             untilInJaws('to-jaws'),
             ...gripAndLift('grab'),
             drive('carry', 'forward', 60),
-            whileBlock('to-drop', fartherThan('wall-far', 45), []),
+            whileBlock('to-drop', fartherThan('wall-far', PICK_DROP_CM), []),
             ...putDown('put'),
             drive('back', 'backward', CRUISE),
             wait('back-time', 1000),
@@ -645,15 +654,47 @@ export const robotSolutions: Readonly<Record<RobotScoredKey, RobotSolution>> = {
         program: workspace(
           hat('stem_on_start', [
             ...readyToGrab('ready'),
-            drive('fast', 'forward', 70),
+            drive('approach', 'forward', CRUISE),
             whileBlock('to-cube', fartherThan('cube-far', 15), []),
             drive('slow', 'forward', CRUISE),
             untilInJaws('to-jaws'),
             ...gripAndLift('grab'),
             drive('carry', 'forward', 60),
-            whileBlock('to-drop', fartherThan('wall-far', 45), []),
+            whileBlock('to-drop', fartherThan('wall-far', PICK_DROP_CM), []),
             stop('hold'),
             lift('arm-down', 'DOWN'),
+          ]),
+        ),
+        maxScore: 55,
+      },
+      {
+        name: 'push-closed-then-lift',
+        description:
+          'Review 1 M1: the arm down and the claw closed, forward at 50 % for 5600 ms, shoving the cube ahead of the closed jaws into the drop ' +
+          'zone (x 117 and 138 in variants 0 and 1); there the claw opens, the car creeps on until the IR sees the cube, grips it, lifts it in ' +
+          'place (900 ms up) and puts it down where it is. A lift in place is no carry (5 cm while lifted: minCarryCm), so place-cube reads ' +
+          'object-pushed; the grab and the guard stay (55). In variant 2 the closed jaws lose the cube and the car creeps into the far wall (0).',
+        program: workspace(
+          hat('stem_on_start', [
+            lift('arm-down', 'DOWN'),
+            claw('claw-closed', 'CLOSE'),
+            wait('arm-wait', 300),
+            drive('push', 'forward', CRUISE),
+            wait('push-time', 5600),
+            stop('in-zone'),
+            claw('open', 'OPEN'),
+            wait('open-wait', 300),
+            drive('creep', 'forward', CRUISE),
+            untilInJaws('to-jaws'),
+            stop('at-cube'),
+            claw('close', 'CLOSE'),
+            wait('close-wait', 300),
+            lift('up', 'UP'),
+            wait('up-wait', 900),
+            ...putDown('put'),
+            drive('back', 'backward', CRUISE),
+            wait('back-time', 1000),
+            stop('done'),
           ]),
         ),
         maxScore: 55,
