@@ -46,8 +46,15 @@ import { SERVO_MOTOR_GAIN } from './servo-arm';
 //     them onto its faces each tick (grasp.ts rule 3), and that leaks the same way, into the yaw directly (their joints turn about the
 //     vertical; measured: 1.3e-4 °/s holding 15 g at 90°, 1.3e-6 with the fingers' motors off). An empty claw's fingers rest on a stop or at
 //     their aim and leak nothing measurable (≤ 2.5e-5 °/s with the lift held), and a claw stalled on an object it does not hold (rule 2) keeps
-//     its squeeze, so both keep their motors. A new lift or claw command, the car moving or its drive on, or a hand placement
-//     (`followChassis`) lets go, and the motors drive on from there.
+//     its squeeze, so both keep their motors. A new lift or claw command, the car moving or its drive on, the grasp changing under it (an
+//     object lost, as a break's detach does, or one taken), or a hand placement (`followChassis`) lets go, and the motors drive on from
+//     there. The same angle commanded again changes nothing, as for a real servo.
+//     - What it does not check: the load. Once on, a held arm resists any load until the chassis moves, a support lifts or a command comes.
+//       A sudden load of 2.5 N or more on the carriage pitches the chassis past CAR_STILL_TURN_RAD_S, and the hold lets go a tick later
+//       (gripper.rest.test.ts), after which the motor carries it as it would have (a 4.5 N step back-drives it to its stop). A load ramped
+//       up slowly never lets it go: B7 review 1 held 6 N, 1.7 times the stall, at 54.98° over a 3–10 s ramp. No shipped lesson loads the arm
+//       near its stall at rest: their heaviest object is lesson 11's 40 g base (0.39 N), and a lesson's objects together weigh at most 0.54 N,
+//       against 3.6 N at the tip (ref-uno-gripper@0's 0.18 N·m over its 5 cm boom).
 //     - Why a whole second: a pause shorter than it runs exactly as before. The B5 tests' outcomes after a pause are sensitive to the arm's
 //       state to the last bit: holding after 0.25 s took a wall hit's settling from under 0.5 s to 0.61 s, past its bound, and after 0.6 s
 //       (inside the pick's grab, 0.3 s + the attach + 0.2 s, its commands unchanged) moved three wall tests' pins; holding an empty claw's
@@ -215,6 +222,11 @@ export function createGripper(world: PhysicsWorld, chassis: RigidBody, module: K
   const betaMax = spec.fingerOpenDeg;
   const boomM = cmToM(spec.boomLengthCm);
   const elevationOf = (liftDeg: number) => liftDeg + spec.boomElevationAtLift0Deg;
+  // The joints' ranges, rad: the build sets them, and the servos' hold (B7) closes them on an angle and gives them back (`letGo`).
+  /** The boom joint's: the lift's 0..90°, as elevations. */
+  const liftLimits = [degToRad(elevationOf(0)), degToRad(elevationOf(90))] as const;
+  /** Each finger joint's: β in [betaMin, betaMax], the joint's angle side·β. */
+  const fingerLimits = (side: 1 | -1) => [degToRad(side === 1 ? betaMin : 0 - betaMax), degToRad(side === 1 ? betaMax : 0 - betaMin)] as const;
   const fingerTorque = fingerTorqueNm(spec);
 
   let liftCommand = GRIPPER_START.liftDeg;
@@ -279,7 +291,7 @@ export function createGripper(world: PhysicsWorld, chassis: RigidBody, module: K
   attach(R.ColliderDesc.cuboid(barHalf, barHalf, cmToM(spec.boomHalfSpanCm + BOOM_PLATE_HALF_CM.across)).setTranslation(boomM, 0, 0).setMass(plateKg), boom);
   const boomJoint = world.createImpulseJoint(R.JointData.revolute(pivot, { x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 }), chassis, boom, true) as RevoluteJoint;
   boomJoint.setContactsEnabled(false);
-  boomJoint.setLimits(degToRad(elevationOf(0)), degToRad(elevationOf(90)));
+  boomJoint.setLimits(liftLimits[0], liftLimits[1]);
   boomJoint.configureMotorModel(R.MotorModel.ForceBased);
   boomJoint.setMotorMaxForce(spec.liftStallTorqueNm);
   boomJoint.configureMotorVelocity(0, SERVO_MOTOR_GAIN);
@@ -309,7 +321,8 @@ export function createGripper(world: PhysicsWorld, chassis: RigidBody, module: K
     const hinge = hingeLocal(side);
     const joint = world.createImpulseJoint(R.JointData.revolute(hinge, { x: 0, y: 0, z: 0 }, { x: 0, y: 1, z: 0 }), carriage, body, true) as RevoluteJoint;
     joint.setContactsEnabled(false);
-    joint.setLimits(degToRad(side === 1 ? betaMin : 0 - betaMax), degToRad(side === 1 ? betaMax : 0 - betaMin));
+    const [min, max] = fingerLimits(side);
+    joint.setLimits(min, max);
     joint.configureMotorModel(R.MotorModel.ForceBased);
     joint.setMotorMaxForce(fingerTorque);
     joint.configureMotorVelocity(0, SERVO_MOTOR_GAIN);
@@ -324,9 +337,6 @@ export function createGripper(world: PhysicsWorld, chassis: RigidBody, module: K
   const fingers = [makeFinger(1, built.fingers[0]), makeFinger(-1, built.fingers[1])] as const;
 
   // ---- the servos' hold at rest (B7, see the top of this file) ----
-  const liftLimits = [degToRad(elevationOf(0)), degToRad(elevationOf(90))] as const;
-  /** Each finger's joint range, as makeFinger sets it. */
-  const fingerLimits = (side: 1 | -1) => [degToRad(side === 1 ? betaMin : 0 - betaMax), degToRad(side === 1 ? betaMax : 0 - betaMin)] as const;
   /** The commands the hold was taken under and whether it holds the fingers too, or null while the motors drive the servos. */
   let hold: { readonly lift: number; readonly claw: number; readonly fingers: boolean } | null = null;
   let settledTicks = 0;
@@ -408,7 +418,9 @@ export function createGripper(world: PhysicsWorld, chassis: RigidBody, module: K
       const elevation = elevationRad();
       const beta = [fingers[0].betaDeg(), fingers[1].betaDeg()] as const;
       const error = degToRad(elevationOf(liftCommand)) - elevation;
-      if (hold !== null && !(carStill && hold.lift === liftCommand && hold.claw === clawCommand)) letGo();
+      // Let go on a new command, the car moving, or a grasp that changed under the hold (B7 review M2): a cube lost (a break's detach) would
+      // leave the fingers locked at its width, and one taken would leave them on their motors.
+      if (hold !== null && !(carStill && hold.lift === liftCommand && hold.claw === clawCommand && hold.fingers === (frozen !== null))) letGo();
       if (hold === null) {
         const resting =
           carStill &&

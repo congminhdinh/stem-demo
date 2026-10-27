@@ -240,6 +240,75 @@ describe('the lift’s hold at rest (N19 B7, gripper.ts)', () => {
     }
   }, 60_000);
 
+  it('a grasp lost while the fingers hold (the detach of a break) lets go, and the fingers are the claw command’s again', () => {
+    const scene = gripperScene({ ground: floor, objects: [cube('cube', [START.xCm + 20, START.yCm], 15)] }, START);
+    try {
+      run(scene, pick(scene, 'cube', { liftDeg: 0, u: 3 }), seconds(5));
+      scene.set({ liftDeg: 90 });
+      expect(ticksToHold(scene)).not.toBeNull();
+      expect([scene.grasp.heldId, scene.gripper.liftHeld, scene.gripper.clawHeld]).toEqual(['cube', true, true]);
+      const heldAt = scene.gripper.clawDeg();
+      // What a break does to the gripper (grasp.ts `detach`): the joint goes, the fingers are no longer frozen on the cube. No command
+      // changes and the chassis does not move, yet the next tick lets go.
+      scene.grasp.release();
+      scene.step();
+      expect([scene.gripper.liftHeld, scene.gripper.clawHeld]).toEqual([false, false]);
+      // The claw (told 80°) closes on past where it held the cube, as it would have without the hold.
+      for (let i = 0; i < seconds(0.3); i++) scene.step();
+      expect(scene.gripper.clawDeg()).toBeGreaterThan(heldAt + 2);
+    } finally {
+      scene.dispose();
+    }
+  }, 60_000);
+
+  it('an object taken while an empty claw’s hold is on (the fingers not held) lets go too, so the next hold takes the fingers', () => {
+    const scene = gripperScene({ ground: floor }, START);
+    try {
+      scene.set({ liftDeg: 55, clawDeg: 80 });
+      expect(ticksToHold(scene)).not.toBeNull();
+      expect([scene.gripper.liftHeld, scene.gripper.clawHeld]).toEqual([true, false]);
+      // What an attach does to the gripper (grasp.ts `tryAttach`): the fingers frozen where they are.
+      scene.gripper.freezeFingers([scene.gripper.fingers[0].betaDeg(), scene.gripper.fingers[1].betaDeg()]);
+      scene.step();
+      expect(scene.gripper.liftHeld).toBe(false);
+      expect(ticksToHold(scene)).not.toBeNull();
+      expect([scene.gripper.liftHeld, scene.gripper.clawHeld]).toEqual([true, true]);
+    } finally {
+      scene.dispose();
+    }
+  }, 60_000);
+
+  it('a sudden 2.5 N load on the carriage of a held car lets go within a tick (the chassis moves), and the motor carries the arm again', () => {
+    const scene = gripperScene({ ground: floor }, START);
+    try {
+      scene.set({ liftDeg: 55 });
+      expect(ticksToHold(scene)).not.toBeNull();
+      const lift0 = scene.gripper.liftDeg();
+      // A weight dropped on the claw: a constant 2.5 N down on the carriage (the boom's tip) from this tick on.
+      const load = () => {
+        scene.gripper.carriage.resetForces(true);
+        scene.gripper.carriage.addForce({ x: 0, y: -2.5, z: 0 }, true);
+      };
+      let released: number | null = null;
+      for (let i = 0; i < 3 && released === null; i++) {
+        load();
+        scene.step();
+        if (!scene.gripper.liftHeld) released = i;
+      }
+      // The step that the load comes on moves the chassis (it pitches on its supports); the next one sees it and lets go.
+      expect(released).toBe(1);
+      for (let i = 0; i < seconds(0.5); i++) {
+        load();
+        scene.step();
+      }
+      // The motor (0.18 N·m, about 3.7 N at the tip) holds the 2.5 N near its command, a little short of it.
+      expect(scene.gripper.liftDeg()).toBeLessThan(lift0);
+      expect(scene.gripper.liftDeg()).toBeGreaterThan(lift0 - 2);
+    } finally {
+      scene.dispose();
+    }
+  }, 60_000);
+
   it('a hand placement (placeAt) lets go, and it takes hold again at the new place', () => {
     const scene = gripperScene({ ground: floor }, START);
     try {
