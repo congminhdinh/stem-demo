@@ -42,6 +42,14 @@
   white-space: nowrap;
 }
 
+/* N19 final fix (G1 c2): a gripper lesson's title ("Giao hàng theo vạch", "Phân loại theo màu") takes the room the run's controls and Kiểm
+   tra leave on their row, shortened with an ellipsis (its whole text in its tooltip), so that Kiểm tra keeps that row of the LMS's frame at
+   1440 × 900 (1022 px); with less room than a few words (72 px) the header wraps as before. The rover's header is as it was. */
+.robot-header-shrink-title .robot-title {
+  flex: 1 1 0;
+  min-width: 72px;
+}
+
 .robot-icon {
   flex: none;
 }

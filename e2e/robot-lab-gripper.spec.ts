@@ -20,6 +20,7 @@ import { pinLowTierChainOff } from './robot-chain';
 //   - Kiểm tra at 4×: nothing is said of a grab or a release; Lái tay is not offered, its keys do nothing, and the rounds end in the very
 //     worlds a Kiểm tra without a key gives.
 //   - Lái tay: Q E R F open and close the claw, raise and lower the arm.
+//   - N19 final fix (G1 c2): in the LMS's lab frame at 1440 × 900 every lesson's header keeps Kiểm tra on the row of the run's controls.
 //   - N19 final fix (G1 M1): Lái tay in the LMS's lab frame at 1366 × 768 keeps the free camera near (its distance at most 1.5 × the
 //     distance with Lái tay off), although the pad with the gripper's buttons reaches past the short view's middle.
 //   - Xem lại lượt 2 and 3 of rb-grip-sort, whose rounds paint the cube green, red and blue: in the round shown the 2D map's cube, the 3D
@@ -330,6 +331,26 @@ test.describe('the gripper lab on the real lessons (N19 E10)', () => {
     await page.keyboard.press('q');
     await expect.poll(() => servo(page, 'D9'), { timeout: 60_000 }).toBe(0);
     await expect.poll(async () => (await world(page))!.robot.gripper!.clawDeg, { timeout: 60_000 }).toBeLessThan(5);
+    expect(errors).toEqual([]);
+  });
+
+  test('the LMS’s lab frame at 1440 × 900 (1022 × 582): every gripper lesson keeps its run’s controls and Kiểm tra on one row, a long title shortened with its whole text in its tooltip (G1 c2)', async ({ page }) => {
+    const errors = collectErrors(page);
+    await page.setViewportSize({ width: 1022, height: 582 });
+    const rows: [string, boolean, boolean, string | null][] = [];
+    for (const key of ['rb-grip-pick', 'rb-grip-deliver', 'rb-grip-sort', 'rb-grip-stack'] as const) {
+      await openLesson(page, key, false);
+      const [run, check] = [await page.getByTestId('robot-run').boundingBox(), await page.getByTestId('robot-check').boundingBox()];
+      const title = page.getByTestId('robot-scenario');
+      const shortened = await title.evaluate((element) => element.scrollWidth > element.clientWidth);
+      rows.push([key, Math.abs(run!.y - check!.y) < 4, shortened, await title.getAttribute('title')]);
+    }
+    expect(rows).toEqual([
+      ['rb-grip-pick', true, false, 'Tìm và gắp'],
+      ['rb-grip-deliver', true, true, 'Giao hàng theo vạch'],
+      ['rb-grip-sort', true, true, 'Phân loại theo màu'],
+      ['rb-grip-stack', true, false, 'Xếp chồng'],
+    ]);
     expect(errors).toEqual([]);
   });
 
