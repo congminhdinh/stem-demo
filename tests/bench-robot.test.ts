@@ -69,6 +69,18 @@ describe('scripts/bench-robot.mjs', () => {
     expect(missed.stderr).toBe(`Missed: ${measures.filter(([, kind]) => kind === 'budget').map(([measure]) => measure).join('; ')}.\n`);
   }, 120_000);
 
+  // N19 E9: the four rows of --gripper come after the pilot lessons' six, and every other row is as it was. They sit in this file, after the
+  // run above, because each run starts a Vite server on the script's one dependency cache.
+  it('--gripper adds the headless check of each gripper lesson’s reference (ref-uno-gripper@0) after the rover’s six, and nothing else changes', async () => {
+    const held = await run('--smoke', '--gripper', '--budget-scale', '1000000');
+    expect(held.status, held.stderr).toBe(0);
+    expect(held.stdout).toMatch(/^pnpm bench:robot --smoke \(a moment of each: not the budgets’ numbers\) --gripper: .+, Node v\d+/);
+    const gripper = ['rb-grip-pick', 'rb-grip-deliver', 'rb-grip-sort', 'rb-grip-stack'].map((key) => [`headless check, ${key} reference (3 × 1 s)`, 'ok']);
+    const rover = measures.map(([measure, kind]) => [measure, kind === 'budget' ? 'ok' : 'told']);
+    expect(rowsOf(held.stdout)).toEqual([...rover.slice(0, 15), ...gripper, ...rover.slice(15)]);
+    expect(held.stdout).toMatch(/\n23 measures, 0 budgets missed, \d+\.\d s\.\n$/);
+  }, 120_000);
+
   it('refuses an unknown option or a budget scale that is not a number above 0 (exit 2), before it measures anything', async () => {
     const [unknown, zero] = await Promise.all([run('--fast'), run('--budget-scale', '0')]);
     expect([unknown.status, unknown.stdout, unknown.stderr]).toEqual([2, '', 'Unknown option --fast. Usage: node scripts/bench-robot.mjs [--smoke] [--budget-scale <factor>]\n']);

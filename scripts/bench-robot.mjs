@@ -2,11 +2,14 @@
 // bounds that survive other test workers and agents on the machine (2 ms a tick, 20 s a headless check of 3 × 60 s); this script measures
 // the plan's own and fails when one is missed. Run it on a quiet machine.
 //
-//   node scripts/bench-robot.mjs [--smoke] [--budget-scale <factor>]
+//   node scripts/bench-robot.mjs [--smoke] [--budget-scale <factor>] [--gripper]
 //   pnpm bench:robot
 //
 //   --smoke         everything for a moment (a few ticks, every check cut to 1 s a variant): shows that the tool works; its numbers are
 //                   not the budgets' (tests/bench-robot.test.ts runs it)
+//   --gripper       N19 E9: four rows more, the headless check of each gripper lesson's reference solution (rb-grip-pick, -deliver, -sort,
+//                   -stack on ref-uno-gripper@0), at the rate of the pilot lessons'. The table without it is the rover's, row for row
+//                   (tests/bench-robot.test.ts pins it, and the usage message below).
 //   --budget-scale  multiplies every budget (default 1): 3 for the plan's slow tier (a headless check ≤ 30 s), a large one to check only
 //                   that the measurements run
 //
@@ -41,11 +44,13 @@ class Failure extends Error {
 const messageOf = (error) => (error instanceof Error ? error.message : String(error));
 
 function parseArguments(args) {
-  const options = { smoke: false, budgetScale: 1 };
+  const options = { smoke: false, budgetScale: 1, gripper: false };
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === '--smoke') {
       options.smoke = true;
+    } else if (arg === '--gripper') {
+      options.gripper = true;
     } else if (arg === '--budget-scale') {
       const value = Number(args[index + 1]);
       if (!(Number.isFinite(value) && value > 0)) {
@@ -85,7 +90,7 @@ async function main() {
     const physics = await server.ssrLoadModule('/src/core/world/rapier.ts');
     await physics.initPhysics(async () => (await import('@dimforge/rapier3d-deterministic-compat')).default);
     const { runRobotBench } = await server.ssrLoadModule('/src/core/run/__fixtures__/robot-bench.ts');
-    report = await runRobotBench({ smoke: options.smoke });
+    report = await runRobotBench({ smoke: options.smoke, gripper: options.gripper });
   } catch (error) {
     throw new Failure(1, `The bench did not run: ${messageOf(error)}`);
   } finally {
@@ -93,7 +98,7 @@ async function main() {
   }
 
   const lines = [
-    `pnpm bench:robot${options.smoke ? ' --smoke (a moment of each: not the budgets’ numbers)' : ''}: ${report.machine}`,
+    `pnpm bench:robot${options.smoke ? ' --smoke (a moment of each: not the budgets’ numbers)' : ''}${options.gripper ? ' --gripper' : ''}: ${report.machine}`,
     `budgets of the robot plan §5${options.budgetScale === 1 ? '' : ` × ${options.budgetScale}`}`,
     '',
     '| measure | value | budget | result | detail |',

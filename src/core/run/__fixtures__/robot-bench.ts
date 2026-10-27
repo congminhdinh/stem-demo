@@ -1,9 +1,11 @@
 import { arch, cpus, loadavg, platform } from 'node:os';
+import { productionKits } from '../../hardware/catalog';
+import type { Kit } from '../../hardware/kit';
 import { readAllocation, tickAllocation, heapAllocated } from '../../program/__fixtures__/allocation';
 import { driveMove, led, lineDark, registry, servoSet, ultrasonic } from '../../program/__fixtures__/uno-blocks';
 import { cmp, getVar, ifElif, ifThen, num, setVar } from '../../program/__fixtures__/ybc-blocks';
 import allGoalsScenario from '../../scenario/__fixtures__/all-goals.scenario.json';
-import { pilotReferences } from '../../scenario/__fixtures__/check-cases';
+import { gripperReferences, pilotReferences } from '../../scenario/__fixtures__/check-cases';
 import { checkRobot } from '../../scenario/check-robot';
 import { loadScenario, type Scenario } from '../../scenario/scenario';
 import { threadCpuMs } from '../../world/__fixtures__/cpu-time';
@@ -29,9 +31,13 @@ import { everyGoalScorer, robotProject, rover, roverSession, unoR3Board, worldOf
 //     within 64 bytes, everything the ticks allocate included; the line follower with its drive, the ultrasonic (a few reads a tick, which
 //     share the tick's own allocation) and what a tick allocates by itself, told.
 //
+//   - N19 E9, with `gripper`: the same check of each gripper lesson's reference solution (rb-grip-pick, -deliver, -sort, -stack, on
+//     ref-uno-gripper@0), at the same rate. Not in the default table: tests/bench-robot.test.ts pins that table row for row, and the rover's
+//     rows, method and budgets are as they were.
+//
 // `smoke` runs everything for a moment (a few ticks, checks cut to 1 s a variant), to show the tool works: its numbers are not the budgets'.
 
-export type BenchOptions = { smoke?: boolean };
+export type BenchOptions = { smoke?: boolean; gripper?: boolean };
 
 /** One measurement: a value in `unit`, and the budget it must stay within, or null for one only told. */
 export type BenchRow = { name: string; value: number; unit: 'ms' | 's' | 'B' | 'KiB'; budget: number | null; detail: string };
@@ -111,10 +117,10 @@ async function tickCost(project: ProjectDocument, smoke: boolean): Promise<{ med
  * A headless check of `project` in `scenario` (cut to 1 s a variant when `smoke`): CPU s, and the simulated time it covers. Every variant
  * must have run to the time limit: a check that ended early (a crash that ends the run, a fault) took less time than its budget is for.
  */
-async function checkCost(project: ProjectDocument, scenario: Scenario, smoke: boolean): Promise<{ cpuS: number; simulatedS: number; score: number | null }> {
+async function checkCost(project: ProjectDocument, scenario: Scenario, smoke: boolean, kit: Kit = rover): Promise<{ cpuS: number; simulatedS: number; score: number | null }> {
   const checked = smoke ? { ...scenario, timeLimitS: 1 } : scenario;
   const started = threadCpuMs();
-  const result = await checkRobot(project, checked, { mode: 'headless', kit: rover, board: unoR3Board, registry }).result;
+  const result = await checkRobot(project, checked, { mode: 'headless', kit, board: unoR3Board, registry }).result;
   const cpuS = (threadCpuMs() - started) / 1000;
   const simTimes = result?.variants.map((variant) => variant.simTimeMs) ?? [];
   const full = Array.from({ length: checked.variants.count }, () => checked.timeLimitS * 1000);
@@ -160,6 +166,21 @@ export async function runRobotBench(options: BenchOptions = {}): Promise<BenchRe
       budget: CHECK_BUDGET_S * (cost.simulatedS / 180),
       detail: `10 s per 3 × 60 s simulated; score ${String(cost.score)}`,
     });
+  }
+
+  if (options.gripper === true) {
+    const gripperKit = productionKits.get({ id: 'ref-uno-gripper', version: '0' }) as Kit;
+    for (const reference of gripperReferences) {
+      const scenario = reference.scenario();
+      const cost = await checkCost(reference.project(), scenario, smoke, gripperKit);
+      rows.push({
+        name: `headless check, ${scenario.key} reference (${scenario.variants.count} × ${smoke ? 1 : scenario.timeLimitS} s)`,
+        value: cost.cpuS,
+        unit: 's',
+        budget: CHECK_BUDGET_S * (cost.simulatedS / 180),
+        detail: `10 s per 3 × 60 s simulated; ref-uno-gripper@0; score ${String(cost.score)}`,
+      });
+    }
   }
 
   const window = smoke ? { warmupTicks: 60, ticks: 60 } : { warmupTicks: 600, ticks: 1200 };
