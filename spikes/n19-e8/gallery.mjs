@@ -327,6 +327,25 @@ const cvdSources = [];
 const cvdMarks = [];
 const isCvd = (run, moment) => run.key === 'rb-grip-sort' && (moment.name === 'start' || (moment.name === 'carry' && run.round > 1));
 
+/**
+ * Fix round 1 (review F1): what the sensors' tags kept clear of in the shot just taken (sensor-label-boxes.ts, NDC): the IR/colour tag
+ * (shown and clear of the claw and the objects by it, or hidden) and each distance tag (clear of them, or over them).
+ */
+const meetsNdc = (a, b) => a.left < b.right && b.left < a.right && a.bottom < b.top && b.bottom < a.top;
+async function tagsOf(frame) {
+  const { gripper, labels } = await frame.evaluate(async () => {
+    const path = '/src/ui/robot3d/sensor-label-boxes.ts';
+    const module = await import(/* @vite-ignore */ path);
+    return { gripper: structuredClone(module.gripperTagLayout), labels: module.labelBoxes.boxes.slice(0, module.labelBoxes.count).map((box) => ({ ...box })) };
+  });
+  const keepOut = gripper.keepOut.slice(0, gripper.keepOutCount);
+  const over = (box) => keepOut.some((keep) => meetsNdc(box, keep));
+  const distances = labels.slice(gripper.shown ? 1 : 0);
+  const words = [gripper.shown ? (over(gripper.box) ? 'IR/Màu OVER the claw or an object' : 'IR/Màu clear') : 'IR/Màu hidden'];
+  if (distances.length > 0) words.push(distances.some(over) ? 'distance OVER the claw or an object' : 'distance clear');
+  return { text: words.join(', '), bad: (gripper.shown && over(gripper.box)) || distances.some(over) };
+}
+
 const browser = await chromium.launch({ headless: true, channel: 'chromium' });
 try {
   const lessons = [...new Set(gripperLessonRuns.map((run) => run.key))];
@@ -350,7 +369,9 @@ try {
             const file = join(out, `${name}.png`);
             writeFileSync(file, await canvasOf(lab.frame).screenshot());
             const pose = await cameraPose(lab.frame);
-            index.push({ name, state, camera: `${pose.distance.toFixed(2)} m, azimuth ${pose.azimuth.toFixed(0)}°, polar ${pose.polar.toFixed(0)}°` });
+            const tags = await tagsOf(lab.frame);
+            index.push({ name, state, camera: `${pose.distance.toFixed(2)} m, azimuth ${pose.azimuth.toFixed(0)}°, polar ${pose.polar.toFixed(0)}°`, tags: tags.text });
+            if (tags.bad) process.stdout.write(`TAGS ${name}: ${tags.text}\n`);
             if (isCvd(run, moment)) cvdSources.push(name);
             process.stdout.write(`${name}\n`);
           }
@@ -443,8 +464,8 @@ if (cvdMarks.length > 0) {
 }
 
 // The index -------------------------------------------------------------------------------------------------------------------------
-const lines = ['# N19 E8 gallery', '', `node spikes/n19-e8/gallery.mjs --out=${out} --port=${port}`, '', '| Shot | World at the moment | Camera |', '|---|---|---|'];
-for (const shot of index) lines.push(`| ${shot.name}.png | ${shot.state} | ${shot.camera} |`);
+const lines = ['# N19 E8 gallery', '', `node spikes/n19-e8/gallery.mjs --out=${out} --port=${port}`, '', '| Shot | World at the moment | Camera | Sensors\' tags |', '|---|---|---|---|'];
+for (const shot of index) lines.push(`| ${shot.name}.png | ${shot.state} | ${shot.camera ?? ''} | ${shot.tags ?? ''} |`);
 if (cvdSources.length > 0) {
   lines.push('', '## Colour-blind (Machado et al. 2009, severity 1.0, linear RGB)', '');
   for (const name of cvdSources) lines.push(`- ${name}.png → ${visions.map((vision) => `cvd/${name.split('/')[1]}-${vision}.png`).join(', ')}`);

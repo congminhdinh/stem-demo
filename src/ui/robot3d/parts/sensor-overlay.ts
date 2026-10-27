@@ -38,6 +38,11 @@ import { zoneHighlightGeometry } from './zone-highlight';
 // Everything is flagged `compileWithScene` (Scene.tsx CompiledDraw): hidden until a reading comes, but compiled with the scene.
 
 export const LABEL_LIFT_M = 0.07;
+/**
+ * N19 E8 fix round 1 (review minor): how high a gripper car's distance tag stands over its ray's end (m): low by the claw and what it holds,
+ * where LABEL_LIFT_M put it far over them (the ultrasonic is up on the deck). A rover's stays at LABEL_LIFT_M.
+ */
+export const GRIPPER_DISTANCE_LIFT_M = 0.025;
 /** The tag is painted at most this often while the reading changes, s; the draw loop settling paints it exactly (`flushLabels`). */
 export const LABEL_PERIOD_S = 0.1;
 const ZONE_LIFT_M = 0.003;
@@ -111,6 +116,8 @@ export type SensorOverlay = {
   labelShown(index: number): boolean;
   /** How far along the sensor's axis its tag belongs (m): at the end of its ray. The tag may be moved back along it. */
   labelReach(index: number): number;
+  /** N19 E8: how high the distance tags stand over their rays' ends (m): GRIPPER_DISTANCE_LIFT_M on a gripper car, else LABEL_LIFT_M. */
+  distanceLiftM: number;
   /** The beams, for a test. */
   beams: readonly Beam[];
   /** N19 E5: the gripper's tag (null without a gripper's sensors, or where a canvas could not be made), and whether it is on the screen now. */
@@ -253,6 +260,7 @@ export function createSensorOverlay({ kit, model, scenario, decimal, unit, noEch
     });
 
   const carried = carriedSensors(kit, model, drawn, own, fovDeg, gripperWords, makeWordsLabel);
+  const distanceLiftM = carried === null ? LABEL_LIFT_M : GRIPPER_DISTANCE_LIFT_M;
   if (carried !== null) robot.add(carried.group);
 
   root.traverse((node: Object3D) => {
@@ -294,6 +302,7 @@ export function createSensorOverlay({ kit, model, scenario, decimal, unit, noEch
     labels: ultrasonics.map((part) => part.label),
     labelShown: (index) => last.shown && ultrasonics[index]?.group.visible === true && ultrasonics[index]?.label !== null,
     labelReach: (index) => ultrasonics[index]?.nums[1] ?? 0,
+    distanceLiftM,
     flushLabels() {
       if (!last.shown) return false;
       let painted = false;
@@ -329,7 +338,7 @@ export function createSensorOverlay({ kit, model, scenario, decimal, unit, noEch
         part.nums[0] = reading.cm;
         part.nums[1] = length;
         part.echo = echo;
-        part.label?.sprite.position.set(length, LABEL_LIFT_M, 0);
+        part.label?.sprite.position.set(length, distanceLiftM, 0);
         // The tag: painted when it is new, or the echo came or went, or the reading changed and the last paint is old enough; else held back.
         const tenths = echo ? Math.round(reading.cm * 10) : -2;
         if (tenths === part.paintedTenths) part.stale = false;
