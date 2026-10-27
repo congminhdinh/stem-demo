@@ -68,3 +68,10 @@ stop-at-wall-2d-step.png: 0.000 % over 8, largest 0
 0 picture(s) changed
 
 # => every picture bit-identical (largest difference 0); sandbox-high was in the same state on both runs this time (its known run-to-run flip did not show).
+
+## Final HEAD 0c41f41 (production build) against the BASE shots above, 2026-10-27 10:37-10:40, load 10.3 at the start, 4.9 at the end
+### 3D, 44 shots
+0 picture(s) changed
+### 2D, 14 shots
+0 picture(s) changed
+# => every picture bit-identical again (largest difference 0).
