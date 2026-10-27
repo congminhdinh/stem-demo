@@ -526,6 +526,10 @@ async function worldAdvances(page: Page, seconds: number) {
 /**
  * The count of draws (`read`) just after the scene's last burst of them, so that the next is a whole period away: waits for the next burst, or
  * 6 s of the world's clock without one (a world that does not creep draws none), then for 0.3 s of the clock with none more (the pair's second).
+ *
+ * N19 B7 (branch n19/b7-rest-creep) takes the residual spin out of the world. When it has landed the creep, and with it the pairs, may be gone:
+ * every call then waits the whole 6.3 s without a burst (still correct, slower), and this helper can become a plain quiet wait of 1 s of the
+ * world's clock. Measure the pairs again (`node spikes/n19-e9/rest-draws.mjs`, or the draws of a held car) before simplifying it.
  */
 async function drawsAtRest(page: Page, read: () => Promise<number>): Promise<number> {
   const start = { value: await read(), t: await worldTime(page) };

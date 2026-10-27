@@ -21,7 +21,8 @@ import { pinLowTierChainOff } from './robot-chain';
 //   - Lái tay: Q E R F open and close the claw, raise and lower the arm.
 //   - Xem lại lượt 2 and 3 of rb-grip-sort, whose rounds paint the cube green, red and blue: in the round shown the 2D map's cube, the 3D
 //     prop (the scene's state), the cube's tag and the chip's name, and the zone lit for the goal, are that round's colour; the 2D map's
-//     marks are green's grid, red's stripes and blue's dots.
+//     cube marks are green's grid, red's stripes and blue's dots (read from the map's own state). The zones' marks are only the pattern table
+//     the map paints from (zone-pattern.ts `zonePatternOf`): no state reader says what the map painted of a zone, and pixels are not read here.
 //   - No WebGL: the 2D map draws the jaws closed on the cube, the ring round it, and the cube where it ends.
 // What a canvas drew is read from the state the lab keeps of it (src/ui/robot3d/*-state.ts, loaded from the dev server), never from pixels.
 // The programs come from robotSolutions, so no hash of a world is written in this file.
@@ -299,7 +300,7 @@ test.describe('the gripper lab on the real lessons (N19 E10)', () => {
     expect(errors).toEqual([]);
   });
 
-  test('Xem lại lượt 2 and 3 of rb-grip-sort: the 2D map, the 3D prop, the tag, the chip and the lit zone are the round’s colour; the marks are red’s stripes, green’s grid, blue’s dots', async ({ page, browserName }) => {
+  test('Xem lại lượt 2 and 3 of rb-grip-sort: the 2D map, the 3D prop, the tag, the chip and the lit zone are the round’s colour; the 2D map’s cube marks are red’s stripes, green’s grid, blue’s dots', async ({ page, browserName }) => {
     test.skip(browserName !== 'chromium', 'draws the 3D scene');
     test.setTimeout(360_000);
     const errors = collectErrors(page);
@@ -315,7 +316,8 @@ test.describe('the gripper lab on the real lessons (N19 E10)', () => {
     await expect.poll(async () => (await map(page))?.objects, { timeout: 30_000 }).toEqual([{ id: 'cube', fill: '#388e3c', mark: 'grid' }]);
     await page.getByTestId('robot-viewmode').click();
     await page.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 60_000 });
-    // Every zone the lesson names has its colour's mark (the 2D map paints these, ground-paint.ts; zone-pattern.ts is where they are worked out).
+    // The pattern table for the zones the lesson names (zone-pattern.ts `zonePatternOf`, what ground-paint.ts paints the map's zones from): this checks
+    // the table, not the map's pixels or any state of its zones; the 2D map's own state is checked below through the cube's fill and mark.
     const zonePatterns = await page.evaluate(async () => {
       const { zonePatternOf } = (window as unknown as { __readers: { zonePattern: typeof import('../src/ui/robot3d/zone-pattern') } }).__readers.zonePattern;
       return Object.fromEntries((['red', 'green', 'blue'] as const).map((name) => [name, zonePatternOf({ kind: 'target', name })]));
@@ -350,9 +352,7 @@ test.describe('the gripper lab on the real lessons (N19 E10)', () => {
         await expect(page.getByTestId('robot-status')).toHaveText('Chương trình đã chạy xong', { timeout: 180_000 });
         // The chip named the cube in this round's colour while the car held it.
         const chips = (await recorded(page)).chips.slice(before - 1);
-        expect(chips).toEqual([...(chips[0] === null ? [null] : [chips[0]]), round.chip, null].slice(0, chips.length));
-        expect(chips).toContain(round.chip);
-        expect(chips.filter((chip) => chip !== null && chip !== round.chip)).toEqual([]);
+        expect(chips).toEqual([null, round.chip, null]);
         // 3D, from the scene's state: the prop in this round's colour, the cube's tag naming it so, the goal's zone lit.
         await expect.poll(cube, { timeout: 30_000 }).toEqual({ prop: [round.hex], tag: round.tag, zone: round.zone });
         // 2D: the cube's fill and mark, the zone lit for the goal.

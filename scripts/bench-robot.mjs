@@ -59,6 +59,8 @@ function parseArguments(args) {
       options.budgetScale = value;
       index += 1;
     } else {
+      // This message is pinned, character for character, by tests/bench-robot.test.ts (N18 P1), so it does not list --gripper (N19 E9, added to
+      // the options and the header above): changing it is changing an existing assertion.
       throw new Failure(2, `Unknown option ${arg}. Usage: node scripts/bench-robot.mjs [--smoke] [--budget-scale <factor>]`);
     }
   }

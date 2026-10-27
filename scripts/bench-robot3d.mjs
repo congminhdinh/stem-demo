@@ -765,6 +765,10 @@ function judge(cells, bundle) {
   if (bundle.robotLabGzip !== null) add('budget', '3D chunk RobotLab-*.js, gzip -6', [bundle.robotLabGzip / 1000], atMost(600), 'kB', 'robot plan §5');
   add('budget', 'gpu-high: median fps of every run', of('gpu-high', runs).map((entry) => fps(entry.window?.frameMs)), atLeast(50), 'fps', 'the plan’s ≥ 50 fps mid-range');
   add('budget', 'ss-low-4x: p5 fps of every run', of('ss-low-4x', runs).map((entry) => p5fps(entry.window?.frameMs)), atLeast(30), 'fps', 'the plan’s ≥ 30 fps low tier at 4×');
+  // N19 E9 (fix round 1, review I1): Kiểm tra at 4× of a gripper lesson has rows of its own. It is not in `runs`, which would feed the 1× p95 and gpu-high
+  // rows with a 4× check, and the rover's `check-4x` has none (no cell, no row: the rover's output is as it was).
+  const gripCheck = ['rb-grip-check-4x'];
+  add('budget', 'ss-low-4x: p5 fps of Kiểm tra 4× (rb-grip-check-4x)', of('ss-low-4x', gripCheck).map((entry) => p5fps(entry.window?.frameMs)), atLeast(30), 'fps', 'the plan’s ≥ 30 fps low tier at 4×, the whole check of a gripper lesson');
   add('budget', 'Run → moving (warm), every profile', fpsCells.map((entry) => entry.runToMovingMs), atMost(300), 'ms', 'click to the first render with the robot moved');
   add('budget', 'ss-low-4x: first Run → moving (physics loads)', of('ss-low-4x').map((entry) => entry.firstRunToMovingMs), atMost(1500), 'ms', 'the plan’s init physics ≤ 1.5 s at 4×');
   add('budget', 'draws per second at rest', fpsCells.flatMap((entry) => [entry.idle, entry.rest, entry.afterDrag].filter(Boolean).map((summary) => summary.framesDrawn / summary.seconds)), atMost(0), '/s', 'idle before a run, a parked robot, after an orbit settles');
@@ -773,6 +777,8 @@ function judge(cells, bundle) {
   const schoolRuns = of('school', runs);
   add('target', 'school: p95 frame time running at 1×', schoolRuns.map((entry) => entry.window?.frameMs?.p95), atMost(33), 'ms', 'every run scenario, low tier');
   add('target', 'school: p95 frame time running at 4×', [...of('school-sim4x'), ...of('school', ['check-4x'])].map((entry) => entry.window?.frameMs?.p95), atMost(33), 'ms', 'sim speed 4× and Kiểm tra 4×');
+  add('target', 'school: p95 frame time of Kiểm tra 4× (rb-grip-check-4x)', of('school', gripCheck).map((entry) => entry.window?.frameMs?.p95), atMost(33), 'ms', 'the whole check of a gripper lesson at 4×');
+  add('target', 'school and ss-low-4x: long tasks > 100 ms in Kiểm tra 4× (rb-grip-check-4x)', [...of('school', gripCheck), ...of('ss-low-4x', gripCheck)].map((entry) => entry.window?.longTasks?.over100), atMost(0), '', 'the whole check; tasks of 50 to 100 ms are in the frames table');
   add('target', 'school: long tasks > 100 ms during a run', [...schoolRuns, ...of('school-sim4x'), ...of('school', ['check-4x'])].map((entry) => entry.window?.longTasks?.over100), atMost(0), '', 'in the measuring window');
   add('target', 'school: first frame', of('school').map((entry) => entry.firstFrameMs), atMost(2500), 'ms', 'lesson page navigation → the scene drawn');
   for (const entry of of('school', ['soak'])) add('target', 'school: heap growth over the soak', [entry.soak.growthPercent], atMost(5), '%', '10 min');
