@@ -1,0 +1,46 @@
+# N19 final fix: verify:attempt of attempts made by master 9e4f97b (node spikes/n19-d4/make-attempts.mjs <git archive 9e4f97b> <out>, ATTEMPT_KEYS=gripper for the
+# gripper lessons), verified by HEAD (node scripts/verify-attempt.mjs <out>); 2026-10-27 17:18-17:21, Apple M4 Pro, Node 24.22.1
+## rover: 23 attempts, exit 0
+attempt 1 (id 1, rb-drive-to-zone): match
+attempt 2 (id 2, rb-square-route): match
+attempt 3 (id 3, rb-stop-at-wall): match
+attempt 4 (id 4, rb-stop-at-wall): match
+attempt 5 (id 5, rb-stop-at-wall): match
+attempt 6 (id 6, rb-stop-at-wall): match
+attempt 7 (id 7, rb-line-follow): match
+attempt 8 (id 8, rb-line-follow): match
+attempt 9 (id 9, rb-line-follow): match
+attempt 10 (id 10, rb-line-follow): match
+attempt 11 (id 11, rb-line-follow): match
+attempt 12 (id 12, rb-servo-gate): match
+attempt 13 (id 13, rb-servo-gate): match
+attempt 14 (id 14, rb-servo-gate): match
+attempt 15 (id 15, rb-servo-gate): match
+attempt 16 (id 16, rb-servo-gate): match
+attempt 17 (id 17, rb-mini-mission): match
+attempt 18 (id 18, rb-mini-mission): match
+attempt 19 (id 19, rb-mini-mission): match
+attempt 20 (id 20, rb-mini-mission): match
+attempt 21 (id 21, rb-mini-mission): match
+attempt 22 (id 22, rb-mini-mission): match
+attempt 23 (id 23, rb-mini-mission): match
+## gripper: 19 attempts (4 references 100/97/100/97, 3 blinds, 12 exploits), exit 0
+attempt 1 (id 1, rb-grip-pick): match
+attempt 2 (id 2, rb-grip-pick): match
+attempt 3 (id 3, rb-grip-pick): match
+attempt 4 (id 4, rb-grip-pick): match
+attempt 5 (id 5, rb-grip-pick): match
+attempt 6 (id 6, rb-grip-pick): match
+attempt 7 (id 7, rb-grip-deliver): match
+attempt 8 (id 8, rb-grip-deliver): match
+attempt 9 (id 9, rb-grip-deliver): match
+attempt 10 (id 10, rb-grip-deliver): match
+attempt 11 (id 11, rb-grip-sort): match
+attempt 12 (id 12, rb-grip-sort): match
+attempt 13 (id 13, rb-grip-sort): match
+attempt 14 (id 14, rb-grip-stack): match
+attempt 15 (id 15, rb-grip-stack): match
+attempt 16 (id 16, rb-grip-stack): match
+attempt 17 (id 17, rb-grip-stack): match
+attempt 18 (id 18, rb-grip-stack): match
+attempt 19 (id 19, rb-grip-stack): match

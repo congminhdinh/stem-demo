@@ -1,0 +1,16 @@
+# N19 final fix (G2 I1): the gripper car's sensors' tag, 3D (sensor-overlay-state.ts) and 2D map (top-view-gripper-state.ts), at the end of each lesson's reference (Chạy 4x) and 1 s into Lái tay
+# node spikes/n19-ff/color-line.mjs --base=<dev server>; master = git archive 9e4f97b (5585), HEAD (5580); Chromium headless + SwiftShader, 1280x720; 2026-10-27
+== master 9e4f97b
+rb-grip-pick Chạy (reference, end): 3D ["IR: không có vật","Màu: chưa có số đọc"] | 2D ["IR: không có vật","Màu: chưa có số đọc"]
+rb-grip-deliver Chạy (reference, end): 3D ["IR: không có vật","Màu: chưa có số đọc"] | 2D ["IR: không có vật","Màu: chưa có số đọc"]
+rb-grip-sort Chạy (reference, end): 3D ["IR: không có vật","Màu: không rõ"] | 2D ["IR: không có vật","Màu: không rõ"]
+rb-grip-stack Chạy (reference, end): 3D ["IR: không có vật","Màu: chưa có số đọc"] | 2D ["IR: không có vật","Màu: chưa có số đọc"]
+rb-grip-pick Lái tay (1 s): 3D ["IR: không có vật","Màu: không rõ"] | 2D ["IR: không có vật","Màu: không rõ"]
+rb-grip-sort Lái tay (1 s): 3D ["IR: không có vật","Màu: không rõ"] | 2D ["IR: không có vật","Màu: không rõ"]
+== HEAD
+rb-grip-pick Chạy (reference, end): 3D ["IR: không có vật"] | 2D ["IR: không có vật"]
+rb-grip-deliver Chạy (reference, end): 3D ["IR: không có vật"] | 2D ["IR: không có vật"]
+rb-grip-sort Chạy (reference, end): 3D ["IR: không có vật","Màu: không rõ"] | 2D ["IR: không có vật","Màu: không rõ"]
+rb-grip-stack Chạy (reference, end): 3D ["IR: không có vật"] | 2D ["IR: không có vật"]
+rb-grip-pick Lái tay (1 s): 3D ["IR: không có vật","Màu: không rõ"] | 2D ["IR: không có vật","Màu: không rõ"]
+rb-grip-sort Lái tay (1 s): 3D ["IR: không có vật","Màu: không rõ"] | 2D ["IR: không có vật","Màu: không rõ"]

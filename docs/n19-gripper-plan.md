@@ -740,6 +740,56 @@ Số đo và lệnh tái lập: `spikes/n19-b7/results.md`. Code: `world/robot/g
     - Bản viết lại của E10 đo theo đồng hồ world. B7 đã rebase lên master dabc023 (có E9 + E10), và test đó qua 1 + 3 lần.
     - Còn lại một điều kiện: B7 không được merge trước E9 + E10.
 
+### 4.18 Ghi lại khi làm đợt sửa cuối (G1 M1, c2; G2 I1, M1–M4; thắng §4.4, §4.11 và §4.13 khi mâu thuẫn)
+
+Số đo và lệnh tái lập: `spikes/n19-ff/results/` (`teleop-camera.txt`, `color-line.txt`, `rover-pixels.txt`, `fallback-reach.txt`). Báo cáo:
+`.superpowers/sdd/n19-gripper-plan/final-fix-lab-report.md`.
+
+- **G1 M1: camera tự do khi Lái tay trong khung nhìn thấp** (`ui/robot3d/camera-studio.ts`).
+  - **Nguyên nhân.** Bàn lái của xe tay gắp cao hơn của rover. Trong khung nhìn ≤ 400 px, góc của nó (đã kẹp về `right, top ≤ 0,2`) phủ cả
+    tâm màn hình. `framePoints` luôn nhìn vào tâm: ở xa, mọi điểm dồn về tâm, nên không lựa chọn nào vừa và phép chia đôi chạy ra 5·10⁴ m
+    (OrbitControls kẹp về `maxDistance`: 8,4–10,3 m). Khi đó `freeViewPose` trả pose của lựa chọn cuối.
+  - **Sửa (chỉ nhánh fallback).** Khi không lựa chọn nào giữ robot ≥ `minRobot` và có góc của công cụ:
+    - các lựa chọn được đóng khung **chính xác** trong hình chữ nhật trống bên phải góc đó (`framePointsInBox`: ràng buộc tuyến tính theo vị trí
+      camera, khoảng cách nhỏ nhất là một thương, không tìm kiếm), giữ nguyên hướng 34°;
+    - lấy lựa chọn đầu tiên giữ robot ≥ `minRobot` và ≥ 1/1,5 bề rộng của khung nhìn không có bàn lái; rộng hơn thế thì đóng khung lại trong
+      hình chữ nhật thu nhỏ quanh tâm, cho robot rộng như khi không có bàn lái; không có thì lấy lựa chọn cho robot rộng nhất.
+  - **Đo** (khung lab của LMS; tắt → bật Lái tay, m): bài 8–11 ở 1366×768 1,116 → 1,556, 1,090 → 1,428, 1,432 → 1,270, 1,579 → 1,631 (trước:
+    8,4–10,3). Ở 1440×900 mọi bài ≤ 1,12×. Ở 1280×720: bài 8 0,550 → 1,249 (2,27×: khung không bàn lái của nó đã gần bất thường, robot 152 px;
+    bên phải bàn lái chỉ còn 189 px, robot 82 px), bài 9 1,40×, bài 10, 11 ≤ 1,07×.
+  - **Rover ở các cỡ đã ghim không đổi.** Fallback không bao giờ được gọi trong 140 pose của `free-view-golden.json`, các test của
+    `camera-studio.test.ts` và 14 trạng thái của bộ pixel rover (đếm tạm trên master, `fallback-reach.txt`); pixel 3D 44 + 2D 14 giống hệt.
+    Rover **có** vào fallback khi mở bàn lái trong khung LMS ≤ 1366×768 (Lái tay bật), và nay cũng gần hơn: mini-mission 1280×720
+    5,039 → 1,458 m, drive-to-zone 1366×768 1,622 → 1,377 m; Lái tay tắt không đổi.
+  - Chi phí: chỉ khi vào fallback, 0,3–1,4 ms một lần đóng khung (Node, M4 Pro), mỗi chiều cao HUD một lần (`keptFreeViewPose`).
+- **G1 c2: thanh công cụ xuống hai dòng ở 1440 trong bài 9, 10** (`RobotLab.tsx`, `RobotLab.css`).
+  - Ở khung 1022 px của LMS, nút chạy (642 px) và Kiểm tra (231 px) chừa cho tên bài 97 px; "Giao hàng theo vạch" 155 px, "Phân loại theo
+    màu" 143 px.
+  - **Sửa:** ở bài của xe tay gắp, tên bài co lại (`flex: 1 1 0`, tối thiểu 72 px) với dấu "…", tên đầy đủ trong tooltip (`title`). Ở 1022 px
+    cả bốn bài một dòng; khung 3D bài 9, 10 cao 439 px thay vì 397. Hẹp hơn 72 px thì xuống dòng như cũ (1366×768 vẫn hai dòng ở mọi bài).
+  - **Rover không đổi:** header rover không có class và `title` mới; ảnh header 7 bài rover ở 1022 và 1100 px giống hệt master. Ghi chú: ở
+    1022 px các bài rover cũng xuống hai dòng (tên 103–140 px > 97); bật cho rover chỉ là thêm class, việc của chủ sản phẩm.
+- **G2 I1: dòng "Màu" khi chương trình không bật cảm biến màu** (`core/run/robot-run-session.ts`, `ui/robot3d/color-sensors-on.ts`,
+  `parts/sensor-overlay.ts`, `TopViewSensors.tsx`).
+  - Nguồn chọn: `uses` của lượt chạy (một op của role cảm biến màu, `color.is` hay `color.raw`, mà setup() chạy `colorBegin`). Trạng thái
+    publish có `colorSensorsOn` (mảng role, frozen, một mảng cho cả lượt); không có cho kit không có cảm biến màu. Không nằm trong world, nên
+    không hash nào đổi.
+  - Cả hai view đọc cùng trường đó (`shownColorSensorsOn`, `colorSensorShown`): cảm biến không bật thì không có tia, chấm và dòng "Màu".
+    Không cấp phát mỗi frame, không vẽ thêm khi đứng yên.
+  - Kết quả (tag cuối lượt Chạy lời giải): bài 8, 9, 11 chỉ còn "IR: …"; bài 10 vẫn "Màu: …"; Lái tay (teleop có `color.is`, phán quyết E3)
+    vẫn "Màu: …". Tab chân vẫn nói "chưa có số đọc".
+- **G2 M2: `restingOn` mỗi tick — không làm, dừng và báo.** Không goal nào đọc nó (`object-on-object` xét theo chiều cao). Bỏ nó khỏi extras
+  không đổi vật lý (hash `final` của ba fixture gripper và mọi check giữ nguyên), nhưng đổi hash `trajectory` của ba fixture gripper trong
+  `tests/__snapshots__/robot-determinism.json`, vì trajectory hash cả `snapshotText(world.frameExtras())` mỗi tick: pick-place
+  `abafe587` → `d41e8c6f`, stack `ac6f2b46` → `07058f9c`, sensors `22615357` → `7d98b84f`. Brief cấm đổi hash, nên chưa áp dụng; bản vá
+  sẵn: `.superpowers/sdd/n19-gripper-plan/final-fix-m2-pending.patch`. §4.4/§4.11 giữ nguyên tới khi controller quyết.
+- **G2 M3:** `RELEASE_HYSTERESIS_DEG` chuyển sang `core/world/grasp-rules.ts` (không Rapier, cạnh `units.ts`: lint cấm `src/ui` đọc
+  `world/robot/`); `grasp.ts` và `pin-text.ts` (`CLAW_CLOSED_FROM_DEG`) cùng import.
+- **G2 M4:** schema báo lỗi vật của kịch bản kit có tay gắp mà hộp có `sizeCm[0] ≠ sizeCm[1]` hoặc `yawDeg` không là bội của 90; trụ không bị
+  kiểm; kịch bản rover không bị kiểm; bốn bài nạp như cũ (`scenario-schema.gripper-objects.test.ts`).
+- **G2 M1:** `kits/README.md` nói bài 8–11 dùng `ref-uno-gripper@0`.
+- **Không đổi:** hash và golden của rover, `verify:attempt`, điểm bốn bài 100/97/100/97 và các exploit, `ROBOT_ENGINE_VERSION` 1.
+
 ## 5. Review Focus
 
 1. **Vật đang giữ đâm tường hoặc vật khác, hoặc bị ép xuống sàn.** Tuột đúng ngưỡng, va chạm tính cho xe, không có NaN, xe không lật. *Test (B3):* `held cube hitting a wall at 0.4 m/s breaks the grasp and counts as robot contact`; `pressing a held cube on the floor at lift stall keeps the grasp`.

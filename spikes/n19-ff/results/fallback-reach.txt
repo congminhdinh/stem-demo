@@ -1,0 +1,38 @@
+# N19 final fix (G1 M1): which free views reach freeViewPose's fallback (no choice keeps the robot MIN_ROBOT_PX wide), measured on master
+# 9e4f97b's camera-studio.ts with a temporary counter in that branch (pushed to globalThis and to document.body.dataset.ffFallbacks), since
+# removed; 2026-10-27, Apple M4 Pro, Node 24.22.1 / Chromium headless.
+
+## camera-studio.test.ts (free-view-golden.json's 140 poses, the pinned 1100 and 760 px frames, every scenario of the catalog)
+FF fallbacks: 0
+
+## The rover pixel-diff set's states (spikes/n19-e67/rover-shots.mjs: lesson host 1100 x 640 in 1200 x 760, idle 2 s and after 15 x Bước), dev server
+rb-drive-to-zone high: fallbacks idle 0, after 15 steps 0; camera 1.784 -76.0 56.0
+rb-drive-to-zone low: fallbacks idle 0, after 15 steps 0; camera 1.784 -76.0 56.0
+rb-square-route high: fallbacks idle 0, after 15 steps 0; camera 1.755 -31.0 56.0
+rb-square-route low: fallbacks idle 0, after 15 steps 0; camera 1.755 -31.0 56.0
+rb-stop-at-wall high: fallbacks idle 0, after 15 steps 0; camera 1.898 -76.0 56.0
+rb-stop-at-wall low: fallbacks idle 0, after 15 steps 0; camera 1.898 -76.0 56.0
+rb-line-follow high: fallbacks idle 0, after 15 steps 0; camera 1.763 30.4 56.0
+rb-line-follow low: fallbacks idle 0, after 15 steps 0; camera 1.763 30.4 56.0
+rb-servo-gate high: fallbacks idle 0, after 15 steps 0; camera 1.888 -76.0 56.0
+rb-servo-gate low: fallbacks idle 0, after 15 steps 0; camera 1.888 -76.0 56.0
+rb-mini-mission high: fallbacks idle 0, after 15 steps 0; camera 2.092 -47.3 56.0
+rb-mini-mission low: fallbacks idle 0, after 15 steps 0; camera 2.092 -47.3 56.0
+rb-sandbox high: fallbacks idle 0, after 15 steps 0; camera 1.830 -82.3 56.0
+rb-sandbox low: fallbacks idle 0, after 15 steps 0; camera 1.830 -82.3 56.0
+
+## Control: Lái tay on (the lab opened at the frame's size, SwiftShader)
+rb-grip-pick 948x450 fallbacks before teleop 0 with teleop 3
+rb-mini-mission 862x450 fallbacks before teleop 0 with teleop 2
+rb-drive-to-zone 948x450 fallbacks before teleop 0 with teleop 2
+rb-drive-to-zone 1100x640 fallbacks before teleop 0 with teleop 0
+rb-mini-mission 1100x640 fallbacks before teleop 0 with teleop 0
+# So the rover reaches the fallback only with its drive pad open in the LMS's short frames (1366 x 768 and smaller), never in the pinned sets.
+
+## freeViewPose's cost where it reaches the fallback (vitest, Node 24.22.1, median of 30 after 5 warm-ups; load 5.2)
+BENCH rb-grip-pick 569x368: master median 0.55 ms, now 0.85 ms
+BENCH rb-grip-sort 613x397: master median 0.97 ms, now 1.42 ms
+BENCH rb-grip-deliver 517x368: master median 0.83 ms, now 1.46 ms
+BENCH rb-mini-mission 517x368: master median 1.79 ms, now 3.22 ms
+BENCH rb-drive-to-zone 660x497: master median 0.18 ms, now 0.18 ms   (a view that fits: unchanged)
+# Once per HUD height and view (keptFreeViewPose keeps 16 a scene).
