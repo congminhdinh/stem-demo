@@ -329,8 +329,8 @@ Toàn bộ §5 của plan N18 vẫn áp dụng: B1, Rapier chỉ ở `src/core/w
   - **Vỏ servo kẹp là dữ liệu kit** (PLACEHOLDER): `clawServoCenter{U,V,W}Cm` `[-0.13, 0, 1.535]` và `clawServoSize{U,V,W}Cm` `1.22 × 2.28 × 2.27`, trong khung giá kẹp.
     - Asset và view đọc hộp này; test giữ phần vẽ bằng hộp trong 0,5 mm.
     - World chưa đọc. **B5 thêm collider này** và siêu âm phải nghe thấy nó: servo nâng lên trước HC-SR04 thật thì chắn tia, là một lỗi đáng để học.
-  - **Bo mạch trên xe không có tay servo** đặt đúng chỗ của rover, che phần AO đã bake dưới bo. Ở mức low còn một vệt rất nhạt tại chỗ buzzer của rover (−5, 3); không thêm vật che.
-  - **Không vẽ gì quá ±6,8 cm** (thanh ngang của vật lý), trừ hai đầu vít trục boom nhô 0,5 mm.
+  - **Bo mạch trên xe không có tay servo** đặt đúng chỗ của rover, che phần AO đã bake dưới bo. Ở mức low còn một vệt rất nhạt tại chỗ buzzer của rover (−5, 3); không thêm vật che. (E8 đã sửa trong view, không đổi asset: §4.15.)
+  - **Không vẽ gì quá ±6,8 cm** (thanh ngang của vật lý), trừ hai đầu vít trục boom nhô 0,5 mm. Review E6/E7 lần 2 (N1) đo đầu trục boom bên trái nhô 1 mm (−6,897 cm). E8 cắt trục về đúng mặt ngoài tay boom, dưới đầu vít: boom nay ±6,848 cm ở cả hai mức (§4.15).
     - Thanh nối dưới và tai giá kẹp nằm giữa giá bên và tay boom.
     - Hai đầu tròn của tay boom vẫn quá hộp tấm 0,5 cm ở hai đầu, dọc theo boom.
   - **Kệ kho** dựng cho tường 40 × 4 × 12 cm. View kéo giãn kệ theo tường, còn biển co đều theo chiều cao tường. D4 nên chọn tường gần kích thước đó.
@@ -520,6 +520,61 @@ e2e `robot-lab-check.spec.ts` (Gate G1). Hướng dẫn soạn: `docs/robot-scen
   - `lower-arm-fully`: hạ tay 0° ở cuối vạch rồi mới mở kẹp. Khối nằm trên bệ, lệch 1,71–1,81 cm (cho phép 1,5); bệ dời 0,04–0,05 cm. Đây là một lần xếp suýt đạt, không xô bệ, nên trần là **35**, bằng `place-beside-base`. Đo được 35 / 35 / 35, test ghim.
   - Không giữ được ở 20 nếu không đổi goal: một `maxMoveCm` < 0,04 cm thì vô nghĩa. Chở ở 0° được 0.
 - **Test N18:** các test đếm key được nối thêm bốn key. Test và fixture chỉ dành cho N18 (n19-neutral, golden khung nhìn R4.7, hộp bao của prop pilot, case của pilot, kit rehearsal, hai guard của E5) giữ đúng sáu bài rover. Chín assertion có luật "mọi bài là rover / không có vật" đọc kit của từng key (ruling D4 item A, P1–P9).
+
+### 4.15 Ghi lại khi làm E8 (gallery trên bốn bài thật, nit hình, pixel rover; thắng §7 E8 khi mâu thuẫn)
+
+Lệnh tái lập gallery (một lệnh, tự mở dev server và lesson host trên `--port` và `--port + 1`): `node spikes/n19-e8/gallery.mjs --out=<dir> --port=5542`.
+Test: `e2e/robot-lab-gripper-look.spec.ts` (chromium-robot), `tests/color-vision.test.ts`, `TopView2D.tags.test.tsx`, `top-view-tag-layout.test.ts`,
+`ground-paint.named-zones.test.ts`, `zone-pattern.lessons.test.ts`, `parts/robot-assembly.deck.test.ts`, `parts/sensor-overlay.quiet-ray.test.ts`.
+
+- **Mốc chụp** (`e2e/gripper-moments.ts`): lời giải mẫu chạy bằng Bước (0,1 s mô phỏng mỗi lần, run tạm dừng, không chờ theo đồng hồ) tới start,
+  approach (bài 9, 11: đi theo vạch, chưa thấy vật), grasp (bước đầu tiên kẹp đã đóng trên vật, tay còn hạ), carry, release (bài 11). Thời điểm lấy
+  từ trace 0,1 s của chính lời giải (`spikes/n19-e8/moments.test.ts`). Bài 8 sau fix round D4 (tiếp cận 50 %, thả cách tường 35 cm): grasp 3,7 s,
+  carry 5,0 s. Mỗi ảnh được kiểm với world của mốc (vật giữ, góc tay, góc kẹp, vị trí vật trong 0,05 cm, hướng xe trong 1°).
+- **Lượt 2 và 3 của bài 10** (khối đỏ, xanh dương) xem như lab xem một lượt Kiểm tra: Kiểm tra (Nhanh) lời giải mẫu giữ kẹp tới hết
+  (`holdAtEnd`: khối `put-open` đổi thành "kẹp đóng", để lượt nào cũng trượt và có "Xem lại"), Xem lại, Tạm dừng, Đặt lại robot, rồi Bước. Mọi
+  khối trước đó là của lời giải mẫu, nên world tới 5,7 s là của lời giải mẫu (spec so với trace).
+- **Camera của gallery:** dev server chạy StrictMode, `useMemo` của CameraRig tạo RigControls hai lần, và cái bị bỏ vẫn nối với canvas. Kéo chuột
+  để pan vì vậy bị áp hai lần quanh hai target và xoay camera (đo: 1,85° azimuth cho 25 px ở 2,1 m; `_pan` của một controls gọi riêng giữ nguyên
+  góc). Production chỉ có một. Close-up "Tự do" vì vậy dịch camera và target của chính controls của rig (đúng như một lần pan). Xoay và zoom
+  bằng phím camera của rig, chờ 2 frame sau mỗi phím. Hai lần chạy cho ảnh trùng từng bit.
+- **Mù màu:** ma trận Machado, Oliveira, Fernandes 2009, severity 1.0, trên linear RGB (`e2e/color-vision.ts`).
+  - Test nhận ra mark của khối trên bản đồ 2D ở DPR 3. Chỉ đọc hai layer đầu (thảm và vật), vì overlay cảm biến (cạnh nón siêu âm, đốm màu)
+    nằm đè lên khối. Mask Otsu 33 × 33 ô, mỗi ô 1 mm, trên mặt khối, so với hình riêng của ba mark (geometry `markPattern`, nét
+    `max(width, 1,5 px)` như bản đồ vẽ), không phụ thuộc lớp nào là mực.
+  - Đo trên chromium-robot (như nhau ở thường, deuteranopia, protanopia ± 0,004): xanh lá → lưới 0,871 (mark kế 0,588), đỏ → sọc 0,787
+    (0,524), xanh dương → chấm 0,857 (0,591). Test đòi ≥ 0,75, cách mark kế ≥ 0,15, và ba mark khác nhau.
+  - Đột biến (xanh lá = sọc): khối xanh lá đọc ra sọc 0,907, test trượt ("3 mark", nhận 2).
+  - Fill đỏ và xanh lá dưới deuteranopia là (139, 124, 40) và (134, 122, 66), tương phản 1,03:1: màu không đủ, mark thì đủ.
+- **Nit từ review E6/E7 lần 2:**
+  - **Vệt buzzer ở mức low (N3).** AO trên mặt deck dưới bo buzzer 2 cm của rover là 0,50 ở mọi đỉnh (sàn của bake). Mặt deck trống là 1,00, ở cả
+    hai mức (`spikes/n19-e8/deck-ao.test.ts`). Kit không có buzzer ở chỗ đó thì `unshadeDeck` đặt bóng của deck trống (1) trên bản sao geometry.
+    Asset N18 không đổi, rover không đổi.
+  - **Trục boom (N1).** Đã cắt: xem §4.9. Build lại root N19: robot-kit −44 B, robot-kit-low −24 B, props trùng byte, root N18 vẫn đóng băng.
+- **Nit từ review E4/E5:**
+  - **Tag 2D "IR/Màu" (M4).** `top-view-tag-layout.ts` thử bốn phía của đầu ngàm: phía trước ngàm (gần hướng xe nhất trên màn hình), bên phải
+    xe, bên trái, phía sau. Lấy phía đầu tiên mà tag không đè hộp xe (thân và ngón), vòng giữ vật, tag khoảng cách, và còn trong bản đồ. Bên
+    hông ngàm, tag đứng ngoài hộp xe 3 px.
+    - Lỗi E4 kèm theo: `offsetX(width / 2)` trên Konva Label (gốc của Label là đầu pointer) làm tag lệch nửa tag sang trái, nằm trên xe. Tag
+      khoảng cách của N18 lệch giống vậy và giữ nguyên, vì pixel rover phải trùng.
+  - **Chữ vùng trên bản đồ 2D.** Không bao giờ vẽ đè vật, vòng hay xe: chữ được vẽ vào ảnh thảm ở layer 1, còn vật, vòng và xe ở layer 2 (có
+    test). M5: tên vùng có `name` chuyển ra mép xa, bên trong vùng; vùng không tên (mọi bài rover) giữ chữ ở giữa.
+  - **M6.** Không bài nào có cả cross-hatch của `area` và lưới (có test). Bài 8 có area mà không có xanh lá; bài 10 có xanh lá mà không có area.
+    Bài 11 có hatch 45° (vùng xếp) cạnh khối đỏ sọc 0°, nhưng không có việc nào cần phân màu, nên không đổi.
+  - **Tia màu 3D khi không gặp gì.** Trước đó là slate đậm ở 30 %: 1,02:1 trên băng đen. Nay là slate-500 `#64748b` ở 90 %: ≥ 3:1 trên băng,
+    thảm và mọi vùng của các bài.
+  - **Tia IR 3D nhìn từ trên.** Vỏ servo chỉ che 1,8 mm đầu của tia 2 cm. Phần còn lại bị tia trục siêu âm che: tia này ở trên đường giữa
+    ngàm, cao hơn 4 cm. Khi IR "quiet" (alpha 0,35, test E5 ghim), tia mờ theo thiết kế. Khi IR thấy vật (0,95), tia và đốm màu đều thấy rõ
+    (ảnh `*-grasp-above-close`). Không đổi.
+- **Thêm: tag 3D của tay gắp và tag khoảng cách.** Ở "Theo xe" lúc chở, tag hai dòng nằm dưới tag khoảng cách hoặc dưới HUD (E5 đặt tag tay
+  gắp sau cùng, và nó chỉ có vài chỗ quanh ngàm). Nay tag tay gắp được đặt trước. Tag khoảng cách tránh nó, và có thêm 4 chỗ trên và hai bên
+  echo (một echo ngắn, như khối đang giữ ở 3,8 cm, đặt mọi chỗ dọc tia ngay bên ngàm). Rover không có tag tay gắp, nên tag khoảng cách của nó đặt
+  như cũ.
+- **Bản đồ 2D: HUD che góc trên bên trái.** Ở bài 10 lượt 2, lúc 3,9 s, xe và khối đỏ ở góc đó nên bị HUD che. Fit của bản đồ là của rover
+  (pixel rover phải trùng) nên không đổi. Ghi lại cho owner (học sinh thu "Mục tiêu" lại được). Gallery cắt ảnh quanh xe từ chính layer của bản
+  đồ, không có HUD; ảnh cả bản đồ thì vẫn như học sinh thấy.
+- **Pixel rover:** BASE df7c327 so với HEAD, build production. 44 ảnh 3D và 14 ảnh 2D trùng bit; lần này sandbox-high cùng trạng thái ở cả hai
+  bản (`spikes/n19-e8/results/rover-pixels.txt`).
 
 ### 4.16 Ghi lại khi làm E9 + E10 (bench máy trường, hai sửa hiệu năng, e2e trên bài thật; thắng §7 E9/E10 khi mâu thuẫn)
 
