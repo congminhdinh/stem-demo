@@ -559,6 +559,70 @@ Số đo, lệnh và tải máy: `spikes/n19-e9/results.md` và `results/`. M4 P
 - **E10** (`e2e/robot-lab-gripper.spec.ts`, bài thật qua `?template=<key>`, đọc chương trình từ `robotSolutions`, không ghim hash): Chạy bài nhặt (chip "Đang giữ: khối vàng" lên rồi mất; câu báo "Đã gắp"/"Đã thả"; khối vào vùng thả), Kiểm tra Nhanh (100/100 và ba dòng mục tiêu; `push-in` được 15/100 với "Khối vàng bị đẩy chứ không được gắp lúc …"), Kiểm tra 4× (không câu báo gắp/thả, không Lái tay, phím không làm gì: hash thế giới từng lượt bằng Kiểm tra không phím), Q/E/R/F, Xem lại lượt 2 và 3 của bài phân loại (chương trình mẫu đổi trái/phải: bản đồ 2D, prop 3D, tag, chip, vùng sáng đều theo màu lượt; sọc/lưới/chấm), không WebGL (Chromium và Firefox). Prop 3D đọc từ trạng thái scene qua reader mới `arena-props-state.ts` (cùng kiểu `zone-tags-state.ts`). Hai ghi chú: câu "Đã thả" có thể đến sau "Chương trình đã chạy xong" ở 4× (cửa sổ 1,5 s của `GRIP_INTERVAL_MS`); một "Xem lại" gập thẻ kết quả nên phải mở lại để bấm lượt tiếp.
 - **Spec `robot-lab-gripper-ui.spec.ts` hết chập chờn khi tải** (không đổi giá trị assertion nào; `--repeat-each` trước/sau ở `results/gripper-ui-pass-rates.txt`): thử đợi tay hạ tới 60° bằng cách chờ `> 59,5` khi tay đi từ 90 xuống (đúng ngay từ đầu; nay chờ `< 60,5` rồi kiểm `> 59,5`); thẻ khối xanh đọc một lần ngay sau khi gắp (nay chờ); và cửa sổ "nằm yên không vẽ" tính theo giây thật (nay theo đồng hồ thế giới, bắt đầu 0,3 s sau cặp khung trôi yaw). Trước: 47/50 ở 4 worker, 97/100 và 98/100 ở 5–6 worker; sau: 100/100 hai lần ở tải 7–32.
 
+### 4.17 Ghi lại khi làm B7 (xe tay gắp không quay khi đứng yên; thắng §4.4 và §4.6 khi mâu thuẫn)
+
+Số đo và lệnh tái lập: `spikes/n19-b7/results.md`. Code: `world/robot/gripper.ts` (đầu file), `assembly.ts` (`carStill`). Test: `world/robot/gripper.rest.test.ts`, `run/robot-run-session.gripper-rest.test.ts`, `ui/robot3d/stack-at-rest.test.ts`.
+
+- **Triệu chứng (E9, e910-report concern 1).**
+  - Sau `stop` của lời giải mẫu rb-grip-stack, xe quay 0,0102 °/s.
+  - Mỗi lần publish đổi quaternion khoảng 9e-6, vượt `SAME_QUAT` 1e-5, nên scene 3D vẽ 10 frame/s khi nhìn như đứng yên.
+  - Đo lại ở world (run session, headless): −1,015e-2 °/s ở cả ba biến thể. Xe chỉ chạm sàn.
+- **Không phải năm nghi phạm của brief.** Gỡ từng cái, hay chỉ giữ một cái và gỡ bốn cái kia: vẫn −0,98e-2 đến −1,21e-2 °/s.
+  - Không cho ngủ: chassis của **cả hai kit** đều `setCanSleep(false)`, nên rover không đứng yên nhờ ngủ.
+  - Làm mới contact bi đỡ mỗi tick.
+  - `LINK_HOLD_NM`: không có trong production; khoá AngZ của §4.6 thay cho nó.
+  - Chạm bệ/khối: không có lúc cuối.
+  - Ma sát và lực drive khi thả trôi.
+- **Nguyên nhân: motor của servo nâng gánh trọng lượng boom khi đứng yên.**
+  - Motor khớp là ràng buộc vận tốc mềm. Khi đứng yên nó không bao giờ thoả: luật hãm đòi error/dt, khoảng 0,03 rad/s ở 55°, trong khi boom đứng im.
+  - Phần lời giải PGS còn sót mỗi bước lọt vào yaw của chassis, mà yaw chỉ được ma sát hai bi đỡ giữ.
+  - Đo trên cùng trạng thái cuối bài, đổi chỗ boom được giữ:
+
+    | Thay đổi | yaw (°/s) |
+    |---|---:|
+    | boom giữ bằng giới hạn khớp đóng ở góc hiện tại, motor tắt | **6,5e-6** |
+    | motor vị trí thay motor vận tốc | −1,035e-2 (như cũ) |
+    | motor vận tốc mục tiêu 0 (giảm chấn thuần) | −1,030e-2 (như cũ) |
+    | đặt vận tốc mọi body về 0 | quay lại ngay trong tick sau |
+    | solver 8 / 16 vòng | ×0,64 / ×0,35 |
+    | bỏ vòng lặp thêm của bộ gắp | ×31 |
+
+  - Ba bài kia kết thúc ở lift 0°, boom tựa chặn của khớp, nên không quay.
+  - Trên sàn phẳng không có lịch sử, tay ở 10–70° quay 1,2e-4–2,5e-4 °/s. Cuối bài stack lớn hơn khoảng 60 lần: phụ thuộc trạng thái solver của lượt chạy. Phần này chưa giải thích được khi không có source Rapier.
+- **Sửa: servo giữ khi xe nằm yên (chỉ kit gripper).**
+  - **Khi nào giữ.** Khi đủ mọi điều kiện, liên tục 1 s (`LIFT_HOLD_TICKS` 120):
+    - xe đứng trên ba điểm tựa (hai bi đỡ và caster chạm sàn);
+    - drive dừng (thả trôi hoặc phanh);
+    - chassis chậm hơn 0,1 cm/s và 0,57 °/s;
+    - lệnh lift và claw không đổi;
+    - boom ở lệnh trong 0,1° và quay chậm hơn 0,01 rad/s.
+  - **Giữ thế nào.** Giới hạn của khớp boom đóng lại ở góc nó đang đứng, motor tắt: servo đứng ở đích với tải dưới mô-men kẹt thì không chạy.
+    - Đang giữ vật thì hai ngón cũng giữ như vậy. Motor ngón lúc đó chỉ chỉnh ngón theo mặt vật mỗi tick (luật 3), và rò thẳng vào yaw qua khớp quay quanh trục đứng: 1,3e-4 °/s, còn 1,3e-6 khi tắt motor ngón.
+    - Claw rỗng, hoặc kẹt trên vật chưa giữ (luật 2), giữ motor của nó.
+  - **Khi nào thả.** Có lệnh lift hoặc claw mới, xe chạy hoặc drive bật, hoặc đặt lại bằng tay (`placeAt`). Motor chạy tiếp từ chỗ đó.
+  - **Vì sao 1 s.** Kết quả của các test B5 sau một quãng dừng nhạy tới bit cuối với trạng thái tay.
+    - Giữ sau 0,25 s: một cú đâm tường lắng 0,61 s, quá bound 0,5 s.
+    - Giữ sau 0,6 s (giữa lúc pick gắp khối): bốn test trượt.
+    - Giữ cả ngón của claw rỗng: một test lắng 1,09 s.
+  - **Vì sao phải đứng trên ba điểm tựa.** Xe dựa tường hay ngóc đầu trên tay đang ấn thì chỗ nó nằm yên phụ thuộc lực servo. Giữ một xe dựa tường đổi góc nghiêng 0,54°, quá bound 0,5°. Servo ấn vật thì vẫn ấn bằng motor, như cũ.
+  - **Rover không đổi.** Rover không gọi Rapier thêm lần nào: `carStill` chỉ đọc khi có gripper. 137 450 lời gọi, cùng hash với master.
+- **Kết quả.**
+  - **Bốn bài, trạng thái cuối:** |yaw| ≤ 2,9e-5 °/s, trôi ≤ 6e-7 cm/s. rb-grip-stack −4,6e-8 °/s.
+  - **Sàn phẳng:** không giữ vật ≤ 2,5e-5 °/s; giữ 15/50 g ≤ 7,4e-5 °/s.
+  - **Trình duyệt:** rb-grip-stack vẽ 0 frame trong 5 s đứng yên (trước 50).
+  - **Lúc bắt đầu giữ, ảnh đổi** ≤ 2,4e-4 cm và ≤ 7,7e-6 ở quaternion. Cộng với phần quay đã dồn, nó có thể cho **một** cặp frame cuối, khoảng 1 s sau khi xe dừng.
+  - **Điểm bài học không đổi:** 100/97/100/97, mọi exploit và lời giải mù như cũ. `verify:attempt` 23/23 rover và 19/19 gripper `match`.
+  - **Golden đổi:**
+    - `gripper-stack` `42a76f26`/`ac6f2b46`;
+    - `final` của bốn check bài tay gắp (và G1 e2e);
+    - hai fixture gripper kia và mọi thứ của rover giữ nguyên;
+    - `ROBOT_ENGINE_VERSION` vẫn 1.
+- **Còn mở.**
+  - Hai exploit kết thúc khi đang giữ khối vẫn quay trên 1e-4 °/s, dù trạng thái giữ đã vào. Đó là sai số của chuỗi khớp, khuếch đại theo lịch sử.
+    - stack `hold-over-base`: 1,66e-4 °/s (trước 1,96e-2), khoảng một cặp frame mỗi 6 s;
+    - pick `hold-in-zone` (khối nằm trên sàn): 3,7e-4 °/s (trước 4,9e-4).
+  - Test 3D "đứng yên không vẽ" của `robot-lab-gripper-ui.spec.ts`, bản trên master, bắt được cặp frame lúc bắt đầu giữ. Nó đo cửa sổ 1,5 s theo giờ tường. Bản viết lại của E10 đo theo đồng hồ world và qua: vì vậy B7 phải merge sau E9 + E10.
+
 ## 5. Review Focus
 
 1. **Vật đang giữ đâm tường hoặc vật khác, hoặc bị ép xuống sàn.** Tuột đúng ngưỡng, va chạm tính cho xe, không có NaN, xe không lật. *Test (B3):* `held cube hitting a wall at 0.4 m/s breaks the grasp and counts as robot contact`; `pressing a held cube on the floor at lift stall keeps the grasp`.
