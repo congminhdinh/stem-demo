@@ -237,6 +237,7 @@ async function cameraMode(frame, mode) {
  * front left, 135 its back right...), the polar angle and the distance.
  */
 const views = {
+  // (`lessonKey`: the lesson's, set by the loop below before each view is taken.)
   free: async (frame) => cameraMode(frame, 'orbit'),
   follow: async (frame) => cameraMode(frame, 'follow'),
   'free-close': async (frame, page, world, close) => {
@@ -264,10 +265,15 @@ const views = {
     await zoomTo(frame, 0.22);
     await settle(frame);
   },
+  // "Theo xe" holds its camera over its target where the arena's walls and props would come between (CameraRig's clearSight and
+  // keepOutOfProps): lessons 8 and 11 stop at a polar angle of about 35°. It stands a little farther back than the free close-up, so that
+  // the jaws stay in the frame.
   'follow-close': async (frame, page, world, close) => {
     await cameraMode(frame, 'follow');
-    await orbitTo(frame, 90 + world.robot.yawDeg + close.side, close.polar);
-    await zoomTo(frame, close.distance);
+    // Lesson 9's car follows the tape up the arena: from its front left the HUD would stand on it, so this one looks from its front right.
+    const side = lessonKey === 'rb-grip-deliver' ? -close.side : close.side;
+    await orbitTo(frame, 90 + world.robot.yawDeg + side, close.polar);
+    await zoomTo(frame, close.distance * 1.3);
     await settle(frame);
   },
 };
@@ -314,6 +320,7 @@ const save = (path, image) =>
   })());
 
 // The shots -------------------------------------------------------------------------------------------------------------------------
+let lessonKey = '';
 const index = [];
 const cvdSources = [];
 const cvdMarks = [];
@@ -323,6 +330,7 @@ const browser = await chromium.launch({ headless: true, channel: 'chromium' });
 try {
   const lessons = [...new Set(gripperLessonRuns.map((run) => run.key))];
   for (const key of lessons) {
+    lessonKey = key;
     const runs = gripperLessonRuns.filter((run) => run.key === key);
     for (const tier of ['high', 'low']) {
       if (!runs.some((run) => run.moments.some((moment) => plan[moment.name].views.some((view) => want(`3d/${shotName(run, tier, moment.name, view)}`))))) continue;
