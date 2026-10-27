@@ -72,7 +72,8 @@ const GRIPPER_KEEP_OUT_PX = 6;
  * the held cube's, puts them all by the jaws, where the gripper's tag is): beside its echo on either side, then over it (m, in the beam's
  * frame: up from the ray, over the height its spots along it stand at, the overlay's `distanceLiftM`; across). Review F5: the sides first,
  * so that it stays at its height by the echo before it climbs; fix round 1, farther out last, as it keeps clear of the claw and the objects
- * by it too. With none clear it stands at its ray's end. A rover's tag has its spots along the ray alone.
+ * too. Fix round 2: with none clear it is not shown, as the sensors' tag is not. A rover's tag has its spots along the ray alone, and with
+ * none clear stands at its echo.
  */
 const DISTANCE_LABEL_MORE_SPOTS_M = [
   [0, -0.09],
@@ -338,7 +339,8 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
         anchors[2 * a + 1] = seen ? anchor.y : Number.NaN;
       }
       let anchorCount = LABEL_REACH_SHARES.length;
-      if (gripperPlaced) {
+      // (Fix round 2: on any gripper car, its sensors' tag placed or not.)
+      if (room !== null) {
         for (let e = 0; e < DISTANCE_LABEL_MORE_SPOTS_M.length; e++, anchorCount++) {
           sprite.position.set(reach, lift + DISTANCE_LABEL_MORE_SPOTS_M[e]![0], DISTANCE_LABEL_MORE_SPOTS_M[e]![1]);
           sprite.getWorldPosition(anchor).project(camera);
@@ -355,6 +357,12 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
       const width = sprite.scale.x * elements[0]! * label.widthShare;
       const height = sprite.scale.y * elements[5]! * LABEL_PILL_HEIGHT_SHARE;
       placeLabel(labelBoxes.boxes[count]!, place, anchors, anchorCount, width, height, avoid, distanceAvoid);
+      // Fix round 2: a gripper car's distance tag with no clear spot is not shown, as its sensors' tag is not (it would stand on the claw or
+      // an object); a rover's stands at its echo, as N18 had it.
+      if (room !== null) {
+        sprite.visible = place.clear;
+        if (!place.clear) continue;
+      }
       if (place.reach < LABEL_REACH_SHARES.length) sprite.position.x = reach * LABEL_REACH_SHARES[place.reach]!;
       else sprite.position.set(reach, lift + DISTANCE_LABEL_MORE_SPOTS_M[place.reach - LABEL_REACH_SHARES.length]![0], DISTANCE_LABEL_MORE_SPOTS_M[place.reach - LABEL_REACH_SHARES.length]![1]);
       // The pill is centred on its canvas: `center.x` puts the share of it that the place says to the left of the anchor.

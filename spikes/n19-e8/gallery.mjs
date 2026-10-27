@@ -287,7 +287,9 @@ const plan = {
   approach: { views: ['follow', 'free-close', 'above-close'], close: { side: -40, polar: 55, distance: 0.3, ahead: 9, up: 2 } },
   grasp: { views: ['follow', 'follow-close', 'free-close', 'above-close'], close: { side: -50, polar: 58, distance: 0.34, ahead: 7, up: 3 } },
   carry: { views: ['follow', 'free-close'], close: { side: -60, polar: 62, distance: 0.42, ahead: 5, up: 6 } },
-  release: { views: ['follow-close', 'free-close'], close: { side: -55, polar: 55, distance: 0.38, ahead: 9, up: 5 } },
+  // Fix round 2: and the lab's own "Tự do" (lesson 11's stack with its tags; lesson 10's cube put at the green zone's middle, its tag's line
+  // by the zone's edge).
+  release: { views: ['free', 'follow-close', 'free-close'], close: { side: -55, polar: 55, distance: 0.38, ahead: 9, up: 5 } },
 };
 
 
@@ -341,12 +343,16 @@ async function tagsOf(frame) {
     const module = await import(/* @vite-ignore */ path);
     return { gripper: structuredClone(module.gripperTagLayout), labels: module.labelBoxes.boxes.slice(0, module.labelBoxes.count).map((box) => ({ ...box })) };
   });
+  // Fix round 2 (review R1): every object's box on the screen, and the ones in the view, which the tags keep off (with the claw).
   const keepOut = gripper.keepOut.slice(0, gripper.keepOutCount);
-  const over = (box) => keepOut.some((keep) => meetsNdc(box, keep));
+  const objects = gripper.objects.slice(0, gripper.objectCount).map((box, i) => ({ id: gripper.objectIds[i], box }));
+  const inView = objects.filter(({ box }) => box.right > -1 && box.left < 1 && box.top > -1 && box.bottom < 1).map(({ id }) => id);
+  const over = (box) => keepOut.some((keep) => meetsNdc(box, keep)) || objects.some((object) => meetsNdc(box, object.box));
   const distances = labels.slice(gripper.shown ? 1 : 0);
   const words = [gripper.shown ? (over(gripper.box) ? 'IR/Màu OVER the claw or an object' : 'IR/Màu clear') : 'IR/Màu hidden'];
-  if (distances.length > 0) words.push(distances.some(over) ? 'distance OVER the claw or an object' : 'distance clear');
-  return { text: words.join(', '), bad: (gripper.shown && over(gripper.box)) || distances.some(over) };
+  words.push(distances.length === 0 ? 'no distance tag shown' : distances.some(over) ? 'distance OVER the claw or an object' : 'distance clear');
+  words.push(`kept off: the claw${inView.map((id) => `, ${id}`).join('')}`);
+  return { text: words.join('; '), bad: (gripper.shown && over(gripper.box)) || distances.some(over) };
 }
 
 const browser = await chromium.launch({ headless: true, channel: 'chromium' });

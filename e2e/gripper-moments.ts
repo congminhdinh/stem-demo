@@ -6,7 +6,8 @@
 //   - start: the lesson as it opens, nothing run (the arm up at setup()'s 90°, the claw open);
 //   - grasp: the first Bước with the jaws closed on the object on the floor (the arm still down): the claw closing on it;
 //   - carry: the object held and lifted (90°, lesson 11's 55°), the car driving it to where it goes;
-//   - release (lesson 11): the claw open over the base, the cube left standing on it;
+//   - release (lesson 11): the claw open over the base, the cube left standing on it; (lesson 10, its first round, fix round 2) the cube
+//     left at the green zone's middle, the car backing away;
 //   - approach: going to the object, the arm down, the claw open, the IR and the colour sensor seeing nothing yet (lessons 9 and 11 on
 //     the tape; fix round 1, review F1: lessons 8 and 10 too, for the default "Theo xe" shots).
 // Lesson 10's later rounds (red, blue) are shown as the lab shows a check's round: Kiểm tra, Xem lại lượt N, then paused and put back to
@@ -73,6 +74,8 @@ export const gripperLessonRuns: readonly GripperLessonRun[] = [
       { name: 'approach', steps: 6, expect: { heldId: null, liftDeg: ARM_DOWN, clawDeg: OPEN, object: { id: 'cube', zCm: ON_FLOOR, at: [49, 75] }, yawDeg: 0 } },
       { name: 'grasp', steps: 10, expect: { heldId: 'cube', liftDeg: ARM_DOWN, clawDeg: CLOSED, object: { id: 'cube', zCm: ON_FLOOR, at: [49, 75] }, yawDeg: 0 } },
       { name: 'carry', steps: 30, expect: { heldId: 'cube', liftDeg: ARM_UP, clawDeg: CLOSED, object: { id: 'cube', zCm: [8.9, 9.1], at: [67.34, 75] }, yawDeg: 0 } },
+      // Fix round 2 (review concern 2): the round's end, the cube left at the green zone's middle and the car backing away from it.
+      { name: 'release', steps: 61, expect: { heldId: null, liftDeg: ARM_DOWN, clawDeg: OPEN, object: { id: 'cube', zCm: ON_FLOOR, at: [88, 75] }, yawDeg: 0 } },
     ],
   },
   {
