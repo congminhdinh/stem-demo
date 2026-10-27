@@ -34,7 +34,7 @@ describe('the words of a zone (N19 E5)', () => {
 });
 
 describe('the tags of named zones (N19 E5)', () => {
-  it('tags every named zone, whatever its kind, with its name (a checkpoint’s number beside it), over the middle of its bounds', () => {
+  it('tags every named zone, whatever its kind, with its name (a checkpoint’s number beside it), by its outer edge', () => {
     const base = scenarioCatalog.get('rb-sandbox')!;
     const zones = zoneNames.map((name, i) => ({ ...zone(zoneKinds[i % zoneKinds.length]!, name), id: `zone-${name}`, polygonCm: [[20 * i, 0], [20 * i + 10, 0], [20 * i + 10, 8], [20 * i, 8]] as [number, number][] }));
     const scenario = { ...base, arena: { ...base.arena, paint: { ...base.arena.paint, zones } } };
@@ -42,7 +42,9 @@ describe('the tags of named zones (N19 E5)', () => {
     // The checkpoints among them keep their numbers in the route (paint order here) beside their names.
     const numbers: Partial<Record<(typeof zoneNames)[number], number>> = { warehouse: 1, stack: 2 };
     expect(tags.map(({ zoneId, text, number }) => [zoneId, text, number])).toEqual(zoneNames.map((name) => [`zone-${name}`, vi[name], numbers[name] ?? null]));
-    expect(tags[2]!.centerCm).toEqual([45, 4]);
+    // N19 E8 fix round 2 (review concern 2, the controller's ruling): by its outer edge (the bottom, the arena's middle being far above
+    // it), 3 cm inside, across its middle; E5 had it at the middle of its bounds, [45, 4].
+    expect(tags[2]!.centerCm).toEqual([45, 3]);
   });
 
   it('gives the rover’s lessons the very tags they had (none of their zones has a name)', () => {

@@ -52,10 +52,12 @@ function footprintsOf(arena: Scenario['arena']): Footprint[] {
 }
 
 /**
- * N19 E8 fix round 1 (review F4): where a zone's tag has its line down to. A named zone with something standing in it at the start (the
- * pick-and-place lessons put their objects at a zone's middle) has it by its outer edge, as the 2D map paints its name (zone-label.ts
- * `outerEdgeIsBottom`), 15 % of its depth (at least 3 cm) inside and across its middle; by its other edge where that spot is on something
- * too; at its middle where both are. Every other zone's line goes down to its middle (N18, N19 E5).
+ * N19 E8 fix round 1 (review F4): where a zone's tag has its line down to. A named zone has it by its outer edge, as the 2D map paints its
+ * name (zone-label.ts `outerEdgeIsBottom`), 15 % of its depth (at least 3 cm, at most half of it) inside and across its middle, where the
+ * pick-and-place lessons neither start an object nor put one (they use a zone's middle: lesson 10 ends each round with its cube there); by
+ * its other edge where that spot is on something standing in the zone at the start; at its middle where both are. (Fix round 1 moved it
+ * only for a zone with something in it; fix round 2, review concern 2: every named zone.) Every other zone's line goes down to its middle
+ * (N18, N19 E5): the rover's zones have no names.
  */
 function anchorOf(zone: PaintZone, arena: Scenario['arena'], bodies: readonly Footprint[]): [number, number] {
   const middle = middleOf(zone);
@@ -65,9 +67,8 @@ function anchorOf(zone: PaintZone, arena: Scenario['arena'], bodies: readonly Fo
   const xs = zone.polygonCm.map(([x]) => x);
   const [minX, maxX] = [Math.min(...xs), Math.max(...xs)];
   const within = bodies.filter((body) => body.x >= minX && body.x <= maxX && body.y >= minY && body.y <= maxY);
-  if (within.length === 0) return middle;
   const on = ([x, y]: readonly [number, number]) => within.some((body) => Math.abs(x - body.x) < body.hx + FOOT_CLEAR_CM && Math.abs(y - body.y) < body.hy + FOOT_CLEAR_CM);
-  const inset = Math.max(3, 0.15 * (maxY - minY));
+  const inset = Math.min((maxY - minY) / 2, Math.max(3, 0.15 * (maxY - minY)));
   const top: [number, number] = [middle[0], maxY - inset];
   const bottom: [number, number] = [middle[0], minY + inset];
   const edges = outerEdgeIsBottom(minY, maxY, arena.ground.sizeCm[1]) ? [bottom, top] : [top, bottom];

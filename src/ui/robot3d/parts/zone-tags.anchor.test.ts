@@ -6,7 +6,8 @@ import { zoneTags } from './zone-tags';
 
 // N19 E8 fix round 1 (review F4): a named zone's tag in the 3D view has its line down to a spot clear of what stands in the zone at the
 // start (lesson 8's cube in "Khu lấy hàng", lesson 11's base, and the cube stacked on it, in "Vùng xếp"): by its outer edge, as the 2D
-// map paints its name (ground-paint.ts), else its other edge. A zone with nothing in it keeps its tag over its middle (N19 E5).
+// map paints its name (ground-paint.ts), else its other edge. Fix round 2 (review concern 2): every named zone, one with nothing in it at
+// the start too, where a lesson puts its object at the middle (lesson 10's cube ends each round at a colour zone's).
 
 const labels = { zoneLabel: (zone: Parameters<typeof zoneLabelOf>[1]) => zoneLabelOf((key, params) => translate('vi', key, params), zone) };
 const gripperLessons = ['rb-grip-pick', 'rb-grip-deliver', 'rb-grip-sort', 'rb-grip-stack'] as const;
@@ -48,9 +49,20 @@ describe('a named zone’s tag stands clear of what is in the zone (N19 E8)', ()
     const scenario = scenarioCatalog.get('rb-grip-pick')!;
     // "Khu lấy hàng": x 70–100, y 25–65 of a 90 cm deep arena; its top and bottom are as far from the middle (a tie: the top), 6 cm inside.
     expect(zoneTags(scenario, labels).find((tag) => tag.zoneId === 'pickup')!.centerCm).toEqual([85, 59]);
-    // "Vùng thả" has nothing in it: over its middle.
-    expect(zoneTags(scenario, labels).find((tag) => tag.zoneId === 'drop')!.centerCm).toEqual([128, 45]);
+    // "Vùng thả" has nothing in it at the start, and the cube is put at its middle (fix round 2, review concern 2): by its outer edge too.
+    expect(zoneTags(scenario, labels).find((tag) => tag.zoneId === 'drop')!.centerCm).toEqual([128, 59]);
     // "Vùng xếp": x 148–168, y 28–52 of an 80 cm deep arena (a tie: the top), 3.6 cm inside, clear of the 6 × 6 base at (158, 40).
     expect(zoneTags(scenarioCatalog.get('rb-grip-stack')!, labels).find((tag) => tag.zoneId === 'stack')!.centerCm).toEqual([158, 48.4]);
   });
+
+  it('stands clear of where lesson 10 puts its cube at each round’s end, the zone’s middle or near it (fix round 2, review concern 2)', () => {
+    const tags = zoneTags(scenarioCatalog.get('rb-grip-sort')!, labels);
+    // Where each round's reference leaves the 4 cm cube (spikes/n19-e8/results/trace-rb-grip-sort-v0..v2.txt).
+    const ends = { 'green-zone': [88, 75], 'red-zone': [33.91, 128.71], 'blue-zone': [33.84, 21.42] } as const;
+    for (const [zoneId, [x, y]] of Object.entries(ends)) {
+      const [ax, ay] = tags.find((tag) => tag.zoneId === zoneId)!.centerCm;
+      expect(Math.abs(ax - x) >= 2 + 1 || Math.abs(ay - y) >= 2 + 1, `${zoneId}: [${ax}, ${ay}]`).toBe(true);
+    }
+  });
 });
+
