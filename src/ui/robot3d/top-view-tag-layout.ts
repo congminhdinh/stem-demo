@@ -11,6 +11,14 @@ export type StageBox = { left: number; top: number; right: number; bottom: numbe
 
 export const createStageBox = (): StageBox => ({ left: 0, top: 0, right: 0, bottom: 0 });
 
+/** N19 E8 fix round 2 (review M1): sets `out` in place. */
+export function setStageBox(out: StageBox, left: number, top: number, right: number, bottom: number): void {
+  out.left = left;
+  out.top = top;
+  out.right = right;
+  out.bottom = bottom;
+}
+
 /** Where the tag stands from the anchor; its pointer points back at it (below: up). */
 export type GripperTagSide = 'below' | 'above' | 'right' | 'left';
 

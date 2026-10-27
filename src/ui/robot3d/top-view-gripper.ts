@@ -62,17 +62,25 @@ export function gripperTopViewInto(out: GripperTopView, gripper: GripperModel, s
  * In order: the hinge's left edge, its right edge, the tip's right edge, the tip's left edge.
  */
 export function jawCornersCm(view: GripperTopView, gripper: GripperModel, side: 1 | -1): [number, number][] {
+  return [0, 1, 2, 3].map((k) => jawCornerInto([0, 0], view, gripper, side, k));
+}
+
+/**
+ * N19 E8 fix round 2 (review M1): the `k`th corner (0..3, as `jawCornersCm` lists them) of a jaw's finger, written into `out`. Makes
+ * nothing.
+ */
+export function jawCornerInto(out: [number, number], view: GripperTopView, gripper: GripperModel, side: 1 | -1, k: number): [number, number] {
   const length = gripper.finger.lengthM * CM_PER_M;
   const half = (gripper.finger.thicknessM * CM_PER_M) / 2;
   const angle = ((side === 1 ? view.leftDeg : view.rightDeg) * Math.PI) / 180;
-  const [c, s] = [Math.cos(angle), Math.sin(angle)];
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
   const hingeY = view.midYCm + side * view.hingeYCm;
-  return ([
-    [0, half],
-    [0, -half],
-    [length, -half],
-    [length, half],
-  ] as const).map(([u, v]): [number, number] => [view.hingeXCm + u * c - v * s, hingeY + u * s + v * c]);
+  const u = k < 2 ? 0 : length;
+  const v = k === 1 || k === 2 ? -half : half;
+  out[0] = view.hingeXCm + u * c - v * s;
+  out[1] = hingeY + u * s + v * c;
+  return out;
 }
 
 /** A casing under a 2D ink is this much wider than the ink, in all, cm (N19 E4 fix round 1: the inks' casings, review I1, M3). */

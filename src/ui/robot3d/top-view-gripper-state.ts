@@ -36,7 +36,7 @@ export type TopViewGripperState = {
    * right, left), whether that side was clear, its box (with its pointer) and its pointer's tip; and, as drawn, what it keeps off: the car
    * (its body and its jaws), the ring round the held object, each distance tag shown.
    */
-  tagLayout: { side: string; clear: boolean; box: StageRect; tip: { x: number; y: number }; car: StageRect | null; ring: StageRect | null; distances: StageRect[] } | null;
+  tagLayout: { side: string; clear: boolean; box: StageRect; tip: { x: number; y: number }; car: StageRect | null; ring: StageRect | null; distances: StageRect[]; objects: (StageRect & { id: string })[] } | null;
   /** The zones' names the mat is painted with, in the paint's order. */
   zoneLabels: string[];
 };
@@ -147,6 +147,8 @@ export function readTopViewGripper(): TopViewGripperState | null {
             car: union([...stage.find<Konva.Rect>('.topview-body'), ...stage.find<Konva.Group>('.topview-jaw')].map(rectOf)),
             ring: held?.visible() ? rectOf(held) : null,
             distances: stage.find<Konva.Label>('.topview-sensor-label').filter((tag) => tag.visible()).map(rectOf),
+            // N19 E8 fix round 2: every object as drawn (its box on the stage with its mark), which the tag keeps clear of.
+            objects: stage.find<Konva.Group>('.topview-object').map((group) => ({ id: group.getAttr('objectId') as string, ...rectOf(group) })),
           }
         : null,
     zoneLabels: stage.findOne<Konva.Group>('.topview-mat')?.getAttr('zoneLabels') ?? [],

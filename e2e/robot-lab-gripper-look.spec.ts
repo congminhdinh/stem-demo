@@ -74,7 +74,7 @@ function look(pixels: number[][]) {
 }
 
 type NdcBox = { left: number; right: number; bottom: number; top: number };
-type GripperTag = { shown: boolean; box: NdcBox; keepOut: NdcBox[]; keepOutCount: number };
+type GripperTag = { shown: boolean; box: NdcBox; keepOut: NdcBox[]; keepOutCount: number; objects: NdcBox[]; objectIds: string[]; objectCount: number };
 /** The gripper's tag as the 3D view last laid it out (sensor-label-boxes.ts `gripperTagLayout`, the dev server's module), NDC. */
 const gripperTag = (frame: Frame) =>
   frame.evaluate(async () => {
@@ -178,6 +178,10 @@ test.describe('the gripper car on its lessons, in 3D (N19 E8)', () => {
             const tag = await gripperTag(frame);
             tags[`${shotName(run, tier, moment.name, moment.name === 'start' ? 'free' : 'follow')}`] = tag;
             if (tag.shown) for (const keep of tag.keepOut.slice(0, tag.keepOutCount)) expect(ndcMeets(tag.box, keep), `${moment.name}: ${JSON.stringify(tag)}`).toBe(false);
+            // Fix round 2 (review R1): nor any object on the screen, the one the car drives to included (lesson 11's red cube, 22 cm ahead of
+            // the jaws at its approach, was under it).
+            expect(tag.objectCount, `${run.key} ${moment.name}`).toBeGreaterThan(0);
+            if (tag.shown) for (let i = 0; i < tag.objectCount; i++) expect(ndcMeets(tag.box, tag.objects[i]!), `${run.key} ${tier} ${moment.name}: the tag ${JSON.stringify(tag.box)} on ${tag.objectIds[i]} ${JSON.stringify(tag.objects[i])}`).toBe(false);
             const { deviation, colours } = look(await frame.evaluate(() => (window as unknown as { __look: number[][] }).__look));
             const name = shotName(run, tier, moment.name, moment.name === 'start' ? 'free' : 'follow');
             looks[name] = { deviation: Math.round(deviation * 1000) / 1000, colours };
@@ -268,6 +272,9 @@ test.describe('the gripper car on its lessons, on the 2D map (N19 E8)', () => {
           expect(meets(layout.box, layout.car!)).toBe(false);
           if (layout.ring) expect(meets(layout.box, layout.ring)).toBe(false);
           for (const distance of layout.distances) expect(meets(layout.box, distance)).toBe(false);
+          // Fix round 2 (review R1): nor any object on the map (lesson 11's red cube beyond the jaws at its approach was under it).
+          expect(layout.objects.length, run.key).toBeGreaterThan(0);
+          for (const object of layout.objects) expect(meets(layout.box, object), `${run.key} round ${run.round} ${moment.name}: the tag ${JSON.stringify(layout.box)} on ${JSON.stringify(object)}`).toBe(false);
           // Review F3: no named zone's name is under the HUD; but lesson 10's red zone, which the HUD covers whole (on the owner's list), has
           // its name at its middle.
           const { mat, hud } = await matAndHud(frame);

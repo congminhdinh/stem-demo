@@ -90,7 +90,8 @@ function tipsOnStage() {
 
 describe('the 2D tag of the gripper’s sensors keeps off the car and the distance tags (N19 E8)', () => {
   it('facing right: beyond the jaws, its pointer’s tip GRIPPER_TAG_GAP_PX past their tips, clear of the car and the ring', () => {
-    const scenario = at({ xCm: 40, yCm: 45, yawDeg: 0 });
+    // (Fix round 2: at y 60, where nothing is beyond the jaws; at y 45 the tag stood on the blue cube at (60, 38), which it now keeps off.)
+    const scenario = at({ xCm: 40, yCm: 60, yawDeg: 0 });
     const { publish } = mount(scenario);
     publish({ status: 'running', world: holdingAt(scenario, 60) });
     const layout = readTopViewGripper()!.tagLayout!;
@@ -121,6 +122,27 @@ describe('the 2D tag of the gripper’s sensors keeps off the car and the distan
     // Below the jaws (beyond them, down the screen) mostly; where the distance tag stands there, beside them.
     expect(sides.has('below')).toBe(true);
     expect([...sides].some((side) => side !== 'below')).toBe(true);
+  });
+
+  it('keeps off every other object on the map: one where the tag would stand beyond the jaws sends it beside them (fix round 2, review R1)', () => {
+    const scenario = at({ xCm: 40, yCm: 60, yawDeg: 0 });
+    const { publish } = mount(scenario);
+    publish({ status: 'running', world: holdingAt(scenario, 60) });
+    const before = readTopViewGripper()!.tagLayout!;
+    expect(before.side).toBe('right');
+    // The blue cube put where that tag stands (its box's middle, on the arena), as lesson 11's red cube is ahead of the jaws at its approach.
+    const { stage, scale } = readTopViewState()!;
+    const [widthCm, depthCm] = gripperTestScenario.arena.ground.sizeCm;
+    const originX = 14 + (stage.width - 28 - widthCm * scale) / 2;
+    const originY = 14 + (stage.height - 54 - depthCm * scale) / 2 + depthCm * scale;
+    const [xCm, yCm] = [((before.box.left + before.box.right) / 2 - originX) / scale, (originY - (before.box.top + before.box.bottom) / 2) / scale];
+    const world = holdingAt(scenario, 60);
+    publish({ status: 'running', world: { ...world, t: 3, objects: world.objects.map((object) => (object.id === 'cube-blue' ? { ...object, pose: { ...object.pose, xCm, yCm } } : object)) } });
+    const layout = readTopViewGripper()!.tagLayout!;
+    expect(layout.side).not.toBe('right');
+    expect(layout.clear).toBe(true);
+    expect(layout.objects.map((object) => object.id)).toContain('cube-blue');
+    for (const object of layout.objects) expect(meets(layout.box, object), `${object.id}: ${JSON.stringify(layout)}`).toBe(false);
   });
 
   it('facing up the screen: beyond the jaws (above them), not on the car as E4’s tag under the tips was', () => {

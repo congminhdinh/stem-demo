@@ -1,0 +1,10 @@
+# N19 E8 fix round 2 (review R1): the spec's new assertions (the sensors' tag meets no object's box, in 3D and on the 2D map) on the code
+# before the fix (fix round 1's keep-out: the object held or seen and the one within 10 cm of the jaws' tips; the 2D tag kept off no object).
+# DEV_PORT=5543 LESSON_PORT=5544 zsh spikes/p2-perf3d/e2e-on-ports.sh <dir> --project=chromium-robot --workers=2 -g "rb-grip-stack" robot-lab-gripper-look
+  x rb-grip-stack (high), in 3D
+  x rb-grip-stack (low), in 3D
+  x rb-grip-stack, on the 2D map
+    Error: rb-grip-stack high approach: the tag {"left":-0.2352071218122151,"right":0.23521533808083295,"bottom":-0.033342920442275804,"top":0.1403041383812536} on cube {"left":-0.047973331908521225,"right":0.04529507421767201,"bottom":0.009459298553250577,"top":0.1565497698834682}
+    Error: rb-grip-stack low approach: the tag {"left":-0.17923507086593854,"right":0.2911873890271095,"bottom":0.20184159944683838,"top":0.3754886582703678} on cube {"left":0.08186787056494049,"right":0.15903962744866587,"bottom":0.22739825255927706,"top":0.3515324250203324}
+    Error: rb-grip-stack round 1 approach: the tag {"left":248.09010577805086,"top":215.86198412052434,"right":388.6219508708243,"bottom":255.36198412052434} on {"id":"cube","left":307.48288656469776,"top":228.78404680487108,"right":320.91288684609935,"bottom":242.21404708627267}
+  3 failed

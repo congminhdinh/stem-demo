@@ -74,6 +74,9 @@ export function rayLengthCm(readingCm: number, echo: boolean): number {
  * What a moving body of the arena looks like from above, in the order of a snapshot's `objects`; `colorKey` names its colour. N19 E4: an
  * object the arena gives a colour of its own (`objects[].color`) is filled with it (`fill`); one without has none and looks as it did.
  */
+/** The outline a moving body is drawn with on the 2D map (cm; half of it lies outside the body). */
+export const BODY_EDGE_CM = 0.25;
+
 export type MovingBody = { id: string; fill?: string } & (
   | { shape: 'box'; widthCm: number; depthCm: number; colorKey: 'box' | 'object' }
   | { shape: 'cylinder'; radiusCm: number; colorKey: 'cylinder' | 'object' }

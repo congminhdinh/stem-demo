@@ -78,18 +78,29 @@ export function placeLabel(out: ScreenBox, place: LabelPlace, anchors: ArrayLike
   place.clear = false;
 }
 
+/** N19 E8 fix round 2: the most objects of an arena whose boxes on the screen the gripper's tag is laid out with. */
+export const MAX_TAG_OBJECTS = 8;
+
 /**
  * N19 E8 (review F1): the gripper's tag as the last frame laid it out, for the E2E (the dev server's module): whether it is shown, its box,
- * and what it kept clear of (NDC): the jaws' room with the claw servo's case, the object held or ahead (the IR or the colour sensor has it
- * in range) and the one nearest the jaws' tips, each with a few pixels round it. A tag with no clear spot is not shown.
+ * and what it kept clear of (NDC): the jaws' room with the claw servo's case and (fix round 2, review R1) every object in the view, each
+ * with a few pixels round it; and every object's box on the screen, as projected (no room round it; one behind the camera is empty), with
+ * its id. A tag with no clear spot is not shown.
  */
-export const gripperTagLayout: { shown: boolean; box: ScreenBox; keepOut: ScreenBox[]; keepOutCount: number } = {
+export const gripperTagLayout: {
+  shown: boolean;
+  box: ScreenBox;
+  keepOut: ScreenBox[];
+  keepOutCount: number;
+  objects: ScreenBox[];
+  objectIds: string[];
+  objectCount: number;
+} = {
   shown: false,
   box: { left: 0, right: 0, bottom: 0, top: 0 },
-  keepOut: [
-    { left: 0, right: 0, bottom: 0, top: 0 },
-    { left: 0, right: 0, bottom: 0, top: 0 },
-    { left: 0, right: 0, bottom: 0, top: 0 },
-  ],
+  keepOut: Array.from({ length: 1 + MAX_TAG_OBJECTS }, () => ({ left: 0, right: 0, bottom: 0, top: 0 })),
   keepOutCount: 0,
+  objects: Array.from({ length: MAX_TAG_OBJECTS }, () => ({ left: 0, right: 0, bottom: 0, top: 0 })),
+  objectIds: Array.from({ length: MAX_TAG_OBJECTS }, () => ''),
+  objectCount: 0,
 };

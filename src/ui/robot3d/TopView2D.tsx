@@ -19,7 +19,7 @@ import { paintedColor, shownObjectColors } from './round-colors';
 import { idleSnapshot } from './scene-math';
 import { topViewColors as colors } from './top-view-colors';
 import { BOOM_BAR_CM, BOOM_PLATE_CM, CARRIAGE_HALF_CM, casingExtraCm, createGripperTopView, gripperTopViewInto, heldRingRadiusCm, objectMarks } from './top-view-gripper';
-import { fitTopView, movingBodies, stageToArena, rayLengthCm, robotPartCm, sameTopView, scaleBar, treadOffsetCm, wheelRadIndex, type MovingBody, type StageMargins } from './top-view-math';
+import { BODY_EDGE_CM, fitTopView, movingBodies, stageToArena, rayLengthCm, robotPartCm, sameTopView, scaleBar, treadOffsetCm, wheelRadIndex, type MovingBody, type StageMargins } from './top-view-math';
 import { TopViewSensorsLayer } from './TopViewSensors';
 import { TopViewToolsLayer, useTopViewPointer } from './TopViewTools';
 import type { ViewFallbackReason } from './webgl-support';
@@ -434,9 +434,9 @@ function MovingShape({ body, scale }: { body: MovingBody; scale: number }) {
   const marks = useMemo(() => objectMarks(body), [body]);
   const shape =
     body.shape === 'box' ? (
-      <Rect x={-body.widthCm / 2} y={-body.depthCm / 2} width={body.widthCm} height={body.depthCm} fill={fill} stroke={colors.bodyEdge} strokeWidth={0.25} />
+      <Rect x={-body.widthCm / 2} y={-body.depthCm / 2} width={body.widthCm} height={body.depthCm} fill={fill} stroke={colors.bodyEdge} strokeWidth={BODY_EDGE_CM} />
     ) : (
-      <Circle radius={body.radiusCm} fill={fill} stroke={colors.bodyEdge} strokeWidth={0.25} />
+      <Circle radius={body.radiusCm} fill={fill} stroke={colors.bodyEdge} strokeWidth={BODY_EDGE_CM} />
     );
   if (marks === null) return shape;
   return (
