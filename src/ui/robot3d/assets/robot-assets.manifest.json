@@ -8,7 +8,7 @@
     "parts/board.py": "e43cf678a4bdcfd15601f01cddb0a3ca6e2d56d1e33f7e5528906ddfc2bf5005",
     "parts/caster.py": "d203ce34b44750f9056fbd591728905b444448449f111d9039bf477a2d4e243c",
     "parts/chassis.py": "22df52eca2ee19938fdff0d8992754b2472abaca02838a4cce2e4458f8ff6979",
-    "parts/gripper.py": "e401884e2525df941fd355f6b2c93b0ee89b889d371caa953b98c4740467acaf",
+    "parts/gripper.py": "fa515e77ab900d4519145883c1255c31dfce41bcfbfe913a7400cf2d818a2ce1",
     "parts/line_bar.py": "c0dfa9ffb977397ad3552edd2f05258bd229c1e0eab3c64d8b7e65d4045d0307",
     "parts/modules.py": "f1120fea97029502d3ba047e2325e080f33f0ca4ab3b66d6e588a3e7e6a8d068",
     "parts/servo.py": "786477d07280c241e1c73aeab7bae47dd580a548a7591e48b1719382ee0fc976",
@@ -197,16 +197,16 @@
   },
   "assets": {
     "robot-kit.glb": {
-      "bytes": 928072,
-      "sha256": "add132a891cc30e64d8dfd45742e9f4914058bbf9d248b80dc3fd370a2021598"
+      "bytes": 928028,
+      "sha256": "5d4426f72011f9f8fd69b33c258216f768e41f28dba4e633d7c3a4635957bbe7"
     },
     "arena-props.glb": {
       "bytes": 376440,
       "sha256": "0e7c9ba094df1f69d57e71e8594987cf2df0d06bbe3ab1eaba8163697e830b9c"
     },
     "robot-kit-low.glb": {
-      "bytes": 560668,
-      "sha256": "143f318b0817074951ff0074f3436e2179250ee39bfedf203b67064fc03a47e5"
+      "bytes": 560644,
+      "sha256": "a1e0748bb75e3a2944d49c8994a5a0031beb3201dd4a187ac09ff115a5242eb1"
     },
     "arena-props-low.glb": {
       "bytes": 242472,

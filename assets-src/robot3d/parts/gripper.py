@@ -364,7 +364,8 @@ def build_boom(lib, tex, kit, col):
     horn.data.transform(__import__('mathutils').Matrix.Rotation(-math.pi / 2, 4, 'X'))
     horn.data.transform(__import__('mathutils').Matrix.Translation(lib.cm(0, spline_y + 0.02, 0)))
     parts.append(paint(horn, 'abs_white'))
-    parts.append(paint(lib.cylinder('boom_shaft', 0.14, half_span + across - spline_y + 0.1, at=(0, (spline_y + half_span + across + 0.1) / 2, 0), axis='Y', material=mat, segments=8, col=col, parent=root), 'steel'))
+    # N19 E8 (E6/E7 re-review N1): the shaft ends at the arm's outer face (the physics' ±boomHalfSpanCm + across, ±6.8 cm), under its screw head.
+    parts.append(paint(lib.cylinder('boom_shaft', 0.14, half_span + across - spline_y, at=(0, (spline_y + half_span + across) / 2, 0), axis='Y', material=mat, segments=8, col=col, parent=root), 'steel'))
     for side in (-1, 1):
         # A screw head 0.5 mm proud of the arm (the one thing past the physics' ±6.8 cm, plan §4.9).
         parts.append(paint(lib.cylinder('boom_pivot_cap', 0.25, 0.05, at=(0, side * (half_span + across + 0.025), 0), axis='Y', material=mat, segments=lib.seg(12), col=col, parent=root), 'steel'))
