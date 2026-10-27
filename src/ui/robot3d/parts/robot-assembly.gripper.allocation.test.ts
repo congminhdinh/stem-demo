@@ -59,11 +59,18 @@ function bytesPerCall(work: (i: number) => void, times: number, warmup = 2000): 
 }
 
 /**
- * The least of three passes: what else the worker allocates meanwhile (the runner's messages, more of them on a loaded machine) only adds.
- * The first pass warms up 50 000 calls, not 2 000: V8 optimises on a background thread, and on a loaded machine the pass would still be
- * running the interpreter's boxed doubles (13 to 16 bytes a call measured at 2 000, 33 to 65 before that).
+ * The least of up to eight passes of 20 000 calls, stopping at the first that is within `bound`. What else the worker allocates meanwhile (the
+ * runner's messages, more of them on a loaded machine) only adds, so the least pass is the call's own. The first pass warms up 50 000 calls, not
+ * 2 000: V8 optimises on a background thread, and on a loaded machine a pass can still run the interpreter's or Maglev's boxed doubles (13 to 16
+ * bytes a call measured at 2 000, 33 to 65 before that; once 128 in all of three passes under a loaded `pnpm verify`, N19 E9 phase B). Every
+ * further pass is 20 000 more calls of warm-up, so a tier that was late gets there; an allocation of the code's own is in every pass and fails.
+ * The test "the measure sees a real allocation" below holds that last claim.
  */
-const least = (work: (i: number) => void) => Math.min(bytesPerCall(work, 20_000, 50_000), bytesPerCall(work, 20_000, 0), bytesPerCall(work, 20_000, 0));
+function least(work: (i: number) => void, bound: number): number {
+  let best = Number.POSITIVE_INFINITY;
+  for (let pass = 0; pass < 8 && best > bound; pass++) best = Math.min(best, bytesPerCall(work, 20_000, pass === 0 ? 50_000 : 0));
+  return best;
+}
 
 let assets: Record<'high' | 'low', RobotAssets>;
 beforeAll(async () => {
@@ -79,8 +86,18 @@ describe('the heap the gripper car’s pose allocates per drawn frame (N19 E9)',
   // 8 bytes a call: one boxed double (16 bytes) a call fails it, and so does the destructuring's 33.
   it('gripperPoseInto allocates at most 8 bytes a call, the claw and the arm moving on every one', () => {
     const pose = createGripperPose();
-    const bytes = least((i) => void gripperPoseInto(pose, model.gripper!, worlds[i % worlds.length]!.robot.gripper!));
+    const bytes = least((i) => void gripperPoseInto(pose, model.gripper!, worlds[i % worlds.length]!.robot.gripper!), 8);
     expect(bytes).toBeLessThanOrEqual(8);
+  }, 60_000);
+
+  // The measure still sees an allocation of the code's own: three arrays of three doubles and the array that holds them, made on every call (about 270
+  // bytes, as a pose made by the old `gripperPose` is), read over 96 in every one of the eight passes.
+  it('the measure sees a real allocation: a pose of three arrays made on every call reads over 96 bytes in the least of eight passes', () => {
+    const kept: unknown[] = [];
+    const bytes = least((i) => {
+      kept[0] = [[i, i + 0.5, i + 1.5], [i * 1.5, i + 0.25, i], [i + 0.75, i * 0.5, i + 2.5]];
+    }, 96);
+    expect(bytes).toBeGreaterThan(96);
   }, 60_000);
 
   for (const detail of ['high', 'low'] as const) {
@@ -89,14 +106,14 @@ describe('the heap the gripper car’s pose allocates per drawn frame (N19 E9)',
       const handles = robot.handles.gripper!;
       // The same claw and arm in every world; the status (and with it the LED) flips.
       const still = worlds.map((world, i): RobotSnapshot => ({ ...world, robot: { ...world.robot, gripper: { clawDeg: 35, liftDeg: 45, heldId: null } }, status: i % 2 === 0 ? 'running' : 'idle' }));
-      expect(least((i) => poseGripper(handles, still[i % still.length]!))).toBeLessThanOrEqual(8);
+      expect(least((i) => poseGripper(handles, still[i % still.length]!), 8)).toBeLessThanOrEqual(8);
       robot.dispose();
     }, 60_000);
 
     it(`poseGripper allocates at most 96 bytes a call with the claw and the arm moving on every frame (${detail})`, () => {
       const robot = assembleRobot(model, reference, assets[detail].part, options(detail));
       const handles = robot.handles.gripper!;
-      const bytes = least((i) => poseGripper(handles, worlds[i % worlds.length]!));
+      const bytes = least((i) => poseGripper(handles, worlds[i % worlds.length]!), 96);
       expect(bytes).toBeLessThanOrEqual(96);
       robot.dispose();
     }, 60_000);
