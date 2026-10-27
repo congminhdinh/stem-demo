@@ -21,6 +21,7 @@ import { readTopViewGripper } from './top-view-gripper-state';
 import { readTopViewSensors } from './top-view-sensors-state';
 import { readTopViewState } from './top-view-state';
 import { zoneLabelOf } from './zone-label';
+import { basicSkip } from '../../../tests/basic-skip';
 
 // N19 E4 (Review Focus 5): the 2D map of the gripper car, in jsdom with Konva on a stand-in 2D context (the node tree is real, the pixels are
 // not). It draws the boom, the carriage and the jaws from robot.gripper (the reach shortened by the cosine of the boom's elevation, the
@@ -90,7 +91,8 @@ const holding = (changes: Partial<RobotSnapshot> = {}): RobotSnapshot => {
 };
 
 describe('the gripper car on the 2D map (N19 E4)', () => {
-  it('before a run: the gripper at setup()’s pose (open, raised: 5·cos 50° of reach), nothing held, no sensor drawn yet', () => {
+  it('before a run: the gripper at setup()’s pose (open, raised: 5·cos 50° of reach), nothing held, no sensor drawn yet', ({ skip }) => {
+    basicSkip(skip, 'the gripper car’s lessons and its sensor overlays on the 2D map');
     mount();
     const drawn = gripper();
     expect(drawn.gripper).toMatchObject({ clawDeg: 0, liftDeg: 90, heldId: null });
@@ -126,7 +128,8 @@ describe('the gripper car on the 2D map (N19 E4)', () => {
     expect(gripper().zoneLabels).toEqual(['Xuất phát', 'Khu lấy hàng', 'Vùng đỏ', 'Vùng xanh dương', 'Kho']);
   });
 
-  it('holding the red cube lowered: the jaws at x 8.83 turned 0.22°, the ring round the cube, the IR strong to its 2 cm, the spot red at 1.4 cm, the tag', () => {
+  it('holding the red cube lowered: the jaws at x 8.83 turned 0.22°, the ring round the cube, the IR strong to its 2 cm, the spot red at 1.4 cm, the tag', ({ skip }) => {
+    basicSkip(skip, 'the gripper car’s lessons and its sensor overlays on the 2D map');
     const { publish } = mount();
     const world = holding();
     publish({ status: 'running', world });
@@ -154,7 +157,8 @@ describe('the gripper car on the 2D map (N19 E4)', () => {
     expect(drawn.label).toEqual({ visible: true, lines: ['IR: có vật', 'Màu: đỏ'] });
   });
 
-  it('says what the sensors read in words: nothing seen, the colour not read yet, a colour it cannot tell; a ray with no hit runs its range, no spot', () => {
+  it('says what the sensors read in words: nothing seen, the colour not read yet, a colour it cannot tell; a ray with no hit runs its range, no spot', ({ skip }) => {
+    basicSkip(skip, 'the gripper car’s lessons and its sensor overlays on the 2D map');
     const { publish } = mount();
     publish({ status: 'running', world: { ...holding(), sensors: readouts({ detected: false, hitId: null }, { hitId: null, distanceCm: null }) } });
     // Quiet: dashed, on its casing, no dot.
@@ -167,7 +171,8 @@ describe('the gripper car on the 2D map (N19 E4)', () => {
     expect(gripper().label!.lines).toEqual(['IR: không có vật', 'Màu: không rõ']);
   });
 
-  it('draws only when its picture changes: a car at rest holding the cube draws nothing more, on either layer', () => {
+  it('draws only when its picture changes: a car at rest holding the cube draws nothing more, on either layer', ({ skip }) => {
+    basicSkip(skip, 'the gripper car’s lessons and its sensor overlays on the 2D map');
     const { publish } = mount();
     publish({ status: 'running', world: holding({ t: 2 }) });
     const [map, overlay] = [readTopViewState()!.draws, readTopViewSensors()!.draws];
@@ -183,7 +188,8 @@ describe('the gripper car on the 2D map (N19 E4)', () => {
     expect(gripper().gripper!.reachCm).toBeCloseTo(5 * Math.cos(35 * DEG), 9);
   });
 
-  it('draws every casing at least a pixel wide a side on a small map, and 0.15 cm a side where that is more (minor round, review 2 N1)', () => {
+  it('draws every casing at least a pixel wide a side on a small map, and 0.15 cm a side where that is more (minor round, review 2 N1)', ({ skip }) => {
+    basicSkip(skip, 'the gripper car’s lessons and its sensor overlays on the 2D map');
     const { publish } = mount();
     publish({ status: 'running', world: holding() });
     // A small map: 300 × 200 px, the 120 × 90 cm arena at about 1.6 px a cm, where 0.15 cm is a quarter of a pixel.
@@ -203,7 +209,8 @@ describe('the gripper car on the 2D map (N19 E4)', () => {
     expect(gripper().held!.casingPx).toBeCloseTo(0.2 * large, 9);
   });
 
-  it('keeps the jaws, the beam and the ring through a render of the map (a resize, a Run click)', () => {
+  it('keeps the jaws, the beam and the ring through a render of the map (a resize, a Run click)', ({ skip }) => {
+    basicSkip(skip, 'the gripper car’s lessons and its sensor overlays on the 2D map');
     const { publish, render } = mount();
     publish({ status: 'running', world: holding() });
     render();
@@ -214,7 +221,8 @@ describe('the gripper car on the 2D map (N19 E4)', () => {
     near(gripper().ir!.to, 20 + 4.5 + 5 * Math.cos(40 * DEG) + 2.3, 30.6);
   });
 
-  it('“Hiện cảm biến” off takes the beam, the spot and the tag away, and leaves the jaws and the ring', () => {
+  it('“Hiện cảm biến” off takes the beam, the spot and the tag away, and leaves the jaws and the ring', ({ skip }) => {
+    basicSkip(skip, 'the gripper car’s lessons and its sensor overlays on the 2D map');
     const { publish, tools } = mount();
     publish({ status: 'running', world: holding() });
     act(() => tools.getState().setSensors(false));
@@ -237,6 +245,7 @@ describe('the gripper car on the 2D map (N19 E4)', () => {
 });
 
 describe('the gripper car’s colour sensor on the 2D map as the run sets it up (N19 final fix, G2 I1)', () => {
+  beforeEach(({ skip }) => basicSkip(skip, 'the gripper car’s lessons and its sensor overlays on the 2D map'));
   // A run whose program has no colour block never begins the sensor (robot-run-session.ts `colorSensorsOn`): lessons 8, 9 and 11 said
   // "Màu: chưa có số đọc" on every run, as the 3D view did (parts/sensor-overlay.ts reads the same field). The run in view is the one the
   // store committed (color-sensors-on.ts): the store's frames by hand (TopView2D.rounds.test.tsx's), a publish and its frame inside act.

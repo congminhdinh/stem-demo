@@ -1,3 +1,9 @@
+// ==========================================================================================================================================
+// DEMO-BASIC BRANCH ONLY: NEVER MERGE demo-basic INTO master.
+// This file makes the Basic demo the default edition (anything but VITE_STEM_EDITION=full). Merged into master, it would turn master's
+// lab into the Basic demo. Merge master into demo-basic only (git merge origin/master), never the other way round.
+// ==========================================================================================================================================
+
 import type { RobotTemplateKey } from '../samples/robot-keys';
 
 // The edition of the lab (demo-basic branch, 2026-10-28): `full` is master's lab; `basic` is the "Bản demo cơ bản / Basic demo", a labelled,
@@ -5,8 +11,10 @@ import type { RobotTemplateKey } from '../samples/robot-keys';
 // In Basic the robot lab
 //   - draws the low graphics tier (no shadows, pixel ratio 1, no antialiasing) with the procedural shapes of R4.2 (RobotView, ArenaView):
 //     the modelled GLB files are never fetched, and the quality button is hidden;
-//   - has one camera, the free orbit view, with no glide: no camera-mode buttons, an instant "đặt lại góc nhìn";
-//   - shows no sensor overlays, none of the three view tools (Lái tay, Thước đo, Di chuyển robot), no C++ and no Cổng & chân tab;
+//   - has one camera, the free orbit view, with no glide: no camera-mode buttons; "đặt lại góc nhìn", a results card's framing and the
+//     start of a replay are instant; a drag keeps the full lab's damping;
+//   - shows no sensor overlays (in 3D and on the 2D map), none of the three view tools (Lái tay, Thước đo, Di chuyển robot), no C++ and
+//     no Cổng & chân tab;
 //   - opens only `basicRobotTemplates`; any other scenario key is refused at launch with "Kịch bản này không có trong bản demo cơ bản";
 //   - shows the badge "Bản demo cơ bản" in its header, and the page title says it too.
 // Physics, sensors, the interpreter, Kiểm tra and its score, the scenario files and the host's protocol are the same code in both (src/core

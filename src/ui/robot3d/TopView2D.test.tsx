@@ -15,6 +15,7 @@ import { createRobotRunStore } from './robot-run-store';
 import { robotModel } from './robot-model';
 import { TopView2D } from './TopView2D';
 import { readTopViewState } from './top-view-state';
+import { basicSkip } from '../../../tests/basic-skip';
 
 // N18 R4.6: the 2D top view, rendered in jsdom (Konva gets a stand-in 2D context: the node tree is real, the pixels are not) over a
 // session the test drives. It draws the robot, the sensors' dots and rays and the moving bodies where the snapshot has them, in the
@@ -127,7 +128,8 @@ describe('TopView2D follows the snapshots (N18 R4.6)', () => {
     expect(state().robot).toEqual({ xCm: 80, yCm: 45, yawDeg: 30 });
   });
 
-  it('turns the dots and the ray with the robot: at 90° its forward is the arena’s +y', () => {
+  it('turns the dots and the ray with the robot: at 90° its forward is the arena’s +y', ({ skip }) => {
+    basicSkip(skip, 'the ultrasonic ray on the 2D map (a sensor overlay; TopView2D.basic.test.tsx)');
     const { publish, world } = mount();
     const start = world(1).robot;
     publish({
@@ -151,7 +153,8 @@ describe('TopView2D follows the snapshots (N18 R4.6)', () => {
     expect(state().lineDots.map((dot) => dot.dark)).toEqual([true, true, false]);
   });
 
-  it('draws the ultrasonic ray to its hit point with a dot there, and a short faint ray when there is no echo', () => {
+  it('draws the ultrasonic ray to its hit point with a dot there, and a short faint ray when there is no echo', ({ skip }) => {
+    basicSkip(skip, 'the ultrasonic ray on the 2D map (a sensor overlay; TopView2D.basic.test.tsx)');
     const { publish, world } = mount();
     publish({ status: 'running', world: world(1, 50, { sensors: sensors(echo(37.5, 'wall-east'), [false, false, false]) }) });
     const hit = state().rays[0]!;
@@ -232,7 +235,8 @@ describe('TopView2D after React draws it again (N18 R4.6 fix round 1)', () => {
     return JSON.parse(JSON.stringify({ robot, rays, lineDots, leds, servos }), (_key, value: unknown) => (typeof value === 'number' ? Math.round(value * 1e6) / 1e6 + 0 : value)) as unknown;
   };
 
-  it('keeps the ray, its hit dot and every part’s state when its owner renders it again with the same props', () => {
+  it('keeps the ray, its hit dot and every part’s state when its owner renders it again with the same props', ({ skip }) => {
+    basicSkip(skip, 'the ultrasonic ray on the 2D map (a sensor overlay; TopView2D.basic.test.tsx)');
     const mounted = mount();
     atTheWall(mounted);
     const before = shown();
@@ -247,7 +251,8 @@ describe('TopView2D after React draws it again (N18 R4.6 fix round 1)', () => {
     expect(state().rays[0]).toMatchObject({ visible: true, echo: true, hit: true, lengthCm: 37.5 });
   });
 
-  it('keeps the ray at the same arena point when the container is resized, at the new scale', () => {
+  it('keeps the ray at the same arena point when the container is resized, at the new scale', ({ skip }) => {
+    basicSkip(skip, 'the ultrasonic ray on the 2D map (a sensor overlay; TopView2D.basic.test.tsx)');
     const mounted = mount();
     atTheWall(mounted);
     const before = shown();
@@ -265,7 +270,8 @@ describe('TopView2D after React draws it again (N18 R4.6 fix round 1)', () => {
     expect(shown()).toEqual(before);
   });
 
-  it('still draws the next snapshot after a resize and a render', () => {
+  it('still draws the next snapshot after a resize and a render', ({ skip }) => {
+    basicSkip(skip, 'the ultrasonic ray on the 2D map (a sensor overlay; TopView2D.basic.test.tsx)');
     const mounted = mount();
     atTheWall(mounted);
     act(() => resizeObserved(800, 500));

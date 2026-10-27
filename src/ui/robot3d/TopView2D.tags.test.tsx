@@ -19,6 +19,7 @@ import { readTopViewGripper, type StageRect } from './top-view-gripper-state';
 import { readTopViewState } from './top-view-state';
 import { GRIPPER_TAG_GAP_PX } from './top-view-tag-layout';
 import { zoneLabelOf } from './zone-label';
+import { basicSkip } from '../../../tests/basic-skip';
 
 // N19 E8 (E4/E5 review M4, the parked 2D nit): the 2D map's two-line tag of the gripper's sensors ("IR: có vật", "Màu: đỏ") stands next to
 // the jaws' tips on the first side where it covers neither the car, nor the ring round what it holds, nor a distance tag, and its pointer's
@@ -89,6 +90,7 @@ function tipsOnStage() {
 }
 
 describe('the 2D tag of the gripper’s sensors keeps off the car and the distance tags (N19 E8)', () => {
+  beforeEach(({ skip }) => basicSkip(skip, 'the gripper car’s lessons and its sensor overlays on the 2D map'));
   it('facing right: beyond the jaws, its pointer’s tip GRIPPER_TAG_GAP_PX past their tips, clear of the car and the ring', () => {
     // (Fix round 2: at y 60, where nothing is beyond the jaws; at y 45 the tag stood on the blue cube at (60, 38), which it now keeps off.)
     const scenario = at({ xCm: 40, yCm: 60, yawDeg: 0 });
@@ -166,7 +168,8 @@ describe('the 2D tag of the gripper’s sensors keeps off the car and the distan
 });
 
 describe('the zones’ names on the 2D map are under everything that moves (N19 E8)', () => {
-  it('painted into the mat’s picture on the first layer; the objects, the ring round the held one and the car on the second, the tags on the third', () => {
+  it('painted into the mat’s picture on the first layer; the objects, the ring round the held one and the car on the second, the tags on the third', ({ skip }) => {
+    basicSkip(skip, 'the sensor overlays’ layer on the 2D map (its tags)');
     const scenario = at({ xCm: 40, yCm: 45, yawDeg: 0 });
     const { publish } = mount(scenario);
     publish({ status: 'running', world: holdingAt(scenario, 60) });

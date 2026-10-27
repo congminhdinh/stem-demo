@@ -17,6 +17,7 @@ import { TopView2D } from './TopView2D';
 import { readTopViewGripper } from './top-view-gripper-state';
 import { readTopViewSensors } from './top-view-sensors-state';
 import { readTopViewState } from './top-view-state';
+import { basicSkip } from '../../../tests/basic-skip';
 
 // N19 E4/E5 (ruling 8 on the E4/E5 report): the 2D map paints each object in the colour of the round it shows, the run's world's
 // (`objectColors` of the run's snapshot, robot-run-session.object-colors.test.ts), with that colour's mark: the sort lesson's cube is green
@@ -142,7 +143,8 @@ describe('the zone a goal placed by colour needs, lit on the 2D map (N19 E4/E5, 
     ],
   } as unknown as Scenario;
 
-  it('lights the zone of the cube’s colour in the round shown: the warehouse for green (nothing run), the red zone in round 2', () => {
+  it('lights the zone of the cube’s colour in the round shown: the warehouse for green (nothing run), the red zone in round 2', ({ skip }) => {
+    basicSkip(skip, 'the lit goal zone of the sensor overlays on the 2D map');
     const { publish, world } = mount(sort);
     expect(readTopViewSensors()!.zone).toBe('kho');
     publish({ status: 'running', world: world(0.5), objectColors: variantObjectColors(sort, 1) });

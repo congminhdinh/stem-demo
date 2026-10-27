@@ -16,6 +16,7 @@ import { createRobotToolsStore } from './robot-tools-store';
 import { TopView2D } from './TopView2D';
 import { readTopViewState } from './top-view-state';
 import { readTopViewSensors } from './top-view-sensors-state';
+import { basicSkip } from '../../../tests/basic-skip';
 
 // N18 R4.3: the sensor overlay on the 2D map (TopViewSensors.tsx), in jsdom with Konva on a stand-in 2D context. It draws the cone of the
 // ultrasonic sensor to the distance it heard with a tag in cm (the learner's decimal comma), a ring on the mat at each line sensor's
@@ -69,6 +70,7 @@ const sensors = (cm: number, hitId: string | null, dark: [boolean, boolean, bool
 const sensorState = () => readTopViewSensors()!;
 
 describe('the sensor overlay on the 2D map (N18 R4.3)', () => {
+  beforeEach(({ skip }) => basicSkip(skip, 'the sensor overlays on the 2D map'));
   it('lights the goal’s zone before a run, with no cone, tag or spot before there is a reading', () => {
     mount();
     const state = sensorState();

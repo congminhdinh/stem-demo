@@ -8,6 +8,7 @@ import type { Arena, PaintZone } from '../../core/world/arena/arena-schema';
 import type { RobotSnapshot } from '../../core/world/snapshot';
 import { CM_PER_M } from '../../core/world/units';
 import { useElementSize } from '../canvas/use-element-size';
+import { isBasic } from '../edition';
 import { useText } from '../i18n/text';
 import { groundTextureSize, paintGround, type FloorBox, type PaintedZoneName } from './ground-paint';
 import { GRIPPER_REST, gripperStateOf } from './gripper-pose';
@@ -188,8 +189,9 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
         const reading = world.sensors.find((sensor) => sensor.kind === 'ultrasonic' && sensor.role === ultrasonic.role);
         const ray = n.rays[i];
         const hit = n.hits[i];
-        // N18 R4.3: "Hiện cảm biến" off takes the ray away with the rest of the sensor overlay (TopViewSensors.tsx).
-        if (reading?.kind !== 'ultrasonic' || tools?.getState().sensors === false) {
+        // N18 R4.3: "Hiện cảm biến" off takes the ray away with the rest of the sensor overlay (TopViewSensors.tsx). demo-basic: the Basic
+        // demo has no sensor overlays, on the map as in 3D (edition.ts).
+        if (reading?.kind !== 'ultrasonic' || tools?.getState().sensors === false || isBasic()) {
           ray?.visible(false);
           hit?.visible(false);
           return;
@@ -413,7 +415,7 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
               )}
             </Group>
           </Layer>
-          <TopViewSensorsLayer scenario={scenario} kit={kit} model={model} store={store} tools={tools} fit={fit} />
+          {!isBasic() && <TopViewSensorsLayer scenario={scenario} kit={kit} model={model} store={store} tools={tools} fit={fit} />}
           {tools && <TopViewToolsLayer tools={tools} kit={kit} fit={fit} />}
         </Stage>
       )}

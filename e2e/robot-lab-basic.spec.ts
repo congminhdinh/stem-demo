@@ -92,6 +92,19 @@ test.describe('the Basic demo’s robot lab', () => {
     await expect.poll(() => cameraOf(frame)).not.toBe(start);
     await page.keyboard.press('0');
     await expect.poll(() => cameraOf(frame)).toBe(start);
+    // A drag keeps the full lab's damping: the view goes on turning for a moment after the pointer lets go. Then 0 puts it back at once,
+    // with no glide (a glide takes 0.45 s).
+    const canvasBox = (await canvas.boundingBox())!;
+    await page.mouse.move(canvasBox.x + canvasBox.width / 2, canvasBox.y + canvasBox.height / 2);
+    await page.mouse.down();
+    for (let i = 1; i <= 8; i += 1) await page.mouse.move(canvasBox.x + canvasBox.width / 2 + i * 15, canvasBox.y + canvasBox.height / 2);
+    await page.mouse.up();
+    const released = await cameraOf(frame);
+    await expect.poll(() => cameraOf(frame), { timeout: 5_000 }).not.toBe(released);
+    await frame.getByTestId('robot-scene').focus();
+    await page.keyboard.press('0');
+    await page.waitForTimeout(150);
+    expect(await cameraOf(frame)).toBe(start);
     // No view tool, no sensor switch; the program has the blocks' tab only.
     await expect(frame.getByTestId('robot-tools')).toHaveCount(0);
     await expect(frame.getByTestId('robot-sensors')).toHaveCount(0);
@@ -125,6 +138,19 @@ test.describe('the Basic demo’s robot lab', () => {
     await expect(frame.locator('[data-goal=stop-near-wall]')).toHaveAttribute('data-passed', 'true');
     await expect(frame.locator('[data-goal=no-crash]')).toHaveAttribute('data-passed', 'true');
     await screenshot(page, '03-stop-at-wall-run-1100x640.png');
+    // The 2D map has no sensor overlay either: no overlay layer, no ray to the wall the robot faces; the robot is on it where the run left it.
+    await frame.getByTestId('robot-viewmode').click();
+    await expect(frame.getByTestId('robot-topview')).toBeVisible();
+    const map = await frame.evaluate(async () => {
+      const paths = ['/src/ui/robot3d/top-view-sensors-state.ts', '/src/ui/robot3d/top-view-state.ts'];
+      const [sensors, view] = await Promise.all(paths.map((path) => import(/* @vite-ignore */ path)));
+      const state = (view as { readTopViewState(): { robot: unknown; rays: { visible: boolean }[] } | null }).readTopViewState();
+      return { overlay: (sensors as { readTopViewSensors(): unknown }).readTopViewSensors(), rays: state?.rays.map((ray) => ray.visible), robot: state?.robot !== null };
+    });
+    expect(map).toEqual({ overlay: null, rays: [false], robot: true });
+    await screenshot(page, '08-stop-at-wall-2d-1100x640.png');
+    await frame.getByTestId('robot-viewmode').click();
+    await frame.locator('[data-testid=robot-scene][data-drawn=true]').waitFor({ timeout: 60_000 });
     await frame.locator('[data-testid=robot-check-speed] [data-speed="fast"]').click();
     await frame.getByTestId('robot-check-start').click();
     await expect.poll(async () => (await checkResults(page)).length, { timeout: 60_000 }).toBe(1);

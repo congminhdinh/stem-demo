@@ -52,7 +52,7 @@ import { sightProps } from './sight-props';
 // under Suspense (the canvas waits under "Đang tải 3D…" until they are drawn), and R4.2's procedural shapes when the files do not load;
 // the camera's free view looks over the robot to the lesson's zones, framed clear of the HUD and of an open results card.
 // demo-basic (edition.ts): the Basic demo draws R4.2's procedural shapes and never fetches the files, has no sensor overlays, and its camera
-// jumps where the full lab's glides (as for a learner who asked for reduced motion).
+// jumps where the full lab's glides (a drag keeps its damping).
 
 export type SceneProps = {
   scenario: Scenario;
@@ -471,7 +471,7 @@ export default function Scene({ scenario, kit, model, store, tier, cameraMode, r
         <SceneContent scenario={scenario} kit={kit} model={model} view={view} span={span} tier={tier} zoneLabel={zoneLabel} objectLabel={objectLabel} objectColors={objectColors} viewForward={viewForward} cameraMode={cameraMode} tagsReady={tagsReady} overlays={overlays} />
         <CompiledDraw onDrawn={onDrawn} cap={drawCap} onDraw={onLowStep ? lowDraw : undefined} />
       </Suspense>
-      <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion || isBasic()} resetKey={resetKey} hud={hud} card={card} tools={toolsCorner} walls={walls} props={props} replaying={replaying} {...(commands ? { commands } : {})} />
+      <CameraRig mode={cameraMode} span={span} free={freeView} view={view} reducedMotion={reducedMotion} noGlide={isBasic()} resetKey={resetKey} hud={hud} card={card} tools={toolsCorner} walls={walls} props={props} replaying={replaying} {...(commands ? { commands } : {})} />
       <RedrawOnChange store={store} />
       <ContextWatch onLost={onContextLost} onRestored={onContextRestored} />
       {onSlowFrames && <SlowFrames store={store} onSlow={onSlowFrames} />}

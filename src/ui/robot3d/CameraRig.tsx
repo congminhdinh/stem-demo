@@ -45,6 +45,11 @@ type CameraRigProps = {
   replaying?: boolean;
   /** N18 R8: the keyboard's zoom and orbit steps. */
   commands?: CameraCommands;
+  /**
+   * demo-basic (edition.ts): the camera jumps where it would glide (a reset, a results card's framing and the picture's slide beside it,
+   * the start of a replay), as with reduced motion, but a drag keeps its damping.
+   */
+  noGlide?: boolean;
 };
 
 /** How long the camera glides from one view to the next, s. */
@@ -67,7 +72,7 @@ const defaultChase = (): ChaseOffset => {
   return { forward: pose.position[0] - pose.target[0], up: pose.position[1] - pose.target[1], side: pose.position[2] - pose.target[2], ahead: pose.target[0] };
 };
 
-export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0, hud = null, walls = [], props = [], card = null, tools = null, replaying = false, commands }: CameraRigProps) {
+export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0, hud = null, walls = [], props = [], card = null, tools = null, replaying = false, commands, noGlide = false }: CameraRigProps) {
   const camera = useThree((state) => state.camera) as PerspectiveCamera;
   const dom = useThree((state) => state.gl.domElement);
   const size = useThree((state) => state.size);
@@ -98,9 +103,9 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
     [hud, tools],
   );
   const minRobot = (2 * MIN_ROBOT_PX) / Math.max(1, size.width);
-  const latest = useRef({ aspect, reducedMotion, view, span, free, mode, safe, walls, props, minRobot });
+  const latest = useRef({ aspect, reducedMotion, noGlide, view, span, free, mode, safe, walls, props, minRobot });
   useEffect(() => {
-    latest.current = { aspect, reducedMotion, view, span, free, mode, safe, walls, props, minRobot };
+    latest.current = { aspect, reducedMotion, noGlide, view, span, free, mode, safe, walls, props, minRobot };
   });
 
   /** "Theo xe": keeps the angle the learner left the chase at, in the robot's frame (the chase carries on from there). */
@@ -212,14 +217,14 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
     return mode === 'top' ? topPose(arena, camera.fov, ratio) : mode === 'follow' ? chaseGoal(now()) : keptFreeViewPose(arena, scene, camera.fov, ratio, rect, least);
   };
 
-  /** Sends the camera to `goal`: a glide, or at once (the first time, with reduced motion). */
+  /** Sends the camera to `goal`: a glide, or at once (the first time, with reduced motion, without glides). */
   const goTo = (goal: CameraPose) => {
-    const jump = latest.current.reducedMotion;
+    const jump = latest.current.reducedMotion || latest.current.noGlide;
     // A drag's damped momentum would carry on through the glide and past it: spend it now (without damping, update() applies what is
-    // left and clears it), then glide from where that leaves the camera.
+    // left and clears it), then glide from where that leaves the camera. Damping is off with reduced motion only.
     controls.enableDamping = false;
     controls.update();
-    controls.enableDamping = !jump;
+    controls.enableDamping = !latest.current.reducedMotion;
     if (!placed.current || jump) {
       placed.current = true;
       glide.current = null;
@@ -277,7 +282,7 @@ export function CameraRig({ mode, span, free, view, reducedMotion, resetKey = 0,
     // Under the HUD as well when the slid picture's middle falls below it: halfway between the HUD and the bottom.
     const hudBottom = latest.current.safe.hud.bottom;
     shift.goalY = card && shift.goalX <= latest.current.safe.hud.right ? (hudBottom + latest.current.safe.bottom) / 2 : 0;
-    if (latest.current.reducedMotion) [shift.x, shift.y] = [shift.goalX, shift.goalY];
+    if (latest.current.reducedMotion || latest.current.noGlide) [shift.x, shift.y] = [shift.goalX, shift.goalY];
     if (card) {
       if (!beforeCard.current) {
         beforeCard.current = { pose: { position: camera.position.toArray(), target: controls.target.toArray() }, mode };

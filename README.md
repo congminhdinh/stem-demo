@@ -45,6 +45,11 @@ corepack enable pnpm --install-directory "<writable dir on PATH>"
 
 Any other use of `embed`/`template` shows an explicit error instead of a project. Details: [`docs/stem-demo-local-development.md`](docs/stem-demo-local-development.md#hai-mode-standalone-và-lab-nhúng-s1).
 
+## Edition (demo-basic branch)
+
+This branch builds the labelled "Bản demo cơ bản / Basic demo" of the robot lab by default; `VITE_STEM_EDITION=full` builds master's lab from the same code (`src/ui/edition.ts` says what Basic switches off).
+**demo-basic branch only: never merge demo-basic into master** (merge master into demo-basic instead).
+
 ## Architecture rule
 
 `src/core/**` is plain TypeScript. It must not import React, Konva, Blockly, Zustand, Dexie, Monaco, Pyodide, or the `ui`/`storage` layers. `pnpm lint` enforces this; `tests/core-boundary.test.ts` checks the rule itself. See plan §5.1 for all boundaries.

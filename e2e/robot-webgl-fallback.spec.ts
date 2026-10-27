@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { robotSolutions } from '../src/samples/robot-solutions';
 import { robotStarterDocument, type RobotTemplateKey } from '../src/samples/robot-templates';
 import { pinLowTierChainOff } from './robot-chain';
+import { basicSkip } from '../tests/basic-skip';
 
 // N18 R4.6 (Review Focus 5): a school PC that cannot draw WebGL, or a browser that takes the WebGL context away, still has the robot lab:
 // the 2D top view (TopView2D) stands in for the 3D scene, reads the very snapshot the 3D scene would, and the run, the HUD and the
@@ -153,6 +154,7 @@ test.describe('the robot lab on a computer without WebGL (N18 R4.6)', () => {
   });
 
   test('draws the ultrasonic ray to the wall it hears, and nothing once the robot rests', async ({ noWebglPage: page, baseURL }) => {
+    basicSkip(test.skip, 'the ultrasonic ray on the 2D map (a sensor overlay; robot-lab-basic.spec.ts: the map has none)');
     test.setTimeout(60_000);
     const frame = await openInLesson(page, labUrl(baseURL, 'rb-stop-at-wall'));
     await frame.evaluate((document) => window.__stem?.loadProject(document), solved('rb-stop-at-wall'));
