@@ -289,7 +289,7 @@ test.describe('Kiểm tra of a gripper lesson (N19 D4, Gate G1)', () => {
       scenarioVersion: 1,
       programHash: '810d030630f07c96a115b28f05ef5e1c59c10e1c6b948ed59a9f7178d590a6b4',
     });
-    expect(hashes).toEqual(['d8b9f15d', '72464d2f', '96810539']);
+    expect(hashes).toEqual(['a9690aa7', '7f5c4745', '6506f990']);
     await expect(frame.getByTestId('robot-check-verdict')).toHaveText('Đạt');
     await expect(frame.getByTestId('robot-check-score')).toHaveText('100/100 điểm');
     await screenshot(page, '20-gripper-pick-passed-1100x640.png');

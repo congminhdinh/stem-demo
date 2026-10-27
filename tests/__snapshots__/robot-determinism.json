@@ -6,7 +6,7 @@
     "line-follow": { "final": "17c47f8d", "trajectory": "3e412cc4" },
     "mini-mission-v1-noise": { "final": "d02081f3", "trajectory": "2693afb5" },
     "gripper-pick-place": { "final": "b3414f0e", "trajectory": "abafe587" },
-    "gripper-stack": { "final": "9378dcbe", "trajectory": "60ce8067" },
+    "gripper-stack": { "final": "42a76f26", "trajectory": "ac6f2b46" },
     "gripper-sensors": { "final": "f3b0127d", "trajectory": "22615357" }
   },
   "checks": {
@@ -23,22 +23,22 @@
     "rb-grip-pick-reference": {
       "passed": true, "score": 100, "programHash": "810d030630f07c96a115b28f05ef5e1c59c10e1c6b948ed59a9f7178d590a6b4",
       "variants": [{ "seed": 23, "passed": true, "score": 100, "simTimeMs": 30000 }, { "seed": 24, "passed": true, "score": 100, "simTimeMs": 30000 }, { "seed": 25, "passed": true, "score": 100, "simTimeMs": 30000 }],
-      "final": ["d8b9f15d", "72464d2f", "96810539"]
+      "final": ["a9690aa7", "7f5c4745", "6506f990"]
     },
     "rb-grip-deliver-reference": {
       "passed": true, "score": 97, "programHash": "12b1f432f405eb4ad1bd5c5f381fced2437e86060c4b41c886ed245236e37d1b",
       "variants": [{ "seed": 430, "passed": true, "score": 97, "simTimeMs": 90000 }, { "seed": 431, "passed": true, "score": 97, "simTimeMs": 90000 }, { "seed": 432, "passed": true, "score": 97, "simTimeMs": 90000 }],
-      "final": ["4139d036", "b5779bbe", "02ab692c"]
+      "final": ["34b46f78", "ab574ce0", "7db41caf"]
     },
     "rb-grip-sort-reference": {
       "passed": true, "score": 100, "programHash": "fe8b83b33e9c63aa66f461637a48178aa1206286d36cc1fdee235eb6833a1ca8",
       "variants": [{ "seed": 8, "passed": true, "score": 100, "simTimeMs": 30000 }, { "seed": 9, "passed": true, "score": 100, "simTimeMs": 30000 }, { "seed": 10, "passed": true, "score": 100, "simTimeMs": 30000 }],
-      "final": ["8c60c9a1", "0e3bbe2f", "bd401fe3"]
+      "final": ["5e9ab09e", "309cad88", "e1e9538d"]
     },
     "rb-grip-stack-reference": {
       "passed": true, "score": 97, "programHash": "9243bbc3916beacbddd9c1ebf2125b01e7ffcb0ee97ad0a7dcf0c1d10693ea18",
       "variants": [{ "seed": 217, "passed": true, "score": 97, "simTimeMs": 45000 }, { "seed": 218, "passed": true, "score": 97, "simTimeMs": 45000 }, { "seed": 219, "passed": true, "score": 97, "simTimeMs": 45000 }],
-      "final": ["14603576", "60686846", "3ca8a6ec"]
+      "final": ["b6d7ab8c", "3ae33c41", "34fe4a6d"]
     }
   }
 }

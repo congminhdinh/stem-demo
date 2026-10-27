@@ -34,6 +34,27 @@ import { SERVO_MOTOR_GAIN } from './servo-arm';
 //   - The claw servo's case (B5, ruling E67 I4): a second collider on the carriage, the kit's `clawServo*` box that the 3D view draws, so
 //     the visual is the collider; massless (the carriage's mass counts it). The ultrasonic hears it where it is raised in front of the
 //     HC-SR04 (lift 8–40° on ref-uno-gripper@0).
+//   - The lift servo's hold at rest (N19 B7, plan §4.17). A joint motor that carries the boom's weight is a soft velocity constraint that is
+//     never met at rest (the braking law asks for error/dt, about 0.03 rad/s at 55°, while the boom stands still), and what the island's
+//     solve leaves of it each step reaches the chassis' yaw, which only the support balls' friction holds: a stopped car with its arm between
+//     the lift's stops turned 1.5e-4 to 2.5e-4 °/s on a clean floor and 0.0102 °/s at the end of rb-grip-stack's reference (spikes/n19-b7:
+//     the boom held by its joint's limits instead, 6.5e-6 °/s; a position or a zero-speed motor in its place, the same creep as the velocity
+//     one; the limits with the motor still pushing, 5.1e-6 °/s empty but 3.4e-4 to 9.4e-4 °/s holding a cube). So once the car stands still
+//     on its three supports with its drive stopped (assembly.ts `carStill`), both servos' commands unchanged and the boom at rest at its
+//     command, LIFT_HOLD_TICKS ticks in a row, the boom is held where it stands by its joint's limits, the motor off: a servo at its target
+//     under less than its stall torque does not move. While the claw holds an object, its fingers are held so too: their motors only trim
+//     them onto its faces each tick (grasp.ts rule 3), and that leaks the same way, into the yaw directly (their joints turn about the
+//     vertical; measured: 1.3e-4 °/s holding 15 g at 90°, 1.3e-6 with the fingers' motors off). An empty claw's fingers rest on a stop or at
+//     their aim and leak nothing measurable (≤ 2.5e-5 °/s with the lift held), and a claw stalled on an object it does not hold (rule 2) keeps
+//     its squeeze, so both keep their motors. A new lift or claw command, the car moving or its drive on, or a hand placement
+//     (`followChassis`) lets go, and the motors drive on from there.
+//     - Why a whole second: a pause shorter than it runs exactly as before. The B5 tests' outcomes after a pause are sensitive to the arm's
+//       state to the last bit: holding after 0.25 s took a wall hit's settling from under 0.5 s to 0.61 s, past its bound, and after 0.6 s
+//       (inside the pick's grab, 0.3 s + the attach + 0.2 s, its commands unchanged) moved three wall tests' pins; holding an empty claw's
+//       fingers too took one from 0.5 s to 1.09 s. A lift move settles in about 0.1 s, a stopped car in under 0.2 s.
+//     - Why on its supports: leaning on a wall, or nosed up on an arm that presses on something (plan §4.6), the car's rest depends on what
+//       the servo pushes with; holding a car leaning on a wall with its arm up and 50 g moved its lean by 0.54°. Such a servo keeps pressing
+//       with its motor, as before.
 //
 // Frames: the carriage frame of kit.ts `GripperSpec` (u forward, v left, w up, cm, from the boom's tip; the chassis' axes while level) is
 // Rapier local (x = u, y = w, z = −v) of the carriage body. The lift angle 0..90° turns the boom's elevation from boomElevationAtLift0Deg up
@@ -60,6 +81,18 @@ export const GRIPPER_EXTRA_SOLVER_ITERATIONS = 4;
  * with 139.4, 21 ticks and 0.069°, and holding 50 g 1.67° past a lift move against 1.09°. A vendor's arm derives its own (VG).
  */
 export const LIFT_BRAKE_DECEL_RAD_S2 = 125.2;
+/** N19 B7: the ticks in a row the car is still, both servo commands unchanged and the boom at rest at its command before the lift holds (1 s). */
+export const LIFT_HOLD_TICKS = 120;
+/**
+ * N19 B7: the lift is at its command when within this, degrees. Holding 50 g level the motor stands 0.03° short (the error its torque needs);
+ * a lift stalled on the floor or an object is degrees short and never holds.
+ */
+export const LIFT_HOLD_ERROR_DEG = 0.1;
+/**
+ * N19 B7: the boom is at rest on the chassis while it turns slower than this, rad/s. (The fingers are not asked to be: holding a cube they
+ * trim onto its faces every tick, up to 0.013° a tick; the claw's command unchanged for the whole second is what says it is done.)
+ */
+export const LIFT_HOLD_STILL_RAD_S = 0.01;
 /** The servo angles the gripper is built at: what setup() writes (D-G3), which the driver owns (drivers/gripper-servo2.ts): claw open, lift up. */
 export { GRIPPER_START };
 /** The geometry the kit does not name: the carriage box, the boom's plates and cross bar (gripper-geometry.ts, which footprint.ts reads too). */
@@ -110,11 +143,18 @@ export type Gripper = {
   freezeFingers(betaDeg: readonly [number, number] | null): void;
   /** Drives each finger no further closed than a β (null: no limit): the claw stalls on an object pinched across it (grasp.ts). */
   stallFingers(limitDeg: readonly [number | null, number | null]): void;
-  /** Before world.step(): the motors' speeds for this tick. */
-  beforeStep(dt: number): void;
+  /**
+   * Before world.step(): the motors' speeds for this tick. `carStill` (assembly.ts): the car stands still on its three supports with its drive
+   * stopped, which the servos' hold needs (B7, see the top of this file).
+   */
+  beforeStep(dt: number, carStill: boolean): void;
+  /** N19 B7: whether the servos hold where they stand (the lift's and, while they hold an object, the fingers' joint limits closed on their angles, the motors off; see the top of this file). */
+  readonly liftHeld: boolean;
+  /** N19 B7: whether that hold takes the fingers too. */
+  readonly clawHeld: boolean;
   /** Where the arm is on the chassis (read before the chassis is moved by hand, `followChassis`). */
   pose(): GripperPose;
-  /** After the chassis was put at a new pose by hand: puts every gripper body back on it at `pose`, at rest (assembly.ts `placeAt`). */
+  /** After the chassis was put at a new pose by hand: puts every gripper body back on it at `pose`, at rest (assembly.ts `placeAt`); lets the servos' hold go. */
   followChassis(pose: GripperPose): void;
 };
 
@@ -283,6 +323,31 @@ export function createGripper(world: PhysicsWorld, chassis: RigidBody, module: K
   };
   const fingers = [makeFinger(1, built.fingers[0]), makeFinger(-1, built.fingers[1])] as const;
 
+  // ---- the servos' hold at rest (B7, see the top of this file) ----
+  const liftLimits = [degToRad(elevationOf(0)), degToRad(elevationOf(90))] as const;
+  /** Each finger's joint range, as makeFinger sets it. */
+  const fingerLimits = (side: 1 | -1) => [degToRad(side === 1 ? betaMin : 0 - betaMax), degToRad(side === 1 ? betaMax : 0 - betaMin)] as const;
+  /** The commands the hold was taken under and whether it holds the fingers too, or null while the motors drive the servos. */
+  let hold: { readonly lift: number; readonly claw: number; readonly fingers: boolean } | null = null;
+  let settledTicks = 0;
+  /** The boom's elevation (rad) and the servo commands at the last beforeStep, or null after a build or a placement. */
+  let last: { readonly elevation: number; readonly lift: number; readonly claw: number } | null = null;
+  const letGo = () => {
+    if (hold !== null) {
+      boomJoint.setLimits(liftLimits[0], liftLimits[1]);
+      boomJoint.setMotorMaxForce(spec.liftStallTorqueNm);
+      if (hold.fingers) {
+        for (const finger of fingers) {
+          const [min, max] = fingerLimits(finger.side);
+          finger.joint.setLimits(min, max);
+          finger.joint.setMotorMaxForce(fingerTorque);
+        }
+      }
+      hold = null;
+    }
+    settledTicks = 0;
+  };
+
   // ---- the claw servo's case on the carriage (B5, ruling E67 I4): the kit's box, the one the 3D view draws ----
   // The ultrasonic hears it (a servo raised in front of an HC-SR04 blocks it, at lift 8–40° on ref-uno-gripper@0); the IR and the colour
   // sensor leave the carriage's colliders out, and it sits above their rays. Made after the fingers, so every other collider keeps its handle.
@@ -333,18 +398,59 @@ export function createGripper(world: PhysicsWorld, chassis: RigidBody, module: K
     stallFingers(limits) {
       stall = limits;
     },
-    beforeStep(dt) {
-      boomJoint.configureMotorVelocity(liftSpeed(degToRad(elevationOf(liftCommand)) - elevationRad(), dt, liftMaxRadS), SERVO_MOTOR_GAIN);
+    get liftHeld() {
+      return hold !== null;
+    },
+    get clawHeld() {
+      return hold !== null && hold.fingers;
+    },
+    beforeStep(dt, carStill) {
+      const elevation = elevationRad();
+      const beta = [fingers[0].betaDeg(), fingers[1].betaDeg()] as const;
+      const error = degToRad(elevationOf(liftCommand)) - elevation;
+      if (hold !== null && !(carStill && hold.lift === liftCommand && hold.claw === clawCommand)) letGo();
+      if (hold === null) {
+        const resting =
+          carStill &&
+          last !== null &&
+          last.lift === liftCommand &&
+          last.claw === clawCommand &&
+          Math.abs(error) <= degToRad(LIFT_HOLD_ERROR_DEG) &&
+          Math.abs(elevation - last.elevation) <= LIFT_HOLD_STILL_RAD_S * dt;
+        settledTicks = resting ? settledTicks + 1 : 0;
+        if (settledTicks >= LIFT_HOLD_TICKS) {
+          // Held where they stand: each joint's limits close on its angle, and its motor lets go of it. The fingers only while they hold an
+          // object (grasp.ts freezes them on it): their motors then just trim them onto its faces every tick, which leaks into the yaw (the
+          // finger joints turn about the vertical). An empty claw's fingers rest on their stops or their aim and leak nothing measurable, and a
+          // claw stalled on an object it does not hold (grasp rule 2) keeps its squeeze.
+          boomJoint.setLimits(elevation, elevation);
+          boomJoint.setMotorMaxForce(0);
+          const holdFingers = frozen !== null;
+          if (holdFingers) {
+            fingers.forEach((finger, i) => {
+              const angle = degToRad(finger.side * beta[i]!);
+              finger.joint.setLimits(angle, angle);
+              finger.joint.setMotorMaxForce(0);
+            });
+          }
+          hold = { lift: liftCommand, claw: clawCommand, fingers: holdFingers };
+        }
+      }
+      last = { elevation, lift: liftCommand, claw: clawCommand };
+      if (hold === null) boomJoint.configureMotorVelocity(liftSpeed(error, dt, liftMaxRadS), SERVO_MOTOR_GAIN);
+      if (hold !== null && hold.fingers) return;
       const target = betaOfClawDeg(spec, clawCommand);
       fingers.forEach((finger, i) => {
         const limit = stall[i] ?? null;
         const aim = frozen !== null ? frozen[i]! : limit === null ? target : Math.max(target, limit);
-        const speed = clamp(degToRad(aim - finger.betaDeg()) / dt, 0 - fingerMaxRadS, fingerMaxRadS);
+        const speed = clamp(degToRad(aim - beta[i]!) / dt, 0 - fingerMaxRadS, fingerMaxRadS);
         finger.joint.configureMotorVelocity(finger.side * speed, SERVO_MOTOR_GAIN);
       });
     },
     pose: () => ({ elevationRad: elevationRad(), betaRad: [degToRad(fingers[0].betaDeg()), degToRad(fingers[1].betaDeg())] }),
     followChassis(pose) {
+      letGo();
+      last = null;
       const at = placement(pose);
       const put = (body: RigidBody, where: { position: Vec3; rotation: Quat }) => {
         body.setTranslation(where.position, true);

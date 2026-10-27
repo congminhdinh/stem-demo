@@ -42,6 +42,14 @@ export const WHEEL_SKIN_M = 0.001;
 export const GROUND_CONTACT_GAP_M = 0.001;
 /** ...and the surface faces up, its normal within about 45° of +Y. A wall the ball rubs against is not ground. */
 export const GROUND_NORMAL_MIN_Y = 0.7;
+/**
+ * N19 B7 (plan §4.17, gripper.ts): a gripper car is still, for its lift's hold, while it stands on its three supports (both wheels' support
+ * balls and the caster on the floor), both drive motors give nothing (coasting or braking) and its chassis moves slower than this, m/s
+ * (0.1 cm/s; the creep the hold stops was 0.002 cm/s)...
+ */
+export const CAR_STILL_SPEED_M_S = 0.001;
+/** ...and turns slower than this, rad/s (0.57 °/s; the creep was 0.0102 °/s). */
+export const CAR_STILL_TURN_RAD_S = 0.01;
 /** Friction of the chassis body box on walls and objects. */
 const CHASSIS_FRICTION = 0.3;
 /** Turns Rapier's +Y cylinder axis into the wheel's axle, local Z. */
@@ -206,7 +214,7 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
     return Math.min(spec.frictionWheel, gearFrictionNm / (radiusM * loadN));
   }
   const caster = robotPointToLocal(spec.casterCm);
-  attach(frictionless(R.ColliderDesc.ball(cmToM(spec.casterRadiusCm)).setTranslation(caster.x, caster.y, caster.z)));
+  const casterBall = attach(frictionless(R.ColliderDesc.ball(cmToM(spec.casterRadiusCm)).setTranslation(caster.x, caster.y, caster.z)));
 
   const arms = servos.map((servo) => createServoArm(world, chassis, servo));
   for (const arm of arms) owned.add(arm.collider.handle);
@@ -282,6 +290,17 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
   // computation assumed.
   const contactLocal = [robotPointToLocal([axleX, halfTrackCm, 0]), robotPointToLocal([axleX, -halfTrackCm, 0])] as const;
   const underComLocal = robotPointToLocal([comX, comY, 0]);
+  /**
+   * N19 B7: the car on its three supports, the drive stopped and the chassis still (CAR_STILL_*): what the gripper's lift needs to hold. On its
+   * supports its rest does not depend on what the servo pushes with; leaning on a wall or nosed up on its arm, it does (measured: holding the
+   * lift of a car leaning on a wall at 11°, its arm up with 50 g, moved its lean by 0.54°). Read only for a kit with a gripper.
+   */
+  const carStill = () => {
+    if (left.drive !== 0 || right.drive !== 0 || !grounded[0] || !grounded[1] || !supportGrounded(casterBall)) return false;
+    const v = chassis.linvel();
+    const w = chassis.angvel();
+    return v.x * v.x + v.y * v.y + v.z * v.z <= CAR_STILL_SPEED_M_S * CAR_STILL_SPEED_M_S && w.x * w.x + w.y * w.y + w.z * w.z <= CAR_STILL_TURN_RAD_S * CAR_STILL_TURN_RAD_S;
+  };
   /** Before the step: where the axle's midpoint was, the chassis rotation and its heading on the floor. */
   let before: { axle: Vec3; rotation: Quat; frame: GroundFrame | null } | null = null;
   /** How far the chassis sank into its supports while it settled: where placeAt puts it. */
@@ -382,7 +401,7 @@ export function assembleRobot(world: PhysicsWorld, kit: Kit, start: RobotStart, 
         setDrive(still, still);
       }
       for (const arm of arms) arm.beforeStep(stepDt);
-      gripper?.beforeStep(stepDt);
+      if (gripper !== null) gripper.beforeStep(stepDt, carStill());
       before = { axle: localToWorld(chassis.translation(), rotation, axleLocal), rotation, frame };
     },
     afterStep() {
