@@ -412,11 +412,14 @@ function kitHasGripper(kitId: string): boolean {
   return productionKits.get({ id: kitId, version: robotKitVersionOf(kitId) })?.modules.some((module) => module.kind === 'gripper') ?? false;
 }
 
+/** N19 final fix (minor round m5): how far off a multiple of 90° a gripper car's box may be turned and still face the arena square, degrees. */
+const SQUARE_YAW_TOLERANCE_DEG = 1e-6;
+
 /**
  * N19 final fix (G2 M4, review B1/B2 M6): a gripper car's objects are square seen from above: a box's two sides on the floor equal, turned by
- * whole quarter turns (or a cylinder). The grasp takes a box's own width as its shorter side (world/robot/grasp.ts `ownWidthCm`, rule 6), so
- * a long box met side on could be gripped with the fingers in it (docs/robot-scenario-authoring.md §11.3). A kit with no gripper grips
- * nothing: the rover's scenarios are not checked.
+ * whole quarter turns, within SQUARE_YAW_TOLERANCE_DEG (or a cylinder). The grasp takes a box's own width as its shorter side
+ * (world/robot/grasp.ts `ownWidthCm`, rule 6), so a long box met side on could be gripped with the fingers in it
+ * (docs/robot-scenario-authoring.md §11.3). A kit with no gripper grips nothing: the rover's scenarios are not checked.
  */
 function gripperObjectIssues(scenario: ScenarioShape, add: Add): void {
   if (!kitHasGripper(scenario.kit)) return;
@@ -424,7 +427,9 @@ function gripperObjectIssues(scenario: ScenarioShape, add: Add): void {
     if (object.shape !== 'box') return;
     const [x, y] = object.sizeCm;
     if (x !== y) add(['arena', 'objects', i, 'sizeCm'], `a gripper car’s object must be square from above (the grasp reads a box’s shorter side): ${x} × ${y} cm`);
-    if (object.yawDeg % 90 !== 0) add(['arena', 'objects', i, 'yawDeg'], `a gripper car’s object must face the arena square (a multiple of 90°): ${object.yawDeg}°`);
+    // Minor round m5: a multiple of 90° written by a tool that computed it (90.0000000001) is one.
+    const off = Math.abs(object.yawDeg % 90);
+    if (Math.min(off, 90 - off) > SQUARE_YAW_TOLERANCE_DEG) add(['arena', 'objects', i, 'yawDeg'], `a gripper car’s object must face the arena square (a multiple of 90°): ${object.yawDeg}°`);
   });
 }
 

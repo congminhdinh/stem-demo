@@ -456,7 +456,7 @@ cung cấp (plan VG) thì phải đo lại mọi thời gian (quay, chở, mọi
 
 ### 11.3 Vật, vùng, tường cho xe tay gắp
 
-- **Vật phải vuông nhìn từ trên** (review B1/B2 M6): hộp có `sizeCm[0] = sizeCm[1]`, `yawDeg` là bội của 90 (bốn bài: 0), hoặc trụ. Không dùng
+- **Vật phải vuông nhìn từ trên** (review B1/B2 M6): hộp có `sizeCm[0] = sizeCm[1]`, `yawDeg` là bội của 90, sai tới 1e-6° (bốn bài: 0), hoặc trụ. Không dùng
   hình chữ nhật: luật 6 của máy gắp đo bề rộng riêng là cạnh ngắn, nên hình chữ nhật gặp càng theo cạnh dài có thể bị gắp với hai ngón lún vào
   vật. Từ N19 final fix (G2 M4) schema báo lỗi `arena.objects[i].sizeCm` / `arena.objects[i].yawDeg` cho kịch bản của kit có tay gắp; kịch bản
   rover không bị kiểm.

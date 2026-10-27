@@ -44,6 +44,13 @@ describe('a gripper car’s objects are square from above (N19 final fix, G2 M4)
     expect([90, -180, 270, 0].map((yawDeg) => issuesOf(edited(pick, (s) => (s.arena.objects[0].yawDeg = yawDeg))))).toEqual([[], [], [], []]);
   });
 
+  it('takes a quarter turn with float noise as one, within 1e-6° (minor round m5), and refuses 1e-5° off', () => {
+    const yaw = (yawDeg: number) => issuesOf(edited(pick, (s) => (s.arena.objects[0].yawDeg = yawDeg)));
+    expect([90 + 1e-9, -180 - 5e-7, 89.9999995, 1e-7, -1e-6, 270.000001].map(yaw)).toEqual([[], [], [], [], [], []]);
+    expect(yaw(90.00001)).toEqual(['arena.objects[0].yawDeg: a gripper car’s object must face the arena square (a multiple of 90°): 90.00001°']);
+    expect(yaw(-0.00001)).toEqual(['arena.objects[0].yawDeg: a gripper car’s object must face the arena square (a multiple of 90°): -0.00001°']);
+  });
+
   it('says both for a box that is both, and leaves a cylinder alone', () => {
     expect(issuesOf(edited(stack, (s) => Object.assign(s.arena.objects[1], { sizeCm: [6, 8, 4], yawDeg: 45 })))).toEqual([
       'arena.objects[1].sizeCm: a gripper car’s object must be square from above (the grasp reads a box’s shorter side): 6 × 8 cm',
