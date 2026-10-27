@@ -172,6 +172,12 @@ export type GripperHandles = {
   ledHalo: Object3D | null;
   /** The pose each frame writes into (made once). */
   pose: GripperPose;
+  /**
+   * What the nodes show now (N19 E9): the claw and the arm of the last pose, and whether the LED was lit (null: nothing posed yet). A frame at
+   * the same state writes nothing: an arm at rest, which is most frames of a run, makes no arithmetic and no object, whatever tier of the
+   * JIT the code is in (the interpreter boxes every double it computes: 265 bytes a pose, robot-assembly.gripper.allocation.test.ts).
+   */
+  posedFor: { clawDeg: number; liftDeg: number; lit: boolean | null };
 };
 
 export type AssembledRobot = { root: Group; handles: RobotHandles; dispose(): void };
@@ -363,7 +369,7 @@ function assembleGripper(
     root.add(part);
     return part;
   };
-  return { model: g, boom, link, carriage, jawLeft: jaw('part_gripper_jaw_l'), jawRight: jaw('part_gripper_jaw_r'), led, ledHalo, pose: createGripperPose() };
+  return { model: g, boom, link, carriage, jawLeft: jaw('part_gripper_jaw_l'), jawRight: jaw('part_gripper_jaw_r'), led, ledHalo, pose: createGripperPose(), posedFor: { clawDeg: Number.NaN, liftDeg: Number.NaN, lit: null } };
 }
 
 /**
@@ -668,18 +674,28 @@ export function applyRobotWorld(handles: RobotHandles, world: RobotSnapshot, led
 
 /**
  * N19 E6: the gripper as robot.gripper says (gripper-pose.ts: the boom and its link turned, the carriage level at the tip, the fingers),
- * written into the nodes and the handles' pose: nothing is made a frame (fix round 1, review M1).
+ * written into the nodes and the handles' pose: nothing is made a frame (fix round 1, review M1). N19 E9: and nothing is done when the claw
+ * and the arm are where the last frame left them (`posedFor`), nor to the LED when it is as it was.
  */
-function poseGripper(gripper: GripperHandles, world: RobotSnapshot): void {
-  const { tip, jawLeft, jawRight, elevationRad, betaRad } = gripperPoseInto(gripper.pose, gripper.model, gripperStateOf(world));
-  gripper.boom.rotation.z = elevationRad;
-  if (gripper.link) gripper.link.rotation.z = elevationRad;
-  gripper.carriage.position.set(tip[0], tip[1], tip[2]);
-  gripper.jawLeft.position.set(jawLeft[0], jawLeft[1], jawLeft[2]);
-  gripper.jawLeft.rotation.y = betaRad;
-  gripper.jawRight.position.set(jawRight[0], jawRight[1], jawRight[2]);
-  gripper.jawRight.rotation.y = 0 - betaRad;
+export function poseGripper(gripper: GripperHandles, world: RobotSnapshot): void {
+  const state = gripperStateOf(world);
+  const posed = gripper.posedFor;
+  if (state.clawDeg !== posed.clawDeg || state.liftDeg !== posed.liftDeg) {
+    const { tip, jawLeft, jawRight, elevationRad, betaRad } = gripperPoseInto(gripper.pose, gripper.model, state);
+    gripper.boom.rotation.z = elevationRad;
+    if (gripper.link) gripper.link.rotation.z = elevationRad;
+    gripper.carriage.position.set(tip[0], tip[1], tip[2]);
+    gripper.jawLeft.position.set(jawLeft[0], jawLeft[1], jawLeft[2]);
+    gripper.jawLeft.rotation.y = betaRad;
+    gripper.jawRight.position.set(jawRight[0], jawRight[1], jawRight[2]);
+    gripper.jawRight.rotation.y = 0 - betaRad;
+    posed.clawDeg = state.clawDeg;
+    posed.liftDeg = state.liftDeg;
+  }
   const lit = colorLedLit(world);
-  if (gripper.led) gripper.led.emissiveIntensity = lit ? COLOR_LED_INTENSITY : 0;
-  if (gripper.ledHalo) gripper.ledHalo.visible = lit;
+  if (lit !== posed.lit) {
+    if (gripper.led) gripper.led.emissiveIntensity = lit ? COLOR_LED_INTENSITY : 0;
+    if (gripper.ledHalo) gripper.ledHalo.visible = lit;
+    posed.lit = lit;
+  }
 }

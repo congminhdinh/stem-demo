@@ -108,7 +108,9 @@ export function RobotView({ model, view, shadows }: RobotViewProps) {
       const { tip, jawLeft, jawRight, elevationRad, betaRad } = gripperPoseInto(gripperPose, model.gripper, gripperStateOf(world));
       if (gripperBoom.current) gripperBoom.current.rotation.z = elevationRad;
       gripperCarriage.current?.position.set(tip[0], tip[1], tip[2]);
-      const [left, right] = gripperJaws.current;
+      // By index: array destructuring takes the array's iterator, an allocation in every drawn frame (N19 E9).
+      const left = gripperJaws.current[0];
+      const right = gripperJaws.current[1];
       if (left) {
         left.position.set(jawLeft[0], jawLeft[1], jawLeft[2]);
         left.rotation.y = betaRad;

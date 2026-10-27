@@ -40,9 +40,11 @@ export const createGripperPose = (): GripperPose => ({ elevationRad: 0, tip: [0,
 /** The gripper's pose at `state`, written into `out` (nothing is made). */
 export function gripperPoseInto(out: GripperPose, gripper: GripperModel, state: Pick<GripperState, 'clawDeg' | 'liftDeg'>): GripperPose {
   const elevationRad = (gripper.elevationAtLift0Deg + state.liftDeg) * DEG;
-  const [px, py, pz] = gripper.position;
-  const tx = px + gripper.boomLengthM * Math.cos(elevationRad);
-  const ty = py + gripper.boomLengthM * Math.sin(elevationRad);
+  // Read by index: `const [px, py, pz] = gripper.position` takes the array's iterator, an allocation in every drawn frame (N19 E9).
+  const { position } = gripper;
+  const pz = position[2];
+  const tx = position[0] + gripper.boomLengthM * Math.cos(elevationRad);
+  const ty = position[1] + gripper.boomLengthM * Math.sin(elevationRad);
   const closed = gripper.fingerOpenDeg - gripper.fingerDegPerServoDeg * gripper.jawsMeetDeg;
   const beta = Math.min(gripper.fingerOpenDeg, Math.max(closed, gripper.fingerOpenDeg - gripper.fingerDegPerServoDeg * state.clawDeg));
   out.elevationRad = elevationRad;

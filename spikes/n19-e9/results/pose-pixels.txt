@@ -1,0 +1,13 @@
+# N19 E9: the gripper pose change draws the same pixels as BASE (f744cbf, the D4 tip) -- `node spikes/n19-e9/pose-pixels.mjs --base=http://localhost:5551 --head=http://localhost:5550`
+# Chromium (Playwright 1.63, channel chromium, --use-angle=swiftshader), Apple M4 Pro, macOS 25.5, load average 8.7 at the start (uptime 7:29), 2026-10-27.
+# BASE served from `git archive f744cbf`, HEAD from the working tree (gripper-pose.ts by index, poseGripper's posedFor, RobotView.tsx by index); each state twice per tree.
+high up-open           base 66c7838b597b 66c7838b597b  head 66c7838b597b 66c7838b597b  identical
+high down-open         base 054361d4f6d2 054361d4f6d2  head 054361d4f6d2 054361d4f6d2  identical
+high level-half        base 6bd751ebc278 6bd751ebc278  head 6bd751ebc278 6bd751ebc278  identical
+high held-raised       base 743834410469 743834410469  head 743834410469 743834410469  identical
+high down-closed-idle  base 29e6df02d7d5 29e6df02d7d5  head 29e6df02d7d5 29e6df02d7d5  identical
+low up-open           base 22cd71f5e08b 22cd71f5e08b  head 22cd71f5e08b 22cd71f5e08b  identical
+low down-open         base 436972f67bb2 436972f67bb2  head 436972f67bb2 436972f67bb2  identical
+low level-half        base f1b69342c9f2 f1b69342c9f2  head f1b69342c9f2 f1b69342c9f2  identical
+low held-raised       base d8276af39002 d8276af39002  head d8276af39002 d8276af39002  identical
+low down-closed-idle  base 9cf401848a67 9cf401848a67  head 9cf401848a67 9cf401848a67  identical
