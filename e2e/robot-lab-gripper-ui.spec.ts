@@ -5,6 +5,9 @@ import type { SensorOverlayProbe } from '../src/ui/robot3d/parts/sensor-overlay'
 import type { TopViewGripperState } from '../src/ui/robot3d/top-view-gripper-state';
 import type { ZoneTagsProbe } from '../src/ui/robot3d/zone-tags-state';
 import { pinLowTierChainOff } from './robot-chain';
+import { basicSkip } from '../tests/basic-skip';
+
+basicSkip(test.skip, 'the gripper car’s lessons, the view tools, the sensor overlays and the Cổng & chân tab');
 
 // N19 E1-E3: the gripper car's UI in the robot lab, drawn by SwiftShader (playwright.config.ts, project chromium-robot). No gripper lesson
 // ships yet (plan D4), so e2e/robot-lab-gripper-ui.html opens the app as the LMS does (?embed=1&lab=robot&template=rb-sandbox) with that key's

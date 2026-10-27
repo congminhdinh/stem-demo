@@ -1,4 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { basicSkip } from '../tests/basic-skip';
+
+basicSkip(test.skip, 'the gripper car’s lessons and the modelled scene');
 
 // N19 E6/E7: the gripper car and the pick-and-place props in the robot lab's 3D view (e2e/robot-gripper-look.html: Scene.tsx with a fixture
 // snapshot; no gripper scenario ships yet, plan D4) are the modelled scene on both tiers, holding the red cube, with no error. The gallery

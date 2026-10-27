@@ -5,6 +5,9 @@ import { join } from 'node:path';
 import { robotSolutions } from '../src/samples/robot-solutions';
 import { robotStarterDocument } from '../src/samples/robot-templates';
 import { pinLowTierChainOff } from './robot-chain';
+import { basicSkip } from '../tests/basic-skip';
+
+basicSkip(test.skip, 'the C++ and Cổng & chân tabs');
 
 // N18 R4.5: the robot lab's C++ and Cổng & chân tabs in the 1100 x 640 frame of a lesson page. The ports & pins tab is the hub panel: it
 // follows a run of the drive-to-zone lesson (the live percent of each motor, the pins D5 PWM 128, D7 HIGH, D8 LOW, the board's pads, the

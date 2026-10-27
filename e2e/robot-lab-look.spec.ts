@@ -2,6 +2,7 @@ import { expect, test, type Frame, type Page } from '@playwright/test';
 import { robotSolutions } from '../src/samples/robot-solutions';
 import { robotStarterDocument } from '../src/samples/robot-templates';
 import { pinLowTierChainOff } from './robot-chain';
+import { basicSkip } from '../tests/basic-skip';
 
 // N18 R4.7: every pilot scenario's 3D view, in the 1100 x 640 frame of a lesson page, drawn by SwiftShader (playwright.config.ts, project
 // chromium-robot), is the modelled scene (not the simple fallback shapes) and looks 3D: across a grid of pixels read from its drawing
@@ -65,6 +66,7 @@ test.describe.configure({ timeout: 120_000 });
 test.describe('the robot lab’s 3D look (N18 R4.7)', () => {
   for (const key of pilots) {
     test(`${key}: the modelled scene, with shading and many colours`, async ({ page, baseURL }) => {
+      basicSkip(test.skip, 'the modelled scene (robot-lab-basic.spec.ts: the simple shapes)');
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(String(error)));
       await page.addInitScript(sampleDraws);
@@ -81,6 +83,7 @@ test.describe('the robot lab’s 3D look (N18 R4.7)', () => {
   }
 
   test('the high tier draws the modelled scene too, with its soft shadows', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'the high tier and the modelled scene');
     await page.addInitScript(sampleDraws);
     const frame = await openInLesson(page, labUrl(baseURL, 'lab=robot&template=rb-servo-gate'));
     await frame.getByTestId('robot-quality').click();

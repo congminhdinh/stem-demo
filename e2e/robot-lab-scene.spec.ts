@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { robotSolutions } from '../src/samples/robot-solutions';
 import { robotStarterDocument } from '../src/samples/robot-templates';
 import { pinLowTierChainOff } from './robot-chain';
+import { basicSkip } from '../tests/basic-skip';
 
 // N18 R4.2/R4.4: the robot lab a learner uses, in the 1100 x 640 frame of a lesson page, drawn by SwiftShader (playwright.config.ts,
 // project chromium-robot): the blocks run the robot in the 3D arena, the running block lights up, the HUD follows the run, Dừng and Đặt lại
@@ -118,6 +119,7 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
   });
 
   test('scores the reference solution 100 at 4×, the HUD showing both goals met and the run’s end', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'the camera views (robot-lab-basic.spec.ts scores this reference)');
     const errors = collectErrors(page);
     const frame = await openInLesson(page, labUrl(baseURL, 'lab=robot&template=rb-drive-to-zone'));
     await frame.evaluate((document) => window.__stem?.loadProject(document), solved());
@@ -310,6 +312,7 @@ test.describe('the robot lab in a lesson (N18 R4.2, R4.4)', () => {
 
 test.describe('the robot lab’s layout (N18 R4.2)', () => {
   test('at 1100 x 640 in the lesson frame: the view about 60 %, the program beside it, nothing scrolls', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'the C++ and Cổng & chân tabs');
     const frame = await openInLesson(page, labUrl(baseURL, 'lab=robot&template=rb-line-follow'));
     const width = await frame.evaluate(() => window.innerWidth);
     const viewport = await frame.getByTestId('robot-viewport').boundingBox();
@@ -353,6 +356,7 @@ test.describe('the robot lab’s layout (N18 R4.2)', () => {
   const topLeftInView = ({ blocks, view }: BlocksView) => blocks.left >= view.left - 1 && blocks.top >= view.top - 1 && blocks.left < view.right && blocks.top < view.bottom;
 
   test('brings the program a host loads into view: the lesson frame shows all of the mission’s reference, zoomed out a little', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'rb-mini-mission');
     const frame = await openInLesson(page, labUrl(baseURL, `lab=robot&template=rb-mini-mission&origin=${encodeURIComponent(lessonOrigin)}`));
     const starter = await blocksView(frame);
     await frame.evaluate((document) => window.__stem?.loadProject(document), missionDocument());
@@ -382,6 +386,7 @@ test.describe('the robot lab’s layout (N18 R4.2)', () => {
   });
 
   test('brings the program into view even when it is placed far from where the editor starts, and keeps its top-left in sight in a narrow frame', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'rb-mini-mission');
     const errors = collectErrors(page);
     await page.setViewportSize({ width: 948, height: 450 });
     await page.goto(labUrl(baseURL, 'lab=robot&template=rb-mini-mission'));
@@ -403,6 +408,7 @@ test.describe('the robot lab’s layout (N18 R4.2)', () => {
   });
 
   test('brings a program loaded while the lab has no size (its frame is out of sight) into view once the frame is shown', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'rb-mini-mission');
     const frame = await openInLesson(page, labUrl(baseURL, `lab=robot&template=rb-mini-mission&origin=${encodeURIComponent(lessonOrigin)}`));
     const starter = await blocksView(frame);
     await page.locator('iframe').evaluate((element) => (element.style.display = 'none'));

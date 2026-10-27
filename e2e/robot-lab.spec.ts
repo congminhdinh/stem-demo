@@ -1,6 +1,7 @@
 import { expect, test, type Frame, type Page } from '@playwright/test';
 import { robotStarterDocument } from '../src/samples/robot-templates';
 import { pinLowTierChainOff } from './robot-chain';
+import { basicSkip } from '../tests/basic-skip';
 
 // N18 R4.1: the robot lab (`lab=robot`) in the frame of a lesson page, as the LMS launches it (plan §4.7): its shell renders at the
 // design size (1100 x 640), says ready over stem-lab/v1 with `lab: "robot"`, takes a robot project of the host and nothing else.
@@ -124,6 +125,7 @@ test.describe('a robot lab in a lesson (stem-lab/v1)', () => {
   });
 
   test('opens the robot project of the host and ignores a generic one', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'rb-square-route (robot-lab-basic.spec.ts loads a project from the host in its scenarios)');
     const frame = await openInLesson(page, labUrl(baseURL, `lab=robot&template=rb-square-route&origin=${encodeURIComponent(lessonOrigin)}`));
     await expect.poll(() => messagesOfType(page, 'ready')).toHaveLength(1);
     const template = robotStarterDocument('rb-square-route');
@@ -192,6 +194,7 @@ test.describe('a robot lab on its own', () => {
   });
 
   test('speaks English with lang=en', async ({ page }) => {
+    basicSkip(test.skip, 'rb-square-route');
     await page.goto('/?embed=1&lab=robot&template=rb-square-route&lang=en');
     await pinLowTierChainOff(page);
     await expect(page.getByRole('heading', { level: 2, name: 'Drive a square' })).toBeVisible();
@@ -205,6 +208,7 @@ test.describe('a robot lab on its own', () => {
     ['lab=blockly&template=rb-sandbox', 'Mẫu bài "rb-sandbox" không mở trong lab=blockly.'],
   ] as const) {
     test(`shows the error screen, not a project, for ${query}`, async ({ page }) => {
+      if (query.startsWith('lab=robot')) basicSkip(test.skip, 'every robot scenario in the error screen’s list (robot-lab-basic.spec.ts lists its four)');
       await page.goto(`/?embed=1&${query}`);
       await expect(page.getByTestId('launch-error')).toBeVisible();
       await expect(page.getByTestId('launch-error')).toContainText(reason);

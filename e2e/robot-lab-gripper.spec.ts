@@ -8,6 +8,9 @@ import type { TopViewGripperState } from '../src/ui/robot3d/top-view-gripper-sta
 import type { TopViewSensorsState } from '../src/ui/robot3d/top-view-sensors-state';
 import type { ZoneTagsProbe } from '../src/ui/robot3d/zone-tags-state';
 import { pinLowTierChainOff } from './robot-chain';
+import { basicSkip } from '../tests/basic-skip';
+
+basicSkip(test.skip, 'the gripper car’s lessons');
 
 // N19 E10: the gripper lab on the real lessons (rb-grip-pick, rb-grip-sort: the scenarios the LMS opens by key, with the programs of
 // src/samples/robot-solutions.ts; e2e/robot-lab-gripper-ui.spec.ts is the test arena's), drawn by SwiftShader (playwright.config.ts, project

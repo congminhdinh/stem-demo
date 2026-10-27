@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { robotSolutions } from '../src/samples/robot-solutions';
 import { robotStarterDocument } from '../src/samples/robot-templates';
 import { pinLowTierChainOff } from './robot-chain';
+import { basicSkip } from '../tests/basic-skip';
 
 // N18 R4.6: where the robot lab puts things in its two frames: 1100 x 640, the size of the frame a lesson page gives it (the design size),
 // and 760 px, a frame narrower than 800 px, where its two sides are tabs. In both, the view (3D or the 2D map that takes its place) is
@@ -135,6 +136,7 @@ test.describe.configure({ timeout: 120_000 });
 
 test.describe('the robot lab at 1100 x 640, the size of a lesson’s frame (N18 R4.6)', () => {
   test('puts the 3D view at about 60 % with the program and its three tabs beside it, the camera over the view, and nothing scrolls', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'the C++ and Cổng & chân tabs (robot-lab-basic.spec.ts has its layout)');
     const frame = await openInLesson(page, labUrl(baseURL));
     await expectSplitLayout(frame, 1100, 640);
     const [stage, camera, hud] = await Promise.all([box(frame, '.robot-stage'), box(frame, '[data-testid=robot-camera]'), box(frame, '[data-testid=robot-hud]')]);
@@ -150,6 +152,7 @@ test.describe('the robot lab at 1100 x 640, the size of a lesson’s frame (N18 
   });
 
   test('keeps the same layout when the 2D map takes the 3D view’s place: it fills the stage, with its scale bar and its note inside it', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'the C++ and Cổng & chân tabs');
     const frame = await openInLesson(page, labUrl(baseURL));
     const before = await Promise.all([box(frame, '[data-testid=robot-viewport]'), box(frame, '[data-testid=program-region]')]);
     await frame.getByTestId('robot-viewmode').click();
@@ -186,6 +189,7 @@ test.describe('the robot lab at 1100 x 640, the size of a lesson’s frame (N18 
   });
 
   test('keeps the header on one row with a run in progress, the HUD’s goals open and a long scenario name', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'rb-mini-mission (robot-lab-basic.spec.ts has its header on one row)');
     const frame = await openInLesson(page, labUrl(baseURL, 'rb-mini-mission'));
     await frame.evaluate((document) => window.__stem?.loadProject(document), { ...robotStarterDocument('rb-line-follow'), program: { blocks: robotSolutions['rb-line-follow'].reference } });
     const idle = await box(frame, '.robot-header');

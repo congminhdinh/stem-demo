@@ -8,6 +8,7 @@ import { patternInk } from '../src/ui/robot3d/zone-pattern';
 import { decodePng } from '../scripts/lib/png';
 import { readJson } from './helpers';
 import { pinLowTierChainOff } from './robot-chain';
+import { basicSkip } from '../tests/basic-skip';
 
 // N18 R8: the robot lab for a keyboard and a screen reader, in the 1100 x 640 frame of a lesson page, drawn by SwiftShader (playwright.config.ts,
 // project chromium-robot). There is no axe here (no new dependency): the checks read Playwright's accessibility snapshot (names and roles of
@@ -253,6 +254,7 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
   });
 
   test('has names and roles on every control: the accessibility tree of the lab, idle, with the tools open, and after a check', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'the camera views and the view tools');
     const errors = collectErrors(page);
     const frame = await openInLesson(page, labUrl(baseURL));
     // N18 final fix I1: a check runs fast by default; this lab's learner chose 1×.
@@ -327,6 +329,7 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
   });
 
   test('has exactly two live regions, a polite one and an assertive one, and a run and a check update them in words, once', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'teleop (Lái tay)');
     const errors = collectErrors(page);
     const frame = await openInLesson(page, labUrl(baseURL, 'rb-stop-at-wall'));
     expect(await liveRegions(frame)).toEqual([
@@ -417,6 +420,7 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
   });
 
   test('has the 3D view as a named stop, which describes its keys, and the camera buttons say theirs', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'the camera views');
     const frame = await openInLesson(page, labUrl(baseURL));
     const view = frame.getByTestId('robot-scene');
     await expect(view).toHaveAttribute('tabindex', '0');
@@ -446,6 +450,7 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
   });
 
   test('puts the Tab order header, the 3D view, the camera and the tools, then the program’s tabs, and traps the keyboard nowhere', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'the camera views and the view tools');
     const frame = await openInLesson(page, labUrl(baseURL));
     const where = () =>
       frame.evaluate(() => {
@@ -494,6 +499,7 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
   });
 
   test('has a visible focus ring of at least 3:1 on every control the Tab key reaches in the view', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'the view tools');
     const frame = await openInLesson(page, labUrl(baseURL));
     await frame.getByTestId('robot-run').focus();
     const seen: string[] = [];
@@ -518,6 +524,7 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
   });
 
   test('keeps the text over the 3D view and in the controls at AA contrast: idle, in a run, with the tools open and over a result, on both graphics', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'the quality button and the view tools');
     test.setTimeout(240_000);
     const frame = await openInLesson(page, labUrl(baseURL));
     await expectContrast(frame, 'idle');
@@ -627,6 +634,7 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
   });
 
   test('Escape in a result card closes the card and not Lái tay, which is on', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'teleop (Lái tay)');
     const frame = await openInLesson(page, labUrl(baseURL));
     await frame.evaluate((document) => window.__stem?.loadProject(document), projectOf('rb-drive-to-zone', 'reference'));
     await frame.locator('[data-testid=robot-check-speed] [data-speed="fast"]').click();
@@ -685,6 +693,7 @@ test.describe('the robot lab’s accessibility (N18 R8)', () => {
   });
 
   test('ends Lái tay with Escape, as it clears the ruler', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'teleop (Lái tay) and the ruler');
     const frame = await openInLesson(page, labUrl(baseURL));
     await recordSaid(frame);
     await frame.getByTestId('robot-tool-teleop').click();
@@ -728,6 +737,7 @@ test.describe('the camera by keyboard (N18 R8)', () => {
   const pressed = (frame: Frame) => frame.locator('[data-testid=robot-camera] [data-mode][aria-pressed=true]').getAttribute('data-mode');
 
   test('1, 2 and 3 choose the views, 0 and Home put the view back, + and − zoom, Shift with the arrows orbit, and each says what it did', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'the camera views (robot-lab-basic.spec.ts has its one camera’s keys)');
     const errors = collectErrors(page);
     const frame = await openInLesson(page, labUrl(baseURL));
     await recordSaid(frame);
@@ -792,6 +802,7 @@ test.describe('the camera by keyboard (N18 R8)', () => {
   });
 
   test('takes the keys only when the 3D view has the focus: not from a button, a field or the program’s editor, and a plain arrow is the robot’s', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'the camera views');
     const frame = await openInLesson(page, labUrl(baseURL));
     await frame.getByTestId('robot-scene').focus();
     const start = await settled(frame);
@@ -825,6 +836,7 @@ test.describe('the camera by keyboard (N18 R8)', () => {
   });
 
   test('in Lái tay the plain arrows drive the robot and Shift with them orbits the camera instead', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'teleop (Lái tay)');
     const frame = await openInLesson(page, labUrl(baseURL));
     await frame.getByTestId('robot-tool-teleop').click();
     await expect.poll(async () => ((await frame.evaluate(() => window.__stem?.robot.getSnapshot())) as { status: string } | null)?.status, { timeout: 30_000 }).toBe('running');
@@ -848,6 +860,7 @@ test.describe('the camera by keyboard (N18 R8)', () => {
   });
 
   test('reduced motion: the camera jumps to a view where it otherwise glides for a moment', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'the camera views');
     const frame = await openInLesson(page, labUrl(baseURL));
     await settled(frame);
     // How many times the camera is reported to have moved while it goes to the top view.
@@ -878,6 +891,7 @@ test.describe('the camera by keyboard (N18 R8)', () => {
 
 test.describe('the zones’ patterns on the 2D map (N18 R8)', () => {
   test('the start is dotted, a target hatched and a checkpoint plain, each in its zone’s ink', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'rb-mini-mission');
     const errors = collectErrors(page);
     const frame = await openInLesson(page, labUrl(baseURL, 'rb-mini-mission'));
     await frame.getByTestId('robot-viewmode').click();
@@ -905,6 +919,7 @@ test.describe('the zones’ patterns on the 2D map (N18 R8)', () => {
   });
 
   test('are on the 3D mat too: the views a learner opens are drawn with it (screenshots for the report; the texture is held by mat-paint.patterns.test.ts)', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'rb-mini-mission and the camera views');
     const errors = collectErrors(page);
     const frame = await openInLesson(page, labUrl(baseURL, 'rb-mini-mission'));
     await expect(frame.locator('[data-testid=robot-canvas] canvas')).toHaveAttribute('data-models', 'modelled');
@@ -923,6 +938,7 @@ test.describe('the lab at a browser zoom of 200 % (N18 R8)', () => {
   test.use({ deviceScaleFactor: 2 });
 
   test('keeps every control whole and in reach at 550 x 320 CSS pixels: no scrolling sideways, none clipped, the 3D view shrinks', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'the view tools');
     const errors = collectErrors(page);
     const lesson = new URL('/lesson', lessonOrigin);
     lesson.searchParams.set('lab', labUrl(baseURL));

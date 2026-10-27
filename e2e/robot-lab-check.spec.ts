@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { robotSolutions } from '../src/samples/robot-solutions';
 import { robotStarterDocument, type RobotTemplateKey } from '../src/samples/robot-templates';
 import { pinLowTierChainOff } from './robot-chain';
+import { basicSkip } from '../tests/basic-skip';
 
 // N18 R6.3: Kiểm tra in the robot lab, in the 1100 x 640 frame of a lesson page, drawn by SwiftShader (playwright.config.ts, project
 // chromium-robot). A check of a reference sends the host a scored check-result after the check's run stopped; an exploit fails with the
@@ -262,6 +263,7 @@ test.describe('Kiểm tra in the robot lab (N18 R6.3)', () => {
 // `rb-grip-pick-reference`), and a run of it shows the car holding the cube.
 test.describe('Kiểm tra of a gripper lesson (N19 D4, Gate G1)', () => {
   test('rb-grip-pick: the reference passes, with Node’s result and last worlds; Chạy at 4× lifts the cube in the jaws', async ({ page, baseURL }) => {
+    basicSkip(test.skip, 'the gripper car’s lessons');
     test.setTimeout(180_000);
     const errors = collectErrors(page);
     const frame = await openInLesson(page, labUrl(baseURL, 'rb-grip-pick'));

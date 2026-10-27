@@ -11,6 +11,9 @@ import { markPattern, OBJECT_PATTERN_MARGIN_CM, patternDots, patternSegments } f
 import { faceCells, faceColors, markMask, maskAgreement, simulateColor, simulateImage, type ColorVision, type MarkMask, type Pixels } from './color-vision';
 import { gripperLessonRuns, holdAtEnd, shotName, type GripperLessonRun, type GripperMoment } from './gripper-moments';
 import { pinLowTierChainOff } from './robot-chain';
+import { basicSkip } from '../tests/basic-skip';
+
+basicSkip(test.skip, 'the gripper car’s lessons and the modelled scene');
 
 // N19 E8: the gripper car on its four real lessons, in the 1100 x 640 frame of a lesson page, drawn by SwiftShader (playwright.config.ts,
 // project chromium-robot). Each lesson's reference solution is stepped with Bước to the moments of gripper-moments.ts (0.1 s of simulated
