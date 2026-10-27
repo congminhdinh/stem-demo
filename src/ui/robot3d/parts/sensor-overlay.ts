@@ -37,7 +37,7 @@ import { zoneHighlightGeometry } from './zone-highlight';
 // it shares one shader program (MeshBasicMaterial with vertex colours and alpha) and, with the tag's sprite, adds only that to the scene's.
 // Everything is flagged `compileWithScene` (Scene.tsx CompiledDraw): hidden until a reading comes, but compiled with the scene.
 
-const LABEL_LIFT_M = 0.07;
+export const LABEL_LIFT_M = 0.07;
 /** The tag is painted at most this often while the reading changes, s; the draw loop settling paints it exactly (`flushLabels`). */
 export const LABEL_PERIOD_S = 0.1;
 const ZONE_LIFT_M = 0.003;
