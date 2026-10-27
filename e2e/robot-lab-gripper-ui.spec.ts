@@ -85,8 +85,9 @@ test.describe('the gripper car in the robot lab (N19 E1-E3)', () => {
     await page.keyboard.press('f');
     await page.keyboard.press('f');
     await expect.poll(() => servo(page, 'D10'), { timeout: 60_000 }).toBe(60);
-    await expect.poll(async () => (await gripper(page))!.liftDeg, { timeout: 60_000 }).toBeGreaterThan(59.5);
-    expect((await gripper(page))!.liftDeg).toBeLessThan(60.5);
+    // The arm comes down from 90°, so it is above 59.5° from the start: the wait is for it to be below 60.5° (it arrives), not for the lower bound.
+    await expect.poll(async () => (await gripper(page))!.liftDeg, { timeout: 60_000 }).toBeLessThan(60.5);
+    expect((await gripper(page))!.liftDeg).toBeGreaterThan(59.5);
     // R raises it a step (75); four more reach the top (90) and stay there.
     await page.keyboard.press('r');
     await expect.poll(() => servo(page, 'D10'), { timeout: 60_000 }).toBe(75);
@@ -320,7 +321,8 @@ test.describe('the gripper car’s overlays, tags and 2D map (N19 E4/E5)', () =>
     await grabCube(page);
     // Held: the cube's tag is not shown (the HUD's chip names the cube now); the blue cube's and the zones' stay.
     await expect.poll(async () => (await tags(page))!.find((tag) => tag.id === 'cube')?.visible, { timeout: 30_000 }).toBe(false);
-    expect((await tags(page))!.find((tag) => tag.id === 'cube-blue')?.visible).toBe(true);
+    // The layout keeps a tag off the car and the jaws, which move as the cube is taken: it settles in a frame or more.
+    await expect.poll(async () => (await tags(page))!.find((tag) => tag.id === 'cube-blue')?.visible, { timeout: 30_000 }).toBe(true);
     await expect(page.getByTestId('robot-held')).toHaveText('Đang giữ: khối đỏ');
     // The IR between the jaws sees the cube, the colour sensor reads it red (once its first window is in), and their tag says so.
     await expect.poll(async () => (await overlay(page))?.gripper?.color?.color, { timeout: 30_000 }).toBe('red');
@@ -366,14 +368,20 @@ test.describe('the gripper car’s overlays, tags and 2D map (N19 E4/E5)', () =>
       const world = (await page.evaluate(() => window.__stem?.robot.getSnapshot())) as { robot: { xCm: number; gripper?: { clawDeg: number; liftDeg: number } }; objects: { pose: { xCm: number; zCm: number } }[] } | null;
       return world && [world.robot.xCm, world.robot.gripper?.clawDeg, world.robot.gripper?.liftDeg, world.objects[0]?.pose.xCm, world.objects[0]?.pose.zCm].map((value) => Math.round((value ?? 0) * 100));
     });
-    const rested = await settled(draws);
-    await page.waitForTimeout(1500);
+    // A held car creeps: in yaw, by a few millionths of a radian a second, which crosses the scene's threshold for a changed picture (scene-math.ts
+    // SAME_QUAT, 1e-5) about every 4.5 s of the world's time, and the scene then draws a pair of frames (measured: draws at 5.5, 10.1, 14.6, 19.1 s
+    // ..., on the world's clock, load or none). The windows below are in the world's time, from the end of a pair, so that the next one is more than
+    // 2 s off: with wall time (400 ms, 1.5 s) they landed on a pair when a loaded machine ran the world's clock behind the page's.
+    const rested = await drawsAtRest(page, draws);
+    await worldAdvances(page, 1.5);
     expect(await draws()).toBe(rested);
     expect((await overlay(page))!.gripper!.ir).toEqual({ role: 'irClaw', visible: true, detected: true });
     await page.getByTestId('robot-sensors').click();
     await expect.poll(draws, { timeout: 30_000 }).toBeGreaterThan(rested);
-    const after = await settled(draws);
-    await page.waitForTimeout(1200);
+    // The toggle's own frames come within a few of the page's; the creep's pair after them.
+    await worldAdvances(page, 0.5);
+    const after = await drawsAtRest(page, draws);
+    await worldAdvances(page, 1.2);
     expect(await draws()).toBe(after);
   });
 
@@ -504,4 +512,35 @@ async function settled<T>(read: () => Promise<T>): Promise<T> {
     )
     .toBe(true);
   return (last as { value: T } | null)!.value;
+}
+
+/** The world's clock, s (the snapshot's `t`): it goes on at the speed the lab runs at, however long the page takes to draw. */
+const worldTime = async (page: Page) => ((await page.evaluate(() => window.__stem?.robot.getSnapshot())) as { t: number } | null)?.t ?? 0;
+
+/** Resolves once the world's clock has gone on `seconds` more. */
+async function worldAdvances(page: Page, seconds: number) {
+  const from = await worldTime(page);
+  await expect.poll(async () => (await worldTime(page)) - from, { timeout: 180_000, intervals: [100] }).toBeGreaterThanOrEqual(seconds);
+}
+
+/**
+ * The count of draws (`read`) just after the scene's last burst of them, so that the next is a whole period away: waits for the next burst, or
+ * 6 s of the world's clock without one (a world that does not creep draws none), then for 0.3 s of the clock with none more (the pair's second).
+ */
+async function drawsAtRest(page: Page, read: () => Promise<number>): Promise<number> {
+  const start = { value: await read(), t: await worldTime(page) };
+  let last = start;
+  await expect
+    .poll(
+      async () => {
+        const value = await read();
+        const t = await worldTime(page);
+        if (value !== last.value) last = { value, t };
+        const burst = last !== start;
+        return burst ? t - last.t >= 0.3 : t - start.t >= 6.3;
+      },
+      { timeout: 180_000, intervals: [100] },
+    )
+    .toBe(true);
+  return last.value;
 }
