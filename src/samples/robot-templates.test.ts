@@ -27,7 +27,7 @@ const gripperLessonKeys: readonly string[] = ['rb-grip-pick', 'rb-grip-deliver',
 const kitOfKey = (key: string) => (gripperLessonKeys.includes(key) ? 'ref-uno-gripper' : 'ref-uno-rover');
 
 describe('the robot scenario keys (N18 R4.1)', () => {
-  it('are exactly the seven keys of the launch contract, in the order of the lessons', () => {
+  it('are exactly the eleven keys of the launch contract, in the order of the lessons', () => {
     expect(robotTemplateKeys).toEqual([
       'rb-drive-to-zone',
       'rb-square-route',
