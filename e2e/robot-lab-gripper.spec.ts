@@ -19,6 +19,8 @@ import { pinLowTierChainOff } from './robot-chain';
 //   - Kiểm tra at 4×: nothing is said of a grab or a release; Lái tay is not offered, its keys do nothing, and the rounds end in the very
 //     worlds a Kiểm tra without a key gives.
 //   - Lái tay: Q E R F open and close the claw, raise and lower the arm.
+//   - N19 final fix (G1 M1): Lái tay in the LMS's lab frame at 1366 × 768 keeps the free camera near (its distance at most 1.5 × the
+//     distance with Lái tay off), although the pad with the gripper's buttons reaches past the short view's middle.
 //   - Xem lại lượt 2 and 3 of rb-grip-sort, whose rounds paint the cube green, red and blue: in the round shown the 2D map's cube, the 3D
 //     prop (the scene's state), the cube's tag and the chip's name, and the zone lit for the goal, are that round's colour; the 2D map's
 //     cube marks are green's grid, red's stripes and blue's dots (read from the map's own state). The zones' marks are only the pattern table
@@ -119,6 +121,29 @@ const tags = (page: Page) => page.evaluate(() => (window as unknown as { __reade
 const overlay = (page: Page) => page.evaluate(() => (window as unknown as { __readers: Readers }).__readers.overlay.readSensorOverlay());
 const map = (page: Page) => page.evaluate(() => (window as unknown as { __readers: Readers }).__readers.map.readTopViewGripper());
 const mapSensors = (page: Page) => page.evaluate(() => (window as unknown as { __readers: Readers }).__readers.mapSensors.readTopViewSensors());
+
+/**
+ * The free camera's distance from what it looks at (m, the canvas's dev `data-camera`) once it stops moving: the same value three reads
+ * running, two animation frames between the reads of each (as robot-lab-a11y.spec.ts waits for a glide's end).
+ */
+async function settledDistance(page: Page) {
+  const read = async () => (await page.locator('[data-testid=robot-canvas] canvas').getAttribute('data-camera')) ?? '';
+  let last = '';
+  await expect
+    .poll(
+      async () => {
+        const now = await read();
+        await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+        const later = await read();
+        const same = later !== '' && now === later && now === last;
+        last = later;
+        return same;
+      },
+      { timeout: 30_000, intervals: [300] },
+    )
+    .toBe(true);
+  return Number(last.split(' ')[0]);
+}
 
 /** What a card shows of its goals: the id, whether it passed, its label, its points and the reasons under it. */
 const goalLines = (page: Page) =>
@@ -297,6 +322,24 @@ test.describe('the gripper lab on the real lessons (N19 E10)', () => {
     await page.keyboard.press('q');
     await expect.poll(() => servo(page, 'D9'), { timeout: 60_000 }).toBe(0);
     await expect.poll(async () => (await world(page))!.robot.gripper!.clawDeg, { timeout: 60_000 }).toBeLessThan(5);
+    expect(errors).toEqual([]);
+  });
+
+  test('Lái tay in the LMS’s lab frame at 1366 × 768 (948 × 450): the free camera stays within 1.5 × its distance with Lái tay off, the robot beside the pad (G1 M1: it went 8.4 m away)', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'draws the 3D scene');
+    const errors = collectErrors(page);
+    await page.setViewportSize({ width: 948, height: 450 });
+    for (const key of ['rb-grip-pick', 'rb-grip-sort'] as const) {
+      await openLesson(page, key);
+      // The short view G1 measured at this size (569 × 368): the pad with the gripper's column reaches past its middle.
+      expect(Math.round((await page.getByTestId('robot-scene').boundingBox())!.height)).toBeLessThanOrEqual(400);
+      const off = await settledDistance(page);
+      await page.getByTestId('robot-tool-teleop').click();
+      await expect(page.getByTestId('robot-gripper-pad')).toBeVisible();
+      const on = await settledDistance(page);
+      expect(on, key).toBeLessThanOrEqual(1.5 * off);
+      expect(on, key).not.toBe(off);
+    }
     expect(errors).toEqual([]);
   });
 

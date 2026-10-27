@@ -214,6 +214,9 @@ export function robotScreenWidth(pose: CameraPose, start: FreeViewScene['start']
  * then the tags' room (a tag may then reach under the HUD), then a tall HUD's lower part (the arena's far side may lie under it), then
  * the route and the bodies, then the goals farthest from the start, one by one (orbit and zoom reach them); the start and its zone
  * always stay.
+ * N19 final fix (G1 M1): when none of those keeps the robot that wide and the view tools' corner is there (a drive pad that reaches past
+ * the view's middle, where framePoints looks, in a short view), the same choices are framed in the free rectangle right of the corner
+ * (framePointsInBox), and the robot is kept about as wide as the view without the corner shows it (besideToolsPose).
  */
 export function freeViewPose(span: ArenaSpan, scene: FreeViewScene, fovDeg: number, aspect: number, rect: SafeRect = VIEW_SAFE_RECT, minRobot = 0): CameraPose {
   const [fx, fz] = freeViewForward(scene);
@@ -257,11 +260,12 @@ export function freeViewPose(span: ArenaSpan, scene: FreeViewScene, fovDeg: numb
   // What to frame, most first; each in the view's free part, then with a HUD that reaches low held back to RELAXED_HUD_BOTTOM (the
   // far part of the arena may then lie under the HUD, which the learner can fold).
   const relaxed: SafeRect = { ...rect, hud: { right: rect.hud.right, bottom: Math.max(rect.hud.bottom, RELAXED_HUD_BOTTOM) } };
+  const nearAll = [...kept, ...route, ...floors];
   const choices: [Vec3Tuple[], SafeRect][] = [
     [[...far, ...kept, ...route, ...floors, ...tags], rect],
     [[...kept, ...route, ...floors, ...tags], rect],
-    [[...kept, ...route, ...floors], rect],
-    [[...kept, ...route, ...floors], relaxed],
+    [nearAll, rect],
+    [nearAll, relaxed],
     [[...kept, ...floors], relaxed],
   ];
   for (let count = goals.length - 1; count >= 0; count--) choices.push([[...kept, ...goals.slice(0, count).flatMap(({ points }) => points)], relaxed]);
@@ -271,7 +275,90 @@ export function freeViewPose(span: ArenaSpan, scene: FreeViewScene, fovDeg: numb
     pose = framePoints(points, toCamera, fovDeg, aspect, room);
     if (robotScreenWidth(pose, scene.start, fovDeg, aspect) >= minRobot) return pose;
   }
-  return pose!;
+  return rect.tools ? besideToolsPose(choices, toCamera, scene.start, fovDeg, aspect, rect, minRobot) : pose!;
+}
+
+/** How much narrower than in the view without the view tools' corner the free view beside a drive pad may show the robot. */
+const NEAR_OPEN = 1.5;
+
+/**
+ * N19 final fix (G1 M1): the free view when no choice of `freeViewPose` keeps the robot `minRobot` wide in `rect` and the view tools'
+ * corner is there: only the lab's short views with a drive pad open (the rover's free views of free-view-golden.json, of the rover's
+ * pixel-diff set and of camera-studio.test.ts's N18 tests never come here). The robot is kept about as wide as the view without the
+ * corner shows it (`open`, its choices framed there): the choices are framed in the free rectangle right of the corner (`besideTools`),
+ * and the first that shows the robot at least `minRobot` and `open` / NEAR_OPEN wide is taken; one that shows it wider than `open` is
+ * framed again in that rectangle shrunk round its middle, so the robot is as wide as without the pad and more of the arena shows round
+ * it. None: the one that shows the robot widest.
+ */
+function besideToolsPose(choices: readonly [Vec3Tuple[], SafeRect][], toCamera: Vec3Tuple, start: FreeViewScene['start'], fovDeg: number, aspect: number, rect: SafeRect, minRobot: number): CameraPose {
+  const width = (pose: CameraPose) => robotScreenWidth(pose, start, fovDeg, aspect);
+  let open = 0;
+  for (const [points, room] of choices) {
+    open = width(framePoints(points, toCamera, fovDeg, aspect, { ...room, tools: undefined }));
+    if (open >= minRobot) break;
+  }
+  const [least, most] = [Math.max(minRobot, open / NEAR_OPEN), Math.max(minRobot, open)];
+  const box = besideTools(rect);
+  let best: { pose: CameraPose; width: number } | null = null;
+  for (const points of new Set(choices.map(([points]) => points))) {
+    const pose = framePointsInBox(points, toCamera, fovDeg, aspect, box);
+    const shown = width(pose);
+    if (shown >= least) return shown > most ? framePointsInBox(points, toCamera, fovDeg, aspect, shrunk(box, most / shown)) : pose;
+    if (!best || shown > best.width) best = { pose, width: shown };
+  }
+  return best!.pose;
+}
+
+/** `box` shrunk round its middle to `share` of its width and height. */
+const shrunk = (box: ScreenBox, share: number): ScreenBox => {
+  const [x, y] = [(box.left + box.right) / 2, (box.bottom + box.top) / 2];
+  const [w, h] = [((box.right - box.left) / 2) * share, ((box.top - box.bottom) / 2) * share];
+  return { left: x - w, right: x + w, bottom: y - h, top: y + h };
+};
+
+/** A rectangle of the screen (NDC). */
+export type ScreenBox = { left: number; right: number; bottom: number; top: number };
+
+/**
+ * The larger of the two rectangles of the free part of the view right of the view tools' corner: right of the HUD up to the camera
+ * buttons' strip, or from the corner's edge up to the HUD's bottom.
+ */
+export function besideTools(rect: SafeRect): ScreenBox {
+  const left = Math.max(rect.left, rect.tools?.right ?? rect.left);
+  const clear: ScreenBox = { left: Math.max(left, rect.hud.right), right: rect.right, bottom: rect.bottom, top: rect.top };
+  const under: ScreenBox = { left, right: rect.right, bottom: rect.bottom, top: Math.min(rect.top, rect.hud.bottom) };
+  const area = (box: ScreenBox) => Math.max(0, box.right - box.left) * Math.max(0, box.top - box.bottom);
+  return area(under) > area(clear) ? under : clear;
+}
+
+/** How far in front of the camera every point framed by `framePointsInBox` is, at least (m). */
+const IN_FRONT_M = 0.05;
+
+/**
+ * The nearest camera looking along −`toCamera` that shows every one of `points` in `box`, a rectangle of the screen that need not hold
+ * its middle (framePoints needs the middle free: from far away every point falls on it). Exact, with no search: for a camera at
+ * P = α·right + β·up − γ·forward, a point q is right of the box's left edge x0 when (q − P)·(right − x0·tanH·forward) ≥ 0, which is
+ * linear in α and γ (left of x1, over y0 and under y1 likewise); each edge so bounds α (or β) by a constant and γ, the least γ that meets
+ * both edges of an axis is a quotient, the larger of the two axes' is taken (every point at least IN_FRONT_M in front), and α and β are
+ * put in the middle of what is left. The camera looks at the point of its line of sight as far as the points' middle.
+ */
+export function framePointsInBox(points: readonly Vec3Tuple[], toCamera: Vec3Tuple, fovDeg: number, aspect: number, box: ScreenBox): CameraPose {
+  const { forward, right, up } = axesOf(toCamera);
+  const tanV = Math.tan((fovDeg * Math.PI) / 360);
+  const tanH = tanV * aspect;
+  /** `axis` tilted towards the line of sight by the screen coordinate `at` (the normal of that edge's plane through the camera). */
+  const edge = (axis: Vec3Tuple, at: number, tan: number): Vec3Tuple => [axis[0] - at * tan * forward[0], axis[1] - at * tan * forward[1], axis[2] - at * tan * forward[2]];
+  const most = (axis: Vec3Tuple) => Math.max(...points.map((point) => dot(point, axis)));
+  const least = (axis: Vec3Tuple) => Math.min(...points.map((point) => dot(point, axis)));
+  const [xHigh, xLow] = [most(edge(right, box.right, tanH)), least(edge(right, box.left, tanH))];
+  const [yHigh, yLow] = [most(edge(up, box.top, tanV)), least(edge(up, box.bottom, tanV))];
+  const back = Math.max((xHigh - xLow) / ((box.right - box.left) * tanH), (yHigh - yLow) / ((box.top - box.bottom) * tanV), IN_FRONT_M - least(forward));
+  const alpha = (xHigh - box.right * tanH * back + (xLow - box.left * tanH * back)) / 2;
+  const beta = (yHigh - box.top * tanV * back + (yLow - box.bottom * tanV * back)) / 2;
+  const position: Vec3Tuple = [0, 1, 2].map((i) => alpha * right[i]! + beta * up[i]! - back * forward[i]!) as unknown as Vec3Tuple;
+  const middle = [0, 1, 2].map((i) => points.reduce((sum, point) => sum + point[i]!, 0) / points.length);
+  const reach = Math.max(IN_FRONT_M, (middle[0]! - position[0]) * forward[0] + (middle[1]! - position[1]) * forward[1] + (middle[2]! - position[2]) * forward[2]);
+  return { position, target: [position[0] + forward[0] * reach, position[1] + forward[1] * reach, position[2] + forward[2] * reach] };
 }
 
 /** How many free-view poses `keptFreeViewPose` keeps a scene: the HUD's few heights in a run, at a few view sizes. */

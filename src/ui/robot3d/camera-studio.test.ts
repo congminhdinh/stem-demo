@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { cases as freeViewCases } from './__fixtures__/free-view-cases';
 import freeViewGolden from './__fixtures__/free-view-golden.json';
-import { CHASE_AHEAD_M, CHASE_BACK_M, CHASE_INSIDE_M, CHASE_UP_M, chaseViewPose, clearSight, FREE_ELEVATION_DEG, freeViewForward, keepOutOfProps, keptFreeViewPose, MIN_ROBOT_PX, freeViewPose, projectToScreen, freeViewSceneOf, robotScreenWidth, safeBottom, safeTop, sightWalls, VIEW_SAFE_RECT, type FreeViewScene, type SafeRect } from './camera-studio';
+import { CHASE_AHEAD_M, CHASE_BACK_M, CHASE_INSIDE_M, CHASE_UP_M, chaseViewPose, clearSight, FREE_ELEVATION_DEG, framePointsInBox, freeViewForward, keepOutOfProps, keptFreeViewPose, MIN_ROBOT_PX, freeViewPose, projectToScreen, freeViewSceneOf, robotScreenWidth, safeBottom, safeTop, sightWalls, VIEW_SAFE_RECT, type FreeViewScene, type SafeRect, type ScreenBox } from './camera-studio';
+import type { Vec3Tuple } from './scene-math';
 
 // N18 R4.7: the 3D view's camera reads as 3D: "Tự do" opens 34° above the floor behind and beside the robot's start, the arena
 // receding in front of it, the start, the route and the goals inside the part of the view the HUD, the buttons and the view tools leave
@@ -192,6 +193,124 @@ describe('the free view’s poses (N18 P2)', () => {
     const again = keptFreeViewPose(span, scene, fov, aspect, rect(0.5));
     expect(again).not.toBe(poses[0]);
     expect(again).toEqual(poses[0]);
+  });
+});
+
+/** How far a pose's camera is from what it looks at (m): the canvas's `data-camera` distance. */
+const distanceOf = (pose: { position: readonly number[]; target: readonly number[] }) => Math.hypot(pose.position[0]! - pose.target[0]!, pose.position[1]! - pose.target[1]!, pose.position[2]! - pose.target[2]!);
+
+describe('the free view beside a drive pad over the view’s middle (N19 final fix, G1 M1)', () => {
+  // Lái tay in a gripper lesson in a short view: the pad with the gripper's column reaches past the view's middle, where framePoints
+  // looks, so no framing of the free part fitted and the camera went 8–10 m away. The views G1 found it in: the lab in the LMS's frame at
+  // 1440 × 900 (its toolbar on two rows), 1366 × 768 and 1280 × 720; the HUD's and the pad's corners as the lab measured them with Lái tay
+  // on (spikes/n19-ff/teleop-camera.mjs on master 9e4f97b), the pad's held back as CameraRig holds it (right and top at most 0.2).
+  const views = [
+    { key: 'rb-grip-deliver', width: 613, height: 397, hud: [-0.126, 0.073], pad: [0.044, 0.058] },
+    { key: 'rb-grip-sort', width: 613, height: 397, hud: [-0.126, 0.175], pad: [0.044, 0.058] },
+    { key: 'rb-grip-pick', width: 569, height: 368, hud: [-0.058, 0.198], pad: [0.125, 0.141] },
+    { key: 'rb-grip-deliver', width: 569, height: 368, hud: [-0.058, 0], pad: [0.125, 0.141] },
+    { key: 'rb-grip-sort', width: 569, height: 368, hud: [-0.058, 0.11], pad: [0.125, 0.141] },
+    { key: 'rb-grip-stack', width: 569, height: 368, hud: [-0.058, 0.11], pad: [0.125, 0.141] },
+    { key: 'rb-grip-pick', width: 517, height: 368, hud: [0.036, 0.198], pad: [0.2, 0.141] },
+    { key: 'rb-grip-deliver', width: 517, height: 368, hud: [0.036, 0], pad: [0.2, 0.141] },
+    { key: 'rb-grip-sort', width: 517, height: 368, hud: [0.036, 0.11], pad: [0.2, 0.141] },
+    { key: 'rb-grip-stack', width: 517, height: 368, hud: [0.036, 0.11], pad: [0.2, 0.141] },
+  ] as const;
+  const framed = ({ key, width, height, hud, pad }: (typeof views)[number]) => {
+    const scenario = scenarioCatalog.get(key)!;
+    const scene = freeViewSceneOf(scenario);
+    const rect: SafeRect = { ...VIEW_SAFE_RECT, hud: { right: hud[0], bottom: hud[1] }, tools: { right: pad[0], top: pad[1] } };
+    const min = (2 * MIN_ROBOT_PX) / width;
+    const pose = freeViewPose(spanOf(key), scene, fov, width / height, rect, min);
+    const open = freeViewPose(spanOf(key), scene, fov, width / height, { ...rect, tools: undefined }, min);
+    const px = (shown: typeof pose) => (robotScreenWidth(shown, scene.start, fov, width / height) * width) / 2;
+    return { scene, rect, pose, open, robotPx: px(pose), openPx: px(open) };
+  };
+
+  it('frames the robot at least MIN_ROBOT_PX wide, no farther than 1.5 × the view without the pad, at 1440 × 900 and 1366 × 768', () => {
+    for (const view of views.filter(({ width }) => width !== 517)) {
+      const { pose, open, robotPx } = framed(view);
+      expect(robotPx).toBeGreaterThanOrEqual(MIN_ROBOT_PX);
+      expect(distanceOf(pose)).toBeLessThanOrEqual(1.5 * distanceOf(open));
+    }
+  });
+
+  it('shows the robot no wider than about the view without the pad does: a framing that would is made again in a smaller part of the free rectangle', () => {
+    // rb-grip-sort at 1440: only the start's floor fits beside the pad with the robot 60 px wide, and framed alone it is 114 px; framed
+    // again round the middle of the free part it is 70 px, as without the pad (66 px), the arena round it in view.
+    for (const view of views.filter(({ width }) => width !== 517)) {
+      const { robotPx, openPx } = framed(view);
+      expect(robotPx).toBeLessThanOrEqual(1.1 * Math.max(openPx, MIN_ROBOT_PX));
+    }
+    expect(Number(framed(views[1]).robotPx.toFixed(1))).toBe(70.3);
+    expect(Number(framed(views[1]).openPx.toFixed(1))).toBe(66.2);
+  });
+
+  it('keeps the robot, the floor round its start and the start zone in the free part of the view, out of the pad’s corner and the HUD’s', () => {
+    for (const view of views) {
+      const { scene, rect, pose } = framed(view);
+      const aspect = view.width / view.height;
+      const [x0, y0] = [scene.start.xCm, scene.start.yCm];
+      const around = [-16, 16].flatMap((dx) => [-16, 16].map((dy): [number, number] => [x0 + dx, y0 + dy]));
+      for (const [x, y] of [...around, ...scene.startZone!]) {
+        const [sx, sy] = projectToScreen([x / 100, 0, -y / 100], pose, fov, aspect);
+        // On the screen under the buttons and over the bottom strip, right of the pad's corner or over it (its edge counts as out of it),
+        // and under the HUD where it is.
+        expect([sx >= rect.left - 1e-6 && sx <= rect.right + 1e-6, sy >= rect.bottom - 1e-6 && sy <= safeTop(sx, rect) + 1e-6, sx >= rect.tools!.right - 1e-6 || sy >= rect.tools!.top - 1e-6]).toEqual([true, true, true]);
+      }
+    }
+  });
+
+  it('at 1280 × 720 shows the robot as wide as the free part right of the pad lets it with the start zone (and its tape) framed: 82, 50, 82, 64 px', () => {
+    const shown = views.filter(({ width }) => width === 517).map((view) => [view.key, Number(framed(view).robotPx.toFixed(1))]);
+    expect(shown).toEqual([
+      ['rb-grip-pick', 81.9],
+      ['rb-grip-deliver', 49.9],
+      ['rb-grip-sort', 81.9],
+      ['rb-grip-stack', 63.9],
+    ]);
+  });
+});
+
+describe('framePointsInBox (N19 final fix, G1 M1)', () => {
+  const points: Vec3Tuple[] = [
+    [0.2, 0, -0.3],
+    [0.5, 0, -0.3],
+    [0.2, 0, -0.6],
+    [0.5, 0, -0.6],
+    [0.35, 0.08, -0.45],
+  ];
+  const toCamera: Vec3Tuple = [-0.8 * Math.cos((34 * Math.PI) / 180), Math.sin((34 * Math.PI) / 180), -0.6 * Math.cos((34 * Math.PI) / 180)];
+  const box: ScreenBox = { left: 0.2, right: 0.9, bottom: -0.8, top: 0.3 };
+
+  it('shows every point in a box that does not hold the screen’s middle, from the direction asked, touching both edges of one axis', () => {
+    const pose = framePointsInBox(points, toCamera, fov, aspect, box);
+    const offset = [0, 1, 2].map((i) => pose.position[i]! - pose.target[i]!);
+    const length = Math.hypot(...offset);
+    offset.forEach((value, i) => expect(value / length).toBeCloseTo(toCamera[i]!, 12));
+    const shown = points.map((point) => projectToScreen(point, pose, fov, aspect));
+    for (const [x, y] of shown) {
+      expect(x).toBeGreaterThanOrEqual(box.left - 1e-9);
+      expect(x).toBeLessThanOrEqual(box.right + 1e-9);
+      expect(y).toBeGreaterThanOrEqual(box.bottom - 1e-9);
+      expect(y).toBeLessThanOrEqual(box.top + 1e-9);
+    }
+    const xs = shown.map(([x]) => x);
+    const ys = shown.map(([, y]) => y);
+    const tightX = Math.abs(Math.min(...xs) - box.left) < 1e-9 && Math.abs(Math.max(...xs) - box.right) < 1e-9;
+    const tightY = Math.abs(Math.min(...ys) - box.bottom) < 1e-9 && Math.abs(Math.max(...ys) - box.top) < 1e-9;
+    expect(tightX !== tightY).toBe(true);
+    // Nearer would not fit: 1 % nearer along the line of sight, some point leaves the box.
+    const nearer = { position: pose.position.map((value, i) => value - offset[i]! * 0.01) as unknown as Vec3Tuple, target: pose.target };
+    expect(points.some((point) => !inside(projectToScreen(point, nearer, fov, aspect), { ...VIEW_SAFE_RECT, ...box, hud: { right: -1, bottom: 1 } }))).toBe(true);
+  });
+
+  it('looks at the point of its line of sight as far as the points’ middle', () => {
+    const pose = framePointsInBox(points, toCamera, fov, aspect, box);
+    const middle = [0, 1, 2].map((i) => points.reduce((sum, point) => sum + point[i]!, 0) / points.length);
+    const forward = toCamera.map((value) => -value);
+    const depth = (point: readonly number[]) => [0, 1, 2].reduce((sum, i) => sum + (point[i]! - pose.position[i]!) * forward[i]!, 0);
+    expect(depth(pose.target)).toBeCloseTo(depth(middle), 12);
   });
 });
 
