@@ -826,6 +826,18 @@ describe('the gripper car’s lessons 8-11 (N19 D4, plan §6)', () => {
     expect([1, 2].map((index) => offsetsOf(scenario, index).objects![1])).toEqual([{ dxCm: 0, dyCm: 0 }, { dxCm: 0, dyCm: 0 }]);
   });
 
+  it('start from "on start" with one loose "arm down" (tay hạ), the gripper lessons’ first move: nothing runs until the learner builds the program (review 1 M6)', () => {
+    for (const key of gripperKeys) {
+      const starter = scenarioOf(key).starter;
+      expect(topBlocks(starter).map((block) => [block.type, block.disabledReasons, block.inputs, block.fields]), key).toEqual([
+        ['stem_on_start', undefined, undefined, undefined],
+        ['uno_gripper_lift', ['ORPHANED_BLOCK'], undefined, { STATE: 'DOWN' }],
+      ]);
+      expect([...runningBlockTypes(starter)], key).toEqual(['stem_on_start']);
+      expect(scenarioOf(key).toolbox, key).toContain('uno_gripper_lift');
+    }
+  });
+
   it('give each lesson 8, 9 and 11 a blind program that reads no sensor: in "on start", motors, the gripper and waits', () => {
     for (const key of ['rb-grip-pick', 'rb-grip-deliver', 'rb-grip-stack'] as const) {
       const types = blockTypes(robotSolutions[key].blind!);

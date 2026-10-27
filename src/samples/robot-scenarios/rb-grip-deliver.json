@@ -71,18 +71,9 @@
       "blocks": [
         { "type": "stem_on_start", "id": "on-start", "x": 40, "y": 40 },
         {
-          "type": "uno_drive_move",
-          "id": "prepared-drive",
-          "fields": { "DIRECTION": "forward" },
-          "inputs": {
-            "SPEED": {
-              "shadow": {
-                "type": "math_number",
-                "id": "prepared-drive-speed",
-                "fields": { "NUM": 50 }
-              }
-            }
-          },
+          "type": "uno_gripper_lift",
+          "id": "prepared-arm",
+          "fields": { "STATE": "DOWN" },
           "x": 40,
           "y": 160,
           "disabledReasons": ["ORPHANED_BLOCK"]
