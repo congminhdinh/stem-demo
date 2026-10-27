@@ -414,7 +414,7 @@ Số đo và lệnh tái lập: `spikes/n19-b56/results.md`. Test: `world/robot/
     - Nhờ vậy xe có thể xuất phát với khối nằm giữa hai ngàm mở, như sandbox teleop của E3 (`robot-run-session.teleop-gripper.test.ts`, `e2e/robot-lab-gripper-ui.entry.ts`). Nếu quét toàn bộ cả với vật thì phải viết lại test đó và 5 e2e.
   - Chi phí (M4 Pro): tính một lần mỗi kit 13,9 ms. Kiểm chỗ đứng trống 0,005 ms. Kiểm một thứ nằm trong vùng quét 0,755 ms.
     - Lần tính 13,9 ms đó chạy **trên main thread khi lab tay gắp mở**: chỉ cần outline (`robotOutlineCm` ở `robot-tools-store.ts`, `TopViewTools`, `FloorPicker`) là đã gọi `robotFootprint`, và hàm này dựng cả 7 189 mẫu. Sau đó cache theo object kit.
-    - Chưa đo trên profile máy trường. Controller chuyển số này cho bench của E9 (review B5/B6 M4: giữ code như hiện tại).
+    - Chưa đo trên profile máy trường. Controller chuyển số này cho bench của E9 (review B5/B6 M4: giữ code như hiện tại). **E9 đã đo: 55 ms ở CPU 6× và đã bỏ khỏi lúc mở lab (§4.16).**
 - **Golden (B6):** thêm 3 fixture world-level vào sau 3 fixture của rover trong `determinismFixtures`: `gripper-pick-place`, `gripper-stack` và `gripper-sensors`. Fixture thứ ba có nhiễu siêu âm ±1 cm theo seed.
   - Hash giống nhau trên Node (bản split và `-compat`, 2 process) và trên Chromium 153, Firefox 155, WebKit 26.6.
   - `engineVersion` vẫn 1. Hash của rover không đổi.
@@ -520,6 +520,40 @@ e2e `robot-lab-check.spec.ts` (Gate G1). Hướng dẫn soạn: `docs/robot-scen
   - `lower-arm-fully`: hạ tay 0° ở cuối vạch rồi mới mở kẹp. Khối nằm trên bệ, lệch 1,71–1,81 cm (cho phép 1,5); bệ dời 0,04–0,05 cm. Đây là một lần xếp suýt đạt, không xô bệ, nên trần là **35**, bằng `place-beside-base`. Đo được 35 / 35 / 35, test ghim.
   - Không giữ được ở 20 nếu không đổi goal: một `maxMoveCm` < 0,04 cm thì vô nghĩa. Chở ở 0° được 0.
 - **Test N18:** các test đếm key được nối thêm bốn key. Test và fixture chỉ dành cho N18 (n19-neutral, golden khung nhìn R4.7, hộp bao của prop pilot, case của pilot, kit rehearsal, hai guard của E5) giữ đúng sáu bài rover. Chín assertion có luật "mọi bài là rover / không có vật" đọc kit của từng key (ruling D4 item A, P1–P9).
+
+### 4.16 Ghi lại khi làm E9 + E10 (bench máy trường, hai sửa hiệu năng, e2e trên bài thật; thắng §7 E9/E10 khi mâu thuẫn)
+
+Số đo, lệnh và tải máy: `spikes/n19-e9/results.md` và `results/`. M4 Pro 12 nhân, Chromium 153, nhánh trên master 7758ec9 (D4 sau vòng sửa 1). Test: `parts/robot-assembly.gripper.allocation.test.ts`, `parts/robot-assembly.gripper.rest.test.ts`, `gripper-pose.test.ts`, `world/robot/footprint.outline.test.ts`, `tests/bench-robot.test.ts` (một `it` mới), e2e `robot-lab-gripper.spec.ts`.
+
+- **Hai sửa hiệu năng, hình và kết quả không đổi** (mười ảnh 3D ở cả hai tier trùng từng bit với D4: `results/pose-pixels.txt`):
+  - **`poseGripper`** (E4/E5 concern 2). Số 265 B/lần là của interpreter lúc code còn nguội. Khi V8 đã tối ưu thì `gripperPoseInto` vẫn cấp 33 B/lần, vì `const [px, py, pz] = gripper.position` lấy iterator của mảng: đọc theo chỉ số thì còn 0,5–1,8 B (sàn của phép đo 1,1). Cộng thêm: tay và kẹp đứng yên so với frame trước (`posedFor`) thì không tính gì và không ghi node nào, nên lúc nằm yên không có số học nào để bị box, ở tầng JIT nào cũng vậy (lúc nguội mất 150–265 B/lần). Khi tay đang chạy, việc có cấp phát hay không (0 hoặc 16–32 B/lần) tuỳ V8 có inline setter của three hay không, đổi theo từng lần chạy; test chặn ở 96 B như overlay. `RobotView.tsx` (cảnh dự phòng) cũng bỏ destructuring mảng.
+  - **Outline của lab** (B5/B6 M4). `robotOutlineCm` gọi `robotFootprint(kit)` nên lúc mở lab bài gắp phải quét 7 189 mẫu: **55,2 ms (52,7–59,0) ở CPU 6×**, một long task trước first paint (rover 7,1 ms). Nay `robotOutline(kit)` chỉ tính bao lồi của thân và bánh: **1,8 ms (0,7–3,3)**, đúng cùng mảng (`robotFootprint(kit).outlineCm` là chính nó). Cú quét (55,0 ms) dời sang world đầu tiên (`createWorld`, `preparePhysics` lúc rảnh) hay lần kiểm chỗ đặt đầu tiên.
+- **Bench trường học** (`bench:robot3d --profile=school`: SwiftShader, tier thấp, CPU 6×, 1366×768; 4 bài + Kiểm tra 4× bài phân loại, 3 lượt; rover chạy xen kẽ master/nhánh hai lần, 2 lượt mỗi lần; tải trước mỗi lần chạy 5,7–6,5):
+
+| chỉ số | ngân sách / mục tiêu | rover master | rover nhánh | bốn bài gắp |
+|---|---|---|---|---|
+| fps (trung vị khung) | ≥ 50 (ss-low-4x p5 ≥ 30) | 59,9–60,2 | 59,9–60,2 | 59,5–60,2 |
+| p95 khung khi chạy | ≤ 33 ms (mục tiêu) | 19,0–20,7 | 19,2–20,6 | 19,8–20,5 (fps), 20,4–21,4 (profile) |
+| long task > 100 ms | 0 | 0 | 0 | 0 |
+| Chạy → robot chuyển động (đã ấm) | ≤ 300 ms | 43–44 | 42–44 | 77–83 (tính cả khi boom quay) |
+| Chạy lần đầu → chuyển động | — | 83–85 | 80–85 | 126–131 |
+| khung đầu | ≤ 2,5 s (mục tiêu, chưa đạt từ N18) | 2,56–2,62 s | 2,54–2,62 s | 2,54–2,59 s (lượt nguội đầu 4,09 s) |
+| sim ms/khung (2 tick/khung, CPU 6×) | physics ≤ 0,5 ms/tick | 1,69–1,96 | 1,69–1,96 | 3,43–3,63 (≈ 0,29 ms/tick sau khi chia 6; rover ≈ 0,15) |
+| cấp phát JS (KB/khung) | — | 120–170 | 121–170 | 227–235 |
+| khung vẽ/giây lúc rảnh và lúc nằm yên | 0 | 0 / 0 | 0 / 0 | 0 / 0, 0, 0 và **10 (bài xếp chồng)** |
+| Kiểm tra 4×: p95 khung, p5 fps | ≤ 33 ms (mục tiêu) | 20,4–21,0 ms, 47,6–49,0 | 20,5–20,7 ms, 48,3–48,8 | **30,9–34,5 ms, 29,0–32,4** (bài phân loại; sim 8,7 ms/khung, rover 3,5) |
+| Kiểm tra headless (`bench:robot`, CPU) | 10 s mỗi 3 × 60 s mô phỏng | — | — | nhặt 2,03 s (≤ 5), giao 6,09 (≤ 15), phân loại 1,82 (≤ 5), xếp 2,94 (≤ 7,5) |
+| tick avoider / line follower, trung vị | ≤ 0,5 ms | 0,090 / 0,119–0,120 | 0,088–0,090 / 0,123–0,125 | — |
+
+  - Rover trong khoảng nhiễu ở mọi dòng: khác biệt duy nhất đều đặn là trung vị tick của line follower trong `bench:robot` cao hơn 0,004 ms (3 %) ở cả hai vòng xen kẽ, không đường nào của tick bị đụng tới.
+  - `bench:robot --gripper` thêm bốn dòng kiểm tra headless (mặc định vẫn đúng 19 dòng của rover, vì `tests/bench-robot.test.ts` ghim bảng đó và dòng usage). `bench:robot3d` thêm `rb-grip-pick|deliver|sort|stack`, `rb-grip-check-4x`, `--scenarios=gripper`, `--profile`; "Chạy → chuyển động" của xe gắp tính cả lúc boom bắt đầu quay (chương trình hạ tay ngay rồi chờ 300 ms mới chạy), rover không có boom nên số không đổi.
+- **GLB so với §3** (byte thô, trước N19 = 3025a0a^): kit +101 416 (≤ 120 000), kit thấp +65 448 (≤ 70 000), props +73 068 (≤ 80 000), props thấp +47 700 (≤ 50 000). Chunk RobotLab 414,6 kB gzip (≤ 600), wasm 1,18 MB gzip (≤ 1,3 MB).
+- **Còn mở, cần controller quyết:**
+  - **Bài xếp chồng nằm yên vẽ 10 khung/giây** (dòng `draws per second at rest` của bench trượt, chỉ ở bài này). Không phải overlay (không `ask` nào từ `SensorOverlay.tsx`): sau khi chương trình hết, xe vẫn quay chậm 0,01°/s (hai bánh quay ngược 0,0004 rad/s), nhỏ hơn nhiều ngưỡng nằm yên của session (0,5 cm/s) nên session publish mỗi 0,1 s, và mỗi lần quaternion z lệch thêm 9e-6, gần bằng `SAME_QUAT` 1e-5 của `sameView`, nên cảnh vẽ lại gần như mỗi lần (`results/rest-draws.txt`). Trên máy trường (SwiftShader) mỗi khung tốn khoảng 90–100 ms CPU ở tiến trình GPU: xấp xỉ một nhân chạy mãi tới khi học sinh bấm. Ba bài còn lại: 0 khung. Cách sửa không làm trong E9 vì chạm hash hoặc rover: (a) nguồn vật lý: vì sao xe còn quay sau `stop` ở cuối vạch; (b) `SAME_QUAT` 1e-5 (0,001°, tương ứng 0,002 mm ở bán kính 10 cm, chặt hơn 50 lần `SAME_CM` 0,1 mm) nâng lên khoảng 5e-4 (cùng cỡ 0,1 mm), cần ảnh rover đối chiếu.
+  - **Xe giữ khối trong lái tay vẽ một cặp khung mỗi 4,55 s** (0,44 khung/giây), do xe trôi yaw vài phần triệu rad/s qua cùng ngưỡng. Nhỏ, ghi để biết (`results/gripper-ui-pass-rates.txt`).
+  - **Kiểm tra 4× của bài gắp nặng hơn rover**: p95 khung 30,9–34,5 ms, sát mục tiêu 33 ms (rover 20,7), vì mỗi khung chạy 8 tick của world có khớp và 3 cảm biến thêm (sim 8,7 ms/khung ở CPU 6×, rover 3,5).
+- **E10** (`e2e/robot-lab-gripper.spec.ts`, bài thật qua `?template=<key>`, đọc chương trình từ `robotSolutions`, không ghim hash): Chạy bài nhặt (chip "Đang giữ: khối vàng" lên rồi mất; câu báo "Đã gắp"/"Đã thả"; khối vào vùng thả), Kiểm tra Nhanh (100/100 và ba dòng mục tiêu; `push-in` được 15/100 với "Khối vàng bị đẩy chứ không được gắp lúc …"), Kiểm tra 4× (không câu báo gắp/thả, không Lái tay, phím không làm gì: hash thế giới từng lượt bằng Kiểm tra không phím), Q/E/R/F, Xem lại lượt 2 và 3 của bài phân loại (chương trình mẫu đổi trái/phải: bản đồ 2D, prop 3D, tag, chip, vùng sáng đều theo màu lượt; sọc/lưới/chấm), không WebGL (Chromium và Firefox). Prop 3D đọc từ trạng thái scene qua reader mới `arena-props-state.ts` (cùng kiểu `zone-tags-state.ts`). Hai ghi chú: câu "Đã thả" có thể đến sau "Chương trình đã chạy xong" ở 4× (cửa sổ 1,5 s của `GRIP_INTERVAL_MS`); một "Xem lại" gập thẻ kết quả nên phải mở lại để bấm lượt tiếp.
+- **Spec `robot-lab-gripper-ui.spec.ts` hết chập chờn khi tải** (không đổi giá trị assertion nào; `--repeat-each` trước/sau ở `results/gripper-ui-pass-rates.txt`): thử đợi tay hạ tới 60° bằng cách chờ `> 59,5` khi tay đi từ 90 xuống (đúng ngay từ đầu; nay chờ `< 60,5` rồi kiểm `> 59,5`); thẻ khối xanh đọc một lần ngay sau khi gắp (nay chờ); và cửa sổ "nằm yên không vẽ" tính theo giây thật (nay theo đồng hồ thế giới, bắt đầu 0,3 s sau cặp khung trôi yaw). Trước: 47/50 ở 4 worker, 97/100 và 98/100 ở 5–6 worker; sau: 100/100 hai lần ở tải 7–32.
 
 ## 5. Review Focus
 
