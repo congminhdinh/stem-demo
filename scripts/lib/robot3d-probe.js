@@ -150,6 +150,14 @@
           const e = robot ? robot.matrixWorld.elements : null;
           if (e && watch.from === null) watch.from = [e[12], e[13], e[14]];
           else if (e && Math.abs(e[12] - watch.from[0]) + Math.abs(e[13] - watch.from[1]) + Math.abs(e[14] - watch.from[2]) > 1e-5) watch.at = now();
+          // N19 E9: a gripper car's first move is its arm (the lessons' programs put it down at once and wait 300 ms for it before driving),
+          // so the arm's boom turning counts as the car moving. A rover has no boom: nothing here for it.
+          if (watch.at === null && watch.boom) {
+            const b = watch.boom.matrixWorld.elements;
+            let turned = 0;
+            for (let i = 0; i < 16; i += 1) turned += Math.abs(b[i] - watch.boomFrom[i]);
+            if (turned > 1e-5) watch.at = now();
+          }
         }
       } else {
         state.offscreenRenders.count += 1;
@@ -483,7 +491,8 @@
     clickAndWatch(selector, timeoutMs) {
       const robot = live(state.scene)?.getObjectByName('robot');
       const at = robot ? robot.matrixWorld.elements : null;
-      const watch = { from: at ? [at[12], at[13], at[14]] : null, at: null, start: now() };
+      const boom = live(state.scene)?.getObjectByName('part_gripper_boom') ?? null;
+      const watch = { from: at ? [at[12], at[13], at[14]] : null, at: null, start: now(), boom, boomFrom: boom ? [...boom.matrixWorld.elements] : null };
       state.watch = watch;
       document.querySelector(selector)?.click();
       return new Promise((resolve) => {

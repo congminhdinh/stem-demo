@@ -24,7 +24,9 @@
 // Scenarios: idle (the view at rest, then an orbit drag and its settling), the pilots' reference runs (drive-to-zone with its rest after
 // parking, line-follow, mini-mission; --scenarios=pilots adds square-route, stop-at-wall, servo-gate), check-1x and check-4x (Kiểm tra of
 // mini-mission: 1× for a window, 4× the whole check), follow (line-follow under "Theo xe"), teleop (Lái tay in the sandbox, the keys held),
-// pins and cpp (line-follow with the "Cổng & chân" or the C++ tab open), soak (the sandbox's loop followed for --soak-minutes, a new Run
+// pins and cpp (line-follow with the "Cổng & chân" or the C++ tab open), rb-grip-pick / -deliver / -sort / -stack (N19 E9: the gripper car's
+// four references, each run to its end and then at rest) and rb-grip-check-4x (Kiểm tra of rb-grip-sort at 4×; --scenarios=gripper has all five,
+// --profile is --profiles), soak (the sandbox's loop followed for --soak-minutes, a new Run
 // when one ends: the heap after a garbage collection every minute) and switch (--switches × "Xem 2D" ↔ 3D, then × the quality tier).
 //
 // Passes: fps (no profiler: the frame times) and profile (the same windows under V8's CPU profiler and its sampling heap profiler, the
@@ -95,6 +97,13 @@ const SCENARIOS = {
   cpp: { template: 'rb-line-follow', program: 'rb-line-follow', action: 'run', warmup: 2, tab: 1 },
   soak: { template: 'rb-sandbox', program: 'rb-line-follow', action: 'soak' },
   switch: { template: 'rb-line-follow', program: null, action: 'switch' },
+  // N19 E9: the gripper car's lessons (ref-uno-gripper@0), their references run as the rover's pilots are: a window while the program runs,
+  // then at rest once it has ended; and Kiểm tra of one of them at 4×.
+  'rb-grip-pick': { template: 'rb-grip-pick', program: 'rb-grip-pick', action: 'run', warmup: 0.5, window: 6, rest: { untilOver: true, window: 3 } },
+  'rb-grip-deliver': { template: 'rb-grip-deliver', program: 'rb-grip-deliver', action: 'run', warmup: 2, rest: { untilOver: true, window: 3 } },
+  'rb-grip-sort': { template: 'rb-grip-sort', program: 'rb-grip-sort', action: 'run', warmup: 0.5, window: 6, rest: { untilOver: true, window: 3 } },
+  'rb-grip-stack': { template: 'rb-grip-stack', program: 'rb-grip-stack', action: 'run', warmup: 2, rest: { untilOver: true, window: 3 } },
+  'rb-grip-check-4x': { template: 'rb-grip-sort', program: 'rb-grip-sort', action: 'check', speed: '4x', warmup: 0, whole: true },
 };
 const DEFAULT_SCENARIOS = {
   'gpu-high': ['idle', 'drive-to-zone', 'line-follow', 'mini-mission', 'check-1x', 'check-4x', 'follow', 'teleop', 'pins', 'cpp', 'switch', 'soak'],
@@ -104,8 +113,10 @@ const DEFAULT_SCENARIOS = {
   'ss-low-4x-sim4x': ['line-follow', 'mini-mission'],
   'school-sim4x': ['line-follow', 'mini-mission'],
 };
-const PROFILE_PASS_SCENARIOS = ['line-follow', 'mini-mission', 'check-4x', 'follow', 'teleop', 'pins', 'cpp'];
+const PROFILE_PASS_SCENARIOS = ['line-follow', 'mini-mission', 'check-4x', 'follow', 'teleop', 'pins', 'cpp', 'rb-grip-pick', 'rb-grip-deliver', 'rb-grip-sort', 'rb-grip-stack', 'rb-grip-check-4x'];
 const PILOTS = ['drive-to-zone', 'square-route', 'stop-at-wall', 'line-follow', 'servo-gate', 'mini-mission'];
+/** N19 E9: `--scenarios=gripper`: the four gripper lessons' references and Kiểm tra of lesson 10 at 4×. */
+const GRIPPER = ['rb-grip-pick', 'rb-grip-deliver', 'rb-grip-sort', 'rb-grip-stack', 'rb-grip-check-4x'];
 
 function parseArguments(argv) {
   const options = { profiles: Object.keys(PROFILES), scenarios: null, repeats: 3, seconds: 8, soakMinutes: 10, switches: 20, pass: 'all', skip: [], sensors: 'on', port: 5300, build: true, dist: null, label: null, out: join(cacheDir, 'results'), smoke: false, targets: false };
@@ -116,8 +127,8 @@ function parseArguments(argv) {
       if (!(Number.isFinite(parsed) && parsed > 0)) throw new Failure(2, `--${key} needs a number above 0, not ${value}.`);
       return parsed;
     };
-    if (key === 'profiles') options.profiles = value.split(',');
-    else if (key === 'scenarios') options.scenarios = value.split(',').flatMap((name) => (name === 'pilots' ? PILOTS : [name]));
+    if (key === 'profiles' || key === 'profile') options.profiles = value.split(',');
+    else if (key === 'scenarios') options.scenarios = value.split(',').flatMap((name) => (name === 'pilots' ? PILOTS : name === 'gripper' ? GRIPPER : [name]));
     else if (key === 'skip') options.skip = value.split(',');
     else if (key === 'sensors' && ['on', 'off'].includes(value)) options.sensors = value;
     else if (key === 'repeats') options.repeats = number();
@@ -136,7 +147,7 @@ function parseArguments(argv) {
     else throw new Failure(2, `Unknown option ${arg}. See the top of scripts/bench-robot3d.mjs.`);
   }
   for (const profile of options.profiles) if (!PROFILES[profile]) throw new Failure(2, `Unknown profile ${profile}: ${Object.keys(PROFILES).join(', ')}.`);
-  for (const scenario of options.scenarios ?? []) if (!SCENARIOS[scenario]) throw new Failure(2, `Unknown scenario ${scenario}: ${Object.keys(SCENARIOS).join(', ')}, pilots.`);
+  for (const scenario of options.scenarios ?? []) if (!SCENARIOS[scenario]) throw new Failure(2, `Unknown scenario ${scenario}: ${Object.keys(SCENARIOS).join(', ')}, pilots, gripper.`);
   if (options.smoke) Object.assign(options, { repeats: 1, seconds: 2, soakMinutes: 0.5, switches: 2 });
   return options;
 }
@@ -217,16 +228,16 @@ const SANDBOX = 'allow-scripts allow-same-origin allow-downloads';
 
 async function projects() {
   const solutions = await import(join(root, 'src/samples/robot-solutions.ts'));
-  const project = (blocks) => ({
+  const project = (key, blocks) => ({
     schemaVersion: 1,
     id: 'bench-robot3d',
     name: 'Robot',
     profile: 'uno-basic',
-    kit: { id: 'ref-uno-rover', version: '0' },
+    kit: { id: key.startsWith('rb-grip-') ? 'ref-uno-gripper' : 'ref-uno-rover', version: '0' },
     circuit: { components: [{ id: 'uno', deviceType: 'uno-r3', position: { x: 300, y: 200 } }], wires: [] },
     program: { blocks },
   });
-  return Object.fromEntries(Object.entries(solutions.robotSolutions).map(([key, solution]) => [key, project(solution.reference)]));
+  return Object.fromEntries(Object.entries(solutions.robotSolutions).map(([key, solution]) => [key, project(key, solution.reference)]));
 }
 
 /** The id of the first block of a Blockly workspace's JSON (to see it drawn in the editor). */
@@ -375,6 +386,8 @@ async function measure(frame, cdp, during, { profiled = false, maps = null, brow
 
 const status = (frame) => frame.getByTestId('robot-hud').getAttribute('data-status');
 const OVER = new Set(['timeUp', 'crashed', 'error', 'stopped', 'idle']);
+/** N19 E9: a run that is over, a program that ran to its end ('finished') included. */
+const ENDED = new Set([...OVER, 'finished']);
 
 async function setSpeed(frame, speed) {
   if (speed === 1) return;
@@ -464,8 +477,16 @@ async function cell(browser, profileName, scenarioName, run, options, shared) {
       await sleep(scenario.warmup * 1000);
       measured.window = await measure(frame, cdp, () => sleep(seconds * 1000), windowOpts);
       if (scenario.rest) {
-        const elapsed = scenario.warmup + seconds;
-        await sleep(Math.max(0, scenario.rest.from - elapsed) * 1000);
+        if (scenario.rest.untilOver) {
+          // N19 E9: the gripper lessons end when their program does, at different times: rest is measured 1.5 s after the run is over.
+          const waited = Date.now();
+          while (!ENDED.has(await status(frame)) && Date.now() - waited < 150_000) await sleep(250);
+          measured.endedAfterMs = Date.now() - waited;
+          await sleep(1500);
+        } else {
+          const elapsed = scenario.warmup + seconds;
+          await sleep(Math.max(0, scenario.rest.from - elapsed) * 1000);
+        }
         measured.rest = await measure(frame, cdp, () => sleep(scenario.rest.window * 1000), opts);
       }
       measured.endStatus = await status(frame);
@@ -740,7 +761,7 @@ function judge(cells, bundle) {
   };
   const atMost = (limit) => ({ worst: (values) => Math.max(...values), ok: (value) => value <= limit, limit: `≤ ${limit}` });
   const atLeast = (limit) => ({ worst: (values) => Math.min(...values), ok: (value) => value >= limit, limit: `≥ ${limit}` });
-  const runs = ['drive-to-zone', 'line-follow', 'mini-mission', 'square-route', 'stop-at-wall', 'servo-gate', 'follow', 'pins', 'cpp', 'check-1x', 'teleop'];
+  const runs = ['drive-to-zone', 'line-follow', 'mini-mission', 'square-route', 'stop-at-wall', 'servo-gate', 'follow', 'pins', 'cpp', 'check-1x', 'teleop', 'rb-grip-pick', 'rb-grip-deliver', 'rb-grip-sort', 'rb-grip-stack'];
   if (bundle.robotLabGzip !== null) add('budget', '3D chunk RobotLab-*.js, gzip -6', [bundle.robotLabGzip / 1000], atMost(600), 'kB', 'robot plan §5');
   add('budget', 'gpu-high: median fps of every run', of('gpu-high', runs).map((entry) => fps(entry.window?.frameMs)), atLeast(50), 'fps', 'the plan’s ≥ 50 fps mid-range');
   add('budget', 'ss-low-4x: p5 fps of every run', of('ss-low-4x', runs).map((entry) => p5fps(entry.window?.frameMs)), atLeast(30), 'fps', 'the plan’s ≥ 30 fps low tier at 4×');
