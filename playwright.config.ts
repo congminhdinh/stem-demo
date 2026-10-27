@@ -10,19 +10,20 @@ export default defineConfig({
   reporter: 'list',
   use: { baseURL },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /robot-lab-(scene|check|tools|look|sensors|a11y|chain|gripper-ui)\.spec\.ts$/ },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /robot-lab-(scene|check|tools|look|sensors|a11y|chain|gripper-ui|gripper)\.spec\.ts$/ },
     // N18 R4.2 (ADR 0002 §7): the robot lab's 3D scene, drawn by software WebGL (SwiftShader) so that it renders the same on every
     // machine, with a GPU or none (a CI runner). The flags are explicit although Playwright adds the second itself. N18 R6.3: its Kiểm tra too;
-    // N18 R4.8: its view tools; N18 R4.7: its 3D look; N18 R8: its accessibility; N19 E1-E3: the gripper car's chip, inspector and keys.
+    // N18 R4.8: its view tools; N18 R4.7: its 3D look; N18 R8: its accessibility; N19 E1-E3: the gripper car's chip, inspector and keys;
+    // N19 E10: the gripper lessons themselves.
     {
       name: 'chromium-robot',
       use: { ...devices['Desktop Chrome'], launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } },
-      testMatch: /robot-lab-(scene|check|tools|look|sensors|a11y|chain|gripper-ui)\.spec\.ts$/,
+      testMatch: /robot-lab-(scene|check|tools|look|sensors|a11y|chain|gripper-ui|gripper)\.spec\.ts$/,
     },
     // N18 R3.5 (robot plan §5): the robot world must hash the same on every engine. Firefox and WebKit run that one spec; Chromium
     // runs it with everything else. N18 final fix M11: Firefox runs the robot lab's own UI too, in the lesson host's frame (Kiểm tra, the
-    // tools, the WebGL fallback to the 2D map).
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /(robot-determinism|robot-lab|robot-webgl-fallback)\.spec\.ts$/ },
+    // tools, the WebGL fallback to the 2D map). N19 E10: and the gripper lessons' Kiểm tra and their 2D map without WebGL.
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /(robot-determinism|robot-lab|robot-lab-gripper|robot-webgl-fallback)\.spec\.ts$/ },
     { name: 'webkit', use: { ...devices['Desktop Safari'] }, testMatch: /robot-determinism\.spec\.ts$/ },
   ],
   webServer: [

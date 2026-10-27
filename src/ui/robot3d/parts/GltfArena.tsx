@@ -6,6 +6,7 @@ import type { RobotSnapshot } from '../../../core/world/snapshot';
 import type { RobotAssets } from '../assets/robot-assets';
 import type { TextureSet } from '../assets/textures';
 import { ArenaView } from '../ArenaView';
+import { registerArenaProps } from '../arena-props-state';
 import { robot3dColors as colors } from '../colors';
 import type { CameraMode } from '../camera';
 import type { CardEdge, HudCorner, ToolsCorner } from '../hud-corner';
@@ -69,6 +70,17 @@ export function GltfArena({ assets, planView, scenario, view, look, shadows, tex
   useEffect(() => {
     if (arena?.paint(objectColors)) invalidate();
   }, [arena, objectColors, invalidate]);
+  // N19 E10: which colour of each recoloured object's prop is shown, for the E2E (arena-props-state.ts).
+  const canvas = useThree((state) => state.gl.domElement);
+  useEffect(
+    () =>
+      arena
+        ? registerArenaProps(canvas, () =>
+            [...arena.movers].flatMap(([id, mover]) => (mover.looks ? [{ id, shown: [...mover.looks].filter(([, look]) => look.visible).map(([colour]) => colour) }] : [])),
+          )
+        : undefined,
+    [arena, canvas],
+  );
 
   const [widthCm, depthCm] = scenario.arena.ground.sizeCm;
   const centre = arenaToThree(widthCm / 2, depthCm / 2, 0);
