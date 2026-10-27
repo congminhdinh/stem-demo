@@ -31,9 +31,25 @@ export type TopViewGripperState = {
   color: { rayVisible: boolean; from: ArenaPointCm; to: ArenaPointCm; spotVisible: boolean; color: string | null; tint: string | null; cased: boolean; casingPx: number; haloPx: number } | null;
   /** The tag under the jaws ("IR: có vật", "Màu: đỏ", a line each). */
   label: { visible: boolean; lines: string[] } | null;
+  /**
+   * N19 E8 (E4/E5 review M4): where that tag stands on the stage (px, y down) while it is shown: the side of the jaws' tips (below, above,
+   * right, left), whether that side was clear, its box (with its pointer) and its pointer's tip; and, as drawn, what it keeps off: the car
+   * (its body and its jaws), the ring round the held object, each distance tag shown.
+   */
+  tagLayout: { side: string; clear: boolean; box: StageRect; tip: { x: number; y: number }; car: StageRect | null; ring: StageRect | null; distances: StageRect[] } | null;
   /** The zones' names the mat is painted with, in the paint's order. */
   zoneLabels: string[];
 };
+
+/** A box on the stage, px (y down). */
+export type StageRect = { left: number; top: number; right: number; bottom: number };
+
+const rectOf = (node: Konva.Node): StageRect => {
+  const { x, y, width, height } = node.getClientRect();
+  return { left: x, top: y, right: x + width, bottom: y + height };
+};
+const union = (rects: StageRect[]): StageRect | null =>
+  rects.length === 0 ? null : rects.reduce((a, b) => ({ left: Math.min(a.left, b.left), top: Math.min(a.top, b.top), right: Math.max(a.right, b.right), bottom: Math.max(a.bottom, b.bottom) }));
 
 /** What the mounted map drew of the gripper car; null when no map is mounted. */
 export function readTopViewGripper(): TopViewGripperState | null {
@@ -121,6 +137,18 @@ export function readTopViewGripper(): TopViewGripperState | null {
           }
         : null,
     label: label ? { visible: label.visible(), lines: label.getText().text().split('\n') } : null,
+    tagLayout:
+      label && label.visible()
+        ? {
+            side: label.getAttr('side'),
+            clear: label.getAttr('clear') === true,
+            box: rectOf(label),
+            tip: { x: label.x(), y: label.y() },
+            car: union([...stage.find<Konva.Rect>('.topview-body'), ...stage.find<Konva.Group>('.topview-jaw')].map(rectOf)),
+            ring: held?.visible() ? rectOf(held) : null,
+            distances: stage.find<Konva.Label>('.topview-sensor-label').filter((tag) => tag.visible()).map(rectOf),
+          }
+        : null,
     zoneLabels: stage.findOne<Konva.Group>('.topview-mat')?.getAttr('zoneLabels') ?? [],
   };
 }

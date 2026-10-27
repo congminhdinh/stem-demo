@@ -16,8 +16,9 @@ import { shownObjectColors } from './round-colors';
 import { idleSnapshot } from './scene-math';
 import { readingTints, sensorColors as colors } from './sensor-colors';
 import { goalZoneIds, highlightColor, nextGoalZoneId, pulseLevel, sameSensorView, sectorPointsCm, SECTOR_POINTS_LENGTH, shownColor, spotDrawRadiusCm } from './sensor-overlay-math';
-import { casingExtraCm, createGripperTopView, gripperTopViewInto } from './top-view-gripper';
-import { arenaToStage, rayLengthCm, sameTopView, type TopViewFit } from './top-view-math';
+import { casingExtraCm, createGripperTopView, gripperTopViewInto, heldRingRadiusCm, jawCornersCm, type GripperTopView } from './top-view-gripper';
+import { arenaToStage, movingBodies, rayLengthCm, sameTopView, type TopViewFit } from './top-view-math';
+import { createStageBox, createTagPlace, placeGripperTag, TAG_POINTER_OF, type StageBox } from './top-view-tag-layout';
 
 // The sensor overlays on the 2D map (N18 R4.3), as parts/SensorOverlay.tsx draws them in the 3D view: over the cone of each ultrasonic
 // sensor (a fan from the sensor to the distance it heard, with its axis ray and echo dot, which the map has drawn since R4.6, and a tag
@@ -108,8 +109,12 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
       const rangeCm = (module.spec as unknown as IrObstacleSpec | ColorSensorSpec).rangeCm;
       return { role: sensor.role, sensorIndex: sensor.sensorIndex, uCm: sensor.position[0] * 100, vCm: 0 - sensor.position[2] * 100, yawDeg: module.mount.yawDeg, rangeCm };
     };
-    return { gripper, ir: rider(gripper.ir), color: rider(gripper.color), view: createGripperTopView(), irPoints: [0, 0, 0, 0], colorPoints: [0, 0, 0, 0] };
+    // N19 E8: the tag's layout, written in place: its box, its side, and what it keeps off (the car, the held ring, the distance tags).
+    const layout = { box: createStageBox(), place: createTagPlace(), avoid: Array.from({ length: 2 + model.ultrasonics.length }, createStageBox) };
+    return { gripper, ir: rider(gripper.ir), color: rider(gripper.color), view: createGripperTopView(), irPoints: [0, 0, 0, 0], colorPoints: [0, 0, 0, 0], layout };
   }, [kit, model]);
+  // N19 E8: the arena's moving bodies (the ring round a held one is as wide as `heldRingRadiusCm` says).
+  const bodies = useMemo(() => movingBodies(scenario.arena), [scenario.arena]);
   // N19 E4/E5: the objects' colours a goal placed by colour reads: the round shown's (round-colors.ts), else the arena's own.
   const roundColors = useStore(store, shownObjectColors);
   const objectColors = useMemo(
@@ -257,13 +262,55 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
         label?.visible(false);
         return;
       }
-      // Under the jaws' tips on the screen, pointing up at them: clear of the ultrasonic's tag, which stands over its ray's end.
+      // N19 E8 (E4/E5 review M4): next to the jaws' tips, on the first side where it covers neither the car (its body and gripper), nor the
+      // ring round what it holds, nor a distance tag, and stays on the map (top-view-tag-layout.ts): beyond the jaws first, then beside them.
+      // The Label's origin is its pointer's tip, which stands GRIPPER_TAG_GAP_PX from the tips (E4 centred it with an offset of half its width,
+      // which put the pointer half a tag to the left of the jaws, the box on the car).
+      const fitNow = shownFit.current;
       const reach = top.hingeXCm + carried.gripper.finger.lengthM * 100;
-      const at = arenaToStage(shownFit.current, robotToArena(world.robot, [reach, top.midYCm]));
+      const at = arenaToStage(fitNow, robotToArena(world.robot, [reach, top.midYCm]));
       text.text(lines.join('\n'));
-      label.position({ x: at.x, y: at.y + 12 });
-      label.offsetX(label.width() / 2);
+      const { box, place: chosen, avoid } = carried.layout;
+      let avoidCount = 0;
+      carBoxInto(avoid[avoidCount++]!, world, top, fitNow);
+      const held = gripperStateOf(world).heldId;
+      const heldObject = held === null ? undefined : world.objects.find((object) => object.id === held);
+      const heldBody = heldObject === undefined ? undefined : bodies.find((body) => body.id === heldObject.id);
+      if (heldObject !== undefined && heldBody !== undefined) {
+        const centre = arenaToStage(fitNow, { xCm: heldObject.pose.xCm, yCm: heldObject.pose.yCm });
+        const radius = (heldRingRadiusCm(heldBody) + 0.25) * fitNow.scale;
+        const ring = avoid[avoidCount++]!;
+        [ring.left, ring.top, ring.right, ring.bottom] = [centre.x - radius, centre.y - radius, centre.x + radius, centre.y + radius];
+      }
+      for (const distance of n.labels) {
+        if (distance === null || !distance.visible()) continue;
+        const rect = distance.getClientRect();
+        const into = avoid[avoidCount++]!;
+        [into.left, into.top, into.right, into.bottom] = [rect.x, rect.y, rect.x + rect.width, rect.y + rect.height];
+      }
+      const yaw = (world.robot.yawDeg * Math.PI) / 180;
+      placeGripperTag(box, chosen, at.x, at.y, label.width(), label.height(), Math.cos(yaw), -Math.sin(yaw), avoid, avoidCount, layer.getStage()?.size() ?? { width: Infinity, height: Infinity });
+      label.getTag().pointerDirection(TAG_POINTER_OF[chosen.side]);
+      label.position({ x: at.x + chosen.tipX, y: at.y + chosen.tipY });
+      label.offsetX(0);
+      label.setAttrs({ side: chosen.side, clear: chosen.clear });
       label.visible(true);
+    };
+
+    /** The car's box on the stage (px): its body's corners and its fingers' (N19 E8: the tag keeps off it). */
+    const carBoxInto = (out: StageBox, world: RobotSnapshot, top: GripperTopView, fitNow: TopViewFit) => {
+      [out.left, out.top, out.right, out.bottom] = [Infinity, Infinity, -Infinity, -Infinity];
+      const [halfLength, halfWidth] = [(model.body.lengthM * 100) / 2, (model.body.widthM * 100) / 2];
+      const take = (x: number, y: number) => {
+        const point = arenaToStage(fitNow, robotToArena(world.robot, [x, y]));
+        out.left = Math.min(out.left, point.x);
+        out.right = Math.max(out.right, point.x);
+        out.top = Math.min(out.top, point.y);
+        out.bottom = Math.max(out.bottom, point.y);
+      };
+      for (const [x, y] of [[-halfLength, -halfWidth], [halfLength, -halfWidth], [halfLength, halfWidth], [-halfLength, halfWidth]] as const) take(x, y);
+      if (carried === null) return;
+      for (const side of [1, -1] as const) for (const [x, y] of jawCornersCm(top, carried.gripper, side)) take(x, y);
     };
 
     const refresh = (force: boolean) => {
@@ -283,7 +330,7 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
       stopState();
       stopTools?.();
     };
-  }, [fit, t, locale, store, tools, idle, goals, beams, spots, motion, carried, objectColors]);
+  }, [fit, t, locale, store, tools, idle, goals, beams, spots, motion, carried, objectColors, bodies, model]);
 
   const world = { x: fit.originX, y: fit.originY, scaleX: fit.scale, scaleY: -fit.scale };
   return (
