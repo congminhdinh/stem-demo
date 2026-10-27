@@ -1,5 +1,7 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { robotTemplateKeys } from '../../samples/robot-templates';
+import { basicSkip, fullSkip } from '../../../tests/basic-skip';
+import { basicRobotTemplates, editionHasRobotTemplate } from '../edition';
 import { localizeLaunchProblem } from '../i18n/core-text';
 import { parseLaunch } from './launch';
 
@@ -19,7 +21,8 @@ const host = 'http://localhost:3000';
 const robot = (profile: string | null = null, hostOrigin: string | null = host) => ({ kind: 'robot', profile, hostOrigin });
 
 describe('parseLaunch: lab=robot (N18 R4.1)', () => {
-  it.each(robotTemplateKeys)('opens the robot lab of %s, with or without a profile', (key) => {
+  // demo-basic: the scenarios this edition opens (every one in `full`); the Basic demo refuses the others (below).
+  it.each(robotTemplateKeys.filter((key) => editionHasRobotTemplate(key)))('opens the robot lab of %s, with or without a profile', (key) => {
     expect(parseLaunch(`?embed=1&lab=robot&template=${key}&origin=${host}`)).toEqual({ mode: 'embed', template: key, lab: robot() });
     expect(parseLaunch(`?embed=1&lab=robot&template=${key}&profile=uno-basic&origin=${host}`)).toEqual({ mode: 'embed', template: key, lab: robot('uno-basic') });
     expect(parseLaunch(`?embed=1&lab=robot&template=${key}&profile=uno-advanced&origin=${host}`)).toEqual({ mode: 'embed', template: key, lab: robot('uno-advanced') });
@@ -89,6 +92,7 @@ describe('parseLaunch: lab=robot (N18 R4.1)', () => {
   });
 
   describe('a profile lower than the scenario needs', () => {
+    beforeEach(({ skip }) => basicSkip(skip, 'rb-servo-gate (the Basic variant below takes rb-line-follow)'));
     afterEach(() => {
       scenario.needs = undefined;
     });
@@ -126,5 +130,34 @@ describe('parseLaunch: lab=robot (N18 R4.1)', () => {
     expect(localizeLaunchProblem('The template "rb-servo-gate" needs profile=uno-advanced: it uses blocks or parts that uno-basic does not have.', 'vi')).toBe(
       'Mẫu bài "rb-servo-gate" cần mức Nâng cao (profile=uno-advanced): bài dùng khối hoặc linh kiện mà mức Cơ bản không có.',
     );
+  });
+});
+
+// demo-basic (src/ui/edition.ts): the Basic demo opens its four scenarios and refuses every other robot key, as an error screen of the robot
+// lab that says so, never a project; the profile rule is the same.
+describe('parseLaunch: lab=robot in the Basic demo', () => {
+  beforeEach(({ skip }) => fullSkip(skip, 'scenario subset'));
+  afterEach(() => {
+    scenario.needs = undefined;
+  });
+
+  it('opens rb-drive-to-zone, rb-stop-at-wall, rb-line-follow and rb-sandbox, and no other', () => {
+    expect(robotTemplateKeys.filter((key) => editionHasRobotTemplate(key))).toEqual([...basicRobotTemplates]);
+  });
+
+  it.each(robotTemplateKeys.filter((key) => !(basicRobotTemplates as readonly string[]).includes(key)))('refuses %s, with or without a profile', (key) => {
+    for (const search of [`?embed=1&lab=robot&template=${key}&origin=${host}`, `?embed=1&lab=robot&template=${key}&profile=uno-advanced&origin=${host}`, `?embed=1&lab=robot&template=${key}`]) {
+      expect(parseLaunch(search)).toEqual({ mode: 'invalid', problem: `The scenario "${key}" is not in the basic demo.`, lab: 'robot' });
+    }
+  });
+
+  it('still refuses a profile lower than a scenario of its own needs', () => {
+    scenario.needs = 'uno-advanced';
+    expect(parseLaunch(`?embed=1&lab=robot&template=rb-line-follow&profile=uno-basic&origin=${host}`)).toEqual({
+      mode: 'invalid',
+      problem: 'The template "rb-line-follow" needs profile=uno-advanced: it uses blocks or parts that uno-basic does not have.',
+      lab: 'robot',
+    });
+    expect(parseLaunch(`?embed=1&lab=robot&template=rb-line-follow&profile=uno-advanced&origin=${host}`)).toMatchObject({ mode: 'embed', lab: robot('uno-advanced') });
   });
 });

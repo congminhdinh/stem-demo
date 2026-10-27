@@ -1,6 +1,7 @@
 import { isRobotLabProfile, isRobotTemplateKey, robotLabProfiles, robotTemplateProfileProblem } from '../../samples/robot-templates';
 import { isLabTemplateKey, labOfTemplate, type LabKind, type LabProfile, type LabTemplateKey } from '../../samples/templates';
 import { isYbcLabProfile, isYbcTemplateKey, templateProfileProblem, ybcLabProfiles } from '../../samples/ybc-templates';
+import { editionTemplateProblem } from '../edition';
 
 // The launch contract (S1, plan §9.2; N6a S0): how the app is told, by its URL, to run as the standalone
 // editor or as an embedded lab. The URL is read once, at startup (main.tsx); nothing past this module knows
@@ -17,7 +18,8 @@ import { isYbcLabProfile, isYbcTemplateKey, templateProfileProblem, ybcLabProfil
 //                                                       3D robot lab (N18 R4.1): an rb-* scenario, profile uno-basic|uno-advanced,
 //                                                       at least the one the scenario needs (robot-templates.ts). An unknown rb-*
 //                                                       key is an error, never a standalone project; the legacy launch (no lab=)
-//                                                       has no robot scenario.
+//                                                       has no robot scenario. The Basic demo opens only its own scenarios
+//                                                       (edition.ts `basicRobotTemplates`): another rb-* key is an error.
 //
 // `origin` is the embedding page's origin, the only one the lab talks to (stem-lab/v1, host-bridge.ts); without
 // it the lab works but talks to nobody. Anything else that names embed, template or lab is a broken launch,
@@ -81,6 +83,11 @@ export function parseLaunch(search: string): Launch {
   }
   if (labOfTemplate(key) !== kind) {
     return invalid(`The template "${key}" does not open in lab=${kind}.`, kind);
+  }
+  // demo-basic: the Basic demo opens only its robot scenarios (edition.ts); any other key is refused here, never opened.
+  const notInEdition = isRobotTemplateKey(key) ? editionTemplateProblem(key) : null;
+  if (notInEdition !== null) {
+    return invalid(notInEdition, kind);
   }
   const profile = readProfile(params.getAll('profile'), kind);
   if (typeof profile === 'object' && profile !== null) {

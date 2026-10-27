@@ -12,9 +12,11 @@ import buttonLedSample from '../src/samples/button-led.project.json';
 import { robotStarterDocument, robotTemplates, type RobotTemplateKey } from '../src/samples/robot-templates';
 import { createDexieProjectRepository } from '../src/storage/dexie-project-repository';
 import { parseLaunch } from '../src/ui/app/launch';
+import { editionHasRobotTemplate } from '../src/ui/edition';
 import { openAtStartup } from '../src/ui/app/startup';
 import { autosaveDelayMs, startAutosave } from '../src/ui/state/autosave';
 import { createProjectStore } from '../src/ui/state/project-store';
+import { basicSkip, fullSkip } from './basic-skip';
 
 // N18 R4.1: the launch asks robot-templates.ts which level a scenario needs; the same function with the `needed` a test may set (none
 // needs more than uno-basic yet), so a test can see a lower level refused without changing the table of scenarios.
@@ -194,7 +196,8 @@ describe('launch isolation of the robot lab (N18 R4.1)', () => {
 
   it('opens every scenario, with the launch profile when it is given and without an origin like any other lab', async () => {
     const storage = freshDatabase();
-    for (const key of Object.keys(robotTemplates) as RobotTemplateKey[]) {
+    // demo-basic: the scenarios this edition opens (every one in `full`); the Basic demo refuses the others (below).
+    for (const key of (Object.keys(robotTemplates) as RobotTemplateKey[]).filter((key) => editionHasRobotTemplate(key))) {
       const withProfile = await pageLoad(storage, `?embed=1&lab=robot&template=${key}&profile=uno-advanced&origin=${host}`);
       expect(withProfile.document()).toEqual(robotStarterDocument(key, 'uno-advanced'));
       withProfile.close();
@@ -221,7 +224,8 @@ describe('launch isolation of the robot lab (N18 R4.1)', () => {
     expect((await indexedDB.databases()).map((database) => database.name)).not.toContain(storage);
   });
 
-  it('a profile lower than the scenario needs is an error screen of the robot lab, never a project', async () => {
+  it('a profile lower than the scenario needs is an error screen of the robot lab, never a project', async ({ skip }) => {
+    basicSkip(skip, 'rb-servo-gate (the Basic demo refuses it before its profile)');
     // Every scenario needs uno-basic, the lowest level, so none can be refused yet: for this test one is said to need uno-advanced.
     scenario.needs = 'uno-advanced';
     try {
@@ -236,5 +240,14 @@ describe('launch isolation of the robot lab (N18 R4.1)', () => {
     } finally {
       scenario.needs = undefined;
     }
+  });
+
+  // demo-basic (src/ui/edition.ts): a scenario the Basic demo does not open is an error screen of the robot lab, as an unknown key is.
+  it.for(['rb-square-route', 'rb-mini-mission', 'rb-grip-pick', 'rb-grip-stack'])('%s in the Basic demo is an error screen: no project is opened and no storage is created', async (key, { skip }) => {
+    fullSkip(skip, 'scenario subset');
+    const storage = freshDatabase();
+    const started = await startup(storage, `?embed=1&lab=robot&template=${key}&origin=${host}`);
+    expect(started).toEqual({ kind: 'launch-error', problem: `The scenario "${key}" is not in the basic demo.`, lab: 'robot' });
+    expect((await indexedDB.databases()).map((database) => database.name)).not.toContain(storage);
   });
 });
