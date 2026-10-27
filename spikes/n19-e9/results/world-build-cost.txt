@@ -1,0 +1,13 @@
+# N19 E9 (fix round 1, review M1): what building a round's world costs, rover against gripper car. `node spikes/n19-e9/world-build-cost.mjs` (Vite SSR loader, plain
+# Node 24.22.1, Rapier -compat, unthrottled, one thread; wall ms of createScenarioWorld, variants in turn), Apple M4 Pro, load average 7.7 at the start (uptime 10:00), 2026-10-27.
+rb-mini-mission  ref-uno-rover    first 56.8 ms, median of the next 15: 3.29 ms (min 2.91, max 6.98)
+rb-line-follow   ref-uno-rover    first 3.3 ms, median of the next 15: 2.81 ms (min 2.59, max 3.80)
+rb-grip-pick     ref-uno-gripper  first 25.8 ms, median of the next 15: 8.13 ms (min 7.32, max 10.59)
+rb-grip-deliver  ref-uno-gripper  first 8.7 ms, median of the next 15: 7.93 ms (min 7.31, max 9.25)
+rb-grip-sort     ref-uno-gripper  first 7.3 ms, median of the next 15: 7.16 ms (min 6.89, max 10.33)
+rb-grip-stack    ref-uno-gripper  first 7.0 ms, median of the next 15: 6.96 ms (min 6.71, max 8.10)
+# A gripper world is 7 to 8 ms (about 42 to 49 ms at the school profile's CPU 6x) against the rover's 2.8 to 3.3 ms (about 17 to 20 ms). A Kiểm tra builds one a round, three in all, and
+# a build adds the program's compile and the virtual UNO to it. The long tasks of the gripper's 4x check on the school profile (fps pass, 3 repeats: 3, 2 and 2 tasks of 50 ms or more,
+# the longest 79, 68 and 68 ms; profile pass: 4, 3 and 4, the longest 80 to 93 ms) are the size of that start and as many as the rounds. The rover's check has none in the fps pass
+# and 3 to 4 of 79 to 86 ms under the profiler, in both trees. This is the likely cause, not a measured one: the probe's long-task summary has no start times to put against the
+# rounds'. The ss-low-4x run (phase B of the fix round) is the place to record them.

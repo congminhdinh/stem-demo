@@ -13,7 +13,12 @@ Machine: Apple M4 Pro (12 cores, 24 GB), Darwin 25.5.0, Node 24.22.1, Chromium 1
 | `results/bench-robot-rover-{master,branch}-{1,2}.txt` | `pnpm bench:robot` (the rover's table) on master and on the branch, alternately twice | `node scripts/bench-robot.mjs` (load 4.6 to 5.3) |
 | `results/rest-draws.txt` | what asks for frames after a gripper lesson has ended | `node spikes/n19-e9/rest-draws.mjs <key>` |
 | `results/glb-sizes.txt` | the GLBs against plan 3 | `git show 3025a0a^:public/robot3d/<file>` and `wc -c` |
+| `results/world-build-cost.txt` | what one round's world costs, rover against gripper (the likely cause of the gripper Kiểm tra 4x's long tasks of 68 to 79 ms) | `node spikes/n19-e9/world-build-cost.mjs` |
 | `results/gripper-ui-pass-rates.txt` | the gripper-ui spec, before and after (the controller's addition) | `e2e-on-ports.sh ... --repeat-each=k` |
 | `results/e2e.txt` | E10's spec and every robot spec | `e2e-on-ports.sh` |
 
 The plan's table is in docs/n19-gripper-plan.md 4.16.
+
+Fix round 1 (review 1): the `judge()` rows for `rb-grip-check-4x` (p5 fps >= 30 on ss-low-4x, p95 <= 33 ms and no task over 100 ms on school) were exercised with `--report` on the
+recorded gripper results and a copy of them renamed to the `ss-low-4x` profile (the numbers of that copy are the school's, not measurements), and the rover's verdict table from
+`--report` on a recorded rover run is identical, line for line, to the one the earlier script printed. The ss-low-4x numbers themselves are phase B's (after B7, at load <= 6): not taken yet.
