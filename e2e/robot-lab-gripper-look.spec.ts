@@ -142,6 +142,7 @@ test.describe('the gripper car on its lessons, in 3D (N19 E8)', () => {
     for (const tier of ['high', 'low'] as const) {
       test(`${key} (${tier}): the reference at each moment is the reference's world, the modelled scene, a real 3D draw`, async ({ page, baseURL }) => {
         const errors: string[] = [];
+        const looks: Record<string, { deviation: number; colours: number }> = {};
         page.on('pageerror', (error) => errors.push(String(error)));
         await page.addInitScript(sampleDraws);
         const frame = await openInLesson(page, labUrl(baseURL, key));
@@ -160,11 +161,16 @@ test.describe('the gripper car on its lessons, in 3D (N19 E8)', () => {
             await frame.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(null)))));
             await expect(frame.getByTestId('robot-canvas').locator('canvas')).toHaveAttribute('data-models', 'modelled');
             const { deviation, colours } = look(await frame.evaluate(() => (window as unknown as { __look: number[][] }).__look));
-            expect(deviation, `${moment.name}`).toBeGreaterThan(0.06);
-            expect(colours, `${moment.name}`).toBeGreaterThanOrEqual(30);
-            await shot(frame, shotName(run, tier, moment.name, moment.name === 'start' ? 'free' : 'follow'));
+            const name = shotName(run, tier, moment.name, moment.name === 'start' ? 'free' : 'follow');
+            looks[name] = { deviation: Math.round(deviation * 1000) / 1000, colours };
+            // R4.7's bar for a 3D look (robot-lab-look.spec.ts).
+            expect(deviation, name).toBeGreaterThan(0.08);
+            expect(colours, name).toBeGreaterThanOrEqual(30);
+            await shot(frame, name);
           }
         }
+        mkdirSync(shots, { recursive: true });
+        writeFileSync(join(shots, `looks-${key}-${tier}.json`), `${JSON.stringify(looks, null, 1)}\n`);
         expect(errors).toEqual([]);
       });
     }
