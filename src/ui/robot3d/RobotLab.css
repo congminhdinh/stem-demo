@@ -52,7 +52,8 @@
   color: var(--stem-color-primary);
   font-size: 11px;
   font-weight: 600;
-  line-height: 15px;
+  /* With its border no taller than the line of the lab's name (12 px × 1.2): the header keeps the full lab's height. */
+  line-height: 12px;
   white-space: nowrap;
 }
 
