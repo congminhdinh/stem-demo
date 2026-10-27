@@ -7,7 +7,7 @@ import { CM_PER_M } from '../../../core/world/units';
 import { gripperStateOf } from '../gripper-pose';
 import type { Detail } from '../lighting/look';
 import type { RobotModel } from '../robot-model';
-import { readingTints, sensorColors as colors } from '../sensor-colors';
+import { COLOR_RAY_QUIET_ALPHA, readingTints, sensorColors as colors } from '../sensor-colors';
 import { GLYPH, goalZoneIds, highlightColor, labelGlyphs, LABEL_GLYPHS_MAX, nextGoalZoneId, sameSensorView, spotDrawRadiusCm } from '../sensor-overlay-math';
 import { NO_ECHO_RAY_CM } from '../top-view-math';
 import { createDistanceLabel, type DistanceLabel, type DistanceLabelOptions } from './distance-label';
@@ -449,7 +449,7 @@ function carriedSensors(
     irQuiet: rgba(colors.ir, 0.35),
     irSeen: rgba(colors.ir, 0.95),
     colorRay: rgba(colors.spotRing, 0.75),
-    colorRayQuiet: rgba(colors.spotRing, 0.3),
+    colorRayQuiet: rgba(colors.colorRayQuiet, COLOR_RAY_QUIET_ALPHA),
     spotRing: rgba(colors.spotRing, 0.95),
   });
   // The tints, by the colour's index in COLOR_NAMES (none for "không rõ").

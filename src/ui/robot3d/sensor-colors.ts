@@ -32,7 +32,15 @@ export const sensorColors = {
   spotRing: '#0f172a',
   /** N19 E4/E5 fix round 1 (review M3): the light casing of the dark colour ray and the spot's ring on the 2D map, for the black tape and a black cube. */
   lightCasing: '#ffffff',
+  /**
+   * N19 E8 (E4/E5 re-review): the 3D colour ray while it meets nothing (its range, no spot): a mid slate (slate-500), which at
+   * COLOR_RAY_QUIET_ALPHA reads at 3:1 on the black tape as on the mat and every zone (the hit's dark slate at 30 % was 1.02:1 on the tape).
+   */
+  colorRayQuiet: '#64748b',
 } as const;
+
+/** N19 E8: how opaque the 3D colour ray is painted while it meets nothing. */
+export const COLOR_RAY_QUIET_ALPHA = 0.9;
 
 /**
  * N19 E4/E5: the tint of the colour sensor's spot for the colour its counts read (`shownColor`): the palette's own for its four colours
