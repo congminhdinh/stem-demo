@@ -214,6 +214,29 @@ async function openMap(page: Page, baseURL: string | undefined, key: string) {
   return frame;
 }
 
+/**
+ * The map's mat and bodies (its first two layers: the objects with their marks and the car; no sensor overlay over them), RGB, once the
+ * map has drawn `world` (its nodes move at a publish, its canvas is drawn in the next animation frame).
+ */
+const bodiesOf = async (frame: Frame, world: World | null): Promise<Pixels> => {
+  if (world !== null) await expect.poll(async () => Math.hypot((await map2d(frame)).view.robot!.xCm - world.robot.xCm, (await map2d(frame)).view.robot!.yCm - world.robot.yCm)).toBeLessThan(1e-6);
+  const url = await frame.evaluate(async () => {
+    await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(null))));
+    const host = document.querySelector('[data-testid=robot-topview]')!;
+    const layers = [...host.querySelectorAll('canvas')].slice(0, 2);
+    const out = document.createElement('canvas');
+    [out.width, out.height] = [layers[0]!.width, layers[0]!.height];
+    const ctx = out.getContext('2d')!;
+    ctx.fillStyle = getComputedStyle(host).backgroundColor;
+    ctx.fillRect(0, 0, out.width, out.height);
+    for (const layer of layers) ctx.drawImage(layer, 0, 0);
+    return out.toDataURL('image/png');
+  });
+  const image = decodePng(Buffer.from(url.split(',')[1]!, 'base64'));
+  return { width: image.width, height: image.height, channels: image.channels, data: image.data };
+};
+
+
 test.describe('the gripper car on its lessons, on the 2D map (N19 E8)', () => {
   for (const key of lessons) {
     test(`${key}: at each moment the sensors' tag covers neither the car, the held ring nor the distance tag; the held ring is round what is held`, async ({ page, baseURL }) => {
@@ -234,6 +257,19 @@ test.describe('the gripper car on its lessons, on the 2D map (N19 E8)', () => {
           expect(meets(layout.box, layout.car!)).toBe(false);
           if (layout.ring) expect(meets(layout.box, layout.ring)).toBe(false);
           for (const distance of layout.distances) expect(meets(layout.box, distance)).toBe(false);
+          if (run.key === 'rb-grip-stack' && moment.name === 'release') {
+            // Review F2: the red cube stacked on the yellow base is drawn over it: the map's middle of the cube is the cube's red (its fill or
+            // its stripes' darker red), not the base's yellow.
+            const world = (await snapshot(frame))!;
+            const cube = world.objects.find((object) => object.id === 'cube')!.pose;
+            const { view } = await map2d(frame);
+            const picture = await bodiesOf(frame, world);
+            const [x, y] = [14 + (view.stage.width - 28 - 200 * view.scale) / 2 + cube.xCm * view.scale, 14 + (view.stage.height - 54 - 80 * view.scale) / 2 + (80 - cube.yCm) * view.scale];
+            const at = (Math.round(y) * picture.width + Math.round(x)) * picture.channels;
+            const [r, g, b] = [picture.data[at]!, picture.data[at + 1]!, picture.data[at + 2]!];
+            expect(r - g, `the cube's middle is ${[r, g, b]}`).toBeGreaterThan(60);
+            expect(r - b, `the cube's middle is ${[r, g, b]}`).toBeGreaterThan(60);
+          }
           mkdirSync(shots, { recursive: true });
           writeFileSync(join(shots, `${shotName(run, '2d', moment.name, 'map')}.png`), await frame.getByTestId('robot-topview').screenshot());
         }
@@ -276,28 +312,6 @@ function markTemplate(mark: BodyMark, scale: number): Uint8Array {
 
 test.describe('lesson 10’s cubes for a learner who cannot tell red from green (N19 E8)', () => {
   test.use({ deviceScaleFactor: 3 });
-
-  /**
-   * The map's mat and bodies (its first two layers: the objects with their marks and the car; no sensor overlay over them), RGB, once the
-   * map has drawn `world` (its nodes move at a publish, its canvas is drawn in the next animation frame).
-   */
-  const bodiesOf = async (frame: Frame, world: World | null): Promise<Pixels> => {
-    if (world !== null) await expect.poll(async () => Math.hypot((await map2d(frame)).view.robot!.xCm - world.robot.xCm, (await map2d(frame)).view.robot!.yCm - world.robot.yCm)).toBeLessThan(1e-6);
-    const url = await frame.evaluate(async () => {
-      await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(null))));
-      const host = document.querySelector('[data-testid=robot-topview]')!;
-      const layers = [...host.querySelectorAll('canvas')].slice(0, 2);
-      const out = document.createElement('canvas');
-      [out.width, out.height] = [layers[0]!.width, layers[0]!.height];
-      const ctx = out.getContext('2d')!;
-      ctx.fillStyle = getComputedStyle(host).backgroundColor;
-      ctx.fillRect(0, 0, out.width, out.height);
-      for (const layer of layers) ctx.drawImage(layer, 0, 0);
-      return out.toDataURL('image/png');
-    });
-    const image = decodePng(Buffer.from(url.split(',')[1]!, 'base64'));
-    return { width: image.width, height: image.height, channels: image.channels, data: image.data };
-  };
 
   test('the green, the red and the blue cube on the map show three marks a deuteranope and a protanope still tell apart; their fills do not', async ({ page, baseURL }) => {
     const errors: string[] = [];

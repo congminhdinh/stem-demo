@@ -106,6 +106,16 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
   const [widthCm, depthCm] = arena.ground.sizeCm;
   const idle = useMemo(() => idleSnapshot(scenario, kit), [scenario, kit]);
   const moving = useMemo(() => movingBodies(arena), [arena]);
+  // N19 E8 (review F2): each moving body's half height (cm, in `moving`'s order), and the order the map draws them in, bottom-up, kept in
+  // place (each index's key is its body's bottom, rounded to a centimetre: a body on the floor 0, a cube stacked on a 4 cm base 4).
+  const stacking = useMemo(() => {
+    const halves = [
+      ...arena.boxes.filter((box) => box.body === 'dynamic').map((box) => box.sizeCm[2] / 2),
+      ...arena.cylinders.filter((cylinder) => cylinder.body === 'dynamic').map((cylinder) => cylinder.heightCm / 2),
+      ...arena.objects.map((object) => (object.shape === 'box' ? object.sizeCm[2] : object.heightCm) / 2),
+    ];
+    return { halves: Float64Array.from(halves), keys: new Float64Array(halves.length), order: Int32Array.from(halves, (_, i) => i) };
+  }, [arena]);
   const gripperView = useMemo(createGripperTopView, []);
   // N19 E4/E5 (ruling 8): the objects in the colours of the round shown (the run's world's), the arena's own without one. A rover lesson
   // has none: its bodies are the very ones it had.
@@ -182,6 +192,26 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
       for (const object of world.objects) {
         n.moving.get(object.id)?.position({ x: object.pose.xCm, y: object.pose.yCm }).rotation(object.pose.yawDeg);
       }
+      // N19 E8 (review F2): bottom-up by height (a stacked cube over its base), the arena's order among bodies at one height (every body
+      // on the floor: a rover's world keeps the order it was drawn in). The nodes move only when the order changes.
+      const { halves, keys, order } = stacking;
+      if (order.length > 1 && world.objects.length === order.length) {
+        for (let i = 0; i < order.length; i++) keys[i] = Math.max(0, Math.round(world.objects[i]!.pose.zCm - halves[i]!));
+        for (let i = 0; i < order.length; i++) order[i] = i;
+        for (let i = 1; i < order.length; i++) {
+          const at = order[i]!;
+          let j = i - 1;
+          while (j >= 0 && keys[order[j]!]! > keys[at]!) {
+            order[j + 1] = order[j]!;
+            j -= 1;
+          }
+          order[j + 1] = at;
+        }
+        for (let k = 0; k < order.length; k++) {
+          const group = n.moving.get(world.objects[order[k]!]!.id);
+          if (group !== undefined && group.zIndex() !== k) group.zIndex(k);
+        }
+      }
       // N19 E4: the boom's reach, the carriage at its tip, the jaws' opening; the ring round the held object, where the world has it.
       if (model.gripper !== null) {
         const state = gripperStateOf(world);
@@ -211,7 +241,7 @@ export function TopView2D({ scenario, kit, model, store, zoneLabel, reason = nul
       n.layer?.setAttr('draws', n.draws);
       n.layer?.batchDraw();
     },
-    [model, tools, moving, gripperView],
+    [model, tools, moving, gripperView, stacking],
   );
 
   // Follows the store: a publish or a change of its state draws the world if (and only if) the picture changed. The first call draws the
