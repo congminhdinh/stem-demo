@@ -1,0 +1,51 @@
+# B7 minor round: e2e of the tree rebased onto master dabc023 (E9 + E10), with M1-M5, through zsh spikes/p2-perf3d/e2e-on-ports.sh <scratch> (DEV_PORT=5570, LESSON_PORT=5571; the repository's own projects). Playwright 1.63.0, Chromium 153.0.8010.12, Firefox 155.0, WebKit 26.6. 2026-10-27.
+
+## 1. --project=chromium-robot --project=firefox --workers=3 e2e/robot-lab-gripper-ui.spec.ts e2e/robot-lab-gripper.spec.ts e2e/robot-lab-check.spec.ts, 11:38, load 2.1-2.9
+  ✓   1 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:66:3 › the gripper car in the robot lab (N19 E1-E3) › Q E R F move the claw and the arm, and the four buttons are beside the D-pad (11.1s)
+  ✓   2 [chromium-robot] › e2e/robot-lab-gripper.spec.ts:188:3 › the gripper lab on the real lessons (N19 E10) › Chạy rb-grip-pick’s reference: the chip “Đang giữ: khối vàng” comes and goes, the lab says the grab and the release, the cube ends in the drop zone (13.5s)
+  ✓   3 [chromium-robot] › e2e/robot-lab-check.spec.ts:112:3 › Kiểm tra in the robot lab (N18 R6.3) › checks the reference at 4×: its run in the view, Lượt 1/1, then a check-result with its score after the run stopped (15.2s)
+  ✓   4 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:133:3 › the gripper car in the robot lab (N19 E1-E3) › "Cổng & chân" shows the gripper’s angles with mở or đóng, the IR sensor’s pin and the colour sensor’s SDA and SCL (5.7s)
+  ✓   7 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:183:3 › the gripper car in the robot lab (N19 E1-E3) › a grab by hand: the HUD’s chip says what is held, the lab says it once, and both go when the claw lets go (6.4s)
+  ✓   6 [chromium-robot] › e2e/robot-lab-check.spec.ts:155:3 › Kiểm tra in the robot lab (N18 R6.3) › an exploit fails with the reasons in Vietnamese, and Xem lại replays its round to the world the check ended it in (11.2s)
+  ✓   8 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:224:3 › the gripper car in the robot lab (N19 E1-E3) › the keys do nothing while teleop is off, or from a field of the page (3.5s)
+  ✓   5 [chromium-robot] › e2e/robot-lab-gripper.spec.ts:223:3 › the gripper lab on the real lessons (N19 E10) › Kiểm tra Nhanh: the reference passes with 100/100 and its three goals; a program that pushes the cube gets 15/100 and the reasons in Vietnamese (13.3s)
+  ✓  10 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:249:3 › the rover’s tools are as they were (N19 E3) › the D-pad has no gripper buttons and Q E R F drive nothing on the rover’s sandbox (3.1s)
+  ✓   9 [chromium-robot] › e2e/robot-lab-check.spec.ts:185:3 › Kiểm tra in the robot lab (N18 R6.3) › Dừng kiểm tra ends the check without a result: the host is sent no check-result (4.8s)
+  ✓  12 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:301:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: the named zones’ tags in Vietnamese, the cube’s tag hidden while held, the IR and colour overlays and their tag (4.6s)
+  ✓  13 [chromium-robot] › e2e/robot-lab-check.spec.ts:201:3 › Kiểm tra in the robot lab (N18 R6.3) › a load-project from the host during a check opens after it: the check-result first, then the project it loaded (9.4s)
+  ✓  14 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:341:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (16.0s)
+  ✓  16 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:388:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 2D (“Xem 2D”): the jaws closed on the cube, the ring round it, the IR beam, the red spot and their tag, the zones’ Vietnamese names (4.2s)
+  ✓  17 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:410:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › WebGL off: the 2D map stands in, and shows the jaws, the held cube with its ring and the gripper’s sensors (Review Focus 5) (2.2s)
+  ✓  18 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:435:3 › the objects in the colours of the run’s world (N19 E4/E5, ruling 8) › a run whose round paints the red cube green: the map, the 3D tag and the colour sensor all say green; before it and after Đặt lại, the arena’s red (5.5s)
+  -  19 [firefox] › e2e/robot-lab-gripper.spec.ts:188:3 › the gripper lab on the real lessons (N19 E10) › Chạy rb-grip-pick’s reference: the chip “Đang giữ: khối vàng” comes and goes, the lab says the grab and the release, the cube ends in the drop zone
+  ✓  15 [chromium-robot] › e2e/robot-lab-check.spec.ts:225:3 › Kiểm tra in the robot lab (N18 R6.3) › same score/passed/hash for 1×, 4× and headless (24.8s)
+  ✓  21 [chromium-robot] › e2e/robot-lab-check.spec.ts:238:3 › Kiểm tra in the robot lab (N18 R6.3) › a tab hidden in the middle of a check at 4× pauses it, and gives the result a fast check gives (13.7s)
+  ✓  20 [firefox] › e2e/robot-lab-gripper.spec.ts:223:3 › the gripper lab on the real lessons (N19 E10) › Kiểm tra Nhanh: the reference passes with 100/100 and its three goals; a program that pushes the cube gets 15/100 and the reasons in Vietnamese (17.8s)
+  -  23 [firefox] › e2e/robot-lab-gripper.spec.ts:236:3 › the gripper lab on the real lessons (N19 E10) › Kiểm tra at 4×: nothing is said of a grab or a release, Lái tay is not offered and its keys do nothing: the rounds end in the worlds of a Kiểm tra without a key
+  -  24 [firefox] › e2e/robot-lab-gripper.spec.ts:272:3 › the gripper lab on the real lessons (N19 E10) › Lái tay on a lesson: Q opens the claw, E closes it, R raises the arm and F lowers it
+  -  25 [firefox] › e2e/robot-lab-gripper.spec.ts:303:3 › the gripper lab on the real lessons (N19 E10) › Xem lại lượt 2 and 3 of rb-grip-sort: the 2D map, the 3D prop, the tag, the chip and the lit zone are the round’s colour; the 2D map’s cube marks are red’s stripes, green’s grid, blue’s dots
+  -  26 [firefox] › e2e/robot-lab-gripper.spec.ts:374:5 › the gripper lab on the real lessons (N19 E10) › no WebGL (chromium): the 2D map draws the jaws closed on the cube and the ring round it, and Kiểm tra still works (Review Focus 5)
+  ✓  22 [chromium-robot] › e2e/robot-lab-check.spec.ts:264:3 › Kiểm tra of a gripper lesson (N19 D4, Gate G1) › rb-grip-pick: the reference passes, with Node’s result and last worlds; Chạy at 4× lifts the cube in the jaws (10.2s)
+  ✓  27 [firefox] › e2e/robot-lab-gripper.spec.ts:374:5 › the gripper lab on the real lessons (N19 E10) › no WebGL (firefox): the 2D map draws the jaws closed on the cube and the ring round it, and Kiểm tra still works (Review Focus 5) (17.5s)
+  ✓  11 [chromium-robot] › e2e/robot-lab-gripper.spec.ts:236:3 › the gripper lab on the real lessons (N19 E10) › Kiểm tra at 4×: nothing is said of a grab or a release, Lái tay is not offered and its keys do nothing: the rounds end in the worlds of a Kiểm tra without a key (1.5m)
+  ✓  28 [chromium-robot] › e2e/robot-lab-gripper.spec.ts:272:3 › the gripper lab on the real lessons (N19 E10) › Lái tay on a lesson: Q opens the claw, E closes it, R raises the arm and F lowers it (3.0s)
+  ✓  29 [chromium-robot] › e2e/robot-lab-gripper.spec.ts:303:3 › the gripper lab on the real lessons (N19 E10) › Xem lại lượt 2 and 3 of rb-grip-sort: the 2D map, the 3D prop, the tag, the chip and the lit zone are the round’s colour; the 2D map’s cube marks are red’s stripes, green’s grid, blue’s dots (24.5s)
+  ✓  30 [chromium-robot] › e2e/robot-lab-gripper.spec.ts:374:5 › the gripper lab on the real lessons (N19 E10) › no WebGL (chromium): the 2D map draws the jaws closed on the cube and the ring round it, and Kiểm tra still works (Review Focus 5) (10.3s)
+  -  31 [chromium-robot] › e2e/robot-lab-gripper.spec.ts:374:5 › the gripper lab on the real lessons (N19 E10) › no WebGL (firefox): the 2D map draws the jaws closed on the cube and the ring round it, and Kiểm tra still works (Review Focus 5)
+  6 skipped
+  25 passed (2.6m)
+
+## 2. --project=chromium-robot --repeat-each=3 -g 'draws no frame for its overlays' e2e/robot-lab-gripper-ui.spec.ts (E10's world-clock rest test), 11:41, load 11.4
+  ✓  3 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:341:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (18.6s)
+  ✓  1 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:341:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (18.6s)
+  ✓  2 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:341:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (25.2s)
+  3 passed (26.2s)
+
+## 3. --project=chromium --project=firefox --project=webkit e2e/robot-determinism.spec.ts, 11:42, load 11.2
+  ✓  1 [chromium] › e2e/robot-determinism.spec.ts:27:1 › the robot world hashes the same in this browser as on Node (5.5s)
+  ✓  2 [webkit] › e2e/robot-determinism.spec.ts:27:1 › the robot world hashes the same in this browser as on Node (6.6s)
+  ✓  3 [firefox] › e2e/robot-determinism.spec.ts:27:1 › the robot world hashes the same in this browser as on Node (8.2s)
+  ✓  4 [chromium] › e2e/robot-determinism.spec.ts:42:1 › a whole check gives the same result and last worlds in this browser as on Node (25.0s)
+  ✓  5 [webkit] › e2e/robot-determinism.spec.ts:42:1 › a whole check gives the same result and last worlds in this browser as on Node (27.3s)
+  ✓  6 [firefox] › e2e/robot-determinism.spec.ts:42:1 › a whole check gives the same result and last worlds in this browser as on Node (33.7s)
+  6 passed (44.3s)

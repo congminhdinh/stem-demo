@@ -599,7 +599,15 @@ Số đo và lệnh tái lập: `spikes/n19-b7/results.md`. Code: `world/robot/g
   - **Giữ thế nào.** Giới hạn của khớp boom đóng lại ở góc nó đang đứng, motor tắt: servo đứng ở đích với tải dưới mô-men kẹt thì không chạy.
     - Đang giữ vật thì hai ngón cũng giữ như vậy. Motor ngón lúc đó chỉ chỉnh ngón theo mặt vật mỗi tick (luật 3), và rò thẳng vào yaw qua khớp quay quanh trục đứng: 1,3e-4 °/s, còn 1,3e-6 khi tắt motor ngón.
     - Claw rỗng, hoặc kẹt trên vật chưa giữ (luật 2), giữ motor của nó.
-  - **Khi nào thả.** Có lệnh lift hoặc claw mới, xe chạy hoặc drive bật, hoặc đặt lại bằng tay (`placeAt`). Motor chạy tiếp từ chỗ đó.
+  - **Khi nào thả.** Motor chạy tiếp từ chỗ đó khi có một trong các điều sau:
+    - lệnh lift hoặc claw mới (cùng góc ra lệnh lại thì không: servo thật cũng không làm gì);
+    - xe chạy hoặc drive bật;
+    - trạng thái gắp đổi trong lúc giữ: mất vật (detach khi tuột) hoặc vừa giữ vật (review 1 M2; nếu không, ngón sẽ bị khoá ở bề rộng của khối đã mất);
+    - đặt lại bằng tay (`placeAt`).
+  - **Giữ không kiểm tải (review 1 M1).** Đã giữ thì tay chịu mọi tải tới khi chassis chuyển động, một điểm tựa nhấc lên, hoặc có lệnh.
+    - Tải đặt đột ngột từ 2,5 N trở lên lên giá kẹp làm chassis chúi quá `CAR_STILL_TURN_RAD_S`, nên giữ thả ra sau 1 tick (test ghim). Sau đó motor gánh như khi không giữ: bước 4,5 N đẩy tay về chặn.
+    - Tải tăng chậm thì không bao giờ thả: review 1 đo 6 N (1,7 lần mức kẹt) tăng dần trong 3–10 s, tay vẫn đứng ở 54,98°.
+    - Không bài nào có tải gần mức kẹt lúc đứng yên. Vật nặng nhất là bệ 40 g của bài 11 (0,39 N); mọi vật của một bài cộng lại nặng nhiều nhất 0,54 N. Mức kẹt ở đầu tay là 3,6 N (0,18 N·m trên boom 5 cm của `ref-uno-gripper@0`).
   - **Vì sao 1 s.** Kết quả của các test B5 sau một quãng dừng nhạy tới bit cuối với trạng thái tay.
     - Giữ sau 0,25 s: một cú đâm tường lắng 0,61 s, quá bound 0,5 s.
     - Giữ sau 0,6 s (giữa lúc pick gắp khối): bốn test trượt.
@@ -621,7 +629,9 @@ Số đo và lệnh tái lập: `spikes/n19-b7/results.md`. Code: `world/robot/g
   - Hai exploit kết thúc khi đang giữ khối vẫn quay trên 1e-4 °/s, dù trạng thái giữ đã vào. Đó là sai số của chuỗi khớp, khuếch đại theo lịch sử.
     - stack `hold-over-base`: 1,66e-4 °/s (trước 1,96e-2), khoảng một cặp frame mỗi 6 s;
     - pick `hold-in-zone` (khối nằm trên sàn): 3,7e-4 °/s (trước 4,9e-4).
-  - Test 3D "đứng yên không vẽ" của `robot-lab-gripper-ui.spec.ts`, bản trên master, bắt được cặp frame lúc bắt đầu giữ. Nó đo cửa sổ 1,5 s theo giờ tường. Bản viết lại của E10 đo theo đồng hồ world và qua: vì vậy B7 phải merge sau E9 + E10.
+  - Test 3D "đứng yên không vẽ" của `robot-lab-gripper-ui.spec.ts`, bản trước E10, bắt được cặp frame lúc bắt đầu giữ, vì nó đo cửa sổ 1,5 s theo giờ tường.
+    - Bản viết lại của E10 đo theo đồng hồ world. B7 đã rebase lên master dabc023 (có E9 + E10), và test đó qua 1 + 3 lần.
+    - Còn lại một điều kiện: B7 không được merge trước E9 + E10.
 
 ## 5. Review Focus
 

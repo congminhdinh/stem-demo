@@ -351,6 +351,7 @@ Spike giữ tới khi B1/B2 có test tương đương, rồi xoá như `spikes/r
 - **Golden (B6):** `gripper-pick-place` `b3414f0e`/`abafe587`, `gripper-stack` `9378dcbe`/`60ce8067`, `gripper-sensors` `f3b0127d`/`22615357` (final/trajectory).
   - Giống nhau trên Node (bản split và `-compat`, 2 process) và trên Chromium 153, Firefox 155, WebKit 26.6.
   - `ROBOT_ENGINE_VERSION` vẫn 1; ba fixture của rover không đổi.
+  - *B7 đổi `gripper-stack` thành `42a76f26`/`ac6f2b46`* (servo giữ khi xe nằm yên; hai fixture kia không đổi). Xem plan §4.17.
 - **Rover không đổi** (all-goals, 600 tick, so với master 0a7a479):
   - 137 450 lời gọi Rapier, hash chuỗi lời gọi `cc380608c8cf55d9`, hash snapshot `9d88c7f8e50b1b35`, như nhau ở hai cây;
   - `verify:attempt`: 23 attempt tạo trên BASE trùng từng byte với HEAD, 23 match.
