@@ -1,0 +1,15 @@
+# N19 E9/E10: the e2e, on ports of its own (zsh spikes/p2-perf3d/e2e-on-ports.sh <scratch> --project=<p> [--workers=n] [spec ...]; dev server 5552, lesson host 5553),
+# Playwright 1.63, Chromium 153 (SwiftShader for project chromium-robot), Firefox 155, Apple M4 Pro, on the tree after the rebase onto master 7758ec9, 2026-10-27.
+
+e2e/robot-lab-gripper.spec.ts (E10), --workers=1                         chromium-robot: 6 passed, 1 skipped (the Firefox variant of the no-WebGL test, 1.6 min)
+                                                                         firefox:        2 passed, 5 skipped (Kiểm tra Nhanh, no WebGL; the rest draw the 3D scene), 20 s
+  ok  Chạy rb-grip-pick's reference: the chip "Đang giữ: khối vàng" comes and goes, the lab says "Đã gắp khối vàng." and "Đã thả khối vàng.", the cube ends in the drop zone   chromium-robot
+  ok  Kiểm tra Nhanh: the reference 100/100 and its three goals; push-in 15/100 with "Khối vàng bị đẩy chứ không được gắp lúc 4,0 s ở lượt 1" ...                         chromium-robot, firefox
+  ok  Kiểm tra at 4x: nothing said of a grab or a release, no Lái tay (tool, pad), keys Q E R F do nothing: the rounds' world hashes equal a Kiểm tra with no key         chromium-robot
+  ok  Lái tay on a lesson: Q opens, E closes the claw, R raises and F lowers the arm (D9 0/80, D10 90/75/60)                                                           chromium-robot
+  ok  Xem lại lượt 2 and 3 of rb-grip-sort (turns swapped): 2D fill and mark, 3D prop (arena-props-state.ts), the cube's tag, the chip, the lit zone (3D and 2D) are the round's red/blue; round 1's green grid before any run; zone marks   chromium-robot
+  ok  no WebGL: the 2D map draws the jaws closed on the cube and the ring, the cube ends in the drop zone, Kiểm tra Nhanh passes and fails as with 3D                chromium-robot (chromium), firefox (webgl.disabled)
+
+every robot spec (project chromium-robot: scene, check, tools, look, sensors, a11y, chain, gripper-ui, gripper)   --workers=3   91 passed, 1 skipped, 3.3 min
+the robot specs of project chromium (layout, pins, bundle, gripper-look, ...) and of project firefox (robot-lab, robot-lab-gripper, robot-determinism, robot-webgl-fallback)   --workers=3   68 passed, 5 skipped, 1.7 min
+robot-lab-gripper-ui.spec.ts, --repeat-each: see gripper-ui-pass-rates.txt

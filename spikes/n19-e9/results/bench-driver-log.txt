@@ -1,0 +1,11 @@
+=== e910-gripper: load before 6.14 (load averages: 6.14 12.42 17.40)
+=== e910-gripper: exit 1, load after load averages: 6.47 8.70 12.09
+=== e910-rover-A1-master: load before 6.47 (load averages: 6.47 8.70 12.09)
+=== e910-rover-A1-master: exit 0, load after load averages: 10.35 9.13 10.78
+=== e910-rover-B1-branch: load before 6.23 (load averages: 6.23 8.31 10.36)
+=== e910-rover-B1-branch: exit 0, load after load averages: 9.38 8.50 9.50
+=== e910-rover-A2-master: load before 6.23 (load averages: 6.23 7.80 9.20)
+=== e910-rover-A2-master: exit 0, load after load averages: 10.32 8.87 8.95
+=== e910-rover-B2-branch: load before 5.74 (load averages: 5.74 7.87 8.57)
+=== e910-rover-B2-branch: exit 0, load after load averages: 9.85 8.49 8.51
+=== all done

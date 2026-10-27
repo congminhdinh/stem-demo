@@ -1,0 +1,26 @@
+pnpm bench:robot: Apple M4 Pro (12 cores), darwin arm64, Node v24.22.1, load average 5.3 7.2 8.0
+budgets of the robot plan §5
+
+| measure | value | budget | result | detail |
+|---|---|---|---|---|
+| tick, obstacle avoider: median | 0.0901 ms | ≤ 0.5000 ms | ok | 3000 ticks of the all-goals scenario, variant 1, every goal; CPU of this thread, batches of 10 ticks |
+| tick, obstacle avoider: p95 | 0.1230 ms | ≤ 0.5000 ms | ok | of the batches of 10 ticks: a batch with a collection in it counts |
+| tick, obstacle avoider: mean | 0.0953 ms | ≤ 0.5000 ms | ok | every tick measured, the collector’s time on this thread included |
+| tick, obstacle avoider: JS heap | 89.0 KiB | — | told | per tick: the world, the goals, the program |
+| tick, line follower: median | 0.1187 ms | ≤ 0.5000 ms | ok | 3000 ticks of the all-goals scenario, variant 1, every goal; CPU of this thread, batches of 10 ticks |
+| tick, line follower: p95 | 0.1346 ms | ≤ 0.5000 ms | ok | of the batches of 10 ticks: a batch with a collection in it counts |
+| tick, line follower: mean | 0.1204 ms | ≤ 0.5000 ms | ok | every tick measured, the collector’s time on this thread included |
+| tick, line follower: JS heap | 93.5 KiB | — | told | per tick: the world, the goals, the program |
+| headless check 3 × 60 s, avoider, every goal | 1.82 s | ≤ 10.00 s | ok | 180 s simulated, score 0 |
+| headless check, rb-drive-to-zone reference (1 × 15 s) | 0.12 s | ≤ 0.83 s | ok | 10 s per 3 × 60 s simulated; score 100 |
+| headless check, rb-square-route reference (1 × 40 s) | 0.31 s | ≤ 2.22 s | ok | 10 s per 3 × 60 s simulated; score 100 |
+| headless check, rb-stop-at-wall reference (3 × 20 s) | 0.52 s | ≤ 3.33 s | ok | 10 s per 3 × 60 s simulated; score 100 |
+| headless check, rb-line-follow reference (3 × 120 s) | 4.73 s | ≤ 20.00 s | ok | 10 s per 3 × 60 s simulated; score 100 |
+| headless check, rb-servo-gate reference (3 × 20 s) | 0.52 s | ≤ 3.33 s | ok | 10 s per 3 × 60 s simulated; score 100 |
+| headless check, rb-mini-mission reference (3 × 45 s) | 1.16 s | ≤ 7.50 s | ok | 10 s per 3 × 60 s simulated; score 96 |
+| heap per hardware read: three line reads a loop() | 9.5 B | ≤ 64.0 B | ok | 374.2 reads a tick; everything the ticks allocate |
+| heap per hardware read: line follower (three reads, a drive) | 95.8 B | — | told | 131.7 reads a tick; the drive's call included |
+| heap per hardware read: ultrasonic, echo at 20 cm | 615.6 B | — | told | 6.5 reads a tick, which share the tick's own allocation |
+| heap a tick allocates by itself (the program waits once a tick) | 3674.9 B | — | told | the virtual clock’s wait and the tick’s wait for the program, the harness’s own |
+
+19 measures, 0 budgets missed, 11.0 s.

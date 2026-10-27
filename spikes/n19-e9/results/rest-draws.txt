@@ -1,0 +1,13 @@
+# N19 E9: what asks for frames after a gripper lesson's reference run has ended. `node spikes/n19-e9/rest-draws.mjs <key>` against a dev server of this tree
+# (node node_modules/vite/bin/vite.js --port 5550), Chromium 153 with SwiftShader, 1280 x 720, 1x speed, Apple M4 Pro, load average 4 to 6, 2026-10-27.
+# Draws to the screen in the 5 s that start 2 s after the status says "finished":
+rb-grip-pick     0 draws   yaw drift in 5 s: 2e-6 deg
+rb-grip-sort     0 draws   yaw drift in 5 s: 2e-4 deg
+rb-grip-deliver  0 draws   yaw drift in 5 s: 1e-11 deg
+rb-grip-stack   50 draws   (10 a second) yaw drift in 5 s: 0.051 deg (0.0102 deg/s), wheelRad 0 up and 1 down by 0.002 rad, y -0.0011 cm
+  rAF callers in the 5 s: the run's own frame loop (robot-run-store.ts drive 300, onSnapshot 50), R3F's loop 50, and 25 `invalidate` from Scene.tsx's `check`
+  (RedrawOnChange: `sameView(shown, next)` false, then `invalidate(2)`): the car's pose. SensorOverlay.tsx asks none: the overlays do not redraw at rest.
+  The session says the car is at rest (REST_SPEED_CM_S 0.5 cm/s: this is 0.002 cm/s at 10 cm from the middle), so it publishes for the clock every 0.1 s (REST_CLOCK_S); each publish
+  has the car's quaternion z 9e-6 further from the last drawn, which the scene's threshold (SAME_QUAT 1e-5, scene-math.ts) crosses at nearly every one.
+  In the bench (school profile) the same 10 draws a second: `draws per second at rest` 10.0 (9.99-10) in all 3 repeats, 0 for the other three lessons.
+a car held still in teleop (the test arena, the gripper-ui spec): a pair of draws every 4.55 s of the world's time (0.44 a second), see gripper-ui-pass-rates.txt.
