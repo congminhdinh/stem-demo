@@ -62,6 +62,9 @@ export function paintGround(ctx: PaintContext, arena: Pick<Arena, 'ground' | 'pa
       const ys = zone.polygonCm.map(([, y]) => y);
       const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
       const size = Math.round(Math.max(10, Math.min(48, Math.min(maxX - minX, maxY - minY) * pxPerCm * 0.2)));
+      // N19 E8 (E4/E5 review M5): a zone the lesson names has its name by its far edge, inside it, so that it reads while an object sits at
+      // the zone's middle (the pick-and-place lessons put one there, and the car comes to it). Every other zone's word stays at its middle.
+      const [x, y] = [px((minX + maxX) / 2), zone.name === undefined ? py((minY + maxY) / 2) : py(maxY) + size / 2 + Math.max(pxPerCm, size * 0.15)];
       ctx.fillStyle = robot3dColors.zoneLabel;
       ctx.font = labelFont(size);
       ctx.textAlign = 'center';
@@ -71,9 +74,9 @@ export function paintGround(ctx: PaintContext, arena: Pick<Arena, 'ground' | 'pa
         ctx.lineJoin = 'round';
         ctx.lineWidth = Math.max(2.5, size * 0.3);
         ctx.strokeStyle = robot3dColors.zoneLabelHalo;
-        ctx.strokeText(label, px((minX + maxX) / 2), py((minY + maxY) / 2));
+        ctx.strokeText(label, x, y);
       }
-      ctx.fillText(label, px((minX + maxX) / 2), py((minY + maxY) / 2));
+      ctx.fillText(label, x, y);
     }
   }
 
