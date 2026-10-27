@@ -21,3 +21,12 @@ export function zoneLabelOf(t: Text, zone: Pick<PaintZone, 'kind' | 'name'>): st
       return null;
   }
 }
+
+/**
+ * N19 E8: whether a named zone (its bounds' `minY`..`maxY`, of an arena `depthCm` deep) has its name by its bottom edge, else by its top:
+ * the one farther from the arena's middle (the top for a tie). The 2D map paints the name there (ground-paint.ts), and the 3D view's tag
+ * of a zone with something in it has its line down there (parts/zone-tags.ts).
+ */
+export function outerEdgeIsBottom(minY: number, maxY: number, depthCm: number): boolean {
+  return depthCm / 2 - minY > maxY - depthCm / 2;
+}

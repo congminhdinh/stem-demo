@@ -6,6 +6,7 @@ import { contrastRatio, parseColor } from '../../a11y/contrast';
 import type { CameraMode } from '../camera';
 import { robot3dColors } from '../colors';
 import { dynamicBodyIds } from '../scene-math';
+import { outerEdgeIsBottom } from '../zone-label';
 import { checkpointNumbers, type MatLabels } from './mat-paint';
 
 // The zones' tags in the 3D view (N18 R4.7 fix round 1): the names of the zones the lesson sends the robot to and the checkpoints'
@@ -22,7 +23,10 @@ export type ZoneTag = {
   number: number | null;
   /** The zone's colour: the tag's dot or disc. */
   color: string;
-  /** Where its line meets the mat: the middle of the zone's bounds (arena cm). */
+  /**
+   * Where its line meets the mat (arena cm): the middle of the zone's bounds; N19 E8, for a named zone with something standing in it at
+   * the start, a spot clear of it (anchorOf).
+   */
   centerCm: [number, number];
 };
 
@@ -32,18 +36,57 @@ const middleOf = (zone: PaintZone): [number, number] => {
   return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
 };
 
+/** N19 E8: how clear of a body's footprint a zone tag's line stands (cm). */
+const FOOT_CLEAR_CM = 1;
+
+type Footprint = { x: number; y: number; hx: number; hy: number };
+
+/** N19 E8: what stands on the arena's floor at the start: each body's middle and half extents (cm), axis-aligned round a turned box. */
+function footprintsOf(arena: Scenario['arena']): Footprint[] {
+  return [...arena.boxes, ...arena.cylinders, ...arena.objects].map((body) => {
+    if ('radiusCm' in body) return { x: body.centerCm[0], y: body.centerCm[1], hx: body.radiusCm, hy: body.radiusCm };
+    const turn = (body.yawDeg * Math.PI) / 180;
+    const [sx, sy] = [body.sizeCm[0] / 2, body.sizeCm[1] / 2];
+    return { x: body.centerCm[0], y: body.centerCm[1], hx: Math.abs(sx * Math.cos(turn)) + Math.abs(sy * Math.sin(turn)), hy: Math.abs(sx * Math.sin(turn)) + Math.abs(sy * Math.cos(turn)) };
+  });
+}
+
+/**
+ * N19 E8 fix round 1 (review F4): where a zone's tag has its line down to. A named zone with something standing in it at the start (the
+ * pick-and-place lessons put their objects at a zone's middle) has it by its outer edge, as the 2D map paints its name (zone-label.ts
+ * `outerEdgeIsBottom`), 15 % of its depth (at least 3 cm) inside and across its middle; by its other edge where that spot is on something
+ * too; at its middle where both are. Every other zone's line goes down to its middle (N18, N19 E5).
+ */
+function anchorOf(zone: PaintZone, arena: Scenario['arena'], bodies: readonly Footprint[]): [number, number] {
+  const middle = middleOf(zone);
+  if (zone.name === undefined) return middle;
+  const ys = zone.polygonCm.map(([, y]) => y);
+  const [minY, maxY] = [Math.min(...ys), Math.max(...ys)];
+  const xs = zone.polygonCm.map(([x]) => x);
+  const [minX, maxX] = [Math.min(...xs), Math.max(...xs)];
+  const within = bodies.filter((body) => body.x >= minX && body.x <= maxX && body.y >= minY && body.y <= maxY);
+  if (within.length === 0) return middle;
+  const on = ([x, y]: readonly [number, number]) => within.some((body) => Math.abs(x - body.x) < body.hx + FOOT_CLEAR_CM && Math.abs(y - body.y) < body.hy + FOOT_CLEAR_CM);
+  const inset = Math.max(3, 0.15 * (maxY - minY));
+  const top: [number, number] = [middle[0], maxY - inset];
+  const bottom: [number, number] = [middle[0], minY + inset];
+  const edges = outerEdgeIsBottom(minY, maxY, arena.ground.sizeCm[1]) ? [bottom, top] : [top, bottom];
+  return edges.find((spot) => !on(spot)) ?? middle;
+}
+
 /**
  * The tags of `scenario`'s zones: every target and checkpoint that has a name or a number, and (N19 E5) every zone the lesson names
  * (`zones[].name`: "Kho", "Vùng đỏ"), whatever its kind, in the paint's order.
  */
 export function zoneTags(scenario: Pick<Scenario, 'arena' | 'goals'>, labels: MatLabels): ZoneTag[] {
   const numbers = checkpointNumbers(scenario);
+  const bodies = footprintsOf(scenario.arena);
   return scenario.arena.paint.zones.flatMap((zone) => {
     if (zone.kind !== 'target' && zone.kind !== 'checkpoint' && zone.name === undefined) return [];
     const number = numbers.get(zone.id) ?? null;
     // A numbered checkpoint shows its number alone, unless the lesson names it (N19 E5): then its name too.
     const text = zone.kind === 'checkpoint' && number !== null && zone.name === undefined ? null : labels.zoneLabel(zone);
-    return text === null && number === null ? [] : [{ zoneId: zone.id, text, number, color: zone.color, centerCm: middleOf(zone) }];
+    return text === null && number === null ? [] : [{ zoneId: zone.id, text, number, color: zone.color, centerCm: anchorOf(zone, scenario.arena, bodies) }];
   });
 }
 

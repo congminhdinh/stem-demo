@@ -1,5 +1,6 @@
 import type { Arena, PaintZone, PointCm } from '../../core/world/arena/arena-schema';
 import { robot3dColors } from './colors';
+import { outerEdgeIsBottom } from './zone-label';
 import { paintZonePattern, type PatternSurface } from './zone-pattern';
 
 // The floor of the robot lab's 3D view (N18 R4.2), drawn from the arena's vector paint, the same data the line sensors read
@@ -83,7 +84,7 @@ export function paintGround(
       // Fix round 1 (review F3): an edge whose name would meet what covers the floor (`keepOut`, the 2D map's HUD) gives way to the other
       // edge, and with both covered the name goes to the middle.
       const inset = size / 2 + Math.max(pxPerCm, size * 0.15);
-      const byBottom = depthCm / 2 - minY > maxY - depthCm / 2;
+      const byBottom = outerEdgeIsBottom(minY, maxY, depthCm);
       const x = px((minX + maxX) / 2);
       ctx.fillStyle = robot3dColors.zoneLabel;
       ctx.font = labelFont(size);
