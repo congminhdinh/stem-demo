@@ -17,6 +17,7 @@ import { installFakeCanvas2d } from './__fixtures__/fake-canvas-2d';
 import { fakeChecks } from './__fixtures__/fake-check';
 import { fakeSession } from './__fixtures__/fake-session';
 import RobotLab, { type RobotLabProps } from './RobotLab';
+import { basicSkip } from '../../../tests/basic-skip';
 
 // N18 R8: the robot lab for a screen reader and a keyboard: one polite live region and one assertive one (and no other), the events said
 // once and in words, the errors said at once, the focus going to the result of a check and back to Kiểm tra, Esc closing the panels.
@@ -124,7 +125,8 @@ describe('the live regions of the robot lab (N18 R8)', () => {
     for (const region of regions) expect(region.className).toContain('visually-hidden');
   });
 
-  it('keeps it that way while a run goes on, with Serial output, the tools’ panels, a message and a result open', async () => {
+  it('keeps it that way while a run goes on, with Serial output, the tools’ panels, a message and a result open', async ({ skip }) => {
+    basicSkip(skip, 'the view tools (RobotLab.basic.test.tsx has this without them)');
     const { render, publish, world, checks, projectStore } = setup();
     await render();
     await click('robot-run');
@@ -155,7 +157,8 @@ describe('the live regions of the robot lab (N18 R8)', () => {
     expect([log.getAttribute('role'), log.getAttribute('aria-live'), log.getAttribute('aria-label'), log.tabIndex]).toEqual(['log', 'off', 'Bảng in', 0]);
   });
 
-  it('gives the status, the notes and the panels no live role of their own', async () => {
+  it('gives the status, the notes and the panels no live role of their own', async ({ skip }) => {
+    basicSkip(skip, 'the move tool and the ruler');
     const { render } = setup();
     await render();
     expect(byId('robot-status')!.getAttribute('role')).toBeNull();
@@ -210,7 +213,8 @@ describe('what a run says (N18 R8)', () => {
     expect(polite()).toBe('Lượt chạy kết thúc: robot đã va chạm. Điểm 0/100.');
   });
 
-  it('says teleop on and off, and that a Run that ends it is a run', async () => {
+  it('says teleop on and off, and that a Run that ends it is a run', async ({ skip }) => {
+    basicSkip(skip, 'teleop (Lái tay)');
     const { render } = setup('rb-drive-to-zone');
     await render();
     await click('robot-tool-teleop');
@@ -352,7 +356,8 @@ describe('the focus after a check (N18 R8)', () => {
 });
 
 describe('Escape and the 3D view’s keys (N18 R8)', () => {
-  it('Escape ends teleop when no tool is on, as it clears the ruler', async () => {
+  it('Escape ends teleop when no tool is on, as it clears the ruler', async ({ skip }) => {
+    basicSkip(skip, 'teleop and the ruler');
     const { render } = setup('rb-drive-to-zone');
     await render();
     await click('robot-tool-teleop');
@@ -384,7 +389,8 @@ describe('Escape and the 3D view’s keys (N18 R8)', () => {
     }
   });
 
-  it('Escape in a card closes the card and nothing else: teleop goes on', async () => {
+  it('Escape in a card closes the card and nothing else: teleop goes on', async ({ skip }) => {
+    basicSkip(skip, 'teleop (Lái tay)');
     const { render, checks } = setup('rb-drive-to-zone');
     await render();
     await click('robot-check-start');
@@ -402,7 +408,8 @@ describe('Escape and the 3D view’s keys (N18 R8)', () => {
     expect(byId('robot-tool-teleop')!.getAttribute('aria-pressed')).toBe('false');
   });
 
-  it('lists the camera’s keys, teleop’s when the robot can be driven, and the move tool’s Shift, as the description of the 3D view', async () => {
+  it('lists the camera’s keys, teleop’s when the robot can be driven, and the move tool’s Shift, as the description of the 3D view', async ({ skip }) => {
+    basicSkip(skip, 'the camera views, teleop and the move tool (RobotLab.basic.test.tsx has its one camera’s keys)');
     const { render } = setup('rb-drive-to-zone', 'vi');
     await render({ probe: () => ({ ok: true, renderer: 'Google SwiftShader' }) });
     const hint = byId('robot-view-hint');

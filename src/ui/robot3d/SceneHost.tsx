@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from '../app/ErrorBoundary';
+import { isBasic } from '../edition';
 import { useText } from '../i18n/text';
 import type { CameraMode } from './camera';
 import { useViewOverlays } from './hud-corner';
@@ -29,6 +30,8 @@ import { CONTEXT_RESTORE_WAIT_MS, fallbackReason, viewToggleAction, viewToggleTe
 // keys arrive as `commands`: the mode and the reset are taken here, the zoom and the orbit by the camera's rig. The switch to the 2D map
 // and its reason, and the light graphics the view chose by itself, are said to the lab's announcer (`announce`); the camera buttons' tooltips
 // name their keys.
+// demo-basic (edition.ts): the Basic demo draws the low tier only, with the procedural shapes (no model file is fetched), has no quality
+// button (it is there, hidden, saying its tier), and one camera: the free view, with its reset and no mode buttons; the keys 1 2 3 do nothing.
 
 /** N18 R4.7: how long the note that the view went to light graphics by itself stays, ms. */
 const AUTO_LOW_NOTE_MS = 8000;
@@ -58,11 +61,13 @@ type SceneHostProps = Omit<SceneProps, 'tier' | 'cameraMode' | 'onContextLost' |
 
 /** The camera buttons' keys, as the tooltips and the shortcut attributes say them. */
 const cameraKeys: Readonly<Record<CameraMode, string>> = { orbit: '1', follow: '2', top: '3' };
+/** The keys the 3D view takes: the views' (not in the Basic demo, which has one), the reset, the zoom and the orbit. */
+const viewKeys = `${isBasic() ? '' : '1 2 3 '}0 Home + - Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown`;
 
 export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, onViewUp, lowTier, ...sceneProps }: SceneHostProps) {
   const t = useText();
   const [probed, setProbed] = useState(probe);
-  const [tier, setTier] = useState<QualityTier>(() => tierForRenderer(probed.ok ? probed.renderer : null));
+  const [tier, setTier] = useState<QualityTier>(() => (isBasic() ? 'low' : tierForRenderer(probed.ok ? probed.renderer : null)));
   const [cameraMode, setCameraMode] = useState<CameraMode>('orbit');
   // N18 R4.7: "đặt lại góc nhìn" puts the current view's camera back where that view starts.
   const [resetKey, setResetKey] = useState(0);
@@ -100,7 +105,7 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, o
   // N18 R4.7: the tier's model files are fetched and parsed while the canvas is still being made (it suspends on the same promise);
   // not while the learner has the 2D map.
   useEffect(() => {
-    if (probed.ok && !chosen2d) void loadRobotAssets(tierLook[tier].detail);
+    if (probed.ok && !chosen2d && !isBasic()) void loadRobotAssets(tierLook[tier].detail);
   }, [probed, tier, chosen2d]);
   // The canvas of this attempt and tier has drawn its first frame; a new canvas (Try again, another tier) has not.
   const canvasKey = `${attempt}:${tier}`;
@@ -139,7 +144,7 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, o
     forgetFailedRobotAssets();
     const next = probe();
     // The tier follows the renderer when there was none to follow (WebGL was missing); after that it is the learner's (the quality button).
-    if (!probed.ok && next.ok) setTier(tierForRenderer(next.renderer));
+    if (!probed.ok && next.ok && !isBasic()) setTier(tierForRenderer(next.renderer));
     setProbed(next);
     setContext('ok');
     setChosen2d(false);
@@ -197,6 +202,7 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, o
     if (!commands || fallback !== null) return undefined;
     return commands.subscribe((command) => {
       if (command.kind === 'mode') {
+        if (isBasic()) return;
         setCameraMode(command.mode);
         latestWords.current.announce?.(latestWords.current.t('robot.announce.camera', { name: latestWords.current.t(cameraModes.find((entry) => entry.mode === command.mode)!.label) }));
       } else if (command.kind === 'reset') {
@@ -250,7 +256,7 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, o
                 role: 'application',
                 'aria-roledescription': t('robot.view.role'),
                 'aria-label': t('robot.view.name'),
-                'aria-keyshortcuts': '1 2 3 0 Home + - Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown',
+                'aria-keyshortcuts': viewKeys,
                 ...(hintId ? { 'aria-describedby': hintId } : {}),
               }
             : { inert: true })}
@@ -299,7 +305,7 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, o
         </div>
       )}
       <div className="robot-camera" role="group" aria-label={t('robot.camera')} data-testid="robot-camera" hidden={fallback !== null}>
-        {cameraModes.map(({ mode, label, icon }) => (
+        {(isBasic() ? [] : cameraModes).map(({ mode, label, icon }) => (
           <button
             key={mode}
             type="button"
@@ -339,7 +345,7 @@ export function SceneHost({ probe = probeWebgl, announce, alert, hint, hintId, o
         title={t('robot.quality.hint')}
         data-testid="robot-quality"
         data-tier={tier}
-        hidden={fallback !== null}
+        hidden={isBasic() || fallback !== null}
       >
         {t(tier === 'high' ? 'robot.quality.high' : 'robot.quality.low')}
       </button>

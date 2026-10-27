@@ -14,6 +14,7 @@ import { robotModel } from './robot-model';
 import { createRobotRunStore } from './robot-run-store';
 import type { SceneProps } from './Scene';
 import { SceneHost } from './SceneHost';
+import { basicSkip } from '../../../tests/basic-skip';
 
 // N18 R8: the 3D view as a keyboard and screen-reader user meets it: a stop of its own with a name and a hint, the camera's tooltips naming
 // their keys, the keys' commands taking the camera's mode and reset, and the switch to the 2D map, its reason and the light graphics said
@@ -86,7 +87,8 @@ const byId = (testId: string) => host.querySelector<HTMLElement>(`[data-testid=$
 const click = (testId: string) => act(() => byId(testId)!.click());
 
 describe('the 3D view as a stop of its own (N18 R8)', () => {
-  it('takes the focus, is a named application that says it takes keys, and points at the hint that lists them', () => {
+  it('takes the focus, is a named application that says it takes keys, and points at the hint that lists them', ({ skip }) => {
+    basicSkip(skip, 'the camera views’ keys 1 2 3 (SceneHost.basic.test.tsx has its one camera’s)');
     render();
     const view = byId('robot-scene')!;
     expect(view.tabIndex).toBe(0);
@@ -169,7 +171,8 @@ describe('the 3D view as a stop of its own (N18 R8)', () => {
 });
 
 describe('the camera buttons name their keys (N18 R8)', () => {
-  it('say each view’s key in its tooltip and as a shortcut, and the reset’s two', () => {
+  it('say each view’s key in its tooltip and as a shortcut, and the reset’s two', ({ skip }) => {
+    basicSkip(skip, 'the camera-mode buttons (SceneHost.basic.test.tsx has its reset)');
     render();
     const buttons = [...host.querySelectorAll<HTMLButtonElement>('[data-testid=robot-camera] [data-mode]')];
     expect(buttons.map((button) => [button.dataset.mode, button.title, button.getAttribute('aria-keyshortcuts')])).toEqual([
@@ -185,7 +188,8 @@ describe('the camera buttons name their keys (N18 R8)', () => {
 });
 
 describe('the camera’s keys in the view (N18 R8)', () => {
-  it('take the view’s mode and reset it, and say so politely', () => {
+  it('take the view’s mode and reset it, and say so politely', ({ skip }) => {
+    basicSkip(skip, 'the camera views (SceneHost.basic.test.tsx: the keys 1 2 3 do nothing, the reset works)');
     const commands = createCameraCommands();
     const { announce } = render({ commands });
     expect(byId('scene-stand-in')!.dataset.mode).toBe('orbit');
@@ -265,7 +269,8 @@ describe('what the view says to the announcer (N18 R8)', () => {
     }
   });
 
-  it('says the light graphics once, when the view lowers them itself', () => {
+  it('says the light graphics once, when the view lowers them itself', ({ skip }) => {
+    basicSkip(skip, 'the high tier, which gives way to the low one');
     const { announce } = render();
     act(() => scenes.props!.onSlowFrames!());
     expect(announce).toHaveBeenCalledTimes(1);

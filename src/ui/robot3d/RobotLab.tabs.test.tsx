@@ -13,6 +13,7 @@ import { buildToolbox, createBlockPackCatalog } from '../../core/program/block-p
 import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { robotSolutions } from '../../samples/robot-solutions';
 import { robotStarterDocument } from '../../samples/robot-templates';
+import { basicSkip } from '../../../tests/basic-skip';
 import { TextProvider } from '../i18n/text';
 import { createProjectStore } from '../state/project-store';
 import { fakeSession } from './__fixtures__/fake-session';
@@ -86,6 +87,7 @@ async function setup(locale: 'vi' | 'en' = 'vi') {
 }
 
 describe('the C++ and Cổng & chân tabs of the robot lab (N18 R4.5)', () => {
+  beforeEach(({ skip }) => basicSkip(skip, 'the C++ and Cổng & chân tabs'));
   it('shows one tab at a time: the others are out of reach, and the placeholder sentences are gone', async () => {
     await setup();
     expect([inert('blocks'), inert('cpp'), inert('pins')]).toEqual([false, true, true]);

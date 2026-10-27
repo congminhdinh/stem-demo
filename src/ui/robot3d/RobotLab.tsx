@@ -20,6 +20,7 @@ import type { BoardShares } from '../app/lab-layout';
 import { watchLabUse, type LabUse } from '../app/lab-use';
 import { attachRobotTestTarget } from '../app/test-hooks';
 import { useBuzzerSound } from '../audio/use-buzzer-sound';
+import { isBasic } from '../edition';
 import { useLocale, useText } from '../i18n/text';
 import type { ProjectStore } from '../state/project-store';
 import { createAnnouncer } from './announcer';
@@ -75,6 +76,9 @@ import './RobotLab.css';
 // `alert`). Tab goes header, the 3D view (a stop of its own, named, with its keys as its description), the controls over it, the dock, the
 // program's tabs; the 3D view takes the camera's keys (use-camera-keys.ts). When a check ends the focus goes to the result's heading,
 // and closing the result gives it back to Kiểm tra. Nothing takes the focus when the lab opens: the host page keeps its own.
+//
+// demo-basic (edition.ts): the Basic demo's header shows its badge ("Bản demo cơ bản") beside the lab's name and the page title says it; the
+// view has none of its tools (RobotTools, the ruler and the move tool on the floor, the sensor switch), and its keys are the one camera's.
 
 export type { RobotProgramView } from './ProgramPane';
 
@@ -211,6 +215,16 @@ export default function RobotLab({
   const [lowTier] = useState(() => (import.meta.env.DEV ? createLowTierControl() : undefined));
   const { say, alert } = announcer;
   const hintId = useId();
+  // demo-basic: the page title says the edition, while the lab is open.
+  const pageTitle = t('edition.pageTitle', { title: t('app.title') });
+  useEffect(() => {
+    if (!isBasic()) return undefined;
+    const before = document.title;
+    document.title = pageTitle;
+    return () => {
+      document.title = before;
+    };
+  }, [pageTitle]);
   const startButton = useRef<HTMLButtonElement>(null);
   // N18 R4.8: the 3D view takes the keys of the view tools (RobotTools); a click on it gives it the focus. While teleop is on, its name
   // says which keys drive (fix round 1).
@@ -370,13 +384,15 @@ export default function RobotLab({
   const zoneLabel = useCallback((zone: PaintZone) => zoneLabelOf(t, zone), [t]);
 
   // The keys of the 3D view, said to whoever focuses it: the camera's, teleop's when the robot can be driven, and the move tool's Shift.
-  const viewHint = [
+  const fullViewHint = [
     t('robot.camera.keys', { orbit: t('robot.camera.orbit'), follow: t('robot.camera.follow'), top: t('robot.camera.top') }),
     ...(drivable ? [`${t('robot.teleop.keys')}.`] : []),
     ...(drivable && gripper ? [`${t('robot.teleop.keys.gripper')}.`] : []),
     // The move tool takes Shift with the arrows (R4.8: 5 cm) before the camera can.
     t('robot.view.moveKeys', { tool: t('robot.move') }),
   ].join(' ');
+  // demo-basic: the one camera's keys, and no tool's.
+  const viewHint = isBasic() ? t('robot.camera.keys.basic') : fullViewHint;
   const viewport = (
     <section className="robot-viewport" aria-label={t('robot.viewport')} data-testid="robot-viewport">
       <div className="robot-stage" ref={stageRef} tabIndex={-1} {...(teleopOn ? { role: 'group', 'aria-label': t(gripper ? 'robot.view.keys.gripper' : 'robot.view.keys') } : {})}>
@@ -387,7 +403,7 @@ export default function RobotLab({
           store={store}
           reducedMotion={reducedMotion}
           zoneLabel={zoneLabel}
-          tools={tools}
+          {...(isBasic() ? {} : { tools })}
           commands={commands}
           announce={say}
           alert={alert}
@@ -398,7 +414,7 @@ export default function RobotLab({
           {...(probe ? { probe } : {})}
         />
         <Hud store={store} scenario={scenario} />
-        <RobotTools store={store} tools={tools} scenario={scenario} drivable={drivable} gripper={gripper} stage={stageRef} announce={say} />
+        {!isBasic() && <RobotTools store={store} tools={tools} scenario={scenario} drivable={drivable} gripper={gripper} stage={stageRef} announce={say} />}
         <RunMessages store={store} alert={alert} />
         {checkable && (
           <>
@@ -417,8 +433,13 @@ export default function RobotLab({
         {/* N18 R6.3: the lab's name over the scenario's, so that the run's controls and Kiểm tra fit one row of the 1100 px frame. N19 final
             fix (G1 c2): a gripper lesson's title may shrink (RobotLab.css), its whole text reachable by pointer, keyboard and touch
             (ScenarioTitle.tsx, minor round m1); the rover's header is as it was. */}
-        <div className="robot-title">
+        <div className={isBasic() ? 'robot-title robot-title-basic' : 'robot-title'}>
           <h1>{t('lab.title.robot')}</h1>
+          {isBasic() && (
+            <span className="robot-edition-badge" data-testid="robot-edition-badge">
+              {t('edition.basic')}
+            </span>
+          )}
           <ScenarioTitle text={t(robotTemplates[template].titleKey)} shrinks={gripper} />
         </div>
         <RobotControls store={store} onRun={run} onStep={step} />

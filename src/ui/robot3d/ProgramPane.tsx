@@ -8,6 +8,7 @@ import type { RunDiagnostic } from '../../core/run/run-session';
 import type { Scenario } from '../../core/scenario/scenario';
 import { diagnosticText } from '../app/RunToolbar';
 import { blockWarningsOf } from '../blockly/block-warnings';
+import { isBasic } from '../edition';
 import { useLocale, useText } from '../i18n/text';
 import type { ProjectStore } from '../state/project-store';
 import { CppTab } from './CppTab';
@@ -18,6 +19,7 @@ import { shownRun, type RobotRunStore } from './robot-run-store';
 // the hub panel). The block editor is App's (its stores, its recovery of a program that does not open); this pane hands it what the lab
 // shows on it: the scenario's toolbox and starter, the block the robot is in, the diagnostics that name a block (in the learner's words),
 // the lock of a check, and the learner's selection, which the C++ tab marks on its lines.
+// demo-basic (edition.ts): the Basic demo has the blocks' tab only; the C++ and the ports & pins tabs are not made.
 
 /** What the robot lab shows on the block editor. */
 export type RobotProgramView = {
@@ -36,11 +38,12 @@ export type RobotProgramView = {
 };
 
 type Tab = 'blocks' | 'cpp' | 'pins';
-const tabs: readonly { tab: Tab; label: 'robot.tab.blocks' | 'robot.tab.cpp' | 'robot.tab.pins' }[] = [
+const allTabs: readonly { tab: Tab; label: 'robot.tab.blocks' | 'robot.tab.cpp' | 'robot.tab.pins' }[] = [
   { tab: 'blocks', label: 'robot.tab.blocks' },
   { tab: 'cpp', label: 'robot.tab.cpp' },
   { tab: 'pins', label: 'robot.tab.pins' },
 ];
+const tabs = isBasic() ? allTabs.filter(({ tab }) => tab === 'blocks') : allTabs;
 
 /** What the C++ and the ports & pins tabs read: the project, the lab's rules for compiling it, and the robot. */
 export type ProgramPaneLab = {
@@ -116,22 +119,26 @@ export function ProgramPane({ store, toolbox, lab, program }: ProgramPaneProps) 
         ))}
       </div>
       <div {...pane('blocks')}>{program({ toolbox, emptyProgram: lab.scenario.starter, highlightBlockId, blockWarnings, readOnly, onSelectBlock: selectBlock })}</div>
-      <div {...pane('cpp')}>
-        <CppTab
-          projectStore={lab.projectStore}
-          rules={lab.rules}
-          scenario={lab.scenario}
-          flush={lab.flushEdits}
-          {...(lab.showsStarter ? { showsStarter: lab.showsStarter } : {})}
-          store={store}
-          selectedIds={selectedIds}
-          active={tab === 'cpp'}
-          {...(lab.announce ? { announce: lab.announce } : {})}
-        />
-      </div>
-      <div {...pane('pins')}>
-        <PinInspector store={store} kit={lab.kit} board={lab.board} active={tab === 'pins'} />
-      </div>
+      {!isBasic() && (
+        <div {...pane('cpp')}>
+          <CppTab
+            projectStore={lab.projectStore}
+            rules={lab.rules}
+            scenario={lab.scenario}
+            flush={lab.flushEdits}
+            {...(lab.showsStarter ? { showsStarter: lab.showsStarter } : {})}
+            store={store}
+            selectedIds={selectedIds}
+            active={tab === 'cpp'}
+            {...(lab.announce ? { announce: lab.announce } : {})}
+          />
+        </div>
+      )}
+      {!isBasic() && (
+        <div {...pane('pins')}>
+          <PinInspector store={store} kit={lab.kit} board={lab.board} active={tab === 'pins'} />
+        </div>
+      )}
     </section>
   );
 }

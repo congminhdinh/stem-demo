@@ -32,6 +32,30 @@
   color: var(--stem-color-text-muted);
 }
 
+/* demo-basic (src/ui/edition.ts): the Basic demo's badge, on the line of the lab's name, the scenario's under both. */
+.robot-title-basic {
+  grid-template-columns: auto auto;
+  justify-content: start;
+  align-items: center;
+  column-gap: 6px;
+}
+
+.robot-title-basic > .robot-scenario {
+  grid-column: 1 / -1;
+}
+
+.robot-edition-badge {
+  padding: 0 6px;
+  border: 1px solid var(--stem-color-primary);
+  border-radius: 999px;
+  background: var(--stem-color-primary-soft);
+  color: var(--stem-color-primary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 15px;
+  white-space: nowrap;
+}
+
 .app-header .robot-scenario {
   margin: 0;
   overflow: hidden;

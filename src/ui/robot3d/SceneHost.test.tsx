@@ -15,6 +15,7 @@ import { robotModel } from './robot-model';
 import type { WebglProbe } from './quality';
 import { readTopViewState } from './top-view-state';
 import { createLowTierControl, type LowTierControl } from './low-tier-control';
+import { basicSkip } from '../../../tests/basic-skip';
 
 // N18 R4.6: when the robot lab shows its 2D top view instead of the 3D scene, and the way back. The 3D scene itself (an R3F canvas, which
 // jsdom cannot make) is a stand-in here that keeps the props SceneHost gave it, so the test plays what a browser does: it takes the
@@ -264,7 +265,8 @@ describe('SceneHost when the 3D canvas throws (N18 R4.6 fix round 1, ruling a)',
 });
 
 describe('SceneHost’s quality tier across a round trip (N18 R4.6 fix round 1)', () => {
-  it('keeps the tier the learner chose after "Xem 2D" and "Xem 3D", and after "Thử lại 3D" over a lost context', () => {
+  it('keeps the tier the learner chose after "Xem 2D" and "Xem 3D", and after "Thử lại 3D" over a lost context', ({ skip }) => {
+    basicSkip(skip, 'the quality button and the high tier');
     render(() => gpu);
     expect(byId('scene-stand-in')?.getAttribute('data-tier')).toBe('high');
     click('robot-quality');
@@ -283,6 +285,7 @@ describe('SceneHost’s quality tier across a round trip (N18 R4.6 fix round 1)'
 });
 
 describe('SceneHost on a slow renderer (N18 R4.7 fix round 1)', () => {
+  beforeEach(({ skip }) => basicSkip(skip, 'the high tier, which gives way to the low one'));
   it('goes to the light graphics once when a run is drawn too slowly on the detailed ones, says so for 8 s, and lets the learner go back', () => {
     render(() => gpu);
     expect(scenes.props?.tier).toBe('high');
@@ -335,7 +338,8 @@ describe('the view up (N18 P2)', () => {
 describe('SceneHost on a computer too slow for the low tier (N18 P2)', () => {
   const software: WebglProbe = { ok: true, renderer: 'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)' };
 
-  it('watches the low tier only; a slow run is drawn at 30 fps from then on and says so for 8 s, once', () => {
+  it('watches the low tier only; a slow run is drawn at 30 fps from then on and says so for 8 s, once', ({ skip }) => {
+    basicSkip(skip, 'the high tier and the quality button (its low tier has the same chain: the tests below)');
     render(() => gpu);
     expect(scenes.props?.onLowStep).toBeUndefined();
     click('robot-quality');

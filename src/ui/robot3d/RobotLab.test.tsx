@@ -23,6 +23,7 @@ import { CANCEL_GUARD_MS } from './robot-check-store';
 import { installFakeCanvas2d } from './__fixtures__/fake-canvas-2d';
 import { fakeSession, idleRun } from './__fixtures__/fake-session';
 import RobotLab, { type RobotLabProps, type RobotProgramView } from './RobotLab';
+import { basicSkip } from '../../../tests/basic-skip';
 import { readTopViewState } from './top-view-state';
 
 // The robot lab (N18 R4.1 shell, R4.2 scene, R4.4 HUD and controls), rendered in jsdom with a session the test drives. jsdom has no
@@ -99,7 +100,8 @@ function setup(template: RobotTemplateKey = 'rb-drive-to-zone', options: { local
 const outline = (shown: Toolbox) => shown.contents.map((category) => [category.name, (category.contents ?? []).map((entry) => (entry as { type: string }).type)]);
 
 describe('RobotLab (N18 R4.1, R4.2)', () => {
-  it('says the lab and the scenario in Vietnamese, with a labelled 3D view, the run’s controls and the program', async () => {
+  it('says the lab and the scenario in Vietnamese, with a labelled 3D view, the run’s controls and the program', async ({ skip }) => {
+    basicSkip(skip, 'the C++ and Cổng & chân tabs (RobotLab.basic.test.tsx has this with its one tab and its badge)');
     const { render } = setup();
     await render();
     expect(host.querySelector('h1')?.textContent).toBe('Robot 3D');

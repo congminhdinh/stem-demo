@@ -11,6 +11,7 @@ import { productionProfiles } from '../../core/profiles';
 import { buildToolbox, createBlockPackCatalog } from '../../core/program/block-packs';
 import { scenarioCatalog } from '../../samples/robot-scenarios';
 import { robotStarterDocument } from '../../samples/robot-templates';
+import { basicSkip } from '../../../tests/basic-skip';
 import { TextProvider } from '../i18n/text';
 import { createProjectStore } from '../state/project-store';
 import { installFakeCanvas2d } from './__fixtures__/fake-canvas-2d';
@@ -80,6 +81,7 @@ const el = (testId: string) => host.querySelector<HTMLElement>(`[data-testid=${t
 const click = (testId: string) => act(async () => el(testId)!.click());
 
 describe('the view tools in the robot lab (N18 R4.8)', () => {
+  beforeEach(({ skip }) => basicSkip(skip, 'the view tools (Lái tay, Thước đo, Di chuyển robot)'));
   it('puts the tool strip in the robot’s view, which takes the focus for the keys', async () => {
     await setup();
     const stage = host.querySelector<HTMLElement>('.robot-stage')!;
