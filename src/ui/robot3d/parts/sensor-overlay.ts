@@ -485,10 +485,16 @@ function carriedSensors(
   const [pivotX, pivotY, pivotZ] = gripper.position;
   const colorText = (index: number): string | null => (words === undefined ? null : index === -1 ? words.noReading : words.color[COLOR_NAMES[index]!]);
   // The jaws' room (`gripperRoom`): from the carriage's back to the fingers' tips, under the jaws to over a 4 cm cube between them, as wide
-  // as the open jaws reach (the hinges and a finger's length turned out by its open angle).
+  // as the open jaws reach (the hinges and a finger's length turned out by its open angle). N19 E8 (review F1): and the claw servo's case
+  // on the carriage, with 3 mm round it (its top at 2.67 cm stood over the room's 2.6, and "Theo xe" sees the tag over the case and the cube).
   const reach = gripper.hinge.uM + gripper.finger.lengthM;
   const half = gripper.hinge.vM + gripper.finger.lengthM * Math.sin((gripper.fingerOpenDeg * Math.PI) / 180) + gripper.finger.thicknessM;
-  const room = { frame: group, min: [-0.006, -0.018, -half] as const, max: [reach + 0.003, 0.026, half] as const };
+  const { center: servoAt, size: servoSize } = gripper.clawServo;
+  const room = {
+    frame: group,
+    min: [Math.min(-0.006, servoAt[0] - servoSize[0] / 2 - 0.003), -0.018, Math.min(-half, servoAt[2] - servoSize[2] / 2 - 0.003)] as const,
+    max: [reach + 0.003, Math.max(0.026, servoAt[1] + servoSize[1] / 2 + 0.003), Math.max(half, servoAt[2] + servoSize[2] / 2 + 0.003)] as const,
+  };
   return {
     group,
     room,

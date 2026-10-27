@@ -77,3 +77,19 @@ export function placeLabel(out: ScreenBox, place: LabelPlace, anchors: ArrayLike
   place.center = 0;
   place.clear = false;
 }
+
+/**
+ * N19 E8 (review F1): the gripper's tag as the last frame laid it out, for the E2E (the dev server's module): whether it is shown, its box,
+ * and what it kept clear of (NDC): the jaws' room with the claw servo's case, the object held or ahead (the IR or the colour sensor has it
+ * in range) and the one nearest the jaws' tips, each with a few pixels round it. A tag with no clear spot is not shown.
+ */
+export const gripperTagLayout: { shown: boolean; box: ScreenBox; keepOut: ScreenBox[]; keepOutCount: number } = {
+  shown: false,
+  box: { left: 0, right: 0, bottom: 0, top: 0 },
+  keepOut: [
+    { left: 0, right: 0, bottom: 0, top: 0 },
+    { left: 0, right: 0, bottom: 0, top: 0 },
+    { left: 0, right: 0, bottom: 0, top: 0 },
+  ],
+  keepOutCount: 0,
+};

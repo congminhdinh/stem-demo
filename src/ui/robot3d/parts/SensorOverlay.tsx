@@ -12,7 +12,7 @@ import type { RobotModel } from '../robot-model';
 import type { RobotRunStore } from '../robot-run-store';
 import type { RobotToolsStore } from '../robot-tools-store';
 import { shownObjectColors } from '../round-colors';
-import { labelBoxes, LABEL_CENTERS, LABEL_REACH_SHARES, MAX_LABEL_BOXES, placeLabel, type LabelPlace } from '../sensor-label-boxes';
+import { gripperTagLayout, labelBoxes, LABEL_CENTERS, LABEL_REACH_SHARES, MAX_LABEL_BOXES, placeLabel, type LabelPlace } from '../sensor-label-boxes';
 import { registerSensorOverlay } from '../sensor-overlay-state';
 import { pulseLevel } from '../sensor-overlay-math';
 import { LABEL_PILL_HEIGHT_SHARE } from './distance-label';
@@ -49,7 +49,8 @@ type SensorOverlayProps = {
 
 /**
  * N19 E5: where the gripper's tag may stand, in the carriage's frame (m: up, across), in the order tried: over the jaws, higher, beside them
- * on either side (fix round 1: seen from above, every spot over the jaws covers the beam and the spot), lower.
+ * on either side (fix round 1: seen from above, every spot over the jaws covers the beam and the spot), lower. N19 E8 (review F1): then
+ * higher still and farther out, for "Theo xe", where the claw servo and the object fill the spots by the jaws.
  */
 const GRIPPER_LABEL_SPOTS_M = [
   [GRIPPER_LABEL_LIFT_M, 0],
@@ -57,22 +58,71 @@ const GRIPPER_LABEL_SPOTS_M = [
   [GRIPPER_LABEL_LIFT_M, -0.075],
   [GRIPPER_LABEL_LIFT_M, 0.075],
   [GRIPPER_LABEL_LIFT_M - 0.02, 0],
+  [GRIPPER_LABEL_LIFT_M + 0.08, 0],
+  [GRIPPER_LABEL_LIFT_M + 0.03, -0.13],
+  [GRIPPER_LABEL_LIFT_M + 0.03, 0.13],
+  [GRIPPER_LABEL_LIFT_M + 0.13, 0],
 ] as const;
+
+/** N19 E8 (review F1): how far the gripper's tag keeps from the claw and the object on the screen, px. */
+const GRIPPER_KEEP_OUT_PX = 6;
 
 /**
  * N19 E8: on a gripper car, where else a distance tag may stand when none of its spots along the ray is clear (an echo a few centimetres off,
- * the held cube's, puts them all by the jaws, where the gripper's tag is): over its echo, higher, and beside it on either side (m, in the
- * beam's frame: up from the ray, as its spots along it stand LABEL_LIFT_M over it; across). A rover's tag has its spots along the ray alone.
+ * the held cube's, puts them all by the jaws, where the gripper's tag is): beside its echo on either side, then over it (m, in the beam's
+ * frame: up from the ray, as its spots along it stand LABEL_LIFT_M over it; across). Review F5: the sides first, so that it stays at its
+ * height by the echo before it climbs. A rover's tag has its spots along the ray alone.
  */
 const DISTANCE_LABEL_MORE_SPOTS_M = [
-  [LABEL_LIFT_M + 0.06, 0],
-  [LABEL_LIFT_M + 0.11, 0],
   [LABEL_LIFT_M, -0.09],
   [LABEL_LIFT_M, 0.09],
+  [LABEL_LIFT_M + 0.04, 0],
+  [LABEL_LIFT_M + 0.08, 0],
 ] as const;
 
 /** What the tag keeps clear of: the strips at the top and the bottom, the HUD's corner, the card's side and the tools' corner. */
 const MAX_AVOID = 5;
+
+/**
+ * N19 E8 (review F1): the object the gripper holds, else the one the IR sees, else the one the colour sensor's ray meets; null for none.
+ * Makes nothing.
+ */
+function objectInClaw(world: RobotSnapshot): RobotSnapshot['objects'][number] | null {
+  let id = world.robot.gripper?.heldId ?? null;
+  for (let i = 0; i < world.sensors.length && id === null; i++) {
+    const sensor = world.sensors[i]!;
+    if (sensor.kind === 'ir-obstacle' && sensor.detected) id = sensor.hitId;
+  }
+  for (let i = 0; i < world.sensors.length && id === null; i++) {
+    const sensor = world.sensors[i]!;
+    if (sensor.kind === 'color-sensor') id = sensor.hitId;
+  }
+  if (id === null) return null;
+  for (let i = 0; i < world.objects.length; i++) if (world.objects[i]!.id === id) return world.objects[i]!;
+  return null;
+}
+
+/** N19 E8 (review F1): how near the jaws' tips (m, on the floor's plane) an object counts as one the gripper is coming to. */
+const NEAR_CLAW_M = 0.1;
+
+/**
+ * N19 E8 (review F1): the object nearest the jaws' tips (`tipX`, `tipZ`: three's floor plane, m) within NEAR_CLAW_M of them, other than
+ * `except`; null for none. Makes nothing.
+ */
+function objectNearClaw(world: RobotSnapshot, tipX: number, tipZ: number, except: string | null): RobotSnapshot['objects'][number] | null {
+  let nearest: RobotSnapshot['objects'][number] | null = null;
+  let best = NEAR_CLAW_M;
+  for (let i = 0; i < world.objects.length; i++) {
+    const object = world.objects[i]!;
+    if (object.id === except) continue;
+    const distance = Math.hypot(object.pose.xCm / 100 - tipX, 0 - object.pose.yCm / 100 - tipZ);
+    if (distance < best) {
+      best = distance;
+      nearest = object;
+    }
+  }
+  return nearest;
+}
 
 /** Sets a box (NDC) in place. */
 function cover(box: ScreenBox, left: number, right: number, bottom: number, top: number): void {
@@ -85,6 +135,7 @@ function cover(box: ScreenBox, left: number, right: number, bottom: number, top:
 export function SensorOverlay({ scenario, kit, model, view, store, tools, reducedMotion, decimal, unit, noEchoText, detail, overlays, gripperWords }: SensorOverlayProps) {
   const gl = useThree((state) => state.gl);
   const camera = useThree((state) => state.camera);
+  const size = useThree((state) => state.size);
   const invalidate = useThree((state) => state.invalidate);
   const get = useThree((state) => state.get);
   const fovDeg = 'fov' in camera && typeof camera.fov === 'number' ? camera.fov : 40;
@@ -150,6 +201,11 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
 
   // The distance tag's spot is worked out in the frame, before the frame's other callbacks (priority −1: only a positive one takes
   // rendering over, as CompiledDraw's does), so that the zones' tags, laid out in the same frame, keep clear of it (sensor-label-boxes.ts).
+  // N19 E8 (review F1): each object's half sizes (cm: along its x, its y, up), for the box the gripper's tag keeps clear of.
+  const objectHalves = useMemo(
+    () => new Map(scenario.arena.objects.map((object) => [object.id, object.shape === 'box' ? ([object.sizeCm[0] / 2, object.sizeCm[1] / 2, object.sizeCm[2] / 2] as const) : ([object.radiusCm, object.radiusCm, object.heightCm / 2] as const)])),
+    [scenario.arena.objects],
+  );
   const scratch = useMemo(
     () => ({
       anchor: new Vector3(),
@@ -189,10 +245,15 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
     // N19 E5: the gripper's tag over the jaws, at the first height over the carriage where it is in the view and clear of what floats over
     // it and of the jaws' room. N19 E8: it is laid out first, and the distance tags keep clear of it, as they slide back along their rays
     // (four reaches, three ways each); the gripper's tag has only its few spots by the jaws (E5 laid it out last, and in "Theo xe" none
-    // was clear of the distance tag over the jaws, the HUD beside them: it stood under both). The zones' tags keep clear of both.
+    // was clear of the distance tag over the jaws, the HUD beside them: it stood under both). The zones' tags keep clear of both. Review F1:
+    // the room holds the claw servo's case too, and the object held or ahead (the IR or the colour sensor has it in range) is kept clear
+    // of as well, and the one nearest the jaws' tips (NEAR_CLAW_M), all with GRIPPER_KEEP_OUT_PX round them; a tag with no clear spot is
+    // not shown (it would hide what it speaks of).
     let gripperPlaced = false;
     const words = overlay.gripperLabel;
     const room = overlay.gripperRoom;
+    gripperTagLayout.shown = false;
+    gripperTagLayout.keepOutCount = 0;
     if (words !== null && room !== null && overlay.gripperLabelShown()) {
       const sprite = words.sprite;
       const { spotAnchors, corner } = scratch;
@@ -207,8 +268,12 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
       sprite.position.y = GRIPPER_LABEL_SPOTS_M[0][0];
       sprite.position.z = 0;
       if (!Number.isNaN(spotAnchors[0]!)) {
+        // (Plain numbers: an array destructured here would be garbage every frame, N18 P2.)
+        const marginX = (2 * GRIPPER_KEEP_OUT_PX) / Math.max(1, size.width);
+        const marginY = (2 * GRIPPER_KEEP_OUT_PX) / Math.max(1, size.height);
         // The jaws' room on the screen: the box round its eight corners (behind the camera: none).
-        const box = avoid[avoidCount]!;
+        let kept = avoidCount;
+        const box = avoid[kept]!;
         cover(box, Infinity, -Infinity, Infinity, -Infinity);
         let corners = 0;
         for (let k = 0; k < 8; k++) {
@@ -221,15 +286,64 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
           if (corner.y < box.bottom) box.bottom = corner.y;
           if (corner.y > box.top) box.top = corner.y;
         }
+        if (corners > 0) {
+          cover(box, box.left - marginX, box.right + marginX, box.bottom - marginY, box.top + marginY);
+          kept += 1;
+        }
+        // The object held (or the one the IR or the colour sensor has in range), and the one nearest the jaws' tips (an object the claw is
+        // coming to, or one beside it): their boxes (turned with them) on the screen.
+        const inClaw = objectInClaw(world);
+        room.frame.localToWorld(corner.set(room.max[0], 0, 0));
+        const near = objectNearClaw(world, corner.x, corner.z, inClaw === null ? null : inClaw.id);
+        for (let o = 0; o < 2; o++) {
+          const object = o === 0 ? inClaw : near;
+          const halves = object === null ? undefined : objectHalves.get(object.id);
+          if (object === null || halves === undefined) continue;
+          const into = avoid[kept]!;
+          cover(into, Infinity, -Infinity, Infinity, -Infinity);
+          const { xCm, yCm, zCm, yawDeg } = object.pose;
+          const c = Math.cos((yawDeg * Math.PI) / 180);
+          const s = Math.sin((yawDeg * Math.PI) / 180);
+          let seenCorners = 0;
+          for (let k = 0; k < 8; k++) {
+            const dx = k & 1 ? halves[0] : -halves[0];
+            const dy = k & 2 ? halves[1] : -halves[1];
+            const dz = k & 4 ? halves[2] : -halves[2];
+            // In the arena's frame (the overlay's root holds what is placed by the world's poses), then the camera's.
+            overlay.root.localToWorld(corner.set((xCm + dx * c - dy * s) / 100, (zCm + dz) / 100, 0 - (yCm + dx * s + dy * c) / 100)).project(camera);
+            if (corner.z > 1 || corner.z < -1) continue;
+            seenCorners += 1;
+            if (corner.x < into.left) into.left = corner.x;
+            if (corner.x > into.right) into.right = corner.x;
+            if (corner.y < into.bottom) into.bottom = corner.y;
+            if (corner.y > into.top) into.top = corner.y;
+          }
+          if (seenCorners > 0) {
+            cover(into, into.left - marginX, into.right + marginX, into.bottom - marginY, into.top + marginY);
+            kept += 1;
+          }
+        }
         const width = sprite.scale.x * elements[0]! * words.widthShare;
         const height = sprite.scale.y * elements[5]! * words.heightShare;
-        placeLabel(labelBoxes.boxes[count]!, place, spotAnchors, GRIPPER_LABEL_SPOTS_M.length, width, height, avoid, avoidCount + (corners > 0 ? 1 : 0));
-        const chosen = GRIPPER_LABEL_SPOTS_M[place.reach]!;
-        sprite.position.y = chosen[0];
-        sprite.position.z = chosen[1];
-        sprite.center.x = (1 - words.widthShare) / 2 + LABEL_CENTERS[place.center]! * words.widthShare;
-        count += 1;
-        gripperPlaced = true;
+        placeLabel(labelBoxes.boxes[count]!, place, spotAnchors, GRIPPER_LABEL_SPOTS_M.length, width, height, avoid, kept);
+        // For the E2E: the keep-out boxes and the tag's.
+        gripperTagLayout.keepOutCount = kept - avoidCount;
+        for (let k = avoidCount; k < kept; k++) {
+          const from = avoid[k]!;
+          cover(gripperTagLayout.keepOut[k - avoidCount]!, from.left, from.right, from.bottom, from.top);
+        }
+        sprite.visible = place.clear;
+        if (place.clear) {
+          const chosen = GRIPPER_LABEL_SPOTS_M[place.reach]!;
+          sprite.position.y = chosen[0];
+          sprite.position.z = chosen[1];
+          sprite.center.x = (1 - words.widthShare) / 2 + LABEL_CENTERS[place.center]! * words.widthShare;
+          const placed = labelBoxes.boxes[count]!;
+          cover(gripperTagLayout.box, placed.left, placed.right, placed.bottom, placed.top);
+          gripperTagLayout.shown = true;
+          count += 1;
+          gripperPlaced = true;
+        }
       }
     }
     // The distance tags, clear of what floats over the view and (a gripper car's) of the gripper's tag. A rover's avoid what they did.
@@ -245,7 +359,8 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
       const reach = overlay.labelReach(i);
       // The tag's anchor on the screen at each of the places along the ray it may stand (NaN where it is behind the camera); N19 E8, on a
       // gripper car (its tag laid out), over and beside its echo too.
-      if (gripperPlaced) sprite.position.set(sprite.position.x, LABEL_LIFT_M, 0);
+      // (Review M3: on any gripper car, placed or not this frame, so that a spot over or beside the echo is never left over.)
+      if (room !== null) sprite.position.set(sprite.position.x, LABEL_LIFT_M, 0);
       for (let a = 0; a < LABEL_REACH_SHARES.length; a++) {
         sprite.position.x = reach * LABEL_REACH_SHARES[a]!;
         sprite.getWorldPosition(anchor).project(camera);
