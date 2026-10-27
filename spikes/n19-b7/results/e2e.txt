@@ -1,0 +1,45 @@
+# e2e of HEAD (final code) through a temporary Playwright config (deleted): dev server node node_modules/vite/bin/vite.js --port 5570, lesson host node e2e/lesson-host.mjs 5571, Chromium given --host-resolver-rules=MAP lesson.localhost 127.0.0.1:5571 (D4's method), chromium-robot with SwiftShader. Playwright 1.63.0, Chromium 153.0.8010.12, Firefox 155.0, WebKit 26.6. 2026-10-27.
+
+## 1. every robot spec (projects chromium: robot*.spec.ts but the scene ones; chromium-robot: robot-lab-(scene|check|tools|look|sensors|a11y|chain|gripper-ui)) and robot-determinism on firefox and webkit, --workers 4, 11:06-11:10, load 4.4-18
+  ✓    3 [chromium] › e2e/robot-determinism.spec.ts:27:1 › the robot world hashes the same in this browser as on Node (5.6s)
+  ✓   10 [chromium] › e2e/robot-determinism.spec.ts:42:1 › a whole check gives the same result and last worlds in this browser as on Node (31.5s)
+  ✓   62 [chromium-robot] › e2e/robot-lab-check.spec.ts:225:3 › Kiểm tra in the robot lab (N18 R6.3) › same score/passed/hash for 1×, 4× and headless (26.1s)
+  ✘   71 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:339:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (6.6s)
+  ✓   85 [chromium-robot] › e2e/robot-lab-check.spec.ts:264:3 › Kiểm tra of a gripper lesson (N19 D4, Gate G1) › rb-grip-pick: the reference passes, with Node’s result and last worlds; Chạy at 4× lifts the cube in the jaws (11.9s)
+  ✓  109 [firefox] › e2e/robot-determinism.spec.ts:27:1 › the robot world hashes the same in this browser as on Node (12.6s)
+  ✓  115 [webkit] › e2e/robot-determinism.spec.ts:27:1 › the robot world hashes the same in this browser as on Node (6.4s)
+  ✓  120 [webkit] › e2e/robot-determinism.spec.ts:42:1 › a whole check gives the same result and last worlds in this browser as on Node (34.3s)
+  ✓  117 [firefox] › e2e/robot-determinism.spec.ts:42:1 › a whole check gives the same result and last worlds in this browser as on Node (46.9s)
+  1 failed
+  131 passed (4.0m)
+
+## 2. the failing test of 1, master's version (e2e/robot-lab-gripper-ui.spec.ts:339) and E10's rewrite (branch n19/e910-bench-e2e, copied to a temporary spec, deleted), chromium-robot, --repeat-each=3 --workers=3, 11:10, load 18
+  ✓  2 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:339:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (11.6s)
+  ✓  3 [chromium-robot] › e2e/b7-tmp-e10-gripper-ui.spec.ts:341:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (18.8s)
+  ✓  1 [chromium-robot] › e2e/b7-tmp-e10-gripper-ui.spec.ts:341:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (19.3s)
+  ✘  4 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:339:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (8.5s)
+  ✘  6 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:339:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (8.4s)
+  ✓  5 [chromium-robot] › e2e/b7-tmp-e10-gripper-ui.spec.ts:341:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (17.2s)
+    Expected: 46
+    Received: 48
+    Expected: 41
+    Received: 43
+  2 failed
+  4 passed (37.4s)
+
+## 3. the same, master's version on master's tree (git archive 7758ec9, dev 5573, lesson host 5574), 10:49, load 9
+  ✓  1 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:339:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (16.6s)
+  ✓  2 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:339:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (16.8s)
+  ✓  3 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:339:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (16.9s)
+  3 passed (18.4s)
+
+## 4. earlier runs on HEAD before the claw's hold was added (lift hold only), 10:32-10:38
+  6 passed (30.2s)
+  ✘  1 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:339:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (8.1s)
+  ✘  4 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:339:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (6.3s)
+  ✓  3 [chromium-robot] › e2e/b7-tmp-e10-gripper-ui.spec.ts:341:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (16.9s)
+  ✓  2 [chromium-robot] › e2e/b7-tmp-e10-gripper-ui.spec.ts:341:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (17.1s)
+  ✘  6 [chromium-robot] › e2e/robot-lab-gripper-ui.spec.ts:339:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (6.4s)
+  ✓  5 [chromium-robot] › e2e/b7-tmp-e10-gripper-ui.spec.ts:341:3 › the gripper car’s overlays, tags and 2D map (N19 E4/E5) › 3D: a gripper car at rest holding the cube draws no frame for its overlays; one when “Hiện cảm biến” is turned, then rest again (15.3s)
+  3 failed
+  3 passed (31.4s)

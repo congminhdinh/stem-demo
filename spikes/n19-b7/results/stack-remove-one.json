@@ -1,0 +1,213 @@
+[
+ {
+  "key": "rb-grip-stack",
+  "variant": 0,
+  "removals": [
+   "refresh"
+  ],
+  "finishedAtS": 11.1,
+  "windowFromS": 13.1,
+  "windowS": 10,
+  "yawRateDegS": -0.010019375444627497,
+  "driftCmS": 0.0002104043960571289,
+  "maxYawRateDegS": 0.01094465777343141,
+  "maxSpeedCmS": 0.002563013367257788,
+  "wheelRadRate": [
+   0.0003975756171559652,
+   -0.0003972918688386784
+  ],
+  "gripper": {
+   "clawDeg": 0.000006975367060487075,
+   "liftDeg": 54.985594415830164,
+   "heldId": null
+  },
+  "touching": [
+   "body0.c1→fixed(3 pts, 0.00e+0 N·s)",
+   "body0.c2→fixed(1 pts, 1.48e-2 N·s)",
+   "body0.c3→fixed(3 pts, 0.00e+0 N·s)",
+   "body0.c4→fixed(1 pts, 1.48e-2 N·s)",
+   "body0.c5→fixed(1 pts, 7.98e-3 N·s)"
+  ],
+  "sleeping": 2
+ },
+ {
+  "key": "rb-grip-stack",
+  "variant": 0,
+  "removals": [
+   "friction"
+  ],
+  "finishedAtS": 11.1,
+  "windowFromS": 13.1,
+  "windowS": 10,
+  "yawRateDegS": -0.009937927910248874,
+  "driftCmS": 0.0002086162567138672,
+  "maxYawRateDegS": 0.011048789810321005,
+  "maxSpeedCmS": 0.0025900000632473894,
+  "wheelRadRate": [
+   0.0003943433340147351,
+   -0.0003940628881871078
+  ],
+  "gripper": {
+   "clawDeg": 0.000008895325784328378,
+   "liftDeg": 54.9855937146654,
+   "heldId": null
+  },
+  "touching": [
+   "body0.c1→fixed(3 pts, 0.00e+0 N·s)",
+   "body0.c2→fixed(1 pts, 1.48e-2 N·s)",
+   "body0.c3→fixed(3 pts, 0.00e+0 N·s)",
+   "body0.c4→fixed(1 pts, 1.48e-2 N·s)",
+   "body0.c5→fixed(1 pts, 7.98e-3 N·s)"
+  ],
+  "sleeping": 2
+ },
+ {
+  "key": "rb-grip-stack",
+  "variant": 0,
+  "removals": [
+   "drive"
+  ],
+  "finishedAtS": 11.1,
+  "windowFromS": 13.1,
+  "windowS": 10,
+  "yawRateDegS": -0.009968876155011923,
+  "driftCmS": 0.0002092123031616211,
+  "maxYawRateDegS": 0.01067936762317856,
+  "maxSpeedCmS": 0.0025828155722446306,
+  "wheelRadRate": [
+   0.0003955714816992639,
+   -0.0003952899241777885
+  ],
+  "gripper": {
+   "clawDeg": 0.000027803442776051556,
+   "liftDeg": 54.98559326217319,
+   "heldId": null
+  },
+  "touching": [
+   "body0.c1→fixed(3 pts, 0.00e+0 N·s)",
+   "body0.c2→fixed(1 pts, 1.48e-2 N·s)",
+   "body0.c3→fixed(3 pts, 0.00e+0 N·s)",
+   "body0.c4→fixed(1 pts, 1.48e-2 N·s)",
+   "body0.c5→fixed(1 pts, 7.98e-3 N·s)"
+  ],
+  "sleeping": 2
+ },
+ {
+  "key": "rb-grip-stack",
+  "variant": 0,
+  "removals": [
+   "servos"
+  ],
+  "finishedAtS": 11.1,
+  "windowFromS": 13.1,
+  "windowS": 10,
+  "yawRateDegS": -0.010150391029564144,
+  "driftCmS": 0.00021308993957151325,
+  "maxYawRateDegS": 0.011094580925971185,
+  "maxSpeedCmS": 0.0025291000535838304,
+  "wheelRadRate": [
+   0.00040313657355461885,
+   -0.0004021252419171617
+  ],
+  "gripper": {
+   "clawDeg": 0.000003463277960044548,
+   "liftDeg": 54.98497493366285,
+   "heldId": null
+  },
+  "touching": [
+   "body0.c1→fixed(3 pts, 0.00e+0 N·s)",
+   "body0.c2→fixed(1 pts, 1.48e-2 N·s)",
+   "body0.c3→fixed(3 pts, 0.00e+0 N·s)",
+   "body0.c4→fixed(1 pts, 1.48e-2 N·s)",
+   "body0.c5→fixed(1 pts, 7.98e-3 N·s)"
+  ],
+  "sleeping": 2
+ },
+ {
+  "key": "rb-grip-stack",
+  "variant": 0,
+  "removals": [
+   "objects"
+  ],
+  "finishedAtS": 11.1,
+  "windowFromS": 13.1,
+  "windowS": 10,
+  "yawRateDegS": -0.01015193185361771,
+  "driftCmS": 0.00021308993957151325,
+  "maxYawRateDegS": 0.01099495204480757,
+  "maxSpeedCmS": 0.0024934852884591643,
+  "wheelRadRate": [
+   0.00040319769262637807,
+   -0.0004021863566954664
+  ],
+  "gripper": {
+   "clawDeg": -0.000009912802000967071,
+   "liftDeg": 54.98559201983584,
+   "heldId": null
+  },
+  "touching": [
+   "body0.c1→fixed(3 pts, 0.00e+0 N·s)",
+   "body0.c2→fixed(1 pts, 1.48e-2 N·s)",
+   "body0.c3→fixed(3 pts, 0.00e+0 N·s)",
+   "body0.c4→fixed(1 pts, 1.48e-2 N·s)",
+   "body0.c5→fixed(1 pts, 7.98e-3 N·s)"
+  ],
+  "sleeping": 2
+ },
+ {
+  "key": "rb-grip-stack",
+  "variant": 0,
+  "removals": [
+   "sleep"
+  ],
+  "finishedAtS": 11.1,
+  "windowFromS": 13.1,
+  "windowS": 10,
+  "yawRateDegS": -0.01015193185361771,
+  "driftCmS": 0.00021308993957151325,
+  "maxYawRateDegS": 0.01099495204480757,
+  "maxSpeedCmS": 0.0024934852884591643,
+  "wheelRadRate": [
+   0.00040319769262637807,
+   -0.0004021863566954664
+  ],
+  "gripper": {
+   "clawDeg": -0.000009912802000967071,
+   "liftDeg": 54.98559201983584,
+   "heldId": null
+  },
+  "touching": [
+   "body0.c1→fixed(3 pts, 0.00e+0 N·s)",
+   "body0.c2→fixed(1 pts, 1.48e-2 N·s)",
+   "body0.c3→fixed(3 pts, 0.00e+0 N·s)",
+   "body0.c4→fixed(1 pts, 1.48e-2 N·s)",
+   "body0.c5→fixed(1 pts, 7.98e-3 N·s)"
+  ],
+  "sleeping": 2
+ },
+ {
+  "key": "rb-square-route",
+  "variant": 0,
+  "removals": [],
+  "finishedAtS": 21.4,
+  "windowFromS": 23.4,
+  "windowS": 10,
+  "yawRateDegS": -0.00010353787300635919,
+  "driftCmS": 0.0000010745380149674386,
+  "maxYawRateDegS": 0.00013463141203119846,
+  "maxSpeedCmS": 0.00001331532204354671,
+  "wheelRadRate": [
+   0.000004278518318301394,
+   -0.000003934731117283263
+  ],
+  "gripper": null,
+  "touching": [
+   "body0.c1→fixed(3 pts, 0.00e+0 N·s)",
+   "body0.c2→fixed(1 pts, 1.30e-2 N·s)",
+   "body0.c3→fixed(3 pts, 0.00e+0 N·s)",
+   "body0.c4→fixed(1 pts, 1.31e-2 N·s)",
+   "body0.c5→fixed(1 pts, 6.64e-3 N·s)"
+  ],
+  "sleeping": 0
+ }
+]

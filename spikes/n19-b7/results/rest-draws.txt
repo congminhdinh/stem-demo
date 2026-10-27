@@ -1,0 +1,19 @@
+# node spikes/n19-b7/rest-draws.mjs <key> (E9's probe, a copy) against node node_modules/vite/bin/vite.js --port 5572 of HEAD, Chromium 153 SwiftShader, 1280x720, 1x, 2026-10-27 11:11, load 15.17 15.65 11.40.
+# Draws to the screen in the 5 s that start 2 s after the status says finished. E9 on master: stack 50, pick 0, sort 0, deliver 0.
+== rb-grip-stack
+status finished t 13.09
+draws in 5 s 0 publishes 50
+== rb-grip-pick
+status finished t 10.46
+draws in 5 s 0 publishes 50
+== rb-grip-sort
+status finished t 8.13
+draws in 5 s 0 publishes 50
+== rb-grip-deliver
+status finished t 30.43
+draws in 5 s 0 publishes 50
+== rb-grip-stack, the whole output:
+status finished t 13.10
+rAF asks by caller {"at (src/ui/robot3d/robot-run-store.ts:116:62 < at drive (src/ui/robot3d/robot-run-store.ts:153:17)":300,"at (src/ui/robot3d/robot-run-store.ts:116:62 < at onSnapshot (src/ui/robot3d/robot-run-store.ts:186:19) < at onSessionSnapshot (src/ui/robot3d/robot-run-store.ts:195:5) < at publish (src/core/run/robo":50}
+draws in 5 s 0 publishes 50
+changed keys [[".robot.yawDeg",50,-0.06736805433391817,-0.06736887467158872],[".robot.rotation.x",50,0.000011413687388994731,0.000011412485946493689],[".robot.rotation.y",48,-0.00063617731211707,-0.0006361781270243227],[".robot.rotation.z",49,-0.0005878895171917975,-0.0005878966767340899],[".robot.wheelRad.0",50,29.372536631016256,29.372536663557508],[".robot.wheelRad.1",50,29.36798620195733,29.3679861694189],[".robot.gripper.clawDeg",50,-0.0000167889949593151,-0.00001502882711363097],[".robot.gripper.liftDeg",50,54.985246805157644,54.98524671164371],[".sensors.1.spotCm.0",50,138.92208206932025,138.92208208904023],[".sensors.1.spotCm.1",50,41.389328266380105,41.3893281685449],[".sensors.2.spotCm.0",50,138.92031842318283,138.92031842142188],[".sensors.2.spotCm.1",50,39.889329303613174,39.88932920580314],[".sensors.3.spotCm.0",50,138.91855477704536,138.91855475380353],[".sensors.3.spotCm.1",50,38.38933034084624,38.38933024306138]]

@@ -1,0 +1,77 @@
+# pnpm exec vitest run --config spikes/n19-b56/vitest.config.ts (B5/B6's sweep behind gripper.stability.test.ts), BASE (git archive 7758ec9, 10:42, load 5.3-7.0) and HEAD (11:04, load 5-6). Every row that differs (diff BASE HEAD); every other row of the 130 is identical.
+10c10
+< duty 128 lift 45 u 4 50 g: v 0.132 held cube->cube maxPitch 0.04 final 0.04 settle 0.008 s gap 0.00 mm 0t finite true
+---
+> duty 128 lift 45 u 4 50 g: v 0.132 held cube->cube maxPitch 0.04 final 0.03 settle 0.008 s gap 0.00 mm 0t finite true
+20c20
+< duty 160 lift 45 u 3 15 g: v 0.219 held cube->cube maxPitch 1.08 final 0.06 settle 0.075 s gap 1.25 mm 7t finite true
+---
+> duty 160 lift 45 u 3 15 g: v 0.219 held cube->cube maxPitch 1.08 final 0.05 settle 0.075 s gap 1.25 mm 7t finite true
+36c36
+< duty 200 lift 90 u 3 15 g: v 0.327 held cube->cube maxPitch 8.54 final 0.40 settle 0.308 s gap 11.03 mm 182t finite true
+---
+> duty 200 lift 90 u 3 15 g: v 0.327 held cube->cube maxPitch 8.54 final 0.41 settle 0.308 s gap 11.03 mm 182t finite true
+63c63
+< 0 g 90->0: casterGap 1.706 mm longest 9 ticks pitch 0.06..1.42 held null finite true
+---
+> 0 g 90->0: casterGap 1.705 mm longest 9 ticks pitch 0.06..1.42 held null finite true
+65c65
+< 0 g 90->40: casterGap 1.706 mm longest 8 ticks pitch 0.06..1.42 held null finite true
+---
+> 0 g 90->40: casterGap 1.705 mm longest 8 ticks pitch 0.06..1.42 held null finite true
+67,68c67,68
+< 0 g 90->45: casterGap 1.706 mm longest 8 ticks pitch 0.06..1.42 held null finite true
+< 0 g 45->0: casterGap 1.337 mm longest 6 ticks pitch 0.07..1.14 held null finite true
+---
+> 0 g 90->45: casterGap 1.705 mm longest 8 ticks pitch 0.06..1.42 held null finite true
+> 0 g 45->0: casterGap 1.334 mm longest 6 ticks pitch 0.07..1.14 held null finite true
+71,72c71,72
+< 0 g 90->60: casterGap 1.428 mm longest 7 ticks pitch 0.07..1.21 held null finite true
+< 0 g 60->0: casterGap 1.511 mm longest 7 ticks pitch 0.06..1.27 held null finite true
+---
+> 0 g 90->60: casterGap 1.427 mm longest 7 ticks pitch 0.07..1.21 held null finite true
+> 0 g 60->0: casterGap 1.510 mm longest 7 ticks pitch 0.06..1.27 held null finite true
+74c74
+< 15 g 90->0: casterGap 2.332 mm longest 10 ticks pitch 0.04..1.90 held cube finite true
+---
+> 15 g 90->0: casterGap 2.331 mm longest 10 ticks pitch 0.04..1.90 held cube finite true
+76,79c76,79
+< 15 g 90->40: casterGap 2.332 mm longest 9 ticks pitch 0.01..1.90 held cube finite true
+< 15 g 40->90: casterGap 0.019 mm longest 0 ticks pitch 0.02..0.13 held cube finite true
+< 15 g 90->45: casterGap 2.332 mm longest 9 ticks pitch 0.01..1.90 held cube finite true
+< 15 g 45->0: casterGap 1.852 mm longest 7 ticks pitch 0.04..1.53 held cube finite true
+---
+> 15 g 90->40: casterGap 2.331 mm longest 9 ticks pitch 0.01..1.90 held cube finite true
+> 15 g 40->90: casterGap 0.020 mm longest 0 ticks pitch 0.02..0.13 held cube finite true
+> 15 g 90->45: casterGap 2.331 mm longest 9 ticks pitch 0.01..1.90 held cube finite true
+> 15 g 45->0: casterGap 1.850 mm longest 7 ticks pitch 0.04..1.53 held cube finite true
+81,83c81,83
+< 15 g 45->90: casterGap 0.019 mm longest 0 ticks pitch 0.02..0.13 held cube finite true
+< 15 g 90->60: casterGap 1.893 mm longest 7 ticks pitch 0.02..1.56 held cube finite true
+< 15 g 60->0: casterGap 2.090 mm longest 8 ticks pitch 0.03..1.71 held cube finite true
+---
+> 15 g 45->90: casterGap 0.020 mm longest 0 ticks pitch 0.02..0.13 held cube finite true
+> 15 g 90->60: casterGap 1.892 mm longest 7 ticks pitch 0.02..1.56 held cube finite true
+> 15 g 60->0: casterGap 2.088 mm longest 8 ticks pitch 0.03..1.71 held cube finite true
+85c85
+< 50 g 90->0: casterGap 3.336 mm longest 11 ticks pitch -0.10..2.66 held cube finite true
+---
+> 50 g 90->0: casterGap 3.335 mm longest 11 ticks pitch -0.10..2.66 held cube finite true
+87,90c87,90
+< 50 g 90->40: casterGap 3.336 mm longest 10 ticks pitch -0.33..2.66 held cube finite true
+< 50 g 40->90: casterGap 0.052 mm longest 0 ticks pitch -0.05..0.15 held cube finite true
+< 50 g 90->45: casterGap 3.257 mm longest 9 ticks pitch -0.35..2.60 held cube finite true
+< 50 g 45->0: casterGap 2.638 mm longest 8 ticks pitch -0.15..2.12 held cube finite true
+---
+> 50 g 90->40: casterGap 3.334 mm longest 10 ticks pitch -0.33..2.66 held cube finite true
+> 50 g 40->90: casterGap 0.051 mm longest 0 ticks pitch -0.05..0.15 held cube finite true
+> 50 g 90->45: casterGap 3.255 mm longest 9 ticks pitch -0.35..2.60 held cube finite true
+> 50 g 45->0: casterGap 2.634 mm longest 8 ticks pitch -0.15..2.12 held cube finite true
+92,94c92,94
+< 50 g 45->90: casterGap 0.055 mm longest 0 ticks pitch -0.05..0.15 held cube finite true
+< 50 g 90->60: casterGap 2.540 mm longest 8 ticks pitch -0.24..2.06 held cube finite true
+< 50 g 60->0: casterGap 2.983 mm longest 9 ticks pitch -0.19..2.39 held cube finite true
+---
+> 50 g 45->90: casterGap 0.054 mm longest 0 ticks pitch -0.05..0.15 held cube finite true
+> 50 g 90->60: casterGap 2.538 mm longest 8 ticks pitch -0.24..2.05 held cube finite true
+> 50 g 60->0: casterGap 2.980 mm longest 9 ticks pitch -0.19..2.38 held cube finite true

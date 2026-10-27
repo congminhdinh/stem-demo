@@ -1,0 +1,45 @@
+# Attempts made by BASE (git archive 7758ec9) with spikes/n19-d4/make-attempts.mjs <base> <out> (rover: every scored N18 lesson; ATTEMPT_KEYS=gripper: the four gripper lessons, every program), verified by HEAD: node scripts/verify-attempt.mjs <out> --json. 2026-10-27, made 10:29-10:31 (load 8.0-8.3), verified again on the final code 11:02 (load 5.1-5.8).
+rover: exit 0, 23 attempts, 23 match
+  rb-drive-to-zone score 100 passed true variants 100 -> match
+  rb-square-route score 100 passed true variants 100 -> match
+  rb-stop-at-wall score 100 passed true variants 100/100/100 -> match
+  rb-stop-at-wall score 0 passed false variants 100/0/30 -> match
+  rb-stop-at-wall score 0 passed false variants 0/0/0 -> match
+  rb-stop-at-wall score 0 passed false variants 30/0/30 -> match
+  rb-line-follow score 100 passed true variants 100/100/100 -> match
+  rb-line-follow score 60 passed false variants 100/60/60 -> match
+  rb-line-follow score 0 passed false variants 0/0/0 -> match
+  rb-line-follow score 40 passed false variants 40/40/40 -> match
+  rb-line-follow score 60 passed false variants 60/60/60 -> match
+  rb-servo-gate score 100 passed true variants 100/100/100 -> match
+  rb-servo-gate score 0 passed false variants 100/0/20 -> match
+  rb-servo-gate score 40 passed false variants 40/40/40 -> match
+  rb-servo-gate score 40 passed false variants 40/40/40 -> match
+  rb-servo-gate score 40 passed false variants 40/40/60 -> match
+  rb-mini-mission score 96 passed true variants 96/96/97 -> match
+  rb-mini-mission score 0 passed false variants 96/0/60 -> match
+  rb-mini-mission score 45 passed false variants 45/45/45 -> match
+  rb-mini-mission score 45 passed false variants 45/45/45 -> match
+  rb-mini-mission score 45 passed false variants 45/45/45 -> match
+  rb-mini-mission score 45 passed false variants 45/45/45 -> match
+  rb-mini-mission score 45 passed false variants 45/45/45 -> match
+gripper: exit 0, 19 attempts, 19 match
+  rb-grip-pick score 100 passed true variants 100/100/100 -> match
+  rb-grip-pick score 15 passed false variants 100/15/15 -> match
+  rb-grip-pick score 0 passed false variants 0/0/0 -> match
+  rb-grip-pick score 15 passed false variants 15/15/15 -> match
+  rb-grip-pick score 55 passed false variants 55/55/55 -> match
+  rb-grip-pick score 0 passed false variants 55/55/0 -> match
+  rb-grip-deliver score 97 passed true variants 97/97/97 -> match
+  rb-grip-deliver score 40 passed false variants 97/40/40 -> match
+  rb-grip-deliver score 15 passed false variants 15/15/15 -> match
+  rb-grip-deliver score 0 passed false variants 15/0/15 -> match
+  rb-grip-sort score 100 passed true variants 100/100/100 -> match
+  rb-grip-sort score 40 passed false variants 40/100/40 -> match
+  rb-grip-sort score 40 passed false variants 100/100/40 -> match
+  rb-grip-stack score 97 passed true variants 97/97/97 -> match
+  rb-grip-stack score 15 passed false variants 97/15/75 -> match
+  rb-grip-stack score 35 passed false variants 35/35/35 -> match
+  rb-grip-stack score 35 passed false variants 35/35/35 -> match
+  rb-grip-stack score 20 passed false variants 20/20/20 -> match
+  rb-grip-stack score 35 passed false variants 35/35/35 -> match

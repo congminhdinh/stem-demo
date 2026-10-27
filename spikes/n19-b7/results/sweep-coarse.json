@@ -1,0 +1,362 @@
+[
+ {
+  "liftDeg": 0,
+  "clawDeg": 0,
+  "motor": "coast",
+  "yawRateDegS": -5.366116301766326e-7,
+  "driftCmS": 0,
+  "maxYawRateDegS": 0.0005430625712654951,
+  "lift": -0.0002910983277999435,
+  "claw": 0.00004832569645126507
+ },
+ {
+  "liftDeg": 0,
+  "clawDeg": 40,
+  "motor": "coast",
+  "yawRateDegS": -0.000016516070244357195,
+  "driftCmS": 0,
+  "maxYawRateDegS": 0.0005487404995183987,
+  "lift": -0.00029144697763427985,
+  "claw": 39.99996820503876
+ },
+ {
+  "liftDeg": 0,
+  "clawDeg": 80,
+  "motor": "coast",
+  "yawRateDegS": -4.914291121050736e-8,
+  "driftCmS": 0,
+  "maxYawRateDegS": 0.0005776404039386846,
+  "lift": -0.0002869731743828652,
+  "claw": 79.99991673201092
+ },
+ {
+  "liftDeg": 10,
+  "clawDeg": 0,
+  "motor": "coast",
+  "yawRateDegS": -0.00024602097674613363,
+  "driftCmS": 0.0000059604644775390625,
+  "maxYawRateDegS": 0.0009465715044818697,
+  "lift": 9.987053848027944,
+  "claw": 0.000002403971078631125
+ },
+ {
+  "liftDeg": 10,
+  "clawDeg": 40,
+  "motor": "coast",
+  "yawRateDegS": -0.00022777202064608776,
+  "driftCmS": 0.00000476837158203125,
+  "maxYawRateDegS": 0.0010965980436741212,
+  "lift": 9.987052344630726,
+  "claw": 40.000167504414385
+ },
+ {
+  "liftDeg": 10,
+  "clawDeg": 80,
+  "motor": "coast",
+  "yawRateDegS": -0.00018502635317813745,
+  "driftCmS": 0.0000035762786865234375,
+  "maxYawRateDegS": 0.0010797943775935014,
+  "lift": 9.98704833409787,
+  "claw": 80.00002663041788
+ },
+ {
+  "liftDeg": 20,
+  "clawDeg": 0,
+  "motor": "coast",
+  "yawRateDegS": 4.2286079747254226e-7,
+  "driftCmS": 0,
+  "maxYawRateDegS": 0.0012340314215841617,
+  "lift": 19.985951453703404,
+  "claw": -0.00004352547474399998
+ },
+ {
+  "liftDeg": 20,
+  "clawDeg": 40,
+  "motor": "coast",
+  "yawRateDegS": -0.00003538149736342072,
+  "driftCmS": 0.0000011920928955078125,
+  "maxYawRateDegS": 0.001471540577800777,
+  "lift": 19.985950122404642,
+  "claw": 40.00016359468105
+ },
+ {
+  "liftDeg": 20,
+  "clawDeg": 80,
+  "motor": "coast",
+  "yawRateDegS": -0.00018671643959731937,
+  "driftCmS": 0.0000035762786865234375,
+  "maxYawRateDegS": 0.0011163565669835647,
+  "lift": 19.985944065925878,
+  "claw": 80.00005481096794
+ },
+ {
+  "liftDeg": 30,
+  "clawDeg": 0,
+  "motor": "coast",
+  "yawRateDegS": -0.00020426443870062266,
+  "driftCmS": 0.00000476837158203125,
+  "maxYawRateDegS": 0.0013675936363696454,
+  "lift": 29.985283979254184,
+  "claw": -0.00000550618860369228
+ },
+ {
+  "liftDeg": 30,
+  "clawDeg": 40,
+  "motor": "coast",
+  "yawRateDegS": -0.00019764746342559422,
+  "driftCmS": 0.0000035762786865234375,
+  "maxYawRateDegS": 0.001189475943183733,
+  "lift": 29.985284497712193,
+  "claw": 40.00014492006961
+ },
+ {
+  "liftDeg": 30,
+  "clawDeg": 80,
+  "motor": "coast",
+  "yawRateDegS": -0.00018324117824125154,
+  "driftCmS": 0.00000476837158203125,
+  "maxYawRateDegS": 0.0012337896302195006,
+  "lift": 29.985276608694694,
+  "claw": 80.00004167119151
+ },
+ {
+  "liftDeg": 40,
+  "clawDeg": 0,
+  "motor": "coast",
+  "yawRateDegS": -0.0002031818648676014,
+  "driftCmS": 0.00000476837158203125,
+  "maxYawRateDegS": 0.0013093419278061554,
+  "lift": 39.98506792499157,
+  "claw": -0.000005351810041324161
+ },
+ {
+  "liftDeg": 40,
+  "clawDeg": 40,
+  "motor": "coast",
+  "yawRateDegS": -0.00019689341759539778,
+  "driftCmS": 0.0000035762786865234375,
+  "maxYawRateDegS": 0.0012833218419153157,
+  "lift": 39.985068765185346,
+  "claw": 40.000116750561816
+ },
+ {
+  "liftDeg": 40,
+  "clawDeg": 80,
+  "motor": "coast",
+  "yawRateDegS": -0.0000271930754394714,
+  "driftCmS": 0.0000011920928955078125,
+  "maxYawRateDegS": 0.0012720935511984503,
+  "lift": 39.985063629074425,
+  "claw": 80.00007673592944
+ },
+ {
+  "liftDeg": 45,
+  "clawDeg": 0,
+  "motor": "coast",
+  "yawRateDegS": -0.00017784112884874402,
+  "driftCmS": 0.0000035762786865234375,
+  "maxYawRateDegS": 0.001249937958325556,
+  "lift": 44.985132567520836,
+  "claw": 0.00001086693531265206
+ },
+ {
+  "liftDeg": 45,
+  "clawDeg": 40,
+  "motor": "coast",
+  "yawRateDegS": -0.00018484407808888733,
+  "driftCmS": 0.00000476837158203125,
+  "maxYawRateDegS": 0.0016581351427263768,
+  "lift": 44.985133027478966,
+  "claw": 40.00010055373177
+ },
+ {
+  "liftDeg": 45,
+  "clawDeg": 80,
+  "motor": "coast",
+  "yawRateDegS": -0.00019114459637448137,
+  "driftCmS": 0.00000476837158203125,
+  "maxYawRateDegS": 0.0012945784805852793,
+  "lift": 44.98512784303948,
+  "claw": 80.00003760634785
+ },
+ {
+  "liftDeg": 50,
+  "clawDeg": 0,
+  "motor": "coast",
+  "yawRateDegS": -0.00016346352473902405,
+  "driftCmS": 0.0000035762786865234375,
+  "maxYawRateDegS": 0.0012657561161543503,
+  "lift": 49.98531102064047,
+  "claw": 0.000013877875955031821
+ },
+ {
+  "liftDeg": 50,
+  "clawDeg": 40,
+  "motor": "coast",
+  "yawRateDegS": -0.0001725286800809335,
+  "driftCmS": 0.0000035762786865234375,
+  "maxYawRateDegS": 0.0016858160851634402,
+  "lift": 49.98531239213334,
+  "claw": 40.00008570078005
+ },
+ {
+  "liftDeg": 50,
+  "clawDeg": 80,
+  "motor": "coast",
+  "yawRateDegS": -0.00018235164438525498,
+  "driftCmS": 0.0000035762786865234375,
+  "maxYawRateDegS": 0.0013498278074103398,
+  "lift": 49.98530680614665,
+  "claw": 79.99999847330825
+ },
+ {
+  "liftDeg": 55,
+  "clawDeg": 0,
+  "motor": "coast",
+  "yawRateDegS": -0.000149807873631709,
+  "driftCmS": 0.0000035762786865234375,
+  "maxYawRateDegS": 0.001320586893789549,
+  "lift": 54.98560251815708,
+  "claw": 0.000003228867492478539
+ },
+ {
+  "liftDeg": 55,
+  "clawDeg": 40,
+  "motor": "coast",
+  "yawRateDegS": -0.00016818613698046462,
+  "driftCmS": 0.0000035762786865234375,
+  "maxYawRateDegS": 0.0012710063238208016,
+  "lift": 54.98560410084379,
+  "claw": 40.000073152820626
+ },
+ {
+  "liftDeg": 55,
+  "clawDeg": 80,
+  "motor": "coast",
+  "yawRateDegS": -0.0001823863191003971,
+  "driftCmS": 0.0000035762786865234375,
+  "maxYawRateDegS": 0.0013203751179046391,
+  "lift": 54.98559772398685,
+  "claw": 80.00003947819616
+ },
+ {
+  "liftDeg": 60,
+  "clawDeg": 0,
+  "motor": "coast",
+  "yawRateDegS": -0.00012650953328012575,
+  "driftCmS": 0.000002384185791015625,
+  "maxYawRateDegS": 0.0011570467186027215,
+  "lift": 59.986004867785496,
+  "claw": 0.000004176517021863454
+ },
+ {
+  "liftDeg": 60,
+  "clawDeg": 40,
+  "motor": "coast",
+  "yawRateDegS": -0.00013317592021554246,
+  "driftCmS": 0.0000035762786865234375,
+  "maxYawRateDegS": 0.0012346392350491202,
+  "lift": 59.986006128565876,
+  "claw": 40.0000611724218
+ },
+ {
+  "liftDeg": 60,
+  "clawDeg": 80,
+  "motor": "coast",
+  "yawRateDegS": -0.00013029987894232244,
+  "driftCmS": 0.0000035762786865234375,
+  "maxYawRateDegS": 0.0013293272347403844,
+  "lift": 59.986000380287315,
+  "claw": 80.00003978691326
+ },
+ {
+  "liftDeg": 70,
+  "clawDeg": 0,
+  "motor": "coast",
+  "yawRateDegS": -0.00007695530184140899,
+  "driftCmS": 0.000002384185791015625,
+  "maxYawRateDegS": 0.0010976002271924751,
+  "lift": 69.98713039329019,
+  "claw": 0.000007976913711344463
+ },
+ {
+  "liftDeg": 70,
+  "clawDeg": 40,
+  "motor": "coast",
+  "yawRateDegS": -0.00011699788234212831,
+  "driftCmS": 0.000002384185791015625,
+  "maxYawRateDegS": 0.0013435620760123116,
+  "lift": 69.98712662482792,
+  "claw": 40.00004630936707
+ },
+ {
+  "liftDeg": 70,
+  "clawDeg": 80,
+  "motor": "coast",
+  "yawRateDegS": -0.00014631717707232845,
+  "driftCmS": 0.0000035762786865234375,
+  "maxYawRateDegS": 0.0014639208147606468,
+  "lift": 69.98712307437776,
+  "claw": 80.00000941720522
+ },
+ {
+  "liftDeg": 80,
+  "clawDeg": 0,
+  "motor": "coast",
+  "yawRateDegS": -0.000018295694971443776,
+  "driftCmS": 0,
+  "maxYawRateDegS": 0.0010039719406890874,
+  "lift": 79.98864983717426,
+  "claw": 0.0000015791729512064072
+ },
+ {
+  "liftDeg": 80,
+  "clawDeg": 40,
+  "motor": "coast",
+  "yawRateDegS": -0.00007131308441112651,
+  "driftCmS": 0.0000011920928955078125,
+  "maxYawRateDegS": 0.0012141778492555065,
+  "lift": 79.98865084418273,
+  "claw": 40.00004686043651
+ },
+ {
+  "liftDeg": 80,
+  "clawDeg": 80,
+  "motor": "coast",
+  "yawRateDegS": -0.00012167349078156854,
+  "driftCmS": 0.000002384185791015625,
+  "maxYawRateDegS": 0.0012899661018635374,
+  "lift": 79.98864469219188,
+  "claw": 79.99999844458425
+ },
+ {
+  "liftDeg": 90,
+  "clawDeg": 0,
+  "motor": "coast",
+  "yawRateDegS": -1.251112577427394e-7,
+  "driftCmS": 0,
+  "maxYawRateDegS": 0.0012624235641386593,
+  "lift": 89.99051980304603,
+  "claw": 0.000007277648646017338
+ },
+ {
+  "liftDeg": 90,
+  "clawDeg": 40,
+  "motor": "coast",
+  "yawRateDegS": -0.00003460854757622639,
+  "driftCmS": 0,
+  "maxYawRateDegS": 0.0011940241221293408,
+  "lift": 89.99052683752157,
+  "claw": 40.00006677678251
+ },
+ {
+  "liftDeg": 90,
+  "clawDeg": 80,
+  "motor": "coast",
+  "yawRateDegS": -0.00009802756083096148,
+  "driftCmS": 0.000002384185791015625,
+  "maxYawRateDegS": 0.001170688754149566,
+  "lift": 89.9905218849952,
+  "claw": 80.00000375432873
+ }
+]

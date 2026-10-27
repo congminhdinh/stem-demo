@@ -1,0 +1,25 @@
+# node_modules/.bin/vitest run src/core/world/world.gripper.cost.test.ts src/core/world/world.cost.test.ts --silent=false --reporter=verbose, BASE and HEAD alternately, 2026-10-27 10:48-10:50. The load (another session) was 10-13: the rover's own tick, the same code in both trees, ranges 0.083-0.217 ms median, so the A/B cannot tell a difference.
+base 1 13.30 10.16 9.28
+  stdout | src/core/world/world.cost.test.ts > the cost of the world > a tick of the whole world (step, sensors, snapshot, goal frame) costs under 2 ms (the strict 0.5 ms: pnpm bench:robot)
+  world tick (boxes arena, avoider, snapshot + goal frame): 0.0938 ms mean, 0.0827 ms median, 0.1589 ms p95 of 10-tick batches, CPU
+  gripper world tick (spike scenario 1, snapshot + goal frame): 0.1809 ms mean, 0.1742 ms median, 0.2270 ms p95 of 10-tick batches, CPU
+head 1 12.63 10.07 9.26
+  stdout | src/core/world/world.cost.test.ts > the cost of the world > a tick of the whole world (step, sensors, snapshot, goal frame) costs under 2 ms (the strict 0.5 ms: pnpm bench:robot)
+  world tick (boxes arena, avoider, snapshot + goal frame): 0.1564 ms mean, 0.1480 ms median, 0.2142 ms p95 of 10-tick batches, CPU
+  gripper world tick (spike scenario 1, snapshot + goal frame): 0.3309 ms mean, 0.3137 ms median, 0.4645 ms p95 of 10-tick batches, CPU
+base 2 12.10 10.00 9.24
+  stdout | src/core/world/world.cost.test.ts > the cost of the world > a tick of the whole world (step, sensors, snapshot, goal frame) costs under 2 ms (the strict 0.5 ms: pnpm bench:robot)
+  world tick (boxes arena, avoider, snapshot + goal frame): 0.1627 ms mean, 0.1490 ms median, 0.2462 ms p95 of 10-tick batches, CPU
+  gripper world tick (spike scenario 1, snapshot + goal frame): 0.2706 ms mean, 0.2630 ms median, 0.3421 ms p95 of 10-tick batches, CPU
+head 2 11.45 9.90 9.21
+  stdout | src/core/world/world.cost.test.ts > the cost of the world > a tick of the whole world (step, sensors, snapshot, goal frame) costs under 2 ms (the strict 0.5 ms: pnpm bench:robot)
+  world tick (boxes arena, avoider, snapshot + goal frame): 0.1942 ms mean, 0.1770 ms median, 0.2913 ms p95 of 10-tick batches, CPU
+  gripper world tick (spike scenario 1, snapshot + goal frame): 0.3186 ms mean, 0.3155 ms median, 0.4355 ms p95 of 10-tick batches, CPU
+base 3 11.02 9.84 9.19
+  stdout | src/core/world/world.cost.test.ts > the cost of the world > a tick of the whole world (step, sensors, snapshot, goal frame) costs under 2 ms (the strict 0.5 ms: pnpm bench:robot)
+  world tick (boxes arena, avoider, snapshot + goal frame): 0.2413 ms mean, 0.2169 ms median, 0.4024 ms p95 of 10-tick batches, CPU
+  gripper world tick (spike scenario 1, snapshot + goal frame): 0.3630 ms mean, 0.3174 ms median, 0.6071 ms p95 of 10-tick batches, CPU
+head 3 11.50 9.96 9.23
+  stdout | src/core/world/world.cost.test.ts > the cost of the world > a tick of the whole world (step, sensors, snapshot, goal frame) costs under 2 ms (the strict 0.5 ms: pnpm bench:robot)
+  world tick (boxes arena, avoider, snapshot + goal frame): 0.1360 ms mean, 0.1261 ms median, 0.1935 ms p95 of 10-tick batches, CPU
+  gripper world tick (spike scenario 1, snapshot + goal frame): 0.2735 ms mean, 0.2637 ms median, 0.3409 ms p95 of 10-tick batches, CPU

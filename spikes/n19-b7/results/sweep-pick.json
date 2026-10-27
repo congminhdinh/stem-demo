@@ -1,0 +1,13 @@
+[
+ {
+  "liftDeg": 0,
+  "clawDeg": 0,
+  "motor": "coast",
+  "yawRateDegS": 8.379752218253823e-7,
+  "driftCmS": 0,
+  "maxYawRateDegS": 0.0005181455542555059,
+  "lift": -0.00028724945190106155,
+  "claw": 0.00008131766232063302,
+  "held": null
+ }
+]

@@ -1,0 +1,210 @@
+{
+ "fixtures": {
+  "boxes-script": {
+   "final": "4927ee22",
+   "trajectory": "abf46454"
+  },
+  "line-follow": {
+   "final": "17c47f8d",
+   "trajectory": "3e412cc4"
+  },
+  "mini-mission-v1-noise": {
+   "final": "d02081f3",
+   "trajectory": "2693afb5"
+  },
+  "gripper-pick-place": {
+   "final": "b3414f0e",
+   "trajectory": "abafe587"
+  },
+  "gripper-stack": {
+   "final": "9378dcbe",
+   "trajectory": "60ce8067"
+  },
+  "gripper-sensors": {
+   "final": "f3b0127d",
+   "trajectory": "22615357"
+  }
+ },
+ "checks": {
+  "rb-mini-mission-reference": {
+   "passed": true,
+   "score": 96,
+   "variants": [
+    {
+     "seed": 3225,
+     "passed": true,
+     "score": 96,
+     "simTimeMs": 45000
+    },
+    {
+     "seed": 3226,
+     "passed": true,
+     "score": 96,
+     "simTimeMs": 45000
+    },
+    {
+     "seed": 3227,
+     "passed": true,
+     "score": 97,
+     "simTimeMs": 45000
+    }
+   ],
+   "programHash": "cb9e19752116ff762bcdc0db4e0e5995d95c49542f9fd1068b3363362ae16f7d",
+   "final": [
+    "ddde3b90",
+    "b1a5ff69",
+    "1d3194dc"
+   ]
+  },
+  "rb-line-follow-reference": {
+   "passed": true,
+   "score": 100,
+   "variants": [
+    {
+     "seed": 485,
+     "passed": true,
+     "score": 100,
+     "simTimeMs": 120000
+    },
+    {
+     "seed": 486,
+     "passed": true,
+     "score": 100,
+     "simTimeMs": 120000
+    },
+    {
+     "seed": 487,
+     "passed": true,
+     "score": 100,
+     "simTimeMs": 120000
+    }
+   ],
+   "programHash": "e771ec7e216a2b49a7307be707680736debba9147ba4a93e9976e3fee0bda2b1",
+   "final": [
+    "df90fd6e",
+    "3b9e58e1",
+    "b290a789"
+   ]
+  },
+  "rb-grip-pick-reference": {
+   "passed": true,
+   "score": 100,
+   "variants": [
+    {
+     "seed": 23,
+     "passed": true,
+     "score": 100,
+     "simTimeMs": 30000
+    },
+    {
+     "seed": 24,
+     "passed": true,
+     "score": 100,
+     "simTimeMs": 30000
+    },
+    {
+     "seed": 25,
+     "passed": true,
+     "score": 100,
+     "simTimeMs": 30000
+    }
+   ],
+   "programHash": "810d030630f07c96a115b28f05ef5e1c59c10e1c6b948ed59a9f7178d590a6b4",
+   "final": [
+    "d8b9f15d",
+    "72464d2f",
+    "96810539"
+   ]
+  },
+  "rb-grip-deliver-reference": {
+   "passed": true,
+   "score": 97,
+   "variants": [
+    {
+     "seed": 430,
+     "passed": true,
+     "score": 97,
+     "simTimeMs": 90000
+    },
+    {
+     "seed": 431,
+     "passed": true,
+     "score": 97,
+     "simTimeMs": 90000
+    },
+    {
+     "seed": 432,
+     "passed": true,
+     "score": 97,
+     "simTimeMs": 90000
+    }
+   ],
+   "programHash": "12b1f432f405eb4ad1bd5c5f381fced2437e86060c4b41c886ed245236e37d1b",
+   "final": [
+    "4139d036",
+    "b5779bbe",
+    "02ab692c"
+   ]
+  },
+  "rb-grip-sort-reference": {
+   "passed": true,
+   "score": 100,
+   "variants": [
+    {
+     "seed": 8,
+     "passed": true,
+     "score": 100,
+     "simTimeMs": 30000
+    },
+    {
+     "seed": 9,
+     "passed": true,
+     "score": 100,
+     "simTimeMs": 30000
+    },
+    {
+     "seed": 10,
+     "passed": true,
+     "score": 100,
+     "simTimeMs": 30000
+    }
+   ],
+   "programHash": "fe8b83b33e9c63aa66f461637a48178aa1206286d36cc1fdee235eb6833a1ca8",
+   "final": [
+    "8c60c9a1",
+    "0e3bbe2f",
+    "bd401fe3"
+   ]
+  },
+  "rb-grip-stack-reference": {
+   "passed": true,
+   "score": 97,
+   "variants": [
+    {
+     "seed": 217,
+     "passed": true,
+     "score": 97,
+     "simTimeMs": 45000
+    },
+    {
+     "seed": 218,
+     "passed": true,
+     "score": 97,
+     "simTimeMs": 45000
+    },
+    {
+     "seed": 219,
+     "passed": true,
+     "score": 97,
+     "simTimeMs": 45000
+    }
+   ],
+   "programHash": "9243bbc3916beacbddd9c1ebf2125b01e7ffcb0ee97ad0a7dcf0c1d10693ea18",
+   "final": [
+    "14603576",
+    "60686846",
+    "3ca8a6ec"
+   ]
+  }
+ }
+}
