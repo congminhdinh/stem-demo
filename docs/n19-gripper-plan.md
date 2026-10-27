@@ -577,6 +577,34 @@ Test: `e2e/robot-lab-gripper-look.spec.ts` (chromium-robot), `tests/color-vision
   đồ, không có HUD; ảnh cả bản đồ thì vẫn như học sinh thấy.
 - **Pixel rover:** BASE df7c327 so với HEAD, build production. 44 ảnh 3D và 14 ảnh 2D trùng bit; lần này sandbox-high cùng trạng thái ở cả hai
   bản (`spikes/n19-e8/results/rover-pixels.txt`).
+- **Fix round 1 (review `e8-review-1.md`):**
+  - **F1, tag 3D "IR/Màu" che ngàm ở "Theo xe".** Hộp của ngàm dừng ở +2,6 cm, chưa có vỏ servo kẹp. Nay tag tránh ba hộp trên màn hình, mỗi
+    hộp thêm 6 px: hộp ngàm (có vỏ servo kẹp), vật đang giữ (hoặc vật IR hay cảm biến màu đang thấy), và vật gần đầu ngàm nhất (trong
+    10 cm). Tag có thêm 4 chỗ cao hơn và xa hơn. Không chỗ nào sạch thì tag ẩn (`gripperTagLayout` cho E2E đọc). Mốc approach thêm cho bài 8
+    (3,2 s) và bài 10 (0,6 s). Spec kiểm ở camera của lab ("Tự do" lúc start, "Theo xe" mặc định ở mốc khác, không xoay lại): hộp tag không
+    chạm hộp nào. Gallery chụp thêm "Theo xe" mặc định ở approach và grasp của cả bốn bài, hai mức. Bảng index ghi, cho mỗi ảnh 3D, tag nào
+    đã tránh được.
+  - **Tag khoảng cách của xe gắp (minor).** Tag nay cao 2,5 cm trên echo, thay cho 7 cm (siêu âm gắn trên deck, nên 7 cm nổi cao hơn ngàm
+    nhiều). Tag cũng tránh ba hộp trên, rồi thử thêm 3 chỗ xa hơn. Không chỗ nào sạch thì tag đứng ở đầu tia, chỉ gặp ở close-up nhìn thẳng
+    từ trên lúc approach của bài 8 và 10. Rover giữ 7 cm và cách đặt cũ.
+  - **F2, 2D vẽ khối chồng dưới bệ.** Vật trên bản đồ vẽ theo đáy của nó (cm, làm tròn), cùng độ cao thì giữ thứ tự sa bàn.
+    `zIndex` chỉ đổi khi thứ tự đổi, không cấp phát, mảng làm sẵn. Mọi vật của rover nằm trên sàn, nên thứ tự như cũ.
+  - **F3, chữ "Kho" dưới HUD (bài 9).** Bản đồ đo HUD như view 3D (`hud-corner.ts`). Tên vùng có `name` đứng ở mép ngoài, mép kia nếu mép
+    ngoài bị che, giữa vùng nếu cả hai bị che. `paintGround` nhận vùng bị che, và trả lại tên đã vẽ (`readTopViewMat`). Bài không có vùng tên
+    (rover) vẽ thảm như cũ. Vùng đỏ của bài 10 bị HUD che hết, nên tên ở giữa (đã trong danh sách của owner).
+  - **F4, tag 3D của vùng tên đâm vào vật ở giữa vùng.** Vùng có `name` và có vật đứng trong lúc đầu: chân dây của tag ra mép ngoài, cùng
+    quy tắc với 2D (`outerEdgeIsBottom`). Chân dây vào trong max(3 cm, 15 % chiều sâu vùng) và cách mọi footprint ít nhất 1 cm. Nếu chỗ đó
+    vẫn chạm vật thì dùng mép kia. Vùng không có vật vẫn để tag ở giữa: test E5 ghim [45, 4]. Khung "Tự do" vẫn tính chỗ cho tag ở giữa vùng
+    (`camera-studio.ts`). Chân dây mới vẫn nằm trong vùng, nên khung không đổi.
+  - **Swatch kiện hàng (minor).** Kiện hàng không có màu vẫn có viền không fill. Bên trong vẽ thêm thùng carton (`#c49a68`) và băng keo
+    (`#9a6a35`) như prop 3D. Kiện hàng không có màu và không có mark mù màu.
+  - **Mù màu (minor, M2).** Trên bản đồ, phần của tay gắp nằm trên khối đang giữ (một dải xanh giữa mặt khối) là màu thứ ba. Ngưỡng hai lớp
+    lúc thì lấy dải đó làm mực, lúc thì không. Vì vậy gallery (GPU) đọc ra một dải dưới protanopia, còn spec (SwiftShader) đọc ra ba sọc.
+    - Nay chỉ đọc những ô là của mặt khối (`faceCells`): fill, mực và màu pha giữa hai màu đó. Đo mới: lưới 0,871, sọc 0,874–0,884, chấm 0,917.
+      Mark kế kém hơn 0,28–0,35. Ô của mặt khối chiếm 85–100 %.
+    - Đột biến (xanh lá = sọc) vẫn làm test trượt.
+    - Fill dưới deuteranopia lấy từ màu bản đồ đã vẽ (màu của mặt khối mà node gọi là fill), không lấy hằng số palette.
+    - Gallery đọc đúng 33 × 33 ô như spec, trên bản đồ DPR 3 cùng cỡ 1280 × 720 như spec, nên kết quả khớp với test.
 
 ### 4.16 Ghi lại khi làm E9 + E10 (bench máy trường, hai sửa hiệu năng, e2e trên bài thật; thắng §7 E9/E10 khi mâu thuẫn)
 
