@@ -75,3 +75,70 @@ stop-at-wall-2d-step.png: 0.000 % over 8, largest 0
 ### 2D, 14 shots
 0 picture(s) changed
 # => every picture bit-identical again (largest difference 0).
+
+# Fix round 1: BASE master df7c327 (the same BASE shots) vs HEAD 08b1bee (n19/e8-gallery rebased on master dabc023, fix round 1), production build
+# Same machine and browser, 1200 x 760, DPR 1; load 7.2 at the start, 3.3 at the end (uptime); 2026-10-27 12:56-12:58
+
+## 3D canvas, 44 shots
+drive-to-zone-high-follow.png: 0.000 % over 8, largest 0
+drive-to-zone-high-idle.png: 0.000 % over 8, largest 0
+drive-to-zone-high-step.png: 0.000 % over 8, largest 0
+drive-to-zone-high-top.png: 0.000 % over 8, largest 0
+drive-to-zone-low-follow.png: 0.000 % over 8, largest 0
+drive-to-zone-low-idle.png: 0.000 % over 8, largest 0
+drive-to-zone-low-step.png: 0.000 % over 8, largest 0
+drive-to-zone-low-top.png: 0.000 % over 8, largest 0
+line-follow-high-follow.png: 0.000 % over 8, largest 0
+line-follow-high-idle.png: 0.000 % over 8, largest 0
+line-follow-high-step.png: 0.000 % over 8, largest 0
+line-follow-high-top.png: 0.000 % over 8, largest 0
+line-follow-low-follow.png: 0.000 % over 8, largest 0
+line-follow-low-idle.png: 0.000 % over 8, largest 0
+line-follow-low-step.png: 0.000 % over 8, largest 0
+line-follow-low-top.png: 0.000 % over 8, largest 0
+mini-mission-high-follow.png: 0.000 % over 8, largest 0
+mini-mission-high-idle.png: 0.000 % over 8, largest 0
+mini-mission-high-step.png: 0.000 % over 8, largest 0
+mini-mission-high-top.png: 0.000 % over 8, largest 0
+mini-mission-low-follow.png: 0.000 % over 8, largest 0
+mini-mission-low-idle.png: 0.000 % over 8, largest 0
+mini-mission-low-step.png: 0.000 % over 8, largest 0
+mini-mission-low-top.png: 0.000 % over 8, largest 0
+sandbox-high-follow.png: 0.000 % over 8, largest 0
+sandbox-high-idle.png: 0.000 % over 8, largest 0
+sandbox-high-step.png: 0.000 % over 8, largest 0
+sandbox-high-top.png: 0.000 % over 8, largest 0
+sandbox-low-follow.png: 0.000 % over 8, largest 0
+sandbox-low-idle.png: 0.000 % over 8, largest 0
+sandbox-low-step.png: 0.000 % over 8, largest 0
+sandbox-low-top.png: 0.000 % over 8, largest 0
+servo-gate-high-idle.png: 0.000 % over 8, largest 0
+servo-gate-high-step.png: 0.000 % over 8, largest 0
+servo-gate-low-idle.png: 0.000 % over 8, largest 0
+servo-gate-low-step.png: 0.000 % over 8, largest 0
+square-route-high-idle.png: 0.000 % over 8, largest 0
+square-route-high-step.png: 0.000 % over 8, largest 0
+square-route-low-idle.png: 0.000 % over 8, largest 0
+square-route-low-step.png: 0.000 % over 8, largest 0
+stop-at-wall-high-idle.png: 0.000 % over 8, largest 0
+stop-at-wall-high-step.png: 0.000 % over 8, largest 0
+stop-at-wall-low-idle.png: 0.000 % over 8, largest 0
+stop-at-wall-low-step.png: 0.000 % over 8, largest 0
+0 picture(s) changed
+
+## 2D map, 14 shots
+drive-to-zone-2d-idle.png: 0.000 % over 8, largest 0
+drive-to-zone-2d-step.png: 0.000 % over 8, largest 0
+line-follow-2d-idle.png: 0.000 % over 8, largest 0
+line-follow-2d-step.png: 0.000 % over 8, largest 0
+mini-mission-2d-idle.png: 0.000 % over 8, largest 0
+mini-mission-2d-step.png: 0.000 % over 8, largest 0
+sandbox-2d-idle.png: 0.000 % over 8, largest 0
+sandbox-2d-step.png: 0.000 % over 8, largest 0
+servo-gate-2d-idle.png: 0.000 % over 8, largest 0
+servo-gate-2d-step.png: 0.000 % over 8, largest 0
+square-route-2d-idle.png: 0.000 % over 8, largest 0
+square-route-2d-step.png: 0.000 % over 8, largest 0
+stop-at-wall-2d-idle.png: 0.000 % over 8, largest 0
+stop-at-wall-2d-step.png: 0.000 % over 8, largest 0
+0 picture(s) changed
