@@ -7,8 +7,8 @@
 //   - grasp: the first Bước with the jaws closed on the object on the floor (the arm still down): the claw closing on it;
 //   - carry: the object held and lifted (90°, lesson 11's 55°), the car driving it to where it goes;
 //   - release (lesson 11): the claw open over the base, the cube left standing on it;
-//   - approach (lessons 9 and 11, for the overlays over the tape): following the tape to the object, the arm down, the claw open, the IR
-//     and the colour sensor seeing nothing yet.
+//   - approach: going to the object, the arm down, the claw open, the IR and the colour sensor seeing nothing yet (lessons 9 and 11 on
+//     the tape; fix round 1, review F1: lessons 8 and 10 too, for the default "Theo xe" shots).
 // Lesson 10's later rounds (red, blue) are shown as the lab shows a check's round: Kiểm tra, Xem lại lượt N, then paused and put back to
 // its start (Đặt lại robot) and stepped like the others.
 
@@ -48,6 +48,7 @@ export const gripperLessonRuns: readonly GripperLessonRun[] = [
     round: 1,
     moments: [
       { name: 'start', steps: 0, expect: { heldId: null, liftDeg: ARM_UP, clawDeg: OPEN, object: { id: 'cube', zCm: ON_FLOOR, at: [85, 45] }, yawDeg: 0 } },
+      { name: 'approach', steps: 32, expect: { heldId: null, liftDeg: ARM_DOWN, clawDeg: OPEN, object: { id: 'cube', zCm: ON_FLOOR, at: [85, 45] }, yawDeg: 0 } },
       // D4 fix round 1: the approach at 50 % (the claw closes at 3.6–3.7 s) and the drop 35 cm from the far wall.
       { name: 'grasp', steps: 37, expect: { heldId: 'cube', liftDeg: ARM_DOWN, clawDeg: CLOSED, object: { id: 'cube', zCm: ON_FLOOR, at: [85, 45] }, yawDeg: 0 } },
       { name: 'carry', steps: 50, expect: { heldId: 'cube', liftDeg: ARM_UP, clawDeg: CLOSED, object: { id: 'cube', zCm: [8.9, 9.1], at: [99.59, 45] }, yawDeg: 0 } },
@@ -69,6 +70,7 @@ export const gripperLessonRuns: readonly GripperLessonRun[] = [
     colour: 'green',
     moments: [
       { name: 'start', steps: 0, expect: { heldId: null, liftDeg: ARM_UP, clawDeg: OPEN, object: { id: 'cube', zCm: ON_FLOOR, at: [49, 75] }, yawDeg: 0 } },
+      { name: 'approach', steps: 6, expect: { heldId: null, liftDeg: ARM_DOWN, clawDeg: OPEN, object: { id: 'cube', zCm: ON_FLOOR, at: [49, 75] }, yawDeg: 0 } },
       { name: 'grasp', steps: 10, expect: { heldId: 'cube', liftDeg: ARM_DOWN, clawDeg: CLOSED, object: { id: 'cube', zCm: ON_FLOOR, at: [49, 75] }, yawDeg: 0 } },
       { name: 'carry', steps: 30, expect: { heldId: 'cube', liftDeg: ARM_UP, clawDeg: CLOSED, object: { id: 'cube', zCm: [8.9, 9.1], at: [67.34, 75] }, yawDeg: 0 } },
     ],

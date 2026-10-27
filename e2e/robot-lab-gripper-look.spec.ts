@@ -73,6 +73,18 @@ function look(pixels: number[][]) {
   return { deviation, colours: new Set(pixels.map((pixel) => pixel.map((c) => c >> 4).join(','))).size };
 }
 
+type NdcBox = { left: number; right: number; bottom: number; top: number };
+type GripperTag = { shown: boolean; box: NdcBox; keepOut: NdcBox[]; keepOutCount: number };
+/** The gripper's tag as the 3D view last laid it out (sensor-label-boxes.ts `gripperTagLayout`, the dev server's module), NDC. */
+const gripperTag = (frame: Frame) =>
+  frame.evaluate(async () => {
+    const path = '/src/ui/robot3d/sensor-label-boxes.ts';
+    // Two frames: the layout of the view as it is now.
+    await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(null))));
+    return structuredClone(((await import(/* @vite-ignore */ path)) as { gripperTagLayout: GripperTag }).gripperTagLayout);
+  });
+const ndcMeets = (a: NdcBox, b: NdcBox) => a.left < b.right && b.left < a.right && a.bottom < b.top && b.bottom < a.top;
+
 const snapshot = (frame: Frame) => frame.evaluate(() => window.__stem!.robot.getSnapshot()) as Promise<World | null>;
 
 /** Bước until the run's time is `steps` tenths of a second. */
@@ -143,6 +155,7 @@ test.describe('the gripper car on its lessons, in 3D (N19 E8)', () => {
       test(`${key} (${tier}): the reference at each moment is the reference's world, the modelled scene, a real 3D draw`, async ({ page, baseURL }) => {
         const errors: string[] = [];
         const looks: Record<string, { deviation: number; colours: number }> = {};
+        const tags: Record<string, GripperTag> = {};
         page.on('pageerror', (error) => errors.push(String(error)));
         await page.addInitScript(sampleDraws);
         const frame = await openInLesson(page, labUrl(baseURL, key));
@@ -160,6 +173,11 @@ test.describe('the gripper car on its lessons, in 3D (N19 E8)', () => {
             await frame.locator(`[data-testid=robot-camera] [data-mode=${moment.name === 'start' ? 'orbit' : 'follow'}]`).click();
             await frame.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(null)))));
             await expect(frame.getByTestId('robot-canvas').locator('canvas')).toHaveAttribute('data-models', 'modelled');
+            // Review F1: in the lab's own cameras the sensors' tag covers neither the claw (the jaws' room with the claw servo) nor the
+            // object held or ahead; a tag with no clear spot is not shown.
+            const tag = await gripperTag(frame);
+            tags[`${shotName(run, tier, moment.name, moment.name === 'start' ? 'free' : 'follow')}`] = tag;
+            if (tag.shown) for (const keep of tag.keepOut.slice(0, tag.keepOutCount)) expect(ndcMeets(tag.box, keep), `${moment.name}: ${JSON.stringify(tag)}`).toBe(false);
             const { deviation, colours } = look(await frame.evaluate(() => (window as unknown as { __look: number[][] }).__look));
             const name = shotName(run, tier, moment.name, moment.name === 'start' ? 'free' : 'follow');
             looks[name] = { deviation: Math.round(deviation * 1000) / 1000, colours };
@@ -171,6 +189,7 @@ test.describe('the gripper car on its lessons, in 3D (N19 E8)', () => {
         }
         mkdirSync(shots, { recursive: true });
         writeFileSync(join(shots, `looks-${key}-${tier}.json`), `${JSON.stringify(looks, null, 1)}\n`);
+        writeFileSync(join(shots, `tags-${key}-${tier}.json`), `${JSON.stringify(tags, null, 1)}\n`);
         expect(errors).toEqual([]);
       });
     }

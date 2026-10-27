@@ -280,8 +280,9 @@ const views = {
 /** Which views each moment is shot in, and where the close-ups look from (relative to the car's heading, degrees; polar; metres). */
 const plan = {
   start: { views: ['free', 'follow', 'deck-close'], close: null },
-  approach: { views: ['free-close', 'above-close'], close: { side: -40, polar: 55, distance: 0.3, ahead: 9, up: 2 } },
-  grasp: { views: ['follow-close', 'free-close', 'above-close'], close: { side: -50, polar: 58, distance: 0.34, ahead: 7, up: 3 } },
+  // Fix round 1 (review F1, M4): the lab's own "Theo xe" (as it starts, not turned) at the approach and the grasp too.
+  approach: { views: ['follow', 'free-close', 'above-close'], close: { side: -40, polar: 55, distance: 0.3, ahead: 9, up: 2 } },
+  grasp: { views: ['follow', 'follow-close', 'free-close', 'above-close'], close: { side: -50, polar: 58, distance: 0.34, ahead: 7, up: 3 } },
   carry: { views: ['follow', 'free-close'], close: { side: -60, polar: 62, distance: 0.42, ahead: 5, up: 6 } },
   release: { views: ['follow-close', 'free-close'], close: { side: -55, polar: 55, distance: 0.38, ahead: 9, up: 5 } },
 };
