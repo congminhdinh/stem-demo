@@ -31,7 +31,7 @@ describe('the names of objects and zones in a check’s report (N19 D3)', () => 
     expect(why(viText, 'vi', 'sort-cube', failed('sort-cube', goalReasons.objectWrongZone, { detail: { zoneId: 'blue-zone' } }), 2, redInRound3)).toBe(
       'Khối đỏ nằm ở vùng xanh dương ở lượt 3',
     );
-    expect(why(viText, 'vi', 'place-cube', failed('place-cube', goalReasons.objectStillHeld), 0)).toBe('Xe vẫn còn giữ khối đỏ khi hết giờ ở lượt 1');
+    expect(why(viText, 'vi', 'place-cube', failed('place-cube', goalReasons.objectStillHeld), 0)).toBe('Xe vẫn còn giữ khối đỏ khi lượt chạy kết thúc ở lượt 1');
     expect(why(viText, 'vi', 'place-cube', failed('place-cube', goalReasons.objectPushed, { atS: 0.5 }), 0)).toBe('Khối đỏ bị đẩy chứ không được gắp lúc 0,5 s ở lượt 1');
   });
 

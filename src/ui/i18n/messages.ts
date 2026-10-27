@@ -373,7 +373,7 @@ export const en = {
   'robot.goal.reason.not-finished-in-time': 'Not every goal was met in time.',
   'robot.goal.reason.block-not-used': 'The program does not use the block that is asked for.',
   // N19 D3: why a pick-and-place goal is not met (reasons.ts, plan §4.5).
-  'robot.goal.reason.object-still-held': 'The robot was still holding the object at the end.',
+  'robot.goal.reason.object-still-held': 'The robot was still holding the object when the run ended.',
   'robot.goal.reason.object-pushed': 'The object was pushed, not picked up and carried.',
   'robot.goal.reason.object-never-held': 'The robot never picked the object up.',
   'robot.goal.reason.object-wrong-zone': 'The object ended in the wrong zone.',
@@ -464,7 +464,7 @@ export const en = {
   'robot.check.why.internal-error': 'The simulation stopped because of an internal error',
   // N19 D3: a pick-and-place reason as a clause; {object} and {base} name objects ("the red cube", "parcel 2"), {zone} the zone an object
   // ended in, {target} the zone it was to go to (check-report.ts).
-  'robot.check.why.object-still-held': 'The robot was still holding {object} at the end',
+  'robot.check.why.object-still-held': 'The robot was still holding {object} when the run ended',
   'robot.check.why.object-pushed': '{object} was pushed, not picked up',
   'robot.check.why.object-never-held': 'The robot never picked {object} up',
   'robot.check.why.object-wrong-zone': '{object} ended in {zone}',
@@ -875,7 +875,7 @@ export const vi: Readonly<Record<MessageKey, string>> = {
   'robot.goal.reason.servo-not-set-in-zone': 'Servo chưa được giữ ở đúng góc yêu cầu khi robot ở trong vùng.',
   'robot.goal.reason.not-finished-in-time': 'Chưa đạt đủ mọi mục tiêu trong thời gian cho phép.',
   'robot.goal.reason.block-not-used': 'Chương trình chưa dùng khối lệnh được yêu cầu.',
-  'robot.goal.reason.object-still-held': 'Robot vẫn còn giữ vật khi hết giờ.',
+  'robot.goal.reason.object-still-held': 'Robot vẫn còn giữ vật khi lượt chạy kết thúc.',
   'robot.goal.reason.object-pushed': 'Vật bị đẩy chứ không được gắp và chở tới.',
   'robot.goal.reason.object-never-held': 'Robot chưa hề gắp vật lên.',
   'robot.goal.reason.object-wrong-zone': 'Vật nằm ở sai vùng.',
@@ -964,7 +964,7 @@ export const vi: Readonly<Record<MessageKey, string>> = {
   'robot.check.why.not-finished-in-time': 'Chưa đạt đủ mọi mục tiêu trong thời gian cho phép',
   'robot.check.why.block-not-used': 'Chương trình chưa dùng khối lệnh được yêu cầu',
   'robot.check.why.internal-error': 'Mô phỏng dừng vì lỗi nội bộ',
-  'robot.check.why.object-still-held': 'Xe vẫn còn giữ {object} khi hết giờ',
+  'robot.check.why.object-still-held': 'Xe vẫn còn giữ {object} khi lượt chạy kết thúc',
   'robot.check.why.object-pushed': '{object} bị đẩy chứ không được gắp',
   'robot.check.why.object-never-held': 'Xe chưa hề gắp {object} lên',
   'robot.check.why.object-wrong-zone': '{object} nằm ở {zone}',
