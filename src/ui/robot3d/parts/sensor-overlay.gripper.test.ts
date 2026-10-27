@@ -255,3 +255,58 @@ describe('when the gripper car’s overlay asks for a frame (N19 E4/E5 minor rou
     expect(overlay.sameView(before, after)).toBe(false);
   });
 });
+
+describe('the gripper car’s colour sensor as the run sets it up (N19 final fix, G2 I1)', () => {
+  // A run whose program has no colour block never begins the sensor (robot-run-session.ts `colorSensorsOn`): lessons 8, 9 and 11 said
+  // "Màu: chưa có số đọc" on every run, and the second line made the tag big enough to be hidden more often.
+  const seeing = () => world(readouts({ detected: true, hitId: 'cube-red' }, { hitId: 'cube-red', distanceCm: 1.4 }));
+
+  it('draws no colour ray, spot or tag line for a run that does not set it up; the IR’s beam and line as before', () => {
+    const { label, painted } = recordingWords();
+    const overlay = make(label);
+    overlay.setColorSensorsOn([]);
+    overlay.update(seeing(), true, 0.5, 0);
+    const rays = overlay.gripperRays!;
+    for (const part of [rays.colorRay!, rays.ring!, rays.spot!]) expect(paintOf(overlay, part)[3]).toBe(0);
+    expect(paintOf(overlay, rays.irTube!)[3]).toBeCloseTo(0.95, 6);
+    expect(painted).toEqual(['IR: có vật']);
+    expect(overlay.probe().gripper).toEqual({ ir: { role: 'irClaw', visible: true, detected: true }, color: { role: 'color1', visible: false, hit: false, reachCm: 0, color: null }, label: ['IR: có vật'] });
+  });
+
+  it('draws them for a run that sets it up, “chưa có số đọc” until its first window, as before', () => {
+    const { label, painted } = recordingWords();
+    const overlay = make(label);
+    overlay.setColorSensorsOn(['color1']);
+    overlay.update(seeing(), true, 0.5, 0);
+    expect(paintOf(overlay, overlay.gripperRays!.colorRay!)[3]).toBeCloseTo(0.75, 6);
+    expect(painted).toEqual(['IR: có vật | Màu: chưa có số đọc']);
+    expect(overlay.probe().gripper!.color).toEqual({ role: 'color1', visible: true, hit: true, reachCm: 1.4, color: null });
+  });
+
+  it('follows the run shown, repainting only when that changes: off, on with a red reading, off again; nothing more at rest', () => {
+    const { label, painted } = recordingWords();
+    const overlay = make(label);
+    const red1 = () => world(readouts({ detected: true, hitId: 'cube-red' }, { hitId: 'cube-red', distanceCm: 1.4, rgbc: red }));
+    overlay.setColorSensorsOn([]);
+    overlay.update(red1(), true, 0.5, 0);
+    overlay.update(red1(), true, 0.5, 0.1);
+    overlay.setColorSensorsOn(['color1']);
+    overlay.update(red1(), true, 0.5, 0.2);
+    overlay.update(red1(), true, 0.5, 0.3);
+    const spot = paintOf(overlay, overlay.gripperRays!.spot!);
+    spot.forEach((value, i) => expect(value).toBeCloseTo(rgba(bodyPalette.red, 1)[i]!, 6));
+    overlay.setColorSensorsOn([]);
+    overlay.update(red1(), true, 0.5, 0.4);
+    overlay.update(red1(), true, 0.5, 0.5);
+    expect(paintOf(overlay, overlay.gripperRays!.spot!)[3]).toBe(0);
+    expect(painted).toEqual(['IR: có vật', 'IR: có vật | Màu: đỏ', 'IR: có vật']);
+  });
+
+  it('is on for a car whose run says nothing (null): no run state, as the overlay always drew it', () => {
+    const { label, painted } = recordingWords();
+    const overlay = make(label);
+    overlay.setColorSensorsOn(null);
+    overlay.update(seeing(), true, 0.5, 0);
+    expect(painted).toEqual(['IR: có vật | Màu: chưa có số đọc']);
+  });
+});

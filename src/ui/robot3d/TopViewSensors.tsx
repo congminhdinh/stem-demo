@@ -6,6 +6,7 @@ import type { ColorSensorSpec, IrObstacleSpec, Kit, LineSensorSpec, UltrasonicSp
 import type { Scenario } from '../../core/scenario/scenario';
 import type { RobotSnapshot } from '../../core/world/snapshot';
 import { useLocale, useText } from '../i18n/text';
+import { shownColorSensorsOn } from './color-sensors-on';
 import { formatNumber } from './format';
 import { gripperStateOf } from './gripper-pose';
 import type { RobotModel } from './robot-model';
@@ -15,7 +16,7 @@ import type { RobotToolsStore } from './robot-tools-store';
 import { shownObjectColors } from './round-colors';
 import { idleSnapshot } from './scene-math';
 import { readingTints, sensorColors as colors } from './sensor-colors';
-import { goalZoneIds, highlightColor, nextGoalZoneId, pulseLevel, sameSensorView, sectorPointsCm, SECTOR_POINTS_LENGTH, shownColor, spotDrawRadiusCm } from './sensor-overlay-math';
+import { colorSensorShown, goalZoneIds, highlightColor, nextGoalZoneId, pulseLevel, sameSensorView, sectorPointsCm, SECTOR_POINTS_LENGTH, shownColor, spotDrawRadiusCm } from './sensor-overlay-math';
 import { casingExtraCm, createGripperTopView, gripperTopViewInto, heldRingRadiusCm, jawCornerInto, type GripperTopView } from './top-view-gripper';
 import { arenaToStage, BODY_EDGE_CM, movingBodies, rayLengthCm, sameTopView, type TopViewFit } from './top-view-math';
 import { createStageBox, createTagPlace, placeGripperTag, setStageBox, TAG_POINTER_OF, type StageBox } from './top-view-tag-layout';
@@ -139,6 +140,10 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
     const layer = n.layer;
     if (layer === null) return undefined;
     let drawn: RobotSnapshot | null = null;
+    // N19 final fix (G2 I1): the colour sensors the run in view sets up (color-sensors-on.ts), read with the world it draws: one it does not
+    // has no ray, spot or tag line. The same array for a run: another one (a new run) draws again.
+    let colorSensorsOn: readonly string[] | null = null;
+    let drawnColorSensorsOn: readonly string[] | null | undefined;
 
     const apply = (world: RobotSnapshot) => {
       const on = tools?.getState().sensors ?? true;
@@ -237,7 +242,7 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
         n.ir.end?.visible(false);
       }
       const colorReading = color === null ? undefined : world.sensors[color.sensorIndex];
-      if (color !== null && colorReading?.kind === 'color-sensor') {
+      if (color !== null && colorReading?.kind === 'color-sensor' && colorSensorShown(colorSensorsOn, color.role)) {
         const { origin, heading } = place(color);
         const reach = colorReading.distanceCm ?? color.rangeCm;
         const [x1, y1] = [origin.xCm + reach * Math.cos(heading), origin.yCm + reach * Math.sin(heading)];
@@ -357,9 +362,12 @@ export function TopViewSensorsLayer({ scenario, kit, model, store, tools, fit }:
     };
 
     const refresh = (force: boolean) => {
-      const next = store.getState().latestWorld() ?? idle;
-      if (!force && sameTopView(drawn, next) && sameSensorView(drawn, next, goals, objectColors)) return;
+      const state = store.getState();
+      const next = state.latestWorld() ?? idle;
+      colorSensorsOn = shownColorSensorsOn(state);
+      if (!force && colorSensorsOn === drawnColorSensorsOn && sameTopView(drawn, next) && sameSensorView(drawn, next, goals, objectColors)) return;
       drawn = next;
+      drawnColorSensorsOn = colorSensorsOn;
       apply(next);
     };
     refresh(true);

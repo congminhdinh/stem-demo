@@ -6,6 +6,7 @@ import { createProgramIO } from '../hardware/binding';
 import type { BoardProfile } from '../hardware/board';
 import type { KitCatalog } from '../hardware/catalog';
 import { createTcs34725, TCS_STATUS_AVALID, type Rgbc, type Tcs34725 } from '../hardware/devices/tcs34725';
+import type { ModuleUse } from '../hardware/drivers';
 import { colorReadLastEventUs } from '../hardware/drivers/tcs34725';
 import { kitKey, kitPort, portParam, type Kit } from '../hardware/kit';
 import { createVirtualUno, type VirtualUno } from '../hardware/virtual-uno';
@@ -213,6 +214,14 @@ export type RobotRunSnapshot = {
    * no part of the world (the hashes are unchanged).
    */
   objectColors?: Readonly<Record<string, string>>;
+  /**
+   * N19 final fix (G2 I1): the roles of the kit's colour sensors the run's program sets up (an op of theirs in its uses, `color.is` or
+   * `color.raw`, whose setup() runs colorBegin; a teleop run's `color.is`, teleop.ts), in kit order: the views show a colour sensor's ray,
+   * spot and tag line only for these (a program with no colour block never begins the sensor, which never reads). The same frozen array on
+   * every publish of a run. Left out for a kit with no colour sensor (a rover's states are as they were). It is no part of the world (the
+   * hashes are unchanged).
+   */
+  colorSensorsOn?: readonly string[];
 };
 
 export type RobotStartFailureReason =
@@ -332,6 +341,16 @@ const noScore: ScoreState = { points: 0, maxScore: null, goals: [] };
 /** What a start compiled, kept for `resetRobot`; a teleop run has no program (`ir` null) and sets up the drive only. */
 type Prepared = { ir: YbcProgramIR | null; uses: Pick<UnoProgramUses, 'modules' | 'inputPins' | 'outputPins'>; diagnostics: RunDiagnostic[]; program: unknown };
 
+/**
+ * N19 final fix (G2 I1): the roles of `kit`'s colour sensors that `uses` sets up (an op of the role: binding.ts runs that op's setup, the
+ * driver's colorBegin), in kit order, frozen; null for a kit with no colour sensor.
+ */
+function colorSensorsSetUp(kit: Kit, uses: readonly ModuleUse[]): readonly string[] | null {
+  const sensors = kit.modules.filter((module) => module.kind === 'color-sensor');
+  if (sensors.length === 0) return null;
+  return Object.freeze(sensors.filter((module) => uses.some((use) => use.role === module.role)).map((module) => module.role));
+}
+
 /** What a teleop run is made from (N18 R4.8): no program, the drive's setup (N19 E3: and the gripper's, for a kit that has one), nothing for uses-block to read. */
 const teleopPrepared = (kit: Kit, board: BoardProfile): Prepared => ({ ir: null, uses: teleopUses(kit, board), diagnostics: [], program: null });
 
@@ -389,6 +408,8 @@ type ActiveRun = {
   endContact: GoalContact | null;
   /** N19 E4/E5: the objects' colours in the run's variant (frozen, published as is), or null for a scenario whose variants recolour nothing. */
   objectColors: Readonly<Record<string, string>> | null;
+  /** N19 final fix (G2 I1): the colour sensors the program sets up (frozen, published as is), or null for a kit with none. */
+  colorSensorsOn: readonly string[] | null;
   /** Once the program finished: the robot's outline on the last tick, and the ticks in a row it has been at rest (see the top of this file). */
   restPoints: readonly (readonly [number, number])[] | null;
   restTicks: number;
@@ -567,6 +588,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
       ...(run.endContact === null ? {} : { endContact: { otherId: run.endContact.otherId, tags: [...run.endContact.tags] } }),
       ...(run.teleop === null ? {} : { teleop: true as const }),
       ...(run.objectColors === null ? {} : { objectColors: run.objectColors }),
+      ...(run.colorSensorsOn === null ? {} : { colorSensorsOn: run.colorSensorsOn }),
     });
   };
 
@@ -962,6 +984,7 @@ export function createRobotRunSession(options: RobotRunSessionOptions): RobotRun
         scenario.variants.objectColors === undefined
           ? null
           : Object.freeze(Object.fromEntries(world.arena.objects.flatMap((object) => (object.color === undefined ? [] : [[object.id, object.color] as const])))),
+      colorSensorsOn: colorSensorsSetUp(kit, prepared.uses.modules),
       restPoints: null,
       restTicks: 0,
       publishedVerdict: '',

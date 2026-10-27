@@ -245,3 +245,9 @@ export function highlightColor(zoneHex: string): string {
   };
   return `#${hex2(channel(h + 1 / 3))}${hex2(channel(h))}${hex2(channel(h - 1 / 3))}`;
 }
+
+/**
+ * N19 final fix (G2 I1): whether the views draw the colour sensor `role`, given the colour sensors the run in view sets up (`on`,
+ * color-sensors-on.ts): one of those, or any when no run says (null).
+ */
+export const colorSensorShown = (on: readonly string[] | null, role: string): boolean => on === null || on.includes(role);

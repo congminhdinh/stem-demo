@@ -8,10 +8,10 @@ import { gripperStateOf } from '../gripper-pose';
 import type { Detail } from '../lighting/look';
 import type { RobotModel } from '../robot-model';
 import { COLOR_RAY_QUIET_ALPHA, readingTints, sensorColors as colors } from '../sensor-colors';
-import { GLYPH, goalZoneIds, highlightColor, labelGlyphs, LABEL_GLYPHS_MAX, nextGoalZoneId, sameSensorView, spotDrawRadiusCm } from '../sensor-overlay-math';
+import { colorSensorShown, GLYPH, goalZoneIds, highlightColor, labelGlyphs, LABEL_GLYPHS_MAX, nextGoalZoneId, sameSensorView, spotDrawRadiusCm } from '../sensor-overlay-math';
 import { NO_ECHO_RAY_CM } from '../top-view-math';
 import { createDistanceLabel, type DistanceLabel, type DistanceLabelOptions } from './distance-label';
-import { beamAxisEcho, beamWrite, buildBeam, buildGripperRays, buildSpots, gripperRaysColor, gripperRaysIr, gripperRaysWrite, rgba, spotColor, spotsHide, spotsWrite, type Beam, type GripperRays, type Rgba, type Spots } from './overlay-geometry';
+import { beamAxisEcho, beamWrite, buildBeam, buildGripperRays, buildSpots, gripperRaysColor, gripperRaysColorHide, gripperRaysIr, gripperRaysWrite, rgba, spotColor, spotsHide, spotsWrite, type Beam, type GripperRays, type Rgba, type Spots } from './overlay-geometry';
 import { createWordsLabel, type WordsLabel, type WordsLabelOptions } from './words-label';
 import { zoneHighlightGeometry } from './zone-highlight';
 
@@ -105,6 +105,12 @@ export type SensorOverlay = {
    * own. Kept until told again; the next `update` lights by it.
    */
   setRoundColors(colors: Readonly<Record<string, string>> | null): void;
+  /**
+   * N19 final fix (G2 I1): the colour sensors the run shown sets up (robot-run-session.ts `colorSensorsOn`, color-sensors-on.ts): a gripper
+   * car's colour sensor that is not among them has no ray, spot or tag line; null (no run says) draws it. Kept until told again; the next
+   * `update` draws by it.
+   */
+  setColorSensorsOn(roles: readonly string[] | null): void;
   /**
    * N19 E4/E5 minor round (review 2, N2): whether two worlds draw the same overlays (`sameSensorView`), the next goal's zone worked out with
    * the very colours this overlay lights it by (the round's, else the arena's): the check that asks for a frame (SensorOverlay.tsx).
@@ -406,6 +412,9 @@ export function createSensorOverlay({ kit, model, scenario, decimal, unit, noEch
     setRoundColors(colors) {
       round.colors = colors ?? arenaColors;
     },
+    setColorSensorsOn(roles) {
+      carried?.power(roles);
+    },
     sameView: (a, b) => sameSensorView(a, b, scenario.goals, round.colors),
     gripperLabel: carried?.label ?? null,
     gripperRoom: carried?.room ?? null,
@@ -429,6 +438,8 @@ type Carried = {
   rays: GripperRays;
   label: WordsLabel | null;
   update(world: RobotSnapshot): void;
+  /** N19 final fix (G2 I1): the colour sensors the run sets up (null: no run says, the sensor is drawn). */
+  power(roles: readonly string[] | null): void;
   labelShown(): boolean;
   probe(shown: boolean): NonNullable<SensorOverlayProbe['gripper']>;
 };
@@ -486,9 +497,10 @@ function carriedSensors(
   // What is painted now, as small integers in one typed array (a number in a closure's variable or an object's field makes garbage often
   // enough to measure): the IR beam (−1 not yet, 0 quiet, 1 seeing), the colour ray (−1 not yet, 0 no hit, 1 a hit), the spot's tint
   // (−2 not yet, −1 none, else the colour's index in COLOR_NAMES), the class of the last counts (−1 none yet), the tag's two lines (−3
-  // never painted, −2 left out; the IR's 0/1; the colour's index, −1 for no reading), and whether each sensor is shown now (0/1).
-  const S = { ir: 0, hit: 1, tint: 2, classified: 3, lineIr: 4, lineColor: 5, irOn: 6, colorOn: 7 } as const;
-  const state = new Int8Array([-1, -1, -2, -1, -3, -3, 0, 0]);
+  // never painted, −2 left out; the IR's 0/1; the colour's index, −1 for no reading), and whether each sensor is shown now (0/1). N19 final
+  // fix (G2 I1): whether the run sets the colour sensor up (0/1), and whether its ray and spot are unpainted (0/1).
+  const S = { ir: 0, hit: 1, tint: 2, classified: 3, lineIr: 4, lineColor: 5, irOn: 6, colorOn: 7, powered: 8, colorHidden: 9 } as const;
+  const state = new Int8Array([-1, -1, -2, -1, -3, -3, 0, 0, 1, 0]);
   // The colour sensor's last counts (r, g, b, c), the ray's reach (m) and the lift the carriage was placed at (degrees), for what changed.
   const last = new Float64Array([Number.NaN, Number.NaN, Number.NaN, Number.NaN, Number.NaN, Number.NaN]);
   const [pivotX, pivotY, pivotZ] = gripper.position;
@@ -531,8 +543,17 @@ function carriedSensors(
         }
       }
       const colorReading = color === null ? undefined : world.sensors[color.sensorIndex];
-      const colorOn = colorReading?.kind === 'color-sensor';
+      // N19 final fix (G2 I1): only a colour sensor the run's program sets up reads; one that is not has no ray, spot or line.
+      const colorOn = colorReading?.kind === 'color-sensor' && state[S.powered] === 1;
+      if (!colorOn && state[S.colorHidden] === 0) {
+        // Unpainted once; painted again from what it reads when it is on (its hit and tint as never painted).
+        gripperRaysColorHide(rays);
+        state[S.colorHidden] = 1;
+        state[S.hit] = -1;
+        state[S.tint] = -2;
+      }
       if (colorOn) {
+        state[S.colorHidden] = 0;
         const reach = colorReading.distanceCm === null ? colorRangeM : colorReading.distanceCm / CM_PER_M;
         if (reach !== last[4]) {
           last[4] = reach;
@@ -570,6 +591,9 @@ function carriedSensors(
         state[S.lineIr] = irLine;
         state[S.lineColor] = colorLine;
       }
+    },
+    power(roles) {
+      state[S.powered] = color === null || colorSensorShown(roles, color.role) ? 1 : 0;
     },
     labelShown: () => group.visible && label !== null && label.widthShare > 0,
     probe(on) {

@@ -6,6 +6,7 @@ import type { Kit } from '../../../core/hardware/kit';
 import type { Scenario } from '../../../core/scenario/scenario';
 import type { RobotSnapshot } from '../../../core/world/snapshot';
 import { VIEW_SAFE_RECT } from '../camera-studio';
+import { shownColorSensorsOn } from '../color-sensors-on';
 import type { CardEdge, HudCorner, ToolsCorner } from '../hud-corner';
 import type { Detail } from '../lighting/look';
 import type { RobotModel } from '../robot-model';
@@ -130,14 +131,19 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
   useEffect(() => {
     if (!overlay) return undefined;
     let shown = store.getState().latestWorld();
+    // N19 final fix (G2 I1): the colour sensors the run in view sets up, which the frame gives the overlay: another run's asks for a frame.
+    let shownColorSensors = shownColorSensorsOn(store.getState());
     const ask = () => {
       if (get().internal.frames < 2) invalidate(2);
     };
     const check = () => {
-      const next = store.getState().latestWorld();
+      const state = store.getState();
+      const next = state.latestWorld();
+      const colorSensors = shownColorSensorsOn(state);
       // Minor round (review 2, N2): the overlay's own check, with the colours it lights the goal's zone by (the arena's with no round).
-      if (!overlay.sameView(shown, next)) {
+      if (!overlay.sameView(shown, next) || colorSensors !== shownColorSensors) {
         shown = next;
+        shownColorSensors = colorSensors;
         ask();
       }
     };
@@ -196,6 +202,7 @@ export function SensorOverlay({ scenario, kit, model, view, store, tools, reduce
   useFrame(({ clock }) => {
     if (!overlay) return;
     const world = view();
+    overlay.setColorSensorsOn(shownColorSensorsOn(store.getState()));
     overlay.update(world, tools ? tools.getState().sensors : true, pulseLevel(world.status === 'running', reducedMotion, clock.elapsedTime), clock.elapsedTime);
     const { anchor, anchors, avoid, place } = scratch;
     const { hud, card, tools: toolsCorner } = latest.current;

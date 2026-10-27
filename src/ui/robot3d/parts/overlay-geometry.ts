@@ -442,6 +442,17 @@ function paintLook(colors: Float32Array, range: Range, look: Rgba, shown: boolea
   }
 }
 
+/** N19 final fix (G2 I1): the colour sensor's ray, ring and spot unpainted (no alpha), for a sensor the run's program does not set up. */
+export function gripperRaysColorHide(rays: GripperRays): void {
+  if (rays.colorRay === null || rays.ring === null || rays.spot === null) return;
+  const attribute = rays.geometry.getAttribute('color');
+  const colors = attribute.array as Float32Array;
+  paintLook(colors, rays.colorRay, rays.look.colorRayQuiet, false);
+  paintLook(colors, rays.ring, rays.look.spotRing, false);
+  paintLook(colors, rays.spot, rays.look.spotRing, false);
+  attribute.needsUpdate = true;
+}
+
 /**
  * Paints the colour sensor's ray and spot: the ray strong when it meets something (`hit`), the spot shown then, in its ring, tinted
  * `tint` (none: the ring alone, for a colour it cannot tell or before its first window).

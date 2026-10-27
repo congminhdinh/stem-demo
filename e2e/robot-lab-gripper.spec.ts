@@ -13,7 +13,8 @@ import { pinLowTierChainOff } from './robot-chain';
 // src/samples/robot-solutions.ts; e2e/robot-lab-gripper-ui.spec.ts is the test arena's), drawn by SwiftShader (playwright.config.ts, project
 // chromium-robot; Firefox runs what needs no WebGL). The lab is opened by its URL, as the LMS's frame does (?embed=1&lab=robot&template=<key>).
 //   - Chạy: the reference of rb-grip-pick holds the cube and puts it down in the drop zone; the HUD's chip "Đang giữ: khối vàng" comes and
-//     goes; the lab says "Đã gắp khối vàng." and "Đã thả khối vàng.".
+//     goes; the lab says "Đã gắp khối vàng." and "Đã thả khối vàng."; N19 final fix (G2 I1): the sensors' tag has no "Màu" line (the lesson
+//     has no colour block).
 //   - Kiểm tra Nhanh: the card of the reference (100/100 and its three goals) and of a program that pushes the cube (15/100, the reasons in
 //     Vietnamese, "Khối vàng bị đẩy chứ không được gắp lúc … s ở lượt …"); the same card with no WebGL (Review Focus 5).
 //   - Kiểm tra at 4×: nothing is said of a grab or a release; Lái tay is not offered, its keys do nothing, and the rounds end in the very
@@ -242,6 +243,13 @@ test.describe('the gripper lab on the real lessons (N19 E10)', () => {
     expect(cube.xCm).toBeLessThan(Math.max(...xs));
     expect(cube.yCm).toBeGreaterThan(Math.min(...ys));
     expect(cube.yCm).toBeLessThan(Math.max(...ys));
+    // N19 final fix (G2 I1): the lesson has no colour block, so the program never begins the colour sensor: the sensors' tag says the IR
+    // alone, with no "Màu" line, in 3D and on the 2D map.
+    await installReaders(page);
+    await expect.poll(async () => (await overlay(page))?.gripper?.label, { timeout: 30_000 }).toEqual([expect.stringMatching(/^IR: /)]);
+    await page.getByTestId('robot-viewmode').click();
+    await page.getByTestId('robot-topview').waitFor();
+    await expect.poll(async () => (await map(page))?.label?.lines, { timeout: 30_000 }).toEqual([expect.stringMatching(/^IR: /)]);
     expect(errors).toEqual([]);
   });
 

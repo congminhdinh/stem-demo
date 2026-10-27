@@ -236,6 +236,71 @@ describe('the gripper car on the 2D map (N19 E4)', () => {
   });
 });
 
+describe('the gripper car’s colour sensor on the 2D map as the run sets it up (N19 final fix, G2 I1)', () => {
+  // A run whose program has no colour block never begins the sensor (robot-run-session.ts `colorSensorsOn`): lessons 8, 9 and 11 said
+  // "Màu: chưa có số đọc" on every run, as the 3D view did (parts/sensor-overlay.ts reads the same field). The run in view is the one the
+  // store committed (color-sensors-on.ts): the store's frames by hand (TopView2D.rounds.test.tsx's), a publish and its frame inside act.
+  const mount = () => {
+    let next = 1;
+    const pending = new Map<number, (now: number) => void>();
+    const fake = fakeSession(scenario, gripperKit);
+    const store = createRobotRunStore(fake.session, {
+      requestFrame: (callback) => {
+        pending.set(next, callback);
+        return next++;
+      },
+      cancelFrame: (handle) => void pending.delete(handle),
+    });
+    store.getState().connect();
+    act(() =>
+      root.render(
+        <TextProvider locale="vi">
+          <TopView2D scenario={scenario} kit={gripperKit} model={robotModel(gripperKit, unoR3Board)} store={store} zoneLabel={(zone) => zoneLabelOf(vi_, zone)} reason="no-webgl" />
+        </TextProvider>,
+      ),
+    );
+    let now = 0;
+    const publish: typeof fake.publish = (snapshot) =>
+      act(() => {
+        fake.publish(snapshot);
+        now += 16;
+        const callbacks = [...pending.values()];
+        pending.clear();
+        callbacks.forEach((callback) => callback(now));
+      });
+    return { publish };
+  };
+
+  it('draws no colour ray, spot or tag line for a run that does not set it up; the IR’s beam and line as before', () => {
+    const { publish } = mount();
+    publish({ status: 'running', world: holding(), colorSensorsOn: [] });
+    expect(gripper().color).toMatchObject({ rayVisible: false, spotVisible: false });
+    expect(gripper().ir).toMatchObject({ visible: true, detected: true });
+    expect(gripper().label).toEqual({ visible: true, lines: ['IR: có vật'] });
+  });
+
+  it('draws them for a run that sets it up, and follows the run shown: on, off, on again', () => {
+    const { publish } = mount();
+    publish({ status: 'running', world: holding(), colorSensorsOn: ['color1'] });
+    expect(gripper().color).toMatchObject({ rayVisible: true, spotVisible: true, color: 'red' });
+    expect(gripper().label!.lines).toEqual(['IR: có vật', 'Màu: đỏ']);
+    publish({ status: 'running', world: holding({ t: 2.1 }), colorSensorsOn: [] });
+    expect(gripper().color).toMatchObject({ rayVisible: false, spotVisible: false });
+    expect(gripper().label!.lines).toEqual(['IR: có vật']);
+    publish({ status: 'running', world: holding({ t: 2.2 }), colorSensorsOn: ['color1'] });
+    expect(gripper().label!.lines).toEqual(['IR: có vật', 'Màu: đỏ']);
+  });
+
+  it('draws nothing more at rest with the sensor off: the same run, a new time', () => {
+    const { publish } = mount();
+    const off = Object.freeze([]) as readonly string[];
+    publish({ status: 'running', world: holding({ t: 2 }), colorSensorsOn: off });
+    const draws = readTopViewSensors()!.draws;
+    publish({ status: 'running', world: holding({ t: 2.1 }), colorSensorsOn: off });
+    expect(readTopViewSensors()!.draws).toBe(draws);
+  });
+});
+
 describe('the rover’s map has nothing of the gripper (N19 E4)', () => {
   it('no boom, jaws, ring, beam, spot or tag; its objects as they were', () => {
     const rover = productionKits.get({ id: 'ref-uno-rover', version: '0' }) as Kit;
