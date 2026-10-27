@@ -36,7 +36,7 @@ export function deliverRef(turnMs = Number(process.env.TURN ?? 900), carryMs = N
   );
 }
 
-export function pickRef(fast = Number(process.env.FAST ?? 50), dropCm = Number(process.env.DROP ?? 45)) {
+export function pickRef(fast = Number(process.env.FAST ?? 50), dropCm = Number(process.env.DROP ?? 35)) {
   return workspace(
     hat('stem_on_start', [
       lift('down', 'DOWN'),
